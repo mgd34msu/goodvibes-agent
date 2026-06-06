@@ -82,4 +82,46 @@ describe('AgentDocumentRegistry', () => {
     expect(resolved.versions).toHaveLength(1);
     expect(renderAgentDocumentMarkdown(resolved)).toContain('Comments: 0 open / 1 total');
   });
+
+  test('stores accepts and rejects AI suggestions through explicit review', () => {
+    const documents = registry();
+    const created = documents.create({
+      title: 'Suggestion Draft',
+      body: 'Original body.',
+      tags: ['draft'],
+    });
+    const suggested = documents.suggestUpdate(created.id, {
+      body: 'Suggested replacement body.',
+      tags: ['draft', 'accepted'],
+      summary: 'Rewrite for clarity.',
+      rationale: 'The replacement is more direct for the user.',
+    });
+
+    expect(suggested.suggestions).toHaveLength(1);
+    expect(suggested.suggestions[0]?.id).toBe('s1');
+    expect(suggested.suggestions[0]?.status).toBe('proposed');
+    expect(suggested.body).toBe('Original body.');
+    expect(suggested.versions).toHaveLength(1);
+    expect(documents.search('more direct')[0]?.id).toBe(created.id);
+    expect(renderAgentDocumentMarkdown(suggested)).toContain('Suggestions: 1 proposed / 1 total');
+
+    const accepted = documents.acceptSuggestion(created.id, 's1');
+    expect(accepted.body).toBe('Suggested replacement body.');
+    expect(accepted.tags).toEqual(['draft', 'accepted']);
+    expect(accepted.versions.map((version) => version.id)).toEqual(['v1', 'v2']);
+    expect(accepted.versions[1]?.summary).toBe('Rewrite for clarity.');
+    expect(accepted.suggestions[0]?.status).toBe('accepted');
+    expect(renderAgentDocumentMarkdown(accepted)).toContain('Suggestions: 0 proposed / 1 total');
+
+    const second = documents.suggestUpdate(created.id, {
+      body: 'Rejected replacement body.',
+      summary: 'Alternative rewrite.',
+      rationale: 'This rewrite is intentionally not used.',
+    });
+    const rejected = documents.rejectSuggestion(created.id, 's2');
+    expect(second.suggestions[1]?.status).toBe('proposed');
+    expect(rejected.suggestions[1]?.status).toBe('rejected');
+    expect(rejected.body).toBe('Suggested replacement body.');
+    expect(rejected.versions).toHaveLength(2);
+  });
 });

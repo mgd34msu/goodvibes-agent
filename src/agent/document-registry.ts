@@ -6,6 +6,7 @@ import { assertNoSecretLikeText } from './persona-registry.ts';
 
 export type AgentDocumentStatus = 'draft' | 'reviewed' | 'archived';
 export type AgentDocumentCommentStatus = 'open' | 'resolved';
+export type AgentDocumentSuggestionStatus = 'proposed' | 'accepted' | 'rejected';
 
 export interface AgentDocumentVersion {
   readonly id: string;
@@ -24,6 +25,20 @@ export interface AgentDocumentComment {
   readonly resolvedAt?: string;
 }
 
+export interface AgentDocumentSuggestion {
+  readonly id: string;
+  readonly title: string;
+  readonly body: string;
+  readonly tags: readonly string[];
+  readonly documentStatus?: AgentDocumentStatus;
+  readonly summary: string;
+  readonly rationale: string;
+  readonly status: AgentDocumentSuggestionStatus;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly resolvedAt?: string;
+}
+
 export interface AgentDocumentRecord {
   readonly id: string;
   readonly title: string;
@@ -34,6 +49,7 @@ export interface AgentDocumentRecord {
   readonly updatedAt: string;
   readonly versions: readonly AgentDocumentVersion[];
   readonly comments: readonly AgentDocumentComment[];
+  readonly suggestions: readonly AgentDocumentSuggestion[];
   readonly lastArtifactId?: string;
 }
 
@@ -55,6 +71,15 @@ export interface AgentDocumentUpdateInput {
 
 export interface AgentDocumentCommentInput {
   readonly body: string;
+}
+
+export interface AgentDocumentSuggestionInput {
+  readonly title?: string;
+  readonly body: string;
+  readonly tags?: readonly string[];
+  readonly status?: AgentDocumentStatus;
+  readonly summary?: string;
+  readonly rationale?: string;
 }
 
 export interface AgentDocumentSnapshot {
@@ -121,6 +146,11 @@ function commentStatus(value: unknown): AgentDocumentCommentStatus {
   return value === 'resolved' ? 'resolved' : 'open';
 }
 
+function suggestionStatus(value: unknown): AgentDocumentSuggestionStatus {
+  if (value === 'accepted' || value === 'rejected') return value;
+  return 'proposed';
+}
+
 function assertDocumentContentSafe(fields: readonly string[]): void {
   try {
     assertNoSecretLikeText(fields);
@@ -162,6 +192,30 @@ function parseComment(value: unknown): AgentDocumentComment | null {
   };
 }
 
+function parseSuggestion(value: unknown): AgentDocumentSuggestion | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id).trim();
+  const title = normalizeTitle(readString(value.title));
+  const body = readString(value.body).trim();
+  const summary = readString(value.summary).trim();
+  if (!id || !title || !body || !summary) return null;
+  const createdAt = readString(value.createdAt, nowIso());
+  const resolvedAt = readString(value.resolvedAt).trim();
+  return {
+    id,
+    title,
+    body,
+    tags: readStringArray(value.tags),
+    ...(value.documentStatus === undefined ? {} : { documentStatus: documentStatus(value.documentStatus) }),
+    summary,
+    rationale: readString(value.rationale).trim(),
+    status: suggestionStatus(value.status),
+    createdAt,
+    updatedAt: readString(value.updatedAt, createdAt),
+    resolvedAt: resolvedAt || undefined,
+  };
+}
+
 function parseDocument(value: unknown): AgentDocumentRecord | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id).trim();
@@ -175,6 +229,9 @@ function parseDocument(value: unknown): AgentDocumentRecord | null {
   const comments = Array.isArray(value.comments)
     ? value.comments.map(parseComment).filter((entry): entry is AgentDocumentComment => entry !== null)
     : [];
+  const suggestions = Array.isArray(value.suggestions)
+    ? value.suggestions.map(parseSuggestion).filter((entry): entry is AgentDocumentSuggestion => entry !== null)
+    : [];
   const lastArtifactId = readString(value.lastArtifactId).trim();
   return {
     id,
@@ -186,6 +243,7 @@ function parseDocument(value: unknown): AgentDocumentRecord | null {
     updatedAt: readString(value.updatedAt, createdAt),
     versions,
     comments,
+    suggestions,
     lastArtifactId: lastArtifactId || undefined,
   };
 }
@@ -213,13 +271,15 @@ export function renderAgentDocumentMarkdown(document: AgentDocumentRecord): stri
   const tags = document.tags.length > 0 ? `\nTags: ${document.tags.join(', ')}` : '';
   const openComments = document.comments.filter((comment) => comment.status === 'open').length;
   const comments = document.comments.length > 0 ? `\nComments: ${openComments} open / ${document.comments.length} total` : '';
+  const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
+  const suggestions = document.suggestions.length > 0 ? `\nSuggestions: ${proposedSuggestions} proposed / ${document.suggestions.length} total` : '';
   return [
     `# ${document.title}`,
     '',
     `Document ID: ${document.id}`,
     `Version: ${document.versions.at(-1)?.id ?? 'v1'}`,
     `Status: ${document.status}`,
-    `Updated: ${document.updatedAt}${tags}${comments}`,
+    `Updated: ${document.updatedAt}${tags}${comments}${suggestions}`,
     '',
     document.body,
     '',
@@ -256,6 +316,7 @@ export class AgentDocumentRegistry {
       document.lastArtifactId ?? '',
       ...document.tags,
       ...document.comments.map((comment) => `${comment.id} ${comment.status} ${comment.body}`),
+      ...document.suggestions.map((suggestion) => `${suggestion.id} ${suggestion.status} ${suggestion.summary} ${suggestion.rationale} ${suggestion.body}`),
     ].some((field) => field.toLowerCase().includes(normalized)));
   }
 
@@ -296,6 +357,7 @@ export class AgentDocumentRegistry {
       updatedAt: timestamp,
       versions: [version],
       comments: [],
+      suggestions: [],
     };
     this.writeStore({ ...store, documents: [...store.documents, document] });
     return document;
@@ -405,6 +467,100 @@ export class AgentDocumentRegistry {
     return updated;
   }
 
+  public suggestUpdate(idOrTitle: string, input: AgentDocumentSuggestionInput): AgentDocumentRecord {
+    const store = this.readStore();
+    const existing = this.findInStore(store, idOrTitle);
+    if (!existing) throw new Error(`Unknown document ${idOrTitle}`);
+    const title = input.title === undefined ? existing.title : normalizeTitle(input.title);
+    const body = input.body.trim();
+    this.validateRequired(title, body);
+    const tags = input.tags === undefined ? existing.tags : normalizeList(input.tags);
+    const summary = input.summary?.trim() || 'AI suggested revision.';
+    const rationale = input.rationale?.trim() || 'No rationale provided.';
+    assertDocumentContentSafe([title, body, summary, rationale, ...tags]);
+    const timestamp = nowIso();
+    const suggestion: AgentDocumentSuggestion = {
+      id: this.nextSuggestionId(existing.suggestions),
+      title,
+      body,
+      tags,
+      ...(input.status === undefined ? {} : { documentStatus: input.status }),
+      summary,
+      rationale,
+      status: 'proposed',
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const updated: AgentDocumentRecord = {
+      ...existing,
+      suggestions: [...existing.suggestions, suggestion],
+      updatedAt: timestamp,
+    };
+    this.writeStore({
+      ...store,
+      documents: store.documents.map((document) => document.id === existing.id ? updated : document),
+    });
+    return updated;
+  }
+
+  public acceptSuggestion(idOrTitle: string, suggestionId: string): AgentDocumentRecord {
+    const store = this.readStore();
+    const existing = this.findInStore(store, idOrTitle);
+    if (!existing) throw new Error(`Unknown document ${idOrTitle}`);
+    const target = this.findSuggestion(existing, suggestionId);
+    if (!target) throw new Error(`Unknown document suggestion ${suggestionId}`);
+    if (target.status === 'accepted') return existing;
+    if (target.status === 'rejected') throw new Error(`Document suggestion ${target.id} is already rejected.`);
+    const timestamp = nowIso();
+    const version: AgentDocumentVersion = {
+      id: `v${existing.versions.length + 1}`,
+      title: target.title,
+      body: target.body,
+      summary: target.summary,
+      createdAt: timestamp,
+    };
+    const updated: AgentDocumentRecord = {
+      ...existing,
+      title: target.title,
+      body: target.body,
+      tags: [...target.tags],
+      status: target.documentStatus ?? existing.status,
+      updatedAt: timestamp,
+      versions: [...existing.versions, version].slice(-MAX_VERSIONS),
+      suggestions: existing.suggestions.map((suggestion) => suggestion.id === target.id
+        ? { ...suggestion, status: 'accepted', updatedAt: timestamp, resolvedAt: timestamp }
+        : suggestion),
+    };
+    this.writeStore({
+      ...store,
+      documents: store.documents.map((document) => document.id === existing.id ? updated : document),
+    });
+    return updated;
+  }
+
+  public rejectSuggestion(idOrTitle: string, suggestionId: string): AgentDocumentRecord {
+    const store = this.readStore();
+    const existing = this.findInStore(store, idOrTitle);
+    if (!existing) throw new Error(`Unknown document ${idOrTitle}`);
+    const target = this.findSuggestion(existing, suggestionId);
+    if (!target) throw new Error(`Unknown document suggestion ${suggestionId}`);
+    if (target.status === 'accepted') throw new Error(`Document suggestion ${target.id} is already accepted.`);
+    if (target.status === 'rejected') return existing;
+    const timestamp = nowIso();
+    const updated: AgentDocumentRecord = {
+      ...existing,
+      updatedAt: timestamp,
+      suggestions: existing.suggestions.map((suggestion) => suggestion.id === target.id
+        ? { ...suggestion, status: 'rejected', updatedAt: timestamp, resolvedAt: timestamp }
+        : suggestion),
+    };
+    this.writeStore({
+      ...store,
+      documents: store.documents.map((document) => document.id === existing.id ? updated : document),
+    });
+    return updated;
+  }
+
   public markReviewed(idOrTitle: string): AgentDocumentRecord {
     return this.update(idOrTitle, { status: 'reviewed', summary: 'Marked reviewed.' });
   }
@@ -455,6 +611,21 @@ export class AgentDocumentRegistry {
       if (!existing.has(candidate)) return candidate;
     }
     throw new Error('Unable to allocate a unique document comment id.');
+  }
+
+  private nextSuggestionId(suggestions: readonly AgentDocumentSuggestion[]): string {
+    const existing = new Set(suggestions.map((suggestion) => suggestion.id));
+    for (let index = 1; index < 10_000; index += 1) {
+      const candidate = `s${index}`;
+      if (!existing.has(candidate)) return candidate;
+    }
+    throw new Error('Unable to allocate a unique document suggestion id.');
+  }
+
+  private findSuggestion(document: AgentDocumentRecord, suggestionId: string): AgentDocumentSuggestion | null {
+    const lookup = suggestionId.trim().toLowerCase();
+    if (!lookup) throw new Error('suggestionId is required.');
+    return document.suggestions.find((suggestion) => suggestion.id.toLowerCase() === lookup) ?? null;
   }
 
   private findInStore(store: DocumentStoreFile, idOrTitle: string): AgentDocumentRecord | null {

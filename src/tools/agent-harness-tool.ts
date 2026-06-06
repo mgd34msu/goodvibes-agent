@@ -375,6 +375,9 @@ async function runWorkspaceEditorAction(
     || editor.kind === 'document-review'
     || editor.kind === 'document-comment'
     || editor.kind === 'document-resolve-comment'
+    || editor.kind === 'document-suggest'
+    || editor.kind === 'document-accept-suggestion'
+    || editor.kind === 'document-reject-suggestion'
     || editor.kind === 'document-insert-artifact'
     || editor.kind === 'document-export'
   ) {

@@ -3,11 +3,13 @@ import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './ag
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export interface AgentDocumentWorkspaceToolArgs {
-  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'export' | 'insertArtifact';
+  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'suggest' | 'acceptSuggestion' | 'rejectSuggestion' | 'export' | 'insertArtifact';
   readonly documentId?: string;
   readonly artifactId?: string;
   readonly commentId?: string;
   readonly comment?: string;
+  readonly suggestionId?: string;
+  readonly suggestionRationale?: string;
   readonly query?: string;
   readonly title?: string;
   readonly body?: string;
@@ -150,6 +152,56 @@ export function createAgentDocumentResolveCommentEditor(): AgentWorkspaceLocalEd
   };
 }
 
+export function createAgentDocumentSuggestEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-suggest',
+    mode: 'create',
+    title: 'Propose Document Suggestion',
+    selectedFieldIndex: 0,
+    message: 'Store an AI suggested replacement draft for user review. This does not change the current document until the suggestion is accepted.',
+    fields: [
+      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title.' },
+      { id: 'title', label: 'Suggested title', value: '', required: false, multiline: false, hint: 'Optional replacement title. Blank keeps the current title.' },
+      { id: 'body', label: 'Suggested body', value: '', required: true, multiline: true, hint: 'Full replacement markdown body. Ctrl-J inserts a new line.' },
+      { id: 'tags', label: 'Suggested tags', value: '', required: false, multiline: false, hint: 'Optional replacement comma-separated tags. Blank keeps current tags.' },
+      { id: 'status', label: 'Suggested status', value: '', required: false, multiline: false, hint: 'Optional draft, reviewed, or archived.' },
+      { id: 'changeSummary', label: 'Change note', value: 'AI suggested revision.', required: false, multiline: false, hint: 'Short note shown in suggestion and version history after accept.' },
+      { id: 'suggestionRationale', label: 'Rationale', value: '', required: false, multiline: true, hint: 'Why this replacement helps the user. Ctrl-J inserts a new line.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save this pending suggestion.' },
+    ],
+  };
+}
+
+export function createAgentDocumentAcceptSuggestionEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-accept-suggestion',
+    mode: 'create',
+    title: 'Accept Document Suggestion',
+    selectedFieldIndex: 0,
+    message: 'Accept one pending document suggestion and append a new content version.',
+    fields: [
+      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title.' },
+      { id: 'suggestionId', label: 'Suggestion id', value: '', required: true, multiline: false, hint: 'Suggestion id such as s1.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to apply this suggestion.' },
+    ],
+  };
+}
+
+export function createAgentDocumentRejectSuggestionEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-reject-suggestion',
+    mode: 'create',
+    title: 'Reject Document Suggestion',
+    selectedFieldIndex: 0,
+    message: 'Reject one pending document suggestion without changing the document body.',
+    fields: [
+      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title.' },
+      { id: 'suggestionId', label: 'Suggestion id', value: '', required: true, multiline: false, hint: 'Suggestion id such as s1.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to reject this suggestion.' },
+    ],
+  };
+}
+
 export function createAgentDocumentExportEditor(): AgentWorkspaceLocalEditor {
   return {
     kind: 'document-export',
@@ -260,6 +312,40 @@ export function buildAgentDocumentToolArgs(
       explicitUserRequest,
     };
   }
+  if (editor.kind === 'document-suggest') {
+    const status = readField('status').trim();
+    const suggestionRationale = readField('suggestionRationale').trim();
+    return {
+      mode: 'suggest',
+      documentId,
+      ...(title ? { title } : {}),
+      body,
+      ...(tags.length > 0 ? { tags } : {}),
+      ...(status ? { status } : {}),
+      ...(changeSummary ? { changeSummary } : {}),
+      ...(suggestionRationale ? { suggestionRationale } : {}),
+      confirm: true,
+      explicitUserRequest,
+    };
+  }
+  if (editor.kind === 'document-accept-suggestion') {
+    return {
+      mode: 'acceptSuggestion',
+      documentId,
+      suggestionId: readField('suggestionId').trim(),
+      confirm: true,
+      explicitUserRequest,
+    };
+  }
+  if (editor.kind === 'document-reject-suggestion') {
+    return {
+      mode: 'rejectSuggestion',
+      documentId,
+      suggestionId: readField('suggestionId').trim(),
+      confirm: true,
+      explicitUserRequest,
+    };
+  }
   if (editor.kind === 'document-insert-artifact') {
     const placement = readField('placement').trim();
     const sectionTitle = readField('sectionTitle').trim();
@@ -303,6 +389,9 @@ export function buildAgentDocumentPromptSubmission(
     || editor.kind === 'document-review'
     || editor.kind === 'document-comment'
     || editor.kind === 'document-resolve-comment'
+    || editor.kind === 'document-suggest'
+    || editor.kind === 'document-accept-suggestion'
+    || editor.kind === 'document-reject-suggestion'
     || editor.kind === 'document-insert-artifact'
     || editor.kind === 'document-export';
   if (mutation && !isAffirmative(readField('confirm'))) {
@@ -342,6 +431,8 @@ export function buildAgentDocumentPromptSubmission(
     args.artifactId ? `artifactId: ${JSON.stringify(args.artifactId)}` : 'artifactId: none',
     args.commentId ? `commentId: ${JSON.stringify(args.commentId)}` : 'commentId: none',
     args.comment ? `comment: ${JSON.stringify(args.comment)}` : 'comment: none',
+    args.suggestionId ? `suggestionId: ${JSON.stringify(args.suggestionId)}` : 'suggestionId: none',
+    args.suggestionRationale ? `suggestionRationale: ${JSON.stringify(args.suggestionRationale)}` : 'suggestionRationale: none',
     args.query ? `query: ${JSON.stringify(args.query)}` : 'query: none',
     args.title ? `title: ${JSON.stringify(args.title)}` : 'title: none',
     args.body ? `body: ${JSON.stringify(args.body)}` : 'body: none',

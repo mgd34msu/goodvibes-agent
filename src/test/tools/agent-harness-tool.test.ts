@@ -717,7 +717,8 @@ describe('agent_harness tool', () => {
         readonly nextActions: readonly string[];
       }>(fixture, { mode: 'document_ops', includeParameters: true });
       expect(ops.policy).toContain('model comparison');
-      expect(ops.nextActions.join('\n')).toContain('AI suggestion review');
+      expect(ops.policy).toContain('AI suggestion review');
+      expect(ops.nextActions.join('\n')).not.toContain('AI suggestion review');
 
       const documents = ops.lanes.find((lane) => lane.id === 'documents');
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
@@ -731,6 +732,9 @@ describe('agent_harness tool', () => {
       expect(documents?.actionIds).toContain('document-revise-draft');
       expect(documents?.actionIds).toContain('document-comment-draft');
       expect(documents?.actionIds).toContain('document-resolve-comment');
+      expect(documents?.actionIds).toContain('document-suggest-draft');
+      expect(documents?.actionIds).toContain('document-accept-suggestion');
+      expect(documents?.actionIds).toContain('document-reject-suggestion');
       expect(documents?.actionIds).toContain('document-insert-artifact');
       expect(documents?.actionIds).toContain('document-export-draft');
       expect(uploads?.status).toBe('ready');
@@ -947,6 +951,9 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-comment-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-resolve-comment')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-suggest-draft')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-accept-suggestion')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-reject-suggestion')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-insert-artifact')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-insert-document')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
@@ -2943,6 +2950,71 @@ describe('agent_harness tool', () => {
       expect(resolvedComment.success).toBe(true);
       expect(resolvedComment.output).toContain('Resolved Agent document comment');
 
+      const suggested = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-suggest-draft',
+        confirm: true,
+        explicitUserRequest: 'Propose an AI suggestion for the launch document draft.',
+        fields: {
+          documentId: 'launch-plan',
+          body: 'Initial launch draft.\n\nAdd rollout checklist.\n\nOwner: Launch team.',
+          changeSummary: 'Added launch owner.',
+          suggestionRationale: 'The launch plan needs a visible owner before review.',
+          confirm: 'yes',
+        },
+      });
+      expect(suggested.success).toBe(true);
+      expect(suggested.output).toContain('"tool": "agent_documents"');
+      expect(suggested.output).toContain('Added Agent document suggestion');
+      expect(suggested.output).toContain('suggestion s1');
+      expect(suggested.output).toContain('versions 2');
+
+      const acceptedSuggestion = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-accept-suggestion',
+        confirm: true,
+        explicitUserRequest: 'Accept the launch document suggestion.',
+        fields: {
+          documentId: 'launch-plan',
+          suggestionId: 's1',
+          confirm: 'yes',
+        },
+      });
+      expect(acceptedSuggestion.success).toBe(true);
+      expect(acceptedSuggestion.output).toContain('Accepted Agent document suggestion');
+      expect(acceptedSuggestion.output).toContain('versions 3');
+
+      const rejectCandidate = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-suggest-draft',
+        confirm: true,
+        explicitUserRequest: 'Propose a second launch document suggestion.',
+        fields: {
+          documentId: 'launch-plan',
+          body: 'Rejected launch rewrite.',
+          changeSummary: 'Alternative rewrite.',
+          suggestionRationale: 'This is a less useful option.',
+          confirm: 'yes',
+        },
+      });
+      expect(rejectCandidate.success).toBe(true);
+      expect(rejectCandidate.output).toContain('suggestion s2');
+
+      const rejectedSuggestion = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-reject-suggestion',
+        confirm: true,
+        explicitUserRequest: 'Reject the second launch document suggestion.',
+        fields: {
+          documentId: 'launch-plan',
+          suggestionId: 's2',
+          confirm: 'yes',
+        },
+      });
+      expect(rejectedSuggestion.success).toBe(true);
+      expect(rejectedSuggestion.output).toContain('Rejected Agent document suggestion');
+      expect(rejectedSuggestion.output).toContain('versions 3');
+
       const sourceArtifact = await artifacts.store.create({
         kind: 'document',
         mimeType: 'text/markdown',
@@ -2965,7 +3037,7 @@ describe('agent_harness tool', () => {
       expect(inserted.success).toBe(true);
       expect(inserted.output).toContain('"tool": "agent_documents"');
       expect(inserted.output).toContain('Inserted artifact into Agent document');
-      expect(inserted.output).toContain('versions 3');
+      expect(inserted.output).toContain('versions 4');
 
       const exported = await fixture.tool.execute({
         mode: 'run_workspace_action',

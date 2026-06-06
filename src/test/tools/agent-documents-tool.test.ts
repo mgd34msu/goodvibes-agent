@@ -120,6 +120,60 @@ describe('agent_documents tool', () => {
     expect(resolved.output).toContain('Resolved Agent document comment');
     expect(resolved.output).toContain('open 0/1');
 
+    const suggestion = await tool.execute({
+      mode: 'suggest',
+      documentId: 'launch-plan',
+      body: 'Initial launch draft.\n\nAdd rollout checklist.\n\nOwner: Launch team.',
+      changeSummary: 'Added a concrete owner.',
+      suggestionRationale: 'The user asked for a clearer launch owner.',
+      confirm: true,
+      explicitUserRequest: 'Suggest a clearer launch plan draft.',
+    });
+    expect(suggestion.success).toBe(true);
+    expect(suggestion.output).toContain('Added Agent document suggestion');
+    expect(suggestion.output).toContain('suggestion s1');
+    expect(suggestion.output).toContain('versions 3');
+
+    const suggestedShow = await tool.execute({ mode: 'show', documentId: 'launch-plan', includeVersions: true });
+    expect(suggestedShow.success).toBe(true);
+    expect(suggestedShow.output).toContain('suggestions 1/1');
+    expect(suggestedShow.output).toContain('s1  proposed');
+    expect(suggestedShow.output).toContain('The user asked for a clearer launch owner.');
+
+    const acceptedSuggestion = await tool.execute({
+      mode: 'acceptSuggestion',
+      documentId: 'launch-plan',
+      suggestionId: 's1',
+      confirm: true,
+      explicitUserRequest: 'Accept the clearer launch plan suggestion.',
+    });
+    expect(acceptedSuggestion.success).toBe(true);
+    expect(acceptedSuggestion.output).toContain('Accepted Agent document suggestion');
+    expect(acceptedSuggestion.output).toContain('versions 4');
+
+    const rejectCandidate = await tool.execute({
+      mode: 'suggest',
+      documentId: 'launch-plan',
+      body: 'Rejected launch rewrite.',
+      changeSummary: 'Alternative rewrite.',
+      suggestionRationale: 'This alternative is not as useful.',
+      confirm: true,
+      explicitUserRequest: 'Propose an alternative launch plan rewrite.',
+    });
+    expect(rejectCandidate.success).toBe(true);
+    expect(rejectCandidate.output).toContain('suggestion s2');
+
+    const rejectedSuggestion = await tool.execute({
+      mode: 'rejectSuggestion',
+      documentId: 'launch-plan',
+      suggestionId: 's2',
+      confirm: true,
+      explicitUserRequest: 'Reject the alternative launch plan rewrite.',
+    });
+    expect(rejectedSuggestion.success).toBe(true);
+    expect(rejectedSuggestion.output).toContain('Rejected Agent document suggestion');
+    expect(rejectedSuggestion.output).toContain('versions 4');
+
     const review = await tool.execute({
       mode: 'review',
       documentId: 'launch-plan',

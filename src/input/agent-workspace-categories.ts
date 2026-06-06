@@ -331,7 +331,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'DAY-TO-DAY',
     label: 'Documents & Compare',
     summary: 'Draft docs, files, artifacts, and compare readiness.',
-    detail: 'Use this workspace when the user is producing or evaluating a document. Versioned drafts, review comments, artifact insertion/export, upload, source, artifact browsing, media, and blind comparison routes stay visible here; AI suggestion review remains an explicit next step.',
+    detail: 'Use this workspace when the user is producing or evaluating a document. Versioned drafts, review comments, AI suggestion review, artifact insertion/export, upload, source, artifact browsing, media, and blind comparison routes stay visible here.',
     actions: [
       { id: 'document-ops-map', label: 'Readiness map', detail: 'Use agent_harness mode:"document_ops" to see document, upload, export, source, media, artifact, and blind compare lanes.', kind: 'guidance', safety: 'read-only' },
       { id: 'document-browse-drafts', label: 'Browse document drafts', detail: 'List Agent-owned markdown drafts with status, version counts, tags, and exported artifact ids.', editorKind: 'document-browse', kind: 'editor', safety: 'read-only' },
@@ -341,6 +341,9 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'document-review-draft', label: 'Mark draft reviewed', detail: 'Open a confirmed form that marks one Agent-owned markdown draft reviewed.', editorKind: 'document-review', kind: 'editor', safety: 'safe' },
       { id: 'document-comment-draft', label: 'Add review comment', detail: 'Open a confirmed form that adds one review comment without changing the document body.', editorKind: 'document-comment', kind: 'editor', safety: 'safe' },
       { id: 'document-resolve-comment', label: 'Resolve review comment', detail: 'Open a confirmed form that resolves one document review comment by id.', editorKind: 'document-resolve-comment', kind: 'editor', safety: 'safe' },
+      { id: 'document-suggest-draft', label: 'Propose AI suggestion', detail: 'Open a confirmed form that stores a suggested replacement draft for review without changing the current document body.', editorKind: 'document-suggest', kind: 'editor', safety: 'safe' },
+      { id: 'document-accept-suggestion', label: 'Accept suggestion', detail: 'Open a confirmed form that applies one pending document suggestion as a new content version.', editorKind: 'document-accept-suggestion', kind: 'editor', safety: 'safe' },
+      { id: 'document-reject-suggestion', label: 'Reject suggestion', detail: 'Open a confirmed form that rejects one pending document suggestion without changing the document body.', editorKind: 'document-reject-suggestion', kind: 'editor', safety: 'safe' },
       { id: 'document-insert-artifact', label: 'Insert artifact in draft', detail: 'Open a confirmed form that inserts a saved artifact into one Agent-owned markdown draft as a new version.', editorKind: 'document-insert-artifact', kind: 'editor', safety: 'safe' },
       { id: 'document-export-draft', label: 'Export document artifact', detail: 'Open a confirmed form that exports one document draft as a markdown artifact.', editorKind: 'document-export', kind: 'editor', safety: 'safe' },
       { id: 'document-draft-chat', label: 'Draft in conversation', detail: 'Draft or revise a document in the main conversation, then export or save the resulting artifact through the visible export routes.', kind: 'guidance', safety: 'safe' },

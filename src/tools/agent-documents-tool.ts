@@ -9,7 +9,7 @@ import {
   type AgentDocumentStatus,
 } from '../agent/document-registry.ts';
 
-export type AgentDocumentsToolMode = 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'export' | 'insertArtifact';
+export type AgentDocumentsToolMode = 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'suggest' | 'acceptSuggestion' | 'rejectSuggestion' | 'export' | 'insertArtifact';
 
 export interface AgentDocumentsToolArgs {
   readonly mode?: unknown;
@@ -22,6 +22,8 @@ export interface AgentDocumentsToolArgs {
   readonly artifactId?: unknown;
   readonly commentId?: unknown;
   readonly comment?: unknown;
+  readonly suggestionId?: unknown;
+  readonly suggestionRationale?: unknown;
   readonly placement?: unknown;
   readonly sectionTitle?: unknown;
   readonly includeContent?: unknown;
@@ -34,7 +36,7 @@ export interface AgentDocumentsToolArgs {
 
 type AgentDocumentArtifactStore = Partial<Pick<ArtifactStore, 'create' | 'get' | 'readContent'>>;
 
-const MODES: readonly AgentDocumentsToolMode[] = ['list', 'show', 'create', 'update', 'review', 'comment', 'resolveComment', 'export', 'insertArtifact'];
+const MODES: readonly AgentDocumentsToolMode[] = ['list', 'show', 'create', 'update', 'review', 'comment', 'resolveComment', 'suggest', 'acceptSuggestion', 'rejectSuggestion', 'export', 'insertArtifact'];
 const MAX_INSERT_TEXT_BYTES = 40_000;
 
 function isMode(value: unknown): value is AgentDocumentsToolMode {
@@ -101,6 +103,12 @@ function requireCommentId(args: AgentDocumentsToolArgs): string {
   return id;
 }
 
+function requireSuggestionId(args: AgentDocumentsToolArgs): string {
+  const id = readString(args.suggestionId);
+  if (!id) throw new Error('suggestionId is required.');
+  return id;
+}
+
 function requireConfirmed(args: AgentDocumentsToolArgs, action: string): void {
   const explicitUserRequest = readString(args.explicitUserRequest);
   if (!explicitUserRequest) throw new Error(`${action} requires explicitUserRequest with the user's exact request or a short faithful summary.`);
@@ -112,7 +120,9 @@ function formatDocumentSummary(document: AgentDocumentRecord): string {
   const artifact = document.lastArtifactId ? ` artifact ${document.lastArtifactId}` : '';
   const openComments = document.comments.filter((comment) => comment.status === 'open').length;
   const comments = document.comments.length > 0 ? ` comments ${openComments}/${document.comments.length}` : '';
-  return `${document.id}  ${document.status}  versions ${document.versions.length}${comments}  updated ${document.updatedAt}${tags}${artifact}  ${document.title}`;
+  const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
+  const suggestions = document.suggestions.length > 0 ? ` suggestions ${proposedSuggestions}/${document.suggestions.length}` : '';
+  return `${document.id}  ${document.status}  versions ${document.versions.length}${comments}${suggestions}  updated ${document.updatedAt}${tags}${artifact}  ${document.title}`;
 }
 
 function formatList(documents: readonly AgentDocumentRecord[], total: number, query: string): string {
@@ -133,6 +143,7 @@ function formatList(documents: readonly AgentDocumentRecord[], total: number, qu
 
 function formatShow(document: AgentDocumentRecord, includeVersions: boolean): string {
   const openComments = document.comments.filter((comment) => comment.status === 'open').length;
+  const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
   const lines = [
     'Agent document',
     `  id ${document.id}`,
@@ -141,6 +152,7 @@ function formatShow(document: AgentDocumentRecord, includeVersions: boolean): st
     `  tags ${document.tags.join(', ') || '(none)'}`,
     `  versions ${document.versions.length}`,
     `  comments ${openComments}/${document.comments.length}`,
+    `  suggestions ${proposedSuggestions}/${document.suggestions.length}`,
     `  created ${document.createdAt}`,
     `  updated ${document.updatedAt}`,
     `  lastArtifact ${document.lastArtifactId ?? '(none)'}`,
@@ -159,6 +171,13 @@ function formatShow(document: AgentDocumentRecord, includeVersions: boolean): st
       '',
       'Comments',
       ...document.comments.map((comment) => `  - ${comment.id}  ${comment.status}  ${comment.createdAt}  ${comment.body}`),
+    );
+  }
+  if (document.suggestions.length > 0) {
+    lines.push(
+      '',
+      'Suggestions',
+      ...document.suggestions.map((suggestion) => `  - ${suggestion.id}  ${suggestion.status}  ${suggestion.createdAt}  ${suggestion.summary}  ${suggestion.rationale}`),
     );
   }
   return lines.join('\n');
@@ -331,7 +350,7 @@ export function createAgentDocumentsTool(
   return {
     definition: {
       name: 'agent_documents',
-      description: 'Create, comment on, insert artifacts, and export drafts.',
+      description: 'Create, review suggestions, insert artifacts, and export drafts.',
       parameters: {
         type: 'object',
         properties: {
@@ -373,6 +392,14 @@ export function createAgentDocumentsTool(
           comment: {
             type: 'string',
             description: 'Review comment body for mode:"comment".',
+          },
+          suggestionId: {
+            type: 'string',
+            description: 'Suggestion id for acceptSuggestion or rejectSuggestion.',
+          },
+          suggestionRationale: {
+            type: 'string',
+            description: 'Why the suggested replacement helps the user.',
           },
           artifactId: {
             type: 'string',
@@ -501,6 +528,47 @@ export function createAgentDocumentsTool(
             `  document ${document.id}`,
             `  comment ${readString(args.commentId)}`,
             `  open ${document.comments.filter((comment) => comment.status === 'open').length}/${document.comments.length}`,
+          ].join('\n'));
+        }
+        if (mode === 'suggest') {
+          requireConfirmed(args, 'Agent document suggestion');
+          const document = registry.suggestUpdate(requireDocumentId(args), {
+            title: args.title === undefined ? undefined : readString(args.title),
+            body: readString(args.body),
+            tags: args.tags === undefined ? undefined : readStringList(args.tags),
+            status: readStatus(args.status),
+            summary: readString(args.changeSummary) || 'AI suggested revision.',
+            rationale: readString(args.suggestionRationale) || 'No rationale provided.',
+          });
+          const latest = document.suggestions.at(-1);
+          return output([
+            'Added Agent document suggestion',
+            `  document ${document.id}`,
+            `  suggestion ${latest?.id ?? '(unknown)'}`,
+            `  proposed ${document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length}/${document.suggestions.length}`,
+            `  versions ${document.versions.length}`,
+          ].join('\n'));
+        }
+        if (mode === 'acceptSuggestion') {
+          requireConfirmed(args, 'Agent document suggestion acceptance');
+          const document = registry.acceptSuggestion(requireDocumentId(args), requireSuggestionId(args));
+          return output([
+            'Accepted Agent document suggestion',
+            `  document ${document.id}`,
+            `  suggestion ${readString(args.suggestionId)}`,
+            `  versions ${document.versions.length}`,
+            `  proposed ${document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length}/${document.suggestions.length}`,
+          ].join('\n'));
+        }
+        if (mode === 'rejectSuggestion') {
+          requireConfirmed(args, 'Agent document suggestion rejection');
+          const document = registry.rejectSuggestion(requireDocumentId(args), requireSuggestionId(args));
+          return output([
+            'Rejected Agent document suggestion',
+            `  document ${document.id}`,
+            `  suggestion ${readString(args.suggestionId)}`,
+            `  versions ${document.versions.length}`,
+            `  proposed ${document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length}/${document.suggestions.length}`,
           ].join('\n'));
         }
         if (mode === 'insertArtifact') {
