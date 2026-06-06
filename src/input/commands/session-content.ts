@@ -197,7 +197,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
     argsHint: '',
     handler(args, ctx) {
       if (args.length > 0) {
-        ctx.print('Usage: /undo\n  Removes the last conversation turn. File edit undo belongs to the delegated GoodVibes TUI session.');
+        ctx.print('Usage: /undo\n  Removes the last conversation turn. Use file_recovery in agent_harness for local file edit undo.');
         return;
       }
       const success = ctx.session.conversationManager.undo();
@@ -217,7 +217,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
     argsHint: '',
     handler(args, ctx) {
       if (args.length > 0) {
-        ctx.print('Usage: /redo\n  Restores the last undone conversation turn. File edit redo belongs to the delegated GoodVibes TUI session.');
+        ctx.print('Usage: /redo\n  Restores the last undone conversation turn. Use file_recovery in agent_harness for local file edit redo.');
         return;
       }
       const success = ctx.session.conversationManager.redo();

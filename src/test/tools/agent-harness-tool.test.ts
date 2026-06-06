@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
-import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { PanelManager } from '../../panels/panel-manager.ts';
@@ -181,6 +181,7 @@ function makeFixture(options: {
   });
   registerHarnessFixturePanels(panelManager);
   const toolRegistry = new ToolRegistry();
+  const fileUndoManager = new FileUndoManager();
   const printed: string[] = [];
   const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
   const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
@@ -330,8 +331,8 @@ function makeFixture(options: {
     },
     openSelection,
     workspace: options.keybindings === false
-      ? { shellPaths: paths, panelManager, bookmarkManager }
-      : { shellPaths: paths, panelManager, keybindingsManager, bookmarkManager },
+      ? { shellPaths: paths, panelManager, bookmarkManager, fileUndoManager }
+      : { shellPaths: paths, panelManager, keybindingsManager, bookmarkManager, fileUndoManager },
     platform: {
       configManager,
       serviceRegistry: {
@@ -563,6 +564,7 @@ describe('agent_harness tool', () => {
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
       expect(summaryJson.modeGuide?.discover).toContain('execution_posture');
+      expect(summaryJson.modeGuide?.discover).toContain('file_recovery');
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
       expect(summaryJson.modeGuide?.discover).toContain('autonomy_intake');
       expect(summaryJson.modeGuide?.discover).toContain('research_runs');
@@ -613,6 +615,10 @@ describe('agent_harness tool', () => {
       const executionModes = await fixture.tool.execute({ mode: 'modes', query: 'local shell execution' });
       expect(executionModes.success).toBe(true);
       expect(executionModes.output).toContain('execution_posture');
+
+      const recoveryModes = await fixture.tool.execute({ mode: 'modes', query: 'file edit undo recovery' });
+      expect(recoveryModes.success).toBe(true);
+      expect(recoveryModes.output).toContain('file_recovery');
 
       const documentModes = await fixture.tool.execute({ mode: 'modes', query: 'blind model comparison documents uploads' });
       expect(documentModes.success).toBe(true);
@@ -1209,6 +1215,7 @@ describe('agent_harness tool', () => {
       const edit = posture.routes.find((route) => route.executionRouteId === 'local-edit-write');
       expect(edit?.availability).toBe('ready');
       expect(edit?.modelRoute).toBe('edit/write');
+      expect(JSON.stringify(edit)).toContain('file_recovery');
 
       const browser = posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control');
       expect(browser?.availability).toBe('setup-needed');
@@ -1241,6 +1248,86 @@ describe('agent_harness tool', () => {
       });
       expect(inspectedDelegation.preferredWhen).toContain('remote host');
       expect(inspectedDelegation.useInsteadWhen).toContain('Use local read/edit/exec');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes confirmed local file edit recovery from FileUndoManager snapshots', async () => {
+    const fixture = makeFixture();
+    try {
+      const target = join(fixture.root, 'recoverable.txt');
+      writeFileSync(target, 'after content', 'utf-8');
+      fixture.context.workspace.fileUndoManager?.snapshot({
+        path: target,
+        beforeContent: 'before content',
+        afterContent: 'after content',
+        tool: 'edit',
+      });
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly fileRecovery?: { readonly undoDepth: number; readonly redoDepth: number };
+        };
+      }>(fixture, { mode: 'execution_posture' });
+      expect(posture.summary.fileRecovery?.undoDepth).toBe(1);
+      expect(posture.summary.fileRecovery?.redoDepth).toBe(0);
+
+      const recovery = await executeHarnessJson<{
+        readonly status: string;
+        readonly summary: {
+          readonly undoDepth: number;
+          readonly redoDepth: number;
+          readonly nextUndo?: { readonly path: string; readonly tool: string };
+        };
+        readonly actions: readonly { readonly recoveryAction: string; readonly available: boolean; readonly modelRoute: string }[];
+      }>(fixture, { mode: 'file_recovery', includeParameters: true });
+      expect(recovery.status).toBe('available');
+      expect(recovery.summary.undoDepth).toBe(1);
+      expect(recovery.summary.redoDepth).toBe(0);
+      expect(recovery.summary.nextUndo).toMatchObject({ path: 'recoverable.txt', tool: 'edit' });
+      expect(recovery.actions.find((action) => action.recoveryAction === 'undo')?.available).toBe(true);
+      expect(recovery.actions.find((action) => action.recoveryAction === 'undo')?.modelRoute).toBe('agent_harness mode:"run_file_recovery"');
+
+      const denied = await fixture.tool.execute({ mode: 'run_file_recovery', recoveryAction: 'undo' });
+      expect(denied.success).toBe(false);
+      if (denied.success) throw new Error('run_file_recovery unexpectedly succeeded without confirmation');
+      expect(denied.error).toContain('explicitUserRequest');
+
+      const undo = await executeHarnessJson<{
+        readonly status: string;
+        readonly recoveryAction: string;
+        readonly path: string;
+        readonly tool: string;
+        readonly summary: { readonly undoDepth: number; readonly redoDepth: number };
+      }>(fixture, {
+        mode: 'run_file_recovery',
+        recoveryAction: 'undo',
+        confirm: true,
+        explicitUserRequest: 'Undo the last local file edit.',
+      });
+      expect(undo).toMatchObject({
+        status: 'applied',
+        recoveryAction: 'undo',
+        path: 'recoverable.txt',
+        tool: 'edit',
+      });
+      expect(readFileSync(target, 'utf-8')).toBe('before content');
+      expect(undo.summary.undoDepth).toBe(0);
+      expect(undo.summary.redoDepth).toBe(1);
+
+      const redo = await executeHarnessJson<{
+        readonly status: string;
+        readonly recoveryAction: string;
+        readonly path: string;
+      }>(fixture, {
+        mode: 'run_file_recovery',
+        recoveryAction: 'redo',
+        confirm: true,
+        explicitUserRequest: 'Redo the last local file edit.',
+      });
+      expect(redo).toMatchObject({ status: 'applied', recoveryAction: 'redo', path: 'recoverable.txt' });
+      expect(readFileSync(target, 'utf-8')).toBe('after content');
     } finally {
       fixture.cleanup();
     }
@@ -1645,6 +1732,11 @@ describe('agent_harness tool', () => {
         readonly routes: readonly Record<string, unknown>[];
       }>(fixture, { mode: 'execution_posture' });
       expectRowsHaveCompactModelRoutes(execution.routes);
+
+      const fileRecovery = await executeHarnessJson<{
+        readonly actions: readonly Record<string, unknown>[];
+      }>(fixture, { mode: 'file_recovery' });
+      expectRowsHaveCompactModelRoutes(fileRecovery.actions);
 
       const pairing = await executeHarnessJson<{
         readonly routes: readonly Record<string, unknown>[];

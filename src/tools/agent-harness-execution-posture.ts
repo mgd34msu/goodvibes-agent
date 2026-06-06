@@ -1,5 +1,6 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
+import { fileRecoveryCatalogStatus } from './agent-harness-file-recovery.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessExecutionArgs {
@@ -31,6 +32,7 @@ interface ExecutionRoute {
   readonly anyToolNames?: readonly string[];
   readonly browserMcp?: boolean;
   readonly modelRoute: string;
+  readonly recoveryRoute?: string;
   readonly safety: string;
   readonly nextStep: string;
 }
@@ -79,6 +81,7 @@ function routeDefinitions(): readonly ExecutionRoute[] {
       useInsteadWhen: 'Use delegation for isolated worktrees, remote machines, parallel workers, or work that needs a separate coding UI.',
       anyToolNames: ['edit', 'write'],
       modelRoute: 'edit/write',
+      recoveryRoute: 'agent_harness mode:"file_recovery"',
       safety: 'Respect user-owned dirty worktree changes, keep edits scoped, and verify with tests or static checks when feasible.',
       nextStep: 'Use local edit/write tooling, then run targeted verification through the local shell route when appropriate.',
     },
@@ -192,6 +195,7 @@ function routeSearchText(route: ExecutionRoute): string {
     route.preferredWhen,
     route.useInsteadWhen ?? '',
     route.modelRoute,
+    route.recoveryRoute ?? '',
     route.nextStep,
     ...(route.toolNames ?? []),
     ...(route.anyToolNames ?? []),
@@ -223,6 +227,7 @@ function describeRoute(
     availability,
     ...(tools.length > 0 ? { availableTools: tools } : {}),
     modelRoute: route.modelRoute,
+    ...(route.recoveryRoute ? { recoveryRoute: route.recoveryRoute } : {}),
     preferredWhen: options.includeParameters ? route.preferredWhen : previewHarnessText(route.preferredWhen),
     nextStep: options.includeParameters ? route.nextStep : previewHarnessText(route.nextStep),
     ...(options.includeParameters
@@ -239,6 +244,7 @@ function describeRoute(
           inspectRoute: `agent_harness mode:"execution_route" executionRouteId:"${route.id}"`,
           inspectTools: 'agent_harness mode:"tools"',
           inspectDelegation: 'agent_harness mode:"delegation_posture"',
+          inspectFileRecovery: route.recoveryRoute ?? 'agent_harness mode:"file_recovery"',
         },
       }
       : {}),
@@ -276,6 +282,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       localFirstPolicy: 'Use local read/edit/exec when the current workspace and permissions are sufficient.',
       delegationPolicy: 'Use delegation for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.',
       browserControl: browserToolReady(context, toolRegistry) ? 'configured' : 'setup-needed',
+      fileRecovery: fileRecoveryCatalogStatus(context),
       registeredExecutionTools: [...registeredToolNames(toolRegistry)].filter((name) => ['read', 'find', 'inspect', 'analyze', 'edit', 'write', 'exec', 'fetch', 'web_search'].includes(name)).sort(),
     },
     decisionRules: [

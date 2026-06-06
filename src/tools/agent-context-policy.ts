@@ -146,7 +146,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
     canDoNow: [
       {
         area: 'Project and computer work',
-        can: 'Read, search, analyze, edit, and write workspace files; run bounded shell commands; inspect diffs and project structure.',
+        can: 'Read, search, analyze, edit, and write workspace files; run bounded shell commands; inspect diffs and project structure; recover recent file edit/write snapshots.',
         tools: ['read', 'find', 'analyze', 'inspect', 'edit', 'write', 'exec'].filter(has),
         inspect: 'agent_harness mode:"execution_posture"',
       },
@@ -204,6 +204,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
     commonRoutes: {
       findCapability: 'agent_harness mode:"modes" query:"<task>"',
       executionPosture: 'agent_harness mode:"execution_posture"; inspect one route with mode:"execution_route"; prefer local read/edit/exec for the current workspace, delegation for isolation/parallel/remote',
+      fileRecovery: 'agent_harness mode:"file_recovery"; apply one snapshot with mode:"run_file_recovery" recoveryAction:"undo|redo" confirm:true explicitUserRequest:"..."',
       personalOps: 'agent_harness mode:"personal_ops"; inspect one lane with mode:"personal_ops_lane"',
       autonomyIntake: 'agent_harness mode:"autonomy_intake" query:"<ongoing work request>"; use returned route and missing fields before creating background work',
       autonomyQueue: 'agent_harness mode:"autonomy_queue"; inspect one card with mode:"autonomy_queue_item"; use returned live records/log tails when present',

@@ -25,6 +25,7 @@ import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarness
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
 import { describeDocumentOpsLane, documentOpsCatalogStatus, documentOpsSummary } from './agent-harness-document-ops.ts';
 import { describeHarnessExecutionRoute, executionPostureCatalogStatus, executionPostureSummary } from './agent-harness-execution-posture.ts';
+import { fileRecoveryCatalogStatus, fileRecoverySummary, runFileRecovery } from './agent-harness-file-recovery.ts';
 import { runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
 import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary } from './agent-harness-model-routing.ts';
@@ -63,6 +64,7 @@ interface AgentHarnessToolArgs {
   readonly setupItemId?: unknown;
   readonly modelRouteId?: unknown;
   readonly executionRouteId?: unknown;
+  readonly recoveryAction?: unknown;
   readonly laneId?: unknown;
   readonly queueItemId?: unknown;
   readonly candidateId?: unknown;
@@ -179,6 +181,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect plan rows with mode:"setup_item"; setup mutations stay visible.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
+    fileRecovery: 'List mode:"file_recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use live records and returned routes for personal ops.',
     autonomyQueue: 'Start mode:"autonomy_intake" for ongoing-work requests; list mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay confirmed.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
@@ -907,6 +910,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               error: formatHarnessError(err),
             })),
             executionPosture: executionPostureCatalogStatus(deps.commandContext, deps.toolRegistry),
+            fileRecovery: fileRecoveryCatalogStatus(deps.commandContext),
             personalOps: personalOpsCatalogStatus(deps.commandContext),
             autonomyQueue: autonomyQueueCatalogStatus(deps.commandContext),
             learningCurator: learningCuratorCatalogStatus(deps.commandContext),
@@ -1064,6 +1068,11 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'found') return output(resolved.route);
           if (resolved.status === 'ambiguous') return error(`Ambiguous execution route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
+        }
+        if (args.mode === 'file_recovery') return output(fileRecoverySummary(deps.commandContext, args));
+        if (args.mode === 'run_file_recovery') {
+          const confirmationError = requireConfirmedAction(args, 'File recovery');
+          return confirmationError ? error(confirmationError) : output(runFileRecovery(deps.commandContext, args));
         }
         if (args.mode === 'personal_ops') return output(personalOpsSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops_lane') {
