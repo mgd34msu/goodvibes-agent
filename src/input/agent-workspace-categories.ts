@@ -43,7 +43,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Import preferences, sign in, and choose the main model.',
     detail: 'Start here on a fresh install. Every row either saves state, opens the shared model picker, or opens a confirmed in-modal form.',
     actions: [
-      { id: 'import-goodvibes-tui-settings', label: 'Import GoodVibes settings', detail: 'Copy existing display, provider, behavior, permission, TTS, channel, helper, tool, release, and automation values into Agent-owned settings.', kind: 'settings-import', safety: 'safe' },
+      { id: 'import-goodvibes-tui-settings', label: 'Import GoodVibes settings', detail: 'Copy existing display, provider, subscription, behavior, permission, TTS, channel, helper, tool, release, and automation values into Agent-owned state.', kind: 'settings-import', safety: 'safe' },
       { id: 'subscription-login-start', label: 'Start subscription login', detail: 'Start one provider sign-in flow, save pending state, and return here.', editorKind: 'subscription-login-start', kind: 'editor', safety: 'safe' },
       { id: 'subscription-login-finish', label: 'Finish subscription login', detail: 'Exchange a code or redirect URL and save the provider subscription session.', editorKind: 'subscription-login-finish', kind: 'editor', safety: 'safe' },
       { id: 'setup-provider-model', label: 'Choose main model', detail: 'Open the shared provider/model picker for normal assistant turns.', kind: 'model-picker', modelPickerFlow: 'providerModel', modelPickerTarget: 'main', safety: 'safe' },

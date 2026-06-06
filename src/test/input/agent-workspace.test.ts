@@ -3,7 +3,7 @@ import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
+import { CONFIG_SCHEMA, SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
@@ -1136,6 +1136,72 @@ describe('AgentWorkspace', () => {
     expect(configManager.get('surfaces.ntfy.enabled')).toBe(true);
     expect(savedAgentSetting(shellPaths, 'surfaces.ntfy.enabled')).toBe(true);
     expect(workspace.actions.some((action) => action.id === 'channel-ntfy-base-url')).toBe(true);
+  });
+
+  test('import GoodVibes settings imports provider subscriptions into Agent state', async () => {
+    const { context, shellPaths, configManager } = persistentConfigContext();
+    const subscriptionManager = new SubscriptionManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'subscriptions.json'));
+    subscriptionManager.saveSubscription({
+      provider: 'agent-only',
+      accessToken: 'agent-token',
+      tokenType: 'Bearer',
+      authMode: 'oauth',
+      overrideAmbientApiKeys: false,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    mkdirSync(shellPaths.resolveUserPath('tui'), { recursive: true });
+    writeFileSync(shellPaths.resolveUserPath('tui', 'subscriptions.json'), JSON.stringify({
+      version: 1,
+      subscriptions: {
+        openai: {
+          provider: 'openai',
+          accessToken: 'tui-openai-token',
+          refreshToken: 'tui-refresh-token',
+          tokenType: 'Bearer',
+          expiresAt: 4_102_444_800_000,
+          scopes: ['openid', 'profile'],
+          authMode: 'oauth',
+          overrideAmbientApiKeys: true,
+          createdAt: 2,
+          updatedAt: 3,
+        },
+      },
+      pending: {
+        anthropic: {
+          provider: 'anthropic',
+          state: 'pending-state',
+          verifier: 'pending-verifier',
+          redirectUri: 'urn:ietf:wg:oauth:2.0:oob',
+          createdAt: 4,
+        },
+      },
+    }, null, 2));
+    const workspace = new AgentWorkspace();
+    workspace.open({
+      ...context,
+      platform: { configManager, subscriptionManager },
+    } as unknown as CommandContext, () => undefined);
+
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'import-goodvibes-tui-settings');
+    workspace.activateSelected();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(subscriptionManager.get('agent-only')?.accessToken).toBe('agent-token');
+    expect(subscriptionManager.get('openai')).toEqual(expect.objectContaining({
+      provider: 'openai',
+      accessToken: 'tui-openai-token',
+      refreshToken: 'tui-refresh-token',
+      overrideAmbientApiKeys: true,
+    }));
+    expect(subscriptionManager.getPending('anthropic')).toEqual(expect.objectContaining({
+      provider: 'anthropic',
+      verifier: 'pending-verifier',
+    }));
+    expect(workspace.lastActionResult?.title).toBe('GoodVibes TUI settings imported');
+    expect(workspace.lastActionResult?.detail).toContain('Imported active subscription(s): openai.');
+    expect(workspace.lastActionResult?.detail).toContain('Imported pending subscription(s): anthropic.');
   });
 
   test('onboarding has no verify page and covers schema-backed Agent settings', () => {

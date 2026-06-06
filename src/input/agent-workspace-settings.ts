@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import type { ConfigKey, ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
+import type { PendingSubscriptionLogin, ProviderSubscription } from '@pellux/goodvibes-sdk/platform/config';
 import { setHarnessSetting } from '../agent/harness-control.ts';
 import { isExternalHostOwnedSettingKey } from '../config/agent-settings-policy.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
@@ -81,6 +82,83 @@ function canImportTuiSetting(key: string): boolean {
 
 function valuesMatch(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function readRecordMap(record: Record<string, unknown>, key: string): readonly unknown[] {
+  const value = record[key];
+  return isRecord(value) ? Object.values(value) : [];
+}
+
+function isProviderSubscription(value: unknown): value is ProviderSubscription {
+  return isRecord(value)
+    && typeof value.provider === 'string'
+    && typeof value.accessToken === 'string'
+    && typeof value.tokenType === 'string'
+    && value.authMode === 'oauth'
+    && typeof value.overrideAmbientApiKeys === 'boolean'
+    && typeof value.createdAt === 'number'
+    && typeof value.updatedAt === 'number';
+}
+
+function isPendingSubscriptionLogin(value: unknown): value is PendingSubscriptionLogin {
+  return isRecord(value)
+    && typeof value.provider === 'string'
+    && typeof value.state === 'string'
+    && typeof value.verifier === 'string'
+    && typeof value.redirectUri === 'string'
+    && typeof value.createdAt === 'number';
+}
+
+function importTuiSubscriptions(context: CommandContext, parseErrors: string[]): {
+  readonly importedActive: string[];
+  readonly importedPending: string[];
+  readonly unchangedActive: string[];
+  readonly unchangedPending: string[];
+  readonly skipped: string[];
+} {
+  const shellPaths = context.workspace.shellPaths;
+  const manager = context.platform.subscriptionManager;
+  const result = {
+    importedActive: [] as string[],
+    importedPending: [] as string[],
+    unchangedActive: [] as string[],
+    unchangedPending: [] as string[],
+    skipped: [] as string[],
+  };
+  if (!shellPaths || !manager) return result;
+
+  const sourcePath = shellPaths.resolveUserPath(GOODVIBES_TUI_SURFACE_ROOT, 'subscriptions.json');
+  try {
+    const store = readJsonRecord(sourcePath);
+    if (!store) return result;
+    for (const entry of readRecordMap(store, 'subscriptions')) {
+      if (!isProviderSubscription(entry)) {
+        result.skipped.push('active subscription with invalid shape');
+        continue;
+      }
+      if (valuesMatch(manager.get(entry.provider), entry)) {
+        result.unchangedActive.push(entry.provider);
+        continue;
+      }
+      manager.saveSubscription(entry);
+      result.importedActive.push(entry.provider);
+    }
+    for (const entry of readRecordMap(store, 'pending')) {
+      if (!isPendingSubscriptionLogin(entry)) {
+        result.skipped.push('pending subscription with invalid shape');
+        continue;
+      }
+      if (valuesMatch(manager.getPending(entry.provider), entry)) {
+        result.unchangedPending.push(entry.provider);
+        continue;
+      }
+      manager.savePending(entry);
+      result.importedPending.push(entry.provider);
+    }
+  } catch (error) {
+    parseErrors.push(`subscriptions: ${error instanceof Error ? error.message : String(error)}`);
+  }
+  return result;
 }
 
 export function agentWorkspaceSettingSchema(context: CommandContext | null, key: string): ConfigSetting | null {
@@ -200,7 +278,7 @@ export async function applyAgentWorkspaceSettingValue(
 export async function importAgentWorkspaceTuiSettings(context: CommandContext | null): Promise<TuiSettingsImportOutcome> {
   const shellPaths = context?.workspace?.shellPaths;
   const configManager = context?.platform?.configManager;
-  if (!shellPaths || !configManager) {
+  if (!context || !shellPaths || !configManager) {
     return {
       status: 'GoodVibes TUI settings import is unavailable in this runtime.',
       runtimeSnapshot: null,
@@ -232,11 +310,14 @@ export async function importAgentWorkspaceTuiSettings(context: CommandContext | 
       parseErrors.push(`${source.label}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  const subscriptions = importTuiSubscriptions(context, parseErrors);
+  const subscriptionImports = subscriptions.importedActive.length + subscriptions.importedPending.length;
+  const subscriptionUnchanged = subscriptions.unchangedActive.length + subscriptions.unchangedPending.length;
 
-  if (values.size === 0) {
+  if (values.size === 0 && subscriptionImports === 0 && subscriptionUnchanged === 0 && subscriptions.skipped.length === 0) {
     const detail = parseErrors.length > 0
-      ? `No importable settings found. ${parseErrors.join('; ')}`
-      : 'No GoodVibes TUI settings file with importable Agent-owned settings was found.';
+      ? `No importable settings or subscriptions found. ${parseErrors.join('; ')}`
+      : 'No GoodVibes TUI settings or subscription store with importable Agent-owned state was found.';
     return {
       status: 'No GoodVibes TUI settings imported.',
       runtimeSnapshot: null,
@@ -266,16 +347,21 @@ export async function importAgentWorkspaceTuiSettings(context: CommandContext | 
       skipped.push(`${setting.key}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
+  skipped.push(...subscriptions.skipped);
+  const changedCount = imported.length + subscriptionImports;
+  const unchangedCount = unchanged.length + subscriptionUnchanged;
 
   return {
-    status: imported.length > 0 ? `Imported ${imported.length} GoodVibes TUI setting(s).` : 'No GoodVibes TUI settings changed.',
+    status: changedCount > 0 ? `Imported ${changedCount} GoodVibes TUI item(s).` : 'No GoodVibes TUI settings changed.',
     runtimeSnapshot: context ? buildAgentWorkspaceRuntimeSnapshot(context) : null,
     result: {
-      kind: skipped.length > 0 && imported.length === 0 ? 'error' : imported.length > 0 ? 'refreshed' : 'guidance',
-      title: imported.length > 0 ? 'GoodVibes TUI settings imported' : 'No settings changed',
+      kind: skipped.length > 0 && changedCount === 0 ? 'error' : changedCount > 0 ? 'refreshed' : 'guidance',
+      title: changedCount > 0 ? 'GoodVibes TUI settings imported' : 'No settings changed',
       detail: [
         imported.length > 0 ? `Imported: ${imported.slice(0, 10).join(', ')}${imported.length > 10 ? `, +${imported.length - 10} more` : ''}.` : '',
-        unchanged.length > 0 ? `${unchanged.length} setting(s) already matched.` : '',
+        subscriptions.importedActive.length > 0 ? `Imported active subscription(s): ${subscriptions.importedActive.join(', ')}.` : '',
+        subscriptions.importedPending.length > 0 ? `Imported pending subscription(s): ${subscriptions.importedPending.join(', ')}.` : '',
+        unchangedCount > 0 ? `${unchangedCount} item(s) already matched.` : '',
         skipped.length > 0 ? `Skipped: ${skipped.slice(0, 5).join('; ')}${skipped.length > 5 ? `; +${skipped.length - 5} more` : ''}.` : '',
         parseErrors.length > 0 ? `Parse issues: ${parseErrors.join('; ')}.` : '',
       ].filter((line) => line.length > 0).join(' '),
