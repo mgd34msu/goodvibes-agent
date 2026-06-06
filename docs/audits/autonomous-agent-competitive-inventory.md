@@ -19,7 +19,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 | First-run and always-on setup | Onboard can install gateway service | Installers and setup wizard configure dependencies and gateway | Docker/native start with admin bootstrap | Partial: onboarding exists, host lifecycle is external | Better |
 | Models and local model cookbook | Multi-provider, subscription auth, failover | Many providers and managed tool gateway | Hardware-aware Cookbook for Ollama, llama.cpp, vLLM | Partial: routing and hardware-scored local cookbook exist; live benchmarks/download guidance missing | Better |
 | Omnichannel inbox and delivery | Very broad channel list and DM safety | Telegram, Discord, Slack, WhatsApp, Signal, email | Email, browser, ntfy, PWA | Parity on foundations, needs setup UX polish | Better |
-| Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Partial: Personal Ops maps notes/tasks/reminders; email/calendar connectors missing | Better |
+| Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Partial: Personal Ops has live note/routine/delivery records; email/calendar connectors missing | Better |
 | Closed learning loop | Skills and memory | Autonomous memory, skills, session search, user model | Persistent vector/keyword memory and skills | Partial: local libraries and read-only curator exist; automatic proposals/consolidation missing | Better |
 | Autonomous schedules/background work | Cron, wakeups, webhooks, triggers | Built-in cron with delivery | Scheduled tasks and reminders | Partial: read-only autonomy queue includes live research run records with tails; daemon run/task cards still need depth | Better |
 | Computer use, browser, shell | Browser, canvas, nodes, system.run | Terminal backends, browser, code execution, computer use | opencode with web/files/shell/MCP | Partial: capabilities exist but Agent diverts execution | Better |
@@ -45,7 +45,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Prefer supervised execution over refusal or delegation friction when the Agent has local permission and workspace context.
 - Use delegation and remote runners for isolation, parallelism, or remote execution, not because the user picked the wrong entrypoint.
 - Attach live daemon task/run/schedule records, logs, and retry/checkpoint data to the visible autonomy queue alongside current live research run cards.
-- Build first-class email/calendar connectors and promote Personal Ops from readiness map into a live inbox/agenda/task queue.
+- Build first-class email/calendar connectors and extend Personal Ops live records into inbox, agenda, task, and reminder queues.
 - Extend the learning curator from ranked review cards into proposed memory, skill, and routine updates with provenance and rollback.
 - Turn research from the current visible run ledger into a browser-backed live report workflow with artifacts, cancellation, richer visual reports, and explicit knowledge ingest.
 - Extend Document Ops beyond parity with compressed artifact packages, cross-session synthesis, reviewer-ready suggestion summaries, and richer comparison handoffs.

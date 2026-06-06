@@ -43,6 +43,17 @@ interface PersonalOpsLane {
   readonly modelRoute: string;
   readonly signals: readonly string[];
   readonly methodIds?: readonly string[];
+  readonly liveRecords?: readonly PersonalOpsLiveRecord[];
+}
+
+interface PersonalOpsLiveRecord {
+  readonly id: string;
+  readonly label: string;
+  readonly status: string;
+  readonly summary: string;
+  readonly userRoute: string;
+  readonly modelRoute: string;
+  readonly tags?: readonly string[];
 }
 
 export type PersonalOpsLaneResolution =
@@ -104,7 +115,28 @@ function searchText(lane: PersonalOpsLane): string {
     lane.userRoute,
     lane.modelRoute,
     lane.signals.join('\n'),
+    lane.liveRecords?.flatMap((record) => [
+      record.id,
+      record.label,
+      record.status,
+      record.summary,
+      record.userRoute,
+      record.modelRoute,
+      record.tags?.join('\n') ?? '',
+    ]).join('\n') ?? '',
   ].join('\n').toLowerCase();
+}
+
+function describeLiveRecord(record: PersonalOpsLiveRecord, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: record.id,
+    label: record.label,
+    status: record.status,
+    summary: previewHarnessText(record.summary, includeParameters ? 180 : 96),
+    userRoute: previewHarnessText(record.userRoute, includeParameters ? 140 : 96),
+    modelRoute: previewHarnessText(record.modelRoute, includeParameters ? 140 : 96),
+    ...(record.tags && record.tags.length > 0 ? { tags: record.tags.slice(0, includeParameters ? 12 : 4) } : {}),
+  };
 }
 
 function describeLane(lane: PersonalOpsLane, includeParameters: boolean): Record<string, unknown> {
@@ -118,6 +150,7 @@ function describeLane(lane: PersonalOpsLane, includeParameters: boolean): Record
     userRoute: previewHarnessText(lane.userRoute, 96),
     modelRoute: previewHarnessText(lane.modelRoute, 96),
     signals: lane.signals,
+    ...(lane.liveRecords && lane.liveRecords.length > 0 ? { liveRecords: lane.liveRecords.slice(0, includeParameters ? 8 : 3).map((record) => describeLiveRecord(record, includeParameters)) } : {}),
     ...(includeParameters ? {
       routes: {
         user: lane.userRoute,
@@ -127,6 +160,42 @@ function describeLane(lane: PersonalOpsLane, includeParameters: boolean): Record
       safety: 'Writes, sends, schedules, and operator calls require explicit user request and confirmation through the owning tool.',
     } : {}),
   };
+}
+
+function localRecord(domain: 'note' | 'routine', item: ReturnType<typeof buildAgentWorkspaceRuntimeSnapshot>['localNotes'][number]): PersonalOpsLiveRecord {
+  return {
+    id: item.id,
+    label: item.name,
+    status: item.reviewState,
+    summary: item.description,
+    userRoute: domain === 'note' ? 'Agent Workspace -> Notes' : 'Agent Workspace -> Routines',
+    modelRoute: `agent_local_registry domain:"${domain}" action:"get" id:"${item.id}"`,
+    tags: item.tags,
+  };
+}
+
+function routineReceiptRecord(receipt: ReturnType<typeof buildAgentWorkspaceRuntimeSnapshot>['latestRoutineScheduleReceipt']): PersonalOpsLiveRecord | null {
+  if (!receipt) return null;
+  return {
+    id: receipt.id,
+    label: receipt.scheduleName,
+    status: receipt.status,
+    summary: `${receipt.routineName} -> ${receipt.scheduleKind} ${receipt.scheduleValue}`,
+    userRoute: 'Agent Workspace -> Personal Ops -> Routine schedule receipts',
+    modelRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"routine-schedule-promotions"',
+  };
+}
+
+function channelRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSnapshot>): readonly PersonalOpsLiveRecord[] {
+  return snapshot.channels.map((channel) => ({
+    id: channel.id,
+    label: channel.label,
+    status: channel.setupState,
+    summary: `${channel.delivery}; ${channel.riskLabel}. ${channel.nextStep}`,
+    userRoute: 'Agent Workspace -> Channels',
+    modelRoute: `agent_harness mode:"channel" channelId:"${channel.id}"`,
+    tags: [channel.risk, channel.delivery],
+  }));
 }
 
 function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
@@ -198,6 +267,7 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
         `${snapshot.localNoteCount} local note(s)`,
         `${snapshot.localNoteReviewQueueCount} note(s) in review queue`,
       ],
+      liveRecords: snapshot.localNotes.slice(0, 5).map((note) => localRecord('note', note)),
     },
     {
       id: 'tasks',
@@ -244,6 +314,10 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
         `${scheduleReadyRoutines} schedule-ready routine(s)`,
         `${snapshot.failedRoutineScheduleReceiptCount} failed promotion receipt(s)`,
       ],
+      liveRecords: [
+        ...snapshot.localRoutines.slice(0, 5).map((routine) => localRecord('routine', routine)),
+        ...[routineReceiptRecord(snapshot.latestRoutineScheduleReceipt)].filter((record): record is PersonalOpsLiveRecord => record !== null),
+      ],
     },
     {
       id: 'delivery',
@@ -260,6 +334,7 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
         `${readyChannels} ready channel(s)`,
         `${configuredTargets} configured default target(s)`,
       ],
+      liveRecords: channelRecords(snapshot),
     },
   ];
 }
@@ -295,7 +370,7 @@ export function personalOpsSummary(context: CommandContext, args: AgentHarnessPe
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Missing email/calendar connectors are reported as setup gaps, not faked.',
+    policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Lanes include live records when Agent owns them. Missing email/calendar connectors are reported as setup gaps, not faked.',
     nextActions: nextActions(lanes),
   };
 }

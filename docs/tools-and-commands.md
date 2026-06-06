@@ -70,7 +70,7 @@ Discovery modes:
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
 | `provider_accounts`, `model_routing` | Provider auth, provider/model route posture, and hardware-scored local model cookbook. |
-| `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
+| `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus live Agent-owned note, routine, schedule-receipt, and delivery records. |
 | `autonomy_queue`, `autonomy_queue_item` | Visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, and routine review candidates. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |

@@ -668,6 +668,14 @@ describe('agent_harness tool', () => {
           readonly status: string;
           readonly current: string;
           readonly methodIds?: readonly string[];
+          readonly liveRecords?: readonly {
+            readonly id: string;
+            readonly label: string;
+            readonly status: string;
+            readonly summary: string;
+            readonly modelRoute: string;
+            readonly tags?: readonly string[];
+          }[];
         }[];
         readonly policy: string;
         readonly nextActions: readonly string[];
@@ -680,13 +688,18 @@ describe('agent_harness tool', () => {
       const notes = ops.lanes.find((lane) => lane.id === 'notes');
       const tasks = ops.lanes.find((lane) => lane.id === 'tasks');
       const reminders = ops.lanes.find((lane) => lane.id === 'reminders');
+      const delivery = ops.lanes.find((lane) => lane.id === 'delivery');
       expect(inbox?.status).toBe('gap');
       expect(inbox?.current).toContain('No email/IMAP/SMTP methods');
       expect(calendar?.status).toBe('gap');
       expect(notes?.status).toBe('ready');
       expect(notes?.current).toContain('1 note');
+      expect(notes?.liveRecords?.[0]?.id).toBe('follow-up-queue');
+      expect(notes?.liveRecords?.[0]?.label).toBe('Follow-up queue');
+      expect(notes?.liveRecords?.[0]?.modelRoute).toContain('agent_local_registry');
       expect(tasks?.methodIds).toContain('tasks.list');
       expect(reminders?.methodIds).toContain('schedules.create');
+      expect(delivery?.liveRecords?.some((record) => record.modelRoute.includes('mode:"channel"'))).toBe(true);
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -696,6 +709,13 @@ describe('agent_harness tool', () => {
       expect(lane.id).toBe('reminders');
       expect(lane.status).toBe('ready');
       expect(lane.routes?.model).toBe('agent_reminder_schedule');
+
+      const notesLane = await executeHarnessJson<{
+        readonly id: string;
+        readonly liveRecords?: readonly { readonly id: string; readonly modelRoute: string }[];
+      }>(fixture, { mode: 'personal_ops_lane', laneId: 'notes' });
+      expect(notesLane.liveRecords?.[0]?.id).toBe('follow-up-queue');
+      expect(notesLane.liveRecords?.[0]?.modelRoute).toContain('action:"get"');
     } finally {
       fixture.cleanup();
     }

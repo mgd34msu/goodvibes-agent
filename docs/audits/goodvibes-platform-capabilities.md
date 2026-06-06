@@ -42,7 +42,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 ## Remaining Product Gaps
 
-- First-class email and calendar connectors plus live inbox/agenda records in Personal Ops.
+- First-class email and calendar connectors plus live inbox/agenda records in Personal Ops; Agent-owned notes, routines, schedule receipts, and delivery channels already surface live lane records.
 - Live daemon run/task/schedule records in the autonomy queue beyond the current live research run cards with progress, log tails, checkpoints, source ids, and controls.
 - Deep research browser-backed execution and richer report runner output beyond the current visible local run ledger, run log tails, source queue, credibility scoring, source bundles, citation coverage metadata, repair hints, and saved sourced report artifacts.
 - Live local model benchmarks and guided downloads beyond the current read-only hardware-scored cookbook.
