@@ -65,6 +65,16 @@ describe('agent_harness mode catalog', () => {
     expect(personalOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds setup posture by first-run always-on wording', () => {
+    const setup = listHarnessModes({ query: 'first-run always-on setup', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = setup.modes.map((mode) => mode.id);
+    expect(ids).toContain('setup_posture');
+    expect(ids).toContain('setup_item');
+    expect(setup.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds Document Ops by uploads, artifacts, and blind compare wording', () => {
     const documentOps = listHarnessModes({ query: 'document upload artifact blind model compare', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

@@ -39,9 +39,11 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 - Shared-session follow-up and automation spawn paths now create visible Agent records instead of failing closed.
 - The footer reads the active agent read model so autonomous work is visible in the existing renderer.
 - Settings visibility no longer hides broad service/control-plane/runtime categories; raw danger toggles stay protected.
+- `agent_harness mode:"setup_posture"` now returns a prioritized first-run setup plan with connected-host readiness, provider/model access, Agent Knowledge, local behavior, channels, automation review, delegation, finish state, and exact follow-up routes.
 
 ## Remaining Product Gaps
 
+- Consent-gated host lifecycle/install repair beyond the current read-only setup plan, status, compat, and service posture routes.
 - First-class email and calendar connectors plus live inbox/agenda records in Personal Ops; Agent-owned notes, routines, schedule receipts, and delivery channels already surface live lane records.
 - Live daemon run/task/schedule records in the autonomy queue beyond the current live research run cards with progress, log tails, checkpoints, source ids, and controls.
 - Deep research browser-backed execution and richer report runner output beyond the current visible local run ledger, run log tails, source queue, credibility scoring, source bundles, citation coverage metadata, repair hints, and saved sourced report artifacts.

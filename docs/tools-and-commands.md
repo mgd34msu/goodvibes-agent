@@ -74,7 +74,7 @@ Discovery modes:
 | `autonomy_queue`, `autonomy_queue_item` | Visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, and routine review candidates. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
-| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
+| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup plan, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |
 | `service_posture`, `connected_host`, `daemon` | Endpoint, connected-host, and daemon alias posture. |

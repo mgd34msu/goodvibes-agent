@@ -24,6 +24,22 @@ interface SurfaceRegistryLike {
   syncConfiguredSurfaces(): readonly OnboardingSurfaceRecord[];
 }
 
+type SetupPlanStatus = 'ready' | 'blocked' | 'recommended' | 'optional' | 'check';
+
+interface SetupPlanItem {
+  readonly id: string;
+  readonly label: string;
+  readonly status: SetupPlanStatus;
+  readonly priority: number;
+  readonly blocksAutonomy: boolean;
+  readonly reason: string;
+  readonly nextAction: string;
+  readonly userRoute: string;
+  readonly modelRoute: string;
+  readonly relatedSetupItemId?: string;
+  readonly signals?: readonly string[];
+}
+
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
@@ -93,12 +109,206 @@ function itemSearchText(item: OnboardingStep1CapabilityItem): string {
   ].join('\n').toLowerCase();
 }
 
+function planSearchText(item: SetupPlanItem): string {
+  return [
+    item.id,
+    item.label,
+    item.status,
+    item.reason,
+    item.nextAction,
+    item.userRoute,
+    item.modelRoute,
+    item.relatedSetupItemId ?? '',
+    item.signals?.join('\n') ?? '',
+  ].join('\n').toLowerCase();
+}
+
 function summarizeLocalBehavior(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): Record<string, unknown> {
   const discovery = snapshot.localBehaviorDiscovery;
   return {
     personas: discovery.personas,
     skills: discovery.skills,
     routines: discovery.routines,
+  };
+}
+
+function setupProviderSignalIds(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): readonly string[] {
+  return [...new Set<string>([
+    ...(snapshot.providerAccounts?.providers ?? [])
+      .filter((provider) => provider.activeRoute !== 'unconfigured' || provider.oauthReady || provider.pendingLogin)
+      .map((provider) => provider.providerId),
+    ...snapshot.services.oauthProviderIds,
+    ...snapshot.services.services
+      .filter((service) => service.hasPrimaryCredential || service.hasPasswordCredential)
+      .map((service) => service.providerId),
+    ...snapshot.subscriptions.activeProviderIds,
+    ...snapshot.subscriptions.pendingProviderIds,
+  ])].sort((left, right) => left.localeCompare(right));
+}
+
+function capabilityById(items: readonly OnboardingStep1CapabilityItem[], id: OnboardingStep1CapabilityItem['id']): OnboardingStep1CapabilityItem {
+  const item = items.find((candidate) => candidate.id === id);
+  if (!item) throw new Error(`Missing onboarding capability ${id}`);
+  return item;
+}
+
+function setupPlanStatusForCapability(
+  item: OnboardingStep1CapabilityItem,
+  fallback: Exclude<SetupPlanStatus, 'check' | 'ready'>,
+): SetupPlanStatus {
+  return item.selected ? 'ready' : fallback;
+}
+
+function hostSetupStatus(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): SetupPlanStatus {
+  return snapshot.collectionIssues.some((issue) => issue.area === 'host') ? 'blocked' : 'check';
+}
+
+function buildSetupPlan(
+  snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
+  capabilities: readonly OnboardingStep1CapabilityItem[],
+): readonly SetupPlanItem[] {
+  const providerAccess = capabilityById(capabilities, 'provider-access');
+  const agentKnowledge = capabilityById(capabilities, 'agent-knowledge');
+  const localBehavior = capabilityById(capabilities, 'local-behavior');
+  const communicationChannels = capabilityById(capabilities, 'communication-channels');
+  const automationReview = capabilityById(capabilities, 'automation-review');
+  const tuiDelegation = capabilityById(capabilities, 'tui-delegation');
+  const setupMarkerDone = snapshot.acknowledgements.exists;
+
+  const plan: SetupPlanItem[] = [
+    {
+      id: 'connected-host-readiness',
+      label: 'Connected host readiness',
+      status: hostSetupStatus(snapshot),
+      priority: 10,
+      blocksAutonomy: true,
+      reason: 'Daemon-backed automation, Agent Knowledge, channels, and companion routes need a reachable compatible GoodVibes host.',
+      nextAction: 'Run connected-host status, then start, update, or repair the owning GoodVibes host if the live check reports a gap.',
+      userRoute: 'Agent Workspace -> Home -> Host compatibility',
+      modelRoute: 'agent_harness mode:"connected_host_status"',
+      relatedSetupItemId: 'operator-terminal',
+      signals: snapshot.collectionIssues.filter((issue) => issue.area === 'host').map((issue) => issue.message),
+    },
+    {
+      id: 'provider-access',
+      label: 'Provider and model access',
+      status: setupPlanStatusForCapability(providerAccess, 'blocked'),
+      priority: 20,
+      blocksAutonomy: true,
+      reason: providerAccess.detail,
+      nextAction: providerAccess.selected ? 'Review the current model route and provider accounts.' : 'Choose a provider/model route or store a provider credential before relying on assistant turns.',
+      userRoute: 'Agent Workspace -> Start -> Choose main model',
+      modelRoute: 'agent_harness mode:"model_routing" or mode:"provider_accounts"',
+      relatedSetupItemId: providerAccess.id,
+      signals: setupProviderSignalIds(snapshot),
+    },
+    {
+      id: 'agent-knowledge',
+      label: 'Agent Knowledge readiness',
+      status: 'recommended',
+      priority: 30,
+      blocksAutonomy: false,
+      reason: agentKnowledge.detail,
+      nextAction: 'Inspect isolated Agent Knowledge status before source-backed memory or research ingest.',
+      userRoute: 'Agent Workspace -> Knowledge',
+      modelRoute: 'agent_harness mode:"connected_host_status" or agent_knowledge',
+      relatedSetupItemId: agentKnowledge.id,
+    },
+    {
+      id: 'local-behavior',
+      label: 'Local memory, skills, and routines',
+      status: setupPlanStatusForCapability(localBehavior, 'recommended'),
+      priority: 40,
+      blocksAutonomy: false,
+      reason: localBehavior.detail,
+      nextAction: localBehavior.selected ? 'Review imported or customized local behavior.' : 'Import discovered behavior files or create the first persona, skill, or routine.',
+      userRoute: 'Agent Workspace -> Local Context',
+      modelRoute: 'agent_harness mode:"learning_curator" or mode:"workspace_actions" categoryId:"onboarding-context"',
+      relatedSetupItemId: localBehavior.id,
+    },
+    {
+      id: 'communication-channels',
+      label: 'Communication channels',
+      status: setupPlanStatusForCapability(communicationChannels, 'optional'),
+      priority: 50,
+      blocksAutonomy: false,
+      reason: communicationChannels.detail,
+      nextAction: communicationChannels.selected ? 'Review channel readiness and delivery safety.' : 'Enable only the channels where the assistant should be reachable.',
+      userRoute: 'Agent Workspace -> Channels',
+      modelRoute: 'agent_harness mode:"channels"',
+      relatedSetupItemId: communicationChannels.id,
+      signals: snapshot.surfaces.configuredEnabledKinds,
+    },
+    {
+      id: 'automation-review',
+      label: 'Automation review',
+      status: setupPlanStatusForCapability(automationReview, 'recommended'),
+      priority: 60,
+      blocksAutonomy: false,
+      reason: automationReview.detail,
+      nextAction: 'Review schedules, approvals, routine promotion, and visible autonomy queue controls before ongoing background work.',
+      userRoute: 'Agent Workspace -> Personal Ops -> Autonomy queue',
+      modelRoute: 'agent_harness mode:"autonomy_queue"',
+      relatedSetupItemId: automationReview.id,
+    },
+    {
+      id: 'build-delegation',
+      label: 'Build delegation boundary',
+      status: setupPlanStatusForCapability(tuiDelegation, 'optional'),
+      priority: 70,
+      blocksAutonomy: false,
+      reason: tuiDelegation.detail,
+      nextAction: 'Use delegation for explicit build, fix, review, isolation, or parallelism work rather than as a setup prerequisite.',
+      userRoute: 'Agent Workspace -> Home -> Connected host',
+      modelRoute: 'agent_harness mode:"delegation_posture"',
+      relatedSetupItemId: tuiDelegation.id,
+    },
+    {
+      id: 'finish-onboarding',
+      label: 'Finish onboarding state',
+      status: setupMarkerDone ? 'ready' : 'recommended',
+      priority: 80,
+      blocksAutonomy: false,
+      reason: setupMarkerDone ? 'A setup marker already exists for this Agent scope.' : 'No setup marker exists yet, so the user may see first-run guidance again.',
+      nextAction: setupMarkerDone ? 'Reopen setup only when changing provider, channel, automation, or local behavior decisions.' : 'Open onboarding, review the selected choices, then apply and close when the assistant is usable.',
+      userRoute: 'Agent Workspace -> Start -> Onboarding',
+      modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding"',
+    },
+  ];
+
+  return plan.sort((left, right) => left.priority - right.priority);
+}
+
+function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Record<string, unknown> {
+  return {
+    setupItemId: item.id,
+    label: item.label,
+    status: item.status,
+    priority: item.priority,
+    blocksAutonomy: item.blocksAutonomy,
+    summary: previewHarnessText(item.reason, includeParameters ? 180 : 96),
+    nextAction: previewHarnessText(item.nextAction, includeParameters ? 180 : 96),
+    userRoute: previewHarnessText(item.userRoute, includeParameters ? 140 : 96),
+    modelRoute: previewHarnessText(item.modelRoute, includeParameters ? 140 : 96),
+    ...(item.relatedSetupItemId ? { relatedSetupItemId: item.relatedSetupItemId } : {}),
+    ...(item.signals && item.signals.length > 0 ? { signals: item.signals.slice(0, includeParameters ? 10 : 3) } : {}),
+    ...(includeParameters ? {
+      policy: {
+        effect: 'read-only',
+        mutation: 'Setup plan rows only point to visible setup, status, settings, and confirmed tool routes.',
+      },
+    } : {}),
+  };
+}
+
+function planSummary(plan: readonly SetupPlanItem[]): Record<string, number> {
+  return {
+    ready: plan.filter((item) => item.status === 'ready').length,
+    blocked: plan.filter((item) => item.status === 'blocked').length,
+    recommended: plan.filter((item) => item.status === 'recommended').length,
+    optional: plan.filter((item) => item.status === 'optional').length,
+    check: plan.filter((item) => item.status === 'check').length,
+    blocksAutonomy: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
   };
 }
 
@@ -221,9 +431,13 @@ function describeCandidate(item: OnboardingStep1CapabilityItem): Record<string, 
 
 export async function setupPostureCatalogStatus(context: CommandContext): Promise<Record<string, unknown>> {
   const snapshot = await collectSnapshot(context);
+  const plan = buildSetupPlan(snapshot, deriveStep1Capabilities(snapshot));
   return {
     modes: ['setup_posture', 'setup_item'],
     capabilities: deriveStep1Capabilities(snapshot).length,
+    planItems: plan.length,
+    blockedPlanItems: plan.filter((item) => item.status === 'blocked').length,
+    autonomyBlockers: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
     collectionIssues: snapshot.collectionIssues.length,
     setupMarkerExists: snapshot.acknowledgements.exists,
     readOnly: true,
@@ -235,8 +449,12 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
   const query = readString(args.query).toLowerCase();
   const includeParameters = args.includeParameters === true;
   const all = deriveStep1Capabilities(snapshot);
+  const plan = buildSetupPlan(snapshot, all);
   const filtered = all
     .filter((item) => !query || itemSearchText(item).includes(query))
+    .slice(0, readLimit(args.limit, 100));
+  const filteredPlan = plan
+    .filter((item) => !query || planSearchText(item).includes(query))
     .slice(0, readLimit(args.limit, 100));
   return {
     capturedAt: new Date(snapshot.capturedAt).toISOString(),
@@ -265,9 +483,21 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
       enabledSurfaceKinds: snapshot.surfaces.configuredEnabledKinds.length,
       localBehavior: summarizeLocalBehavior(snapshot),
       capabilityFlags: deriveStep1CapabilityFlags(snapshot),
+      readinessPlan: planSummary(plan),
     },
     currentRoute: snapshot.providerRouting,
     issues: snapshot.collectionIssues,
+    readinessPlan: filteredPlan.map((item) => describePlanItem(item, includeParameters)),
+    nextSetupActions: plan
+      .filter((item) => item.status === 'blocked' || item.status === 'check' || item.status === 'recommended')
+      .slice(0, 5)
+      .map((item) => ({
+        setupItemId: item.id,
+        label: item.label,
+        status: item.status,
+        nextAction: previewHarnessText(item.nextAction, 140),
+        modelRoute: previewHarnessText(item.modelRoute, 96),
+      })),
     capabilities: filtered.map((item) => describeItem(item, snapshot, { includeParameters })),
     returned: filtered.length,
     total: all.length,
@@ -285,18 +515,28 @@ export async function describeHarnessSetupItem(context: CommandContext, args: Ag
   }
   const snapshot = await collectSnapshot(context);
   const items = deriveStep1Capabilities(snapshot);
+  const plan = buildSetupPlan(snapshot, items);
   const normalized = lookup.input.toLowerCase();
   const exact = items.find((item) => item.id === lookup.input);
   if (exact) return { status: 'found', item: describeItem(exact, snapshot, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'id' } }) };
+  const exactPlan = plan.find((item) => item.id === lookup.input);
+  if (exactPlan) return { status: 'found', item: { ...describePlanItem(exactPlan, true), lookup: { ...lookup, resolvedBy: 'plan-id' } } };
   const insensitive = items.find((item) => item.id.toLowerCase() === normalized);
   if (insensitive) return { status: 'found', item: describeItem(insensitive, snapshot, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-id' } }) };
+  const insensitivePlan = plan.find((item) => item.id.toLowerCase() === normalized);
+  if (insensitivePlan) return { status: 'found', item: { ...describePlanItem(insensitivePlan, true), lookup: { ...lookup, resolvedBy: 'case-insensitive-plan-id' } } };
   const searched = items.filter((item) => itemSearchText(item).includes(normalized));
-  if (searched.length === 1) return { status: 'found', item: describeItem(searched[0]!, snapshot, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }) };
-  if (searched.length > 1) {
+  const searchedPlan = plan.filter((item) => planSearchText(item).includes(normalized));
+  if (searched.length === 1 && searchedPlan.length === 0) return { status: 'found', item: describeItem(searched[0]!, snapshot, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }) };
+  if (searched.length === 0 && searchedPlan.length === 1) return { status: 'found', item: { ...describePlanItem(searchedPlan[0]!, true), lookup: { ...lookup, resolvedBy: 'plan-search' } } };
+  if (searched.length > 0 || searchedPlan.length > 0) {
     return {
       status: 'ambiguous',
       input: lookup.input,
-      candidates: searched.slice(0, 8).map(describeCandidate),
+      candidates: [
+        ...searched.map(describeCandidate),
+        ...searchedPlan.map((item) => describePlanItem(item, false)),
+      ].slice(0, 8),
     };
   }
   return {

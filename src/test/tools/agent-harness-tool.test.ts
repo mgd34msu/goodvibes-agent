@@ -338,6 +338,18 @@ function makeFixture(options: {
         getAll: () => ({}),
         inspect: async () => null,
       },
+      localUserAuthManager: {
+        inspect: () => ({
+          userStorePath: join(root, '.goodvibes', 'auth', 'users.json'),
+          bootstrapCredentialPath: join(root, '.goodvibes', 'auth', 'bootstrap.txt'),
+          persisted: true,
+          bootstrapCredentialPresent: false,
+          userCount: 0,
+          sessionCount: 0,
+          users: [],
+          sessions: [],
+        }),
+      },
       subscriptionManager: {
         list: () => [],
         listPending: () => [],
@@ -639,6 +651,81 @@ describe('agent_harness tool', () => {
       const missing = await fixture.tool.execute({ mode: 'mode' });
       expect(missing.success).toBe(false);
       expect(missing.error).toContain('mode inspection requires target or query');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes a prioritized first-run setup plan with route-backed next actions', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await executeHarnessJson<{
+        readonly setupPosture?: {
+          readonly planItems?: number;
+          readonly blockedPlanItems?: number;
+          readonly autonomyBlockers?: number;
+        };
+      }>(fixture, { mode: 'summary', includeParameters: true });
+      expect(summary.setupPosture?.planItems).toBeGreaterThanOrEqual(7);
+      expect(typeof summary.setupPosture?.blockedPlanItems).toBe('number');
+      expect(summary.setupPosture?.autonomyBlockers).toBeGreaterThanOrEqual(1);
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly readinessPlan: {
+            readonly blocked: number;
+            readonly check: number;
+            readonly blocksAutonomy: number;
+          };
+        };
+        readonly readinessPlan: readonly {
+          readonly setupItemId: string;
+          readonly status: string;
+          readonly priority: number;
+          readonly blocksAutonomy: boolean;
+          readonly nextAction: string;
+          readonly userRoute: string;
+          readonly modelRoute: string;
+        }[];
+        readonly nextSetupActions: readonly {
+          readonly setupItemId: string;
+          readonly status: string;
+          readonly modelRoute: string;
+        }[];
+        readonly policy: string;
+      }>(fixture, { mode: 'setup_posture', includeParameters: true });
+
+      expect(typeof posture.summary.readinessPlan.blocked).toBe('number');
+      expect(posture.summary.readinessPlan.check).toBeGreaterThanOrEqual(1);
+      expect(posture.summary.readinessPlan.blocksAutonomy).toBeGreaterThanOrEqual(1);
+      expect(posture.policy).toContain('Read-only setup/onboarding posture');
+
+      const first = posture.readinessPlan[0];
+      expect(first?.setupItemId).toBe('connected-host-readiness');
+      expect(first?.status).toBe('check');
+      expect(first?.blocksAutonomy).toBe(true);
+      expect(first?.modelRoute).toContain('connected_host_status');
+      expect(first?.userRoute).toContain('Host compatibility');
+
+      const provider = posture.readinessPlan.find((item) => item.setupItemId === 'provider-access');
+      expect(['ready', 'blocked']).toContain(provider?.status);
+      expect(provider?.blocksAutonomy).toBe(true);
+      expect(provider?.modelRoute).toContain('model_routing');
+      expect(provider?.nextAction).toMatch(/Choose a provider\/model route|Review the current model route/);
+      expect(posture.nextSetupActions[0]?.setupItemId).toBe('connected-host-readiness');
+
+      const hostItem = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly lookup?: { readonly resolvedBy?: string };
+        readonly modelRoute: string;
+        readonly policy?: { readonly effect: string };
+      }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
+      expect(hostItem.setupItemId).toBe('connected-host-readiness');
+      expect(hostItem.status).toBe('check');
+      expect(hostItem.lookup?.resolvedBy).toBe('plan-id');
+      expect(hostItem.modelRoute).toContain('connected_host_status');
+      expect(hostItem.policy?.effect).toBe('read-only');
     } finally {
       fixture.cleanup();
     }

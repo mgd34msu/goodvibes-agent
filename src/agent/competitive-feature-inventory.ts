@@ -48,10 +48,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'One guided flow verifies dependencies, installs or starts the host, configures auth, pairs channels, and leaves a working assistant.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'Agent has onboarding and diagnostics, while host lifecycle remains external and therefore high-friction.',
+    goodVibesNow: 'Agent has onboarding, diagnostics, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, Agent Knowledge, local behavior, channels, automation review, delegation, and finish state with exact user and model routes. Host lifecycle remains external and therefore high-friction.',
     nextMoves: [
       'Add a consent-gated host lifecycle setup path that can use an installed GoodVibes host or guide installation when missing.',
-      'Show one readiness checklist with blocking next actions in priority order.',
+      'Turn setup plan blockers into visible repair flows with live connected-host probes and user-approved host actions.',
       'Add end-to-end install smoke that proves a user can go from package install to reachable assistant.',
     ],
     competitorSignals: [

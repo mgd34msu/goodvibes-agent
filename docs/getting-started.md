@@ -40,7 +40,7 @@ Use the interactive workspace first. CLI subcommands are secondary support paths
 
 Primary first-run areas:
 
-- Setup: provider/model, hardware-scored local model cookbook, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
+- Setup: prioritized first-run plan, provider/model, hardware-scored local model cookbook, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
 - Research: read-only web research and URL inspection, project-local visible research runs with log tails, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.
@@ -88,6 +88,7 @@ Common model routes:
 | Channels, notifications, reminders, media | `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate` |
 | Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_operator_method`, `agent_harness mode:"operator_methods"` |
 | Connected host/daemon posture | `agent_harness mode:"service_posture"`, `mode:"connected_host"`, `mode:"connected_host_capability"`, `mode:"connected_host_status"`, `mode:"daemon"`, `mode:"daemon_status"` |
+| First-run setup plan | `agent_harness mode:"setup_posture"`, `mode:"setup_item"` |
 | Operator/audit evidence | `agent_harness mode:"release_evidence"`, `mode:"release_evidence_artifact"`, `mode:"release_readiness"`, `mode:"release_readiness_item"` |
 
 All effects require explicit user request and confirmation. Ambiguous lookup is refused with candidates.
