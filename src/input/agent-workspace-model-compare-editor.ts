@@ -44,8 +44,9 @@ export interface AgentModelCompareApplyWorkspaceToolArgs {
 }
 
 export interface AgentModelCompareExportWorkspaceToolArgs {
-  readonly mode: 'export';
+  readonly mode: 'export' | 'handoff';
   readonly artifactId: string;
+  readonly relatedArtifactIds?: readonly string[];
   readonly reveal?: boolean;
   readonly confirm: boolean;
   readonly explicitUserRequest: string;
@@ -184,11 +185,13 @@ export function createAgentModelCompareExportEditor(): AgentWorkspaceLocalEditor
   return {
     kind: 'model-compare-export',
     mode: 'create',
-    title: 'Export Compare Report',
+    title: 'Export Compare Report/Handoff',
     selectedFieldIndex: 0,
-    message: 'Export a saved comparison or saved judgment artifact as a local markdown report. This does not change the selected model.',
+    message: 'Export a saved comparison or judgment as a markdown report, or create a reviewer handoff that includes related document/artifact ids. This does not change the selected model.',
     fields: [
+      { id: 'reportKind', label: 'Kind', value: 'report', required: false, multiline: false, hint: 'report or handoff. Handoff includes related artifact ids in one reviewer packet.' },
       { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved comparison or judgment artifact id such as artifact-123.' },
+      { id: 'relatedArtifactIds', label: 'Related artifacts', value: '', required: false, multiline: true, hint: 'For handoff: document export, archive, or artifact ids, separated by commas or new lines.' },
       { id: 'reveal', label: 'Reveal in export', value: 'no', required: false, multiline: false, hint: 'yes/no. For comparison artifacts, yes includes model identities. Judgment artifacts use their saved reveal state.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to create one local markdown report artifact.' },
     ],
@@ -290,9 +293,12 @@ export function buildAgentModelCompareExportToolArgs(
   readField: AgentWorkspaceFieldReader,
   explicitUserRequest: string,
 ): AgentModelCompareExportWorkspaceToolArgs {
+  const mode = readField('reportKind').trim().toLowerCase() === 'handoff' ? 'handoff' : 'export';
+  const relatedArtifactIds = readList(readField('relatedArtifactIds'));
   return {
-    mode: 'export',
+    mode,
     artifactId: readField('artifactId').trim(),
+    ...(relatedArtifactIds.length > 0 ? { relatedArtifactIds } : {}),
     reveal: isAffirmative(readField('reveal')),
     confirm: true,
     explicitUserRequest,
@@ -663,14 +669,21 @@ export function buildAgentModelCompareExportPromptSubmission(
     };
   }
 
+  const mode = readField('reportKind').trim().toLowerCase() === 'handoff' ? 'handoff' : 'export';
   const artifactId = readField('artifactId').trim();
+  const relatedArtifactIds = readList(readField('relatedArtifactIds'));
   const reveal = isAffirmative(readField('reveal'));
-  const explicitUserRequest = 'Export the saved blind model comparison artifact from the Agent workspace form.';
+  const explicitUserRequest = mode === 'handoff'
+    ? 'Create a reviewer handoff from the saved blind model comparison artifact in the Agent workspace form.'
+    : 'Export the saved blind model comparison artifact from the Agent workspace form.';
   const prompt = [
-    'Export a saved blind model comparison or judgment artifact with the `agent_model_compare` tool.',
-    'Use mode:"export" and confirm:true because this workspace form was explicitly confirmed by the user.',
+    mode === 'handoff'
+      ? 'Create a reviewer handoff for a saved blind model comparison or judgment artifact with the `agent_model_compare` tool.'
+      : 'Export a saved blind model comparison or judgment artifact with the `agent_model_compare` tool.',
+    `Use mode:"${mode}" and confirm:true because this workspace form was explicitly confirmed by the user.`,
     `Use explicitUserRequest: ${JSON.stringify(explicitUserRequest)}.`,
     artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
+    relatedArtifactIds.length > 0 ? `Related artifact ids: ${relatedArtifactIds.join(', ')}.` : 'Related artifact ids: none.',
     `Reveal model identities in comparison exports: ${reveal ? 'yes' : 'no'}.`,
     'Create one local markdown artifact and do not change model routing.',
   ].join('\n');
@@ -678,11 +691,13 @@ export function buildAgentModelCompareExportPromptSubmission(
   return {
     kind: 'prompt',
     prompt,
-    status: 'Submitting comparison export request.',
+    status: `Submitting comparison ${mode} request.`,
     actionResult: {
       kind: 'guidance',
-      title: 'Export compare report',
-      detail: 'Submitted a confirmed request to export a saved comparison or judgment as markdown.',
+      title: mode === 'handoff' ? 'Compare reviewer handoff' : 'Export compare report',
+      detail: mode === 'handoff'
+        ? 'Submitted a confirmed request to create a reviewer handoff from saved comparison evidence.'
+        : 'Submitted a confirmed request to export a saved comparison or judgment as markdown.',
       safety: 'safe',
     },
   };

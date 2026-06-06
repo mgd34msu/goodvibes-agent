@@ -6983,6 +6983,29 @@ describe('agent_harness tool', () => {
       expect(exportReport.output).toContain('"status": "executed_model_tool"');
       expect(exportReport.output).toContain('"tool": "agent_model_compare"');
       expect(exportReport.output).toContain('agent_model_compare executed');
+
+      const handoff = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-export-compare',
+        fields: {
+          reportKind: 'handoff',
+          artifactId: 'artifact-2',
+          relatedArtifactIds: 'artifact-doc, artifact-package',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Create a reviewer handoff for this comparison.',
+      });
+      expect(handoff.success).toBe(true);
+      expect(handoff.output).toContain('"status": "executed_model_tool"');
+      expect(handoff.output).toContain('"tool": "agent_model_compare"');
+      expect(handoff.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'handoff',
+        artifactId: 'artifact-2',
+        relatedArtifactIds: ['artifact-doc', 'artifact-package'],
+        confirm: true,
+      });
     } finally {
       fixture.cleanup();
     }

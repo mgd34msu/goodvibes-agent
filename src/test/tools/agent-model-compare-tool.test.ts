@@ -602,6 +602,69 @@ describe('agent_model_compare tool', () => {
     expect(analyticsAfterExport.output).not.toContain('artifact-4');
     expect(analyticsAfterExport.output).not.toContain('artifact-5');
     expect(analyticsAfterExport.output).not.toContain('Candidate B was more concrete.');
+
+    const documentExport = await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'text/markdown',
+      filename: 'launch-plan.md',
+      text: [
+        '# Launch Plan',
+        '',
+        'Ship the reviewed document workflow.',
+        '',
+        '## Review Comments',
+        '',
+        '- c1 [resolved] Clarify the launch owner.',
+      ].join('\n'),
+      metadata: {
+        purpose: 'agent-document-export',
+        documentId: 'doc_launch',
+      },
+    });
+    expect(documentExport.id).toBe('artifact-6');
+
+    const handoffPreview = await reviewer.tool.execute({
+      mode: 'handoff',
+      artifactId: 'artifact-2',
+      relatedArtifactIds: [documentExport.id],
+      confirm: false,
+      explicitUserRequest: 'Create a reviewer handoff.',
+    });
+    expect(handoffPreview.success).toBe(false);
+    expect(handoffPreview.error).toContain('reviewer handoff preview');
+    expect(handoffPreview.error).toContain(`related artifacts ${documentExport.id}`);
+    expect(artifacts.inputs).toHaveLength(6);
+
+    const handoff = await reviewer.tool.execute({
+      mode: 'handoff',
+      artifactId: 'artifact-2',
+      relatedArtifactIds: [documentExport.id],
+      confirm: true,
+      explicitUserRequest: 'Create a reviewer handoff.',
+    });
+    expect(handoff.success).toBe(true);
+    expect(handoff.output).toContain('Blind model comparison reviewer handoff saved');
+    expect(handoff.output).toContain('source artifact-2 (judgment)');
+    expect(handoff.output).toContain('related artifacts 1');
+    expect(handoff.output).toContain('artifact artifact-7');
+    expect(handoff.output).toContain('No selected model was changed.');
+    expect(artifacts.inputs).toHaveLength(7);
+    expect(artifacts.inputs[6]?.mimeType).toBe('text/markdown');
+    expect(artifacts.inputs[6]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare-handoff',
+      sourceArtifactId: 'artifact-2',
+      sourceKind: 'judgment',
+      relatedArtifactIds: [documentExport.id],
+    });
+    const handoffText = artifacts.inputs[6]?.text ?? '';
+    expect(handoffText).toContain('# Blind Model Comparison Reviewer Handoff');
+    expect(handoffText).toContain('## Related Artifacts');
+    expect(handoffText).toContain('# Launch Plan');
+    expect(handoffText).toContain('## Review Comments');
+    expect(handoffText).toContain('## Comparison Evidence');
+    expect(handoffText).toContain('# Blind Model Comparison Judgment');
+    expect(handoffText).toContain('Winner model: anthropic:claude-sonnet');
+    expect(handoffText).toContain('Route changes require a separate confirmed');
   });
 
   test('can deliberately skip artifact persistence', async () => {

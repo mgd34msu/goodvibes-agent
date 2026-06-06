@@ -23,6 +23,7 @@ export interface AgentModelCompareToolArgs {
   readonly notes?: unknown;
   readonly limit?: unknown;
   readonly includeReasons?: unknown;
+  readonly relatedArtifactIds?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -130,6 +131,7 @@ const MODE_REVIEW = 'review';
 const MODE_JUDGE = 'judge';
 const MODE_APPLY = 'apply';
 const MODE_EXPORT = 'export';
+const MODE_HANDOFF = 'handoff';
 const MODE_ANALYTICS = 'analytics';
 const MODE_SYNTHESIS = 'synthesis';
 const BENCHMARK_KIND_LOCAL_MODEL_ROUTE = 'local-model-route';
@@ -141,6 +143,7 @@ const DEFAULT_MAX_TOKENS = 2_048;
 const MAX_COMPLETION_TOKENS = 8_192;
 const DEFAULT_CANDIDATE_OUTPUT_CHARS = 12_000;
 const MAX_SOURCE_ARTIFACT_BYTES = 18_000;
+const MAX_HANDOFF_ARTIFACT_BYTES = 40_000;
 const COMPARISON_STORE_LIMIT = 25;
 const BLIND_LABELS = ['A', 'B', 'C', 'D'] as const;
 
@@ -226,6 +229,21 @@ function readModelRefs(value: unknown): readonly string[] {
   const text = readString(value);
   if (!text) return [];
   return text.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean);
+}
+
+function readStringList(value: unknown): readonly string[] {
+  const raw = Array.isArray(value)
+    ? value
+    : readString(value).split(/[\n,]/);
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const entry of raw) {
+    const text = readString(entry);
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    result.push(text);
+  }
+  return result;
 }
 
 function normalizeCatalogModel(model: AgentModelCompareCatalogModel): ResolvedCompareModel | null {
@@ -1024,6 +1042,111 @@ async function saveComparisonExportArtifact(input: {
   return toSavedComparisonArtifact(descriptor);
 }
 
+async function loadHandoffRelatedArtifacts(
+  artifactStore: AgentModelCompareArtifactStore | undefined,
+  artifactIds: readonly string[],
+): Promise<readonly { readonly artifact: SavedComparisonArtifact; readonly text?: string; readonly truncatedBytes: number }[]> {
+  if (!artifactStore?.readContent) {
+    throw new Error('Reviewer handoff requires an artifact store with readContent support.');
+  }
+  const related: { readonly artifact: SavedComparisonArtifact; readonly text?: string; readonly truncatedBytes: number }[] = [];
+  for (const artifactId of artifactIds) {
+    const { record, buffer } = await artifactStore.readContent(artifactId);
+    const artifact = toSavedComparisonArtifact(record);
+    if (!isTextLike(record.mimeType)) {
+      related.push({ artifact, truncatedBytes: 0 });
+      continue;
+    }
+    const sliced = buffer.subarray(0, Math.min(buffer.byteLength, MAX_HANDOFF_ARTIFACT_BYTES));
+    related.push({
+      artifact,
+      text: sliced.toString('utf-8').replace(/\0/g, '').trimEnd(),
+      truncatedBytes: Math.max(0, buffer.byteLength - sliced.byteLength),
+    });
+  }
+  return related;
+}
+
+function comparisonHandoffMarkdown(input: {
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly sourceArtifactId: string;
+  readonly comparisonId: string;
+  readonly comparisonMarkdown: string;
+  readonly reveal: boolean;
+  readonly relatedArtifacts: readonly { readonly artifact: SavedComparisonArtifact; readonly text?: string; readonly truncatedBytes: number }[];
+}): string {
+  const lines = [
+    '# Blind Model Comparison Reviewer Handoff',
+    '',
+    `Comparison: ${input.comparisonId}`,
+    `Comparison artifact: ${input.sourceArtifactId}`,
+    `Comparison artifact kind: ${input.sourceKind}`,
+    `Reveal included: ${input.reveal ? 'yes' : 'no'}`,
+    `Related artifacts: ${input.relatedArtifacts.length}`,
+    '',
+    '## Handoff Policy',
+    '',
+    '- This packet is local reviewer evidence.',
+    '- It does not change model routing.',
+    '- Route changes require a separate confirmed `agent_model_compare mode:"apply"` call.',
+    '',
+    '## Related Artifacts',
+    '',
+  ];
+  for (const related of input.relatedArtifacts) {
+    lines.push(`### ${related.artifact.artifactId}`);
+    lines.push('');
+    lines.push(`Filename: ${related.artifact.filename ?? '(none)'}`);
+    lines.push(`MIME: ${related.artifact.mimeType}`);
+    lines.push(`Size: ${related.artifact.sizeBytes} bytes`);
+    lines.push('');
+    if (related.text === undefined) {
+      lines.push('_Content omitted for non-text artifact; binary/base64 bytes were not included._');
+    } else {
+      lines.push(markdownBlock(related.text || '(empty text artifact)'));
+      if (related.truncatedBytes > 0) {
+        lines.push('');
+        lines.push(`_Truncated ${related.truncatedBytes} byte(s) from this artifact preview._`);
+      }
+    }
+    lines.push('');
+  }
+  lines.push('## Comparison Evidence');
+  lines.push('');
+  lines.push(input.comparisonMarkdown);
+  lines.push('');
+  return lines.join('\n');
+}
+
+async function saveComparisonHandoffArtifact(input: {
+  readonly artifactStore?: AgentModelCompareArtifactStore;
+  readonly sourceArtifactId: string;
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly comparisonId: string;
+  readonly relatedArtifactIds: readonly string[];
+  readonly markdown: string;
+  readonly reveal: boolean;
+}): Promise<SavedComparisonArtifact> {
+  if (!input.artifactStore) throw new Error('Cannot create reviewer handoff because the artifact store is unavailable.');
+  const handoffId = `hnd_${randomUUID()}`;
+  const descriptor = await input.artifactStore.create({
+    kind: 'data',
+    mimeType: 'text/markdown',
+    filename: `blind-model-comparison-handoff-${handoffId}.md`,
+    text: input.markdown,
+    metadata: {
+      purpose: 'agent-model-compare-handoff',
+      handoffId,
+      sourceArtifactId: input.sourceArtifactId,
+      sourceKind: input.sourceKind,
+      relatedArtifactIds: input.relatedArtifactIds,
+      comparisonId: input.comparisonId,
+      revealIncludedInHandoff: input.reveal,
+    },
+  });
+  return toSavedComparisonArtifact(descriptor);
+}
+
 function formatExportPreview(input: {
   readonly sourceKind: 'comparison' | 'judgment';
   readonly sourceArtifactId: string;
@@ -1040,6 +1163,23 @@ function formatExportPreview(input: {
   ].join('\n');
 }
 
+function formatHandoffPreview(input: {
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly sourceArtifactId: string;
+  readonly comparisonId: string;
+  readonly reveal: boolean;
+  readonly relatedArtifactIds: readonly string[];
+}): string {
+  return [
+    'Agent blind model comparison reviewer handoff preview',
+    `  source ${input.sourceArtifactId} (${input.sourceKind})`,
+    `  comparison ${input.comparisonId}`,
+    `  related artifacts ${input.relatedArtifactIds.join(', ') || '(missing)'}`,
+    `  reveal ${input.reveal ? 'include model identities when available' : 'keep model identities hidden'}`,
+    '  policy creates one local markdown handoff artifact and does not change model routing',
+  ].join('\n');
+}
+
 function formatExportResult(input: {
   readonly sourceKind: 'comparison' | 'judgment';
   readonly sourceArtifactId: string;
@@ -1049,6 +1189,22 @@ function formatExportResult(input: {
   return [
     `Blind model comparison export saved for ${input.comparisonId}`,
     `source ${input.sourceArtifactId} (${input.sourceKind})`,
+    `artifact ${input.artifact.artifactId}${input.artifact.filename ? ` ${input.artifact.filename}` : ''} (${input.artifact.mimeType}, ${input.artifact.sizeBytes} bytes)`,
+    'No selected model was changed.',
+  ].join('\n');
+}
+
+function formatHandoffResult(input: {
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly sourceArtifactId: string;
+  readonly comparisonId: string;
+  readonly relatedArtifactCount: number;
+  readonly artifact: SavedComparisonArtifact;
+}): string {
+  return [
+    `Blind model comparison reviewer handoff saved for ${input.comparisonId}`,
+    `source ${input.sourceArtifactId} (${input.sourceKind})`,
+    `related artifacts ${input.relatedArtifactCount}`,
     `artifact ${input.artifact.artifactId}${input.artifact.filename ? ` ${input.artifact.filename}` : ''} (${input.artifact.mimeType}, ${input.artifact.sizeBytes} bytes)`,
     'No selected model was changed.',
   ].join('\n');
@@ -1101,7 +1257,7 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' | 'analytics' | 'synthesis' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' | 'handoff' | 'analytics' | 'synthesis' {
   const mode = readString(value) || MODE_RUN;
   if (
     mode === MODE_RUN
@@ -1110,10 +1266,11 @@ function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'app
     || mode === MODE_JUDGE
     || mode === MODE_APPLY
     || mode === MODE_EXPORT
+    || mode === MODE_HANDOFF
     || mode === MODE_ANALYTICS
     || mode === MODE_SYNTHESIS
   ) return mode;
-  throw new Error('mode must be run, reveal, review, judge, apply, export, analytics, or synthesis.');
+  throw new Error('mode must be run, reveal, review, judge, apply, export, handoff, analytics, or synthesis.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -1402,8 +1559,8 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_ANALYTICS, MODE_SYNTHESIS],
-            description: 'Modes: run/review/reveal/judge/apply/export/analytics/synthesis.',
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_HANDOFF, MODE_ANALYTICS, MODE_SYNTHESIS],
+            description: 'Select compare workflow mode.',
           },
           prompt: {
             type: 'string',
@@ -1474,6 +1631,11 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           includeReasons: {
             type: 'boolean',
             description: 'If true, include short reason excerpts.',
+          },
+          relatedArtifactIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Related artifacts for reviewer handoff.',
           },
           confirm: {
             type: 'boolean',
@@ -1687,6 +1849,104 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             sourceKind: 'judgment',
             sourceArtifactId: artifactId,
             comparisonId: judgment.comparisonId,
+            artifact,
+          }));
+        }
+
+        if (mode === MODE_HANDOFF) {
+          const artifactId = readString(args.artifactId);
+          const explicitUserRequest = readString(args.explicitUserRequest);
+          const relatedArtifactIds = readStringList(args.relatedArtifactIds).filter((relatedId) => relatedId !== artifactId);
+          if (!artifactId) return failure('handoff mode requires a saved comparison or judgment artifactId.');
+          if (relatedArtifactIds.length === 0) return failure('handoff mode requires at least one relatedArtifactIds entry.');
+          if (!explicitUserRequest) {
+            return failure('explicitUserRequest is required so reviewer handoffs stay tied to a direct user request.');
+          }
+          if (!deps.artifactStore?.readContent || !deps.artifactStore.create) {
+            return failure('Reviewer handoff is unavailable because this runtime cannot read and create artifact content.');
+          }
+
+          const comparison = await loadComparisonFromArtifact(deps.artifactStore, artifactId);
+          if (comparison) {
+            const reveal = readBoolean(args.reveal);
+            if (!readBoolean(args.confirm)) {
+              return failure([
+                formatHandoffPreview({
+                  sourceKind: 'comparison',
+                  sourceArtifactId: artifactId,
+                  comparisonId: comparison.comparisonId,
+                  reveal,
+                  relatedArtifactIds,
+                }),
+                '',
+                'Handoff confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to create this reviewer handoff.',
+              ].join('\n'));
+            }
+            const relatedArtifacts = await loadHandoffRelatedArtifacts(deps.artifactStore, relatedArtifactIds);
+            const artifact = await saveComparisonHandoffArtifact({
+              artifactStore: deps.artifactStore,
+              sourceArtifactId: artifactId,
+              sourceKind: 'comparison',
+              comparisonId: comparison.comparisonId,
+              relatedArtifactIds,
+              markdown: comparisonHandoffMarkdown({
+                sourceKind: 'comparison',
+                sourceArtifactId: artifactId,
+                comparisonId: comparison.comparisonId,
+                comparisonMarkdown: comparisonExportMarkdown(comparison, reveal),
+                reveal,
+                relatedArtifacts,
+              }),
+              reveal,
+            });
+            rememberComparison(comparisons, comparison);
+            return output(formatHandoffResult({
+              sourceKind: 'comparison',
+              sourceArtifactId: artifactId,
+              comparisonId: comparison.comparisonId,
+              relatedArtifactCount: relatedArtifacts.length,
+              artifact,
+            }));
+          }
+
+          const judgment = await loadJudgmentFromArtifact(deps.artifactStore, artifactId);
+          if (!judgment) return failure('Unknown comparison or judgment artifact. Pass a saved blind model comparison artifactId.');
+          const reveal = judgment.revealIncludedInJudgment;
+          if (!readBoolean(args.confirm)) {
+            return failure([
+              formatHandoffPreview({
+                sourceKind: 'judgment',
+                sourceArtifactId: artifactId,
+                comparisonId: judgment.comparisonId,
+                reveal,
+                relatedArtifactIds,
+              }),
+              '',
+              'Handoff confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to create this reviewer handoff.',
+            ].join('\n'));
+          }
+          const relatedArtifacts = await loadHandoffRelatedArtifacts(deps.artifactStore, relatedArtifactIds);
+          const artifact = await saveComparisonHandoffArtifact({
+            artifactStore: deps.artifactStore,
+            sourceArtifactId: artifactId,
+            sourceKind: 'judgment',
+            comparisonId: judgment.comparisonId,
+            relatedArtifactIds,
+            markdown: comparisonHandoffMarkdown({
+              sourceKind: 'judgment',
+              sourceArtifactId: artifactId,
+              comparisonId: judgment.comparisonId,
+              comparisonMarkdown: judgmentExportMarkdown(judgment),
+              reveal,
+              relatedArtifacts,
+            }),
+            reveal,
+          });
+          return output(formatHandoffResult({
+            sourceKind: 'judgment',
+            sourceArtifactId: artifactId,
+            comparisonId: judgment.comparisonId,
+            relatedArtifactCount: relatedArtifacts.length,
             artifact,
           }));
         }
