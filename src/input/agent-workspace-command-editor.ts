@@ -1,6 +1,7 @@
 import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentArtifactBrowserPromptSubmission, buildAgentArtifactPromoteKnowledgePromptSubmission } from './agent-workspace-artifact-browser-editor.ts';
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
+import { buildAgentDocumentPromptSubmission } from './agent-workspace-document-editor.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
 import { buildAgentModelCompareAnalyticsPromptSubmission, buildAgentModelCompareApplyPromptSubmission, buildAgentModelCompareExportPromptSubmission, buildAgentModelCompareJudgmentPromptSubmission, buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission } from './agent-workspace-model-compare-editor.ts';
@@ -23,6 +24,12 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'knowledge-search'
   | 'knowledge-ask'
   | 'model-compare'
+  | 'document-browse'
+  | 'document-show'
+  | 'document-create'
+  | 'document-update'
+  | 'document-review'
+  | 'document-export'
   | 'model-compare-review'
   | 'model-compare-judge'
   | 'model-compare-apply'
@@ -100,6 +107,12 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'artifact-show'
     || kind === 'artifact-promote-knowledge'
     || kind === 'model-compare'
+    || kind === 'document-browse'
+    || kind === 'document-show'
+    || kind === 'document-create'
+    || kind === 'document-update'
+    || kind === 'document-review'
+    || kind === 'document-export'
     || kind === 'model-compare-review'
     || kind === 'model-compare-judge'
     || kind === 'model-compare-apply'
@@ -128,6 +141,16 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'artifact-promote-knowledge') {
     return buildAgentArtifactPromoteKnowledgePromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (
+    editor.kind === 'document-browse'
+    || editor.kind === 'document-show'
+    || editor.kind === 'document-create'
+    || editor.kind === 'document-update'
+    || editor.kind === 'document-review'
+    || editor.kind === 'document-export'
+  ) {
+    return buildAgentDocumentPromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (editor.kind === 'model-compare') {
     return buildAgentModelComparePromptSubmission(editor, readField, promptDispatchAvailable);

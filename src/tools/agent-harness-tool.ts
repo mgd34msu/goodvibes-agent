@@ -2,6 +2,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactPromoteKnowledgeToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
+import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
@@ -360,6 +361,49 @@ async function runWorkspaceEditorAction(
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',
       action: action.id,
       tool: 'agent_knowledge_ingest',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (
+    editor.kind === 'document-browse'
+    || editor.kind === 'document-show'
+    || editor.kind === 'document-create'
+    || editor.kind === 'document-update'
+    || editor.kind === 'document-review'
+    || editor.kind === 'document-export'
+  ) {
+    const isMutation = editor.kind !== 'document-browse' && editor.kind !== 'document-show';
+    if (isMutation) {
+      const confirmationError = requireConfirmedAction(args, 'Workspace Agent document action');
+      if (confirmationError) return error(confirmationError);
+      const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+      if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+        return output({
+          status: 'not_confirmed',
+          action: action.id,
+          editor: describeWorkspaceEditor(editor),
+          modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+          note: 'Type yes in the editor confirmation field before changing Agent document drafts.',
+        });
+      }
+    }
+    const documentToolArgs = buildAgentDocumentToolArgs(
+      editor,
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Run the Agent document workspace action.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-document',
+      'agent_documents',
+      documentToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_documents',
       output: result.output ?? null,
       error: result.error ?? null,
       modelExecution: describeWorkspaceEditorModelExecution(editor.kind),

@@ -112,6 +112,15 @@ function describeLane(lane: DocumentOpsLane, includeParameters: boolean): Record
 function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
   const available = workspaceActionIds();
+  const documentActions = existingActions([
+    'document-browse-drafts',
+    'document-show-draft',
+    'document-create-draft',
+    'document-revise-draft',
+    'document-review-draft',
+    'document-export-draft',
+    'document-draft-chat',
+  ], available);
   const uploadActions = existingActions([
     'artifact-attach-image',
     'artifact-paste',
@@ -128,6 +137,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'artifact-session-export',
     'conversation-export-current',
     'conversation-session-export',
+    'document-export-draft',
     'document-export-conversation',
     'document-export-session',
   ], available);
@@ -174,6 +184,12 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'account-main-model',
   ], available);
   const modelCompareReady = hasTool(context, 'agent_model_compare') && modelCompareActions.includes('document-run-compare');
+  const documentsReady = hasTool(context, 'agent_documents')
+    && documentActions.includes('document-browse-drafts')
+    && documentActions.includes('document-show-draft')
+    && documentActions.includes('document-create-draft')
+    && documentActions.includes('document-revise-draft')
+    && documentActions.includes('document-export-draft');
   const artifactBrowserReady = hasTool(context, 'agent_artifacts')
     && hasTool(context, 'agent_knowledge_ingest')
     && Boolean(context.platform.artifactStore?.list)
@@ -186,18 +202,24 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     {
       id: 'documents',
       label: 'Documents',
-      status: 'partial',
+      status: documentsReady ? 'ready' : 'partial',
       outcome: 'Draft, revise, and export user-facing documents without leaving the Agent conversation.',
-      current: 'Agent can draft and revise documents in the main conversation and export transcript/session artifacts, but there is no dedicated markdown editor, version history, or document artifact workspace yet.',
-      next: 'Build a real document editor with versions, comments, export targets, and reusable artifact ids.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Draft document',
-      modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"documents"',
+      current: documentsReady
+        ? 'Agent has project-scoped markdown document drafts with version history, review status, read-only inspection, and confirmed artifact export.'
+        : 'Agent can draft and revise documents in the main conversation and export transcript/session artifacts, but the dedicated markdown draft tool is not fully wired.',
+      next: documentsReady
+        ? 'Add inline comments, AI suggestion review, and richer insert/attach/export reuse targets on top of versioned drafts.'
+        : 'Wire agent_documents plus browse/show/create/revise/review/export workspace actions.',
+      userRoute: 'Agent Workspace -> Documents & Compare -> Create document draft',
+      modelRoute: documentsReady ? 'agent_documents' : 'agent_harness mode:"workspace_actions" categoryId:"documents"',
       signals: [
         `Chat route ${snapshot.provider} / ${snapshot.modelDisplayName}`,
+        `Document draft tool: ${hasTool(context, 'agent_documents') ? 'available' : 'gap'}`,
+        `${documentActions.length} document draft action(s)`,
         `${exportActions.length} export action(s) available`,
-        'Dedicated document editor: gap',
+        documentsReady ? 'Versioned markdown drafts: available' : 'Versioned markdown drafts: gap',
       ],
-      actionIds: existingActions(['document-draft-chat', 'document-export-conversation', 'document-export-session'], available),
+      actionIds: documentActions,
     },
     {
       id: 'uploads',
@@ -222,7 +244,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: exportActions.length >= 2 ? 'ready' : exportActions.length > 0 ? 'partial' : 'gap',
       outcome: 'Turn conversation and saved-session output into local files the user can keep or reuse.',
       current: `${exportActions.length} conversation/session export action(s) are reachable.`,
-      next: 'Add document-native export once the editor exists; keep current transcript/session exports visible and confirmed.',
+      next: 'Keep transcript, session, document, comparison, and artifact exports visible, explicit, and reusable from one place.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Export',
       modelRoute: 'agent_harness mode:"workspace_actions" query:"export conversation session"',
       signals: [
@@ -272,7 +294,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Agent has a unified artifact browser with filters, redacted metadata, bounded text previews, and confirmed artifact-to-Knowledge promotion over the SDK artifact store.'
         : 'Artifacts are real and visible in transcript, source, session, and media routes, but the unified browser is not fully wired in this runtime.',
       next: artifactBrowserReady
-        ? 'Add document versioning plus richer insert, attach, export, and compare reuse targets once document editing exists.'
+        ? 'Add richer insert, attach, export, and compare reuse targets across document, upload, generated media, session, and Knowledge artifacts.'
         : 'Wire agent_artifacts and browse/show workspace actions over the SDK artifact store.',
       userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts or Promote to Knowledge',
       modelRoute: artifactBrowserReady ? 'agent_artifacts + agent_knowledge_ingest' : 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
@@ -294,7 +316,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics, markdown report export, and a separate confirmed winner route update.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
-        ? 'Build dedicated document editing and cross-session synthesis around saved comparison, judgment, analytics, export, and route-update artifacts.'
+        ? 'Build comments, AI suggestion review, and cross-session synthesis around saved comparison, judgment, analytics, export, and route-update artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
@@ -344,7 +366,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison. Dedicated document editing remains an explicit gap until a real workflow exists.',
+    policy: 'Document Ops unifies versioned document drafts, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison. Comments and AI suggestion review remain explicit next steps.',
     nextActions: nextActions(lanes),
   };
 }

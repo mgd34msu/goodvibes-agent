@@ -219,9 +219,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Documents, uploads, AI edit suggestions, blind model comparison, and artifact reuse are first-class app workflows.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Document Ops now maps drafting, uploads, exports, sources, media artifacts, a unified artifact browser with read-only browse/show, filters, redacted metadata, bounded text previews, and confirmed artifact-to-Knowledge promotion, and includes a confirmed blind comparison runner with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates, while document editing, artifact versioning, and richer insert/attach/export reuse actions remain unfinished.',
+    goodVibesNow: 'Document Ops now has project-scoped versioned markdown drafts with browse/show/create/revise/review/export, uploads, exports, sources, media artifacts, a unified artifact browser with read-only browse/show, filters, redacted metadata, bounded text previews, and confirmed artifact-to-Knowledge promotion, plus a confirmed blind comparison runner with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates. Comments, AI suggestion review, and richer insert/attach/export reuse actions remain unfinished.',
     nextMoves: [
-      'Build a document editor with markdown editing, AI suggestions, version history, comments, document artifact ids, and export.',
+      'Add inline comments, AI suggestion review, and reviewer-ready change summaries on top of versioned markdown drafts.',
       'Add cross-session synthesis on top of the blind runner, review board, judgment artifacts, saved preference analytics, markdown export, and route update.',
       'Add reuse actions that insert, attach, or export selected uploads, generated media, documents, session exports, delegation outputs, and knowledge sources from the artifact browser.',
     ],

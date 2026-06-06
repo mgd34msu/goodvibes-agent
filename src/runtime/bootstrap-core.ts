@@ -31,6 +31,7 @@ import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.t
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
 import { registerAgentChannelSendTool } from '../tools/agent-channel-send-tool.ts';
 import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
+import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
@@ -244,6 +245,7 @@ export async function initializeBootstrapCore(
     changeTracker: services.sessionChangeTracker,
   });
   registerAgentArtifactsTool(toolRegistry, services.artifactStore);
+  registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
   registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter);
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);

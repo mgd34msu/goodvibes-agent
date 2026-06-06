@@ -28,6 +28,7 @@ const WRITE_TOOL_NAMES = new Set([
   'write',
   'edit',
   'goodvibes_settings',
+  'agent_documents',
   'agent_knowledge_ingest',
   'agent_local_registry',
   'agent_work_plan',

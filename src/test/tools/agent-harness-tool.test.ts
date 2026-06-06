@@ -21,6 +21,7 @@ import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categori
 import { KeybindingsManager } from '../../input/keybindings.ts';
 import { describeCliCommandPolicy, describeCommandPolicy } from '../../tools/agent-harness-metadata.ts';
 import { createAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
+import { createAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
@@ -693,6 +694,7 @@ describe('agent_harness tool', () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
+      registerStubTool(fixture.toolRegistry, 'agent_documents');
       fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store));
       registerStubTool(fixture.toolRegistry, 'agent_knowledge_ingest');
       registerStubTool(fixture.toolRegistry, 'agent_model_compare');
@@ -715,7 +717,7 @@ describe('agent_harness tool', () => {
         readonly nextActions: readonly string[];
       }>(fixture, { mode: 'document_ops', includeParameters: true });
       expect(ops.policy).toContain('model comparison');
-      expect(ops.nextActions.join('\n')).toContain('dedicated document editing');
+      expect(ops.nextActions.join('\n')).toContain('AI suggestion review');
 
       const documents = ops.lanes.find((lane) => lane.id === 'documents');
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
@@ -723,8 +725,11 @@ describe('agent_harness tool', () => {
       const sourceLibrary = ops.lanes.find((lane) => lane.id === 'source_library');
       const artifactBrowser = ops.lanes.find((lane) => lane.id === 'artifact_browser');
       const modelCompare = ops.lanes.find((lane) => lane.id === 'model_compare');
-      expect(documents?.status).toBe('partial');
-      expect(documents?.current).toContain('no dedicated markdown editor');
+      expect(documents?.status).toBe('ready');
+      expect(documents?.current).toContain('version history');
+      expect(documents?.actionIds).toContain('document-create-draft');
+      expect(documents?.actionIds).toContain('document-revise-draft');
+      expect(documents?.actionIds).toContain('document-export-draft');
       expect(uploads?.status).toBe('ready');
       expect(uploads?.actionIds).toContain('document-ingest-file');
       expect(exports?.status).toBe('ready');
@@ -934,6 +939,9 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-promote-artifact')?.modelRoute).toBe('agent_knowledge_ingest');
@@ -2840,6 +2848,79 @@ describe('agent_harness tool', () => {
       expect(note?.title).toBe('Source triage');
       expect(note?.body).toContain('reviewed sources');
       expect(note?.tags).toEqual(['research', 'triage']);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs Agent document workspace editors through agent_documents', async () => {
+    const artifacts = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      fixture.toolRegistry.register(createAgentDocumentsTool(fixture.paths, artifacts.store));
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-create-draft',
+        confirm: true,
+        explicitUserRequest: 'Create a launch document draft.',
+        fields: {
+          title: 'Launch Plan',
+          body: 'Initial launch draft.',
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmed.success).toBe(true);
+      expect(unconfirmed.output).toContain('"status": "not_confirmed"');
+
+      const created = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-create-draft',
+        confirm: true,
+        explicitUserRequest: 'Create a launch document draft.',
+        fields: {
+          title: 'Launch Plan',
+          body: 'Initial launch draft.',
+          tags: 'launch,docs',
+          confirm: 'yes',
+        },
+      });
+      expect(created.success).toBe(true);
+      expect(created.output).toContain('"tool": "agent_documents"');
+      expect(created.output).toContain('Created Agent document');
+      expect(created.output).toContain('launch-plan');
+
+      const revised = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-revise-draft',
+        confirm: true,
+        explicitUserRequest: 'Revise the launch document draft.',
+        fields: {
+          documentId: 'launch-plan',
+          body: 'Initial launch draft.\n\nAdd rollout checklist.',
+          changeSummary: 'Added rollout checklist.',
+          confirm: 'yes',
+        },
+      });
+      expect(revised.success).toBe(true);
+      expect(revised.output).toContain('versions 2');
+
+      const exported = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-export-draft',
+        confirm: true,
+        explicitUserRequest: 'Export the launch document draft.',
+        fields: {
+          documentId: 'launch-plan',
+          confirm: 'yes',
+        },
+      });
+      expect(exported.success).toBe(true);
+      expect(exported.output).toContain('Exported Agent document');
+      expect(artifacts.store.list(5)[0]?.metadata).toMatchObject({
+        purpose: 'agent-document-export',
+        documentId: 'launch-plan',
+      });
     } finally {
       fixture.cleanup();
     }

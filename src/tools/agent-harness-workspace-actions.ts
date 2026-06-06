@@ -132,6 +132,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
     || editorKind === 'knowledge-consolidate'
   ) return 'agent_harness mode:"run_workspace_action"';
   if (editorKind.startsWith('knowledge-')) return 'agent_knowledge';
+  if (editorKind.startsWith('document-')) return 'agent_documents';
   if (editorKind === 'artifact-browser' || editorKind === 'artifact-show') return 'agent_artifacts';
   if (editorKind === 'artifact-promote-knowledge') return 'agent_knowledge_ingest';
   if (editorKind === 'web-research' || editorKind === 'web-fetch') return 'main conversation prompt';
