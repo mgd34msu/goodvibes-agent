@@ -1,0 +1,386 @@
+import type { CommandContext } from '../input/command-registry.ts';
+import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
+import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-types.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
+
+type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'ready-to-promote' | 'ready';
+type LearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine' | 'capture';
+
+interface AgentHarnessLearningCuratorArgs {
+  readonly candidateId?: unknown;
+  readonly target?: unknown;
+  readonly query?: unknown;
+  readonly includeParameters?: unknown;
+  readonly limit?: unknown;
+}
+
+interface LearningScores {
+  readonly usefulness: number;
+  readonly freshness: number;
+  readonly sourceQuality: number;
+  readonly risk: number;
+}
+
+interface LearningCandidate {
+  readonly id: string;
+  readonly label: string;
+  readonly domain: LearningCandidateDomain;
+  readonly recordId: string | null;
+  readonly status: LearningCandidateStatus;
+  readonly priority: number;
+  readonly reason: string;
+  readonly next: string;
+  readonly scores: LearningScores;
+  readonly reviewState?: string;
+  readonly enabled?: boolean;
+  readonly active?: boolean;
+  readonly confidence?: number;
+  readonly missingRequirements?: readonly string[];
+  readonly inspectRoute: string;
+  readonly modelRoute: string;
+  readonly reviewRoute?: string;
+  readonly staleRoute?: string;
+  readonly createRoute?: string;
+  readonly deleteRoute?: string;
+}
+
+export type LearningCandidateResolution =
+  | { readonly status: 'found'; readonly candidate: Record<string, unknown> }
+  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
+  | { readonly status: 'missing_lookup'; readonly usage: string };
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readLimit(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(200, Math.trunc(parsed)));
+}
+
+function clampScore(value: number): number {
+  return Math.max(0, Math.min(100, Math.round(value)));
+}
+
+function isReviewed(item: AgentWorkspaceLocalLibraryItem): boolean {
+  return item.reviewState === 'reviewed';
+}
+
+function missingRequirementCount(item: AgentWorkspaceLocalLibraryItem): number {
+  return item.missingRequirementCount ?? 0;
+}
+
+function itemUsefulness(item: AgentWorkspaceLocalLibraryItem): number {
+  const triggerSignal = Math.min(20, item.triggers.length * 5);
+  const tagSignal = Math.min(10, item.tags.length * 2);
+  const usageSignal = (item.enabled ? 15 : 0) + (item.active ? 15 : 0) + Math.min(20, (item.startCount ?? 0) * 4);
+  const confidenceSignal = item.confidence === undefined ? 10 : Math.max(0, Math.min(20, item.confidence / 5));
+  return clampScore(35 + triggerSignal + tagSignal + usageSignal + confidenceSignal);
+}
+
+function itemFreshness(item: AgentWorkspaceLocalLibraryItem): number {
+  if (item.reviewState === 'stale') return 15;
+  if (item.reviewState === 'fresh') return 55;
+  return missingRequirementCount(item) > 0 ? 70 : 92;
+}
+
+function itemSourceQuality(item: AgentWorkspaceLocalLibraryItem): number {
+  const source = item.source.toLowerCase();
+  const base = source.includes('workspace') || source.includes('import') ? 72 : source.includes('agent') ? 68 : 60;
+  return clampScore(base + (isReviewed(item) ? 12 : 0) + Math.min(12, item.tags.length * 2));
+}
+
+function itemRisk(item: AgentWorkspaceLocalLibraryItem): number {
+  const reviewRisk = item.reviewState === 'stale' ? 60 : item.reviewState === 'fresh' ? 35 : 10;
+  const injectionRisk = item.enabled || item.active ? 20 : 0;
+  const setupRisk = Math.min(30, missingRequirementCount(item) * 10);
+  const confidenceRisk = item.confidence === undefined ? 0 : Math.max(0, 70 - item.confidence);
+  return clampScore(reviewRisk + injectionRisk + setupRisk + confidenceRisk);
+}
+
+function scoresForItem(item: AgentWorkspaceLocalLibraryItem): LearningScores {
+  return {
+    usefulness: itemUsefulness(item),
+    freshness: itemFreshness(item),
+    sourceQuality: itemSourceQuality(item),
+    risk: itemRisk(item),
+  };
+}
+
+function routeDomain(domain: LearningCandidateDomain): string {
+  return domain;
+}
+
+function localRegistryRoute(domain: LearningCandidateDomain, action: string, id: string): string {
+  return `agent_local_registry domain:"${routeDomain(domain)}" action:"${action}" id:"${id}"`;
+}
+
+function localRegistryModelRoute(domain: LearningCandidateDomain): string {
+  return `agent_local_registry domain:"${routeDomain(domain)}" action:"get"`;
+}
+
+function candidateBase(
+  domain: LearningCandidateDomain,
+  item: AgentWorkspaceLocalLibraryItem,
+  status: LearningCandidateStatus,
+  priority: number,
+  reason: string,
+  next: string,
+): LearningCandidate {
+  const missingRequirements = item.missingRequirements ?? [];
+  return {
+    id: `${domain}:${item.id}:${status}`,
+    label: item.name,
+    domain,
+    recordId: item.id,
+    status,
+    priority: clampScore(priority),
+    reason,
+    next,
+    scores: scoresForItem(item),
+    reviewState: item.reviewState,
+    ...(item.enabled === undefined ? {} : { enabled: item.enabled }),
+    ...(item.active === undefined ? {} : { active: item.active }),
+    ...(item.confidence === undefined ? {} : { confidence: item.confidence }),
+    ...(missingRequirements.length === 0 ? {} : { missingRequirements }),
+    inspectRoute: localRegistryRoute(domain, 'get', item.id),
+    modelRoute: localRegistryModelRoute(domain),
+    reviewRoute: localRegistryRoute(domain, 'review', item.id),
+    staleRoute: `${localRegistryRoute(domain, 'stale', item.id)} reason:"..."`,
+    deleteRoute: `${localRegistryRoute(domain, 'delete', item.id)} confirm:true explicitUserRequest:"..."`,
+  };
+}
+
+function captureCandidate(): LearningCandidate {
+  return {
+    id: 'capture:reviewed-lesson',
+    label: 'Capture reviewed lesson',
+    domain: 'capture',
+    recordId: null,
+    status: 'ready',
+    priority: 30,
+    reason: 'No urgent local-learning review candidates are present.',
+    next: 'After a repeated workflow, useful preference, or durable lesson appears, capture it as a local memory, skill, routine, or persona for review.',
+    scores: { usefulness: 55, freshness: 85, sourceQuality: 60, risk: 10 },
+    inspectRoute: 'agent_harness mode:"workspace_action" actionId:"learned-behavior"',
+    modelRoute: 'agent_harness mode:"workspace_actions" query:"learned behavior"',
+    createRoute: 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',
+  };
+}
+
+function notePromotionCandidate(item: AgentWorkspaceLocalLibraryItem): LearningCandidate | null {
+  if (!isReviewed(item) || !item.description.includes('Origin URL')) return null;
+  return {
+    id: `note-promote:${item.id}`,
+    label: item.name,
+    domain: 'note',
+    recordId: item.id,
+    status: 'ready-to-promote',
+    priority: 52,
+    reason: 'Reviewed note appears to have a source URL that may belong in isolated Agent Knowledge.',
+    next: 'Promote only if the source is durable, useful later, and the user wants it in Agent Knowledge.',
+    scores: {
+      usefulness: itemUsefulness(item),
+      freshness: itemFreshness(item),
+      sourceQuality: clampScore(itemSourceQuality(item) + 8),
+      risk: 18,
+    },
+    reviewState: item.reviewState,
+    inspectRoute: localRegistryRoute('note', 'get', item.id),
+    modelRoute: localRegistryModelRoute('note'),
+    createRoute: 'agent_harness mode:"workspace_action" actionId:"notes-to-knowledge"',
+  };
+}
+
+function candidatesForItem(domain: LearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem): LearningCandidate[] {
+  const candidates: LearningCandidate[] = [];
+  const missing = missingRequirementCount(item);
+  if (missing > 0 && (domain === 'skill' || domain === 'skill_bundle' || domain === 'routine')) {
+    candidates.push(candidateBase(
+      domain,
+      item,
+      'needs-setup',
+      item.enabled ? 88 : 68,
+      `${missing} setup requirement(s) are missing.`,
+      'Resolve setup requirements before enabling, scheduling, or relying on this behavior.',
+    ));
+  }
+  if (item.confidence !== undefined && item.confidence < 70) {
+    candidates.push(candidateBase(
+      domain,
+      item,
+      'low-confidence',
+      78 - Math.floor(item.confidence / 5),
+      `Confidence is ${item.confidence}%, below the durable-memory threshold.`,
+      'Review, update confidence, or mark stale before using this memory as prompt context.',
+    ));
+  }
+  if (!isReviewed(item)) {
+    const enabledOrActive = item.enabled === true || item.active === true;
+    candidates.push(candidateBase(
+      domain,
+      item,
+      'needs-review',
+      item.reviewState === 'stale' ? 92 : enabledOrActive ? 88 : 74,
+      item.reviewState === 'stale'
+        ? 'Record is stale and should not silently guide the assistant.'
+        : enabledOrActive
+          ? 'Record can influence the assistant but is not reviewed.'
+          : 'Record is fresh and waiting for review.',
+      'Inspect provenance and content, then review it, revise it, or mark it stale.',
+    ));
+  }
+  if (domain === 'note') {
+    const promotion = notePromotionCandidate(item);
+    if (promotion) candidates.push(promotion);
+  }
+  return candidates;
+}
+
+function candidateSearchText(candidate: LearningCandidate): string {
+  return [
+    candidate.id,
+    candidate.label,
+    candidate.domain,
+    candidate.status,
+    candidate.reason,
+    candidate.next,
+    candidate.reviewState ?? '',
+    candidate.missingRequirements?.join('\n') ?? '',
+    candidate.inspectRoute,
+    candidate.modelRoute,
+  ].join('\n').toLowerCase();
+}
+
+function buildLearningCandidates(context: CommandContext): readonly LearningCandidate[] {
+  const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
+  const candidates = [
+    ...snapshot.localMemories.flatMap((item) => candidatesForItem('memory', item)),
+    ...snapshot.localNotes.flatMap((item) => candidatesForItem('note', item)),
+    ...snapshot.localPersonas.flatMap((item) => candidatesForItem('persona', item)),
+    ...snapshot.localSkills.flatMap((item) => candidatesForItem('skill', item)),
+    ...snapshot.localSkillBundles.flatMap((item) => candidatesForItem('skill_bundle', item)),
+    ...snapshot.localRoutines.flatMap((item) => candidatesForItem('routine', item)),
+  ];
+  if (candidates.length === 0) candidates.push(captureCandidate());
+  return candidates.sort((left, right) => right.priority - left.priority || left.label.localeCompare(right.label));
+}
+
+function describeCandidate(candidate: LearningCandidate, includeParameters: boolean, lookup?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    candidateId: candidate.id,
+    label: candidate.label,
+    domain: candidate.domain,
+    recordId: candidate.recordId,
+    status: candidate.status,
+    priority: candidate.priority,
+    reason: previewHarnessText(candidate.reason, includeParameters ? 180 : 96),
+    next: previewHarnessText(candidate.next, includeParameters ? 180 : 96),
+    scores: candidate.scores,
+    ...(candidate.reviewState ? { reviewState: candidate.reviewState } : {}),
+    ...(candidate.enabled === undefined ? {} : { enabled: candidate.enabled }),
+    ...(candidate.active === undefined ? {} : { active: candidate.active }),
+    ...(candidate.confidence === undefined ? {} : { confidence: candidate.confidence }),
+    ...(candidate.missingRequirements ? { missingRequirements: candidate.missingRequirements } : {}),
+    modelRoute: candidate.modelRoute,
+    inspectRoute: candidate.inspectRoute,
+    ...(candidate.reviewRoute ? { reviewRoute: candidate.reviewRoute } : {}),
+    ...(candidate.staleRoute ? { staleRoute: candidate.staleRoute } : {}),
+    ...(candidate.createRoute ? { createRoute: candidate.createRoute } : {}),
+    ...(candidate.deleteRoute ? { deleteRoute: candidate.deleteRoute } : {}),
+    ...(lookup ? { lookup } : {}),
+    ...(includeParameters ? {
+      routes: {
+        inspect: candidate.inspectRoute,
+        model: candidate.modelRoute,
+        review: candidate.reviewRoute ?? null,
+        stale: candidate.staleRoute ?? null,
+        create: candidate.createRoute ?? null,
+        delete: candidate.deleteRoute ?? null,
+      },
+      policy: 'Learning curator rows are read-only. Create, update, review, stale, delete, promote, enable, and schedule effects stay on existing confirmed Agent-local routes.',
+    } : {}),
+  };
+}
+
+function nextActions(candidates: readonly LearningCandidate[]): readonly string[] {
+  return candidates
+    .filter((candidate) => candidate.status !== 'ready')
+    .slice(0, 5)
+    .map((candidate) => `${candidate.label}: ${candidate.next}`);
+}
+
+export function learningCuratorCatalogStatus(context: CommandContext): Record<string, unknown> {
+  const candidates = buildLearningCandidates(context);
+  return {
+    modes: ['learning_curator', 'learning_candidate'],
+    candidates: candidates.length,
+    needsReview: candidates.filter((candidate) => candidate.status === 'needs-review').length,
+    needsSetup: candidates.filter((candidate) => candidate.status === 'needs-setup').length,
+    lowConfidence: candidates.filter((candidate) => candidate.status === 'low-confidence').length,
+    readyToPromote: candidates.filter((candidate) => candidate.status === 'ready-to-promote').length,
+    readOnly: true,
+  };
+}
+
+export function learningCuratorSummary(context: CommandContext, args: AgentHarnessLearningCuratorArgs): Record<string, unknown> {
+  const includeParameters = args.includeParameters === true;
+  const query = readString(args.query).toLowerCase();
+  const limit = readLimit(args.limit, 100);
+  const all = buildLearningCandidates(context);
+  const filtered = all.filter((candidate) => !query || candidateSearchText(candidate).includes(query));
+  return {
+    summary: {
+      candidates: all.length,
+      needsReview: all.filter((candidate) => candidate.status === 'needs-review').length,
+      needsSetup: all.filter((candidate) => candidate.status === 'needs-setup').length,
+      lowConfidence: all.filter((candidate) => candidate.status === 'low-confidence').length,
+      readyToPromote: all.filter((candidate) => candidate.status === 'ready-to-promote').length,
+      ready: all.filter((candidate) => candidate.status === 'ready').length,
+    },
+    candidates: filtered.slice(0, limit).map((candidate) => describeCandidate(candidate, includeParameters)),
+    returned: Math.min(filtered.length, limit),
+    total: all.length,
+    nextActions: nextActions(all),
+    policy: 'Learning curator is read-only. Durable behavior still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+  };
+}
+
+export function describeLearningCandidate(context: CommandContext, args: AgentHarnessLearningCuratorArgs): LearningCandidateResolution {
+  const candidateId = readString(args.candidateId);
+  const target = readString(args.target);
+  const query = readString(args.query);
+  const input = candidateId || target || query;
+  if (!input) {
+    return {
+      status: 'missing_lookup',
+      usage: 'learning_candidate requires candidateId, target, or query. Use mode:"learning_curator" to inspect candidate ids.',
+    };
+  }
+  const normalized = input.toLowerCase();
+  const candidates = buildLearningCandidates(context);
+  const exact = candidates.find((candidate) => candidate.id === input);
+  if (exact) return { status: 'found', candidate: describeCandidate(exact, true, { source: candidateId ? 'candidateId' : target ? 'target' : 'query', input, resolvedBy: 'id' }) };
+  const insensitive = candidates.find((candidate) => candidate.id.toLowerCase() === normalized);
+  if (insensitive) return { status: 'found', candidate: describeCandidate(insensitive, true, { source: candidateId ? 'candidateId' : target ? 'target' : 'query', input, resolvedBy: 'case-insensitive-id' }) };
+  const matches = candidates.filter((candidate) => candidateSearchText(candidate).includes(normalized));
+  if (matches.length === 1) return { status: 'found', candidate: describeCandidate(matches[0]!, true, { source: candidateId ? 'candidateId' : target ? 'target' : 'query', input, resolvedBy: 'search' }) };
+  if (matches.length > 1) {
+    return {
+      status: 'ambiguous',
+      input,
+      candidates: matches.slice(0, 8).map((candidate) => ({
+        candidateId: candidate.id,
+        label: candidate.label,
+        status: candidate.status,
+        priority: candidate.priority,
+        modelRoute: candidate.modelRoute,
+      })),
+    };
+  }
+  return {
+    status: 'missing_lookup',
+    usage: `Unknown learning candidate ${input}. Use mode:"learning_curator" to inspect candidate ids.`,
+  };
+}

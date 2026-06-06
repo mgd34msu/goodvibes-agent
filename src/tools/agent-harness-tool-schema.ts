@@ -8,6 +8,7 @@ export const AGENT_HARNESS_MODES = [
   'model_routing', 'model_route',
   'personal_ops', 'personal_ops_lane',
   'autonomy_queue', 'autonomy_queue_item',
+  'learning_curator', 'learning_candidate',
   'document_ops', 'document_ops_lane',
   'pairing_posture', 'pairing_route',
   'delegation_posture', 'delegation_route',
@@ -89,6 +90,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   queueItemId: {
     type: 'string',
     description: 'Queue item id for autonomy_queue_item mode.',
+  },
+  candidateId: {
+    type: 'string',
+    description: 'Candidate id for learning_candidate mode.',
   },
   pairingRouteId: {
     type: 'string',

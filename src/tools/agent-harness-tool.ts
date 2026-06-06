@@ -13,6 +13,7 @@ import { autonomyQueueCatalogStatus, autonomyQueueSummary, describeAutonomyQueue
 import { channelReadinessCatalogStatus, describeHarnessChannel, listHarnessChannels } from './agent-harness-channel-metadata.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessCommand, listHarnessCommands, resolveHarnessCommandDetail, type CommandDetailLookup } from './agent-harness-command-catalog.ts';
+import { describeLearningCandidate, learningCuratorCatalogStatus, learningCuratorSummary } from './agent-harness-learning-curator.ts';
 import { delegationPostureCatalogStatus, delegationPostureSummary, describeHarnessDelegationRoute } from './agent-harness-delegation-posture.ts';
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, runHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessMediaProvider, mediaPostureCatalogStatus, mediaPostureSummary } from './agent-harness-media-posture.ts';
@@ -57,6 +58,7 @@ interface AgentHarnessToolArgs {
   readonly modelRouteId?: unknown;
   readonly laneId?: unknown;
   readonly queueItemId?: unknown;
+  readonly candidateId?: unknown;
   readonly pairingRouteId?: unknown;
   readonly delegationRouteId?: unknown;
   readonly findingId?: unknown;
@@ -169,6 +171,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     modelRouting: 'List mode:"model_routing"; query local for cookbook; inspect mode:"model_route"; changes stay visible.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
     autonomyQueue: 'List mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay on owning confirmed routes.',
+    learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
@@ -829,6 +832,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             })),
             personalOps: personalOpsCatalogStatus(deps.commandContext),
             autonomyQueue: autonomyQueueCatalogStatus(deps.commandContext),
+            learningCurator: learningCuratorCatalogStatus(deps.commandContext),
             documentOps: documentOpsCatalogStatus(deps.commandContext),
             pairingPosture: pairingPostureCatalogStatus(deps.commandContext),
             delegationPosture: delegationPostureCatalogStatus(deps.commandContext),
@@ -987,6 +991,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describeAutonomyQueueItem(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.item);
           if (resolved.status === 'ambiguous') return error(`Ambiguous autonomy queue item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'learning_curator') return output(learningCuratorSummary(deps.commandContext, args));
+        if (args.mode === 'learning_candidate') {
+          const resolved = describeLearningCandidate(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.candidate);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous learning candidate ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'document_ops') return output(documentOpsSummary(deps.commandContext, args));

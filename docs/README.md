@@ -32,7 +32,7 @@ Agent-owned model tools expose Agent-controlled product surfaces plus operator/a
 
 - `agent_harness` for searchable mode discovery, workspace actions, slash commands, settings, panels, UI surfaces, keybindings, tool schemas, local model cookbook, visible autonomy queue, service/daemon posture, connected-host capability/status, posture catalogs, and operator/audit release artifact inspection.
 - `agent_knowledge` and `agent_knowledge_ingest` for isolated Agent Knowledge.
-- `agent_local_registry` for Agent-local memory, notes, personas, skills, bundles, and routines.
+- `agent_local_registry` for Agent-local memory, notes, personas, skills, bundles, and routines, with `agent_harness` learning-curator modes for ranked review/setup/stale candidates.
 - `agent_work_plan` for visible local work-plan state.
 - `agent_operator_briefing` and `agent_operator_action` for public connected operator state and exact confirmed actions.
 - `agent_documents`, `agent_artifacts`, and `agent_research_report` for versioned Agent document drafts, review comments, AI suggestion review, saved artifact attachment/insertion, markdown artifact export, saved artifact browsing/export/package, sourced research report artifacts, and reviewed artifact-to-Knowledge promotion.

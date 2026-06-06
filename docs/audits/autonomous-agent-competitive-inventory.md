@@ -20,7 +20,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 | Models and local model cookbook | Multi-provider, subscription auth, failover | Many providers and managed tool gateway | Hardware-aware Cookbook for Ollama, llama.cpp, vLLM | Partial: routing and read-only local cookbook exist; live hardware scan/benchmarks missing | Better |
 | Omnichannel inbox and delivery | Very broad channel list and DM safety | Telegram, Discord, Slack, WhatsApp, Signal, email | Email, browser, ntfy, PWA | Parity on foundations, needs setup UX polish | Better |
 | Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Partial: Personal Ops maps notes/tasks/reminders; email/calendar connectors missing | Better |
-| Closed learning loop | Skills and memory | Autonomous memory, skills, session search, user model | Persistent vector/keyword memory and skills | Partial: local libraries exist, no curator loop | Better |
+| Closed learning loop | Skills and memory | Autonomous memory, skills, session search, user model | Persistent vector/keyword memory and skills | Partial: local libraries and read-only curator exist; automatic proposals/consolidation missing | Better |
 | Autonomous schedules/background work | Cron, wakeups, webhooks, triggers | Built-in cron with delivery | Scheduled tasks and reminders | Partial: read-only autonomy queue exists; live run/task records need deeper cards | Better |
 | Computer use, browser, shell | Browser, canvas, nodes, system.run | Terminal backends, browser, code execution, computer use | opencode with web/files/shell/MCP | Partial: capabilities exist but Agent diverts execution | Better |
 | Multi-agent and remote execution | Multi-agent routing and session tools | Subagents, kanban, worktrees | Agent runs whole tasks | Partial: foundations exist, Agent blocks fanout | Better |
@@ -46,7 +46,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Use delegation and remote runners for isolation, parallelism, or remote execution, not because the user picked the wrong entrypoint.
 - Attach live task/run/schedule records, logs, and retry/checkpoint data to the visible autonomy queue.
 - Build first-class email/calendar connectors and promote Personal Ops from readiness map into a live inbox/agenda/task queue.
-- Add a learning curator that proposes memory, skill, and routine updates with provenance and rollback.
+- Extend the learning curator from ranked review cards into proposed memory, skill, and routine updates with provenance and rollback.
 - Turn research into a live report workflow with source queue, credibility review, citations, artifacts, cancellation, and explicit knowledge ingest.
 - Extend Document Ops beyond parity with compressed artifact packages, cross-session synthesis, reviewer-ready suggestion summaries, and richer comparison handoffs.
 - Make browser, mobile, voice, and device control setup discoverable and repairable from the same assistant cockpit.

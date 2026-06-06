@@ -26,6 +26,7 @@ import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
+import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { listGoodVibesCliCommands } from '../../cli/parser.ts';
@@ -44,6 +45,7 @@ interface HarnessFixture {
   readonly keybindingsManager: KeybindingsManager;
   readonly toolRegistry: ToolRegistry;
   readonly tool: ReturnType<typeof createAgentHarnessTool>;
+  readonly context: CommandContext;
   readonly printed: string[];
   readonly routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }>;
   readonly openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }>;
@@ -442,6 +444,7 @@ function makeFixture(options: {
     keybindingsManager,
     toolRegistry,
     tool,
+    context,
     printed,
     routedPanels,
     openedSurfaces,
@@ -741,6 +744,101 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'personal-ops-autonomy-queue' });
       expect(action.id).toBe('personal-ops-autonomy-queue');
       expect(action.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes a read-only learning curator with ranked local review routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
+      (fixture.context.clients as Record<string, unknown>).agentKnowledgeApi = { memory: memoryRegistry };
+      const memory = await memoryRegistry.add({
+        cls: 'fact',
+        summary: 'Use the private deployment checklist before release.',
+        detail: 'Checklist is useful but still needs review.',
+        tags: ['release'],
+        review: { state: 'fresh', confidence: 42 },
+        provenance: [{ kind: 'event', ref: 'test-learning-curator' }],
+      });
+      const noteRegistry = AgentNoteRegistry.fromShellPaths(fixture.paths);
+      const sourceNote = noteRegistry.create({
+        title: 'Reviewed source note',
+        body: 'Durable source note for later knowledge ingest.',
+        sourceUrl: 'https://example.test/research',
+        tags: ['research'],
+        source: 'agent',
+      });
+      noteRegistry.markReviewed(sourceNote.id);
+      const personaRegistry = AgentPersonaRegistry.fromShellPaths(fixture.paths);
+      const persona = personaRegistry.create({
+        name: 'Fresh operator persona',
+        description: 'Fresh active behavior.',
+        body: 'Prefer concise operational answers.',
+        source: 'agent',
+      });
+      personaRegistry.setActive(persona.id);
+      AgentSkillRegistry.fromShellPaths(fixture.paths).create({
+        name: 'Missing command skill',
+        description: 'Needs an unavailable command before use.',
+        procedure: 'Run the missing command and summarize results.',
+        requirements: [{ kind: 'command', name: 'definitely-missing-goodvibes-agent-test-command' }],
+        enabled: true,
+        source: 'agent',
+      });
+
+      const summary = await executeHarnessJson<{
+        readonly learningCurator?: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly readOnly: boolean };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.learningCurator?.candidates).toBeGreaterThan(3);
+      expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
+      expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
+      expect(summary.learningCurator?.lowConfidence).toBeGreaterThan(0);
+      expect(summary.learningCurator?.readOnly).toBe(true);
+
+      const curator = await executeHarnessJson<{
+        readonly summary: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly readyToPromote: number };
+        readonly candidates: readonly {
+          readonly candidateId: string;
+          readonly label: string;
+          readonly domain: string;
+          readonly status: string;
+          readonly priority: number;
+          readonly scores: { readonly usefulness: number; readonly freshness: number; readonly sourceQuality: number; readonly risk: number };
+          readonly inspectRoute: string;
+          readonly reviewRoute?: string;
+          readonly createRoute?: string;
+        }[];
+        readonly policy: string;
+      }>(fixture, { mode: 'learning_curator', includeParameters: true });
+      expect(curator.summary.candidates).toBeGreaterThan(3);
+      expect(curator.summary.readyToPromote).toBeGreaterThan(0);
+      expect(curator.policy).toContain('Learning curator is read-only');
+      expectRowsHaveCompactModelRoutes(curator.candidates);
+      const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
+      const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
+      const setupCandidate = curator.candidates.find((candidate) => candidate.domain === 'skill' && candidate.status === 'needs-setup');
+      const promoteCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-promote:${sourceNote.id}`);
+      expect(memoryCandidate?.reviewRoute).toContain('agent_local_registry');
+      expect(memoryCandidate?.scores.risk).toBeGreaterThan(0);
+      expect(personaCandidate?.label).toContain('Fresh operator persona');
+      expect(setupCandidate?.inspectRoute).toContain('domain:"skill"');
+      expect(promoteCandidate?.createRoute).toContain('notes-to-knowledge');
+
+      const candidate = await executeHarnessJson<{
+        readonly candidateId: string;
+        readonly routes?: { readonly inspect: string; readonly review: string | null };
+      }>(fixture, { mode: 'learning_candidate', candidateId: `memory:${memory.id}:low-confidence` });
+      expect(candidate.candidateId).toBe(`memory:${memory.id}:low-confidence`);
+      expect(candidate.routes?.review).toContain('action:"review"');
+
+      const action = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'memory-learning-curator' });
+      expect(action.id).toBe('memory-learning-curator');
+      expect(action.modelRoute).toBe('agent_harness mode:"learning_curator"');
     } finally {
       fixture.cleanup();
     }

@@ -46,7 +46,7 @@ Primary first-run areas:
 - Research: read-only web research and URL inspection, plus confirmed sourced markdown report artifacts with source maps.
 - Documents & Compare: versioned markdown document drafts, review comments, AI suggestion review, draft browse/show/create/revise/review/suggest/accept/reject/artifact-attach/artifact-insert/export, uploads, exports, source checks, generated media artifacts, saved artifact browse/show/export/package, reviewed artifact-to-Knowledge promotion, saved text artifact reuse in blind comparison, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates.
 - Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery.
-- Memory & Skills: local memory, notes, personas, skills, routines, and learned behavior capture.
+- Memory & Skills: local memory, notes, personas, skills, routines, learned behavior capture, and a read-only learning curator for review/setup/stale candidates.
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
 - Voice & Media: TTS setup, image input, and confirmed generated media.
 - Work & Automation: work-plan tracking, approvals, schedules, reminders, and explicit operator actions.
@@ -82,6 +82,7 @@ Common model routes:
 | Local model choice | `agent_harness mode:"model_routing" query:"local"`, `mode:"model_route" modelRouteId:"local-model-cookbook"` |
 | Documents, artifacts, compare | `agent_harness mode:"document_ops"`, `mode:"document_ops_lane"`, `agent_documents`, `agent_artifacts`, `agent_model_compare` |
 | Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
+| Learning curator | `agent_harness mode:"learning_curator"`, `mode:"learning_candidate"` |
 | Work plan | `agent_work_plan` |
 | Visible autonomous work | `agent` with `mode:"spawn"`, `mode:"batch-spawn"`, `mode:"status"`, `mode:"message"`, `mode:"wait"`, or `mode:"cancel"` |
 | Channels, notifications, reminders, media | `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate` |
@@ -121,6 +122,7 @@ Memory, notes, personas, routines, and Agent skills are local to GoodVibes Agent
 Use the workspace first:
 
 - Memory & Skills -> Create memory, Create note, or Capture learned behavior.
+- Memory & Skills -> Learning curator to rank stale, low-confidence, missing-setup, and review-needed local behavior records before they silently guide the assistant.
 - Notes -> Create notes for source triage, temporary decisions, and operator handoff.
 - Personas -> Create, inspect, activate, review, stale, or delete.
 - Skills -> Create, enable/disable, review, bundle, or delete.

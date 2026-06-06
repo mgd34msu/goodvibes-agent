@@ -152,7 +152,7 @@
       "quality": {
         "capabilityCoverage": "Covers durable local memory, scratch notes, personas, profiles, search/review/stale/delete flows, and promotion without knowledge contamination.",
         "userAccess": "The user can manage records through Agent workspace Memory, Notes, Personas, Profiles, and /memory or /personas mirrors.",
-        "modelAccess": "agent_local_registry exposes record lookup/search/get/create/update/review/use/delete for memory, notes, personas, skills, skill bundles, and routines; agent_harness mode:\"personal_ops\" and mode:\"personal_ops_lane\" expose notes, tasks, reminders, routines, delivery readiness, and honest email/calendar connector gaps; agent_harness exposes confirmed workspace editor routes when the user starts from visible workspace forms.",
+        "modelAccess": "agent_local_registry exposes record lookup/search/get/create/update/review/use/delete for memory, notes, personas, skills, skill bundles, and routines; agent_harness mode:\"learning_curator\" and mode:\"learning_candidate\" expose ranked local review, stale, setup, low-confidence, and promotion candidates with existing safe routes; mode:\"personal_ops\" and mode:\"personal_ops_lane\" expose notes, tasks, reminders, routines, delivery readiness, and honest email/calendar connector gaps; agent_harness exposes confirmed workspace editor routes when the user starts from visible workspace forms.",
         "safetyBoundary": "Local libraries reject secret-looking content and keep destructive or cross-surface promotion actions confirmation-gated.",
         "releaseEvidence": "Readiness evidence cites local registries and CLI/runtime commands, with package policy requiring model-visible local action docs."
       }
@@ -167,7 +167,7 @@
       "quality": {
         "capabilityCoverage": "Covers local skills, skill bundles, routines, learned behavior capture, imports, review states, and reusable operator workflows.",
         "userAccess": "The user can manage skills, routines, bundles, and learned behavior through workspace routes and /skills or /routines commands.",
-        "modelAccess": "agent_local_registry and agent_harness expose skill/routine actions, editor schemas, selected-record promotion, and routine schedule prefill to the model.",
+        "modelAccess": "agent_local_registry and agent_harness mode:\"learning_curator\" and mode:\"learning_candidate\" expose skill/routine actions, editor schemas, selected-record promotion, local learning review cards, and routine schedule prefill to the model.",
         "safetyBoundary": "Behavior capture remains local until the user explicitly promotes, exports, schedules, or deletes a reviewed record.",
         "releaseEvidence": "Readiness evidence cites registry and command sources, and release docs describe local behavior library ownership."
       }

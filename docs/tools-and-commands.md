@@ -70,6 +70,7 @@ Discovery modes:
 | `provider_accounts`, `model_routing` | Provider auth, provider/model route posture, and local model cookbook. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
 | `autonomy_queue`, `autonomy_queue_item` | Visible autonomous work owners, status, inspect routes, and cancel/recovery routes. |
+| `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, and routine review candidates. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
@@ -88,6 +89,7 @@ Single-item inspect modes:
 | `channel`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query` |
 | `setup_item`, `model_route`, `pairing_route`, `delegation_route` | Exact id/model key or `target`/`query` |
 | `personal_ops_lane`, `document_ops_lane` | `laneId`, `target`, or `query` |
+| `learning_candidate` | `candidateId`, `target`, or `query` |
 | `security_finding`, `support_bundle`, `media_provider`, `session` | Exact id/path or `target`/`query` |
 | `get_setting`, `service_endpoint`, `operator_method` | Exact key/id or `target`/`query` |
 | `connected_host_capability` | `capabilityId`, `target`, `query` |
@@ -120,6 +122,7 @@ Registered model tool definitions are compact by default. Tool descriptions use 
 Execution routes:
 
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
+- Read-only learning review uses `agent_harness mode:"learning_curator"` and `mode:"learning_candidate"`; writes stay on `agent_local_registry` or visible workspace actions.
 - Agent document draft browse/show/create/revise/review/comment/suggest/accept-suggestion/reject-suggestion/artifact-insert/export dispatches through `agent_documents`.
 - Confirmed sourced research report artifact saves dispatch through `agent_research_report`.
 - Confirmed Agent Knowledge URL/file/artifact-id/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.

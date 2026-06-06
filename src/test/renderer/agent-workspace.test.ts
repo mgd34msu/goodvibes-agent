@@ -751,6 +751,7 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Memory: 1; prompt 0; queue 1; session 1.');
     expect(output).toContain('Notes: 0; skills 1/1; routines 1/1; personas 1.');
+    expect(output).toContain('Learning curator: memory queue 1; note queue 0; setup gaps 3; injected review 4.');
     expect(output).toContain('Active persona: Research Analyst.');
     expect(output).toContain('Agent Memory: 1; selected Prefers concise operator briefings');
     expect(output).toContain('Create memory');
@@ -760,6 +761,7 @@ describe('renderAgentWorkspace', () => {
     const maintenanceOutput = text(renderAgentWorkspace(workspace, 132, 34));
 
     expect(maintenanceOutput).toContain('Edit selected memory');
+    expect(maintenanceOutput).toContain('Learning curator');
     expect(maintenanceOutput).toContain('Promote memory');
     expect(maintenanceOutput).toContain('Export memory bundle');
 

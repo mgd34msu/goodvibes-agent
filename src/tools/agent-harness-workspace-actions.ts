@@ -176,6 +176,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
     || action.id === 'work-autonomy-queue'
     || action.id === 'schedule-autonomy-queue'
   ) return 'agent_harness mode:"autonomy_queue"';
+  if (action.id === 'memory-learning-curator') return 'agent_harness mode:"learning_curator"';
   if (action.command) return commandRouteHint(action.command);
   if (action.editorKind) return editorRouteHint(action.editorKind);
   if (action.kind === 'local-selection' || action.kind === 'local-operation') return localActionRouteHint(action);

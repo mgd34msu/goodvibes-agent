@@ -47,4 +47,4 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 - Deep research source queue, credibility scoring, cancellation, and checkpoint/resume beyond saved sourced report artifacts.
 - Local model hardware scanner, benchmark scoring, and guided downloads beyond the read-only cookbook.
 - Browser/computer-use setup and recovery.
-- Learning curator for memory, skill, routine, and preference updates.
+- Learning curator now ranks local review/setup/stale candidates; proposed memory, skill, routine, and preference updates still need an automatic proposal loop.

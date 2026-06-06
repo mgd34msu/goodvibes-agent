@@ -442,9 +442,21 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Profiles isolate local Agent config, sessions, memory, personas, skills, routines, setup, and bundles.', fg: PALETTE.good },
     );
   } else if (category.id === 'memory') {
+    const behaviorNeedsSetup = [
+      ...snapshot.localSkills,
+      ...snapshot.localSkillBundles,
+      ...snapshot.localRoutines,
+    ].filter((item) => (item.missingRequirementCount ?? 0) > 0).length;
+    const injectedNeedsReview = [
+      ...snapshot.localPersonas.filter((item) => item.active),
+      ...snapshot.localSkills.filter((item) => item.enabled),
+      ...snapshot.localSkillBundles.filter((item) => item.enabled),
+      ...snapshot.localRoutines.filter((item) => item.enabled),
+    ].filter((item) => item.reviewState !== 'reviewed').length;
     base.push(
       { text: `Memory: ${snapshot.localMemoryCount}; prompt ${snapshot.localMemoryPromptActiveCount}; queue ${snapshot.localMemoryReviewQueueCount}; session ${snapshot.sessionMemoryCount}.`, fg: PALETTE.info },
       { text: `Notes: ${snapshot.localNoteCount}; skills ${snapshot.localSkillCount}/${snapshot.enabledSkillCount}; routines ${snapshot.localRoutineCount}/${snapshot.enabledRoutineCount}; personas ${snapshot.localPersonaCount}.`, fg: PALETTE.info },
+      { text: `Learning curator: memory queue ${snapshot.localMemoryReviewQueueCount}; note queue ${snapshot.localNoteReviewQueueCount}; setup gaps ${behaviorNeedsSetup}; injected review ${injectedNeedsReview}.`, fg: behaviorNeedsSetup > 0 || injectedNeedsReview > 0 ? PALETTE.warn : PALETTE.good },
       { text: `Active persona: ${snapshot.activePersonaName}.`, fg: PALETTE.info },
       ...compactLocalLibraryLines('Agent Memory', snapshot.localMemories, 'Create one with Create memory.', workspace.selectedLocalLibraryItem('memory')?.id ?? null),
       { text: 'Secrets are rejected or redacted; use secret references.', fg: PALETTE.warn },
