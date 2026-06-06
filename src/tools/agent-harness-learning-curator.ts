@@ -1,10 +1,12 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-types.ts';
+import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'proposal-ready' | 'ready-to-promote' | 'ready';
-type LearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine' | 'capture';
+type LocalLearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
+type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'capture';
 type LearningProposalTarget = 'skill' | 'routine' | 'persona';
 
 interface AgentHarnessLearningCuratorArgs {
@@ -37,6 +39,7 @@ interface LearningCandidate {
   readonly active?: boolean;
   readonly confidence?: number;
   readonly proposalTarget?: LearningProposalTarget;
+  readonly proposalFields?: Readonly<Record<string, string>>;
   readonly missingRequirements?: readonly string[];
   readonly inspectRoute: string;
   readonly modelRoute: string;
@@ -110,20 +113,20 @@ function scoresForItem(item: AgentWorkspaceLocalLibraryItem): LearningScores {
   };
 }
 
-function routeDomain(domain: LearningCandidateDomain): string {
+function routeDomain(domain: LocalLearningCandidateDomain): string {
   return domain;
 }
 
-function localRegistryRoute(domain: LearningCandidateDomain, action: string, id: string): string {
+function localRegistryRoute(domain: LocalLearningCandidateDomain, action: string, id: string): string {
   return `agent_local_registry domain:"${routeDomain(domain)}" action:"${action}" id:"${id}"`;
 }
 
-function localRegistryModelRoute(domain: LearningCandidateDomain): string {
+function localRegistryModelRoute(domain: LocalLearningCandidateDomain): string {
   return `agent_local_registry domain:"${routeDomain(domain)}" action:"get"`;
 }
 
 function candidateBase(
-  domain: LearningCandidateDomain,
+  domain: LocalLearningCandidateDomain,
   item: AgentWorkspaceLocalLibraryItem,
   status: LearningCandidateStatus,
   priority: number,
@@ -216,6 +219,68 @@ function noteBehaviorProposalCandidate(item: AgentWorkspaceLocalLibraryItem): Le
   };
 }
 
+function workPlanProposalTarget(item: WorkPlanItem): LearningProposalTarget | null {
+  const text = [item.title, item.notes ?? '', item.source ?? '', item.owner ?? ''].join('\n').toLowerCase();
+  if (/\b(style|tone|preference|respond|answer|voice|persona)\b/.test(text)) return 'persona';
+  if (/\b(repeat|routine|workflow|every time|checklist|runbook|process|before release|after release)\b/.test(text)) return 'routine';
+  if (/\b(lesson|procedure|steps|how to|when asked|debug|fix|review|test|release|deploy|triage)\b/.test(text)) return 'skill';
+  return null;
+}
+
+function completedWorkFreshness(item: WorkPlanItem): number {
+  if (!item.completedAt) return 70;
+  const ageDays = Math.max(0, (Date.now() - item.completedAt) / (24 * 60 * 60 * 1000));
+  return clampScore(96 - Math.min(45, ageDays * 3));
+}
+
+function workPlanCompletionCandidate(item: WorkPlanItem): LearningCandidate | null {
+  if (item.status !== 'done') return null;
+  const target = workPlanProposalTarget(item);
+  if (!target) return null;
+  const notes = item.notes?.trim() || `Completed work item: ${item.title}`;
+  const name = previewHarnessText(item.title, 80);
+  const description = target === 'routine'
+    ? `Repeatable workflow learned from completed work: ${name}`
+    : target === 'persona'
+      ? `Operating preference learned from completed work: ${name}`
+      : `Reusable skill learned from completed work: ${name}`;
+  return {
+    id: `work-plan-proposal:${target}:${item.id}`,
+    label: `${item.title} -> ${target}`,
+    domain: 'work_plan',
+    recordId: item.id,
+    status: 'proposal-ready',
+    priority: target === 'routine' ? 62 : 58,
+    reason: `Completed work item looks like reusable ${target} behavior.`,
+    next: `Review the completed work notes, then capture this as Agent-local ${target} behavior only if the user wants it reused.`,
+    scores: {
+      usefulness: clampScore(62 + Math.min(18, notes.length / 12)),
+      freshness: completedWorkFreshness(item),
+      sourceQuality: item.source ? 72 : 64,
+      risk: 28,
+    },
+    proposalTarget: target,
+    proposalFields: {
+      target,
+      name,
+      description: previewHarnessText(description, 140),
+      notes: [
+        `Completed work: ${item.title}`,
+        item.owner ? `Owner: ${item.owner}` : '',
+        item.source ? `Source: ${item.source}` : '',
+        '',
+        notes,
+      ].filter(Boolean).join('\n'),
+      triggers: target === 'routine' ? 'workflow, checklist' : target === 'persona' ? 'preference' : 'lesson, procedure',
+      tags: `learned,completed-work,${target}`,
+      enable: 'yes',
+    },
+    inspectRoute: `agent_work_plan action:"get" id:"${item.id}"`,
+    modelRoute: 'agent_work_plan action:"get"',
+    createRoute: 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',
+  };
+}
+
 function notePromotionCandidate(item: AgentWorkspaceLocalLibraryItem): LearningCandidate | null {
   if (!isReviewed(item) || !item.description.includes('Origin URL')) return null;
   return {
@@ -240,7 +305,7 @@ function notePromotionCandidate(item: AgentWorkspaceLocalLibraryItem): LearningC
   };
 }
 
-function candidatesForItem(domain: LearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem): LearningCandidate[] {
+function candidatesForItem(domain: LocalLearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem): LearningCandidate[] {
   const candidates: LearningCandidate[] = [];
   const missing = missingRequirementCount(item);
   if (missing > 0 && (domain === 'skill' || domain === 'skill_bundle' || domain === 'routine')) {
@@ -287,6 +352,18 @@ function candidatesForItem(domain: LearningCandidateDomain, item: AgentWorkspace
   return candidates;
 }
 
+function workPlanCompletionCandidates(context: CommandContext): readonly LearningCandidate[] {
+  try {
+    return (context.workspace?.workPlanStore?.listItems?.() ?? [])
+      .flatMap((item) => {
+        const candidate = workPlanCompletionCandidate(item);
+        return candidate ? [candidate] : [];
+      });
+  } catch {
+    return [];
+  }
+}
+
 function candidateSearchText(candidate: LearningCandidate): string {
   return [
     candidate.id,
@@ -297,6 +374,8 @@ function candidateSearchText(candidate: LearningCandidate): string {
     candidate.next,
     candidate.reviewState ?? '',
     candidate.missingRequirements?.join('\n') ?? '',
+    candidate.proposalTarget ?? '',
+    Object.values(candidate.proposalFields ?? {}).join('\n'),
     candidate.inspectRoute,
     candidate.modelRoute,
   ].join('\n').toLowerCase();
@@ -311,6 +390,7 @@ function buildLearningCandidates(context: CommandContext): readonly LearningCand
     ...snapshot.localSkills.flatMap((item) => candidatesForItem('skill', item)),
     ...snapshot.localSkillBundles.flatMap((item) => candidatesForItem('skill_bundle', item)),
     ...snapshot.localRoutines.flatMap((item) => candidatesForItem('routine', item)),
+    ...workPlanCompletionCandidates(context),
   ];
   if (candidates.length === 0) candidates.push(captureCandidate());
   return candidates.sort((left, right) => right.priority - left.priority || left.label.localeCompare(right.label));
@@ -332,6 +412,7 @@ function describeCandidate(candidate: LearningCandidate, includeParameters: bool
     ...(candidate.active === undefined ? {} : { active: candidate.active }),
     ...(candidate.confidence === undefined ? {} : { confidence: candidate.confidence }),
     ...(candidate.proposalTarget === undefined ? {} : { proposalTarget: candidate.proposalTarget }),
+    ...(includeParameters && candidate.proposalFields ? { proposalFields: candidate.proposalFields } : {}),
     ...(candidate.missingRequirements ? { missingRequirements: candidate.missingRequirements } : {}),
     modelRoute: candidate.modelRoute,
     inspectRoute: candidate.inspectRoute,
@@ -395,7 +476,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Proposed behavior changes use reviewed notes and existing confirmed selected-note promotion routes; durable behavior still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed behavior changes use reviewed notes, completed work-plan items, and existing confirmed behavior-capture routes; durable behavior still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 

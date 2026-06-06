@@ -34,6 +34,7 @@ import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
 import { listGoodVibesCliCommands } from '../../cli/parser.ts';
 import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
 import type { AgentExecutionRecord } from '../../runtime/execution-ledger.ts';
@@ -185,6 +186,7 @@ function makeFixture(options: {
   registerHarnessFixturePanels(panelManager);
   const toolRegistry = new ToolRegistry();
   const fileUndoManager = new FileUndoManager();
+  const workPlanStore = new WorkPlanStore({ homeDirectory: root, projectId: 'harness-test', projectRoot: root });
   const printed: string[] = [];
   const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
   const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
@@ -335,8 +337,8 @@ function makeFixture(options: {
     },
     openSelection,
     workspace: options.keybindings === false
-      ? { shellPaths: paths, panelManager, bookmarkManager, fileUndoManager }
-      : { shellPaths: paths, panelManager, keybindingsManager, bookmarkManager, fileUndoManager },
+      ? { shellPaths: paths, panelManager, bookmarkManager, fileUndoManager, workPlanStore }
+      : { shellPaths: paths, panelManager, keybindingsManager, bookmarkManager, fileUndoManager, workPlanStore },
     platform: {
       configManager,
       serviceRegistry: {
@@ -1681,6 +1683,12 @@ describe('agent_harness tool', () => {
         source: 'agent',
       });
       noteRegistry.markReviewed(workflowNote.id);
+      const completedWork = fixture.context.workspace.workPlanStore!.addItem('Release readiness workflow', {
+        status: 'done',
+        owner: 'agent',
+        source: 'test-learning-curator',
+        notes: 'Repeat before release: run package verification, check UX inventory, and summarize residual risks.',
+      });
       const personaRegistry = AgentPersonaRegistry.fromShellPaths(fixture.paths);
       const persona = personaRegistry.create({
         name: 'Fresh operator persona',
@@ -1705,7 +1713,7 @@ describe('agent_harness tool', () => {
       expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
       expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
       expect(summary.learningCurator?.lowConfidence).toBeGreaterThan(0);
-      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(0);
+      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(1);
       expect(summary.learningCurator?.readOnly).toBe(true);
 
       const curator = await executeHarnessJson<{
@@ -1716,6 +1724,7 @@ describe('agent_harness tool', () => {
           readonly domain: string;
           readonly status: string;
           readonly proposalTarget?: string;
+          readonly proposalFields?: Record<string, string>;
           readonly priority: number;
           readonly scores: { readonly usefulness: number; readonly freshness: number; readonly sourceQuality: number; readonly risk: number };
           readonly inspectRoute: string;
@@ -1726,14 +1735,15 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'learning_curator', includeParameters: true });
       expect(curator.summary.candidates).toBeGreaterThan(3);
       expect(curator.summary.readyToPromote).toBeGreaterThan(0);
-      expect(curator.summary.proposedBehavior).toBeGreaterThan(0);
-      expect(curator.policy).toContain('Proposed behavior changes');
+      expect(curator.summary.proposedBehavior).toBeGreaterThan(1);
+      expect(curator.policy).toContain('completed work-plan items');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
       const setupCandidate = curator.candidates.find((candidate) => candidate.domain === 'skill' && candidate.status === 'needs-setup');
       const promoteCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-promote:${sourceNote.id}`);
       const proposalCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-proposal:routine:${workflowNote.id}`);
+      const completedCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:routine:${completedWork.id}`);
       expect(memoryCandidate?.reviewRoute).toContain('agent_local_registry');
       expect(memoryCandidate?.scores.risk).toBeGreaterThan(0);
       expect(personaCandidate?.label).toContain('Fresh operator persona');
@@ -1741,6 +1751,12 @@ describe('agent_harness tool', () => {
       expect(promoteCandidate?.createRoute).toContain('notes-to-knowledge');
       expect(proposalCandidate?.proposalTarget).toBe('routine');
       expect(proposalCandidate?.createRoute).toContain('notes-to-routine');
+      expect(completedCandidate?.domain).toBe('work_plan');
+      expect(completedCandidate?.inspectRoute).toContain('agent_work_plan');
+      expect(completedCandidate?.createRoute).toContain('learned-behavior');
+      expect(completedCandidate?.proposalTarget).toBe('routine');
+      expect(completedCandidate?.proposalFields?.target).toBe('routine');
+      expect(completedCandidate?.proposalFields?.notes).toContain('Release readiness workflow');
 
       const candidate = await executeHarnessJson<{
         readonly candidateId: string;
