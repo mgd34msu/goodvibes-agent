@@ -57,7 +57,7 @@ Workspace areas:
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Tools & MCP: MCP server setup, tool inventory, trust review, secrets, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, source/node/issue libraries, item lookup, map review, connectors, ingest, review queue, and reindex.
-- Memory & Skills: local memory, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
+- Memory & Skills: VIBE.md personality, local memory, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
 - Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook notification management.
 - Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, and provider readiness.
 - Automation: reminders, schedules, visible autonomous agents, routine promotion receipts, reconciliation, and exact confirmed approval/automation/schedule actions.
@@ -97,13 +97,13 @@ Registered model tool definitions are compact by default. Top-level descriptions
 
 ## Local Behavior
 
-Agent-local memory, notes, personas, skills, routines, and profiles are stored under the Agent home. They are injected only into the serial Agent conversation unless an explicit Agent workflow promotes or ingests reviewed material elsewhere.
+VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, and applied to the serial Agent conversation without requiring persona-registry ceremony. Formal Agent-local memory, notes, personas, skills, routines, and profiles remain stored under the Agent home and are injected only into the serial Agent conversation unless an explicit Agent workflow promotes or ingests reviewed material elsewhere.
 
 Useful workspace paths:
 
 - Memory & Skills -> Create memory, Create note, or Capture learned behavior.
 - Notes -> Create, edit, review, stale, delete, or promote scratchpad notes.
-- Personas -> Create, inspect, activate, review, stale, or delete local personas.
+- Personas -> Inspect, create, show, or import VIBE.md; create, inspect, activate, review, stale, or delete local personas.
 - Skills -> Create skills, import discovered skills, enable/disable, review, delete, and manage skill bundles.
 - Routines -> Create routines, start a routine in chat, review receipts, and explicitly promote one routine to a connected schedule.
 - Profiles -> Create isolated Agent profiles from built-in or imported starter templates.

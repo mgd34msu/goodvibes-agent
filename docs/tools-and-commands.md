@@ -23,7 +23,7 @@ High-signal TUI routes:
 | `/health`, `/compat`, `/auth` | Inspect runtime, connected-host, compatibility, and auth posture. |
 | `/model`, `/provider`, `/effort` | Inspect or change provider/model/reasoning routes. |
 | `/knowledge` | Use isolated Agent Knowledge. |
-| `/memory`, `/notes`, `/personas`, `/skills`, `/routines` | Manage Agent-local behavior libraries. |
+| `/vibe`, `/memory`, `/notes`, `/personas`, `/skills`, `/routines` | Manage VIBE.md personality and Agent-local behavior libraries. |
 | `/plan`, `/workplan` | Planning and durable visible work tracking. |
 | `/approval`, `/automation`, `/schedule` | Read posture and run exact confirmed operator actions. |
 | `/channels`, `/notify`, `/qrcode` | Pair companions, inspect channel readiness, and send confirmed messages. |
@@ -131,8 +131,9 @@ Registered model tool definitions are compact by default. Tool descriptions use 
 Execution routes:
 
 - GoodVibes settings import previews changed setting/subscription counts without mutation; confirmed execution copies only Agent-owned settings and provider subscription state, redacts secret values, and stores raw secret-backed values through the secret manager.
+- VIBE.md personality files are discovered from project/global locations, secret-scanned, and applied to the serial Agent prompt through `/vibe` and the Personas workspace.
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
-- Runtime prompt context applies only reviewed, high-confidence memory and reviewed setup-ready behavior. Enabled but unreviewed, stale, low-confidence, or setup-blocked local behavior is surfaced as suppressed review work and should be inspected through the learning curator before relying on it.
+- Runtime prompt context applies safe VIBE.md files plus only reviewed, high-confidence memory and reviewed setup-ready behavior. Enabled but unreviewed, stale, low-confidence, or setup-blocked local behavior is surfaced as suppressed review work and should be inspected through the learning curator before relying on it.
 - Read-only learning review uses `agent_harness mode:"learning_curator"` and `mode:"learning_candidate"`; duplicate-consolidation candidates expose survivor ids, visible field diffs, low-level update/stale/delete/rollback routes, and first-class `agent_learning_consolidation` preview/merge/stale/delete/rollback phase routes. Merge and stale write durable receipts with rollback routes, delete refuses records that have not already been staged stale, and post-delete receipts preserve snapshots for review rather than pretending exact-id automatic restore is always possible. Reviewed-note, completed-work, completed-research, and saved-session memory/behavior proposals reuse selected-note promotion, memory-create, or learned-behavior capture routes. Non-consolidation writes stay on `agent_local_registry` or visible workspace actions.
 - Agent document draft browse/show/create/revise/review/comment/suggest/accept-suggestion/reject-suggestion/artifact-insert/export dispatches through `agent_documents`; export artifacts include reviewer-ready comment and suggestion summaries.
 - Start deep research routing with `agent_harness mode:"research_workflow"` when the model needs one ordered read-only plan across visible run state, public web/fetch or browser posture, source capture/review, report saving, and optional Knowledge promotion. Visible research run creation/checkpoint/pause/resume/cancel/complete and log-tail inspection dispatch through `agent_research_runs`; source capture, credibility review, and reviewed-source bundles dispatch through `agent_research_sources`; confirmed sourced research report artifact saves, citation coverage checks, and repair hints dispatch through `agent_research_report`.
@@ -287,6 +288,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/tts` | Submit a normal prompt and play the assistant response through live TTS. |
 | `/undo` | Undo the last conversation turn. |
 | `/unpin` | Unpin a model from the favorites list. |
+| `/vibe` | Inspect, create, show, or import VIBE.md personality files. |
 | `/voice` | Review voice posture and portable voice metadata. |
 | `/welcome` | Open or print the Agent setup guide. |
 | `/workplan` | Track a persistent workspace-scoped work plan. |

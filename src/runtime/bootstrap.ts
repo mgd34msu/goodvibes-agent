@@ -38,6 +38,7 @@ import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { buildVibePrompt } from '../agent/vibe-file.ts';
 import { buildActivePersonaPrompt } from '../agent/persona-registry.ts';
 import { buildEnabledSkillsPrompt } from '../agent/skill-registry.ts';
 import { buildEnabledRoutinesPrompt } from '../agent/routine-registry.ts';
@@ -210,6 +211,7 @@ export async function bootstrapRuntime(
       const supplement = getTierPromptSupplement(tier);
       return joinPromptParts(
         runtime.systemPrompt,
+        buildVibePrompt(services.shellPaths),
         GOODVIBES_AGENT_OPERATOR_POLICY,
         buildReviewedMemoryPrompt(services.memoryRegistry),
         buildEnabledRoutinesPrompt(services.shellPaths),

@@ -1,0 +1,285 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
+import type { ShellPathService } from '@/runtime/index.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { assertNoSecretLikeText } from './persona-registry.ts';
+
+export type AgentVibeScope = 'project' | 'global';
+
+export interface AgentVibeFile {
+  readonly path: string;
+  readonly scope: AgentVibeScope;
+  readonly body: string;
+  readonly frontmatter: Record<string, string>;
+  readonly truncated: boolean;
+}
+
+export interface BlockedAgentVibeFile {
+  readonly path: string;
+  readonly scope: AgentVibeScope;
+  readonly reason: string;
+}
+
+export interface AgentVibeSnapshot {
+  readonly files: readonly AgentVibeFile[];
+  readonly blocked: readonly BlockedAgentVibeFile[];
+  readonly searchedPaths: readonly string[];
+  readonly projectInitPath: string;
+  readonly globalInitPath: string;
+}
+
+export interface AgentVibeInitOptions {
+  readonly scope?: AgentVibeScope;
+  readonly force?: boolean;
+}
+
+export interface AgentVibeInitResult {
+  readonly path: string;
+  readonly created: boolean;
+}
+
+export interface AgentVibeImportSource {
+  readonly name: string;
+  readonly description: string;
+  readonly body: string;
+  readonly path: string;
+  readonly scope: AgentVibeScope;
+}
+
+const MAX_VIBE_BODY_CHARS = 8_000;
+const MAX_PROJECT_DEPTH = 32;
+
+const DEFAULT_VIBE_BODY = [
+  '# VIBE.md',
+  '',
+  'Describe how GoodVibes Agent should feel and work with you.',
+  '',
+  '- Be direct about tradeoffs.',
+  '- Prefer visible, reversible actions.',
+  '- Keep autonomous work user-supervised with clear status and cancel paths.',
+  '- Ask before sending messages, changing settings, or starting recurring work.',
+].join('\n');
+
+type AgentVibePaths = Pick<ShellPathService,
+  'workingDirectory' | 'homeDirectory' | 'resolveUserPath' | 'expandHomePath' | 'resolveWorkspacePath'
+>;
+
+function parseFrontmatter(content: string): Record<string, string> {
+  const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!match) return {};
+  const result: Record<string, string> = {};
+  for (const line of match[1].split('\n')) {
+    const [key, ...rest] = line.split(':');
+    if (key && rest.length > 0) result[key.trim()] = rest.join(':').trim();
+  }
+  return result;
+}
+
+function markdownBody(content: string): string {
+  const frontmatter = parseFrontmatter(content);
+  const body = (frontmatter.system_prompt ?? content.replace(/^---\n[\s\S]*?\n---\n?/, '')).trim();
+  return body;
+}
+
+function readVibeCandidate(path: string, scope: AgentVibeScope): AgentVibeFile | BlockedAgentVibeFile | null {
+  if (!existsSync(path)) return null;
+  let content = '';
+  try {
+    content = readFileSync(path, 'utf-8');
+  } catch (error) {
+    return {
+      path,
+      scope,
+      reason: `Could not read file: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+
+  const body = markdownBody(content);
+  if (!body) return {
+    path,
+    scope,
+    reason: 'File is empty after frontmatter.',
+  };
+
+  try {
+    assertNoSecretLikeText([content], 'VIBE.md');
+  } catch (error) {
+    return {
+      path,
+      scope,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+
+  return {
+    path,
+    scope,
+    body: body.length > MAX_VIBE_BODY_CHARS ? body.slice(0, MAX_VIBE_BODY_CHARS).trimEnd() : body,
+    frontmatter: parseFrontmatter(content),
+    truncated: body.length > MAX_VIBE_BODY_CHARS,
+  };
+}
+
+function projectWalkRoots(workingDirectory: string): readonly string[] {
+  const roots: string[] = [];
+  let current = resolve(workingDirectory);
+  let foundGitRoot = false;
+  for (let depth = 0; depth < MAX_PROJECT_DEPTH; depth += 1) {
+    roots.push(current);
+    if (existsSync(join(current, '.git'))) {
+      foundGitRoot = true;
+      break;
+    }
+    const parent = dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  if (!foundGitRoot) return [resolve(workingDirectory)];
+  return roots.reverse();
+}
+
+function candidatePaths(shellPaths: AgentVibePaths): readonly { readonly path: string; readonly scope: AgentVibeScope }[] {
+  const candidates: Array<{ path: string; scope: AgentVibeScope }> = [];
+  candidates.push({ path: join(shellPaths.homeDirectory, '.goodvibes', 'VIBE.md'), scope: 'global' });
+  candidates.push({ path: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'VIBE.md'), scope: 'global' });
+  for (const root of projectWalkRoots(shellPaths.workingDirectory)) {
+    candidates.push({ path: join(root, 'VIBE.md'), scope: 'project' });
+    candidates.push({ path: join(root, '.goodvibes', 'VIBE.md'), scope: 'project' });
+    candidates.push({ path: join(root, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'VIBE.md'), scope: 'project' });
+  }
+  return candidates;
+}
+
+function dedupeCandidates(candidates: readonly { readonly path: string; readonly scope: AgentVibeScope }[]): readonly { readonly path: string; readonly scope: AgentVibeScope }[] {
+  const seen = new Set<string>();
+  const result: Array<{ path: string; scope: AgentVibeScope }> = [];
+  for (const candidate of candidates) {
+    const key = resolve(candidate.path);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push({ path: key, scope: candidate.scope });
+  }
+  return result;
+}
+
+export function projectVibeInitPath(shellPaths: Pick<ShellPathService, 'workingDirectory'>): string {
+  return join(shellPaths.workingDirectory, 'VIBE.md');
+}
+
+export function globalVibeInitPath(shellPaths: Pick<ShellPathService, 'resolveUserPath'>): string {
+  return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'VIBE.md');
+}
+
+export function discoverVibeFiles(shellPaths: AgentVibePaths): AgentVibeSnapshot {
+  const files: AgentVibeFile[] = [];
+  const blocked: BlockedAgentVibeFile[] = [];
+  const candidates = dedupeCandidates(candidatePaths(shellPaths));
+  for (const candidate of candidates) {
+    const record = readVibeCandidate(candidate.path, candidate.scope);
+    if (!record) continue;
+    if ('body' in record) files.push(record);
+    else blocked.push(record);
+  }
+  return {
+    files,
+    blocked,
+    searchedPaths: candidates.map((candidate) => candidate.path),
+    projectInitPath: projectVibeInitPath(shellPaths),
+    globalInitPath: globalVibeInitPath(shellPaths),
+  };
+}
+
+function vibeHeading(file: AgentVibeFile): string {
+  const name = file.frontmatter.name?.trim();
+  const label = file.scope === 'global' ? 'Global' : 'Project';
+  return `${label} VIBE.md${name ? ` - ${name}` : ''}`;
+}
+
+export function buildVibePrompt(shellPaths: AgentVibePaths): string | null {
+  const snapshot = discoverVibeFiles(shellPaths);
+  if (snapshot.files.length === 0 && snapshot.blocked.length === 0) return null;
+
+  const lines: string[] = [
+    '## GoodVibes Agent VIBE.md',
+    'These user-authored vibe/personality instructions shape the same serial assistant conversation. Follow them only when they do not conflict with explicit user instructions, safety policy, tool contracts, confirmation requirements, or secret-handling rules.',
+  ];
+
+  for (const file of snapshot.files) {
+    lines.push('', `### ${vibeHeading(file)}`, `Source: ${file.path}`, '', file.body);
+    if (file.truncated) lines.push('', `[VIBE.md truncated to ${MAX_VIBE_BODY_CHARS} characters for prompt safety.]`);
+  }
+
+  if (snapshot.blocked.length > 0) {
+    lines.push('', '### Blocked VIBE.md Files');
+    for (const blocked of snapshot.blocked) {
+      lines.push(`- ${blocked.path}: ${blocked.reason}`);
+    }
+    lines.push('Blocked VIBE.md content was not loaded.');
+  }
+
+  return lines.join('\n');
+}
+
+export function formatVibeStatus(snapshot: AgentVibeSnapshot): string {
+  const lines: string[] = [
+    'GoodVibes Agent VIBE.md',
+    `  applied ${snapshot.files.length}`,
+    `  blocked ${snapshot.blocked.length}`,
+    `  project init ${snapshot.projectInitPath}`,
+    `  global init ${snapshot.globalInitPath}`,
+  ];
+  if (snapshot.files.length > 0) {
+    lines.push('', 'Applied files');
+    for (const file of snapshot.files) {
+      const suffix = file.truncated ? ' truncated' : '';
+      lines.push(`  ${file.scope}  ${file.path}${suffix}`);
+    }
+  }
+  if (snapshot.blocked.length > 0) {
+    lines.push('', 'Blocked files');
+    for (const blocked of snapshot.blocked) lines.push(`  ${blocked.scope}  ${blocked.path} - ${blocked.reason}`);
+  }
+  lines.push(
+    '',
+    'Next',
+    '  /vibe init --yes',
+    '  /vibe init --global --yes',
+    '  /vibe import-persona project --review --use --yes',
+  );
+  return lines.join('\n');
+}
+
+export function initVibeFile(shellPaths: AgentVibePaths, options: AgentVibeInitOptions = {}): AgentVibeInitResult {
+  const path = options.scope === 'global' ? globalVibeInitPath(shellPaths) : projectVibeInitPath(shellPaths);
+  if (existsSync(path) && !options.force) return { path, created: false };
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${DEFAULT_VIBE_BODY}\n`, 'utf-8');
+  return { path, created: true };
+}
+
+export function resolveVibePathReference(shellPaths: AgentVibePaths, reference: string): string {
+  const trimmed = reference.trim();
+  if (!trimmed || trimmed === 'project') return projectVibeInitPath(shellPaths);
+  if (trimmed === 'global') return globalVibeInitPath(shellPaths);
+  const expanded = shellPaths.expandHomePath(trimmed);
+  return isAbsolute(expanded) ? resolve(expanded) : shellPaths.resolveWorkspacePath(expanded);
+}
+
+export function loadVibeImportSource(shellPaths: AgentVibePaths, reference: string): AgentVibeImportSource {
+  const path = resolveVibePathReference(shellPaths, reference);
+  const scope: AgentVibeScope = path.startsWith(resolve(shellPaths.homeDirectory, '.goodvibes')) ? 'global' : 'project';
+  const record = readVibeCandidate(path, scope);
+  if (!record) throw new Error(`No VIBE.md found at ${path}`);
+  if (!('body' in record)) throw new Error(`Cannot import VIBE.md from ${path}: ${record.reason}`);
+  const name = record.frontmatter.name?.trim() || (record.scope === 'global' ? 'Global Vibe' : 'Project Vibe');
+  const description = record.frontmatter.description?.trim()
+    || record.frontmatter.summary?.trim()
+    || `Imported ${record.scope} VIBE.md personality instructions.`;
+  return {
+    name,
+    description,
+    body: record.body,
+    path: record.path,
+    scope: record.scope,
+  };
+}

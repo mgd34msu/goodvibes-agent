@@ -32,6 +32,7 @@ import { registerAgentWorkspaceRuntimeCommands } from './commands/agent-workspac
 import { registerAgentRuntimeProfileRuntimeCommands } from './commands/agent-runtime-profile-runtime.ts';
 import { registerDelegationRuntimeCommands } from './commands/delegation-runtime.ts';
 import { registerPersonasRuntimeCommands } from './commands/personas-runtime.ts';
+import { registerVibeRuntimeCommands } from './commands/vibe-runtime.ts';
 import { registerAgentSkillsRuntimeCommands } from './commands/agent-skills-runtime.ts';
 import { registerRoutinesRuntimeCommands } from './commands/routines-runtime.ts';
 import { registerChannelsRuntimeCommands } from './commands/channels-runtime.ts';
@@ -65,6 +66,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerCompatRuntimeCommands(registry);
   registerOperatorActionRuntimeCommands(registry);
   registerAgentRuntimeProfileRuntimeCommands(registry);
+  registerVibeRuntimeCommands(registry);
   registerPersonasRuntimeCommands(registry);
   registerAgentSkillsRuntimeCommands(registry);
   registerRoutinesRuntimeCommands(registry);

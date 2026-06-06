@@ -65,7 +65,7 @@ Use the TUI first for those checks:
 
 ## Product Boundary
 
-Agent owns the user-facing autonomous harness: terminal renderer, setup, chat, profiles, local memory/notes/routines/skills/personas, isolated Agent Knowledge calls, companion chat, visible agents, approvals, schedules, automation posture, daemon method access, channel delivery, reminders, and media workflows.
+Agent owns the user-facing autonomous harness: terminal renderer, setup, chat, profiles, VIBE.md personality, local memory/notes/routines/skills/personas, isolated Agent Knowledge calls, companion chat, visible agents, approvals, schedules, automation posture, daemon method access, channel delivery, reminders, and media workflows.
 
 The GoodVibes daemon owns the platform capabilities. Agent should expose those capabilities through the easiest safe user path: simple first-class tools for common tasks, dynamic operator method discovery for exact contract parity, and confirmation gates for write/admin routes.
 

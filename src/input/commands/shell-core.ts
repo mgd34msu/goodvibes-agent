@@ -26,6 +26,8 @@ function commandCategory(commandName: string): string {
     'knowledge',
     'memory',
     'notes',
+    'vibe',
+    'vibes',
     'personas',
     'skills',
     'routines',

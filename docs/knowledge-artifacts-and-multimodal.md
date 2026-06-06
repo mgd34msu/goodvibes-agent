@@ -8,11 +8,11 @@ GoodVibes Agent uses these context layers:
 
 - current conversation context for the active turn;
 - Agent-local memory records for durable but private assistant facts and preferences;
-- Agent-local routines, skills, and personas for reusable behavior profiles;
+- VIBE.md personality files plus Agent-local routines, skills, and personas for reusable behavior profiles;
 - isolated Agent Knowledge for source-backed documents, search, and semantic answers;
 - artifacts for uploaded/generated files that can be referenced by chat, delegation, or explicit Agent Knowledge ingestion.
 
-These layers are intentionally separate. Local memory/routines/skills/personas are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into default knowledge. Secrets are rejected or represented only by explicit secret references.
+These layers are intentionally separate. VIBE.md, local memory/routines/skills/personas, and default knowledge are not automatically promoted into Agent Knowledge. Agent Knowledge records are not copied into default knowledge. Secrets are rejected or represented only by explicit secret references.
 
 ## Agent Knowledge Boundary
 
@@ -91,7 +91,7 @@ The TUI workspace exposes the common confirmed ingest, issue-review, consolidati
 
 Connected-host ingest and read CLI routes target `/api/goodvibes-agent/knowledge/*`. Workspace and slash-command issue review, packet/explain, consolidation, and reindex flows stay inside the isolated Agent Knowledge service. None of them call default knowledge.
 
-Do not map local memory, notes, routines, skills, personas, or default knowledge documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
+Do not map VIBE.md, local memory, notes, routines, skills, personas, or default knowledge documents into Agent Knowledge automatically. Durable source-backed facts can be ingested deliberately through Agent routes when the user or an explicit Agent workflow asks for it.
 
 ## Artifacts And Multimodal
 

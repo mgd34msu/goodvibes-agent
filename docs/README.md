@@ -23,7 +23,7 @@ These are the package-facing docs for the GoodVibes Agent `1.0.x` release line.
 - Connected-host compatibility: public Agent routes report readiness through the `compat` and `status` CLI commands plus `connected_host_status`.
 - Connected host: owned outside Agent; Agent reports and uses it but does not manage lifecycle.
 - Agent Knowledge: only `/api/goodvibes-agent/knowledge/*`; no default knowledge fallback.
-- Local state: memory, notes, personas, skills, routines, sessions, setup, and profiles live under the Agent home.
+- Local state: VIBE.md personality, memory, notes, personas, skills, routines, sessions, setup, and profiles live under the Agent home or current project.
 - Computer work: local read/edit/exec routes are allowed when the current Agent workspace and permissions are sufficient; process monitor/live tail/tool inspector supervision and local file edit/write recovery are inspectable and confirmation-gated; delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
 
 ## Model Access Baseline
