@@ -174,7 +174,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
-    modelRouting: 'List mode:"model_routing"; query local for cookbook; inspect mode:"model_route"; changes stay visible.',
+    modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
     autonomyQueue: 'List mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; use live records/log tails; effects stay on owning confirmed routes.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',

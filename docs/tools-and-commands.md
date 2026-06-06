@@ -69,7 +69,7 @@ Discovery modes:
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
-| `provider_accounts`, `model_routing` | Provider auth, provider/model route posture, and local model cookbook. |
+| `provider_accounts`, `model_routing` | Provider auth, provider/model route posture, and hardware-scored local model cookbook. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
 | `autonomy_queue`, `autonomy_queue_item` | Visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, and routine review candidates. |

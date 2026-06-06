@@ -1275,22 +1275,50 @@ describe('agent_harness tool', () => {
         readonly localCookbook: {
           readonly status: string;
           readonly recommendation: string;
-          readonly recipes: readonly { readonly id: string; readonly modelRoute?: string }[];
+          readonly hardwareProfile: {
+            readonly ramGb: number;
+            readonly cpuThreads: number;
+            readonly memoryTier: string;
+            readonly acceleratorHint: string;
+            readonly privacy: string;
+          };
+          readonly recipes: readonly {
+            readonly id: string;
+            readonly fitScore?: number;
+            readonly fitLevel?: string;
+            readonly hardwareMatched?: readonly string[];
+            readonly modelRoute?: string;
+          }[];
         };
-        readonly routes: readonly { readonly modelRouteId: string; readonly modelRoute?: string }[];
+        readonly routes: readonly { readonly modelRouteId: string; readonly currentValue?: unknown; readonly modelRoute?: string }[];
       }>(fixture, { mode: 'model_routing', query: 'local', includeParameters: true });
       expect(cookbook.localCookbook.status).toBe('recommendations-only');
       expect(cookbook.localCookbook.recommendation).toContain('Ollama');
+      expect(cookbook.localCookbook.hardwareProfile.ramGb).toBeGreaterThan(0);
+      expect(cookbook.localCookbook.hardwareProfile.cpuThreads).toBeGreaterThan(0);
+      expect(cookbook.localCookbook.hardwareProfile.memoryTier).toBeTruthy();
+      expect(cookbook.localCookbook.hardwareProfile.acceleratorHint).toBeTruthy();
+      expect(cookbook.localCookbook.hardwareProfile.privacy).toBe('local-only');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('ollama');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('vllm');
+      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitScore === 'number')).toBe(true);
+      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitLevel === 'string')).toBe(true);
+      expect(cookbook.localCookbook.recipes.find((recipe) => recipe.id === 'ollama')?.hardwareMatched?.join('\n')).toContain('setup friction');
       expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
-      expect(cookbook.routes.find((route) => route.modelRouteId === 'local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_route" or mode:"run_command"');
+      const localRoute = cookbook.routes.find((route) => route.modelRouteId === 'local-model-cookbook');
+      expect(localRoute?.modelRoute).toBe('agent_harness mode:"model_route" or mode:"run_command"');
+      expect(JSON.stringify(localRoute?.currentValue)).toContain('hardwareProfile');
 
       const inspected = await executeHarnessJson<{
         readonly modelRouteId: string;
-        readonly localCookbook?: { readonly recipes: readonly { readonly id: string; readonly setup?: readonly string[] }[] };
+        readonly localCookbook?: {
+          readonly hardwareProfile?: { readonly ramGb: number };
+          readonly recipes: readonly { readonly id: string; readonly fitScore?: number; readonly setup?: readonly string[] }[];
+        };
       }>(fixture, { mode: 'model_route', modelRouteId: 'local-model-cookbook' });
       expect(inspected.modelRouteId).toBe('local-model-cookbook');
+      expect(inspected.localCookbook?.hardwareProfile?.ramGb).toBeGreaterThan(0);
+      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'ollama')?.fitScore).toBeGreaterThan(0);
       expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'llama-cpp')?.setup?.join('\n')).toContain('GGUF');
 
       const action = await executeHarnessJson<{

@@ -1,3 +1,4 @@
+import { arch, cpus, freemem, platform, totalmem } from 'node:os';
 import type { CommandContext } from '../input/command-registry.ts';
 import { requireProviderApi } from '../input/commands/runtime-services.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
@@ -48,6 +49,19 @@ interface LocalModelDetection {
   readonly stacks: readonly string[];
 }
 
+interface LocalModelHardwareProfile {
+  readonly platform: string;
+  readonly arch: string;
+  readonly cpuModel: string;
+  readonly cpuThreads: number;
+  readonly ramGb: number;
+  readonly freeRamGb: number;
+  readonly memoryTier: 'constrained' | 'starter' | 'comfortable' | 'large';
+  readonly acceleratorHint: 'apple-silicon' | 'cuda-env' | 'none-detected';
+  readonly privacy: 'local-only';
+  readonly caveat: string;
+}
+
 interface LocalModelRecipe {
   readonly id: string;
   readonly label: string;
@@ -57,6 +71,12 @@ interface LocalModelRecipe {
   readonly setup: readonly string[];
   readonly modelExamples: readonly string[];
   readonly cautions: readonly string[];
+}
+
+interface LocalModelRecipeFit {
+  readonly score: number;
+  readonly level: 'weak' | 'usable' | 'good' | 'strong';
+  readonly reasons: readonly string[];
 }
 
 interface ProviderApiLike {
@@ -246,6 +266,112 @@ function localModelDetection(context: CommandContext): LocalModelDetection {
   };
 }
 
+function roundGb(bytes: number): number {
+  if (!Number.isFinite(bytes) || bytes <= 0) return 0;
+  return Math.max(0, Math.round((bytes / 1024 / 1024 / 1024) * 10) / 10);
+}
+
+function localHardwareProfile(): LocalModelHardwareProfile {
+  const cpuList = cpus();
+  const ramGb = roundGb(totalmem());
+  const freeRamGb = roundGb(freemem());
+  const runtimePlatform = platform();
+  const runtimeArch = arch();
+  const acceleratorHint = runtimePlatform === 'darwin' && runtimeArch === 'arm64'
+    ? 'apple-silicon'
+    : (process.env.CUDA_VISIBLE_DEVICES || process.env.NVIDIA_VISIBLE_DEVICES)
+      ? 'cuda-env'
+      : 'none-detected';
+  return {
+    platform: runtimePlatform,
+    arch: runtimeArch,
+    cpuModel: previewHarnessText(cpuList[0]?.model ?? 'unknown CPU', 96),
+    cpuThreads: cpuList.length,
+    ramGb,
+    freeRamGb,
+    memoryTier: ramGb >= 64 ? 'large' : ramGb >= 32 ? 'comfortable' : ramGb >= 16 ? 'starter' : 'constrained',
+    acceleratorHint,
+    privacy: 'local-only',
+    caveat: 'Hardware scan uses local OS memory/CPU data and safe accelerator hints only; it does not probe drivers, download models, or benchmark live inference.',
+  };
+}
+
+function fitLevel(score: number): LocalModelRecipeFit['level'] {
+  if (score >= 85) return 'strong';
+  if (score >= 70) return 'good';
+  if (score >= 50) return 'usable';
+  return 'weak';
+}
+
+function clampFit(score: number): number {
+  return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function scoreLocalModelRecipe(
+  recipe: LocalModelRecipe,
+  hardware: LocalModelHardwareProfile,
+  detection: LocalModelDetection,
+): LocalModelRecipeFit {
+  const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
+  const detected = detection.stacks.includes(stackId);
+  const reasons: string[] = [];
+  let score = 45;
+  if (detected) {
+    score += 18;
+    reasons.push('matching local provider or model route already detected');
+  }
+  if (recipe.id === 'ollama') {
+    score += 20;
+    reasons.push('lowest setup friction for most local users');
+    if (hardware.ramGb >= 16) {
+      score += 12;
+      reasons.push(`${hardware.ramGb} GB RAM is enough for practical 7B/8B quantized models`);
+    } else {
+      score -= 10;
+      reasons.push('RAM is below the comfortable 16 GB local-model baseline');
+    }
+    if (hardware.acceleratorHint === 'apple-silicon') {
+      score += 10;
+      reasons.push('Apple Silicon is a good Ollama path');
+    }
+  } else if (recipe.id === 'llama-cpp') {
+    score += 16;
+    reasons.push('best offline fallback when downloads and serving stay manual');
+    if (hardware.ramGb >= 8) {
+      score += 10;
+      reasons.push('can use smaller GGUF quantized models within available system memory');
+    }
+    if (hardware.acceleratorHint === 'apple-silicon') {
+      score += 8;
+      reasons.push('Metal-backed llama.cpp is a strong local path on Apple Silicon');
+    }
+  } else if (recipe.id === 'vllm') {
+    score += hardware.acceleratorHint === 'cuda-env' ? 30 : -12;
+    reasons.push(hardware.acceleratorHint === 'cuda-env'
+      ? 'CUDA environment hints are present'
+      : 'no CUDA hint was detected; vLLM may still work, but requires GPU/driver verification');
+    if (hardware.ramGb >= 32) {
+      score += 10;
+      reasons.push('system memory is comfortable for GPU serving overhead');
+    }
+  } else {
+    score += detected ? 10 : 4;
+    reasons.push(detected
+      ? 'existing OpenAI-compatible local route can be reused'
+      : 'useful when the user already runs LM Studio, LocalAI, TGI, or another local endpoint');
+  }
+  if (hardware.cpuThreads >= 8 && recipe.id !== 'vllm') {
+    score += 5;
+    reasons.push(`${hardware.cpuThreads} CPU threads help local inference`);
+  }
+  const finalScore = clampFit(score);
+  return {
+    score: finalScore,
+    level: fitLevel(finalScore),
+    reasons,
+  };
+}
+
 function localModelRecipes(): readonly LocalModelRecipe[] {
   return [
     {
@@ -307,15 +433,24 @@ function localModelRecipes(): readonly LocalModelRecipe[] {
   ];
 }
 
-function describeLocalModelRecipe(recipe: LocalModelRecipe, detection: LocalModelDetection, includeParameters: boolean): Record<string, unknown> {
+function describeLocalModelRecipe(
+  recipe: LocalModelRecipe,
+  detection: LocalModelDetection,
+  hardware: LocalModelHardwareProfile,
+  includeParameters: boolean,
+): Record<string, unknown> {
   const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
   const detected = detection.stacks.includes(stackId);
+  const fit = scoreLocalModelRecipe(recipe, hardware, detection);
   return {
     id: recipe.id,
     label: recipe.label,
     fit: recipe.fit,
+    fitScore: fit.score,
+    fitLevel: fit.level,
     bestFor: recipe.bestFor,
     hardware: previewHarnessText(recipe.hardware, includeParameters ? 180 : 96),
+    hardwareMatched: fit.reasons.slice(0, includeParameters ? 6 : 3),
     detected,
     modelRoute: 'agent_harness mode:"model_routing" or mode:"open_ui_surface"',
     ...(includeParameters ? {
@@ -328,16 +463,22 @@ function describeLocalModelRecipe(recipe: LocalModelRecipe, detection: LocalMode
 
 function localModelCookbook(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
   const detection = localModelDetection(context);
-  const recipes = localModelRecipes().map((recipe) => describeLocalModelRecipe(recipe, detection, includeParameters));
+  const hardwareProfile = localHardwareProfile();
+  const recipes = localModelRecipes()
+    .map((recipe) => describeLocalModelRecipe(recipe, detection, hardwareProfile, includeParameters))
+    .sort((left, right) => Number(readRecord(right).fitScore ?? 0) - Number(readRecord(left).fitScore ?? 0));
+  const topRecipe = readRecord(recipes[0]);
+  const topLabel = readString(topRecipe.label) || 'Ollama';
   return {
     status: detection.stacks.length > 0 ? 'detected-local-route' : 'recommendations-only',
     recommendation: detection.stacks.includes('ollama')
       ? 'Use the discovered Ollama route first unless throughput requirements point to vLLM.'
-      : 'Start with Ollama for the easiest local route; use llama.cpp for offline GGUF files or vLLM for GPU throughput.',
+      : `Best current fit: ${topLabel}. Ollama remains the easiest first local route; use llama.cpp for offline GGUF files or vLLM for GPU throughput.`,
+    hardwareProfile,
     detected: detection,
     recipes,
     modelRoute: 'agent_harness mode:"model_routing" query:"local"',
-    policy: 'Read-only cookbook. Installs, downloads, provider edits, and route changes stay separate visible user actions.',
+    policy: 'Read-only hardware-aware cookbook. Installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
   };
 }
 
@@ -428,7 +569,10 @@ function routeCandidates(context: CommandContext): readonly RouteCandidate[] {
       id: 'local-model-cookbook',
       label: 'Local model cookbook',
       detail: 'Hardware-aware recommendations for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers.',
-      currentValue: localModelDetection(context),
+      currentValue: {
+        detected: localModelDetection(context),
+        hardwareProfile: localHardwareProfile(),
+      },
       settingKeys: [],
       commands: ['/provider add <name> <baseURL> [apiKey] --yes', '/refresh-models', '/model'],
       uiSurfaces: ['provider-picker', 'model-picker', 'settings'],
