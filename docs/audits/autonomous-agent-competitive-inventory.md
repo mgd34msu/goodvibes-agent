@@ -44,7 +44,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Make setup complete the user's outcome: installed, reachable, authenticated, paired, and ready to act. The current setup plan orders blockers, but host lifecycle/install repair is still a gap.
 - Prefer supervised local execution over refusal or delegation friction when the Agent has local permission and workspace context; use `execution_posture` to make that route explicit.
 - Use delegation and remote runners for isolation, parallelism, or remote execution, not because the user picked the wrong entrypoint.
-- Add confirmed schedule edit/delete flows with the same visible confirmation and queue posture as creation and run-now control.
+- Add confirmed schedule edit flows with the same visible confirmation and queue posture as creation and lifecycle control.
 - Extend live autonomy queue records with richer daemon retry, checkpoint, and host log detail when the connected host exposes it.
 - Build first-class email/calendar connectors and extend Personal Ops live records into inbox, agenda, task, and reminder queues.
 - Extend the learning curator from ranked review cards into proposed memory, skill, and routine updates with provenance and rollback.

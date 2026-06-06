@@ -24,6 +24,7 @@ interface OperatorActionCase {
   readonly targetField: string;
   readonly targetId: string;
   readonly path: string;
+  readonly method?: string;
   readonly response: unknown;
 }
 
@@ -121,6 +122,28 @@ const ACTION_CASES: readonly OperatorActionCase[] = [
     targetId: 'schedule-1',
     path: '/api/automation/schedules/schedule-1/run',
     response: { jobId: 'job-4', runId: 'run-5', status: 'queued' },
+  },
+  {
+    action: 'schedules.enable',
+    targetField: 'scheduleId',
+    targetId: 'schedule-2',
+    path: '/api/automation/schedules/schedule-2/enable',
+    response: { id: 'schedule-2', enabled: true },
+  },
+  {
+    action: 'schedules.disable',
+    targetField: 'scheduleId',
+    targetId: 'schedule-3',
+    path: '/api/automation/schedules/schedule-3/disable',
+    response: { id: 'schedule-3', enabled: false },
+  },
+  {
+    action: 'schedules.delete',
+    targetField: 'scheduleId',
+    targetId: 'schedule-4',
+    path: '/api/automation/schedules/schedule-4',
+    method: 'DELETE',
+    response: { id: 'schedule-4', removed: true },
   },
 ];
 
@@ -262,7 +285,7 @@ describe('agent_operator_action tool', () => {
       expect(requests.map((request) => request.url)).toEqual(
         ACTION_CASES.map((entry) => `http://127.0.0.1:3421${entry.path}`),
       );
-      expect(requests.map((request) => request.method)).toEqual(ACTION_CASES.map(() => 'POST'));
+      expect(requests.map((request) => request.method)).toEqual(ACTION_CASES.map((entry) => entry.method ?? 'POST'));
       expect(requests.map((request) => request.url.includes('/api/knowledge'))).toEqual(ACTION_CASES.map(() => false));
       expect(requests.map((request) => request.url.includes('homeGraph'))).toEqual(ACTION_CASES.map(() => false));
       expect(requests.map((request) => request.url.includes('/api/automation/jobs/job-1/delete'))).toEqual(

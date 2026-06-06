@@ -191,17 +191,24 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      if (sub === 'run') {
+      if (sub === 'run' || sub === 'enable' || sub === 'disable' || sub === 'delete' || sub === 'remove') {
         const scheduleId = args[1] ?? '';
         if (!scheduleId) {
-          ctx.print('Usage: /schedule run <schedule-id> --yes');
+          ctx.print(`Usage: /schedule ${sub} <schedule-id> --yes`);
           return;
         }
-        await executeConfirmedOperatorAction(ctx, 'schedules.run', 'scheduleId', scheduleId, args.slice(2), '/schedule run <schedule-id> --yes');
+        const action = sub === 'run'
+          ? 'schedules.run'
+          : sub === 'enable'
+            ? 'schedules.enable'
+            : sub === 'disable'
+              ? 'schedules.disable'
+              : 'schedules.delete';
+        await executeConfirmedOperatorAction(ctx, action, 'scheduleId', scheduleId, args.slice(2), `/schedule ${sub} <schedule-id> --yes`);
         return;
       }
 
-      if (sub === 'add' || sub === 'remove' || sub === 'enable' || sub === 'disable') {
+      if (sub === 'add') {
         printReadOnlyScheduleBoundary(ctx.print, `/schedule ${args.join(' ')}`.trim());
         return;
       }
@@ -213,9 +220,12 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         + '  /schedule reconcile\n'
         + '  /schedule receipt <receipt-id>\n'
         + '  /schedule run <schedule-id> --yes\n'
+        + '  /schedule enable <schedule-id> --yes\n'
+        + '  /schedule disable <schedule-id> --yes\n'
+        + '  /schedule delete <schedule-id> --yes\n'
         + '  /schedule remind (--cron <expr>|--every <interval>|--at <iso-time>) (--message <text>|<text...>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
         + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
-        + '  Local schedule mutations remain blocked; schedule run is a confirmed connected-host action.'
+        + '  Local schedule creation remains blocked; schedule lifecycle actions are confirmed connected-host actions.'
       );
     },
   });

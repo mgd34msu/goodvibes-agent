@@ -249,13 +249,13 @@
     },
     {
       "id": "approvals-and-automation-actions",
-      "capability": "Approvals, automation jobs, runs, and schedules expose read-only status plus narrow confirmed approve, deny, cancel, run, pause, resume, retry, and run-now actions.",
+      "capability": "Approvals, automation jobs, runs, and schedules expose read-only status plus narrow confirmed approve, deny, cancel, run, pause, resume, retry, run-now, enable, disable, and delete actions.",
       "owner": "agent",
       "status": "covered",
       "evidence": "src/agent/operator-actions.ts; src/input/commands/operator-actions-runtime.ts; src/input/commands/schedule-runtime.ts; docs/tools-and-commands.md",
       "action": "Do not create or mutate broad automation definitions from ordinary chat.",
       "quality": {
-        "capabilityCoverage": "Covers approval queues, automation jobs/runs/schedules, status views, and narrow confirmed approve, deny, cancel, run, pause, resume, retry, and run-now operations.",
+        "capabilityCoverage": "Covers approval queues, automation jobs/runs/schedules, status views, and narrow confirmed approve, deny, cancel, run, pause, resume, retry, run-now, enable, disable, and delete operations.",
         "userAccess": "The user can operate approvals and automation through workspace forms and exact /approval, /automation, and /schedule mirrors.",
         "modelAccess": "agent_operator_briefing, agent_operator_action, and agent_harness command and workspace metadata expose read-only status and exact confirmed actions to the model.",
         "safetyBoundary": "Ordinary chat cannot silently create or mutate broad automation definitions; every mutation is exact and confirmation-gated.",

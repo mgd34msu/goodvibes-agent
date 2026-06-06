@@ -9,8 +9,12 @@ export type AutomationActionId =
   | 'automation.jobs.resume'
   | 'automation.runs.cancel'
   | 'automation.runs.retry'
+  | 'schedules.delete'
+  | 'schedules.disable'
+  | 'schedules.enable'
   | 'schedules.run';
 export type OperatorActionId = ApprovalActionId | AutomationActionId;
+export type OperatorActionHttpMethod = 'POST' | 'DELETE';
 
 type ApprovalActionInput =
   | OperatorMethodInput<'approvals.approve'>
@@ -33,6 +37,7 @@ export interface OperatorActionDescriptor {
   readonly label: string;
   readonly pathTemplate: string;
   readonly targetField: 'approvalId' | 'jobId' | 'runId' | 'scheduleId';
+  readonly httpMethod?: OperatorActionHttpMethod;
 }
 
 export interface OperatorActionRequest {
@@ -45,6 +50,7 @@ export interface OperatorActionRequest {
 export interface OperatorActionSuccess {
   readonly ok: true;
   readonly methodId: OperatorActionId;
+  readonly httpMethod: OperatorActionHttpMethod;
   readonly path: string;
   readonly body: unknown;
 }
@@ -58,6 +64,7 @@ export interface OperatorActionFailure {
     | 'connected_host_error';
   readonly error: string;
   readonly methodId: OperatorActionId;
+  readonly httpMethod: OperatorActionHttpMethod;
   readonly path: string;
 }
 
@@ -125,6 +132,25 @@ export const OPERATOR_ACTIONS: Record<OperatorActionId, OperatorActionDescriptor
     pathTemplate: '/api/automation/schedules/{scheduleId}/run',
     targetField: 'scheduleId',
   },
+  'schedules.enable': {
+    action: 'schedules.enable',
+    label: 'enable schedule',
+    pathTemplate: '/api/automation/schedules/{scheduleId}/enable',
+    targetField: 'scheduleId',
+  },
+  'schedules.disable': {
+    action: 'schedules.disable',
+    label: 'disable schedule',
+    pathTemplate: '/api/automation/schedules/{scheduleId}/disable',
+    targetField: 'scheduleId',
+  },
+  'schedules.delete': {
+    action: 'schedules.delete',
+    label: 'delete schedule',
+    pathTemplate: '/api/automation/schedules/{scheduleId}',
+    targetField: 'scheduleId',
+    httpMethod: 'DELETE',
+  },
 };
 
 export const OPERATOR_ACTION_IDS = Object.keys(OPERATOR_ACTIONS) as readonly OperatorActionId[];
@@ -152,6 +178,10 @@ export function targetValue(args: OperatorActionArgs, descriptor: OperatorAction
 
 export function renderOperatorActionPath(descriptor: OperatorActionDescriptor, targetId: string): string {
   return descriptor.pathTemplate.replace(`{${descriptor.targetField}}`, encodeURIComponent(targetId));
+}
+
+export function operatorActionHttpMethod(descriptor: OperatorActionDescriptor): OperatorActionHttpMethod {
+  return descriptor.httpMethod ?? 'POST';
 }
 
 function approvalBody(args: OperatorActionArgs): ApprovalActionInput {
@@ -214,6 +244,7 @@ function summarizeError(error: unknown): string {
 
 function classifyHttpFailure(
   methodId: OperatorActionId,
+  httpMethod: OperatorActionHttpMethod,
   path: string,
   status: number,
   body: unknown,
@@ -222,6 +253,7 @@ function classifyHttpFailure(
   return {
     ok: false,
     methodId,
+    httpMethod,
     path,
     kind: status === 401 || status === 403
       ? 'auth_required'
@@ -237,11 +269,13 @@ export async function postOperatorAction(
   request: OperatorActionRequest,
 ): Promise<OperatorActionResult> {
   const path = renderOperatorActionPath(request.descriptor, request.targetId);
+  const httpMethod = operatorActionHttpMethod(request.descriptor);
   const token = connection.token;
   if (!token) {
     return {
       ok: false,
       methodId: request.descriptor.action,
+      httpMethod,
       path,
       kind: 'auth_required',
       error: connection.tokenPath ? `no connected-host operator token found at ${connection.tokenPath}` : 'no connected-host operator token found',
@@ -251,7 +285,7 @@ export async function postOperatorAction(
     authorization: `Bearer ${token}`,
   };
   const init: RequestInit = {
-    method: 'POST',
+    method: httpMethod,
     headers,
   };
   if (request.body) {
@@ -261,10 +295,11 @@ export async function postOperatorAction(
   try {
     const response = await fetch(`${connection.baseUrl}${path}`, init);
     const body = await readResponseBody(response);
-    if (!response.ok) return classifyHttpFailure(request.descriptor.action, path, response.status, body);
+    if (!response.ok) return classifyHttpFailure(request.descriptor.action, httpMethod, path, response.status, body);
     return {
       ok: true,
       methodId: request.descriptor.action,
+      httpMethod,
       path,
       body,
     };
@@ -272,6 +307,7 @@ export async function postOperatorAction(
     return {
       ok: false,
       methodId: request.descriptor.action,
+      httpMethod,
       path,
       kind: 'connected_host_unavailable',
       error: summarizeError(error),
@@ -301,7 +337,7 @@ export function formatOperatorActionSuccess(baseUrl: string, result: OperatorAct
   return [
     'Agent operator action completed',
     `  method: ${result.methodId}`,
-    `  route: POST ${result.path}`,
+    `  route: ${result.httpMethod} ${result.path}`,
     `  connected host: ${baseUrl}`,
     `  status: ${statusFromOperatorActionBody(result.body)}`,
   ].join('\n');
@@ -311,7 +347,7 @@ export function formatOperatorActionFailure(result: OperatorActionFailure): stri
   return [
     `Agent operator action failed: ${result.kind} (${formatOperatorActionFailureKind(result.kind)})`,
     `  method: ${result.methodId}`,
-    `  route: POST ${result.path}`,
+    `  route: ${result.httpMethod} ${result.path}`,
     `  error: ${result.error}`,
   ].join('\n');
 }
@@ -322,7 +358,7 @@ export function formatOperatorActionPreview(request: OperatorActionRequest, expl
     `  method ${request.descriptor.action}`,
     `  action ${request.descriptor.label}`,
     `  target ${request.targetId}`,
-    `  route POST ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
+    `  route ${operatorActionHttpMethod(request.descriptor)} ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
     explicitUserRequest ? `  requested by ${explicitUserRequest}` : '  requested by (missing)',
     '',
     'Confirmation required: type yes in the workspace form or pass --yes only when the user explicitly asked GoodVibes Agent to perform this exact operator action.',
@@ -335,7 +371,7 @@ export function formatOperatorActionToolPreview(request: OperatorActionRequest, 
     `  method ${request.descriptor.action}`,
     `  action ${request.descriptor.label}`,
     `  target ${request.targetId}`,
-    `  route POST ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
+    `  route ${operatorActionHttpMethod(request.descriptor)} ${renderOperatorActionPath(request.descriptor, request.targetId)}`,
     explicitUserRequest ? `  requested by ${explicitUserRequest}` : '  requested by (missing)',
     '',
     'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to perform this exact operator action.',

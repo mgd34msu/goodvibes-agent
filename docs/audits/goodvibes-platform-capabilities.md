@@ -47,7 +47,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 - Consent-gated host lifecycle/install repair beyond the current read-only setup plan, status, compat, and service posture routes.
 - First-class email and calendar connectors plus live inbox/agenda records in Personal Ops; Agent-owned notes, routines, schedule receipts, and delivery channels already surface live lane records.
-- Schedule edit/delete flows with the same visible confirmation and queue posture as creation and run-now control.
+- Schedule edit flows with the same visible confirmation and queue posture as creation and lifecycle control.
 - Richer daemon retry, checkpoint, and host log details in autonomy queue records when the connected host exposes them.
 - Deep research browser-backed execution and richer report runner output beyond the current visible local run ledger, run log tails, source queue, credibility scoring, source bundles, citation coverage metadata, repair hints, and saved sourced report artifacts.
 - Live local model benchmarks and guided downloads beyond the current read-only hardware-scored cookbook.

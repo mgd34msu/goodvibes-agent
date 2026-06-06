@@ -1123,8 +1123,13 @@ describe('agent_harness tool', () => {
       expect(autonomousScheduleRequests?.modelRoute).toBe('agent_autonomy_schedule');
       expect(autonomousScheduleRequests?.createRoute).toContain('successCriteria');
       expect(schedules?.status).toBe('active');
+      expect(schedules?.cancellable).toBe(true);
+      expect(schedules?.cancelRoute).toContain('schedules.disable');
       expect(schedules?.liveRecords?.[0]?.id).toBe('sched-live-1');
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.run');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.disable');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.delete');
+      expect(schedules?.liveRecords?.[0]?.cancelRoute).toContain('schedules.disable');
       expect(schedules?.createRoute).toContain('agent_autonomy_schedule');
       expect(routines?.inspectRoute).toContain('schedule-receipts');
 

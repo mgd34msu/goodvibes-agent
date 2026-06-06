@@ -156,7 +156,7 @@ None of those modes expose host start, stop, restart, install, expose-listener, 
 
 ## Visible Autonomy
 
-Use `agent_harness mode:"autonomy_intake"` first when the user asks for ongoing work and the safest route is not obvious. It is read-only and returns the likely route, missing fields, and confirmation boundary. `agent_autonomy_schedule` creates one visible connected schedule only when the user gives task, cadence, success criteria, confirmation, and request provenance. Use `agent_harness mode:"autonomy_queue"` before creating recurring autonomous work, reminders, routine schedules, delegated work, run controls, approval decisions, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research runs, connected-host tasks, approvals, automation runs, and schedules include live records with status/progress, source ids, next steps, log tails when available, and exact inspect/checkpoint/cancel/approve/deny/retry/run routes where supported. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
+Use `agent_harness mode:"autonomy_intake"` first when the user asks for ongoing work and the safest route is not obvious. It is read-only and returns the likely route, missing fields, and confirmation boundary. `agent_autonomy_schedule` creates one visible connected schedule only when the user gives task, cadence, success criteria, confirmation, and request provenance. Use `agent_harness mode:"autonomy_queue"` before creating recurring autonomous work, reminders, routine schedules, delegated work, run controls, approval decisions, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research runs, connected-host tasks, approvals, automation runs, and schedules include live records with status/progress, source ids, next steps, log tails when available, and exact inspect/checkpoint/cancel/approve/deny/retry/run/enable/disable/delete routes where supported. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, schedule, and schedule lifecycle effects stay on the owning confirmed route returned by that card.
 
 ## Agent Knowledge
 
@@ -200,8 +200,11 @@ Read views are safe by default. Mutations require exact target ids and confirmat
 /automation job resume <job-id> --yes
 /automation run cancel <run-id> --yes
 /automation run retry <run-id> --yes
-/automation schedule run <schedule-id> --yes
+/automation schedule <run|enable|disable|delete> <schedule-id> --yes
 /schedule run <schedule-id> --yes
+/schedule enable <schedule-id> --yes
+/schedule disable <schedule-id> --yes
+/schedule delete <schedule-id> --yes
 ```
 
 Routine promotion is an explicit scheduling route. Local routines stay local until a user confirms promotion. Delivery targets are opt-in with explicit channel/route/webhook/link flags.

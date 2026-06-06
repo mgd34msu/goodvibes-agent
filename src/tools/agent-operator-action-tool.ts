@@ -62,7 +62,7 @@ export function createAgentOperatorActionTool(
           },
           scheduleId: {
             type: 'string',
-            description: 'Schedule id for schedules.run.',
+            description: 'Schedule id for run, enable, disable, or delete.',
           },
           note: {
             type: 'string',

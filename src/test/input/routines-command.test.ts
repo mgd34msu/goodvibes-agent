@@ -477,4 +477,33 @@ describe('/routines command', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  test('confirmed schedule lifecycle actions use exact connected-host routes', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : '',
+      });
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('schedule', ['disable', 'sched-1', '--yes'], ctx);
+      await registry.execute('schedule', ['delete', 'sched-1', '--yes'], ctx);
+
+      expect(out.join('\n')).toContain('Agent operator action completed');
+      expect(requests.map((request) => request.url)).toEqual([
+        'http://127.0.0.1:3421/api/automation/schedules/sched-1/disable',
+        'http://127.0.0.1:3421/api/automation/schedules/sched-1',
+      ]);
+      expect(requests.map((request) => request.method)).toEqual(['POST', 'DELETE']);
+      expect(requests.map((request) => request.body)).toEqual(['', '']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
