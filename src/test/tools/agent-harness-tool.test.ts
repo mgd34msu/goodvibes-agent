@@ -2446,6 +2446,26 @@ describe('agent_harness tool', () => {
       expect(control.preferred.id).toBe('automation-control');
       expect(control.preferred.modelRoute).toContain('queueItemId:"automation-runs"');
       expect(control.preferred.missingFields?.join('\n')).toContain('runId');
+
+      const trigger = await executeHarnessJson<{
+        readonly preferred: {
+          readonly id: string;
+          readonly modelRoute: string;
+          readonly requiresConfirmation: boolean;
+          readonly missingFields?: readonly string[];
+          readonly userQuestion?: string;
+        };
+      }>(fixture, {
+        mode: 'autonomy_intake',
+        query: 'When a webhook arrives from billing, run a triage brief.',
+        includeParameters: true,
+      });
+      expect(trigger.preferred.id).toBe('visible-event-trigger-intake');
+      expect(trigger.preferred.modelRoute).toContain('operator_methods');
+      expect(trigger.preferred.modelRoute).toContain('webhook');
+      expect(trigger.preferred.requiresConfirmation).toBe(false);
+      expect(trigger.preferred.missingFields?.join('\n')).toContain('trusted trigger source');
+      expect(trigger.preferred.userQuestion).toContain('trusted event source');
     } finally {
       fixture.cleanup();
     }

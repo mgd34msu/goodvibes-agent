@@ -96,6 +96,26 @@ function detectSchedule(request: string): ScheduleDetection {
   return { missing: [], notes: [] };
 }
 
+function asksForEventTrigger(lower: string): boolean {
+  return hasAny(lower, [
+    'event trigger',
+    'event-trigger',
+    'incoming webhook',
+    'webhook trigger',
+    'triggered by webhook',
+    'when a webhook',
+    'when webhook',
+    'on webhook',
+    'file watcher',
+    'watcher trigger',
+    'when gmail',
+    'new gmail',
+    'when email arrives',
+    'new email arrives',
+    'github webhook',
+  ]);
+}
+
 function reminderRoute(request: string, schedule: ScheduleDetection): string {
   const message = previewHarnessText(request, 72).replace(/"/g, "'");
   const kind = schedule.kind ?? 'at|every|cron';
@@ -138,6 +158,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
   const asksForApproval = hasAny(lower, ['approval', 'approve', 'deny']);
   const asksForAutomationControl = hasAny(lower, ['cancel', 'retry', 'pause', 'resume', 'run now'])
     && hasAny(lower, ['automation', 'schedule', 'job', 'run']);
+  const asksForTrigger = asksForEventTrigger(lower);
   const asksForUnsupportedConnector = hasAny(lower, ['email', 'calendar', 'gmail', 'imap', 'caldav']);
 
   if (asksForAutomationControl) {
@@ -165,6 +186,25 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       requiresConfirmation: true,
       missingFields: ['exact approvalId', 'approve, deny, or cancel decision'],
       userQuestion: 'Which approval id and decision should be applied?',
+    });
+  }
+
+  if (asksForTrigger) {
+    candidates.push({
+      id: 'visible-event-trigger-intake',
+      label: 'Review visible webhook or event-trigger setup',
+      confidence: 'high',
+      why: 'The request asks for work to start from an external event, webhook, watcher, Gmail, or inbound message instead of a time-based schedule.',
+      modelRoute: 'agent_harness mode:"operator_methods" query:"automation webhook watcher trigger source"',
+      inspectRoute: 'agent_harness mode:"autonomy_queue"',
+      requiresConfirmation: false,
+      missingFields: [
+        'trusted trigger source and scope',
+        'connected-host trigger create/list route',
+        'task to run',
+        'success criteria',
+      ],
+      userQuestion: 'Which trusted event source should be allowed to trigger this work, and what should count as a successful run?',
     });
   }
 
