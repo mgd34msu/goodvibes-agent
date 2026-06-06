@@ -29,6 +29,9 @@ interface ModelCandidate {
   readonly contextWindow: number | null;
   readonly reasoningEffort: readonly string[];
   readonly capabilities: unknown;
+  readonly tier?: string;
+  readonly benchmarkCompositeScore?: number | null;
+  readonly benchmarkQualityTier?: string;
   readonly pinned: boolean;
 }
 
@@ -77,6 +80,23 @@ interface LocalModelRecipeFit {
   readonly score: number;
   readonly level: 'weak' | 'usable' | 'good' | 'strong';
   readonly reasons: readonly string[];
+}
+
+interface ModelReadinessDimension {
+  readonly id: 'latency' | 'context-window' | 'tool-support' | 'vision' | 'cost' | 'privacy';
+  readonly label: string;
+  readonly score: number;
+  readonly weight: number;
+  readonly summary: string;
+}
+
+interface ModelReadinessScore {
+  readonly score: number;
+  readonly level: 'risky' | 'usable' | 'good' | 'excellent';
+  readonly confidence: 'estimated' | 'metadata-backed' | 'measured';
+  readonly dimensions: readonly ModelReadinessDimension[];
+  readonly missingSignals: readonly string[];
+  readonly nextStep: string;
 }
 
 interface LocalModelBenchmarkPlan {
@@ -131,6 +151,9 @@ function readConfig(context: CommandContext, key: string): unknown {
 }
 
 function contextWindowFor(context: CommandContext, model: unknown): number | null {
+  const record = readRecord(model);
+  const direct = record.contextWindow;
+  if (typeof direct === 'number' && Number.isFinite(direct)) return direct;
   try {
     const registry = context.provider.providerRegistry as { getContextWindowForModel(candidate: unknown): number };
     const value = registry.getContextWindowForModel(model);
@@ -172,6 +195,20 @@ function modelReasoning(model: unknown): readonly string[] {
 
 function modelCapabilities(model: unknown): unknown {
   return readRecord(model).capabilities ?? null;
+}
+
+function modelTier(model: unknown): string | undefined {
+  return readString(readRecord(model).tier) || undefined;
+}
+
+function modelBenchmarkCompositeScore(model: unknown): number | null {
+  const benchmark = readRecord(readRecord(model).benchmark);
+  const value = benchmark.compositeScore;
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function modelBenchmarkQualityTier(model: unknown): string | undefined {
+  return readString(readRecord(readRecord(model).benchmark).qualityTier) || undefined;
 }
 
 function readProviderApi(context: CommandContext): ProviderApiLike | null {
@@ -217,6 +254,9 @@ async function loadModels(context: CommandContext): Promise<readonly ModelCandid
       contextWindow: contextWindowFor(context, model),
       reasoningEffort: modelReasoning(model),
       capabilities: modelCapabilities(model),
+      tier: modelTier(model),
+      benchmarkCompositeScore: modelBenchmarkCompositeScore(model),
+      benchmarkQualityTier: modelBenchmarkQualityTier(model),
       pinned: pinned.has(registryKey) || pinned.has(modelId),
     };
   });
@@ -323,6 +363,243 @@ function fitLevel(score: number): LocalModelRecipeFit['level'] {
 
 function clampFit(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score)));
+}
+
+function modelReadinessLevel(score: number): ModelReadinessScore['level'] {
+  if (score >= 85) return 'excellent';
+  if (score >= 70) return 'good';
+  if (score >= 50) return 'usable';
+  return 'risky';
+}
+
+function capabilityEnabled(capabilities: unknown, key: 'toolCalling' | 'multimodal'): boolean | null {
+  const value = readRecord(capabilities)[key];
+  if (typeof value === 'boolean') return value;
+  return null;
+}
+
+function isLocalCandidate(fields: readonly string[]): boolean {
+  return fields.some((field) => Boolean(localStackFor(field)));
+}
+
+function contextWindowScore(contextWindow: number | null): ModelReadinessDimension {
+  const score = contextWindow == null
+    ? 45
+    : contextWindow >= 128_000
+      ? 100
+      : contextWindow >= 64_000
+        ? 88
+        : contextWindow >= 32_000
+          ? 76
+          : contextWindow >= 16_000
+            ? 62
+            : 45;
+  return {
+    id: 'context-window',
+    label: 'Context window',
+    score,
+    weight: 20,
+    summary: contextWindow == null
+      ? 'No context-window metadata; inspect the provider route before long-context work.'
+      : `${contextWindow.toLocaleString()} token context window.`,
+  };
+}
+
+function toolSupportScore(capabilities: unknown): ModelReadinessDimension {
+  const enabled = capabilityEnabled(capabilities, 'toolCalling');
+  return {
+    id: 'tool-support',
+    label: 'Tool support',
+    score: enabled === true ? 100 : enabled === false ? 35 : 55,
+    weight: 20,
+    summary: enabled === true
+      ? 'Tool calling is advertised.'
+      : enabled === false
+        ? 'Tool calling is not advertised; use for chat or drafting, not autonomous tool workflows.'
+        : 'Tool-calling support is unknown; inspect the provider before tool-heavy work.',
+  };
+}
+
+function visionScore(capabilities: unknown): ModelReadinessDimension {
+  const enabled = capabilityEnabled(capabilities, 'multimodal');
+  return {
+    id: 'vision',
+    label: 'Vision',
+    score: enabled === true ? 100 : enabled === false ? 45 : 55,
+    weight: 10,
+    summary: enabled === true
+      ? 'Vision or multimodal input is advertised.'
+      : enabled === false
+        ? 'Vision is not advertised; avoid image/screen-heavy work on this route.'
+        : 'Vision support is unknown.',
+  };
+}
+
+function costScore(tier: string | undefined, local: boolean): ModelReadinessDimension {
+  const normalized = (tier ?? '').toLowerCase();
+  const score = local
+    ? 100
+    : normalized === 'free'
+      ? 95
+      : normalized === 'subscription'
+        ? 86
+        : normalized === 'standard'
+          ? 72
+          : normalized === 'premium'
+            ? 55
+            : 62;
+  return {
+    id: 'cost',
+    label: 'Cost',
+    score,
+    weight: 15,
+    summary: local
+      ? 'Local route; marginal token cost is user hardware and power.'
+      : tier
+        ? `${tier} tier route.`
+        : 'Cost tier is unknown; inspect provider pricing before long runs.',
+  };
+}
+
+function privacyScore(local: boolean, providerId: string): ModelReadinessDimension {
+  const normalized = providerId.toLowerCase();
+  const score = local
+    ? 100
+    : /subscription|account|openrouter|openai|anthropic|google|gemini|xai|mistral|cohere/.test(normalized)
+      ? 48
+      : 60;
+  return {
+    id: 'privacy',
+    label: 'Privacy',
+    score,
+    weight: 15,
+    summary: local
+      ? 'Local/private route detected.'
+      : 'Cloud/provider route; treat sensitive data according to provider policy.',
+  };
+}
+
+function latencyScore(local: boolean, benchmarkCompositeScore: number | null | undefined): ModelReadinessDimension {
+  const score = local
+    ? 55
+    : benchmarkCompositeScore != null
+      ? 78
+      : 70;
+  return {
+    id: 'latency',
+    label: 'Latency',
+    score,
+    weight: 20,
+    summary: local
+      ? 'Local latency is unmeasured until the user runs the benchmark prompt on this machine.'
+      : benchmarkCompositeScore != null
+        ? 'No live latency sample, but the route has benchmark metadata for quality context.'
+        : 'No live latency sample; assume normal provider latency until measured.',
+  };
+}
+
+function weightedReadiness(dimensions: readonly ModelReadinessDimension[]): number {
+  const totalWeight = dimensions.reduce((total, dimension) => total + dimension.weight, 0);
+  if (totalWeight <= 0) return 0;
+  return clampFit(dimensions.reduce((total, dimension) => total + (dimension.score * dimension.weight), 0) / totalWeight);
+}
+
+function modelReadinessScore(model: ModelCandidate): ModelReadinessScore {
+  const local = isLocalCandidate([model.providerId, model.registryKey, model.modelId, model.displayName]);
+  const dimensions: readonly ModelReadinessDimension[] = [
+    latencyScore(local, model.benchmarkCompositeScore),
+    contextWindowScore(model.contextWindow),
+    toolSupportScore(model.capabilities),
+    visionScore(model.capabilities),
+    costScore(model.tier, local),
+    privacyScore(local, model.providerId),
+  ];
+  const score = weightedReadiness(dimensions);
+  const missingSignals = [
+    'No live latency benchmark has been recorded for this Agent route.',
+    ...(model.contextWindow == null ? ['Context-window metadata is missing.'] : []),
+    ...(capabilityEnabled(model.capabilities, 'toolCalling') == null ? ['Tool-calling support is unknown.'] : []),
+    ...(capabilityEnabled(model.capabilities, 'multimodal') == null ? ['Vision support is unknown.'] : []),
+    ...(!model.tier && !local ? ['Cost tier is unknown.'] : []),
+  ];
+  return {
+    score,
+    level: modelReadinessLevel(score),
+    confidence: missingSignals.length === 0 ? 'metadata-backed' : 'estimated',
+    dimensions,
+    missingSignals,
+    nextStep: local
+      ? 'Run the local benchmark prompt before making this route the default.'
+      : 'Use this score for routing triage; run a task-specific comparison before changing the default model.',
+  };
+}
+
+function localRecipeReadinessScore(
+  recipe: LocalModelRecipe,
+  fit: LocalModelRecipeFit,
+  detected: boolean,
+): ModelReadinessScore {
+  const contextScore = recipe.id === 'vllm' ? 70 : recipe.id === 'openai-compatible-local' ? 60 : 65;
+  const toolScore = recipe.id === 'ollama' || recipe.id === 'openai-compatible-local' ? 70 : 55;
+  const visionSupport = recipe.modelExamples.some((model) => /vision|vl|multimodal/i.test(model));
+  const dimensions: readonly ModelReadinessDimension[] = [
+    {
+      id: 'latency',
+      label: 'Latency',
+      score: detected ? 62 : 50,
+      weight: 20,
+      summary: detected
+        ? 'Local stack is detected, but latency still needs an on-machine benchmark.'
+        : 'Latency is unknown until the local server and model are running.',
+    },
+    {
+      id: 'context-window',
+      label: 'Context window',
+      score: contextScore,
+      weight: 20,
+      summary: 'Depends on the selected local model and serving stack; verify after the route is available.',
+    },
+    {
+      id: 'tool-support',
+      label: 'Tool support',
+      score: toolScore,
+      weight: 20,
+      summary: 'Tool behavior depends on the selected local model and OpenAI-compatible server support.',
+    },
+    {
+      id: 'vision',
+      label: 'Vision',
+      score: visionSupport ? 75 : 45,
+      weight: 10,
+      summary: visionSupport ? 'Example list includes a vision-capable route.' : 'No vision route is assumed for this local recipe.',
+    },
+    {
+      id: 'cost',
+      label: 'Cost',
+      score: 100,
+      weight: 15,
+      summary: 'Local route; marginal token cost is user hardware and power.',
+    },
+    {
+      id: 'privacy',
+      label: 'Privacy',
+      score: 100,
+      weight: 15,
+      summary: 'Local route can keep prompts on user-controlled hardware.',
+    },
+  ];
+  const score = clampFit((weightedReadiness(dimensions) * 0.72) + (fit.score * 0.28));
+  return {
+    score,
+    level: modelReadinessLevel(score),
+    confidence: 'estimated',
+    dimensions,
+    missingSignals: [
+      'No live latency benchmark has been recorded for this local recipe.',
+      'Context window, tool support, and vision support depend on the exact model served.',
+    ],
+    nextStep: 'Start the local server, refresh models, then run the setupPlan benchmark prompt before changing the default model.',
+  };
 }
 
 function scoreLocalModelRecipe(
@@ -563,12 +840,23 @@ function describeLocalModelRecipe(
   const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
   const detected = detection.stacks.includes(stackId);
   const fit = scoreLocalModelRecipe(recipe, hardware, detection);
+  const readiness = localRecipeReadinessScore(recipe, fit, detected);
   return {
     id: recipe.id,
     label: recipe.label,
     fit: recipe.fit,
     fitScore: fit.score,
     fitLevel: fit.level,
+    readinessScore: readiness.score,
+    readinessLevel: readiness.level,
+    readiness: includeParameters
+      ? readiness
+      : {
+        score: readiness.score,
+        level: readiness.level,
+        confidence: readiness.confidence,
+        nextStep: readiness.nextStep,
+      },
     bestFor: recipe.bestFor,
     hardware: previewHarnessText(recipe.hardware, includeParameters ? 180 : 96),
     hardwareMatched: fit.reasons.slice(0, includeParameters ? 6 : 3),
@@ -606,9 +894,21 @@ function localModelCookbook(context: CommandContext, includeParameters: boolean)
     hardwareProfile,
     detected: detection,
     recipes,
+    readinessRubric: {
+      score: '0-100 estimated readiness for autonomous Agent work.',
+      confidence: 'estimated until a live route benchmark records latency and task fit on this machine',
+      dimensions: [
+        { id: 'latency', weight: 20 },
+        { id: 'context-window', weight: 20 },
+        { id: 'tool-support', weight: 20 },
+        { id: 'vision', weight: 10 },
+        { id: 'cost', weight: 15 },
+        { id: 'privacy', weight: 15 },
+      ],
+    },
     nextActions,
     modelRoute: 'agent_harness mode:"model_routing" query:"local"',
-    policy: 'Read-only hardware-aware cookbook. Setup plans include download/start guidance and benchmark prompts, but installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
+    policy: 'Read-only hardware-aware cookbook. Readiness scores are estimated until a live benchmark is recorded. Setup plans include download/start guidance and benchmark prompts, but installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
   };
 }
 
@@ -798,6 +1098,7 @@ function describeRoute(route: RouteCandidate, options: { readonly context: Comma
 }
 
 function describeModel(model: ModelCandidate, options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {}): Record<string, unknown> {
+  const readiness = modelReadinessScore(model);
   return {
     kind: 'model',
     modelRouteId: model.registryKey,
@@ -809,6 +1110,19 @@ function describeModel(model: ModelCandidate, options: { readonly includeParamet
     pinned: model.pinned,
     contextWindow: model.contextWindow,
     reasoningEffort: model.reasoningEffort,
+    tier: model.tier ?? null,
+    benchmarkCompositeScore: model.benchmarkCompositeScore ?? null,
+    benchmarkQualityTier: model.benchmarkQualityTier ?? null,
+    readinessScore: readiness.score,
+    readinessLevel: readiness.level,
+    readiness: options.includeParameters
+      ? readiness
+      : {
+        score: readiness.score,
+        level: readiness.level,
+        confidence: readiness.confidence,
+        nextStep: readiness.nextStep,
+      },
     modelRoute: modelCandidateModelRoute(),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters ? {
@@ -902,6 +1216,9 @@ export async function modelRoutingSummary(context: CommandContext, args: AgentHa
         contextWindow: contextWindowFor(context, currentModel),
         reasoningEffort: modelReasoning(currentModel),
         capabilities: modelCapabilities(currentModel),
+        tier: modelTier(currentModel),
+        benchmarkCompositeScore: modelBenchmarkCompositeScore(currentModel),
+        benchmarkQualityTier: modelBenchmarkQualityTier(currentModel),
         pinned: false,
       }, { includeParameters }) : null,
     },

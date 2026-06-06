@@ -72,7 +72,7 @@ Discovery modes:
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
-| `provider_accounts`, `model_routing`, `execution_posture`, `execution_history`, `file_recovery` | Provider auth, provider/model route posture, hardware-scored local model cookbook with setup plans and benchmark prompts, local-vs-delegated execution routing, redacted execution records, and file edit recovery. |
+| `provider_accounts`, `model_routing`, `execution_posture`, `execution_history`, `file_recovery` | Provider auth, provider/model route posture, readiness scores, hardware-scored local model cookbook with setup plans and benchmark prompts, local-vs-delegated execution routing, redacted execution records, and file edit recovery. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector readiness, classified MCP read/write tool hints, schema-derived operation records, triage/draft/agenda/conflict workflow cards, matching MCP setup routes, and live Agent-owned note, routine, schedule-receipt, and delivery records. |
 | `autonomy_intake`, `autonomy_queue`, `autonomy_queue_item` | Ongoing-work route selection, visible autonomous work owners, status, live records, log tails, inspect routes, and normalized checkpoint/pause/resume/cancel/recovery controls. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, routine, duplicate-consolidation batch review, completed-work, completed-research, and saved-session review/proposal candidates. |

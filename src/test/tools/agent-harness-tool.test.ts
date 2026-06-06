@@ -2882,10 +2882,22 @@ describe('agent_harness tool', () => {
             readonly privacy: string;
           };
           readonly nextActions: readonly string[];
+          readonly readinessRubric?: {
+            readonly confidence: string;
+            readonly dimensions: readonly { readonly id: string; readonly weight: number }[];
+          };
           readonly recipes: readonly {
             readonly id: string;
             readonly fitScore?: number;
             readonly fitLevel?: string;
+            readonly readinessScore?: number;
+            readonly readinessLevel?: string;
+            readonly readiness?: {
+              readonly score: number;
+              readonly dimensions?: readonly { readonly id: string; readonly score: number; readonly weight: number }[];
+              readonly missingSignals?: readonly string[];
+              readonly nextStep?: string;
+            };
             readonly hardwareMatched?: readonly string[];
             readonly modelRoute?: string;
             readonly setupPlan?: {
@@ -2912,12 +2924,26 @@ describe('agent_harness tool', () => {
       expect(cookbook.localCookbook.hardwareProfile.acceleratorHint).toBeTruthy();
       expect(cookbook.localCookbook.hardwareProfile.privacy).toBe('local-only');
       expect(cookbook.localCookbook.nextActions.join('\n')).toContain('Refresh the model catalog');
+      expect(cookbook.localCookbook.readinessRubric?.confidence).toContain('estimated');
+      expect(cookbook.localCookbook.readinessRubric?.dimensions.map((dimension) => dimension.id)).toEqual([
+        'latency',
+        'context-window',
+        'tool-support',
+        'vision',
+        'cost',
+        'privacy',
+      ]);
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('ollama');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('vllm');
       expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitScore === 'number')).toBe(true);
       expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitLevel === 'string')).toBe(true);
+      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.readinessScore === 'number')).toBe(true);
+      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.readinessLevel === 'string')).toBe(true);
       const ollamaRecipe = cookbook.localCookbook.recipes.find((recipe) => recipe.id === 'ollama');
       expect(ollamaRecipe?.hardwareMatched?.join('\n')).toContain('setup friction');
+      expect(ollamaRecipe?.readinessScore).toBeGreaterThan(0);
+      expect(ollamaRecipe?.readiness?.dimensions?.map((dimension) => dimension.id)).toContain('privacy');
+      expect(ollamaRecipe?.readiness?.missingSignals?.join('\n')).toContain('No live latency benchmark');
       expect(ollamaRecipe?.setupPlan?.downloadGuidance.join('\n')).toContain('ollama pull');
       expect(ollamaRecipe?.setupPlan?.providerRoutes.join('\n')).toContain('/refresh-models');
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.prompt).toContain('Benchmark this local route');
@@ -2954,6 +2980,115 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'account-local-model-cookbook' });
       expect(action.id).toBe('account-local-model-cookbook');
       expect(action.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('scores model route readiness from provider metadata without hiding missing benchmarks', async () => {
+    const fixture = makeFixture();
+    try {
+      const cloudModel = {
+        registryKey: 'openai:gpt-4.1',
+        modelId: 'gpt-4.1',
+        providerId: 'openai',
+        displayName: 'GPT 4.1',
+        current: true,
+        contextWindow: 128_000,
+        reasoningEffort: ['low', 'medium', 'high'],
+        capabilities: {
+          toolCalling: true,
+          codeEditing: true,
+          reasoning: true,
+          multimodal: true,
+        },
+        tier: 'premium',
+        benchmark: {
+          compositeScore: 0.82,
+          qualityTier: 'S',
+        },
+      };
+      const localModel = {
+        registryKey: 'ollama:qwen2.5-coder:7b',
+        modelId: 'qwen2.5-coder:7b',
+        providerId: 'ollama',
+        displayName: 'Qwen local',
+        current: false,
+        contextWindow: 32_768,
+        reasoningEffort: [],
+        capabilities: {
+          toolCalling: false,
+          codeEditing: true,
+          reasoning: false,
+          multimodal: false,
+        },
+        tier: 'free',
+      };
+      (fixture.context.clients as Record<string, unknown>).providerApi = {
+        getFavorites: async () => ({ pinned: [cloudModel], recent: [] }),
+        getCurrentModel: async () => cloudModel,
+        listModels: async () => [cloudModel, localModel],
+        listProviderIds: () => ['openai', 'ollama'],
+      };
+
+      const routing = await executeHarnessJson<{
+        readonly current: {
+          readonly currentModel?: {
+            readonly readiness?: { readonly score: number; readonly dimensions: readonly { readonly id: string }[] };
+            readonly benchmarkCompositeScore?: number | null;
+          } | null;
+        };
+        readonly models: readonly {
+          readonly modelRouteId: string;
+          readonly tier?: string | null;
+          readonly benchmarkCompositeScore?: number | null;
+          readonly readinessScore?: number;
+          readonly readinessLevel?: string;
+          readonly readiness?: {
+            readonly score: number;
+            readonly level: string;
+            readonly confidence: string;
+            readonly dimensions: readonly { readonly id: string; readonly score: number }[];
+            readonly missingSignals: readonly string[];
+            readonly nextStep: string;
+          };
+        }[];
+      }>(fixture, { mode: 'model_routing', includeParameters: true, limit: 10 });
+
+      expect(routing.current.currentModel?.benchmarkCompositeScore).toBe(0.82);
+      expect(routing.current.currentModel?.readiness?.dimensions.map((dimension) => dimension.id)).toEqual([
+        'latency',
+        'context-window',
+        'tool-support',
+        'vision',
+        'cost',
+        'privacy',
+      ]);
+      const cloud = routing.models.find((model) => model.modelRouteId === 'openai:gpt-4.1');
+      expect(cloud?.tier).toBe('premium');
+      expect(cloud?.benchmarkCompositeScore).toBe(0.82);
+      expect(cloud?.readinessScore).toBeGreaterThan(0);
+      expect(cloud?.readinessLevel).toBeTruthy();
+      expect(cloud?.readiness?.dimensions.find((dimension) => dimension.id === 'tool-support')?.score).toBe(100);
+      expect(cloud?.readiness?.dimensions.find((dimension) => dimension.id === 'vision')?.score).toBe(100);
+      expect(cloud?.readiness?.missingSignals.join('\n')).toContain('No live latency benchmark');
+
+      const local = routing.models.find((model) => model.modelRouteId === 'ollama:qwen2.5-coder:7b');
+      expect(local?.readiness?.dimensions.find((dimension) => dimension.id === 'privacy')?.score).toBe(100);
+      expect(local?.readiness?.nextStep).toContain('local benchmark prompt');
+
+      const inspected = await executeHarnessJson<{
+        readonly modelRouteId: string;
+        readonly readiness?: {
+          readonly confidence: string;
+          readonly dimensions: readonly { readonly id: string }[];
+          readonly missingSignals: readonly string[];
+        };
+      }>(fixture, { mode: 'model_route', modelRouteId: 'ollama:qwen2.5-coder:7b' });
+      expect(inspected.modelRouteId).toBe('ollama:qwen2.5-coder:7b');
+      expect(inspected.readiness?.confidence).toBe('estimated');
+      expect(inspected.readiness?.dimensions.map((dimension) => dimension.id)).toContain('cost');
+      expect(inspected.readiness?.missingSignals.join('\n')).toContain('No live latency benchmark');
     } finally {
       fixture.cleanup();
     }

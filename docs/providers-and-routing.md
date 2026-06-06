@@ -11,7 +11,7 @@ Provider and model state should be visible in:
 - `/model` and `/provider`;
 - the Agent operator workspace setup checklist;
 - the TTS configuration workspace when spoken turns are used.
-- `agent_harness` modes `model_routing` and `model_route` when the model needs read-only provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, safe setting keys, and the hardware-scored local model cookbook. `model_routing` is compact by default; use `includeParameters:true` or `model_route` for full capabilities, local hardware profile, fit scores, setup/download guidance, benchmark prompts, and route-change hints. Workspace model actions also expose compact `modelRoute` hints for settings, pin/unpin, reasoning effort, local model recommendations, and visible picker flows.
+- `agent_harness` modes `model_routing` and `model_route` when the model needs read-only provider/model route posture, selectable model metadata, pinned model status, reasoning support, context-window posture, readiness scores, safe setting keys, and the hardware-scored local model cookbook. `model_routing` is compact by default; use `includeParameters:true` or `model_route` for full capabilities, readiness dimensions, local hardware profile, fit scores, setup/download guidance, benchmark prompts, and route-change hints. Workspace model actions also expose compact `modelRoute` hints for settings, pin/unpin, reasoning effort, local model recommendations, and visible picker flows.
 - `agent_harness` modes `provider_accounts` and `provider_account` when the model needs read-only provider auth route posture, subscription freshness, usage windows, route issues, and repair guidance without tokens or authorization codes. `provider_accounts` is compact by default; use `includeParameters:true` or `provider_account` for route records, usage windows, issues, notes, and auth-flow hints. Provider/account mutations stay on confirmed workspace or settings routes.
 
 When a selected model is provider-qualified, Agent keeps the runtime provider row and raw model id separate. For example, `openai-subscriber` plus `openai:gpt-5.5` should route as provider `openai-subscriber` and model `gpt-5.5` where the public route expects provider/model fields.
@@ -28,7 +28,11 @@ These files are local configuration. They are not Agent Knowledge records and sh
 
 ## Local Model Cookbook
 
-Agent Workspace -> Model Routing -> Local model cookbook and `agent_harness mode:"model_routing" query:"local"` provide read-only recommendations for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers. The cookbook detects local-compatible provider ids and model routes when available, scans local OS CPU/RAM/platform data with safe accelerator hints, ranks recipe fit, recommends the easiest first route, and exposes setup plans with download/start guidance, provider-refresh routes, and benchmark prompts. It does not probe drivers, run live inference benchmarks, install servers, download models, or change the selected route without a separate explicit action.
+Agent Workspace -> Model Routing -> Local model cookbook and `agent_harness mode:"model_routing" query:"local"` provide read-only recommendations for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers. The cookbook detects local-compatible provider ids and model routes when available, scans local OS CPU/RAM/platform data with safe accelerator hints, ranks recipe fit, recommends the easiest first route, and exposes setup plans with download/start guidance, provider-refresh routes, and benchmark prompts.
+
+Every selectable model and local recipe gets a 0-100 readiness score with dimensions for latency, context window, tool support, vision, cost, and privacy. Scores are estimated unless a live route benchmark has been recorded; they are intended for triage, not as hidden permission to switch the user's default model.
+
+The cookbook does not probe drivers, run live inference benchmarks, install servers, download models, or change the selected route without a separate explicit action.
 
 ## Discovery And Health
 
