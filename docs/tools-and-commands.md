@@ -65,6 +65,7 @@ Discovery modes:
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
 | `provider_accounts`, `model_routing` | Provider auth and provider/model route posture. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
+| `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifacts, media artifacts, and blind compare readiness. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |
@@ -81,7 +82,7 @@ Single-item inspect modes:
 | `panel`, `ui_surface`, `keybinding`, `tool` | Exact id/name or `target`/`query` |
 | `channel`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query` |
 | `setup_item`, `model_route`, `pairing_route`, `delegation_route` | Exact id/model key or `target`/`query` |
-| `personal_ops_lane` | `laneId`, `target`, or `query` |
+| `personal_ops_lane`, `document_ops_lane` | `laneId`, `target`, or `query` |
 | `security_finding`, `support_bundle`, `media_provider`, `session` | Exact id/path or `target`/`query` |
 | `get_setting`, `service_endpoint`, `operator_method` | Exact key/id or `target`/`query` |
 | `connected_host_capability` | `capabilityId`, `target`, `query` |

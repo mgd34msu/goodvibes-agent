@@ -417,6 +417,21 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('agent_harness mode:"personal_ops"');
   });
 
+  test('renders Documents & Compare as a visible artifact and compare surface', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    expect(output).toContain('Documents & Compare');
+    expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
+    expect(output).toContain('Files: attach, paste, source ingest, and export');
+    expect(output).toContain('Document editor/version history and blind model compare runner are not implemented yet.');
+    expect(output).toContain('Blind compare gap');
+    expect(output).toContain('agent_harness mode:"document_ops"');
+  });
+
   test('keeps onboarding context compact enough to show setting actions', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined, 'setup');

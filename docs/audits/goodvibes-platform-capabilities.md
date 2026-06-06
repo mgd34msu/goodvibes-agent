@@ -44,7 +44,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 - First-class email and calendar connectors and live Personal Ops queue.
 - Deep research report workflow with source quality and artifact output.
-- Document editor and blind model comparison.
+- Dedicated document editor, versioned artifact browser, and blind model comparison runner.
 - Local model serving cookbook and hardware-aware setup.
 - Browser/computer-use setup and recovery.
 - Learning curator for memory, skill, routine, and preference updates.

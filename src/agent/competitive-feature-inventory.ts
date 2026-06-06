@@ -217,13 +217,13 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     userOutcome: 'The user can write documents, compare models, handle uploads, and inspect generated artifacts without leaving the assistant.',
     targetStandard: 'parity',
     bestInClassRequirement: 'Documents, uploads, AI edit suggestions, blind model comparison, and artifact reuse are first-class app workflows.',
-    goodVibesStatus: 'gap',
+    goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent supports attachments, exports, artifacts, media, and sessions, but lacks a document editor and blind model comparison surface.',
+    goodVibesNow: 'Document Ops now maps drafting, uploads, exports, sources, media artifacts, artifact reuse, and the blind-compare gap through visible workspace and harness routes.',
     nextMoves: [
-      'Add a document workspace with markdown editing, AI suggestions, version history, and export.',
-      'Add blind side-by-side model comparison with synthesis and saved preferences.',
-      'Unify uploads, generated media, documents, and knowledge sources in the artifact browser.',
+      'Build a document editor with markdown editing, AI suggestions, version history, comments, document artifact ids, and export.',
+      'Add blind side-by-side model comparison with identical prompt/context, delayed reveal, synthesis, saved preferences, and route-update handoff.',
+      'Unify uploads, generated media, documents, session exports, delegation outputs, and knowledge sources in the artifact browser.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Canvas and browser/web surfaces provide visual interaction primitives.' },

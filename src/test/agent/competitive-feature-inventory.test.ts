@@ -42,8 +42,8 @@ describe('competitive feature inventory', () => {
 
   test('does not hide gaps behind covered language', () => {
     const counts = competitiveInventoryStatusCounts();
-    expect(counts.gap).toBeGreaterThan(0);
     expect(counts.partial).toBeGreaterThan(0);
+    expect(counts.leading + counts.parity).toBeLessThan(COMPETITIVE_FEATURE_INVENTORY.length);
     expect(counts.leading + counts.parity + counts.partial + counts.gap).toBe(COMPETITIVE_FEATURE_INVENTORY.length);
 
     for (const item of COMPETITIVE_FEATURE_INVENTORY) {
@@ -53,4 +53,3 @@ describe('competitive feature inventory', () => {
     }
   });
 });
-

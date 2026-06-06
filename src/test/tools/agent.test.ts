@@ -1276,7 +1276,9 @@ describe('spawn mode', () => {
     expect(payload.currentContract?.autonomy).toContain('User-directed operator agent');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Harness operation');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Personal operations');
+    expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Documents and artifacts');
     expect(payload.commonRoutes?.personalOps).toContain('agent_harness mode:"personal_ops"');
+    expect(payload.commonRoutes?.documentOps).toContain('agent_harness mode:"document_ops"');
 
     const legacy = await registry.execute('call-context-legacy', 'goodvibes_context', {
       mode: ['home', 'graph'].join(''),

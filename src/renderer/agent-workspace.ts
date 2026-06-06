@@ -403,6 +403,15 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Research is read-only. Knowledge ingest is a separate confirmed action.', fg: PALETTE.good },
       { text: compactText(snapshot.voiceMediaReadiness.browserToolNextStep), fg: PALETTE.muted },
     );
+  } else if (category.id === 'documents') {
+    const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;
+    base.push(
+      { text: `Document route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
+      { text: `Files: attach, paste, source ingest, and export; artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}.`, fg: PALETTE.good },
+      { text: `Media artifacts: ${mediaReady}/${snapshot.mediaProviderCount} providers ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
+      { text: 'Document editor/version history and blind model compare runner are not implemented yet.', fg: PALETTE.warn },
+      { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
+    );
   } else if (category.id === 'tools') {
     base.push(
       { text: `MCP servers: ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; quarantined ${snapshot.mcpQuarantinedServerCount}; allow-all ${snapshot.mcpAllowAllServerCount}.`, fg: snapshot.mcpQuarantinedServerCount > 0 || snapshot.mcpAllowAllServerCount > 0 ? PALETTE.warn : PALETTE.info },

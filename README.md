@@ -51,6 +51,7 @@ Workspace areas:
 - Home: normal assistant chat, operator briefing, model selection, setup, and health.
 - Conversation: context usage, inline `@file`/`@folder`/`@url` references, compaction, title/session save/load/search/export, bookmarks, paste/image/TTS helpers, undo/redo/retry, clear/reset, shortcuts, and keybindings.
 - Research: read-only web research, URL inspection, source triage, and explicit handoff into Agent Knowledge.
+- Documents & Compare: document drafting, uploads, exports, source checks, generated media artifacts, artifact reuse, and blind model-comparison readiness. Dedicated editing/version history and a blind compare runner are tracked gaps.
 - Artifacts: image attachment, conversation/session export, source-file ingest, source lookup, bookmark/browser-history import, and generated media artifacts.
 - Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery readiness in one daily operations area.
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
@@ -75,7 +76,7 @@ High-value `agent_harness` mode groups:
 - Discovery: `modes`, `workspace_categories`, `workspace_actions`, `commands`, `cli_commands`, `panels`, `ui_surfaces`, `shortcuts`, `keybindings`, `tools`, `settings`.
 - Single-item inspection: `mode`, `workspace_action`, `command`, `cli_command`, `panel`, `ui_surface`, `keybinding`, `tool`, `get_setting`.
 - User-visible effects: `run_workspace_action`, `run_command`, `open_panel`, `open_ui_surface`, `run_keybinding`, `set_keybinding`, `reset_keybinding`, `set_setting`, `reset_setting`.
-- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `personal_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
+- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `personal_ops`, `document_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
 - Connected host: `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`; `daemon` and `daemon_status` are aliases for connected-host posture/status.
 - Operator/audit inspection: `release_evidence`, `release_evidence_artifact`, `release_readiness`, `release_readiness_item`.
 - Operator methods: `operator_methods`, `operator_method`.

@@ -499,6 +499,7 @@ describe('agent_harness tool', () => {
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
       expect(summaryJson.modeGuide?.inspect).toContain('personal_ops_lane');
+      expect(summaryJson.modeGuide?.inspect).toContain('document_ops_lane');
 
       const allModes = await fixture.tool.execute({ mode: 'modes', limit: 500 });
       expect(allModes.success).toBe(true);
@@ -532,6 +533,10 @@ describe('agent_harness tool', () => {
       const personalModes = await fixture.tool.execute({ mode: 'modes', query: 'personal operations' });
       expect(personalModes.success).toBe(true);
       expect(personalModes.output).toContain('personal_ops');
+
+      const documentModes = await fixture.tool.execute({ mode: 'modes', query: 'blind model comparison documents uploads' });
+      expect(documentModes.success).toBe(true);
+      expect(documentModes.output).toContain('document_ops');
 
       const detailedModes = await fixture.tool.execute({
         mode: 'modes',
@@ -634,6 +639,58 @@ describe('agent_harness tool', () => {
       expect(lane.id).toBe('reminders');
       expect(lane.status).toBe('ready');
       expect(lane.routes?.model).toBe('agent_reminder_schedule');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes Document Ops readiness without faking blind comparison', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await executeHarnessJson<{
+        readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly partial: number; readonly gap: number };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.documentOps?.lanes).toBe(7);
+      expect(summary.documentOps?.ready).toBeGreaterThanOrEqual(2);
+      expect(summary.documentOps?.partial).toBeGreaterThanOrEqual(1);
+      expect(summary.documentOps?.gap).toBeGreaterThanOrEqual(1);
+
+      const ops = await executeHarnessJson<{
+        readonly lanes: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly current: string;
+          readonly actionIds?: readonly string[];
+        }[];
+        readonly policy: string;
+        readonly nextActions: readonly string[];
+      }>(fixture, { mode: 'document_ops', includeParameters: true });
+      expect(ops.policy).toContain('blind model comparison');
+      expect(ops.nextActions.join('\n')).toContain('Blind Model Compare');
+
+      const documents = ops.lanes.find((lane) => lane.id === 'documents');
+      const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
+      const exports = ops.lanes.find((lane) => lane.id === 'exports');
+      const sourceLibrary = ops.lanes.find((lane) => lane.id === 'source_library');
+      const modelCompare = ops.lanes.find((lane) => lane.id === 'model_compare');
+      expect(documents?.status).toBe('partial');
+      expect(documents?.current).toContain('no dedicated markdown editor');
+      expect(uploads?.status).toBe('ready');
+      expect(uploads?.actionIds).toContain('document-ingest-file');
+      expect(exports?.status).toBe('ready');
+      expect(exports?.actionIds).toContain('document-export-conversation');
+      expect(sourceLibrary?.status).toBe('ready');
+      expect(modelCompare?.status).toBe('gap');
+      expect(modelCompare?.current).toContain('does not have a blind side-by-side comparison runner');
+
+      const lane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly routes?: { readonly model: string };
+      }>(fixture, { mode: 'document_ops_lane', laneId: 'model_compare' });
+      expect(lane.id).toBe('model_compare');
+      expect(lane.status).toBe('gap');
+      expect(lane.routes?.model).toBe('agent_harness mode:"model_routing"');
     } finally {
       fixture.cleanup();
     }
@@ -751,6 +808,7 @@ describe('agent_harness tool', () => {
       };
       expect(workspacePayload.categories.find((entry) => entry.id === 'home')?.actions).toBeGreaterThan(0);
       expect(workspacePayload.categories.find((entry) => entry.id === 'personal-ops')?.actions).toBeGreaterThan(0);
+      expect(workspacePayload.categories.find((entry) => entry.id === 'documents')?.actions).toBeGreaterThan(0);
       expect(workspacePayload.actions).toBeGreaterThan(0);
       expectCompactSummaryFields(workspacePayload);
 
@@ -771,9 +829,10 @@ describe('agent_harness tool', () => {
 
       const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
-      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly workspace?: string } };
+      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly workspace?: string; readonly documentOps?: string } };
       expect(summaryJson.modelAccess?.workspace).toContain('mode:"workspace"');
       expect(summaryJson.modelAccess?.workspace).toContain('mode:"workspace_categories"');
+      expect(summaryJson.modelAccess?.documentOps).toContain('mode:"document_ops"');
 
       const listed = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create' });
       expect(listed.success).toBe(true);
@@ -802,6 +861,9 @@ describe('agent_harness tool', () => {
       ))).toEqual([]);
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });

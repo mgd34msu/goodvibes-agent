@@ -7,6 +7,7 @@ export const AGENT_HARNESS_MODES = [
   'setup_posture', 'setup_item',
   'model_routing', 'model_route',
   'personal_ops', 'personal_ops_lane',
+  'document_ops', 'document_ops_lane',
   'pairing_posture', 'pairing_route',
   'delegation_posture', 'delegation_route',
   'security_posture', 'security_finding', 'support_bundles', 'support_bundle',
@@ -82,7 +83,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   laneId: {
     type: 'string',
-    description: 'Personal Ops lane id for personal_ops_lane mode.',
+    description: 'Lane id for personal_ops_lane or document_ops_lane mode.',
   },
   pairingRouteId: {
     type: 'string',

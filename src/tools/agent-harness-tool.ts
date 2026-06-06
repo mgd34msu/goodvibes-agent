@@ -14,6 +14,7 @@ import { describeHarnessMediaProvider, mediaPostureCatalogStatus, mediaPostureSu
 import { describeHarnessNotificationTarget, listHarnessNotificationTargets, notificationTargetCatalogStatus } from './agent-harness-notification-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
+import { describeDocumentOpsLane, documentOpsCatalogStatus, documentOpsSummary } from './agent-harness-document-ops.ts';
 import { runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
 import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary } from './agent-harness-model-routing.ts';
@@ -161,6 +162,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
     modelRouting: 'List mode:"model_routing"; inspect mode:"model_route"; selection and provider edits stay confirmed visible flows.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
+    documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare gaps.',
     pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
     securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
@@ -445,6 +447,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               error: formatHarnessError(err),
             })),
             personalOps: personalOpsCatalogStatus(deps.commandContext),
+            documentOps: documentOpsCatalogStatus(deps.commandContext),
             pairingPosture: pairingPostureCatalogStatus(deps.commandContext),
             delegationPosture: delegationPostureCatalogStatus(deps.commandContext),
             securityPosture: securityPostureCatalogStatus(deps.commandContext),
@@ -595,6 +598,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describePersonalOpsLane(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.lane);
           if (resolved.status === 'ambiguous') return error(`Ambiguous Personal Ops lane ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'document_ops') return output(documentOpsSummary(deps.commandContext, args));
+        if (args.mode === 'document_ops_lane') {
+          const resolved = describeDocumentOpsLane(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.lane);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous Document Ops lane ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'pairing_posture') return output(pairingPostureSummary(deps.commandContext, args));

@@ -43,6 +43,7 @@ Primary first-run areas:
 - Setup: provider/model, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
+- Documents & Compare: document drafting, uploads, exports, source checks, generated media artifacts, artifact reuse, and blind model-comparison readiness.
 - Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery.
 - Memory & Skills: local memory, notes, personas, skills, routines, and learned behavior capture.
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
@@ -76,6 +77,7 @@ Common model routes:
 | Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
 | Personal operations | `agent_harness mode:"personal_ops"`, `mode:"personal_ops_lane"` |
+| Documents, artifacts, compare readiness | `agent_harness mode:"document_ops"`, `mode:"document_ops_lane"` |
 | Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
 | Work plan | `agent_work_plan` |
 | Visible autonomous work | `agent` with `mode:"spawn"`, `mode:"batch-spawn"`, `mode:"status"`, `mode:"message"`, `mode:"wait"`, or `mode:"cancel"` |
@@ -136,7 +138,7 @@ Agent commands fail closed if the route is unavailable or a successful-looking r
 
 The Knowledge workspace also exposes route-backed and command-backed workflows for issue review, prompt packet previews, context-selection explain output, consolidation, and reindex. Read-only ask/search/list/get/map/connector/packet/explain paths do not require mutation confirmation. Ingest, review-issue, consolidation, and reindex paths require explicit confirmation.
 
-Use Agent Workspace -> Research for read-only web research and URL inspection. Research requests do not ingest sources. Use confirmed Agent Knowledge ingest actions when a reviewed source should become durable.
+Use Agent Workspace -> Research for read-only web research and URL inspection. Research requests do not ingest sources. Use Agent Workspace -> Documents & Compare when a document needs prompt context, source checks, exports, generated media artifacts, or model-comparison readiness. Use confirmed Agent Knowledge ingest actions when a reviewed source should become durable.
 
 Use the Artifacts area and Voice & Media workspace for images, source files, generated media, and exported sessions. Generated media returns artifact ids and metadata, not inline base64.
 

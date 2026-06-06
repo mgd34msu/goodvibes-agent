@@ -21,6 +21,7 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
   'onboarding-automation',
   'personal-ops',
   'research',
+  'documents',
   'artifacts',
   'conversation',
   'channels',

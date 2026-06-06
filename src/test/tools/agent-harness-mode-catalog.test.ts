@@ -65,6 +65,16 @@ describe('agent_harness mode catalog', () => {
     expect(personalOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds Document Ops by uploads, artifacts, and blind compare wording', () => {
+    const documentOps = listHarnessModes({ query: 'document upload artifact blind model compare', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = documentOps.modes.map((mode) => mode.id);
+    expect(ids).toContain('document_ops');
+    expect(ids).toContain('document_ops_lane');
+    expect(documentOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('returns exact, ambiguous, and missing inspection outcomes without guessing', () => {
     expect(describeHarnessMode({ target: 'SET_SETTING' })).toMatchObject({
       status: 'found',
