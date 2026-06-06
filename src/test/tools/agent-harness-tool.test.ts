@@ -2272,6 +2272,18 @@ describe('agent_harness tool', () => {
           readonly logTail: readonly string[];
           readonly runLine: string;
         }[];
+        readonly runnerPosture: {
+          readonly browserBackedResearch: {
+            readonly status: string;
+            readonly configured: boolean;
+            readonly recommendedRoute: string;
+            readonly fallbackRoutes: readonly string[];
+            readonly workflows: readonly { readonly id: string; readonly status: string; readonly inspectRoute: string }[];
+          };
+          readonly sourceQueueRoute: string;
+          readonly reportRoute: string;
+          readonly policy: string;
+        };
         readonly policy: string;
       }>(fixture, { mode: 'research_runs', includeParameters: true });
       expect(queue.summary.runs).toBe(1);
@@ -2288,6 +2300,15 @@ describe('agent_harness tool', () => {
       expect(queue.runs[0]?.completeRoute).toContain('agent_research_runs complete');
       expect(queue.runs[0]?.logTail.join('\n')).toContain('Read official docs and captured source ids.');
       expect(queue.runs[0]?.runLine).toContain('Competitor deep research');
+      expect(queue.runnerPosture.browserBackedResearch.status).toBe('setup-needed');
+      expect(queue.runnerPosture.browserBackedResearch.configured).toBe(false);
+      expect(queue.runnerPosture.browserBackedResearch.recommendedRoute).toContain('mcp_servers');
+      expect(queue.runnerPosture.browserBackedResearch.fallbackRoutes.join('\n')).toContain('web-fetch-research');
+      expect(queue.runnerPosture.browserBackedResearch.workflows[0]?.id).toBe('browser-navigation');
+      expect(queue.runnerPosture.browserBackedResearch.workflows[0]?.inspectRoute).toContain('setup_item');
+      expect(queue.runnerPosture.sourceQueueRoute).toBe('agent_harness mode:"research_queue"');
+      expect(queue.runnerPosture.reportRoute).toContain('agent_research_report');
+      expect(queue.runnerPosture.policy).toContain('browser-backed research');
 
       const detail = await executeHarnessJson<{
         readonly runId: string;

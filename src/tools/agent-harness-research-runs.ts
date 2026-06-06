@@ -6,6 +6,7 @@ import {
   type AgentResearchRunRecord,
   type AgentResearchRunStatus,
 } from '../agent/research-run-registry.ts';
+import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 interface AgentHarnessResearchRunArgs {
@@ -180,6 +181,33 @@ function describeRunItem(item: ResearchRunItem, includeParameters: boolean, look
   };
 }
 
+function researchRunnerPosture(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
+  const browser = browserControlPosture(context);
+  return {
+    browserBackedResearch: {
+      status: browser.status,
+      configured: browser.configured,
+      needsReview: browser.needsReview,
+      recommendedRoute: browser.recommendedRoute,
+      setupRoute: browser.setupRoute,
+      fallbackRoutes: browser.fallbackRoutes,
+      workflows: browser.workflows.map((workflow) => ({
+        id: workflow.id,
+        label: workflow.label,
+        status: workflow.status,
+        next: previewHarnessText(workflow.next, includeParameters ? 180 : 96),
+        inspectRoute: workflow.inspectRoute,
+        safety: previewHarnessText(workflow.safety, includeParameters ? 180 : 96),
+      })),
+    },
+    sourceQueueRoute: 'agent_harness mode:"research_queue"',
+    sourceReviewRoute: 'agent_research_sources',
+    reportRoute: 'agent_research_report confirm:true explicitUserRequest:"..."',
+    knowledgePromotionRoute: 'agent_knowledge_ingest sourceKind:"artifact" artifactId:"..." confirm:true explicitUserRequest:"..."',
+    policy: 'Use browser-backed research only when browser/desktop control is ready or reviewed. Public web research can use web/fetch routes; report saving and Knowledge promotion remain separate confirmed effects.',
+  };
+}
+
 function nextActions(items: readonly ResearchRunItem[]): readonly string[] {
   return items
     .filter((item) => item.run.status === 'planned' || item.run.status === 'running' || item.run.status === 'paused' || item.run.status === 'blocked')
@@ -219,6 +247,7 @@ export function researchRunsSummary(context: CommandContext, args: AgentHarnessR
       cancellable: items.filter((item) => isMutable(item.run.status)).length,
     },
     runs: filtered.slice(0, limit).map((item) => describeRunItem(item, includeParameters)),
+    runnerPosture: researchRunnerPosture(context, includeParameters),
     returned: Math.min(filtered.length, limit),
     total: items.length,
     nextActions: nextActions(items),
