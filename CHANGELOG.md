@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.1.5 - 2026-06-05
+
+- Replaced onboarding with the real Agent setup flow for subscription login, provider/model selection, settings persistence, channels, voice, local context, automation, and finish.
+- Exposed remaining provider, auth, subscription, and model catalog actions through reachable Agent workspace rows and model-facing harness metadata.
+- Split oversized workspace modules so the release architecture gate passes without changing onboarding behavior.
+
 ## 1.1.4 - 2026-06-05
 
 - Rebuilt first-run onboarding into actionable Account & Model, Assistant Behavior, Tools & Permissions, Interface, Messaging, Voice & Phone, Context, Verify, and Finish pages with persisted setting actions instead of inert links.
