@@ -49,6 +49,12 @@ export interface AgentModelCompareExportWorkspaceToolArgs {
   readonly explicitUserRequest: string;
 }
 
+export interface AgentModelCompareAnalyticsWorkspaceToolArgs {
+  readonly mode: 'analytics';
+  readonly limit?: number;
+  readonly includeReasons?: boolean;
+}
+
 function readList(value: string): readonly string[] {
   return value.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean);
 }
@@ -152,6 +158,20 @@ export function createAgentModelCompareExportEditor(): AgentWorkspaceLocalEditor
   };
 }
 
+export function createAgentModelCompareAnalyticsEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'model-compare-analytics',
+    mode: 'create',
+    title: 'Compare Analytics',
+    selectedFieldIndex: 0,
+    message: 'Summarize saved blind comparison judgments by winner, model, blind slot, and recent reasons. This is read-only.',
+    fields: [
+      { id: 'limit', label: 'Judgment limit', value: '20', required: false, multiline: false, hint: 'Maximum saved judgment artifacts to inspect. Defaults to 20.' },
+      { id: 'includeReasons', label: 'Include reasons', value: 'yes', required: false, multiline: false, hint: 'yes/no. Yes includes short reason and note excerpts in the recent-judgments list.' },
+    ],
+  };
+}
+
 export function buildAgentModelCompareToolArgs(
   readField: AgentWorkspaceFieldReader,
   explicitUserRequest: string,
@@ -234,6 +254,17 @@ export function buildAgentModelCompareExportToolArgs(
     reveal: isAffirmative(readField('reveal')),
     confirm: true,
     explicitUserRequest,
+  };
+}
+
+export function buildAgentModelCompareAnalyticsToolArgs(
+  readField: AgentWorkspaceFieldReader,
+): AgentModelCompareAnalyticsWorkspaceToolArgs {
+  const limit = readPositiveInteger(readField('limit'));
+  return {
+    mode: 'analytics',
+    ...(limit !== null ? { limit } : {}),
+    includeReasons: isAffirmative(readField('includeReasons')),
   };
 }
 
@@ -605,6 +636,61 @@ export function buildAgentModelCompareExportPromptSubmission(
       title: 'Export compare report',
       detail: 'Submitted a confirmed request to export a saved comparison or judgment as markdown.',
       safety: 'safe',
+    },
+  };
+}
+
+export function buildAgentModelCompareAnalyticsPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the comparison analytics request from the workspace form.',
+        safety: 'read-only',
+      },
+    };
+  }
+
+  const limit = readPositiveInteger(readField('limit')) ?? 20;
+  const includeReasons = isAffirmative(readField('includeReasons'));
+  const prompt = [
+    'Summarize saved blind model comparison judgments with the `agent_model_compare` tool.',
+    'Use mode:"analytics".',
+    `Judgment limit: ${limit}.`,
+    `Include reason excerpts: ${includeReasons ? 'yes' : 'no'}.`,
+    'This is read-only and must not change model routing.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting comparison analytics request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Compare analytics',
+      detail: 'Submitted a read-only request to summarize saved comparison judgments.',
+      safety: 'read-only',
     },
   };
 }

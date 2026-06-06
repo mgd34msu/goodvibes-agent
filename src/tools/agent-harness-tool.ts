@@ -2,7 +2,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
-import { buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
+import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
@@ -433,6 +433,23 @@ async function runWorkspaceEditorAction(
       'agent-harness-workspace-model-compare-export',
       'agent_model_compare',
       exportToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_model_compare',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'model-compare-analytics') {
+    const analyticsToolArgs = buildAgentModelCompareAnalyticsToolArgs(fieldReader(editor, fields));
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-model-compare-analytics',
+      'agent_model_compare',
+      analyticsToolArgs as unknown as Record<string, unknown>,
     );
     return output({
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',

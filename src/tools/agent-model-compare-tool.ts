@@ -20,6 +20,8 @@ export interface AgentModelCompareToolArgs {
   readonly winnerBlindId?: unknown;
   readonly reasons?: unknown;
   readonly notes?: unknown;
+  readonly limit?: unknown;
+  readonly includeReasons?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -126,6 +128,7 @@ const MODE_REVIEW = 'review';
 const MODE_JUDGE = 'judge';
 const MODE_APPLY = 'apply';
 const MODE_EXPORT = 'export';
+const MODE_ANALYTICS = 'analytics';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
 const MAX_CANDIDATES = 4;
@@ -418,6 +421,13 @@ function formatSavedComparisonArtifacts(artifactStore?: AgentModelCompareArtifac
   ].join('\n');
 }
 
+function isModelCompareJudgmentArtifact(artifact: ArtifactDescriptor): boolean {
+  const purpose = readString(artifact.metadata.purpose);
+  if (purpose === 'agent-model-compare-judgment') return true;
+  if (purpose) return false;
+  return readString(artifact.filename).startsWith('blind-model-comparison-judgment-');
+}
+
 function formatArtifactStatus(comparison: StoredComparison): string {
   if (comparison.artifact) {
     const filename = comparison.artifact.filename ? ` ${comparison.artifact.filename}` : '';
@@ -664,6 +674,24 @@ async function loadJudgmentFromArtifact(
   return parseJudgmentArtifactPayload(payload, toSavedComparisonArtifact(record));
 }
 
+async function loadSavedJudgments(
+  artifactStore: AgentModelCompareArtifactStore | undefined,
+  limit: number,
+): Promise<readonly LoadedComparisonJudgment[]> {
+  if (!artifactStore?.list || !artifactStore.readContent) return [];
+  const artifacts = artifactStore.list(Math.max(limit * 3, limit))
+    .filter(isModelCompareJudgmentArtifact)
+    .slice(0, limit);
+  const loaded = await Promise.all(artifacts.map(async (artifact) => {
+    try {
+      return await loadJudgmentFromArtifact(artifactStore, artifact.id);
+    } catch {
+      return null;
+    }
+  }));
+  return loaded.filter((judgment): judgment is LoadedComparisonJudgment => judgment !== null);
+}
+
 async function ensureSelectableWinnerModel(
   catalog: AgentModelCompareModelCatalog,
   registryKey: string,
@@ -698,6 +726,69 @@ function formatApplyResult(input: {
   ];
   if (input.result.previousModel) lines.push(`previous model ${input.result.previousModel}`);
   lines.push('Judgment and comparison artifacts were not changed.');
+  return lines.join('\n');
+}
+
+function incrementCount(map: Map<string, number>, key: string): void {
+  map.set(key, (map.get(key) ?? 0) + 1);
+}
+
+function sortedCounts(map: Map<string, number>): readonly [string, number][] {
+  return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+}
+
+function formatComparisonAnalytics(input: {
+  readonly judgments: readonly LoadedComparisonJudgment[];
+  readonly limit: number;
+  readonly includeReasons: boolean;
+  readonly storeAvailable: boolean;
+}): string {
+  if (!input.storeAvailable) {
+    return 'Saved comparison analytics are unavailable because the artifact store does not expose listing and content reads in this runtime.';
+  }
+  if (input.judgments.length === 0) {
+    return 'No saved comparison judgments found. Save a judgment with agent_model_compare mode:"judge" first.';
+  }
+  const modelWinners = new Map<string, number>();
+  const blindWinners = new Map<string, number>();
+  let revealed = 0;
+  for (const judgment of input.judgments) {
+    incrementCount(blindWinners, normalizeBlindId(judgment.winnerBlindId) || judgment.winnerBlindId || '?');
+    if (judgment.winnerModel?.registryKey) {
+      revealed += 1;
+      incrementCount(modelWinners, `${judgment.winnerModel.registryKey} (${judgment.winnerModel.displayName})`);
+    }
+  }
+  const hidden = input.judgments.length - revealed;
+  const lines = [
+    'Blind model comparison analytics',
+    `judgments ${input.judgments.length}; revealed ${revealed}; hidden ${hidden}; limit ${input.limit}`,
+    '',
+    'Winning models',
+  ];
+  if (modelWinners.size === 0) {
+    lines.push('  No revealed winner models yet. Save a judgment with reveal:true before model-level analytics are available.');
+  } else {
+    lines.push(...sortedCounts(modelWinners).map(([model, count]) => `  ${model}: ${count}`));
+  }
+  lines.push('');
+  lines.push('Winning blind slots');
+  lines.push(...sortedCounts(blindWinners).map(([blindId, count]) => `  Candidate ${blindId}: ${count}`));
+  lines.push('');
+  lines.push('Recent judgments');
+  for (const judgment of input.judgments.slice(0, 10)) {
+    const model = judgment.winnerModel?.registryKey
+      ? ` model ${judgment.winnerModel.registryKey}`
+      : ' model hidden';
+    lines.push(`  ${judgment.artifact.artifactId} ${judgment.comparisonId} winner Candidate ${judgment.winnerBlindId}${model}`);
+    if (input.includeReasons && judgment.reasons) {
+      lines.push(`    reasons ${previewText(judgment.reasons, 120)}`);
+    }
+    if (input.includeReasons && judgment.notes) {
+      lines.push(`    notes ${previewText(judgment.notes, 120)}`);
+    }
+  }
+  lines.push('No selected model was changed.');
   return lines.join('\n');
 }
 
@@ -876,10 +967,18 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' | 'analytics' {
   const mode = readString(value) || MODE_RUN;
-  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW || mode === MODE_JUDGE || mode === MODE_APPLY || mode === MODE_EXPORT) return mode;
-  throw new Error('mode must be run, reveal, review, judge, apply, or export.');
+  if (
+    mode === MODE_RUN
+    || mode === MODE_REVEAL
+    || mode === MODE_REVIEW
+    || mode === MODE_JUDGE
+    || mode === MODE_APPLY
+    || mode === MODE_EXPORT
+    || mode === MODE_ANALYTICS
+  ) return mode;
+  throw new Error('mode must be run, reveal, review, judge, apply, export, or analytics.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -1102,14 +1201,14 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Run/review/judge/apply/export/reveal blind comparisons.',
+      description: 'Blind compare workflow, export, and analytics.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT],
-            description: 'Use run, review, reveal, judge, apply, or export.',
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_ANALYTICS],
+            description: 'Use run, review, reveal, judge, apply, export, or analytics.',
           },
           prompt: {
             type: 'string',
@@ -1168,6 +1267,14 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             type: 'string',
             description: 'Optional extra judgment notes.',
           },
+          limit: {
+            type: 'number',
+            description: 'Max saved judgments to inspect for analytics.',
+          },
+          includeReasons: {
+            type: 'boolean',
+            description: 'If true, include short reason excerpts in analytics.',
+          },
           confirm: {
             type: 'boolean',
             description: 'Required true for run, judge, apply, and export.',
@@ -1207,6 +1314,17 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           }
           rememberComparison(comparisons, comparison);
           return output(mode === MODE_REVEAL ? formatReveal(comparison) : formatReview(comparison, readBoolean(args.reveal)));
+        }
+
+        if (mode === MODE_ANALYTICS) {
+          const limit = clamp(readNumber(args.limit, 20), 1, 100);
+          const judgments = await loadSavedJudgments(deps.artifactStore, limit);
+          return output(formatComparisonAnalytics({
+            judgments,
+            limit,
+            includeReasons: readOptionalBoolean(args.includeReasons, true),
+            storeAvailable: Boolean(deps.artifactStore?.list && deps.artifactStore.readContent),
+          }));
         }
 
         if (mode === MODE_JUDGE) {

@@ -667,7 +667,7 @@ describe('agent_harness tool', () => {
         readonly nextActions: readonly string[];
       }>(fixture, { mode: 'document_ops', includeParameters: true });
       expect(ops.policy).toContain('model comparison');
-      expect(ops.nextActions.join('\n')).toContain('richer preference analytics');
+      expect(ops.nextActions.join('\n')).toContain('dedicated document editing');
 
       const documents = ops.lanes.find((lane) => lane.id === 'documents');
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
@@ -686,6 +686,7 @@ describe('agent_harness tool', () => {
       expect(modelCompare?.actionIds).toContain('document-run-compare');
       expect(modelCompare?.actionIds).toContain('document-review-compare');
       expect(modelCompare?.actionIds).toContain('document-judge-compare');
+      expect(modelCompare?.actionIds).toContain('document-compare-analytics');
       expect(modelCompare?.actionIds).toContain('document-apply-compare');
       expect(modelCompare?.actionIds).toContain('document-export-compare');
 
@@ -873,6 +874,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-review-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-judge-compare')?.modelRoute).toBe('agent_model_compare');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-compare-analytics')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
@@ -2853,6 +2855,19 @@ describe('agent_harness tool', () => {
       expect(judgment.output).toContain('"status": "executed_model_tool"');
       expect(judgment.output).toContain('"tool": "agent_model_compare"');
       expect(judgment.output).toContain('agent_model_compare executed');
+
+      const analytics = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-compare-analytics',
+        fields: {
+          limit: '10',
+          includeReasons: 'yes',
+        },
+      });
+      expect(analytics.success).toBe(true);
+      expect(analytics.output).toContain('"status": "executed_model_tool"');
+      expect(analytics.output).toContain('"tool": "agent_model_compare"');
+      expect(analytics.output).toContain('agent_model_compare executed');
 
       const applyUnconfirmed = await fixture.tool.execute({
         mode: 'run_workspace_action',

@@ -360,6 +360,22 @@ describe('agent_model_compare tool', () => {
     expect(hiddenPayload.routeHandoff?.routeInspection).not.toContain('openai:gpt-4.1');
     expect(hiddenPayload.candidates?.some((candidate) => candidate.model)).toBe(false);
 
+    const analytics = await reviewer.tool.execute({
+      mode: 'analytics',
+      includeReasons: true,
+    });
+    expect(analytics.success).toBe(true);
+    expect(analytics.output).toContain('Blind model comparison analytics');
+    expect(analytics.output).toContain('judgments 2; revealed 1; hidden 1');
+    expect(analytics.output).toContain('anthropic:claude-sonnet (Claude Sonnet): 1');
+    expect(analytics.output).toContain('Candidate A: 1');
+    expect(analytics.output).toContain('Candidate B: 1');
+    expect(analytics.output).toContain('artifact-2');
+    expect(analytics.output).toContain('artifact-3');
+    expect(analytics.output).toContain('Candidate B was more concrete.');
+    expect(analytics.output).toContain('Use this as evidence before any route change.');
+    expect(analytics.output).toContain('No selected model was changed.');
+
     const listAfterJudgment = await reviewer.tool.execute({ mode: 'review' });
     expect(listAfterJudgment.success).toBe(true);
     expect(listAfterJudgment.output).toContain('artifact-1');
@@ -457,6 +473,16 @@ describe('agent_model_compare tool', () => {
     expect(listAfterExport.output).toContain('artifact-1');
     expect(listAfterExport.output).not.toContain('artifact-4');
     expect(listAfterExport.output).not.toContain('artifact-5');
+
+    const analyticsAfterExport = await reviewer.tool.execute({
+      mode: 'analytics',
+      includeReasons: false,
+    });
+    expect(analyticsAfterExport.success).toBe(true);
+    expect(analyticsAfterExport.output).toContain('judgments 2; revealed 1; hidden 1');
+    expect(analyticsAfterExport.output).not.toContain('artifact-4');
+    expect(analyticsAfterExport.output).not.toContain('artifact-5');
+    expect(analyticsAfterExport.output).not.toContain('Candidate B was more concrete.');
   });
 
   test('can deliberately skip artifact persistence', async () => {

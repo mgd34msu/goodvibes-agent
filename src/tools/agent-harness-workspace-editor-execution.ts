@@ -105,6 +105,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action creates one local markdown report from a saved comparison or judgment artifact without changing model routing.',
     };
   }
+  if (editorKind === 'model-compare-analytics') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'summarize_comparison_analytics',
+      confirmation: 'not-required',
+      note: 'run_workspace_action summarizes saved comparison judgment artifacts without changing model routing.',
+    };
+  }
   if (isAgentWorkspaceCommandEditorKind(editorKind)) {
     return {
       route: 'slash-command-dispatch',

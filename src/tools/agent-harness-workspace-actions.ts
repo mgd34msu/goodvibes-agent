@@ -140,6 +140,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
     || editorKind === 'model-compare-judge'
     || editorKind === 'model-compare-apply'
     || editorKind === 'model-compare-export'
+    || editorKind === 'model-compare-analytics'
   ) return 'agent_model_compare';
   if (editorKind === 'channel-send') return 'agent_channel_send';
   if (editorKind === 'notify-send' || editorKind === 'notify-webhook-test') return 'agent_notify';
