@@ -1,54 +1,28 @@
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
-import { beginOpenAICodexLogin, exchangeOpenAICodexCode, getSubscriptionProviderConfig } from '@pellux/goodvibes-sdk/platform/config';
-import type { OAuthProviderConfig, ProviderSubscription } from '@pellux/goodvibes-sdk/platform/config';
 import type { ShellPathService } from '@/runtime/index.ts';
-import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 import type { CommandContext } from './command-registry.ts';
 import { AgentNoteRegistry } from '../agent/note-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
-import { createAgentRuntimeProfile, type AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
+import type { AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from './agent-workspace-categories.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from './agent-workspace-command-editor.ts';
-import { createDeleteEditor, editorCategoryId, isAffirmative, splitList } from './agent-workspace-editors.ts';
-import { createAgentWorkspaceLearnedBehavior } from './agent-workspace-learned-behavior.ts';
+import { createDeleteEditor, editorCategoryId } from './agent-workspace-editors.ts';
+import { submitAgentWorkspaceLocalRegistryEditor } from './agent-workspace-local-editor-submission.ts';
 import { clampAgentWorkspaceLocalLibrarySelection, moveAgentWorkspaceLocalLibraryItemSelection, selectedAgentWorkspaceLocalLibraryItem, type AgentWorkspaceLocalSelectionIndexes } from './agent-workspace-local-selection.ts';
 import { applyAgentWorkspaceLocalLibraryOperation } from './agent-workspace-local-operations.ts';
 import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } from './agent-workspace-memory-editor.ts';
 import { jumpAgentWorkspaceSelection, moveAgentWorkspaceSelection, selectAgentWorkspaceCategory } from './agent-workspace-navigation.ts';
-import { buildAgentWorkspaceRequirements } from './agent-workspace-requirements.ts';
 import { appendAgentWorkspaceActionSearchText, backspaceAgentWorkspaceActionSearch, beginAgentWorkspaceActionSearch, clearAgentWorkspaceActionSearch, commitAgentWorkspaceActionSearchSelection, searchAgentWorkspaceActions } from './agent-workspace-search.ts';
 import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgentWorkspaceSettingActionEffect, importAgentWorkspaceTuiSettings, isAgentWorkspaceActionVisible } from './agent-workspace-settings.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
+import { submitAgentWorkspaceSubscriptionLoginFinishEditor, submitAgentWorkspaceSubscriptionLoginStartEditor, submitAgentWorkspaceSubscriptionLogoutEditor } from './agent-workspace-subscription-editor.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
-
-function extractAuthorizationCode(input: string): string | null {
-  const trimmed = input.trim();
-  if (!trimmed) return null;
-  try {
-    const url = new URL(trimmed);
-    return url.searchParams.get('code');
-  } catch {
-    return null;
-  }
-}
-
-function resolveManualLoginConfig(config: OAuthProviderConfig): OAuthProviderConfig {
-  return config.manualRedirectUri
-    ? { ...config, redirectUri: config.manualRedirectUri }
-    : config;
-}
-
-function describeSubscriptionPrecedence(record: Pick<ProviderSubscription, 'overrideAmbientApiKeys'>): string {
-  return record.overrideAmbientApiKeys
-    ? 'Subscription routing now overrides ambient API keys for this provider.'
-    : 'Subscription session is stored for subscription-backed flows; ambient API keys are unchanged.';
-}
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryId, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
@@ -522,15 +496,15 @@ export class AgentWorkspace {
       return;
     }
     if (editor.kind === 'subscription-login-start') {
-      void this.submitSubscriptionLoginStartEditor(editor).finally(() => requestRender?.());
+      void submitAgentWorkspaceSubscriptionLoginStartEditor(this, editor, this.context, (id) => this.editorField(id)).finally(() => requestRender?.());
       return;
     }
     if (editor.kind === 'subscription-login-finish') {
-      void this.submitSubscriptionLoginFinishEditor(editor).finally(() => requestRender?.());
+      void submitAgentWorkspaceSubscriptionLoginFinishEditor(this, editor, this.context, (id) => this.editorField(id)).finally(() => requestRender?.());
       return;
     }
     if (editor.kind === 'subscription-logout') {
-      this.submitSubscriptionLogoutEditor(editor);
+      submitAgentWorkspaceSubscriptionLogoutEditor(this, editor, this.context, (id) => this.editorField(id));
       requestRender?.();
       return;
     }
@@ -584,135 +558,13 @@ export class AgentWorkspace {
       return;
     }
     try {
-      if (editor.mode === 'delete') {
-        this.submitLocalDeleteEditor(shellPaths, editor);
-        return;
-      }
-      if (editor.kind === 'learned-behavior') {
-        const created = createAgentWorkspaceLearnedBehavior(shellPaths, {
-          target: this.learnedBehaviorTarget(),
-          name: this.editorField('name'),
-          description: this.editorField('description'),
-          notes: this.editorField('notes'),
-          tags: splitList(this.editorField('tags')),
-          triggers: splitList(this.editorField('triggers')),
-          enable: isAffirmative(this.editorField('enable')),
-        });
-        this.finishLocalEditor(created.kind, created.id, created.name, 'Created');
-      } else if (editor.kind === 'profile') {
-        const template = this.editorField('template');
-        const templateId = template && template.toLowerCase() !== 'none' ? template : undefined;
-        const profile = createAgentRuntimeProfile(shellPaths.homeDirectory, this.editorField('name'), {
-          ...(templateId ? { templateId } : {}),
-        });
-        this.finishProfileEditor(profile);
-      } else if (editor.kind === 'note') {
-        const registry = AgentNoteRegistry.fromShellPaths(shellPaths);
-        if (editor.mode === 'update' && editor.recordId) {
-          const updated = registry.update(editor.recordId, {
-            title: this.editorField('title'),
-            body: this.editorField('body'),
-            sourceUrl: this.editorField('sourceUrl'),
-            tags: splitList(this.editorField('tags')),
-            provenance: 'Workspace',
-          });
-          this.finishLocalEditor(editor.kind, updated.id, updated.title, 'Updated');
-          return;
-        }
-        const created = registry.create({
-          title: this.editorField('title'),
-          body: this.editorField('body'),
-          sourceUrl: this.editorField('sourceUrl'),
-          tags: splitList(this.editorField('tags')),
-          source: 'user',
-          provenance: 'Workspace',
-        });
-        this.finishLocalEditor(editor.kind, created.id, created.title, 'Created');
-      } else if (editor.kind === 'persona') {
-        const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
-        if (editor.mode === 'update' && editor.recordId) {
-          const wasActive = registry.snapshot().activePersonaId === editor.recordId;
-          const updated = registry.update(editor.recordId, {
-            name: this.editorField('name'),
-            description: this.editorField('description'),
-            body: this.editorField('body'),
-            tags: splitList(this.editorField('tags')),
-            triggers: splitList(this.editorField('triggers')),
-            provenance: 'Workspace',
-          });
-          if (isAffirmative(this.editorField('activate'))) registry.setActive(updated.id);
-          else if (wasActive) registry.clearActive();
-          this.finishLocalEditor(editor.kind, updated.id, updated.name, 'Updated');
-          return;
-        }
-        const created = registry.create({
-          name: this.editorField('name'),
-          description: this.editorField('description'),
-          body: this.editorField('body'),
-          tags: splitList(this.editorField('tags')),
-          triggers: splitList(this.editorField('triggers')),
-          source: 'user',
-          provenance: 'Workspace',
-        });
-        if (isAffirmative(this.editorField('activate'))) registry.setActive(created.id);
-        this.finishLocalEditor(editor.kind, created.id, created.name, 'Created');
-      } else if (editor.kind === 'skill') {
-        const registry = AgentSkillRegistry.fromShellPaths(shellPaths);
-        if (editor.mode === 'update' && editor.recordId) {
-          const updated = registry.update(editor.recordId, {
-            name: this.editorField('name'),
-            description: this.editorField('description'),
-            procedure: this.editorField('procedure'),
-            triggers: splitList(this.editorField('triggers')),
-            tags: splitList(this.editorField('tags')),
-            requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
-            provenance: 'Workspace',
-          });
-          registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
-          this.finishLocalEditor(editor.kind, updated.id, updated.name, 'Updated');
-          return;
-        }
-        const created = registry.create({
-          name: this.editorField('name'),
-          description: this.editorField('description'),
-          procedure: this.editorField('procedure'),
-          triggers: splitList(this.editorField('triggers')),
-          tags: splitList(this.editorField('tags')),
-          requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
-          enabled: isAffirmative(this.editorField('enabled')),
-          source: 'user',
-          provenance: 'Workspace',
-        });
-        this.finishLocalEditor(editor.kind, created.id, created.name, 'Created');
-      } else {
-        const registry = AgentRoutineRegistry.fromShellPaths(shellPaths);
-        if (editor.mode === 'update' && editor.recordId) {
-          const updated = registry.update(editor.recordId, {
-            name: this.editorField('name'),
-            description: this.editorField('description'),
-            steps: this.editorField('steps'),
-            triggers: splitList(this.editorField('triggers')),
-            tags: splitList(this.editorField('tags')),
-            requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
-            provenance: 'Workspace',
-          });
-          registry.setEnabled(updated.id, isAffirmative(this.editorField('enabled')));
-          this.finishLocalEditor(editor.kind, updated.id, updated.name, 'Updated');
-          return;
-        }
-        const created = registry.create({
-          name: this.editorField('name'),
-          description: this.editorField('description'),
-          steps: this.editorField('steps'),
-          triggers: splitList(this.editorField('triggers')),
-          tags: splitList(this.editorField('tags')),
-          requirements: buildAgentWorkspaceRequirements((id) => this.editorField(id)),
-          enabled: isAffirmative(this.editorField('enabled')),
-          source: 'user',
-          provenance: 'Workspace',
-        });
-        this.finishLocalEditor(editor.kind, created.id, created.name, 'Created');
-      }
+      submitAgentWorkspaceLocalRegistryEditor(shellPaths, editor, {
+        readField: (id) => this.editorField(id),
+        learnedBehaviorTarget: () => this.learnedBehaviorTarget(),
+        submitDeleteEditor: () => this.submitLocalDeleteEditor(shellPaths, editor),
+        finishLocalEditor: (kind, id, name, verb) => this.finishLocalEditor(kind, id, name, verb),
+        finishProfileEditor: (profile) => this.finishProfileEditor(profile),
+      });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       this.localEditor = { ...editor, message: detail };
@@ -805,165 +657,6 @@ export class AgentWorkspace {
         title: `${editor.title} failed`,
         detail,
       };
-    }
-  }
-
-  private subscriptionServices() {
-    const manager = this.context?.platform.subscriptionManager;
-    const services = this.context?.platform.serviceRegistry;
-    if (!manager || !services) throw new Error('Subscription services are unavailable in this runtime.');
-    return { manager, services };
-  }
-
-  private async submitSubscriptionLoginStartEditor(editor: AgentWorkspaceLocalEditor): Promise<void> {
-    if (!isAffirmative(this.editorField('confirm'))) {
-      this.localEditor = { ...editor, message: 'Subscription login start not confirmed. Type yes, then press Enter.' };
-      this.status = 'Subscription login start not confirmed.';
-      return;
-    }
-    try {
-      const provider = this.editorField('provider') || 'openai';
-      const openBrowser = isAffirmative(this.editorField('openBrowser'));
-      const { manager, services } = this.subscriptionServices();
-      const resolved = getSubscriptionProviderConfig(provider, services.get(provider));
-      if (!resolved) {
-        throw new Error(`OAuth is not configured for ${provider}. Add an OAuth provider service or choose a built-in subscription provider.`);
-      }
-
-      const started = provider === 'openai' && resolved.source === 'builtin'
-        ? await beginOpenAICodexLogin()
-        : null;
-      const authorizationUrl = started
-        ? started.authorizationUrl
-        : (await manager.beginOAuthLogin(provider, resolveManualLoginConfig(resolved.oauth))).authorizationUrl;
-
-      if (started) {
-        manager.savePending({
-          provider,
-          state: started.state,
-          verifier: started.verifier,
-          redirectUri: started.redirectUri,
-          createdAt: Date.now(),
-        });
-      }
-
-      const browserOpened = openBrowser ? await openExternalUrl(authorizationUrl) : false;
-      this.localEditor = null;
-      this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
-      this.status = `Subscription login started for ${provider}.`;
-      this.lastActionResult = {
-        kind: 'refreshed',
-        title: 'Subscription login started',
-        detail: [
-          `Provider: ${provider}.`,
-          `Browser: ${openBrowser ? (browserOpened ? 'opened' : 'open failed') : 'skipped'}.`,
-          'Use Finish subscription login with the callback code or redirect URL.',
-          `Authorization URL: ${authorizationUrl}`,
-        ].join(' '),
-        safety: 'safe',
-      };
-      this.clampSelection();
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      this.localEditor = { ...editor, message: detail };
-      this.status = detail;
-      this.lastActionResult = { kind: 'error', title: 'Subscription login start failed', detail, safety: 'safe' };
-    }
-  }
-
-  private async submitSubscriptionLoginFinishEditor(editor: AgentWorkspaceLocalEditor): Promise<void> {
-    if (!isAffirmative(this.editorField('confirm'))) {
-      this.localEditor = { ...editor, message: 'Subscription login finish not confirmed. Type yes, then press Enter.' };
-      this.status = 'Subscription login finish not confirmed.';
-      return;
-    }
-    try {
-      const provider = this.editorField('provider') || 'openai';
-      const codeInput = this.editorField('code');
-      const code = extractAuthorizationCode(codeInput) ?? codeInput;
-      const { manager, services } = this.subscriptionServices();
-      const resolved = getSubscriptionProviderConfig(provider, services.get(provider));
-      if (!resolved) {
-        throw new Error(`OAuth is not configured for ${provider}. Start with a configured or built-in subscription provider.`);
-      }
-
-      const record = provider === 'openai' && resolved.source === 'builtin'
-        ? (() => {
-          const pending = manager.getPending(provider);
-          if (!pending) throw new Error(`No pending OAuth login for ${provider}. Start subscription login first.`);
-          return exchangeOpenAICodexCode(code, pending.verifier).then((token) => {
-            const now = Date.now();
-            return manager.saveSubscription({
-              provider,
-              accessToken: token.accessToken,
-              tokenType: token.tokenType,
-              ...(typeof token.refreshToken === 'string' && token.refreshToken.length > 0
-                ? { refreshToken: token.refreshToken }
-                : {}),
-              ...(typeof token.expiresAt === 'number' && Number.isFinite(token.expiresAt)
-                ? { expiresAt: token.expiresAt }
-                : {}),
-              ...(token.scopes ? { scopes: token.scopes } : {}),
-              authMode: 'oauth',
-              overrideAmbientApiKeys: false,
-              createdAt: manager.get(provider)?.createdAt ?? now,
-              updatedAt: now,
-            });
-          });
-        })()
-        : manager.completeOAuthLogin(provider, resolveManualLoginConfig(resolved.oauth), code);
-
-      const saved = await record;
-      this.localEditor = null;
-      this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
-      this.status = `Subscription session saved for ${provider}.`;
-      this.lastActionResult = {
-        kind: 'refreshed',
-        title: 'Subscription session saved',
-        detail: [
-          `Provider: ${provider}.`,
-          `Token type: ${saved.tokenType}.`,
-          `Expires: ${saved.expiresAt ? new Date(saved.expiresAt).toISOString() : 'n/a'}.`,
-          describeSubscriptionPrecedence(saved),
-        ].join(' '),
-        safety: 'safe',
-      };
-      this.clampSelection();
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      this.localEditor = { ...editor, message: detail };
-      this.status = detail;
-      this.lastActionResult = { kind: 'error', title: 'Subscription login finish failed', detail, safety: 'safe' };
-    }
-  }
-
-  private submitSubscriptionLogoutEditor(editor: AgentWorkspaceLocalEditor): void {
-    if (!isAffirmative(this.editorField('confirm'))) {
-      this.localEditor = { ...editor, message: 'Subscription logout not confirmed. Type yes, then press Enter.' };
-      this.status = 'Subscription logout not confirmed.';
-      return;
-    }
-    try {
-      const provider = this.editorField('provider') || 'openai';
-      const { manager } = this.subscriptionServices();
-      const removed = manager.logout(provider);
-      this.localEditor = null;
-      this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
-      this.status = removed ? `Logged out of ${provider}.` : `No subscription session existed for ${provider}.`;
-      this.lastActionResult = {
-        kind: removed ? 'refreshed' : 'guidance',
-        title: removed ? 'Subscription session removed' : 'No subscription session found',
-        detail: removed
-          ? `Removed active or pending subscription state for ${provider}. Ambient API key resolution applies if configured.`
-          : `No active or pending subscription state existed for ${provider}.`,
-        safety: 'safe',
-      };
-      this.clampSelection();
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      this.localEditor = { ...editor, message: detail };
-      this.status = detail;
-      this.lastActionResult = { kind: 'error', title: 'Subscription logout failed', detail, safety: 'safe' };
     }
   }
 

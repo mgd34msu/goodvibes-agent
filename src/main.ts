@@ -719,7 +719,6 @@ async function main() {
     streamTokenSpeed = elapsed > 0 ? streamDeltaCount / elapsed : 0;
   }));
 
-  // --- Terminal setup ---
   stdin.setRawMode(true);
   stdin.resume();
   stdin.setEncoding('utf8');
@@ -758,11 +757,9 @@ async function main() {
   process.on('unhandledRejection', unhandledRejectionHandler);
   stdout.on('resize', resizeHandler);
 
-  // Initial render
   conversation.rebuildHistory();
   render();
 
-  // --- Crash recovery check ---
   const recoveryInfo = checkRecoveryFile({ workingDirectory: workingDir, homeDirectory });
   if (recoveryInfo) {
     systemMessageRouter.high(`[Recovery] Found unsaved session from ${new Date(recoveryInfo.timestamp).toLocaleString()}. Title: "${recoveryInfo.title}". Press Ctrl+R to restore, Esc to discard, or start typing to ignore it.`);
@@ -773,7 +770,6 @@ async function main() {
     recoveryPending = true;
   }
 
-  // --- Auto-save to recovery file every 60s ---
   recoveryInterval = setInterval(() => {
     const snapshot = buildCurrentSessionSnapshot();
     writeRecoveryFile(
@@ -783,9 +779,7 @@ async function main() {
       { workingDirectory: workingDir, homeDirectory },
     );
   }, 60_000);
-
 }
-
 main().catch((err: unknown) => {
   const detail = formatFatalStartupErrorForLog(err);
   try {
