@@ -156,6 +156,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   if (editorKind === 'channel-send') return 'agent_channel_send';
   if (editorKind === 'notify-send' || editorKind === 'notify-webhook-test') return 'agent_notify';
   if (editorKind === 'reminder-schedule') return 'agent_reminder_schedule';
+  if (editorKind === 'schedule-edit') return 'agent_schedule_edit';
   if (
     editorKind.startsWith('approval-')
     || editorKind.startsWith('automation-')

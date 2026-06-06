@@ -173,7 +173,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       {
         area: 'Personal operations',
         can: 'Inspect one user-facing operations map for inbox/calendar connector gaps, notes, work plans, tasks, reminders, routines, schedules, and delivery readiness without inventing missing connectors.',
-        tools: [optionalTool('agent_harness'), optionalTool('agent_local_registry'), optionalTool('agent_work_plan'), optionalTool('agent_autonomy_schedule'), optionalTool('agent_reminder_schedule'), optionalTool('agent_channel_send')],
+        tools: [optionalTool('agent_harness'), optionalTool('agent_local_registry'), optionalTool('agent_work_plan'), optionalTool('agent_autonomy_schedule'), optionalTool('agent_reminder_schedule'), optionalTool('agent_schedule_edit'), optionalTool('agent_channel_send')],
         inspect: 'agent_harness mode:"personal_ops"',
       },
       {
@@ -184,8 +184,8 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
       {
         area: 'Configured services and messages',
-        can: 'Inspect configured channel readiness, visible autonomy queue, and send one confirmed message/notification/reminder/media request or create one confirmed autonomous schedule through configured targets.',
-        tools: [optionalTool('agent_channel_send'), optionalTool('agent_notify'), optionalTool('agent_autonomy_schedule'), optionalTool('agent_reminder_schedule'), optionalTool('agent_media_generate')],
+        can: 'Inspect configured channel readiness, visible autonomy queue, and send one confirmed message/notification/reminder/media request or create/edit one confirmed autonomous schedule through configured targets.',
+        tools: [optionalTool('agent_channel_send'), optionalTool('agent_notify'), optionalTool('agent_autonomy_schedule'), optionalTool('agent_reminder_schedule'), optionalTool('agent_schedule_edit'), optionalTool('agent_media_generate')],
         inspect: 'agent_harness mode:"channels", mode:"notifications", or mode:"autonomy_queue"',
       },
       {

@@ -46,6 +46,7 @@ import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-sched
 import { registerAgentResearchReportTool } from '../tools/agent-research-report-tool.ts';
 import { registerAgentResearchRunsTool } from '../tools/agent-research-runs-tool.ts';
 import { registerAgentResearchSourcesTool } from '../tools/agent-research-sources-tool.ts';
+import { registerAgentScheduleEditTool } from '../tools/agent-schedule-edit-tool.ts';
 import { getTerminalSize } from '../shell/terminal-size.ts';
 import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
@@ -277,6 +278,7 @@ export async function initializeBootstrapCore(
   registerAgentOperatorMethodTool(toolRegistry, services.shellPaths, configManager);
   registerAgentAutonomyScheduleTool(toolRegistry, services.shellPaths, configManager);
   registerAgentReminderScheduleTool(toolRegistry, services.shellPaths, configManager);
+  registerAgentScheduleEditTool(toolRegistry, services.shellPaths, configManager);
   registerAgentWorkPlanTool(toolRegistry, services.workPlanStore);
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),

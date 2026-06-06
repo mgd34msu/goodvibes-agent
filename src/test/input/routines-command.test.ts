@@ -478,6 +478,82 @@ describe('/routines command', () => {
     }
   });
 
+  test('previews schedule edits without connected-host calls', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const originalFetch = globalThis.fetch;
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls += 1;
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('schedule', [
+        'edit',
+        'sched-1',
+        '--every',
+        '1d',
+        '--name',
+        'Daily queue review',
+      ], ctx);
+
+      const text = out.join('\n');
+      expect(text).toContain('GoodVibes schedule edit preview');
+      expect(text).toContain('automation.jobs.patch');
+      expect(text).toContain('changes name, schedule');
+      expect(calls).toBe(0);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('confirmed schedule edits use automation.jobs.patch', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : '',
+      });
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('schedule', [
+        'edit',
+        'sched-1',
+        '--every',
+        '1d',
+        '--name',
+        'Daily queue review',
+        '--yes',
+      ], ctx);
+
+      expect(out.join('\n')).toContain('Updated GoodVibes schedule');
+      expect(requests).toHaveLength(1);
+      expect(requests[0]!.url).toBe('http://127.0.0.1:3421/api/automation/jobs/sched-1');
+      expect(requests[0]!.method).toBe('PATCH');
+      const payload = JSON.parse(requests[0]!.body) as {
+        readonly jobId?: string;
+        readonly name?: string;
+        readonly schedule?: {
+          readonly kind?: string;
+          readonly intervalMs?: number;
+        };
+      };
+      expect(payload.jobId).toBeUndefined();
+      expect(payload.name).toBe('Daily queue review');
+      expect(payload.schedule).toEqual(expect.objectContaining({
+        kind: 'every',
+        intervalMs: 86_400_000,
+      }));
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('confirmed schedule lifecycle actions use exact connected-host routes', async () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
@@ -502,6 +578,36 @@ describe('/routines command', () => {
       ]);
       expect(requests.map((request) => request.method)).toEqual(['POST', 'DELETE']);
       expect(requests.map((request) => request.body)).toEqual(['', '']);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('connected schedule lifecycle does not require local automation manager', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const contextWithoutManager = {
+      ...ctx,
+      ops: {},
+    } as unknown as CommandContext;
+    const requests: Array<{ readonly url: string; readonly method: string }> = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+      });
+      return scheduleResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      await registry.execute('schedule', ['run', 'sched-1', '--yes'], contextWithoutManager);
+
+      expect(out.join('\n')).toContain('Agent operator action completed');
+      expect(out.join('\n')).not.toContain('Automation manager is not available');
+      expect(requests).toEqual([{
+        url: 'http://127.0.0.1:3421/api/automation/schedules/sched-1/run',
+        method: 'POST',
+      }]);
     } finally {
       globalThis.fetch = originalFetch;
     }

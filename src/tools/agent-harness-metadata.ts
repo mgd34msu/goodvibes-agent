@@ -463,6 +463,15 @@ export function connectedHostCapabilityMap(toolRegistry: ToolRegistry): readonly
       purpose: 'Perform one explicit allowlisted approval, automation, run, or schedule action.',
     }),
     withAvailability({
+      id: 'schedule-edit',
+      effect: 'confirmed-connected-host-state',
+      modelTools: ['agent_schedule_edit'],
+      workspaceCategories: ['automation', 'personal-ops'],
+      slashCommandFamilies: ['schedule'],
+      methodIds: ['automation.jobs.patch'],
+      purpose: 'Edit one explicit connected schedule name, cadence, or prompt.',
+    }),
+    withAvailability({
       id: 'agent-knowledge-read',
       effect: 'read-only-network',
       modelTools: ['agent_knowledge'],
@@ -567,9 +576,9 @@ export function connectedHostRouteFamilies(): readonly Record<string, unknown>[]
     },
     {
       id: 'connected-schedules',
-      routes: ['public schedule creation/run routes'],
-      modelTools: ['agent_autonomy_schedule', 'agent_reminder_schedule', 'agent_operator_action'],
-      modelRoute: 'agent_autonomy_schedule or agent_reminder_schedule/operator_action',
+      routes: ['public schedule creation, patch, run, toggle, and delete routes'],
+      modelTools: ['agent_autonomy_schedule', 'agent_reminder_schedule', 'agent_schedule_edit', 'agent_operator_action'],
+      modelRoute: 'agent_autonomy_schedule, agent_schedule_edit, or operator_action',
       boundary: 'Connected schedules only; no hidden local scheduler or separate Agent job.',
     },
   ];

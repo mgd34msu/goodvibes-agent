@@ -39,6 +39,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent_operator_briefing: 'Read connected Agent operator state.',
   agent_operator_action: 'Run one confirmed allowlisted operator action.',
   agent_autonomy_schedule: 'Schedule one confirmed autonomous Agent task.',
+  agent_schedule_edit: 'Edit one confirmed connected schedule.',
   agent_research_runs: 'Track visible local research run checkpoints.',
   agent_research_sources: 'Manage local research source review queue.',
   agent_research_report: 'Save one confirmed sourced research report artifact.',

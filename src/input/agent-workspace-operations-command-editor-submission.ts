@@ -20,6 +20,11 @@ function optionalRememberArgs(value: string): string {
   return isAffirmative(trimmed) ? ' --remember' : ' --no-remember';
 }
 
+function optionalCommandArg(flag: string, value: string): string {
+  const trimmed = value.trim();
+  return trimmed ? ` ${flag} ${quoteSlashCommandArg(trimmed)}` : '';
+}
+
 function unconfirmed(editor: AgentWorkspaceLocalEditor, message: string): AgentWorkspaceOperationsCommandEditorSubmission {
   return {
     kind: 'editor',
@@ -157,6 +162,54 @@ export function buildAgentWorkspaceOperationsCommandEditorSubmission(
         kind: 'dispatched',
         title: 'Opening confirmed automation action',
         detail: 'The workspace handed an explicit connected-host automation action to the shell-owned command router.',
+        command,
+        safety: 'safe',
+      },
+    };
+  }
+  if (editor.kind === 'schedule-edit') {
+    if (!isAffirmative(readField('confirm'))) return unconfirmed(editor, 'Schedule edit not confirmed. Type yes, then press Enter.');
+    const scheduleKind = readField('scheduleKind').trim();
+    const scheduleValue = readField('scheduleValue').trim();
+    if ((scheduleKind && !scheduleValue) || (!scheduleKind && scheduleValue)) {
+      return unconfirmed(editor, 'Schedule type and schedule value must be set together.');
+    }
+    const hasChange = Boolean(
+      scheduleKind
+      || readField('timezone').trim()
+      || readField('scheduleName').trim()
+      || readField('task').trim()
+      || readField('successCriteria').trim()
+      || readField('prompt').trim(),
+    );
+    if (!hasChange) return unconfirmed(editor, 'Schedule edit needs at least one changed field.');
+    const task = readField('task').trim();
+    const successCriteria = readField('successCriteria').trim();
+    if ((task && !successCriteria) || (!task && successCriteria)) {
+      return unconfirmed(editor, 'Task and success criteria must be set together.');
+    }
+    if (readField('prompt').trim() && task) {
+      return unconfirmed(editor, 'Use either Exact prompt or Task, not both.');
+    }
+    const command = [
+      '/schedule edit',
+      quoteSlashCommandArg(readField('scheduleId')),
+      scheduleKind && scheduleValue ? `--${scheduleKind} ${quoteSlashCommandArg(scheduleValue)}` : '',
+      optionalCommandArg('--timezone', readField('timezone')).trim(),
+      optionalCommandArg('--name', readField('scheduleName')).trim(),
+      optionalCommandArg('--task', readField('task')).trim(),
+      optionalCommandArg('--success-criteria', readField('successCriteria')).trim(),
+      optionalCommandArg('--prompt', readField('prompt')).trim(),
+      '--yes',
+    ].filter(Boolean).join(' ');
+    return {
+      kind: 'dispatch',
+      command,
+      status: 'Opening confirmed schedule edit.',
+      actionResult: {
+        kind: 'dispatched',
+        title: 'Opening confirmed schedule edit',
+        detail: 'The workspace handed an explicit connected-host schedule edit to the shell-owned command router.',
         command,
         safety: 'safe',
       },

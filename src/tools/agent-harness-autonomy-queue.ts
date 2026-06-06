@@ -135,6 +135,23 @@ function summarizeSchedule(schedule: UiAutomationSnapshot['jobs'][number]['sched
   return `at ${formatEpochMs(schedule.at) ?? schedule.at}`;
 }
 
+function quoteRouteValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function scheduleEditRoute(job: UiAutomationSnapshot['jobs'][number]): string {
+  const schedule = job.schedule;
+  const value = schedule.kind === 'cron'
+    ? schedule.expression
+    : schedule.kind === 'every'
+      ? formatIntervalMs(schedule.intervalMs)
+      : formatEpochMs(schedule.at) ?? String(schedule.at);
+  const timezone = schedule.kind === 'cron' && schedule.timezone
+    ? ` timezone:"${quoteRouteValue(schedule.timezone)}"`
+    : '';
+  return `agent_schedule_edit scheduleId:"${quoteRouteValue(job.id)}" scheduleKind:"${schedule.kind}" scheduleValue:"${quoteRouteValue(value)}"${timezone} confirm:true explicitUserRequest:"..."`;
+}
+
 function taskStatusRank(status: UiTasksSnapshot['tasks'][number]['status']): number {
   if (status === 'running') return 0;
   if (status === 'queued') return 1;
@@ -353,6 +370,7 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
         ...(enabled ? { cancelRoute: toggleRoute } : {}),
         nextSteps: [
           `agent_operator_action action:"schedules.run" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`,
+          scheduleEditRoute(job),
           toggleRoute,
           `agent_operator_action action:"schedules.delete" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`,
           `agent_harness mode:"workspace_action" actionId:"schedule-list"`,
@@ -712,15 +730,15 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       cancellable: true,
       count: scheduleRecords.length > 0 ? scheduleRecords.length : scheduleMethods.length,
       current: scheduleRecords.length > 0
-        ? `${scheduleRecords.length} live connected schedule record(s); run-now, enable, disable, and delete remain explicit confirmed actions.`
-        : `${scheduleMethods.length} schedule/reminder daemon method(s) are present; schedule inspection and lifecycle controls are visible.`,
+        ? `${scheduleRecords.length} live connected schedule record(s); edit, run-now, enable, disable, and delete remain explicit confirmed actions.`
+        : `${scheduleMethods.length} schedule/reminder daemon method(s) are present; schedule inspection, edit, and lifecycle controls are visible.`,
       next: scheduleRecords.some((record) => record.status === 'error')
         ? 'Inspect schedule errors before running, enabling, disabling, deleting, or creating more schedules.'
         : scheduleRecords.length > 0
           ? 'Review live schedules or reconcile routine receipts before controlling one exact schedule id.'
           : 'List schedules or reconcile routine receipts before controlling one schedule by id.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
-      modelRoute: 'agent_harness mode:"operator_methods" query:"schedule"',
+      modelRoute: 'agent_schedule_edit or agent_operator_action',
       cancelRoute: 'agent_operator_action action:"schedules.disable" scheduleId:"..." confirm:true explicitUserRequest:"..."',
       createRoute: 'agent_autonomy_schedule task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,

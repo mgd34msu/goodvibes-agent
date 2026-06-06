@@ -212,6 +212,7 @@ export type AgentWorkspaceEditorKind =
   | 'automation-run-cancel'
   | 'automation-run-retry'
   | 'schedule-run'
+  | 'schedule-edit'
   | 'routine-receipt'
   | 'schedule-receipt'
   | 'mode-preset'

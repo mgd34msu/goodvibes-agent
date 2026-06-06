@@ -34,6 +34,17 @@ import {
   reconcileRoutineScheduleReceipts,
   RoutineScheduleReceiptStore,
 } from '../../agent/routine-schedule-receipts.ts';
+import {
+  buildScheduleEditPreview,
+  editConnectedSchedule,
+  parseScheduleEditArgs,
+  resolveScheduleEditConnectedHostConnection,
+} from '../../agent/schedule-edit.ts';
+import {
+  formatScheduleEditFailure,
+  formatScheduleEditPreview,
+  formatScheduleEditSuccess,
+} from '../../agent/schedule-edit-format.ts';
 import type { CommandContext } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 import { executeConfirmedOperatorAction } from './operator-actions-runtime.ts';
@@ -119,13 +130,35 @@ async function createReminder(args: readonly string[], ctx: CommandContext): Pro
   ctx.print(result.ok ? formatReminderScheduleSuccess(result) : formatReminderScheduleFailure(result));
 }
 
+async function editSchedule(args: readonly string[], ctx: CommandContext): Promise<void> {
+  const parsed = parseScheduleEditArgs(args, {
+    defaultExplicitUserRequest: `/schedule edit ${args[0] ?? ''}`.trim(),
+  });
+  if (parsed.errors.length > 0) {
+    ctx.print([
+      'Usage: /schedule edit <schedule-id> [--cron <expr>|--every <interval>|--at <iso-time>] [--timezone <tz>] [--stagger-ms <ms>] [--name <text>] [--prompt <text>|--task <text> --success-criteria <text>] --yes',
+      ...parsed.errors.map((error) => `  ${error}`),
+    ].join('\n'));
+    return;
+  }
+  const preview = buildScheduleEditPreview(parsed);
+  if (!parsed.yes) {
+    ctx.print(formatScheduleEditPreview(preview));
+    return;
+  }
+  const shellPaths = requireShellPaths(ctx);
+  const connection = resolveScheduleEditConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const result = await editConnectedSchedule(connection, preview);
+  ctx.print(result.ok ? formatScheduleEditSuccess(result) : formatScheduleEditFailure(result));
+}
+
 export function registerScheduleRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'schedule',
     aliases: ['sched'],
     description: 'Inspect schedules, create confirmed reminders, and explicitly promote Agent-local routines to connected schedules',
-    usage: 'list | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
-    argsHint: 'list | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> [--delivery-channel slack] --yes',
+    usage: 'list | edit <id> --cron <expr> --yes | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
+    argsHint: 'list | edit <id> --cron <expr> --yes | remind --at <iso> --message <text> --yes | receipts | reconcile | receipt <id> | promote-routine <routine-id> --cron <expr> --yes',
     async handler(args, ctx) {
       const sub = args[0];
 
@@ -163,6 +196,28 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
+      if (sub === 'edit' || sub === 'update' || sub === 'patch') {
+        await editSchedule(args.slice(1), ctx);
+        return;
+      }
+
+      if (sub === 'run' || sub === 'enable' || sub === 'disable' || sub === 'delete' || sub === 'remove') {
+        const scheduleId = args[1] ?? '';
+        if (!scheduleId) {
+          ctx.print(`Usage: /schedule ${sub} <schedule-id> --yes`);
+          return;
+        }
+        const action = sub === 'run'
+          ? 'schedules.run'
+          : sub === 'enable'
+            ? 'schedules.enable'
+            : sub === 'disable'
+              ? 'schedules.disable'
+              : 'schedules.delete';
+        await executeConfirmedOperatorAction(ctx, action, 'scheduleId', scheduleId, args.slice(2), `/schedule ${sub} <schedule-id> --yes`);
+        return;
+      }
+
       const manager = ctx.ops.automationManager;
       if (!manager) {
         ctx.print('Automation manager is not available in this runtime.');
@@ -191,23 +246,6 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      if (sub === 'run' || sub === 'enable' || sub === 'disable' || sub === 'delete' || sub === 'remove') {
-        const scheduleId = args[1] ?? '';
-        if (!scheduleId) {
-          ctx.print(`Usage: /schedule ${sub} <schedule-id> --yes`);
-          return;
-        }
-        const action = sub === 'run'
-          ? 'schedules.run'
-          : sub === 'enable'
-            ? 'schedules.enable'
-            : sub === 'disable'
-              ? 'schedules.disable'
-              : 'schedules.delete';
-        await executeConfirmedOperatorAction(ctx, action, 'scheduleId', scheduleId, args.slice(2), `/schedule ${sub} <schedule-id> --yes`);
-        return;
-      }
-
       if (sub === 'add') {
         printReadOnlyScheduleBoundary(ctx.print, `/schedule ${args.join(' ')}`.trim());
         return;
@@ -223,9 +261,10 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         + '  /schedule enable <schedule-id> --yes\n'
         + '  /schedule disable <schedule-id> --yes\n'
         + '  /schedule delete <schedule-id> --yes\n'
+        + '  /schedule edit <schedule-id> [--cron <expr>|--every <interval>|--at <iso-time>] [--name <text>] [--prompt <text>|--task <text> --success-criteria <text>] --yes\n'
         + '  /schedule remind (--cron <expr>|--every <interval>|--at <iso-time>) (--message <text>|<text...>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
         + '  /schedule promote-routine <routine-id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes\n'
-        + '  Local schedule creation remains blocked; schedule lifecycle actions are confirmed connected-host actions.'
+        + '  Local schedule creation remains blocked; schedule lifecycle/edit actions are confirmed connected-host actions.'
       );
     },
   });

@@ -8,6 +8,7 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
+import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
 import { PanelManager } from '../../panels/panel-manager.ts';
 import type { Panel, PanelCategory } from '../../panels/types.ts';
 import { CONFIG_SCHEMA, ConfigManager } from '../../config/index.ts';
@@ -1127,9 +1128,11 @@ describe('agent_harness tool', () => {
       expect(schedules?.cancelRoute).toContain('schedules.disable');
       expect(schedules?.liveRecords?.[0]?.id).toBe('sched-live-1');
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.run');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('agent_schedule_edit');
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.disable');
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.delete');
       expect(schedules?.liveRecords?.[0]?.cancelRoute).toContain('schedules.disable');
+      expect(schedules?.modelRoute).toContain('agent_schedule_edit');
       expect(schedules?.createRoute).toContain('agent_autonomy_schedule');
       expect(routines?.inspectRoute).toContain('schedule-receipts');
 
@@ -2278,6 +2281,12 @@ describe('agent_harness tool', () => {
       expect(routineAction.output).toContain(`Selected: ${routine.id} (${routine.name})`);
       expect(routineAction.output).toContain(`"default": "${routine.id}"`);
       expect(routineAction.output).toContain(`"default": "${routine.name}"`);
+
+      const scheduleEditAction = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'schedule-edit' });
+      expect(scheduleEditAction.success).toBe(true);
+      expect(scheduleEditAction.output).toContain('"editorKind": "schedule-edit"');
+      expect(scheduleEditAction.output).toContain('"modelRoute": "agent_schedule_edit"');
+      expect(scheduleEditAction.output).toContain('"id": "scheduleId"');
     } finally {
       fixture.cleanup();
     }
@@ -3967,6 +3976,7 @@ describe('agent_harness tool', () => {
 
   test('runs command-backed workspace actions through id and command lookups', async () => {
     const fixture = makeFixture();
+    const originalFetch = globalThis.fetch;
     try {
       const byId = await fixture.tool.execute({
         mode: 'run_workspace_action',
@@ -3989,7 +3999,64 @@ describe('agent_harness tool', () => {
       expect(byCommand.success).toBe(true);
       expect(byCommand.output).toContain('Command /brief completed.');
       expect(byCommand.output).toContain('briefing output');
+
+      registerScheduleRuntimeCommands(fixture.commandRegistry);
+      writeFileSync(join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'schedule-edit-token' }));
+      const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
+      globalThis.fetch = (async (input, init) => {
+        requests.push({
+          url: typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url,
+          method: init?.method ?? 'GET',
+          body: typeof init?.body === 'string' ? init.body : '',
+        });
+        return new Response(JSON.stringify({
+          id: 'sched-live-1',
+          name: 'Daily queue review',
+          labels: [],
+          createdAt: 1,
+          updatedAt: 2,
+          status: 'enabled',
+          enabled: true,
+          schedule: { kind: 'every', intervalMs: 86_400_000 },
+          execution: { prompt: 'updated prompt', target: { kind: 'main' } },
+          delivery: { mode: 'none', targets: [], fallbackTargets: [], includeSummary: true, includeTranscript: false, includeLinks: true },
+          failure: {
+            action: 'retry',
+            maxConsecutiveFailures: 3,
+            cooldownMs: 3_600_000,
+            retryPolicy: { maxAttempts: 2, delayMs: 60_000, strategy: 'exponential' },
+          },
+          source: { id: 'source-sched-live-1', kind: 'schedule', label: 'schedule', enabled: true, createdAt: 1, updatedAt: 2, metadata: {} },
+          runCount: 0,
+          successCount: 0,
+          failureCount: 0,
+          deleteAfterRun: false,
+        }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        });
+      }) satisfies typeof fetch;
+      const scheduleEdit = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'schedule-edit',
+        fields: {
+          scheduleId: 'sched-live-1',
+          scheduleKind: 'every',
+          scheduleValue: '1d',
+          scheduleName: 'Daily queue review',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Change schedule sched-live-1 to every day.',
+      });
+
+      expect(scheduleEdit.success).toBe(true);
+      expect(scheduleEdit.output).toContain('Updated GoodVibes schedule');
+      expect(requests.map((request) => `${request.method} ${request.url}`)).toEqual([
+        'PATCH http://127.0.0.1:3421/api/automation/jobs/sched-live-1',
+      ]);
     } finally {
+      globalThis.fetch = originalFetch;
       fixture.cleanup();
     }
   });
