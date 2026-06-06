@@ -152,6 +152,7 @@ The connected host is external. Agent can inspect it through:
 - `connected_host` and `daemon` for compact connected-host posture and direct `modelRoute` hints; use `includeParameters:true` for route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability.
 - `connected_host_capability` for one allowed or blocked capability with the matching route hint.
 - `connected_host_status` and `daemon_status` for live read-only readiness checks and the next diagnostic route.
+- `setup_item` with `setupItemId:"connected-host-readiness"` for the missing-host bootstrap plan: user-run Bun, GoodVibes host install/trust, binary verification, service start, and Agent reconnect commands before operator methods are reachable.
 - `operator_methods` and `operator_method` for the public method catalog.
 
 None of those modes expose host start, stop, restart, install, expose-listener, account creation, arbitrary route mutation, default knowledge access, hidden background Agent jobs, or implicit delegated review.

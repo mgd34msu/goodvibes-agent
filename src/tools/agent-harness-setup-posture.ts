@@ -49,6 +49,7 @@ interface SetupPlanItem {
   readonly relatedSetupItemId?: string;
   readonly signals?: readonly string[];
   readonly repairCards?: readonly SetupRepairCard[];
+  readonly bootstrapPlan?: SetupBootstrapPlan;
 }
 
 interface SetupRepairCard {
@@ -62,6 +63,24 @@ interface SetupRepairCard {
   readonly prerequisite?: string;
   readonly recommendedWhen: string;
   readonly safety: string;
+}
+
+interface SetupBootstrapStep {
+  readonly id: string;
+  readonly label: string;
+  readonly purpose: string;
+  readonly commands: readonly string[];
+  readonly expected: string;
+  readonly fallback?: string;
+}
+
+interface SetupBootstrapPlan {
+  readonly status: 'recommended' | 'optional';
+  readonly source: string;
+  readonly recommendedWhen: string;
+  readonly steps: readonly SetupBootstrapStep[];
+  readonly reconnectRoutes: Record<string, string>;
+  readonly policy: string;
 }
 
 function readString(value: unknown): string {
@@ -352,6 +371,79 @@ function connectedHostRepairCards(snapshot: Awaited<ReturnType<typeof collectSna
   ];
 }
 
+function connectedHostBootstrapPlan(snapshot: Awaited<ReturnType<typeof collectSnapshot>>): SetupBootstrapPlan {
+  const hostIssue = snapshot.collectionIssues.some((issue) => issue.area === 'host');
+  return {
+    status: hostIssue ? 'recommended' : 'optional',
+    source: 'goodvibes-tui README, package.json, and bin launchers from the connected-host checkout',
+    recommendedWhen: hostIssue
+      ? 'Use when Agent cannot reach a compatible connected host, so operator service methods cannot be trusted yet.'
+      : 'Use only when the user is setting up a new GoodVibes host or wants to verify the owning host install.',
+    steps: [
+      {
+        id: 'verify-bun',
+        label: 'Verify Bun is installed',
+        purpose: 'GoodVibes TUI and the daemon package are Bun programs; package lifecycle scripts also need Bun.',
+        commands: ['bun --version'],
+        expected: 'Prints a Bun version.',
+        fallback: 'Install Bun, reopen the terminal so PATH is refreshed, then retry.',
+      },
+      {
+        id: 'install-goodvibes-host',
+        label: 'Install the owning GoodVibes host',
+        purpose: 'Install the package that provides both the TUI and goodvibes-daemon launchers.',
+        commands: [
+          'bun add -g @pellux/goodvibes-tui',
+          'bun pm trust -g @pellux/goodvibes-tui @pellux/goodvibes-sdk core-js tree-sitter-css tree-sitter-javascript tree-sitter-json tree-sitter-python tree-sitter-typescript',
+        ],
+        expected: 'Global package install completes and Bun reports lifecycle scripts are trusted.',
+        fallback: 'If release assets cannot download, use the goodvibes-tui source checkout and run bun install before bun run daemon.',
+      },
+      {
+        id: 'verify-goodvibes-binaries',
+        label: 'Verify host binaries',
+        purpose: 'Confirm the package installed both user-facing and daemon entrypoints.',
+        commands: [
+          'bun pm -g untrusted',
+          'goodvibes --version',
+          'goodvibes-daemon --version',
+        ],
+        expected: 'Untrusted reports zero remaining lifecycle-script packages, and both binaries print versions.',
+        fallback: 'Rerun the full trust command if Bun still reports untrusted package scripts.',
+      },
+      {
+        id: 'start-goodvibes-host',
+        label: 'Start or install the host service',
+        purpose: 'Bring up the daemon/API host that owns schedules, channels, Knowledge, media, and operator routes.',
+        commands: [
+          'goodvibes service status',
+          'goodvibes service install',
+          'goodvibes service start',
+        ],
+        expected: 'Service status reports an installed running service, or the interactive GoodVibes TUI starts the daemon/listener surfaces configured by the user.',
+        fallback: 'For a one-shot headless host from source, use GOODVIBES_DAEMON_TOKEN=... GOODVIBES_HTTP_TOKEN=... bun run daemon inside goodvibes-tui.',
+      },
+      {
+        id: 'reconnect-agent',
+        label: 'Reconnect Agent to the host',
+        purpose: 'Verify Agent can reach the default host or an explicitly configured runtime URL.',
+        commands: [
+          'goodvibes-agent status --json',
+          'goodvibes-agent compat',
+        ],
+        expected: 'Agent status reports reachable connected-host and compatible Agent Knowledge routes.',
+        fallback: 'Use goodvibes-agent --runtime-url http://host:port or GOODVIBES_AGENT_RUNTIME_URL=http://host:port when the host is not on http://127.0.0.1:3421.',
+      },
+    ],
+    reconnectRoutes: {
+      agentStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      serviceDiagnostics: 'agent_harness mode:"service_posture" includeParameters:true',
+      setupItem: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"',
+    },
+    policy: 'Bootstrap commands are user-run setup guidance. Agent does not run host install/start commands implicitly; once the host is reachable, exact service mutations stay on confirmed operator methods.',
+  };
+}
+
 function buildSetupPlan(
   context: CommandContext,
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
@@ -382,6 +474,7 @@ function buildSetupPlan(
       relatedSetupItemId: 'operator-terminal',
       signals: snapshot.collectionIssues.filter((issue) => issue.area === 'host').map((issue) => issue.message),
       repairCards: connectedHostRepairCards(snapshot),
+      bootstrapPlan: connectedHostBootstrapPlan(snapshot),
     },
     {
       id: 'goodvibes-settings-import',
@@ -539,7 +632,9 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(item.relatedSetupItemId ? { relatedSetupItemId: item.relatedSetupItemId } : {}),
     ...(item.signals && item.signals.length > 0 ? { signals: item.signals.slice(0, includeParameters ? 10 : 3) } : {}),
     ...(availableRepairCards && availableRepairCards.length > 0 ? { availableRepairCards } : {}),
+    ...(item.bootstrapPlan ? { bootstrapRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"' } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
+    ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),
     ...(includeParameters ? {
       policy: {
         effect: 'read-only',

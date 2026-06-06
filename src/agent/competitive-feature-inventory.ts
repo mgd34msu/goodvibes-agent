@@ -48,9 +48,8 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'One guided flow verifies dependencies, installs or starts the host, configures auth, pairs channels, and leaves a working assistant.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host readiness now includes repair cards for status, service posture, and confirmed service install/start/restart when the SDK operator contract exposes those methods. Full missing-host bootstrap remains high-friction.',
+    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host readiness now includes repair cards for status, service posture, confirmed service install/start/restart when the SDK operator contract exposes those methods, plus an offline bootstrap plan with GoodVibes host install, trust, binary verification, service start, and Agent reconnect commands for missing-host setup.',
     nextMoves: [
-      'Add a missing-host bootstrap path that can locate or install the owning GoodVibes host before operator methods are reachable.',
       'Feed live connected-host probes into repair card state so service install/start/restart is recommended only when the current service status proves it is needed.',
       'Add end-to-end install smoke that proves a user can go from package install to reachable assistant.',
     ],

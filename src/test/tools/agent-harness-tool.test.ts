@@ -731,6 +731,7 @@ describe('agent_harness tool', () => {
           readonly modelRoute: string;
           readonly signals?: readonly string[];
           readonly availableRepairCards?: readonly string[];
+          readonly bootstrapRoute?: string;
           readonly repairCards?: readonly {
             readonly id: string;
             readonly state: string;
@@ -741,6 +742,18 @@ describe('agent_harness tool', () => {
             readonly recommendedWhen: string;
             readonly safety: string;
           }[];
+          readonly bootstrapPlan?: {
+            readonly status: string;
+            readonly source: string;
+            readonly recommendedWhen: string;
+            readonly steps: readonly {
+              readonly id: string;
+              readonly commands: readonly string[];
+              readonly fallback?: string;
+            }[];
+            readonly reconnectRoutes: { readonly agentStatus: string; readonly serviceDiagnostics: string; readonly setupItem: string };
+            readonly policy: string;
+          };
         }[];
         readonly nextSetupActions: readonly {
           readonly setupItemId: string;
@@ -762,6 +775,22 @@ describe('agent_harness tool', () => {
       expect(first?.modelRoute).toContain('connected_host_status');
       expect(first?.userRoute).toContain('Host compatibility');
       expect(first?.availableRepairCards).toContain('connected-host-status');
+      expect(first?.bootstrapRoute).toContain('connected-host-readiness');
+      expect(first?.bootstrapPlan?.source).toContain('goodvibes-tui');
+      expect(first?.bootstrapPlan?.steps.map((step) => step.id)).toEqual([
+        'verify-bun',
+        'install-goodvibes-host',
+        'verify-goodvibes-binaries',
+        'start-goodvibes-host',
+        'reconnect-agent',
+      ]);
+      expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'install-goodvibes-host')?.commands.join('\n')).toContain('bun add -g @pellux/goodvibes-tui');
+      expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'install-goodvibes-host')?.commands.join('\n')).toContain('bun pm trust -g');
+      expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'verify-goodvibes-binaries')?.commands.join('\n')).toContain('goodvibes-daemon --version');
+      expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'start-goodvibes-host')?.commands.join('\n')).toContain('goodvibes service start');
+      expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'reconnect-agent')?.fallback).toContain('GOODVIBES_AGENT_RUNTIME_URL');
+      expect(first?.bootstrapPlan?.reconnectRoutes.agentStatus).toContain('connected_host_status');
+      expect(first?.bootstrapPlan?.policy).toContain('does not run host install/start commands implicitly');
       expect(first?.repairCards?.find((card) => card.id === 'service-status')?.methodId).toBe('services.status');
       expect(first?.repairCards?.find((card) => card.id === 'service-install')?.modelRoute).toContain('services.install');
       expect(first?.repairCards?.find((card) => card.id === 'service-start')?.effect).toBe('confirmed-effect');
@@ -787,6 +816,10 @@ describe('agent_harness tool', () => {
         readonly status: string;
         readonly lookup?: { readonly resolvedBy?: string };
         readonly modelRoute: string;
+        readonly bootstrapPlan?: {
+          readonly steps: readonly { readonly id: string; readonly commands: readonly string[] }[];
+          readonly policy: string;
+        };
         readonly repairCards?: readonly {
           readonly id: string;
           readonly state: string;
@@ -799,6 +832,8 @@ describe('agent_harness tool', () => {
       expect(hostItem.status).toBe('check');
       expect(hostItem.lookup?.resolvedBy).toBe('plan-id');
       expect(hostItem.modelRoute).toContain('connected_host_status');
+      expect(hostItem.bootstrapPlan?.steps.find((step) => step.id === 'verify-bun')?.commands).toEqual(['bun --version']);
+      expect(hostItem.bootstrapPlan?.policy).toContain('confirmed operator methods');
       expect(hostItem.repairCards?.find((card) => card.id === 'service-start')?.modelRoute).toContain('services.start');
       expect(hostItem.policy?.effect).toBe('read-only');
 

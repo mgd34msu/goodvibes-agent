@@ -40,7 +40,7 @@ Use the interactive workspace first. CLI subcommands are secondary support paths
 
 Primary first-run areas:
 
-- Setup: prioritized first-run plan, GoodVibes settings import preview/apply, provider/model, hardware-scored local model cookbook with setup/download guidance and benchmark prompts, connected-host compatibility, confirmed service install/start/restart repair cards when the operator endpoint is reachable, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
+- Setup: prioritized first-run plan, GoodVibes settings import preview/apply, provider/model, hardware-scored local model cookbook with setup/download guidance and benchmark prompts, connected-host compatibility, offline GoodVibes host bootstrap commands, confirmed service install/start/restart repair cards when the operator endpoint is reachable, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
 - Research: read-only web research and URL inspection, read-only workflow planning, project-local visible research runs with log tails, browser-backed runner readiness/fallback posture, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.
@@ -179,6 +179,8 @@ Host diagnostics:
 - `goodvibes-agent compat`
 
 Model-visible diagnostics are `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status`. `agent_harness mode:"operator_methods"` inventories the full GoodVibes daemon contract. `agent_operator_method` can run read-only routes directly and write/admin routes only with `confirm:true` plus `explicitUserRequest`.
+
+When no connected host is reachable, inspect `agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"` for the offline bootstrap plan. It returns user-run commands to verify Bun, install and trust the owning GoodVibes host package, verify host entrypoints, start the GoodVibes service, and reconnect Agent. Agent does not run those host install/start commands implicitly.
 
 ## Current Product Notes
 
