@@ -64,9 +64,14 @@ interface PersonalOpsConnectorSignal {
 
 interface PersonalOpsConnectorTool {
   readonly name: string;
+  readonly qualifiedName?: string;
   readonly description?: string;
   readonly effect: 'read-only' | 'confirmed-effect';
   readonly capability: string;
+  readonly schemaRoute?: string;
+  readonly requiredFields?: readonly string[];
+  readonly optionalFields?: readonly string[];
+  readonly sampleInput?: Readonly<Record<string, unknown>>;
 }
 
 interface PersonalOpsLiveRecord {
@@ -77,6 +82,13 @@ interface PersonalOpsLiveRecord {
   readonly userRoute: string;
   readonly modelRoute: string;
   readonly tags?: readonly string[];
+  readonly effect?: 'read-only' | 'confirmed-effect';
+  readonly capability?: string;
+  readonly qualifiedName?: string;
+  readonly requiredFields?: readonly string[];
+  readonly optionalFields?: readonly string[];
+  readonly sampleInput?: Readonly<Record<string, unknown>>;
+  readonly confirmationRequired?: boolean;
 }
 
 interface PersonalOpsWorkflow {
@@ -92,9 +104,21 @@ interface PersonalOpsWorkflow {
 }
 
 interface McpToolRecord {
+  readonly qualifiedName?: string;
   readonly serverName: string;
   readonly toolName: string;
   readonly description?: string;
+}
+
+interface McpToolSchema {
+  readonly inputSchema?: unknown;
+}
+
+interface McpSchemaSummary {
+  readonly schemaRoute: string;
+  readonly requiredFields: readonly string[];
+  readonly optionalFields: readonly string[];
+  readonly sampleInput: Readonly<Record<string, unknown>>;
 }
 
 export type PersonalOpsLaneResolution =
@@ -165,6 +189,110 @@ async function mcpToolRecords(context: CommandContext): Promise<readonly McpTool
   }
 }
 
+function mcpSchemaReader(context: CommandContext): ((qualifiedName: string) => Promise<McpToolSchema | null>) | null {
+  const api = context.clients?.mcpApi ?? context.extensions?.mcpRegistry;
+  if (!api || typeof (api as { readonly getToolSchema?: unknown }).getToolSchema !== 'function') return null;
+  return (qualifiedName) => (api as { getToolSchema: (qualifiedName: string) => Promise<McpToolSchema | null> }).getToolSchema(qualifiedName);
+}
+
+function qualifiedToolName(tool: McpToolRecord): string {
+  return tool.qualifiedName ?? `mcp:${tool.serverName}:${tool.toolName}`;
+}
+
+function isPersonalOpsTool(tool: McpToolRecord): boolean {
+  return /(mail|email|gmail|imap|smtp|inbox|message|thread|calendar|caldav|agenda|event|freebusy|availability|meeting)/i.test([
+    tool.serverName,
+    tool.toolName,
+    tool.description ?? '',
+  ].join(' '));
+}
+
+function schemaObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function schemaRequiredFields(schema: Record<string, unknown>): readonly string[] {
+  const required = schema.required;
+  if (!Array.isArray(required)) return [];
+  return required.filter((field): field is string => typeof field === 'string').sort((left, right) => left.localeCompare(right));
+}
+
+function schemaOptionalFields(schema: Record<string, unknown>, requiredFields: readonly string[]): readonly string[] {
+  const properties = schemaObject(schema.properties);
+  if (!properties) return [];
+  const required = new Set(requiredFields);
+  return Object.keys(properties).filter((field) => !required.has(field)).sort((left, right) => left.localeCompare(right));
+}
+
+function sampleFieldValue(field: string, capability: string, effect: PersonalOpsConnectorTool['effect']): unknown {
+  const normalized = field.toLowerCase();
+  if (/(limit|max|count|page|size)/.test(normalized)) return 10;
+  if (/(dry|preview)/.test(normalized)) return effect === 'confirmed-effect';
+  if (/(unread|important|include)/.test(normalized)) return true;
+  if (/(start|from|after|time_min|timemin|begin)/.test(normalized)) return capability.startsWith('calendar') ? '<start-iso>' : '<since>';
+  if (/(end|to|before|time_max|timemax|until)/.test(normalized)) return capability.startsWith('calendar') ? '<end-iso>' : '<until>';
+  if (/(thread|message|mail|email).*id|id$/.test(normalized)) return capability.startsWith('calendar') ? '<event-id>' : '<message-or-thread-id>';
+  if (/(event).*id|calendar.*id/.test(normalized)) return '<calendar-or-event-id>';
+  if (/(query|search|q|filter)/.test(normalized)) return capability.startsWith('calendar') ? 'today' : 'is:unread newer_than:7d';
+  if (/(mailbox|folder|label)/.test(normalized)) return capability.startsWith('calendar') ? '<calendar-name>' : '<mailbox-or-label>';
+  if (/(calendar|account|profile)/.test(normalized)) return '<account-or-calendar>';
+  if (/(subject|title|summary)/.test(normalized)) return '<reviewed subject>';
+  if (/(body|text|message|content|reply|draft|description|note)/.test(normalized)) return '<reviewed draft text>';
+  if (/(attendee|participant|invitee)/.test(normalized)) return ['<attendee@example.com>'];
+  return `<${field}>`;
+}
+
+function sampleInputForFields(
+  requiredFields: readonly string[],
+  optionalFields: readonly string[],
+  capability: string,
+  effect: PersonalOpsConnectorTool['effect'],
+): Readonly<Record<string, unknown>> {
+  const fields = [...requiredFields, ...optionalFields.slice(0, Math.max(0, 4 - requiredFields.length))];
+  const sample: Record<string, unknown> = {};
+  for (const field of fields) sample[field] = sampleFieldValue(field, capability, effect);
+  return sample;
+}
+
+function summarizeInputSchema(
+  qualifiedName: string,
+  inputSchema: unknown,
+  capability: string,
+  effect: PersonalOpsConnectorTool['effect'],
+): McpSchemaSummary | null {
+  const schema = schemaObject(inputSchema);
+  if (!schema) return null;
+  const requiredFields = schemaRequiredFields(schema);
+  const optionalFields = schemaOptionalFields(schema, requiredFields);
+  return {
+    schemaRoute: `mcp schema qualifiedName:"${qualifiedName}"`,
+    requiredFields,
+    optionalFields,
+    sampleInput: sampleInputForFields(requiredFields, optionalFields, capability, effect),
+  };
+}
+
+async function mcpToolSchemas(
+  context: CommandContext,
+  tools: readonly McpToolRecord[],
+): Promise<ReadonlyMap<string, McpToolSchema>> {
+  const readSchema = mcpSchemaReader(context);
+  if (!readSchema) return new Map();
+  const schemas = new Map<string, McpToolSchema>();
+  const candidates = tools.filter(isPersonalOpsTool).slice(0, 50);
+  for (const tool of candidates) {
+    const qualifiedName = qualifiedToolName(tool);
+    try {
+      const schema = await readSchema(qualifiedName);
+      if (schema) schemas.set(qualifiedName, schema);
+    } catch {
+      // Schema lookup is best-effort. Personal Ops must keep connector readiness usable even when one MCP server fails schema expansion.
+    }
+  }
+  return schemas;
+}
+
 function toolsByServer(tools: readonly McpToolRecord[]): ReadonlyMap<string, readonly McpToolRecord[]> {
   const grouped = new Map<string, McpToolRecord[]>();
   for (const tool of tools) {
@@ -190,6 +318,7 @@ function toolCapability(tool: McpToolRecord, lane: 'inbox' | 'calendar'): Person
   const text = [tool.toolName, tool.description ?? ''].join(' ').toLowerCase();
   const record = (effect: PersonalOpsConnectorTool['effect'], capability: string): PersonalOpsConnectorTool => ({
     name: tool.toolName,
+    qualifiedName: qualifiedToolName(tool),
     ...(tool.description ? { description: tool.description } : {}),
     effect,
     capability,
@@ -227,12 +356,32 @@ function connectorToolSummary(tools: readonly McpToolRecord[], lane: 'inbox' | '
   return { readTools, writeTools, capabilityTags };
 }
 
+function enrichConnectorToolsWithSchemas(
+  tools: readonly PersonalOpsConnectorTool[],
+  schemasByQualifiedName: ReadonlyMap<string, McpToolSchema>,
+): readonly PersonalOpsConnectorTool[] {
+  return tools.map((tool) => {
+    if (!tool.qualifiedName) return tool;
+    const schema = schemasByQualifiedName.get(tool.qualifiedName);
+    const summary = summarizeInputSchema(tool.qualifiedName, schema?.inputSchema, tool.capability, tool.effect);
+    if (!summary) return tool;
+    return {
+      ...tool,
+      schemaRoute: summary.schemaRoute,
+      requiredFields: summary.requiredFields,
+      optionalFields: summary.optionalFields,
+      sampleInput: summary.sampleInput,
+    };
+  });
+}
+
 function connectorSignalsMatching(
   context: CommandContext,
   tokens: readonly string[],
   options: {
     readonly lane: 'inbox' | 'calendar';
     readonly toolsByServer: ReadonlyMap<string, readonly McpToolRecord[]>;
+    readonly schemasByQualifiedName: ReadonlyMap<string, McpToolSchema>;
   },
 ): readonly PersonalOpsConnectorSignal[] {
   if (tokens.length === 0) return [];
@@ -245,6 +394,8 @@ function connectorSignalsMatching(
       const ready = server.connected && server.schemaFreshness === 'fresh' && server.trustMode !== 'blocked';
       const serverTools = options.toolsByServer.get(server.name) ?? [];
       const toolSummary = connectorToolSummary(serverTools, options.lane);
+      const readTools = enrichConnectorToolsWithSchemas(toolSummary.readTools, options.schemasByQualifiedName);
+      const writeTools = enrichConnectorToolsWithSchemas(toolSummary.writeTools, options.schemasByQualifiedName);
       return {
         id: `mcp:${server.name}`,
         kind: 'mcp-server' as const,
@@ -258,8 +409,8 @@ function connectorSignalsMatching(
         modelRoute: `agent_harness mode:"mcp_server" mcpServerId:"${server.name}"`,
         toolCount: serverTools.length,
         capabilityTags: toolSummary.capabilityTags,
-        ...(toolSummary.readTools.length > 0 ? { readTools: toolSummary.readTools.slice(0, 8) } : {}),
-        ...(toolSummary.writeTools.length > 0 ? { writeTools: toolSummary.writeTools.slice(0, 8) } : {}),
+        ...(readTools.length > 0 ? { readTools: readTools.slice(0, 8) } : {}),
+        ...(writeTools.length > 0 ? { writeTools: writeTools.slice(0, 8) } : {}),
       };
     })
     .sort((left, right) => left.label.localeCompare(right.label));
@@ -460,6 +611,13 @@ function describeLiveRecord(record: PersonalOpsLiveRecord, includeParameters: bo
     userRoute: previewHarnessText(record.userRoute, includeParameters ? 140 : 96),
     modelRoute: previewHarnessText(record.modelRoute, includeParameters ? 140 : 96),
     ...(record.tags && record.tags.length > 0 ? { tags: record.tags.slice(0, includeParameters ? 12 : 4) } : {}),
+    ...(includeParameters && record.effect ? { effect: record.effect } : {}),
+    ...(includeParameters && record.capability ? { capability: record.capability } : {}),
+    ...(includeParameters && record.qualifiedName ? { qualifiedName: record.qualifiedName } : {}),
+    ...(includeParameters && record.requiredFields ? { requiredFields: record.requiredFields } : {}),
+    ...(includeParameters && record.optionalFields ? { optionalFields: record.optionalFields.slice(0, 12) } : {}),
+    ...(includeParameters && record.sampleInput ? { sampleInput: record.sampleInput } : {}),
+    ...(includeParameters && typeof record.confirmationRequired === 'boolean' ? { confirmationRequired: record.confirmationRequired } : {}),
   };
 }
 
@@ -556,27 +714,60 @@ function channelRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSn
 }
 
 function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLabel: string): readonly PersonalOpsLiveRecord[] {
-  return signals.map((signal) => ({
-    id: signal.id,
-    label: `${laneLabel} connector: ${signal.label}`,
-    status: signal.status,
-    summary: [
-      signal.summary,
-      signal.capabilityTags.length > 0 ? `capabilities ${signal.capabilityTags.join(', ')}` : '',
-    ].filter(Boolean).join('; '),
-    userRoute: 'Agent Workspace -> Tools & MCP',
-    modelRoute: signal.modelRoute,
-    tags: ['connector', signal.kind, ...signal.capabilityTags],
-  }));
+  return signals.flatMap((signal) => {
+    const summaryRecord: PersonalOpsLiveRecord = {
+      id: signal.id,
+      label: `${laneLabel} connector: ${signal.label}`,
+      status: signal.status,
+      summary: [
+        signal.summary,
+        signal.capabilityTags.length > 0 ? `capabilities ${signal.capabilityTags.join(', ')}` : '',
+      ].filter(Boolean).join('; '),
+      userRoute: 'Agent Workspace -> Tools & MCP',
+      modelRoute: signal.modelRoute,
+      tags: ['connector', signal.kind, ...signal.capabilityTags],
+    };
+    const operationTools = [...(signal.readTools ?? []), ...(signal.writeTools ?? [])];
+    const operationRecords: PersonalOpsLiveRecord[] = operationTools
+      .slice(0, 8)
+      .map((tool) => ({
+        id: tool.qualifiedName ?? `${signal.id}:${tool.name}`,
+        label: `${laneLabel} ${tool.effect === 'read-only' ? 'read' : 'confirmed action'}: ${tool.name}`,
+        status: signal.status,
+        summary: [
+          `${tool.effect === 'read-only' ? 'Read-only' : 'Write-like'} ${tool.capability} MCP route.`,
+          tool.requiredFields && tool.requiredFields.length > 0 ? `required fields ${tool.requiredFields.join(', ')}` : 'schema fields unknown until inspected',
+          tool.description ?? '',
+        ].filter(Boolean).join(' '),
+        userRoute: 'Agent Workspace -> Tools & MCP -> Tool schema',
+        modelRoute: tool.schemaRoute ?? signal.modelRoute,
+        tags: ['connector-operation', signal.kind, tool.capability, tool.effect],
+        effect: tool.effect,
+        capability: tool.capability,
+        ...(tool.qualifiedName ? { qualifiedName: tool.qualifiedName } : {}),
+        ...(tool.requiredFields ? { requiredFields: tool.requiredFields } : {}),
+        ...(tool.optionalFields ? { optionalFields: tool.optionalFields } : {}),
+        ...(tool.sampleInput ? { sampleInput: tool.sampleInput } : {}),
+        confirmationRequired: tool.effect === 'confirmed-effect',
+      }));
+    return [summaryRecord, ...operationRecords];
+  });
 }
 
-function buildLanes(context: CommandContext, options: { readonly toolsByServer?: ReadonlyMap<string, readonly McpToolRecord[]> } = {}): readonly PersonalOpsLane[] {
+function buildLanes(
+  context: CommandContext,
+  options: {
+    readonly toolsByServer?: ReadonlyMap<string, readonly McpToolRecord[]>;
+    readonly schemasByQualifiedName?: ReadonlyMap<string, McpToolSchema>;
+  } = {},
+): readonly PersonalOpsLane[] {
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
   const emailMethods = methodIdsMatching(['email', 'mail', 'imap', 'smtp']);
   const calendarMethods = methodIdsMatching(['calendar', 'caldav', 'agenda']);
   const toolsByName = options.toolsByServer ?? new Map<string, readonly McpToolRecord[]>();
-  const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail'], { lane: 'inbox', toolsByServer: toolsByName });
-  const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda'], { lane: 'calendar', toolsByServer: toolsByName });
+  const schemasByQualifiedName = options.schemasByQualifiedName ?? new Map<string, McpToolSchema>();
+  const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail'], { lane: 'inbox', toolsByServer: toolsByName, schemasByQualifiedName });
+  const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda'], { lane: 'calendar', toolsByServer: toolsByName, schemasByQualifiedName });
   const taskMethods = methodIdsMatching(['task', 'work-plan', 'workplan']);
   const scheduleMethods = methodIdsMatching(['schedule', 'reminder']);
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
@@ -597,12 +788,12 @@ function buildLanes(context: CommandContext, options: { readonly toolsByServer?:
       current: emailMethods.length > 0
         ? 'The daemon contract exposes email-like methods; Personal Ops workflow cards now guide inbox triage and draft boundaries around exact methods.'
         : emailConnectors.length > 0
-          ? 'A configured MCP connector looks email-capable; Personal Ops workflow cards now guide inbox triage and draft boundaries around its exact tools.'
+          ? 'A configured MCP connector looks email-capable; Personal Ops workflow cards now guide inbox triage, schema-derived operation records, and draft boundaries around its exact tools.'
         : 'No email/IMAP/SMTP methods are present in the current GoodVibes SDK operator contract.',
       next: emailMethods.length > 0
         ? 'Use the inbox workflow cards to inspect exact methods, read selected threads, summarize priorities, and keep send as a separate confirmation.'
         : emailConnectors.length > 0
-          ? 'Use the inbox workflow cards to inspect matching MCP connector schemas, then route triage only through reviewed connector actions.'
+          ? 'Use the inbox workflow cards and operation records to inspect matching MCP connector schemas, then route triage only through reviewed connector actions.'
         : 'Install or build an email connector/MCP/plugin, then expose triage and draft-reply actions here.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
       modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'agent_harness mode:"operator_methods" query:"email"',
@@ -624,12 +815,12 @@ function buildLanes(context: CommandContext, options: { readonly toolsByServer?:
       current: calendarMethods.length > 0
         ? 'The daemon contract exposes calendar-like methods; Personal Ops workflow cards now guide agenda briefing and conflict-scan boundaries.'
         : calendarConnectors.length > 0
-          ? 'A configured MCP connector looks calendar-capable; Personal Ops workflow cards now guide agenda briefing and conflict-scan boundaries around its exact tools.'
+          ? 'A configured MCP connector looks calendar-capable; Personal Ops workflow cards now guide agenda briefing, schema-derived operation records, and conflict-scan boundaries around its exact tools.'
         : 'No calendar/CalDAV/agenda methods are present in the current GoodVibes SDK operator contract.',
       next: calendarMethods.length > 0
         ? 'Use the calendar workflow cards to inspect exact methods, fetch a bounded agenda window, and propose reminders or follow-ups.'
         : calendarConnectors.length > 0
-          ? 'Use the calendar workflow cards to inspect matching MCP connector schemas, then route agenda work only through reviewed connector actions.'
+          ? 'Use the calendar workflow cards and operation records to inspect matching MCP connector schemas, then route agenda work only through reviewed connector actions.'
         : 'Add a CalDAV/calendar connector and route agenda briefing, conflicts, and reminders through this lane.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
       modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'agent_harness mode:"operator_methods" query:"calendar"',
@@ -761,8 +952,11 @@ export function personalOpsCatalogStatus(context: CommandContext): Record<string
 
 export async function personalOpsSummary(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Promise<Record<string, unknown>> {
   const includeParameters = args.includeParameters === true;
+  const tools = includeParameters ? await mcpToolRecords(context) : [];
+  const schemasByQualifiedName = includeParameters ? await mcpToolSchemas(context, tools) : new Map<string, McpToolSchema>();
   const lanes = buildLanes(context, {
-    toolsByServer: toolsByServer(includeParameters ? await mcpToolRecords(context) : []),
+    toolsByServer: toolsByServer(tools),
+    schemasByQualifiedName,
   });
   const workflows = lanes.flatMap((lane) => lane.workflows ?? []);
   return {
@@ -775,7 +969,7 @@ export async function personalOpsSummary(context: CommandContext, args: AgentHar
       attention: workflows.filter((workflow) => workflow.status === 'attention').length,
       needsSetup: workflows.filter((workflow) => workflow.status === 'needs-setup').length,
     },
-    policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Lanes include live records when Agent owns them. Missing email/calendar connectors are reported as setup gaps, not faked.',
+    policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Lanes include live records when Agent owns them and schema-derived connector operation records when MCP schemas are available. Missing email/calendar connectors, messages, and events are reported as setup/data gaps, not faked.',
     nextActions: nextActions(lanes),
   };
 }
@@ -792,7 +986,8 @@ export async function describePersonalOpsLane(context: CommandContext, args: Age
     };
   }
   const normalized = input.toLowerCase();
-  const lanes = buildLanes(context, { toolsByServer: toolsByServer(await mcpToolRecords(context)) });
+  const tools = await mcpToolRecords(context);
+  const lanes = buildLanes(context, { toolsByServer: toolsByServer(tools), schemasByQualifiedName: await mcpToolSchemas(context, tools) });
   const exact = lanes.find((lane) => lane.id === normalized);
   if (exact) return { status: 'found', lane: describeLane(exact, true) };
   const matches = lanes.filter((lane) => searchText(lane).includes(normalized));

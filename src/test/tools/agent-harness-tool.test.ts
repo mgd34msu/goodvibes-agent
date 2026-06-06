@@ -956,10 +956,14 @@ describe('agent_harness tool', () => {
       const mcpApi = fixture.context.clients?.mcpApi as {
         listServerSecurity: () => readonly unknown[];
         listAllTools?: () => Promise<readonly {
+          readonly qualifiedName?: string;
           readonly serverName: string;
           readonly toolName: string;
           readonly description?: string;
         }[]>;
+        getToolSchema?: (qualifiedName: string) => Promise<{
+          readonly inputSchema?: unknown;
+        } | null>;
       };
       mcpApi.listServerSecurity = () => [
         {
@@ -998,31 +1002,105 @@ describe('agent_harness tool', () => {
       ];
       mcpApi.listAllTools = async () => [
         {
+          qualifiedName: 'mcp:gmail-inbox:gmail.search_messages',
           serverName: 'gmail-inbox',
           toolName: 'gmail.search_messages',
           description: 'Search unread email messages and threads.',
         },
         {
+          qualifiedName: 'mcp:gmail-inbox:gmail.get_thread',
           serverName: 'gmail-inbox',
           toolName: 'gmail.get_thread',
           description: 'Read one email thread by id.',
         },
         {
+          qualifiedName: 'mcp:gmail-inbox:gmail.send_reply',
           serverName: 'gmail-inbox',
           toolName: 'gmail.send_reply',
           description: 'Send a reply to an email thread.',
         },
         {
+          qualifiedName: 'mcp:caldav-agenda:caldav.list_events',
           serverName: 'caldav-agenda',
           toolName: 'caldav.list_events',
           description: 'List upcoming calendar events.',
         },
         {
+          qualifiedName: 'mcp:caldav-agenda:caldav.update_event',
           serverName: 'caldav-agenda',
           toolName: 'caldav.update_event',
           description: 'Edit or reschedule a calendar event.',
         },
       ];
+      mcpApi.getToolSchema = async (qualifiedName) => {
+        if (qualifiedName === 'mcp:gmail-inbox:gmail.search_messages') {
+          return {
+            inputSchema: {
+              type: 'object',
+              required: ['query'],
+              properties: {
+                query: { type: 'string' },
+                limit: { type: 'number' },
+                mailbox: { type: 'string' },
+                unreadOnly: { type: 'boolean' },
+              },
+            },
+          };
+        }
+        if (qualifiedName === 'mcp:gmail-inbox:gmail.get_thread') {
+          return {
+            inputSchema: {
+              type: 'object',
+              required: ['threadId'],
+              properties: {
+                threadId: { type: 'string' },
+                includeAttachments: { type: 'boolean' },
+              },
+            },
+          };
+        }
+        if (qualifiedName === 'mcp:gmail-inbox:gmail.send_reply') {
+          return {
+            inputSchema: {
+              type: 'object',
+              required: ['threadId', 'body'],
+              properties: {
+                threadId: { type: 'string' },
+                body: { type: 'string' },
+                dryRun: { type: 'boolean' },
+              },
+            },
+          };
+        }
+        if (qualifiedName === 'mcp:caldav-agenda:caldav.list_events') {
+          return {
+            inputSchema: {
+              type: 'object',
+              required: ['start', 'end'],
+              properties: {
+                start: { type: 'string' },
+                end: { type: 'string' },
+                calendarId: { type: 'string' },
+              },
+            },
+          };
+        }
+        if (qualifiedName === 'mcp:caldav-agenda:caldav.update_event') {
+          return {
+            inputSchema: {
+              type: 'object',
+              required: ['eventId'],
+              properties: {
+                eventId: { type: 'string' },
+                title: { type: 'string' },
+                start: { type: 'string' },
+                end: { type: 'string' },
+              },
+            },
+          };
+        }
+        return null;
+      };
 
       const ops = await executeHarnessJson<{
         readonly workflowSummary: { readonly ready: number; readonly attention: number };
@@ -1046,13 +1124,33 @@ describe('agent_harness tool', () => {
             readonly modelRoute: string;
             readonly toolCount: number;
             readonly capabilityTags?: readonly string[];
-            readonly readTools?: readonly { readonly name: string; readonly capability: string }[];
-            readonly writeTools?: readonly { readonly name: string; readonly effect: string }[];
+            readonly readTools?: readonly {
+              readonly name: string;
+              readonly qualifiedName?: string;
+              readonly capability: string;
+              readonly schemaRoute?: string;
+              readonly requiredFields?: readonly string[];
+              readonly sampleInput?: Record<string, unknown>;
+            }[];
+            readonly writeTools?: readonly {
+              readonly name: string;
+              readonly effect: string;
+              readonly schemaRoute?: string;
+              readonly requiredFields?: readonly string[];
+              readonly sampleInput?: Record<string, unknown>;
+            }[];
           }[];
           readonly liveRecords?: readonly {
             readonly id: string;
+            readonly label?: string;
             readonly status: string;
             readonly modelRoute: string;
+            readonly effect?: string;
+            readonly capability?: string;
+            readonly qualifiedName?: string;
+            readonly requiredFields?: readonly string[];
+            readonly sampleInput?: Record<string, unknown>;
+            readonly confirmationRequired?: boolean;
           }[];
         }[];
       }>(fixture, { mode: 'personal_ops', includeParameters: true });
@@ -1070,7 +1168,14 @@ describe('agent_harness tool', () => {
       expect(inbox?.connectorSignals?.[0]?.toolCount).toBe(3);
       expect(inbox?.connectorSignals?.[0]?.capabilityTags).toEqual(['inbox-read', 'inbox-write']);
       expect(inbox?.connectorSignals?.[0]?.readTools?.map((tool) => tool.name)).toEqual(['gmail.get_thread', 'gmail.search_messages']);
+      expect(inbox?.connectorSignals?.[0]?.readTools?.[1]?.qualifiedName).toBe('mcp:gmail-inbox:gmail.search_messages');
+      expect(inbox?.connectorSignals?.[0]?.readTools?.[1]?.schemaRoute).toContain('mcp:gmail-inbox:gmail.search_messages');
+      expect(inbox?.connectorSignals?.[0]?.readTools?.[1]?.requiredFields).toEqual(['query']);
+      expect(inbox?.connectorSignals?.[0]?.readTools?.[1]?.sampleInput?.query).toBe('is:unread newer_than:7d');
       expect(inbox?.connectorSignals?.[0]?.writeTools?.[0]?.name).toBe('gmail.send_reply');
+      expect(inbox?.connectorSignals?.[0]?.writeTools?.[0]?.schemaRoute).toContain('mcp:gmail-inbox:gmail.send_reply');
+      expect(inbox?.connectorSignals?.[0]?.writeTools?.[0]?.requiredFields).toEqual(['body', 'threadId']);
+      expect(inbox?.connectorSignals?.[0]?.writeTools?.[0]?.sampleInput?.body).toBe('<reviewed draft text>');
       expect(inbox?.workflows?.[0]?.id).toBe('inbox-triage-briefing');
       expect(inbox?.workflows?.[0]?.status).toBe('ready');
       expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');
@@ -1078,13 +1183,31 @@ describe('agent_harness tool', () => {
       expect(inbox?.workflows?.[1]?.runBoundary).toContain('sending');
       expect(inbox?.workflows?.[1]?.prerequisites?.join('\n')).toContain('write-like inbox tool');
       expect(inbox?.liveRecords?.[0]?.id).toBe('mcp:gmail-inbox');
+      const inboxSearchRecord = inbox?.liveRecords?.find((record) => record.id === 'mcp:gmail-inbox:gmail.search_messages');
+      expect(inboxSearchRecord?.label).toContain('Inbox read');
+      expect(inboxSearchRecord?.modelRoute).toContain('mcp schema');
+      expect(inboxSearchRecord?.effect).toBe('read-only');
+      expect(inboxSearchRecord?.capability).toBe('inbox-read');
+      expect(inboxSearchRecord?.requiredFields).toEqual(['query']);
+      expect(inboxSearchRecord?.sampleInput?.query).toBe('is:unread newer_than:7d');
+      expect(inboxSearchRecord?.confirmationRequired).toBe(false);
+      const inboxSendRecord = inbox?.liveRecords?.find((record) => record.id === 'mcp:gmail-inbox:gmail.send_reply');
+      expect(inboxSendRecord?.effect).toBe('confirmed-effect');
+      expect(inboxSendRecord?.confirmationRequired).toBe(true);
+      expect(inboxSendRecord?.sampleInput?.body).toBe('<reviewed draft text>');
 
       expect(calendar?.status).toBe('partial');
       expect(calendar?.connectorSignals?.[0]?.id).toBe('mcp:caldav-agenda');
       expect(calendar?.connectorSignals?.[0]?.status).toBe('attention');
       expect(calendar?.connectorSignals?.[0]?.capabilityTags).toEqual(['calendar-read', 'calendar-write']);
+      expect(calendar?.connectorSignals?.[0]?.readTools?.[0]?.schemaRoute).toContain('mcp:caldav-agenda:caldav.list_events');
+      expect(calendar?.connectorSignals?.[0]?.readTools?.[0]?.requiredFields).toEqual(['end', 'start']);
       expect(calendar?.workflows?.[0]?.status).toBe('attention');
       expect(calendar?.workflows?.[0]?.prerequisites?.join('\n')).toContain('trust/schema');
+      const agendaRecord = calendar?.liveRecords?.find((record) => record.id === 'mcp:caldav-agenda:caldav.list_events');
+      expect(agendaRecord?.modelRoute).toContain('mcp schema');
+      expect(agendaRecord?.requiredFields).toEqual(['end', 'start']);
+      expect(agendaRecord?.sampleInput?.start).toBe('<start-iso>');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
