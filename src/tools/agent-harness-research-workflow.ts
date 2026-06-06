@@ -1,0 +1,240 @@
+import type { CommandContext } from '../input/command-registry.ts';
+import {
+  AgentResearchRunRegistry,
+  researchRunLogTail,
+  researchRunReportLine,
+  type AgentResearchRunRecord,
+} from '../agent/research-run-registry.ts';
+import {
+  AgentResearchSourceRegistry,
+  researchSourceReportLine,
+  type AgentResearchSourceRecord,
+} from '../agent/research-source-registry.ts';
+import { browserControlPosture } from './agent-harness-browser-control.ts';
+import { previewHarnessText } from './agent-harness-text.ts';
+
+interface AgentHarnessResearchWorkflowArgs {
+  readonly query?: unknown;
+  readonly target?: unknown;
+  readonly runId?: unknown;
+  readonly includeParameters?: unknown;
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function quote(value: string): string {
+  return JSON.stringify(value);
+}
+
+function fallbackTitle(question: string): string {
+  const cleaned = question.trim().replace(/\s+/g, ' ');
+  if (!cleaned) return 'Deep research run';
+  return cleaned.length <= 72 ? cleaned : `${cleaned.slice(0, 71).trimEnd()}...`;
+}
+
+function runSearchText(run: AgentResearchRunRecord): string {
+  return [
+    run.id,
+    run.title,
+    run.question,
+    run.goal,
+    run.status,
+    run.phase,
+    run.note ?? '',
+    run.error ?? '',
+    run.reportArtifactId ?? '',
+    ...run.plan,
+    ...run.nextSteps,
+    ...run.sourceIds,
+  ].join('\n').toLowerCase();
+}
+
+function sourceSearchText(source: AgentResearchSourceRecord): string {
+  return [
+    source.id,
+    source.question,
+    source.title,
+    source.url ?? '',
+    source.publisher ?? '',
+    source.summary,
+    source.evidence ?? '',
+    source.credibility,
+    source.status,
+    source.note ?? '',
+    ...source.tags,
+  ].join('\n').toLowerCase();
+}
+
+function resolveRun(runs: readonly AgentResearchRunRecord[], input: string): AgentResearchRunRecord | null {
+  const normalized = input.toLowerCase();
+  if (!normalized) {
+    return runs.find((run) => run.status === 'running' || run.status === 'blocked' || run.status === 'paused' || run.status === 'planned') ?? null;
+  }
+  return runs.find((run) => run.id.toLowerCase() === normalized || run.title.toLowerCase() === normalized)
+    ?? runs.find((run) => runSearchText(run).includes(normalized))
+    ?? null;
+}
+
+function relatedSources(
+  sources: readonly AgentResearchSourceRecord[],
+  run: AgentResearchRunRecord | null,
+  question: string,
+): readonly AgentResearchSourceRecord[] {
+  const sourceIds = new Set(run?.sourceIds.map((id) => id.toLowerCase()) ?? []);
+  const query = question.toLowerCase();
+  return sources.filter((source) => (
+    sourceIds.has(source.id.toLowerCase())
+    || (!!query && sourceSearchText(source).includes(query))
+    || (!!run && source.question.toLowerCase() === run.question.toLowerCase())
+  ));
+}
+
+function runSummary(run: AgentResearchRunRecord, includeParameters: boolean): Record<string, unknown> {
+  return {
+    runId: run.id,
+    title: run.title,
+    status: run.status,
+    phase: run.phase,
+    progress: run.progress,
+    sources: run.sourceIds.length,
+    inspectRoute: `agent_harness mode:"research_run" runId:${quote(run.id)}`,
+    checkpointRoute: `agent_research_runs mode:checkpoint id:${quote(run.id)} phase:"reading" progress:${Math.max(run.progress, 25)} note:"..." sourceIds:["..."] confirm:true explicitUserRequest:"..."`,
+    cancelRoute: `agent_research_runs mode:cancel id:${quote(run.id)} note:"..." confirm:true explicitUserRequest:"..."`,
+    completeRoute: `agent_research_runs mode:complete id:${quote(run.id)} reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,
+    runLine: researchRunReportLine(run),
+    ...(includeParameters ? {
+      question: run.question,
+      goal: run.goal,
+      plan: run.plan,
+      nextSteps: run.nextSteps,
+      sourceIds: run.sourceIds,
+      logTail: researchRunLogTail(run, 5),
+    } : {}),
+  };
+}
+
+function sourceSummary(source: AgentResearchSourceRecord): Record<string, unknown> {
+  return {
+    sourceId: source.id,
+    title: source.title,
+    status: source.status,
+    credibility: source.credibility,
+    score: source.score,
+    inspectRoute: `agent_harness mode:"research_source" sourceId:${quote(source.id)}`,
+    reviewRoute: `agent_research_sources mode:review id:${quote(source.id)} credibility:"high|medium|mixed|low" score:80 note:"..." confirm:true explicitUserRequest:"..."`,
+    reportLine: researchSourceReportLine(source),
+  };
+}
+
+export function researchWorkflowSummary(context: CommandContext, args: AgentHarnessResearchWorkflowArgs): Record<string, unknown> {
+  const includeParameters = args.includeParameters === true;
+  const lookup = readString(args.runId) || readString(args.target) || readString(args.query);
+  const shellPaths = context.workspace?.shellPaths;
+  const runs = shellPaths ? AgentResearchRunRegistry.fromShellPaths(shellPaths).list() : [];
+  const sources = shellPaths ? AgentResearchSourceRegistry.fromShellPaths(shellPaths).list() : [];
+  const run = resolveRun(runs, lookup);
+  const question = run?.question || lookup || 'Research question goes here';
+  const title = run?.title || fallbackTitle(question);
+  const matchedSources = relatedSources(sources, run, question);
+  const reviewedSources = matchedSources.filter((source) => source.status === 'reviewed' || source.status === 'used');
+  const candidateSources = matchedSources.filter((source) => source.status === 'candidate');
+  const browser = browserControlPosture(context);
+  const status = !shellPaths
+    ? 'unavailable'
+    : run?.status === 'completed'
+      ? 'report-saved'
+      : reviewedSources.length > 0
+        ? 'ready-to-report'
+        : candidateSources.length > 0
+          ? 'needs-source-review'
+          : run
+            ? 'needs-source-collection'
+            : 'needs-visible-run';
+
+  const createRoute = `agent_research_runs mode:create title:${quote(title)} question:${quote(question)} plan:["Search bounded public web sources","Capture candidate sources","Review credibility and citation value","Save sourced report artifact"] nextSteps:["Run bounded web_search/fetch and capture source candidates"] confirm:true explicitUserRequest:"..."`;
+  const sourceQuery = question;
+  const reportTitle = run ? `${run.title} report` : `${title} report`;
+  const reportRoute = `agent_research_report title:${quote(reportTitle)} question:${quote(question)} sources:[...] requireCitationCoverage:true confirm:true explicitUserRequest:"..."`;
+  const bundleRoute = `agent_research_sources mode:bundle query:${quote(sourceQuery)} includeReportLines:true`;
+
+  return {
+    status,
+    question: previewHarnessText(question, includeParameters ? 220 : 120),
+    ...(run ? { run: runSummary(run, includeParameters) } : {}),
+    sourcePosture: {
+      matched: matchedSources.length,
+      candidates: candidateSources.length,
+      reviewed: reviewedSources.length,
+      used: matchedSources.filter((source) => source.status === 'used').length,
+      queueRoute: `agent_harness mode:"research_queue" query:${quote(sourceQuery)}`,
+      bundleRoute,
+      captureRoute: `agent_research_sources mode:add question:${quote(question)} title:"..." url:"..." summary:"..." credibility:"unreviewed" tags:["research"] confirm:true explicitUserRequest:"..."`,
+      reviewRoute: 'agent_research_sources mode:review id:"..." credibility:"high|medium|mixed|low" score:80 note:"..." confirm:true explicitUserRequest:"..."',
+      reportReadySources: reviewedSources.slice(0, includeParameters ? 8 : 3).map(sourceSummary),
+      candidateSources: candidateSources.slice(0, includeParameters ? 8 : 3).map(sourceSummary),
+    },
+    browserBackedResearch: {
+      status: browser.status,
+      configured: browser.configured,
+      recommendedRoute: browser.recommendedRoute,
+      fallbackRoutes: browser.fallbackRoutes,
+      next: browser.configured
+        ? 'Use reviewed browser/desktop tooling only when live browser state or authenticated pages are necessary.'
+        : 'Use bounded public web_search/fetch routes now; inspect setup before browser-backed execution.',
+    },
+    workflow: [
+      {
+        id: 'visible-run',
+        status: run ? 'ready' : 'needed',
+        next: run ? 'Use the existing visible run record for checkpoints and cancellation.' : 'Create a visible run before multi-step research so the user can inspect or cancel it.',
+        route: run ? `agent_harness mode:"research_run" runId:${quote(run.id)}` : createRoute,
+        confirmationBoundary: run ? 'Read-only inspection unless checkpoint/cancel/complete route is used.' : 'Creates local visible run state only; no web request, report, Knowledge ingest, or delivery.',
+      },
+      {
+        id: 'collect-sources',
+        status: reviewedSources.length > 0 || candidateSources.length > 0 ? 'started' : 'needed',
+        next: browser.configured
+          ? 'Collect bounded sources, preferring primary/current sources, then capture each useful source in the queue.'
+          : 'Use web_search/fetch for public sources and capture each useful source in the queue.',
+        route: 'web_search query:"..." verbosity:"evidence" maxResults:10 evidenceTopN:3 or fetch urls:[...]',
+        captureRoute: `agent_research_sources mode:add question:${quote(question)} title:"..." url:"..." summary:"..." credibility:"unreviewed" tags:["research"] confirm:true explicitUserRequest:"..."`,
+      },
+      {
+        id: 'review-sources',
+        status: candidateSources.length > 0 ? 'needed' : reviewedSources.length > 0 ? 'ready' : 'waiting',
+        next: candidateSources.length > 0 ? 'Review candidate source credibility, score, and citation value.' : 'Wait until sources are captured, then review them before report generation.',
+        route: `agent_harness mode:"research_queue" query:${quote(sourceQuery)} includeParameters:true`,
+        reviewRoute: 'agent_research_sources mode:review id:"..." credibility:"high|medium|mixed|low" score:80 note:"..." confirm:true explicitUserRequest:"..."',
+      },
+      {
+        id: 'save-report',
+        status: reviewedSources.length > 0 ? 'ready' : 'waiting',
+        next: reviewedSources.length > 0 ? 'Use the reviewed-source bundle and save a citation-covered report artifact.' : 'Save the report only after reviewed or used sources exist.',
+        route: reviewedSources.length > 0 ? bundleRoute : `agent_harness mode:"research_queue" query:${quote(sourceQuery)}`,
+        reportRoute,
+      },
+      {
+        id: 'promote-knowledge',
+        status: run?.reportArtifactId ? 'ready' : 'waiting',
+        next: run?.reportArtifactId ? 'Promote the reviewed report artifact only if the user wants it durable in Agent Knowledge.' : 'Wait for a saved report artifact before Knowledge promotion.',
+        route: run?.reportArtifactId
+          ? `agent_knowledge_ingest sourceKind:"artifact" artifactId:${quote(run.reportArtifactId)} confirm:true explicitUserRequest:"..."`
+          : 'agent_knowledge_ingest sourceKind:"artifact" artifactId:"..." confirm:true explicitUserRequest:"..."',
+      },
+    ],
+    routes: {
+      createRun: createRoute,
+      inspectRuns: 'agent_harness mode:"research_runs"',
+      inspectSources: `agent_harness mode:"research_queue" query:${quote(sourceQuery)}`,
+      bundleSources: bundleRoute,
+      saveReport: reportRoute,
+      ...(run ? {
+        checkpointRun: `agent_research_runs mode:checkpoint id:${quote(run.id)} phase:"reading" progress:${Math.max(run.progress, 25)} note:"..." sourceIds:["..."] confirm:true explicitUserRequest:"..."`,
+        completeRun: `agent_research_runs mode:complete id:${quote(run.id)} reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,
+      } : {}),
+    },
+    policy: 'This is a read-only workflow plan. It does not search the web, mutate run/source state, save a report, ingest Knowledge, or send external messages. Use the returned confirmed routes for each separate effect.',
+  };
+}

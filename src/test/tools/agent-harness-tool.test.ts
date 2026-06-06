@@ -2334,6 +2334,80 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('plans a read-only deep research workflow across run, source, report, and Knowledge routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const runRegistry = AgentResearchRunRegistry.fromShellPaths(fixture.paths);
+      const sourceRegistry = AgentResearchSourceRegistry.fromShellPaths(fixture.paths);
+      const run = runRegistry.create({
+        title: 'Browser control research',
+        question: 'How should GoodVibes Agent expose browser-backed research?',
+        goal: 'Produce a sourced implementation plan.',
+        plan: ['Collect current public sources', 'Review source credibility', 'Save a sourced report'],
+        nextSteps: ['Find official browser-control docs'],
+      });
+      const started = runRegistry.start(run.id, 'Starting public source collection.');
+      const candidate = sourceRegistry.create({
+        question: started.question,
+        title: 'Browser automation docs',
+        url: 'https://example.test/browser-automation',
+        publisher: 'Example Docs',
+        summary: 'Browser automation setup and safety guidance.',
+        tags: ['browser', 'research'],
+        provenance: 'test-research-workflow',
+      });
+      const reviewed = sourceRegistry.review(candidate.id, {
+        credibility: 'high',
+        score: 88,
+        note: 'Official-style source useful for report citation.',
+      });
+
+      const workflow = await executeHarnessJson<{
+        readonly status: string;
+        readonly question: string;
+        readonly run?: { readonly runId: string; readonly checkpointRoute: string; readonly completeRoute: string };
+        readonly sourcePosture: {
+          readonly reviewed: number;
+          readonly bundleRoute: string;
+          readonly reportReadySources: readonly { readonly sourceId: string; readonly reportLine: string }[];
+        };
+        readonly browserBackedResearch: { readonly status: string; readonly fallbackRoutes: readonly string[] };
+        readonly workflow: readonly { readonly id: string; readonly status: string; readonly route: string; readonly reportRoute?: string }[];
+        readonly routes: { readonly saveReport: string; readonly completeRun?: string };
+        readonly policy: string;
+      }>(fixture, { mode: 'research_workflow', runId: started.id, includeParameters: true });
+      expect(workflow.status).toBe('ready-to-report');
+      expect(workflow.question).toContain('browser-backed research');
+      expect(workflow.run?.runId).toBe(started.id);
+      expect(workflow.run?.checkpointRoute).toContain('agent_research_runs mode:checkpoint');
+      expect(workflow.run?.completeRoute).toContain('agent_research_runs mode:complete');
+      expect(workflow.sourcePosture.reviewed).toBe(1);
+      expect(workflow.sourcePosture.bundleRoute).toContain('agent_research_sources mode:bundle');
+      expect(workflow.sourcePosture.reportReadySources[0]?.sourceId).toBe(reviewed.id);
+      expect(workflow.sourcePosture.reportReadySources[0]?.reportLine).toContain('Browser automation docs');
+      expect(workflow.browserBackedResearch.status).toBe('setup-needed');
+      expect(workflow.browserBackedResearch.fallbackRoutes.join('\n')).toContain('web-fetch-research');
+      expect(workflow.workflow.map((step) => step.id)).toEqual(['visible-run', 'collect-sources', 'review-sources', 'save-report', 'promote-knowledge']);
+      expect(workflow.workflow.find((step) => step.id === 'save-report')?.status).toBe('ready');
+      expect(workflow.workflow.find((step) => step.id === 'save-report')?.reportRoute).toContain('agent_research_report');
+      expect(workflow.routes.saveReport).toContain('requireCitationCoverage:true');
+      expect(workflow.routes.completeRun).toContain(started.id);
+      expect(workflow.policy).toContain('read-only workflow plan');
+
+      const fresh = await executeHarnessJson<{
+        readonly status: string;
+        readonly workflow: readonly { readonly id: string; readonly status: string; readonly route: string }[];
+        readonly routes: { readonly createRun: string };
+      }>(fixture, { mode: 'research_workflow', query: 'new competitor research request' });
+      expect(fresh.status).toBe('needs-visible-run');
+      expect(fresh.workflow.find((step) => step.id === 'visible-run')?.status).toBe('needed');
+      expect(fresh.workflow.find((step) => step.id === 'visible-run')?.route).toContain('agent_research_runs mode:create');
+      expect(fresh.routes.createRun).toContain('new competitor research request');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes Document Ops readiness with an honest blind comparison runner', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });

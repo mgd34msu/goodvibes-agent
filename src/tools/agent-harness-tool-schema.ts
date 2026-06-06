@@ -12,7 +12,7 @@ export const AGENT_HARNESS_MODES = [
   'personal_ops', 'personal_ops_lane',
   'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
   'learning_curator', 'learning_candidate',
-  'research_runs', 'research_run',
+  'research_workflow', 'research_runs', 'research_run',
   'research_queue', 'research_source',
   'document_ops', 'document_ops_lane',
   'pairing_posture', 'pairing_route',

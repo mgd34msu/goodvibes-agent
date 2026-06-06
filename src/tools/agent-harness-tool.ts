@@ -39,6 +39,7 @@ import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerA
 import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
 import { describeHarnessReleaseReadinessItem, releaseReadinessInventoryStatus, releaseReadinessSummary } from './agent-harness-release-readiness.ts';
 import { describeResearchRun, researchRunsCatalogStatus, researchRunsSummary } from './agent-harness-research-runs.ts';
+import { researchWorkflowSummary } from './agent-harness-research-workflow.ts';
 import { describeResearchSource, researchQueueCatalogStatus, researchQueueSummary } from './agent-harness-research-queue.ts';
 import { describeHarnessSecurityFinding, describeHarnessSupportBundle, securityPostureCatalogStatus, securityPostureSummary, supportBundleCatalogStatus, supportBundleSummary } from './agent-harness-security-posture.ts';
 import { describeHarnessSession, sessionCatalogStatus, sessionSummary } from './agent-harness-session-metadata.ts';
@@ -189,6 +190,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use live records and returned routes for personal ops.',
     autonomyQueue: 'Start mode:"autonomy_intake" for ongoing-work requests; list mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay confirmed.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
+    researchWorkflow: 'Start mode:"research_workflow" for deep-research route planning; it sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
     researchRuns: 'List mode:"research_runs"; inspect mode:"research_run"; checkpoint/cancel/complete uses agent_research_runs, reports use agent_research_report.',
     researchQueue: 'List mode:"research_queue"; inspect mode:"research_source"; capture/review uses agent_research_sources, reports use agent_research_report, ingest uses agent_knowledge_ingest.',
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare.',
@@ -1138,6 +1140,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous learning candidate ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
+        if (args.mode === 'research_workflow') return output(researchWorkflowSummary(deps.commandContext, args));
         if (args.mode === 'research_runs') return output(researchRunsSummary(deps.commandContext, args));
         if (args.mode === 'research_run') {
           const resolved = describeResearchRun(deps.commandContext, args);
