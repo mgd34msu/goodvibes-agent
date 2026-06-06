@@ -36,6 +36,7 @@ interface CitationCoverage {
   readonly citedSourceIds: readonly string[];
   readonly missingSourceIds: readonly string[];
   readonly unknownCitationIds: readonly string[];
+  readonly repairSuggestions: readonly string[];
   readonly coverageRatio: number;
   readonly pass: boolean;
 }
@@ -191,11 +192,18 @@ function citationCoverage(args: AgentResearchReportToolArgs, sources: readonly R
   const citedSourceIds = sourceIds.filter((id) => cited.has(id));
   const missingSourceIds = sourceIds.filter((id) => !cited.has(id));
   const unknownCitationIds = Array.from(unknown).sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  const sourceTitleById = new Map(sourceIds.map((id, index) => [id, sources[index]?.title ?? id]));
+  const validRange = sourceIds.length > 1 ? `${sourceIds[0]}-${sourceIds[sourceIds.length - 1]}` : sourceIds[0] ?? '(none)';
+  const repairSuggestions = [
+    ...missingSourceIds.map((id) => `Add body citation for ${id} (${sourceTitleById.get(id) ?? id}).`),
+    ...unknownCitationIds.map((id) => `Replace or remove unknown citation ${id}. Valid source ids are ${validRange}.`),
+  ];
   return {
     sourceCount: sourceIds.length,
     citedSourceIds,
     missingSourceIds,
     unknownCitationIds,
+    repairSuggestions,
     coverageRatio: sourceIds.length > 0 ? Number((citedSourceIds.length / sourceIds.length).toFixed(3)) : 1,
     pass: missingSourceIds.length === 0 && unknownCitationIds.length === 0,
   };
@@ -209,6 +217,7 @@ function citationCoverageSection(coverage: CitationCoverage): string {
     `- Cited in body: ${coverage.citedSourceIds.join(', ') || '(none)'}`,
     `- Uncited in body: ${coverage.missingSourceIds.join(', ') || '(none)'}`,
     `- Unknown citations: ${coverage.unknownCitationIds.join(', ') || '(none)'}`,
+    `- Repair suggestions: ${coverage.repairSuggestions.join(' ') || '(none)'}`,
     '',
   ].join('\n');
 }
@@ -284,7 +293,10 @@ async function saveResearchReport(
   }
   const coverage = citationCoverage(args, sources);
   if (readBoolean(args.requireCitationCoverage) && !coverage.pass) {
-    throw new Error(`Citation coverage check failed. Missing body citations: ${coverage.missingSourceIds.join(', ') || '(none)'}. Unknown citations: ${coverage.unknownCitationIds.join(', ') || '(none)'}.`);
+    throw new Error([
+      `Citation coverage check failed. Missing body citations: ${coverage.missingSourceIds.join(', ') || '(none)'}. Unknown citations: ${coverage.unknownCitationIds.join(', ') || '(none)'}.`,
+      `Repair suggestions: ${coverage.repairSuggestions.join(' ') || '(none)'}`,
+    ].join('\n'));
   }
   const markdown = buildMarkdown(args, sources);
   if (markdown.length > MAX_REPORT_CHARS) throw new Error(`Research report is too large (${markdown.length} chars). Keep it under ${MAX_REPORT_CHARS}.`);
@@ -319,6 +331,7 @@ function coverageFromMetadata(metadata: ArtifactDescriptor['metadata']): Citatio
     citedSourceIds: Array.isArray(record.citedSourceIds) ? record.citedSourceIds.filter((entry): entry is string => typeof entry === 'string') : [],
     missingSourceIds: Array.isArray(record.missingSourceIds) ? record.missingSourceIds.filter((entry): entry is string => typeof entry === 'string') : [],
     unknownCitationIds: Array.isArray(record.unknownCitationIds) ? record.unknownCitationIds.filter((entry): entry is string => typeof entry === 'string') : [],
+    repairSuggestions: Array.isArray(record.repairSuggestions) ? record.repairSuggestions.filter((entry): entry is string => typeof entry === 'string') : [],
     coverageRatio: typeof record.coverageRatio === 'number' ? record.coverageRatio : 0,
     pass: record.pass === true,
   };
@@ -381,7 +394,7 @@ export function createAgentResearchReportTool(
       try {
         const descriptor = await saveResearchReport(artifactStore, args);
         const coverage = coverageFromMetadata(descriptor.metadata);
-        return output([
+        const lines = [
           'Saved Agent research report artifact',
           `  artifact ${descriptor.id}`,
           `  filename ${descriptor.filename ?? '(none)'}`,
@@ -389,10 +402,12 @@ export function createAgentResearchReportTool(
           `  mime ${descriptor.mimeType}`,
           `  sources ${readSources(args.sources).length}`,
           coverage ? `  citationCoverage ${coverage.citedSourceIds.length}/${coverage.sourceCount} cited; uncited ${coverage.missingSourceIds.length}; unknown ${coverage.unknownCitationIds.length}` : '',
+          coverage && coverage.repairSuggestions.length > 0 ? `  citationRepair ${coverage.repairSuggestions.join(' ')}` : '',
           `  sha256 ${descriptor.sha256}`,
           '  policy sourced markdown saved as artifact; content not printed',
           `  inspect agent_artifacts mode:"show" artifactId:"${descriptor.id}" includeContent:true`,
-        ].join('\n'));
+        ].filter(Boolean);
+        return output(lines.join('\n'));
       } catch (error) {
         return failure(error instanceof Error ? error.message : String(error));
       }

@@ -82,6 +82,7 @@ describe('agent_research_report tool', () => {
         citedSourceIds: ['S1', 'S2'],
         missingSourceIds: [],
         unknownCitationIds: [],
+        repairSuggestions: [],
         coverageRatio: 1,
         pass: true,
       },
@@ -92,6 +93,7 @@ describe('agent_research_report tool', () => {
     expect(content).toContain('# Local Model Options');
     expect(content).toContain('## Citation Coverage');
     expect(content).toContain('Cited in body: S1, S2');
+    expect(content).toContain('Repair suggestions: (none)');
     expect(content).toContain('## Source Map');
     expect(content).toContain('[S1] Ollama docs');
     expect(content).toContain('token=%3Credacted%3E');
@@ -142,12 +144,17 @@ describe('agent_research_report tool', () => {
     });
     expect(loose.success).toBe(true);
     expect(loose.output).toContain('citationCoverage 1/2 cited; uncited 1; unknown 1');
+    expect(loose.output).toContain('citationRepair Add body citation for S2 (Source two). Replace or remove unknown citation S3. Valid source ids are S1-S2.');
     expect(store.records[0]?.metadata).toMatchObject({
       citationCoverage: {
         sourceCount: 2,
         citedSourceIds: ['S1'],
         missingSourceIds: ['S2'],
         unknownCitationIds: ['S3'],
+        repairSuggestions: [
+          'Add body citation for S2 (Source two).',
+          'Replace or remove unknown citation S3. Valid source ids are S1-S2.',
+        ],
         coverageRatio: 0.5,
         pass: false,
       },
@@ -168,6 +175,7 @@ describe('agent_research_report tool', () => {
     expect(strict.success).toBe(false);
     expect(strict.error).toContain('Citation coverage check failed');
     expect(strict.error).toContain('Missing body citations: S2');
+    expect(strict.error).toContain('Repair suggestions: Add body citation for S2 (Source two).');
   });
 
   test('fails clearly without an artifact store and registers with the tool registry', async () => {
