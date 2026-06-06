@@ -153,7 +153,7 @@ None of those modes expose host start, stop, restart, install, expose-listener, 
 
 ## Visible Autonomy
 
-Use `agent_harness mode:"autonomy_queue"` before creating recurring reminders, routine schedules, delegated work, run controls, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research-run cards include live run records with progress, source ids, next steps, log tails, and exact inspect/checkpoint/cancel routes. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
+Use `agent_harness mode:"autonomy_queue"` before creating recurring reminders, routine schedules, delegated work, run controls, approval decisions, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research runs, connected-host tasks, approvals, automation runs, and schedules include live records with status/progress, source ids, next steps, log tails when available, and exact inspect/checkpoint/cancel/approve/deny/retry/run routes where supported. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
 
 ## Agent Knowledge
 

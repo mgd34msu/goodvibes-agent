@@ -811,6 +811,7 @@ describe('agent_harness tool', () => {
   test('exposes a visible autonomy queue with owners and cancel routes', async () => {
     const fixture = makeFixture();
     try {
+      const now = 1_700_000_100_000;
       const researchRunRegistry = AgentResearchRunRegistry.fromShellPaths(fixture.paths);
       const run = researchRunRegistry.create({
         title: 'Market map research',
@@ -825,6 +826,162 @@ describe('agent_harness tool', () => {
         note: 'Waiting on source review before synthesis.',
         sourceIds: ['source-a'],
         nextSteps: ['Review source-a'],
+      });
+      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      const automationSource = {
+        id: 'schedule-source-live',
+        kind: 'schedule',
+        label: 'Daily operator brief',
+        enabled: true,
+        createdAt: now - 600_000,
+        updatedAt: now - 60_000,
+        metadata: {},
+      };
+      const automationExecution = {
+        prompt: 'Summarize overnight operator posture.',
+        target: { kind: 'background' },
+      };
+      const automationDelivery = {
+        mode: 'surface',
+        targets: [],
+        fallbackTargets: [],
+        includeSummary: true,
+        includeTranscript: false,
+        includeLinks: true,
+      };
+      const automationFailure = {
+        action: 'retry',
+        maxConsecutiveFailures: 3,
+        cooldownMs: 60_000,
+        retryPolicy: {
+          maxAttempts: 2,
+          delayMs: 30_000,
+          strategy: 'fixed',
+        },
+      };
+      Object.assign(readModels, {
+        tasks: {
+          getSnapshot: () => ({
+            tasks: [{
+              id: 'host-task-live',
+              kind: 'scheduler',
+              title: 'Deliver scheduled brief',
+              status: 'running',
+              owner: 'scheduler',
+              cancellable: true,
+              childTaskIds: [],
+              queuedAt: now - 120_000,
+              startedAt: now - 60_000,
+              correlationId: 'corr-live',
+            }],
+          }),
+          subscribe: () => () => {},
+        },
+        automation: {
+          getSnapshot: () => ({
+            jobs: [{
+              id: 'sched-live-1',
+              labels: ['operator-brief'],
+              createdAt: now - 600_000,
+              updatedAt: now - 30_000,
+              name: 'Daily operator brief',
+              status: 'enabled',
+              enabled: true,
+              schedule: { kind: 'cron', expression: '0 9 * * *', timezone: 'America/Chicago' },
+              execution: automationExecution,
+              delivery: automationDelivery,
+              failure: automationFailure,
+              source: automationSource,
+              nextRunAt: now + 3_600_000,
+              lastRunAt: now - 86_400_000,
+              lastRunId: 'auto-run-1',
+              runCount: 2,
+              successCount: 1,
+              failureCount: 1,
+              deleteAfterRun: false,
+            }],
+            runs: [{
+              id: 'auto-run-1',
+              labels: ['operator-brief'],
+              createdAt: now - 90_000,
+              updatedAt: now - 15_000,
+              jobId: 'sched-live-1',
+              status: 'running',
+              agentId: 'agent-live-1',
+              triggeredBy: automationSource,
+              target: { kind: 'background' },
+              execution: automationExecution,
+              scheduleKind: 'cron',
+              queuedAt: now - 90_000,
+              startedAt: now - 75_000,
+              forceRun: false,
+              dueRun: true,
+              attempt: 2,
+              sessionId: 'session-alpha',
+              routeId: 'route-live-1',
+              continuationMode: 'background',
+              executionIntent: { mode: 'background', targetKind: 'background' },
+              deliveryIds: ['delivery-live-1'],
+              modelId: 'gpt-4.1',
+              providerId: 'openai',
+            }],
+            totalJobs: 1,
+            totalRuns: 1,
+            activeRunIds: ['auto-run-1'],
+            totalFailed: 0,
+            sourceCount: 1,
+            deliveryTotals: { succeeded: 1, failed: 0, deadLettered: 0 },
+          }),
+          subscribe: () => () => {},
+        },
+        controlPlane: {
+          getSnapshot: () => ({
+            connectionState: 'connected',
+            activeClientIds: ['operator-client'],
+            requestCount: 1,
+            errorCount: 0,
+            host: '127.0.0.1',
+            port: 3421,
+            clients: [],
+            approvals: [{
+              id: 'approval-live-1',
+              callId: 'call-live-1',
+              sessionId: 'session-alpha',
+              routeId: 'route-live-1',
+              status: 'pending',
+              request: {
+                callId: 'call-live-1',
+                tool: 'shell.exec',
+                args: { cmd: 'git status --short' },
+                category: 'execute',
+                analysis: {
+                  classification: 'shell-command',
+                  riskLevel: 'high',
+                  summary: 'Run git status for the workspace.',
+                  reasons: ['The action runs a shell command through the connected host.'],
+                  target: 'git status --short',
+                  targetKind: 'command',
+                  surface: 'shell',
+                  blastRadius: 'project',
+                },
+              },
+              createdAt: now - 45_000,
+              updatedAt: now - 30_000,
+              metadata: { source: 'test' },
+              audit: [{
+                id: 'audit-live-1',
+                action: 'created',
+                actor: 'agent',
+                actorSurface: 'tui',
+                createdAt: now - 45_000,
+                note: 'approval requested',
+              }],
+            }],
+            sessions: [],
+            recentEvents: [],
+          }),
+          subscribe: () => () => {},
+        },
       });
 
       const summary = await executeHarnessJson<{
@@ -866,7 +1023,10 @@ describe('agent_harness tool', () => {
 
       const workPlan = queue.queue.find((item) => item.queueItemId === 'visible-work-plan');
       const researchRuns = queue.queue.find((item) => item.queueItemId === 'research-runs');
+      const hostTasks = queue.queue.find((item) => item.queueItemId === 'connected-host-tasks');
       const approvals = queue.queue.find((item) => item.queueItemId === 'pending-approvals');
+      const automation = queue.queue.find((item) => item.queueItemId === 'automation-runs');
+      const schedules = queue.queue.find((item) => item.queueItemId === 'connected-schedules');
       const routines = queue.queue.find((item) => item.queueItemId === 'routine-schedule-promotions');
       expect(workPlan?.owner).toBe('agent');
       expect(workPlan?.cancellable).toBe(true);
@@ -881,16 +1041,36 @@ describe('agent_harness tool', () => {
       expect(researchRuns?.liveRecords?.[0]?.logTail?.join('\n')).toContain('Waiting on source review before synthesis.');
       expect(researchRuns?.liveRecords?.[0]?.sourceIds).toContain('source-a');
       expect(researchRuns?.liveRecords?.[0]?.nextSteps).toContain('Review source-a');
+      expect(hostTasks?.status).toBe('active');
+      expect(hostTasks?.liveRecords?.[0]?.id).toBe('host-task-live');
+      expect(hostTasks?.liveRecords?.[0]?.inspectRoute).toBe('/tasks show host-task-live');
+      expect(hostTasks?.liveRecords?.[0]?.cancelRoute).toBeUndefined();
       expect(approvals?.owner).toBe('connected-host');
+      expect(approvals?.status).toBe('attention');
       expect(approvals?.cancelRoute).toContain('approval-cancel');
+      expect(approvals?.liveRecords?.[0]?.id).toBe('approval-live-1');
+      expect(approvals?.liveRecords?.[0]?.status).toBe('pending');
+      expect(approvals?.liveRecords?.[0]?.cancelRoute).toContain('approvals.cancel');
+      expect(approvals?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('approvals.approve');
+      expect(approvals?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('approvals.deny');
+      expect(automation?.status).toBe('active');
+      expect(automation?.liveRecords?.[0]?.id).toBe('auto-run-1');
+      expect(automation?.liveRecords?.[0]?.cancelRoute).toContain('automation.runs.cancel');
+      expect(automation?.liveRecords?.[0]?.sourceIds).toContain('sched-live-1');
+      expect(schedules?.status).toBe('active');
+      expect(schedules?.liveRecords?.[0]?.id).toBe('sched-live-1');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.run');
       expect(routines?.inspectRoute).toContain('schedule-receipts');
 
       const item = await executeHarnessJson<{
         readonly queueItemId: string;
         readonly routes?: { readonly inspect: string; readonly cancel: string | null };
+        readonly liveRecords?: readonly { readonly id: string; readonly cancelRoute?: string }[];
       }>(fixture, { mode: 'autonomy_queue_item', queueItemId: 'automation-runs' });
       expect(item.queueItemId).toBe('automation-runs');
       expect(item.routes?.cancel).toContain('automation-run-cancel');
+      expect(item.liveRecords?.[0]?.id).toBe('auto-run-1');
+      expect(item.liveRecords?.[0]?.cancelRoute).toContain('automation.runs.cancel');
 
       const researchItem = await executeHarnessJson<{
         readonly queueItemId: string;

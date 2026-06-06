@@ -2,6 +2,7 @@ import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import type { UiAutomationSnapshot, UiTasksSnapshot } from '../runtime/ui-read-models.ts';
 
 type AutonomyQueueStatus = 'ready' | 'active' | 'needs-setup' | 'attention' | 'blocked';
 
@@ -59,6 +60,10 @@ interface AutonomyQueueLiveRecord {
   readonly logTail?: readonly string[];
 }
 
+type SnapshotReader<TSnapshot> = {
+  readonly getSnapshot: () => TSnapshot;
+};
+
 export type AutonomyQueueResolution =
   | { readonly status: 'found'; readonly item: Record<string, unknown> }
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
@@ -72,6 +77,293 @@ function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(200, Math.trunc(parsed)));
+}
+
+function readSnapshot<TSnapshot>(readModel: SnapshotReader<TSnapshot> | undefined): TSnapshot | null {
+  if (!readModel) return null;
+  try {
+    return readModel.getSnapshot();
+  } catch {
+    return null;
+  }
+}
+
+function formatEpochMs(value: number | undefined): string | undefined {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+  return new Date(value).toISOString();
+}
+
+function formatTimeFragment(label: string, value: number | undefined): string {
+  const formatted = formatEpochMs(value);
+  return formatted ? `${label} ${formatted}` : '';
+}
+
+function compactUnknown(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value).replace(/\s+/g, ' ').trim();
+  } catch {
+    return '';
+  }
+}
+
+function formatIntervalMs(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value}ms`;
+  const units: ReadonlyArray<readonly [number, string]> = [
+    [86_400_000, 'd'],
+    [3_600_000, 'h'],
+    [60_000, 'm'],
+    [1_000, 's'],
+  ];
+  for (const [size, suffix] of units) {
+    if (value >= size && value % size === 0) return `${value / size}${suffix}`;
+  }
+  return `${value}ms`;
+}
+
+function summarizeSchedule(schedule: UiAutomationSnapshot['jobs'][number]['schedule']): string {
+  if (schedule.kind === 'cron') {
+    return [
+      `cron ${schedule.expression}`,
+      schedule.timezone ? `timezone ${schedule.timezone}` : '',
+      schedule.staggerMs !== undefined ? `stagger ${schedule.staggerMs}ms` : '',
+    ].filter(Boolean).join(', ');
+  }
+  if (schedule.kind === 'every') return `every ${formatIntervalMs(schedule.intervalMs)}`;
+  return `at ${formatEpochMs(schedule.at) ?? schedule.at}`;
+}
+
+function taskStatusRank(status: UiTasksSnapshot['tasks'][number]['status']): number {
+  if (status === 'running') return 0;
+  if (status === 'queued') return 1;
+  if (status === 'blocked') return 2;
+  if (status === 'failed') return 3;
+  if (status === 'completed') return 4;
+  return 5;
+}
+
+function taskLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRecord[] {
+  const snapshot = readSnapshot(context.platform.readModels?.tasks);
+  const tasks = [...(snapshot?.tasks ?? [])].sort((left, right) => {
+    const rankDelta = taskStatusRank(left.status) - taskStatusRank(right.status);
+    if (rankDelta !== 0) return rankDelta;
+    const leftTime = left.endedAt ?? left.startedAt ?? left.queuedAt;
+    const rightTime = right.endedAt ?? right.startedAt ?? right.queuedAt;
+    return rightTime - leftTime || left.title.localeCompare(right.title);
+  });
+  return tasks.slice(0, 20).map((task) => {
+    const retry = task.retryPolicy
+      ? `attempt ${task.retryPolicy.currentAttempt}/${task.retryPolicy.maxAttempts}`
+      : '';
+    const summary = [
+      `${task.status} ${task.kind}`,
+      `owner ${task.owner}`,
+      task.cancellable ? 'host-cancellable' : 'not cancellable',
+      formatTimeFragment('queued', task.queuedAt),
+      formatTimeFragment('started', task.startedAt),
+      formatTimeFragment('ended', task.endedAt),
+      retry,
+      task.retryAt ? `retry ${formatEpochMs(task.retryAt)}` : '',
+      task.error ? `error ${task.error}` : '',
+      task.result !== undefined ? `result ${compactUnknown(task.result)}` : task.description ?? '',
+    ].filter(Boolean).join(' | ');
+    return {
+      id: task.id,
+      label: task.title,
+      status: task.status,
+      phase: task.kind,
+      updatedAt: formatEpochMs(task.endedAt ?? task.startedAt ?? task.queuedAt),
+      summary,
+      inspectRoute: `/tasks show ${task.id}`,
+      nextSteps: [
+        `/tasks show ${task.id}`,
+        `/tasks output ${task.id}`,
+        'Use /workplan for Agent-owned visible task changes; host task mutations are blocked in Agent.',
+      ],
+      sourceIds: [
+        task.parentTaskId,
+        ...task.childTaskIds,
+        task.correlationId,
+        task.turnId,
+      ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+      ...(task.error ? { logTail: [task.error] } : {}),
+    };
+  });
+}
+
+function approvalLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRecord[] {
+  const snapshot = readSnapshot(context.platform.readModels?.controlPlane);
+  const statusRank = new Map([
+    ['pending', 0],
+    ['claimed', 1],
+    ['denied', 2],
+    ['cancelled', 3],
+    ['expired', 4],
+    ['approved', 5],
+  ]);
+  return [...(snapshot?.approvals ?? [])]
+    .sort((left, right) => {
+      const rankDelta = (statusRank.get(left.status) ?? 99) - (statusRank.get(right.status) ?? 99);
+      if (rankDelta !== 0) return rankDelta;
+      return right.updatedAt - left.updatedAt || left.id.localeCompare(right.id);
+    })
+    .slice(0, 20)
+    .map((approval) => {
+      const active = approval.status === 'pending' || approval.status === 'claimed';
+      const label = `${approval.request.tool}: ${approval.request.analysis.summary}`;
+      return {
+        id: approval.id,
+        label,
+        status: approval.status,
+        phase: approval.request.analysis.riskLevel,
+        updatedAt: formatEpochMs(approval.updatedAt),
+        summary: [
+          `${approval.request.category}/${approval.request.analysis.riskLevel}`,
+          approval.request.analysis.classification,
+          `call ${approval.callId}`,
+          approval.sessionId ? `session ${approval.sessionId}` : '',
+          approval.routeId ? `route ${approval.routeId}` : '',
+          approval.claimedBy ? `claimed by ${approval.claimedBy}` : '',
+          approval.resolvedBy ? `resolved by ${approval.resolvedBy}` : '',
+          compactUnknown(approval.request.args),
+        ].filter(Boolean).join(' | '),
+        inspectRoute: '/approval matrix',
+        ...(active ? {
+          cancelRoute: `agent_operator_action action:"approvals.cancel" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
+        } : {}),
+        nextSteps: active ? [
+          `agent_operator_action action:"approvals.approve" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
+          `agent_operator_action action:"approvals.deny" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
+          `agent_operator_action action:"approvals.cancel" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
+        ] : [`/approval matrix`],
+        sourceIds: [
+          approval.callId,
+          approval.sessionId,
+          approval.routeId,
+          ...approval.audit.map((entry) => entry.id),
+        ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+        logTail: approval.audit.slice(-3).map((entry) => [
+          entry.action,
+          entry.actor,
+          formatEpochMs(entry.createdAt),
+          entry.note,
+        ].filter(Boolean).join(' ')),
+      };
+    });
+}
+
+function automationRunLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRecord[] {
+  const snapshot = readSnapshot(context.platform.readModels?.automation);
+  return [...(snapshot?.runs ?? [])]
+    .sort((left, right) => {
+      const activeDelta = Number(right.status === 'queued' || right.status === 'running') - Number(left.status === 'queued' || left.status === 'running');
+      if (activeDelta !== 0) return activeDelta;
+      return right.queuedAt - left.queuedAt || left.id.localeCompare(right.id);
+    })
+    .slice(0, 20)
+    .map((run) => {
+      const active = run.status === 'queued' || run.status === 'running';
+      const failed = run.status === 'failed';
+      const timing = [
+        formatTimeFragment('queued', run.queuedAt),
+        formatTimeFragment('started', run.startedAt),
+        formatTimeFragment('ended', run.endedAt),
+        run.durationMs !== undefined ? `duration ${run.durationMs}ms` : '',
+      ].filter(Boolean).join(', ');
+      return {
+        id: run.id,
+        label: `${run.jobId} -> ${run.target.kind}`,
+        status: run.status,
+        phase: run.scheduleKind ?? run.triggeredBy.kind,
+        updatedAt: formatEpochMs(run.updatedAt),
+        summary: [
+          `job ${run.jobId}`,
+          `target ${run.target.kind}`,
+          `attempt ${run.attempt}`,
+          run.agentId ? `agent ${run.agentId}` : '',
+          run.sessionId ? `session ${run.sessionId}` : '',
+          run.routeId ? `route ${run.routeId}` : '',
+          run.modelId ? `model ${run.modelId}` : '',
+          run.providerId ? `provider ${run.providerId}` : '',
+          timing,
+          run.error ? `error ${run.error}` : '',
+          run.result !== undefined ? `result ${compactUnknown(run.result)}` : '',
+        ].filter(Boolean).join(' | '),
+        inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
+        ...(active ? {
+          cancelRoute: `agent_operator_action action:"automation.runs.cancel" runId:"${run.id}" confirm:true explicitUserRequest:"..."`,
+        } : {}),
+        nextSteps: [
+          ...(active ? [`agent_operator_action action:"automation.runs.cancel" runId:"${run.id}" confirm:true explicitUserRequest:"..."`] : []),
+          ...(failed ? [`agent_operator_action action:"automation.runs.retry" runId:"${run.id}" confirm:true explicitUserRequest:"..."`] : []),
+          `agent_harness mode:"workspace_action" actionId:"schedule-list"`,
+        ],
+        sourceIds: [
+          run.jobId,
+          run.agentId,
+          run.sessionId,
+          run.routeId,
+          run.triggeredBy.id,
+          ...run.deliveryIds,
+        ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+        logTail: [
+          run.error,
+          run.cancelledReason,
+        ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+      };
+    });
+}
+
+function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRecord[] {
+  const snapshot = readSnapshot(context.platform.readModels?.automation);
+  return [...(snapshot?.jobs ?? [])]
+    .sort((left, right) => {
+      const errorDelta = Number(right.status === 'error') - Number(left.status === 'error');
+      if (errorDelta !== 0) return errorDelta;
+      return (right.nextRunAt ?? 0) - (left.nextRunAt ?? 0) || left.name.localeCompare(right.name);
+    })
+    .slice(0, 20)
+    .map((job) => {
+      const enabled = job.enabled && job.status === 'enabled';
+      const paused = job.status === 'paused' || !job.enabled;
+      return {
+        id: job.id,
+        label: job.name,
+        status: job.status,
+        phase: job.schedule.kind,
+        updatedAt: formatEpochMs(job.updatedAt),
+        summary: [
+          enabled ? 'enabled' : paused ? 'paused' : job.status,
+          summarizeSchedule(job.schedule),
+          `runs ${job.runCount}`,
+          `success ${job.successCount}`,
+          `failed ${job.failureCount}`,
+          formatTimeFragment('next', job.nextRunAt),
+          formatTimeFragment('last', job.lastRunAt),
+          job.lastRunId ? `last run ${job.lastRunId}` : '',
+          job.description ?? '',
+          job.pausedReason ? `paused ${job.pausedReason}` : '',
+        ].filter(Boolean).join(' | '),
+        inspectRoute: '/schedule list',
+        nextSteps: [
+          `agent_operator_action action:"schedules.run" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`,
+          enabled
+            ? `agent_operator_action action:"automation.jobs.pause" jobId:"${job.id}" confirm:true explicitUserRequest:"..."`
+            : `agent_operator_action action:"automation.jobs.resume" jobId:"${job.id}" confirm:true explicitUserRequest:"..."`,
+          `agent_harness mode:"workspace_action" actionId:"schedule-list"`,
+        ],
+        sourceIds: [
+          job.source.id,
+          job.lastRunId,
+          ...job.labels,
+        ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+        ...(job.pausedReason || job.status === 'error' ? {
+          logTail: [job.pausedReason ?? `Schedule status ${job.status}`],
+        } : {}),
+      };
+    });
 }
 
 function operatorContractMethods(): readonly OperatorContractMethod[] {
@@ -229,7 +521,37 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
   const configuredTargets = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
   const researchRuns = researchRunLiveRecords(snapshot);
+  const taskRecords = taskLiveRecords(context);
+  const approvalRecords = approvalLiveRecords(context);
+  const automationRecords = automationRunLiveRecords(context);
+  const scheduleRecords = scheduleLiveRecords(context);
   const latestResearchRun = researchRuns[0];
+  const taskStatus: AutonomyQueueStatus = taskRecords.some((record) => record.status === 'blocked' || record.status === 'failed')
+    ? 'attention'
+    : taskRecords.some((record) => record.status === 'running' || record.status === 'queued')
+      ? 'active'
+      : taskMethods.length > 0
+        ? 'ready'
+        : 'needs-setup';
+  const approvalStatus: AutonomyQueueStatus = approvalRecords.some((record) => record.status === 'pending' || record.status === 'claimed')
+    ? 'attention'
+    : approvalMethods.length > 0
+      ? 'ready'
+      : 'needs-setup';
+  const automationStatus: AutonomyQueueStatus = automationRecords.some((record) => record.status === 'failed')
+    ? 'attention'
+    : automationRecords.some((record) => record.status === 'queued' || record.status === 'running')
+      ? 'active'
+      : automationMethods.length > 0
+        ? 'ready'
+        : 'needs-setup';
+  const scheduleStatus: AutonomyQueueStatus = scheduleRecords.some((record) => record.status === 'error')
+    ? 'attention'
+    : scheduleRecords.some((record) => record.status === 'enabled')
+      ? 'active'
+      : scheduleMethods.length > 0
+        ? 'ready'
+        : 'needs-setup';
   const scheduleReadyRoutines = snapshot.localRoutines.filter((routine) => (
     routine.enabled === true
     && routine.reviewState === 'reviewed'
@@ -294,67 +616,93 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
     {
       id: 'connected-host-tasks',
       label: 'Connected-host tasks',
-      status: taskMethods.length > 0 ? 'ready' : 'needs-setup',
+      status: taskStatus,
       owner: 'connected-host',
       kind: 'host-task',
       visible: true,
       cancellable: false,
-      count: taskMethods.length,
-      current: `${taskMethods.length} task-like daemon method(s) are present; Agent exposes read-only host task inspection.`,
-      next: taskMethods.length > 0
-        ? 'Inspect host tasks before changing any work plan or automation state.'
+      count: taskRecords.length > 0 ? taskRecords.length : taskMethods.length,
+      current: taskRecords.length > 0
+        ? `${taskRecords.length} live connected-host task record(s); ${taskMethods.length} task-like daemon method(s) are discoverable.`
+        : `${taskMethods.length} task-like daemon method(s) are present; Agent exposes read-only host task inspection.`,
+      next: taskRecords.some((record) => record.status === 'blocked' || record.status === 'failed')
+        ? 'Inspect failed or blocked host tasks, then update Agent workplan state only from the visible work-plan route.'
+        : taskRecords.some((record) => record.status === 'running' || record.status === 'queued')
+          ? 'Inspect active host tasks before changing any work plan, delegation, or automation state.'
+          : taskMethods.length > 0
+            ? 'Inspect host tasks before changing any work plan or automation state.'
         : 'Update the connected GoodVibes host or connector set until task inspection methods are present.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
       modelRoute: 'agent_harness mode:"operator_methods" query:"task"',
       methodIds: taskMethods,
+      liveRecords: taskRecords,
     },
     {
       id: 'pending-approvals',
       label: 'Pending approvals',
-      status: approvalMethods.length > 0 ? 'ready' : 'needs-setup',
+      status: approvalStatus,
       owner: 'connected-host',
       kind: 'approval',
       visible: true,
       cancellable: true,
-      count: approvalMethods.length,
-      current: `${approvalMethods.length} approval daemon method(s) are present; approval decisions remain explicit and reviewable.`,
-      next: 'Review the matrix, then approve, deny, or cancel one exact approval id only when the user asks.',
+      count: approvalRecords.length > 0 ? approvalRecords.length : approvalMethods.length,
+      current: approvalRecords.length > 0
+        ? `${approvalRecords.length} recent approval record(s); pending or claimed approvals require explicit user-visible decisions.`
+        : `${approvalMethods.length} approval daemon method(s) are present; approval decisions remain explicit and reviewable.`,
+      next: approvalRecords.some((record) => record.status === 'pending' || record.status === 'claimed')
+        ? 'Review pending approval records, risk, and args; approve, deny, or cancel exactly one id only when the user asks.'
+        : 'Review the matrix, then approve, deny, or cancel one exact approval id only when the user asks.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"approvals"',
       modelRoute: 'agent_harness mode:"operator_methods" query:"approval"',
       cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"approval-cancel" confirm:true explicitUserRequest:"..."',
       methodIds: approvalMethods,
+      liveRecords: approvalRecords,
     },
     {
       id: 'automation-runs',
       label: 'Automation runs',
-      status: automationMethods.length > 0 ? 'ready' : 'needs-setup',
+      status: automationStatus,
       owner: 'connected-host',
       kind: 'automation-run',
       visible: true,
       cancellable: true,
-      count: automationMethods.length,
-      current: `${automationMethods.length} automation daemon method(s) are present; run, pause, resume, cancel, and retry actions are confirmed forms.`,
-      next: 'Inspect automation posture first. Use exact run/job ids for confirmed run control.',
+      count: automationRecords.length > 0 ? automationRecords.length : automationMethods.length,
+      current: automationRecords.length > 0
+        ? `${automationRecords.length} recent automation run record(s); active, failed, and retryable runs expose exact control routes.`
+        : `${automationMethods.length} automation daemon method(s) are present; run, pause, resume, cancel, and retry actions are confirmed forms.`,
+      next: automationRecords.some((record) => record.status === 'failed')
+        ? 'Inspect failed automation runs, then retry or leave them alone only through exact confirmed run routes.'
+        : automationRecords.some((record) => record.status === 'queued' || record.status === 'running')
+          ? 'Inspect active automation runs and cancel only the exact run id the user authorizes.'
+          : 'Inspect automation posture first. Use exact run/job ids for confirmed run control.',
       inspectRoute: 'agent_harness mode:"operator_methods" query:"automation"',
       modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"automation"',
       cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"automation-run-cancel" confirm:true explicitUserRequest:"..."',
       methodIds: automationMethods,
+      liveRecords: automationRecords,
     },
     {
       id: 'connected-schedules',
       label: 'Connected schedules',
-      status: scheduleMethods.length > 0 ? 'ready' : 'needs-setup',
+      status: scheduleStatus,
       owner: 'connected-host',
       kind: 'schedule',
       visible: true,
       cancellable: false,
-      count: scheduleMethods.length,
-      current: `${scheduleMethods.length} schedule/reminder daemon method(s) are present; schedule inspection and run-now controls are visible.`,
-      next: 'List schedules or reconcile routine receipts before triggering one schedule by id.',
+      count: scheduleRecords.length > 0 ? scheduleRecords.length : scheduleMethods.length,
+      current: scheduleRecords.length > 0
+        ? `${scheduleRecords.length} live connected schedule record(s); run-now, pause, and resume remain explicit confirmed actions.`
+        : `${scheduleMethods.length} schedule/reminder daemon method(s) are present; schedule inspection and run-now controls are visible.`,
+      next: scheduleRecords.some((record) => record.status === 'error')
+        ? 'Inspect schedule errors before running, pausing, resuming, or creating more schedules.'
+        : scheduleRecords.length > 0
+          ? 'Review live schedules or reconcile routine receipts before triggering one exact schedule id.'
+          : 'List schedules or reconcile routine receipts before triggering one schedule by id.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
       modelRoute: 'agent_harness mode:"operator_methods" query:"schedule"',
       createRoute: 'agent_harness mode:"run_workspace_action" actionId:"schedule-reminder" confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,
+      liveRecords: scheduleRecords,
     },
     {
       id: 'reminder-requests',
