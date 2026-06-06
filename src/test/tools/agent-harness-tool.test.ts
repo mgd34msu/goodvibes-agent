@@ -563,6 +563,7 @@ describe('agent_harness tool', () => {
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
+      expect(summaryJson.modeGuide?.discover).toContain('autonomy_intake');
       expect(summaryJson.modeGuide?.discover).toContain('research_runs');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
       expect(summaryJson.modeGuide?.inspect).toContain('personal_ops_lane');
@@ -602,6 +603,10 @@ describe('agent_harness tool', () => {
       const personalModes = await fixture.tool.execute({ mode: 'modes', query: 'personal operations' });
       expect(personalModes.success).toBe(true);
       expect(personalModes.output).toContain('personal_ops');
+
+      const autonomyModes = await fixture.tool.execute({ mode: 'modes', query: 'ongoing-work' });
+      expect(autonomyModes.success).toBe(true);
+      expect(autonomyModes.output).toContain('autonomy_intake');
 
       const documentModes = await fixture.tool.execute({ mode: 'modes', query: 'blind model comparison documents uploads' });
       expect(documentModes.success).toBe(true);
@@ -1086,6 +1091,77 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'personal-ops-autonomy-queue' });
       expect(action.id).toBe('personal-ops-autonomy-queue');
       expect(action.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('routes ongoing-work requests through a conservative autonomy intake selector', async () => {
+    const fixture = makeFixture();
+    try {
+      const missing = await executeHarnessJson<{
+        readonly status: string;
+        readonly usage?: string;
+        readonly queueRoute?: string;
+      }>(fixture, { mode: 'autonomy_intake' });
+      expect(missing.status).toBe('missing_request');
+      expect(missing.usage).toContain('query');
+      expect(missing.queueRoute).toBe('agent_harness mode:"autonomy_queue"');
+
+      const reminder = await executeHarnessJson<{
+        readonly status: string;
+        readonly preferred: {
+          readonly id: string;
+          readonly modelRoute: string;
+          readonly requiresConfirmation: boolean;
+          readonly missingFields?: readonly string[];
+        };
+        readonly policy: string;
+      }>(fixture, {
+        mode: 'autonomy_intake',
+        query: 'Remind me every 2 hours to check the deploy.',
+        includeParameters: true,
+      });
+      expect(reminder.status).toBe('ready');
+      expect(reminder.preferred.id).toBe('one-reminder-or-simple-recurring-reminder');
+      expect(reminder.preferred.modelRoute).toContain('agent_reminder_schedule');
+      expect(reminder.preferred.modelRoute).toContain('scheduleKind:"every"');
+      expect(reminder.preferred.modelRoute).toContain('scheduleValue:"2h"');
+      expect(reminder.preferred.requiresConfirmation).toBe(true);
+      expect(reminder.preferred.missingFields).toBeUndefined();
+      expect(reminder.policy).toContain('Autonomy intake is read-only');
+
+      const routine = await executeHarnessJson<{
+        readonly preferred: {
+          readonly id: string;
+          readonly modelRoute: string;
+          readonly missingFields?: readonly string[];
+          readonly userQuestion?: string;
+        };
+      }>(fixture, {
+        mode: 'autonomy_intake',
+        query: 'Run the weekly operator report as a reviewed routine.',
+        includeParameters: true,
+      });
+      expect(routine.preferred.id).toBe('reviewed-routine-schedule');
+      expect(routine.preferred.modelRoute).toContain('promote routine');
+      expect(routine.preferred.missingFields).toContain('routineId');
+      expect(routine.preferred.missingFields).toContain('scheduleValue');
+      expect(routine.preferred.userQuestion).toContain('reviewed routine');
+
+      const control = await executeHarnessJson<{
+        readonly preferred: {
+          readonly id: string;
+          readonly modelRoute: string;
+          readonly missingFields?: readonly string[];
+        };
+      }>(fixture, {
+        mode: 'autonomy_intake',
+        query: 'Cancel the running automation run.',
+      });
+      expect(control.preferred.id).toBe('automation-control');
+      expect(control.preferred.modelRoute).toContain('queueItemId:"automation-runs"');
+      expect(control.preferred.missingFields?.join('\n')).toContain('runId');
     } finally {
       fixture.cleanup();
     }

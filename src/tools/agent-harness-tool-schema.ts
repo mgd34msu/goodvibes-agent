@@ -7,7 +7,7 @@ export const AGENT_HARNESS_MODES = [
   'setup_posture', 'setup_item',
   'model_routing', 'model_route',
   'personal_ops', 'personal_ops_lane',
-  'autonomy_queue', 'autonomy_queue_item',
+  'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
   'learning_curator', 'learning_candidate',
   'research_runs', 'research_run',
   'research_queue', 'research_source',

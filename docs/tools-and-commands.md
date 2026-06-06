@@ -71,7 +71,7 @@ Discovery modes:
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
 | `provider_accounts`, `model_routing` | Provider auth, provider/model route posture, and hardware-scored local model cookbook. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus live Agent-owned note, routine, schedule-receipt, and delivery records. |
-| `autonomy_queue`, `autonomy_queue_item` | Visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
+| `autonomy_intake`, `autonomy_queue`, `autonomy_queue_item` | Ongoing-work route selection, visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, and routine review candidates. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup plan, pairing, and build-delegation posture. |
@@ -153,7 +153,7 @@ None of those modes expose host start, stop, restart, install, expose-listener, 
 
 ## Visible Autonomy
 
-Use `agent_harness mode:"autonomy_queue"` before creating recurring reminders, routine schedules, delegated work, run controls, approval decisions, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research runs, connected-host tasks, approvals, automation runs, and schedules include live records with status/progress, source ids, next steps, log tails when available, and exact inspect/checkpoint/cancel/approve/deny/retry/run routes where supported. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
+Use `agent_harness mode:"autonomy_intake"` first when the user asks for ongoing work and the safest route is not obvious. It is read-only and returns the likely route, missing fields, and confirmation boundary. Use `agent_harness mode:"autonomy_queue"` before creating recurring reminders, routine schedules, delegated work, run controls, approval decisions, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research runs, connected-host tasks, approvals, automation runs, and schedules include live records with status/progress, source ids, next steps, log tails when available, and exact inspect/checkpoint/cancel/approve/deny/retry/run routes where supported. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
 
 ## Agent Knowledge
 

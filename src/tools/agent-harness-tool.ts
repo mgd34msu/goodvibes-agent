@@ -11,6 +11,7 @@ import { buildAgentResearchSourceToolArgs } from '../input/agent-workspace-resea
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
+import { autonomyIntakeSummary } from './agent-harness-autonomy-intake.ts';
 import { autonomyQueueCatalogStatus, autonomyQueueSummary, describeAutonomyQueueItem } from './agent-harness-autonomy-queue.ts';
 import { channelReadinessCatalogStatus, describeHarnessChannel, listHarnessChannels } from './agent-harness-channel-metadata.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
@@ -176,7 +177,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect plan rows with mode:"setup_item"; setup mutations stay visible.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use live records and returned routes for personal ops.',
-    autonomyQueue: 'List mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; use live records/log tails; effects stay on owning confirmed routes.',
+    autonomyQueue: 'Start mode:"autonomy_intake" for ongoing-work requests; list mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay confirmed.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
     researchRuns: 'List mode:"research_runs"; inspect mode:"research_run"; checkpoint/cancel/complete uses agent_research_runs, reports use agent_research_report.',
     researchQueue: 'List mode:"research_queue"; inspect mode:"research_source"; capture/review uses agent_research_sources, reports use agent_research_report, ingest uses agent_knowledge_ingest.',
@@ -1060,6 +1061,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous Personal Ops lane ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
+        if (args.mode === 'autonomy_intake') return output(autonomyIntakeSummary(deps.commandContext, args));
         if (args.mode === 'autonomy_queue') return output(autonomyQueueSummary(deps.commandContext, args));
         if (args.mode === 'autonomy_queue_item') {
           const resolved = describeAutonomyQueueItem(deps.commandContext, args);

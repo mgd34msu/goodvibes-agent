@@ -203,6 +203,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
     commonRoutes: {
       findCapability: 'agent_harness mode:"modes" query:"<task>"',
       personalOps: 'agent_harness mode:"personal_ops"; inspect one lane with mode:"personal_ops_lane"',
+      autonomyIntake: 'agent_harness mode:"autonomy_intake" query:"<ongoing work request>"; use returned route and missing fields before creating background work',
       autonomyQueue: 'agent_harness mode:"autonomy_queue"; inspect one card with mode:"autonomy_queue_item"; use returned live records/log tails when present',
       learningCurator: 'agent_harness mode:"learning_curator"; inspect one card with mode:"learning_candidate"',
       documentOps: 'agent_harness mode:"document_ops"; inspect one lane with mode:"document_ops_lane"',
