@@ -75,7 +75,7 @@ Discovery modes:
 | `provider_accounts`, `model_routing`, `execution_posture`, `execution_history`, `file_recovery` | Provider auth, provider/model route posture, hardware-scored local model cookbook, local-vs-delegated execution routing, redacted execution records, and file edit recovery. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector readiness, matching MCP setup routes, and live Agent-owned note, routine, schedule-receipt, and delivery records. |
 | `autonomy_intake`, `autonomy_queue`, `autonomy_queue_item` | Ongoing-work route selection, visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
-| `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, routine, and completed-work review/proposal candidates. |
+| `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, routine, completed-work, and completed-research review/proposal candidates. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup plan, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
@@ -129,7 +129,7 @@ Execution routes:
 
 - GoodVibes settings import previews changed setting/subscription counts without mutation; confirmed execution copies only Agent-owned settings and provider subscription state, redacts secret values, and stores raw secret-backed values through the secret manager.
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
-- Read-only learning review uses `agent_harness mode:"learning_curator"` and `mode:"learning_candidate"`; reviewed-note and completed-work memory/behavior proposals reuse selected-note promotion, memory-create, or learned-behavior capture routes, and writes stay on `agent_local_registry` or visible workspace actions.
+- Read-only learning review uses `agent_harness mode:"learning_curator"` and `mode:"learning_candidate"`; reviewed-note, completed-work, and completed-research memory/behavior proposals reuse selected-note promotion, memory-create, or learned-behavior capture routes, and writes stay on `agent_local_registry` or visible workspace actions.
 - Agent document draft browse/show/create/revise/review/comment/suggest/accept-suggestion/reject-suggestion/artifact-insert/export dispatches through `agent_documents`.
 - Visible research run creation/checkpoint/pause/resume/cancel/complete and log-tail inspection dispatch through `agent_research_runs`; source capture, credibility review, and reviewed-source bundles dispatch through `agent_research_sources`; confirmed sourced research report artifact saves, citation coverage checks, and repair hints dispatch through `agent_research_report`.
 - Confirmed Agent Knowledge URL/file/artifact-id/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.

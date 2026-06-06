@@ -1,4 +1,5 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import { AgentResearchRunRegistry, type AgentResearchRunRecord } from '../agent/research-run-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-types.ts';
 import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
@@ -6,7 +7,7 @@ import { previewHarnessText } from './agent-harness-text.ts';
 
 type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'proposal-ready' | 'ready-to-promote' | 'ready';
 type LocalLearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
-type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'capture';
+type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'research_run' | 'capture';
 type LearningProposalTarget = 'memory' | 'skill' | 'routine' | 'persona';
 
 interface AgentHarnessLearningCuratorArgs {
@@ -255,6 +256,24 @@ function completedWorkFreshness(item: WorkPlanItem): number {
   return clampScore(96 - Math.min(45, ageDays * 3));
 }
 
+function completedIsoFreshness(iso: string | undefined): number {
+  if (!iso) return 70;
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return 70;
+  const ageDays = Math.max(0, (Date.now() - parsed) / (24 * 60 * 60 * 1000));
+  return clampScore(96 - Math.min(45, ageDays * 3));
+}
+
+function completedWorkDetail(item: WorkPlanItem, notes: string): string {
+  return [
+    `Completed work: ${item.title}`,
+    item.owner ? `Owner: ${item.owner}` : '',
+    item.source ? `Source: ${item.source}` : '',
+    '',
+    notes,
+  ].filter(Boolean).join('\n');
+}
+
 function workPlanCompletionCandidate(item: WorkPlanItem): LearningCandidate | null {
   if (item.status !== 'done') return null;
   const target = workPlanProposalTarget(item);
@@ -268,13 +287,7 @@ function workPlanCompletionCandidate(item: WorkPlanItem): LearningCandidate | nu
     : target === 'persona'
       ? `Operating preference learned from completed work: ${name}`
       : `Reusable skill learned from completed work: ${name}`;
-  const detail = [
-    `Completed work: ${item.title}`,
-    item.owner ? `Owner: ${item.owner}` : '',
-    item.source ? `Source: ${item.source}` : '',
-    '',
-    notes,
-  ].filter(Boolean).join('\n');
+  const detail = completedWorkDetail(item, notes);
   return {
     id: `work-plan-proposal:${target}:${item.id}`,
     label: `${item.title} -> ${target}`,
@@ -309,6 +322,92 @@ function workPlanCompletionCandidate(item: WorkPlanItem): LearningCandidate | nu
     },
     inspectRoute: `agent_work_plan action:"get" id:"${item.id}"`,
     modelRoute: 'agent_work_plan action:"get"',
+    createRoute: target === 'memory'
+      ? 'agent_harness mode:"run_workspace_action" actionId:"memory-create" confirm:true explicitUserRequest:"..."'
+      : 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',
+  };
+}
+
+function researchRunProposalTarget(run: AgentResearchRunRecord): LearningProposalTarget | null {
+  const text = [
+    run.title,
+    run.question,
+    run.goal,
+    run.note ?? '',
+    run.reportArtifactId ?? '',
+    ...run.plan,
+    ...run.nextSteps,
+    ...run.sourceIds,
+    ...run.checkpoints.map((checkpoint) => checkpoint.note),
+  ].join('\n').toLowerCase();
+  if (/\b(memory|remember|fact|decision|constraint|risk|incident|pattern|architecture|ownership)\b/.test(text)) return 'memory';
+  if (/\b(style|tone|preference|respond|answer|voice|persona)\b/.test(text)) return 'persona';
+  if (/\b(repeat|routine|workflow|every time|checklist|runbook|process|before report|after report)\b/.test(text)) return 'routine';
+  if (/\b(lesson|procedure|steps|how to|when asked|research|source|citation|report|credibility|synthesize)\b/.test(text)) return 'skill';
+  return null;
+}
+
+function researchRunDetail(run: AgentResearchRunRecord): string {
+  return [
+    `Completed research run: ${run.title}`,
+    `Question: ${run.question}`,
+    `Goal: ${run.goal}`,
+    run.reportArtifactId ? `Report artifact: ${run.reportArtifactId}` : '',
+    run.sourceIds.length > 0 ? `Sources: ${run.sourceIds.join(', ')}` : '',
+    '',
+    run.note ? `Completion note: ${run.note}` : '',
+    run.plan.length > 0 ? `Plan:\n${run.plan.map((step) => `- ${step}`).join('\n')}` : '',
+    run.checkpoints.length > 0 ? `Recent checkpoints:\n${run.checkpoints.slice(-3).map((checkpoint) => `- ${checkpoint.note}`).join('\n')}` : '',
+  ].filter(Boolean).join('\n');
+}
+
+function researchRunCompletionCandidate(run: AgentResearchRunRecord): LearningCandidate | null {
+  if (run.status !== 'completed') return null;
+  const target = researchRunProposalTarget(run);
+  if (!target) return null;
+  const name = previewHarnessText(run.title, 80);
+  const detail = researchRunDetail(run);
+  const description = target === 'memory'
+    ? `Durable memory learned from completed research: ${name}`
+    : target === 'routine'
+      ? `Repeatable research workflow learned from completed run: ${name}`
+      : target === 'persona'
+        ? `Operating preference learned from completed research: ${name}`
+        : `Reusable research skill learned from completed run: ${name}`;
+  return {
+    id: `research-run-proposal:${target}:${run.id}`,
+    label: `${run.title} -> ${target}`,
+    domain: 'research_run',
+    recordId: run.id,
+    status: 'proposal-ready',
+    priority: target === 'memory' ? 57 : 55,
+    reason: `Completed research run looks like ${proposalSubject(target)}.`,
+    next: `Review the run ledger and report artifact, then capture this as Agent-local ${target} only if it should guide future work.`,
+    scores: {
+      usefulness: clampScore(60 + Math.min(16, run.sourceIds.length * 3) + Math.min(10, run.checkpoints.length * 2)),
+      freshness: completedIsoFreshness(run.completedAt),
+      sourceQuality: run.reportArtifactId ? 78 : run.sourceIds.length > 0 ? 70 : 62,
+      risk: target === 'memory' ? 32 : 30,
+    },
+    proposalTarget: target,
+    proposalFields: target === 'memory' ? {
+      cls: inferMemoryClass(`${run.title}\n${run.note ?? ''}\n${run.goal}`),
+      scope: 'project',
+      summary: previewHarnessText(run.note || run.title, 140),
+      detail,
+      tags: 'learned,research-run,memory',
+      confidence: run.reportArtifactId ? '82' : '76',
+    } : {
+      target,
+      name,
+      description: previewHarnessText(description, 140),
+      notes: detail,
+      triggers: target === 'routine' ? 'research, report, workflow' : target === 'persona' ? 'research preference' : 'research, sources, report',
+      tags: `learned,research-run,${target}`,
+      enable: 'yes',
+    },
+    inspectRoute: `agent_harness mode:"research_run" runId:"${run.id}"`,
+    modelRoute: 'agent_harness mode:"research_run"',
     createRoute: target === 'memory'
       ? 'agent_harness mode:"run_workspace_action" actionId:"memory-create" confirm:true explicitUserRequest:"..."'
       : 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',
@@ -398,6 +497,22 @@ function workPlanCompletionCandidates(context: CommandContext): readonly Learnin
   }
 }
 
+function researchRunCompletionCandidates(context: CommandContext): readonly LearningCandidate[] {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths) return [];
+  try {
+    return AgentResearchRunRegistry.fromShellPaths(shellPaths)
+      .snapshot()
+      .completed
+      .flatMap((run) => {
+        const candidate = researchRunCompletionCandidate(run);
+        return candidate ? [candidate] : [];
+      });
+  } catch {
+    return [];
+  }
+}
+
 function candidateSearchText(candidate: LearningCandidate): string {
   return [
     candidate.id,
@@ -425,6 +540,7 @@ function buildLearningCandidates(context: CommandContext): readonly LearningCand
     ...snapshot.localSkillBundles.flatMap((item) => candidatesForItem('skill_bundle', item)),
     ...snapshot.localRoutines.flatMap((item) => candidatesForItem('routine', item)),
     ...workPlanCompletionCandidates(context),
+    ...researchRunCompletionCandidates(context),
   ];
   if (candidates.length === 0) candidates.push(captureCandidate());
   return candidates.sort((left, right) => right.priority - left.priority || left.label.localeCompare(right.label));
@@ -510,7 +626,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 

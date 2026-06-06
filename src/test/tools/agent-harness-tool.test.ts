@@ -1702,6 +1702,27 @@ describe('agent_harness tool', () => {
         source: 'test-learning-curator',
         notes: 'Decision: use the existing renderer for the autonomous Agent harness.',
       });
+      const researchRunRegistry = AgentResearchRunRegistry.fromShellPaths(fixture.paths);
+      const researchRun = researchRunRegistry.create({
+        title: 'Research report procedure',
+        question: 'How should deep research reports stay sourced and reviewable?',
+        goal: 'Define a reusable research report procedure.',
+        plan: ['Review source credibility', 'Track citation coverage', 'Save report artifact'],
+        provenance: 'test-learning-curator',
+      });
+      researchRunRegistry.start(researchRun.id, 'Started source review.');
+      researchRunRegistry.checkpoint(researchRun.id, {
+        phase: 'synthesizing',
+        progress: 80,
+        note: 'Procedure: check citation coverage before saving the report.',
+        sourceIds: ['source-alpha'],
+        nextSteps: ['Save report artifact'],
+      });
+      const completedResearch = researchRunRegistry.complete(researchRun.id, {
+        note: 'Procedure: review source credibility, citation coverage, and report artifact before closing deep research.',
+        reportArtifactId: 'artifact-research-1',
+        sourceIds: ['source-alpha'],
+      });
       const personaRegistry = AgentPersonaRegistry.fromShellPaths(fixture.paths);
       const persona = personaRegistry.create({
         name: 'Fresh operator persona',
@@ -1726,7 +1747,7 @@ describe('agent_harness tool', () => {
       expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
       expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
       expect(summary.learningCurator?.lowConfidence).toBeGreaterThan(0);
-      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(3);
+      expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(4);
       expect(summary.learningCurator?.readOnly).toBe(true);
 
       const curator = await executeHarnessJson<{
@@ -1748,8 +1769,8 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'learning_curator', includeParameters: true });
       expect(curator.summary.candidates).toBeGreaterThan(3);
       expect(curator.summary.readyToPromote).toBeGreaterThan(0);
-      expect(curator.summary.proposedBehavior).toBeGreaterThan(3);
-      expect(curator.policy).toContain('Proposed memory and behavior changes');
+      expect(curator.summary.proposedBehavior).toBeGreaterThan(4);
+      expect(curator.policy).toContain('completed research runs');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
@@ -1759,6 +1780,7 @@ describe('agent_harness tool', () => {
       const memoryNoteCandidate = curator.candidates.find((candidate) => candidate.candidateId === `note-proposal:memory:${decisionNote.id}`);
       const completedCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:routine:${completedWork.id}`);
       const completedMemoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:memory:${completedDecision.id}`);
+      const researchCandidate = curator.candidates.find((candidate) => candidate.candidateId === `research-run-proposal:skill:${completedResearch.id}`);
       expect(memoryCandidate?.reviewRoute).toContain('agent_local_registry');
       expect(memoryCandidate?.scores.risk).toBeGreaterThan(0);
       expect(personaCandidate?.label).toContain('Fresh operator persona');
@@ -1778,6 +1800,11 @@ describe('agent_harness tool', () => {
       expect(completedMemoryCandidate?.createRoute).toContain('memory-create');
       expect(completedMemoryCandidate?.proposalFields?.cls).toBe('decision');
       expect(completedMemoryCandidate?.proposalFields?.detail).toContain('existing renderer');
+      expect(researchCandidate?.domain).toBe('research_run');
+      expect(researchCandidate?.inspectRoute).toContain('mode:"research_run"');
+      expect(researchCandidate?.createRoute).toContain('learned-behavior');
+      expect(researchCandidate?.proposalTarget).toBe('skill');
+      expect(researchCandidate?.proposalFields?.notes).toContain('artifact-research-1');
 
       const candidate = await executeHarnessJson<{
         readonly candidateId: string;
