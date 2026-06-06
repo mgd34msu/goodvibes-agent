@@ -12,6 +12,8 @@ export interface AgentModelCompareWorkspaceToolArgs {
   readonly systemPrompt?: string;
   readonly maxTokens?: number;
   readonly benchmarkKind?: string;
+  readonly taskType?: string;
+  readonly documentId?: string;
   readonly reveal?: boolean;
   readonly confirm: boolean;
   readonly explicitUserRequest: string;
@@ -58,6 +60,9 @@ export interface AgentModelCompareAnalyticsWorkspaceToolArgs {
   readonly mode: 'analytics' | 'synthesis';
   readonly limit?: number;
   readonly includeReasons?: boolean;
+  readonly benchmarkKind?: string;
+  readonly taskType?: string;
+  readonly documentId?: string;
 }
 
 function readList(value: string): readonly string[] {
@@ -95,6 +100,9 @@ export function createAgentModelCompareEditor(): AgentWorkspaceLocalEditor {
       { id: 'rubric', label: 'Rubric', value: '', required: false, multiline: true, hint: 'Optional judging rubric shown with blinded results.' },
       { id: 'systemPrompt', label: 'System prompt', value: '', required: false, multiline: true, hint: 'Optional system prompt sent identically to every candidate.' },
       { id: 'maxTokens', label: 'Max tokens', value: '2048', required: false, multiline: false, hint: 'Per-candidate output cap. Defaults to 2048.' },
+      { id: 'benchmarkKind', label: 'Benchmark tag', value: '', required: false, multiline: false, hint: 'Optional benchmark tag for filtered analytics.' },
+      { id: 'taskType', label: 'Task type', value: '', required: false, multiline: false, hint: 'Optional tag such as writing, research, code-review, or benchmark.' },
+      { id: 'documentId', label: 'Document id', value: '', required: false, multiline: false, hint: 'Optional document id tag. Source document exports can fill this automatically.' },
       { id: 'reveal', label: 'Reveal now', value: 'no', required: false, multiline: false, hint: 'yes/no. Blank or no keeps model identities hidden until reveal.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run a token-spending model comparison and save the local review artifact.' },
     ],
@@ -129,6 +137,7 @@ export function createAgentLocalModelBenchmarkEditor(): AgentWorkspaceLocalEdito
       { id: 'systemPrompt', label: 'System prompt', value: '', required: false, multiline: true, hint: 'Optional system prompt sent identically to every candidate.' },
       { id: 'maxTokens', label: 'Max tokens', value: '1024', required: false, multiline: false, hint: 'Per-candidate output cap. Defaults to 1024 for this benchmark.' },
       { id: 'benchmarkKind', label: 'Benchmark tag', value: 'local-model-route', required: false, multiline: false, hint: 'Keeps the saved comparison visible in local model benchmark history.' },
+      { id: 'taskType', label: 'Task type', value: 'local-model-route', required: false, multiline: false, hint: 'Tags the saved judgment trend for filtered analytics.' },
       { id: 'reveal', label: 'Reveal now', value: 'no', required: false, multiline: false, hint: 'yes/no. Blank or no keeps model identities hidden until reveal.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to spend model tokens and save the local benchmark artifact.' },
     ],
@@ -209,10 +218,13 @@ export function createAgentModelCompareAnalyticsEditor(): AgentWorkspaceLocalEdi
     mode: 'create',
     title: 'Compare Analytics/Synthesis',
     selectedFieldIndex: 0,
-    message: 'Summarize or synthesize saved blind comparison judgments by winner, model, blind slot, themes, and recent reasons. This is read-only.',
+    message: 'Summarize or synthesize saved blind comparison judgments by winner, model, blind slot, themes, task type, document id, benchmark tag, and recent reasons. This is read-only.',
     fields: [
       { id: 'view', label: 'View', value: 'analytics', required: false, multiline: false, hint: 'analytics or synthesis. Synthesis groups saved judgment themes across sessions.' },
       { id: 'limit', label: 'Judgment limit', value: '20', required: false, multiline: false, hint: 'Maximum saved judgment artifacts to inspect. Defaults to 20.' },
+      { id: 'benchmarkKind', label: 'Benchmark tag', value: '', required: false, multiline: false, hint: 'Optional filter, such as local-model-route.' },
+      { id: 'taskType', label: 'Task type', value: '', required: false, multiline: false, hint: 'Optional filter, such as writing, research, code-review, or local-model-route.' },
+      { id: 'documentId', label: 'Document id', value: '', required: false, multiline: false, hint: 'Optional filter for judgments tied to one Agent document id.' },
       { id: 'includeReasons', label: 'Include reasons', value: 'yes', required: false, multiline: false, hint: 'yes/no. Yes includes short reason and note excerpts in the recent-judgments list.' },
     ],
   };
@@ -230,6 +242,8 @@ export function buildAgentModelCompareToolArgs(
   const systemPrompt = readField('systemPrompt').trim();
   const maxTokens = readPositiveInteger(readField('maxTokens'));
   const benchmarkKind = readField('benchmarkKind').trim();
+  const taskType = readField('taskType').trim();
+  const documentId = readField('documentId').trim();
   const reveal = isAffirmative(readField('reveal'));
 
   return {
@@ -242,6 +256,8 @@ export function buildAgentModelCompareToolArgs(
     ...(systemPrompt ? { systemPrompt } : {}),
     ...(maxTokens !== null ? { maxTokens } : {}),
     ...(benchmarkKind ? { benchmarkKind } : {}),
+    ...(taskType ? { taskType } : {}),
+    ...(documentId ? { documentId } : {}),
     reveal,
     confirm: true,
     explicitUserRequest,
@@ -320,9 +336,15 @@ export function buildAgentModelCompareAnalyticsToolArgs(
 ): AgentModelCompareAnalyticsWorkspaceToolArgs {
   const view = readField('view').trim().toLowerCase();
   const limit = readPositiveInteger(readField('limit'));
+  const benchmarkKind = readField('benchmarkKind').trim();
+  const taskType = readField('taskType').trim();
+  const documentId = readField('documentId').trim();
   return {
     mode: view === 'synthesis' ? 'synthesis' : 'analytics',
     ...(limit !== null ? { limit } : {}),
+    ...(benchmarkKind ? { benchmarkKind } : {}),
+    ...(taskType ? { taskType } : {}),
+    ...(documentId ? { documentId } : {}),
     includeReasons: isAffirmative(readField('includeReasons')),
   };
 }
@@ -384,6 +406,8 @@ export function buildAgentModelComparePromptSubmission(
   const systemPrompt = readField('systemPrompt').trim();
   const maxTokens = readPositiveInteger(readField('maxTokens')) ?? 2048;
   const benchmarkKind = readField('benchmarkKind').trim();
+  const taskType = readField('taskType').trim();
+  const documentId = readField('documentId').trim();
   const explicitUserRequest = 'Run the blind model comparison from the Agent workspace form.';
   const prompt = [
     'Run a blind model comparison with the `agent_model_compare` tool.',
@@ -402,6 +426,8 @@ export function buildAgentModelComparePromptSubmission(
     systemPrompt ? `System prompt: ${systemPrompt}` : 'System prompt: none.',
     `Max tokens per candidate: ${maxTokens}.`,
     benchmarkKind ? `Benchmark kind: ${benchmarkKind}.` : 'Benchmark kind: none.',
+    taskType ? `Task type: ${taskType}.` : 'Task type: none.',
+    documentId ? `Document id: ${documentId}.` : 'Document id: none.',
     `Reveal identities immediately: ${reveal ? 'yes' : 'no'}.`,
     'Do not change the selected model after the comparison unless the user asks for that route update separately.',
   ].join('\n');
@@ -757,11 +783,17 @@ export function buildAgentModelCompareAnalyticsPromptSubmission(
 
   const mode = readField('view').trim().toLowerCase() === 'synthesis' ? 'synthesis' : 'analytics';
   const limit = readPositiveInteger(readField('limit')) ?? 20;
+  const benchmarkKind = readField('benchmarkKind').trim();
+  const taskType = readField('taskType').trim();
+  const documentId = readField('documentId').trim();
   const includeReasons = isAffirmative(readField('includeReasons'));
   const prompt = [
     'Review saved blind model comparison judgments with the `agent_model_compare` tool.',
     `Use mode:"${mode}".`,
     `Judgment limit: ${limit}.`,
+    benchmarkKind ? `Benchmark kind filter: ${benchmarkKind}.` : 'Benchmark kind filter: none.',
+    taskType ? `Task type filter: ${taskType}.` : 'Task type filter: none.',
+    documentId ? `Document id filter: ${documentId}.` : 'Document id filter: none.',
     `Include reason excerpts: ${includeReasons ? 'yes' : 'no'}.`,
     'This is read-only and must not change model routing.',
   ].join('\n');

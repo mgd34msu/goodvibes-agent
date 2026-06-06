@@ -3757,6 +3757,7 @@ describe('agent_harness tool', () => {
       ]);
       expect(cookbook.localCookbook.benchmarkHistory?.status).toBe('unavailable');
       expect(cookbook.localCookbook.benchmarkHistory?.saveRoute).toContain('benchmarkKind:"local-model-route"');
+      expect(cookbook.localCookbook.benchmarkHistory?.saveRoute).toContain('taskType:"local-model-route"');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('ollama');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('vllm');
       expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitScore === 'number')).toBe(true);
@@ -3774,6 +3775,7 @@ describe('agent_harness tool', () => {
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.workspaceActionRoute).toContain('account-run-local-model-benchmark');
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('agent_model_compare');
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('agent_model_compare run');
+      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('taskType:"local-model-route"');
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.measurements.join('\n')).toContain('latency');
       expect(ollamaRecipe?.setupPlan?.confirmationBoundary).toContain('read-only guidance');
       expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
@@ -3932,6 +3934,7 @@ describe('agent_harness tool', () => {
       expect(cookbook.localCookbook.benchmarkHistory?.evidence?.winnerModels[0]?.registryKey).toBe('ollama:qwen2.5-coder:7b');
       expect(cookbook.localCookbook.benchmarkHistory?.nextAction).toContain('revealed saved judgment');
       expect(cookbook.localCookbook.benchmarkHistory?.analyticsRoute).toContain('agent_model_compare analytics');
+      expect(cookbook.localCookbook.benchmarkHistory?.analyticsRoute).toContain('benchmarkKind:"local-model-route"');
       const ollamaRecipe = cookbook.localCookbook.recipes?.find((recipe) => recipe.id === 'ollama');
       expect(ollamaRecipe?.readiness?.confidence).toBe('measured');
       expect(ollamaRecipe?.readiness?.missingSignals?.join('\n')).not.toContain('No live latency benchmark');
@@ -6838,6 +6841,7 @@ describe('agent_harness tool', () => {
       expect(modelCompareCalls.at(-1)).toMatchObject({
         mode: 'run',
         benchmarkKind: 'local-model-route',
+        taskType: 'local-model-route',
         modelRefs: ['ollama:qwen2.5-coder:7b', 'openai:gpt-4.1'],
         maxTokens: 1024,
         confirm: true,
@@ -6916,6 +6920,9 @@ describe('agent_harness tool', () => {
         actionId: 'document-compare-analytics',
         fields: {
           limit: '10',
+          benchmarkKind: 'doc-draft',
+          taskType: 'writing',
+          documentId: 'doc_launch',
           includeReasons: 'yes',
         },
       });
@@ -6926,6 +6933,9 @@ describe('agent_harness tool', () => {
       expect(modelCompareCalls.at(-1)).toMatchObject({
         mode: 'analytics',
         limit: 10,
+        benchmarkKind: 'doc-draft',
+        taskType: 'writing',
+        documentId: 'doc_launch',
         includeReasons: true,
       });
 
@@ -6935,6 +6945,9 @@ describe('agent_harness tool', () => {
         fields: {
           view: 'synthesis',
           limit: '5',
+          benchmarkKind: 'doc-draft',
+          taskType: 'writing',
+          documentId: 'doc_launch',
           includeReasons: 'yes',
         },
       });
@@ -6945,6 +6958,9 @@ describe('agent_harness tool', () => {
       expect(modelCompareCalls.at(-1)).toMatchObject({
         mode: 'synthesis',
         limit: 5,
+        benchmarkKind: 'doc-draft',
+        taskType: 'writing',
+        documentId: 'doc_launch',
         includeReasons: true,
       });
 

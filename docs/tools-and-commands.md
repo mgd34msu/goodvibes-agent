@@ -54,7 +54,7 @@ High-signal TUI routes:
 | `agent_autonomy_schedule` | Create one confirmed visible autonomous Agent schedule. |
 | `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
 | `agent_media_generate` | Generate one confirmed image/video artifact. |
-| `agent_model_compare` | Run, review, side-by-side view, judge, analytics/synthesis, apply, export, handoff, or reveal one blind model comparison, optionally from a saved text artifact. |
+| `agent_model_compare` | Run, review, side-by-side view, judge, task/document/benchmark-filtered analytics/synthesis, apply, export, handoff, or reveal one blind model comparison, optionally from a saved text artifact. |
 
 ## `agent_harness`
 

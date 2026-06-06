@@ -450,7 +450,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Export saved artifact');
     expect(output).toContain('Export artifact package');
     expect(output).toContain('review/side-by-side/judgment');
-    expect(output).toContain('analytics/synthesis, export/handoff');
+    expect(output).toContain('filtered analytics/synthesis');
+    expect(output).toContain('export/handoff');
     expect(output).toContain('agent_harness mode:"document_ops"');
   });
 

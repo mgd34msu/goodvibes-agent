@@ -23,6 +23,8 @@ export interface AgentModelCompareToolArgs {
   readonly notes?: unknown;
   readonly limit?: unknown;
   readonly includeReasons?: unknown;
+  readonly taskType?: unknown;
+  readonly documentId?: unknown;
   readonly relatedArtifactIds?: unknown;
   readonly previewBytes?: unknown;
   readonly confirm?: unknown;
@@ -93,6 +95,9 @@ interface StoredComparison {
   readonly promptPreview: string;
   readonly rubric: string;
   readonly sourceArtifact?: SavedComparisonArtifact;
+  readonly benchmarkKind?: string;
+  readonly taskType?: string;
+  readonly documentId?: string;
   readonly candidates: readonly CompareCandidateResult[];
   readonly artifact?: SavedComparisonArtifact;
   readonly artifactStatus?: ComparisonArtifactStatus;
@@ -106,6 +111,10 @@ interface LoadedComparisonJudgment {
   readonly reasons: string;
   readonly notes: string;
   readonly revealIncludedInJudgment: boolean;
+  readonly sourceArtifactId?: string;
+  readonly benchmarkKind?: string;
+  readonly taskType?: string;
+  readonly documentId?: string;
   readonly winnerModel?: {
     readonly registryKey: string;
     readonly providerId: string;
@@ -119,6 +128,7 @@ interface SavedComparisonArtifact {
   readonly filename?: string;
   readonly mimeType: string;
   readonly sizeBytes: number;
+  readonly documentId?: string;
 }
 
 interface ComparisonArtifactStatus {
@@ -136,7 +146,6 @@ const MODE_EXPORT = 'export';
 const MODE_HANDOFF = 'handoff';
 const MODE_ANALYTICS = 'analytics';
 const MODE_SYNTHESIS = 'synthesis';
-const BENCHMARK_KIND_LOCAL_MODEL_ROUTE = 'local-model-route';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
 const MAX_CANDIDATES = 4;
@@ -190,8 +199,15 @@ function readNumber(value: unknown, fallback: number): number {
 }
 
 function readBenchmarkKind(value: unknown): string {
-  const kind = readString(value);
-  return kind === BENCHMARK_KIND_LOCAL_MODEL_ROUTE ? kind : '';
+  return readComparisonTag(value);
+}
+
+function readComparisonTag(value: unknown): string {
+  return readString(value)
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .slice(0, 120)
+    .trim();
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -448,6 +464,7 @@ function formatReveal(comparison: StoredComparison): string {
     `created ${comparison.createdAt}`,
     `prompt ${comparison.promptPreview}`,
     ...(comparison.sourceArtifact ? [`source artifact ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
+    ...formatComparisonDimensionLines(comparison),
     ...(comparison.artifact ? [`artifact ${comparison.artifact.artifactId} (${comparison.artifact.mimeType}, ${comparison.artifact.sizeBytes} bytes)`] : []),
     '',
     ...comparison.candidates.map((candidate) => `${candidate.blindId}: ${candidate.model.registryKey} (${candidate.model.displayName})`),
@@ -471,7 +488,12 @@ function formatSavedComparisonArtifacts(artifactStore?: AgentModelCompareArtifac
       const promptPreview = readString(artifact.metadata.promptPreview) || '(prompt unavailable)';
       const completed = typeof artifact.metadata.completedCandidates === 'number' ? artifact.metadata.completedCandidates : '?';
       const count = typeof artifact.metadata.candidateCount === 'number' ? artifact.metadata.candidateCount : '?';
-      return `  ${artifact.id} ${comparisonId} candidates ${completed}/${count} prompt ${promptPreview}`;
+      const dimensions = [
+        readComparisonTag(artifact.metadata.benchmarkKind) ? `benchmark ${readComparisonTag(artifact.metadata.benchmarkKind)}` : null,
+        readComparisonTag(artifact.metadata.taskType) ? `task ${readComparisonTag(artifact.metadata.taskType)}` : null,
+        readComparisonTag(artifact.metadata.documentId) ? `document ${readComparisonTag(artifact.metadata.documentId)}` : null,
+      ].filter(Boolean).join('; ');
+      return `  ${artifact.id} ${comparisonId} candidates ${completed}/${count}${dimensions ? ` ${dimensions}` : ''} prompt ${promptPreview}`;
     }),
     '',
     'Review one with mode:"review" and artifactId, render related evidence with mode:"sideBySide", or reveal with mode:"reveal" after judging.',
@@ -492,6 +514,14 @@ function formatArtifactStatus(comparison: StoredComparison): string {
   }
   if (comparison.artifactStatus) return `artifact ${comparison.artifactStatus.message}`;
   return 'artifact not saved';
+}
+
+function formatComparisonDimensionLines(comparison: StoredComparison): readonly string[] {
+  const lines: string[] = [];
+  if (comparison.benchmarkKind) lines.push(`benchmark ${comparison.benchmarkKind}`);
+  if (comparison.taskType) lines.push(`task type ${comparison.taskType}`);
+  if (comparison.documentId) lines.push(`document ${comparison.documentId}`);
+  return lines;
 }
 
 function formatIndentedContent(content: string): string {
@@ -526,6 +556,7 @@ function formatReview(comparison: StoredComparison, reveal: boolean): string {
     `prompt ${comparison.promptPreview}`,
     `rubric ${comparison.rubric || '(none)'}`,
     ...(comparison.sourceArtifact ? [`source artifact ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
+    ...formatComparisonDimensionLines(comparison),
     formatArtifactStatus(comparison),
     '',
     'Review board',
@@ -588,6 +619,10 @@ function judgmentArtifactText(input: {
     judgmentId: input.judgmentId,
     comparisonId: input.comparison.comparisonId,
     sourceArtifactId: input.comparison.artifact?.artifactId ?? null,
+    sourceDocumentId: input.comparison.documentId ?? null,
+    documentId: input.comparison.documentId ?? null,
+    benchmarkKind: input.comparison.benchmarkKind ?? null,
+    taskType: input.comparison.taskType ?? null,
     createdAt: new Date().toISOString(),
     promptPreview: input.comparison.promptPreview,
     rubric: input.comparison.rubric,
@@ -646,6 +681,10 @@ async function saveComparisonJudgmentArtifact(input: {
       judgmentId,
       comparisonId: input.comparison.comparisonId,
       sourceArtifactId: input.comparison.artifact?.artifactId ?? null,
+      sourceDocumentId: input.comparison.documentId ?? null,
+      documentId: input.comparison.documentId ?? null,
+      benchmarkKind: input.comparison.benchmarkKind ?? null,
+      taskType: input.comparison.taskType ?? null,
       winnerBlindId: input.winner.blindId,
       promptPreview: input.comparison.promptPreview,
       revealIncludedInJudgment: input.reveal,
@@ -693,11 +732,18 @@ function formatJudgmentResult(input: {
   return lines.join('\n');
 }
 
-function parseJudgmentArtifactPayload(value: unknown, artifact: SavedComparisonArtifact): LoadedComparisonJudgment | null {
+function parseJudgmentArtifactPayload(value: unknown, artifact: SavedComparisonArtifact, metadata: Record<string, unknown> = {}): LoadedComparisonJudgment | null {
   const payload = readRecord(value);
   if (!payload || readString(payload.schema) !== 'goodvibes.agent.model_compare_judgment.v1') return null;
   const winnerModel = readRecord(payload.winnerModel);
   const registryKey = readString(winnerModel?.registryKey);
+  const sourceArtifactId = readString(payload.sourceArtifactId) || readString(metadata.sourceArtifactId);
+  const benchmarkKind = readComparisonTag(payload.benchmarkKind) || readComparisonTag(metadata.benchmarkKind);
+  const taskType = readComparisonTag(payload.taskType) || readComparisonTag(metadata.taskType);
+  const documentId = readString(payload.documentId)
+    || readString(payload.sourceDocumentId)
+    || readString(metadata.documentId)
+    || readString(metadata.sourceDocumentId);
   return {
     artifact,
     judgmentId: readString(payload.judgmentId) || `judgment_from_${artifact.artifactId}`,
@@ -706,6 +752,10 @@ function parseJudgmentArtifactPayload(value: unknown, artifact: SavedComparisonA
     reasons: readString(payload.reasons),
     notes: readString(payload.notes),
     revealIncludedInJudgment: payload.revealIncludedInJudgment === true,
+    ...(sourceArtifactId ? { sourceArtifactId } : {}),
+    ...(benchmarkKind ? { benchmarkKind } : {}),
+    ...(taskType ? { taskType } : {}),
+    ...(documentId ? { documentId } : {}),
     ...(registryKey ? {
       winnerModel: {
         registryKey,
@@ -729,17 +779,19 @@ async function loadJudgmentFromArtifact(
   } catch {
     return null;
   }
-  return parseJudgmentArtifactPayload(payload, toSavedComparisonArtifact(record));
+  return parseJudgmentArtifactPayload(payload, toSavedComparisonArtifact(record), record.metadata);
 }
 
 async function loadSavedJudgments(
   artifactStore: AgentModelCompareArtifactStore | undefined,
   limit: number,
+  filters: ComparisonAnalyticsFilters = {},
 ): Promise<readonly LoadedComparisonJudgment[]> {
   if (!artifactStore?.list || !artifactStore.readContent) return [];
-  const artifacts = artifactStore.list(Math.max(limit * 3, limit))
+  const listLimit = hasComparisonFilters(filters) ? Math.max(limit * 10, 100) : Math.max(limit * 3, limit);
+  const artifacts = artifactStore.list(listLimit)
     .filter(isModelCompareJudgmentArtifact)
-    .slice(0, limit);
+    .slice(0, listLimit);
   const loaded = await Promise.all(artifacts.map(async (artifact) => {
     try {
       return await loadJudgmentFromArtifact(artifactStore, artifact.id);
@@ -747,7 +799,10 @@ async function loadSavedJudgments(
       return null;
     }
   }));
-  return loaded.filter((judgment): judgment is LoadedComparisonJudgment => judgment !== null);
+  return loaded
+    .filter((judgment): judgment is LoadedComparisonJudgment => judgment !== null)
+    .filter((judgment) => judgmentMatchesFilters(judgment, filters))
+    .slice(0, limit);
 }
 
 async function ensureSelectableWinnerModel(
@@ -795,23 +850,78 @@ function sortedCounts(map: Map<string, number>): readonly [string, number][] {
   return [...map.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
 }
 
+interface ComparisonAnalyticsFilters {
+  readonly benchmarkKind?: string;
+  readonly taskType?: string;
+  readonly documentId?: string;
+}
+
+function readComparisonAnalyticsFilters(args: AgentModelCompareToolArgs): ComparisonAnalyticsFilters {
+  const benchmarkKind = readComparisonTag(args.benchmarkKind);
+  const taskType = readComparisonTag(args.taskType);
+  const documentId = readComparisonTag(args.documentId);
+  return {
+    ...(benchmarkKind ? { benchmarkKind } : {}),
+    ...(taskType ? { taskType } : {}),
+    ...(documentId ? { documentId } : {}),
+  };
+}
+
+function hasComparisonFilters(filters: ComparisonAnalyticsFilters): boolean {
+  return Boolean(filters.benchmarkKind || filters.taskType || filters.documentId);
+}
+
+function matchesFilter(actual: string | undefined, expected: string | undefined): boolean {
+  if (!expected) return true;
+  return (actual ?? '').toLowerCase() === expected.toLowerCase();
+}
+
+function judgmentMatchesFilters(judgment: LoadedComparisonJudgment, filters: ComparisonAnalyticsFilters): boolean {
+  return matchesFilter(judgment.benchmarkKind, filters.benchmarkKind)
+    && matchesFilter(judgment.taskType, filters.taskType)
+    && matchesFilter(judgment.documentId, filters.documentId);
+}
+
+function formatComparisonFilters(filters: ComparisonAnalyticsFilters): string {
+  if (!hasComparisonFilters(filters)) return 'filters none';
+  const parts = [
+    filters.benchmarkKind ? `benchmarkKind ${filters.benchmarkKind}` : null,
+    filters.taskType ? `taskType ${filters.taskType}` : null,
+    filters.documentId ? `documentId ${filters.documentId}` : null,
+  ].filter((entry): entry is string => Boolean(entry));
+  return `filters ${parts.join('; ')}`;
+}
+
+function incrementOptionalDimension(map: Map<string, number>, value: string | undefined): void {
+  incrementCount(map, value || '(untagged)');
+}
+
 function formatComparisonAnalytics(input: {
   readonly judgments: readonly LoadedComparisonJudgment[];
   readonly limit: number;
   readonly includeReasons: boolean;
+  readonly filters: ComparisonAnalyticsFilters;
   readonly storeAvailable: boolean;
 }): string {
   if (!input.storeAvailable) {
     return 'Saved comparison analytics are unavailable because the artifact store does not expose listing and content reads in this runtime.';
   }
   if (input.judgments.length === 0) {
-    return 'No saved comparison judgments found. Save a judgment with agent_model_compare mode:"judge" first.';
+    return hasComparisonFilters(input.filters)
+      ? `No saved comparison judgments matched ${formatComparisonFilters(input.filters)}. Clear a filter or save a matching judgment with agent_model_compare mode:"judge".`
+      : 'No saved comparison judgments found. Save a judgment with agent_model_compare mode:"judge" first.';
   }
   const modelWinners = new Map<string, number>();
   const blindWinners = new Map<string, number>();
+  const benchmarkCounts = new Map<string, number>();
+  const taskCounts = new Map<string, number>();
+  const documentCounts = new Map<string, number>();
   let revealed = 0;
   for (const judgment of input.judgments) {
     incrementCount(blindWinners, normalizeBlindId(judgment.winnerBlindId) || judgment.winnerBlindId || '?');
+    incrementOptionalDimension(benchmarkCounts, judgment.benchmarkKind);
+    incrementOptionalDimension(taskCounts, judgment.taskType);
+    incrementOptionalDimension(documentCounts, judgment.documentId);
     if (judgment.winnerModel?.registryKey) {
       revealed += 1;
       incrementCount(modelWinners, `${judgment.winnerModel.registryKey} (${judgment.winnerModel.displayName})`);
@@ -821,6 +931,7 @@ function formatComparisonAnalytics(input: {
   const lines = [
     'Blind model comparison analytics',
     `judgments ${input.judgments.length}; revealed ${revealed}; hidden ${hidden}; limit ${input.limit}`,
+    formatComparisonFilters(input.filters),
     '',
     'Winning models',
   ];
@@ -833,12 +944,26 @@ function formatComparisonAnalytics(input: {
   lines.push('Winning blind slots');
   lines.push(...sortedCounts(blindWinners).map(([blindId, count]) => `  Candidate ${blindId}: ${count}`));
   lines.push('');
+  lines.push('Trend dimensions');
+  lines.push('  benchmark tags');
+  lines.push(...sortedCounts(benchmarkCounts).map(([tag, count]) => `    ${tag}: ${count}`));
+  lines.push('  task types');
+  lines.push(...sortedCounts(taskCounts).map(([task, count]) => `    ${task}: ${count}`));
+  lines.push('  documents');
+  lines.push(...sortedCounts(documentCounts).map(([document, count]) => `    ${document}: ${count}`));
+  lines.push('');
   lines.push('Recent judgments');
   for (const judgment of input.judgments.slice(0, 10)) {
     const model = judgment.winnerModel?.registryKey
       ? ` model ${judgment.winnerModel.registryKey}`
       : ' model hidden';
     lines.push(`  ${judgment.artifact.artifactId} ${judgment.comparisonId} winner Candidate ${judgment.winnerBlindId}${model}`);
+    const dimensions = [
+      judgment.benchmarkKind ? `benchmark ${judgment.benchmarkKind}` : null,
+      judgment.taskType ? `task ${judgment.taskType}` : null,
+      judgment.documentId ? `document ${judgment.documentId}` : null,
+    ].filter(Boolean).join('; ');
+    if (dimensions) lines.push(`    ${dimensions}`);
     if (input.includeReasons && judgment.reasons) {
       lines.push(`    reasons ${previewText(judgment.reasons, 120)}`);
     }
@@ -868,21 +993,30 @@ function formatComparisonSynthesis(input: {
   readonly judgments: readonly LoadedComparisonJudgment[];
   readonly limit: number;
   readonly includeReasons: boolean;
+  readonly filters: ComparisonAnalyticsFilters;
   readonly storeAvailable: boolean;
 }): string {
   if (!input.storeAvailable) {
     return 'Saved comparison synthesis is unavailable because the artifact store does not expose listing and content reads in this runtime.';
   }
   if (input.judgments.length === 0) {
-    return 'No saved comparison judgments found. Save a judgment with agent_model_compare mode:"judge" first.';
+    return hasComparisonFilters(input.filters)
+      ? `No saved comparison judgments matched ${formatComparisonFilters(input.filters)}. Clear a filter or save a matching judgment with agent_model_compare mode:"judge".`
+      : 'No saved comparison judgments found. Save a judgment with agent_model_compare mode:"judge" first.';
   }
 
   const modelWinners = new Map<string, number>();
   const comparisonIds = new Set<string>();
+  const benchmarkCounts = new Map<string, number>();
+  const taskCounts = new Map<string, number>();
+  const documentCounts = new Map<string, number>();
   const themes = new Map<string, LoadedComparisonJudgment[]>();
   let revealed = 0;
   for (const judgment of input.judgments) {
     comparisonIds.add(judgment.comparisonId);
+    incrementOptionalDimension(benchmarkCounts, judgment.benchmarkKind);
+    incrementOptionalDimension(taskCounts, judgment.taskType);
+    incrementOptionalDimension(documentCounts, judgment.documentId);
     if (judgment.winnerModel?.registryKey) {
       revealed += 1;
       incrementCount(modelWinners, `${judgment.winnerModel.registryKey} (${judgment.winnerModel.displayName})`);
@@ -902,6 +1036,7 @@ function formatComparisonSynthesis(input: {
   const lines = [
     'Blind model comparison synthesis',
     `judgments ${input.judgments.length}; revealed ${revealed}; hidden ${hidden}; compared comparisons ${comparisonIds.size}; limit ${input.limit}`,
+    formatComparisonFilters(input.filters),
     '',
     'Winning model direction',
   ];
@@ -926,12 +1061,27 @@ function formatComparisonSynthesis(input: {
   }
 
   lines.push('');
+  lines.push('Trend dimensions');
+  lines.push('  benchmark tags');
+  lines.push(...sortedCounts(benchmarkCounts).map(([tag, count]) => `    ${tag}: ${count}`));
+  lines.push('  task types');
+  lines.push(...sortedCounts(taskCounts).map(([task, count]) => `    ${task}: ${count}`));
+  lines.push('  documents');
+  lines.push(...sortedCounts(documentCounts).map(([document, count]) => `    ${document}: ${count}`));
+
+  lines.push('');
   lines.push('Recent synthesis inputs');
   for (const judgment of input.judgments.slice(0, 10)) {
     const model = judgment.winnerModel?.registryKey
       ? ` model ${judgment.winnerModel.registryKey}`
       : ' model hidden';
     lines.push(`  ${judgment.artifact.artifactId} ${judgment.comparisonId} winner Candidate ${judgment.winnerBlindId}${model}`);
+    const dimensions = [
+      judgment.benchmarkKind ? `benchmark ${judgment.benchmarkKind}` : null,
+      judgment.taskType ? `task ${judgment.taskType}` : null,
+      judgment.documentId ? `document ${judgment.documentId}` : null,
+    ].filter(Boolean).join('; ');
+    if (dimensions) lines.push(`    ${dimensions}`);
   }
 
   lines.push('');
@@ -957,6 +1107,9 @@ function comparisonExportMarkdown(comparison: StoredComparison, reveal: boolean)
     `Prompt: ${comparison.promptPreview}`,
     `Rubric: ${comparison.rubric || '(none)'}`,
     ...(comparison.sourceArtifact ? [`Source artifact: ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
+    ...(comparison.benchmarkKind ? [`Benchmark: ${comparison.benchmarkKind}`] : []),
+    ...(comparison.taskType ? [`Task type: ${comparison.taskType}`] : []),
+    ...(comparison.documentId ? [`Document: ${comparison.documentId}`] : []),
     `Reveal included: ${reveal ? 'yes' : 'no'}`,
     '',
     '## Candidates',
@@ -1158,6 +1311,9 @@ function formatComparisonEvidencePane(input: {
       `  comparison ${judgment.comparisonId}`,
       `  winner Candidate ${judgment.winnerBlindId}`,
       `  winner model ${judgment.winnerModel ? `${judgment.winnerModel.registryKey} (${judgment.winnerModel.displayName})` : '(not revealed)'}`,
+      ...(judgment.benchmarkKind ? [`  benchmark ${judgment.benchmarkKind}`] : []),
+      ...(judgment.taskType ? [`  task type ${judgment.taskType}`] : []),
+      ...(judgment.documentId ? [`  document ${judgment.documentId}`] : []),
       `  reasons ${previewText(judgment.reasons || '(none)', input.previewBytes)}`,
       ...(judgment.notes ? [`  notes ${previewText(judgment.notes, input.previewBytes)}`] : []),
     ];
@@ -1168,6 +1324,7 @@ function formatComparisonEvidencePane(input: {
     `  comparison ${comparison.comparisonId}`,
     `  prompt ${comparison.promptPreview}`,
     `  rubric ${comparison.rubric || '(none)'}`,
+    ...formatComparisonDimensionLines(comparison).map((line) => `  ${line}`),
     `  candidates ${comparison.candidates.length}`,
   ];
   for (const candidate of comparison.candidates) {
@@ -1317,6 +1474,7 @@ function formatRunResult(comparison: StoredComparison, reveal: boolean): string 
     `prompt ${comparison.promptPreview}`,
     `rubric ${comparison.rubric || '(none)'}`,
     ...(comparison.sourceArtifact ? [`source artifact ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
+    ...formatComparisonDimensionLines(comparison),
     `candidates ${comparison.candidates.length}; completed ${completed}; reveal ${reveal ? 'included' : 'hidden'}`,
     formatArtifactStatus(comparison),
     '',
@@ -1342,6 +1500,8 @@ function formatPreview(
   candidateCount: number,
 ): string {
   const benchmarkKind = readBenchmarkKind(args.benchmarkKind);
+  const taskType = readComparisonTag(args.taskType);
+  const documentId = readComparisonTag(args.documentId);
   return [
     'Agent blind model comparison preview',
     `  prompt ${previewText(readString(args.prompt) || '(missing)')}`,
@@ -1350,6 +1510,8 @@ function formatPreview(
     `  selection ${refs.length > 0 ? 'user supplied model refs' : 'auto-select from selectable models'}`,
     `  rubric ${previewText(readString(args.rubric) || '(none)')}`,
     ...(benchmarkKind ? [`  benchmark ${benchmarkKind}`] : []),
+    ...(taskType ? [`  task type ${taskType}`] : []),
+    ...(documentId ? [`  document ${documentId}`] : []),
     `  reveal ${readBoolean(args.reveal) ? 'immediate' : 'delayed'}`,
     `  artifact ${readOptionalBoolean(args.saveArtifact, true) ? 'save local JSON review' : 'do not save'}`,
     '  policy model comparison sends the same prompt to each candidate and requires confirm:true plus explicitUserRequest',
@@ -1417,10 +1579,12 @@ function comparisonArtifactText(input: {
     prompt: input.prompt,
     promptPreview: input.comparison.promptPreview,
     ...(input.comparison.sourceArtifact ? { sourceArtifact: input.comparison.sourceArtifact } : {}),
+    ...(input.comparison.documentId ? { documentId: input.comparison.documentId } : {}),
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
     maxTokens: input.maxTokens,
     rubric: input.comparison.rubric,
     ...(input.benchmarkKind ? { benchmarkKind: input.benchmarkKind } : {}),
+    ...(input.comparison.taskType ? { taskType: input.comparison.taskType } : {}),
     revealIncludedInTranscript: input.revealIncludedInTranscript,
     reviewFlow: {
       blindFirst: true,
@@ -1432,11 +1596,13 @@ function comparisonArtifactText(input: {
 }
 
 function toSavedComparisonArtifact(descriptor: ArtifactDescriptor): SavedComparisonArtifact {
+  const documentId = readString(descriptor.metadata.documentId);
   return {
     artifactId: descriptor.id,
     ...(descriptor.filename ? { filename: descriptor.filename } : {}),
     mimeType: descriptor.mimeType,
     sizeBytes: descriptor.sizeBytes,
+    ...(documentId ? { documentId } : {}),
   };
 }
 
@@ -1514,9 +1680,11 @@ async function saveComparisonArtifact(input: {
         comparisonId: input.comparison.comparisonId,
         promptPreview: input.comparison.promptPreview,
         ...(input.comparison.sourceArtifact ? { sourceArtifactId: input.comparison.sourceArtifact.artifactId } : {}),
+        ...(input.comparison.documentId ? { documentId: input.comparison.documentId } : {}),
         candidateCount: input.comparison.candidates.length,
         completedCandidates: input.comparison.candidates.filter((candidate) => candidate.status === 'completed').length,
         ...(input.benchmarkKind ? { benchmarkKind: input.benchmarkKind } : {}),
+        ...(input.comparison.taskType ? { taskType: input.comparison.taskType } : {}),
         revealStored: true,
         revealIncludedInTranscript: input.revealIncludedInTranscript,
       },
@@ -1595,6 +1763,10 @@ function parseComparisonArtifactPayload(
   const prompt = readString(payload.prompt);
   const sourceArtifact = readRecord(payload.sourceArtifact);
   const sourceArtifactId = readString(sourceArtifact?.artifactId);
+  const sourceDocumentId = readString(sourceArtifact?.documentId);
+  const documentId = readString(payload.documentId) || sourceDocumentId;
+  const benchmarkKind = readComparisonTag(payload.benchmarkKind);
+  const taskType = readComparisonTag(payload.taskType);
   return {
     comparisonId: readString(payload.comparisonId) || `cmp_from_${artifact.artifactId}`,
     createdAt: readString(payload.createdAt) || new Date().toISOString(),
@@ -1606,8 +1778,12 @@ function parseComparisonArtifactPayload(
         ...(readString(sourceArtifact?.filename) ? { filename: readString(sourceArtifact?.filename) } : {}),
         mimeType: readString(sourceArtifact?.mimeType) || 'application/octet-stream',
         sizeBytes: Math.max(0, readNumber(sourceArtifact?.sizeBytes, 0)),
+        ...(sourceDocumentId ? { documentId: sourceDocumentId } : {}),
       },
     } : {}),
+    ...(benchmarkKind ? { benchmarkKind } : {}),
+    ...(taskType ? { taskType } : {}),
+    ...(documentId ? { documentId } : {}),
     candidates,
     artifact,
     artifactStatus: { state: 'saved', message: `loaded from ${artifact.artifactId}` },
@@ -1697,8 +1873,15 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           },
           benchmarkKind: {
             type: 'string',
-            enum: [BENCHMARK_KIND_LOCAL_MODEL_ROUTE],
-            description: 'Optional benchmark tag for saved comparison artifacts.',
+            description: 'Optional benchmark tag for saved comparisons or analytics filters.',
+          },
+          taskType: {
+            type: 'string',
+            description: 'Optional task type tag for saved comparisons or analytics filters.',
+          },
+          documentId: {
+            type: 'string',
+            description: 'Optional document id tag for saved comparisons or analytics filters.',
           },
           comparisonId: {
             type: 'string',
@@ -1830,22 +2013,26 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
 
         if (mode === MODE_ANALYTICS) {
           const limit = clamp(readNumber(args.limit, 20), 1, 100);
-          const judgments = await loadSavedJudgments(deps.artifactStore, limit);
+          const filters = readComparisonAnalyticsFilters(args);
+          const judgments = await loadSavedJudgments(deps.artifactStore, limit, filters);
           return output(formatComparisonAnalytics({
             judgments,
             limit,
             includeReasons: readOptionalBoolean(args.includeReasons, true),
+            filters,
             storeAvailable: Boolean(deps.artifactStore?.list && deps.artifactStore.readContent),
           }));
         }
 
         if (mode === MODE_SYNTHESIS) {
           const limit = clamp(readNumber(args.limit, 20), 1, 100);
-          const judgments = await loadSavedJudgments(deps.artifactStore, limit);
+          const filters = readComparisonAnalyticsFilters(args);
+          const judgments = await loadSavedJudgments(deps.artifactStore, limit, filters);
           return output(formatComparisonSynthesis({
             judgments,
             limit,
             includeReasons: readOptionalBoolean(args.includeReasons, true),
+            filters,
             storeAvailable: Boolean(deps.artifactStore?.list && deps.artifactStore.readContent),
           }));
         }
@@ -2106,6 +2293,8 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
         const sourceArtifactId = readString(args.artifactId);
         const refs = readModelRefs(args.modelRefs);
         const benchmarkKind = readBenchmarkKind(args.benchmarkKind);
+        const taskType = readComparisonTag(args.taskType);
+        const requestedDocumentId = readComparisonTag(args.documentId);
         const candidateCount = clamp(readNumber(args.candidateCount, DEFAULT_CANDIDATE_COUNT), MIN_CANDIDATES, MAX_CANDIDATES);
         if (!promptInput && !sourceArtifactId) return failure('prompt or artifactId is required.');
         if (!explicitUserRequest) {
@@ -2144,6 +2333,9 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           promptPreview: previewText(prompt, 160),
           rubric: readString(args.rubric),
           ...(runPrompt.sourceArtifact ? { sourceArtifact: runPrompt.sourceArtifact } : {}),
+          ...(benchmarkKind ? { benchmarkKind } : {}),
+          ...(taskType ? { taskType } : {}),
+          ...(requestedDocumentId || runPrompt.sourceArtifact?.documentId ? { documentId: requestedDocumentId || runPrompt.sourceArtifact?.documentId } : {}),
           candidates: results,
         };
         const saved = await saveComparisonArtifact({

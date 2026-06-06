@@ -328,6 +328,96 @@ describe('agent_model_compare tool', () => {
     expect(payload.prompt).toContain('Launch facts: ship the safer artifact reuse workflow.');
   });
 
+  test('filters saved preference analytics by task type document id and benchmark tag', async () => {
+    const artifacts = artifactStore();
+    const source = await artifacts.store.create({
+      kind: 'document',
+      mimeType: 'text/markdown',
+      filename: 'launch-plan.md',
+      text: 'Launch plan: keep the evidence packet concise.',
+      metadata: { purpose: 'agent-document-export', documentId: 'doc_launch' },
+    });
+    const runner = fixture({ artifactStore: artifacts.store });
+
+    const documentRun = await runner.tool.execute({
+      mode: 'run',
+      artifactId: source.id,
+      prompt: 'Draft a launch update from this document.',
+      modelRefs: ['openai:gpt-4.1', 'anthropic:claude-sonnet'],
+      benchmarkKind: 'doc-draft',
+      taskType: 'writing',
+      confirm: true,
+      explicitUserRequest: 'Compare launch update drafts for this document.',
+    });
+    expect(documentRun.success).toBe(true);
+    expect(documentRun.output).toContain('benchmark doc-draft');
+    expect(documentRun.output).toContain('task type writing');
+    expect(documentRun.output).toContain('document doc_launch');
+
+    const reviewer = fixture({ artifactStore: artifacts.store });
+    const documentJudgment = await reviewer.tool.execute({
+      mode: 'judge',
+      artifactId: 'artifact-2',
+      winnerBlindId: 'B',
+      reasons: 'Document draft was more concrete.',
+      reveal: true,
+      confirm: true,
+      explicitUserRequest: 'Save the document comparison winner.',
+    });
+    expect(documentJudgment.success).toBe(true);
+    expect(artifacts.inputs[2]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare-judgment',
+      benchmarkKind: 'doc-draft',
+      taskType: 'writing',
+      documentId: 'doc_launch',
+      sourceDocumentId: 'doc_launch',
+    });
+
+    const researchRun = await runner.tool.execute({
+      mode: 'run',
+      prompt: 'Answer a research question.',
+      modelRefs: ['openai:gpt-4.1', 'anthropic:claude-sonnet'],
+      benchmarkKind: 'research-bench',
+      taskType: 'research',
+      confirm: true,
+      explicitUserRequest: 'Compare research answer drafts.',
+    });
+    expect(researchRun.success).toBe(true);
+    const researchJudgment = await reviewer.tool.execute({
+      mode: 'judge',
+      artifactId: 'artifact-4',
+      winnerBlindId: 'A',
+      reasons: 'Research answer was easier to scan.',
+      confirm: true,
+      explicitUserRequest: 'Save the research comparison winner.',
+    });
+    expect(researchJudgment.success).toBe(true);
+
+    const analytics = await reviewer.tool.execute({
+      mode: 'analytics',
+      benchmarkKind: 'doc-draft',
+      taskType: 'writing',
+      documentId: 'doc_launch',
+      includeReasons: true,
+    });
+    expect(analytics.success).toBe(true);
+    expect(analytics.output).toContain('filters benchmarkKind doc-draft; taskType writing; documentId doc_launch');
+    expect(analytics.output).toContain('judgments 1; revealed 1; hidden 0');
+    expect(analytics.output).toContain('Trend dimensions');
+    expect(analytics.output).toContain('doc-draft: 1');
+    expect(analytics.output).toContain('writing: 1');
+    expect(analytics.output).toContain('doc_launch: 1');
+    expect(analytics.output).toContain('Document draft was more concrete.');
+    expect(analytics.output).not.toContain('Research answer was easier to scan.');
+
+    const synthesis = await reviewer.tool.execute({
+      mode: 'synthesis',
+      documentId: 'missing-doc',
+    });
+    expect(synthesis.success).toBe(true);
+    expect(synthesis.output).toContain('No saved comparison judgments matched filters documentId missing-doc');
+  });
+
   test('rejects non-text source artifacts for blind comparison prompts', async () => {
     const artifacts = artifactStore();
     const image = await artifacts.store.create({

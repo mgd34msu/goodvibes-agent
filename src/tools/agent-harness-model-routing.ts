@@ -764,7 +764,7 @@ function describeLocalBenchmarkJudgment(artifact: ArtifactDescriptor): Record<st
     winnerModel: winnerModel || null,
     winnerStack: winnerModel ? localStackFor(winnerModel) : null,
     promptPreview: previewHarnessText(readString(artifact.metadata.promptPreview) || 'local model benchmark judgment', 120),
-    analyticsRoute: 'agent_model_compare analytics includeReasons:true',
+    analyticsRoute: 'agent_model_compare analytics benchmarkKind:"local-model-route" includeReasons:true',
     exportRoute: `agent_model_compare export artifactId:"${artifact.id}" confirm:true explicitUserRequest:"Export this local benchmark judgment."`,
     applyRoute: winnerModel
       ? `agent_model_compare apply artifactId:"${artifact.id}" confirm:true explicitUserRequest:"Apply this revealed local benchmark winner."`
@@ -847,7 +847,7 @@ function localModelBenchmarkHistory(context: CommandContext, includeParameters: 
       status: 'unavailable',
       count: 0,
       reason: 'Artifact history is unavailable in this runtime.',
-      saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"..."',
+      saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" taskType:"local-model-route" confirm:true explicitUserRequest:"..."',
       evidence,
     };
   }
@@ -875,8 +875,8 @@ function localModelBenchmarkHistory(context: CommandContext, includeParameters: 
         ? 'Use the revealed saved judgment as evidence only; apply/update still needs a separate confirmed user request.'
         : `Review saved local benchmark ${artifacts[0]!.id}, then save a revealed judgment before recommending any default-model change.`
       : 'Run the setupPlan benchmark prompt and save the comparison artifact before recommending any default-model change.',
-    analyticsRoute: 'agent_model_compare analytics includeReasons:true',
-    saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"..."',
+    analyticsRoute: 'agent_model_compare analytics benchmarkKind:"local-model-route" includeReasons:true',
+    saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" taskType:"local-model-route" confirm:true explicitUserRequest:"..."',
     policy: 'Benchmark history is read-only evidence. Route changes still require a separate revealed judgment and confirmed apply/update action.',
   };
 }
@@ -898,7 +898,7 @@ function localModelBenchmarkPlan(recipe: LocalModelRecipe): LocalModelBenchmarkP
       'whether the route supports the needed context window and tool workflow',
     ],
     workspaceActionRoute: 'agent_harness mode:"run_workspace_action" actionId:"account-run-local-model-benchmark" confirm:true fields.confirm:"yes" fields.modelRefs:"<local-route>,<baseline-route>" explicitUserRequest:"Compare this local model route before making it default."',
-    compareRoute: `agent_model_compare run prompt:"local model benchmark: ${recipe.label}" benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"Compare this local model route before making it default."`,
+    compareRoute: `agent_model_compare run prompt:"local model benchmark: ${recipe.label}" benchmarkKind:"local-model-route" taskType:"local-model-route" confirm:true explicitUserRequest:"Compare this local model route before making it default."`,
     refreshRoute: 'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh model catalog, benchmarks, and token limits after local model setup."',
     notes: [
       'Use the workspace action when the user wants a form with benchmark defaults; use compareRoute when the model already has exact modelRefs.',
