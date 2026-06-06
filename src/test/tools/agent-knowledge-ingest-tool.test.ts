@@ -21,6 +21,7 @@ interface CapturedRequest {
 
 interface IngestPayload {
   readonly path?: string;
+  readonly artifactId?: string;
   readonly url?: string;
   readonly title?: string;
   readonly tags?: readonly string[];
@@ -194,6 +195,47 @@ describe('agent_knowledge_ingest tool', () => {
       expect(payload.title).toBe('Agent notes');
       expect(payload.tags).toEqual(['notes']);
       expect(payload.connectorId).toBe('goodvibes-agent-main-conversation-file');
+      expect(payload.metadata?.originSurface).toBe('goodvibes-agent');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('ingests saved artifact ids through only the isolated Agent Knowledge artifact route', async () => {
+    const paths = shellPaths();
+    const tool = createAgentKnowledgeIngestTool(paths, configManager(paths));
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return ingestResponse();
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await tool.execute({
+        sourceKind: 'artifact',
+        artifactId: 'artifact-123',
+        title: 'Reviewed export',
+        tags: ['artifact', 'reviewed'],
+        confirm: true,
+        explicitUserRequest: 'Promote this reviewed artifact into Agent Knowledge.',
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.output).toContain('Agent Knowledge artifact ingest accepted');
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/artifact');
+      expect(requests[0]?.url).not.toContain('/api/knowledge');
+      const payload = JSON.parse(requests[0]?.body ?? '{}') as IngestPayload;
+      expect(payload.artifactId).toBe('artifact-123');
+      expect(payload.path).toBeUndefined();
+      expect(payload.title).toBe('Reviewed export');
+      expect(payload.tags).toEqual(['artifact', 'reviewed']);
+      expect(payload.connectorId).toBe('goodvibes-agent-artifact-browser');
       expect(payload.metadata?.originSurface).toBe('goodvibes-agent');
     } finally {
       globalThis.fetch = originalFetch;

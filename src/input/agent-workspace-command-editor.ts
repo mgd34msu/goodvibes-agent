@@ -1,5 +1,5 @@
 import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
-import { buildAgentArtifactBrowserPromptSubmission } from './agent-workspace-artifact-browser-editor.ts';
+import { buildAgentArtifactBrowserPromptSubmission, buildAgentArtifactPromoteKnowledgePromptSubmission } from './agent-workspace-artifact-browser-editor.ts';
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
@@ -45,6 +45,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'image-input'
   | 'artifact-browser'
   | 'artifact-show'
+  | 'artifact-promote-knowledge'
   | 'skill-bundle'
   | 'persona-discovery-import'
   | 'routine-discovery-import'
@@ -97,6 +98,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'knowledge-ask'
     || kind === 'artifact-browser'
     || kind === 'artifact-show'
+    || kind === 'artifact-promote-knowledge'
     || kind === 'model-compare'
     || kind === 'model-compare-review'
     || kind === 'model-compare-judge'
@@ -123,6 +125,9 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'artifact-browser' || editor.kind === 'artifact-show') {
     return buildAgentArtifactBrowserPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'artifact-promote-knowledge') {
+    return buildAgentArtifactPromoteKnowledgePromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (editor.kind === 'model-compare') {
     return buildAgentModelComparePromptSubmission(editor, readField, promptDispatchAvailable);

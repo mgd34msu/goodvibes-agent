@@ -197,6 +197,57 @@ describe('Agent Knowledge CLI route isolation', () => {
     }
   });
 
+  test('ingest-artifact uses artifact ids on the isolated Agent Knowledge route', async () => {
+    const requests: CapturedRequest[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (input, init) => {
+      requests.push({
+        url: inputUrl(input),
+        method: init?.method ?? 'GET',
+        body: typeof init?.body === 'string' ? init.body : null,
+      });
+      return new Response(JSON.stringify({
+        source: {
+          id: 'src-agent-artifact',
+          canonicalUri: 'artifact-123',
+          sourceType: 'artifact',
+        },
+        artifactId: 'artifact-123',
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }) satisfies typeof fetch;
+
+    try {
+      const result = await handleAgentKnowledgeCommand(createRuntime([
+        'ingest-artifact',
+        'artifact-123',
+        '--title',
+        'Reviewed Export',
+        '--tags',
+        'artifact,reviewed',
+        '--yes',
+      ]));
+      const parsed = JSON.parse(result.output) as unknown;
+
+      expect(result.exitCode).toBe(0);
+      expect(requests).toHaveLength(1);
+      expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/goodvibes-agent/knowledge/ingest/artifact');
+      expect(requests[0]?.url).not.toContain('/api/knowledge/');
+      expect(requests[0]?.body).toContain('"artifactId":"artifact-123"');
+      expect(requests[0]?.body).not.toContain('"path"');
+      expect(requests[0]?.body).toContain('"connectorId":"goodvibes-agent-artifact-browser"');
+      expect(parsed).toMatchObject({
+        ok: true,
+        kind: 'agentKnowledge.ingest.artifact',
+        route: '/api/goodvibes-agent/knowledge/ingest/artifact',
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('rejects Knowledge space flags before any connected-host request', async () => {
     const originalFetch = globalThis.fetch;
     globalThis.fetch = (async () => {

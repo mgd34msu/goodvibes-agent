@@ -102,6 +102,7 @@ export type AgentWorkspaceEditorKind =
   | 'image-input'
   | 'artifact-browser'
   | 'artifact-show'
+  | 'artifact-promote-knowledge'
   | 'media-generate'
   | 'model-compare'
   | 'model-compare-review'

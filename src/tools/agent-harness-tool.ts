@@ -1,7 +1,7 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
-import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
+import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactPromoteKnowledgeToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
@@ -328,6 +328,38 @@ async function runWorkspaceEditorAction(
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',
       action: action.id,
       tool: 'agent_artifacts',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'artifact-promote-knowledge') {
+    const confirmationError = requireConfirmedAction(args, 'Workspace artifact Knowledge promotion');
+    if (confirmationError) return error(confirmationError);
+    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+      return output({
+        status: 'not_confirmed',
+        action: action.id,
+        editor: describeWorkspaceEditor(editor),
+        modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+        note: 'Type yes in the editor confirmation field before ingesting the artifact into Agent Knowledge.',
+      });
+    }
+    const ingestToolArgs = buildAgentArtifactPromoteKnowledgeToolArgs(
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Promote a reviewed saved Agent artifact into isolated Agent Knowledge.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-artifact-promote-knowledge',
+      'agent_knowledge_ingest',
+      ingestToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_knowledge_ingest',
       output: result.output ?? null,
       error: result.error ?? null,
       modelExecution: describeWorkspaceEditorModelExecution(editor.kind),

@@ -1,5 +1,5 @@
 import { createLearnedBehaviorEditor, createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
-import { createAgentArtifactBrowserEditor, createAgentArtifactShowEditor } from './agent-workspace-artifact-browser-editor.ts';
+import { createAgentArtifactBrowserEditor, createAgentArtifactPromoteKnowledgeEditor, createAgentArtifactShowEditor } from './agent-workspace-artifact-browser-editor.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
 import { createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
@@ -188,6 +188,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'web-fetch') return createAgentWorkspaceWebResearchEditor('fetch');
   if (editorKind === 'artifact-browser') return createAgentArtifactBrowserEditor();
   if (editorKind === 'artifact-show') return createAgentArtifactShowEditor();
+  if (editorKind === 'artifact-promote-knowledge') return createAgentArtifactPromoteKnowledgeEditor();
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();
   if (editorKind === 'model-compare-judge') return createAgentModelCompareJudgmentEditor();

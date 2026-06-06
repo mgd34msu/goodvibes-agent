@@ -14,6 +14,7 @@ import { formatBatchIngest, formatFailure, formatIngest } from '../cli/agent-kno
 export type AgentKnowledgeIngestSourceKind =
   | 'url'
   | 'file'
+  | 'artifact'
   | 'urls_file'
   | 'bookmarks_file'
   | 'browser_history'
@@ -23,6 +24,7 @@ export interface AgentKnowledgeIngestToolArgs {
   readonly sourceKind?: unknown;
   readonly url?: unknown;
   readonly path?: unknown;
+  readonly artifactId?: unknown;
   readonly title?: unknown;
   readonly tags?: unknown;
   readonly folderPath?: unknown;
@@ -44,6 +46,7 @@ type JsonRecord = Record<string, unknown>;
 interface AgentKnowledgeIngestRequest {
   readonly method: typeof AGENT_KNOWLEDGE_METHODS[keyof typeof AGENT_KNOWLEDGE_METHODS];
   readonly target: string;
+  readonly targetLabel: string;
   readonly label: string;
   readonly payload: JsonRecord;
   readonly batch: boolean;
@@ -52,6 +55,7 @@ interface AgentKnowledgeIngestRequest {
 const SOURCE_KINDS: readonly AgentKnowledgeIngestSourceKind[] = [
   'url',
   'file',
+  'artifact',
   'urls_file',
   'bookmarks_file',
   'browser_history',
@@ -161,6 +165,7 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
     return {
       method: AGENT_KNOWLEDGE_METHODS.ingestUrl,
       target: url,
+      targetLabel: 'url',
       label: 'URL ingest',
       batch: false,
       payload: {
@@ -180,6 +185,7 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
     return {
       method: AGENT_KNOWLEDGE_METHODS.ingestArtifact,
       target: path,
+      targetLabel: 'file',
       label: 'file ingest',
       batch: false,
       payload: {
@@ -194,6 +200,26 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
     };
   }
 
+  if (sourceKind === 'artifact') {
+    const artifactId = readString(args.artifactId);
+    if (!artifactId) throw new Error('artifactId is required.');
+    return {
+      method: AGENT_KNOWLEDGE_METHODS.ingestArtifact,
+      target: artifactId,
+      targetLabel: 'artifact',
+      label: 'artifact ingest',
+      batch: false,
+      payload: {
+        artifactId,
+        title,
+        tags: [...tags],
+        folderPath: readOptionalString(args.folderPath),
+        connectorId: readOptionalString(args.connectorId) ?? 'goodvibes-agent-artifact-browser',
+        metadata: originMetadata,
+      },
+    };
+  }
+
   if (sourceKind === 'urls_file' || sourceKind === 'bookmarks_file') {
     const path = readString(args.path);
     if (!path) throw new Error('path is required.');
@@ -201,6 +227,7 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
     return {
       method,
       target: path,
+      targetLabel: 'file',
       label: sourceKind === 'urls_file' ? 'URL-list import' : 'bookmarks import',
       batch: true,
       payload: {
@@ -215,6 +242,7 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
     return {
       method: AGENT_KNOWLEDGE_METHODS.ingestBrowserHistory,
       target: 'local browser history',
+      targetLabel: 'source',
       label: 'browser-history import',
       batch: true,
       payload: {
@@ -240,6 +268,7 @@ function requestForArgs(args: AgentKnowledgeIngestToolArgs): AgentKnowledgeInges
   return {
     method: AGENT_KNOWLEDGE_METHODS.ingestConnector,
     target: connectorId,
+    targetLabel: 'connector',
     label: 'connector ingest',
     batch: true,
     payload: {
@@ -277,6 +306,10 @@ export function createAgentKnowledgeIngestTool(
           path: {
             type: 'string',
             description: 'Local file or import path.',
+          },
+          artifactId: {
+            type: 'string',
+            description: 'Saved artifact id when sourceKind is artifact.',
           },
           title: {
             type: 'string',
@@ -381,7 +414,7 @@ export function createAgentKnowledgeIngestTool(
             request.target,
             request.label,
             request.method.route,
-            request.label === 'file ingest' ? 'file' : 'url',
+            request.targetLabel,
           ));
       } catch (error) {
         return failure(formatKnowledgeFailure(await classifyKnowledgeError(error, connection, request.method.route)));

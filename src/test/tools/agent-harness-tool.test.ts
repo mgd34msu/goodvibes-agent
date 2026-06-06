@@ -694,6 +694,7 @@ describe('agent_harness tool', () => {
     const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
       fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store));
+      registerStubTool(fixture.toolRegistry, 'agent_knowledge_ingest');
       registerStubTool(fixture.toolRegistry, 'agent_model_compare');
       const summary = await executeHarnessJson<{
         readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly partial: number; readonly gap: number };
@@ -730,9 +731,12 @@ describe('agent_harness tool', () => {
       expect(exports?.actionIds).toContain('document-export-conversation');
       expect(sourceLibrary?.status).toBe('ready');
       expect(artifactBrowser?.status).toBe('ready');
-      expect(artifactBrowser?.current).toContain('unified read-only artifact browser');
+      expect(artifactBrowser?.current).toContain('unified artifact browser');
+      expect(artifactBrowser?.current).toContain('artifact-to-Knowledge promotion');
       expect(artifactBrowser?.actionIds).toContain('artifact-browse');
       expect(artifactBrowser?.actionIds).toContain('artifact-show');
+      expect(artifactBrowser?.actionIds).toContain('artifact-promote-knowledge');
+      expect(artifactBrowser?.actionIds).toContain('document-promote-artifact');
       expect(modelCompare?.status).toBe('partial');
       expect(modelCompare?.current).toContain('confirmed blind comparison runner');
       expect(modelCompare?.actionIds).toContain('document-run-compare');
@@ -749,7 +753,7 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'document_ops_lane', laneId: 'artifact_browser' });
       expect(artifactLane.id).toBe('artifact_browser');
       expect(artifactLane.status).toBe('ready');
-      expect(artifactLane.routes?.model).toBe('agent_artifacts');
+      expect(artifactLane.routes?.model).toBe('agent_artifacts + agent_knowledge_ingest');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -932,6 +936,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-promote-artifact')?.modelRoute).toBe('agent_knowledge_ingest');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-promote-knowledge')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
@@ -2855,6 +2861,7 @@ describe('agent_harness tool', () => {
     const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
       fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store));
+      registerStubTool(fixture.toolRegistry, 'agent_knowledge_ingest');
 
       const browse = await fixture.tool.execute({
         mode: 'run_workspace_action',
@@ -2886,6 +2893,37 @@ describe('agent_harness tool', () => {
       expect(showPayload.output).toContain('Saved comparison report');
       expect(showPayload.output).toContain('"apiKey": "<redacted>"');
       expect(showPayload.output).not.toContain('not-for-transcript');
+
+      const unconfirmedPromotion = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'artifact-promote-knowledge',
+        confirm: true,
+        explicitUserRequest: 'Promote the reviewed comparison artifact into Agent Knowledge.',
+        fields: {
+          artifactId: 'artifact-1',
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmedPromotion.success).toBe(true);
+      expect(unconfirmedPromotion.output).toContain('"status": "not_confirmed"');
+      expect(unconfirmedPromotion.output).toContain('artifact-promote-knowledge');
+
+      const promotion = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-promote-artifact',
+        confirm: true,
+        explicitUserRequest: 'Promote the reviewed comparison artifact into Agent Knowledge.',
+        fields: {
+          artifactId: 'artifact-1',
+          title: 'Reviewed comparison report',
+          tags: 'artifact,reviewed',
+          confirm: 'yes',
+        },
+      });
+      expect(promotion.success).toBe(true);
+      expect(promotion.output).toContain('"status": "executed_model_tool"');
+      expect(promotion.output).toContain('"tool": "agent_knowledge_ingest"');
+      expect(promotion.output).toContain('agent_knowledge_ingest executed');
     } finally {
       fixture.cleanup();
     }

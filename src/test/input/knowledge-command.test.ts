@@ -231,6 +231,49 @@ describe('knowledgeCommand', () => {
     expect(sources[0]?.connectorId).toBe('goodvibes-agent-file');
   });
 
+  test('ingests a saved artifact id into Agent Knowledge only after confirmation', async () => {
+    const artifactStore = new ArtifactStore({
+      configManager: {
+        getControlPlaneConfigDir: () => root,
+      },
+    });
+    const knowledgeStore = new KnowledgeStore({
+      configManager: {
+        getControlPlaneConfigDir: () => root,
+      },
+    });
+    await memoryStore.init();
+    const knowledgeService = new KnowledgeService(knowledgeStore, artifactStore, undefined, { memoryRegistry });
+    const artifact = await artifactStore.create({
+      filename: 'reviewed-export.md',
+      text: '# Reviewed Export\n\nPromote this artifact into Agent Knowledge.\n',
+    });
+
+    await knowledgeCommand.handler(
+      ['ingest-artifact', artifact.id, '--title', 'Reviewed Export', '--tags', 'artifact,reviewed'],
+      makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
+    );
+
+    expect(printed.join('\n')).toContain('Refusing to ingest artifact into Agent Knowledge');
+    expect(knowledgeStore.listSources()).toHaveLength(0);
+
+    printed = [];
+    await knowledgeCommand.handler(
+      ['ingest-artifact', artifact.id, '--title', 'Reviewed Export', '--tags', 'artifact,reviewed', '--yes'],
+      makeKnowledgeCommandContext(root, printed, knowledgeService, memoryRegistry),
+    );
+
+    expect(printed.join('\n')).toContain('Ingested');
+    const sources = knowledgeStore.listSources();
+    expect(sources).toHaveLength(1);
+    expect(sources[0]?.connectorId).toBe('goodvibes-agent-artifact-browser');
+    expect(sources[0]?.metadata).toMatchObject({
+      knowledgeIntent: {
+        ingestMode: 'artifact',
+      },
+    });
+  });
+
   test('imports browser history only after confirmation', async () => {
     let calledInput: unknown = null;
     const context = {

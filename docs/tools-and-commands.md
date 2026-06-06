@@ -36,7 +36,7 @@ High-signal TUI routes:
 | --- | --- |
 | `agent_harness` | Discover and operate Agent harness routes, including visible surfaces and operator/audit inspection. |
 | `agent_knowledge` | Read isolated Agent Knowledge: status, ask/search, lists, item, map, connectors. |
-| `agent_knowledge_ingest` | Confirmed ingest into isolated Agent Knowledge. |
+| `agent_knowledge_ingest` | Confirmed URL, file, artifact-id, browser, bookmark, or connector ingest into isolated Agent Knowledge. |
 | `agent_local_registry` | Inspect or update Agent-local memory, notes, personas, skills, bundles, and routines. |
 | `agent_work_plan` | Keep the visible Agent-local work plan current. |
 | `agent_operator_briefing` | Read connected work, approvals, automation, schedules, and capacity posture. |
@@ -67,7 +67,7 @@ Discovery modes:
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
 | `provider_accounts`, `model_routing` | Provider auth and provider/model route posture. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
-| `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifacts, media artifacts, and blind model comparison. |
+| `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |
@@ -117,7 +117,7 @@ Registered model tool definitions are compact by default. Tool descriptions use 
 Execution routes:
 
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
-- Confirmed Agent Knowledge URL/file/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.
+- Confirmed Agent Knowledge URL/file/artifact-id/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.
 - Command-backed editors dispatch through `run_command`.
 - Learned-behavior and profile creation use the Agent-local or slash-command route.
 - Web research/fetch forms return a main-conversation prompt instead of starting hidden nested work.

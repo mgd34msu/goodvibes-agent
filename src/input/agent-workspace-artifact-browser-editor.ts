@@ -15,6 +15,17 @@ export interface AgentArtifactBrowserWorkspaceToolArgs {
   readonly previewBytes?: number;
 }
 
+export interface AgentArtifactKnowledgePromotionWorkspaceToolArgs {
+  readonly sourceKind: 'artifact';
+  readonly artifactId: string;
+  readonly title?: string;
+  readonly tags?: readonly string[];
+  readonly folderPath?: string;
+  readonly connectorId?: string;
+  readonly confirm: true;
+  readonly explicitUserRequest: string;
+}
+
 function readPositiveInteger(value: string): number | null {
   if (!value.trim()) return null;
   const parsed = Number(value);
@@ -25,6 +36,13 @@ function readPositiveInteger(value: string): number | null {
 function isAffirmative(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return normalized === 'yes' || normalized === 'true';
+}
+
+function splitList(value: string): readonly string[] {
+  return value
+    .split(/[,\n]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
 }
 
 export function createAgentArtifactBrowserEditor(): AgentWorkspaceLocalEditor {
@@ -60,6 +78,24 @@ export function createAgentArtifactShowEditor(): AgentWorkspaceLocalEditor {
   };
 }
 
+export function createAgentArtifactPromoteKnowledgeEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'artifact-promote-knowledge',
+    mode: 'create',
+    title: 'Promote Artifact to Knowledge',
+    selectedFieldIndex: 0,
+    message: 'Promote one reviewed saved artifact into isolated Agent Knowledge by id. This writes only through the Agent Knowledge artifact ingest route.',
+    fields: [
+      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved artifact id to ingest into Agent Knowledge.' },
+      { id: 'title', label: 'Title', value: '', required: false, multiline: false, hint: 'Optional source title for Agent Knowledge.' },
+      { id: 'tags', label: 'Tags', value: 'artifact', required: false, multiline: false, hint: 'Comma-separated optional tags.' },
+      { id: 'folderPath', label: 'Folder', value: '', required: false, multiline: false, hint: 'Optional Agent Knowledge folder path.' },
+      { id: 'connectorId', label: 'Connector id', value: 'goodvibes-agent-artifact-browser', required: false, multiline: false, hint: 'Optional connector id for provenance. Default is goodvibes-agent-artifact-browser.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to ingest this artifact into isolated Agent Knowledge.' },
+    ],
+  };
+}
+
 export function buildAgentArtifactBrowserToolArgs(
   readField: AgentWorkspaceFieldReader,
 ): AgentArtifactBrowserWorkspaceToolArgs {
@@ -89,6 +125,26 @@ export function buildAgentArtifactShowToolArgs(
     artifactId: readField('artifactId').trim(),
     includeContent: isAffirmative(readField('includeContent')),
     ...(previewBytes !== null ? { previewBytes } : {}),
+  };
+}
+
+export function buildAgentArtifactPromoteKnowledgeToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentArtifactKnowledgePromotionWorkspaceToolArgs {
+  const title = readField('title').trim();
+  const folderPath = readField('folderPath').trim();
+  const connectorId = readField('connectorId').trim();
+  const tags = splitList(readField('tags'));
+  return {
+    sourceKind: 'artifact',
+    artifactId: readField('artifactId').trim(),
+    ...(title ? { title } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+    ...(folderPath ? { folderPath } : {}),
+    ...(connectorId ? { connectorId } : {}),
+    confirm: true,
+    explicitUserRequest,
   };
 }
 
@@ -152,6 +208,77 @@ export function buildAgentArtifactBrowserPromptSubmission(
       title: editor.kind === 'artifact-show' ? 'Artifact inspection' : 'Artifact browser',
       detail: 'Submitted a read-only request to inspect saved Agent artifacts.',
       safety: 'read-only',
+    },
+  };
+}
+
+export function buildAgentArtifactPromoteKnowledgePromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult?: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!isAffirmative(readField('confirm'))) {
+    return {
+      kind: 'editor',
+      editor: { ...editor, message: 'Type yes to confirm artifact ingest into isolated Agent Knowledge.' },
+      status: 'Artifact Knowledge promotion not confirmed.',
+    };
+  }
+
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit artifact Knowledge promotion from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const args = buildAgentArtifactPromoteKnowledgeToolArgs(
+    readField,
+    'Promote a reviewed saved Agent artifact into isolated Agent Knowledge.',
+  );
+  const prompt = [
+    'Promote one reviewed saved Agent artifact into isolated Agent Knowledge.',
+    'Use the `agent_knowledge_ingest` tool with these arguments:',
+    `sourceKind: ${JSON.stringify(args.sourceKind)}`,
+    `artifactId: ${JSON.stringify(args.artifactId)}`,
+    args.title ? `title: ${JSON.stringify(args.title)}` : 'title: none',
+    args.tags && args.tags.length > 0 ? `tags: ${JSON.stringify(args.tags)}` : 'tags: none',
+    args.folderPath ? `folderPath: ${JSON.stringify(args.folderPath)}` : 'folderPath: none',
+    args.connectorId ? `connectorId: ${JSON.stringify(args.connectorId)}` : 'connectorId: default',
+    'confirm: true',
+    `explicitUserRequest: ${JSON.stringify(args.explicitUserRequest)}`,
+    'Policy: isolated Agent Knowledge only; no default knowledge, no alternate knowledge segment, and no artifact deletion.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting artifact Knowledge promotion request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Artifact Knowledge promotion',
+      detail: 'Submitted a confirmed request to ingest one saved artifact into isolated Agent Knowledge.',
+      safety: 'safe',
     },
   };
 }

@@ -150,8 +150,10 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
   const artifactBrowserActions = existingActions([
     'document-browse-artifacts',
     'document-show-artifact',
+    'document-promote-artifact',
     'artifact-browse',
     'artifact-show',
+    'artifact-promote-knowledge',
     'document-artifacts',
     'artifact-flow',
     'artifact-show-source',
@@ -173,10 +175,12 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
   ], available);
   const modelCompareReady = hasTool(context, 'agent_model_compare') && modelCompareActions.includes('document-run-compare');
   const artifactBrowserReady = hasTool(context, 'agent_artifacts')
+    && hasTool(context, 'agent_knowledge_ingest')
     && Boolean(context.platform.artifactStore?.list)
     && Boolean(context.platform.artifactStore?.readContent)
     && artifactBrowserActions.includes('artifact-browse')
-    && artifactBrowserActions.includes('artifact-show');
+    && artifactBrowserActions.includes('artifact-show')
+    && artifactBrowserActions.includes('artifact-promote-knowledge');
 
   return [
     {
@@ -265,17 +269,19 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: artifactBrowserReady ? 'ready' : artifactBrowserActions.length > 0 ? 'partial' : 'gap',
       outcome: 'Find and reuse uploaded, exported, generated, and source-backed artifacts from one place.',
       current: artifactBrowserReady
-        ? 'Agent has a unified read-only artifact browser with filters, redacted metadata, and bounded text previews over the SDK artifact store.'
+        ? 'Agent has a unified artifact browser with filters, redacted metadata, bounded text previews, and confirmed artifact-to-Knowledge promotion over the SDK artifact store.'
         : 'Artifacts are real and visible in transcript, source, session, and media routes, but the unified browser is not fully wired in this runtime.',
       next: artifactBrowserReady
-        ? 'Add reuse actions on top of the browser once document editing and artifact selection targets exist.'
+        ? 'Add document versioning plus richer insert, attach, export, and compare reuse targets once document editing exists.'
         : 'Wire agent_artifacts and browse/show workspace actions over the SDK artifact store.',
-      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts',
-      modelRoute: artifactBrowserReady ? 'agent_artifacts' : 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
+      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts or Promote to Knowledge',
+      modelRoute: artifactBrowserReady ? 'agent_artifacts + agent_knowledge_ingest' : 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
       signals: [
         `${uploadActions.length + exportActions.length + mediaActions.length} related artifact action(s)`,
         `Artifact browser tool: ${hasTool(context, 'agent_artifacts') ? 'available' : 'gap'}`,
+        `Knowledge ingest tool: ${hasTool(context, 'agent_knowledge_ingest') ? 'available' : 'gap'}`,
         `Artifact list/read store: ${context.platform.artifactStore?.list && context.platform.artifactStore?.readContent ? 'available' : 'gap'}`,
+        `Knowledge promotion action: ${artifactBrowserActions.includes('artifact-promote-knowledge') ? 'available' : 'gap'}`,
       ],
       actionIds: artifactBrowserActions,
     },
@@ -338,7 +344,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing remains an explicit gap until a real workflow exists.',
+    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison. Dedicated document editing remains an explicit gap until a real workflow exists.',
     nextActions: nextActions(lanes),
   };
 }

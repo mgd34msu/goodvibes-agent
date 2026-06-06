@@ -211,7 +211,7 @@ export const knowledgeCommand: SlashCommand = {
   aliases: ['know', 'kb'],
   description: 'Agent Knowledge: isolated Agent-owned status, ask/search, source/node/issue lists, item lookup, map, connectors, ingest, and review queue.',
   usage: '<subcommand> [args]',
-  argsHint: 'status|ask|search|list|get|map|connectors|connector|connector-doctor|ingest-url --yes|ingest-file --yes|import-urls --yes|import-bookmarks --yes|import-browser-history --yes|ingest-connector --yes|review-issue --yes|reindex --yes',
+  argsHint: 'status|ask|search|list|get|map|connectors|connector|connector-doctor|ingest-url --yes|ingest-file --yes|ingest-artifact --yes|import-urls --yes|import-bookmarks --yes|import-browser-history --yes|ingest-connector --yes|review-issue --yes|reindex --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     if (args.length === 0 && context.openAgentWorkspace) {
       context.openAgentWorkspace('knowledge');
@@ -295,8 +295,7 @@ export const knowledgeCommand: SlashCommand = {
         break;
       }
 
-      case 'ingest-file':
-      case 'ingest-artifact': {
+      case 'ingest-file': {
         const [path] = positionalArgs(rest, ['--title', '--tags', '--folder', '--connector']);
         if (!path) {
           context.print('[knowledge] Usage: /knowledge ingest-file <path> [--title <title>] [--tags <a,b>] [--folder <path>] --yes');
@@ -315,6 +314,30 @@ export const knowledgeCommand: SlashCommand = {
           connectorId: readFlag(rest, '--connector') ?? 'goodvibes-agent-file',
         });
         context.print(`[knowledge] Ingested ${result.source.id} ${result.source.canonicalUri ?? result.source.sourceUri ?? path}`);
+        if (result.source.summary) context.print(`  ${result.source.summary}`);
+        if (result.artifactId) context.print(`  artifact: ${result.artifactId}`);
+        break;
+      }
+
+      case 'ingest-artifact': {
+        const [artifactId] = positionalArgs(rest, ['--title', '--tags', '--folder', '--connector']);
+        if (!artifactId) {
+          context.print('[knowledge] Usage: /knowledge ingest-artifact <artifactId> [--title <title>] [--tags <a,b>] [--folder <path>] --yes');
+          return;
+        }
+        if (!confirmation.yes) {
+          requireYesFlag(context, `ingest artifact into Agent Knowledge ${artifactId}`, '/knowledge ingest-artifact <artifactId> [--title <title>] [--tags <a,b>] [--folder <path>] --yes');
+          return;
+        }
+        const result = await knowledge.ingest.artifact({
+          artifactId,
+          title: readFlag(rest, '--title'),
+          tags: readStringListFlag(rest, '--tags'),
+          folderPath: readFlag(rest, '--folder'),
+          sessionId: context.session.runtime.sessionId,
+          connectorId: readFlag(rest, '--connector') ?? 'goodvibes-agent-artifact-browser',
+        });
+        context.print(`[knowledge] Ingested ${result.source.id} ${result.source.canonicalUri ?? result.source.sourceUri ?? artifactId}`);
         if (result.source.summary) context.print(`  ${result.source.summary}`);
         if (result.artifactId) context.print(`  artifact: ${result.artifactId}`);
         break;
@@ -757,6 +780,7 @@ export const knowledgeCommand: SlashCommand = {
           '  ask <query> [--limit <n>] [--mode <concise|standard|detailed>]',
           '  ingest-url <url> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
           '  ingest-file <path> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
+          '  ingest-artifact <artifactId> [--title <title>] [--tags <a,b>] [--folder <path>] --yes',
           '  ingest-connector <connectorId> [--input <json-or-text>|--path <path>|--content <text>] --yes',
           '  import-bookmarks <path> --yes',
           '  import-urls <path> --yes',

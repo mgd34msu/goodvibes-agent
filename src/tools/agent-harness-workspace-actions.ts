@@ -133,6 +133,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   ) return 'agent_harness mode:"run_workspace_action"';
   if (editorKind.startsWith('knowledge-')) return 'agent_knowledge';
   if (editorKind === 'artifact-browser' || editorKind === 'artifact-show') return 'agent_artifacts';
+  if (editorKind === 'artifact-promote-knowledge') return 'agent_knowledge_ingest';
   if (editorKind === 'web-research' || editorKind === 'web-fetch') return 'main conversation prompt';
   if (editorKind === 'media-generate') return 'agent_media_generate';
   if (
