@@ -52,6 +52,7 @@ import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorCo
 import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace-editor-execution.ts';
 import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
 import { countHarnessSettings, formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
+import { buildAssistantCockpitFromSummaries } from '../agent/assistant-cockpit.ts';
 
 interface AgentHarnessToolArgs {
   readonly mode?: unknown;
@@ -211,131 +212,6 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     connectedHost: 'Map mode:"connected_host"; inspect mode:"connected_host_capability"; supported lifecycle changes use confirmed daemon operator methods.',
     connectedHostStatus: 'Live read-only mode:"connected_host_status" for host reachability, token posture, and Knowledge readiness.',
     daemon: 'Daemon aliases route to mode:"connected_host" and mode:"connected_host_status"; use agent_operator_method for exact contract calls.',
-  };
-}
-
-function readSummaryRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-function readSummaryNumber(record: Record<string, unknown>, key: string): number {
-  const value = record[key];
-  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
-}
-
-function readSummaryString(record: Record<string, unknown>, key: string): string {
-  return typeof record[key] === 'string' ? String(record[key]) : '';
-}
-
-function assistantLane(options: {
-  readonly id: string;
-  readonly label: string;
-  readonly state: 'ready' | 'attention' | 'setup';
-  readonly summary: string;
-  readonly nextAction: string;
-  readonly routes: readonly string[];
-}): Record<string, unknown> {
-  return options;
-}
-
-function buildAssistantCockpit(input: {
-  readonly setupPosture: unknown;
-  readonly modelRouting: unknown;
-  readonly executionPosture: unknown;
-  readonly personalOps: unknown;
-  readonly autonomyQueue: unknown;
-  readonly researchRuns: unknown;
-  readonly documentOps: unknown;
-  readonly securityPosture: unknown;
-}): Record<string, unknown> {
-  const setup = readSummaryRecord(input.setupPosture);
-  const model = readSummaryRecord(input.modelRouting);
-  const execution = readSummaryRecord(input.executionPosture);
-  const personal = readSummaryRecord(input.personalOps);
-  const autonomy = readSummaryRecord(input.autonomyQueue);
-  const research = readSummaryRecord(input.researchRuns);
-  const documents = readSummaryRecord(input.documentOps);
-  const security = readSummaryRecord(input.securityPosture);
-  const setupBlockers = readSummaryNumber(setup, 'autonomyBlockers') || readSummaryNumber(setup, 'blockedPlanItems');
-  const modelStatus = readSummaryString(model, 'status');
-  const executionTools = readSummaryNumber(execution, 'routes');
-  const personalGaps = readSummaryNumber(personal, 'gap');
-  const runningWork = readSummaryNumber(autonomy, 'running') || readSummaryNumber(research, 'running');
-  const securityFindings = readSummaryNumber(security, 'findings');
-  const status = setupBlockers > 0 || modelStatus === 'degraded'
-    ? 'attention'
-    : personalGaps > 0
-      ? 'ready-with-optional-setup'
-      : 'ready';
-  const primaryNextAction = setupBlockers > 0
-    ? 'Finish first-run setup blockers before trusting autonomous work.'
-    : modelStatus === 'degraded'
-      ? 'Review provider and model routing before starting a new assistant task.'
-      : runningWork > 0
-        ? 'Review visible background work before starting another long-running task.'
-        : 'Start with the user task; route details are available only when needed.';
-  return {
-    status,
-    primaryNextAction,
-    lanes: [
-      assistantLane({
-        id: 'setup',
-        label: 'Get the assistant working',
-        state: setupBlockers > 0 ? 'attention' : 'ready',
-        summary: setupBlockers > 0 ? `${setupBlockers} setup blocker(s) before autonomous work.` : 'First-run setup has no blocking assistant issue.',
-        nextAction: 'Use setup posture for the next visible setup step.',
-        routes: ['agent_harness mode:"setup_posture"', 'agent_harness mode:"setup_item"'],
-      }),
-      assistantLane({
-        id: 'chat-and-model',
-        label: 'Talk and choose models',
-        state: modelStatus === 'degraded' ? 'attention' : 'ready',
-        summary: modelStatus === 'degraded' ? 'Model/provider API is degraded; routing still has diagnostics.' : 'Model route posture is available.',
-        nextAction: 'Inspect routing only when model choice, cost, privacy, or local setup matters.',
-        routes: ['agent_harness mode:"model_routing"', 'agent_harness mode:"provider_accounts"'],
-      }),
-      assistantLane({
-        id: 'work-and-files',
-        label: 'Work in this project',
-        state: executionTools > 0 ? 'ready' : 'setup',
-        summary: executionTools > 0 ? 'Local read/edit/exec and recovery posture is inspectable.' : 'Execution posture needs tool availability review.',
-        nextAction: 'Use local work routes first; delegate only for isolation, remote work, or explicit review.',
-        routes: ['agent_harness mode:"execution_posture"', 'agent_harness mode:"file_recovery"'],
-      }),
-      assistantLane({
-        id: 'personal-ops',
-        label: 'Handle personal operations',
-        state: personalGaps > 0 ? 'attention' : 'ready',
-        summary: personalGaps > 0 ? `${personalGaps} personal-ops lane(s) need setup.` : 'Personal Ops lanes are available or safely identified.',
-        nextAction: 'Use Personal Ops lanes for inbox, calendar, notes, tasks, and delivery readiness.',
-        routes: ['agent_harness mode:"personal_ops"', 'agent_harness mode:"personal_ops_lane"'],
-      }),
-      assistantLane({
-        id: 'research-and-docs',
-        label: 'Research and write',
-        state: readSummaryNumber(documents, 'gap') > 0 ? 'attention' : 'ready',
-        summary: `${readSummaryNumber(research, 'runs')} research run(s); ${readSummaryNumber(documents, 'lanes')} document lane(s).`,
-        nextAction: 'Use research workflow planning, source queues, reports, documents, artifacts, and blind compare as one writing path.',
-        routes: ['agent_harness mode:"research_workflow"', 'agent_harness mode:"document_ops"'],
-      }),
-      assistantLane({
-        id: 'background-work',
-        label: 'Supervise background work',
-        state: runningWork > 0 ? 'attention' : 'ready',
-        summary: runningWork > 0 ? `${runningWork} running item(s) need visible supervision.` : 'No running background work reported by the summary.',
-        nextAction: 'Inspect the autonomy queue before starting, pausing, resuming, or canceling ongoing work.',
-        routes: ['agent_harness mode:"autonomy_queue"', 'agent_harness mode:"autonomy_intake"'],
-      }),
-      assistantLane({
-        id: 'safety-and-recovery',
-        label: 'Stay safe and recover',
-        state: securityFindings > 0 ? 'attention' : 'ready',
-        summary: securityFindings > 0 ? `${securityFindings} safety finding(s) need review.` : 'Security and recovery posture is inspectable.',
-        nextAction: 'Use security, support bundle, execution history, and file recovery routes when risk or rollback matters.',
-        routes: ['agent_harness mode:"security_posture"', 'agent_harness mode:"support_bundles"', 'agent_harness mode:"execution_history"'],
-      }),
-    ],
-    boundaryPolicy: 'Primary UX is one assistant. Host, daemon, provider, MCP, and delegation details are diagnostics and confirmation boundaries, not first questions for the user.',
   };
 }
 
@@ -1084,7 +960,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             includeParameters: args.includeParameters === true,
           });
           return output({
-            assistant: buildAssistantCockpit({
+            assistant: buildAssistantCockpitFromSummaries({
               setupPosture,
               modelRouting,
               executionPosture,

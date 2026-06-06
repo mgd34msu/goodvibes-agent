@@ -5,6 +5,7 @@ import type {
   AgentWorkspaceLocalEditor,
   AgentWorkspaceRuntimeSnapshot,
 } from '../input/agent-workspace.ts';
+import { buildAssistantCockpitFromWorkspaceSnapshot, type AssistantCockpitLane, type AssistantCockpitLaneState, type AssistantCockpitStatus } from '../agent/assistant-cockpit.ts';
 import { formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import type { Line } from '../types/grid.ts';
 import { truncateDisplay, wrapText } from '../utils/terminal-width.ts';
@@ -114,14 +115,6 @@ function setupAttentionItems(snapshot: AgentWorkspaceRuntimeSnapshot, limit: num
   ].slice(0, limit);
 }
 
-function conciseSetupLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
-  const counts = setupCounts(snapshot);
-  return {
-    text: `Setup: ${counts.ready}/${snapshot.setupChecklist.length} ready; ${counts.recommended} recommended; ${counts.blocked} blocked.`,
-    fg: counts.blocked > 0 ? PALETTE.warn : PALETTE.info,
-  };
-}
-
 function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
   const counts = setupCounts(snapshot);
   const nextItems = setupAttentionItems(snapshot, 3);
@@ -142,23 +135,38 @@ function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLin
   return lines;
 }
 
-function homeNextActionLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
-  const candidates = setupAttentionItems(snapshot, 3);
-  if (candidates.length === 0) {
-    return [
-      { text: 'Next Actions', fg: PALETTE.title, bold: true },
-      { text: 'Core setup is ready. Continue normal assistant work, review Knowledge sources, or tune local skills/routines as needed.', fg: PALETTE.good },
-    ];
-  }
-  const lines: ContextLine[] = [{ text: 'Next Actions', fg: PALETTE.title, bold: true }];
-  for (const item of candidates) {
-    lines.push({
-      text: `${setupStatusLabel(item.status)}: ${item.label}`,
-      fg: setupStatusColor(item.status),
-      bold: item.status === 'blocked',
-    });
-  }
-  return lines;
+function cockpitStatusColor(status: AssistantCockpitStatus): string {
+  return status === 'attention' ? PALETTE.warn : status === 'ready-with-optional-setup' ? PALETTE.info : PALETTE.good;
+}
+
+function cockpitLaneColor(state: AssistantCockpitLaneState): string {
+  return state === 'attention' ? PALETTE.warn : state === 'setup' ? PALETTE.info : PALETTE.good;
+}
+
+function cockpitLaneLine(lane: AssistantCockpitLane): ContextLine {
+  const state = lane.state === 'attention' ? 'Attention' : lane.state === 'setup' ? 'Setup' : 'Ready';
+  return {
+    text: `${state}: ${lane.label} - ${compactText(lane.summary, 40)}`,
+    fg: cockpitLaneColor(lane.state),
+    bold: lane.state === 'attention',
+  };
+}
+
+function homeAssistantCockpitLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const cockpit = buildAssistantCockpitFromWorkspaceSnapshot(snapshot);
+  return [
+    {
+      text: `Assistant: ${cockpit.status}; chat route ${snapshot.provider} / ${snapshot.modelDisplayName}.`,
+      fg: cockpitStatusColor(cockpit.status),
+      bold: cockpit.status === 'attention',
+    },
+    {
+      text: `Next: ${compactText(cockpit.primaryNextAction, 86)}`,
+      fg: cockpitStatusColor(cockpit.status),
+      bold: cockpit.status === 'attention',
+    },
+    ...cockpit.lanes.map(cockpitLaneLine),
+  ];
 }
 
 function companionAccessLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
@@ -289,11 +297,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   const base: ContextLine[] = [];
   if (category.id === 'home') {
     base.push(
-      { text: `Chat route: ${snapshot.provider} / ${snapshot.modelDisplayName}`, fg: PALETTE.info },
-      { text: `Session: ${snapshot.sessionId}`, fg: PALETTE.muted },
-      { text: `Policy: ${snapshot.executionPolicy}; delegated review ${snapshot.delegatedReviewPolicy}`, fg: PALETTE.good },
-      conciseSetupLine(snapshot),
-      ...homeNextActionLines(snapshot),
+      ...homeAssistantCockpitLines(snapshot),
     );
   } else if (category.id === 'setup') {
     base.push(

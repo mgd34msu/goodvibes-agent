@@ -1080,11 +1080,11 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test('home workspace jumps directly into setup without dispatching a command', () => {
+  test('home assistant setup lane jumps directly into setup without dispatching a command', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-home');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'assistant-setup-lane');
 
     workspace.activateSelected();
 
@@ -1233,12 +1233,12 @@ describe('AgentWorkspace', () => {
     expect(missing).toEqual([]);
   });
 
-  test('home opens Tools and onboarding tools opens concrete MCP setup', () => {
+  test('home safety lane opens Tools and onboarding tools opens concrete MCP setup', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tools-home');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'assistant-safety-lane');
     workspace.activateSelected();
     expect(workspace.selectedCategory.id).toBe('tools');
     expect(workspace.status).toContain('Opened Tools & MCP');

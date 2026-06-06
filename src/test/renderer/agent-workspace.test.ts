@@ -321,7 +321,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('GoodVibes Agent / Operator Workspace');
     expect(output).toContain('Operator Areas');
     expect(output).toContain('Home');
-    expect(output).toContain('Onboarding');
+    expect(output).toContain('Get the assistant working');
+    expect(output).toContain('Talk and choose models');
+    expect(output).toContain('Assistant: attention');
     expect(output).toContain('open area');
     expect(output).toContain('Choose model');
     expect(output).toContain('/model');
@@ -366,10 +368,12 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 50));
 
-    expect(output).toContain('Chat route: openai-subscriber / GPT-5.5');
+    expect(output).toContain('Assistant: ready-with-optional-setup; chat route openai-subscriber / GPT-5.5');
     expect(output).toContain('openai-subscriber / GPT-5.5');
-    expect(output).toContain('agent-session-1');
-    expect(output).toContain('serial-proactive');
+    expect(output).toContain('Handle personal operations');
+    expect(output).toContain('Stay safe and recover');
+    expect(output).not.toContain('agent-session-1');
+    expect(output).not.toContain('serial-proactive');
     expect(output).not.toContain('goodvibes-agent-test-token');
   });
 
