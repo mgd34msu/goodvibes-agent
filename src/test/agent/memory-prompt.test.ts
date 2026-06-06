@@ -74,8 +74,15 @@ describe('buildReviewedMemoryPrompt', () => {
         summary: 'Low confidence records should stay out.',
         provenance: [{ kind: 'event', ref: 'low' }],
       });
+      const borderline = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'Borderline records should stay out too.',
+        provenance: [{ kind: 'event', ref: 'borderline' }],
+      });
       registry.review(stale.id, { state: 'stale', staleReason: 'Outdated' });
       registry.review(low.id, { state: 'reviewed', confidence: 49, reviewedBy: 'test' });
+      registry.review(borderline.id, { state: 'reviewed', confidence: 69, reviewedBy: 'test' });
 
       const prompt = buildReviewedMemoryPrompt(registry);
 

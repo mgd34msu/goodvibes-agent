@@ -754,13 +754,55 @@ export function evaluateAgentSkillBundleReadiness(
 
 export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string | null {
   const snapshot = AgentSkillRegistry.fromShellPaths(shellPaths).snapshot();
-  const active = snapshot.activeSkills;
-  if (active.length === 0 && snapshot.enabledBundles.length === 0) return null;
+  const enabledBundles = snapshot.enabledBundles.filter((bundle) => {
+    if (bundle.reviewState !== 'reviewed') return false;
+    const readiness = evaluateAgentSkillBundleReadiness(bundle, snapshot.skills);
+    return readiness.ready && readiness.includedSkills.every((skill) => skill.reviewState === 'reviewed');
+  });
+  const activeSkillIds = new Set([
+    ...snapshot.enabledSkills.map((skill) => skill.id),
+    ...enabledBundles.flatMap((bundle) => bundle.skillIds),
+  ]);
+  const active = snapshot.skills.filter((skill) => (
+    activeSkillIds.has(skill.id)
+    && skill.reviewState === 'reviewed'
+    && evaluateAgentSkillReadiness(skill).ready
+  ));
+  const candidateSkillIds = new Set([
+    ...snapshot.enabledSkills.map((skill) => skill.id),
+    ...snapshot.enabledBundles.flatMap((bundle) => bundle.skillIds),
+  ]);
+  const suppressedSkills = snapshot.skills
+    .filter((skill) => candidateSkillIds.has(skill.id) && !active.some((activeSkill) => activeSkill.id === skill.id))
+    .slice(0, 8)
+    .map((skill) => {
+      const readiness = evaluateAgentSkillReadiness(skill);
+      const review = skill.reviewState === 'reviewed' ? '' : `review=${formatAgentRecordReviewState(skill.reviewState)}`;
+      const setup = readiness.ready ? '' : `missing=${readiness.missing.map(formatAgentSkillRequirement).join(', ')}`;
+      return `- ${skill.name}: ${[review, setup].filter(Boolean).join('; ')}`;
+    });
+  const suppressedBundles = snapshot.enabledBundles
+    .filter((bundle) => !enabledBundles.some((activeBundle) => activeBundle.id === bundle.id))
+    .slice(0, 4)
+    .map((bundle) => {
+      const readiness = evaluateAgentSkillBundleReadiness(bundle, snapshot.skills);
+      const review = bundle.reviewState === 'reviewed' ? '' : `review=${formatAgentRecordReviewState(bundle.reviewState)}`;
+      const setup = readiness.ready ? '' : `missing=${[
+        ...readiness.missingRequirements.map(formatAgentSkillRequirement),
+        ...readiness.missingSkillIds.map((skillId) => `skill:${skillId}`),
+      ].join(', ')}`;
+      const unreviewedSkills = readiness.includedSkills
+        .filter((skill) => skill.reviewState !== 'reviewed')
+        .map((skill) => `${skill.id}:${formatAgentRecordReviewState(skill.reviewState)}`);
+      const memberReview = unreviewedSkills.length === 0 ? '' : `member-review=${unreviewedSkills.join(', ')}`;
+      return `- ${bundle.name}: ${[review, setup, memberReview].filter(Boolean).join('; ')}`;
+    });
+  if (active.length === 0 && enabledBundles.length === 0 && suppressedSkills.length === 0 && suppressedBundles.length === 0) return null;
   return [
     '## Enabled GoodVibes Agent Skills',
-    'Use these local reusable procedures inside the same serial assistant conversation when they fit the user request.',
+    'Use only reviewed, setup-ready local reusable procedures inside the same serial assistant conversation when they fit the user request.',
     '',
-    ...snapshot.enabledBundles.slice(0, 4).flatMap((bundle) => {
+    ...enabledBundles.slice(0, 4).flatMap((bundle) => {
       const readiness = evaluateAgentSkillBundleReadiness(bundle, snapshot.skills);
       const missing = [
         ...readiness.missingRequirements.map(formatAgentSkillRequirement),
@@ -784,5 +826,12 @@ export function buildEnabledSkillsPrompt(shellPaths: ShellPathService): string |
       skill.procedure,
       '',
     ]),
+    ...(suppressedBundles.length > 0 || suppressedSkills.length > 0 ? [
+      '### Suppressed Skills Pending Review Or Setup',
+      'Do not apply these skills until the user reviews them or resolves setup through the learning curator.',
+      ...suppressedBundles,
+      ...suppressedSkills,
+      '',
+    ] : []),
   ].join('\n').trim();
 }

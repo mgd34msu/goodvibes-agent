@@ -410,11 +410,21 @@ export function evaluateAgentRoutineReadiness(
 }
 
 export function buildEnabledRoutinesPrompt(shellPaths: ShellPathService): string | null {
-  const enabled = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot().enabledRoutines;
-  if (enabled.length === 0) return null;
+  const enabledRecords = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot().enabledRoutines;
+  const enabled = enabledRecords.filter((routine) => routine.reviewState === 'reviewed' && evaluateAgentRoutineReadiness(routine).ready);
+  const suppressed = enabledRecords
+    .filter((routine) => !enabled.some((activeRoutine) => activeRoutine.id === routine.id))
+    .slice(0, 8)
+    .map((routine) => {
+      const readiness = evaluateAgentRoutineReadiness(routine);
+      const review = routine.reviewState === 'reviewed' ? '' : `review=${formatAgentRecordReviewState(routine.reviewState)}`;
+      const setup = readiness.ready ? '' : `missing=${readiness.missing.map(formatAgentSkillRequirement).join(', ')}`;
+      return `- ${routine.name}: ${[review, setup].filter(Boolean).join('; ')}`;
+    });
+  if (enabled.length === 0 && suppressed.length === 0) return null;
   return [
     '## Enabled GoodVibes Agent Routines',
-    'Use these local reusable routines inside the same serial assistant conversation when they fit the user request. Do not start hidden background jobs because a routine matches.',
+    'Use only reviewed, setup-ready local reusable routines inside the same serial assistant conversation when they fit the user request. Do not start hidden background jobs because a routine matches.',
     '',
     ...enabled.slice(0, 8).flatMap((routine) => [
       `### ${routine.name}`,
@@ -425,5 +435,11 @@ export function buildEnabledRoutinesPrompt(shellPaths: ShellPathService): string
       routine.steps,
       '',
     ]),
+    ...(suppressed.length > 0 ? [
+      '### Suppressed Routines Pending Review Or Setup',
+      'Do not apply these routines until the user reviews them or resolves setup through the learning curator.',
+      ...suppressed,
+      '',
+    ] : []),
   ].join('\n').trim();
 }

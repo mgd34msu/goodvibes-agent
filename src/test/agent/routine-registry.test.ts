@@ -59,7 +59,7 @@ describe('AgentRoutineRegistry', () => {
     })).toThrow('secret-looking');
   });
 
-  test('builds enabled routine prompt without background jobs or default knowledge coupling', () => {
+  test('builds reviewed setup-ready enabled routine prompt without background jobs or default knowledge coupling', () => {
     const { registry, paths } = tempRegistry();
     registry.create({
       name: 'Daily Operator Brief',
@@ -68,15 +68,35 @@ describe('AgentRoutineRegistry', () => {
       triggers: ['daily', 'briefing'],
       enabled: true,
     });
+    registry.markReviewed('daily-operator-brief');
 
     const prompt = buildEnabledRoutinesPrompt(paths);
 
     expect(prompt).toContain('Enabled GoodVibes Agent Routines');
     expect(prompt).toContain('Daily Operator Brief');
+    expect(prompt).toContain('Use only reviewed, setup-ready');
+    expect(prompt).not.toContain('Suppressed Routines');
     expect(prompt).toContain('same serial assistant conversation');
     expect(prompt).toContain('Do not start hidden background jobs');
     expect(prompt).not.toContain('/api/knowledge');
     expect(prompt).not.toContain('non-Agent knowledge fallback');
+  });
+
+  test('suppresses unreviewed enabled routines from application prompt', () => {
+    const { registry, paths } = tempRegistry();
+    registry.create({
+      name: 'Unreviewed Routine',
+      description: 'Should not steer behavior yet.',
+      steps: 'This routine must not be applied before review.',
+      enabled: true,
+    });
+
+    const prompt = buildEnabledRoutinesPrompt(paths);
+
+    expect(prompt).toContain('Suppressed Routines Pending Review Or Setup');
+    expect(prompt).toContain('Unreviewed Routine: review=Needs review');
+    expect(prompt).toContain('Do not apply these routines');
+    expect(prompt).not.toContain('This routine must not be applied before review.');
   });
 
   test('stores setup requirements and reports readiness without secret values', () => {
@@ -102,6 +122,7 @@ describe('AgentRoutineRegistry', () => {
 
     const prompt = buildEnabledRoutinesPrompt(paths);
     expect(prompt).toContain('command:definitely-missing-goodvibes-agent-routine-bin');
+    expect(prompt).toContain('Suppressed Routines Pending Review Or Setup');
     expect(prompt).not.toContain('redacted');
   });
 });

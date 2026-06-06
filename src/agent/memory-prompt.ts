@@ -1,6 +1,6 @@
 import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 const DEFAULT_LIMIT = 10;
-export const MIN_PROMPT_MEMORY_CONFIDENCE = 50;
+export const MIN_PROMPT_MEMORY_CONFIDENCE = 70;
 
 export function isPromptActiveMemory(record: MemoryRecord): boolean {
   return record.reviewState === 'reviewed' && record.confidence >= MIN_PROMPT_MEMORY_CONFIDENCE;
@@ -28,7 +28,7 @@ export function buildReviewedMemoryPrompt(memoryRegistry: MemoryRegistry, limit 
   if (records.length === 0) return null;
   return [
     '## Reviewed GoodVibes Agent Memory',
-    'Use these local, reviewed, non-secret memory records to avoid asking repeat questions and to preserve durable user preferences, constraints, and operating facts.',
+    `Use these local, reviewed, non-secret memory records with confidence >= ${MIN_PROMPT_MEMORY_CONFIDENCE}% to avoid asking repeat questions and to preserve durable user preferences, constraints, and operating facts.`,
     ...records.map(formatMemoryLine),
   ].join('\n');
 }

@@ -55,7 +55,7 @@ describe('AgentSkillRegistry', () => {
     })).toThrow('secret-looking');
   });
 
-  test('builds enabled skill prompt without default or non-Agent knowledge coupling', () => {
+  test('builds reviewed setup-ready enabled skill prompt without default or non-Agent knowledge coupling', () => {
     const { registry, paths } = tempRegistry();
     registry.create({
       name: 'Approval Review',
@@ -64,14 +64,35 @@ describe('AgentSkillRegistry', () => {
       triggers: ['approval', 'pending request'],
       enabled: true,
     });
+    registry.markReviewed('approval-review');
 
     const prompt = buildEnabledSkillsPrompt(paths);
 
     expect(prompt).toContain('Enabled GoodVibes Agent Skills');
     expect(prompt).toContain('Approval Review');
+    expect(prompt).toContain('Use only reviewed, setup-ready');
+    expect(prompt).not.toContain('Suppressed Skills');
     expect(prompt).toContain('same serial assistant conversation');
     expect(prompt).not.toContain('/api/knowledge');
     expect(prompt).not.toContain('non-Agent knowledge fallback');
+  });
+
+  test('suppresses unreviewed enabled skills from application prompt', () => {
+    const { registry, paths } = tempRegistry();
+    registry.create({
+      name: 'Unreviewed Skill',
+      description: 'Should not steer behavior yet.',
+      procedure: 'This procedure must not be applied before review.',
+      triggers: ['unsafe'],
+      enabled: true,
+    });
+
+    const prompt = buildEnabledSkillsPrompt(paths);
+
+    expect(prompt).toContain('Suppressed Skills Pending Review Or Setup');
+    expect(prompt).toContain('Unreviewed Skill: review=Needs review');
+    expect(prompt).toContain('Do not apply these skills');
+    expect(prompt).not.toContain('This procedure must not be applied before review.');
   });
 
   test('stores setup requirements and reports readiness without secret values', () => {
@@ -102,6 +123,7 @@ describe('AgentSkillRegistry', () => {
 
     const prompt = buildEnabledSkillsPrompt(paths);
     expect(prompt).toContain('command:definitely-missing-goodvibes-agent-test-bin');
+    expect(prompt).toContain('Suppressed Skills Pending Review Or Setup');
     expect(prompt).not.toContain('redacted');
   });
 
@@ -124,6 +146,9 @@ describe('AgentSkillRegistry', () => {
       skillIds: ['briefing', 'approval-review'],
       enabled: true,
     });
+    registry.markReviewed('briefing');
+    registry.markReviewed('approval-review');
+    registry.markBundleReviewed(bundle.id);
 
     const snapshot = registry.snapshot();
     expect(bundle.id).toBe('daily-operator-pack');
@@ -136,6 +161,29 @@ describe('AgentSkillRegistry', () => {
     expect(prompt).toContain('Included skills: briefing, approval-review');
     expect(prompt).toContain('Briefing');
     expect(prompt).toContain('Approval Review');
+  });
+
+  test('suppresses reviewed member skills when only an unreviewed bundle activates them', () => {
+    const { registry, paths } = tempRegistry();
+    registry.create({
+      name: 'Reviewed Member',
+      description: 'A reviewed member skill.',
+      procedure: 'This procedure should wait for bundle review.',
+    });
+    registry.markReviewed('reviewed-member');
+    registry.createBundle({
+      name: 'Unreviewed Pack',
+      description: 'Unreviewed bundle should not activate members.',
+      skillIds: ['reviewed-member'],
+      enabled: true,
+    });
+
+    const prompt = buildEnabledSkillsPrompt(paths);
+
+    expect(prompt).toContain('Suppressed Skills Pending Review Or Setup');
+    expect(prompt).toContain('Unreviewed Pack: review=Needs review');
+    expect(prompt).toContain('Reviewed Member:');
+    expect(prompt).not.toContain('This procedure should wait for bundle review.');
   });
 
   test('removes deleted skills from bundles and drops empty bundles', () => {

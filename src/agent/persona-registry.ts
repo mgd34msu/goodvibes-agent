@@ -369,6 +369,14 @@ export class AgentPersonaRegistry {
 export function buildActivePersonaPrompt(shellPaths: ShellPathService): string | null {
   const active = AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot().activePersona;
   if (!active) return null;
+  if (active.reviewState !== 'reviewed') {
+    return [
+      '## Active GoodVibes Agent Persona',
+      `Name: ${active.name}`,
+      `Review: ${formatAgentRecordReviewState(active.reviewState)}`,
+      'This persona is active but not applied because it is not reviewed. Use the learning curator or persona review route before allowing it to steer assistant behavior.',
+    ].join('\n');
+  }
   return [
     '## Active GoodVibes Agent Persona',
     `Name: ${active.name}`,

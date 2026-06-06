@@ -46,7 +46,7 @@ Primary first-run areas:
 - Research: read-only web research and URL inspection, read-only workflow planning, project-local visible research runs with log tails, browser-backed runner readiness/fallback posture, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.
 - Documents & Compare: versioned markdown document drafts, review comments, AI suggestion review, draft browse/show/create/revise/review/suggest/accept/reject/artifact-attach/artifact-insert/export, uploads, exports, source checks, generated media artifacts, saved artifact browse/show/export/package, reviewed artifact-to-Knowledge promotion, saved text artifact reuse in blind comparison, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates.
 - Personal Ops: inbox/calendar connector readiness, email/calendar-capable MCP setup routes, expanded connector tool classification for read-only versus write-like inbox/calendar actions, inbox triage/draft and calendar agenda/conflict workflow cards with inspect routes and confirmation boundaries, plus live records for Agent-owned notes, routines, schedule receipts, and delivery channels.
-- Memory & Skills: local memory, notes, personas, skills, routines, learned behavior capture, and a read-only learning curator for review/setup/stale/duplicate-consolidation/reviewed-note/completed-work/completed-research/saved-session memory and behavior candidates, including a guided duplicate-consolidation batch review plan.
+- Memory & Skills: local memory, notes, personas, skills, routines, learned behavior capture, prompt injection limited to reviewed/confident and setup-ready behavior, and a read-only learning curator for review/setup/stale/duplicate-consolidation/reviewed-note/completed-work/completed-research/saved-session memory and behavior candidates, including a guided duplicate-consolidation batch review plan.
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
 - Voice & Media: TTS setup, image input, and confirmed generated media.
 - Work & Automation: work-plan tracking, approvals, schedules, reminders, and explicit operator actions.
@@ -120,6 +120,8 @@ Named profiles isolate Agent-local config, sessions, memory, notes, personas, sk
 ## Local Behavior
 
 Memory, notes, personas, routines, and Agent skills are local to GoodVibes Agent. They do not write into default knowledge or other product segments.
+
+Only reviewed, high-confidence local context should steer the assistant. Prompt context includes reviewed memory at or above the durable confidence threshold and reviewed setup-ready skills, routines, bundles, and personas. Enabled but unreviewed, stale, low-confidence, or setup-blocked records are surfaced as suppressed review work instead of being applied silently.
 
 Use the workspace first:
 
