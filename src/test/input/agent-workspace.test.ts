@@ -3164,7 +3164,11 @@ describe('AgentWorkspace', () => {
     const byId = new Map(snapshot.setupChecklist.map((item) => [item.id, item]));
 
     expect(byId.get('runtime')?.status).toBe('ready');
+    expect(byId.get('connected-host-auth')?.status).toBe('recommended');
+    expect(byId.get('connected-host-auth')?.command).toBe('Host -> Connected-host auth owner');
     expect(byId.get('provider-model')?.status).toBe('ready');
+    expect(byId.get('install-smoke')?.status).toBe('recommended');
+    expect(byId.get('install-smoke')?.command).toBe('Start -> Install smoke');
     expect(byId.get('agent-knowledge')?.status).toBe('recommended');
     expect(byId.get('memory')?.status).toBe('ready');
     expect(byId.get('channels')?.status).toBe('ready');

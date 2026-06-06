@@ -14,6 +14,10 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly provider: string;
   readonly model: string;
   readonly runtimeBaseUrl: string;
+  readonly connectedHostTokenPresent: boolean;
+  readonly connectedHostTokenReadable: boolean;
+  readonly connectedHostTokenPath: string;
+  readonly connectedHostTokenError?: string | null;
   readonly activeSubscriptionCount: number;
   readonly pendingSubscriptionCount: number;
   readonly availableSubscriptionProviderCount: number;
@@ -53,6 +57,13 @@ function sampleNames(summary: AgentBehaviorDiscoverySummary): string {
 
 export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChecklistInput): readonly AgentWorkspaceSetupChecklistItem[] {
   const providerReady = input.provider !== 'unknown' && input.model !== 'unknown';
+  const tokenPathKnown = input.connectedHostTokenPath !== '(Agent home unavailable)';
+  const connectedHostAuthStatus: AgentWorkspaceSetupStatus = input.connectedHostTokenReadable
+    ? 'ready'
+    : tokenPathKnown
+      ? 'blocked'
+      : 'recommended';
+  const installSmokeReady = providerReady && input.connectedHostTokenReadable;
   const hasActivePersona = input.activePersonaName !== '(none)' && input.activePersonaName !== '(unavailable)';
   const discoveredBehaviorCount = input.discoveredPersonas.count + input.discoveredSkills.count + input.discoveredRoutines.count;
   return [
@@ -60,8 +71,21 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       id: 'runtime',
       label: 'Connected host',
       status: 'ready',
-      detail: `Agent will connect to ${input.runtimeBaseUrl}; connected-host ownership stays outside this product.`,
+      detail: `Agent will connect to ${input.runtimeBaseUrl}; protected host routes also need the Agent companion token below.`,
       command: 'Home -> Review health',
+    },
+    {
+      id: 'connected-host-auth',
+      label: 'Connected-host auth',
+      status: connectedHostAuthStatus,
+      detail: input.connectedHostTokenReadable
+        ? `Agent has a readable connected-host operator token at ${input.connectedHostTokenPath}.`
+        : input.connectedHostTokenError
+          ? `The connected-host operator token exists but cannot be read at ${input.connectedHostTokenPath}. Use the confirmed setup token provisioning route, then rerun auth review.`
+          : tokenPathKnown
+            ? `Provision Agent's local connected-host operator token at ${input.connectedHostTokenPath} before pairing channels, Knowledge, schedules, or protected daemon routes.`
+            : 'Shell paths are unavailable in this runtime, so connected-host auth cannot be verified from the workspace snapshot.',
+      command: 'Host -> Connected-host auth owner',
     },
     {
       id: 'provider-model',
@@ -71,6 +95,15 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         ? `Current chat route is ${input.provider} / ${input.model}.`
         : 'Choose a provider and model before relying on assistant turns.',
       command: 'Setup -> Provider and model',
+    },
+    {
+      id: 'install-smoke',
+      label: 'Install smoke',
+      status: installSmokeReady ? 'recommended' : tokenPathKnown ? 'blocked' : 'recommended',
+      detail: installSmokeReady
+        ? 'Run setup smoke after install or migration to prove package start, connected host, auth, model route, setup posture, and first assistant turn.'
+        : 'Resolve connected-host auth and provider/model setup before treating the first assistant turn as install-ready.',
+      command: 'Start -> Install smoke',
     },
     {
       id: 'subscriptions',

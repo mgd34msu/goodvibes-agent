@@ -386,10 +386,10 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Onboarding');
-    expect(output).toContain('7/12 ready; 3 recommended; 2 optional; 0 blocked.');
+    expect(output).toContain('8/14 ready; 4 recommended; 2 optional; 0 blocked.');
     expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
     expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
-    expect(output).toContain('Next: Agent Knowledge (recommended)');
+    expect(output).toContain('Next: Install smoke (recommended)');
     expect(output).toContain('Import GoodVibes settings');
     expect(output).toContain('Choose main model');
     expect(output).toContain('Start subscription login');
