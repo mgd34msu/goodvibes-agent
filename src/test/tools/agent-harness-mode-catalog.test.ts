@@ -85,6 +85,16 @@ describe('agent_harness mode catalog', () => {
     expect(personalOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds memory posture by recall and external memory provider wording', () => {
+    const memory = listHarnessModes({ query: 'memory recall Honcho Mem0 Supermemory', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = memory.modes.map((mode) => mode.id);
+    expect(ids).toContain('memory_posture');
+    expect(ids).toContain('memory_provider');
+    expect(memory.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds setup posture by first-run always-on wording', () => {
     const setup = listHarnessModes({ query: 'first-run always-on setup', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

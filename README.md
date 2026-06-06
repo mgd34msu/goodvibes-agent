@@ -57,7 +57,7 @@ Workspace areas:
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Tools & MCP: MCP server setup, tool inventory, trust review, secrets, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, source/node/issue libraries, item lookup, map review, connectors, ingest, review queue, and reindex.
-- Memory & Skills: VIBE.md personality, local memory, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
+- Memory & Skills: VIBE.md personality, local memory posture, prompt-active recall, vector/embedding health, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
 - Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook notification management.
 - Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, and provider readiness.
 - Automation: reminders, schedules, visible autonomous agents, routine promotion receipts, reconciliation, and exact confirmed approval/automation/schedule actions.
@@ -76,7 +76,7 @@ High-value `agent_harness` mode groups:
 - Discovery: `modes`, `workspace_categories`, `workspace_actions`, `commands`, `cli_commands`, `panels`, `ui_surfaces`, `shortcuts`, `keybindings`, `tools`, `settings`.
 - Single-item inspection: `mode`, `workspace_action`, `command`, `cli_command`, `panel`, `ui_surface`, `keybinding`, `tool`, `get_setting`.
 - User-visible effects: `run_workspace_action`, `run_command`, `run_background_process`, `open_panel`, `open_ui_surface`, `run_keybinding`, `set_keybinding`, `reset_keybinding`, `set_setting`, `reset_setting`.
-- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `execution_posture`, `background_processes`, `personal_ops`, `document_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
+- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `execution_posture`, `background_processes`, `personal_ops`, `memory_posture`, `document_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
 - Local long-running commands: `background_processes` and `background_process` inspect tracked ProcessManager jobs with bounded redacted output; confirmed `run_background_process` starts, waits on, or stops one visible local process.
 - Connected host: `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`; `daemon` and `daemon_status` are aliases for connected-host posture/status.
 - Operator/audit inspection: `release_evidence`, `release_evidence_artifact`, `release_readiness`, `release_readiness_item`.
@@ -87,7 +87,7 @@ Every mutating or externally visible effect requires `confirm:true` plus `explic
 First-class model tools cover common workflows directly:
 
 - `agent_knowledge` and `agent_knowledge_ingest` for isolated Agent Knowledge reads and confirmed ingest.
-- `agent_local_registry` and `agent_learning_consolidation` for Agent-local memory, notes, personas, skills, bundles, routines, and confirmed duplicate-consolidation phases.
+- `agent_local_registry` and `agent_learning_consolidation` for Agent-local memory, notes, personas, skills, bundles, routines, and confirmed duplicate-consolidation phases. Use `agent_harness mode:"memory_posture"` first when the user asks what memory knows, whether recall is healthy, or whether external memory providers such as Honcho, Mem0, or Supermemory are actually connected.
 - `agent_work_plan` for visible local work-plan tracking.
 - `agent_operator_briefing` and `agent_operator_action` for connected work/approval/automation/schedule posture and exact confirmed actions.
 - `agent_operator_method` for exact GoodVibes daemon contract parity. Read-only routes can run directly; write/admin routes require `confirm:true` and `explicitUserRequest`.
@@ -102,7 +102,7 @@ VIBE.md is the friendly personality file for GoodVibes Agent. Project and global
 
 Useful workspace paths:
 
-- Memory & Skills -> Create memory, Create note, or Capture learned behavior.
+- Memory & Skills -> Memory posture, Create memory, Create note, or Capture learned behavior.
 - Notes -> Create, edit, review, stale, delete, or promote scratchpad notes.
 - Personas -> Inspect, create, show, or import VIBE.md; create, inspect, activate, review, stale, or delete local personas.
 - Skills -> Create skills, import discovered skills, enable/disable, review, delete, and manage skill bundles.

@@ -11,6 +11,7 @@ export const AGENT_HARNESS_MODES = [
   'execution_history', 'execution_history_item',
   'file_recovery', 'run_file_recovery',
   'personal_ops', 'personal_ops_lane',
+  'memory_posture', 'memory_provider',
   'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
   'learning_curator', 'learning_candidate',
   'research_workflow', 'research_runs', 'research_run',

@@ -12,6 +12,7 @@ interface HarnessModeDescriptor {
   readonly next?: string;
   readonly requiresConfirmation?: boolean;
   readonly aliases?: readonly AgentHarnessMode[];
+  readonly keywords?: readonly string[];
   readonly parameters?: readonly string[];
 }
 
@@ -73,6 +74,8 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'run_file_recovery', kind: 'effect', family: 'execution', summary: 'Apply one local file undo or redo snapshot.', requiresConfirmation: true, parameters: ['recoveryAction', 'target', 'query', 'confirm', 'explicitUserRequest'] },
   { id: 'personal_ops', kind: 'discover', family: 'personal-ops', summary: 'Map email/calendar tasks, reminders, records, and operation cards.', next: 'Use personal_ops_lane for personal operations.', parameters: ['includeParameters'] },
   { id: 'personal_ops_lane', kind: 'inspect', family: 'personal-ops', summary: 'Inspect email/calendar tasks/reminders records, cards, and routes.', parameters: ['laneId', 'target', 'query'] },
+  { id: 'memory_posture', kind: 'discover', family: 'personal-ops', summary: 'Inspect Agent-local memory, vector recall, and provider posture.', next: 'Use memory_provider for one embedding or external provider record.', keywords: ['semantic recall', 'external memory', 'memory provider', 'honcho', 'openviking', 'mem0', 'hindsight', 'holographic', 'retaindb', 'byterover', 'supermemory'], parameters: ['query', 'limit', 'includeParameters'] },
+  { id: 'memory_provider', kind: 'inspect', family: 'personal-ops', summary: 'Inspect one memory embedding or external-memory provider record.', keywords: ['semantic recall', 'external memory', 'embedding provider', 'memory provider', 'honcho', 'openviking', 'mem0', 'hindsight', 'holographic', 'retaindb', 'byterover', 'supermemory'], parameters: ['providerId', 'target', 'query', 'includeParameters'] },
   { id: 'autonomy_intake', kind: 'discover', family: 'personal-ops', summary: 'Pick safest route for ongoing-work requests.', next: 'Use returned route or autonomy_queue.', parameters: ['query', 'target', 'includeParameters'] },
   { id: 'autonomy_queue', kind: 'discover', family: 'personal-ops', summary: 'List autonomy work with live records, tails, and controls.', next: 'Use autonomy_queue_item.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'autonomy_queue_item', kind: 'inspect', family: 'personal-ops', summary: 'Inspect one autonomy card, live records, tails, and routes.', parameters: ['queueItemId', 'target', 'query'] },
@@ -163,6 +166,7 @@ function harnessModeSearchText(descriptor: HarnessModeDescriptor): string {
     descriptor.summary,
     descriptor.next,
     ...(descriptor.aliases ?? []),
+    ...(descriptor.keywords ?? []),
     ...(descriptor.parameters ?? []),
   ].filter(Boolean).join('\n').toLowerCase();
 }
@@ -207,6 +211,7 @@ function harnessModeRelevance(descriptor: HarnessModeDescriptor, input: string):
   score += tokenScore(tokens, descriptor.kind, 500);
   score += tokenScore(tokens, (descriptor.parameters ?? []).join('\n'), 350);
   score += tokenScore(tokens, descriptor.summary, 200);
+  score += tokenScore(tokens, (descriptor.keywords ?? []).join('\n'), 150);
   score += tokenScore(tokens, descriptor.next, 100);
 
   const actionVerb = tokens.find((token) => ACTION_VERBS.has(token));

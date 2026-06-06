@@ -33,6 +33,7 @@ import { runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-
 import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary } from './agent-harness-model-routing.ts';
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
+import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
 import { describePersonalOpsLane, personalOpsCatalogStatus, personalOpsSummary } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
@@ -197,6 +198,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     executionHistory: 'List mode:"execution_history"; inspect mode:"execution_history_item"; use returned supervision and recovery routes.',
     fileRecovery: 'List mode:"file_recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use live records and returned routes for personal ops.',
+    memoryPosture: 'List mode:"memory_posture"; inspect mode:"memory_provider"; memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',
     autonomyQueue: 'Start mode:"autonomy_intake" for ongoing-work requests; list mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay confirmed.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
     researchWorkflow: 'Start mode:"research_workflow" for deep-research route planning; it sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
@@ -955,6 +957,11 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const executionHistory = executionHistoryCatalogStatus(deps.commandContext);
           const fileRecovery = fileRecoveryCatalogStatus(deps.commandContext);
           const personalOps = personalOpsCatalogStatus(deps.commandContext);
+          const memoryPosture = await memoryPostureCatalogStatus(deps.commandContext).catch((err) => ({
+            modes: ['memory_posture', 'memory_provider'],
+            status: 'unavailable',
+            error: formatHarnessError(err),
+          }));
           const autonomyQueue = autonomyQueueCatalogStatus(deps.commandContext);
           const learningCurator = learningCuratorCatalogStatus(deps.commandContext);
           const researchRuns = researchRunsCatalogStatus(deps.commandContext);
@@ -1004,6 +1011,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             executionHistory,
             fileRecovery,
             personalOps,
+            memoryPosture,
             autonomyQueue,
             learningCurator,
             researchRuns,
@@ -1200,6 +1208,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = await describePersonalOpsLane(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.lane);
           if (resolved.status === 'ambiguous') return error(`Ambiguous Personal Ops lane ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'memory_posture') return output(await memoryPostureSummary(deps.commandContext, args));
+        if (args.mode === 'memory_provider') {
+          const resolved = await describeMemoryProvider(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.provider);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous memory provider ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'autonomy_intake') return output(autonomyIntakeSummary(deps.commandContext, args));

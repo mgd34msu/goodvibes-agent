@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { ProcessManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
-import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore, type MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
@@ -506,6 +506,63 @@ async function createMemoryRegistry(paths: ShellPaths, configManager: ConfigMana
   const store = new MemoryStore(paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite'), { embeddingRegistry });
   await store.init();
   return new MemoryRegistry(store);
+}
+
+function makeMemoryRecord(overrides: Partial<MemoryRecord> = {}): MemoryRecord {
+  const now = Date.now();
+  return {
+    id: 'mem-briefing',
+    scope: 'project',
+    cls: 'preference',
+    summary: 'Prefers concise briefings',
+    detail: 'Lead with status, then next action.',
+    tags: ['briefing'],
+    provenance: [],
+    reviewState: 'reviewed',
+    confidence: 92,
+    createdAt: now,
+    updatedAt: now,
+    ...overrides,
+  };
+}
+
+function attachMemoryApi(fixture: HarnessFixture, records: readonly MemoryRecord[] = [makeMemoryRecord()]): void {
+  const mutableRecords = [...records];
+  const vector = {
+    backend: 'sqlite-vec' as const,
+    enabled: true,
+    available: true,
+    path: fixture.paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory.vec.sqlite'),
+    dimensions: 384,
+    indexedRecords: mutableRecords.length,
+    embeddingProviderId: 'hashed-local',
+    embeddingProviderLabel: 'Hashed Local',
+  };
+  const memory = {
+    getAll: () => mutableRecords,
+    reviewQueue: () => mutableRecords.filter((record) => record.reviewState !== 'reviewed'),
+    vectorStats: () => vector,
+    doctor: async () => ({
+      vector,
+      embeddings: {
+        activeProviderId: 'hashed-local',
+        providers: [{
+          id: 'hashed-local',
+          label: 'Hashed Local',
+          state: 'healthy',
+          dimensions: 384,
+          configured: true,
+          deterministic: true,
+          metadata: { local: true, hasSyncEmbed: true },
+        }],
+        asyncProviders: [],
+        syncProviders: ['hashed-local'],
+        warnings: [],
+      },
+      checkedAt: Date.now(),
+    }),
+  };
+  (fixture.context as unknown as { clients: { agentKnowledgeApi?: unknown } }).clients.agentKnowledgeApi = { memory };
 }
 
 function registerStubTool(toolRegistry: ToolRegistry, name: string): void {
@@ -1773,6 +1830,106 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'notes' });
       expect(notesLane.liveRecords?.[0]?.id).toBe('follow-up-queue');
       expect(notesLane.liveRecords?.[0]?.modelRoute).toContain('action:"get"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('surfaces Agent memory, vector recall, and external memory-provider posture', async () => {
+    const fixture = makeFixture();
+    try {
+      attachMemoryApi(fixture);
+      const summary = await executeHarnessJson<{
+        readonly memoryPosture?: {
+          readonly status?: string;
+          readonly localMemories?: number;
+          readonly promptActive?: number;
+          readonly vector?: string;
+          readonly embeddingProviders?: number;
+          readonly externalProviderRecordsPublished?: boolean;
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.memoryPosture?.status).toBe('ready');
+      expect(summary.memoryPosture?.localMemories).toBe(1);
+      expect(summary.memoryPosture?.promptActive).toBe(1);
+      expect(summary.memoryPosture?.vector).toBe('ready');
+      expect(summary.memoryPosture?.embeddingProviders).toBe(1);
+      expect(summary.memoryPosture?.externalProviderRecordsPublished).toBe(false);
+
+      const posture = await executeHarnessJson<{
+        readonly status: string;
+        readonly localMemory: {
+          readonly total: number;
+          readonly promptActive: number;
+          readonly routes: { readonly curator: string };
+        };
+        readonly vector: {
+          readonly status: string;
+          readonly indexedRecords: number;
+          readonly rebuildRoute: string;
+        };
+        readonly embeddings: { readonly activeProviderId: string; readonly syncProviders: readonly string[] };
+        readonly providers: readonly {
+          readonly id: string;
+          readonly kind: string;
+          readonly status: string;
+          readonly active?: boolean;
+          readonly setupRoute?: string;
+        }[];
+        readonly externalMemory: {
+          readonly status: string;
+          readonly providerRecordsPublished: boolean;
+          readonly checkedProviders: readonly string[];
+        };
+        readonly nextActions: readonly string[];
+        readonly policy: string;
+      }>(fixture, { mode: 'memory_posture', includeParameters: true, limit: 20 });
+      expect(posture.status).toBe('ready');
+      expect(posture.localMemory.total).toBe(1);
+      expect(posture.localMemory.promptActive).toBe(1);
+      expect(posture.localMemory.routes.curator).toBe('agent_harness mode:"learning_curator"');
+      expect(posture.vector.status).toBe('ready');
+      expect(posture.vector.indexedRecords).toBe(1);
+      expect(posture.vector.rebuildRoute).toContain('memory-vector-rebuild');
+      expect(posture.embeddings.activeProviderId).toBe('hashed-local');
+      expect(posture.embeddings.syncProviders).toContain('hashed-local');
+      expect(posture.providers.find((provider) => provider.id === 'hashed-local')?.active).toBe(true);
+      expect(posture.providers.find((provider) => provider.id === 'honcho')?.status).toBe('not-published');
+      expect(posture.providers.find((provider) => provider.id === 'mem0')?.setupRoute).toContain('connected_host_capability');
+      expect(posture.externalMemory.status).toBe('not-published');
+      expect(posture.externalMemory.providerRecordsPublished).toBe(false);
+      expect(posture.externalMemory.checkedProviders).toContain('supermemory');
+      expect(posture.nextActions.join('\n')).toContain('External memory backends');
+      expect(posture.policy).toContain('read-only');
+
+      const provider = await executeHarnessJson<{
+        readonly id: string;
+        readonly kind: string;
+        readonly status: string;
+        readonly active?: boolean;
+        readonly dimensions?: number;
+      }>(fixture, { mode: 'memory_provider', providerId: 'hashed-local' });
+      expect(provider.id).toBe('hashed-local');
+      expect(provider.kind).toBe('embedding');
+      expect(provider.status).toBe('healthy');
+      expect(provider.active).toBe(true);
+      expect(provider.dimensions).toBe(384);
+
+      const external = await executeHarnessJson<{
+        readonly id: string;
+        readonly kind: string;
+        readonly status: string;
+        readonly summary: string;
+      }>(fixture, { mode: 'memory_provider', providerId: 'supermemory' });
+      expect(external.id).toBe('supermemory');
+      expect(external.kind).toBe('external-memory');
+      expect(external.status).toBe('not-published');
+      expect(external.summary).toContain('not published');
+
+      const actions = await executeHarnessJson<{
+        readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];
+      }>(fixture, { mode: 'workspace_actions', query: 'memory posture' });
+      expect(actions.actions.find((entry) => entry.id === 'memory-posture')?.modelRoute).toBe('agent_harness mode:"memory_posture"');
     } finally {
       fixture.cleanup();
     }
