@@ -1,5 +1,6 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
+import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { fileRecoveryCatalogStatus } from './agent-harness-file-recovery.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -159,29 +160,9 @@ function registeredToolNames(toolRegistry: ToolRegistry): ReadonlySet<string> {
   return new Set(safeToolDefinitions(toolRegistry).map((tool) => tool.name));
 }
 
-function browserToolReady(context: CommandContext, toolRegistry: ToolRegistry): boolean {
-  const toolDefinitions = safeToolDefinitions(toolRegistry);
-  if (toolDefinitions.some((tool) => {
-    const haystack = `${tool.name}\n${tool.description}`.toLowerCase();
-    return haystack.includes('browser') || haystack.includes('desktop') || haystack.includes('computer use') || haystack.includes('screenshot');
-  })) {
-    return true;
-  }
-  try {
-    const servers = context.clients?.mcpApi?.listServerSecurity?.() ?? [];
-    return servers.some((server) => {
-      const role = typeof server.role === 'string' ? server.role.toLowerCase() : '';
-      const name = typeof server.name === 'string' ? server.name.toLowerCase() : '';
-      return server.connected === true && (role.includes('browser') || role.includes('desktop') || name.includes('browser'));
-    });
-  } catch {
-    return false;
-  }
-}
-
 function routeAvailability(route: ExecutionRoute, context: CommandContext, toolRegistry: ToolRegistry): ExecutionAvailability {
   if (route.id === 'delegation-isolation-parallel-remote') return 'ready';
-  if (route.browserMcp) return browserToolReady(context, toolRegistry) ? 'ready' : 'setup-needed';
+  if (route.browserMcp) return browserControlPosture(context, toolRegistry).configured ? 'ready' : 'setup-needed';
   const names = registeredToolNames(toolRegistry);
   if (route.toolNames?.every((name) => names.has(name))) return 'ready';
   if (route.anyToolNames?.some((name) => names.has(name))) return 'ready';
@@ -335,12 +316,14 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
   const includeParameters = args.includeParameters === true;
   const routes = matchingRoutes(query).slice(0, readLimit(args.limit, 100));
   const all = routeDefinitions();
+  const browserControl = browserControlPosture(context, toolRegistry);
   return {
     status: 'available',
     summary: {
       localFirstPolicy: 'Use local read/edit/exec when the current workspace and permissions are sufficient.',
       delegationPolicy: 'Use delegation for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.',
-      browserControl: browserToolReady(context, toolRegistry) ? 'configured' : 'setup-needed',
+      browserControl: browserControl.status,
+      browserControlSetup: browserControl,
       fileRecovery: fileRecoveryCatalogStatus(context),
       supervision: executionSupervisionSummary(context),
       registeredExecutionTools: [...registeredToolNames(toolRegistry)].filter((name) => ['read', 'find', 'inspect', 'analyze', 'edit', 'write', 'exec', 'fetch', 'web_search'].includes(name)).sort(),

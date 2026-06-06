@@ -48,7 +48,7 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'One guided flow verifies dependencies, installs or starts the host, configures auth, pairs channels, and leaves a working assistant.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'Agent has onboarding, diagnostics, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, Agent Knowledge, local behavior, channels, automation review, delegation, and finish state with exact user and model routes. Host lifecycle remains external and therefore high-friction.',
+    goodVibesNow: 'Agent has onboarding, diagnostics, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Host lifecycle remains external and therefore high-friction.',
     nextMoves: [
       'Add a consent-gated host lifecycle setup path that can use an installed GoodVibes host or guide installation when missing.',
       'Turn setup plan blockers into visible repair flows with live connected-host probes and user-approved host actions.',
@@ -162,11 +162,11 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Computer use includes browser control, shell, files, code edits, desktop/device actions, sandboxing, undo, and live tool cards.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'companion'],
-    goodVibesNow: 'Agent exposes local-first execution posture for read/search/analyze, file edit/write, bounded shell commands, web/fetch evidence, visible process monitor/live tail/tool inspector supervision routes, confirmed file edit recovery, browser-control setup gaps, and delegation for isolation, parallelism, remote execution, separate worktrees, or requested review.',
+    goodVibesNow: 'Agent exposes local-first execution posture for read/search/analyze, file edit/write, bounded shell commands, web/fetch evidence, visible process monitor/live tail/tool inspector supervision routes, confirmed file edit recovery, route-backed browser/desktop-control setup, and delegation for isolation, parallelism, remote execution, separate worktrees, or requested review.',
     nextMoves: [
       'Add richer local execution history cards that combine verification result, process output, and recovery state.',
       'Keep delegation for isolation, parallelism, or remote execution, not as the default user-facing answer to coding work.',
-      'Add first-class browser control and desktop/device command setup with safety probes.',
+      'Implement first-class browser control and desktop/device command adapters once setup posture finds or configures a trusted route.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Provides browser control, canvas, nodes, system.run, camera, screen recording, and session tools.' },

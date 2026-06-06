@@ -703,6 +703,7 @@ describe('agent_harness tool', () => {
           readonly nextAction: string;
           readonly userRoute: string;
           readonly modelRoute: string;
+          readonly signals?: readonly string[];
         }[];
         readonly nextSetupActions: readonly {
           readonly setupItemId: string;
@@ -731,6 +732,13 @@ describe('agent_harness tool', () => {
       expect(provider?.nextAction).toMatch(/Choose a provider\/model route|Review the current model route/);
       expect(posture.nextSetupActions[0]?.setupItemId).toBe('connected-host-readiness');
 
+      const browserControl = posture.readinessPlan.find((item) => item.setupItemId === 'browser-desktop-control');
+      expect(browserControl?.status).toBe('recommended');
+      expect(browserControl?.blocksAutonomy).toBe(false);
+      expect(browserControl?.userRoute).toContain('Tools & MCP');
+      expect(browserControl?.modelRoute).toContain('mcp_servers');
+      expect(browserControl?.signals?.join('\n')).toContain('No browser');
+
       const hostItem = await executeHarnessJson<{
         readonly setupItemId: string;
         readonly status: string;
@@ -743,6 +751,19 @@ describe('agent_harness tool', () => {
       expect(hostItem.lookup?.resolvedBy).toBe('plan-id');
       expect(hostItem.modelRoute).toContain('connected_host_status');
       expect(hostItem.policy?.effect).toBe('read-only');
+
+      const browserItem = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly lookup?: { readonly resolvedBy?: string };
+        readonly modelRoute: string;
+        readonly signals?: readonly string[];
+      }>(fixture, { mode: 'setup_item', setupItemId: 'browser-desktop-control' });
+      expect(browserItem.setupItemId).toBe('browser-desktop-control');
+      expect(browserItem.status).toBe('recommended');
+      expect(browserItem.lookup?.resolvedBy).toBe('plan-id');
+      expect(browserItem.modelRoute).toContain('mcp_servers');
+      expect(browserItem.signals?.join('\n')).toContain('No browser');
     } finally {
       fixture.cleanup();
     }
@@ -1189,6 +1210,12 @@ describe('agent_harness tool', () => {
           readonly localFirstPolicy: string;
           readonly delegationPolicy: string;
           readonly browserControl: string;
+          readonly browserControlSetup: {
+            readonly status: string;
+            readonly setupRoute: string;
+            readonly recommendedRoute: string;
+            readonly toolMatches: readonly string[];
+          };
           readonly supervision: {
             readonly processMonitorAvailable: boolean;
             readonly liveTailAvailable: boolean;
@@ -1215,6 +1242,8 @@ describe('agent_harness tool', () => {
       expect(posture.summary.localFirstPolicy).toContain('Use local read/edit/exec');
       expect(posture.summary.delegationPolicy).toContain('isolation');
       expect(posture.summary.browserControl).toBe('setup-needed');
+      expect(posture.summary.browserControlSetup.setupRoute).toContain('browser-desktop-control');
+      expect(posture.summary.browserControlSetup.recommendedRoute).toContain('mcp_servers');
       expect(posture.summary.supervision.processMonitorAvailable).toBe(true);
       expect(posture.summary.supervision.liveTailAvailable).toBe(true);
       expect(posture.summary.registeredExecutionTools).toEqual(expect.arrayContaining(['read', 'edit', 'exec', 'fetch', 'web_search']));
@@ -1235,6 +1264,36 @@ describe('agent_harness tool', () => {
 
       const browser = posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control');
       expect(browser?.availability).toBe('setup-needed');
+
+      registerStubTool(fixture.toolRegistry, 'browser_screenshot');
+      const configuredPosture = await executeHarnessJson<{
+        readonly summary: {
+          readonly browserControl: string;
+          readonly browserControlSetup: {
+            readonly toolMatches: readonly string[];
+            readonly recommendedRoute: string;
+          };
+        };
+        readonly routes: readonly {
+          readonly executionRouteId: string;
+          readonly availability: string;
+        }[];
+      }>(fixture, { mode: 'execution_posture' });
+      expect(configuredPosture.summary.browserControl).toBe('ready');
+      expect(configuredPosture.summary.browserControlSetup.toolMatches).toContain('browser_screenshot');
+      expect(configuredPosture.summary.browserControlSetup.recommendedRoute).toContain('execution_route');
+      expect(configuredPosture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control')?.availability).toBe('ready');
+
+      const configuredBrowserSetup = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly modelRoute: string;
+        readonly signals?: readonly string[];
+      }>(fixture, { mode: 'setup_item', setupItemId: 'browser-desktop-control' });
+      expect(configuredBrowserSetup.setupItemId).toBe('browser-desktop-control');
+      expect(configuredBrowserSetup.status).toBe('ready');
+      expect(configuredBrowserSetup.modelRoute).toContain('execution_route');
+      expect(configuredBrowserSetup.signals?.join('\n')).toContain('browser_screenshot');
 
       const delegated = posture.routes.find((route) => route.executionRouteId === 'delegation-isolation-parallel-remote');
       expect(delegated?.availability).toBe('ready');

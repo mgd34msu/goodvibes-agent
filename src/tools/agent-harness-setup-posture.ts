@@ -3,6 +3,8 @@ import { collectOnboardingSnapshot, deriveStep1Capabilities, deriveStep1Capabili
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
 import { requireLocalUserAuthManager, requirePlatform, requireProvider, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
+import type { BrowserControlPosture } from './agent-harness-browser-control.ts';
+import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessSetupArgs {
@@ -163,7 +165,20 @@ function hostSetupStatus(snapshot: Awaited<ReturnType<typeof collectSnapshot>>):
   return snapshot.collectionIssues.some((issue) => issue.area === 'host') ? 'blocked' : 'check';
 }
 
+function browserControlSignals(posture: BrowserControlPosture): readonly string[] {
+  const signals: string[] = [];
+  if (posture.toolMatches.length > 0) signals.push(`tools: ${posture.toolMatches.join(', ')}`);
+  if (posture.mcpServers.length > 0) {
+    signals.push(...posture.mcpServers.slice(0, 5).map((server) => (
+      `mcp:${server.name} ${server.connected ? 'connected' : 'disconnected'} role=${server.role} trust=${server.trustMode} schema=${server.schemaFreshness}`
+    )));
+  }
+  if (signals.length === 0) signals.push('No browser, desktop, computer-use, screenshot, or screen-recording tool is configured.');
+  return signals;
+}
+
 function buildSetupPlan(
+  context: CommandContext,
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
   capabilities: readonly OnboardingStep1CapabilityItem[],
 ): readonly SetupPlanItem[] {
@@ -174,6 +189,7 @@ function buildSetupPlan(
   const automationReview = capabilityById(capabilities, 'automation-review');
   const tuiDelegation = capabilityById(capabilities, 'tui-delegation');
   const setupMarkerDone = snapshot.acknowledgements.exists;
+  const browserControl = browserControlPosture(context);
 
   const plan: SetupPlanItem[] = [
     {
@@ -250,6 +266,22 @@ function buildSetupPlan(
       userRoute: 'Agent Workspace -> Personal Ops -> Autonomy queue',
       modelRoute: 'agent_harness mode:"autonomy_queue"',
       relatedSetupItemId: automationReview.id,
+    },
+    {
+      id: 'browser-desktop-control',
+      label: 'Browser and desktop control',
+      status: browserControl.configured ? 'ready' : 'recommended',
+      priority: 65,
+      blocksAutonomy: false,
+      reason: browserControl.configured
+        ? 'A trusted browser, desktop, computer-use, screenshot, or screen-recording route is configured.'
+        : 'Live browser navigation, UI testing, screenshots, screen recording, and desktop or device actions need a trusted MCP server or first-class tool before the Agent can perform them.',
+      nextAction: browserControl.configured
+        ? 'Inspect the browser/desktop execution route before using live UI automation.'
+        : 'Configure and review a trusted browser or desktop MCP server, then inspect the execution route before offering live UI automation.',
+      userRoute: 'Agent Workspace -> Tools & MCP',
+      modelRoute: browserControl.recommendedRoute,
+      signals: browserControlSignals(browserControl),
     },
     {
       id: 'build-delegation',
@@ -431,7 +463,7 @@ function describeCandidate(item: OnboardingStep1CapabilityItem): Record<string, 
 
 export async function setupPostureCatalogStatus(context: CommandContext): Promise<Record<string, unknown>> {
   const snapshot = await collectSnapshot(context);
-  const plan = buildSetupPlan(snapshot, deriveStep1Capabilities(snapshot));
+  const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot));
   return {
     modes: ['setup_posture', 'setup_item'],
     capabilities: deriveStep1Capabilities(snapshot).length,
@@ -449,7 +481,7 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
   const query = readString(args.query).toLowerCase();
   const includeParameters = args.includeParameters === true;
   const all = deriveStep1Capabilities(snapshot);
-  const plan = buildSetupPlan(snapshot, all);
+  const plan = buildSetupPlan(context, snapshot, all);
   const filtered = all
     .filter((item) => !query || itemSearchText(item).includes(query))
     .slice(0, readLimit(args.limit, 100));
@@ -515,7 +547,7 @@ export async function describeHarnessSetupItem(context: CommandContext, args: Ag
   }
   const snapshot = await collectSnapshot(context);
   const items = deriveStep1Capabilities(snapshot);
-  const plan = buildSetupPlan(snapshot, items);
+  const plan = buildSetupPlan(context, snapshot, items);
   const normalized = lookup.input.toLowerCase();
   const exact = items.find((item) => item.id === lookup.input);
   if (exact) return { status: 'found', item: describeItem(exact, snapshot, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'id' } }) };
