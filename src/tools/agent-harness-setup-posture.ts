@@ -44,6 +44,8 @@ type SetupRepairCardEffect = 'read-only' | 'confirmed-effect';
 type SetupRepairRecommendation = 'recommended' | 'inspect-first' | 'not-needed' | 'unavailable';
 type SetupServiceProbeStatus = 'reachable' | 'unreachable' | 'not-enabled' | 'not-probed';
 type SetupSmokeArtifactStore = Partial<Pick<ArtifactStore, 'create' | 'list'>>;
+type SetupHandoffKind = 'diagnostic' | 'workspace-action' | 'ui-surface' | 'confirmed-route' | 'operator-method' | 'conversation' | 'user-command' | 'tool-discovery';
+type SetupHandoffEffect = 'read-only' | 'visible-navigation' | 'confirmed-effect' | 'user-run';
 
 interface OperatorContractMethod {
   readonly id: string;
@@ -173,6 +175,19 @@ interface SetupBootstrapPlan {
   readonly steps: readonly SetupBootstrapStep[];
   readonly reconnectRoutes: Record<string, string>;
   readonly policy: string;
+}
+
+interface SetupHandoffCard {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: SetupHandoffKind;
+  readonly effect: SetupHandoffEffect;
+  readonly userRoute: string;
+  readonly modelRoute: string;
+  readonly nextStep: string;
+  readonly safety: string;
+  readonly requiresConfirmation?: boolean;
+  readonly prerequisite?: string;
 }
 
 function readString(value: unknown): string {
@@ -317,6 +332,17 @@ function planSearchText(item: SetupPlanItem): string {
     item.relatedSetupItemId ?? '',
     item.signals?.join('\n') ?? '',
     JSON.stringify(item.localModelReadiness ?? {}),
+    setupHandoffsForItem(item).map((handoff) => [
+      handoff.id,
+      handoff.label,
+      handoff.kind,
+      handoff.effect,
+      handoff.modelRoute,
+      handoff.userRoute,
+      handoff.nextStep,
+      handoff.safety,
+      handoff.prerequisite ?? '',
+    ].join(' ')).join('\n'),
     item.repairCards?.map((card) => [
       card.id,
       card.label,
@@ -1215,6 +1241,418 @@ function connectedHostBootstrapPlan(
   };
 }
 
+function setupHandoff(options: SetupHandoffCard): SetupHandoffCard {
+  return options;
+}
+
+function confirmedWorkspaceActionRoute(actionId: string, explicitUserRequest: string): string {
+  return `agent_harness mode:"run_workspace_action" actionId:"${quoteRouteValue(actionId)}" confirm:true explicitUserRequest:"${quoteRouteValue(explicitUserRequest)}"`;
+}
+
+function inspectWorkspaceActionRoute(actionId: string): string {
+  return `agent_harness mode:"workspace_action" actionId:"${quoteRouteValue(actionId)}" includeParameters:true`;
+}
+
+function openSurfaceRoute(surfaceId: string, explicitUserRequest: string): string {
+  return `agent_harness mode:"open_ui_surface" surfaceId:"${quoteRouteValue(surfaceId)}" confirm:true explicitUserRequest:"${quoteRouteValue(explicitUserRequest)}"`;
+}
+
+function handoffFromRepairCard(card: SetupRepairCard): SetupHandoffCard | null {
+  if (!card.modelRoute) return null;
+  return setupHandoff({
+    id: card.id,
+    label: card.label,
+    kind: card.methodId ? 'operator-method' : 'diagnostic',
+    effect: card.effect,
+    userRoute: card.userRoute,
+    modelRoute: card.modelRoute,
+    nextStep: card.effect === 'confirmed-effect'
+      ? 'Confirm only after the diagnostic card proves this mutation is the right repair.'
+      : 'Inspect this diagnostic before choosing any host repair.',
+    safety: card.safety,
+    ...(card.effect === 'confirmed-effect' ? { requiresConfirmation: true } : {}),
+    ...(card.prerequisite ? { prerequisite: card.prerequisite } : {}),
+  });
+}
+
+function connectedHostReadinessHandoffs(item: SetupPlanItem): readonly SetupHandoffCard[] {
+  const repairCards = item.repairCards ?? [];
+  const recommendedRepairs = repairCards
+    .filter((card) => card.state === 'available' && card.recommendation === 'recommended')
+    .map(handoffFromRepairCard)
+    .filter((card): card is SetupHandoffCard => card !== null)
+    .slice(0, 2);
+  const bootstrap = item.bootstrapPlan
+    ? [setupHandoff({
+      id: 'connected-host-bootstrap',
+      label: item.bootstrapPlan.status === 'recommended' ? 'Show host bootstrap checklist' : 'Show host bootstrap reference',
+      kind: 'user-command',
+      effect: 'user-run',
+      userRoute: item.userRoute,
+      modelRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"',
+      nextStep: 'Show the Bun install, service start, binary verification, and reconnect commands for the user to run on the owning host.',
+      safety: item.bootstrapPlan.policy,
+    })]
+    : [];
+  return [
+    setupHandoff({
+      id: 'connected-host-status',
+      label: 'Inspect connected-host status',
+      kind: 'diagnostic',
+      effect: 'read-only',
+      userRoute: item.userRoute,
+      modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      nextStep: 'Check reachability, compatibility, token posture, and Agent Knowledge readiness before repair.',
+      safety: 'Read-only host diagnostic; redacts token values.',
+    }),
+    ...recommendedRepairs,
+    ...bootstrap,
+    setupHandoff({
+      id: 'service-posture',
+      label: 'Inspect service posture',
+      kind: 'diagnostic',
+      effect: 'read-only',
+      userRoute: 'Agent Workspace -> Home -> Doctor diagnostics',
+      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      nextStep: 'Review endpoint binding, reachability, and logs when host status is inconclusive.',
+      safety: 'Read-only service diagnostic.',
+    }),
+  ];
+}
+
+function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] {
+  switch (item.id) {
+    case 'connected-host-readiness':
+      return connectedHostReadinessHandoffs(item);
+    case 'connected-host-auth': {
+      const authPosture = item.authPosture;
+      const tokenUsable = authPosture?.operatorToken.usable === true;
+      return [
+        tokenUsable
+          ? setupHandoff({
+            id: 'verify-connected-host-auth',
+            label: 'Verify connected-host auth',
+            kind: 'diagnostic',
+            effect: 'read-only',
+            userRoute: item.userRoute,
+            modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+            nextStep: 'Verify protected route readiness and Agent Knowledge before relying on daemon-backed automation.',
+            safety: 'Read-only diagnostic; token values are never returned.',
+          })
+          : setupHandoff({
+            id: 'provision-connected-host-token',
+            label: 'Provision connected-host token',
+            kind: 'confirmed-route',
+            effect: 'confirmed-effect',
+            userRoute: item.userRoute,
+            modelRoute: authPosture?.routes.provisionTokenRoute ?? provisionConnectedHostTokenRoute(),
+            nextStep: 'Create or repair the local companion token file, then rerun auth and connected-host status.',
+            safety: 'Confirmed local token provisioning; returns only path, fingerprint, peer id, and timestamps, never the raw token.',
+            requiresConfirmation: true,
+          }),
+        setupHandoff({
+          id: 'pairing-posture',
+          label: 'Inspect pairing posture',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: 'Agent Workspace -> Host -> Connected-host auth owner',
+          modelRoute: 'agent_harness mode:"pairing_posture" includeParameters:true',
+          nextStep: 'Use the visible QR/manual pairing routes when the user needs a non-file token handoff.',
+          safety: 'Read-only pairing posture; no token is printed by setup posture.',
+        }),
+      ];
+    }
+    case 'goodvibes-settings-import':
+      return [
+        setupHandoff({
+          id: 'preview-goodvibes-settings-import',
+          label: 'Preview GoodVibes import',
+          kind: 'workspace-action',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: inspectWorkspaceActionRoute('import-goodvibes-tui-settings'),
+          nextStep: 'Show importable setting and subscription counts before any migration.',
+          safety: 'Read-only preview; raw provider secrets are not returned.',
+        }),
+        setupHandoff({
+          id: 'apply-goodvibes-settings-import',
+          label: 'Apply GoodVibes import',
+          kind: 'workspace-action',
+          effect: 'confirmed-effect',
+          userRoute: item.userRoute,
+          modelRoute: confirmedWorkspaceActionRoute('import-goodvibes-tui-settings', 'Import reviewed GoodVibes TUI settings into Agent-owned state.'),
+          nextStep: 'Apply only after the user has reviewed the preview and wants Agent to import the values.',
+          safety: 'Confirmed Agent-owned settings migration; does not mutate the source GoodVibes TUI settings.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'provider-access':
+      return [
+        setupHandoff({
+          id: 'open-main-model-picker',
+          label: 'Open main model picker',
+          kind: 'ui-surface',
+          effect: 'visible-navigation',
+          userRoute: item.userRoute,
+          modelRoute: openSurfaceRoute('model-picker', 'Choose the main provider and model route for normal assistant turns.'),
+          nextStep: 'Let the user choose the normal assistant route in the visible provider/model picker.',
+          safety: 'Visible UI navigation; provider/model selection remains in the shared picker flow.',
+          requiresConfirmation: true,
+        }),
+        setupHandoff({
+          id: 'inspect-model-routing',
+          label: 'Inspect model routing',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: 'Agent Workspace -> Model Routing',
+          modelRoute: 'agent_harness mode:"model_routing" includeParameters:true',
+          nextStep: 'Inspect current route, provider readiness, local recipes, and route quality before choosing.',
+          safety: 'Read-only model routing posture.',
+        }),
+        setupHandoff({
+          id: 'inspect-provider-accounts',
+          label: 'Inspect provider accounts',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: 'Agent Workspace -> Start -> Provider accounts',
+          modelRoute: 'agent_harness mode:"provider_accounts" includeParameters:true',
+          nextStep: 'Review provider account readiness and credential posture without printing secrets.',
+          safety: 'Read-only account posture; secret values are never returned.',
+        }),
+      ];
+    case 'install-smoke':
+      return [
+        setupHandoff({
+          id: 'run-setup-smoke',
+          label: item.status === 'blocked' ? 'List smoke blockers' : 'Run setup smoke',
+          kind: 'confirmed-route',
+          effect: 'confirmed-effect',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"Run the install smoke checks."',
+          nextStep: item.status === 'blocked'
+            ? 'Return the exact blocked checks and user-run checks without running shell or host commands implicitly.'
+            : 'Capture the setup smoke result and then save redacted user-run evidence.',
+          safety: 'Confirmed token-safe setup smoke; no package, host, or shell commands run implicitly.',
+          requiresConfirmation: true,
+        }),
+        setupHandoff({
+          id: 'inspect-smoke-plan',
+          label: 'Inspect smoke plan',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"setup_item" setupItemId:"install-smoke"',
+          nextStep: 'Review check status, success criteria, and policy before asking the user to run evidence commands.',
+          safety: 'Read-only smoke plan.',
+        }),
+      ];
+    case 'local-model-readiness':
+      return [
+        setupHandoff({
+          id: 'inspect-local-model-cookbook',
+          label: 'Inspect local model cookbook',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"model_routing" query:"local" includeParameters:true',
+          nextStep: 'Review detected local routes, top recipe, setup gaps, and benchmark route before changing defaults.',
+          safety: 'Read-only model cookbook; local server install/start remains user-run.',
+        }),
+        setupHandoff({
+          id: 'open-local-model-picker',
+          label: 'Open model picker',
+          kind: 'ui-surface',
+          effect: 'visible-navigation',
+          userRoute: 'Agent Workspace -> Model Routing',
+          modelRoute: openSurfaceRoute('model-picker', 'Review or choose the main local model route.'),
+          nextStep: 'Use the visible picker only after local readiness and benchmark evidence are reviewed.',
+          safety: 'Visible UI navigation; route change stays explicit.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'agent-knowledge':
+      return [
+        setupHandoff({
+          id: 'agent-knowledge-status',
+          label: 'Inspect Agent Knowledge status',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_knowledge action:"status"',
+          nextStep: 'Verify isolated Agent Knowledge readiness, counts, and connector posture before ingesting sources.',
+          safety: 'Read-only Agent Knowledge status; never falls back to default knowledge.',
+        }),
+        setupHandoff({
+          id: 'open-knowledge-panel',
+          label: 'Open Knowledge panel',
+          kind: 'ui-surface',
+          effect: 'visible-navigation',
+          userRoute: item.userRoute,
+          modelRoute: openSurfaceRoute('knowledge-panel', 'Review isolated Agent Knowledge readiness.'),
+          nextStep: 'Open the visible Knowledge workspace for source, search, connector, and ingest controls.',
+          safety: 'Visible UI navigation; ingest and review actions remain separate confirmed routes.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'local-behavior':
+      return [
+        setupHandoff({
+          id: 'review-local-behavior',
+          label: 'Review local behavior',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"learning_curator" includeParameters:true',
+          nextStep: 'Review memory, notes, personas, skills, routines, and suggested local behavior updates.',
+          safety: 'Read-only curator posture; creates and imports stay confirmed workspace actions.',
+        }),
+        setupHandoff({
+          id: 'capture-learned-behavior',
+          label: 'Capture learned behavior',
+          kind: 'workspace-action',
+          effect: 'confirmed-effect',
+          userRoute: 'Agent Workspace -> Local Context',
+          modelRoute: confirmedWorkspaceActionRoute('learned-behavior', 'Save a reviewed lesson, workflow, or operating style as Agent-local behavior.'),
+          nextStep: 'Create a persona, skill, or routine only from a reviewed user-visible lesson.',
+          safety: 'Confirmed Agent-local behavior write; no default knowledge write.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'communication-channels':
+      return [
+        setupHandoff({
+          id: 'inspect-channels',
+          label: 'Inspect channel readiness',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"channels" includeParameters:true',
+          nextStep: 'Review paired surfaces, delivery targets, and channel safety before sending or enabling reminders.',
+          safety: 'Read-only channel posture; no external message is sent.',
+        }),
+        setupHandoff({
+          id: 'open-channels-workspace',
+          label: 'Open Channels workspace',
+          kind: 'ui-surface',
+          effect: 'visible-navigation',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"agent-workspace" target:"channels" confirm:true explicitUserRequest:"Open the Channels workspace for communication setup."',
+          nextStep: 'Use visible channel setup only for surfaces where the assistant should be reachable.',
+          safety: 'Visible UI navigation; channel pairing and delivery remain explicit.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'automation-review':
+      return [
+        setupHandoff({
+          id: 'inspect-autonomy-queue',
+          label: 'Inspect autonomy queue',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"autonomy_queue" includeParameters:true',
+          nextStep: 'Review visible schedules, approvals, work plans, automation runs, receipts, and cancel routes.',
+          safety: 'Read-only autonomy queue posture.',
+        }),
+        setupHandoff({
+          id: 'open-automation-workspace',
+          label: 'Open Automation workspace',
+          kind: 'ui-surface',
+          effect: 'visible-navigation',
+          userRoute: 'Agent Workspace -> Automation',
+          modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"agent-workspace" target:"automation" confirm:true explicitUserRequest:"Open Automation workspace for schedule and background work setup."',
+          nextStep: 'Create reminders or promote routines only through confirmed visible forms.',
+          safety: 'Visible UI navigation; schedule and run mutations remain confirmed.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'browser-desktop-control':
+      return [
+        setupHandoff({
+          id: 'inspect-browser-desktop-route',
+          label: 'Inspect browser and desktop route',
+          kind: 'tool-discovery',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: item.modelRoute,
+          nextStep: 'Review MCP trust, connection, schema freshness, and execution route before live UI automation.',
+          safety: 'Read-only tool posture; no browser or desktop action is executed.',
+        }),
+        setupHandoff({
+          id: 'open-tools-mcp-workspace',
+          label: 'Open Tools & MCP workspace',
+          kind: 'ui-surface',
+          effect: 'visible-navigation',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"agent-workspace" target:"tools" confirm:true explicitUserRequest:"Open Tools and MCP setup for browser or desktop control."',
+          nextStep: 'Configure and review only trusted browser or desktop connectors.',
+          safety: 'Visible UI navigation; connector writes stay in confirmed setup forms.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'build-delegation':
+      return [
+        setupHandoff({
+          id: 'inspect-delegation-posture',
+          label: 'Inspect delegation posture',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"delegation_posture" includeParameters:true',
+          nextStep: 'Check explicit GoodVibes TUI handoff routes and boundaries before delegating code work.',
+          safety: 'Read-only delegation posture; no task is delegated.',
+        }),
+        setupHandoff({
+          id: 'delegate-build-task',
+          label: 'Delegate build task',
+          kind: 'workspace-action',
+          effect: 'confirmed-effect',
+          userRoute: 'Agent Workspace -> Build Delegation',
+          modelRoute: confirmedWorkspaceActionRoute('delegate-task', 'Delegate one explicit build, fix, review, or isolation task to GoodVibes TUI.'),
+          nextStep: 'Use only when isolation, parallelism, remote execution, or explicit user request makes delegation helpful.',
+          safety: 'Confirmed delegation; preserves the original ask and keeps review explicit.',
+          requiresConfirmation: true,
+        }),
+      ];
+    case 'finish-onboarding':
+      return [
+        setupHandoff({
+          id: 'finish-onboarding',
+          label: 'Apply and close onboarding',
+          kind: 'workspace-action',
+          effect: 'confirmed-effect',
+          userRoute: 'Agent Workspace -> Finish',
+          modelRoute: confirmedWorkspaceActionRoute('onboarding-apply-close', 'Finish Agent onboarding after setup review.'),
+          nextStep: 'Persist the setup completion marker only after the assistant is usable.',
+          safety: 'Confirmed local onboarding marker write; no provider, host, channel, or automation mutation.',
+          requiresConfirmation: true,
+        }),
+        setupHandoff({
+          id: 'open-onboarding',
+          label: 'Open onboarding',
+          kind: 'ui-surface',
+          effect: 'visible-navigation',
+          userRoute: item.userRoute,
+          modelRoute: openSurfaceRoute('onboarding', 'Review Agent onboarding before finishing setup.'),
+          nextStep: 'Review selected setup choices in the visible onboarding surface.',
+          safety: 'Visible UI navigation only.',
+          requiresConfirmation: true,
+        }),
+      ];
+    default:
+      return [setupHandoff({
+        id: `${item.id}-inspect`,
+        label: `Inspect ${item.label}`,
+        kind: 'diagnostic',
+        effect: 'read-only',
+        userRoute: item.userRoute,
+        modelRoute: item.modelRoute,
+        nextStep: item.nextAction,
+        safety: 'Read-only setup inspection unless the returned route explicitly requires confirmation.',
+      })];
+  }
+}
+
 function buildSetupPlan(
   context: CommandContext,
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
@@ -1446,6 +1884,21 @@ function describeRepairCard(card: SetupRepairCard): Record<string, unknown> {
   };
 }
 
+function describeHandoffCard(card: SetupHandoffCard, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: card.id,
+    label: card.label,
+    kind: card.kind,
+    effect: card.effect,
+    userRoute: previewHarnessText(card.userRoute, includeParameters ? 140 : 96),
+    modelRoute: previewHarnessText(card.modelRoute, includeParameters ? 220 : 120),
+    nextStep: previewHarnessText(card.nextStep, includeParameters ? 180 : 120),
+    safety: previewHarnessText(card.safety, includeParameters ? 180 : 120),
+    ...(card.requiresConfirmation ? { requiresConfirmation: true } : {}),
+    ...(card.prerequisite ? { prerequisite: previewHarnessText(card.prerequisite, includeParameters ? 160 : 100) } : {}),
+  };
+}
+
 function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Record<string, unknown> {
   const availableRepairCards = item.repairCards
     ?.filter((card) => card.state === 'available')
@@ -1453,6 +1906,8 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
   const recommendedRepairCards = item.repairCards
     ?.filter((card) => card.state === 'available' && card.recommendation === 'recommended')
     .map((card) => card.id);
+  const handoffs = setupHandoffsForItem(item);
+  const primaryHandoff = handoffs[0];
   return {
     setupItemId: item.id,
     label: item.label,
@@ -1463,6 +1918,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     nextAction: previewHarnessText(item.nextAction, includeParameters ? 180 : 96),
     userRoute: previewHarnessText(item.userRoute, includeParameters ? 140 : 96),
     modelRoute: previewHarnessText(item.modelRoute, includeParameters ? 140 : 96),
+    ...(primaryHandoff ? { primaryHandoff: describeHandoffCard(primaryHandoff, includeParameters) } : {}),
     ...(item.relatedSetupItemId ? { relatedSetupItemId: item.relatedSetupItemId } : {}),
     ...(item.signals && item.signals.length > 0 ? { signals: item.signals.slice(0, includeParameters ? 10 : 3) } : {}),
     ...(availableRepairCards && availableRepairCards.length > 0 ? { availableRepairCards } : {}),
@@ -1472,6 +1928,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(includeParameters && item.authPosture ? { authPosture: item.authPosture } : {}),
     ...(includeParameters && item.installSmokePlan ? { installSmokePlan: item.installSmokePlan } : {}),
     ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),
+    ...(includeParameters && handoffs.length > 0 ? { handoffs: handoffs.map((handoff) => describeHandoffCard(handoff, true)) } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),
     ...(includeParameters ? {
@@ -1492,6 +1949,29 @@ function planSummary(plan: readonly SetupPlanItem[]): Record<string, number> {
     check: plan.filter((item) => item.status === 'check').length,
     blocksAutonomy: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
   };
+}
+
+function nextSetupHandoffSummaries(plan: readonly SetupPlanItem[], limit: number): readonly Record<string, unknown>[] {
+  return plan
+    .filter((item) => item.status === 'blocked' || item.status === 'check' || item.status === 'recommended')
+    .slice(0, limit)
+    .map((item) => {
+      const primaryHandoff = setupHandoffsForItem(item)[0];
+      return {
+        setupItemId: item.id,
+        label: item.label,
+        status: item.status,
+        nextAction: previewHarnessText(item.nextAction, 140),
+        modelRoute: previewHarnessText(item.modelRoute, 96),
+        ...(primaryHandoff ? {
+          handoffLabel: primaryHandoff.label,
+          handoffKind: primaryHandoff.kind,
+          handoffRoute: previewHarnessText(primaryHandoff.modelRoute, 140),
+          handoffUserRoute: previewHarnessText(primaryHandoff.userRoute, 120),
+          ...(primaryHandoff.requiresConfirmation ? { requiresConfirmation: true } : {}),
+        } : {}),
+      };
+    });
 }
 
 function signalsForItem(
@@ -1623,6 +2103,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
     planItems: plan.length,
     blockedPlanItems: plan.filter((item) => item.status === 'blocked').length,
     autonomyBlockers: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
+    nextSetupHandoffs: nextSetupHandoffSummaries(plan, 5),
     collectionIssues: snapshot.collectionIssues.length,
     setupMarkerExists: snapshot.acknowledgements.exists,
     setupSmokeEvidence,
@@ -1682,16 +2163,7 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
     currentRoute: snapshot.providerRouting,
     issues: snapshot.collectionIssues,
     readinessPlan: filteredPlan.map((item) => describePlanItem(item, includeParameters)),
-    nextSetupActions: plan
-      .filter((item) => item.status === 'blocked' || item.status === 'check' || item.status === 'recommended')
-      .slice(0, 5)
-      .map((item) => ({
-        setupItemId: item.id,
-        label: item.label,
-        status: item.status,
-        nextAction: previewHarnessText(item.nextAction, 140),
-        modelRoute: previewHarnessText(item.modelRoute, 96),
-      })),
+    nextSetupActions: nextSetupHandoffSummaries(plan, 5),
     capabilities: filtered.map((item) => describeItem(item, snapshot, { includeParameters })),
     returned: filtered.length,
     total: all.length,

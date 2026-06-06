@@ -831,11 +831,19 @@ describe('agent_harness tool', () => {
           readonly planItems?: number;
           readonly blockedPlanItems?: number;
           readonly autonomyBlockers?: number;
+          readonly nextSetupHandoffs?: readonly {
+            readonly setupItemId: string;
+            readonly handoffRoute?: string;
+            readonly handoffKind?: string;
+            readonly requiresConfirmation?: boolean;
+          }[];
         };
       }>(fixture, { mode: 'summary', includeParameters: true });
       expect(summary.setupPosture?.planItems).toBeGreaterThanOrEqual(7);
       expect(typeof summary.setupPosture?.blockedPlanItems).toBe('number');
       expect(summary.setupPosture?.autonomyBlockers).toBeGreaterThanOrEqual(1);
+      expect(summary.setupPosture?.nextSetupHandoffs?.[0]?.setupItemId).toBe('connected-host-readiness');
+      expect(summary.setupPosture?.nextSetupHandoffs?.[0]?.handoffRoute).toContain('connected_host_status');
 
       const posture = await executeHarnessJson<{
         readonly summary: {
@@ -853,6 +861,24 @@ describe('agent_harness tool', () => {
           readonly nextAction: string;
           readonly userRoute: string;
           readonly modelRoute: string;
+          readonly primaryHandoff?: {
+            readonly id: string;
+            readonly label: string;
+            readonly kind: string;
+            readonly effect: string;
+            readonly userRoute: string;
+            readonly modelRoute: string;
+            readonly nextStep: string;
+            readonly safety: string;
+            readonly requiresConfirmation?: boolean;
+          };
+          readonly handoffs?: readonly {
+            readonly id: string;
+            readonly kind: string;
+            readonly effect: string;
+            readonly modelRoute: string;
+            readonly requiresConfirmation?: boolean;
+          }[];
           readonly signals?: readonly string[];
           readonly availableRepairCards?: readonly string[];
           readonly bootstrapRoute?: string;
@@ -904,6 +930,11 @@ describe('agent_harness tool', () => {
           readonly setupItemId: string;
           readonly status: string;
           readonly modelRoute: string;
+          readonly handoffLabel?: string;
+          readonly handoffKind?: string;
+          readonly handoffRoute?: string;
+          readonly handoffUserRoute?: string;
+          readonly requiresConfirmation?: boolean;
         }[];
         readonly policy: string;
       }>(fixture, { mode: 'setup_posture', includeParameters: true });
@@ -919,6 +950,10 @@ describe('agent_harness tool', () => {
       expect(first?.blocksAutonomy).toBe(true);
       expect(first?.modelRoute).toContain('connected_host_status');
       expect(first?.userRoute).toContain('Host compatibility');
+      expect(first?.primaryHandoff?.id).toBe('connected-host-status');
+      expect(first?.primaryHandoff?.kind).toBe('diagnostic');
+      expect(first?.primaryHandoff?.modelRoute).toContain('connected_host_status');
+      expect(first?.handoffs?.map((handoff) => handoff.id)).toContain('connected-host-bootstrap');
       expect(first?.availableRepairCards).toContain('connected-host-status');
       expect(first?.bootstrapRoute).toContain('connected-host-readiness');
       expect(first?.bootstrapPlan?.source).toContain('goodvibes-tui');
@@ -942,18 +977,34 @@ describe('agent_harness tool', () => {
       expect(first?.repairCards?.find((card) => card.id === 'service-restart')?.safety).toContain('Confirmed service mutation');
       expect(first?.repairCards?.some((card) => card.methodId === 'services.uninstall')).toBe(false);
 
+      expect(posture.readinessPlan
+        .filter((item) => item.status === 'blocked' || item.status === 'check' || item.status === 'recommended')
+        .every((item) => Boolean(item.primaryHandoff?.modelRoute))).toBe(true);
+      const auth = posture.readinessPlan.find((item) => item.setupItemId === 'connected-host-auth');
+      expect(auth?.primaryHandoff?.id).toBe('provision-connected-host-token');
+      expect(auth?.primaryHandoff?.requiresConfirmation).toBe(true);
+      expect(auth?.primaryHandoff?.modelRoute).toContain('provision_connected_host_token');
+
       const provider = posture.readinessPlan.find((item) => item.setupItemId === 'provider-access');
       expect(['ready', 'blocked']).toContain(provider?.status);
       expect(provider?.blocksAutonomy).toBe(true);
       expect(provider?.modelRoute).toContain('model_routing');
       expect(provider?.nextAction).toMatch(/Choose a provider\/model route|Review the current model route/);
+      expect(provider?.primaryHandoff?.id).toBe('open-main-model-picker');
+      expect(provider?.primaryHandoff?.modelRoute).toContain('surfaceId:"model-picker"');
+      expect(provider?.primaryHandoff?.requiresConfirmation).toBe(true);
       expect(posture.nextSetupActions[0]?.setupItemId).toBe('connected-host-readiness');
+      expect(posture.nextSetupActions[0]?.handoffRoute).toContain('connected_host_status');
+      expect(posture.nextSetupActions.find((item) => item.setupItemId === 'connected-host-auth')?.handoffRoute).toContain('provision_connected_host_token');
 
       const installSmoke = posture.readinessPlan.find((item) => item.setupItemId === 'install-smoke');
       expect(installSmoke?.status).toBe('blocked');
       expect(installSmoke?.blocksAutonomy).toBe(false);
       expect(installSmoke?.priority).toBe(22);
       expect(installSmoke?.modelRoute).toContain('install-smoke');
+      expect(installSmoke?.primaryHandoff?.id).toBe('run-setup-smoke');
+      expect(installSmoke?.primaryHandoff?.modelRoute).toContain('run_setup_smoke');
+      expect(installSmoke?.primaryHandoff?.requiresConfirmation).toBe(true);
       expect(installSmoke?.signals?.join('\n')).toContain('install smoke');
       expect(installSmoke?.installSmokePlan?.source).toContain('GoodVibes Agent installed package');
       expect(installSmoke?.installSmokePlan?.checks.map((check) => check.id)).toEqual([
@@ -976,6 +1027,8 @@ describe('agent_harness tool', () => {
       expect(localModels?.status).toBe('recommended');
       expect(localModels?.blocksAutonomy).toBe(false);
       expect(localModels?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+      expect(localModels?.primaryHandoff?.id).toBe('inspect-local-model-cookbook');
+      expect(localModels?.primaryHandoff?.modelRoute).toContain('query:"local"');
       expect(localModels?.signals?.join('\n')).toContain('cookbook status');
       expect(localModels?.signals?.join('\n')).toContain('top recipe');
       expect(localModels?.localModelReadiness?.cookbookStatus).toBe('recommendations-only');
