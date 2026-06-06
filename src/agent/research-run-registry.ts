@@ -255,6 +255,29 @@ export function researchRunReportLine(run: AgentResearchRunRecord): string {
   return `${run.title} | ${run.status}/${run.phase} | ${run.progress}% | ${sourceSummary}${artifact}`;
 }
 
+export function researchRunLogTail(run: AgentResearchRunRecord, limit = 5): readonly string[] {
+  const entries = [
+    ...(run.startedAt ? [{
+      at: run.startedAt,
+      line: `${run.startedAt} started ${run.status}/${run.phase} ${run.progress}%${run.note ? ` ${run.note}` : ''}`,
+    }] : []),
+    ...run.checkpoints.map((checkpoint) => ({
+      at: checkpoint.at,
+      line: [
+        `${checkpoint.at} checkpoint ${checkpoint.status}/${checkpoint.phase} ${checkpoint.progress}%`,
+        checkpoint.note,
+        checkpoint.sourceIds.length > 0 ? `sources ${checkpoint.sourceIds.join(', ')}` : '',
+        checkpoint.nextSteps.length > 0 ? `next ${checkpoint.nextSteps.join('; ')}` : '',
+      ].filter(Boolean).join(' | '),
+    })),
+    ...(run.pausedAt ? [{ at: run.pausedAt, line: `${run.pausedAt} paused ${run.status}/${run.phase} ${run.progress}%${run.note ? ` ${run.note}` : ''}` }] : []),
+    ...(run.cancelledAt ? [{ at: run.cancelledAt, line: `${run.cancelledAt} cancelled ${run.status}/${run.phase} ${run.progress}%${run.note ? ` ${run.note}` : ''}` }] : []),
+    ...(run.completedAt ? [{ at: run.completedAt, line: `${run.completedAt} completed ${run.status}/${run.phase} ${run.progress}%${run.reportArtifactId ? ` artifact ${run.reportArtifactId}` : ''}` }] : []),
+    ...(run.failedAt ? [{ at: run.failedAt, line: `${run.failedAt} failed ${run.status}/${run.phase} ${run.progress}%${run.error ? ` ${run.error}` : ''}` }] : []),
+  ].sort((left, right) => left.at.localeCompare(right.at));
+  return entries.slice(-Math.max(1, Math.min(20, Math.trunc(limit)))).map((entry) => entry.line);
+}
+
 export class AgentResearchRunRegistry {
   public constructor(private readonly storePath: string) {}
 

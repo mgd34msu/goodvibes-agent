@@ -1,6 +1,7 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import {
   AgentResearchRunRegistry,
+  researchRunLogTail,
   researchRunReportLine,
   type AgentResearchRunRecord,
   type AgentResearchRunStatus,
@@ -112,6 +113,7 @@ function runSearchText(item: ResearchRunItem): string {
     run.note ?? '',
     run.error ?? '',
     run.reportArtifactId ?? '',
+    researchRunLogTail(run, 5).join('\n'),
     run.plan.join('\n'),
     run.nextSteps.join('\n'),
     run.sourceIds.join('\n'),
@@ -146,6 +148,7 @@ function describeRunItem(item: ResearchRunItem, includeParameters: boolean, look
     priority: item.priority,
     sources: run.sourceIds.length,
     checkpoints: run.checkpoints.length,
+    logTail: researchRunLogTail(run, includeParameters ? 5 : 3),
     ...(run.reportArtifactId ? { reportArtifactId: run.reportArtifactId } : {}),
     next: previewHarnessText(item.next, includeParameters ? 180 : 96),
     modelRoute: item.modelRoute,

@@ -99,6 +99,17 @@ describe('agent_research_runs tool', () => {
       expect(checkpointed.success).toBe(true);
       expect(checkpointed.output).toContain('Checkpointed Agent research run');
 
+      const listedWithTail = await tool.execute({ mode: 'list', includeLogTail: true });
+      expect(listedWithTail.success).toBe(true);
+      expect(listedWithTail.output).toContain('Recent run log tail');
+      expect(listedWithTail.output).toContain('Reviewed two sources.');
+      expect(listedWithTail.output).toContain('sources source-a, source-b');
+
+      const shownWithTail = await tool.execute({ mode: 'show', id: 'deep-research-run' });
+      expect(shownWithTail.success).toBe(true);
+      expect(shownWithTail.output).toContain('Log tail');
+      expect(shownWithTail.output).toContain('Reviewed two sources.');
+
       const paused = await tool.execute({
         mode: 'pause',
         id: 'deep-research-run',

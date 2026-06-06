@@ -974,6 +974,7 @@ describe('agent_harness tool', () => {
           readonly checkpointRoute?: string;
           readonly cancelRoute?: string;
           readonly completeRoute?: string;
+          readonly logTail: readonly string[];
           readonly runLine: string;
         }[];
         readonly policy: string;
@@ -990,17 +991,20 @@ describe('agent_harness tool', () => {
       expect(queue.runs[0]?.checkpointRoute).toContain('agent_research_runs checkpoint');
       expect(queue.runs[0]?.cancelRoute).toContain('agent_research_runs cancel');
       expect(queue.runs[0]?.completeRoute).toContain('agent_research_runs complete');
+      expect(queue.runs[0]?.logTail.join('\n')).toContain('Read official docs and captured source ids.');
       expect(queue.runs[0]?.runLine).toContain('Competitor deep research');
 
       const detail = await executeHarnessJson<{
         readonly runId: string;
         readonly sourceIds: readonly string[];
         readonly checkpoints: readonly unknown[];
+        readonly logTail: readonly string[];
         readonly policy?: string;
       }>(fixture, { mode: 'research_run', runId: checkpointed.id });
       expect(detail.runId).toBe(checkpointed.id);
       expect(detail.sourceIds).toEqual(['official-docs']);
       expect(detail.checkpoints).toHaveLength(1);
+      expect(detail.logTail.join('\n')).toContain('Read official docs and captured source ids.');
       expect(detail.policy).toContain('Research run rows are local visible state only');
 
       const action = await executeHarnessJson<{

@@ -3,6 +3,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import {
   AgentResearchRunRegistry,
+  researchRunLogTail,
   researchRunReportLine,
   type AgentResearchRunCreateInput,
   type AgentResearchRunPhase,
@@ -27,6 +28,7 @@ export interface AgentResearchRunsToolArgs {
   readonly reportArtifactId?: unknown;
   readonly error?: unknown;
   readonly includeCheckpoints?: unknown;
+  readonly includeLogTail?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -144,6 +146,27 @@ function formatRunList(
   return lines.join('\n');
 }
 
+function formatRunListWithLogTail(
+  title: string,
+  runs: readonly AgentResearchRunRecord[],
+  includeCheckpoints: boolean,
+  includeLogTail: boolean,
+): string {
+  const base = formatRunList(title, runs, includeCheckpoints);
+  if (!includeLogTail || runs.length === 0) return base;
+  const logTail = runs.flatMap((run) => researchRunLogTail(run, 3).map((line) => `  ${run.id} ${line}`));
+  return logTail.length > 0 ? [base, '', 'Recent run log tail', ...logTail].join('\n') : base;
+}
+
+function logTailSection(run: AgentResearchRunRecord): readonly string[] {
+  const logTail = researchRunLogTail(run, 5);
+  return [
+    'Log tail',
+    ...(logTail.length > 0 ? logTail.map((line) => `- ${line}`) : ['(none)']),
+    '',
+  ];
+}
+
 function formatRunDetail(run: AgentResearchRunRecord): string {
   const lines = [
     `Research run ${run.id}`,
@@ -179,6 +202,7 @@ function formatRunDetail(run: AgentResearchRunRecord): string {
       ? run.checkpoints.map((checkpoint) => `- ${checkpoint.id} ${checkpoint.at} ${checkpoint.status}/${checkpoint.phase} ${checkpoint.progress}% ${checkpoint.note}`)
       : ['(none)']),
     '',
+    ...logTailSection(run),
     'Routes',
     `checkpoint agent_research_runs mode:"checkpoint" id:"${run.id}" confirm:true explicitUserRequest:"..."`,
     `pause agent_research_runs mode:"pause" id:"${run.id}" confirm:true explicitUserRequest:"..."`,
@@ -245,6 +269,7 @@ function createAgentResearchRunsTool(shellPaths?: Pick<ShellPathService, 'resolv
           reportArtifactId: { type: 'string', description: 'Saved report artifact id when completing the run.' },
           error: { type: 'string', description: 'Failure note for fail mode.' },
           includeCheckpoints: { type: 'boolean', description: 'Include recent checkpoint lines in list/search output.' },
+          includeLogTail: { type: 'boolean', description: 'Include recent run log tail in list/search output.' },
           confirm: { type: 'boolean', description: 'Required true for local run-state writes.' },
           explicitUserRequest: { type: 'string', description: 'User request authorizing local research run writes.' },
         },
@@ -263,15 +288,16 @@ function createAgentResearchRunsTool(shellPaths?: Pick<ShellPathService, 'resolv
         if (mode === 'list') {
           const status = readStatus(args.status);
           const runs = registry.list(status);
-          return output(formatRunList(
+          return output(formatRunListWithLogTail(
             status ? `Agent research runs (${status})` : 'Agent research runs',
             runs,
             args.includeCheckpoints === true,
+            args.includeLogTail === true,
           ));
         }
         if (mode === 'search') {
           const query = readString(args.query);
-          return output(formatRunList(`Agent research run search ${query || '(all)'}`, registry.search(query), args.includeCheckpoints === true));
+          return output(formatRunListWithLogTail(`Agent research run search ${query || '(all)'}`, registry.search(query), args.includeCheckpoints === true, args.includeLogTail === true));
         }
         if (mode === 'show') {
           const run = registry.get(requireId(args));
