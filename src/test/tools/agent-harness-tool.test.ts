@@ -880,12 +880,14 @@ describe('agent_harness tool', () => {
 
       const queue = await executeHarnessJson<{
         readonly summary: { readonly sources: number; readonly reviewed: number; readonly candidates: number };
+        readonly bundle?: { readonly sources: number; readonly route: string; readonly reportRoute: string };
         readonly sources: readonly {
           readonly sourceId: string;
           readonly status: string;
           readonly credibility: string;
           readonly score: number;
           readonly modelRoute: string;
+          readonly bundleRoute?: string;
           readonly reportRoute?: string;
           readonly ingestRoute?: string;
           readonly reportSourceLine: string;
@@ -897,11 +899,15 @@ describe('agent_harness tool', () => {
       expect(queue.summary.reviewed).toBe(1);
       expect(queue.summary.candidates).toBe(0);
       expect(queue.policy).toContain('Research queue is read-only');
+      expect(queue.bundle?.sources).toBe(1);
+      expect(queue.bundle?.route).toContain('agent_research_sources mode:bundle');
+      expect(queue.bundle?.reportRoute).toContain('requireCitationCoverage:true');
       expectRowsHaveCompactModelRoutes(queue.sources);
       expect(queue.sources[0]?.sourceId).toBe(reviewed.id);
       expect(queue.sources[0]?.status).toBe('reviewed');
       expect(queue.sources[0]?.credibility).toBe('high');
       expect(queue.sources[0]?.score).toBe(91);
+      expect(queue.sources[0]?.bundleRoute).toContain('mode:bundle');
       expect(queue.sources[0]?.reportRoute).toContain('research-save-report');
       expect(queue.sources[0]?.ingestRoute).toContain('agent_knowledge_ingest');
       expect(queue.sources[0]?.reportSourceLine).toContain('Ollama setup docs');
@@ -910,10 +916,12 @@ describe('agent_harness tool', () => {
 
       const source = await executeHarnessJson<{
         readonly sourceId: string;
+        readonly bundleRoute?: string;
         readonly reportSourceLine: string;
         readonly policy?: string;
       }>(fixture, { mode: 'research_source', sourceId: reviewed.id });
       expect(source.sourceId).toBe(reviewed.id);
+      expect(source.bundleRoute).toContain('mode:bundle');
       expect(source.reportSourceLine).toContain('high');
       expect(source.policy).toContain('Research queue rows are local project state only');
 

@@ -21,6 +21,7 @@ interface ResearchQueueItem {
   readonly next: string;
   readonly modelRoute: string;
   readonly inspectRoute: string;
+  readonly bundleRoute?: string;
   readonly reviewRoute?: string;
   readonly rejectRoute?: string;
   readonly reportRoute?: string;
@@ -40,6 +41,10 @@ function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(200, Math.trunc(parsed)));
+}
+
+function routeString(value: string): string {
+  return JSON.stringify(value);
 }
 
 function statusPriority(status: AgentResearchSourceStatus): number {
@@ -66,6 +71,9 @@ function buildQueueItem(source: AgentResearchSourceRecord): ResearchQueueItem {
   const reportRoute = source.status === 'reviewed' || source.status === 'used'
     ? 'agent_harness mode:"workspace_action" actionId:"research-save-report"'
     : '';
+  const bundleRoute = source.status === 'reviewed' || source.status === 'used'
+    ? `agent_research_sources mode:bundle query:${routeString(source.id)} limit:10`
+    : '';
   const ingestRoute = source.status === 'reviewed' || source.status === 'used'
     ? 'agent_knowledge_ingest sourceKind="url" confirm=true explicitUserRequest="..."'
     : '';
@@ -75,6 +83,7 @@ function buildQueueItem(source: AgentResearchSourceRecord): ResearchQueueItem {
     next: nextForSource(source),
     modelRoute: 'agent_research_sources',
     inspectRoute: `agent_research_sources show id="${source.id}"`,
+    ...(bundleRoute ? { bundleRoute } : {}),
     ...(reviewRoute ? { reviewRoute } : {}),
     ...(rejectRoute ? { rejectRoute } : {}),
     ...(reportRoute ? { reportRoute } : {}),
@@ -97,6 +106,7 @@ function sourceSearchText(item: ResearchQueueItem): string {
     source.note ?? '',
     source.tags.join('\n'),
     item.inspectRoute,
+    item.bundleRoute ?? '',
     item.reviewRoute ?? '',
     item.reportRoute ?? '',
     item.ingestRoute ?? '',
@@ -129,6 +139,7 @@ function describeSourceItem(item: ResearchQueueItem, includeParameters: boolean,
     next: previewHarnessText(item.next, includeParameters ? 180 : 96),
     modelRoute: item.modelRoute,
     inspectRoute: item.inspectRoute,
+    ...(item.bundleRoute ? { bundleRoute: item.bundleRoute } : {}),
     ...(item.reviewRoute ? { reviewRoute: item.reviewRoute } : {}),
     ...(item.rejectRoute ? { rejectRoute: item.rejectRoute } : {}),
     ...(item.reportRoute ? { reportRoute: item.reportRoute } : {}),
@@ -174,6 +185,7 @@ export function researchQueueSummary(context: CommandContext, args: AgentHarness
   const limit = readLimit(args.limit, 100);
   const items = queueItems(context);
   const filtered = items.filter((item) => !query || sourceSearchText(item).includes(query));
+  const bundleItems = filtered.filter((item) => item.source.status === 'reviewed' || item.source.status === 'used');
   return {
     summary: {
       sources: items.length,
@@ -183,6 +195,14 @@ export function researchQueueSummary(context: CommandContext, args: AgentHarness
       used: items.filter((item) => item.source.status === 'used').length,
     },
     sources: filtered.slice(0, limit).map((item) => describeSourceItem(item, includeParameters)),
+    bundle: {
+      sources: bundleItems.length,
+      route: query
+        ? `agent_research_sources mode:bundle query:${routeString(query)} limit:${Math.min(limit, 20)}`
+        : `agent_research_sources mode:bundle limit:${Math.min(limit, 20)}`,
+      reportRoute: 'agent_research_report requireCitationCoverage:true confirm:true explicitUserRequest:"..."',
+      next: 'Use bundle route to assemble reviewed/used sources into citation-ready report input before saving a report artifact.',
+    },
     returned: Math.min(filtered.length, limit),
     total: items.length,
     nextActions: nextActions(items),

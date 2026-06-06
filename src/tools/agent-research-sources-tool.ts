@@ -29,13 +29,14 @@ export interface AgentResearchSourcesToolArgs {
   readonly note?: unknown;
   readonly reportArtifactId?: unknown;
   readonly includeReportLines?: unknown;
+  readonly limit?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
 
-type AgentResearchSourcesMode = 'list' | 'search' | 'show' | 'add' | 'review' | 'reject' | 'use' | 'delete';
+type AgentResearchSourcesMode = 'list' | 'search' | 'show' | 'bundle' | 'add' | 'review' | 'reject' | 'use' | 'delete';
 
-const MODES: readonly AgentResearchSourcesMode[] = ['list', 'search', 'show', 'add', 'review', 'reject', 'use', 'delete'];
+const MODES: readonly AgentResearchSourcesMode[] = ['list', 'search', 'show', 'bundle', 'add', 'review', 'reject', 'use', 'delete'];
 const STATUS_VALUES: readonly AgentResearchSourceStatus[] = ['candidate', 'reviewed', 'rejected', 'used'];
 const CREDIBILITY_VALUES: readonly AgentResearchSourceCredibility[] = ['unreviewed', 'low', 'medium', 'high', 'mixed'];
 
@@ -60,6 +61,12 @@ function readScore(value: unknown): number | undefined {
   if (typeof value !== 'string' || !value.trim()) return undefined;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : undefined;
+}
+
+function readLimit(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(50, Math.trunc(parsed)));
 }
 
 function readStringList(value: unknown): readonly string[] {
@@ -151,6 +158,73 @@ function formatSourceDetail(source: AgentResearchSourceRecord): string {
   return lines.join('\n');
 }
 
+function previewText(value: string, maxLength = 160): string {
+  const normalized = value.trim().replace(/\s+/g, ' ');
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(0, maxLength - 1)).trimEnd()}...`;
+}
+
+function reportSourceObject(source: AgentResearchSourceRecord): Record<string, unknown> {
+  return {
+    title: source.title,
+    ...(source.url ? { url: source.url } : {}),
+    ...(source.publisher ? { publisher: source.publisher } : {}),
+    ...(source.publishedAt ? { publishedAt: source.publishedAt } : {}),
+    ...(source.accessedAt ? { accessedAt: source.accessedAt } : {}),
+    credibility: source.credibility,
+    note: [source.note, source.summary].filter(Boolean).join(' ') || source.summary,
+  };
+}
+
+function sourceMatchesQuery(source: AgentResearchSourceRecord, query: string): boolean {
+  if (!query) return true;
+  return [
+    source.id,
+    source.question,
+    source.title,
+    source.url ?? '',
+    source.publisher ?? '',
+    source.summary,
+    source.evidence ?? '',
+    source.credibility,
+    source.status,
+    source.note ?? '',
+    ...source.tags,
+  ].some((field) => field.toLowerCase().includes(query));
+}
+
+function formatSourceBundle(sources: readonly AgentResearchSourceRecord[], query: string, limit: number): string {
+  if (sources.length === 0) {
+    return [
+      'Agent research source bundle',
+      'No reviewed or used Agent research sources matched.',
+      'next Review candidate sources with agent_research_sources mode:"review", then rerun mode:"bundle".',
+    ].join('\n');
+  }
+  const primaryQuestion = sources[0]?.question ?? '(mixed questions)';
+  const questions = new Set(sources.map((source) => source.question));
+  const reportSources = sources.map(reportSourceObject);
+  return [
+    'Agent research source bundle',
+    `  sources ${sources.length}`,
+    `  query ${query || '(all reviewed/used)'}`,
+    `  limit ${limit}`,
+    `  question ${questions.size === 1 ? primaryQuestion : '(mixed questions)'}`,
+    '  policy read-only source bundle; no report artifact, Knowledge ingest, or external message was created',
+    '',
+    'Report source lines',
+    ...sources.map((source, index) => `  [S${index + 1}] ${researchSourceReportLine(source)}`),
+    '',
+    'Citation plan',
+    ...sources.map((source, index) => `  [S${index + 1}] Cite when using: ${previewText(source.summary)}`),
+    '',
+    'agent_research_report handoff',
+    '  Use requireCitationCoverage:true and cite these sources as [S1], [S2], etc. in summary/reportMarkdown/findings.',
+    '  sources:',
+    JSON.stringify(reportSources, null, 2),
+  ].join('\n');
+}
+
 function formatMutationResult(action: string, source: AgentResearchSourceRecord): string {
   return [
     action,
@@ -217,6 +291,7 @@ function createAgentResearchSourcesTool(shellPaths?: Pick<ShellPathService, 'res
           note: { type: 'string', description: 'Review note, rejection reason, or use note.' },
           reportArtifactId: { type: 'string', description: 'Optional report artifact id when marking a source used.' },
           includeReportLines: { type: 'boolean', description: 'Include report-form source lines in list/search output.' },
+          limit: { type: 'number', description: 'Maximum rows for bundle output.' },
           confirm: { type: 'boolean', description: 'Required true for local source queue writes.' },
           explicitUserRequest: { type: 'string', description: 'User request authorizing source queue writes.' },
         },
@@ -248,6 +323,16 @@ function createAgentResearchSourcesTool(shellPaths?: Pick<ShellPathService, 'res
         if (mode === 'show') {
           const source = registry.get(requireId(args));
           return source ? output(formatSourceDetail(source)) : failure(`Unknown research source ${readString(args.id)}`);
+        }
+        if (mode === 'bundle') {
+          const query = readString(args.query).toLowerCase();
+          const limit = readLimit(args.limit, 20);
+          const sources = registry.list()
+            .filter((source) => source.status === 'reviewed' || source.status === 'used')
+            .filter((source) => sourceMatchesQuery(source, query))
+            .sort((left, right) => right.score - left.score || right.updatedAt.localeCompare(left.updatedAt))
+            .slice(0, limit);
+          return output(formatSourceBundle(sources, query, limit));
         }
         if (mode === 'add') {
           requireConfirmedWrite(args, 'Research source add');

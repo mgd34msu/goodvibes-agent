@@ -57,6 +57,18 @@ describe('agent_research_sources tool', () => {
       expect(listed.output).toContain('Report source lines');
       expect(listed.output).not.toContain('secret-value');
 
+      const bundled = await tool.execute({ mode: 'bundle', query: 'docs', limit: 5 });
+      expect(bundled.success).toBe(true);
+      expect(bundled.output).toContain('Agent research source bundle');
+      expect(bundled.output).toContain('sources 1');
+      expect(bundled.output).toContain('Report source lines');
+      expect(bundled.output).toContain('[S1] Official docs');
+      expect(bundled.output).toContain('Citation plan');
+      expect(bundled.output).toContain('agent_research_report handoff');
+      expect(bundled.output).toContain('requireCitationCoverage:true');
+      expect(bundled.output).toContain('"title": "Official docs"');
+      expect(bundled.output).not.toContain('secret-value');
+
       const source = AgentResearchSourceRegistry.fromShellPaths(fixture.paths).get('official-docs');
       expect(source?.status).toBe('reviewed');
       expect(source?.url).toContain('api_key=%3Credacted%3E');
