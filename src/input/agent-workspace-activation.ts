@@ -1,6 +1,6 @@
 import { createLearnedBehaviorEditor, createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
 import { createAgentArtifactBrowserEditor, createAgentArtifactPromoteKnowledgeEditor, createAgentArtifactShowEditor } from './agent-workspace-artifact-browser-editor.ts';
-import { createAgentDocumentBrowseEditor, createAgentDocumentCreateEditor, createAgentDocumentExportEditor, createAgentDocumentReviewEditor, createAgentDocumentShowEditor, createAgentDocumentUpdateEditor } from './agent-workspace-document-editor.ts';
+import { createAgentDocumentBrowseEditor, createAgentDocumentCreateEditor, createAgentDocumentExportEditor, createAgentDocumentInsertArtifactEditor, createAgentDocumentReviewEditor, createAgentDocumentShowEditor, createAgentDocumentUpdateEditor } from './agent-workspace-document-editor.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
 import { createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
@@ -195,6 +195,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'document-create') return createAgentDocumentCreateEditor();
   if (editorKind === 'document-update') return createAgentDocumentUpdateEditor();
   if (editorKind === 'document-review') return createAgentDocumentReviewEditor();
+  if (editorKind === 'document-insert-artifact') return createAgentDocumentInsertArtifactEditor();
   if (editorKind === 'document-export') return createAgentDocumentExportEditor();
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();

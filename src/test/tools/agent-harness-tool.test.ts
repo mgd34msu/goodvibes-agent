@@ -729,6 +729,7 @@ describe('agent_harness tool', () => {
       expect(documents?.current).toContain('version history');
       expect(documents?.actionIds).toContain('document-create-draft');
       expect(documents?.actionIds).toContain('document-revise-draft');
+      expect(documents?.actionIds).toContain('document-insert-artifact');
       expect(documents?.actionIds).toContain('document-export-draft');
       expect(uploads?.status).toBe('ready');
       expect(uploads?.actionIds).toContain('document-ingest-file');
@@ -741,6 +742,7 @@ describe('agent_harness tool', () => {
       expect(artifactBrowser?.actionIds).toContain('artifact-browse');
       expect(artifactBrowser?.actionIds).toContain('artifact-show');
       expect(artifactBrowser?.actionIds).toContain('artifact-promote-knowledge');
+      expect(artifactBrowser?.actionIds).toContain('artifact-insert-document');
       expect(artifactBrowser?.actionIds).toContain('document-promote-artifact');
       expect(modelCompare?.status).toBe('partial');
       expect(modelCompare?.current).toContain('confirmed blind comparison runner');
@@ -941,6 +943,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-insert-artifact')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-insert-document')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
@@ -2904,6 +2908,30 @@ describe('agent_harness tool', () => {
       });
       expect(revised.success).toBe(true);
       expect(revised.output).toContain('versions 2');
+
+      const sourceArtifact = await artifacts.store.create({
+        kind: 'document',
+        mimeType: 'text/markdown',
+        filename: 'source-note.md',
+        text: 'Reusable source note.',
+        metadata: { purpose: 'source-note' },
+      });
+      const inserted = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-insert-artifact',
+        confirm: true,
+        explicitUserRequest: 'Insert the source artifact into the launch document draft.',
+        fields: {
+          documentId: 'launch-plan',
+          artifactId: sourceArtifact.id,
+          sectionTitle: 'Source Note',
+          confirm: 'yes',
+        },
+      });
+      expect(inserted.success).toBe(true);
+      expect(inserted.output).toContain('"tool": "agent_documents"');
+      expect(inserted.output).toContain('Inserted artifact into Agent document');
+      expect(inserted.output).toContain('versions 3');
 
       const exported = await fixture.tool.execute({
         mode: 'run_workspace_action',

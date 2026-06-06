@@ -29,6 +29,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'document-create'
   | 'document-update'
   | 'document-review'
+  | 'document-insert-artifact'
   | 'document-export'
   | 'model-compare-review'
   | 'model-compare-judge'
@@ -112,6 +113,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'document-create'
     || kind === 'document-update'
     || kind === 'document-review'
+    || kind === 'document-insert-artifact'
     || kind === 'document-export'
     || kind === 'model-compare-review'
     || kind === 'model-compare-judge'
@@ -148,6 +150,7 @@ export function buildAgentWorkspaceCommandEditorSubmission(
     || editor.kind === 'document-create'
     || editor.kind === 'document-update'
     || editor.kind === 'document-review'
+    || editor.kind === 'document-insert-artifact'
     || editor.kind === 'document-export'
   ) {
     return buildAgentDocumentPromptSubmission(editor, readField, promptDispatchAvailable);

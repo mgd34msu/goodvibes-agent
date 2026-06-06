@@ -67,6 +67,31 @@ describe('agent_documents tool', () => {
     expect(show.output).toContain('Add rollout checklist.');
     expect(show.output).toContain('v2');
 
+    const sourceArtifact = await artifactStore.create({
+      kind: 'document',
+      mimeType: 'text/markdown',
+      filename: 'source-note.md',
+      text: 'Source note body.',
+      metadata: { purpose: 'source-note' },
+    });
+    const inserted = await tool.execute({
+      mode: 'insertArtifact',
+      documentId: 'launch-plan',
+      artifactId: sourceArtifact.id,
+      sectionTitle: 'Reviewed Source Note',
+      confirm: true,
+      explicitUserRequest: 'Insert the reviewed source note into the launch plan.',
+    });
+    expect(inserted.success).toBe(true);
+    expect(inserted.output).toContain('Inserted artifact into Agent document');
+    expect(inserted.output).toContain('versions 3');
+
+    const insertedShow = await tool.execute({ mode: 'show', documentId: 'launch-plan', includeVersions: true });
+    expect(insertedShow.success).toBe(true);
+    expect(insertedShow.output).toContain('## Reviewed Source Note');
+    expect(insertedShow.output).toContain(`Artifact ID: ${sourceArtifact.id}`);
+    expect(insertedShow.output).toContain('Source note body.');
+
     const review = await tool.execute({
       mode: 'review',
       documentId: 'launch-plan',
@@ -92,6 +117,40 @@ describe('agent_documents tool', () => {
       documentId: 'launch-plan',
       status: 'reviewed',
     });
+  });
+
+  test('inserts non-text artifacts as references without base64 content', async () => {
+    const { artifactStore, tool } = fixture();
+    await tool.execute({
+      mode: 'create',
+      title: 'Media Brief',
+      body: 'Use generated media safely.',
+      confirm: true,
+      explicitUserRequest: 'Create a media brief document draft.',
+    });
+    const image = await artifactStore.create({
+      kind: 'image',
+      mimeType: 'image/png',
+      filename: 'generated.png',
+      dataBase64: Buffer.from([137, 80, 78, 71]).toString('base64'),
+      metadata: { purpose: 'agent-media-generation' },
+    });
+
+    const inserted = await tool.execute({
+      mode: 'insertArtifact',
+      documentId: 'media-brief',
+      artifactId: image.id,
+      confirm: true,
+      explicitUserRequest: 'Insert the generated image reference into the media brief.',
+    });
+
+    expect(inserted.success).toBe(true);
+    expect(inserted.output).toContain('safe artifact reference');
+    const show = await tool.execute({ mode: 'show', documentId: 'media-brief' });
+    expect(show.success).toBe(true);
+    expect(show.output).toContain(`Artifact ID: ${image.id}`);
+    expect(show.output).toContain('Content omitted for non-text artifact image/png');
+    expect(show.output).not.toContain('iVBOR');
   });
 
   test('registers in the model tool registry', () => {

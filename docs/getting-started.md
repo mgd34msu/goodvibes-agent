@@ -43,7 +43,7 @@ Primary first-run areas:
 - Setup: provider/model, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
-- Documents & Compare: versioned markdown document drafts, draft browse/show/create/revise/review/export, uploads, exports, source checks, generated media artifacts, saved artifact browse/show, reviewed artifact-to-Knowledge promotion, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates.
+- Documents & Compare: versioned markdown document drafts, draft browse/show/create/revise/review/artifact-insert/export, uploads, exports, source checks, generated media artifacts, saved artifact browse/show, reviewed artifact-to-Knowledge promotion, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates.
 - Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery.
 - Memory & Skills: local memory, notes, personas, skills, routines, and learned behavior capture.
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
@@ -138,7 +138,7 @@ Agent commands fail closed if the route is unavailable or a successful-looking r
 
 The Knowledge workspace also exposes route-backed and command-backed workflows for issue review, prompt packet previews, context-selection explain output, consolidation, and reindex. Read-only ask/search/list/get/map/connector/packet/explain paths do not require mutation confirmation. Ingest, review-issue, consolidation, and reindex paths require explicit confirmation.
 
-Use Agent Workspace -> Research for read-only web research and URL inspection. Research requests do not ingest sources. Use Agent Workspace -> Documents & Compare when a document needs a versioned markdown draft, review status, artifact export, prompt context, source checks, generated media artifacts, reviewed artifact-to-Knowledge promotion, or a confirmed blind model comparison with local review and judgment artifacts. Use confirmed Agent Knowledge ingest actions when a reviewed source should become durable.
+Use Agent Workspace -> Research for read-only web research and URL inspection. Research requests do not ingest sources. Use Agent Workspace -> Documents & Compare when a document needs a versioned markdown draft, review status, saved artifact insertion, artifact export, prompt context, source checks, generated media artifacts, reviewed artifact-to-Knowledge promotion, or a confirmed blind model comparison with local review and judgment artifacts. Use confirmed Agent Knowledge ingest actions when a reviewed source should become durable.
 
 Use the Artifacts area and Voice & Media workspace for images, source files, generated media, and exported sessions. Generated media returns artifact ids and metadata, not inline base64.
 

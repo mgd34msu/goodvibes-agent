@@ -73,6 +73,7 @@ export type AgentWorkspaceEditorKind =
   | 'document-create'
   | 'document-update'
   | 'document-review'
+  | 'document-insert-artifact'
   | 'document-export'
   | 'memory-search'
   | 'memory-get'

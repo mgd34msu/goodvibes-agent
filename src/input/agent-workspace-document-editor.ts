@@ -3,13 +3,17 @@ import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './ag
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export interface AgentDocumentWorkspaceToolArgs {
-  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'export';
+  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'export' | 'insertArtifact';
   readonly documentId?: string;
+  readonly artifactId?: string;
   readonly query?: string;
   readonly title?: string;
   readonly body?: string;
   readonly tags?: readonly string[];
   readonly status?: string;
+  readonly placement?: string;
+  readonly sectionTitle?: string;
+  readonly includeContent?: boolean;
   readonly changeSummary?: string;
   readonly includeVersions?: boolean;
   readonly limit?: number;
@@ -128,6 +132,25 @@ export function createAgentDocumentExportEditor(): AgentWorkspaceLocalEditor {
   };
 }
 
+export function createAgentDocumentInsertArtifactEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-insert-artifact',
+    mode: 'create',
+    title: 'Insert Artifact in Document',
+    selectedFieldIndex: 0,
+    message: 'Insert one saved artifact into an Agent-owned markdown draft as a new version. Text artifacts insert bounded content; binary artifacts insert a safe reference block.',
+    fields: [
+      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title to revise.' },
+      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved artifact id such as artifact-123.' },
+      { id: 'placement', label: 'Placement', value: 'append', required: false, multiline: false, hint: 'append, prepend, or replace. Defaults to append.' },
+      { id: 'sectionTitle', label: 'Section title', value: '', required: false, multiline: false, hint: 'Optional markdown heading for inserted artifact content.' },
+      { id: 'includeContent', label: 'Include text', value: 'yes', required: false, multiline: false, hint: 'yes/no. Yes inserts bounded text for text-like artifacts. Binary artifacts always insert a reference.' },
+      { id: 'changeSummary', label: 'Version note', value: 'Inserted saved artifact.', required: false, multiline: false, hint: 'Short note for version history.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save a new document version with this artifact.' },
+    ],
+  };
+}
+
 export function buildAgentDocumentToolArgs(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
@@ -187,6 +210,21 @@ export function buildAgentDocumentToolArgs(
       explicitUserRequest,
     };
   }
+  if (editor.kind === 'document-insert-artifact') {
+    const placement = readField('placement').trim();
+    const sectionTitle = readField('sectionTitle').trim();
+    return {
+      mode: 'insertArtifact',
+      documentId,
+      artifactId: readField('artifactId').trim(),
+      ...(placement ? { placement } : {}),
+      ...(sectionTitle ? { sectionTitle } : {}),
+      includeContent: isAffirmative(readField('includeContent')),
+      ...(changeSummary ? { changeSummary } : {}),
+      confirm: true,
+      explicitUserRequest,
+    };
+  }
   return {
     mode: 'export',
     documentId,
@@ -213,6 +251,7 @@ export function buildAgentDocumentPromptSubmission(
   const mutation = editor.kind === 'document-create'
     || editor.kind === 'document-update'
     || editor.kind === 'document-review'
+    || editor.kind === 'document-insert-artifact'
     || editor.kind === 'document-export';
   if (mutation && !isAffirmative(readField('confirm'))) {
     return {
@@ -248,14 +287,18 @@ export function buildAgentDocumentPromptSubmission(
     'Use the `agent_documents` tool for this Agent document workspace request.',
     `mode: ${JSON.stringify(args.mode)}`,
     args.documentId ? `documentId: ${JSON.stringify(args.documentId)}` : 'documentId: none',
+    args.artifactId ? `artifactId: ${JSON.stringify(args.artifactId)}` : 'artifactId: none',
     args.query ? `query: ${JSON.stringify(args.query)}` : 'query: none',
     args.title ? `title: ${JSON.stringify(args.title)}` : 'title: none',
     args.body ? `body: ${JSON.stringify(args.body)}` : 'body: none',
     args.tags && args.tags.length > 0 ? `tags: ${JSON.stringify(args.tags)}` : 'tags: none',
     args.status ? `status: ${JSON.stringify(args.status)}` : 'status: none',
+    args.placement ? `placement: ${JSON.stringify(args.placement)}` : 'placement: none',
+    args.sectionTitle ? `sectionTitle: ${JSON.stringify(args.sectionTitle)}` : 'sectionTitle: none',
     args.changeSummary ? `changeSummary: ${JSON.stringify(args.changeSummary)}` : 'changeSummary: none',
     typeof args.limit === 'number' ? `limit: ${args.limit}` : 'limit: default',
     typeof args.includeVersions === 'boolean' ? `includeVersions: ${args.includeVersions ? 'true' : 'false'}` : 'includeVersions: default',
+    typeof args.includeContent === 'boolean' ? `includeContent: ${args.includeContent ? 'true' : 'false'}` : 'includeContent: default',
     args.confirm ? 'confirm: true' : 'confirm: not required',
     args.explicitUserRequest ? `explicitUserRequest: ${JSON.stringify(args.explicitUserRequest)}` : 'explicitUserRequest: not required',
     'Policy: Agent-owned document drafts only; no default knowledge write and no artifact export unless mode is export.',
