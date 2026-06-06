@@ -48,7 +48,7 @@ export interface AgentModelCompareApplyWorkspaceToolArgs {
 }
 
 export interface AgentModelCompareExportWorkspaceToolArgs {
-  readonly mode: 'export' | 'handoff';
+  readonly mode: 'export' | 'handoff' | 'handoffArchive';
   readonly artifactId: string;
   readonly relatedArtifactIds?: readonly string[];
   readonly reveal?: boolean;
@@ -79,6 +79,13 @@ function readPositiveInteger(value: string): number | null {
 function isAffirmative(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return normalized === 'yes' || normalized === 'true';
+}
+
+function compareExportMode(value: string): AgentModelCompareExportWorkspaceToolArgs['mode'] {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (normalized === 'handoff' || normalized === 'reviewerhandoff') return 'handoff';
+  if (normalized === 'archive' || normalized === 'zip' || normalized === 'handoffarchive' || normalized === 'handoffzip') return 'handoffArchive';
+  return 'export';
 }
 
 function quoteBlock(value: string): string {
@@ -201,13 +208,13 @@ export function createAgentModelCompareExportEditor(): AgentWorkspaceLocalEditor
     mode: 'create',
     title: 'Export Compare Report/Handoff',
     selectedFieldIndex: 0,
-    message: 'Export a saved comparison or judgment as a markdown report, or create a reviewer handoff that includes related document/artifact ids. This does not change the selected model.',
+    message: 'Export a saved comparison or judgment as a markdown report, create a reviewer handoff with related document/artifact ids, or archive a saved handoff as one ZIP artifact. This does not change the selected model.',
     fields: [
-      { id: 'reportKind', label: 'Kind', value: 'report', required: false, multiline: false, hint: 'report or handoff. Handoff includes related artifact ids in one reviewer packet.' },
-      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved comparison or judgment artifact id such as artifact-123.' },
+      { id: 'reportKind', label: 'Kind', value: 'report', required: false, multiline: false, hint: 'report, handoff, or archive. Archive expects a saved handoff artifact id and creates one ZIP artifact.' },
+      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved comparison/judgment artifact for report or handoff; saved handoff artifact for archive.' },
       { id: 'relatedArtifactIds', label: 'Related artifacts', value: '', required: false, multiline: true, hint: 'For handoff: document export, archive, or artifact ids, separated by commas or new lines.' },
       { id: 'reveal', label: 'Reveal in export', value: 'no', required: false, multiline: false, hint: 'yes/no. For comparison artifacts, yes includes model identities. Judgment artifacts use their saved reveal state.' },
-      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to create one local markdown report artifact.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to create the local report, handoff, or ZIP archive artifact.' },
     ],
   };
 }
@@ -319,7 +326,7 @@ export function buildAgentModelCompareExportToolArgs(
   readField: AgentWorkspaceFieldReader,
   explicitUserRequest: string,
 ): AgentModelCompareExportWorkspaceToolArgs {
-  const mode = readField('reportKind').trim().toLowerCase() === 'handoff' ? 'handoff' : 'export';
+  const mode = compareExportMode(readField('reportKind'));
   const relatedArtifactIds = readList(readField('relatedArtifactIds'));
   return {
     mode,
@@ -715,23 +722,29 @@ export function buildAgentModelCompareExportPromptSubmission(
     };
   }
 
-  const mode = readField('reportKind').trim().toLowerCase() === 'handoff' ? 'handoff' : 'export';
+  const mode = compareExportMode(readField('reportKind'));
   const artifactId = readField('artifactId').trim();
   const relatedArtifactIds = readList(readField('relatedArtifactIds'));
   const reveal = isAffirmative(readField('reveal'));
   const explicitUserRequest = mode === 'handoff'
     ? 'Create a reviewer handoff from the saved blind model comparison artifact in the Agent workspace form.'
-    : 'Export the saved blind model comparison artifact from the Agent workspace form.';
+    : mode === 'handoffArchive'
+      ? 'Create a reviewer handoff ZIP archive from the saved blind model comparison handoff artifact in the Agent workspace form.'
+      : 'Export the saved blind model comparison artifact from the Agent workspace form.';
   const prompt = [
     mode === 'handoff'
       ? 'Create a reviewer handoff for a saved blind model comparison or judgment artifact with the `agent_model_compare` tool.'
-      : 'Export a saved blind model comparison or judgment artifact with the `agent_model_compare` tool.',
+      : mode === 'handoffArchive'
+        ? 'Create a ZIP archive artifact from a saved blind model comparison reviewer handoff with the `agent_model_compare` tool.'
+        : 'Export a saved blind model comparison or judgment artifact with the `agent_model_compare` tool.',
     `Use mode:"${mode}" and confirm:true because this workspace form was explicitly confirmed by the user.`,
     `Use explicitUserRequest: ${JSON.stringify(explicitUserRequest)}.`,
     artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
     relatedArtifactIds.length > 0 ? `Related artifact ids: ${relatedArtifactIds.join(', ')}.` : 'Related artifact ids: none.',
     `Reveal model identities in comparison exports: ${reveal ? 'yes' : 'no'}.`,
-    'Create one local markdown artifact and do not change model routing.',
+    mode === 'handoffArchive'
+      ? 'Create one local ZIP artifact, keep the original handoff/source/evidence artifacts, and do not change model routing.'
+      : 'Create one local markdown artifact and do not change model routing.',
   ].join('\n');
 
   return {
@@ -740,10 +753,16 @@ export function buildAgentModelCompareExportPromptSubmission(
     status: `Submitting comparison ${mode} request.`,
     actionResult: {
       kind: 'guidance',
-      title: mode === 'handoff' ? 'Compare reviewer handoff' : 'Export compare report',
+      title: mode === 'handoff'
+        ? 'Compare reviewer handoff'
+        : mode === 'handoffArchive'
+          ? 'Archive reviewer handoff'
+          : 'Export compare report',
       detail: mode === 'handoff'
         ? 'Submitted a confirmed request to create a reviewer handoff from saved comparison evidence.'
-        : 'Submitted a confirmed request to export a saved comparison or judgment as markdown.',
+        : mode === 'handoffArchive'
+          ? 'Submitted a confirmed request to create a ZIP archive artifact from a saved reviewer handoff.'
+          : 'Submitted a confirmed request to export a saved comparison or judgment as markdown.',
       safety: 'safe',
     },
   };

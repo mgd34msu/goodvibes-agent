@@ -197,9 +197,9 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
     return {
       route: 'agent_model_compare',
       tool: 'agent_model_compare',
-      action: 'export_comparison_report_or_handoff',
+      action: 'export_comparison_report_handoff_or_archive',
       confirmation: 'required',
-      note: 'run_workspace_action creates one local markdown report or reviewer handoff from saved comparison evidence without changing model routing.',
+      note: 'run_workspace_action creates one local markdown report, reviewer handoff artifact, or reviewer handoff ZIP archive from saved comparison evidence without changing model routing.',
     };
   }
   if (editorKind === 'model-compare-analytics') {

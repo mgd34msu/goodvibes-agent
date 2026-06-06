@@ -372,7 +372,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'document-judge-compare', label: 'Save compare judgment', detail: 'Open a confirmed form that saves the winning candidate and reasons as a local judgment artifact without changing model routing.', editorKind: 'model-compare-judge', kind: 'editor', safety: 'safe' },
       { id: 'document-compare-analytics', label: 'Compare analytics', detail: 'Summarize or synthesize saved comparison judgments by winner, model, blind slot, themes, task type, document id, benchmark tag, and recent reasons.', editorKind: 'model-compare-analytics', kind: 'editor', safety: 'read-only' },
       { id: 'document-apply-compare', label: 'Apply compare winner', detail: 'Open a confirmed form that applies a revealed saved comparison judgment to the main Agent model route.', editorKind: 'model-compare-apply', kind: 'editor', safety: 'safe' },
-      { id: 'document-export-compare', label: 'Export compare report', detail: 'Open a confirmed form that exports a saved comparison or judgment report, or creates a reviewer handoff with related artifacts.', editorKind: 'model-compare-export', kind: 'editor', safety: 'safe' },
+      { id: 'document-export-compare', label: 'Export compare report', detail: 'Open a confirmed form that exports a saved comparison or judgment report, creates a reviewer handoff with related artifacts, or archives a saved handoff as one ZIP artifact.', editorKind: 'model-compare-export', kind: 'editor', safety: 'safe' },
     ],
   },
   {
@@ -406,7 +406,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'artifact-judge-compare', label: 'Save compare judgment', detail: 'Open a confirmed form that saves a comparison winner and reasons as a local artifact without route mutation.', editorKind: 'model-compare-judge', kind: 'editor', safety: 'safe' },
       { id: 'artifact-compare-analytics', label: 'Compare analytics', detail: 'Summarize or synthesize saved comparison judgment artifacts by winner, model, blind slot, themes, task type, document id, benchmark tag, and recent reasons.', editorKind: 'model-compare-analytics', kind: 'editor', safety: 'read-only' },
       { id: 'artifact-apply-compare', label: 'Apply compare winner', detail: 'Open a confirmed form that applies a revealed judgment artifact to provider.model.', editorKind: 'model-compare-apply', kind: 'editor', safety: 'safe' },
-      { id: 'artifact-export-compare', label: 'Export compare report', detail: 'Open a confirmed form that exports a saved comparison or judgment report, or creates a reviewer handoff with related artifacts.', editorKind: 'model-compare-export', kind: 'editor', safety: 'safe' },
+      { id: 'artifact-export-compare', label: 'Export compare report', detail: 'Open a confirmed form that exports a saved comparison or judgment report, creates a reviewer handoff with related artifacts, or archives a saved handoff as one ZIP artifact.', editorKind: 'model-compare-export', kind: 'editor', safety: 'safe' },
       { id: 'artifact-policy', label: 'Artifact safety', detail: 'Artifact creation, ingest, and media generation are explicit actions. Agent never writes to default knowledge or prints inline base64; artifact previews are bounded and redacted.', kind: 'guidance', safety: 'read-only' },
     ],
   },

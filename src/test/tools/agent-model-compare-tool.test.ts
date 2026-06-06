@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { inflateRawSync } from 'node:zlib';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChatRequest, ChatResponse, LLMProvider } from '@pellux/goodvibes-sdk/platform/providers';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
@@ -39,7 +40,9 @@ function artifactStore() {
     async create(input: ArtifactCreateInput): Promise<ArtifactDescriptor> {
       inputs.push(input);
       const id = `artifact-${inputs.length}`;
-      const buffer = Buffer.from(input.text ?? '', 'utf-8');
+      const buffer = typeof input.dataBase64 === 'string'
+        ? Buffer.from(input.dataBase64, 'base64')
+        : Buffer.from(input.text ?? '', 'utf-8');
       const record: ArtifactRecord = {
         id: `artifact-${inputs.length}`,
         kind: input.kind ?? 'data',
@@ -69,6 +72,25 @@ function artifactStore() {
     },
   };
   return { inputs, store };
+}
+
+function unzipLocalEntries(buffer: Buffer): Map<string, Buffer> {
+  const entries = new Map<string, Buffer>();
+  let offset = 0;
+  while (offset + 4 < buffer.byteLength && buffer.readUInt32LE(offset) === 0x04034b50) {
+    const method = buffer.readUInt16LE(offset + 8);
+    const compressedSize = buffer.readUInt32LE(offset + 18);
+    const nameLength = buffer.readUInt16LE(offset + 26);
+    const extraLength = buffer.readUInt16LE(offset + 28);
+    const nameStart = offset + 30;
+    const dataStart = nameStart + nameLength + extraLength;
+    const dataEnd = dataStart + compressedSize;
+    const name = buffer.subarray(nameStart, nameStart + nameLength).toString('utf-8');
+    const compressed = buffer.subarray(dataStart, dataEnd);
+    entries.set(name, method === 8 ? inflateRawSync(compressed) : Buffer.from(compressed));
+    offset = dataEnd;
+  }
+  return entries;
 }
 
 function fixture(options: {
@@ -780,6 +802,68 @@ describe('agent_model_compare tool', () => {
     expect(handoffText).toContain('# Blind Model Comparison Judgment');
     expect(handoffText).toContain('Winner model: anthropic:claude-sonnet');
     expect(handoffText).toContain('Route changes require a separate confirmed');
+
+    const archivePreview = await reviewer.tool.execute({
+      mode: 'handoffArchive',
+      artifactId: 'artifact-7',
+      confirm: false,
+      explicitUserRequest: 'Archive the reviewer handoff.',
+    });
+    expect(archivePreview.success).toBe(false);
+    expect(archivePreview.error).toContain('reviewer handoff archive preview');
+    expect(archivePreview.error).toContain('source artifact-2 (judgment)');
+    expect(archivePreview.error).toContain(`related artifacts ${documentExport.id}`);
+    expect(artifacts.inputs).toHaveLength(7);
+
+    const archive = await reviewer.tool.execute({
+      mode: 'handoffArchive',
+      artifactId: 'artifact-7',
+      confirm: true,
+      explicitUserRequest: 'Archive the reviewer handoff.',
+    });
+    expect(archive.success).toBe(true);
+    expect(archive.output).toContain('Blind model comparison reviewer handoff archive saved');
+    expect(archive.output).toContain('handoff artifact-7');
+    expect(archive.output).toContain('source artifact-2 (judgment)');
+    expect(archive.output).toContain('included artifacts 3');
+    expect(archive.output).toContain('archive artifact-8');
+    expect(archive.output).toContain('export agent_artifacts mode:"export" artifactId:"artifact-8"');
+    expect(archive.output).toContain('No selected model was changed.');
+    expect(artifacts.inputs).toHaveLength(8);
+    expect(artifacts.inputs[7]?.kind).toBe('archive');
+    expect(artifacts.inputs[7]?.mimeType).toBe('application/zip');
+    expect(artifacts.inputs[7]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare-handoff-archive',
+      handoffArtifactId: 'artifact-7',
+      sourceArtifactId: 'artifact-2',
+      sourceKind: 'judgment',
+      relatedArtifactIds: [documentExport.id],
+      includedArtifactIds: ['artifact-7', 'artifact-2', documentExport.id],
+      artifactCount: 3,
+    });
+    const archiveBytes = Buffer.from(String(artifacts.inputs[7]?.dataBase64 ?? ''), 'base64');
+    const entries = unzipLocalEntries(archiveBytes);
+    expect(entries.get('README.md')?.toString('utf-8')).toContain('GoodVibes Agent Comparison Handoff Archive');
+    const manifest = JSON.parse(entries.get('manifest.json')?.toString('utf-8') ?? '{}') as {
+      readonly archiveKind?: string;
+      readonly handoff?: { readonly sourceArtifactId?: string; readonly relatedArtifactIds?: readonly string[] };
+      readonly artifacts?: readonly { readonly role?: string; readonly id?: string; readonly file?: string }[];
+    };
+    expect(manifest.archiveKind).toBe('agent-model-compare-handoff');
+    expect(manifest.handoff?.sourceArtifactId).toBe('artifact-2');
+    expect(manifest.handoff?.relatedArtifactIds).toEqual([documentExport.id]);
+    expect(manifest.artifacts?.map((entry) => entry.role)).toEqual(['handoff', 'source', 'related']);
+    const handoffEntry = manifest.artifacts?.find((entry) => entry.role === 'handoff');
+    const sourceEntry = manifest.artifacts?.find((entry) => entry.role === 'source');
+    const relatedEntry = manifest.artifacts?.find((entry) => entry.role === 'related');
+    expect(entries.get(String(handoffEntry?.file))?.toString('utf-8')).toContain('# Blind Model Comparison Reviewer Handoff');
+    expect(entries.get(String(sourceEntry?.file))?.toString('utf-8')).toContain('"schema": "goodvibes.agent.model_compare_judgment.v1"');
+    expect(entries.get(String(relatedEntry?.file))?.toString('utf-8')).toContain('# Launch Plan');
+
+    const archiveList = await reviewer.tool.execute({ mode: 'handoffArchive' });
+    expect(archiveList.success).toBe(true);
+    expect(archiveList.output).toContain('Saved blind comparison reviewer handoffs');
+    expect(archiveList.output).toContain('artifact-7');
   });
 
   test('can deliberately skip artifact persistence', async () => {

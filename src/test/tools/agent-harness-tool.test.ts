@@ -7043,6 +7043,27 @@ describe('agent_harness tool', () => {
         relatedArtifactIds: ['artifact-doc', 'artifact-package'],
         confirm: true,
       });
+
+      const archive = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-export-compare',
+        fields: {
+          reportKind: 'archive',
+          artifactId: 'artifact-7',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Archive a reviewer handoff for this comparison.',
+      });
+      expect(archive.success).toBe(true);
+      expect(archive.output).toContain('"status": "executed_model_tool"');
+      expect(archive.output).toContain('"tool": "agent_model_compare"');
+      expect(archive.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'handoffArchive',
+        artifactId: 'artifact-7',
+        confirm: true,
+      });
     } finally {
       fixture.cleanup();
     }

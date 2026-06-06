@@ -1,11 +1,18 @@
 import { existsSync } from 'node:fs';
 import { mkdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { deflateRawSync } from 'node:zlib';
 import type { ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
+import {
+  createZipArchive,
+  packageArtifactFilename,
+  safeArtifactExportFilename,
+  sanitizeArtifactMetadata,
+  sanitizeArtifactSourceUri,
+  type ArtifactPackageEntry,
+} from './artifact-archive.ts';
 
 export interface AgentArtifactsToolArgs {
   readonly mode?: unknown;
@@ -37,11 +44,6 @@ interface LoadedArtifact {
   readonly buffer?: Buffer;
 }
 
-interface ArtifactPackageEntry {
-  readonly path: string;
-  readonly buffer: Buffer;
-}
-
 interface ArtifactPackagePayload {
   readonly artifactCount: number;
   readonly totalBytes: number;
@@ -52,7 +54,6 @@ const DEFAULT_LIST_LIMIT = 25;
 const DEFAULT_PREVIEW_BYTES = 2_048;
 const MAX_PREVIEW_BYTES = 20_000;
 const MAX_PACKAGE_ARTIFACTS = 100;
-const SENSITIVE_METADATA_KEY = /token|secret|password|authorization|credential|api[-_]?key/i;
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -109,30 +110,8 @@ function formatBytes(value: number): string {
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function sanitizeMetadata(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sanitizeMetadata);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [
-    key,
-    SENSITIVE_METADATA_KEY.test(key) ? '<redacted>' : sanitizeMetadata(entry),
-  ]));
-}
-
-function sanitizeSourceUri(value: string | undefined): string | undefined {
-  if (!value) return undefined;
-  try {
-    const url = new URL(value);
-    for (const key of [...url.searchParams.keys()]) {
-      if (SENSITIVE_METADATA_KEY.test(key)) url.searchParams.set(key, '<redacted>');
-    }
-    return url.toString();
-  } catch {
-    return value.replace(/([?&\s](?:token|secret|password|authorization|credential|api[-_]?key)=)[^\s&]+/gi, '$1<redacted>');
-  }
-}
-
 function metadataText(metadata: Record<string, unknown>): string {
-  return JSON.stringify(sanitizeMetadata(metadata));
+  return JSON.stringify(sanitizeArtifactMetadata(metadata));
 }
 
 function metadataValue(metadata: Record<string, unknown>, key: string): string {
@@ -198,148 +177,10 @@ function contentPreview(artifact: ArtifactDescriptor, buffer: Buffer | undefined
   return buffer.byteLength > sliced.byteLength ? `${text}\n... (${formatBytes(buffer.byteLength - sliced.byteLength)} more)` : text;
 }
 
-function safeExportFilename(artifact: ArtifactDescriptor): string {
-  const filename = (artifact.filename || artifact.id).trim() || artifact.id;
-  return filename.replace(/[\\/]+/g, '-').replace(/^\.+$/, artifact.id);
-}
-
-function safePackagePathSegment(value: string, fallback: string): string {
-  const sanitized = value
-    .replace(/[\\/]+/g, '-')
-    .replace(/[<>:"|?*\x00-\x1F]+/g, '-')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^\.+$/, '');
-  const normalized = sanitized || fallback;
-  return normalized.length > 128 ? normalized.slice(0, 128).trimEnd() : normalized;
-}
-
-function packageArtifactFilename(
-  artifact: ArtifactDescriptor,
-  index: number,
-  used: Set<string>,
-): string {
-  const ordinal = String(index + 1).padStart(2, '0');
-  const id = safePackagePathSegment(artifact.id, `artifact-${ordinal}`);
-  const filename = safePackagePathSegment(safeExportFilename(artifact), id);
-  const base = `${ordinal}-${id}-${filename}`;
-  let candidate = base;
-  let suffix = 2;
-  while (used.has(candidate.toLowerCase())) {
-    candidate = `${base}-${suffix}`;
-    suffix += 1;
-  }
-  used.add(candidate.toLowerCase());
-  return candidate;
-}
-
-function createCrc32Table(): Uint32Array {
-  const table = new Uint32Array(256);
-  for (let index = 0; index < table.length; index += 1) {
-    let value = index;
-    for (let bit = 0; bit < 8; bit += 1) {
-      value = (value & 1) !== 0 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
-    }
-    table[index] = value >>> 0;
-  }
-  return table;
-}
-
-const CRC32_TABLE = createCrc32Table();
-
-function crc32(buffer: Buffer): number {
-  let crc = 0xffffffff;
-  for (const byte of buffer) {
-    crc = CRC32_TABLE[(crc ^ byte) & 0xff]! ^ (crc >>> 8);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
-
-function dosTimestamp(date = new Date()): { readonly time: number; readonly date: number } {
-  const year = Math.max(1980, Math.min(2107, date.getFullYear()));
-  return {
-    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
-    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate(),
-  };
-}
-
-function createZipArchive(entries: readonly ArtifactPackageEntry[]): Buffer {
-  if (entries.length > 0xffff) throw new Error('Artifact archive has too many files for ZIP output.');
-  const localParts: Buffer[] = [];
-  const centralParts: Buffer[] = [];
-  const timestamp = dosTimestamp();
-  let offset = 0;
-
-  for (const entry of entries) {
-    const safePath = entry.path.replace(/\\/g, '/');
-    const name = Buffer.from(safePath, 'utf-8');
-    const compressed = deflateRawSync(entry.buffer);
-    if (name.byteLength > 0xffff) throw new Error(`Artifact archive entry path is too long: ${safePath}`);
-    if (entry.buffer.byteLength > 0xffffffff || compressed.byteLength > 0xffffffff) {
-      throw new Error(`Artifact archive entry is too large for ZIP output: ${safePath}`);
-    }
-    const checksum = crc32(entry.buffer);
-    const method = 8;
-
-    const localHeader = Buffer.alloc(30);
-    localHeader.writeUInt32LE(0x04034b50, 0);
-    localHeader.writeUInt16LE(20, 4);
-    localHeader.writeUInt16LE(0, 6);
-    localHeader.writeUInt16LE(method, 8);
-    localHeader.writeUInt16LE(timestamp.time, 10);
-    localHeader.writeUInt16LE(timestamp.date, 12);
-    localHeader.writeUInt32LE(checksum, 14);
-    localHeader.writeUInt32LE(compressed.byteLength, 18);
-    localHeader.writeUInt32LE(entry.buffer.byteLength, 22);
-    localHeader.writeUInt16LE(name.byteLength, 26);
-    localHeader.writeUInt16LE(0, 28);
-    localParts.push(localHeader, name, compressed);
-
-    const centralHeader = Buffer.alloc(46);
-    centralHeader.writeUInt32LE(0x02014b50, 0);
-    centralHeader.writeUInt16LE(20, 4);
-    centralHeader.writeUInt16LE(20, 6);
-    centralHeader.writeUInt16LE(0, 8);
-    centralHeader.writeUInt16LE(method, 10);
-    centralHeader.writeUInt16LE(timestamp.time, 12);
-    centralHeader.writeUInt16LE(timestamp.date, 14);
-    centralHeader.writeUInt32LE(checksum, 16);
-    centralHeader.writeUInt32LE(compressed.byteLength, 20);
-    centralHeader.writeUInt32LE(entry.buffer.byteLength, 24);
-    centralHeader.writeUInt16LE(name.byteLength, 28);
-    centralHeader.writeUInt16LE(0, 30);
-    centralHeader.writeUInt16LE(0, 32);
-    centralHeader.writeUInt16LE(0, 34);
-    centralHeader.writeUInt16LE(0, 36);
-    centralHeader.writeUInt32LE(0, 38);
-    centralHeader.writeUInt32LE(offset, 42);
-    centralParts.push(centralHeader, name);
-
-    offset += localHeader.byteLength + name.byteLength + compressed.byteLength;
-    if (offset > 0xffffffff) throw new Error('Artifact archive is too large for ZIP output.');
-  }
-
-  const centralOffset = offset;
-  const centralDirectory = Buffer.concat(centralParts);
-  if (centralDirectory.byteLength > 0xffffffff) throw new Error('Artifact archive central directory is too large for ZIP output.');
-
-  const endOfCentralDirectory = Buffer.alloc(22);
-  endOfCentralDirectory.writeUInt32LE(0x06054b50, 0);
-  endOfCentralDirectory.writeUInt16LE(0, 4);
-  endOfCentralDirectory.writeUInt16LE(0, 6);
-  endOfCentralDirectory.writeUInt16LE(entries.length, 8);
-  endOfCentralDirectory.writeUInt16LE(entries.length, 10);
-  endOfCentralDirectory.writeUInt32LE(centralDirectory.byteLength, 12);
-  endOfCentralDirectory.writeUInt32LE(centralOffset, 16);
-  endOfCentralDirectory.writeUInt16LE(0, 20);
-
-  return Buffer.concat([...localParts, centralDirectory, endOfCentralDirectory]);
-}
-
 function describeArtifact(artifact: ArtifactDescriptor, options: { readonly includeRoute: boolean }): readonly string[] {
   const purpose = metadataValue(artifact.metadata, 'purpose');
   const source = metadataValue(artifact.metadata, 'source') || metadataValue(artifact.metadata, 'sourceKind');
-  const exportPath = `exports/${safeExportFilename(artifact)}`;
+  const exportPath = `exports/${safeArtifactExportFilename(artifact)}`;
   return [
     `${artifact.id}  ${artifact.kind}  ${artifact.mimeType}  ${formatBytes(artifact.sizeBytes)}`,
     `  filename ${artifact.filename ?? '(none)'}`,
@@ -403,7 +244,7 @@ function formatShow(loaded: LoadedArtifact, args: AgentArtifactsToolArgs): strin
     `  fetch ${loaded.descriptor.fetchMode}`,
     `  sourceUri ${loaded.descriptor.sourceUri ?? '(none)'}`,
     '  metadata',
-    JSON.stringify(sanitizeMetadata(loaded.descriptor.metadata), null, 2).split('\n').map((line) => `    ${line}`).join('\n'),
+    JSON.stringify(sanitizeArtifactMetadata(loaded.descriptor.metadata), null, 2).split('\n').map((line) => `    ${line}`).join('\n'),
     '',
     'Content',
     contentPreview(loaded.descriptor, loaded.buffer, previewBytes).split('\n').map((line) => `  ${line}`).join('\n'),
@@ -498,8 +339,8 @@ function buildArtifactPackagePayload(
       expiresAt: record.expiresAt ? isoTime(record.expiresAt) : null,
       acquisitionMode: record.acquisitionMode,
       fetchMode: record.fetchMode,
-      sourceUri: sanitizeSourceUri(record.sourceUri) ?? null,
-      metadata: sanitizeMetadata(record.metadata),
+      sourceUri: sanitizeArtifactSourceUri(record.sourceUri) ?? null,
+      metadata: sanitizeArtifactMetadata(record.metadata),
     });
   }
 
