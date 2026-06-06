@@ -4,7 +4,7 @@ export const AGENT_HARNESS_MODES = [
   'shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding',
   'commands', 'command', 'run_command', 'channels', 'channel', 'notifications', 'notification_target',
   'provider_accounts', 'provider_account', 'mcp_servers', 'mcp_server',
-  'setup_posture', 'setup_item',
+  'setup_posture', 'setup_item', 'run_setup_smoke',
   'model_routing', 'model_route',
   'execution_posture', 'execution_route',
   'execution_history', 'execution_history_item',

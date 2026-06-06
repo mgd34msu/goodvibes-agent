@@ -44,7 +44,7 @@ import { describeResearchSource, researchQueueCatalogStatus, researchQueueSummar
 import { describeHarnessSecurityFinding, describeHarnessSupportBundle, securityPostureCatalogStatus, securityPostureSummary, supportBundleCatalogStatus, supportBundleSummary } from './agent-harness-security-posture.ts';
 import { describeHarnessSession, sessionCatalogStatus, sessionSummary } from './agent-harness-session-metadata.ts';
 import { describeHarnessServiceEndpoint, servicePostureCatalogStatus, servicePostureSummary } from './agent-harness-service-posture.ts';
-import { describeHarnessSetupItem, setupPostureCatalogStatus, setupPostureSummary } from './agent-harness-setup-posture.ts';
+import { describeHarnessSetupItem, runSetupInstallSmoke, setupPostureCatalogStatus, setupPostureSummary } from './agent-harness-setup-posture.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
 import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type AgentHarnessMode } from './agent-harness-mode-catalog.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
@@ -183,7 +183,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
     providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
-    setupPosture: 'List mode:"setup_posture"; inspect plan rows with mode:"setup_item"; setup mutations stay visible.',
+    setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; run smoke with mode:"run_setup_smoke".',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
     executionHistory: 'List mode:"execution_history"; inspect mode:"execution_history_item"; use returned supervision and recovery routes.',
@@ -1128,6 +1128,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'found') return output(resolved.item);
           if (resolved.status === 'ambiguous') return error(`Ambiguous setup item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
+        }
+        if (args.mode === 'run_setup_smoke') {
+          const confirmationError = requireConfirmedAction(args, 'Setup smoke');
+          if (confirmationError) return error(confirmationError);
+          const setupItemId = readString(args.setupItemId);
+          if (setupItemId && setupItemId !== 'install-smoke') return error('run_setup_smoke currently supports setupItemId:"install-smoke" only.');
+          return output(await runSetupInstallSmoke(deps.commandContext, args));
         }
         if (args.mode === 'model_routing') return output(await modelRoutingSummary(deps.commandContext, args));
         if (args.mode === 'model_route') {

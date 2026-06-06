@@ -73,6 +73,13 @@ describe('agent_harness mode catalog', () => {
     expect(ids).toContain('setup_posture');
     expect(ids).toContain('setup_item');
     expect(setup.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+
+    const smoke = listHarnessModes({ query: 'run setup smoke', includeParameters: true, limit: 5 }) as {
+      readonly modes: readonly { readonly id: string; readonly requiresConfirmation?: boolean; readonly parameters?: readonly string[] }[];
+    };
+    expect(smoke.modes[0]?.id).toBe('run_setup_smoke');
+    expect(smoke.modes[0]?.requiresConfirmation).toBe(true);
+    expect(smoke.modes[0]?.parameters).toEqual(expect.arrayContaining(['confirm', 'explicitUserRequest']));
   });
 
   test('finds Document Ops by uploads, artifacts, and blind compare wording', () => {

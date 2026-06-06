@@ -40,7 +40,7 @@ Use the interactive workspace first. CLI subcommands are secondary support paths
 
 Primary first-run areas:
 
-- Setup: prioritized first-run plan, GoodVibes settings import preview/apply, provider/model, token-safe install smoke checks, model readiness scores, hardware-scored local model cookbook with setup/download guidance, confirmed benchmark action/history, connected-host compatibility, live service probe evidence, token-safe connected-host auth posture with exact pairing route ids, offline GoodVibes host bootstrap commands, diagnostic/status repair recommendations, inspect-first confirmed service install/start/restart routes, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
+- Setup: prioritized first-run plan, GoodVibes settings import preview/apply, provider/model, token-safe install smoke checks, confirmed setup smoke execution, model readiness scores, hardware-scored local model cookbook with setup/download guidance, confirmed benchmark action/history, connected-host compatibility, live service probe evidence, token-safe connected-host auth posture with exact pairing route ids, offline GoodVibes host bootstrap commands, diagnostic/status repair recommendations, inspect-first confirmed service install/start/restart routes, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: assistant cockpit lanes for setup, chat/model choice, project work, Personal Ops, research/docs, background supervision, and safety/recovery, plus briefing, model refresh, health, doctor, and compatibility actions.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
 - Research: read-only web research and URL inspection, read-only workflow planning, project-local visible research runs with log tails, browser-backed runner readiness/fallback posture, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.
@@ -89,7 +89,7 @@ Common model routes:
 | Channels, notifications, reminders, scheduled autonomy, media | `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_autonomy_schedule`, `agent_schedule_edit`, `agent_media_generate` |
 | Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_operator_method`, `agent_harness mode:"operator_methods"` |
 | Connected host/daemon posture | `agent_harness mode:"service_posture"`, `mode:"connected_host"`, `mode:"connected_host_capability"`, `mode:"connected_host_status"`, `mode:"daemon"`, `mode:"daemon_status"` |
-| First-run setup plan | `agent_harness mode:"setup_posture"`, `mode:"setup_item"` |
+| First-run setup plan | `agent_harness mode:"setup_posture"`, `mode:"setup_item"`, `mode:"run_setup_smoke"` |
 | Operator/audit evidence | `agent_harness mode:"release_evidence"`, `mode:"release_evidence_artifact"`, `mode:"release_readiness"`, `mode:"release_readiness_item"` |
 
 All effects require explicit user request and confirmation. Ambiguous lookup is refused with candidates.

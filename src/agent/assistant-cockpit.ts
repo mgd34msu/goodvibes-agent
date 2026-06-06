@@ -79,7 +79,7 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         state: metrics.setupBlockers > 0 ? 'attention' : 'ready',
         summary: metrics.setupBlockers > 0 ? `${metrics.setupBlockers} setup blocker(s) before autonomous work.` : 'First-run setup has no blocking assistant issue.',
         nextAction: 'Use setup posture for the next visible setup step.',
-        routes: ['agent_harness mode:"setup_posture"', 'agent_harness mode:"setup_item"'],
+        routes: ['agent_harness mode:"setup_posture"', 'agent_harness mode:"setup_item"', 'agent_harness mode:"run_setup_smoke"'],
       }),
       lane({
         id: 'chat-and-model',

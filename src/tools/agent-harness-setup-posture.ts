@@ -18,6 +18,7 @@ export interface AgentHarnessSetupArgs {
   readonly query?: unknown;
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
+  readonly explicitUserRequest?: unknown;
 }
 
 type SetupResolution =
@@ -132,6 +133,13 @@ interface SetupInstallSmokePlan {
   readonly checks: readonly SetupInstallSmokeCheck[];
   readonly successCriteria: readonly string[];
   readonly policy: string;
+}
+
+interface SetupInstallSmokeRunSummary {
+  readonly ready: number;
+  readonly blocked: number;
+  readonly userRun: number;
+  readonly total: number;
 }
 
 interface SetupBootstrapStep {
@@ -526,6 +534,43 @@ function installSmokeSignals(plan: SetupInstallSmokePlan): readonly string[] {
     `install smoke: ${plan.status}`,
     ...plan.checks.map((check) => `${check.id}: ${check.status}`),
   ];
+}
+
+function installSmokeRunSummary(plan: SetupInstallSmokePlan): SetupInstallSmokeRunSummary {
+  return {
+    ready: plan.checks.filter((check) => check.status === 'ready').length,
+    blocked: plan.checks.filter((check) => check.status === 'blocked').length,
+    userRun: plan.checks.filter((check) => check.status === 'user-run').length,
+    total: plan.checks.length,
+  };
+}
+
+function installSmokeRunResult(plan: SetupInstallSmokePlan): 'blocked' | 'ready-for-user-run' {
+  return plan.checks.some((check) => check.status === 'blocked') ? 'blocked' : 'ready-for-user-run';
+}
+
+function installSmokeNextAction(plan: SetupInstallSmokePlan): string {
+  const blocked = plan.checks.filter((check) => check.status === 'blocked').map((check) => check.id);
+  if (blocked.length > 0) {
+    return `Resolve blocked checks (${blocked.join(', ')}), then rerun mode:"run_setup_smoke".`;
+  }
+  const userRun = plan.checks.filter((check) => check.status === 'user-run').map((check) => check.id);
+  return `Run user-visible checks (${userRun.join(', ')}), then keep the redacted output with the setup evidence.`;
+}
+
+function describeInstallSmokeCheck(check: SetupInstallSmokeCheck, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: check.id,
+    label: check.label,
+    status: check.status,
+    evidence: previewHarnessText(check.evidence, includeParameters ? 180 : 120),
+    route: previewHarnessText(check.route, includeParameters ? 180 : 120),
+    action: check.status === 'blocked'
+      ? 'fix-before-smoke'
+      : check.status === 'user-run'
+        ? 'user-visible-run'
+        : 'evidence-ready',
+  };
 }
 
 function browserControlSignals(posture: BrowserControlPosture): readonly string[] {
@@ -958,10 +1003,10 @@ function buildSetupPlan(
       blocksAutonomy: false,
       reason: 'A fresh install should be provable from package binary to reachable host, usable auth, selected model route, reviewed setup posture, and one successful assistant turn.',
       nextAction: smokePlan.status === 'ready-to-run'
-        ? 'Run the install smoke checks and keep the output token-safe before trusting ongoing autonomous work.'
-        : 'Resolve connected-host, connected-host auth, and provider/model blockers, then rerun the install smoke checks.',
+        ? 'Run the confirmed setup smoke route, then complete the user-visible package/status and first-turn checks.'
+        : 'Resolve connected-host, connected-host auth, and provider/model blockers, then rerun the confirmed setup smoke route.',
       userRoute: 'Agent Workspace -> Start -> Install smoke',
-      modelRoute: 'agent_harness mode:"setup_item" setupItemId:"install-smoke"',
+      modelRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke"',
       signals: installSmokeSignals(smokePlan),
       installSmokePlan: smokePlan,
     },
@@ -1265,7 +1310,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
   const servicePosture = await collectServicePosture(context);
   const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
   return {
-    modes: ['setup_posture', 'setup_item'],
+    modes: ['setup_posture', 'setup_item', 'run_setup_smoke'],
     capabilities: deriveStep1Capabilities(snapshot).length,
     planItems: plan.length,
     blockedPlanItems: plan.filter((item) => item.status === 'blocked').length,
@@ -1335,6 +1380,60 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
     returned: filtered.length,
     total: all.length,
     policy: 'Read-only setup/onboarding posture. Apply, import, auth, profile, channel, and setting mutations remain confirmation-gated through visible workspace, settings, slash-command, or first-class tool flows.',
+  };
+}
+
+export async function runSetupInstallSmoke(context: CommandContext, args: AgentHarnessSetupArgs): Promise<Record<string, unknown>> {
+  const setupItemId = readString(args.setupItemId);
+  if (setupItemId && setupItemId !== 'install-smoke') {
+    return {
+      status: 'unsupported_setup_item',
+      usage: 'run_setup_smoke currently supports setupItemId:"install-smoke" only.',
+    };
+  }
+
+  const snapshot = await collectSnapshot(context);
+  const servicePosture = await collectServicePosture(context);
+  const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
+  const installSmoke = plan.find((item) => item.id === 'install-smoke');
+  const smokePlan = installSmoke?.installSmokePlan;
+  if (!smokePlan) {
+    return {
+      status: 'missing_smoke_plan',
+      usage: 'Install smoke plan is not available. Inspect mode:"setup_posture" for setup readiness.',
+    };
+  }
+
+  const includeParameters = args.includeParameters === true;
+  const summary = installSmokeRunSummary(smokePlan);
+  const blockedChecks = smokePlan.checks.filter((check) => check.status === 'blocked').map((check) => check.id);
+  const userRunChecks = smokePlan.checks.filter((check) => check.status === 'user-run').map((check) => check.id);
+  return {
+    status: 'executed',
+    mode: 'run_setup_smoke',
+    setupItemId: 'install-smoke',
+    capturedAt: new Date(snapshot.capturedAt).toISOString(),
+    smokeStatus: smokePlan.status,
+    result: installSmokeRunResult(smokePlan),
+    explicitUserRequest: previewHarnessText(readString(args.explicitUserRequest), 160),
+    summary,
+    blockedChecks,
+    userRunChecks,
+    checks: smokePlan.checks.map((check) => describeInstallSmokeCheck(check, includeParameters)),
+    successCriteria: includeParameters ? smokePlan.successCriteria : smokePlan.successCriteria.map((entry) => previewHarnessText(entry, 120)),
+    nextAction: installSmokeNextAction(smokePlan),
+    routes: {
+      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      inspectSmoke: 'agent_harness mode:"setup_item" setupItemId:"install-smoke"',
+      rerunSmoke: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+    },
+    policy: {
+      effect: 'confirmed-redacted-setup-smoke',
+      shell: 'No package, host, or shell commands were executed implicitly.',
+      secrets: 'Secrets and connected-host tokens are never returned; token evidence remains presence, path, and fingerprint only.',
+      source: smokePlan.policy,
+    },
+    source: smokePlan.source,
   };
 }
 

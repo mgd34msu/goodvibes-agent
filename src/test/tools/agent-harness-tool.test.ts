@@ -702,6 +702,7 @@ describe('agent_harness tool', () => {
         'safety-and-recovery',
       ]);
       expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('setup_posture');
+      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('run_setup_smoke');
       expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'work-and-files')?.label).toBe('Work in this project');
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
@@ -1057,6 +1058,67 @@ describe('agent_harness tool', () => {
       expect(installSmokeItem.installSmokePlan?.checks.find((check) => check.id === 'connected-host-auth')?.status).toBe('blocked');
       expect(installSmokeItem.installSmokePlan?.checks.find((check) => check.id === 'first-assistant-turn')?.status).toBe('user-run');
       expect(installSmokeItem.installSmokePlan?.policy).toContain('token-safe');
+
+      const unconfirmedSmoke = await fixture.tool.execute({ mode: 'run_setup_smoke', setupItemId: 'install-smoke' });
+      expect(unconfirmedSmoke.success).toBe(false);
+      expect(unconfirmedSmoke.error).toContain('explicitUserRequest');
+
+      const smokeMissingConfirm = await fixture.tool.execute({
+        mode: 'run_setup_smoke',
+        setupItemId: 'install-smoke',
+        explicitUserRequest: 'Run the install smoke checks',
+      });
+      expect(smokeMissingConfirm.success).toBe(false);
+      expect(smokeMissingConfirm.error).toContain('confirm:true');
+
+      const smokeRun = await executeHarnessJson<{
+        readonly status: string;
+        readonly mode: string;
+        readonly setupItemId: string;
+        readonly smokeStatus: string;
+        readonly result: string;
+        readonly summary: { readonly blocked: number; readonly userRun: number; readonly total: number };
+        readonly blockedChecks: readonly string[];
+        readonly userRunChecks: readonly string[];
+        readonly checks: readonly { readonly id: string; readonly status: string; readonly action: string; readonly route: string; readonly evidence: string }[];
+        readonly nextAction: string;
+        readonly routes: { readonly inspectSetup: string; readonly inspectSmoke: string; readonly rerunSmoke: string };
+        readonly policy: { readonly effect: string; readonly shell: string; readonly secrets: string; readonly source: string };
+      }>(fixture, {
+        mode: 'run_setup_smoke',
+        setupItemId: 'install-smoke',
+        includeParameters: true,
+        confirm: true,
+        explicitUserRequest: 'Run the install smoke checks',
+      });
+      expect(smokeRun.status).toBe('executed');
+      expect(smokeRun.mode).toBe('run_setup_smoke');
+      expect(smokeRun.setupItemId).toBe('install-smoke');
+      expect(smokeRun.smokeStatus).toBe('blocked');
+      expect(smokeRun.result).toBe('blocked');
+      expect(smokeRun.summary.total).toBe(6);
+      expect(smokeRun.summary.blocked).toBeGreaterThanOrEqual(1);
+      expect(smokeRun.summary.userRun).toBeGreaterThanOrEqual(1);
+      expect(smokeRun.blockedChecks).toContain('connected-host-auth');
+      expect(smokeRun.userRunChecks).toContain('first-assistant-turn');
+      expect(smokeRun.checks.map((check) => check.id)).toEqual([
+        'agent-binary',
+        'connected-host-status',
+        'connected-host-auth',
+        'provider-model',
+        'setup-posture',
+        'first-assistant-turn',
+      ]);
+      expect(smokeRun.checks.find((check) => check.id === 'agent-binary')?.action).toBe('user-visible-run');
+      expect(smokeRun.checks.find((check) => check.id === 'connected-host-auth')?.action).toBe('fix-before-smoke');
+      expect(smokeRun.nextAction).toContain('Resolve blocked checks');
+      expect(smokeRun.routes.inspectSetup).toContain('setup_posture');
+      expect(smokeRun.routes.inspectSmoke).toContain('install-smoke');
+      expect(smokeRun.routes.rerunSmoke).toContain('run_setup_smoke');
+      expect(smokeRun.policy.effect).toBe('confirmed-redacted-setup-smoke');
+      expect(smokeRun.policy.shell).toContain('No package, host, or shell commands were executed implicitly');
+      expect(smokeRun.policy.secrets).toContain('tokens are never returned');
+      expect(JSON.stringify(smokeRun)).not.toContain('fixture-connected-host-token');
 
       const browserItem = await executeHarnessJson<{
         readonly setupItemId: string;
