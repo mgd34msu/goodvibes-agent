@@ -48,7 +48,7 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'One guided flow verifies dependencies, installs or starts the host, configures auth, pairs channels, and leaves a working assistant.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host readiness now includes repair cards for status, service posture, confirmed service install/start/restart when the SDK operator contract exposes those methods, plus an offline bootstrap plan with GoodVibes host install, trust, binary verification, service start, and Agent reconnect commands for missing-host setup.',
+    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, provider/model access, local model readiness, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host readiness now includes repair cards for status, service posture, confirmed service install/start/restart when the SDK operator contract exposes those methods, plus an offline bootstrap plan with GoodVibes host install, trust, binary verification, service start, and Agent reconnect commands for missing-host setup.',
     nextMoves: [
       'Feed live connected-host probes into repair card state so service install/start/restart is recommended only when the current service status proves it is needed.',
       'Add end-to-end install smoke that proves a user can go from package install to reachable assistant.',
@@ -68,8 +68,8 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     owners: ['agent', 'connected-host'],
     goodVibesNow: 'Provider routing, subscription posture, local compatible provider discovery, model pickers, and a read-only hardware-scored local model cookbook for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers exist; model routes and local recipes now expose one readiness score across latency, context window, tool support, vision, cost, and privacy. The cookbook scans local CPU/RAM/platform, applies safe accelerator hints, ranks fit, and returns setup plans with download/start guidance, provider refresh routes, and local benchmark prompts while keeping all installs/downloads/route changes separate. Live inference benchmark execution is still missing.',
     nextMoves: [
-      'Promote local server discovery into first-run setup with clear working/not-working checks and setup-plan follow-through.',
       'Add live benchmark execution and feed measured latency/task-fit results back into readiness scoring.',
+      'Persist local route benchmark history as a visible comparison artifact before recommending default-model changes.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Supports multiple model providers plus subscription auth and model failover.' },

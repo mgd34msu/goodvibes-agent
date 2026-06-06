@@ -7,6 +7,7 @@ import { buildProviderAccountSnapshot } from '../panels/provider-account-snapsho
 import { requireLocalUserAuthManager, requirePlatform, requireProvider, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
 import type { BrowserControlPosture } from './agent-harness-browser-control.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
+import { localModelCookbook } from './agent-harness-model-routing.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessSetupArgs {
@@ -50,6 +51,7 @@ interface SetupPlanItem {
   readonly signals?: readonly string[];
   readonly repairCards?: readonly SetupRepairCard[];
   readonly bootstrapPlan?: SetupBootstrapPlan;
+  readonly localModelReadiness?: Record<string, unknown>;
 }
 
 interface SetupRepairCard {
@@ -85,6 +87,14 @@ interface SetupBootstrapPlan {
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function readRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function readStringArray(value: unknown): readonly string[] {
+  return Array.isArray(value) ? value.map((entry) => readString(entry)).filter(Boolean) : [];
 }
 
 function readLimit(value: unknown, fallback: number): number {
@@ -171,6 +181,7 @@ function planSearchText(item: SetupPlanItem): string {
     item.modelRoute,
     item.relatedSetupItemId ?? '',
     item.signals?.join('\n') ?? '',
+    JSON.stringify(item.localModelReadiness ?? {}),
     item.repairCards?.map((card) => [
       card.id,
       card.label,
@@ -253,6 +264,72 @@ function settingsImportSignals(preview: ReturnType<typeof previewAgentWorkspaceT
     `unchanged items: ${preview.summary.settingsUnchanged + preview.summary.subscriptionsUnchanged}`,
     `parse issues: ${preview.summary.parseErrors}`,
   ];
+}
+
+function topLocalModelRecipe(cookbook: Record<string, unknown>): Record<string, unknown> {
+  const recipes = Array.isArray(cookbook.recipes) ? cookbook.recipes.map(readRecord) : [];
+  return recipes[0] ?? {};
+}
+
+function localModelSetupReadiness(cookbook: Record<string, unknown>): Record<string, unknown> {
+  const detected = readRecord(cookbook.detected);
+  const topRecipe = topLocalModelRecipe(cookbook);
+  const setupPlan = readRecord(topRecipe.setupPlan);
+  const readiness = readRecord(topRecipe.readiness);
+  return {
+    cookbookStatus: readString(cookbook.status),
+    recommendation: readString(cookbook.recommendation),
+    detected: {
+      stacks: readStringArray(detected.stacks),
+      providerIds: readStringArray(detected.providerIds),
+      modelRoutes: readStringArray(detected.modelRoutes),
+    },
+    topRecipe: {
+      id: readString(topRecipe.id),
+      label: readString(topRecipe.label),
+      fitScore: topRecipe.fitScore ?? null,
+      fitLevel: topRecipe.fitLevel ?? null,
+      readinessScore: topRecipe.readinessScore ?? null,
+      readinessLevel: topRecipe.readinessLevel ?? null,
+      detected: topRecipe.detected === true,
+      setupStatus: readString(setupPlan.status),
+      missingSignals: Array.isArray(readiness.missingSignals) ? readiness.missingSignals.slice(0, 3) : [],
+    },
+    readinessRubric: cookbook.readinessRubric ?? null,
+    nextActions: readStringArray(cookbook.nextActions).slice(0, 4),
+    inspectRoute: 'agent_harness mode:"model_routing" query:"local" includeParameters:true',
+    inspectRecipeRoute: 'agent_harness mode:"model_route" modelRouteId:"local-model-cookbook"',
+  };
+}
+
+function localModelSetupSignals(cookbook: Record<string, unknown>): readonly string[] {
+  const readiness = localModelSetupReadiness(cookbook);
+  const detected = readRecord(readiness.detected);
+  const topRecipe = readRecord(readiness.topRecipe);
+  const stacks = readStringArray(detected.stacks);
+  const routes = readStringArray(detected.modelRoutes);
+  const providerIds = readStringArray(detected.providerIds);
+  const signals = [
+    `cookbook status: ${readString(readiness.cookbookStatus) || 'unknown'}`,
+    stacks.length > 0 ? `detected stacks: ${stacks.join(', ')}` : 'detected stacks: none',
+    routes.length > 0 ? `detected model routes: ${routes.join(', ')}` : providerIds.length > 0 ? `detected providers: ${providerIds.join(', ')}` : 'detected local routes: none',
+    `top recipe: ${readString(topRecipe.label) || 'unknown'} readiness=${topRecipe.readinessScore ?? 'unknown'} fit=${topRecipe.fitScore ?? 'unknown'}`,
+  ];
+  return signals;
+}
+
+function localModelSetupStatus(cookbook: Record<string, unknown>): SetupPlanStatus {
+  return readString(cookbook.status) === 'detected-local-route' ? 'ready' : 'recommended';
+}
+
+function localModelSetupNextAction(cookbook: Record<string, unknown>): string {
+  const readiness = localModelSetupReadiness(cookbook);
+  const topRecipe = readRecord(readiness.topRecipe);
+  if (readString(cookbook.status) === 'detected-local-route') {
+    return 'Inspect detected local model readiness, then run the benchmark prompt before making a local route the default.';
+  }
+  const topLabel = readString(topRecipe.label) || 'the top local recipe';
+  return `Review ${topLabel} setupPlan, start the local server outside Agent, refresh models, then run the benchmark prompt before changing the default route.`;
 }
 
 function operatorMethodIds(): ReadonlySet<string> {
@@ -459,6 +536,8 @@ function buildSetupPlan(
   const browserControl = browserControlPosture(context);
   const settingsImport = previewAgentWorkspaceTuiSettingsImport(context);
   const settingsImportChanges = settingsImportChangeCount(settingsImport);
+  const localModels = localModelCookbook(context, true);
+  const localModelReadiness = localModelSetupReadiness(localModels);
 
   const plan: SetupPlanItem[] = [
     {
@@ -502,6 +581,19 @@ function buildSetupPlan(
       modelRoute: 'agent_harness mode:"model_routing" or mode:"provider_accounts"',
       relatedSetupItemId: providerAccess.id,
       signals: setupProviderSignalIds(snapshot),
+    },
+    {
+      id: 'local-model-readiness',
+      label: 'Local model readiness',
+      status: localModelSetupStatus(localModels),
+      priority: 25,
+      blocksAutonomy: false,
+      reason: 'A local route gives the assistant a private/offline fallback and can reduce cost, but it should be set up through visible server, refresh, and benchmark steps.',
+      nextAction: localModelSetupNextAction(localModels),
+      userRoute: 'Agent Workspace -> Start -> Local model cookbook',
+      modelRoute: 'agent_harness mode:"model_routing" query:"local"',
+      signals: localModelSetupSignals(localModels),
+      localModelReadiness,
     },
     {
       id: 'agent-knowledge',
@@ -633,6 +725,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(item.signals && item.signals.length > 0 ? { signals: item.signals.slice(0, includeParameters ? 10 : 3) } : {}),
     ...(availableRepairCards && availableRepairCards.length > 0 ? { availableRepairCards } : {}),
     ...(item.bootstrapPlan ? { bootstrapRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"' } : {}),
+    ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),
     ...(includeParameters ? {

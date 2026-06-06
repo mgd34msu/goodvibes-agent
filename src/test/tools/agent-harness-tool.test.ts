@@ -754,6 +754,20 @@ describe('agent_harness tool', () => {
             readonly reconnectRoutes: { readonly agentStatus: string; readonly serviceDiagnostics: string; readonly setupItem: string };
             readonly policy: string;
           };
+          readonly localModelReadiness?: {
+            readonly cookbookStatus: string;
+            readonly inspectRoute: string;
+            readonly inspectRecipeRoute: string;
+            readonly readinessRubric?: {
+              readonly dimensions: readonly { readonly id: string; readonly weight: number }[];
+            };
+            readonly topRecipe?: {
+              readonly id: string;
+              readonly readinessScore?: number | null;
+              readonly setupStatus?: string;
+            };
+            readonly nextActions?: readonly string[];
+          };
         }[];
         readonly nextSetupActions: readonly {
           readonly setupItemId: string;
@@ -804,6 +818,27 @@ describe('agent_harness tool', () => {
       expect(provider?.nextAction).toMatch(/Choose a provider\/model route|Review the current model route/);
       expect(posture.nextSetupActions[0]?.setupItemId).toBe('connected-host-readiness');
 
+      const localModels = posture.readinessPlan.find((item) => item.setupItemId === 'local-model-readiness');
+      expect(localModels?.status).toBe('recommended');
+      expect(localModels?.blocksAutonomy).toBe(false);
+      expect(localModels?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+      expect(localModels?.signals?.join('\n')).toContain('cookbook status');
+      expect(localModels?.signals?.join('\n')).toContain('top recipe');
+      expect(localModels?.localModelReadiness?.cookbookStatus).toBe('recommendations-only');
+      expect(localModels?.localModelReadiness?.inspectRoute).toContain('query:"local"');
+      expect(localModels?.localModelReadiness?.inspectRecipeRoute).toContain('local-model-cookbook');
+      expect(localModels?.localModelReadiness?.topRecipe?.id).toBeTruthy();
+      expect(localModels?.localModelReadiness?.topRecipe?.readinessScore).toBeGreaterThan(0);
+      expect(localModels?.localModelReadiness?.readinessRubric?.dimensions.map((dimension) => dimension.id)).toEqual([
+        'latency',
+        'context-window',
+        'tool-support',
+        'vision',
+        'cost',
+        'privacy',
+      ]);
+      expect(localModels?.localModelReadiness?.nextActions?.join('\n')).toContain('Refresh the model catalog');
+
       const browserControl = posture.readinessPlan.find((item) => item.setupItemId === 'browser-desktop-control');
       expect(browserControl?.status).toBe('recommended');
       expect(browserControl?.blocksAutonomy).toBe(false);
@@ -836,6 +871,23 @@ describe('agent_harness tool', () => {
       expect(hostItem.bootstrapPlan?.policy).toContain('confirmed operator methods');
       expect(hostItem.repairCards?.find((card) => card.id === 'service-start')?.modelRoute).toContain('services.start');
       expect(hostItem.policy?.effect).toBe('read-only');
+
+      const localModelItem = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly lookup?: { readonly resolvedBy?: string };
+        readonly modelRoute: string;
+        readonly localModelReadiness?: {
+          readonly topRecipe?: { readonly readinessScore?: number | null };
+          readonly readinessRubric?: { readonly dimensions: readonly { readonly id: string }[] };
+        };
+      }>(fixture, { mode: 'setup_item', setupItemId: 'local-model-readiness' });
+      expect(localModelItem.setupItemId).toBe('local-model-readiness');
+      expect(localModelItem.status).toBe('recommended');
+      expect(localModelItem.lookup?.resolvedBy).toBe('plan-id');
+      expect(localModelItem.modelRoute).toContain('model_routing');
+      expect(localModelItem.localModelReadiness?.topRecipe?.readinessScore).toBeGreaterThan(0);
+      expect(localModelItem.localModelReadiness?.readinessRubric?.dimensions.map((dimension) => dimension.id)).toContain('privacy');
 
       const browserItem = await executeHarnessJson<{
         readonly setupItemId: string;

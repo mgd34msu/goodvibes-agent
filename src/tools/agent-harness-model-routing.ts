@@ -871,7 +871,7 @@ function describeLocalModelRecipe(
   };
 }
 
-function localModelCookbook(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
+export function localModelCookbook(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
   const detection = localModelDetection(context);
   const hardwareProfile = localHardwareProfile();
   const recipes = localModelRecipes()
