@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
@@ -574,6 +575,98 @@ async function executeHarnessJson<T>(fixture: HarnessFixture, args: Record<strin
   return JSON.parse(result.output ?? '{}') as T;
 }
 
+const CONNECTED_HOST_AUTH_ENV_KEYS = [
+  'GOODVIBES_CONNECTED_HOST_TOKEN',
+  'GOODVIBES_DAEMON_TOKEN',
+] as const;
+
+const PROVIDER_AUTH_ENV_KEYS = [
+  'OPENAI_API_KEY',
+  'OPENAI_KEY',
+  'ANTHROPIC_API_KEY',
+  'CLAUDE_API_KEY',
+  'GEMINI_API_KEY',
+  'GOOGLE_API_KEY',
+  'GOOGLE_GEMINI_API_KEY',
+  'INCEPTION_API_KEY',
+  'OPENROUTER_API_KEY',
+  'AIHUBMIX_API_KEY',
+  'GROQ_API_KEY',
+  'CEREBRAS_API_KEY',
+  'MISTRAL_API_KEY',
+  'OLLAMA_CLOUD_API_KEY',
+  'OLLAMA_API_KEY',
+  'HF_API_KEY',
+  'HUGGINGFACE_API_KEY',
+  'HF_TOKEN',
+  'NVIDIA_API_KEY',
+  'LLM7_API_KEY',
+  'DEEPSEEK_API_KEY',
+  'FIREWORKS_API_KEY',
+  'COPILOT_GITHUB_TOKEN',
+  'GH_TOKEN',
+  'GITHUB_TOKEN',
+  'AZURE_OPENAI_API_KEY',
+  'MINIMAX_API_KEY',
+  'MOONSHOT_API_KEY',
+  'QIANFAN_API_KEY',
+  'QWEN_API_KEY',
+  'DASHSCOPE_API_KEY',
+  'MODELSTUDIO_API_KEY',
+  'SGLANG_API_KEY',
+  'STEPFUN_API_KEY',
+  'TOGETHER_API_KEY',
+  'VENICE_API_KEY',
+  'VOLCANO_ENGINE_API_KEY',
+  'XAI_API_KEY',
+  'XIAOMI_API_KEY',
+  'ZAI_API_KEY',
+  'Z_AI_API_KEY',
+  'AI_GATEWAY_API_KEY',
+  'LITELLM_API_KEY',
+  'COPILOT_PROXY_API_KEY',
+] as const;
+
+async function withClearedEnv<T>(keys: readonly string[], fn: () => Promise<T>): Promise<T> {
+  const previous = new Map<string, string | undefined>();
+  for (const key of keys) {
+    previous.set(key, process.env[key]);
+    delete process.env[key];
+  }
+  try {
+    return await fn();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
+async function withTcpListener<T>(fn: (port: number) => Promise<T>): Promise<T> {
+  const server = createServer((socket) => socket.end());
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => {
+      server.off('error', reject);
+      resolve();
+    });
+  });
+  try {
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('TCP fixture did not receive an address.');
+    return await fn((address as AddressInfo).port);
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => error ? reject(error) : resolve());
+    });
+  }
+}
+
+function writeConnectedHostOperatorToken(fixture: HarnessFixture, token = 'fixture-connected-host-token'): void {
+  writeFileSync(join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json'), `${JSON.stringify({ token })}\n`, { mode: 0o600 });
+}
+
 describe('agent_harness tool', () => {
   test('exposes a searchable compact harness mode catalog to the model', async () => {
     const fixture = makeFixture();
@@ -989,6 +1082,140 @@ describe('agent_harness tool', () => {
     } finally {
       fixture.cleanup();
     }
+  });
+
+  test('exposes connected-host auth as a token-safe setup blocker', async () => {
+    await withClearedEnv(CONNECTED_HOST_AUTH_ENV_KEYS, async () => {
+      const fixture = makeFixture();
+      try {
+        const missing = await executeHarnessJson<{
+          readonly setupItemId: string;
+          readonly status: string;
+          readonly blocksAutonomy: boolean;
+          readonly nextAction: string;
+          readonly signals?: readonly string[];
+          readonly authPosture?: {
+            readonly owner: string;
+            readonly operatorToken: {
+              readonly present: boolean;
+              readonly usable: boolean;
+              readonly path: string;
+              readonly fingerprint?: string;
+            };
+            readonly routes: { readonly reviewCommand: string; readonly connectedHostStatus: string; readonly pairingPosture: string };
+          };
+        }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-auth' });
+
+        expect(missing.setupItemId).toBe('connected-host-auth');
+        expect(missing.status).toBe('blocked');
+        expect(missing.blocksAutonomy).toBe(true);
+        expect(missing.nextAction).toContain('Pair or provision connected-host operator access');
+        expect(missing.signals?.join('\n')).toContain('operator token: missing');
+        expect(missing.authPosture?.owner).toBe('connected-host');
+        expect(missing.authPosture?.operatorToken).toMatchObject({ present: false, usable: false });
+        expect(missing.authPosture?.routes.reviewCommand).toBe('/auth review');
+        expect(missing.authPosture?.routes.connectedHostStatus).toContain('connected_host_status');
+        expect(missing.authPosture?.routes.pairingPosture).toContain('pairing_posture');
+
+        writeConnectedHostOperatorToken(fixture);
+        const ready = await executeHarnessJson<{
+          readonly status: string;
+          readonly signals?: readonly string[];
+          readonly authPosture?: {
+            readonly operatorToken: {
+              readonly present: boolean;
+              readonly usable: boolean;
+              readonly fingerprint?: string;
+            };
+          };
+        }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-auth' });
+
+        expect(ready.status).toBe('ready');
+        expect(ready.signals?.join('\n')).toContain('operator token: usable');
+        expect(ready.authPosture?.operatorToken.present).toBe(true);
+        expect(ready.authPosture?.operatorToken.usable).toBe(true);
+        expect(ready.authPosture?.operatorToken.fingerprint).toHaveLength(12);
+        expect(JSON.stringify(ready)).not.toContain('fixture-connected-host-token');
+      } finally {
+        fixture.cleanup();
+      }
+    });
+  });
+
+  test('covers first-run setup states for missing host reachable host and unconfigured model access', async () => {
+    await withClearedEnv([...CONNECTED_HOST_AUTH_ENV_KEYS, ...PROVIDER_AUTH_ENV_KEYS], async () => {
+      const missingHost = makeFixture();
+      try {
+        (missingHost.context.platform as unknown as {
+          serviceRegistry: { getAll: () => Record<string, never>; inspect: () => Promise<null> };
+        }).serviceRegistry = {
+          getAll: () => {
+            throw new Error('connected host registry unavailable');
+          },
+          inspect: async () => null,
+        };
+        const host = await executeHarnessJson<{
+          readonly status: string;
+          readonly signals?: readonly string[];
+          readonly bootstrapPlan?: { readonly status: string };
+          readonly repairCards?: readonly { readonly id: string; readonly state: string; readonly recommendation: string }[];
+        }>(missingHost, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
+
+        expect(host.status).toBe('blocked');
+        expect(host.signals?.join('\n')).toContain('connected host registry unavailable');
+        expect(host.bootstrapPlan?.status).toBe('recommended');
+        expect(host.repairCards?.find((card) => card.id === 'service-start')?.state).toBe('requires-live-host');
+        expect(host.repairCards?.find((card) => card.id === 'service-start')?.recommendation).toBe('unavailable');
+      } finally {
+        missingHost.cleanup();
+      }
+
+      const providerFixture = makeFixture();
+      try {
+        const posture = await executeHarnessJson<{
+          readonly readinessPlan: readonly { readonly setupItemId: string; readonly status: string; readonly nextAction: string; readonly signals?: readonly string[] }[];
+        }>(providerFixture, { mode: 'setup_posture', query: 'provider-access', includeParameters: true });
+        const provider = posture.readinessPlan.find((item) => item.setupItemId === 'provider-access');
+        expect(provider?.status).toBe('blocked');
+        expect(provider?.nextAction).toContain('Choose a provider/model route');
+        expect(provider?.signals ?? []).toEqual([]);
+      } finally {
+        providerFixture.cleanup();
+      }
+
+      await withTcpListener(async (port) => {
+        const reachableHost = makeFixture({ controlPlaneEnabled: true, controlPlanePort: port });
+        try {
+          writeConnectedHostOperatorToken(reachableHost);
+          const host = await executeHarnessJson<{
+            readonly status: string;
+            readonly serviceProbe?: { readonly status: string; readonly binding: string };
+            readonly bootstrapPlan?: { readonly status: string };
+            readonly recommendedRepairCards?: readonly string[];
+            readonly repairCards?: readonly { readonly id: string; readonly recommendation: string }[];
+          }>(reachableHost, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
+
+          expect(host.status).toBe('check');
+          expect(host.serviceProbe?.status).toBe('reachable');
+          expect(host.serviceProbe?.binding).toBe(`127.0.0.1:${port}`);
+          expect(host.bootstrapPlan?.status).toBe('optional');
+          expect(host.recommendedRepairCards ?? []).not.toContain('service-status');
+          expect(host.recommendedRepairCards ?? []).not.toContain('service-install');
+          expect(host.recommendedRepairCards ?? []).not.toContain('service-start');
+          expect(host.recommendedRepairCards ?? []).not.toContain('service-restart');
+          expect(host.repairCards?.find((card) => card.id === 'service-status')?.recommendation).toBe('not-needed');
+          expect(host.repairCards?.find((card) => card.id === 'service-start')?.recommendation).toBe('not-needed');
+
+          const auth = await executeHarnessJson<{ readonly status: string }>(reachableHost, {
+            mode: 'setup_item',
+            setupItemId: 'connected-host-auth',
+          });
+          expect(auth.status).toBe('ready');
+        } finally {
+          reachableHost.cleanup();
+        }
+      });
+    });
   });
 
   test('exposes Personal Ops readiness without faking email or calendar connectors', async () => {

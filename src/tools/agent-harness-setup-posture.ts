@@ -10,6 +10,7 @@ import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { localModelCookbook } from './agent-harness-model-routing.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
+import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 
 export interface AgentHarnessSetupArgs {
   readonly setupItemId?: unknown;
@@ -55,6 +56,7 @@ interface SetupPlanItem {
   readonly repairCards?: readonly SetupRepairCard[];
   readonly bootstrapPlan?: SetupBootstrapPlan;
   readonly serviceProbe?: SetupServiceProbe;
+  readonly authPosture?: SetupConnectedHostAuthPosture;
   readonly localModelReadiness?: Record<string, unknown>;
 }
 
@@ -86,6 +88,30 @@ interface SetupServiceProbe {
   readonly binding: string;
   readonly diagnosticRoute: string;
   readonly issues: readonly string[];
+}
+
+interface SetupConnectedHostAuthPosture {
+  readonly owner: 'connected-host';
+  readonly operatorToken: {
+    readonly present: boolean;
+    readonly usable: boolean;
+    readonly path: string;
+    readonly fingerprint?: string;
+    readonly error?: string;
+  };
+  readonly compatibilityAuth: {
+    readonly userStorePath: string;
+    readonly userStorePresent: boolean;
+    readonly bootstrapCredentialPath: string;
+    readonly bootstrapCredentialPresent: boolean;
+    readonly users: number;
+    readonly sessions: number;
+  };
+  readonly routes: {
+    readonly reviewCommand: string;
+    readonly connectedHostStatus: string;
+    readonly pairingPosture: string;
+  };
 }
 
 interface SetupBootstrapStep {
@@ -238,6 +264,7 @@ function planSearchText(item: SetupPlanItem): string {
       card.safety,
     ].join(' ')).join('\n') ?? '',
     JSON.stringify(item.serviceProbe ?? {}),
+    JSON.stringify(item.authPosture ?? {}),
   ].join('\n').toLowerCase();
 }
 
@@ -330,6 +357,68 @@ function hostSetupStatus(snapshot: Awaited<ReturnType<typeof collectSnapshot>>, 
   if (snapshot.collectionIssues.some((issue) => issue.area === 'host')) return 'blocked';
   if (probe.status === 'unreachable') return 'blocked';
   return 'check';
+}
+
+function connectedHostAuthPosture(
+  context: CommandContext,
+  snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
+): SetupConnectedHostAuthPosture {
+  const shellPaths = requireShellPaths(context);
+  const token = readConnectedHostOperatorToken(shellPaths.homeDirectory);
+  const usable = Boolean(token.token);
+  return {
+    owner: 'connected-host',
+    operatorToken: {
+      present: token.present,
+      usable,
+      path: token.path,
+      ...(token.token ? { fingerprint: connectedHostOperatorTokenFingerprint(token.token) } : {}),
+      ...(token.error ? { error: previewHarnessText(token.error, 120) } : {}),
+    },
+    compatibilityAuth: {
+      userStorePath: snapshot.auth.snapshot.userStorePath,
+      userStorePresent: snapshot.auth.snapshot.persisted,
+      bootstrapCredentialPath: snapshot.auth.snapshot.bootstrapCredentialPath,
+      bootstrapCredentialPresent: snapshot.auth.snapshot.bootstrapCredentialPresent,
+      users: snapshot.auth.snapshot.userCount,
+      sessions: snapshot.auth.snapshot.sessionCount,
+    },
+    routes: {
+      reviewCommand: '/auth review',
+      connectedHostStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
+    },
+  };
+}
+
+function connectedHostAuthStatus(posture: SetupConnectedHostAuthPosture): SetupPlanStatus {
+  if (!posture.operatorToken.usable) return 'blocked';
+  if (posture.compatibilityAuth.bootstrapCredentialPresent) return 'check';
+  return 'ready';
+}
+
+function connectedHostAuthNextAction(posture: SetupConnectedHostAuthPosture): string {
+  if (!posture.operatorToken.present) {
+    return 'Pair or provision connected-host operator access through the owning GoodVibes host, then rerun auth review and connected-host status.';
+  }
+  if (!posture.operatorToken.usable) {
+    return 'Repair or replace the connected-host operator token through the owning GoodVibes host, then rerun auth review.';
+  }
+  if (posture.compatibilityAuth.bootstrapCredentialPresent) {
+    return 'Review auth status and clear or rotate the compatibility bootstrap credential through the owning GoodVibes host if it is no longer needed.';
+  }
+  return 'Verify the token against connected-host status and Agent Knowledge readiness before relying on protected daemon routes.';
+}
+
+function connectedHostAuthSignals(posture: SetupConnectedHostAuthPosture): readonly string[] {
+  return [
+    `operator token: ${posture.operatorToken.usable ? 'usable' : posture.operatorToken.present ? 'present but unusable' : 'missing'} (${posture.operatorToken.path})`,
+    ...(posture.operatorToken.fingerprint ? [`operator token fingerprint: ${posture.operatorToken.fingerprint}`] : []),
+    ...(posture.operatorToken.error ? [`operator token parse error: ${posture.operatorToken.error}`] : []),
+    `compatibility auth users: ${posture.compatibilityAuth.users}`,
+    `compatibility auth sessions: ${posture.compatibilityAuth.sessions}`,
+    `bootstrap credential: ${posture.compatibilityAuth.bootstrapCredentialPresent ? 'present' : 'missing'} (${posture.compatibilityAuth.bootstrapCredentialPath})`,
+  ];
 }
 
 function browserControlSignals(posture: BrowserControlPosture): readonly string[] {
@@ -689,6 +778,7 @@ function buildSetupPlan(
   const localModels = localModelCookbook(context, true);
   const localModelReadiness = localModelSetupReadiness(localModels);
   const serviceProbe = connectedHostServiceProbe(servicePosture);
+  const authPosture = connectedHostAuthPosture(context, snapshot);
 
   const plan: SetupPlanItem[] = [
     {
@@ -710,6 +800,20 @@ function buildSetupPlan(
       repairCards: connectedHostRepairCards(snapshot, serviceProbe),
       bootstrapPlan: connectedHostBootstrapPlan(snapshot, serviceProbe),
       serviceProbe,
+    },
+    {
+      id: 'connected-host-auth',
+      label: 'Connected-host auth',
+      status: connectedHostAuthStatus(authPosture),
+      priority: 12,
+      blocksAutonomy: true,
+      reason: 'Protected daemon routes, approvals, schedules, channels, and Agent Knowledge writes need a usable connected-host operator token without Agent owning credential lifecycle.',
+      nextAction: connectedHostAuthNextAction(authPosture),
+      userRoute: 'Agent Workspace -> Host -> Connected-host auth owner; /auth review',
+      modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      relatedSetupItemId: 'operator-terminal',
+      signals: connectedHostAuthSignals(authPosture),
+      authPosture,
     },
     {
       id: 'goodvibes-settings-import',
@@ -891,6 +995,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(recommendedRepairCards && recommendedRepairCards.length > 0 ? { recommendedRepairCards } : {}),
     ...(item.bootstrapPlan ? { bootstrapRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"' } : {}),
     ...(includeParameters && item.serviceProbe ? { serviceProbe: item.serviceProbe } : {}),
+    ...(includeParameters && item.authPosture ? { authPosture: item.authPosture } : {}),
     ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),
