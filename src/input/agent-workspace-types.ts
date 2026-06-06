@@ -377,6 +377,21 @@ export interface AgentWorkspaceRoutineScheduleReceiptSummary {
   readonly createdAt: string;
 }
 
+export interface AgentWorkspaceResearchRunSummary {
+  readonly id: string;
+  readonly title: string;
+  readonly status: string;
+  readonly phase: string;
+  readonly progress: number;
+  readonly sourceIds: readonly string[];
+  readonly nextSteps: readonly string[];
+  readonly checkpointCount: number;
+  readonly logTail: readonly string[];
+  readonly updatedAt: string;
+  readonly note?: string;
+  readonly reportArtifactId?: string;
+}
+
 export interface AgentWorkspaceCompanionAccessSummary {
   readonly surface: 'goodvibes-agent';
   readonly hostUrl: string;
@@ -457,6 +472,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchRunPausedCount: number;
   readonly researchRunBlockedCount: number;
   readonly researchRunTerminalCount: number;
+  readonly researchRuns: readonly AgentWorkspaceResearchRunSummary[];
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];

@@ -176,7 +176,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
     modelRouting: 'List mode:"model_routing"; query local for cookbook; inspect mode:"model_route"; changes stay visible.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
-    autonomyQueue: 'List mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay on owning confirmed routes.',
+    autonomyQueue: 'List mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; use live records/log tails; effects stay on owning confirmed routes.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
     researchRuns: 'List mode:"research_runs"; inspect mode:"research_run"; checkpoint/cancel/complete uses agent_research_runs, reports use agent_research_report.',
     researchQueue: 'List mode:"research_queue"; inspect mode:"research_source"; capture/review uses agent_research_sources, reports use agent_research_report, ingest uses agent_knowledge_ingest.',

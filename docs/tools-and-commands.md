@@ -71,7 +71,7 @@ Discovery modes:
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
 | `provider_accounts`, `model_routing` | Provider auth, provider/model route posture, and local model cookbook. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
-| `autonomy_queue`, `autonomy_queue_item` | Visible autonomous work owners, status, inspect routes, and cancel/recovery routes. |
+| `autonomy_queue`, `autonomy_queue_item` | Visible autonomous work owners, status, live records, log tails, inspect routes, and cancel/recovery routes. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, and routine review candidates. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
@@ -153,7 +153,7 @@ None of those modes expose host start, stop, restart, install, expose-listener, 
 
 ## Visible Autonomy
 
-Use `agent_harness mode:"autonomy_queue"` before creating recurring reminders, routine schedules, delegated work, run controls, or follow-up delivery. The queue is read-only and normalizes work-plan, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
+Use `agent_harness mode:"autonomy_queue"` before creating recurring reminders, routine schedules, delegated work, run controls, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research-run cards include live run records with progress, source ids, next steps, log tails, and exact inspect/checkpoint/cancel routes. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
 
 ## Agent Knowledge
 

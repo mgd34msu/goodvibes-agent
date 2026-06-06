@@ -6,7 +6,7 @@ import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { formatAgentRecordOrigin } from '../agent/record-labels.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
-import { AgentResearchRunRegistry } from '../agent/research-run-registry.ts';
+import { AgentResearchRunRegistry, researchRunLogTail } from '../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../agent/research-source-registry.ts';
 import {
   AgentSkillRegistry,
@@ -28,6 +28,7 @@ import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
+  AgentWorkspaceResearchRunSummary,
   AgentWorkspaceRoutineScheduleReceiptSummary,
   AgentWorkspaceRuntimeProfileItem,
   AgentWorkspaceRuntimeSnapshot,
@@ -163,6 +164,25 @@ function summarizeRoutineScheduleReceipt(
     scheduleKind: receipt.scheduleKind,
     scheduleValue: receipt.scheduleValue,
     createdAt: receipt.createdAt,
+  };
+}
+
+function summarizeResearchRunItem(
+  run: ReturnType<AgentResearchRunRegistry['snapshot']>['runs'][number],
+): AgentWorkspaceResearchRunSummary {
+  return {
+    id: run.id,
+    title: run.title,
+    status: run.status,
+    phase: run.phase,
+    progress: run.progress,
+    sourceIds: run.sourceIds,
+    nextSteps: run.nextSteps,
+    checkpointCount: run.checkpoints.length,
+    logTail: researchRunLogTail(run, 4),
+    updatedAt: run.updatedAt,
+    ...(run.note ? { note: run.note } : {}),
+    ...(run.reportArtifactId ? { reportArtifactId: run.reportArtifactId } : {}),
   };
 }
 
@@ -348,8 +368,17 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const researchRunSnapshot = (() => {
     try {
       const shellPaths = context.workspace?.shellPaths;
-      if (!shellPaths) return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0 };
+      if (!shellPaths) return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0, items: [] };
       const snapshot = AgentResearchRunRegistry.fromShellPaths(shellPaths).snapshot();
+      const actionable = [
+        ...snapshot.blocked,
+        ...snapshot.running,
+        ...snapshot.paused,
+        ...snapshot.planned,
+        ...snapshot.failed,
+        ...snapshot.completed,
+        ...snapshot.cancelled,
+      ];
       return {
         count: snapshot.runs.length,
         planned: snapshot.planned.length,
@@ -357,9 +386,10 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
         paused: snapshot.paused.length,
         blocked: snapshot.blocked.length,
         terminal: snapshot.cancelled.length + snapshot.completed.length + snapshot.failed.length,
+        items: actionable.slice(0, 8).map(summarizeResearchRunItem),
       };
     } catch {
-      return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0 };
+      return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0, items: [] };
     }
   })();
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
@@ -611,6 +641,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     researchRunPausedCount: researchRunSnapshot.paused,
     researchRunBlockedCount: researchRunSnapshot.blocked,
     researchRunTerminalCount: researchRunSnapshot.terminal,
+    researchRuns: researchRunSnapshot.items,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

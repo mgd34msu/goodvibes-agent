@@ -704,6 +704,22 @@ describe('agent_harness tool', () => {
   test('exposes a visible autonomy queue with owners and cancel routes', async () => {
     const fixture = makeFixture();
     try {
+      const researchRunRegistry = AgentResearchRunRegistry.fromShellPaths(fixture.paths);
+      const run = researchRunRegistry.create({
+        title: 'Market map research',
+        question: 'Which competitor research features need parity?',
+        nextSteps: ['Read source queue'],
+      });
+      researchRunRegistry.start(run.id, 'Starting competitor map.');
+      researchRunRegistry.checkpoint(run.id, {
+        phase: 'reading',
+        status: 'blocked',
+        progress: 35,
+        note: 'Waiting on source review before synthesis.',
+        sourceIds: ['source-a'],
+        nextSteps: ['Review source-a'],
+      });
+
       const summary = await executeHarnessJson<{
         readonly autonomyQueue?: { readonly items: number; readonly cancellable: number; readonly readOnly: boolean };
       }>(fixture, { mode: 'summary' });
@@ -715,11 +731,24 @@ describe('agent_harness tool', () => {
         readonly summary: { readonly items: number; readonly cancellable: number; readonly needsSetup: number };
         readonly queue: readonly {
           readonly queueItemId: string;
+          readonly status: string;
           readonly owner: string;
           readonly cancellable: boolean;
           readonly modelRoute: string;
           readonly inspectRoute: string;
           readonly cancelRoute?: string;
+          readonly liveRecords?: readonly {
+            readonly id: string;
+            readonly label: string;
+            readonly status: string;
+            readonly progress?: number;
+            readonly inspectRoute: string;
+            readonly cancelRoute?: string;
+            readonly checkpointRoute?: string;
+            readonly logTail?: readonly string[];
+            readonly sourceIds?: readonly string[];
+            readonly nextSteps?: readonly string[];
+          }[];
         }[];
         readonly policy: string;
       }>(fixture, { mode: 'autonomy_queue', includeParameters: true });
@@ -729,11 +758,22 @@ describe('agent_harness tool', () => {
       expectRowsHaveCompactModelRoutes(queue.queue);
 
       const workPlan = queue.queue.find((item) => item.queueItemId === 'visible-work-plan');
+      const researchRuns = queue.queue.find((item) => item.queueItemId === 'research-runs');
       const approvals = queue.queue.find((item) => item.queueItemId === 'pending-approvals');
       const routines = queue.queue.find((item) => item.queueItemId === 'routine-schedule-promotions');
       expect(workPlan?.owner).toBe('agent');
       expect(workPlan?.cancellable).toBe(true);
       expect(workPlan?.cancelRoute).toContain('workplan-status');
+      expect(researchRuns?.status).toBe('attention');
+      expect(researchRuns?.liveRecords?.[0]?.id).toBe('market-map-research');
+      expect(researchRuns?.liveRecords?.[0]?.status).toBe('blocked');
+      expect(researchRuns?.liveRecords?.[0]?.progress).toBe(35);
+      expect(researchRuns?.liveRecords?.[0]?.inspectRoute).toContain('agent_research_runs show');
+      expect(researchRuns?.liveRecords?.[0]?.cancelRoute).toContain('agent_research_runs cancel');
+      expect(researchRuns?.liveRecords?.[0]?.checkpointRoute).toContain('agent_research_runs checkpoint');
+      expect(researchRuns?.liveRecords?.[0]?.logTail?.join('\n')).toContain('Waiting on source review before synthesis.');
+      expect(researchRuns?.liveRecords?.[0]?.sourceIds).toContain('source-a');
+      expect(researchRuns?.liveRecords?.[0]?.nextSteps).toContain('Review source-a');
       expect(approvals?.owner).toBe('connected-host');
       expect(approvals?.cancelRoute).toContain('approval-cancel');
       expect(routines?.inspectRoute).toContain('schedule-receipts');
@@ -744,6 +784,14 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'autonomy_queue_item', queueItemId: 'automation-runs' });
       expect(item.queueItemId).toBe('automation-runs');
       expect(item.routes?.cancel).toContain('automation-run-cancel');
+
+      const researchItem = await executeHarnessJson<{
+        readonly queueItemId: string;
+        readonly liveRecords?: readonly { readonly id: string; readonly logTail?: readonly string[] }[];
+      }>(fixture, { mode: 'autonomy_queue_item', queueItemId: 'research-runs' });
+      expect(researchItem.queueItemId).toBe('research-runs');
+      expect(researchItem.liveRecords?.[0]?.id).toBe('market-map-research');
+      expect(researchItem.liveRecords?.[0]?.logTail?.join('\n')).toContain('Waiting on source review before synthesis.');
 
       const action = await executeHarnessJson<{
         readonly id: string;

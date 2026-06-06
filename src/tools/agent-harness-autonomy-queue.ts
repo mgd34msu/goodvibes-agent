@@ -40,6 +40,23 @@ interface AutonomyQueueItem {
   readonly cancelRoute?: string;
   readonly createRoute?: string;
   readonly methodIds?: readonly string[];
+  readonly liveRecords?: readonly AutonomyQueueLiveRecord[];
+}
+
+interface AutonomyQueueLiveRecord {
+  readonly id: string;
+  readonly label: string;
+  readonly status: string;
+  readonly phase?: string;
+  readonly progress?: number;
+  readonly updatedAt?: string;
+  readonly summary: string;
+  readonly inspectRoute: string;
+  readonly cancelRoute?: string;
+  readonly checkpointRoute?: string;
+  readonly nextSteps?: readonly string[];
+  readonly sourceIds?: readonly string[];
+  readonly logTail?: readonly string[];
 }
 
 export type AutonomyQueueResolution =
@@ -95,6 +112,35 @@ function statusRank(status: AutonomyQueueStatus): number {
   return 1;
 }
 
+function researchRunLiveRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSnapshot>): readonly AutonomyQueueLiveRecord[] {
+  return snapshot.researchRuns.map((run) => {
+    const terminal = run.status === 'cancelled' || run.status === 'completed' || run.status === 'failed';
+    return {
+      id: run.id,
+      label: run.title,
+      status: run.status,
+      phase: run.phase,
+      progress: run.progress,
+      updatedAt: run.updatedAt,
+      summary: [
+        `${run.status}/${run.phase} ${run.progress}%`,
+        `${run.checkpointCount} checkpoint(s)`,
+        `${run.sourceIds.length} source(s)`,
+        run.reportArtifactId ? `report ${run.reportArtifactId}` : '',
+        run.note ?? '',
+      ].filter(Boolean).join(' | '),
+      inspectRoute: `agent_research_runs show id="${run.id}"`,
+      ...(terminal ? {} : {
+        cancelRoute: `agent_research_runs cancel id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`,
+        checkpointRoute: `agent_research_runs checkpoint id="${run.id}" note="..." progress:${run.progress} confirm:true explicitUserRequest:"..."`,
+      }),
+      nextSteps: run.nextSteps,
+      sourceIds: run.sourceIds,
+      logTail: run.logTail,
+    };
+  });
+}
+
 function itemSearchText(item: AutonomyQueueItem): string {
   return [
     item.id,
@@ -109,7 +155,38 @@ function itemSearchText(item: AutonomyQueueItem): string {
     item.cancelRoute ?? '',
     item.createRoute ?? '',
     item.methodIds?.join('\n') ?? '',
+    item.liveRecords?.flatMap((record) => [
+      record.id,
+      record.label,
+      record.status,
+      record.phase ?? '',
+      record.summary,
+      record.inspectRoute,
+      record.cancelRoute ?? '',
+      record.checkpointRoute ?? '',
+      record.nextSteps?.join('\n') ?? '',
+      record.sourceIds?.join('\n') ?? '',
+      record.logTail?.join('\n') ?? '',
+    ]).join('\n') ?? '',
   ].join('\n').toLowerCase();
+}
+
+function describeLiveRecord(record: AutonomyQueueLiveRecord, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: record.id,
+    label: record.label,
+    status: record.status,
+    ...(record.phase ? { phase: record.phase } : {}),
+    ...(typeof record.progress === 'number' ? { progress: record.progress } : {}),
+    ...(record.updatedAt ? { updatedAt: record.updatedAt } : {}),
+    summary: previewHarnessText(record.summary, includeParameters ? 180 : 96),
+    inspectRoute: record.inspectRoute,
+    ...(record.cancelRoute ? { cancelRoute: record.cancelRoute } : {}),
+    ...(record.checkpointRoute ? { checkpointRoute: record.checkpointRoute } : {}),
+    ...(record.nextSteps && record.nextSteps.length > 0 ? { nextSteps: record.nextSteps.slice(0, includeParameters ? 8 : 3) } : {}),
+    ...(record.sourceIds && record.sourceIds.length > 0 ? { sourceIds: record.sourceIds.slice(0, includeParameters ? 12 : 4) } : {}),
+    ...(record.logTail && record.logTail.length > 0 ? { logTail: record.logTail.slice(-(includeParameters ? 5 : 2)) } : {}),
+  };
 }
 
 function describeItem(item: AutonomyQueueItem, includeParameters: boolean, lookup?: Record<string, unknown>): Record<string, unknown> {
@@ -128,6 +205,7 @@ function describeItem(item: AutonomyQueueItem, includeParameters: boolean, looku
     inspectRoute: item.inspectRoute,
     ...(item.cancelRoute ? { cancelRoute: item.cancelRoute } : {}),
     ...(item.createRoute ? { createRoute: item.createRoute } : {}),
+    ...(item.liveRecords && item.liveRecords.length > 0 ? { liveRecords: item.liveRecords.slice(0, includeParameters ? 8 : 3).map((record) => describeLiveRecord(record, includeParameters)) } : {}),
     ...(lookup ? { lookup } : {}),
     ...(includeParameters ? {
       routes: {
@@ -150,6 +228,8 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
   const taskMethods = methodIdsMatching(['task', 'work-plan', 'workplan']);
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
   const configuredTargets = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
+  const researchRuns = researchRunLiveRecords(snapshot);
+  const latestResearchRun = researchRuns[0];
   const scheduleReadyRoutines = snapshot.localRoutines.filter((routine) => (
     routine.enabled === true
     && routine.reviewState === 'reviewed'
@@ -196,7 +276,10 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       visible: true,
       cancellable: snapshot.researchRunRunningCount + snapshot.researchRunPausedCount + snapshot.researchRunPlannedCount + snapshot.researchRunBlockedCount > 0,
       count: snapshot.researchRunCount,
-      current: `${snapshot.researchRunCount} run(s), ${snapshot.researchRunRunningCount} running, ${snapshot.researchRunPausedCount} paused, ${snapshot.researchRunBlockedCount} blocked, ${snapshot.researchRunPlannedCount} planned.`,
+      current: [
+        `${snapshot.researchRunCount} run(s), ${snapshot.researchRunRunningCount} running, ${snapshot.researchRunPausedCount} paused, ${snapshot.researchRunBlockedCount} blocked, ${snapshot.researchRunPlannedCount} planned.`,
+        latestResearchRun ? `Latest visible run: ${latestResearchRun.label} (${latestResearchRun.status}${typeof latestResearchRun.progress === 'number' ? ` ${latestResearchRun.progress}%` : ''}).` : '',
+      ].filter(Boolean).join(' '),
       next: snapshot.researchRunBlockedCount > 0
         ? 'Inspect blocked research runs, then checkpoint, resume, cancel, or complete one exact run.'
         : snapshot.researchRunRunningCount > 0
@@ -206,6 +289,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       modelRoute: 'agent_harness mode:"research_runs"',
       cancelRoute: 'agent_research_runs cancel id="..." note="..." confirm:true explicitUserRequest="..."',
       createRoute: 'agent_harness mode:"run_workspace_action" actionId:"research-start-run" confirm:true explicitUserRequest:"..."',
+      liveRecords: researchRuns,
     },
     {
       id: 'connected-host-tasks',
