@@ -65,10 +65,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Model setup recommends the best available route, detects local servers, benchmarks fit, and can help download or serve local models.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Provider routing, subscription posture, local compatible provider discovery, model pickers, and a hardware-scored local model cookbook for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers exist; model routes and local recipes expose one readiness score across latency, context window, tool support, vision, cost, and privacy. The cookbook scans local CPU/RAM/platform, applies safe accelerator hints, ranks fit, returns setup plans with download/start guidance, provider refresh routes, benchmark action routes, a visible model-lane local benchmark action backed by agent_model_compare, and saved local-route benchmark artifacts before any default-model recommendation.',
+    goodVibesNow: 'Provider routing, subscription posture, local compatible provider discovery, model pickers, and a hardware-scored local model cookbook for Ollama, llama.cpp, vLLM, and local OpenAI-compatible servers exist; model routes and local recipes expose one readiness score across latency, context window, tool support, vision, cost, and privacy. The cookbook scans local CPU/RAM/platform, applies safe accelerator hints, ranks fit, returns setup plans with download/start guidance, provider refresh routes, benchmark action routes, a visible model-lane local benchmark action backed by agent_model_compare, saved local-route benchmark artifacts, and revealed winner judgments that raise matching recipe confidence before any separate default-model apply action.',
     nextMoves: [
-      'Fold saved benchmark judgments into readiness deltas and route recommendations only after a revealed user-reviewed winner.',
       'Add deeper provider/server health probes when the connected host exposes safe local-model route diagnostics.',
+      'Carry measured per-candidate latency into exact model-route readiness once benchmark artifacts expose stable route ids for every candidate.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Supports multiple model providers plus subscription auth and model failover.' },

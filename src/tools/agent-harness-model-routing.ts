@@ -110,6 +110,29 @@ interface LocalModelBenchmarkPlan {
   readonly notes: readonly string[];
 }
 
+interface LocalModelBenchmarkWinner {
+  readonly judgmentArtifactId: string;
+  readonly sourceArtifactId: string | null;
+  readonly registryKey: string;
+  readonly stack: string | null;
+  readonly promptPreview: string;
+  readonly reviewRoute: string;
+  readonly exportRoute: string;
+  readonly applyRoute: string;
+}
+
+interface LocalModelBenchmarkEvidence {
+  readonly status: 'unavailable' | 'unmeasured' | 'comparison-saved' | 'reviewed-winner';
+  readonly comparisonCount: number;
+  readonly completedCandidateCount: number;
+  readonly revealedJudgmentCount: number;
+  readonly hiddenJudgmentCount: number;
+  readonly winnerStacks: readonly string[];
+  readonly winnerModels: readonly LocalModelBenchmarkWinner[];
+  readonly summary: string;
+  readonly confidence: 'estimated' | 'measured';
+}
+
 interface LocalModelSetupPlan {
   readonly status: 'detected' | 'ready-to-try' | 'needs-hardware-review';
   readonly priority: number;
@@ -297,6 +320,10 @@ function localStackFor(value: string): string | null {
   if (/localhost|127\.0\.0\.1|\[?::1\]?/.test(normalized)) return 'openai-compatible';
   if (/openai-compatible|openai compatible|custom-provider|custom provider/.test(normalized)) return 'openai-compatible';
   return null;
+}
+
+function localRecipeStackId(recipe: LocalModelRecipe): string {
+  return recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
 }
 
 function localModelDetection(context: CommandContext): LocalModelDetection {
@@ -549,19 +576,26 @@ function localRecipeReadinessScore(
   recipe: LocalModelRecipe,
   fit: LocalModelRecipeFit,
   detected: boolean,
+  evidence: LocalModelBenchmarkEvidence,
 ): ModelReadinessScore {
   const contextScore = recipe.id === 'vllm' ? 70 : recipe.id === 'openai-compatible-local' ? 60 : 65;
   const toolScore = recipe.id === 'ollama' || recipe.id === 'openai-compatible-local' ? 70 : 55;
   const visionSupport = recipe.modelExamples.some((model) => /vision|vl|multimodal/i.test(model));
+  const reviewedWinner = evidence.winnerStacks.includes(localRecipeStackId(recipe));
+  const measured = evidence.comparisonCount > 0;
   const dimensions: readonly ModelReadinessDimension[] = [
     {
       id: 'latency',
       label: 'Latency',
-      score: detected ? 62 : 50,
+      score: reviewedWinner ? 82 : measured ? 68 : detected ? 62 : 50,
       weight: 20,
-      summary: detected
-        ? 'Local stack is detected, but latency still needs an on-machine benchmark.'
-        : 'Latency is unknown until the local server and model are running.',
+      summary: reviewedWinner
+        ? 'A revealed saved local benchmark judgment selected this stack.'
+        : measured
+          ? 'A saved local benchmark comparison exists, but no revealed winner is tied to this stack yet.'
+          : detected
+            ? 'Local stack is detected, but latency still needs an on-machine benchmark.'
+            : 'Latency is unknown until the local server and model are running.',
     },
     {
       id: 'context-window',
@@ -603,13 +637,18 @@ function localRecipeReadinessScore(
   return {
     score,
     level: modelReadinessLevel(score),
-    confidence: 'estimated',
+    confidence: reviewedWinner ? 'measured' : 'estimated',
     dimensions,
     missingSignals: [
-      'No live latency benchmark has been recorded for this local recipe.',
+      ...(measured ? [] : ['No live latency benchmark has been recorded for this local recipe.']),
+      ...(reviewedWinner ? [] : ['No revealed local benchmark judgment has selected this recipe yet.']),
       'Context window, tool support, and vision support depend on the exact model served.',
     ],
-    nextStep: 'Start the local server, refresh models, then run the setupPlan benchmark prompt before changing the default model.',
+    nextStep: reviewedWinner
+      ? 'Review the saved benchmark judgment, then use a separate confirmed apply/update route only if the user wants this winner as the default.'
+      : measured
+        ? 'Review the saved comparison and save a revealed judgment before recommending a default-model change.'
+        : 'Start the local server, refresh models, then run the setupPlan benchmark action before changing the default model.',
   };
 }
 
@@ -618,7 +657,7 @@ function scoreLocalModelRecipe(
   hardware: LocalModelHardwareProfile,
   detection: LocalModelDetection,
 ): LocalModelRecipeFit {
-  const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
+  const stackId = localRecipeStackId(recipe);
   const detected = detection.stacks.includes(stackId);
   const reasons: string[] = [];
   let score = 45;
@@ -686,6 +725,10 @@ function isLocalModelBenchmarkArtifact(artifact: ArtifactDescriptor): boolean {
   return promptPreview.includes('local model benchmark') || promptPreview.includes('benchmark this local route');
 }
 
+function isModelCompareJudgmentArtifact(artifact: ArtifactDescriptor): boolean {
+  return readString(artifact.metadata.purpose) === 'agent-model-compare-judgment';
+}
+
 function benchmarkCreatedAt(artifact: ArtifactDescriptor): string | null {
   const timestamp = typeof artifact.createdAt === 'number' ? artifact.createdAt : null;
   return timestamp == null ? null : new Date(timestamp).toISOString();
@@ -706,25 +749,131 @@ function describeLocalBenchmarkArtifact(artifact: ArtifactDescriptor): Record<st
   };
 }
 
+function describeLocalBenchmarkJudgment(artifact: ArtifactDescriptor): Record<string, unknown> {
+  const winnerModel = readString(artifact.metadata.winnerModel);
+  const sourceArtifactId = readString(artifact.metadata.sourceArtifactId);
+  return {
+    artifactId: artifact.id,
+    ...(artifact.filename ? { filename: artifact.filename } : {}),
+    createdAt: benchmarkCreatedAt(artifact),
+    judgmentId: readString(artifact.metadata.judgmentId) || null,
+    comparisonId: readString(artifact.metadata.comparisonId) || null,
+    sourceArtifactId: sourceArtifactId || null,
+    winnerBlindId: readString(artifact.metadata.winnerBlindId) || null,
+    revealIncludedInJudgment: artifact.metadata.revealIncludedInJudgment === true,
+    winnerModel: winnerModel || null,
+    winnerStack: winnerModel ? localStackFor(winnerModel) : null,
+    promptPreview: previewHarnessText(readString(artifact.metadata.promptPreview) || 'local model benchmark judgment', 120),
+    analyticsRoute: 'agent_model_compare analytics includeReasons:true',
+    exportRoute: `agent_model_compare export artifactId:"${artifact.id}" confirm:true explicitUserRequest:"Export this local benchmark judgment."`,
+    applyRoute: winnerModel
+      ? `agent_model_compare apply artifactId:"${artifact.id}" confirm:true explicitUserRequest:"Apply this revealed local benchmark winner."`
+      : null,
+  };
+}
+
+function localBenchmarkEvidence(
+  comparisons: readonly ArtifactDescriptor[],
+  judgments: readonly ArtifactDescriptor[],
+  storeAvailable: boolean,
+): LocalModelBenchmarkEvidence {
+  if (!storeAvailable) {
+    return {
+      status: 'unavailable',
+      comparisonCount: 0,
+      completedCandidateCount: 0,
+      revealedJudgmentCount: 0,
+      hiddenJudgmentCount: 0,
+      winnerStacks: [],
+      winnerModels: [],
+      summary: 'Artifact history is unavailable in this runtime.',
+      confidence: 'estimated',
+    };
+  }
+  const winnerModels: LocalModelBenchmarkWinner[] = [];
+  let hiddenJudgmentCount = 0;
+  for (const judgment of judgments) {
+    const winnerModel = readString(judgment.metadata.winnerModel);
+    if (!winnerModel) {
+      hiddenJudgmentCount += 1;
+      continue;
+    }
+    const sourceArtifactId = readString(judgment.metadata.sourceArtifactId);
+    winnerModels.push({
+      judgmentArtifactId: judgment.id,
+      sourceArtifactId: sourceArtifactId || null,
+      registryKey: winnerModel,
+      stack: localStackFor(winnerModel),
+      promptPreview: previewHarnessText(readString(judgment.metadata.promptPreview) || 'local model benchmark judgment', 120),
+      reviewRoute: sourceArtifactId
+        ? `agent_model_compare review artifactId:"${sourceArtifactId}"`
+        : 'agent_model_compare review',
+      exportRoute: `agent_model_compare export artifactId:"${judgment.id}" confirm:true explicitUserRequest:"Export this local benchmark judgment."`,
+      applyRoute: `agent_model_compare apply artifactId:"${judgment.id}" confirm:true explicitUserRequest:"Apply this revealed local benchmark winner."`,
+    });
+  }
+  const winnerStacks = [...new Set(winnerModels.map((winner) => winner.stack).filter((stack): stack is string => Boolean(stack)))].sort((a, b) => a.localeCompare(b));
+  const completedCandidateCount = comparisons.reduce((total, artifact) => {
+    const value = artifact.metadata.completedCandidates;
+    return total + (typeof value === 'number' && Number.isFinite(value) ? value : 0);
+  }, 0);
+  const status: LocalModelBenchmarkEvidence['status'] = winnerModels.length > 0
+    ? 'reviewed-winner'
+    : comparisons.length > 0
+      ? 'comparison-saved'
+      : 'unmeasured';
+  return {
+    status,
+    comparisonCount: comparisons.length,
+    completedCandidateCount,
+    revealedJudgmentCount: winnerModels.length,
+    hiddenJudgmentCount,
+    winnerStacks,
+    winnerModels,
+    summary: winnerModels.length > 0
+      ? `Reviewed benchmark winner(s): ${winnerModels.map((winner) => winner.registryKey).join(', ')}.`
+      : comparisons.length > 0
+        ? 'Saved local benchmark comparison exists; save a revealed judgment before route recommendations.'
+        : 'No saved local benchmark comparison has been recorded yet.',
+    confidence: winnerModels.length > 0 ? 'measured' : 'estimated',
+  };
+}
+
 function localModelBenchmarkHistory(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
   const store = readArtifactStore(context);
   if (!store?.list) {
+    const evidence = localBenchmarkEvidence([], [], false);
     return {
       status: 'unavailable',
       count: 0,
       reason: 'Artifact history is unavailable in this runtime.',
       saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"..."',
+      evidence,
     };
   }
-  const artifacts = store.list(100)
-    .filter(isLocalModelBenchmarkArtifact)
+  const allArtifacts = store.list(100);
+  const artifacts = allArtifacts.filter(isLocalModelBenchmarkArtifact)
     .slice(0, includeParameters ? 10 : 3);
+  const localComparisonIds = new Set(artifacts.map((artifact) => artifact.id));
+  const judgments = allArtifacts
+    .filter((artifact) => {
+      if (!isModelCompareJudgmentArtifact(artifact)) return false;
+      const sourceArtifactId = readString(artifact.metadata.sourceArtifactId);
+      if (sourceArtifactId && localComparisonIds.has(sourceArtifactId)) return true;
+      return readString(artifact.metadata.promptPreview).toLowerCase().includes('local model benchmark');
+    })
+    .slice(0, includeParameters ? 10 : 3);
+  const evidence = localBenchmarkEvidence(artifacts, judgments, true);
   return {
     status: artifacts.length > 0 ? 'history-found' : 'no-history',
     count: artifacts.length,
     artifacts: artifacts.map(describeLocalBenchmarkArtifact),
+    judgments: judgments.map(describeLocalBenchmarkJudgment),
+    evidence,
     nextAction: artifacts.length > 0
-      ? `Review saved local benchmark ${artifacts[0]!.id} before recommending any default-model change.`
+      ? evidence.status === 'reviewed-winner'
+        ? 'Use the revealed saved judgment as evidence only; apply/update still needs a separate confirmed user request.'
+        : `Review saved local benchmark ${artifacts[0]!.id}, then save a revealed judgment before recommending any default-model change.`
       : 'Run the setupPlan benchmark prompt and save the comparison artifact before recommending any default-model change.',
     analyticsRoute: 'agent_model_compare analytics includeReasons:true',
     saveRoute: 'agent_model_compare run benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"..."',
@@ -825,7 +974,7 @@ function localModelSetupPlan(
   detection: LocalModelDetection,
   fit: LocalModelRecipeFit,
 ): LocalModelSetupPlan {
-  const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
+  const stackId = localRecipeStackId(recipe);
   const detected = detection.stacks.includes(stackId);
   return {
     status: detected ? 'detected' : fit.level === 'weak' ? 'needs-hardware-review' : 'ready-to-try',
@@ -902,12 +1051,13 @@ function describeLocalModelRecipe(
   recipe: LocalModelRecipe,
   detection: LocalModelDetection,
   hardware: LocalModelHardwareProfile,
+  benchmarkEvidence: LocalModelBenchmarkEvidence,
   includeParameters: boolean,
 ): Record<string, unknown> {
-  const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
+  const stackId = localRecipeStackId(recipe);
   const detected = detection.stacks.includes(stackId);
   const fit = scoreLocalModelRecipe(recipe, hardware, detection);
-  const readiness = localRecipeReadinessScore(recipe, fit, detected);
+  const readiness = localRecipeReadinessScore(recipe, fit, detected, benchmarkEvidence);
   return {
     id: recipe.id,
     label: recipe.label,
@@ -941,8 +1091,10 @@ function describeLocalModelRecipe(
 export function localModelCookbook(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
   const detection = localModelDetection(context);
   const hardwareProfile = localHardwareProfile();
+  const benchmarkHistory = localModelBenchmarkHistory(context, includeParameters);
+  const benchmarkEvidence = readRecord(benchmarkHistory.evidence) as unknown as LocalModelBenchmarkEvidence;
   const recipes = localModelRecipes()
-    .map((recipe) => describeLocalModelRecipe(recipe, detection, hardwareProfile, includeParameters))
+    .map((recipe) => describeLocalModelRecipe(recipe, detection, hardwareProfile, benchmarkEvidence, includeParameters))
     .sort((left, right) => Number(readRecord(right).fitScore ?? 0) - Number(readRecord(left).fitScore ?? 0));
   const topRecipe = readRecord(recipes[0]);
   const topLabel = readString(topRecipe.label) || 'Ollama';
@@ -961,7 +1113,7 @@ export function localModelCookbook(context: CommandContext, includeParameters: b
     hardwareProfile,
     detected: detection,
     recipes,
-    benchmarkHistory: localModelBenchmarkHistory(context, includeParameters),
+    benchmarkHistory,
     readinessRubric: {
       score: '0-100 estimated readiness for autonomous Agent work.',
       confidence: 'estimated until a live route benchmark records latency and task fit on this machine',

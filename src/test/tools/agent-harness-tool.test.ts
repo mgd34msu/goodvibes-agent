@@ -3412,6 +3412,22 @@ describe('agent_harness tool', () => {
         completedCandidates: 2,
       },
     });
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'blind-model-comparison-judgment-jdg_local.json',
+      text: '{}',
+      metadata: {
+        purpose: 'agent-model-compare-judgment',
+        judgmentId: 'jdg_local',
+        comparisonId: 'cmp_local',
+        sourceArtifactId: 'artifact-1',
+        winnerBlindId: 'A',
+        promptPreview: 'local model benchmark: Ollama',
+        revealIncludedInJudgment: true,
+        winnerModel: 'ollama:qwen2.5-coder:7b',
+      },
+    });
     const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
       const cookbook = await executeHarnessJson<{
@@ -3421,6 +3437,14 @@ describe('agent_harness tool', () => {
             readonly count: number;
             readonly nextAction?: string;
             readonly analyticsRoute?: string;
+            readonly evidence?: {
+              readonly status: string;
+              readonly confidence: string;
+              readonly comparisonCount: number;
+              readonly revealedJudgmentCount: number;
+              readonly winnerStacks: readonly string[];
+              readonly winnerModels: readonly { readonly registryKey: string; readonly stack?: string | null; readonly applyRoute: string }[];
+            };
             readonly artifacts: readonly {
               readonly artifactId: string;
               readonly comparisonId?: string | null;
@@ -3429,7 +3453,21 @@ describe('agent_harness tool', () => {
               readonly reviewRoute: string;
               readonly revealRoute: string;
             }[];
+            readonly judgments?: readonly {
+              readonly artifactId: string;
+              readonly winnerModel?: string | null;
+              readonly winnerStack?: string | null;
+              readonly applyRoute?: string | null;
+            }[];
           };
+          readonly recipes?: readonly {
+            readonly id: string;
+            readonly readiness?: {
+              readonly confidence?: string;
+              readonly missingSignals?: readonly string[];
+              readonly nextStep?: string;
+            };
+          }[];
         };
       }>(fixture, { mode: 'model_routing', query: 'local', includeParameters: true });
 
@@ -3440,8 +3478,24 @@ describe('agent_harness tool', () => {
       expect(cookbook.localCookbook.benchmarkHistory?.artifacts[0]?.completedCandidates).toBe(2);
       expect(cookbook.localCookbook.benchmarkHistory?.artifacts[0]?.reviewRoute).toContain('agent_model_compare review');
       expect(cookbook.localCookbook.benchmarkHistory?.artifacts[0]?.revealRoute).toContain('agent_model_compare reveal');
-      expect(cookbook.localCookbook.benchmarkHistory?.nextAction).toContain('artifact-1');
+      expect(cookbook.localCookbook.benchmarkHistory?.judgments?.[0]?.artifactId).toBe('artifact-3');
+      expect(cookbook.localCookbook.benchmarkHistory?.judgments?.[0]?.winnerModel).toBe('ollama:qwen2.5-coder:7b');
+      expect(cookbook.localCookbook.benchmarkHistory?.judgments?.[0]?.winnerStack).toBe('ollama');
+      expect(cookbook.localCookbook.benchmarkHistory?.judgments?.[0]?.applyRoute).toContain('agent_model_compare apply');
+      expect(cookbook.localCookbook.benchmarkHistory?.evidence).toMatchObject({
+        status: 'reviewed-winner',
+        confidence: 'measured',
+        comparisonCount: 1,
+        revealedJudgmentCount: 1,
+      });
+      expect(cookbook.localCookbook.benchmarkHistory?.evidence?.winnerStacks).toContain('ollama');
+      expect(cookbook.localCookbook.benchmarkHistory?.evidence?.winnerModels[0]?.registryKey).toBe('ollama:qwen2.5-coder:7b');
+      expect(cookbook.localCookbook.benchmarkHistory?.nextAction).toContain('revealed saved judgment');
       expect(cookbook.localCookbook.benchmarkHistory?.analyticsRoute).toContain('agent_model_compare analytics');
+      const ollamaRecipe = cookbook.localCookbook.recipes?.find((recipe) => recipe.id === 'ollama');
+      expect(ollamaRecipe?.readiness?.confidence).toBe('measured');
+      expect(ollamaRecipe?.readiness?.missingSignals?.join('\n')).not.toContain('No live latency benchmark');
+      expect(ollamaRecipe?.readiness?.nextStep).toContain('saved benchmark judgment');
 
       const setup = await executeHarnessJson<{
         readonly setupItemId: string;
@@ -3449,12 +3503,15 @@ describe('agent_harness tool', () => {
           readonly benchmarkHistory?: {
             readonly status: string;
             readonly artifacts: readonly { readonly artifactId: string }[];
+            readonly evidence?: { readonly status: string; readonly winnerStacks: readonly string[] };
           };
         };
       }>(fixture, { mode: 'setup_item', setupItemId: 'local-model-readiness' });
       expect(setup.setupItemId).toBe('local-model-readiness');
       expect(setup.localModelReadiness?.benchmarkHistory?.status).toBe('history-found');
       expect(setup.localModelReadiness?.benchmarkHistory?.artifacts.map((artifact) => artifact.artifactId)).toEqual(['artifact-1']);
+      expect(setup.localModelReadiness?.benchmarkHistory?.evidence?.status).toBe('reviewed-winner');
+      expect(setup.localModelReadiness?.benchmarkHistory?.evidence?.winnerStacks).toContain('ollama');
     } finally {
       fixture.cleanup();
     }
