@@ -6,6 +6,8 @@ import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowle
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
 import { buildAgentModelCompareAnalyticsPromptSubmission, buildAgentModelCompareApplyPromptSubmission, buildAgentModelCompareExportPromptSubmission, buildAgentModelCompareJudgmentPromptSubmission, buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission } from './agent-workspace-model-compare-editor.ts';
 import { buildAgentResearchReportPromptSubmission } from './agent-workspace-research-report-editor.ts';
+import { buildAgentResearchRunPromptSubmission } from './agent-workspace-research-run-editor.ts';
+import { buildAgentResearchSourcePromptSubmission } from './agent-workspace-research-source-editor.ts';
 import { buildAgentReminderScheduleEditorSubmission } from './agent-workspace-reminder-schedule-editor.ts';
 import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-routine-schedule-editor.ts';
 import { buildAgentWorkspaceWebResearchSubmission } from './agent-workspace-web-research-editor.ts';
@@ -16,6 +18,8 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   AgentWorkspaceEditorKind,
   'web-research'
   | 'web-fetch'
+  | 'research-run'
+  | 'research-source'
   | 'research-report'
   | 'knowledge-url'
   | 'knowledge-urls'
@@ -111,6 +115,8 @@ type AgentWorkspaceCommandEditorSubmission =
 export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceCommandEditorKind {
   return kind === 'web-research'
     || kind === 'web-fetch'
+    || kind === 'research-run'
+    || kind === 'research-source'
     || kind === 'research-report'
     || kind === 'knowledge-url'
     || kind === 'knowledge-search'
@@ -155,6 +161,12 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'research-report') {
     return buildAgentResearchReportPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'research-run') {
+    return buildAgentResearchRunPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'research-source') {
+    return buildAgentResearchSourcePromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (editor.kind === 'knowledge-url') return buildAgentKnowledgeUrlEditorSubmission(editor, readField, commandDispatchAvailable);
   if (editor.kind === 'knowledge-search' || editor.kind === 'knowledge-ask') {

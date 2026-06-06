@@ -200,11 +200,11 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Research plans, source quality, citations, synthesis, visual report output, and knowledge ingest are one coherent workflow.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent has web research, URL inspection, Agent Knowledge, ingest routes, a project-local research source queue with credibility, score, review/reject/use state, report-ready source lines, and confirmed sourced report artifact saving with citation/source maps; live cancellation, checkpoint resume, and richer visual report output are still missing.',
+    goodVibesNow: 'Agent has web research, URL inspection, Agent Knowledge, ingest routes, a project-local visible research run ledger with phase/progress/checkpoints/pause/resume/cancel/complete routes, a research source queue with credibility, score, review/reject/use state, report-ready source lines, and confirmed sourced report artifact saving with citation/source maps; browser-backed autonomous research execution, citation coverage checks, and richer visual report output are still missing.',
     nextMoves: [
-      'Add a deep research mode with plan, live runner state, source queue updates, report drafting, and explicit knowledge ingest.',
+      'Turn the local research run ledger into a browser-backed deep research runner that updates source queue records and report drafts as it works.',
       'Add source bundle review assistants and citation coverage checks before report save.',
-      'Add live cancellation and checkpoint resume for long research runs.',
+      'Add richer visual research report output and run log tails.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Showcases web research, bookmarks, project research, and personal knowledge workflows.' },

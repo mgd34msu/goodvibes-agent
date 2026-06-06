@@ -25,9 +25,11 @@ import { createAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
+import { createAgentResearchRunsTool } from '../../tools/agent-research-runs-tool.ts';
 import { createAgentResearchSourcesTool } from '../../tools/agent-research-sources-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
@@ -549,8 +551,10 @@ describe('agent_harness tool', () => {
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
+      expect(summaryJson.modeGuide?.discover).toContain('research_runs');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
       expect(summaryJson.modeGuide?.inspect).toContain('personal_ops_lane');
+      expect(summaryJson.modeGuide?.inspect).toContain('research_run');
       expect(summaryJson.modeGuide?.inspect).toContain('research_source');
       expect(summaryJson.modeGuide?.inspect).toContain('document_ops_lane');
 
@@ -924,6 +928,84 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes a read-only research run queue with checkpoint and cancel routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const registry = AgentResearchRunRegistry.fromShellPaths(fixture.paths);
+      const run = registry.create({
+        title: 'Competitor deep research',
+        question: 'Which competitor features should GoodVibes Agent match?',
+        goal: 'Produce a sourced parity and better-than-parity plan.',
+        plan: ['Inventory competitors', 'Review GoodVibes capabilities'],
+        nextSteps: ['Collect official sources'],
+      });
+      const started = registry.start(run.id, 'Starting source collection.');
+      const checkpointed = registry.checkpoint(started.id, {
+        phase: 'reading',
+        progress: 40,
+        note: 'Read official docs and captured source ids.',
+        nextSteps: ['Draft findings'],
+        sourceIds: ['official-docs'],
+      });
+
+      const summary = await executeHarnessJson<{
+        readonly researchRuns?: { readonly runs: number; readonly running: number; readonly readOnly: boolean };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.researchRuns?.runs).toBe(1);
+      expect(summary.researchRuns?.running).toBe(1);
+      expect(summary.researchRuns?.readOnly).toBe(true);
+
+      const queue = await executeHarnessJson<{
+        readonly summary: { readonly runs: number; readonly running: number; readonly cancellable: number };
+        readonly runs: readonly {
+          readonly runId: string;
+          readonly status: string;
+          readonly phase: string;
+          readonly progress: number;
+          readonly modelRoute: string;
+          readonly checkpointRoute?: string;
+          readonly cancelRoute?: string;
+          readonly completeRoute?: string;
+          readonly runLine: string;
+        }[];
+        readonly policy: string;
+      }>(fixture, { mode: 'research_runs', includeParameters: true });
+      expect(queue.summary.runs).toBe(1);
+      expect(queue.summary.running).toBe(1);
+      expect(queue.summary.cancellable).toBe(1);
+      expect(queue.policy).toContain('Research runs are read-only');
+      expectRowsHaveCompactModelRoutes(queue.runs);
+      expect(queue.runs[0]?.runId).toBe(checkpointed.id);
+      expect(queue.runs[0]?.status).toBe('running');
+      expect(queue.runs[0]?.phase).toBe('reading');
+      expect(queue.runs[0]?.progress).toBe(40);
+      expect(queue.runs[0]?.checkpointRoute).toContain('agent_research_runs checkpoint');
+      expect(queue.runs[0]?.cancelRoute).toContain('agent_research_runs cancel');
+      expect(queue.runs[0]?.completeRoute).toContain('agent_research_runs complete');
+      expect(queue.runs[0]?.runLine).toContain('Competitor deep research');
+
+      const detail = await executeHarnessJson<{
+        readonly runId: string;
+        readonly sourceIds: readonly string[];
+        readonly checkpoints: readonly unknown[];
+        readonly policy?: string;
+      }>(fixture, { mode: 'research_run', runId: checkpointed.id });
+      expect(detail.runId).toBe(checkpointed.id);
+      expect(detail.sourceIds).toEqual(['official-docs']);
+      expect(detail.checkpoints).toHaveLength(1);
+      expect(detail.policy).toContain('Research run rows are local visible state only');
+
+      const action = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'research-run-queue' });
+      expect(action.id).toBe('research-run-queue');
+      expect(action.modelRoute).toBe('agent_harness mode:"research_runs"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes Document Ops readiness with an honest blind comparison runner', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });
@@ -1258,6 +1340,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-run-queue')?.modelRoute).toBe('agent_harness mode:"research_runs"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-start-run')?.modelRoute).toBe('agent_research_runs');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-source-queue')?.modelRoute).toBe('agent_harness mode:"research_queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-add-source')?.modelRoute).toBe('agent_research_sources');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-save-report')?.modelRoute).toBe('agent_research_report');
@@ -2471,6 +2555,8 @@ describe('agent_harness tool', () => {
         'agent_reminder_schedule',
         'agent_media_generate',
         'agent_model_compare',
+        'agent_research_runs',
+        'agent_research_sources',
         'agent_research_report',
       ]) {
         registerStubTool(fixture.toolRegistry, name);
@@ -2684,6 +2770,7 @@ describe('agent_harness tool', () => {
       const local = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'memory-create' });
       const commandBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'conversation-save' });
       const promptBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-main' });
+      const researchRun = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-start-run' });
       const researchSource = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-add-source' });
       const researchReport = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-save-report' });
       const directLocal = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'learned-behavior' });
@@ -2692,6 +2779,7 @@ describe('agent_harness tool', () => {
       expect(local.success).toBe(true);
       expect(commandBacked.success).toBe(true);
       expect(promptBacked.success).toBe(true);
+      expect(researchRun.success).toBe(true);
       expect(researchSource.success).toBe(true);
       expect(researchReport.success).toBe(true);
       expect(directLocal.success).toBe(true);
@@ -2711,6 +2799,12 @@ describe('agent_harness tool', () => {
         route: 'main-conversation-prompt',
         result: 'prompt',
         confirmation: 'not-required',
+      });
+      expect(JSON.parse(researchRun.output).modelExecution).toMatchObject({
+        route: 'agent_research_runs',
+        tool: 'agent_research_runs',
+        action: 'create_research_run',
+        confirmation: 'required',
       });
       expect(JSON.parse(researchSource.output).modelExecution).toMatchObject({
         route: 'agent_research_sources',
@@ -3680,6 +3774,60 @@ describe('agent_harness tool', () => {
       expect(source?.status).toBe('reviewed');
       expect(source?.score).toBe(92);
       expect(source?.tags).toEqual(['research', 'local']);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs confirmed research run workspace editor through agent_research_runs', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.toolRegistry.register(createAgentResearchRunsTool(fixture.paths));
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'research-start-run',
+        confirm: true,
+        explicitUserRequest: 'Create a visible competitor research run.',
+        fields: {
+          title: 'Competitor Research',
+          question: 'Which competitor features should we match?',
+          goal: 'Produce a sourced parity plan.',
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmed.success).toBe(true);
+      expect(unconfirmed.output).toContain('"status": "not_confirmed"');
+      expect(unconfirmed.output).toContain('research-start-run');
+
+      const saved = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'research-start-run',
+        confirm: true,
+        explicitUserRequest: 'Create a visible competitor research run.',
+        fields: {
+          title: 'Competitor Research',
+          question: 'Which competitor features should we match?',
+          goal: 'Produce a sourced parity plan.',
+          plan: 'Inventory OpenClaw\nInventory Hermes',
+          nextSteps: 'Capture official source ids',
+          sourceIds: 'openclaw-docs,hermes-docs',
+          note: 'Visible run state only.',
+          confirm: 'yes',
+        },
+      });
+      expect(saved.success).toBe(true);
+      expect(saved.output).toContain('"status": "executed_model_tool"');
+      expect(saved.output).toContain('"tool": "agent_research_runs"');
+      expect(saved.output).toContain('Created Agent research run');
+
+      const run = AgentResearchRunRegistry.fromShellPaths(fixture.paths).get('competitor-research');
+      expect(run?.question).toBe('Which competitor features should we match?');
+      expect(run?.goal).toBe('Produce a sourced parity plan.');
+      expect(run?.status).toBe('planned');
+      expect(run?.plan).toEqual(['Inventory OpenClaw', 'Inventory Hermes']);
+      expect(run?.nextSteps).toEqual(['Capture official source ids']);
+      expect(run?.sourceIds).toEqual(['openclaw-docs', 'hermes-docs']);
     } finally {
       fixture.cleanup();
     }

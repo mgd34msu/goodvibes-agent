@@ -6,6 +6,7 @@ import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { formatAgentRecordOrigin } from '../agent/record-labels.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
+import { AgentResearchRunRegistry } from '../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../agent/research-source-registry.ts';
 import {
   AgentSkillRegistry,
@@ -344,6 +345,23 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, candidate: 0, reviewed: 0, rejected: 0, used: 0 };
     }
   })();
+  const researchRunSnapshot = (() => {
+    try {
+      const shellPaths = context.workspace?.shellPaths;
+      if (!shellPaths) return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0 };
+      const snapshot = AgentResearchRunRegistry.fromShellPaths(shellPaths).snapshot();
+      return {
+        count: snapshot.runs.length,
+        planned: snapshot.planned.length,
+        running: snapshot.running.length,
+        paused: snapshot.paused.length,
+        blocked: snapshot.blocked.length,
+        terminal: snapshot.cancelled.length + snapshot.completed.length + snapshot.failed.length,
+      };
+    } catch {
+      return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0 };
+    }
+  })();
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
   const profileBaseHome = inferRuntimeProfileBaseHome(context.workspace?.shellPaths?.homeDirectory ?? '');
   const runtimeProfiles = (() => {
@@ -587,6 +605,12 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     researchSourceReviewedCount: researchSourceSnapshot.reviewed,
     researchSourceRejectedCount: researchSourceSnapshot.rejected,
     researchSourceUsedCount: researchSourceSnapshot.used,
+    researchRunCount: researchRunSnapshot.count,
+    researchRunPlannedCount: researchRunSnapshot.planned,
+    researchRunRunningCount: researchRunSnapshot.running,
+    researchRunPausedCount: researchRunSnapshot.paused,
+    researchRunBlockedCount: researchRunSnapshot.blocked,
+    researchRunTerminalCount: researchRunSnapshot.terminal,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

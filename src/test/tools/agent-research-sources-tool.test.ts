@@ -43,6 +43,7 @@ describe('agent_research_sources tool', () => {
         score: 88,
         tags: ['research', 'docs'],
         note: 'Primary source.',
+        confirm: true,
         explicitUserRequest: 'Add this source to the queue.',
       });
       expect(added.success).toBe(true);
@@ -74,6 +75,7 @@ describe('agent_research_sources tool', () => {
         title: 'Candidate source',
         url: 'https://example.test/candidate',
         summary: 'Candidate summary.',
+        confirm: true,
         explicitUserRequest: 'Add this source.',
       });
       expect(add.success).toBe(true);
@@ -88,6 +90,7 @@ describe('agent_research_sources tool', () => {
         credibility: 'medium',
         score: 70,
         note: 'Useful but secondary.',
+        confirm: true,
         explicitUserRequest: 'Review this source.',
       });
       expect(reviewed.success).toBe(true);
@@ -98,6 +101,7 @@ describe('agent_research_sources tool', () => {
         mode: 'use',
         id: 'candidate-source',
         reportArtifactId: 'artifact-9',
+        confirm: true,
         explicitUserRequest: 'Mark this source used in the report.',
       });
       expect(used.success).toBe(true);
@@ -107,6 +111,7 @@ describe('agent_research_sources tool', () => {
         mode: 'reject',
         id: 'candidate-source',
         note: 'Superseded by a primary source.',
+        confirm: true,
         explicitUserRequest: 'Reject this source.',
       });
       expect(rejected.success).toBe(true);

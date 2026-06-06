@@ -58,10 +58,10 @@ function nextForSource(source: AgentResearchSourceRecord): string {
 
 function buildQueueItem(source: AgentResearchSourceRecord): ResearchQueueItem {
   const reviewRoute = source.status === 'candidate' || source.status === 'rejected'
-    ? `agent_research_sources review id="${source.id}" explicitUserRequest="..."`
+    ? `agent_research_sources review id="${source.id}" confirm:true explicitUserRequest="..."`
     : '';
   const rejectRoute = source.status !== 'rejected'
-    ? `agent_research_sources reject id="${source.id}" explicitUserRequest="..."`
+    ? `agent_research_sources reject id="${source.id}" confirm:true explicitUserRequest="..."`
     : '';
   const reportRoute = source.status === 'reviewed' || source.status === 'used'
     ? 'agent_harness mode:"workspace_action" actionId:"research-save-report"'

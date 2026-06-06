@@ -29,7 +29,7 @@ interface AutonomyQueueItem {
   readonly label: string;
   readonly status: AutonomyQueueStatus;
   readonly owner: 'agent' | 'connected-host' | 'agent-and-connected-host';
-  readonly kind: 'work-plan' | 'host-task' | 'approval' | 'automation-run' | 'schedule' | 'reminder' | 'routine-schedule' | 'delegated-agent' | 'delivery';
+  readonly kind: 'work-plan' | 'research-run' | 'host-task' | 'approval' | 'automation-run' | 'schedule' | 'reminder' | 'routine-schedule' | 'delegated-agent' | 'delivery';
   readonly visible: true;
   readonly cancellable: boolean;
   readonly count: number;
@@ -180,6 +180,32 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"workplan-status" confirm:true explicitUserRequest:"..."',
       createRoute: 'agent_harness mode:"run_workspace_action" actionId:"workplan-add" confirm:true explicitUserRequest:"..."',
       methodIds: taskMethods,
+    },
+    {
+      id: 'research-runs',
+      label: 'Research runs',
+      status: snapshot.researchRunBlockedCount > 0
+        ? 'attention'
+        : snapshot.researchRunRunningCount > 0
+          ? 'active'
+          : snapshot.researchRunPausedCount > 0 || snapshot.researchRunPlannedCount > 0
+            ? 'ready'
+            : 'needs-setup',
+      owner: 'agent',
+      kind: 'research-run',
+      visible: true,
+      cancellable: snapshot.researchRunRunningCount + snapshot.researchRunPausedCount + snapshot.researchRunPlannedCount + snapshot.researchRunBlockedCount > 0,
+      count: snapshot.researchRunCount,
+      current: `${snapshot.researchRunCount} run(s), ${snapshot.researchRunRunningCount} running, ${snapshot.researchRunPausedCount} paused, ${snapshot.researchRunBlockedCount} blocked, ${snapshot.researchRunPlannedCount} planned.`,
+      next: snapshot.researchRunBlockedCount > 0
+        ? 'Inspect blocked research runs, then checkpoint, resume, cancel, or complete one exact run.'
+        : snapshot.researchRunRunningCount > 0
+          ? 'Checkpoint progress, source ids, and next steps before switching tasks or saving a report.'
+          : 'Create a visible research run when the user wants resumable deep research.',
+      inspectRoute: 'agent_harness mode:"research_runs"',
+      modelRoute: 'agent_harness mode:"research_runs"',
+      cancelRoute: 'agent_research_runs cancel id="..." note="..." confirm:true explicitUserRequest="..."',
+      createRoute: 'agent_harness mode:"run_workspace_action" actionId:"research-start-run" confirm:true explicitUserRequest:"..."',
     },
     {
       id: 'connected-host-tasks',

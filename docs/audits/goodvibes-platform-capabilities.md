@@ -44,7 +44,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 - First-class email and calendar connectors plus live inbox/agenda records in Personal Ops.
 - Live autonomy queue records with logs, progress, retry/checkpoint state, and richer cancel/recovery metadata beyond route-level cards.
-- Deep research live cancellation, checkpoint/resume, and richer report runner state beyond the current source queue, credibility scoring, and saved sourced report artifacts.
+- Deep research browser-backed execution, run log tails, citation coverage checks, and richer report runner output beyond the current visible local run ledger, source queue, credibility scoring, and saved sourced report artifacts.
 - Local model hardware scanner, benchmark scoring, and guided downloads beyond the read-only cookbook.
 - Browser/computer-use setup and recovery.
 - Learning curator now ranks local review/setup/stale candidates; proposed memory, skill, routine, and preference updates still need an automatic proposal loop.

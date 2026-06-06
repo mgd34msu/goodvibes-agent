@@ -5,6 +5,7 @@ import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEdi
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
 import { createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
 import { createAgentResearchReportEditor } from './agent-workspace-research-report-editor.ts';
+import { createAgentResearchRunEditor } from './agent-workspace-research-run-editor.ts';
 import { createAgentResearchSourceEditor } from './agent-workspace-research-source-editor.ts';
 import { createReminderScheduleEditor } from './agent-workspace-reminder-schedule-editor.ts';
 import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
@@ -189,6 +190,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
   if (editorKind === 'web-research') return createAgentWorkspaceWebResearchEditor('research');
   if (editorKind === 'web-fetch') return createAgentWorkspaceWebResearchEditor('fetch');
+  if (editorKind === 'research-run') return createAgentResearchRunEditor();
   if (editorKind === 'research-source') return createAgentResearchSourceEditor();
   if (editorKind === 'research-report') return createAgentResearchReportEditor();
   if (editorKind === 'artifact-browser') return createAgentArtifactBrowserEditor();

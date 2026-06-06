@@ -16,6 +16,7 @@ export interface AgentResearchSourceWorkspaceToolArgs {
   readonly score?: number;
   readonly tags?: readonly string[];
   readonly note?: string;
+  readonly confirm: true;
   readonly explicitUserRequest: string;
 }
 
@@ -83,6 +84,7 @@ export function buildAgentResearchSourceToolArgs(
     ...(score === undefined ? {} : { score }),
     ...(tags.length > 0 ? { tags } : {}),
     ...(note ? { note } : {}),
+    confirm: true,
     explicitUserRequest,
   };
 }
@@ -146,6 +148,7 @@ export function buildAgentResearchSourcePromptSubmission(
     args.score === undefined ? 'score: none' : `score: ${JSON.stringify(args.score)}`,
     args.tags ? `tags: ${JSON.stringify(args.tags)}` : 'tags: none',
     args.note ? `note: ${JSON.stringify(args.note)}` : 'note: none',
+    'confirm: true',
     `explicitUserRequest: ${JSON.stringify(args.explicitUserRequest)}`,
     'Policy: local source queue only; do not save a report, ingest Knowledge, or send external messages.',
   ].join('\n');

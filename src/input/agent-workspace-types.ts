@@ -51,6 +51,7 @@ export type AgentWorkspaceEditorKind =
   | AgentWorkspaceLocalEditorKind
   | 'web-research'
   | 'web-fetch'
+  | 'research-run'
   | 'research-source'
   | 'research-report'
   | 'knowledge-url'
@@ -450,6 +451,12 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchSourceReviewedCount: number;
   readonly researchSourceRejectedCount: number;
   readonly researchSourceUsedCount: number;
+  readonly researchRunCount: number;
+  readonly researchRunPlannedCount: number;
+  readonly researchRunRunningCount: number;
+  readonly researchRunPausedCount: number;
+  readonly researchRunBlockedCount: number;
+  readonly researchRunTerminalCount: number;
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];

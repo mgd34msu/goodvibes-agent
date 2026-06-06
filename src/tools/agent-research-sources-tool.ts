@@ -90,9 +90,9 @@ function requireExplicitUserRequest(args: AgentResearchSourcesToolArgs, action: 
   return explicitUserRequest;
 }
 
-function requireConfirmedDelete(args: AgentResearchSourcesToolArgs): void {
-  requireExplicitUserRequest(args, 'Research source deletion');
-  if (args.confirm !== true) throw new Error('Research source deletion requires confirm:true after an explicit user request.');
+function requireConfirmedWrite(args: AgentResearchSourcesToolArgs, action: string): void {
+  requireExplicitUserRequest(args, action);
+  if (args.confirm !== true) throw new Error(`${action} requires confirm:true after an explicit user request.`);
 }
 
 function sourceOneLine(source: AgentResearchSourceRecord): string {
@@ -217,7 +217,7 @@ function createAgentResearchSourcesTool(shellPaths?: Pick<ShellPathService, 'res
           note: { type: 'string', description: 'Review note, rejection reason, or use note.' },
           reportArtifactId: { type: 'string', description: 'Optional report artifact id when marking a source used.' },
           includeReportLines: { type: 'boolean', description: 'Include report-form source lines in list/search output.' },
-          confirm: { type: 'boolean', description: 'Required true only for delete.' },
+          confirm: { type: 'boolean', description: 'Required true for local source queue writes.' },
           explicitUserRequest: { type: 'string', description: 'User request authorizing source queue writes.' },
         },
         required: ['mode'],
@@ -250,11 +250,11 @@ function createAgentResearchSourcesTool(shellPaths?: Pick<ShellPathService, 'res
           return source ? output(formatSourceDetail(source)) : failure(`Unknown research source ${readString(args.id)}`);
         }
         if (mode === 'add') {
-          requireExplicitUserRequest(args, 'Research source add');
+          requireConfirmedWrite(args, 'Research source add');
           return output(formatMutationResult('Added Agent research source', registry.create(addInput(args))));
         }
         if (mode === 'review') {
-          requireExplicitUserRequest(args, 'Research source review');
+          requireConfirmedWrite(args, 'Research source review');
           const credibility = readCredibility(args.credibility);
           const score = readScore(args.score);
           const note = readString(args.note);
@@ -272,11 +272,11 @@ function createAgentResearchSourcesTool(shellPaths?: Pick<ShellPathService, 'res
           return output(formatMutationResult('Reviewed Agent research source', source));
         }
         if (mode === 'reject') {
-          requireExplicitUserRequest(args, 'Research source rejection');
+          requireConfirmedWrite(args, 'Research source rejection');
           return output(formatMutationResult('Rejected Agent research source', registry.reject(requireId(args), readString(args.note))));
         }
         if (mode === 'use') {
-          requireExplicitUserRequest(args, 'Research source use');
+          requireConfirmedWrite(args, 'Research source use');
           const reportArtifactId = readString(args.reportArtifactId);
           const note = readString(args.note);
           return output(formatMutationResult('Marked Agent research source used', registry.markUsed(requireId(args), {
@@ -284,7 +284,7 @@ function createAgentResearchSourcesTool(shellPaths?: Pick<ShellPathService, 'res
             ...(note ? { note } : {}),
           })));
         }
-        requireConfirmedDelete(args);
+        requireConfirmedWrite(args, 'Research source deletion');
         return output(formatMutationResult('Deleted Agent research source', registry.delete(requireId(args))));
       } catch (error) {
         return failure(error instanceof Error ? error.message : String(error));
