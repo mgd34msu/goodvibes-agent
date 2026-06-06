@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.1.6 - 2026-06-05
+
+- Fixed Import GoodVibes settings so it also imports active and pending provider subscriptions from the GoodVibes TUI user store into Agent-owned subscription state.
+- Preserved existing Agent-only subscriptions while merging imported provider sessions by provider id.
+- Updated onboarding copy and added regression coverage for subscription import.
+
 ## 1.1.5 - 2026-06-05
 
 - Replaced onboarding with the real Agent setup flow for subscription login, provider/model selection, settings persistence, channels, voice, local context, automation, and finish.
