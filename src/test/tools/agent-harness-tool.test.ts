@@ -2333,12 +2333,25 @@ describe('agent_harness tool', () => {
             readonly acceleratorHint: string;
             readonly privacy: string;
           };
+          readonly nextActions: readonly string[];
           readonly recipes: readonly {
             readonly id: string;
             readonly fitScore?: number;
             readonly fitLevel?: string;
             readonly hardwareMatched?: readonly string[];
             readonly modelRoute?: string;
+            readonly setupPlan?: {
+              readonly status: string;
+              readonly downloadGuidance: readonly string[];
+              readonly providerRoutes: readonly string[];
+              readonly benchmarkPlan: {
+                readonly prompt: string;
+                readonly compareRoute: string;
+                readonly refreshRoute: string;
+                readonly measurements: readonly string[];
+              };
+              readonly confirmationBoundary: string;
+            };
           }[];
         };
         readonly routes: readonly { readonly modelRouteId: string; readonly currentValue?: unknown; readonly modelRoute?: string }[];
@@ -2350,11 +2363,19 @@ describe('agent_harness tool', () => {
       expect(cookbook.localCookbook.hardwareProfile.memoryTier).toBeTruthy();
       expect(cookbook.localCookbook.hardwareProfile.acceleratorHint).toBeTruthy();
       expect(cookbook.localCookbook.hardwareProfile.privacy).toBe('local-only');
+      expect(cookbook.localCookbook.nextActions.join('\n')).toContain('Refresh the model catalog');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('ollama');
       expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('vllm');
       expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitScore === 'number')).toBe(true);
       expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitLevel === 'string')).toBe(true);
-      expect(cookbook.localCookbook.recipes.find((recipe) => recipe.id === 'ollama')?.hardwareMatched?.join('\n')).toContain('setup friction');
+      const ollamaRecipe = cookbook.localCookbook.recipes.find((recipe) => recipe.id === 'ollama');
+      expect(ollamaRecipe?.hardwareMatched?.join('\n')).toContain('setup friction');
+      expect(ollamaRecipe?.setupPlan?.downloadGuidance.join('\n')).toContain('ollama pull');
+      expect(ollamaRecipe?.setupPlan?.providerRoutes.join('\n')).toContain('/refresh-models');
+      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.prompt).toContain('Benchmark this local route');
+      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('agent_model_compare');
+      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.measurements.join('\n')).toContain('latency');
+      expect(ollamaRecipe?.setupPlan?.confirmationBoundary).toContain('read-only guidance');
       expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
       const localRoute = cookbook.routes.find((route) => route.modelRouteId === 'local-model-cookbook');
       expect(localRoute?.modelRoute).toBe('agent_harness mode:"model_route" or mode:"run_command"');
@@ -2364,13 +2385,20 @@ describe('agent_harness tool', () => {
         readonly modelRouteId: string;
         readonly localCookbook?: {
           readonly hardwareProfile?: { readonly ramGb: number };
-          readonly recipes: readonly { readonly id: string; readonly fitScore?: number; readonly setup?: readonly string[] }[];
+          readonly recipes: readonly {
+            readonly id: string;
+            readonly fitScore?: number;
+            readonly setup?: readonly string[];
+            readonly setupPlan?: { readonly providerRoutes: readonly string[]; readonly benchmarkPlan: { readonly refreshRoute: string } };
+          }[];
         };
       }>(fixture, { mode: 'model_route', modelRouteId: 'local-model-cookbook' });
       expect(inspected.modelRouteId).toBe('local-model-cookbook');
       expect(inspected.localCookbook?.hardwareProfile?.ramGb).toBeGreaterThan(0);
       expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'ollama')?.fitScore).toBeGreaterThan(0);
       expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'llama-cpp')?.setup?.join('\n')).toContain('GGUF');
+      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'vllm')?.setupPlan?.providerRoutes.join('\n')).toContain('vllm-local');
+      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'ollama')?.setupPlan?.benchmarkPlan.refreshRoute).toContain('/refresh-models');
 
       const action = await executeHarnessJson<{
         readonly id: string;

@@ -51,6 +51,6 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 - Richer schedule edit before/after diffs when the connected host exposes prior schedule records.
 - Richer daemon retry, checkpoint, and host log details in autonomy queue records when the connected host exposes them.
 - Deep research browser-backed execution and richer report runner output beyond the current visible local run ledger, run log tails, source queue, credibility scoring, source bundles, citation coverage metadata, repair hints, and saved sourced report artifacts.
-- Live local model benchmarks and guided downloads beyond the current read-only hardware-scored cookbook.
+- Live local model benchmark execution beyond the current read-only hardware-scored cookbook, setup/download guidance, provider-refresh routes, and benchmark prompts.
 - First-class browser/desktop-control adapters and richer history-card grouping beyond the current route-backed setup posture, local-first execution posture for read/edit/exec, web fetch, supervision routes, bounded execution history records, confirmed file edit recovery, and delegation routing.
 - Learning curator now ranks local review/setup/stale candidates, duplicate-consolidation candidates with visible diffs and rollback routes, reviewed-note memory/behavior proposals, visible completed-work memory/behavior proposals, completed-research memory/behavior proposals, and saved-session memory/behavior proposals; guided batch application still needs depth.

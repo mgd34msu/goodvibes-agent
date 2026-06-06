@@ -79,6 +79,24 @@ interface LocalModelRecipeFit {
   readonly reasons: readonly string[];
 }
 
+interface LocalModelBenchmarkPlan {
+  readonly status: 'plan-ready';
+  readonly prompt: string;
+  readonly measurements: readonly string[];
+  readonly compareRoute: string;
+  readonly refreshRoute: string;
+  readonly notes: readonly string[];
+}
+
+interface LocalModelSetupPlan {
+  readonly status: 'detected' | 'ready-to-try' | 'needs-hardware-review';
+  readonly priority: number;
+  readonly downloadGuidance: readonly string[];
+  readonly providerRoutes: readonly string[];
+  readonly benchmarkPlan: LocalModelBenchmarkPlan;
+  readonly confirmationBoundary: string;
+}
+
 interface ProviderApiLike {
   readonly getFavorites: () => Promise<unknown>;
   readonly getCurrentModel: () => Promise<unknown>;
@@ -372,6 +390,109 @@ function scoreLocalModelRecipe(
   };
 }
 
+function localModelBenchmarkPlan(recipe: LocalModelRecipe): LocalModelBenchmarkPlan {
+  return {
+    status: 'plan-ready',
+    prompt: [
+      'Benchmark this local route on one practical task:',
+      '1. summarize the current project goal in five bullets,',
+      '2. identify one likely setup risk,',
+      '3. propose one next action with a command or route.',
+    ].join(' '),
+    measurements: [
+      'time to first useful token',
+      'total response latency',
+      'whether the answer followed the requested structure',
+      'whether the model handled project-specific nouns without hallucinating',
+      'whether the route supports the needed context window and tool workflow',
+    ],
+    compareRoute: `agent_model_compare prompt:"local model benchmark: ${recipe.label}" confirm:true explicitUserRequest:"Compare this local model route before making it default."`,
+    refreshRoute: 'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh model catalog, benchmarks, and token limits after local model setup."',
+    notes: [
+      'Run the same prompt after selecting each candidate route.',
+      'Keep benchmark notes in the conversation, a local note, or a saved comparison artifact before changing the default model.',
+      'Do not treat cached public benchmark scores as a substitute for this local latency and fit check.',
+    ],
+  };
+}
+
+function localModelDownloadGuidance(recipe: LocalModelRecipe, hardware: LocalModelHardwareProfile): readonly string[] {
+  if (recipe.id === 'ollama') {
+    const model = hardware.ramGb >= 32 ? 'qwen2.5-coder:14b' : 'qwen2.5-coder:7b';
+    return [
+      'Install Ollama from the vendor package or package manager.',
+      'Start the Ollama service before refreshing Agent models.',
+      `Suggested first pull: ollama pull ${model}`,
+      `Smoke test: ollama run ${model} "Say ready in one sentence."`,
+    ];
+  }
+  if (recipe.id === 'llama-cpp') {
+    return [
+      'Choose a GGUF model that fits available RAM; prefer Q4/Q5 quantization on constrained systems.',
+      'Download the GGUF from the model publisher or a trusted mirror.',
+      'Start an OpenAI-compatible server: llama-server -m /path/to/model.gguf --host 127.0.0.1 --port 8080',
+      'Smoke test the /v1/models endpoint before adding the provider route.',
+    ];
+  }
+  if (recipe.id === 'vllm') {
+    return [
+      'Verify CUDA driver, GPU memory, and Python environment before installing vLLM.',
+      'Install vLLM in an isolated environment.',
+      'Serve a small first model: python -m vllm.entrypoints.openai.api_server --model Qwen/Qwen2.5-Coder-7B-Instruct --host 127.0.0.1 --port 8000',
+      'Smoke test /v1/models before adding the provider route.',
+    ];
+  }
+  return [
+    'Start the local OpenAI-compatible server in its own app or service.',
+    'Confirm the server exposes /v1/models and a private localhost or trusted LAN base URL.',
+    'Use the server app to download or load the model before adding it to Agent.',
+    'Keep LAN endpoints private unless the user explicitly intends shared access.',
+  ];
+}
+
+function localModelProviderRoutes(recipe: LocalModelRecipe): readonly string[] {
+  if (recipe.id === 'ollama') {
+    return [
+      'agent_harness mode:"open_ui_surface" surfaceId:"provider-picker" confirm:true explicitUserRequest:"Select the discovered Ollama route."',
+      'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh models after starting Ollama."',
+    ];
+  }
+  if (recipe.id === 'llama-cpp') {
+    return [
+      'agent_harness mode:"run_command" command:"/provider add llama-cpp-local http://127.0.0.1:8080/v1 local --yes" confirm:true explicitUserRequest:"Add a local llama.cpp OpenAI-compatible provider."',
+      'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh models after starting llama.cpp."',
+    ];
+  }
+  if (recipe.id === 'vllm') {
+    return [
+      'agent_harness mode:"run_command" command:"/provider add vllm-local http://127.0.0.1:8000/v1 local --yes" confirm:true explicitUserRequest:"Add a local vLLM OpenAI-compatible provider."',
+      'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh models after starting vLLM."',
+    ];
+  }
+  return [
+    'agent_harness mode:"run_command" command:"/provider add local-openai http://127.0.0.1:1234/v1 local --yes" confirm:true explicitUserRequest:"Add a local OpenAI-compatible provider."',
+    'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh models after starting the local server."',
+  ];
+}
+
+function localModelSetupPlan(
+  recipe: LocalModelRecipe,
+  hardware: LocalModelHardwareProfile,
+  detection: LocalModelDetection,
+  fit: LocalModelRecipeFit,
+): LocalModelSetupPlan {
+  const stackId = recipe.id === 'openai-compatible-local' ? 'openai-compatible' : recipe.id === 'llama-cpp' ? 'llama.cpp' : recipe.id;
+  const detected = detection.stacks.includes(stackId);
+  return {
+    status: detected ? 'detected' : fit.level === 'weak' ? 'needs-hardware-review' : 'ready-to-try',
+    priority: fit.score,
+    downloadGuidance: localModelDownloadGuidance(recipe, hardware),
+    providerRoutes: localModelProviderRoutes(recipe),
+    benchmarkPlan: localModelBenchmarkPlan(recipe),
+    confirmationBoundary: 'The plan is read-only guidance. Installs, downloads, server starts, provider edits, refreshes, comparisons, and route changes require explicit user action or confirmation.',
+  };
+}
+
 function localModelRecipes(): readonly LocalModelRecipe[] {
   return [
     {
@@ -457,6 +578,7 @@ function describeLocalModelRecipe(
       setup: recipe.setup,
       modelExamples: recipe.modelExamples,
       cautions: recipe.cautions,
+      setupPlan: localModelSetupPlan(recipe, hardware, detection, fit),
     } : {}),
   };
 }
@@ -469,6 +591,13 @@ function localModelCookbook(context: CommandContext, includeParameters: boolean)
     .sort((left, right) => Number(readRecord(right).fitScore ?? 0) - Number(readRecord(left).fitScore ?? 0));
   const topRecipe = readRecord(recipes[0]);
   const topLabel = readString(topRecipe.label) || 'Ollama';
+  const nextActions = [
+    detection.stacks.length > 0
+      ? `Inspect detected local route(s): ${detection.modelRoutes.join(', ') || detection.providerIds.join(', ')}.`
+      : `Start with ${topLabel}: inspect its setupPlan, then install/start the server outside Agent.`,
+    'Refresh the model catalog after the local server is running.',
+    'Run the setupPlan benchmark prompt or saved model comparison before changing the default route.',
+  ];
   return {
     status: detection.stacks.length > 0 ? 'detected-local-route' : 'recommendations-only',
     recommendation: detection.stacks.includes('ollama')
@@ -477,8 +606,9 @@ function localModelCookbook(context: CommandContext, includeParameters: boolean)
     hardwareProfile,
     detected: detection,
     recipes,
+    nextActions,
     modelRoute: 'agent_harness mode:"model_routing" query:"local"',
-    policy: 'Read-only hardware-aware cookbook. Installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
+    policy: 'Read-only hardware-aware cookbook. Setup plans include download/start guidance and benchmark prompts, but installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
   };
 }
 
