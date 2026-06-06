@@ -143,11 +143,11 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Schedules, cron jobs, recurring routines, and long-running tasks are autonomous but never hidden.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent has reminder scheduling, routine promotion, operator action tools, and connected schedule posture, but current policy overcorrects against autonomous background jobs.',
+    goodVibesNow: 'Agent has reminder scheduling, routine promotion, operator action tools, connected schedule posture, and a read-only autonomy queue that maps visible owners, status, inspect routes, and cancel/recovery routes across work plans, approvals, automation, schedules, routines, delegation, and delivery.',
     nextMoves: [
-      'Replace hidden-job prohibitions with a visible-autonomy policy: every autonomous job needs a title, owner, schedule, scope, log, and cancel route.',
+      'Attach live daemon run/task/schedule records to the autonomy queue instead of route-level cards only.',
       'Let users create recurring natural-language tasks from chat with confirmation and automatic status surfacing.',
-      'Expose a single automation queue across reminders, routines, schedules, and delegated execution.',
+      'Add log tails, progress, and checkpoint/retry metadata to queue cards when the owning surface supports it.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Supports cron, wakeups, webhooks, Gmail triggers, and always-on gateway workflows.' },

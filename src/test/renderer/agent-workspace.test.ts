@@ -411,6 +411,8 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Personal Ops');
     expect(output).toContain('Personal Ops: notes 1; routines 1/1');
+    expect(output).toContain('Autonomy queue');
+    expect(output).toContain('inspect owners, status, and cancel/recovery routes');
     expect(output).toContain('Email/calendar: connector setup needed');
     expect(output).toContain('Create reminder');
     expect(output).toContain('Delivery channels');
@@ -1157,6 +1159,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Automation: 1 schedule-ready routine(s); receipts 1.');
     expect(output).toContain('Next automation action: Reconcile schedules to compare local receipts with the connected host.');
     expect(output).toContain('Promotion receipts: 1; latest created daily-brief.');
+    expect(output).toContain('Autonomy queue: review visible schedules, runs, receipts, and cancel routes first.');
     expect(output).toContain('Reminders and routine promotion require confirmation.');
   });
 

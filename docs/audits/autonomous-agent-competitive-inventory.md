@@ -21,7 +21,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 | Omnichannel inbox and delivery | Very broad channel list and DM safety | Telegram, Discord, Slack, WhatsApp, Signal, email | Email, browser, ntfy, PWA | Parity on foundations, needs setup UX polish | Better |
 | Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Partial: Personal Ops maps notes/tasks/reminders; email/calendar connectors missing | Better |
 | Closed learning loop | Skills and memory | Autonomous memory, skills, session search, user model | Persistent vector/keyword memory and skills | Partial: local libraries exist, no curator loop | Better |
-| Autonomous schedules/background work | Cron, wakeups, webhooks, triggers | Built-in cron with delivery | Scheduled tasks and reminders | Partial: schedules exist, policy is too defensive | Better |
+| Autonomous schedules/background work | Cron, wakeups, webhooks, triggers | Built-in cron with delivery | Scheduled tasks and reminders | Partial: read-only autonomy queue exists; live run/task records need deeper cards | Better |
 | Computer use, browser, shell | Browser, canvas, nodes, system.run | Terminal backends, browser, code execution, computer use | opencode with web/files/shell/MCP | Partial: capabilities exist but Agent diverts execution | Better |
 | Multi-agent and remote execution | Multi-agent routing and session tools | Subagents, kanban, worktrees | Agent runs whole tasks | Partial: foundations exist, Agent blocks fanout | Better |
 | Deep research and reports | Research-oriented workflows | Web tools, session search, trajectory tooling | Deep Research visual reports | Partial: web/URL research, knowledge ingest, and sourced report artifacts exist; live source queue and checkpointed runner missing | Better |
@@ -44,7 +44,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Make setup complete the user's outcome: installed, reachable, authenticated, paired, and ready to act.
 - Prefer supervised execution over refusal or delegation friction when the Agent has local permission and workspace context.
 - Use delegation and remote runners for isolation, parallelism, or remote execution, not because the user picked the wrong entrypoint.
-- Add a visible autonomy queue for schedules, recurring routines, reminders, long-running tasks, and delegated work.
+- Attach live task/run/schedule records, logs, and retry/checkpoint data to the visible autonomy queue.
 - Build first-class email/calendar connectors and promote Personal Ops from readiness map into a live inbox/agenda/task queue.
 - Add a learning curator that proposes memory, skill, and routine updates with provenance and rollback.
 - Turn research into a live report workflow with source queue, credibility review, citations, artifacts, cancellation, and explicit knowledge ingest.

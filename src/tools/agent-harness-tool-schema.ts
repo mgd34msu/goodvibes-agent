@@ -7,6 +7,7 @@ export const AGENT_HARNESS_MODES = [
   'setup_posture', 'setup_item',
   'model_routing', 'model_route',
   'personal_ops', 'personal_ops_lane',
+  'autonomy_queue', 'autonomy_queue_item',
   'document_ops', 'document_ops_lane',
   'pairing_posture', 'pairing_route',
   'delegation_posture', 'delegation_route',
@@ -84,6 +85,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   laneId: {
     type: 'string',
     description: 'Lane id for personal_ops_lane or document_ops_lane mode.',
+  },
+  queueItemId: {
+    type: 'string',
+    description: 'Queue item id for autonomy_queue_item mode.',
   },
   pairingRouteId: {
     type: 'string',

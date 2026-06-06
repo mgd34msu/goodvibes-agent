@@ -372,6 +372,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Personal Ops: notes ${snapshot.localNoteCount}; routines ${snapshot.localRoutineCount}/${snapshot.enabledRoutineCount}; schedule-ready ${ready.length}.`, fg: PALETTE.info },
       { text: `Tasks: work plan and host task inspection; reminders via confirmed schedules; receipts ${snapshot.routineScheduleReceiptCount}.`, fg: PALETTE.good },
+      { text: 'Autonomy queue: inspect owners, status, and cancel/recovery routes before adding background work.', fg: PALETTE.good },
       { text: `Delivery: ${readyChannels}/${snapshot.channels.length} channels ready; ${enabledChannels} enabled; ${configuredTargets} configured target(s).`, fg: readyChannels > 0 ? PALETTE.good : PALETTE.warn },
       { text: 'Email/calendar: connector setup needed before inbox triage or agenda workflows are first-class.', fg: PALETTE.warn },
       { text: 'Model route: agent_harness mode:"personal_ops" or personal_ops_lane.', fg: PALETTE.muted },
@@ -482,6 +483,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   } else if (category.id === 'work') {
     base.push(
       { text: 'Work plans and approvals are read or explicitly confirmed.', fg: PALETTE.info },
+      { text: 'Autonomy queue covers work plan, host tasks, approvals, automation, schedules, routines, delegation, and delivery.', fg: PALETTE.good },
       { text: 'Selection alone does not approve, deny, cancel, or mutate requests.', fg: PALETTE.good },
       { text: 'Approval actions require id plus typed confirmation.', fg: PALETTE.warn },
     );
@@ -491,6 +493,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Automation: ${ready.length} schedule-ready routine(s); receipts ${snapshot.routineScheduleReceiptCount}.`, fg: ready.length > 0 ? PALETTE.good : PALETTE.warn },
       automationNextActionLine(snapshot),
       compactRoutineReceiptLine(snapshot),
+      { text: 'Autonomy queue: review visible schedules, runs, receipts, and cancel routes first.', fg: PALETTE.good },
       { text: 'Reminders and routine promotion require confirmation.', fg: PALETTE.warn },
     );
   } else if (category.id === 'delegate') {

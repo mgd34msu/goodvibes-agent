@@ -178,4 +178,4 @@ Model-visible diagnostics are `service_posture`, `service_endpoint`, `connected_
 
 ## Current Product Notes
 
-Agent uses the GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active policy is visible autonomy: long-running work must have a user-readable task, status/progress, cancellation route, and confirmation gates for external or daemon-mutating effects.
+Agent uses the GoodVibes terminal shell, renderer, input, fullscreen workspace, command registry, and release foundation. The active policy is visible autonomy: long-running work must have a user-readable task, status/progress, cancellation route, and confirmation gates for external or daemon-mutating effects. Inspect current route-level autonomy cards with `agent_harness mode:"autonomy_queue"` or one card with `mode:"autonomy_queue_item"`.

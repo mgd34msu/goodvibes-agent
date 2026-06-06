@@ -171,6 +171,11 @@ function localActionRouteHint(action: AgentWorkspaceAction): string {
 
 function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
+  if (
+    action.id === 'personal-ops-autonomy-queue'
+    || action.id === 'work-autonomy-queue'
+    || action.id === 'schedule-autonomy-queue'
+  ) return 'agent_harness mode:"autonomy_queue"';
   if (action.command) return commandRouteHint(action.command);
   if (action.editorKind) return editorRouteHint(action.editorKind);
   if (action.kind === 'local-selection' || action.kind === 'local-operation') return localActionRouteHint(action);

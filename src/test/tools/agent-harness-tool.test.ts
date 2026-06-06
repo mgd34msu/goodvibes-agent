@@ -691,6 +691,61 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes a visible autonomy queue with owners and cancel routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const summary = await executeHarnessJson<{
+        readonly autonomyQueue?: { readonly items: number; readonly cancellable: number; readonly readOnly: boolean };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.autonomyQueue?.items).toBeGreaterThanOrEqual(8);
+      expect(summary.autonomyQueue?.cancellable).toBeGreaterThan(0);
+      expect(summary.autonomyQueue?.readOnly).toBe(true);
+
+      const queue = await executeHarnessJson<{
+        readonly summary: { readonly items: number; readonly cancellable: number; readonly needsSetup: number };
+        readonly queue: readonly {
+          readonly queueItemId: string;
+          readonly owner: string;
+          readonly cancellable: boolean;
+          readonly modelRoute: string;
+          readonly inspectRoute: string;
+          readonly cancelRoute?: string;
+        }[];
+        readonly policy: string;
+      }>(fixture, { mode: 'autonomy_queue', includeParameters: true });
+      expect(queue.summary.items).toBeGreaterThanOrEqual(8);
+      expect(queue.summary.cancellable).toBeGreaterThan(0);
+      expect(queue.policy).toContain('Visible autonomy queue is read-only');
+      expectRowsHaveCompactModelRoutes(queue.queue);
+
+      const workPlan = queue.queue.find((item) => item.queueItemId === 'visible-work-plan');
+      const approvals = queue.queue.find((item) => item.queueItemId === 'pending-approvals');
+      const routines = queue.queue.find((item) => item.queueItemId === 'routine-schedule-promotions');
+      expect(workPlan?.owner).toBe('agent');
+      expect(workPlan?.cancellable).toBe(true);
+      expect(workPlan?.cancelRoute).toContain('workplan-status');
+      expect(approvals?.owner).toBe('connected-host');
+      expect(approvals?.cancelRoute).toContain('approval-cancel');
+      expect(routines?.inspectRoute).toContain('schedule-receipts');
+
+      const item = await executeHarnessJson<{
+        readonly queueItemId: string;
+        readonly routes?: { readonly inspect: string; readonly cancel: string | null };
+      }>(fixture, { mode: 'autonomy_queue_item', queueItemId: 'automation-runs' });
+      expect(item.queueItemId).toBe('automation-runs');
+      expect(item.routes?.cancel).toContain('automation-run-cancel');
+
+      const action = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'personal-ops-autonomy-queue' });
+      expect(action.id).toBe('personal-ops-autonomy-queue');
+      expect(action.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes Document Ops readiness with an honest blind comparison runner', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });
@@ -993,6 +1048,7 @@ describe('agent_harness tool', () => {
       ))).toEqual([]);
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');

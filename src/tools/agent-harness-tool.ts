@@ -9,6 +9,7 @@ import { buildAgentResearchReportToolArgs } from '../input/agent-workspace-resea
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
+import { autonomyQueueCatalogStatus, autonomyQueueSummary, describeAutonomyQueueItem } from './agent-harness-autonomy-queue.ts';
 import { channelReadinessCatalogStatus, describeHarnessChannel, listHarnessChannels } from './agent-harness-channel-metadata.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessCommand, listHarnessCommands, resolveHarnessCommandDetail, type CommandDetailLookup } from './agent-harness-command-catalog.ts';
@@ -55,6 +56,7 @@ interface AgentHarnessToolArgs {
   readonly setupItemId?: unknown;
   readonly modelRouteId?: unknown;
   readonly laneId?: unknown;
+  readonly queueItemId?: unknown;
   readonly pairingRouteId?: unknown;
   readonly delegationRouteId?: unknown;
   readonly findingId?: unknown;
@@ -166,6 +168,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
     modelRouting: 'List mode:"model_routing"; query local for cookbook; inspect mode:"model_route"; changes stay visible.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
+    autonomyQueue: 'List mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay on owning confirmed routes.',
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
@@ -825,6 +828,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               error: formatHarnessError(err),
             })),
             personalOps: personalOpsCatalogStatus(deps.commandContext),
+            autonomyQueue: autonomyQueueCatalogStatus(deps.commandContext),
             documentOps: documentOpsCatalogStatus(deps.commandContext),
             pairingPosture: pairingPostureCatalogStatus(deps.commandContext),
             delegationPosture: delegationPostureCatalogStatus(deps.commandContext),
@@ -976,6 +980,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describePersonalOpsLane(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.lane);
           if (resolved.status === 'ambiguous') return error(`Ambiguous Personal Ops lane ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'autonomy_queue') return output(autonomyQueueSummary(deps.commandContext, args));
+        if (args.mode === 'autonomy_queue_item') {
+          const resolved = describeAutonomyQueueItem(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.item);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous autonomy queue item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'document_ops') return output(documentOpsSummary(deps.commandContext, args));

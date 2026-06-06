@@ -294,6 +294,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this as the daily operations hub. It gives one path for personal work while keeping missing email/calendar connectors explicit.',
     actions: [
       { id: 'personal-ops-map', label: 'Readiness map', detail: 'Use the detail pane and model route agent_harness mode:"personal_ops" to see which personal operations lanes are ready, partial, or missing setup.', kind: 'guidance', safety: 'safe' },
+      { id: 'personal-ops-autonomy-queue', label: 'Autonomy queue', detail: 'Inspect visible ongoing work, owners, status, and cancel or recovery routes before creating more background work.', kind: 'guidance', safety: 'read-only' },
       { id: 'personal-ops-inbox', label: 'Inbox setup gap', detail: 'Email inbox triage requires an installed email connector, MCP server, plugin, or daemon method. This row is guidance until one is configured.', kind: 'guidance', safety: 'safe' },
       { id: 'personal-ops-calendar', label: 'Calendar setup gap', detail: 'Calendar agenda and conflict detection require a calendar or CalDAV connector. Reminders are available today through confirmed schedules.', kind: 'guidance', safety: 'safe' },
       { id: 'personal-ops-notes', label: 'Scratchpad notes', detail: 'Open Agent-local notes for source triage, decisions, and handoff context.', targetCategoryId: 'notes', kind: 'workspace', safety: 'safe' },
@@ -755,6 +756,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this workspace to inspect active operator state and update visible work-plan items from confirmed TUI forms.',
     actions: [
       { id: 'workplan', label: 'Review work plan', detail: 'Print a concise work plan summary in the main Agent transcript.', command: '/workplan list', kind: 'command', safety: 'read-only' },
+      { id: 'work-autonomy-queue', label: 'Autonomy queue', detail: 'Inspect visible work-plan, host-task, approval, automation, schedule, routine, and delegation queue cards.', kind: 'guidance', safety: 'read-only' },
       { id: 'workplan-show', label: 'Show work plan detail', detail: 'Open a read-only form for the detailed work plan view.', editorKind: 'workplan-show', kind: 'editor', safety: 'read-only' },
       { id: 'workplan-add', label: 'Add work item', detail: 'Open a form that creates one visible work plan item from the Agent workspace.', editorKind: 'workplan-add', kind: 'editor', safety: 'safe' },
       { id: 'workplan-status', label: 'Update work item status', detail: 'Open a form that updates one work plan item to pending, active, blocked, done, failed, or cancelled.', editorKind: 'workplan-status', kind: 'editor', safety: 'safe' },
@@ -810,6 +812,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Agent does not create hidden local automation jobs. Confirmed reminders, reviewed routine promotion, and explicit run/pause/resume controls go through the connected host with confirmation.',
     actions: [
       { id: 'schedule-setup-path', label: 'Schedule setup path', detail: 'Create a reminder or promote a reviewed routine, pick a real cadence, optionally choose a delivery target, confirm, then reconcile receipts with connected schedules.', kind: 'guidance', safety: 'safe' },
+      { id: 'schedule-autonomy-queue', label: 'Autonomy queue', detail: 'Inspect visible reminder, routine promotion, connected schedule, automation run, and cancellation routes.', kind: 'guidance', safety: 'read-only' },
       { id: 'schedule-next-action', label: 'Next schedule action', detail: 'Use the detail pane to choose whether to create a reminder, prepare a routine, promote a routine, or reconcile existing receipts.', kind: 'guidance', safety: 'safe' },
       { id: 'schedule-reminder', label: 'Create reminder', detail: 'Open an in-workspace form that creates one connected reminder schedule with real timing, optional delivery target, and explicit confirmation.', editorKind: 'reminder-schedule', kind: 'editor', safety: 'safe' },
       { id: 'schedule-list', label: 'List schedules', detail: 'Inspect configured jobs and history without running or mutating them.', command: '/schedule list', kind: 'command', safety: 'read-only' },

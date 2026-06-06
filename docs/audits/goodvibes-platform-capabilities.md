@@ -42,7 +42,8 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 ## Remaining Product Gaps
 
-- First-class email and calendar connectors and live Personal Ops queue.
+- First-class email and calendar connectors plus live inbox/agenda records in Personal Ops.
+- Live autonomy queue records with logs, progress, retry/checkpoint state, and richer cancel/recovery metadata beyond route-level cards.
 - Deep research source queue, credibility scoring, cancellation, and checkpoint/resume beyond saved sourced report artifacts.
 - Local model hardware scanner, benchmark scoring, and guided downloads beyond the read-only cookbook.
 - Browser/computer-use setup and recovery.
