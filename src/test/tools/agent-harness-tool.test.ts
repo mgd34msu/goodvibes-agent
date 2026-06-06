@@ -871,6 +871,95 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('surfaces email and calendar MCP connectors as Personal Ops setup routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const mcpApi = fixture.context.clients?.mcpApi as {
+        listServerSecurity: () => readonly unknown[];
+      };
+      mcpApi.listServerSecurity = () => [
+        {
+          name: 'filesystem',
+          connected: true,
+          trustMode: 'constrained',
+          role: 'tools',
+          schemaFreshness: 'fresh',
+          quarantineReason: null,
+          quarantineDetail: null,
+          allowedPaths: [fixture.root],
+          allowedHosts: ['localhost'],
+        },
+        {
+          name: 'gmail-inbox',
+          connected: true,
+          trustMode: 'constrained',
+          role: 'tools',
+          schemaFreshness: 'fresh',
+          quarantineReason: null,
+          quarantineDetail: null,
+          allowedPaths: [],
+          allowedHosts: ['mail.example.test'],
+        },
+        {
+          name: 'caldav-agenda',
+          connected: false,
+          trustMode: 'ask-on-risk',
+          role: 'tools',
+          schemaFreshness: 'stale',
+          quarantineReason: null,
+          quarantineDetail: null,
+          allowedPaths: [],
+          allowedHosts: ['calendar.example.test'],
+        },
+      ];
+
+      const ops = await executeHarnessJson<{
+        readonly lanes: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly current: string;
+          readonly modelRoute: string;
+          readonly connectorSignals?: readonly {
+            readonly id: string;
+            readonly label: string;
+            readonly status: string;
+            readonly modelRoute: string;
+          }[];
+          readonly liveRecords?: readonly {
+            readonly id: string;
+            readonly status: string;
+            readonly modelRoute: string;
+          }[];
+        }[];
+      }>(fixture, { mode: 'personal_ops', includeParameters: true });
+
+      const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
+      const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
+      expect(inbox?.status).toBe('partial');
+      expect(inbox?.current).toContain('MCP connector');
+      expect(inbox?.modelRoute).toContain('mcp_servers');
+      expect(inbox?.connectorSignals?.[0]?.id).toBe('mcp:gmail-inbox');
+      expect(inbox?.connectorSignals?.[0]?.status).toBe('ready');
+      expect(inbox?.connectorSignals?.[0]?.modelRoute).toContain('gmail-inbox');
+      expect(inbox?.liveRecords?.[0]?.id).toBe('mcp:gmail-inbox');
+
+      expect(calendar?.status).toBe('partial');
+      expect(calendar?.connectorSignals?.[0]?.id).toBe('mcp:caldav-agenda');
+      expect(calendar?.connectorSignals?.[0]?.status).toBe('attention');
+
+      const lane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly connectorSignals?: readonly { readonly id: string; readonly modelRoute: string }[];
+      }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox' });
+      expect(lane.id).toBe('inbox');
+      expect(lane.status).toBe('partial');
+      expect(lane.connectorSignals?.[0]?.modelRoute).toContain('mcp_server');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes a visible autonomy queue with owners and cancel routes', async () => {
     const fixture = makeFixture();
     try {

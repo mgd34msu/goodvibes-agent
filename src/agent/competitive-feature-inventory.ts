@@ -105,7 +105,7 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Email, calendar, notes, tasks, reminders, and schedules share one reviewed personal operations surface.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent now has a unified Personal Ops workspace and model-visible lanes for inbox, agenda, notes, work plans, tasks, reminders, routines, schedules, and delivery; Agent-owned notes, routines, schedule receipts, and delivery channels surface live records with safe routes, while email inbox and calendar triage still require connectors.',
+    goodVibesNow: 'Agent now has a unified Personal Ops workspace and model-visible lanes for inbox, agenda, notes, work plans, tasks, reminders, routines, schedules, and delivery; Agent-owned notes, routines, schedule receipts, and delivery channels surface live records with safe routes, and email/calendar-capable MCP connectors surface as inspectable setup routes. First-class inbox triage and calendar agenda workflows still require connector-backed tool wrapping.',
     nextMoves: [
       'Add provider-agnostic email account setup, inbox triage, summary, labels, and draft reply workflows.',
       'Add CalDAV or calendar connector support with agenda briefing, conflict detection, and reminder creation.',

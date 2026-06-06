@@ -43,7 +43,17 @@ interface PersonalOpsLane {
   readonly modelRoute: string;
   readonly signals: readonly string[];
   readonly methodIds?: readonly string[];
+  readonly connectorSignals?: readonly PersonalOpsConnectorSignal[];
   readonly liveRecords?: readonly PersonalOpsLiveRecord[];
+}
+
+interface PersonalOpsConnectorSignal {
+  readonly id: string;
+  readonly kind: 'mcp-server';
+  readonly label: string;
+  readonly status: 'ready' | 'attention';
+  readonly summary: string;
+  readonly modelRoute: string;
 }
 
 interface PersonalOpsLiveRecord {
@@ -97,6 +107,55 @@ function methodIdsMatching(tokens: readonly string[]): readonly string[] {
     .sort((left, right) => left.localeCompare(right));
 }
 
+function mcpServerRecords(context: CommandContext): readonly {
+  readonly name: string;
+  readonly connected: boolean;
+  readonly trustMode: string;
+  readonly role: string;
+  readonly schemaFreshness: string;
+  readonly allowedHosts: readonly string[];
+}[] {
+  const api = context.clients?.mcpApi ?? context.extensions?.mcpRegistry;
+  if (!api || typeof api.listServerSecurity !== 'function') return [];
+  try {
+    return api.listServerSecurity();
+  } catch {
+    return [];
+  }
+}
+
+function mcpServerSearchText(server: ReturnType<typeof mcpServerRecords>[number]): string {
+  return [
+    server.name,
+    server.connected ? 'connected' : 'disconnected',
+    server.trustMode,
+    server.role,
+    server.schemaFreshness,
+    ...server.allowedHosts,
+  ].join('\n').toLowerCase();
+}
+
+function connectorSignalsMatching(context: CommandContext, tokens: readonly string[]): readonly PersonalOpsConnectorSignal[] {
+  if (tokens.length === 0) return [];
+  return mcpServerRecords(context)
+    .filter((server) => {
+      const text = mcpServerSearchText(server);
+      return tokens.some((token) => text.includes(token));
+    })
+    .map((server) => {
+      const ready = server.connected && server.schemaFreshness === 'fresh' && server.trustMode !== 'blocked';
+      return {
+        id: `mcp:${server.name}`,
+        kind: 'mcp-server' as const,
+        label: server.name,
+        status: ready ? 'ready' as const : 'attention' as const,
+        summary: `${server.connected ? 'connected' : 'disconnected'} ${server.trustMode} ${server.schemaFreshness}`,
+        modelRoute: `agent_harness mode:"mcp_server" mcpServerId:"${server.name}"`,
+      };
+    })
+    .sort((left, right) => left.label.localeCompare(right.label));
+}
+
 function laneStatusRank(status: PersonalOpsStatus): number {
   if (status === 'ready') return 4;
   if (status === 'partial') return 3;
@@ -139,6 +198,17 @@ function describeLiveRecord(record: PersonalOpsLiveRecord, includeParameters: bo
   };
 }
 
+function describeConnectorSignal(signal: PersonalOpsConnectorSignal, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: signal.id,
+    kind: signal.kind,
+    label: signal.label,
+    status: signal.status,
+    summary: previewHarnessText(signal.summary, includeParameters ? 180 : 96),
+    modelRoute: previewHarnessText(signal.modelRoute, includeParameters ? 140 : 96),
+  };
+}
+
 function describeLane(lane: PersonalOpsLane, includeParameters: boolean): Record<string, unknown> {
   return {
     id: lane.id,
@@ -150,6 +220,7 @@ function describeLane(lane: PersonalOpsLane, includeParameters: boolean): Record
     userRoute: previewHarnessText(lane.userRoute, 96),
     modelRoute: previewHarnessText(lane.modelRoute, 96),
     signals: lane.signals,
+    ...(lane.connectorSignals && lane.connectorSignals.length > 0 ? { connectorSignals: lane.connectorSignals.slice(0, includeParameters ? 8 : 3).map((signal) => describeConnectorSignal(signal, includeParameters)) } : {}),
     ...(lane.liveRecords && lane.liveRecords.length > 0 ? { liveRecords: lane.liveRecords.slice(0, includeParameters ? 8 : 3).map((record) => describeLiveRecord(record, includeParameters)) } : {}),
     ...(includeParameters ? {
       routes: {
@@ -198,10 +269,24 @@ function channelRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSn
   }));
 }
 
+function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLabel: string): readonly PersonalOpsLiveRecord[] {
+  return signals.map((signal) => ({
+    id: signal.id,
+    label: `${laneLabel} connector: ${signal.label}`,
+    status: signal.status,
+    summary: signal.summary,
+    userRoute: 'Agent Workspace -> Tools & MCP',
+    modelRoute: signal.modelRoute,
+    tags: ['connector', signal.kind],
+  }));
+}
+
 function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
   const emailMethods = methodIdsMatching(['email', 'mail', 'imap', 'smtp']);
   const calendarMethods = methodIdsMatching(['calendar', 'caldav', 'agenda']);
+  const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail']);
+  const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda']);
   const taskMethods = methodIdsMatching(['task', 'work-plan', 'workplan']);
   const scheduleMethods = methodIdsMatching(['schedule', 'reminder']);
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
@@ -217,40 +302,54 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
     {
       id: 'inbox',
       label: 'Inbox',
-      status: emailMethods.length > 0 ? 'partial' : 'gap',
+      status: emailMethods.length > 0 || emailConnectors.length > 0 ? 'partial' : 'gap',
       outcome: 'Triage inbound email or message inboxes, summarize threads, draft replies, and send only after confirmation.',
       current: emailMethods.length > 0
         ? 'The daemon contract exposes email-like methods, but Agent still needs a dedicated inbox workflow.'
+        : emailConnectors.length > 0
+          ? 'A configured MCP connector looks email-capable, but Agent still needs a dedicated inbox workflow around its exact tools.'
         : 'No email/IMAP/SMTP methods are present in the current GoodVibes SDK operator contract.',
       next: emailMethods.length > 0
         ? 'Inspect the exact methods, then add a first-class inbox triage workflow around them.'
+        : emailConnectors.length > 0
+          ? 'Inspect the matching MCP connector and tool schemas, then route inbox triage only through reviewed connector actions.'
         : 'Install or build an email connector/MCP/plugin, then expose triage and draft-reply actions here.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
-      modelRoute: 'agent_harness mode:"operator_methods" query:"email"',
+      modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'agent_harness mode:"operator_methods" query:"email"',
       signals: [
         `${emailMethods.length} email-like daemon method(s)`,
+        `${emailConnectors.length} email-like MCP connector(s)`,
         `${readyChannels}/${snapshot.channels.length} channel(s) ready for delivery`,
       ],
       methodIds: emailMethods,
+      connectorSignals: emailConnectors,
+      liveRecords: connectorRecords(emailConnectors, 'Inbox'),
     },
     {
       id: 'calendar',
       label: 'Calendar',
-      status: calendarMethods.length > 0 ? 'partial' : 'gap',
+      status: calendarMethods.length > 0 || calendarConnectors.length > 0 ? 'partial' : 'gap',
       outcome: 'Read agenda context, identify conflicts, prepare briefings, and create reminders for calendar-driven work.',
       current: calendarMethods.length > 0
         ? 'The daemon contract exposes calendar-like methods, but Agent still needs an agenda workflow.'
+        : calendarConnectors.length > 0
+          ? 'A configured MCP connector looks calendar-capable, but Agent still needs a dedicated agenda workflow around its exact tools.'
         : 'No calendar/CalDAV/agenda methods are present in the current GoodVibes SDK operator contract.',
       next: calendarMethods.length > 0
         ? 'Inspect the exact methods, then add agenda briefing and conflict detection around them.'
+        : calendarConnectors.length > 0
+          ? 'Inspect the matching MCP connector and tool schemas, then route agenda work only through reviewed connector actions.'
         : 'Add a CalDAV/calendar connector and route agenda briefing, conflicts, and reminders through this lane.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
-      modelRoute: 'agent_harness mode:"operator_methods" query:"calendar"',
+      modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'agent_harness mode:"operator_methods" query:"calendar"',
       signals: [
         `${calendarMethods.length} calendar-like daemon method(s)`,
+        `${calendarConnectors.length} calendar-like MCP connector(s)`,
         `${scheduleMethods.length} schedule/reminder method(s) available for follow-up`,
       ],
       methodIds: calendarMethods,
+      connectorSignals: calendarConnectors,
+      liveRecords: connectorRecords(calendarConnectors, 'Calendar'),
     },
     {
       id: 'notes',
