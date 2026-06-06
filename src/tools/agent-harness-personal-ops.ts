@@ -13,6 +13,7 @@ export type PersonalOpsLaneId =
   | 'delivery';
 
 type PersonalOpsStatus = 'ready' | 'partial' | 'needs-setup' | 'gap';
+type PersonalOpsWorkflowStatus = 'ready' | 'attention' | 'needs-setup';
 
 interface AgentHarnessPersonalOpsArgs {
   readonly laneId?: unknown;
@@ -45,6 +46,7 @@ interface PersonalOpsLane {
   readonly methodIds?: readonly string[];
   readonly connectorSignals?: readonly PersonalOpsConnectorSignal[];
   readonly liveRecords?: readonly PersonalOpsLiveRecord[];
+  readonly workflows?: readonly PersonalOpsWorkflow[];
 }
 
 interface PersonalOpsConnectorSignal {
@@ -64,6 +66,18 @@ interface PersonalOpsLiveRecord {
   readonly userRoute: string;
   readonly modelRoute: string;
   readonly tags?: readonly string[];
+}
+
+interface PersonalOpsWorkflow {
+  readonly id: string;
+  readonly label: string;
+  readonly status: PersonalOpsWorkflowStatus;
+  readonly summary: string;
+  readonly next: string;
+  readonly modelRoute: string;
+  readonly inspectRoutes: readonly string[];
+  readonly prerequisites: readonly string[];
+  readonly runBoundary: string;
 }
 
 export type PersonalOpsLaneResolution =
@@ -156,6 +170,110 @@ function connectorSignalsMatching(context: CommandContext, tokens: readonly stri
     .sort((left, right) => left.label.localeCompare(right.label));
 }
 
+function connectorReady(signals: readonly PersonalOpsConnectorSignal[]): boolean {
+  return signals.some((signal) => signal.status === 'ready');
+}
+
+function workflowStatus(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): PersonalOpsWorkflowStatus {
+  if (methodIds.length > 0 || connectorReady(connectors)) return 'ready';
+  if (connectors.length > 0) return 'attention';
+  return 'needs-setup';
+}
+
+function workflowModelRoute(
+  methodQuery: string,
+  connectors: readonly PersonalOpsConnectorSignal[],
+): string {
+  const readyConnector = connectors.find((signal) => signal.status === 'ready') ?? connectors[0];
+  if (readyConnector) return readyConnector.modelRoute;
+  return `agent_harness mode:"operator_methods" query:"${methodQuery}"`;
+}
+
+function workflowInspectRoutes(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[], fallbackQuery: string): readonly string[] {
+  const connectorRoutes = connectors.map((signal) => signal.modelRoute);
+  const methodRoutes = methodIds.slice(0, 6).map((methodId) => `agent_harness mode:"operator_method" methodId:"${methodId}"`);
+  const routes = [...connectorRoutes, ...methodRoutes];
+  return routes.length > 0 ? routes : [`agent_harness mode:"personal_ops_lane" laneId:"${fallbackQuery}"`];
+}
+
+function inboxWorkflows(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): readonly PersonalOpsWorkflow[] {
+  const status = workflowStatus(methodIds, connectors);
+  const inspectRoutes = workflowInspectRoutes(methodIds, connectors, 'inbox');
+  const modelRoute = workflowModelRoute('email', connectors);
+  const setupPrerequisite = status === 'needs-setup'
+    ? ['Install or configure an email-capable daemon method, MCP server, or plugin first.']
+    : status === 'attention'
+      ? ['Review connector trust/schema freshness before reading inbox data.']
+      : ['Inspect the exact connector or daemon method schema before selecting inbox actions.'];
+  return [
+    {
+      id: 'inbox-triage-briefing',
+      label: 'Inbox triage briefing',
+      status,
+      summary: 'Summarize unread or high-priority inbound messages without sending mail.',
+      next: status === 'ready'
+        ? 'Inspect the connector/method, list candidate messages, then summarize priorities and risks in the main conversation.'
+        : 'Finish email connector setup before attempting inbox triage.',
+      modelRoute,
+      inspectRoutes,
+      prerequisites: setupPrerequisite,
+      runBoundary: 'Read/list/search can run only through the reviewed connector or daemon method; sends and mutations require explicit confirmation.',
+    },
+    {
+      id: 'inbox-draft-reply',
+      label: 'Draft reply review',
+      status,
+      summary: 'Draft replies for selected messages while keeping send as a separate confirmed action.',
+      next: status === 'ready'
+        ? 'Read the selected thread through the connector, draft in chat, then ask for confirmation before any send route.'
+        : 'Finish email connector setup before drafting from live threads.',
+      modelRoute,
+      inspectRoutes,
+      prerequisites: [...setupPrerequisite, 'The user must identify the account, mailbox, or message selection.'],
+      runBoundary: 'Drafting is conversation output; sending or labeling stays on the connector/tool route with confirmation.',
+    },
+  ];
+}
+
+function calendarWorkflows(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): readonly PersonalOpsWorkflow[] {
+  const status = workflowStatus(methodIds, connectors);
+  const inspectRoutes = workflowInspectRoutes(methodIds, connectors, 'calendar');
+  const modelRoute = workflowModelRoute('calendar', connectors);
+  const setupPrerequisite = status === 'needs-setup'
+    ? ['Install or configure a calendar-capable daemon method, CalDAV MCP server, or plugin first.']
+    : status === 'attention'
+      ? ['Review connector trust/schema freshness before reading calendar data.']
+      : ['Inspect the exact connector or daemon method schema before selecting agenda actions.'];
+  return [
+    {
+      id: 'calendar-agenda-briefing',
+      label: 'Agenda briefing',
+      status,
+      summary: 'Read upcoming events and prepare a concise day or week briefing.',
+      next: status === 'ready'
+        ? 'Inspect the connector/method, fetch the requested window, then summarize agenda context and prep items.'
+        : 'Finish calendar connector setup before attempting agenda briefing.',
+      modelRoute,
+      inspectRoutes,
+      prerequisites: [...setupPrerequisite, 'The user must provide a date range or accept a bounded default window.'],
+      runBoundary: 'Calendar reads can run only through reviewed connector/method routes; event edits require explicit confirmation.',
+    },
+    {
+      id: 'calendar-conflict-scan',
+      label: 'Conflict scan',
+      status,
+      summary: 'Detect overlapping events or prep gaps and offer reminders instead of editing the calendar silently.',
+      next: status === 'ready'
+        ? 'Inspect the agenda source, scan the requested window, then propose reminders or follow-ups for confirmation.'
+        : 'Finish calendar connector setup before scanning conflicts.',
+      modelRoute,
+      inspectRoutes,
+      prerequisites: [...setupPrerequisite, 'The user must provide a calendar/account scope if more than one exists.'],
+      runBoundary: 'Conflict findings are advisory; reminders use agent_reminder_schedule and calendar edits use confirmed connector actions.',
+    },
+  ];
+}
+
 function laneStatusRank(status: PersonalOpsStatus): number {
   if (status === 'ready') return 4;
   if (status === 'partial') return 3;
@@ -174,6 +292,17 @@ function searchText(lane: PersonalOpsLane): string {
     lane.userRoute,
     lane.modelRoute,
     lane.signals.join('\n'),
+    lane.workflows?.flatMap((workflow) => [
+      workflow.id,
+      workflow.label,
+      workflow.status,
+      workflow.summary,
+      workflow.next,
+      workflow.modelRoute,
+      workflow.inspectRoutes.join('\n'),
+      workflow.prerequisites.join('\n'),
+      workflow.runBoundary,
+    ]).join('\n') ?? '',
     lane.liveRecords?.flatMap((record) => [
       record.id,
       record.label,
@@ -209,6 +338,22 @@ function describeConnectorSignal(signal: PersonalOpsConnectorSignal, includePara
   };
 }
 
+function describeWorkflow(workflow: PersonalOpsWorkflow, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: workflow.id,
+    label: workflow.label,
+    status: workflow.status,
+    summary: previewHarnessText(workflow.summary, includeParameters ? 180 : 96),
+    next: previewHarnessText(workflow.next, includeParameters ? 180 : 96),
+    modelRoute: previewHarnessText(workflow.modelRoute, 96),
+    ...(includeParameters ? {
+      inspectRoutes: workflow.inspectRoutes,
+      prerequisites: workflow.prerequisites,
+      runBoundary: workflow.runBoundary,
+    } : {}),
+  };
+}
+
 function describeLane(lane: PersonalOpsLane, includeParameters: boolean): Record<string, unknown> {
   return {
     id: lane.id,
@@ -221,6 +366,7 @@ function describeLane(lane: PersonalOpsLane, includeParameters: boolean): Record
     modelRoute: previewHarnessText(lane.modelRoute, 96),
     signals: lane.signals,
     ...(lane.connectorSignals && lane.connectorSignals.length > 0 ? { connectorSignals: lane.connectorSignals.slice(0, includeParameters ? 8 : 3).map((signal) => describeConnectorSignal(signal, includeParameters)) } : {}),
+    ...(lane.workflows && lane.workflows.length > 0 ? { workflows: lane.workflows.slice(0, includeParameters ? 8 : 3).map((workflow) => describeWorkflow(workflow, includeParameters)) } : {}),
     ...(lane.liveRecords && lane.liveRecords.length > 0 ? { liveRecords: lane.liveRecords.slice(0, includeParameters ? 8 : 3).map((record) => describeLiveRecord(record, includeParameters)) } : {}),
     ...(includeParameters ? {
       routes: {
@@ -305,14 +451,14 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
       status: emailMethods.length > 0 || emailConnectors.length > 0 ? 'partial' : 'gap',
       outcome: 'Triage inbound email or message inboxes, summarize threads, draft replies, and send only after confirmation.',
       current: emailMethods.length > 0
-        ? 'The daemon contract exposes email-like methods, but Agent still needs a dedicated inbox workflow.'
+        ? 'The daemon contract exposes email-like methods; Personal Ops workflow cards now guide inbox triage and draft boundaries around exact methods.'
         : emailConnectors.length > 0
-          ? 'A configured MCP connector looks email-capable, but Agent still needs a dedicated inbox workflow around its exact tools.'
+          ? 'A configured MCP connector looks email-capable; Personal Ops workflow cards now guide inbox triage and draft boundaries around its exact tools.'
         : 'No email/IMAP/SMTP methods are present in the current GoodVibes SDK operator contract.',
       next: emailMethods.length > 0
-        ? 'Inspect the exact methods, then add a first-class inbox triage workflow around them.'
+        ? 'Use the inbox workflow cards to inspect exact methods, read selected threads, summarize priorities, and keep send as a separate confirmation.'
         : emailConnectors.length > 0
-          ? 'Inspect the matching MCP connector and tool schemas, then route inbox triage only through reviewed connector actions.'
+          ? 'Use the inbox workflow cards to inspect matching MCP connector schemas, then route triage only through reviewed connector actions.'
         : 'Install or build an email connector/MCP/plugin, then expose triage and draft-reply actions here.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
       modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'agent_harness mode:"operator_methods" query:"email"',
@@ -323,6 +469,7 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
       ],
       methodIds: emailMethods,
       connectorSignals: emailConnectors,
+      workflows: inboxWorkflows(emailMethods, emailConnectors),
       liveRecords: connectorRecords(emailConnectors, 'Inbox'),
     },
     {
@@ -331,14 +478,14 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
       status: calendarMethods.length > 0 || calendarConnectors.length > 0 ? 'partial' : 'gap',
       outcome: 'Read agenda context, identify conflicts, prepare briefings, and create reminders for calendar-driven work.',
       current: calendarMethods.length > 0
-        ? 'The daemon contract exposes calendar-like methods, but Agent still needs an agenda workflow.'
+        ? 'The daemon contract exposes calendar-like methods; Personal Ops workflow cards now guide agenda briefing and conflict-scan boundaries.'
         : calendarConnectors.length > 0
-          ? 'A configured MCP connector looks calendar-capable, but Agent still needs a dedicated agenda workflow around its exact tools.'
+          ? 'A configured MCP connector looks calendar-capable; Personal Ops workflow cards now guide agenda briefing and conflict-scan boundaries around its exact tools.'
         : 'No calendar/CalDAV/agenda methods are present in the current GoodVibes SDK operator contract.',
       next: calendarMethods.length > 0
-        ? 'Inspect the exact methods, then add agenda briefing and conflict detection around them.'
+        ? 'Use the calendar workflow cards to inspect exact methods, fetch a bounded agenda window, and propose reminders or follow-ups.'
         : calendarConnectors.length > 0
-          ? 'Inspect the matching MCP connector and tool schemas, then route agenda work only through reviewed connector actions.'
+          ? 'Use the calendar workflow cards to inspect matching MCP connector schemas, then route agenda work only through reviewed connector actions.'
         : 'Add a CalDAV/calendar connector and route agenda briefing, conflicts, and reminders through this lane.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
       modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'agent_harness mode:"operator_methods" query:"calendar"',
@@ -349,6 +496,7 @@ function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
       ],
       methodIds: calendarMethods,
       connectorSignals: calendarConnectors,
+      workflows: calendarWorkflows(calendarMethods, calendarConnectors),
       liveRecords: connectorRecords(calendarConnectors, 'Calendar'),
     },
     {
@@ -450,6 +598,7 @@ function nextActions(lanes: readonly PersonalOpsLane[]): readonly string[] {
 
 export function personalOpsCatalogStatus(context: CommandContext): Record<string, unknown> {
   const lanes = buildLanes(context);
+  const workflows = lanes.flatMap((lane) => lane.workflows ?? []);
   const counts = lanes.reduce<Record<PersonalOpsStatus, number>>((acc, lane) => {
     acc[lane.status] += 1;
     return acc;
@@ -458,6 +607,10 @@ export function personalOpsCatalogStatus(context: CommandContext): Record<string
     modes: ['personal_ops', 'personal_ops_lane'],
     lanes: lanes.length,
     ...counts,
+    workflows: workflows.length,
+    readyWorkflows: workflows.filter((workflow) => workflow.status === 'ready').length,
+    attentionWorkflows: workflows.filter((workflow) => workflow.status === 'attention').length,
+    setupWorkflows: workflows.filter((workflow) => workflow.status === 'needs-setup').length,
     bestReadyStatus: lanes.reduce((best, lane) => Math.max(best, laneStatusRank(lane.status)), 0),
   };
 }
@@ -465,10 +618,17 @@ export function personalOpsCatalogStatus(context: CommandContext): Record<string
 export function personalOpsSummary(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Record<string, unknown> {
   const includeParameters = args.includeParameters === true;
   const lanes = buildLanes(context);
+  const workflows = lanes.flatMap((lane) => lane.workflows ?? []);
   return {
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
+    workflowSummary: {
+      workflows: workflows.length,
+      ready: workflows.filter((workflow) => workflow.status === 'ready').length,
+      attention: workflows.filter((workflow) => workflow.status === 'attention').length,
+      needsSetup: workflows.filter((workflow) => workflow.status === 'needs-setup').length,
+    },
     policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Lanes include live records when Agent owns them. Missing email/calendar connectors are reported as setup gaps, not faked.',
     nextActions: nextActions(lanes),
   };

@@ -295,8 +295,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'personal-ops-map', label: 'Readiness map', detail: 'Use the detail pane and model route agent_harness mode:"personal_ops" to see which personal operations lanes are ready, partial, or missing setup.', kind: 'guidance', safety: 'safe' },
       { id: 'personal-ops-autonomy-queue', label: 'Autonomy queue', detail: 'Inspect visible ongoing work, owners, status, and cancel or recovery routes before creating more background work.', kind: 'guidance', safety: 'read-only' },
-      { id: 'personal-ops-inbox', label: 'Inbox connectors', detail: 'Email inbox triage requires a reviewed email connector, MCP server, plugin, or daemon method. The readiness map shows configured connector routes.', kind: 'guidance', safety: 'safe' },
-      { id: 'personal-ops-calendar', label: 'Calendar connectors', detail: 'Calendar agenda and conflict detection require a reviewed calendar or CalDAV connector. Reminders are available today through confirmed schedules.', kind: 'guidance', safety: 'safe' },
+      { id: 'personal-ops-inbox', label: 'Inbox workflows', detail: 'Email inbox triage and draft review use workflow cards with reviewed connector routes and explicit send boundaries.', kind: 'guidance', safety: 'safe' },
+      { id: 'personal-ops-calendar', label: 'Calendar workflows', detail: 'Calendar agenda and conflict checks use workflow cards with reviewed connector routes; reminders stay on confirmed schedules.', kind: 'guidance', safety: 'safe' },
       { id: 'personal-ops-notes', label: 'Scratchpad notes', detail: 'Open Agent-local notes for source triage, decisions, and handoff context.', targetCategoryId: 'notes', kind: 'workspace', safety: 'safe' },
       { id: 'personal-ops-note-create', label: 'Create note', detail: 'Capture temporary context as an Agent-local scratchpad note.', editorKind: 'note', kind: 'editor', safety: 'safe' },
       { id: 'personal-ops-workplan', label: 'Review work plan', detail: 'Open the visible work-plan route for user-facing task tracking.', targetCategoryId: 'work', kind: 'workspace', safety: 'safe' },

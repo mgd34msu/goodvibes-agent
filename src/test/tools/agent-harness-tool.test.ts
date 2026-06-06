@@ -807,18 +807,29 @@ describe('agent_harness tool', () => {
       });
 
       const summary = await executeHarnessJson<{
-        readonly personalOps?: { readonly lanes: number; readonly gap: number; readonly ready: number };
+        readonly personalOps?: { readonly lanes: number; readonly gap: number; readonly ready: number; readonly workflows: number; readonly setupWorkflows: number };
       }>(fixture, { mode: 'summary' });
       expect(summary.personalOps?.lanes).toBe(7);
       expect(summary.personalOps?.gap).toBeGreaterThanOrEqual(2);
       expect(summary.personalOps?.ready).toBeGreaterThan(0);
+      expect(summary.personalOps?.workflows).toBeGreaterThan(0);
+      expect(summary.personalOps?.setupWorkflows).toBeGreaterThan(0);
 
       const ops = await executeHarnessJson<{
+        readonly workflowSummary: { readonly workflows: number; readonly needsSetup: number };
         readonly lanes: readonly {
           readonly id: string;
           readonly status: string;
           readonly current: string;
           readonly methodIds?: readonly string[];
+          readonly workflows?: readonly {
+            readonly id: string;
+            readonly status: string;
+            readonly modelRoute: string;
+            readonly inspectRoutes?: readonly string[];
+            readonly prerequisites?: readonly string[];
+            readonly runBoundary?: string;
+          }[];
           readonly liveRecords?: readonly {
             readonly id: string;
             readonly label: string;
@@ -833,6 +844,7 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'personal_ops', includeParameters: true });
       expect(ops.policy).toContain('Missing email/calendar connectors');
       expect(ops.nextActions.join('\n')).toContain('Inbox');
+      expect(ops.workflowSummary.needsSetup).toBeGreaterThan(0);
 
       const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
       const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
@@ -842,7 +854,13 @@ describe('agent_harness tool', () => {
       const delivery = ops.lanes.find((lane) => lane.id === 'delivery');
       expect(inbox?.status).toBe('gap');
       expect(inbox?.current).toContain('No email/IMAP/SMTP methods');
+      expect(inbox?.workflows?.[0]?.id).toBe('inbox-triage-briefing');
+      expect(inbox?.workflows?.[0]?.status).toBe('needs-setup');
+      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('personal_ops_lane');
+      expect(inbox?.workflows?.[0]?.runBoundary).toContain('confirmation');
       expect(calendar?.status).toBe('gap');
+      expect(calendar?.workflows?.[0]?.id).toBe('calendar-agenda-briefing');
+      expect(calendar?.workflows?.[0]?.status).toBe('needs-setup');
       expect(notes?.status).toBe('ready');
       expect(notes?.current).toContain('1 note');
       expect(notes?.liveRecords?.[0]?.id).toBe('follow-up-queue');
@@ -916,11 +934,20 @@ describe('agent_harness tool', () => {
       ];
 
       const ops = await executeHarnessJson<{
+        readonly workflowSummary: { readonly ready: number; readonly attention: number };
         readonly lanes: readonly {
           readonly id: string;
           readonly status: string;
           readonly current: string;
           readonly modelRoute: string;
+          readonly workflows?: readonly {
+            readonly id: string;
+            readonly status: string;
+            readonly modelRoute: string;
+            readonly inspectRoutes?: readonly string[];
+            readonly prerequisites?: readonly string[];
+            readonly runBoundary?: string;
+          }[];
           readonly connectorSignals?: readonly {
             readonly id: string;
             readonly label: string;
@@ -937,26 +964,36 @@ describe('agent_harness tool', () => {
 
       const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
       const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
+      expect(ops.workflowSummary.ready).toBeGreaterThan(0);
+      expect(ops.workflowSummary.attention).toBeGreaterThan(0);
       expect(inbox?.status).toBe('partial');
       expect(inbox?.current).toContain('MCP connector');
       expect(inbox?.modelRoute).toContain('mcp_servers');
       expect(inbox?.connectorSignals?.[0]?.id).toBe('mcp:gmail-inbox');
       expect(inbox?.connectorSignals?.[0]?.status).toBe('ready');
       expect(inbox?.connectorSignals?.[0]?.modelRoute).toContain('gmail-inbox');
+      expect(inbox?.workflows?.[0]?.id).toBe('inbox-triage-briefing');
+      expect(inbox?.workflows?.[0]?.status).toBe('ready');
+      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');
+      expect(inbox?.workflows?.[1]?.runBoundary).toContain('sending');
       expect(inbox?.liveRecords?.[0]?.id).toBe('mcp:gmail-inbox');
 
       expect(calendar?.status).toBe('partial');
       expect(calendar?.connectorSignals?.[0]?.id).toBe('mcp:caldav-agenda');
       expect(calendar?.connectorSignals?.[0]?.status).toBe('attention');
+      expect(calendar?.workflows?.[0]?.status).toBe('attention');
+      expect(calendar?.workflows?.[0]?.prerequisites?.join('\n')).toContain('trust/schema');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
         readonly status: string;
         readonly connectorSignals?: readonly { readonly id: string; readonly modelRoute: string }[];
+        readonly workflows?: readonly { readonly id: string; readonly inspectRoutes?: readonly string[] }[];
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox' });
       expect(lane.id).toBe('inbox');
       expect(lane.status).toBe('partial');
       expect(lane.connectorSignals?.[0]?.modelRoute).toContain('mcp_server');
+      expect(lane.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');
     } finally {
       fixture.cleanup();
     }

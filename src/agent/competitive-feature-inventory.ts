@@ -105,10 +105,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Email, calendar, notes, tasks, reminders, and schedules share one reviewed personal operations surface.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent now has a unified Personal Ops workspace and model-visible lanes for inbox, agenda, notes, work plans, tasks, reminders, routines, schedules, and delivery; Agent-owned notes, routines, schedule receipts, and delivery channels surface live records with safe routes, and email/calendar-capable MCP connectors surface as inspectable setup routes. First-class inbox triage and calendar agenda workflows still require connector-backed tool wrapping.',
+    goodVibesNow: 'Agent now has a unified Personal Ops workspace and model-visible lanes for inbox, agenda, notes, work plans, tasks, reminders, routines, schedules, and delivery; Agent-owned notes, routines, schedule receipts, and delivery channels surface live records with safe routes, email/calendar-capable MCP connectors surface as inspectable setup routes, and inbox triage/draft plus calendar agenda/conflict workflow cards expose prerequisites, inspect routes, and send/edit confirmation boundaries. Live inbox/agenda records and provider-specific execution still depend on connector schemas.',
     nextMoves: [
-      'Add provider-agnostic email account setup, inbox triage, summary, labels, and draft reply workflows.',
-      'Add CalDAV or calendar connector support with agenda briefing, conflict detection, and reminder creation.',
+      'Map reviewed provider-specific email tool schemas into live inbox records, thread summaries, labels, and draft-reply execution routes.',
+      'Map reviewed CalDAV/calendar tool schemas into live agenda records, conflict detection, and reminder creation routes.',
       'Extend Personal Ops live records to first-class inbox, agenda, task, and reminder records once connectors expose them.',
     ],
     competitorSignals: [

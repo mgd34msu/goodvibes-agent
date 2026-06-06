@@ -47,7 +47,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 ## Remaining Product Gaps
 
 - Consent-gated host lifecycle/install repair beyond the current read-only setup plan, status, compat, and service posture routes.
-- First-class email and calendar triage/agenda workflows plus live inbox/agenda records in Personal Ops; Agent-owned notes, routines, schedule receipts, delivery channels, and email/calendar-capable MCP connector setup routes already surface live lane records.
+- Provider-specific email/calendar schema mapping into live inbox/agenda records in Personal Ops; Agent-owned notes, routines, schedule receipts, delivery channels, email/calendar-capable MCP connector setup routes, and inbox triage/draft plus calendar agenda/conflict workflow cards already surface in live lane records.
 - Richer schedule edit before/after diffs when the connected host exposes prior schedule records.
 - Richer daemon retry, checkpoint, and host log details in autonomy queue records when the connected host exposes them.
 - Deep research browser-backed execution and richer report runner output beyond the current visible local run ledger, run log tails, source queue, credibility scoring, source bundles, citation coverage metadata, repair hints, and saved sourced report artifacts.
