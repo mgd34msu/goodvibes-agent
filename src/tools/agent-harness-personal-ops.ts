@@ -550,6 +550,98 @@ function calendarWorkflows(methodIds: readonly string[], connectors: readonly Pe
   ];
 }
 
+function hasMethod(methodIds: readonly string[], methodId: string): boolean {
+  return methodIds.includes(methodId);
+}
+
+function taskWorkflows(methodIds: readonly string[]): readonly PersonalOpsWorkflow[] {
+  const hostTaskStatus: PersonalOpsWorkflowStatus = methodIds.length > 0 ? 'ready' : 'needs-setup';
+  return [
+    {
+      id: 'visible-work-plan-review',
+      label: 'Visible work-plan review',
+      status: 'ready',
+      summary: 'Track user-facing work items in the Agent-owned work plan before creating background or host work.',
+      next: 'Review the plan, add or update one item when useful, and keep status changes visible.',
+      modelRoute: 'agent_work_plan action:"list"',
+      inspectRoutes: [
+        'agent_harness mode:"workspace_action" actionId:"workplan"',
+        'agent_harness mode:"workspace_action" actionId:"workplan-add"',
+        'agent_harness mode:"workspace_action" actionId:"workplan-status"',
+      ],
+      prerequisites: ['Use the work plan when the user asks for task tracking, multi-step work, or a visible checkpoint.'],
+      runBoundary: 'Agent-owned work-plan edits stay local and visible; deletion/clear-completed routes require explicit confirmation.',
+    },
+    {
+      id: 'connected-host-task-review',
+      label: 'Connected-host task review',
+      status: hostTaskStatus,
+      summary: 'Inspect connected-host task state separately from Agent-owned work-plan state.',
+      next: hostTaskStatus === 'ready'
+        ? 'List host tasks, inspect one exact task id, then cancel or retry only through confirmed daemon controls when the user asks.'
+        : 'Update or connect the GoodVibes host until task inspection methods are present.',
+      modelRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
+      inspectRoutes: [
+        'agent_harness mode:"workspace_action" actionId:"tasks-list"',
+        'agent_harness mode:"workspace_action" actionId:"task-show"',
+        ...methodIds.slice(0, 6).map((methodId) => `agent_harness mode:"operator_method" methodId:"${methodId}"`),
+      ],
+      prerequisites: hostTaskStatus === 'ready'
+        ? [`${methodIds.length} task/work-plan daemon method(s) are discoverable.`]
+        : ['Connected-host task methods are not present in the current SDK operator contract.'],
+      runBoundary: 'Host task cancel/retry/create actions mutate connected-host state and require exact ids, confirmation, and explicit user request.',
+    },
+  ];
+}
+
+function reminderWorkflows(methodIds: readonly string[], deliveryConfigured: boolean): readonly PersonalOpsWorkflow[] {
+  const scheduleStatus: PersonalOpsWorkflowStatus = methodIds.length > 0 ? 'ready' : 'needs-setup';
+  const reminderStatus: PersonalOpsWorkflowStatus = methodIds.length === 0 ? 'needs-setup' : deliveryConfigured ? 'ready' : 'attention';
+  return [
+    {
+      id: 'confirmed-reminder-request',
+      label: 'Confirmed reminder request',
+      status: reminderStatus,
+      summary: 'Create one visible reminder only from a direct user request with real timing and optional delivery target.',
+      next: reminderStatus === 'ready'
+        ? 'Collect title, timing, delivery scope, and explicit user request, then use the confirmed reminder route.'
+        : reminderStatus === 'attention'
+          ? 'Configure or confirm a delivery target before relying on reminder delivery, or create the reminder with explicit scope.'
+          : 'Update the connected GoodVibes host until schedule/reminder creation methods are available.',
+      modelRoute: 'agent_reminder_schedule',
+      inspectRoutes: [
+        'agent_harness mode:"workspace_action" actionId:"schedule-reminder"',
+        'agent_harness mode:"channels"',
+        ...methodIds.filter((methodId) => methodId.startsWith('schedules.')).slice(0, 6).map((methodId) => `agent_harness mode:"operator_method" methodId:"${methodId}"`),
+      ],
+      prerequisites: [
+        'The user must provide a concrete reminder title and time.',
+        deliveryConfigured ? 'At least one delivery target or channel is configured.' : 'No configured delivery target was detected; delivery setup may be needed.',
+      ],
+      runBoundary: 'Reminder creation requires confirm:true and explicitUserRequest; vague follow-up ideas stay as notes or work-plan items.',
+    },
+    {
+      id: 'connected-schedule-review',
+      label: 'Connected schedule review',
+      status: scheduleStatus,
+      summary: 'Review existing connected schedules before editing, running, pausing, resuming, or deleting one.',
+      next: scheduleStatus === 'ready'
+        ? 'List schedules or inspect the autonomy queue, then control only one exact schedule id through confirmed routes.'
+        : 'Update the connected GoodVibes host until schedule list/control methods are available.',
+      modelRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+      inspectRoutes: [
+        'agent_harness mode:"workspace_action" actionId:"schedule-list"',
+        'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+        'agent_harness mode:"workspace_action" actionId:"schedule-edit"',
+      ],
+      prerequisites: scheduleStatus === 'ready'
+        ? [`${methodIds.length} schedule/reminder daemon method(s) are discoverable.`]
+        : ['Connected-host schedule methods are not present in the current SDK operator contract.'],
+      runBoundary: 'Schedule edit/run/enable/disable/delete actions require exact ids, confirmation, and explicit user request.',
+    },
+  ];
+}
+
 function laneStatusRank(status: PersonalOpsStatus): number {
   if (status === 'ready') return 4;
   if (status === 'partial') return 3;
@@ -754,6 +846,229 @@ function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLa
   });
 }
 
+function taskOperationRecords(methodIds: readonly string[]): readonly PersonalOpsLiveRecord[] {
+  const records: PersonalOpsLiveRecord[] = [
+    {
+      id: 'workplan-list',
+      label: 'Review visible work plan',
+      status: 'ready',
+      summary: 'Read Agent-owned work-plan items before starting or switching multi-step work.',
+      userRoute: 'Agent Workspace -> Work -> Review work plan',
+      modelRoute: 'agent_work_plan action:"list"',
+      tags: ['work-plan', 'task-read'],
+      effect: 'read-only',
+      capability: 'task-read',
+    },
+    {
+      id: 'workplan-add',
+      label: 'Add visible work item',
+      status: 'ready',
+      summary: 'Create one local Agent work-plan item instead of hiding task state in chat.',
+      userRoute: 'Agent Workspace -> Personal Ops -> Add work item',
+      modelRoute: 'agent_work_plan action:"create" title:"..."',
+      tags: ['work-plan', 'task-write'],
+      effect: 'confirmed-effect',
+      capability: 'task-write',
+      requiredFields: ['title'],
+      optionalFields: ['detail', 'priority', 'status'],
+      confirmationRequired: false,
+    },
+    {
+      id: 'workplan-status',
+      label: 'Update work item status',
+      status: 'ready',
+      summary: 'Move one visible work item through pending, active, blocked, done, failed, or cancelled state.',
+      userRoute: 'Agent Workspace -> Work -> Update work item status',
+      modelRoute: 'agent_work_plan action:"set_status" id:"..." status:"..."',
+      tags: ['work-plan', 'task-write'],
+      effect: 'confirmed-effect',
+      capability: 'task-write',
+      requiredFields: ['id', 'status'],
+      confirmationRequired: false,
+    },
+  ];
+  if (hasMethod(methodIds, 'tasks.list')) {
+    records.push({
+      id: 'host-tasks-list',
+      label: 'List connected-host tasks',
+      status: 'ready',
+      summary: 'Inspect connected-host task state without creating, retrying, or mutating host tasks.',
+      userRoute: 'Agent Workspace -> Work -> Host tasks',
+      modelRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
+      tags: ['host-task', 'task-read'],
+      effect: 'read-only',
+      capability: 'host-task-read',
+    });
+  }
+  if (hasMethod(methodIds, 'tasks.get') || hasMethod(methodIds, 'tasks.status')) {
+    records.push({
+      id: 'host-task-inspect',
+      label: 'Inspect connected-host task',
+      status: 'ready',
+      summary: 'Inspect one exact connected-host task id and output before considering controls.',
+      userRoute: 'Agent Workspace -> Work -> Inspect host task',
+      modelRoute: 'agent_harness mode:"workspace_action" actionId:"task-show"',
+      tags: ['host-task', 'task-read'],
+      effect: 'read-only',
+      capability: 'host-task-read',
+      requiredFields: ['taskId'],
+    });
+  }
+  if (hasMethod(methodIds, 'tasks.cancel')) {
+    records.push({
+      id: 'host-task-cancel',
+      label: 'Cancel connected-host task',
+      status: 'ready',
+      summary: 'Cancel one exact connected-host task id only when the user authorizes it.',
+      userRoute: 'Agent Workspace -> Work -> Host task controls',
+      modelRoute: 'agent_operator_method methodId:"tasks.cancel" input:{"taskId":"..."} confirm:true explicitUserRequest:"..."',
+      tags: ['host-task', 'task-write'],
+      effect: 'confirmed-effect',
+      capability: 'host-task-control',
+      requiredFields: ['taskId'],
+      confirmationRequired: true,
+    });
+  }
+  if (hasMethod(methodIds, 'tasks.retry')) {
+    records.push({
+      id: 'host-task-retry',
+      label: 'Retry connected-host task',
+      status: 'ready',
+      summary: 'Retry one failed or cancelled connected-host task id only after inspection.',
+      userRoute: 'Agent Workspace -> Work -> Host task controls',
+      modelRoute: 'agent_operator_method methodId:"tasks.retry" input:{"taskId":"..."} confirm:true explicitUserRequest:"..."',
+      tags: ['host-task', 'task-write'],
+      effect: 'confirmed-effect',
+      capability: 'host-task-control',
+      requiredFields: ['taskId'],
+      confirmationRequired: true,
+    });
+  }
+  return records;
+}
+
+function reminderOperationRecords(methodIds: readonly string[], deliveryConfigured: boolean): readonly PersonalOpsLiveRecord[] {
+  const records: PersonalOpsLiveRecord[] = [
+    {
+      id: 'reminder-create',
+      label: 'Create confirmed reminder',
+      status: hasMethod(methodIds, 'schedules.create') ? deliveryConfigured ? 'ready' : 'attention' : 'needs-setup',
+      summary: deliveryConfigured
+        ? 'Create one connected reminder schedule with real timing and a visible delivery path.'
+        : 'Create one reminder only after confirming timing and delivery scope; no configured delivery target was detected.',
+      userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
+      modelRoute: 'agent_reminder_schedule title:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+      tags: ['reminder', 'schedule-write'],
+      effect: 'confirmed-effect',
+      capability: 'reminder-create',
+      requiredFields: ['title', 'scheduleKind', 'scheduleValue'],
+      optionalFields: ['deliveryTargetId', 'timezone', 'message'],
+      confirmationRequired: true,
+    },
+    {
+      id: 'autonomous-schedule-create',
+      label: 'Create autonomous schedule',
+      status: hasMethod(methodIds, 'schedules.create') ? 'ready' : 'needs-setup',
+      summary: 'Create one visible autonomous schedule only when task, cadence, success criteria, and user request provenance are explicit.',
+      userRoute: 'Agent Workspace -> Automation -> Create schedule',
+      modelRoute: 'agent_autonomy_schedule task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+      tags: ['autonomy', 'schedule-write'],
+      effect: 'confirmed-effect',
+      capability: 'schedule-create',
+      requiredFields: ['task', 'successCriteria', 'scheduleKind', 'scheduleValue'],
+      confirmationRequired: true,
+    },
+  ];
+  if (hasMethod(methodIds, 'schedules.list')) {
+    records.push({
+      id: 'schedule-list',
+      label: 'List connected schedules',
+      status: 'ready',
+      summary: 'Inspect configured schedules and history before running or mutating one.',
+      userRoute: 'Agent Workspace -> Automation -> Schedules',
+      modelRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
+      tags: ['schedule', 'schedule-read'],
+      effect: 'read-only',
+      capability: 'schedule-read',
+    });
+    records.push({
+      id: 'schedule-edit',
+      label: 'Edit connected schedule',
+      status: 'ready',
+      summary: 'Preview and edit one exact connected schedule id with before/after diff context.',
+      userRoute: 'Agent Workspace -> Automation -> Edit schedule',
+      modelRoute: 'agent_schedule_edit scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      tags: ['schedule', 'schedule-write'],
+      effect: 'confirmed-effect',
+      capability: 'schedule-control',
+      requiredFields: ['scheduleId'],
+      optionalFields: ['name', 'scheduleKind', 'scheduleValue', 'prompt'],
+      confirmationRequired: true,
+    });
+  }
+  if (hasMethod(methodIds, 'schedules.run')) {
+    records.push({
+      id: 'schedule-run-now',
+      label: 'Run schedule now',
+      status: 'ready',
+      summary: 'Run one exact connected schedule id now after the user confirms.',
+      userRoute: 'Agent Workspace -> Automation -> Run job now',
+      modelRoute: 'agent_operator_action action:"schedules.run" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      tags: ['schedule', 'schedule-write'],
+      effect: 'confirmed-effect',
+      capability: 'schedule-control',
+      requiredFields: ['scheduleId'],
+      confirmationRequired: true,
+    });
+  }
+  if (hasMethod(methodIds, 'schedules.disable')) {
+    records.push({
+      id: 'schedule-pause',
+      label: 'Pause connected schedule',
+      status: 'ready',
+      summary: 'Disable one exact connected schedule id after reviewing current state.',
+      userRoute: 'Agent Workspace -> Automation -> Schedule controls',
+      modelRoute: 'agent_operator_action action:"schedules.disable" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      tags: ['schedule', 'schedule-write'],
+      effect: 'confirmed-effect',
+      capability: 'schedule-control',
+      requiredFields: ['scheduleId'],
+      confirmationRequired: true,
+    });
+  }
+  if (hasMethod(methodIds, 'schedules.enable')) {
+    records.push({
+      id: 'schedule-resume',
+      label: 'Resume connected schedule',
+      status: 'ready',
+      summary: 'Enable one exact connected schedule id after reviewing current state.',
+      userRoute: 'Agent Workspace -> Automation -> Schedule controls',
+      modelRoute: 'agent_operator_action action:"schedules.enable" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      tags: ['schedule', 'schedule-write'],
+      effect: 'confirmed-effect',
+      capability: 'schedule-control',
+      requiredFields: ['scheduleId'],
+      confirmationRequired: true,
+    });
+  }
+  if (hasMethod(methodIds, 'schedules.delete')) {
+    records.push({
+      id: 'schedule-delete',
+      label: 'Delete connected schedule',
+      status: 'ready',
+      summary: 'Delete one exact connected schedule id only after explicit user confirmation.',
+      userRoute: 'Agent Workspace -> Automation -> Schedule controls',
+      modelRoute: 'agent_operator_action action:"schedules.delete" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      tags: ['schedule', 'schedule-write'],
+      effect: 'confirmed-effect',
+      capability: 'schedule-control',
+      requiredFields: ['scheduleId'],
+      confirmationRequired: true,
+    });
+  }
+  return records;
+}
+
 function buildLanes(
   context: CommandContext,
   options: {
@@ -859,12 +1174,14 @@ function buildLanes(
       current: `Agent has work-plan actions and ${taskMethods.length} task/work-plan daemon method(s) in the SDK contract.`,
       next: 'Use work plans for user-visible task tracking; inspect runtime host tasks separately before mutating anything.',
       userRoute: 'Agent Workspace -> Personal Ops -> Add work item',
-      modelRoute: 'agent_work_plan action:"add"',
+      modelRoute: 'agent_work_plan action:"create"',
       signals: [
         `${taskMethods.length} task/work-plan daemon method(s)`,
         'Work plan add/show/status/delete actions are available',
       ],
       methodIds: taskMethods,
+      workflows: taskWorkflows(taskMethods),
+      liveRecords: taskOperationRecords(taskMethods),
     },
     {
       id: 'reminders',
@@ -880,6 +1197,8 @@ function buildLanes(
         `${configuredTargets} configured delivery target(s)`,
       ],
       methodIds: scheduleMethods,
+      workflows: reminderWorkflows(scheduleMethods, configuredTargets > 0 || readyChannels > 0),
+      liveRecords: reminderOperationRecords(scheduleMethods, configuredTargets > 0 || readyChannels > 0),
     },
     {
       id: 'routines',

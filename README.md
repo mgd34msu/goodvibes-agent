@@ -53,7 +53,7 @@ Workspace areas:
 - Research: read-only web research, URL inspection, source triage, and explicit handoff into Agent Knowledge.
 - Documents & Compare: versioned document drafting, uploads, exports, source checks, generated media artifacts, artifact browsing/export, artifact reuse, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, side-by-side reviewer views, saved judgment artifacts, saved preference analytics/synthesis, markdown report export, reviewer handoff artifacts, one-click reviewer handoff ZIP archives, and confirmed winner route updates.
 - Artifacts: image attachment, conversation/session export, source-file ingest, source lookup, bookmark/browser-history import, and generated media artifacts.
-- Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery readiness in one daily operations area.
+- Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, task/reminder workflow cards, connected schedule controls, routines, schedules, and delivery readiness in one daily operations area.
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Tools & MCP: MCP server setup, tool inventory, trust review, secrets, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, source/node/issue libraries, item lookup, map review, connectors, ingest, review queue, and reindex.

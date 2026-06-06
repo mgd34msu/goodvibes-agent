@@ -1781,6 +1781,9 @@ describe('agent_harness tool', () => {
             readonly summary: string;
             readonly modelRoute: string;
             readonly tags?: readonly string[];
+            readonly effect?: string;
+            readonly capability?: string;
+            readonly confirmationRequired?: boolean;
           }[];
         }[];
         readonly policy: string;
@@ -1811,7 +1814,32 @@ describe('agent_harness tool', () => {
       expect(notes?.liveRecords?.[0]?.label).toBe('Follow-up queue');
       expect(notes?.liveRecords?.[0]?.modelRoute).toContain('agent_local_registry');
       expect(tasks?.methodIds).toContain('tasks.list');
+      expect(tasks?.workflows?.map((workflow) => workflow.id)).toEqual(expect.arrayContaining([
+        'visible-work-plan-review',
+        'connected-host-task-review',
+      ]));
+      expect(tasks?.workflows?.find((workflow) => workflow.id === 'connected-host-task-review')?.inspectRoutes?.join('\n')).toContain('tasks.list');
+      const workPlanAdd = tasks?.liveRecords?.find((record) => record.id === 'workplan-add');
+      const workPlanStatus = tasks?.liveRecords?.find((record) => record.id === 'workplan-status');
+      expect(workPlanAdd?.modelRoute).toContain('action:"create"');
+      expect(workPlanAdd?.confirmationRequired).toBe(false);
+      expect(workPlanStatus?.modelRoute).toContain('action:"set_status"');
+      expect(tasks?.liveRecords?.find((record) => record.id === 'host-tasks-list')?.effect).toBe('read-only');
+      expect(tasks?.liveRecords?.find((record) => record.id === 'host-task-cancel')?.modelRoute).toContain('agent_operator_method');
       expect(reminders?.methodIds).toContain('schedules.create');
+      expect(reminders?.workflows?.map((workflow) => workflow.id)).toEqual(expect.arrayContaining([
+        'confirmed-reminder-request',
+        'connected-schedule-review',
+      ]));
+      expect(reminders?.workflows?.find((workflow) => workflow.id === 'connected-schedule-review')?.inspectRoutes?.join('\n')).toContain('schedule-list');
+      const reminderCreate = reminders?.liveRecords?.find((record) => record.id === 'reminder-create');
+      expect(reminderCreate?.modelRoute).toContain('agent_reminder_schedule');
+      expect(reminderCreate?.confirmationRequired).toBe(true);
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-list')?.effect).toBe('read-only');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-edit')?.modelRoute).toContain('agent_schedule_edit');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-pause')?.modelRoute).toContain('schedules.disable');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-resume')?.modelRoute).toContain('schedules.enable');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-delete')?.modelRoute).toContain('schedules.delete');
       expect(delivery?.liveRecords?.some((record) => record.modelRoute.includes('mode:"channel"'))).toBe(true);
 
       const lane = await executeHarnessJson<{
