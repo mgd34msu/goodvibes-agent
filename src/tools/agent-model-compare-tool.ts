@@ -16,6 +16,10 @@ export interface AgentModelCompareToolArgs {
   readonly saveArtifact?: unknown;
   readonly comparisonId?: unknown;
   readonly artifactId?: unknown;
+  readonly winner?: unknown;
+  readonly winnerBlindId?: unknown;
+  readonly reasons?: unknown;
+  readonly notes?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -97,6 +101,7 @@ interface ComparisonArtifactStatus {
 const MODE_RUN = 'run';
 const MODE_REVEAL = 'reveal';
 const MODE_REVIEW = 'review';
+const MODE_JUDGE = 'judge';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
 const MAX_CANDIDATES = 4;
@@ -454,6 +459,148 @@ function formatReview(comparison: StoredComparison, reveal: boolean): string {
   return lines.join('\n');
 }
 
+function normalizeBlindId(value: string): string {
+  return value
+    .replace(/^candidate\s+/i, '')
+    .trim()
+    .toUpperCase();
+}
+
+function findCandidate(comparison: StoredComparison, blindId: string): CompareCandidateResult | null {
+  const normalized = normalizeBlindId(blindId);
+  return comparison.candidates.find((candidate) => candidate.blindId.toUpperCase() === normalized) ?? null;
+}
+
+function modelRouteHandoff(candidate: CompareCandidateResult, reveal: boolean): Record<string, unknown> {
+  return {
+    ...(reveal ? {
+      routeInspection: `agent_harness mode:"model_route" target:"${candidate.model.registryKey}"`,
+      confirmedMainRouteUpdate: `agent_harness mode:"set_setting" key:"provider.model" value:"${candidate.model.registryKey}" confirm:true explicitUserRequest:"..."`,
+    } : {
+      routeInspection: 'reveal the winning model before model-route inspection',
+    }),
+    policy: 'This judgment does not change the selected model. Route updates require a separate confirmed action.',
+  };
+}
+
+function judgmentArtifactText(input: {
+  readonly judgmentId: string;
+  readonly comparison: StoredComparison;
+  readonly winner: CompareCandidateResult;
+  readonly reasons: string;
+  readonly notes: string;
+  readonly reveal: boolean;
+}): string {
+  return `${JSON.stringify({
+    schema: 'goodvibes.agent.model_compare_judgment.v1',
+    judgmentId: input.judgmentId,
+    comparisonId: input.comparison.comparisonId,
+    sourceArtifactId: input.comparison.artifact?.artifactId ?? null,
+    createdAt: new Date().toISOString(),
+    promptPreview: input.comparison.promptPreview,
+    rubric: input.comparison.rubric,
+    winnerBlindId: input.winner.blindId,
+    ...(input.reveal ? {
+      winnerModel: {
+        registryKey: input.winner.model.registryKey,
+        providerId: input.winner.model.providerId,
+        modelId: input.winner.model.modelId,
+        displayName: input.winner.model.displayName,
+      },
+    } : {}),
+    reasons: input.reasons,
+    notes: input.notes,
+    revealIncludedInJudgment: input.reveal,
+    routeHandoff: modelRouteHandoff(input.winner, input.reveal),
+    candidates: input.comparison.candidates.map((candidate) => ({
+      blindId: candidate.blindId,
+      status: candidate.status,
+      ...(input.reveal ? {
+        model: {
+          registryKey: candidate.model.registryKey,
+          providerId: candidate.model.providerId,
+          modelId: candidate.model.modelId,
+          displayName: candidate.model.displayName,
+        },
+      } : {}),
+    })),
+  }, null, 2)}\n`;
+}
+
+async function saveComparisonJudgmentArtifact(input: {
+  readonly artifactStore?: AgentModelCompareArtifactStore;
+  readonly comparison: StoredComparison;
+  readonly winner: CompareCandidateResult;
+  readonly reasons: string;
+  readonly notes: string;
+  readonly reveal: boolean;
+}): Promise<SavedComparisonArtifact> {
+  if (!input.artifactStore) throw new Error('Cannot save judgment because the artifact store is unavailable.');
+  const judgmentId = `jdg_${randomUUID()}`;
+  const descriptor = await input.artifactStore.create({
+    kind: 'data',
+    mimeType: 'application/json',
+    filename: `blind-model-comparison-judgment-${judgmentId}.json`,
+    text: judgmentArtifactText({
+      judgmentId,
+      comparison: input.comparison,
+      winner: input.winner,
+      reasons: input.reasons,
+      notes: input.notes,
+      reveal: input.reveal,
+    }),
+    metadata: {
+      purpose: 'agent-model-compare-judgment',
+      judgmentId,
+      comparisonId: input.comparison.comparisonId,
+      sourceArtifactId: input.comparison.artifact?.artifactId ?? null,
+      winnerBlindId: input.winner.blindId,
+      promptPreview: input.comparison.promptPreview,
+      revealIncludedInJudgment: input.reveal,
+      ...(input.reveal ? { winnerModel: input.winner.model.registryKey } : {}),
+    },
+  });
+  return toSavedComparisonArtifact(descriptor);
+}
+
+function formatJudgePreview(args: AgentModelCompareToolArgs): string {
+  return [
+    'Agent blind model comparison judgment preview',
+    `  comparison ${readString(args.comparisonId) || readString(args.artifactId) || '(missing)'}`,
+    `  winner ${readString(args.winnerBlindId ?? args.winner) || '(missing)'}`,
+    `  reasons ${previewText(readString(args.reasons) || '(missing)')}`,
+    `  reveal ${readBoolean(args.reveal) ? 'include model identity in judgment' : 'keep judgment blind'}`,
+    '  policy saves a local judgment artifact and never changes the selected model',
+  ].join('\n');
+}
+
+function formatJudgmentResult(input: {
+  readonly comparison: StoredComparison;
+  readonly winner: CompareCandidateResult;
+  readonly artifact: SavedComparisonArtifact;
+  readonly reasons: string;
+  readonly reveal: boolean;
+}): string {
+  const routeHandoff = modelRouteHandoff(input.winner, input.reveal);
+  const lines = [
+    `Blind model comparison judgment saved for ${input.comparison.comparisonId}`,
+    `winner Candidate ${input.winner.blindId}`,
+    ...(input.reveal ? [`winner model ${input.winner.model.registryKey} (${input.winner.model.displayName})`] : []),
+    `artifact ${input.artifact.artifactId}${input.artifact.filename ? ` ${input.artifact.filename}` : ''} (${input.artifact.mimeType}, ${input.artifact.sizeBytes} bytes)`,
+    `reasons ${input.reasons || '(none)'}`,
+    '',
+    'Route handoff',
+    `  inspect ${routeHandoff.routeInspection}`,
+  ];
+  if (input.reveal) {
+    lines.push(`  update ${routeHandoff.confirmedMainRouteUpdate}`);
+  } else {
+    lines.push('  update reveal the winner first, then use a separate confirmed model-routing action');
+  }
+  lines.push('No selected model was changed.');
+  return lines.join('\n');
+}
+
 function formatRunResult(comparison: StoredComparison, reveal: boolean): string {
   const completed = comparison.candidates.filter((candidate) => candidate.status === 'completed').length;
   const lines = [
@@ -497,10 +644,10 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' {
   const mode = readString(value) || MODE_RUN;
-  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW) return mode;
-  throw new Error('mode must be run, reveal, or review.');
+  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW || mode === MODE_JUDGE) return mode;
+  throw new Error('mode must be run, reveal, review, or judge.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -616,8 +763,10 @@ async function saveComparisonArtifact(input: {
 }
 
 function isModelCompareArtifact(artifact: ArtifactDescriptor): boolean {
-  return readString(artifact.metadata.purpose) === 'agent-model-compare'
-    || readString(artifact.filename).startsWith('blind-model-comparison-');
+  const purpose = readString(artifact.metadata.purpose);
+  if (purpose === 'agent-model-compare') return true;
+  if (purpose) return false;
+  return readString(artifact.filename).startsWith('blind-model-comparison-cmp_');
 }
 
 function parseArtifactUsage(value: unknown): ChatResponse['usage'] | undefined {
@@ -716,14 +865,14 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Run, review, or reveal one blind model comparison.',
+      description: 'Run, review, judge, or reveal one blind model comparison.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW],
-            description: 'Use run, review saved outputs, or reveal identities.',
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE],
+            description: 'Use run, review, reveal, or judge a comparison.',
           },
           prompt: {
             type: 'string',
@@ -766,9 +915,25 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             type: 'string',
             description: 'Saved comparison artifact id for review or reveal.',
           },
+          winnerBlindId: {
+            type: 'string',
+            description: 'Candidate label to save as winner, such as A or Candidate B.',
+          },
+          winner: {
+            type: 'string',
+            description: 'Alias for winnerBlindId.',
+          },
+          reasons: {
+            type: 'string',
+            description: 'User-visible reasons for the saved judgment.',
+          },
+          notes: {
+            type: 'string',
+            description: 'Optional extra judgment notes.',
+          },
           confirm: {
             type: 'boolean',
-            description: 'Required true for mode run only when the user requested this comparison.',
+            description: 'Required true for run and judge modes.',
           },
           explicitUserRequest: {
             type: 'string',
@@ -805,6 +970,54 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           }
           rememberComparison(comparisons, comparison);
           return output(mode === MODE_REVEAL ? formatReveal(comparison) : formatReview(comparison, readBoolean(args.reveal)));
+        }
+
+        if (mode === MODE_JUDGE) {
+          const comparisonId = readString(args.comparisonId);
+          const artifactId = readString(args.artifactId);
+          const winnerBlindId = readString(args.winnerBlindId ?? args.winner);
+          const reasons = readString(args.reasons);
+          const explicitUserRequest = readString(args.explicitUserRequest);
+          if (!comparisonId && !artifactId) return failure('judge mode requires comparisonId or artifactId.');
+          if (!winnerBlindId) return failure('winnerBlindId is required for judge mode.');
+          if (!reasons) return failure('reasons are required for judge mode.');
+          if (!explicitUserRequest) {
+            return failure('explicitUserRequest is required so saved judgments stay tied to a direct user request.');
+          }
+          if (!readBoolean(args.confirm)) {
+            return failure([
+              formatJudgePreview(args),
+              '',
+              'Judgment confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to save this judgment.',
+            ].join('\n'));
+          }
+          const comparison = await resolveComparisonForRead({
+            artifactStore: deps.artifactStore,
+            comparisons,
+            comparisonId,
+            artifactId,
+          });
+          if (!comparison) return failure('Unknown comparison. Run a new comparison or pass a saved comparison artifactId.');
+          const winner = findCandidate(comparison, winnerBlindId);
+          if (!winner) {
+            return failure(`Unknown winnerBlindId ${winnerBlindId}. Available candidates: ${comparison.candidates.map((candidate) => candidate.blindId).join(', ')}.`);
+          }
+          const artifact = await saveComparisonJudgmentArtifact({
+            artifactStore: deps.artifactStore,
+            comparison,
+            winner,
+            reasons,
+            notes: readString(args.notes),
+            reveal: readBoolean(args.reveal),
+          });
+          rememberComparison(comparisons, comparison);
+          return output(formatJudgmentResult({
+            comparison,
+            winner,
+            artifact,
+            reasons,
+            reveal: readBoolean(args.reveal),
+          }));
         }
 
         const prompt = readString(args.prompt);

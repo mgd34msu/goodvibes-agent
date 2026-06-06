@@ -280,6 +280,79 @@ describe('agent_model_compare tool', () => {
     expect(reveal.success).toBe(true);
     expect(reveal.output).toContain('A: openai:gpt-4.1 (GPT-4.1)');
     expect(reveal.output).toContain('B: anthropic:claude-sonnet (Claude Sonnet)');
+
+    const preview = await reviewer.tool.execute({
+      mode: 'judge',
+      artifactId: 'artifact-1',
+      winnerBlindId: 'B',
+      reasons: 'Candidate B was more concrete.',
+      confirm: false,
+      explicitUserRequest: 'Save the comparison winner.',
+    });
+    expect(preview.success).toBe(false);
+    expect(preview.error).toContain('comparison judgment preview');
+    expect(artifacts.inputs).toHaveLength(1);
+
+    const judgment = await reviewer.tool.execute({
+      mode: 'judge',
+      artifactId: 'artifact-1',
+      winnerBlindId: 'B',
+      reasons: 'Candidate B was more concrete.',
+      notes: 'Use this as evidence before any route change.',
+      reveal: true,
+      confirm: true,
+      explicitUserRequest: 'Save the comparison winner.',
+    });
+    expect(judgment.success).toBe(true);
+    expect(judgment.output).toContain('Blind model comparison judgment saved');
+    expect(judgment.output).toContain('winner Candidate B');
+    expect(judgment.output).toContain('winner model anthropic:claude-sonnet');
+    expect(judgment.output).toContain('agent_harness mode:"set_setting" key:"provider.model" value:"anthropic:claude-sonnet"');
+    expect(judgment.output).toContain('No selected model was changed.');
+    expect(artifacts.inputs).toHaveLength(2);
+
+    const judgmentPayload = JSON.parse(artifacts.inputs[1]?.text ?? '{}') as {
+      readonly schema?: string;
+      readonly winnerBlindId?: string;
+      readonly winnerModel?: { readonly registryKey?: string };
+      readonly reasons?: string;
+      readonly routeHandoff?: { readonly policy?: string };
+    };
+    expect(judgmentPayload.schema).toBe('goodvibes.agent.model_compare_judgment.v1');
+    expect(judgmentPayload.winnerBlindId).toBe('B');
+    expect(judgmentPayload.winnerModel?.registryKey).toBe('anthropic:claude-sonnet');
+    expect(judgmentPayload.reasons).toBe('Candidate B was more concrete.');
+    expect(judgmentPayload.routeHandoff?.policy).toContain('does not change the selected model');
+
+    const hiddenJudgment = await reviewer.tool.execute({
+      mode: 'judge',
+      artifactId: 'artifact-1',
+      winnerBlindId: 'A',
+      reasons: 'Candidate A was easier to scan.',
+      confirm: true,
+      explicitUserRequest: 'Save the comparison winner without reveal.',
+    });
+    expect(hiddenJudgment.success).toBe(true);
+    expect(hiddenJudgment.output).toContain('winner Candidate A');
+    expect(hiddenJudgment.output).toContain('reveal the winning model before model-route inspection');
+    expect(hiddenJudgment.output).not.toContain('openai:gpt-4.1');
+    expect(hiddenJudgment.output).not.toContain('anthropic:claude-sonnet');
+    expect(artifacts.inputs).toHaveLength(3);
+
+    const hiddenPayload = JSON.parse(artifacts.inputs[2]?.text ?? '{}') as {
+      readonly winnerModel?: unknown;
+      readonly routeHandoff?: { readonly routeInspection?: string };
+      readonly candidates?: readonly { readonly model?: unknown }[];
+    };
+    expect(hiddenPayload.winnerModel).toBeUndefined();
+    expect(hiddenPayload.routeHandoff?.routeInspection).not.toContain('openai:gpt-4.1');
+    expect(hiddenPayload.candidates?.some((candidate) => candidate.model)).toBe(false);
+
+    const listAfterJudgment = await reviewer.tool.execute({ mode: 'review' });
+    expect(listAfterJudgment.success).toBe(true);
+    expect(listAfterJudgment.output).toContain('artifact-1');
+    expect(listAfterJudgment.output).not.toContain('artifact-2');
+    expect(listAfterJudgment.output).not.toContain('artifact-3');
   });
 
   test('can deliberately skip artifact persistence', async () => {

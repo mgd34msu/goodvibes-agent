@@ -2,7 +2,7 @@ import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-bas
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
-import { buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission } from './agent-workspace-model-compare-editor.ts';
+import { buildAgentModelCompareJudgmentPromptSubmission, buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission } from './agent-workspace-model-compare-editor.ts';
 import { buildAgentReminderScheduleEditorSubmission } from './agent-workspace-reminder-schedule-editor.ts';
 import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-routine-schedule-editor.ts';
 import { buildAgentWorkspaceWebResearchSubmission } from './agent-workspace-web-research-editor.ts';
@@ -23,6 +23,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'knowledge-ask'
   | 'model-compare'
   | 'model-compare-review'
+  | 'model-compare-judge'
   | 'mcp-server'
   | 'notify-webhook'
   | 'notify-webhook-remove'
@@ -90,6 +91,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'knowledge-ask'
     || kind === 'model-compare'
     || kind === 'model-compare-review'
+    || kind === 'model-compare-judge'
     || kind === 'routine-schedule'
     || kind === 'reminder-schedule'
     || isAgentWorkspaceBasicCommandEditorKind(kind);
@@ -113,6 +115,9 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'model-compare-review') {
     return buildAgentModelCompareReviewPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'model-compare-judge') {
+    return buildAgentModelCompareJudgmentPromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (isAgentWorkspaceBasicCommandEditorKind(editor.kind)) {
     return buildAgentWorkspaceBasicCommandEditorSubmission(editor, readField, commandDispatchAvailable);

@@ -427,9 +427,10 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Documents & Compare');
     expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Files: attach, paste, source ingest, and export');
-    expect(output).toContain('Saved compare review is available; document editor/history, saved preferences');
+    expect(output).toContain('Saved compare review/judgment are available; document editor/history');
     expect(output).toContain('Run blind compare');
     expect(output).toContain('Review saved compare');
+    expect(output).toContain('Save compare judgment');
     expect(output).toContain('agent_harness mode:"document_ops"');
   });
 

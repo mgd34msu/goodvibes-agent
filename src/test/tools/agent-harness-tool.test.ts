@@ -667,7 +667,7 @@ describe('agent_harness tool', () => {
         readonly nextActions: readonly string[];
       }>(fixture, { mode: 'document_ops', includeParameters: true });
       expect(ops.policy).toContain('model comparison');
-      expect(ops.nextActions.join('\n')).toContain('saved judgments');
+      expect(ops.nextActions.join('\n')).toContain('richer preference analytics');
 
       const documents = ops.lanes.find((lane) => lane.id === 'documents');
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
@@ -685,6 +685,7 @@ describe('agent_harness tool', () => {
       expect(modelCompare?.current).toContain('confirmed blind comparison runner');
       expect(modelCompare?.actionIds).toContain('document-run-compare');
       expect(modelCompare?.actionIds).toContain('document-review-compare');
+      expect(modelCompare?.actionIds).toContain('document-judge-compare');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -869,6 +870,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-review-compare')?.modelRoute).toBe('agent_model_compare');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-judge-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
@@ -2814,6 +2816,39 @@ describe('agent_harness tool', () => {
       expect(review.output).toContain('"status": "executed_model_tool"');
       expect(review.output).toContain('"tool": "agent_model_compare"');
       expect(review.output).toContain('agent_model_compare executed');
+
+      const judgmentUnconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-judge-compare',
+        fields: {
+          artifactId: 'artifact-1',
+          winnerBlindId: 'B',
+          reasons: 'Candidate B was more concrete.',
+          confirm: 'no',
+        },
+        confirm: true,
+        explicitUserRequest: 'Save comparison judgment.',
+      });
+      expect(judgmentUnconfirmed.success).toBe(true);
+      expect(judgmentUnconfirmed.output).toContain('"status": "not_confirmed"');
+
+      const judgment = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-judge-compare',
+        fields: {
+          artifactId: 'artifact-1',
+          winnerBlindId: 'B',
+          reasons: 'Candidate B was more concrete.',
+          reveal: 'yes',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Save comparison judgment.',
+      });
+      expect(judgment.success).toBe(true);
+      expect(judgment.output).toContain('"status": "executed_model_tool"');
+      expect(judgment.output).toContain('"tool": "agent_model_compare"');
+      expect(judgment.output).toContain('agent_model_compare executed');
     } finally {
       fixture.cleanup();
     }

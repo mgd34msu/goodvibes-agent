@@ -78,6 +78,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action renders saved blind comparison artifacts or a read-only review board through the first-class comparison tool; route updates stay separate.',
     };
   }
+  if (editorKind === 'model-compare-judge') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'save_comparison_judgment',
+      confirmation: 'required',
+      note: 'run_workspace_action validates the editor fields and saves a local comparison judgment artifact. It never changes the selected model; route updates require separate confirmation.',
+    };
+  }
   if (isAgentWorkspaceCommandEditorKind(editorKind)) {
     return {
       route: 'slash-command-dispatch',

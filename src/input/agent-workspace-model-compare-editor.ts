@@ -22,6 +22,18 @@ export interface AgentModelCompareReviewWorkspaceToolArgs {
   readonly reveal?: boolean;
 }
 
+export interface AgentModelCompareJudgmentWorkspaceToolArgs {
+  readonly mode: 'judge';
+  readonly comparisonId?: string;
+  readonly artifactId?: string;
+  readonly winnerBlindId: string;
+  readonly reasons: string;
+  readonly notes?: string;
+  readonly reveal?: boolean;
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
+}
+
 function readList(value: string): readonly string[] {
   return value.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean);
 }
@@ -77,6 +89,25 @@ export function createAgentModelCompareReviewEditor(): AgentWorkspaceLocalEditor
   };
 }
 
+export function createAgentModelCompareJudgmentEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'model-compare-judge',
+    mode: 'create',
+    title: 'Save Compare Judgment',
+    selectedFieldIndex: 0,
+    message: 'Save the winning candidate and reasons as a local judgment artifact. This does not change the selected model.',
+    fields: [
+      { id: 'artifactId', label: 'Artifact id', value: '', required: false, multiline: false, hint: 'Saved comparison artifact id such as artifact-123.' },
+      { id: 'comparisonId', label: 'Comparison id', value: '', required: false, multiline: false, hint: 'Comparison id such as cmp_... if known.' },
+      { id: 'winnerBlindId', label: 'Winner', value: '', required: true, multiline: false, hint: 'Candidate label, such as A or Candidate B.' },
+      { id: 'reasons', label: 'Reasons', value: '', required: true, multiline: true, hint: 'Why this candidate won. Ctrl-J inserts a new line.' },
+      { id: 'notes', label: 'Notes', value: '', required: false, multiline: true, hint: 'Optional risks, follow-ups, or rubric notes.' },
+      { id: 'reveal', label: 'Reveal in judgment', value: 'no', required: false, multiline: false, hint: 'yes/no. Yes includes model identity in the saved judgment and route handoff.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save this judgment artifact.' },
+    ],
+  };
+}
+
 export function buildAgentModelCompareToolArgs(
   readField: AgentWorkspaceFieldReader,
   explicitUserRequest: string,
@@ -114,6 +145,26 @@ export function buildAgentModelCompareReviewToolArgs(
     ...(artifactId ? { artifactId } : {}),
     ...(comparisonId ? { comparisonId } : {}),
     reveal,
+  };
+}
+
+export function buildAgentModelCompareJudgmentToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentModelCompareJudgmentWorkspaceToolArgs {
+  const artifactId = readField('artifactId').trim();
+  const comparisonId = readField('comparisonId').trim();
+  const notes = readField('notes').trim();
+  return {
+    mode: 'judge',
+    ...(artifactId ? { artifactId } : {}),
+    ...(comparisonId ? { comparisonId } : {}),
+    winnerBlindId: readField('winnerBlindId').trim(),
+    reasons: readField('reasons').trim(),
+    ...(notes ? { notes } : {}),
+    reveal: isAffirmative(readField('reveal')),
+    confirm: true,
+    explicitUserRequest,
   };
 }
 
@@ -257,6 +308,88 @@ export function buildAgentModelCompareReviewPromptSubmission(
       title: 'Saved comparison review',
       detail: 'Submitted a read-only request to review saved blind comparison artifacts.',
       safety: 'read-only',
+    },
+  };
+}
+
+export function buildAgentModelCompareJudgmentPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!isAffirmative(readField('confirm'))) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        selectedFieldIndex: Math.max(0, editor.fields.findIndex((field) => field.id === 'confirm')),
+        message: 'Judgment not confirmed. Type yes, then press Enter.',
+      },
+      status: 'Judgment not confirmed.',
+      actionResult: {
+        kind: 'error',
+        title: 'Judgment not confirmed',
+        detail: 'Type yes on the confirmation field before saving the judgment artifact.',
+        safety: 'safe',
+      },
+    };
+  }
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the comparison judgment request from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const artifactId = readField('artifactId').trim();
+  const comparisonId = readField('comparisonId').trim();
+  const winnerBlindId = readField('winnerBlindId').trim();
+  const reasons = readField('reasons').trim();
+  const notes = readField('notes').trim();
+  const reveal = isAffirmative(readField('reveal'));
+  const explicitUserRequest = 'Save the blind model comparison judgment from the Agent workspace form.';
+  const prompt = [
+    'Save a blind model comparison judgment with the `agent_model_compare` tool.',
+    'Use confirm:true because this workspace form was explicitly confirmed by the user.',
+    `Use explicitUserRequest: ${JSON.stringify(explicitUserRequest)}.`,
+    artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
+    comparisonId ? `Use comparisonId: ${JSON.stringify(comparisonId)}.` : 'No comparisonId was provided.',
+    `Winner blind id: ${winnerBlindId || '(missing)'}.`,
+    `Reasons: ${reasons || '(missing)'}.`,
+    notes ? `Notes: ${notes}.` : 'Notes: none.',
+    `Reveal model identity in judgment: ${reveal ? 'yes' : 'no'}.`,
+    'Do not change the selected model after saving the judgment unless the user asks for that route update separately.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting saved comparison judgment request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Saved comparison judgment',
+      detail: 'Submitted a confirmed request to save a local comparison judgment artifact.',
+      safety: 'safe',
     },
   };
 }
