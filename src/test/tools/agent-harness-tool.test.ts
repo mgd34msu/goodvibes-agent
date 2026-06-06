@@ -6857,6 +6857,27 @@ describe('agent_harness tool', () => {
       expect(review.output).toContain('"tool": "agent_model_compare"');
       expect(review.output).toContain('agent_model_compare executed');
 
+      const sideBySide = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-review-compare',
+        fields: {
+          view: 'sideBySide',
+          artifactId: 'artifact-2',
+          relatedArtifactIds: 'artifact-doc',
+          previewBytes: '600',
+        },
+      });
+      expect(sideBySide.success).toBe(true);
+      expect(sideBySide.output).toContain('"status": "executed_model_tool"');
+      expect(sideBySide.output).toContain('"tool": "agent_model_compare"');
+      expect(sideBySide.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'sideBySide',
+        artifactId: 'artifact-2',
+        relatedArtifactIds: ['artifact-doc'],
+        previewBytes: 600,
+      });
+
       const judgmentUnconfirmed = await fixture.tool.execute({
         mode: 'run_workspace_action',
         actionId: 'document-judge-compare',

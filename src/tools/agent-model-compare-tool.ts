@@ -24,6 +24,7 @@ export interface AgentModelCompareToolArgs {
   readonly limit?: unknown;
   readonly includeReasons?: unknown;
   readonly relatedArtifactIds?: unknown;
+  readonly previewBytes?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -128,6 +129,7 @@ interface ComparisonArtifactStatus {
 const MODE_RUN = 'run';
 const MODE_REVEAL = 'reveal';
 const MODE_REVIEW = 'review';
+const MODE_SIDE_BY_SIDE = 'sideBySide';
 const MODE_JUDGE = 'judge';
 const MODE_APPLY = 'apply';
 const MODE_EXPORT = 'export';
@@ -144,6 +146,8 @@ const MAX_COMPLETION_TOKENS = 8_192;
 const DEFAULT_CANDIDATE_OUTPUT_CHARS = 12_000;
 const MAX_SOURCE_ARTIFACT_BYTES = 18_000;
 const MAX_HANDOFF_ARTIFACT_BYTES = 40_000;
+const DEFAULT_SIDE_BY_SIDE_PREVIEW_BYTES = 2_000;
+const MAX_SIDE_BY_SIDE_PREVIEW_BYTES = 10_000;
 const COMPARISON_STORE_LIMIT = 25;
 const BLIND_LABELS = ['A', 'B', 'C', 'D'] as const;
 
@@ -470,7 +474,7 @@ function formatSavedComparisonArtifacts(artifactStore?: AgentModelCompareArtifac
       return `  ${artifact.id} ${comparisonId} candidates ${completed}/${count} prompt ${promptPreview}`;
     }),
     '',
-    'Review one with mode:"review" and artifactId, or reveal with mode:"reveal" after judging.',
+    'Review one with mode:"review" and artifactId, render related evidence with mode:"sideBySide", or reveal with mode:"reveal" after judging.',
   ].join('\n');
 }
 
@@ -1045,6 +1049,7 @@ async function saveComparisonExportArtifact(input: {
 async function loadHandoffRelatedArtifacts(
   artifactStore: AgentModelCompareArtifactStore | undefined,
   artifactIds: readonly string[],
+  maxBytes = MAX_HANDOFF_ARTIFACT_BYTES,
 ): Promise<readonly { readonly artifact: SavedComparisonArtifact; readonly text?: string; readonly truncatedBytes: number }[]> {
   if (!artifactStore?.readContent) {
     throw new Error('Reviewer handoff requires an artifact store with readContent support.');
@@ -1057,7 +1062,7 @@ async function loadHandoffRelatedArtifacts(
       related.push({ artifact, truncatedBytes: 0 });
       continue;
     }
-    const sliced = buffer.subarray(0, Math.min(buffer.byteLength, MAX_HANDOFF_ARTIFACT_BYTES));
+    const sliced = buffer.subarray(0, Math.min(buffer.byteLength, maxBytes));
     related.push({
       artifact,
       text: sliced.toString('utf-8').replace(/\0/g, '').trimEnd(),
@@ -1116,6 +1121,100 @@ function comparisonHandoffMarkdown(input: {
   lines.push(input.comparisonMarkdown);
   lines.push('');
   return lines.join('\n');
+}
+
+function formatRelatedArtifactEvidence(input: {
+  readonly artifacts: readonly { readonly artifact: SavedComparisonArtifact; readonly text?: string; readonly truncatedBytes: number }[];
+  readonly previewBytes: number;
+}): readonly string[] {
+  if (input.artifacts.length === 0) return ['  No related artifacts were provided.'];
+  const lines: string[] = [];
+  for (const related of input.artifacts) {
+    lines.push(`  ${related.artifact.artifactId}${related.artifact.filename ? ` ${related.artifact.filename}` : ''} (${related.artifact.mimeType}, ${related.artifact.sizeBytes} bytes)`);
+    if (related.text === undefined) {
+      lines.push('    non-text artifact; content omitted');
+      continue;
+    }
+    const excerpt = previewText(related.text || '(empty text artifact)', input.previewBytes)
+      .split('\n')
+      .map((line) => `    ${line}`)
+      .join('\n');
+    lines.push(excerpt);
+    if (related.truncatedBytes > 0) lines.push(`    truncated ${related.truncatedBytes} byte(s)`);
+  }
+  return lines;
+}
+
+function formatComparisonEvidencePane(input: {
+  readonly comparison?: StoredComparison;
+  readonly judgment?: LoadedComparisonJudgment;
+  readonly reveal: boolean;
+  readonly previewBytes: number;
+}): readonly string[] {
+  if (input.judgment) {
+    const judgment = input.judgment;
+    return [
+      `  judgment ${judgment.judgmentId}`,
+      `  comparison ${judgment.comparisonId}`,
+      `  winner Candidate ${judgment.winnerBlindId}`,
+      `  winner model ${judgment.winnerModel ? `${judgment.winnerModel.registryKey} (${judgment.winnerModel.displayName})` : '(not revealed)'}`,
+      `  reasons ${previewText(judgment.reasons || '(none)', input.previewBytes)}`,
+      ...(judgment.notes ? [`  notes ${previewText(judgment.notes, input.previewBytes)}`] : []),
+    ];
+  }
+  const comparison = input.comparison;
+  if (!comparison) return ['  No comparison evidence loaded.'];
+  const lines = [
+    `  comparison ${comparison.comparisonId}`,
+    `  prompt ${comparison.promptPreview}`,
+    `  rubric ${comparison.rubric || '(none)'}`,
+    `  candidates ${comparison.candidates.length}`,
+  ];
+  for (const candidate of comparison.candidates) {
+    lines.push(`  Candidate ${candidate.blindId}: ${candidate.status}; latency ${candidate.latencyMs}ms`);
+    if (input.reveal) lines.push(`    model ${candidate.model.registryKey} (${candidate.model.displayName})`);
+    if (candidate.status === 'failed') {
+      lines.push(`    error ${input.reveal ? candidate.error ?? 'unknown' : 'Provider-specific error hidden until reveal.'}`);
+      continue;
+    }
+    lines.push(`    output ${previewText(candidate.content || '(empty)', input.previewBytes)}`);
+  }
+  return lines;
+}
+
+function formatSideBySideReview(input: {
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly sourceArtifactId: string;
+  readonly comparisonId: string;
+  readonly comparison?: StoredComparison;
+  readonly judgment?: LoadedComparisonJudgment;
+  readonly reveal: boolean;
+  readonly relatedArtifacts: readonly { readonly artifact: SavedComparisonArtifact; readonly text?: string; readonly truncatedBytes: number }[];
+  readonly previewBytes: number;
+}): string {
+  return [
+    'Blind model comparison side-by-side reviewer view',
+    `comparison ${input.comparisonId}`,
+    `source ${input.sourceArtifactId} (${input.sourceKind})`,
+    `related artifacts ${input.relatedArtifacts.length}`,
+    `preview bytes ${input.previewBytes}`,
+    '',
+    'Left pane: related document/artifact evidence',
+    ...formatRelatedArtifactEvidence({ artifacts: input.relatedArtifacts, previewBytes: input.previewBytes }),
+    '',
+    'Right pane: comparison evidence',
+    ...formatComparisonEvidencePane({
+      comparison: input.comparison,
+      judgment: input.judgment,
+      reveal: input.reveal,
+      previewBytes: input.previewBytes,
+    }),
+    '',
+    'Reviewer next actions',
+    `  create handoff agent_model_compare mode:"handoff" artifactId:"${input.sourceArtifactId}" relatedArtifactIds:${JSON.stringify(input.relatedArtifacts.map((entry) => entry.artifact.artifactId))} confirm:true explicitUserRequest:"..."`,
+    `  export report agent_model_compare mode:"export" artifactId:"${input.sourceArtifactId}" confirm:true explicitUserRequest:"..."`,
+    'No selected model was changed.',
+  ].join('\n');
 }
 
 async function saveComparisonHandoffArtifact(input: {
@@ -1257,12 +1356,13 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' | 'handoff' | 'analytics' | 'synthesis' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' | 'judge' | 'apply' | 'export' | 'handoff' | 'analytics' | 'synthesis' {
   const mode = readString(value) || MODE_RUN;
   if (
     mode === MODE_RUN
     || mode === MODE_REVEAL
     || mode === MODE_REVIEW
+    || mode === MODE_SIDE_BY_SIDE
     || mode === MODE_JUDGE
     || mode === MODE_APPLY
     || mode === MODE_EXPORT
@@ -1270,7 +1370,7 @@ function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'app
     || mode === MODE_ANALYTICS
     || mode === MODE_SYNTHESIS
   ) return mode;
-  throw new Error('mode must be run, reveal, review, judge, apply, export, handoff, analytics, or synthesis.');
+  throw new Error('mode must be run, reveal, review, sideBySide, judge, apply, export, handoff, analytics, or synthesis.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -1559,7 +1659,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_HANDOFF, MODE_ANALYTICS, MODE_SYNTHESIS],
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_SIDE_BY_SIDE, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_HANDOFF, MODE_ANALYTICS, MODE_SYNTHESIS],
             description: 'Select compare workflow mode.',
           },
           prompt: {
@@ -1635,7 +1735,11 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           relatedArtifactIds: {
             type: 'array',
             items: { type: 'string' },
-            description: 'Related artifacts for reviewer handoff.',
+            description: 'Related artifacts for reviewer view or handoff.',
+          },
+          previewBytes: {
+            type: 'number',
+            description: 'Max bytes per related artifact preview.',
           },
           confirm: {
             type: 'boolean',
@@ -1676,6 +1780,52 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           }
           rememberComparison(comparisons, comparison);
           return output(mode === MODE_REVEAL ? formatReveal(comparison) : formatReview(comparison, readBoolean(args.reveal)));
+        }
+
+        if (mode === MODE_SIDE_BY_SIDE) {
+          const artifactId = readString(args.artifactId);
+          if (!artifactId) {
+            return output([
+              formatSavedComparisonArtifacts(deps.artifactStore),
+              '',
+              'Choose a saved comparison or judgment artifactId to render a side-by-side reviewer view.',
+            ].join('\n'));
+          }
+          if (!deps.artifactStore?.readContent) {
+            return failure('Side-by-side reviewer view is unavailable because this runtime cannot read artifact content.');
+          }
+          const relatedArtifactIds = readStringList(args.relatedArtifactIds).filter((relatedId) => relatedId !== artifactId);
+          const previewBytes = clamp(
+            readNumber(args.previewBytes, DEFAULT_SIDE_BY_SIDE_PREVIEW_BYTES),
+            200,
+            MAX_SIDE_BY_SIDE_PREVIEW_BYTES,
+          );
+          const comparison = await loadComparisonFromArtifact(deps.artifactStore, artifactId);
+          if (comparison) {
+            const relatedArtifacts = await loadHandoffRelatedArtifacts(deps.artifactStore, relatedArtifactIds, previewBytes);
+            rememberComparison(comparisons, comparison);
+            return output(formatSideBySideReview({
+              sourceKind: 'comparison',
+              sourceArtifactId: artifactId,
+              comparisonId: comparison.comparisonId,
+              comparison,
+              reveal: readBoolean(args.reveal),
+              relatedArtifacts,
+              previewBytes,
+            }));
+          }
+          const judgment = await loadJudgmentFromArtifact(deps.artifactStore, artifactId);
+          if (!judgment) return failure('Unknown comparison or judgment artifact. Pass a saved blind model comparison artifactId.');
+          const relatedArtifacts = await loadHandoffRelatedArtifacts(deps.artifactStore, relatedArtifactIds, previewBytes);
+          return output(formatSideBySideReview({
+            sourceKind: 'judgment',
+            sourceArtifactId: artifactId,
+            comparisonId: judgment.comparisonId,
+            judgment,
+            reveal: judgment.revealIncludedInJudgment,
+            relatedArtifacts,
+            previewBytes,
+          }));
         }
 
         if (mode === MODE_ANALYTICS) {

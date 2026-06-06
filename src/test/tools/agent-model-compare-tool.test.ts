@@ -623,6 +623,31 @@ describe('agent_model_compare tool', () => {
     });
     expect(documentExport.id).toBe('artifact-6');
 
+    const sideBySide = await reviewer.tool.execute({
+      mode: 'sideBySide',
+      artifactId: 'artifact-2',
+      relatedArtifactIds: [documentExport.id],
+      previewBytes: 600,
+    });
+    expect(sideBySide.success).toBe(true);
+    expect(sideBySide.output).toContain('Blind model comparison side-by-side reviewer view');
+    expect(sideBySide.output).toContain('Left pane: related document/artifact evidence');
+    expect(sideBySide.output).toContain('Right pane: comparison evidence');
+    expect(sideBySide.output).toContain('artifact-6 launch-plan.md');
+    expect(sideBySide.output).toContain('# Launch Plan');
+    expect(sideBySide.output).toContain('winner Candidate B');
+    expect(sideBySide.output).toContain('winner model anthropic:claude-sonnet');
+    expect(sideBySide.output).toContain('create handoff agent_model_compare mode:"handoff"');
+    expect(sideBySide.output).toContain('No selected model was changed.');
+    expect(artifacts.inputs).toHaveLength(6);
+
+    const sideBySideList = await reviewer.tool.execute({ mode: 'sideBySide' });
+    expect(sideBySideList.success).toBe(true);
+    expect(sideBySideList.output).toContain('Saved blind comparison artifacts');
+    expect(sideBySideList.output).toContain('mode:"sideBySide"');
+    expect(sideBySideList.output).toContain('Choose a saved comparison or judgment artifactId');
+    expect(artifacts.inputs).toHaveLength(6);
+
     const handoffPreview = await reviewer.tool.execute({
       mode: 'handoff',
       artifactId: 'artifact-2',

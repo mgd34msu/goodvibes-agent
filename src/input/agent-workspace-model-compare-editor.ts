@@ -18,9 +18,11 @@ export interface AgentModelCompareWorkspaceToolArgs {
 }
 
 export interface AgentModelCompareReviewWorkspaceToolArgs {
-  readonly mode: 'review';
+  readonly mode: 'review' | 'sideBySide';
   readonly comparisonId?: string;
   readonly artifactId?: string;
+  readonly relatedArtifactIds?: readonly string[];
+  readonly previewBytes?: number;
   readonly reveal?: boolean;
 }
 
@@ -139,10 +141,13 @@ export function createAgentModelCompareReviewEditor(): AgentWorkspaceLocalEditor
     mode: 'create',
     title: 'Review Saved Compare',
     selectedFieldIndex: 0,
-    message: 'Review saved blind model comparison artifacts. Leave ids blank to list recent saved comparisons; set Reveal to yes only after judging.',
+    message: 'Review saved blind model comparison artifacts, or render a side-by-side reviewer view with related document/artifact ids. Leave ids blank to list recent saved comparisons.',
     fields: [
+      { id: 'view', label: 'View', value: 'review', required: false, multiline: false, hint: 'review or sideBySide. Side-by-side compares related artifact excerpts with saved comparison evidence.' },
       { id: 'artifactId', label: 'Artifact id', value: '', required: false, multiline: false, hint: 'Saved artifact id such as artifact-123. Blank lists recent saved comparisons.' },
       { id: 'comparisonId', label: 'Comparison id', value: '', required: false, multiline: false, hint: 'Comparison id such as cmp_... if known. Artifact id is usually easier.' },
+      { id: 'relatedArtifactIds', label: 'Related artifacts', value: '', required: false, multiline: true, hint: 'For sideBySide: document export, archive, or artifact ids, separated by commas or new lines.' },
+      { id: 'previewBytes', label: 'Preview bytes', value: '2000', required: false, multiline: false, hint: 'For sideBySide: max bytes per related artifact preview, 200 to 10000.' },
       { id: 'reveal', label: 'Reveal', value: 'no', required: false, multiline: false, hint: 'yes/no. No keeps identities hidden and renders the blind review board.' },
     ],
   };
@@ -246,13 +251,18 @@ export function buildAgentModelCompareToolArgs(
 export function buildAgentModelCompareReviewToolArgs(
   readField: AgentWorkspaceFieldReader,
 ): AgentModelCompareReviewWorkspaceToolArgs {
+  const mode = readField('view').trim() === 'sideBySide' ? 'sideBySide' : 'review';
   const artifactId = readField('artifactId').trim();
   const comparisonId = readField('comparisonId').trim();
+  const relatedArtifactIds = readList(readField('relatedArtifactIds'));
+  const previewBytes = readPositiveInteger(readField('previewBytes'));
   const reveal = isAffirmative(readField('reveal'));
   return {
-    mode: 'review',
+    mode,
     ...(artifactId ? { artifactId } : {}),
     ...(comparisonId ? { comparisonId } : {}),
+    ...(relatedArtifactIds.length > 0 ? { relatedArtifactIds } : {}),
+    ...(previewBytes !== null ? { previewBytes } : {}),
     reveal,
   };
 }
@@ -441,13 +451,21 @@ export function buildAgentModelCompareReviewPromptSubmission(
     };
   }
 
+  const mode = readField('view').trim() === 'sideBySide' ? 'sideBySide' : 'review';
   const artifactId = readField('artifactId').trim();
   const comparisonId = readField('comparisonId').trim();
+  const relatedArtifactIds = readList(readField('relatedArtifactIds'));
+  const previewBytes = readPositiveInteger(readField('previewBytes')) ?? 2000;
   const reveal = isAffirmative(readField('reveal'));
   const prompt = [
-    'Review a saved blind model comparison with the `agent_model_compare` tool.',
+    mode === 'sideBySide'
+      ? 'Render a side-by-side reviewer view for a saved blind model comparison with the `agent_model_compare` tool.'
+      : 'Review a saved blind model comparison with the `agent_model_compare` tool.',
+    `Use mode:"${mode}".`,
     artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
     comparisonId ? `Use comparisonId: ${JSON.stringify(comparisonId)}.` : 'No comparisonId was provided.',
+    relatedArtifactIds.length > 0 ? `Related artifact ids: ${relatedArtifactIds.join(', ')}.` : 'Related artifact ids: none.',
+    `Preview bytes: ${previewBytes}.`,
     `Reveal identities in the review: ${reveal ? 'yes' : 'no'}.`,
     'If no ids were provided, list recent saved comparison artifacts.',
     'Do not change the selected model after the review unless the user asks for that route update separately.',
@@ -456,11 +474,13 @@ export function buildAgentModelCompareReviewPromptSubmission(
   return {
     kind: 'prompt',
     prompt,
-    status: 'Submitting saved comparison review request.',
+    status: `Submitting saved comparison ${mode} request.`,
     actionResult: {
       kind: 'guidance',
-      title: 'Saved comparison review',
-      detail: 'Submitted a read-only request to review saved blind comparison artifacts.',
+      title: mode === 'sideBySide' ? 'Side-by-side compare review' : 'Saved comparison review',
+      detail: mode === 'sideBySide'
+        ? 'Submitted a read-only request to compare related artifact excerpts with saved comparison evidence.'
+        : 'Submitted a read-only request to review saved blind comparison artifacts.',
       safety: 'read-only',
     },
   };

@@ -347,7 +347,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: modelCompareReady ? 'partial' : 'gap',
       outcome: 'Run the same prompt across multiple models, hide model identities while judging, save a judgment, then apply the revealed winner only after confirmation.',
       current: modelCompareReady
-        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt or saved text artifact delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics/synthesis, markdown report export, reviewer handoff artifacts, and a separate confirmed winner route update.'
+        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt or saved text artifact delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, side-by-side reviewer views, confirmed saved judgment artifacts, saved preference analytics/synthesis, markdown report export, reviewer handoff artifacts, and a separate confirmed winner route update.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
         ? 'Use cross-session synthesis and reviewer handoffs around saved comparison, judgment, export, route-update, and source-artifact reuse artifacts.'
@@ -359,7 +359,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Blind compare runner: ${modelCompareReady ? 'available' : 'gap'}`,
         `Saved comparison artifact: ${modelCompareReady && context.platform.artifactStore ? 'available' : 'gap'}`,
         `Artifact-to-compare reuse: ${modelCompareActions.includes('document-run-compare') ? 'available' : 'gap'}`,
-        `Saved review board: ${modelCompareActions.includes('document-review-compare') ? 'available' : 'gap'}`,
+        `Saved review board/side-by-side view: ${modelCompareActions.includes('document-review-compare') ? 'available' : 'gap'}`,
         `Saved judgment artifact: ${modelCompareActions.includes('document-judge-compare') ? 'available' : 'gap'}`,
         `Saved preference analytics/synthesis: ${modelCompareActions.includes('document-compare-analytics') ? 'available' : 'gap'}`,
         `Winner route update: ${modelCompareActions.includes('document-apply-compare') ? 'available' : 'gap'}`,
