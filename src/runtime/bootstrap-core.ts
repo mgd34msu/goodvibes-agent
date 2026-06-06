@@ -41,6 +41,8 @@ import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-sched
 import { getTerminalSize } from '../shell/terminal-size.ts';
 import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
+import { installToolExecutionSafetyGuard } from '../tools/tool-execution-safety.ts';
+import { installPermissionManagerSafetyGuard } from './tool-permission-safety.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentRuntimeEvents } from './agent-runtime-events.ts';
 
@@ -251,6 +253,7 @@ export async function initializeBootstrapCore(
   installAgentToolPolicyGuard(toolRegistry, {
     getLastUserMessage: () => conversation.getLastUserMessage(),
   });
+  installToolExecutionSafetyGuard(toolRegistry);
   compactRegisteredToolDefinitions(toolRegistry);
   services.agentOrchestrator.setDependencies({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
@@ -432,6 +435,7 @@ export async function initializeBootstrapCore(
     services.hookDispatcher,
     featureFlags,
   );
+  installPermissionManagerSafetyGuard(permissionManager);
   await hookWorkbench.loadAndApplyManagedHooks();
 
   const runtime: MutableRuntimeState = {

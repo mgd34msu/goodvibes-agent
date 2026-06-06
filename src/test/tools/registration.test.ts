@@ -16,6 +16,8 @@ import { ModeManager } from '@pellux/goodvibes-sdk/platform/state';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { createWorkflowServices } from '@pellux/goodvibes-sdk/platform/tools';
 import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
+import { installAgentToolPolicyGuard } from '../../tools/agent-tool-policy-guard.ts';
+import { installToolExecutionSafetyGuard } from '../../tools/tool-execution-safety.ts';
 
 function registerTools(registry: ToolRegistry): void {
   const services = createTestManagers();
@@ -118,6 +120,49 @@ describe('registerAllTools', () => {
     registerTools(registry);
     for (const tool of registry.list()) {
       expect(typeof tool.execute).toBe('function');
+    }
+  });
+
+  test('Agent-guarded platform tools all return structured results instead of throwing', async () => {
+    const registry = new ToolRegistry();
+    registerTools(registry);
+    installAgentToolPolicyGuard(registry);
+    installToolExecutionSafetyGuard(registry);
+
+    const smokeArgs: Record<string, Record<string, unknown>> = {
+      agent: { mode: 'list' },
+      analyze: { mode: 'impact', target: 'package.json' },
+      channel: { mode: 'accounts' },
+      control: { mode: 'commands' },
+      edit: {},
+      exec: { commands: [] },
+      fetch: { urls: [] },
+      find: { mode: 'files', query: 'package.json' },
+      goodvibes_context: { mode: 'summary' },
+      goodvibes_settings: { mode: 'set', key: 'provider.model', confirm: false },
+      inspect: { mode: 'project' },
+      mcp: { mode: 'servers' },
+      packet: { mode: 'list' },
+      query: { mode: 'list' },
+      read: {},
+      registry: { mode: 'list' },
+      remote: { mode: 'pools' },
+      repl: {},
+      state: { mode: 'get' },
+      task: { mode: 'list' },
+      team: { mode: 'list' },
+      web_search: { query: 'goodvibes', topN: 1 },
+      workflow: { mode: 'list' },
+      worklist: { mode: 'list' },
+      write: {},
+    };
+
+    for (const tool of registry.list()) {
+      const callId = `smoke-${tool.definition.name}`;
+      const result = await registry.execute(callId, tool.definition.name, smokeArgs[tool.definition.name] ?? {});
+      expect(result.callId, tool.definition.name).toBe(callId);
+      expect(typeof result.success, tool.definition.name).toBe('boolean');
+      expect(result.success || typeof result.error === 'string' || typeof result.output === 'string', tool.definition.name).toBe(true);
     }
   });
 });

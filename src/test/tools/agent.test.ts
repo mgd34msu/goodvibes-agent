@@ -13,7 +13,7 @@ import {
   AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES,
   AGENT_CHANNEL_ACTION_DENIAL_MESSAGE,
   AGENT_CONTROL_MUTATION_DENIAL_MESSAGE,
-  AGENT_CONTEXT_TOOL_DENIAL_MESSAGE,
+  AGENT_CONTEXT_TOOL_COMPATIBILITY_MODES,
   AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE,
   AGENT_EXEC_BACKGROUND_DENIAL_MESSAGE,
   AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE,
@@ -276,6 +276,26 @@ function makeContextTool(): Tool {
       sideEffects: ['read_fs'],
     },
     execute: async () => ({ success: true, output: 'copied context exposed' }),
+  };
+}
+
+function makeHarnessAliasTargetTool(): Tool {
+  return {
+    definition: {
+      name: 'agent_harness',
+      description: 'harness alias target test tool',
+      parameters: {
+        type: 'object',
+        properties: {
+          mode: { type: 'string' },
+          query: { type: 'string' },
+          target: { type: 'string' },
+          includeParameters: { type: 'boolean' },
+        },
+      },
+      sideEffects: ['state'],
+    },
+    execute: async (args) => ({ success: true, output: JSON.stringify({ received: args }) }),
   };
 }
 
@@ -1216,29 +1236,48 @@ describe('spawn mode', () => {
     expect(result.error).toBe(AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE);
   });
 
-  test('Agent runtime guard blocks copied runtime context tool from the model surface', async () => {
+  test('Agent runtime guard routes copied runtime context tool to the Agent harness surface', async () => {
     const registry = new ToolRegistry();
     const guarded = makeAgentHarness();
     registry.register(guarded.agentTool);
     registry.register(makeContextTool());
 
     installAgentToolPolicyGuard(registry);
+    registry.register(makeHarnessAliasTargetTool());
 
     const contextDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'goodvibes_context');
-    expect(contextDefinition?.description).toBe('Blocked in GoodVibes Agent: non-Agent runtime context.');
+    expect(contextDefinition?.description).toBe('Inspect GoodVibes Agent harness capabilities.');
     expect(contextDefinition?.sideEffects).toEqual([]);
     const properties = contextDefinition?.parameters.properties as Record<string, unknown>;
-    expect(properties.mode).toBeUndefined();
+    expect((properties.mode as { readonly enum?: readonly string[] }).enum).toEqual([...AGENT_CONTEXT_TOOL_COMPATIBILITY_MODES]);
     expect(properties.includeAllSpaces).toBeUndefined();
     expect(properties.knowledgeSpaceId).toBeUndefined();
     expect(contextDefinition?.parameters.additionalProperties).toBe(false);
 
-    const result = await registry.execute('call-context-blocked', 'goodvibes_context', {
+    const result = await registry.execute('call-context-alias', 'goodvibes_context', {
+      mode: 'capabilities',
+      query: 'tools',
+    });
+    expect(result.success).toBe(true);
+    const payload = JSON.parse(result.output ?? '{}') as {
+      readonly source?: string;
+      readonly route?: string;
+      readonly result?: { readonly received?: Record<string, unknown> };
+    };
+    expect(payload.source).toBe('agent_harness');
+    expect(payload.route).toBe('agent_harness mode:"summary"');
+    expect(payload.result?.received).toMatchObject({
+      mode: 'summary',
+      query: 'tools',
+      includeParameters: true,
+    });
+
+    const legacy = await registry.execute('call-context-legacy', 'goodvibes_context', {
       mode: ['home', 'graph'].join(''),
       includeAllSpaces: true,
     });
-    expect(result.success).toBe(false);
-    expect(result.error).toBe(AGENT_CONTEXT_TOOL_DENIAL_MESSAGE);
+    expect(legacy.success).toBe(true);
+    expect(legacy.output).not.toContain('copied context exposed');
   });
 
   test('Agent runtime guard keeps inspect scaffold dry-run-only from the model surface', async () => {
