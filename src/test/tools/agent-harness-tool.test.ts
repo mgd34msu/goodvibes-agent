@@ -7724,6 +7724,25 @@ describe('agent_harness tool', () => {
         previewBytes: 600,
       });
 
+      const handoffDiff = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-review-compare',
+        fields: {
+          view: 'handoffDiff',
+          leftArtifactId: 'artifact-7',
+          rightArtifactId: 'artifact-10',
+        },
+      });
+      expect(handoffDiff.success).toBe(true);
+      expect(handoffDiff.output).toContain('"status": "executed_model_tool"');
+      expect(handoffDiff.output).toContain('"tool": "agent_model_compare"');
+      expect(handoffDiff.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'handoffDiff',
+        leftArtifactId: 'artifact-7',
+        rightArtifactId: 'artifact-10',
+      });
+
       const judgmentUnconfirmed = await fixture.tool.execute({
         mode: 'run_workspace_action',
         actionId: 'document-judge-compare',

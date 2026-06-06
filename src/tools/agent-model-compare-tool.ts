@@ -24,6 +24,8 @@ export interface AgentModelCompareToolArgs {
   readonly benchmarkKind?: unknown;
   readonly comparisonId?: unknown;
   readonly artifactId?: unknown;
+  readonly leftArtifactId?: unknown;
+  readonly rightArtifactId?: unknown;
   readonly winner?: unknown;
   readonly winnerBlindId?: unknown;
   readonly reasons?: unknown;
@@ -162,6 +164,7 @@ const MODE_APPLY = 'apply';
 const MODE_EXPORT = 'export';
 const MODE_HANDOFF = 'handoff';
 const MODE_HANDOFF_ARCHIVE = 'handoffArchive';
+const MODE_HANDOFF_DIFF = 'handoffDiff';
 const MODE_ANALYTICS = 'analytics';
 const MODE_SYNTHESIS = 'synthesis';
 const MAX_PROMPT_CHARS = 24_000;
@@ -174,6 +177,9 @@ const DEFAULT_CANDIDATE_OUTPUT_CHARS = 12_000;
 const MAX_SOURCE_ARTIFACT_BYTES = 18_000;
 const MAX_HANDOFF_ARTIFACT_BYTES = 40_000;
 const MAX_HANDOFF_ARCHIVE_ARTIFACTS = 100;
+const MAX_HANDOFF_DIFF_INPUT_LINES = 360;
+const MAX_HANDOFF_DIFF_ROWS = 120;
+const MAX_HANDOFF_DIFF_SECTION_PREVIEW_CHARS = 180;
 const DEFAULT_SIDE_BY_SIDE_PREVIEW_BYTES = 2_000;
 const MAX_SIDE_BY_SIDE_PREVIEW_BYTES = 10_000;
 const COMPARISON_STORE_LIMIT = 25;
@@ -554,7 +560,7 @@ function formatSavedHandoffArtifacts(artifactStore?: AgentModelCompareArtifactSt
       return `  ${artifact.id} ${handoffId} comparison ${comparisonId} source ${sourceArtifactId} (${sourceKind}) related ${relatedArtifactIds.length}`;
     }),
     '',
-    'Archive one with mode:"handoffArchive" and artifactId, then export the saved ZIP artifact with agent_artifacts.',
+    'Archive one with mode:"handoffArchive" and artifactId, compare two with mode:"handoffDiff" plus leftArtifactId/rightArtifactId.',
   ].join('\n');
 }
 
@@ -1497,6 +1503,201 @@ async function loadHandoffFromArtifact(
   };
 }
 
+interface LoadedHandoffDiffArtifact {
+  readonly handoff: LoadedComparisonHandoff;
+  readonly text: string;
+  readonly truncatedBytes: number;
+  readonly originalLineCount: number;
+}
+
+interface HandoffDiffRow {
+  readonly kind: 'same' | 'left' | 'right';
+  readonly text: string;
+}
+
+async function loadHandoffDiffArtifact(
+  artifactStore: AgentModelCompareArtifactStore | undefined,
+  artifactId: string,
+): Promise<LoadedHandoffDiffArtifact | null> {
+  if (!artifactStore?.readContent) return null;
+  const { record, buffer } = await artifactStore.readContent(artifactId);
+  if (!isModelCompareHandoffArtifact(record)) return null;
+  if (!isTextLike(record.mimeType)) {
+    throw new Error(`Reviewer handoff ${record.id} is ${record.mimeType}; diff can only compare text-like handoff artifacts.`);
+  }
+  const handoff = await loadHandoffFromArtifact(artifactStore, artifactId);
+  if (!handoff) return null;
+  const sliced = buffer.subarray(0, Math.min(buffer.byteLength, MAX_HANDOFF_ARTIFACT_BYTES));
+  const text = sliced.toString('utf-8').replace(/\0/g, '').trimEnd();
+  return {
+    handoff,
+    text,
+    truncatedBytes: Math.max(0, buffer.byteLength - sliced.byteLength),
+    originalLineCount: text.split('\n').length,
+  };
+}
+
+function normalizedSectionContent(lines: readonly string[]): string {
+  return lines.join('\n').replace(/\s+/g, ' ').trim();
+}
+
+function handoffSectionMap(text: string): Map<string, string> {
+  const sections = new Map<string, string[]>();
+  let current = '(preamble)';
+  let inCodeFence = false;
+  sections.set(current, []);
+  for (const line of text.split('\n')) {
+    if (line.trimStart().startsWith('```')) {
+      sections.get(current)?.push(line);
+      inCodeFence = !inCodeFence;
+      continue;
+    }
+    const heading = inCodeFence ? null : /^(#{1,6})\s+(.+?)\s*$/.exec(line);
+    const headingText = heading?.[2] ?? '';
+    const opensPacketSection = Boolean(heading) && (
+      heading![1]!.length === 2
+      || (heading![1]!.length === 1 && headingText === 'Blind Model Comparison Reviewer Handoff')
+    );
+    if (opensPacketSection) {
+      current = headingText || '(untitled)';
+      if (!sections.has(current)) sections.set(current, []);
+      continue;
+    }
+    sections.get(current)?.push(line);
+  }
+  const normalized = new Map<string, string>();
+  for (const [section, lines] of sections) {
+    normalized.set(section, normalizedSectionContent(lines));
+  }
+  return normalized;
+}
+
+function formatHandoffMetadataDelta(
+  label: string,
+  left: string | readonly string[] | boolean,
+  right: string | readonly string[] | boolean,
+): string {
+  const leftValue = Array.isArray(left) ? left.join(', ') || '(none)' : String(left === '' ? '(none)' : left);
+  const rightValue = Array.isArray(right) ? right.join(', ') || '(none)' : String(right === '' ? '(none)' : right);
+  return leftValue === rightValue
+    ? `  ${label}: same (${leftValue})`
+    : `  ${label}: changed ${leftValue} -> ${rightValue}`;
+}
+
+function buildLineDiff(left: readonly string[], right: readonly string[]): readonly HandoffDiffRow[] {
+  const rows = Array.from({ length: left.length + 1 }, () => Array<number>(right.length + 1).fill(0));
+  for (let leftIndex = left.length - 1; leftIndex >= 0; leftIndex -= 1) {
+    for (let rightIndex = right.length - 1; rightIndex >= 0; rightIndex -= 1) {
+      rows[leftIndex]![rightIndex] = left[leftIndex] === right[rightIndex]
+        ? rows[leftIndex + 1]![rightIndex + 1]! + 1
+        : Math.max(rows[leftIndex + 1]![rightIndex]!, rows[leftIndex]![rightIndex + 1]!);
+    }
+  }
+
+  const diff: HandoffDiffRow[] = [];
+  let leftIndex = 0;
+  let rightIndex = 0;
+  while (leftIndex < left.length && rightIndex < right.length) {
+    if (left[leftIndex] === right[rightIndex]) {
+      diff.push({ kind: 'same', text: left[leftIndex]! });
+      leftIndex += 1;
+      rightIndex += 1;
+    } else if (rows[leftIndex + 1]![rightIndex]! >= rows[leftIndex]![rightIndex + 1]!) {
+      diff.push({ kind: 'left', text: left[leftIndex]! });
+      leftIndex += 1;
+    } else {
+      diff.push({ kind: 'right', text: right[rightIndex]! });
+      rightIndex += 1;
+    }
+  }
+  while (leftIndex < left.length) {
+    diff.push({ kind: 'left', text: left[leftIndex]! });
+    leftIndex += 1;
+  }
+  while (rightIndex < right.length) {
+    diff.push({ kind: 'right', text: right[rightIndex]! });
+    rightIndex += 1;
+  }
+  return diff;
+}
+
+function formatHandoffDiffRows(rows: readonly HandoffDiffRow[]): readonly string[] {
+  const lines: string[] = [];
+  let hiddenUnchanged = 0;
+  let emittedChanges = 0;
+  let omittedChanges = 0;
+  for (const row of rows) {
+    if (row.kind === 'same') {
+      hiddenUnchanged += 1;
+      continue;
+    }
+    if (emittedChanges >= MAX_HANDOFF_DIFF_ROWS) {
+      omittedChanges += 1;
+      continue;
+    }
+    if (hiddenUnchanged > 0) {
+      lines.push(`  ... ${hiddenUnchanged} unchanged line(s) hidden`);
+      hiddenUnchanged = 0;
+    }
+    const prefix = row.kind === 'left' ? '- ' : '+ ';
+    lines.push(`${prefix}${previewText(row.text || '(blank)', 220)}`);
+    emittedChanges += 1;
+  }
+  if (hiddenUnchanged > 0 && lines.length > 0) lines.push(`  ... ${hiddenUnchanged} unchanged line(s) hidden`);
+  if (omittedChanges > 0) lines.push(`  ... ${omittedChanges} changed line(s) omitted by diff row cap`);
+  return lines.length > 0 ? lines : ['  No textual changes detected in the bounded handoff preview.'];
+}
+
+function formatHandoffSectionDiff(
+  left: LoadedHandoffDiffArtifact,
+  right: LoadedHandoffDiffArtifact,
+): readonly string[] {
+  const leftSections = handoffSectionMap(left.text);
+  const rightSections = handoffSectionMap(right.text);
+  const sectionNames = Array.from(new Set([...leftSections.keys(), ...rightSections.keys()]));
+  if (sectionNames.length === 0) return ['  No markdown sections detected.'];
+  return sectionNames.map((section) => {
+    const leftValue = leftSections.get(section);
+    const rightValue = rightSections.get(section);
+    if (leftValue === undefined) return `  ${section}: added on right (${previewText(rightValue ?? '', MAX_HANDOFF_DIFF_SECTION_PREVIEW_CHARS) || 'empty'})`;
+    if (rightValue === undefined) return `  ${section}: removed from right (${previewText(leftValue, MAX_HANDOFF_DIFF_SECTION_PREVIEW_CHARS) || 'empty'})`;
+    if (leftValue === rightValue) return `  ${section}: same`;
+    return `  ${section}: changed`;
+  });
+}
+
+function formatHandoffDiff(input: {
+  readonly left: LoadedHandoffDiffArtifact;
+  readonly right: LoadedHandoffDiffArtifact;
+}): string {
+  const leftLines = input.left.text.split('\n').slice(0, MAX_HANDOFF_DIFF_INPUT_LINES);
+  const rightLines = input.right.text.split('\n').slice(0, MAX_HANDOFF_DIFF_INPUT_LINES);
+  const diffRows = buildLineDiff(leftLines, rightLines);
+  return [
+    'Blind model comparison reviewer handoff visual diff',
+    `left ${input.left.handoff.artifact.artifactId} (${input.left.handoff.handoffId})`,
+    `right ${input.right.handoff.artifact.artifactId} (${input.right.handoff.handoffId})`,
+    `line window ${leftLines.length}/${input.left.originalLineCount} left, ${rightLines.length}/${input.right.originalLineCount} right`,
+    ...(input.left.truncatedBytes > 0 || input.right.truncatedBytes > 0
+      ? [`truncated bytes left ${input.left.truncatedBytes}, right ${input.right.truncatedBytes}`]
+      : []),
+    '',
+    'Metadata delta',
+    formatHandoffMetadataDelta('comparison', input.left.handoff.comparisonId, input.right.handoff.comparisonId),
+    formatHandoffMetadataDelta('source', `${input.left.handoff.sourceArtifactId} (${input.left.handoff.sourceKind})`, `${input.right.handoff.sourceArtifactId} (${input.right.handoff.sourceKind})`),
+    formatHandoffMetadataDelta('related artifacts', input.left.handoff.relatedArtifactIds, input.right.handoff.relatedArtifactIds),
+    formatHandoffMetadataDelta('reveal included', input.left.handoff.revealIncludedInHandoff, input.right.handoff.revealIncludedInHandoff),
+    '',
+    'Section delta',
+    ...formatHandoffSectionDiff(input.left, input.right),
+    '',
+    'Aligned line diff',
+    ...formatHandoffDiffRows(diffRows),
+    '',
+    'No selected model was changed.',
+  ].join('\n');
+}
+
 async function loadHandoffArchiveArtifacts(
   artifactStore: AgentModelCompareArtifactStore | undefined,
   handoff: LoadedComparisonHandoff,
@@ -1808,7 +2009,7 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' | 'judge' | 'apply' | 'export' | 'handoff' | 'handoffArchive' | 'analytics' | 'synthesis' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' | 'judge' | 'apply' | 'export' | 'handoff' | 'handoffArchive' | 'handoffDiff' | 'analytics' | 'synthesis' {
   const mode = readString(value) || MODE_RUN;
   if (
     mode === MODE_RUN
@@ -1820,10 +2021,11 @@ function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' |
     || mode === MODE_EXPORT
     || mode === MODE_HANDOFF
     || mode === MODE_HANDOFF_ARCHIVE
+    || mode === MODE_HANDOFF_DIFF
     || mode === MODE_ANALYTICS
     || mode === MODE_SYNTHESIS
   ) return mode;
-  throw new Error('mode must be run, reveal, review, sideBySide, judge, apply, export, handoff, handoffArchive, analytics, or synthesis.');
+  throw new Error('mode must be run, reveal, review, sideBySide, judge, apply, export, handoff, handoffArchive, handoffDiff, analytics, or synthesis.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -2120,13 +2322,13 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Blind compare prompts or saved text artifacts.',
+      description: 'Blind compare prompts/artifacts, review, handoff, diff.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_SIDE_BY_SIDE, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_HANDOFF, MODE_HANDOFF_ARCHIVE, MODE_ANALYTICS, MODE_SYNTHESIS],
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_SIDE_BY_SIDE, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_HANDOFF, MODE_HANDOFF_ARCHIVE, MODE_HANDOFF_DIFF, MODE_ANALYTICS, MODE_SYNTHESIS],
             description: 'Select compare workflow mode.',
           },
           prompt: {
@@ -2181,6 +2383,14 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           artifactId: {
             type: 'string',
             description: 'Run source artifact, saved comparison, or judgment artifact id.',
+          },
+          leftArtifactId: {
+            type: 'string',
+            description: 'Left saved reviewer handoff artifact id for handoffDiff.',
+          },
+          rightArtifactId: {
+            type: 'string',
+            description: 'Right saved reviewer handoff artifact id for handoffDiff.',
           },
           winnerBlindId: {
             type: 'string',
@@ -2300,6 +2510,33 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             relatedArtifacts,
             previewBytes,
           }));
+        }
+
+        if (mode === MODE_HANDOFF_DIFF) {
+          const leftArtifactId = readString(args.leftArtifactId || args.artifactId);
+          const rightArtifactId = readString(args.rightArtifactId);
+          if (!leftArtifactId && !rightArtifactId) {
+            return output([
+              formatSavedHandoffArtifacts(deps.artifactStore),
+              '',
+              'Choose two saved reviewer handoff artifact ids with leftArtifactId and rightArtifactId to render a visual diff.',
+            ].join('\n'));
+          }
+          if (!leftArtifactId || !rightArtifactId) {
+            return failure('handoffDiff mode requires leftArtifactId and rightArtifactId.');
+          }
+          if (leftArtifactId === rightArtifactId) {
+            return failure('handoffDiff mode requires two different reviewer handoff artifact ids.');
+          }
+          if (!deps.artifactStore?.readContent) {
+            return failure('Reviewer handoff diff is unavailable because this runtime cannot read artifact content.');
+          }
+          const left = await loadHandoffDiffArtifact(deps.artifactStore, leftArtifactId);
+          const right = await loadHandoffDiffArtifact(deps.artifactStore, rightArtifactId);
+          if (!left || !right) {
+            return failure('Unknown reviewer handoff artifact. Pass two saved blind model comparison handoff artifact ids.');
+          }
+          return output(formatHandoffDiff({ left, right }));
         }
 
         if (mode === MODE_ANALYTICS) {

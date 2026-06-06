@@ -170,9 +170,9 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
     return {
       route: 'agent_model_compare',
       tool: 'agent_model_compare',
-      action: 'review_saved_comparison_or_side_by_side',
+      action: 'review_saved_comparison_side_by_side_or_handoff_diff',
       confirmation: 'not-required',
-      note: 'run_workspace_action renders saved blind comparison artifacts, a read-only review board, or a side-by-side related-artifact evidence view through the first-class comparison tool; route updates stay separate.',
+      note: 'run_workspace_action renders saved blind comparison artifacts, a read-only review board, a side-by-side related-artifact evidence view, or a visual reviewer handoff diff through the first-class comparison tool; route updates stay separate.',
     };
   }
   if (editorKind === 'model-compare-judge') {

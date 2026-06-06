@@ -20,9 +20,11 @@ export interface AgentModelCompareWorkspaceToolArgs {
 }
 
 export interface AgentModelCompareReviewWorkspaceToolArgs {
-  readonly mode: 'review' | 'sideBySide';
+  readonly mode: 'review' | 'sideBySide' | 'handoffDiff';
   readonly comparisonId?: string;
   readonly artifactId?: string;
+  readonly leftArtifactId?: string;
+  readonly rightArtifactId?: string;
   readonly relatedArtifactIds?: readonly string[];
   readonly previewBytes?: number;
   readonly reveal?: boolean;
@@ -86,6 +88,13 @@ function compareExportMode(value: string): AgentModelCompareExportWorkspaceToolA
   if (normalized === 'handoff' || normalized === 'reviewerhandoff') return 'handoff';
   if (normalized === 'archive' || normalized === 'zip' || normalized === 'handoffarchive' || normalized === 'handoffzip') return 'handoffArchive';
   return 'export';
+}
+
+function compareReviewMode(value: string): AgentModelCompareReviewWorkspaceToolArgs['mode'] {
+  const normalized = value.trim().toLowerCase().replace(/[\s_-]+/g, '');
+  if (normalized === 'sidebyside' || normalized === 'side') return 'sideBySide';
+  if (normalized === 'handoffdiff' || normalized === 'diff' || normalized === 'visualdiff') return 'handoffDiff';
+  return 'review';
 }
 
 function quoteBlock(value: string): string {
@@ -157,11 +166,13 @@ export function createAgentModelCompareReviewEditor(): AgentWorkspaceLocalEditor
     mode: 'create',
     title: 'Review Saved Compare',
     selectedFieldIndex: 0,
-    message: 'Review saved blind model comparison artifacts, or render a side-by-side reviewer view with related document/artifact ids. Leave ids blank to list recent saved comparisons.',
+    message: 'Review saved blind comparison artifacts, render related evidence side by side, or compare two reviewer handoffs. Leave ids blank to list recent saved comparisons or handoffs.',
     fields: [
-      { id: 'view', label: 'View', value: 'review', required: false, multiline: false, hint: 'review or sideBySide. Side-by-side compares related artifact excerpts with saved comparison evidence.' },
+      { id: 'view', label: 'View', value: 'review', required: false, multiline: false, hint: 'review, sideBySide, or handoffDiff. Diff compares two saved reviewer handoff artifacts.' },
       { id: 'artifactId', label: 'Artifact id', value: '', required: false, multiline: false, hint: 'Saved artifact id such as artifact-123. Blank lists recent saved comparisons.' },
       { id: 'comparisonId', label: 'Comparison id', value: '', required: false, multiline: false, hint: 'Comparison id such as cmp_... if known. Artifact id is usually easier.' },
+      { id: 'leftArtifactId', label: 'Left handoff', value: '', required: false, multiline: false, hint: 'For handoffDiff: first saved reviewer handoff artifact id. Artifact id can also fill this.' },
+      { id: 'rightArtifactId', label: 'Right handoff', value: '', required: false, multiline: false, hint: 'For handoffDiff: second saved reviewer handoff artifact id.' },
       { id: 'relatedArtifactIds', label: 'Related artifacts', value: '', required: false, multiline: true, hint: 'For sideBySide: document export, archive, or artifact ids, separated by commas or new lines.' },
       { id: 'previewBytes', label: 'Preview bytes', value: '2000', required: false, multiline: false, hint: 'For sideBySide: max bytes per related artifact preview, 200 to 10000.' },
       { id: 'reveal', label: 'Reveal', value: 'no', required: false, multiline: false, hint: 'yes/no. No keeps identities hidden and renders the blind review board.' },
@@ -274,12 +285,22 @@ export function buildAgentModelCompareToolArgs(
 export function buildAgentModelCompareReviewToolArgs(
   readField: AgentWorkspaceFieldReader,
 ): AgentModelCompareReviewWorkspaceToolArgs {
-  const mode = readField('view').trim() === 'sideBySide' ? 'sideBySide' : 'review';
+  const mode = compareReviewMode(readField('view'));
   const artifactId = readField('artifactId').trim();
   const comparisonId = readField('comparisonId').trim();
+  const leftArtifactId = readField('leftArtifactId').trim() || artifactId;
+  const rightArtifactId = readField('rightArtifactId').trim();
   const relatedArtifactIds = readList(readField('relatedArtifactIds'));
   const previewBytes = readPositiveInteger(readField('previewBytes'));
   const reveal = isAffirmative(readField('reveal'));
+  if (mode === 'handoffDiff') {
+    return {
+      mode,
+      ...(leftArtifactId ? { leftArtifactId } : {}),
+      ...(rightArtifactId ? { rightArtifactId } : {}),
+      ...(previewBytes !== null ? { previewBytes } : {}),
+    };
+  }
   return {
     mode,
     ...(artifactId ? { artifactId } : {}),
@@ -484,38 +505,52 @@ export function buildAgentModelCompareReviewPromptSubmission(
     };
   }
 
-  const mode = readField('view').trim() === 'sideBySide' ? 'sideBySide' : 'review';
+  const mode = compareReviewMode(readField('view'));
   const artifactId = readField('artifactId').trim();
   const comparisonId = readField('comparisonId').trim();
+  const leftArtifactId = readField('leftArtifactId').trim() || artifactId;
+  const rightArtifactId = readField('rightArtifactId').trim();
   const relatedArtifactIds = readList(readField('relatedArtifactIds'));
   const previewBytes = readPositiveInteger(readField('previewBytes')) ?? 2000;
   const reveal = isAffirmative(readField('reveal'));
   const prompt = [
-    mode === 'sideBySide'
-      ? 'Render a side-by-side reviewer view for a saved blind model comparison with the `agent_model_compare` tool.'
-      : 'Review a saved blind model comparison with the `agent_model_compare` tool.',
+    mode === 'handoffDiff'
+      ? 'Render a visual diff between two saved reviewer handoff artifacts with the `agent_model_compare` tool.'
+      : mode === 'sideBySide'
+        ? 'Render a side-by-side reviewer view for a saved blind model comparison with the `agent_model_compare` tool.'
+        : 'Review a saved blind model comparison with the `agent_model_compare` tool.',
     `Use mode:"${mode}".`,
     artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
     comparisonId ? `Use comparisonId: ${JSON.stringify(comparisonId)}.` : 'No comparisonId was provided.',
+    mode === 'handoffDiff' && leftArtifactId ? `Use leftArtifactId: ${JSON.stringify(leftArtifactId)}.` : '',
+    mode === 'handoffDiff' && rightArtifactId ? `Use rightArtifactId: ${JSON.stringify(rightArtifactId)}.` : '',
     relatedArtifactIds.length > 0 ? `Related artifact ids: ${relatedArtifactIds.join(', ')}.` : 'Related artifact ids: none.',
     `Preview bytes: ${previewBytes}.`,
     `Reveal identities in the review: ${reveal ? 'yes' : 'no'}.`,
-    'If no ids were provided, list recent saved comparison artifacts.',
+    mode === 'handoffDiff'
+      ? 'If no handoff ids were provided, list recent saved reviewer handoff artifacts.'
+      : 'If no ids were provided, list recent saved comparison artifacts.',
     'Do not change the selected model after the review unless the user asks for that route update separately.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   return {
     kind: 'prompt',
     prompt,
-    status: `Submitting saved comparison ${mode} request.`,
-    actionResult: {
-      kind: 'guidance',
-      title: mode === 'sideBySide' ? 'Side-by-side compare review' : 'Saved comparison review',
-      detail: mode === 'sideBySide'
-        ? 'Submitted a read-only request to compare related artifact excerpts with saved comparison evidence.'
-        : 'Submitted a read-only request to review saved blind comparison artifacts.',
-      safety: 'read-only',
-    },
+      status: `Submitting saved comparison ${mode} request.`,
+      actionResult: {
+        kind: 'guidance',
+        title: mode === 'handoffDiff'
+          ? 'Reviewer handoff diff'
+          : mode === 'sideBySide'
+            ? 'Side-by-side compare review'
+            : 'Saved comparison review',
+        detail: mode === 'handoffDiff'
+          ? 'Submitted a read-only request to compare two saved reviewer handoff artifacts.'
+          : mode === 'sideBySide'
+            ? 'Submitted a read-only request to compare related artifact excerpts with saved comparison evidence.'
+            : 'Submitted a read-only request to review saved blind comparison artifacts.',
+        safety: 'read-only',
+      },
   };
 }
 

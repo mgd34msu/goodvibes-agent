@@ -864,6 +864,61 @@ describe('agent_model_compare tool', () => {
     expect(archiveList.success).toBe(true);
     expect(archiveList.output).toContain('Saved blind comparison reviewer handoffs');
     expect(archiveList.output).toContain('artifact-7');
+
+    const documentExportV2 = await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'text/markdown',
+      filename: 'launch-plan-v2.md',
+      text: [
+        '# Launch Plan',
+        '',
+        'Ship the reviewer handoff diff workflow.',
+        '',
+        '## Review Comments',
+        '',
+        '- c1 [resolved] Clarify the launch owner.',
+        '- c2 [open] Confirm the reviewer packet before archive.',
+      ].join('\n'),
+      metadata: {
+        purpose: 'agent-document-export',
+        documentId: 'doc_launch',
+      },
+    });
+    expect(documentExportV2.id).toBe('artifact-9');
+
+    const secondHandoff = await reviewer.tool.execute({
+      mode: 'handoff',
+      artifactId: 'artifact-2',
+      relatedArtifactIds: [documentExportV2.id],
+      confirm: true,
+      explicitUserRequest: 'Create a second reviewer handoff for comparison.',
+    });
+    expect(secondHandoff.success).toBe(true);
+    expect(secondHandoff.output).toContain('artifact artifact-10');
+
+    const handoffDiff = await reviewer.tool.execute({
+      mode: 'handoffDiff',
+      leftArtifactId: 'artifact-7',
+      rightArtifactId: 'artifact-10',
+    });
+    expect(handoffDiff.success).toBe(true);
+    expect(handoffDiff.output).toContain('Blind model comparison reviewer handoff visual diff');
+    expect(handoffDiff.output).toContain('left artifact-7');
+    expect(handoffDiff.output).toContain('right artifact-10');
+    expect(handoffDiff.output).toContain('Metadata delta');
+    expect(handoffDiff.output).toContain('related artifacts: changed');
+    expect(handoffDiff.output).toContain('Section delta');
+    expect(handoffDiff.output).toContain('Related Artifacts: changed');
+    expect(handoffDiff.output).toContain('- Ship the reviewed document workflow.');
+    expect(handoffDiff.output).toContain('+ Ship the reviewer handoff diff workflow.');
+    expect(handoffDiff.output).toContain('+ - c2 [open] Confirm the reviewer packet before archive.');
+    expect(handoffDiff.output).toContain('No selected model was changed.');
+
+    const handoffDiffList = await reviewer.tool.execute({ mode: 'handoffDiff' });
+    expect(handoffDiffList.success).toBe(true);
+    expect(handoffDiffList.output).toContain('Saved blind comparison reviewer handoffs');
+    expect(handoffDiffList.output).toContain('leftArtifactId');
+    expect(handoffDiffList.output).toContain('artifact-10');
   });
 
   test('can deliberately skip artifact persistence', async () => {
