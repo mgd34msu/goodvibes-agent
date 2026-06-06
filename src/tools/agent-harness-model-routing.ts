@@ -104,6 +104,7 @@ interface LocalModelBenchmarkPlan {
   readonly status: 'plan-ready';
   readonly prompt: string;
   readonly measurements: readonly string[];
+  readonly workspaceActionRoute: string;
   readonly compareRoute: string;
   readonly refreshRoute: string;
   readonly notes: readonly string[];
@@ -747,11 +748,13 @@ function localModelBenchmarkPlan(recipe: LocalModelRecipe): LocalModelBenchmarkP
       'whether the model handled project-specific nouns without hallucinating',
       'whether the route supports the needed context window and tool workflow',
     ],
-    compareRoute: `agent_model_compare prompt:"local model benchmark: ${recipe.label}" benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"Compare this local model route before making it default."`,
+    workspaceActionRoute: 'agent_harness mode:"run_workspace_action" actionId:"account-run-local-model-benchmark" confirm:true fields.confirm:"yes" fields.modelRefs:"<local-route>,<baseline-route>" explicitUserRequest:"Compare this local model route before making it default."',
+    compareRoute: `agent_model_compare run prompt:"local model benchmark: ${recipe.label}" benchmarkKind:"local-model-route" confirm:true explicitUserRequest:"Compare this local model route before making it default."`,
     refreshRoute: 'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh model catalog, benchmarks, and token limits after local model setup."',
     notes: [
-      'Run the same prompt after selecting each candidate route.',
-      'Keep benchmark notes in the conversation, a local note, or a saved comparison artifact before changing the default model.',
+      'Use the workspace action when the user wants a form with benchmark defaults; use compareRoute when the model already has exact modelRefs.',
+      'Run the same prompt against the local route and a baseline route before selecting a winner.',
+      'Keep benchmark notes in the saved comparison artifact before changing the default model.',
       'Do not treat cached public benchmark scores as a substitute for this local latency and fit check.',
     ],
   };
@@ -948,7 +951,7 @@ export function localModelCookbook(context: CommandContext, includeParameters: b
       ? `Inspect detected local route(s): ${detection.modelRoutes.join(', ') || detection.providerIds.join(', ')}.`
       : `Start with ${topLabel}: inspect its setupPlan, then install/start the server outside Agent.`,
     'Refresh the model catalog after the local server is running.',
-    'Run the setupPlan benchmark prompt or saved model comparison before changing the default route.',
+    'Run the local benchmark workspace action or saved model comparison before changing the default route.',
   ];
   return {
     status: detection.stacks.length > 0 ? 'detected-local-route' : 'recommendations-only',
@@ -973,7 +976,7 @@ export function localModelCookbook(context: CommandContext, includeParameters: b
     },
     nextActions,
     modelRoute: 'agent_harness mode:"model_routing" query:"local"',
-    policy: 'Read-only hardware-aware cookbook. Readiness scores are estimated until a live benchmark is recorded. Setup plans include download/start guidance and benchmark prompts, but installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
+    policy: 'Read-only hardware-aware cookbook. Readiness scores are estimated until a live benchmark is recorded. Setup plans include download/start guidance and a confirmed benchmark action route, but installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
   };
 }
 

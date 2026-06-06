@@ -606,7 +606,7 @@ async function runWorkspaceEditorAction(
     });
   }
 
-  if (editor.kind === 'model-compare') {
+  if (editor.kind === 'model-compare' || editor.kind === 'local-model-benchmark') {
     const confirmationError = requireConfirmedAction(args, 'Workspace blind model comparison');
     if (confirmationError) return error(confirmationError);
     const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();

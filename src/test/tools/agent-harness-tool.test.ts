@@ -3287,6 +3287,7 @@ describe('agent_harness tool', () => {
               readonly providerRoutes: readonly string[];
               readonly benchmarkPlan: {
                 readonly prompt: string;
+                readonly workspaceActionRoute?: string;
                 readonly compareRoute: string;
                 readonly refreshRoute: string;
                 readonly measurements: readonly string[];
@@ -3330,7 +3331,9 @@ describe('agent_harness tool', () => {
       expect(ollamaRecipe?.setupPlan?.downloadGuidance.join('\n')).toContain('ollama pull');
       expect(ollamaRecipe?.setupPlan?.providerRoutes.join('\n')).toContain('/refresh-models');
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.prompt).toContain('Benchmark this local route');
+      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.workspaceActionRoute).toContain('account-run-local-model-benchmark');
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('agent_model_compare');
+      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('agent_model_compare run');
       expect(ollamaRecipe?.setupPlan?.benchmarkPlan.measurements.join('\n')).toContain('latency');
       expect(ollamaRecipe?.setupPlan?.confirmationBoundary).toContain('read-only guidance');
       expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
@@ -3363,6 +3366,18 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'account-local-model-cookbook' });
       expect(action.id).toBe('account-local-model-cookbook');
       expect(action.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+
+      const benchmarkAction = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+        readonly editor?: { readonly kind: string; readonly fields: readonly { readonly id: string; readonly default?: string }[] };
+        readonly modelExecution?: { readonly action?: string; readonly route?: string };
+      }>(fixture, { mode: 'workspace_action', actionId: 'account-run-local-model-benchmark' });
+      expect(benchmarkAction.id).toBe('account-run-local-model-benchmark');
+      expect(benchmarkAction.modelRoute).toBe('agent_model_compare');
+      expect(benchmarkAction.editor?.kind).toBe('local-model-benchmark');
+      expect(benchmarkAction.editor?.fields.find((field) => field.id === 'benchmarkKind')?.default).toBe('local-model-route');
+      expect(benchmarkAction.modelExecution?.action).toBe('run_local_model_benchmark');
     } finally {
       fixture.cleanup();
     }
@@ -3621,6 +3636,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-run-local-model-benchmark')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-comment-draft')?.modelRoute).toBe('agent_documents');
@@ -6261,7 +6277,22 @@ describe('agent_harness tool', () => {
   test('runs confirmed model compare workspace editor through agent_model_compare', async () => {
     const fixture = makeFixture();
     try {
-      registerStubTool(fixture.toolRegistry, 'agent_model_compare');
+      const modelCompareCalls: Record<string, unknown>[] = [];
+      fixture.toolRegistry.register({
+        definition: {
+          name: 'agent_model_compare',
+          description: 'agent_model_compare test tool',
+          parameters: {
+            type: 'object',
+            properties: {},
+            additionalProperties: true,
+          },
+        },
+        execute: async (rawArgs: Record<string, unknown>) => {
+          modelCompareCalls.push(rawArgs);
+          return { success: true, output: 'agent_model_compare executed' };
+        },
+      });
 
       const unconfirmed = await fixture.tool.execute({
         mode: 'run_workspace_action',
@@ -6292,6 +6323,29 @@ describe('agent_harness tool', () => {
       expect(executed.output).toContain('"status": "executed_model_tool"');
       expect(executed.output).toContain('"tool": "agent_model_compare"');
       expect(executed.output).toContain('agent_model_compare executed');
+
+      const localBenchmark = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'account-run-local-model-benchmark',
+        fields: {
+          modelRefs: 'ollama:qwen2.5-coder:7b, openai:gpt-4.1',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Compare this local route before making it default.',
+      });
+      expect(localBenchmark.success).toBe(true);
+      expect(localBenchmark.output).toContain('"status": "executed_model_tool"');
+      expect(localBenchmark.output).toContain('"tool": "agent_model_compare"');
+      expect(localBenchmark.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'run',
+        benchmarkKind: 'local-model-route',
+        modelRefs: ['ollama:qwen2.5-coder:7b', 'openai:gpt-4.1'],
+        maxTokens: 1024,
+        confirm: true,
+      });
+      expect(String(modelCompareCalls.at(-1)?.prompt)).toContain('Benchmark this local route');
 
       const review = await fixture.tool.execute({
         mode: 'run_workspace_action',

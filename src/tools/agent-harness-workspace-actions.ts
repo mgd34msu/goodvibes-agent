@@ -147,6 +147,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   if (editorKind === 'media-generate') return 'agent_media_generate';
   if (
     editorKind === 'model-compare'
+    || editorKind === 'local-model-benchmark'
     || editorKind === 'model-compare-review'
     || editorKind === 'model-compare-judge'
     || editorKind === 'model-compare-apply'
@@ -175,6 +176,7 @@ function localActionRouteHint(action: AgentWorkspaceAction): string {
 function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.kind === 'settings-import') return 'agent_harness mode:"run_workspace_action"';
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
+  if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'research-run-queue') return 'agent_harness mode:"research_runs"';
   if (action.id === 'research-source-queue') return 'agent_harness mode:"research_queue"';
   if (

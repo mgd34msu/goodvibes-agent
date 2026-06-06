@@ -190,7 +190,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
       {
         area: 'Provider and setup work',
-        can: 'Inspect provider accounts, subscriptions, model routing, hardware-scored local model cookbook setup plans, benchmark prompts, setup posture, service posture, and connected-host status; apply supported settings changes when explicitly requested.',
+        can: 'Inspect provider accounts, subscriptions, model routing, hardware-scored local model cookbook setup plans, confirmed benchmark action routes, setup posture, service posture, and connected-host status; apply supported settings changes when explicitly requested.',
         tools: [optionalTool('agent_harness')],
         inspect: 'agent_harness mode:"provider_accounts", mode:"model_routing", mode:"setup_posture", or mode:"settings"',
       },

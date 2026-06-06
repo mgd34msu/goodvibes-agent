@@ -155,13 +155,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action uses Agent-owned markdown drafts with version history, review comments, user-reviewed AI suggestions, artifact attachment, and artifact insertion. Export creates a saved markdown artifact with attachment metadata; insertion appends bounded text or a safe artifact reference. No default knowledge write occurs.',
     };
   }
-  if (editorKind === 'model-compare') {
+  if (editorKind === 'model-compare' || editorKind === 'local-model-benchmark') {
     return {
       route: 'agent_model_compare',
       tool: 'agent_model_compare',
-      action: 'run_blind_comparison',
+      action: editorKind === 'local-model-benchmark' ? 'run_local_model_benchmark' : 'run_blind_comparison',
       confirmation: 'required',
-      note: 'run_workspace_action validates the editor fields and executes the first-class blind comparison tool with delayed reveal support. The visible workspace form submits the same request to the main conversation.',
+      note: editorKind === 'local-model-benchmark'
+        ? 'run_workspace_action validates the local benchmark fields, tags the saved artifact as benchmarkKind local-model-route, and executes the first-class blind comparison tool. It never changes the selected model.'
+        : 'run_workspace_action validates the editor fields and executes the first-class blind comparison tool with delayed reveal support. The visible workspace form submits the same request to the main conversation.',
     };
   }
   if (editorKind === 'model-compare-review') {

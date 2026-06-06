@@ -11,6 +11,7 @@ export interface AgentModelCompareWorkspaceToolArgs {
   readonly rubric?: string;
   readonly systemPrompt?: string;
   readonly maxTokens?: number;
+  readonly benchmarkKind?: string;
   readonly reveal?: boolean;
   readonly confirm: boolean;
   readonly explicitUserRequest: string;
@@ -93,6 +94,40 @@ export function createAgentModelCompareEditor(): AgentWorkspaceLocalEditor {
       { id: 'maxTokens', label: 'Max tokens', value: '2048', required: false, multiline: false, hint: 'Per-candidate output cap. Defaults to 2048.' },
       { id: 'reveal', label: 'Reveal now', value: 'no', required: false, multiline: false, hint: 'yes/no. Blank or no keeps model identities hidden until reveal.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run a token-spending model comparison and save the local review artifact.' },
+    ],
+  };
+}
+
+export function createAgentLocalModelBenchmarkEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'local-model-benchmark',
+    mode: 'create',
+    title: 'Run Local Model Benchmark',
+    selectedFieldIndex: 0,
+    message: 'Run the local-route benchmark with the first-class blind comparison tool and save a tagged local review artifact. Enter a local model route plus a baseline route, then type yes on the final field.',
+    fields: [
+      {
+        id: 'prompt',
+        label: 'Prompt',
+        value: [
+          'Benchmark this local route on one practical task:',
+          '1. summarize the current project goal in five bullets,',
+          '2. identify one likely setup risk,',
+          '3. propose one next action with a command or route.',
+        ].join(' '),
+        required: true,
+        multiline: true,
+        hint: 'Exact benchmark prompt sent identically to every candidate model. Ctrl-J inserts a new line.',
+      },
+      { id: 'artifactId', label: 'Source artifact', value: '', required: false, multiline: false, hint: 'Optional saved text artifact id to include identically in the benchmark prompt.' },
+      { id: 'modelRefs', label: 'Models', value: '', required: false, multiline: true, hint: 'Recommended: local route first, then current/baseline route. Registry keys or model ids, separated by commas or new lines.' },
+      { id: 'candidateCount', label: 'Auto count', value: '2', required: false, multiline: false, hint: 'Used only when Models is blank. 2 to 4.' },
+      { id: 'rubric', label: 'Rubric', value: 'Prefer fast first useful output, correct project context, concrete setup-risk identification, and one actionable next route or command.', required: false, multiline: true, hint: 'Judging rubric shown with blinded benchmark results.' },
+      { id: 'systemPrompt', label: 'System prompt', value: '', required: false, multiline: true, hint: 'Optional system prompt sent identically to every candidate.' },
+      { id: 'maxTokens', label: 'Max tokens', value: '1024', required: false, multiline: false, hint: 'Per-candidate output cap. Defaults to 1024 for this benchmark.' },
+      { id: 'benchmarkKind', label: 'Benchmark tag', value: 'local-model-route', required: false, multiline: false, hint: 'Keeps the saved comparison visible in local model benchmark history.' },
+      { id: 'reveal', label: 'Reveal now', value: 'no', required: false, multiline: false, hint: 'yes/no. Blank or no keeps model identities hidden until reveal.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to spend model tokens and save the local benchmark artifact.' },
     ],
   };
 }
@@ -185,6 +220,7 @@ export function buildAgentModelCompareToolArgs(
   const rubric = readField('rubric').trim();
   const systemPrompt = readField('systemPrompt').trim();
   const maxTokens = readPositiveInteger(readField('maxTokens'));
+  const benchmarkKind = readField('benchmarkKind').trim();
   const reveal = isAffirmative(readField('reveal'));
 
   return {
@@ -196,6 +232,7 @@ export function buildAgentModelCompareToolArgs(
     ...(rubric ? { rubric } : {}),
     ...(systemPrompt ? { systemPrompt } : {}),
     ...(maxTokens !== null ? { maxTokens } : {}),
+    ...(benchmarkKind ? { benchmarkKind } : {}),
     reveal,
     confirm: true,
     explicitUserRequest,
@@ -328,6 +365,7 @@ export function buildAgentModelComparePromptSubmission(
   const rubric = readField('rubric').trim();
   const systemPrompt = readField('systemPrompt').trim();
   const maxTokens = readPositiveInteger(readField('maxTokens')) ?? 2048;
+  const benchmarkKind = readField('benchmarkKind').trim();
   const explicitUserRequest = 'Run the blind model comparison from the Agent workspace form.';
   const prompt = [
     'Run a blind model comparison with the `agent_model_compare` tool.',
@@ -345,6 +383,7 @@ export function buildAgentModelComparePromptSubmission(
     rubric ? `Rubric: ${rubric}` : 'Rubric: none.',
     systemPrompt ? `System prompt: ${systemPrompt}` : 'System prompt: none.',
     `Max tokens per candidate: ${maxTokens}.`,
+    benchmarkKind ? `Benchmark kind: ${benchmarkKind}.` : 'Benchmark kind: none.',
     `Reveal identities immediately: ${reveal ? 'yes' : 'no'}.`,
     'Do not change the selected model after the comparison unless the user asks for that route update separately.',
   ].join('\n');

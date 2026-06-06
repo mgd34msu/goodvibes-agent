@@ -3,7 +3,7 @@ import { createAgentArtifactBrowserEditor, createAgentArtifactExportEditor, crea
 import { createAgentDocumentAcceptSuggestionEditor, createAgentDocumentAttachArtifactEditor, createAgentDocumentBrowseEditor, createAgentDocumentCommentEditor, createAgentDocumentCreateEditor, createAgentDocumentExportEditor, createAgentDocumentInsertArtifactEditor, createAgentDocumentRejectSuggestionEditor, createAgentDocumentResolveCommentEditor, createAgentDocumentReviewEditor, createAgentDocumentShowEditor, createAgentDocumentSuggestEditor, createAgentDocumentUpdateEditor } from './agent-workspace-document-editor.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
-import { createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
+import { createAgentLocalModelBenchmarkEditor, createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
 import { createAgentResearchReportEditor } from './agent-workspace-research-report-editor.ts';
 import { createAgentResearchRunEditor } from './agent-workspace-research-run-editor.ts';
 import { createAgentResearchSourceEditor } from './agent-workspace-research-source-editor.ts';
@@ -212,6 +212,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'document-attach-artifact') return createAgentDocumentAttachArtifactEditor();
   if (editorKind === 'document-export') return createAgentDocumentExportEditor();
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
+  if (editorKind === 'local-model-benchmark') return createAgentLocalModelBenchmarkEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();
   if (editorKind === 'model-compare-judge') return createAgentModelCompareJudgmentEditor();
   if (editorKind === 'model-compare-apply') return createAgentModelCompareApplyEditor();

@@ -201,7 +201,7 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   ) {
     return buildAgentDocumentPromptSubmission(editor, readField, promptDispatchAvailable);
   }
-  if (editor.kind === 'model-compare') {
+  if (editor.kind === 'model-compare' || editor.kind === 'local-model-benchmark') {
     return buildAgentModelComparePromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (editor.kind === 'model-compare-review') {

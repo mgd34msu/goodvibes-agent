@@ -123,6 +123,7 @@ export type AgentWorkspaceEditorKind =
   | 'artifact-promote-knowledge'
   | 'media-generate'
   | 'model-compare'
+  | 'local-model-benchmark'
   | 'model-compare-review'
   | 'model-compare-judge'
   | 'model-compare-apply'
