@@ -1053,18 +1053,41 @@ describe('agent_harness tool', () => {
       Object.assign(readModels, {
         tasks: {
           getSnapshot: () => ({
-            tasks: [{
-              id: 'host-task-live',
-              kind: 'scheduler',
-              title: 'Deliver scheduled brief',
-              status: 'running',
-              owner: 'scheduler',
-              cancellable: true,
-              childTaskIds: [],
-              queuedAt: now - 120_000,
-              startedAt: now - 60_000,
-              correlationId: 'corr-live',
-            }],
+            tasks: [
+              {
+                id: 'host-task-live',
+                kind: 'scheduler',
+                title: 'Deliver scheduled brief',
+                status: 'running',
+                owner: 'scheduler',
+                cancellable: true,
+                childTaskIds: [],
+                queuedAt: now - 120_000,
+                startedAt: now - 60_000,
+                correlationId: 'corr-live',
+              },
+              {
+                id: 'host-task-failed',
+                kind: 'daemon',
+                title: 'Retry failed sync',
+                status: 'failed',
+                owner: 'daemon',
+                cancellable: false,
+                childTaskIds: [],
+                queuedAt: now - 300_000,
+                startedAt: now - 240_000,
+                endedAt: now - 180_000,
+                error: 'network timeout',
+                retryPolicy: {
+                  maxAttempts: 3,
+                  currentAttempt: 1,
+                  delayMs: 60_000,
+                  backoff: 'exponential',
+                  retryOn: ['network'],
+                },
+                retryAt: now + 60_000,
+              },
+            ],
           }),
           subscribe: () => () => {},
         },
@@ -1203,6 +1226,15 @@ describe('agent_harness tool', () => {
             readonly logTail?: readonly string[];
             readonly sourceIds?: readonly string[];
             readonly nextSteps?: readonly string[];
+            readonly availableControls?: readonly string[];
+            readonly controls?: readonly {
+              readonly id: string;
+              readonly state: string;
+              readonly effect: string;
+              readonly confirmationRequired: boolean;
+              readonly modelRoute?: string;
+              readonly reason?: string;
+            }[];
           }[];
         }[];
         readonly policy: string;
@@ -1230,24 +1262,40 @@ describe('agent_harness tool', () => {
       expect(researchRuns?.liveRecords?.[0]?.inspectRoute).toContain('agent_research_runs show');
       expect(researchRuns?.liveRecords?.[0]?.cancelRoute).toContain('agent_research_runs cancel');
       expect(researchRuns?.liveRecords?.[0]?.checkpointRoute).toContain('agent_research_runs checkpoint');
+      expect(researchRuns?.liveRecords?.[0]?.availableControls).toContain('checkpoint');
+      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.modelRoute).toContain('agent_research_runs cancel');
       expect(researchRuns?.liveRecords?.[0]?.logTail?.join('\n')).toContain('Waiting on source review before synthesis.');
       expect(researchRuns?.liveRecords?.[0]?.sourceIds).toContain('source-a');
       expect(researchRuns?.liveRecords?.[0]?.nextSteps).toContain('Review source-a');
-      expect(hostTasks?.status).toBe('active');
+      expect(hostTasks?.status).toBe('attention');
+      expect(hostTasks?.cancellable).toBe(true);
+      expect(hostTasks?.cancelRoute).toContain('tasks.cancel');
       expect(hostTasks?.liveRecords?.[0]?.id).toBe('host-task-live');
       expect(hostTasks?.liveRecords?.[0]?.inspectRoute).toBe('/tasks show host-task-live');
-      expect(hostTasks?.liveRecords?.[0]?.cancelRoute).toBeUndefined();
+      expect(hostTasks?.liveRecords?.[0]?.cancelRoute).toContain('tasks.cancel');
+      expect(hostTasks?.liveRecords?.[0]?.availableControls).toContain('cancel');
+      expect(hostTasks?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.confirmationRequired).toBe(true);
+      expect(hostTasks?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.modelRoute).toContain('tasks.cancel');
+      const failedHostTask = hostTasks?.liveRecords?.find((record) => record.id === 'host-task-failed');
+      expect(failedHostTask?.status).toBe('failed');
+      expect(failedHostTask?.availableControls).toContain('retry');
+      expect(failedHostTask?.controls?.find((control) => control.id === 'retry')?.modelRoute).toContain('tasks.retry');
+      expect(failedHostTask?.logTail?.join('\n')).toContain('network timeout');
       expect(approvals?.owner).toBe('connected-host');
       expect(approvals?.status).toBe('attention');
       expect(approvals?.cancelRoute).toContain('approval-cancel');
       expect(approvals?.liveRecords?.[0]?.id).toBe('approval-live-1');
       expect(approvals?.liveRecords?.[0]?.status).toBe('pending');
       expect(approvals?.liveRecords?.[0]?.cancelRoute).toContain('approvals.cancel');
+      expect(approvals?.liveRecords?.[0]?.availableControls).toContain('approve');
+      expect(approvals?.liveRecords?.[0]?.controls?.find((control) => control.id === 'deny')?.modelRoute).toContain('approvals.deny');
       expect(approvals?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('approvals.approve');
       expect(approvals?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('approvals.deny');
       expect(automation?.status).toBe('active');
       expect(automation?.liveRecords?.[0]?.id).toBe('auto-run-1');
       expect(automation?.liveRecords?.[0]?.cancelRoute).toContain('automation.runs.cancel');
+      expect(automation?.liveRecords?.[0]?.availableControls).toContain('cancel');
+      expect(automation?.liveRecords?.[0]?.controls?.find((control) => control.id === 'retry')?.state).toBe('unavailable');
       expect(automation?.liveRecords?.[0]?.sourceIds).toContain('sched-live-1');
       expect(autonomousScheduleRequests?.modelRoute).toBe('agent_autonomy_schedule');
       expect(autonomousScheduleRequests?.createRoute).toContain('successCriteria');
@@ -1260,6 +1308,8 @@ describe('agent_harness tool', () => {
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.disable');
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.delete');
       expect(schedules?.liveRecords?.[0]?.cancelRoute).toContain('schedules.disable');
+      expect(schedules?.liveRecords?.[0]?.availableControls).toContain('run');
+      expect(schedules?.liveRecords?.[0]?.controls?.find((control) => control.id === 'delete')?.confirmationRequired).toBe(true);
       expect(schedules?.modelRoute).toContain('agent_schedule_edit');
       expect(schedules?.createRoute).toContain('agent_autonomy_schedule');
       expect(routines?.inspectRoute).toContain('schedule-receipts');

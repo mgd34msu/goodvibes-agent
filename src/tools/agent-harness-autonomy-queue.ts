@@ -58,6 +58,17 @@ interface AutonomyQueueLiveRecord {
   readonly nextSteps?: readonly string[];
   readonly sourceIds?: readonly string[];
   readonly logTail?: readonly string[];
+  readonly controls?: readonly AutonomyQueueRecordControl[];
+}
+
+interface AutonomyQueueRecordControl {
+  readonly id: string;
+  readonly label: string;
+  readonly state: 'available' | 'unavailable';
+  readonly effect: 'read-only' | 'confirmed-effect';
+  readonly confirmationRequired: boolean;
+  readonly modelRoute?: string;
+  readonly reason?: string;
 }
 
 type SnapshotReader<TSnapshot> = {
@@ -139,6 +150,54 @@ function quoteRouteValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
+function operatorMethodRoute(methodId: string, input: Record<string, string>): string {
+  const payload = JSON.stringify(input);
+  return `agent_operator_method methodId:"${quoteRouteValue(methodId)}" input:${payload} confirm:true explicitUserRequest:"..."`;
+}
+
+function availableControl(
+  id: string,
+  label: string,
+  effect: AutonomyQueueRecordControl['effect'],
+  modelRoute: string,
+): AutonomyQueueRecordControl {
+  return {
+    id,
+    label,
+    state: 'available',
+    effect,
+    confirmationRequired: effect === 'confirmed-effect',
+    modelRoute,
+  };
+}
+
+function unavailableControl(id: string, label: string, reason: string): AutonomyQueueRecordControl {
+  return {
+    id,
+    label,
+    state: 'unavailable',
+    effect: 'confirmed-effect',
+    confirmationRequired: true,
+    reason,
+  };
+}
+
+function controlAvailable(record: AutonomyQueueLiveRecord, id: string): boolean {
+  return record.controls?.some((control) => control.id === id && control.state === 'available') === true;
+}
+
+function availableControlRoute(record: AutonomyQueueLiveRecord, id: string): string | undefined {
+  return record.controls?.find((control) => control.id === id && control.state === 'available')?.modelRoute;
+}
+
+function firstAvailableControlRoute(records: readonly AutonomyQueueLiveRecord[], id: string): string | undefined {
+  for (const record of records) {
+    const route = availableControlRoute(record, id);
+    if (route) return route;
+  }
+  return undefined;
+}
+
 function scheduleEditRoute(job: UiAutomationSnapshot['jobs'][number]): string {
   const schedule = job.schedule;
   const value = schedule.kind === 'cron'
@@ -171,6 +230,11 @@ function taskLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRec
     return rightTime - leftTime || left.title.localeCompare(right.title);
   });
   return tasks.slice(0, 20).map((task) => {
+    const active = task.status === 'queued' || task.status === 'running' || task.status === 'blocked';
+    const canCancel = task.cancellable && active;
+    const canRetry = task.status === 'failed' || task.status === 'cancelled';
+    const cancelRoute = operatorMethodRoute('tasks.cancel', { taskId: task.id });
+    const retryRoute = operatorMethodRoute('tasks.retry', { taskId: task.id });
     const retry = task.retryPolicy
       ? `attempt ${task.retryPolicy.currentAttempt}/${task.retryPolicy.maxAttempts}`
       : '';
@@ -194,10 +258,13 @@ function taskLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRec
       updatedAt: formatEpochMs(task.endedAt ?? task.startedAt ?? task.queuedAt),
       summary,
       inspectRoute: `/tasks show ${task.id}`,
+      ...(canCancel ? { cancelRoute } : {}),
       nextSteps: [
         `/tasks show ${task.id}`,
         `/tasks output ${task.id}`,
-        'Use /workplan for Agent-owned visible task changes; host task mutations are blocked in Agent.',
+        ...(canCancel ? [cancelRoute] : []),
+        ...(canRetry ? [retryRoute] : []),
+        'Use /workplan for Agent-owned visible task changes; host task mutation requires exact confirmed daemon methods.',
       ],
       sourceIds: [
         task.parentTaskId,
@@ -206,6 +273,16 @@ function taskLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRec
         task.turnId,
       ].filter((value): value is string => typeof value === 'string' && value.length > 0),
       ...(task.error ? { logTail: [task.error] } : {}),
+      controls: [
+        availableControl('inspect', 'Inspect task', 'read-only', `/tasks show ${task.id}`),
+        availableControl('output', 'Show output', 'read-only', `/tasks output ${task.id}`),
+        canCancel
+          ? availableControl('cancel', 'Cancel task', 'confirmed-effect', cancelRoute)
+          : unavailableControl('cancel', 'Cancel task', task.cancellable ? `Task is ${task.status}; cancel is only useful before terminal completion.` : 'Task owner did not mark this task cancellable.'),
+        canRetry
+          ? availableControl('retry', 'Retry task', 'confirmed-effect', retryRoute)
+          : unavailableControl('retry', 'Retry task', `Task is ${task.status}; retry is only offered for failed or cancelled tasks.`),
+      ],
     };
   });
 }
@@ -230,6 +307,9 @@ function approvalLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
     .map((approval) => {
       const active = approval.status === 'pending' || approval.status === 'claimed';
       const label = `${approval.request.tool}: ${approval.request.analysis.summary}`;
+      const approveRoute = `agent_operator_action action:"approvals.approve" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`;
+      const denyRoute = `agent_operator_action action:"approvals.deny" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`;
+      const cancelRoute = `agent_operator_action action:"approvals.cancel" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`;
       return {
         id: approval.id,
         label,
@@ -248,12 +328,12 @@ function approvalLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
         ].filter(Boolean).join(' | '),
         inspectRoute: '/approval matrix',
         ...(active ? {
-          cancelRoute: `agent_operator_action action:"approvals.cancel" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
+          cancelRoute,
         } : {}),
         nextSteps: active ? [
-          `agent_operator_action action:"approvals.approve" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
-          `agent_operator_action action:"approvals.deny" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
-          `agent_operator_action action:"approvals.cancel" approvalId:"${approval.id}" confirm:true explicitUserRequest:"..."`,
+          approveRoute,
+          denyRoute,
+          cancelRoute,
         ] : [`/approval matrix`],
         sourceIds: [
           approval.callId,
@@ -267,6 +347,18 @@ function approvalLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
           formatEpochMs(entry.createdAt),
           entry.note,
         ].filter(Boolean).join(' ')),
+        controls: [
+          availableControl('inspect', 'Inspect approval matrix', 'read-only', '/approval matrix'),
+          active
+            ? availableControl('approve', 'Approve approval', 'confirmed-effect', approveRoute)
+            : unavailableControl('approve', 'Approve approval', `Approval is ${approval.status}; only pending or claimed approvals can be approved.`),
+          active
+            ? availableControl('deny', 'Deny approval', 'confirmed-effect', denyRoute)
+            : unavailableControl('deny', 'Deny approval', `Approval is ${approval.status}; only pending or claimed approvals can be denied.`),
+          active
+            ? availableControl('cancel', 'Cancel approval', 'confirmed-effect', cancelRoute)
+            : unavailableControl('cancel', 'Cancel approval', `Approval is ${approval.status}; only pending or claimed approvals can be cancelled.`),
+        ],
       };
     });
 }
@@ -283,6 +375,8 @@ function automationRunLiveRecords(context: CommandContext): readonly AutonomyQue
     .map((run) => {
       const active = run.status === 'queued' || run.status === 'running';
       const failed = run.status === 'failed';
+      const cancelRoute = `agent_operator_action action:"automation.runs.cancel" runId:"${run.id}" confirm:true explicitUserRequest:"..."`;
+      const retryRoute = `agent_operator_action action:"automation.runs.retry" runId:"${run.id}" confirm:true explicitUserRequest:"..."`;
       const timing = [
         formatTimeFragment('queued', run.queuedAt),
         formatTimeFragment('started', run.startedAt),
@@ -310,11 +404,11 @@ function automationRunLiveRecords(context: CommandContext): readonly AutonomyQue
         ].filter(Boolean).join(' | '),
         inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
         ...(active ? {
-          cancelRoute: `agent_operator_action action:"automation.runs.cancel" runId:"${run.id}" confirm:true explicitUserRequest:"..."`,
+          cancelRoute,
         } : {}),
         nextSteps: [
-          ...(active ? [`agent_operator_action action:"automation.runs.cancel" runId:"${run.id}" confirm:true explicitUserRequest:"..."`] : []),
-          ...(failed ? [`agent_operator_action action:"automation.runs.retry" runId:"${run.id}" confirm:true explicitUserRequest:"..."`] : []),
+          ...(active ? [cancelRoute] : []),
+          ...(failed ? [retryRoute] : []),
           `agent_harness mode:"workspace_action" actionId:"schedule-list"`,
         ],
         sourceIds: [
@@ -329,6 +423,15 @@ function automationRunLiveRecords(context: CommandContext): readonly AutonomyQue
           run.error,
           run.cancelledReason,
         ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+        controls: [
+          availableControl('inspect', 'Inspect schedule list', 'read-only', 'agent_harness mode:"workspace_action" actionId:"schedule-list"'),
+          active
+            ? availableControl('cancel', 'Cancel automation run', 'confirmed-effect', cancelRoute)
+            : unavailableControl('cancel', 'Cancel automation run', `Run is ${run.status}; cancel is only offered for queued or running runs.`),
+          failed
+            ? availableControl('retry', 'Retry automation run', 'confirmed-effect', retryRoute)
+            : unavailableControl('retry', 'Retry automation run', `Run is ${run.status}; retry is only offered for failed runs.`),
+        ],
       };
     });
 }
@@ -348,6 +451,9 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
       const toggleRoute = enabled
         ? `agent_operator_action action:"schedules.disable" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`
         : `agent_operator_action action:"schedules.enable" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
+      const runRoute = `agent_operator_action action:"schedules.run" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
+      const editRoute = scheduleEditRoute(job);
+      const deleteRoute = `agent_operator_action action:"schedules.delete" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
       return {
         id: job.id,
         label: job.name,
@@ -369,10 +475,10 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
         inspectRoute: '/schedule list',
         ...(enabled ? { cancelRoute: toggleRoute } : {}),
         nextSteps: [
-          `agent_operator_action action:"schedules.run" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`,
-          scheduleEditRoute(job),
+          runRoute,
+          editRoute,
           toggleRoute,
-          `agent_operator_action action:"schedules.delete" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`,
+          deleteRoute,
           `agent_harness mode:"workspace_action" actionId:"schedule-list"`,
         ],
         sourceIds: [
@@ -383,6 +489,13 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
         ...(job.pausedReason || job.status === 'error' ? {
           logTail: [job.pausedReason ?? `Schedule status ${job.status}`],
         } : {}),
+        controls: [
+          availableControl('inspect', 'Inspect schedules', 'read-only', '/schedule list'),
+          availableControl('run', 'Run schedule now', 'confirmed-effect', runRoute),
+          availableControl('edit', 'Edit schedule', 'confirmed-effect', editRoute),
+          availableControl(enabled ? 'disable' : 'enable', enabled ? 'Disable schedule' : 'Enable schedule', 'confirmed-effect', toggleRoute),
+          availableControl('delete', 'Delete schedule', 'confirmed-effect', deleteRoute),
+        ],
       };
     });
 }
@@ -428,6 +541,9 @@ function statusRank(status: AutonomyQueueStatus): number {
 function researchRunLiveRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSnapshot>): readonly AutonomyQueueLiveRecord[] {
   return snapshot.researchRuns.map((run) => {
     const terminal = run.status === 'cancelled' || run.status === 'completed' || run.status === 'failed';
+    const inspectRoute = `agent_research_runs show id="${run.id}"`;
+    const cancelRoute = `agent_research_runs cancel id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
+    const checkpointRoute = `agent_research_runs checkpoint id="${run.id}" note="..." progress:${run.progress} confirm:true explicitUserRequest:"..."`;
     return {
       id: run.id,
       label: run.title,
@@ -442,14 +558,23 @@ function researchRunLiveRecords(snapshot: ReturnType<typeof buildAgentWorkspaceR
         run.reportArtifactId ? `report ${run.reportArtifactId}` : '',
         run.note ?? '',
       ].filter(Boolean).join(' | '),
-      inspectRoute: `agent_research_runs show id="${run.id}"`,
+      inspectRoute,
       ...(terminal ? {} : {
-        cancelRoute: `agent_research_runs cancel id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`,
-        checkpointRoute: `agent_research_runs checkpoint id="${run.id}" note="..." progress:${run.progress} confirm:true explicitUserRequest:"..."`,
+        cancelRoute,
+        checkpointRoute,
       }),
-      nextSteps: run.nextSteps,
+      nextSteps: terminal ? run.nextSteps : [...run.nextSteps, checkpointRoute, cancelRoute],
       sourceIds: run.sourceIds,
       logTail: run.logTail,
+      controls: [
+        availableControl('inspect', 'Inspect research run', 'read-only', inspectRoute),
+        terminal
+          ? unavailableControl('checkpoint', 'Checkpoint research run', `Research run is ${run.status}; checkpoint is only offered before terminal completion.`)
+          : availableControl('checkpoint', 'Checkpoint research run', 'confirmed-effect', checkpointRoute),
+        terminal
+          ? unavailableControl('cancel', 'Cancel research run', `Research run is ${run.status}; cancel is only offered before terminal completion.`)
+          : availableControl('cancel', 'Cancel research run', 'confirmed-effect', cancelRoute),
+      ],
     };
   });
 }
@@ -480,11 +605,34 @@ function itemSearchText(item: AutonomyQueueItem): string {
       record.nextSteps?.join('\n') ?? '',
       record.sourceIds?.join('\n') ?? '',
       record.logTail?.join('\n') ?? '',
+      record.controls?.map((control) => [
+        control.id,
+        control.label,
+        control.state,
+        control.effect,
+        control.modelRoute ?? '',
+        control.reason ?? '',
+      ].join(' ')).join('\n') ?? '',
     ]).join('\n') ?? '',
   ].join('\n').toLowerCase();
 }
 
+function describeControl(control: AutonomyQueueRecordControl): Record<string, unknown> {
+  return {
+    id: control.id,
+    label: control.label,
+    state: control.state,
+    effect: control.effect,
+    confirmationRequired: control.confirmationRequired,
+    ...(control.modelRoute ? { modelRoute: control.modelRoute } : {}),
+    ...(control.reason ? { reason: previewHarnessText(control.reason, 120) } : {}),
+  };
+}
+
 function describeLiveRecord(record: AutonomyQueueLiveRecord, includeParameters: boolean): Record<string, unknown> {
+  const availableControls = record.controls
+    ?.filter((control) => control.state === 'available')
+    .map((control) => control.id);
   return {
     id: record.id,
     label: record.label,
@@ -499,6 +647,8 @@ function describeLiveRecord(record: AutonomyQueueLiveRecord, includeParameters: 
     ...(record.nextSteps && record.nextSteps.length > 0 ? { nextSteps: record.nextSteps.slice(0, includeParameters ? 8 : 3) } : {}),
     ...(record.sourceIds && record.sourceIds.length > 0 ? { sourceIds: record.sourceIds.slice(0, includeParameters ? 12 : 4) } : {}),
     ...(record.logTail && record.logTail.length > 0 ? { logTail: record.logTail.slice(-(includeParameters ? 5 : 2)) } : {}),
+    ...(availableControls && availableControls.length > 0 ? { availableControls: availableControls.slice(0, includeParameters ? 8 : 4) } : {}),
+    ...(includeParameters && record.controls && record.controls.length > 0 ? { controls: record.controls.map(describeControl) } : {}),
   };
 }
 
@@ -547,6 +697,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
   const automationRecords = automationRunLiveRecords(context);
   const scheduleRecords = scheduleLiveRecords(context);
   const latestResearchRun = researchRuns[0];
+  const taskCancelRoute = firstAvailableControlRoute(taskRecords, 'cancel');
   const taskStatus: AutonomyQueueStatus = taskRecords.some((record) => record.status === 'blocked' || record.status === 'failed')
     ? 'attention'
     : taskRecords.some((record) => record.status === 'running' || record.status === 'queued')
@@ -641,20 +792,23 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       owner: 'connected-host',
       kind: 'host-task',
       visible: true,
-      cancellable: false,
+      cancellable: taskRecords.some((record) => controlAvailable(record, 'cancel')),
       count: taskRecords.length > 0 ? taskRecords.length : taskMethods.length,
       current: taskRecords.length > 0
-        ? `${taskRecords.length} live connected-host task record(s); ${taskMethods.length} task-like daemon method(s) are discoverable.`
+        ? `${taskRecords.length} live connected-host task record(s); active cancellable tasks expose exact confirmed daemon controls. ${taskMethods.length} task-like daemon method(s) are discoverable.`
         : `${taskMethods.length} task-like daemon method(s) are present; Agent exposes read-only host task inspection.`,
       next: taskRecords.some((record) => record.status === 'blocked' || record.status === 'failed')
-        ? 'Inspect failed or blocked host tasks, then update Agent workplan state only from the visible work-plan route.'
-        : taskRecords.some((record) => record.status === 'running' || record.status === 'queued')
-          ? 'Inspect active host tasks before changing any work plan, delegation, or automation state.'
+        ? 'Inspect failed or blocked host tasks, then use the exact retry control when useful or update Agent workplan state from the visible work-plan route.'
+        : taskCancelRoute
+          ? 'Inspect active host tasks; cancel only the exact host task id through its confirmed daemon control when the user authorizes it.'
+          : taskRecords.some((record) => record.status === 'running' || record.status === 'queued')
+            ? 'Inspect active host tasks before changing any work plan, delegation, or automation state.'
           : taskMethods.length > 0
             ? 'Inspect host tasks before changing any work plan or automation state.'
         : 'Update the connected GoodVibes host or connector set until task inspection methods are present.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
       modelRoute: 'agent_harness mode:"operator_methods" query:"task"',
+      ...(taskCancelRoute ? { cancelRoute: taskCancelRoute } : {}),
       methodIds: taskMethods,
       liveRecords: taskRecords,
     },
