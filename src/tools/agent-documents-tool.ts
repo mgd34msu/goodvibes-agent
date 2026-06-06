@@ -298,14 +298,19 @@ function insertBlock(body: string, block: string, placement: 'append' | 'prepend
 }
 
 function formatExport(document: AgentDocumentRecord, artifact: ArtifactDescriptor): string {
+  const openComments = document.comments.filter((comment) => comment.status === 'open').length;
+  const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
   return [
     'Exported Agent document',
     `  document ${document.id}`,
     `  version ${exportedVersionId(document)}`,
     `  attachments ${document.attachments.length}`,
+    `  comments ${openComments}/${document.comments.length}`,
+    `  suggestions ${proposedSuggestions}/${document.suggestions.length}`,
     `  artifact ${artifact.id}`,
     `  filename ${artifact.filename ?? '(none)'}`,
     `  route agent_artifacts mode:"show" artifactId:"${artifact.id}" includeContent:true`,
+    '  policy markdown body plus reviewer appendix exported; artifact content not printed',
   ].join('\n');
 }
 
@@ -316,6 +321,10 @@ async function exportDocument(
 ): Promise<string> {
   if (!artifactStore?.create) throw new Error('Agent document export requires an artifact store with create support.');
   const versionId = exportedVersionId(document);
+  const openComments = document.comments.filter((comment) => comment.status === 'open').length;
+  const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
+  const acceptedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'accepted').length;
+  const rejectedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'rejected').length;
   const artifact = await artifactStore.create({
     kind: 'document',
     mimeType: 'text/markdown',
@@ -328,6 +337,22 @@ async function exportDocument(
       versionId,
       status: document.status,
       attachmentIds: document.attachments.map((attachment) => attachment.artifactId),
+      commentCounts: {
+        open: openComments,
+        resolved: document.comments.length - openComments,
+        total: document.comments.length,
+      },
+      suggestionCounts: {
+        proposed: proposedSuggestions,
+        accepted: acceptedSuggestions,
+        rejected: rejectedSuggestions,
+        total: document.suggestions.length,
+      },
+      reviewSummary: {
+        hasOpenComments: openComments > 0,
+        hasProposedSuggestions: proposedSuggestions > 0,
+        exportedReviewAppendix: document.comments.length > 0 || document.suggestions.length > 0,
+      },
     },
   });
   registry.updateArtifactId(document.id, artifact.id);

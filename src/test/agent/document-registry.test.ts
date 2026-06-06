@@ -80,7 +80,10 @@ describe('AgentDocumentRegistry', () => {
     expect(resolved.comments[0]?.status).toBe('resolved');
     expect(resolved.comments[0]?.resolvedAt).toBeString();
     expect(resolved.versions).toHaveLength(1);
-    expect(renderAgentDocumentMarkdown(resolved)).toContain('Comments: 0 open / 1 total');
+    const markdown = renderAgentDocumentMarkdown(resolved);
+    expect(markdown).toContain('Comments: 0 open / 1 total');
+    expect(markdown).toContain('## Review Comments');
+    expect(markdown).toContain('c1 [resolved] Tighten the opening.');
   });
 
   test('attaches artifacts without changing document body versions', () => {
@@ -132,7 +135,12 @@ describe('AgentDocumentRegistry', () => {
     expect(suggested.body).toBe('Original body.');
     expect(suggested.versions).toHaveLength(1);
     expect(documents.search('more direct')[0]?.id).toBe(created.id);
-    expect(renderAgentDocumentMarkdown(suggested)).toContain('Suggestions: 1 proposed / 1 total');
+    const suggestedMarkdown = renderAgentDocumentMarkdown(suggested);
+    expect(suggestedMarkdown).toContain('Suggestions: 1 proposed / 1 total');
+    expect(suggestedMarkdown).toContain('## AI Suggestions');
+    expect(suggestedMarkdown).toContain('s1 [proposed] Rewrite for clarity.');
+    expect(suggestedMarkdown).toContain('Rationale: The replacement is more direct for the user.');
+    expect(suggestedMarkdown).not.toContain('Suggested replacement body.');
 
     const accepted = documents.acceptSuggestion(created.id, 's1');
     expect(accepted.body).toBe('Suggested replacement body.');
@@ -140,7 +148,9 @@ describe('AgentDocumentRegistry', () => {
     expect(accepted.versions.map((version) => version.id)).toEqual(['v1', 'v2']);
     expect(accepted.versions[1]?.summary).toBe('Rewrite for clarity.');
     expect(accepted.suggestions[0]?.status).toBe('accepted');
-    expect(renderAgentDocumentMarkdown(accepted)).toContain('Suggestions: 0 proposed / 1 total');
+    const acceptedMarkdown = renderAgentDocumentMarkdown(accepted);
+    expect(acceptedMarkdown).toContain('Suggestions: 0 proposed / 1 total');
+    expect(acceptedMarkdown).toContain('s1 [accepted] Rewrite for clarity.');
 
     const second = documents.suggestUpdate(created.id, {
       body: 'Rejected replacement body.',

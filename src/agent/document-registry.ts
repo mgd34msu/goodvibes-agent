@@ -319,6 +319,27 @@ function formatStore(store: DocumentStoreFile): string {
   return `${JSON.stringify(store, null, 2)}\n`;
 }
 
+function compactExportLine(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function renderCommentSummary(comment: AgentDocumentComment): string {
+  const resolved = comment.resolvedAt ? ` resolved ${comment.resolvedAt}` : '';
+  return `- ${comment.id} [${comment.status}] ${compactExportLine(comment.body)} (created ${comment.createdAt}${resolved})`;
+}
+
+function renderSuggestionSummary(suggestion: AgentDocumentSuggestion): string {
+  const parts = [
+    `- ${suggestion.id} [${suggestion.status}] ${compactExportLine(suggestion.summary)}`,
+    suggestion.rationale ? `Rationale: ${compactExportLine(suggestion.rationale)}` : '',
+    `Title: ${suggestion.title}`,
+    suggestion.tags.length > 0 ? `Tags: ${suggestion.tags.join(', ')}` : '',
+    suggestion.documentStatus ? `Status after accept: ${suggestion.documentStatus}` : '',
+    suggestion.resolvedAt ? `Resolved: ${suggestion.resolvedAt}` : '',
+  ].filter(Boolean);
+  return parts.join(' | ');
+}
+
 export function documentStorePath(shellPaths: AgentDocumentStorePaths): string {
   return shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'documents', 'documents.json');
 }
@@ -354,6 +375,22 @@ export function renderAgentDocumentMarkdown(document: AgentDocumentRecord): stri
         const note = attachment.note ? ` - ${attachment.note}` : '';
         return `- ${attachment.id}: ${attachment.label} (${attachment.artifactId}${details ? `, ${details}` : ''})${note}`;
       }),
+      '',
+    );
+  }
+  if (document.comments.length > 0) {
+    lines.push(
+      '## Review Comments',
+      '',
+      ...document.comments.map(renderCommentSummary),
+      '',
+    );
+  }
+  if (document.suggestions.length > 0) {
+    lines.push(
+      '## AI Suggestions',
+      '',
+      ...document.suggestions.map(renderSuggestionSummary),
       '',
     );
   }

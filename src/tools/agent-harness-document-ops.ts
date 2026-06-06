@@ -231,7 +231,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: documentsReady ? 'ready' : 'partial',
       outcome: 'Draft, revise, and export user-facing documents without leaving the Agent conversation.',
       current: documentsReady
-        ? 'Agent has project-scoped markdown document drafts with version history, review status, review comments, AI suggestion review, read-only inspection, confirmed artifact attachment, confirmed artifact insertion, and confirmed artifact export.'
+        ? 'Agent has project-scoped markdown document drafts with version history, review status, review comments, AI suggestion review, read-only inspection, confirmed artifact attachment, confirmed artifact insertion, and confirmed artifact export with reviewer-ready comment and suggestion appendices.'
         : 'Agent can draft and revise documents in the main conversation and export transcript/session artifacts, but the dedicated markdown draft tool is not fully wired.',
       next: documentsReady
         ? 'Use versioned drafts, comments, suggestions, artifact reuse, artifact packages or ZIP archives, and artifact-backed comparison as one document workflow.'

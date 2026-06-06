@@ -213,6 +213,8 @@ describe('agent_documents tool', () => {
     expect(exported.success).toBe(true);
     expect(exported.output).toContain('Exported Agent document');
     expect(exported.output).toContain('artifact artifact-');
+    expect(exported.output).toContain('comments 0/1');
+    expect(exported.output).toContain('suggestions 0/2');
     const artifact = artifactStore.list(5)[0];
     expect(artifact?.metadata).toMatchObject({
       purpose: 'agent-document-export',
@@ -220,7 +222,32 @@ describe('agent_documents tool', () => {
       documentId: 'launch-plan',
       status: 'reviewed',
       attachmentIds: [sourceArtifact.id],
+      commentCounts: {
+        open: 0,
+        resolved: 1,
+        total: 1,
+      },
+      suggestionCounts: {
+        proposed: 0,
+        accepted: 1,
+        rejected: 1,
+        total: 2,
+      },
+      reviewSummary: {
+        hasOpenComments: false,
+        hasProposedSuggestions: false,
+        exportedReviewAppendix: true,
+      },
     });
+    const exportedContent = await artifactStore.readContent(artifact?.id ?? '');
+    const exportedMarkdown = exportedContent.buffer.toString('utf-8');
+    expect(exportedMarkdown).toContain('## Review Comments');
+    expect(exportedMarkdown).toContain('c1 [resolved] Clarify the launch owner.');
+    expect(exportedMarkdown).toContain('## AI Suggestions');
+    expect(exportedMarkdown).toContain('s1 [accepted] Added a concrete owner.');
+    expect(exportedMarkdown).toContain('s2 [rejected] Alternative rewrite.');
+    expect(exportedMarkdown).toContain('Rationale: The user asked for a clearer launch owner.');
+    expect(exportedMarkdown).not.toContain('Rejected launch rewrite.');
   });
 
   test('inserts non-text artifacts as references without base64 content', async () => {
