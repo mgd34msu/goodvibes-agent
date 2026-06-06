@@ -907,6 +907,7 @@ describe('spawn mode', () => {
 
     const blockedInputs: ReadonlyArray<Record<string, unknown>> = [
       { commands: [{ cmd: 'sleep 100', background: true }] },
+      { commands: [{ cmd: 'bg_list' }] },
       { commands: [{ cmd: 'bg_status process-1' }] },
       { commands: [{ cmd: 'long setup', until: { pattern: 'ready' } }] },
       { commands: [{ cmd: 'echo ok' }], parallel: true },

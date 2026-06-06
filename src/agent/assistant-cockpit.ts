@@ -143,8 +143,8 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         label: 'Supervise background work',
         state: metrics.runningWork > 0 ? 'attention' : 'ready',
         summary: metrics.runningWork > 0 ? `${metrics.runningWork} running item(s) need visible supervision.` : 'No running background work reported by the summary.',
-        nextAction: 'Inspect the autonomy queue before starting, pausing, resuming, or canceling ongoing work.',
-        routes: ['agent_harness mode:"autonomy_queue"', 'agent_harness mode:"autonomy_intake"'],
+        nextAction: 'Inspect the autonomy queue and tracked local processes before starting, pausing, resuming, or canceling ongoing work.',
+        routes: ['agent_harness mode:"autonomy_queue"', 'agent_harness mode:"background_processes"', 'agent_harness mode:"autonomy_intake"'],
       }),
       lane({
         id: 'safety-and-recovery',
@@ -163,6 +163,7 @@ export function buildAssistantCockpitFromSummaries(input: {
   readonly setupPosture: unknown;
   readonly modelRouting: unknown;
   readonly executionPosture: unknown;
+  readonly backgroundProcesses?: unknown;
   readonly personalOps: unknown;
   readonly autonomyQueue: unknown;
   readonly researchRuns: unknown;
@@ -172,6 +173,7 @@ export function buildAssistantCockpitFromSummaries(input: {
   const setup = readRecord(input.setupPosture);
   const model = readRecord(input.modelRouting);
   const execution = readRecord(input.executionPosture);
+  const backgroundProcesses = readRecord(input.backgroundProcesses);
   const personal = readRecord(input.personalOps);
   const autonomy = readRecord(input.autonomyQueue);
   const research = readRecord(input.researchRuns);
@@ -186,7 +188,7 @@ export function buildAssistantCockpitFromSummaries(input: {
     modelStatus: readString(model, 'status'),
     executionRoutes: readNumber(execution, 'routes'),
     personalGaps: readNumber(personal, 'gap'),
-    runningWork: readNumber(autonomy, 'running') || readNumber(research, 'running'),
+    runningWork: readNumber(autonomy, 'running') || readNumber(research, 'running') || readNumber(backgroundProcesses, 'running'),
     researchRuns: readNumber(research, 'runs'),
     documentLanes: readNumber(documents, 'lanes'),
     documentGaps: readNumber(documents, 'gap'),

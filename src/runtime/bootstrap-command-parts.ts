@@ -74,6 +74,7 @@ export interface BootstrapCommandSectionOptions {
   readonly conversation: ConversationManager;
   readonly runtime: MutableRuntimeState;
   readonly keybindingsManager?: KeybindingsManager;
+  readonly processManager?: import('@pellux/goodvibes-sdk/platform/tools').ProcessManager;
   readonly panelManager: PanelManager;
   readonly requestRender: () => void;
   readonly requestPermission: PermissionRequestHandler;
@@ -293,7 +294,7 @@ export function createBootstrapCommandWorkspaceSection(
   options: Pick<
     BootstrapCommandSectionOptions,
     'keybindingsManager' | 'fileUndoManager' | 'panelManager' | 'profileManager' | 'bookmarkManager'
-    | 'projectPlanningService' | 'projectPlanningProjectId' | 'workPlanStore'
+    | 'processManager' | 'projectPlanningService' | 'projectPlanningProjectId' | 'workPlanStore'
   >,
   shellServices: BootstrapCommandShellServices,
 ): BootstrapCommandWorkspaceSection {
@@ -301,6 +302,7 @@ export function createBootstrapCommandWorkspaceSection(
     keybindingsManager: options.keybindingsManager,
     fileUndoManager: options.fileUndoManager,
     panelManager: options.panelManager,
+    processManager: options.processManager,
     profileManager: options.profileManager,
     bookmarkManager: options.bookmarkManager,
     projectPlanningService: options.projectPlanningService,

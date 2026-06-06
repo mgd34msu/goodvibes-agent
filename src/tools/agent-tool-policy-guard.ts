@@ -75,7 +75,7 @@ type AgentToolPolicyGuardOptions = {
 };
 
 const BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = [] as const;
-const AGENT_EXEC_BACKGROUND_COMMAND = /^\s*bg_(?:status|output|stop)\b/;
+const AGENT_EXEC_BACKGROUND_COMMAND = /^\s*bg_(?:list|status|output|stop)\b/;
 
 const READ_ONLY_AGENT_TOOL_MODES = [
   'spawn',
@@ -141,8 +141,8 @@ const LOCAL_CODING_TOOL_DENIAL = [
 
 const BACKGROUND_EXEC_DENIAL = [
   'GoodVibes Agent only runs foreground, serial command-line work from the main conversation.',
-  'Background processes, parallel command batches, background process controls, and exec pre-command file operations are disabled here.',
-  'For long-running build/fix/review work, delegate one request to GoodVibes TUI through the public shared-session/build-delegation contract.',
+  'Raw exec background flags, parallel command batches, bg_* controls, and exec pre-command file operations are disabled here.',
+  'For user-approved long-running local commands, use agent_harness mode:"background_processes" and mode:"run_background_process". Delegate only when isolation, remote execution, or parallel work is the user benefit.',
 ].join(' ');
 
 const REMOTE_MUTATION_DENIAL = [

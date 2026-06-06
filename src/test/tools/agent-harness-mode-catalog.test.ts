@@ -55,6 +55,26 @@ describe('agent_harness mode catalog', () => {
     expect(daemon.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds background process controls by process, PTY, and sudo wording', () => {
+    const processModes = listHarnessModes({ query: 'background process', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = processModes.modes.map((mode) => mode.id);
+    expect(ids).toContain('background_processes');
+    expect(ids).toContain('background_process');
+    expect(ids).toContain('run_background_process');
+    expect(processModes.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+
+    const pty = listHarnessModes({ query: 'pty', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string }[];
+    };
+    expect(pty.modes.map((mode) => mode.id)).toContain('run_background_process');
+    const sudo = listHarnessModes({ query: 'sudo', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string }[];
+    };
+    expect(sudo.modes.map((mode) => mode.id)).toContain('run_background_process');
+  });
+
   test('finds Personal Ops by natural user task wording', () => {
     const personalOps = listHarnessModes({ query: 'email calendar tasks reminders', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

@@ -203,7 +203,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
     ],
     commonRoutes: {
       findCapability: 'agent_harness mode:"modes" query:"<task>"',
-      executionPosture: 'agent_harness mode:"execution_posture"; inspect one route with mode:"execution_route"; inspect recent records with mode:"execution_history"; prefer local read/edit/exec for the current workspace, delegation for isolation/parallel/remote',
+      executionPosture: 'agent_harness mode:"execution_posture"; inspect one route with mode:"execution_route"; inspect tracked local processes with mode:"background_processes" and mode:"background_process"; start/wait/stop a visible local long-running command with mode:"run_background_process" confirm:true explicitUserRequest:"..."; inspect recent records with mode:"execution_history"; prefer local read/edit/exec for the current workspace, delegation for isolation/parallel/remote',
       fileRecovery: 'agent_harness mode:"file_recovery"; apply one snapshot with mode:"run_file_recovery" recoveryAction:"undo|redo" confirm:true explicitUserRequest:"..."',
       personalOps: 'agent_harness mode:"personal_ops"; inspect one lane with mode:"personal_ops_lane"',
       autonomyIntake: 'agent_harness mode:"autonomy_intake" query:"<ongoing work request>"; use returned route and missing fields before creating background work',

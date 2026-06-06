@@ -7,6 +7,7 @@ export const AGENT_HARNESS_MODES = [
   'setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke',
   'model_routing', 'model_route',
   'execution_posture', 'execution_route',
+  'background_processes', 'background_process', 'run_background_process',
   'execution_history', 'execution_history_item',
   'file_recovery', 'run_file_recovery',
   'personal_ops', 'personal_ops_lane',
@@ -95,6 +96,31 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   executionRecordId: {
     type: 'string',
     description: 'Execution history record id for execution_history_item mode.',
+  },
+  processId: {
+    type: 'string',
+    description: 'Background process id for process inspect or lifecycle modes.',
+  },
+  processAction: {
+    type: 'string',
+    enum: ['start', 'stop', 'wait', 'list', 'status', 'log', 'output'],
+    description: 'Background process lifecycle action to run.',
+  },
+  cwd: {
+    type: 'string',
+    description: 'Workspace-relative cwd for a background process start.',
+  },
+  timeoutMs: {
+    type: 'number',
+    description: 'Timeout in milliseconds for background process start or wait actions.',
+  },
+  pty: {
+    type: 'boolean',
+    description: 'Request PTY mode; currently reports unsupported.',
+  },
+  data: {
+    type: 'string',
+    description: 'Input data for process write; currently reports unsupported.',
   },
   recoveryAction: {
     type: 'string',

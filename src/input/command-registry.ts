@@ -4,6 +4,7 @@ import type { ConversationManager } from '../core/conversation';
 import type { ConfigManager } from '../config/index.ts';
 import type { DeepReadonly, GoodVibesConfig } from '../config/index.ts';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import type { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { SelectionItem, SelectionResult, SelectionAction } from './selection-modal.ts';
 import type { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
@@ -158,6 +159,7 @@ export interface CommandWorkspaceUiServices {
   keybindingsManager?: KeybindingsManager;
   fileUndoManager?: FileUndoManager;
   panelManager?: PanelManager;
+  processManager?: ProcessManager;
   profileManager?: import('@pellux/goodvibes-sdk/platform/profiles').ProfileManager;
   bookmarkManager?: import('@pellux/goodvibes-sdk/platform/bookmarks').BookmarkManager;
   projectPlanningService?: import('@pellux/goodvibes-sdk/platform/knowledge').ProjectPlanningService;

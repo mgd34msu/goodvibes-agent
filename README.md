@@ -75,8 +75,9 @@ High-value `agent_harness` mode groups:
 
 - Discovery: `modes`, `workspace_categories`, `workspace_actions`, `commands`, `cli_commands`, `panels`, `ui_surfaces`, `shortcuts`, `keybindings`, `tools`, `settings`.
 - Single-item inspection: `mode`, `workspace_action`, `command`, `cli_command`, `panel`, `ui_surface`, `keybinding`, `tool`, `get_setting`.
-- User-visible effects: `run_workspace_action`, `run_command`, `open_panel`, `open_ui_surface`, `run_keybinding`, `set_keybinding`, `reset_keybinding`, `set_setting`, `reset_setting`.
-- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `personal_ops`, `document_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
+- User-visible effects: `run_workspace_action`, `run_command`, `run_background_process`, `open_panel`, `open_ui_surface`, `run_keybinding`, `set_keybinding`, `reset_keybinding`, `set_setting`, `reset_setting`.
+- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `execution_posture`, `background_processes`, `personal_ops`, `document_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
+- Local long-running commands: `background_processes` and `background_process` inspect tracked ProcessManager jobs with bounded redacted output; confirmed `run_background_process` starts, waits on, or stops one visible local process.
 - Connected host: `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`; `daemon` and `daemon_status` are aliases for connected-host posture/status.
 - Operator/audit inspection: `release_evidence`, `release_evidence_artifact`, `release_readiness`, `release_readiness_item`.
 - Operator methods: `operator_methods`, `operator_method`.

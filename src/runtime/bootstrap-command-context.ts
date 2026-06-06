@@ -75,6 +75,7 @@ export type CreateBootstrapCommandContextOptions = {
   remoteRuntime?: RemoteCommandService;
   planRuntime?: PlanRuntimeService;
   fileUndoManager: FileUndoManager;
+  processManager?: import('@pellux/goodvibes-sdk/platform/tools').ProcessManager;
   executionLedger?: AgentExecutionLedger;
   memoryRegistry?: MemoryRegistry;
   integrationHelpers?: IntegrationHelperService;
@@ -148,6 +149,7 @@ export function createBootstrapCommandContext(
     remoteRuntime,
     planRuntime,
     fileUndoManager,
+    processManager,
     executionLedger,
     memoryRegistry,
     integrationHelpers,
@@ -243,6 +245,7 @@ export function createBootstrapCommandContext(
     keybindingsManager,
     fileUndoManager,
     panelManager,
+    processManager,
     profileManager,
     bookmarkManager,
     projectPlanningService,

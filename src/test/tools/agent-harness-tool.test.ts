@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { ProcessManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
@@ -52,6 +52,7 @@ interface HarnessFixture {
   readonly panelManager: PanelManager;
   readonly keybindingsManager: KeybindingsManager;
   readonly toolRegistry: ToolRegistry;
+  readonly processManager: ProcessManager;
   readonly tool: ReturnType<typeof createAgentHarnessTool>;
   readonly context: CommandContext;
   readonly printed: string[];
@@ -190,6 +191,7 @@ function makeFixture(options: {
   });
   registerHarnessFixturePanels(panelManager);
   const toolRegistry = new ToolRegistry();
+  const processManager = new ProcessManager();
   const fileUndoManager = new FileUndoManager();
   const workPlanStore = new WorkPlanStore({ homeDirectory: root, projectId: 'harness-test', projectRoot: root });
   const printed: string[] = [];
@@ -342,8 +344,8 @@ function makeFixture(options: {
     },
     openSelection,
     workspace: options.keybindings === false
-      ? { shellPaths: paths, panelManager, bookmarkManager, fileUndoManager, workPlanStore }
-      : { shellPaths: paths, panelManager, keybindingsManager, bookmarkManager, fileUndoManager, workPlanStore },
+      ? { shellPaths: paths, panelManager, processManager, bookmarkManager, fileUndoManager, workPlanStore }
+      : { shellPaths: paths, panelManager, processManager, keybindingsManager, bookmarkManager, fileUndoManager, workPlanStore },
     platform: {
       configManager,
       serviceRegistry: {
@@ -484,6 +486,7 @@ function makeFixture(options: {
     panelManager,
     keybindingsManager,
     toolRegistry,
+    processManager,
     tool,
     context,
     printed,
@@ -491,7 +494,10 @@ function makeFixture(options: {
     openedSurfaces,
     openedSelections,
     executionRecords,
-    cleanup,
+    cleanup: () => {
+      for (const entry of processManager.list()) processManager.stop(entry.id);
+      cleanup();
+    },
   };
 }
 
@@ -2518,6 +2524,7 @@ describe('agent_harness tool', () => {
       });
       expect(posture.summary.localFirstPolicy).toContain('Use local read/edit/exec');
       expect(posture.summary.delegationPolicy).toContain('isolation');
+      expect(JSON.stringify(posture.summary)).toContain('background_processes');
       expect(posture.summary.browserControl).toBe('setup-needed');
       expect(posture.summary.executionHistory).toContain('execution_history');
       expect(posture.summary.browserControlSetup.setupRoute).toContain('browser-desktop-control');
@@ -2663,7 +2670,7 @@ describe('agent_harness tool', () => {
       expect(inspectedShell.executionRouteId).toBe('local-shell-command');
       expect(inspectedShell.availability).toBe('ready');
       expect(inspectedShell.safety).toContain('foreground serial');
-      expect(inspectedShell.useInsteadWhen).toContain('delegation');
+      expect(inspectedShell.useInsteadWhen).toContain('background_processes');
 
       const inspectedDelegation = await executeHarnessJson<{
         readonly executionRouteId: string;
@@ -2683,6 +2690,130 @@ describe('agent_harness tool', () => {
       expect(inspectedDelegation.useInsteadWhen).toContain('Use local read/edit/exec');
       expect(inspectedDelegation.delegationDecisionCards?.find((card) => card.lane === 'tui-shared-session')?.requiredFields.join('\n')).toContain('delegation reason');
       expect(inspectedDelegation.delegationDecisionCards?.find((card) => card.lane === 'hidden-fanout-blocked')?.confirmationBoundary).toContain('never confirmed');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('manages tracked background processes through confirmed harness routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const empty = await executeHarnessJson<{
+        readonly status: string;
+        readonly summary: { readonly tracked: number; readonly running: number };
+        readonly capabilities: { readonly start: string; readonly pty: { readonly status: string }; readonly sudo: { readonly status: string } };
+      }>(fixture, { mode: 'background_processes', includeParameters: true });
+      expect(empty.status).toBe('available');
+      expect(empty.summary.tracked).toBe(0);
+      expect(empty.capabilities.start).toContain('run_background_process');
+      expect(empty.capabilities.pty.status).toContain('not-yet-supported');
+      expect(empty.capabilities.sudo.status).toContain('foreground');
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_background_process',
+        processAction: 'start',
+        command: 'printf ready',
+        explicitUserRequest: 'Run a quick tracked command.',
+      });
+      expect(unconfirmed.success).toBe(false);
+      expect(unconfirmed.error).toContain('confirm:true');
+
+      const started = await executeHarnessJson<{
+        readonly status: string;
+        readonly processId: string;
+        readonly pid: number;
+        readonly command: string;
+        readonly routes: { readonly inspect: string; readonly stop: string; readonly visibleMonitor: string };
+      }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'start',
+        command: 'printf "hello"; printf "secret=abc123456" >&2',
+        confirm: true,
+        explicitUserRequest: 'Start a tracked background smoke command.',
+      });
+      expect(started.status).toBe('started');
+      expect(started.processId).toMatch(/^bg_/);
+      expect(started.pid).toBeGreaterThan(0);
+      expect(started.command).toContain('printf');
+      expect(started.routes.inspect).toContain(started.processId);
+      expect(started.routes.visibleMonitor).toContain('process-monitor');
+
+      const waited = await executeHarnessJson<{
+        readonly status: string;
+        readonly process?: { readonly processId: string; readonly output?: { readonly stdoutTail: string; readonly stderrTail: string } };
+      }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'wait',
+        processId: started.processId,
+        timeoutMs: 5000,
+        confirm: true,
+        explicitUserRequest: 'Wait for the tracked smoke command to finish.',
+      });
+      expect(waited.status).toBe('completed');
+      expect(waited.process?.processId).toBe(started.processId);
+      expect(waited.process?.output?.stdoutTail).toContain('hello');
+      expect(waited.process?.output?.stderrTail).toContain('secret=<redacted>');
+      expect(waited.process?.output?.stderrTail).not.toContain('abc123456');
+
+      const inspected = await executeHarnessJson<{
+        readonly processId: string;
+        readonly status: string;
+        readonly output?: { readonly stdoutTail: string; readonly stderrTail: string; readonly policy: string };
+      }>(fixture, {
+        mode: 'background_process',
+        processId: started.processId,
+      });
+      expect(inspected.processId).toBe(started.processId);
+      expect(inspected.status).toBe('succeeded');
+      expect(inspected.output?.policy).toContain('redacted');
+
+      const stopped = await executeHarnessJson<{ readonly status: string; readonly processId: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'stop',
+        processId: started.processId,
+        confirm: true,
+        explicitUserRequest: 'Remove the tracked completed smoke command.',
+      });
+      expect(stopped.status).toBe('stopped');
+      expect(stopped.processId).toBe(started.processId);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('reports unsupported PTY/stdin and blocks background sudo prompts', async () => {
+    const fixture = makeFixture();
+    try {
+      const pty = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly guidance: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'start',
+        command: 'python',
+        pty: true,
+      });
+      expect(pty.status).toBe('unsupported');
+      expect(pty.capability).toBe('pty');
+      expect(pty.guidance).toContain('Interactive PTY');
+
+      const write = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly guidance: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'status',
+        processId: 'bg_missing',
+        data: 'y\n',
+      });
+      expect(write.status).toBe('unsupported');
+      expect(write.capability).toBe('stdinWrite');
+      expect(write.guidance).toContain('stdin write');
+
+      const sudo = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly reason: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'start',
+        command: 'sudo true',
+        confirm: true,
+        explicitUserRequest: 'Try a sudo background command.',
+      });
+      expect(sudo.status).toBe('blocked');
+      expect(sudo.capability).toBe('sudo');
+      expect(sudo.reason).toContain('Background sudo prompts');
     } finally {
       fixture.cleanup();
     }

@@ -24,6 +24,7 @@ import { describeHarnessMediaProvider, mediaPostureCatalogStatus, mediaPostureSu
 import { describeHarnessNotificationTarget, listHarnessNotificationTargets, notificationTargetCatalogStatus } from './agent-harness-notification-metadata.ts';
 import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
+import { backgroundProcessCatalogStatus, backgroundProcessSummary, describeBackgroundProcess, runBackgroundProcessAction } from './agent-harness-background-processes.ts';
 import { describeDocumentOpsLane, documentOpsCatalogStatus, documentOpsSummary } from './agent-harness-document-ops.ts';
 import { describeExecutionHistoryItem, executionHistoryCatalogStatus, executionHistorySummary } from './agent-harness-execution-history.ts';
 import { describeHarnessExecutionRoute, executionPostureCatalogStatus, executionPostureSummary } from './agent-harness-execution-posture.ts';
@@ -69,6 +70,8 @@ interface AgentHarnessToolArgs {
   readonly modelRouteId?: unknown;
   readonly executionRouteId?: unknown;
   readonly executionRecordId?: unknown;
+  readonly processId?: unknown;
+  readonly processAction?: unknown;
   readonly recoveryAction?: unknown;
   readonly laneId?: unknown;
   readonly queueItemId?: unknown;
@@ -91,6 +94,10 @@ interface AgentHarnessToolArgs {
   readonly surfaceId?: unknown;
   readonly key?: unknown;
   readonly value?: unknown;
+  readonly cwd?: unknown;
+  readonly timeoutMs?: unknown;
+  readonly pty?: unknown;
+  readonly data?: unknown;
   readonly target?: unknown;
   readonly artifactId?: unknown;
   readonly itemId?: unknown;
@@ -186,6 +193,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
+    backgroundProcesses: 'List mode:"background_processes"; inspect mode:"background_process"; start/wait/stop tracked long-running local commands with mode:"run_background_process". PTY/stdin write/sudo are surfaced honestly as unavailable or foreground-only until safe substrate support exists.',
     executionHistory: 'List mode:"execution_history"; inspect mode:"execution_history_item"; use returned supervision and recovery routes.',
     fileRecovery: 'List mode:"file_recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use live records and returned routes for personal ops.',
@@ -943,6 +951,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             error: formatHarnessError(err),
           }));
           const executionPosture = executionPostureCatalogStatus(deps.commandContext, deps.toolRegistry);
+          const backgroundProcesses = backgroundProcessCatalogStatus(deps.commandContext);
           const executionHistory = executionHistoryCatalogStatus(deps.commandContext);
           const fileRecovery = fileRecoveryCatalogStatus(deps.commandContext);
           const personalOps = personalOpsCatalogStatus(deps.commandContext);
@@ -969,6 +978,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               setupPosture,
               modelRouting,
               executionPosture,
+              backgroundProcesses,
               personalOps,
               autonomyQueue,
               researchRuns,
@@ -990,6 +1000,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             setupPosture,
             modelRouting,
             executionPosture,
+            backgroundProcesses,
             executionHistory,
             fileRecovery,
             personalOps,
@@ -1164,6 +1175,14 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous execution route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
+        if (args.mode === 'background_processes') return output(backgroundProcessSummary(deps.commandContext, args));
+        if (args.mode === 'background_process') {
+          const resolved = describeBackgroundProcess(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.process);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous background process ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'run_background_process') return output(await runBackgroundProcessAction(deps.commandContext, args));
         if (args.mode === 'execution_history') return output(executionHistorySummary(deps.commandContext, args));
         if (args.mode === 'execution_history_item') {
           const resolved = describeExecutionHistoryItem(deps.commandContext, args);
