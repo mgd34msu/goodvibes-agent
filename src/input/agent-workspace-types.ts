@@ -116,6 +116,7 @@ export type AgentWorkspaceEditorKind =
   | 'artifact-browser'
   | 'artifact-show'
   | 'artifact-export-file'
+  | 'artifact-export-package'
   | 'artifact-promote-knowledge'
   | 'media-generate'
   | 'model-compare'

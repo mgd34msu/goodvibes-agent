@@ -411,7 +411,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Media artifacts: ${mediaReady}/${snapshot.mediaProviderCount} providers ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
       { text: 'Versioned drafts, review comments, AI suggestion review, artifact attachment/insertion, artifact browser, and Knowledge promotion are available.', fg: PALETTE.good },
       { text: 'Compare artifact reuse, review/judgment, analytics, export, and route update are available.', fg: PALETTE.good },
-      { text: 'Saved artifact export-to-file is available; package exports remain a gap.', fg: PALETTE.warn },
+      { text: 'Saved artifact export-to-file and package export are available.', fg: PALETTE.good },
       { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
     );
   } else if (category.id === 'tools') {

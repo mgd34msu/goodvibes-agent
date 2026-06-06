@@ -44,7 +44,6 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 - First-class email and calendar connectors and live Personal Ops queue.
 - Deep research report workflow with source quality and artifact output.
-- Multi-artifact package exports on top of versioned Agent document drafts, review comments, AI suggestion review, single-artifact export-to-file, artifact-to-document attachment/insertion, and artifact-to-compare reuse.
 - Local model serving cookbook and hardware-aware setup.
 - Browser/computer-use setup and recovery.
 - Learning curator for memory, skill, routine, and preference updates.

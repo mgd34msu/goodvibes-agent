@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { mkdir, stat, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import type { ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
@@ -9,6 +9,7 @@ import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 export interface AgentArtifactsToolArgs {
   readonly mode?: unknown;
   readonly artifactId?: unknown;
+  readonly artifactIds?: unknown;
   readonly destinationPath?: unknown;
   readonly overwrite?: unknown;
   readonly query?: unknown;
@@ -38,6 +39,7 @@ interface LoadedArtifact {
 const DEFAULT_LIST_LIMIT = 25;
 const DEFAULT_PREVIEW_BYTES = 2_048;
 const MAX_PREVIEW_BYTES = 20_000;
+const MAX_PACKAGE_ARTIFACTS = 100;
 const SENSITIVE_METADATA_KEY = /token|secret|password|authorization|credential|api[-_]?key/i;
 
 function readString(value: unknown): string {
@@ -52,6 +54,23 @@ function readNumber(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.trunc(parsed);
+}
+
+function readStringList(value: unknown): readonly string[] {
+  const values = Array.isArray(value)
+    ? value
+    : readString(value)
+      .split(/[,\n]/)
+      .map((entry) => entry.trim());
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const entry of values) {
+    const text = readString(entry);
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    result.push(text);
+  }
+  return result;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -85,6 +104,19 @@ function sanitizeMetadata(value: unknown): unknown {
     key,
     SENSITIVE_METADATA_KEY.test(key) ? '<redacted>' : sanitizeMetadata(entry),
   ]));
+}
+
+function sanitizeSourceUri(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    for (const key of [...url.searchParams.keys()]) {
+      if (SENSITIVE_METADATA_KEY.test(key)) url.searchParams.set(key, '<redacted>');
+    }
+    return url.toString();
+  } catch {
+    return value.replace(/([?&\s](?:token|secret|password|authorization|credential|api[-_]?key)=)[^\s&]+/gi, '$1<redacted>');
+  }
 }
 
 function metadataText(metadata: Record<string, unknown>): string {
@@ -159,6 +191,36 @@ function safeExportFilename(artifact: ArtifactDescriptor): string {
   return filename.replace(/[\\/]+/g, '-').replace(/^\.+$/, artifact.id);
 }
 
+function safePackagePathSegment(value: string, fallback: string): string {
+  const sanitized = value
+    .replace(/[\\/]+/g, '-')
+    .replace(/[<>:"|?*\x00-\x1F]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^\.+$/, '');
+  const normalized = sanitized || fallback;
+  return normalized.length > 128 ? normalized.slice(0, 128).trimEnd() : normalized;
+}
+
+function packageArtifactFilename(
+  artifact: ArtifactDescriptor,
+  index: number,
+  used: Set<string>,
+): string {
+  const ordinal = String(index + 1).padStart(2, '0');
+  const id = safePackagePathSegment(artifact.id, `artifact-${ordinal}`);
+  const filename = safePackagePathSegment(safeExportFilename(artifact), id);
+  const base = `${ordinal}-${id}-${filename}`;
+  let candidate = base;
+  let suffix = 2;
+  while (used.has(candidate.toLowerCase())) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  used.add(candidate.toLowerCase());
+  return candidate;
+}
+
 function describeArtifact(artifact: ArtifactDescriptor, options: { readonly includeRoute: boolean }): readonly string[] {
   const purpose = metadataValue(artifact.metadata, 'purpose');
   const source = metadataValue(artifact.metadata, 'source') || metadataValue(artifact.metadata, 'sourceKind');
@@ -194,6 +256,12 @@ function formatList(artifacts: readonly ArtifactDescriptor[], total: number, arg
   ];
   for (const artifact of artifacts) {
     lines.push(...describeArtifact(artifact, { includeRoute: true }), '');
+  }
+  if (artifacts.length > 1) {
+    lines.push(
+      'Package selected artifacts',
+      `  package agent_artifacts mode:"package" artifactIds:${JSON.stringify(artifacts.slice(0, 5).map((artifact) => artifact.id))} destinationPath:"exports/artifact-package" confirm:true explicitUserRequest:"..."`,
+    );
   }
   return lines.join('\n').trimEnd();
 }
@@ -269,6 +337,113 @@ async function exportArtifactToFile(
   ].join('\n');
 }
 
+async function exportArtifactPackage(
+  store: AgentArtifactBrowserStore,
+  args: AgentArtifactsToolArgs,
+  options: AgentArtifactsToolOptions,
+): Promise<string> {
+  requireConfirmed(args, 'Agent artifact package export');
+  if (!store.readContent) throw new Error('Artifact package export requires an artifact store with readContent support.');
+  if (!options.projectRoot) throw new Error('Artifact package export requires a projectRoot for path validation.');
+  const artifactIds = readStringList(args.artifactIds);
+  if (artifactIds.length === 0) throw new Error('artifactIds is required for mode:"package". Provide a comma-separated string or string array.');
+  if (artifactIds.length > MAX_PACKAGE_ARTIFACTS) throw new Error(`Artifact package export supports at most ${MAX_PACKAGE_ARTIFACTS} artifacts per package.`);
+  const destinationPath = readString(args.destinationPath);
+  if (!destinationPath) throw new Error('destinationPath is required for mode:"package".');
+  const resolvedPath = resolveAndValidatePath(destinationPath, options.projectRoot);
+  const overwrite = readBoolean(args.overwrite);
+  if (existsSync(resolvedPath)) {
+    const stats = await stat(resolvedPath);
+    if (!stats.isDirectory()) {
+      throw new Error(`Package target already exists and is not a directory: ${resolvedPath}. Choose a directory path.`);
+    }
+    if (!overwrite) {
+      throw new Error(`Package target already exists: ${resolvedPath}. Pass overwrite:true only after the user confirms replacement.`);
+    }
+  }
+
+  const loaded: Array<{ readonly record: ArtifactRecord; readonly buffer: Buffer }> = [];
+  for (const artifactId of artifactIds) {
+    loaded.push(await store.readContent(artifactId));
+  }
+
+  const artifactDir = join(resolvedPath, 'artifacts');
+  await mkdir(artifactDir, { recursive: true });
+  const usedFilenames = new Set<string>();
+  const manifestArtifacts: Array<Record<string, unknown>> = [];
+  let totalBytes = 0;
+  const fileLines: string[] = [];
+
+  for (let index = 0; index < loaded.length; index += 1) {
+    const { record, buffer } = loaded[index];
+    const filename = packageArtifactFilename(record, index, usedFilenames);
+    const relativePath = `artifacts/${filename}`;
+    await writeFile(join(artifactDir, filename), buffer);
+    totalBytes += buffer.byteLength;
+    fileLines.push(`- ${record.id}: ${relativePath} (${formatBytes(buffer.byteLength)}, ${record.mimeType})`);
+    manifestArtifacts.push({
+      id: record.id,
+      file: relativePath,
+      originalFilename: record.filename ?? null,
+      kind: record.kind,
+      mimeType: record.mimeType,
+      sizeBytes: record.sizeBytes,
+      copiedBytes: buffer.byteLength,
+      sha256: record.sha256,
+      createdAt: isoTime(record.createdAt),
+      expiresAt: record.expiresAt ? isoTime(record.expiresAt) : null,
+      acquisitionMode: record.acquisitionMode,
+      fetchMode: record.fetchMode,
+      sourceUri: sanitizeSourceUri(record.sourceUri) ?? null,
+      metadata: sanitizeMetadata(record.metadata),
+    });
+  }
+
+  const createdAt = new Date().toISOString();
+  const manifest = {
+    version: 1,
+    product: 'goodvibes-agent',
+    createdAt,
+    artifactCount: loaded.length,
+    totalBytes,
+    policy: {
+      content: 'Exact saved artifact bytes copied into artifacts/.',
+      transcript: 'Artifact contents are not printed by the export tool.',
+      metadata: 'Secret-like metadata keys and URL query parameters are redacted in this manifest.',
+      retention: 'Original saved artifacts are retained in the Agent artifact store.',
+    },
+    artifacts: manifestArtifacts,
+  };
+  await writeFile(join(resolvedPath, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf-8');
+  await writeFile(join(resolvedPath, 'README.md'), [
+    '# GoodVibes Agent Artifact Package',
+    '',
+    `Generated: ${createdAt}`,
+    `Artifacts: ${loaded.length}`,
+    `Total bytes: ${totalBytes}`,
+    '',
+    'Files',
+    ...fileLines,
+    '',
+    'Manifest',
+    '- `manifest.json` contains redacted artifact metadata and file paths.',
+    '- Artifact bytes live under `artifacts/` and are copied exactly from the saved Agent artifact store.',
+    '- Original artifacts remain saved in Agent; this package is a user-visible export only.',
+    '',
+  ].join('\n'), 'utf-8');
+
+  return [
+    'Exported Agent artifact package',
+    `  path ${resolvedPath}`,
+    `  artifacts ${loaded.length}`,
+    `  bytes ${totalBytes}`,
+    `  manifest ${join(resolvedPath, 'manifest.json')}`,
+    `  files ${artifactDir}`,
+    `  overwrite ${overwrite ? 'yes' : 'no'}`,
+    '  policy exact artifact bytes copied; metadata redacted; artifacts retained; content not printed',
+  ].join('\n');
+}
+
 export function createAgentArtifactsTool(
   artifactStore?: AgentArtifactBrowserStore,
   options: AgentArtifactsToolOptions = {},
@@ -276,22 +451,27 @@ export function createAgentArtifactsTool(
   return {
     definition: {
       name: 'agent_artifacts',
-      description: 'Browse, preview, and export saved Agent artifacts.',
+      description: 'Browse, preview, export, and package saved Agent artifacts.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: ['list', 'show', 'export'],
-            description: 'List, show, or export one saved artifact.',
+            enum: ['list', 'show', 'export', 'package'],
+            description: 'List, show, export one artifact, or package selected artifacts.',
           },
           artifactId: {
             type: 'string',
             description: 'Artifact id for show or export.',
           },
+          artifactIds: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Artifact ids for mode:"package".',
+          },
           destinationPath: {
             type: 'string',
-            description: 'Workspace path for mode:"export".',
+            description: 'File path for export; directory path for package.',
           },
           overwrite: {
             type: 'boolean',
@@ -331,7 +511,7 @@ export function createAgentArtifactsTool(
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true for mode:"export".',
+            description: 'Required true for mode:"export" and mode:"package".',
           },
           explicitUserRequest: {
             type: 'string',
@@ -368,7 +548,10 @@ export function createAgentArtifactsTool(
         if (mode === 'export') {
           return output(await exportArtifactToFile(artifactStore, args, options));
         }
-        return failure(`Unknown agent_artifacts mode: ${mode || '<missing>'}. Use mode:"list", mode:"show", or mode:"export".`);
+        if (mode === 'package') {
+          return output(await exportArtifactPackage(artifactStore, args, options));
+        }
+        return failure(`Unknown agent_artifacts mode: ${mode || '<missing>'}. Use mode:"list", mode:"show", mode:"export", or mode:"package".`);
       } catch (error) {
         return failure(error instanceof Error ? error.message : String(error));
       }

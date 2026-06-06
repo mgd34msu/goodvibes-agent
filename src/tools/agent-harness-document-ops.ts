@@ -146,9 +146,11 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'conversation-session-export',
     'document-export-draft',
     'document-export-artifact-file',
+    'document-export-artifact-package',
     'document-export-conversation',
     'document-export-session',
     'artifact-export-file',
+    'artifact-export-package',
   ], available);
   const sourceActions = existingActions([
     'artifact-source-library',
@@ -170,10 +172,12 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-browse-artifacts',
     'document-show-artifact',
     'document-export-artifact-file',
+    'document-export-artifact-package',
     'document-promote-artifact',
     'artifact-browse',
     'artifact-show',
     'artifact-export-file',
+    'artifact-export-package',
     'artifact-promote-knowledge',
     'artifact-insert-document',
     'artifact-attach-document',
@@ -217,6 +221,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     && artifactBrowserActions.includes('artifact-browse')
     && artifactBrowserActions.includes('artifact-show')
     && artifactBrowserActions.includes('artifact-export-file')
+    && artifactBrowserActions.includes('artifact-export-package')
     && artifactBrowserActions.includes('artifact-promote-knowledge');
 
   return [
@@ -229,7 +234,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Agent has project-scoped markdown document drafts with version history, review status, review comments, AI suggestion review, read-only inspection, confirmed artifact attachment, confirmed artifact insertion, and confirmed artifact export.'
         : 'Agent can draft and revise documents in the main conversation and export transcript/session artifacts, but the dedicated markdown draft tool is not fully wired.',
       next: documentsReady
-        ? 'Add package exports on top of versioned drafts, comments, suggestions, artifact reuse, and artifact-backed comparison.'
+        ? 'Use versioned drafts, comments, suggestions, artifact reuse, artifact packages, and artifact-backed comparison as one document workflow.'
         : 'Wire agent_documents plus browse/show/create/revise/review/export workspace actions.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Create document draft',
       modelRoute: documentsReady ? 'agent_documents' : 'agent_harness mode:"workspace_actions" categoryId:"documents"',
@@ -316,12 +321,12 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: artifactBrowserReady ? 'ready' : artifactBrowserActions.length > 0 ? 'partial' : 'gap',
       outcome: 'Find and reuse uploaded, exported, generated, and source-backed artifacts from one place.',
       current: artifactBrowserReady
-        ? 'Agent has a unified artifact browser with filters, redacted metadata, bounded text previews, confirmed artifact export-to-file, confirmed artifact-to-Knowledge promotion, confirmed artifact-to-document attachment, and confirmed artifact-to-document insertion over the SDK artifact store.'
+        ? 'Agent has a unified artifact browser with filters, redacted metadata, bounded text previews, confirmed artifact export-to-file, confirmed multi-artifact package export, confirmed artifact-to-Knowledge promotion, confirmed artifact-to-document attachment, and confirmed artifact-to-document insertion over the SDK artifact store.'
         : 'Artifacts are real and visible in transcript, source, session, and media routes, but the unified browser is not fully wired in this runtime.',
       next: artifactBrowserReady
-        ? 'Add package exports across document, upload, generated media, session, and Knowledge artifacts.'
+        ? 'Use package exports across document, upload, generated media, session, comparison, and Knowledge artifacts.'
         : 'Wire agent_artifacts and browse/show workspace actions over the SDK artifact store.',
-      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts or Promote to Knowledge',
+      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts, Export package, or Promote to Knowledge',
       modelRoute: artifactBrowserReady ? 'agent_artifacts + agent_knowledge_ingest' : 'agent_harness mode:"workspace_actions" categoryId:"artifacts"',
       signals: [
         `${uploadActions.length + exportActions.length + mediaActions.length} related artifact action(s)`,
@@ -329,6 +334,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Knowledge ingest tool: ${hasTool(context, 'agent_knowledge_ingest') ? 'available' : 'gap'}`,
         `Artifact list/read store: ${context.platform.artifactStore?.list && context.platform.artifactStore?.readContent ? 'available' : 'gap'}`,
         `Artifact export action: ${artifactBrowserActions.includes('artifact-export-file') ? 'available' : 'gap'}`,
+        `Artifact package export action: ${artifactBrowserActions.includes('artifact-export-package') ? 'available' : 'gap'}`,
         `Knowledge promotion action: ${artifactBrowserActions.includes('artifact-promote-knowledge') ? 'available' : 'gap'}`,
         `Document attachment action: ${artifactBrowserActions.includes('artifact-attach-document') ? 'available' : 'gap'}`,
         `Document insertion action: ${artifactBrowserActions.includes('artifact-insert-document') ? 'available' : 'gap'}`,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
@@ -229,6 +229,113 @@ describe('agent_artifacts tool', () => {
         destinationPath: '../escaped.txt',
         confirm: true,
         explicitUserRequest: 'Export the text artifact.',
+      });
+      expect(escaped.success).toBe(false);
+      expect(escaped.error).toContain('outside the project root');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('exports multiple artifacts as a validated package directory with redacted manifest', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-package-'));
+    try {
+      const store = new ArtifactBrowserTestStore();
+      const imageBytes = Buffer.from([137, 80, 78, 71]);
+      store.add({
+        id: 'artifact-report',
+        mimeType: 'text/markdown',
+        filename: '../report.md',
+        text: '# Report\n\nBody',
+        sourceUri: 'https://example.test/report?token=secret-token&ok=1',
+        metadata: { purpose: 'research', apiKey: 'secret-value', nested: { password: 'nested-secret' } },
+      });
+      store.add({
+        id: 'artifact-image',
+        kind: 'image',
+        mimeType: 'image/png',
+        filename: 'generated.png',
+        buffer: imageBytes,
+        metadata: { purpose: 'media' },
+      });
+      const tool = createAgentArtifactsTool(store, { projectRoot: root });
+
+      const exported = await tool.execute({
+        mode: 'package',
+        artifactIds: ['artifact-report', 'artifact-image'],
+        destinationPath: 'exports/research-package',
+        confirm: true,
+        explicitUserRequest: 'Export the reviewed research artifacts as a package.',
+      });
+
+      expect(exported.success).toBe(true);
+      expect(exported.output).toContain('Exported Agent artifact package');
+      expect(exported.output).toContain('artifacts 2');
+      const packageRoot = join(root, 'exports', 'research-package');
+      expect(existsSync(join(packageRoot, 'README.md'))).toBe(true);
+      const manifest = JSON.parse(readFileSync(join(packageRoot, 'manifest.json'), 'utf-8')) as {
+        readonly artifacts: Array<{ readonly id: string; readonly file: string; readonly metadata: Record<string, unknown>; readonly sourceUri: string }>;
+      };
+      expect(manifest.artifacts.map((entry) => entry.id)).toEqual(['artifact-report', 'artifact-image']);
+      expect(manifest.artifacts[0]?.metadata.apiKey).toBe('<redacted>');
+      expect((manifest.artifacts[0]?.metadata.nested as Record<string, unknown>).password).toBe('<redacted>');
+      expect(manifest.artifacts[0]?.sourceUri).toContain('token=%3Credacted%3E');
+      const reportFile = manifest.artifacts.find((entry) => entry.id === 'artifact-report')?.file;
+      const imageFile = manifest.artifacts.find((entry) => entry.id === 'artifact-image')?.file;
+      expect(reportFile).toBeTruthy();
+      expect(imageFile).toBeTruthy();
+      expect(readFileSync(join(packageRoot, reportFile ?? ''), 'utf-8')).toContain('# Report');
+      expect(readFileSync(join(packageRoot, imageFile ?? ''))).toEqual(imageBytes);
+      expect(exported.output).not.toContain('secret-value');
+      expect(exported.output).not.toContain('# Report');
+
+      const existing = await tool.execute({
+        mode: 'package',
+        artifactIds: 'artifact-report, artifact-image',
+        destinationPath: 'exports/research-package',
+        confirm: true,
+        explicitUserRequest: 'Export the package again.',
+      });
+      expect(existing.success).toBe(false);
+      expect(existing.error).toContain('already exists');
+
+      const overwritten = await tool.execute({
+        mode: 'package',
+        artifactIds: 'artifact-report, artifact-image',
+        destinationPath: 'exports/research-package',
+        overwrite: true,
+        confirm: true,
+        explicitUserRequest: 'Replace the reviewed research artifact package.',
+      });
+      expect(overwritten.success).toBe(true);
+      expect(overwritten.output).toContain('overwrite yes');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('requires confirmation and rejects package export outside the workspace', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-package-'));
+    try {
+      const store = new ArtifactBrowserTestStore();
+      store.add({ id: 'artifact-text', text: 'body' });
+      const tool = createAgentArtifactsTool(store, { projectRoot: root });
+
+      const unconfirmed = await tool.execute({
+        mode: 'package',
+        artifactIds: ['artifact-text'],
+        destinationPath: 'exports/package',
+        explicitUserRequest: 'Export the package.',
+      });
+      expect(unconfirmed.success).toBe(false);
+      expect(unconfirmed.error).toContain('confirm:true');
+
+      const escaped = await tool.execute({
+        mode: 'package',
+        artifactIds: ['artifact-text'],
+        destinationPath: '../escaped-package',
+        confirm: true,
+        explicitUserRequest: 'Export the package.',
       });
       expect(escaped.success).toBe(false);
       expect(escaped.error).toContain('outside the project root');

@@ -429,7 +429,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Files: attach, paste, source ingest, and export');
     expect(output).toContain('Versioned drafts, review comments, AI suggestion review');
     expect(output).toContain('Compare artifact reuse');
-    expect(output).toContain('Saved artifact export-to-file is available');
+    expect(output).toContain('Saved artifact export-to-file and package export are available');
     expect(output).toContain('Browse document drafts');
     expect(output).toContain('Show document draft');
     expect(output).toContain('Create document draft');
@@ -442,6 +442,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Insert artifact in draft');
     expect(output).toContain('Export document artifact');
     expect(output).toContain('Export saved artifact');
+    expect(output).toContain('Export artifact package');
     expect(output).toContain('analytics, export');
     expect(output).toContain('agent_harness mode:"document_ops"');
   });

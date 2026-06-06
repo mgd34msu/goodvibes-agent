@@ -87,6 +87,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action copies one reviewed saved artifact to a workspace file after confirmation. It preserves exact bytes, refuses overwrite unless requested, and never deletes artifacts or prints content.',
     };
   }
+  if (editorKind === 'artifact-export-package') {
+    return {
+      route: 'agent_artifacts',
+      tool: 'agent_artifacts',
+      action: 'export_artifact_package',
+      confirmation: 'required',
+      note: 'run_workspace_action copies selected reviewed artifacts into a workspace package directory after confirmation. It preserves exact bytes, writes a redacted manifest and README, refuses existing directories unless overwrite is requested, and never deletes artifacts or prints content.',
+    };
+  }
   if (editorKind === 'artifact-promote-knowledge') {
     return {
       route: 'agent_knowledge_ingest',

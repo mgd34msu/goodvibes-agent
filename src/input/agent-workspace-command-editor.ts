@@ -1,5 +1,5 @@
 import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
-import { buildAgentArtifactBrowserPromptSubmission, buildAgentArtifactExportPromptSubmission, buildAgentArtifactPromoteKnowledgePromptSubmission } from './agent-workspace-artifact-browser-editor.ts';
+import { buildAgentArtifactBrowserPromptSubmission, buildAgentArtifactExportPromptSubmission, buildAgentArtifactPackagePromptSubmission, buildAgentArtifactPromoteKnowledgePromptSubmission } from './agent-workspace-artifact-browser-editor.ts';
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentDocumentPromptSubmission } from './agent-workspace-document-editor.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
@@ -60,6 +60,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'artifact-browser'
   | 'artifact-show'
   | 'artifact-export-file'
+  | 'artifact-export-package'
   | 'artifact-promote-knowledge'
   | 'skill-bundle'
   | 'persona-discovery-import'
@@ -114,6 +115,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'artifact-browser'
     || kind === 'artifact-show'
     || kind === 'artifact-export-file'
+    || kind === 'artifact-export-package'
     || kind === 'artifact-promote-knowledge'
     || kind === 'model-compare'
     || kind === 'document-browse'
@@ -157,6 +159,9 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'artifact-export-file') {
     return buildAgentArtifactExportPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'artifact-export-package') {
+    return buildAgentArtifactPackagePromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (editor.kind === 'artifact-promote-knowledge') {
     return buildAgentArtifactPromoteKnowledgePromptSubmission(editor, readField, promptDispatchAvailable);
