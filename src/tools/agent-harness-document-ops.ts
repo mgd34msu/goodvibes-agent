@@ -347,10 +347,10 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: modelCompareReady ? 'partial' : 'gap',
       outcome: 'Run the same prompt across multiple models, hide model identities while judging, save a judgment, then apply the revealed winner only after confirmation.',
       current: modelCompareReady
-        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt or saved text artifact delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics, markdown report export, and a separate confirmed winner route update.'
+        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt or saved text artifact delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics/synthesis, markdown report export, and a separate confirmed winner route update.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
-        ? 'Build cross-session synthesis around saved comparison, judgment, analytics, export, route-update, and source-artifact reuse artifacts.'
+        ? 'Use cross-session synthesis around saved comparison, judgment, analytics, export, route-update, and source-artifact reuse artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
@@ -361,7 +361,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Artifact-to-compare reuse: ${modelCompareActions.includes('document-run-compare') ? 'available' : 'gap'}`,
         `Saved review board: ${modelCompareActions.includes('document-review-compare') ? 'available' : 'gap'}`,
         `Saved judgment artifact: ${modelCompareActions.includes('document-judge-compare') ? 'available' : 'gap'}`,
-        `Saved preference analytics: ${modelCompareActions.includes('document-compare-analytics') ? 'available' : 'gap'}`,
+        `Saved preference analytics/synthesis: ${modelCompareActions.includes('document-compare-analytics') ? 'available' : 'gap'}`,
         `Winner route update: ${modelCompareActions.includes('document-apply-compare') ? 'available' : 'gap'}`,
         `Markdown export: ${modelCompareActions.includes('document-export-compare') ? 'available' : 'gap'}`,
       ],

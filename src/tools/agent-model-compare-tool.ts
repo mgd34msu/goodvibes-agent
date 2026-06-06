@@ -131,6 +131,7 @@ const MODE_JUDGE = 'judge';
 const MODE_APPLY = 'apply';
 const MODE_EXPORT = 'export';
 const MODE_ANALYTICS = 'analytics';
+const MODE_SYNTHESIS = 'synthesis';
 const BENCHMARK_KIND_LOCAL_MODEL_ROUTE = 'local-model-route';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
@@ -142,6 +143,18 @@ const DEFAULT_CANDIDATE_OUTPUT_CHARS = 12_000;
 const MAX_SOURCE_ARTIFACT_BYTES = 18_000;
 const COMPARISON_STORE_LIMIT = 25;
 const BLIND_LABELS = ['A', 'B', 'C', 'D'] as const;
+
+const SYNTHESIS_THEMES: readonly {
+  readonly label: string;
+  readonly pattern: RegExp;
+}[] = [
+  { label: 'Concrete/actionable output', pattern: /\b(concrete|actionable|specific|steps?|route|command|practical)\b/i },
+  { label: 'Clear/scannable communication', pattern: /\b(clear|clarity|concise|scan|scannable|readable|structured|tone)\b/i },
+  { label: 'Accuracy and faithfulness', pattern: /\b(accurate|accuracy|faithful|correct|factual|hallucinat|source|evidence)\b/i },
+  { label: 'Context fit', pattern: /\b(context|project|user|goal|fit|rubric|instruction)\b/i },
+  { label: 'Safety and risk handling', pattern: /\b(safe|safety|risk|guard|permission|confirm|policy)\b/i },
+  { label: 'Speed and efficiency', pattern: /\b(fast|speed|latency|efficient|short|token)\b/i },
+];
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -815,6 +828,99 @@ function formatComparisonAnalytics(input: {
   return lines.join('\n');
 }
 
+function countPhrase(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function pushSynthesisTheme(
+  map: Map<string, LoadedComparisonJudgment[]>,
+  label: string,
+  judgment: LoadedComparisonJudgment,
+): void {
+  const judgments = map.get(label) ?? [];
+  judgments.push(judgment);
+  map.set(label, judgments);
+}
+
+function formatComparisonSynthesis(input: {
+  readonly judgments: readonly LoadedComparisonJudgment[];
+  readonly limit: number;
+  readonly includeReasons: boolean;
+  readonly storeAvailable: boolean;
+}): string {
+  if (!input.storeAvailable) {
+    return 'Saved comparison synthesis is unavailable because the artifact store does not expose listing and content reads in this runtime.';
+  }
+  if (input.judgments.length === 0) {
+    return 'No saved comparison judgments found. Save a judgment with agent_model_compare mode:"judge" first.';
+  }
+
+  const modelWinners = new Map<string, number>();
+  const comparisonIds = new Set<string>();
+  const themes = new Map<string, LoadedComparisonJudgment[]>();
+  let revealed = 0;
+  for (const judgment of input.judgments) {
+    comparisonIds.add(judgment.comparisonId);
+    if (judgment.winnerModel?.registryKey) {
+      revealed += 1;
+      incrementCount(modelWinners, `${judgment.winnerModel.registryKey} (${judgment.winnerModel.displayName})`);
+    }
+    const preferenceText = `${judgment.reasons}\n${judgment.notes}`.trim();
+    const matched = SYNTHESIS_THEMES.filter((theme) => theme.pattern.test(preferenceText));
+    if (matched.length === 0) {
+      pushSynthesisTheme(themes, 'Uncategorized preference signal', judgment);
+    } else {
+      for (const theme of matched) pushSynthesisTheme(themes, theme.label, judgment);
+    }
+  }
+
+  const hidden = input.judgments.length - revealed;
+  const themeCounts = [...themes.entries()]
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]));
+  const lines = [
+    'Blind model comparison synthesis',
+    `judgments ${input.judgments.length}; revealed ${revealed}; hidden ${hidden}; compared comparisons ${comparisonIds.size}; limit ${input.limit}`,
+    '',
+    'Winning model direction',
+  ];
+  if (modelWinners.size === 0) {
+    lines.push('  No revealed winner models yet. Reveal judgment winners before model-level synthesis is available.');
+  } else {
+    lines.push(...sortedCounts(modelWinners).map(([model, count]) => `  ${model}: ${count}`));
+  }
+  if (hidden > 0) {
+    lines.push(`  Hidden winners: ${countPhrase(hidden, 'judgment')} ${hidden === 1 ? 'needs' : 'need'} reveal before model-level synthesis.`);
+  }
+
+  lines.push('');
+  lines.push('Cross-session reason themes');
+  for (const [label, judgments] of themeCounts) {
+    lines.push(`  ${label}: ${countPhrase(judgments.length, 'judgment')}`);
+    if (!input.includeReasons) continue;
+    const example = judgments.find((judgment) => judgment.reasons || judgment.notes);
+    if (!example) continue;
+    const source = example.reasons || example.notes;
+    lines.push(`    example ${example.artifact.artifactId}: ${previewText(source, 120)}`);
+  }
+
+  lines.push('');
+  lines.push('Recent synthesis inputs');
+  for (const judgment of input.judgments.slice(0, 10)) {
+    const model = judgment.winnerModel?.registryKey
+      ? ` model ${judgment.winnerModel.registryKey}`
+      : ' model hidden';
+    lines.push(`  ${judgment.artifact.artifactId} ${judgment.comparisonId} winner Candidate ${judgment.winnerBlindId}${model}`);
+  }
+
+  lines.push('');
+  lines.push('Recommended next actions');
+  if (hidden > 0) lines.push('  - Reveal hidden judgments before applying model-level route changes.');
+  lines.push('  - Export comparison or judgment reports before sharing evidence externally.');
+  lines.push('  - Apply a winner only through confirmed mode:"apply".');
+  lines.push('No selected model was changed.');
+  return lines.join('\n');
+}
+
 function markdownBlock(value: string): string {
   const fence = value.includes('```') ? '~~~~' : '```';
   return `${fence}\n${value || '(empty)'}\n${fence}`;
@@ -995,7 +1101,7 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' | 'analytics' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' | 'analytics' | 'synthesis' {
   const mode = readString(value) || MODE_RUN;
   if (
     mode === MODE_RUN
@@ -1005,8 +1111,9 @@ function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'app
     || mode === MODE_APPLY
     || mode === MODE_EXPORT
     || mode === MODE_ANALYTICS
+    || mode === MODE_SYNTHESIS
   ) return mode;
-  throw new Error('mode must be run, reveal, review, judge, apply, export, or analytics.');
+  throw new Error('mode must be run, reveal, review, judge, apply, export, analytics, or synthesis.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -1295,8 +1402,8 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_ANALYTICS],
-            description: 'Use run, review, reveal, judge, apply, export, or analytics.',
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_ANALYTICS, MODE_SYNTHESIS],
+            description: 'Modes: run/review/reveal/judge/apply/export/analytics/synthesis.',
           },
           prompt: {
             type: 'string',
@@ -1362,11 +1469,11 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           },
           limit: {
             type: 'number',
-            description: 'Max saved judgments to inspect for analytics.',
+            description: 'Max saved judgments to inspect.',
           },
           includeReasons: {
             type: 'boolean',
-            description: 'If true, include short reason excerpts in analytics.',
+            description: 'If true, include short reason excerpts.',
           },
           confirm: {
             type: 'boolean',
@@ -1413,6 +1520,17 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           const limit = clamp(readNumber(args.limit, 20), 1, 100);
           const judgments = await loadSavedJudgments(deps.artifactStore, limit);
           return output(formatComparisonAnalytics({
+            judgments,
+            limit,
+            includeReasons: readOptionalBoolean(args.includeReasons, true),
+            storeAvailable: Boolean(deps.artifactStore?.list && deps.artifactStore.readContent),
+          }));
+        }
+
+        if (mode === MODE_SYNTHESIS) {
+          const limit = clamp(readNumber(args.limit, 20), 1, 100);
+          const judgments = await loadSavedJudgments(deps.artifactStore, limit);
+          return output(formatComparisonSynthesis({
             judgments,
             limit,
             includeReasons: readOptionalBoolean(args.includeReasons, true),

@@ -476,6 +476,25 @@ describe('agent_model_compare tool', () => {
     expect(analytics.output).toContain('Use this as evidence before any route change.');
     expect(analytics.output).toContain('No selected model was changed.');
 
+    const synthesis = await reviewer.tool.execute({
+      mode: 'synthesis',
+      includeReasons: true,
+    });
+    expect(synthesis.success).toBe(true);
+    expect(synthesis.output).toContain('Blind model comparison synthesis');
+    expect(synthesis.output).toContain('judgments 2; revealed 1; hidden 1');
+    expect(synthesis.output).toContain('Winning model direction');
+    expect(synthesis.output).toContain('anthropic:claude-sonnet (Claude Sonnet): 1');
+    expect(synthesis.output).toContain('Hidden winners: 1 judgment');
+    expect(synthesis.output).toContain('Cross-session reason themes');
+    expect(synthesis.output).toContain('Concrete/actionable output: 1 judgment');
+    expect(synthesis.output).toContain('example artifact-2: Candidate B was more concrete.');
+    expect(synthesis.output).toContain('Clear/scannable communication: 1 judgment');
+    expect(synthesis.output).toContain('example artifact-3: Candidate A was easier to scan.');
+    expect(synthesis.output).toContain('Recommended next actions');
+    expect(synthesis.output).toContain('Reveal hidden judgments before applying model-level route changes.');
+    expect(synthesis.output).toContain('No selected model was changed.');
+
     const listAfterJudgment = await reviewer.tool.execute({ mode: 'review' });
     expect(listAfterJudgment.success).toBe(true);
     expect(listAfterJudgment.output).toContain('artifact-1');

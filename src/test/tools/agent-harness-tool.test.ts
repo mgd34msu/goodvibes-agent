@@ -6902,6 +6902,30 @@ describe('agent_harness tool', () => {
       expect(analytics.output).toContain('"status": "executed_model_tool"');
       expect(analytics.output).toContain('"tool": "agent_model_compare"');
       expect(analytics.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'analytics',
+        limit: 10,
+        includeReasons: true,
+      });
+
+      const synthesis = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-compare-analytics',
+        fields: {
+          view: 'synthesis',
+          limit: '5',
+          includeReasons: 'yes',
+        },
+      });
+      expect(synthesis.success).toBe(true);
+      expect(synthesis.output).toContain('"status": "executed_model_tool"');
+      expect(synthesis.output).toContain('"tool": "agent_model_compare"');
+      expect(synthesis.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'synthesis',
+        limit: 5,
+        includeReasons: true,
+      });
 
       const applyUnconfirmed = await fixture.tool.execute({
         mode: 'run_workspace_action',

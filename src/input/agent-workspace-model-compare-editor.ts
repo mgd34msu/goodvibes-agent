@@ -52,7 +52,7 @@ export interface AgentModelCompareExportWorkspaceToolArgs {
 }
 
 export interface AgentModelCompareAnalyticsWorkspaceToolArgs {
-  readonly mode: 'analytics';
+  readonly mode: 'analytics' | 'synthesis';
   readonly limit?: number;
   readonly includeReasons?: boolean;
 }
@@ -199,10 +199,11 @@ export function createAgentModelCompareAnalyticsEditor(): AgentWorkspaceLocalEdi
   return {
     kind: 'model-compare-analytics',
     mode: 'create',
-    title: 'Compare Analytics',
+    title: 'Compare Analytics/Synthesis',
     selectedFieldIndex: 0,
-    message: 'Summarize saved blind comparison judgments by winner, model, blind slot, and recent reasons. This is read-only.',
+    message: 'Summarize or synthesize saved blind comparison judgments by winner, model, blind slot, themes, and recent reasons. This is read-only.',
     fields: [
+      { id: 'view', label: 'View', value: 'analytics', required: false, multiline: false, hint: 'analytics or synthesis. Synthesis groups saved judgment themes across sessions.' },
       { id: 'limit', label: 'Judgment limit', value: '20', required: false, multiline: false, hint: 'Maximum saved judgment artifacts to inspect. Defaults to 20.' },
       { id: 'includeReasons', label: 'Include reasons', value: 'yes', required: false, multiline: false, hint: 'yes/no. Yes includes short reason and note excerpts in the recent-judgments list.' },
     ],
@@ -301,9 +302,10 @@ export function buildAgentModelCompareExportToolArgs(
 export function buildAgentModelCompareAnalyticsToolArgs(
   readField: AgentWorkspaceFieldReader,
 ): AgentModelCompareAnalyticsWorkspaceToolArgs {
+  const view = readField('view').trim().toLowerCase();
   const limit = readPositiveInteger(readField('limit'));
   return {
-    mode: 'analytics',
+    mode: view === 'synthesis' ? 'synthesis' : 'analytics',
     ...(limit !== null ? { limit } : {}),
     includeReasons: isAffirmative(readField('includeReasons')),
   };
@@ -712,17 +714,18 @@ export function buildAgentModelCompareAnalyticsPromptSubmission(
       actionResult: {
         kind: 'error',
         title: 'Prompt dispatch unavailable',
-        detail: 'This runtime cannot submit the comparison analytics request from the workspace form.',
+        detail: 'This runtime cannot submit the comparison analytics/synthesis request from the workspace form.',
         safety: 'read-only',
       },
     };
   }
 
+  const mode = readField('view').trim().toLowerCase() === 'synthesis' ? 'synthesis' : 'analytics';
   const limit = readPositiveInteger(readField('limit')) ?? 20;
   const includeReasons = isAffirmative(readField('includeReasons'));
   const prompt = [
-    'Summarize saved blind model comparison judgments with the `agent_model_compare` tool.',
-    'Use mode:"analytics".',
+    'Review saved blind model comparison judgments with the `agent_model_compare` tool.',
+    `Use mode:"${mode}".`,
     `Judgment limit: ${limit}.`,
     `Include reason excerpts: ${includeReasons ? 'yes' : 'no'}.`,
     'This is read-only and must not change model routing.',
@@ -731,11 +734,11 @@ export function buildAgentModelCompareAnalyticsPromptSubmission(
   return {
     kind: 'prompt',
     prompt,
-    status: 'Submitting comparison analytics request.',
+    status: `Submitting comparison ${mode} request.`,
     actionResult: {
       kind: 'guidance',
-      title: 'Compare analytics',
-      detail: 'Submitted a read-only request to summarize saved comparison judgments.',
+      title: mode === 'synthesis' ? 'Compare synthesis' : 'Compare analytics',
+      detail: `Submitted a read-only request to ${mode === 'synthesis' ? 'synthesize' : 'summarize'} saved comparison judgments.`,
       safety: 'read-only',
     },
   };

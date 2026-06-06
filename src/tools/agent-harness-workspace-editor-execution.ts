@@ -206,9 +206,9 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
     return {
       route: 'agent_model_compare',
       tool: 'agent_model_compare',
-      action: 'summarize_comparison_analytics',
+      action: 'summarize_or_synthesize_comparison_judgments',
       confirmation: 'not-required',
-      note: 'run_workspace_action summarizes saved comparison judgment artifacts without changing model routing.',
+      note: 'run_workspace_action summarizes or synthesizes saved comparison judgment artifacts without changing model routing.',
     };
   }
   if (isAgentWorkspaceCommandEditorKind(editorKind)) {
