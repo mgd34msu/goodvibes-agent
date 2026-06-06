@@ -45,6 +45,7 @@ High-signal TUI routes:
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |
 | `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
 | `agent_media_generate` | Generate one confirmed image/video artifact. |
+| `agent_model_compare` | Run one confirmed blind model comparison with delayed reveal. |
 
 ## `agent_harness`
 
@@ -65,7 +66,7 @@ Discovery modes:
 | `channels`, `notifications` | Channel readiness and redacted notification targets. |
 | `provider_accounts`, `model_routing` | Provider auth and provider/model route posture. |
 | `personal_ops`, `personal_ops_lane` | Inbox/calendar connector gaps plus notes, tasks, reminders, routines, and delivery readiness. |
-| `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifacts, media artifacts, and blind compare readiness. |
+| `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifacts, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, setup, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |

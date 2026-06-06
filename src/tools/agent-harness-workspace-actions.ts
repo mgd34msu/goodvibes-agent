@@ -134,6 +134,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   if (editorKind.startsWith('knowledge-')) return 'agent_knowledge';
   if (editorKind === 'web-research' || editorKind === 'web-fetch') return 'main conversation prompt';
   if (editorKind === 'media-generate') return 'agent_media_generate';
+  if (editorKind === 'model-compare') return 'agent_model_compare';
   if (editorKind === 'channel-send') return 'agent_channel_send';
   if (editorKind === 'notify-send' || editorKind === 'notify-webhook-test') return 'agent_notify';
   if (editorKind === 'reminder-schedule') return 'agent_reminder_schedule';

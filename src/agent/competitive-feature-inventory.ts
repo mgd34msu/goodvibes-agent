@@ -219,10 +219,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Documents, uploads, AI edit suggestions, blind model comparison, and artifact reuse are first-class app workflows.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Document Ops now maps drafting, uploads, exports, sources, media artifacts, artifact reuse, and the blind-compare gap through visible workspace and harness routes.',
+    goodVibesNow: 'Document Ops now maps drafting, uploads, exports, sources, media artifacts, artifact reuse, and includes a confirmed blind comparison runner with delayed reveal, while document editing, saved comparison review, and the unified artifact browser remain unfinished.',
     nextMoves: [
       'Build a document editor with markdown editing, AI suggestions, version history, comments, document artifact ids, and export.',
-      'Add blind side-by-side model comparison with identical prompt/context, delayed reveal, synthesis, saved preferences, and route-update handoff.',
+      'Add visual side-by-side comparison review, saved judgments, synthesis, saved preferences, export, and route-update handoff on top of the blind runner.',
       'Unify uploads, generated media, documents, session exports, delegation outputs, and knowledge sources in the artifact browser.',
     ],
     competitorSignals: [

@@ -644,16 +644,17 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('exposes Document Ops readiness without faking blind comparison', async () => {
+  test('exposes Document Ops readiness with an honest blind comparison runner', async () => {
     const fixture = makeFixture();
     try {
+      registerStubTool(fixture.toolRegistry, 'agent_model_compare');
       const summary = await executeHarnessJson<{
         readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly partial: number; readonly gap: number };
       }>(fixture, { mode: 'summary' });
       expect(summary.documentOps?.lanes).toBe(7);
       expect(summary.documentOps?.ready).toBeGreaterThanOrEqual(2);
       expect(summary.documentOps?.partial).toBeGreaterThanOrEqual(1);
-      expect(summary.documentOps?.gap).toBeGreaterThanOrEqual(1);
+      expect(summary.documentOps?.gap).toBe(0);
 
       const ops = await executeHarnessJson<{
         readonly lanes: readonly {
@@ -665,8 +666,8 @@ describe('agent_harness tool', () => {
         readonly policy: string;
         readonly nextActions: readonly string[];
       }>(fixture, { mode: 'document_ops', includeParameters: true });
-      expect(ops.policy).toContain('blind model comparison');
-      expect(ops.nextActions.join('\n')).toContain('Blind Model Compare');
+      expect(ops.policy).toContain('model comparison');
+      expect(ops.nextActions.join('\n')).toContain('saved judgments');
 
       const documents = ops.lanes.find((lane) => lane.id === 'documents');
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
@@ -680,8 +681,9 @@ describe('agent_harness tool', () => {
       expect(exports?.status).toBe('ready');
       expect(exports?.actionIds).toContain('document-export-conversation');
       expect(sourceLibrary?.status).toBe('ready');
-      expect(modelCompare?.status).toBe('gap');
-      expect(modelCompare?.current).toContain('does not have a blind side-by-side comparison runner');
+      expect(modelCompare?.status).toBe('partial');
+      expect(modelCompare?.current).toContain('confirmed blind comparison runner');
+      expect(modelCompare?.actionIds).toContain('document-run-compare');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -689,8 +691,8 @@ describe('agent_harness tool', () => {
         readonly routes?: { readonly model: string };
       }>(fixture, { mode: 'document_ops_lane', laneId: 'model_compare' });
       expect(lane.id).toBe('model_compare');
-      expect(lane.status).toBe('gap');
-      expect(lane.routes?.model).toBe('agent_harness mode:"model_routing"');
+      expect(lane.status).toBe('partial');
+      expect(lane.routes?.model).toBe('agent_model_compare');
     } finally {
       fixture.cleanup();
     }
@@ -864,6 +866,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'documents-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
@@ -2073,6 +2076,7 @@ describe('agent_harness tool', () => {
         'agent_notify',
         'agent_reminder_schedule',
         'agent_media_generate',
+        'agent_model_compare',
       ]) {
         registerStubTool(fixture.toolRegistry, name);
       }
@@ -2756,6 +2760,45 @@ describe('agent_harness tool', () => {
       expect(note?.title).toBe('Source triage');
       expect(note?.body).toContain('reviewed sources');
       expect(note?.tags).toEqual(['research', 'triage']);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs confirmed model compare workspace editor through agent_model_compare', async () => {
+    const fixture = makeFixture();
+    try {
+      registerStubTool(fixture.toolRegistry, 'agent_model_compare');
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-run-compare',
+        fields: {
+          prompt: 'Write a release note for the document workflow.',
+          confirm: 'no',
+        },
+        confirm: true,
+        explicitUserRequest: 'Compare release-note candidates.',
+      });
+      expect(unconfirmed.success).toBe(true);
+      expect(unconfirmed.output).toContain('"status": "not_confirmed"');
+
+      const executed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-run-compare',
+        fields: {
+          prompt: 'Write a release note for the document workflow.',
+          modelRefs: 'openai:gpt-4.1, anthropic:claude-sonnet',
+          rubric: 'Prefer concise and concrete.',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Compare release-note candidates.',
+      });
+      expect(executed.success).toBe(true);
+      expect(executed.output).toContain('"status": "executed_model_tool"');
+      expect(executed.output).toContain('"tool": "agent_model_compare"');
+      expect(executed.output).toContain('agent_model_compare executed');
     } finally {
       fixture.cleanup();
     }

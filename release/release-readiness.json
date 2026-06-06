@@ -135,9 +135,9 @@
       "evidence": "src/input/agent-workspace-categories.ts; src/input/commands/knowledge.ts; src/agent/media-generation.ts; src/tools/agent-harness-document-ops.ts; docs/knowledge-artifacts-and-multimodal.md",
       "action": "Keep source-to-knowledge handoff explicit and confirmation-gated.",
       "quality": {
-        "capabilityCoverage": "Covers explicit handling for artifacts, files, URL lists, bookmarks, browser history, generated media, reviewed source promotion, document-operation readiness, and unavailable model-comparison reporting.",
+        "capabilityCoverage": "Covers explicit handling for artifacts, files, URL lists, bookmarks, browser history, generated media, reviewed source promotion, document-operation readiness, and confirmed blind model comparison.",
         "userAccess": "The user can use workspace ingest forms, media generation, notes, bookmarks, and Knowledge ingest mirrors with clear review steps.",
-        "modelAccess": "agent_knowledge_ingest exposes URL/file/URL-list/bookmarks/browser-history/connector ingest, agent_media_generate exposes confirmed generated artifacts, mode:\"document_ops\" and mode:\"document_ops_lane\" expose documents, uploads, exports, source checks, media artifacts, artifact browsing, and blind compare readiness, mode:\"media_posture\" and mode:\"media_provider\" exposes media readiness, and mode:\"sessions\" and mode:\"session\" exposes bookmark/session artifact posture.",
+        "modelAccess": "agent_knowledge_ingest exposes URL/file/URL-list/bookmarks/browser-history/connector ingest, agent_media_generate exposes confirmed generated artifacts, agent_model_compare exposes confirmed blind model comparison with delayed reveal, mode:\"document_ops\" and mode:\"document_ops_lane\" expose documents, uploads, exports, source checks, media artifacts, artifact browsing, and model comparison readiness, mode:\"media_posture\" and mode:\"media_provider\" exposes media readiness, and mode:\"sessions\" and mode:\"session\" exposes bookmark/session artifact posture.",
         "safetyBoundary": "No artifact, generated media, or research source is silently promoted into durable memory or non-Agent knowledge.",
         "releaseEvidence": "Readiness and docs cite Knowledge/artifact/media boundaries, and package policy requires those docs in the installable package."
       }

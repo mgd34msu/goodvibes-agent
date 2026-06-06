@@ -34,6 +34,7 @@ import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-inges
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
 import { registerAgentMediaGenerateTool } from '../tools/agent-media-generate-tool.ts';
+import { registerAgentModelCompareTool } from '../tools/agent-model-compare-tool.ts';
 import { registerAgentNotifyTool } from '../tools/agent-notify-tool.ts';
 import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-tool.ts';
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
@@ -246,6 +247,10 @@ export async function initializeBootstrapCore(
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentMediaGenerateTool(toolRegistry, services.mediaProviders, services.artifactStore);
+  registerAgentModelCompareTool(toolRegistry, {
+    modelCatalog: services.providerRegistry,
+    providerRegistry: services.providerRegistry,
+  });
   registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
   registerAgentOperatorActionTool(toolRegistry, services.shellPaths, configManager);
   registerAgentOperatorBriefingTool(toolRegistry, services.shellPaths, configManager);

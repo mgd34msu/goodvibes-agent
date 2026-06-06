@@ -1,0 +1,169 @@
+import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+
+type AgentWorkspaceFieldReader = (fieldId: string) => string;
+
+export interface AgentModelCompareWorkspaceToolArgs {
+  readonly mode: 'run';
+  readonly prompt: string;
+  readonly modelRefs?: readonly string[];
+  readonly candidateCount?: number;
+  readonly rubric?: string;
+  readonly systemPrompt?: string;
+  readonly maxTokens?: number;
+  readonly reveal?: boolean;
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
+}
+
+function readList(value: string): readonly string[] {
+  return value.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean);
+}
+
+function readPositiveInteger(value: string): number | null {
+  if (!value.trim()) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(1, Math.trunc(parsed));
+}
+
+function isAffirmative(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'yes' || normalized === 'true';
+}
+
+function quoteBlock(value: string): string {
+  return value.trim() || '(blank)';
+}
+
+export function createAgentModelCompareEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'model-compare',
+    mode: 'create',
+    title: 'Run Blind Model Compare',
+    selectedFieldIndex: 0,
+    message: 'Run one prompt against two to four selectable models. Leave models blank to auto-select candidates. Type yes on the final field to confirm.',
+    fields: [
+      { id: 'prompt', label: 'Prompt', value: '', required: true, multiline: true, hint: 'Exact prompt sent identically to every candidate model. Ctrl-J inserts a new line.' },
+      { id: 'modelRefs', label: 'Models', value: '', required: false, multiline: true, hint: 'Optional registry keys or model ids, separated by commas or new lines. Blank auto-selects.' },
+      { id: 'candidateCount', label: 'Auto count', value: '2', required: false, multiline: false, hint: 'Used only when Models is blank. 2 to 4.' },
+      { id: 'rubric', label: 'Rubric', value: '', required: false, multiline: true, hint: 'Optional judging rubric shown with blinded results.' },
+      { id: 'systemPrompt', label: 'System prompt', value: '', required: false, multiline: true, hint: 'Optional system prompt sent identically to every candidate.' },
+      { id: 'maxTokens', label: 'Max tokens', value: '2048', required: false, multiline: false, hint: 'Per-candidate output cap. Defaults to 2048.' },
+      { id: 'reveal', label: 'Reveal now', value: 'no', required: false, multiline: false, hint: 'yes/no. Blank or no keeps model identities hidden until reveal.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to run a token-spending model comparison.' },
+    ],
+  };
+}
+
+export function buildAgentModelCompareToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentModelCompareWorkspaceToolArgs {
+  const prompt = readField('prompt').trim();
+  const modelRefs = readList(readField('modelRefs'));
+  const candidateCount = readPositiveInteger(readField('candidateCount'));
+  const rubric = readField('rubric').trim();
+  const systemPrompt = readField('systemPrompt').trim();
+  const maxTokens = readPositiveInteger(readField('maxTokens'));
+  const reveal = isAffirmative(readField('reveal'));
+
+  return {
+    mode: 'run',
+    prompt,
+    ...(modelRefs.length > 0 ? { modelRefs } : {}),
+    ...(candidateCount !== null ? { candidateCount } : {}),
+    ...(rubric ? { rubric } : {}),
+    ...(systemPrompt ? { systemPrompt } : {}),
+    ...(maxTokens !== null ? { maxTokens } : {}),
+    reveal,
+    confirm: true,
+    explicitUserRequest,
+  };
+}
+
+export function buildAgentModelComparePromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!isAffirmative(readField('confirm'))) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        selectedFieldIndex: Math.max(0, editor.fields.findIndex((field) => field.id === 'confirm')),
+        message: 'Model comparison not confirmed. Type yes, then press Enter.',
+      },
+      status: 'Model comparison not confirmed.',
+      actionResult: {
+        kind: 'error',
+        title: 'Model comparison not confirmed',
+        detail: 'Type yes on the confirmation field before spending model tokens.',
+        safety: 'safe',
+      },
+    };
+  }
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the comparison request from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const modelRefs = readList(readField('modelRefs'));
+  const candidateCount = readPositiveInteger(readField('candidateCount')) ?? 2;
+  const reveal = isAffirmative(readField('reveal'));
+  const rubric = readField('rubric').trim();
+  const systemPrompt = readField('systemPrompt').trim();
+  const maxTokens = readPositiveInteger(readField('maxTokens')) ?? 2048;
+  const explicitUserRequest = 'Run the blind model comparison from the Agent workspace form.';
+  const prompt = [
+    'Run a blind model comparison with the `agent_model_compare` tool.',
+    'Use confirm:true because this workspace form was explicitly confirmed by the user.',
+    `Use explicitUserRequest: ${JSON.stringify(explicitUserRequest)}.`,
+    '',
+    'Candidate prompt:',
+    quoteBlock(readField('prompt')),
+    '',
+    modelRefs.length > 0
+      ? `Candidate models: ${modelRefs.join(', ')}.`
+      : `Candidate models: auto-select ${candidateCount} selectable models.`,
+    rubric ? `Rubric: ${rubric}` : 'Rubric: none.',
+    systemPrompt ? `System prompt: ${systemPrompt}` : 'System prompt: none.',
+    `Max tokens per candidate: ${maxTokens}.`,
+    `Reveal identities immediately: ${reveal ? 'yes' : 'no'}.`,
+    'Do not change the selected model after the comparison unless the user asks for that route update separately.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting blind model comparison request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Blind model comparison',
+      detail: 'Submitted a confirmed request to run the first-class model comparison tool.',
+      safety: 'safe',
+    },
+  };
+}

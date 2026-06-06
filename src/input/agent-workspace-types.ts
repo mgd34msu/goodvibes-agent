@@ -101,6 +101,7 @@ export type AgentWorkspaceEditorKind =
   | 'tts-prompt'
   | 'image-input'
   | 'media-generate'
+  | 'model-compare'
   | 'skill-bundle'
   | 'skill-bundle-search'
   | 'skill-bundle-show'

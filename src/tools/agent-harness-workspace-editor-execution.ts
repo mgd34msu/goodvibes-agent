@@ -60,6 +60,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action returns the main-conversation prompt produced by this editor; use that prompt as the conversation task instead of creating a hidden nested turn.',
     };
   }
+  if (editorKind === 'model-compare') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'run_blind_comparison',
+      confirmation: 'required',
+      note: 'run_workspace_action validates the editor fields and executes the first-class blind comparison tool with delayed reveal support. The visible workspace form submits the same request to the main conversation.',
+    };
+  }
   if (isAgentWorkspaceCommandEditorKind(editorKind)) {
     return {
       route: 'slash-command-dispatch',

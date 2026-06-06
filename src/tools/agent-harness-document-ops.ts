@@ -61,6 +61,10 @@ function existingActions(ids: readonly string[], available: ReadonlySet<string>)
   return ids.filter((id) => available.has(id));
 }
 
+function hasTool(context: CommandContext, toolName: string): boolean {
+  return context.extensions.toolRegistry.has(toolName);
+}
+
 function statusRank(status: DocumentOpsStatus): number {
   if (status === 'ready') return 4;
   if (status === 'partial') return 3;
@@ -100,7 +104,7 @@ function describeLane(lane: DocumentOpsLane, includeParameters: boolean): Record
         model: lane.modelRoute,
       },
       actionIds: lane.actionIds,
-      safety: 'Document writes, file ingest, export, media generation, and model changes stay explicit user-visible actions. Blind model comparison is reported as unavailable until a real runner exists.',
+      safety: 'Document writes, file ingest, export, media generation, model comparison, and model changes stay explicit user-visible actions. Blind model comparison spends tokens only through confirmed agent_model_compare runs.',
     } : {}),
   };
 }
@@ -143,6 +147,12 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-media-providers',
     'document-generate-media',
   ], available);
+  const modelCompareActions = existingActions([
+    'document-run-compare',
+    'document-model-routing',
+    'account-main-model',
+  ], available);
+  const modelCompareReady = hasTool(context, 'agent_model_compare') && modelCompareActions.includes('document-run-compare');
 
   return [
     {
@@ -243,17 +253,22 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     {
       id: 'model_compare',
       label: 'Blind Model Compare',
-      status: 'gap',
+      status: modelCompareReady ? 'partial' : 'gap',
       outcome: 'Run the same prompt across multiple models, hide model identities while judging, then reveal and save the winner.',
-      current: 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
-      next: 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Model compare gap',
-      modelRoute: 'agent_harness mode:"model_routing"',
+      current: modelCompareReady
+        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, and no automatic route mutation. Saved comparison artifacts, visual side-by-side review, and winner handoff are still missing.'
+        : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
+      next: modelCompareReady
+        ? 'Add saved judgments, visual side-by-side review, comparison export, preference capture, and a separate confirmed route-update handoff.'
+        : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
+      userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
+      modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
       signals: [
         `Current model ${snapshot.provider} / ${snapshot.modelDisplayName}`,
-        'Blind compare runner: gap',
+        `Blind compare runner: ${modelCompareReady ? 'available' : 'gap'}`,
+        'Saved comparison artifact: gap',
       ],
-      actionIds: existingActions(['document-model-routing', 'document-compare-gap', 'account-main-model'], available),
+      actionIds: modelCompareActions,
     },
   ];
 }
@@ -289,7 +304,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing and blind model comparison are explicit gaps until real workflows exist.',
+    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing, unified artifact browsing, and saved comparison review remain explicit gaps until real workflows exist.',
     nextActions: nextActions(lanes),
   };
 }

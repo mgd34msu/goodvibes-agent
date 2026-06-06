@@ -427,8 +427,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Documents & Compare');
     expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Files: attach, paste, source ingest, and export');
-    expect(output).toContain('Document editor/version history and blind model compare runner are not implemented yet.');
-    expect(output).toContain('Blind compare gap');
+    expect(output).toContain('Document editor/version history, saved compare review, and unified artifact browser are still');
+    expect(output).toContain('gaps.');
+    expect(output).toContain('Run blind compare');
     expect(output).toContain('agent_harness mode:"document_ops"');
   });
 

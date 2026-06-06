@@ -2,6 +2,7 @@ import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-bas
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
+import { buildAgentModelComparePromptSubmission } from './agent-workspace-model-compare-editor.ts';
 import { buildAgentReminderScheduleEditorSubmission } from './agent-workspace-reminder-schedule-editor.ts';
 import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-routine-schedule-editor.ts';
 import { buildAgentWorkspaceWebResearchSubmission } from './agent-workspace-web-research-editor.ts';
@@ -20,6 +21,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'knowledge-reindex'
   | 'knowledge-search'
   | 'knowledge-ask'
+  | 'model-compare'
   | 'mcp-server'
   | 'notify-webhook'
   | 'notify-webhook-remove'
@@ -85,6 +87,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'knowledge-url'
     || kind === 'knowledge-search'
     || kind === 'knowledge-ask'
+    || kind === 'model-compare'
     || kind === 'routine-schedule'
     || kind === 'reminder-schedule'
     || isAgentWorkspaceBasicCommandEditorKind(kind);
@@ -102,6 +105,9 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   if (editor.kind === 'knowledge-url') return buildAgentKnowledgeUrlEditorSubmission(editor, readField, commandDispatchAvailable);
   if (editor.kind === 'knowledge-search' || editor.kind === 'knowledge-ask') {
     return buildAgentKnowledgeQueryEditorSubmission(editor, readField, commandDispatchAvailable);
+  }
+  if (editor.kind === 'model-compare') {
+    return buildAgentModelComparePromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (isAgentWorkspaceBasicCommandEditorKind(editor.kind)) {
     return buildAgentWorkspaceBasicCommandEditorSubmission(editor, readField, commandDispatchAvailable);

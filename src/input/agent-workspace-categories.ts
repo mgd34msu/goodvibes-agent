@@ -19,7 +19,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'mode-show', label: 'Interaction mode', detail: 'Review Agent interaction noise level and per-domain verbosity.', command: '/mode show', kind: 'command', safety: 'read-only' },
       { id: 'mode-preset', label: 'Set interaction mode', detail: 'Open a confirmed form for quiet, balanced, or operator interaction mode.', editorKind: 'mode-preset', kind: 'editor', safety: 'safe' },
       { id: 'conversation-home', label: 'Conversation controls', detail: 'Jump to transcript, context, save/load, undo/redo, retry, paste, title, and export controls.', targetCategoryId: 'conversation', kind: 'workspace', safety: 'safe' },
-      { id: 'documents-home', label: 'Documents and compare', detail: 'Jump to document drafting, uploads, exports, sources, artifacts, and model-comparison readiness.', targetCategoryId: 'documents', kind: 'workspace', safety: 'safe' },
+      { id: 'documents-home', label: 'Documents and compare', detail: 'Jump to document drafting, uploads, exports, sources, artifacts, and confirmed blind model comparison.', targetCategoryId: 'documents', kind: 'workspace', safety: 'safe' },
       { id: 'artifacts-home', label: 'Artifacts and files', detail: 'Jump to attachment, export, source-ingest, and generated-media handling without leaving the TUI.', targetCategoryId: 'artifacts', kind: 'workspace', safety: 'safe' },
       { id: 'host-home', label: 'Connected host', detail: 'Jump to connected-host health, tasks, sessions, channels, automation, remote, and control-plane posture.', targetCategoryId: 'host', kind: 'workspace', safety: 'read-only' },
       { id: 'knowledge-home', label: 'Agent Knowledge', detail: 'Jump to isolated Agent Knowledge status, ingest, search, and review flows.', targetCategoryId: 'knowledge', kind: 'workspace', safety: 'read-only' },
@@ -331,7 +331,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'DAY-TO-DAY',
     label: 'Documents & Compare',
     summary: 'Draft docs, files, artifacts, and compare readiness.',
-    detail: 'Use this workspace when the user is producing or evaluating a document. Existing upload, export, source, artifact, media, and model routes stay visible here; dedicated document editing and blind comparison remain explicit gaps until implemented.',
+    detail: 'Use this workspace when the user is producing or evaluating a document. Upload, export, source, artifact, media, and blind comparison routes stay visible here; dedicated document editing and saved comparison review remain explicit gaps until implemented.',
     actions: [
       { id: 'document-ops-map', label: 'Readiness map', detail: 'Use agent_harness mode:"document_ops" to see document, upload, export, source, media, artifact, and blind compare lanes.', kind: 'guidance', safety: 'read-only' },
       { id: 'document-draft-chat', label: 'Draft in conversation', detail: 'Draft or revise a document in the main conversation, then export or save the resulting artifact through the visible export routes.', kind: 'guidance', safety: 'safe' },
@@ -347,7 +347,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'document-media-providers', label: 'Media providers', detail: 'Inspect configured media provider readiness without generating artifacts.', command: '/media providers', kind: 'command', safety: 'read-only' },
       { id: 'document-generate-media', label: 'Generate media artifact', detail: 'Open a confirmed prompt form that generates image or video artifacts through configured media providers.', editorKind: 'media-generate', kind: 'editor', safety: 'safe' },
       { id: 'document-model-routing', label: 'Model routing', detail: 'Open provider/model route controls before any manual model comparison or route change.', targetCategoryId: 'account-model', kind: 'workspace', safety: 'safe' },
-      { id: 'document-compare-gap', label: 'Blind compare gap', detail: 'Blind side-by-side model comparison is not implemented yet. Use model routing for inspection only and do not fabricate hidden comparison results.', kind: 'guidance', safety: 'read-only' },
+      { id: 'document-run-compare', label: 'Run blind compare', detail: 'Open a confirmed form that runs the same prompt across two to four selectable models, hides candidate identities, and supports delayed reveal.', editorKind: 'model-compare', kind: 'editor', safety: 'safe' },
     ],
   },
   {
