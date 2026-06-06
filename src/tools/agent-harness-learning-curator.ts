@@ -47,25 +47,34 @@ interface LearningScores {
   readonly risk: number;
 }
 
-interface LearningConsolidationDiff {
+export interface LearningConsolidationDiff {
   readonly field: string;
   readonly survivor: string;
   readonly duplicates: readonly string[];
   readonly merged: string;
 }
 
-interface LearningConsolidationPlan {
+export interface LearningConsolidationFields {
+  readonly detail?: string;
+  readonly description?: string;
+  readonly tags?: readonly string[];
+  readonly triggers?: readonly string[];
+}
+
+export interface LearningConsolidationPlan {
   readonly survivorId: string;
   readonly duplicateIds: readonly string[];
   readonly sharedKey: string;
   readonly diffs: readonly LearningConsolidationDiff[];
+  readonly updateFields?: LearningConsolidationFields;
+  readonly rollbackFields: LearningConsolidationFields;
   readonly updateRoute?: string;
   readonly staleRoutes: readonly string[];
   readonly deleteRoutes: readonly string[];
   readonly rollbackRoutes: readonly string[];
 }
 
-interface LearningCandidate {
+export interface LearningCandidate {
   readonly id: string;
   readonly label: string;
   readonly domain: LearningCandidateDomain;
@@ -103,6 +112,10 @@ interface LearningConsolidationBatchCandidate {
   readonly duplicateIds?: readonly string[];
   readonly diffFields: readonly string[];
   readonly detailRoute: string;
+  readonly applyRoute: string;
+  readonly mergeRoute: string;
+  readonly stalePhaseRoute: string;
+  readonly deletePhaseRoute: string;
   readonly updateRoute?: string;
   readonly staleRoute?: string;
   readonly deleteRoute?: string;
@@ -315,6 +328,48 @@ function mergedTriggers(items: readonly AgentWorkspaceLocalLibraryItem[]): reado
   return uniqueSorted(items.flatMap((item) => item.triggers));
 }
 
+function updateFieldsForConsolidation(
+  domain: LocalLearningCandidateDomain,
+  survivor: AgentWorkspaceLocalLibraryItem,
+  duplicates: readonly AgentWorkspaceLocalLibraryItem[],
+): LearningConsolidationFields | undefined {
+  const all = [survivor, ...duplicates];
+  const tags = mergedTags(all);
+  const triggers = mergedTriggers(all);
+  const description = mergedDescription(domain, survivor, duplicates);
+  if (domain === 'memory') {
+    const fields: LearningConsolidationFields = {
+      ...(description ? { detail: description } : {}),
+      ...(tags.length > 0 ? { tags } : {}),
+    };
+    return Object.keys(fields).length > 0 ? fields : undefined;
+  }
+  const fields: LearningConsolidationFields = {
+    ...(description ? { description } : {}),
+    ...(tags.length > 0 ? { tags } : {}),
+    ...(triggers.length > 0 ? { triggers } : {}),
+  };
+  return Object.keys(fields).length > 0 ? fields : undefined;
+}
+
+function rollbackFieldsForConsolidation(
+  domain: LocalLearningCandidateDomain,
+  survivor: AgentWorkspaceLocalLibraryItem,
+): LearningConsolidationFields {
+  const description = mergeableDescription(domain, survivor);
+  if (domain === 'memory') {
+    return {
+      ...(description ? { detail: description } : {}),
+      tags: survivor.tags,
+    };
+  }
+  return {
+    ...(description ? { description } : {}),
+    tags: survivor.tags,
+    triggers: survivor.triggers,
+  };
+}
+
 function consolidationDiff(
   field: string,
   survivor: string,
@@ -356,18 +411,16 @@ function updateRouteForConsolidation(
   survivor: AgentWorkspaceLocalLibraryItem,
   duplicates: readonly AgentWorkspaceLocalLibraryItem[],
 ): string | undefined {
-  const all = [survivor, ...duplicates];
-  const tags = mergedTags(all);
-  const triggers = mergedTriggers(all);
-  const description = mergedDescription(domain, survivor, duplicates);
+  const updateFields = updateFieldsForConsolidation(domain, survivor, duplicates);
+  if (!updateFields) return undefined;
   const fields: string[] = [];
   if (domain === 'memory') {
-    if (description) fields.push(`detail:"${routeValue(description)}"`);
-    if (tags.length > 0) fields.push(`tags:${routeList(tags)}`);
+    if (updateFields.detail) fields.push(`detail:"${routeValue(updateFields.detail)}"`);
+    if (updateFields.tags && updateFields.tags.length > 0) fields.push(`tags:${routeList(updateFields.tags)}`);
   } else {
-    if (description) fields.push(`description:"${routeValue(description)}"`);
-    if (tags.length > 0) fields.push(`tags:${routeList(tags)}`);
-    if (triggers.length > 0) fields.push(`triggers:${routeList(triggers)}`);
+    if (updateFields.description) fields.push(`description:"${routeValue(updateFields.description)}"`);
+    if (updateFields.tags && updateFields.tags.length > 0) fields.push(`tags:${routeList(updateFields.tags)}`);
+    if (updateFields.triggers && updateFields.triggers.length > 0) fields.push(`triggers:${routeList(updateFields.triggers)}`);
   }
   if (fields.length === 0) return undefined;
   return [
@@ -378,15 +431,15 @@ function updateRouteForConsolidation(
 }
 
 function rollbackUpdateRouteForConsolidation(domain: LocalLearningCandidateDomain, survivor: AgentWorkspaceLocalLibraryItem): string {
+  const rollbackFields = rollbackFieldsForConsolidation(domain, survivor);
   const fields: string[] = [];
-  const description = mergeableDescription(domain, survivor);
   if (domain === 'memory') {
-    if (description) fields.push(`detail:"${routeValue(description)}"`);
-    fields.push(`tags:${routeList(survivor.tags)}`);
+    if (rollbackFields.detail) fields.push(`detail:"${routeValue(rollbackFields.detail)}"`);
+    fields.push(`tags:${routeList(rollbackFields.tags ?? [])}`);
   } else {
-    if (description) fields.push(`description:"${routeValue(description)}"`);
-    fields.push(`tags:${routeList(survivor.tags)}`);
-    fields.push(`triggers:${routeList(survivor.triggers)}`);
+    if (rollbackFields.description) fields.push(`description:"${routeValue(rollbackFields.description)}"`);
+    fields.push(`tags:${routeList(rollbackFields.tags ?? [])}`);
+    fields.push(`triggers:${routeList(rollbackFields.triggers ?? [])}`);
   }
   return [
     localRegistryRoute(domain, 'update', survivor.id),
@@ -417,6 +470,8 @@ function consolidationCandidate(
   const duplicates = items.filter((item) => item.id !== survivor.id);
   if (duplicates.length === 0) return null;
   const updateRoute = updateRouteForConsolidation(domain, survivor, duplicates);
+  const updateFields = updateFieldsForConsolidation(domain, survivor, duplicates);
+  const rollbackFields = rollbackFieldsForConsolidation(domain, survivor);
   const staleRoutes = duplicates.map((item) => `${localRegistryRoute(domain, 'stale', item.id)} reason:"Duplicate of ${routeValue(survivor.id)}; staged by learning curator consolidation."`);
   const deleteRoutes = duplicates.map((item) => `${localRegistryRoute(domain, 'delete', item.id)} confirm:true explicitUserRequest:"Delete duplicate ${routeValue(domain)} ${routeValue(item.id)} after reviewed consolidation."`);
   const rollbackRoutes = [
@@ -429,6 +484,8 @@ function consolidationCandidate(
     duplicateIds: duplicates.map((item) => item.id),
     sharedKey: key,
     diffs,
+    ...(updateFields ? { updateFields } : {}),
+    rollbackFields,
     ...(updateRoute ? { updateRoute } : {}),
     staleRoutes,
     deleteRoutes,
@@ -1042,10 +1099,14 @@ function describeCandidate(candidate: LearningCandidate, includeParameters: bool
         review: candidate.reviewRoute ?? null,
         stale: candidate.staleRoute ?? null,
         update: candidate.updateRoute ?? null,
+        apply: candidate.consolidation ? `agent_learning_consolidation mode=preview candidateId:"${routeValue(candidate.id)}"` : null,
+        merge: candidate.consolidation ? `agent_learning_consolidation mode=merge candidateId:"${routeValue(candidate.id)}" confirm:true explicitUserRequest:"..."` : null,
+        stalePhase: candidate.consolidation ? `agent_learning_consolidation mode=stale candidateId:"${routeValue(candidate.id)}" confirm:true explicitUserRequest:"..."` : null,
+        deletePhase: candidate.consolidation ? `agent_learning_consolidation mode=delete candidateId:"${routeValue(candidate.id)}" confirm:true explicitUserRequest:"..."` : null,
         create: candidate.createRoute ?? null,
         delete: candidate.deleteRoute ?? null,
       },
-      policy: 'Learning curator rows are read-only. Create, update, review, stale, delete, promote, enable, and schedule effects stay on existing confirmed Agent-local routes.',
+      policy: 'Learning curator rows are read-only. Duplicate consolidation phases use agent_learning_consolidation with confirmation, while create, review, promote, enable, schedule, and non-batch local effects stay on existing confirmed routes.',
     } : {}),
   };
 }
@@ -1079,6 +1140,10 @@ function learningConsolidationBatchPlan(
       diffFields: consolidation.diffs.map((diff) => diff.field),
       detailRoute: `agent_harness mode:"learning_candidate" candidateId:"${routeValue(candidate.id)}"`,
       ...(candidate.updateRoute ? { updateRoute: candidate.updateRoute } : {}),
+      applyRoute: `agent_learning_consolidation mode=preview candidateId:"${routeValue(candidate.id)}"`,
+      mergeRoute: `agent_learning_consolidation mode=merge candidateId:"${routeValue(candidate.id)}" confirm:true explicitUserRequest:"..."`,
+      stalePhaseRoute: `agent_learning_consolidation mode=stale candidateId:"${routeValue(candidate.id)}" confirm:true explicitUserRequest:"..."`,
+      deletePhaseRoute: `agent_learning_consolidation mode=delete candidateId:"${routeValue(candidate.id)}" confirm:true explicitUserRequest:"..."`,
       ...(candidate.staleRoute ? { staleRoute: candidate.staleRoute } : {}),
       ...(candidate.deleteRoute ? { deleteRoute: candidate.deleteRoute } : {}),
       ...(includeParameters ? {
@@ -1109,13 +1174,13 @@ function learningConsolidationBatchPlan(
         id: 'merge-survivor',
         label: 'Merge visible survivor fields',
         goal: 'Apply the survivor update route only when the visible diffs preserve useful names, descriptions, tags, and triggers.',
-        route: 'Use each topCandidates[].updateRoute when present.',
+        route: 'Use each topCandidates[].mergeRoute after explicit approval.',
       },
       {
         id: 'stale-duplicates',
         label: 'Stage duplicates as stale',
         goal: 'Mark duplicates stale before deleting them so rollback remains one reviewed route away.',
-        route: 'Use each topCandidates[].staleRoutes in candidate detail order.',
+        route: 'Use each topCandidates[].stalePhaseRoute after explicit approval.',
       },
       {
         id: 'verify',
@@ -1127,11 +1192,11 @@ function learningConsolidationBatchPlan(
         id: 'delete-after-approval',
         label: 'Delete only after explicit approval',
         goal: 'Use delete routes only after the user confirms the stale duplicates are no longer needed.',
-        route: 'Use each topCandidates[].deleteRoutes after explicit approval.',
+        route: 'Use each topCandidates[].deletePhaseRoute only after the stale phase has already run.',
       },
     ],
     topCandidates,
-    policy: 'This is an ordered review plan only. Each update, stale, delete, and rollback action remains an existing confirmed Agent-local route; there is no hidden batch mutation.',
+    policy: 'This is an ordered review plan. Use agent_learning_consolidation to preview or apply one confirmed candidate phase; low-level Agent-local routes remain visible for inspection and recovery.',
   };
 }
 
@@ -1181,6 +1246,44 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     total: all.length,
     nextActions: nextActions(all),
     policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, saved sessions, duplicate consolidation, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+  };
+}
+
+export type LearningConsolidationCandidateResolution =
+  | { readonly status: 'found'; readonly candidate: LearningCandidate }
+  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Pick<LearningCandidate, 'id' | 'label' | 'status' | 'priority'>[] }
+  | { readonly status: 'missing_lookup'; readonly usage: string };
+
+export function resolveLearningConsolidationCandidate(context: CommandContext, input: string): LearningConsolidationCandidateResolution {
+  const lookup = input.trim();
+  if (!lookup) {
+    return {
+      status: 'missing_lookup',
+      usage: 'candidateId or query is required. Use agent_harness mode:"learning_curator" query:"consolidation" to inspect candidate ids.',
+    };
+  }
+  const candidates = buildLearningCandidates(context).filter((candidate) => candidate.consolidation !== undefined);
+  const normalized = lookup.toLowerCase();
+  const exact = candidates.find((candidate) => candidate.id === lookup)
+    ?? candidates.find((candidate) => candidate.id.toLowerCase() === normalized);
+  if (exact) return { status: 'found', candidate: exact };
+  const matches = candidates.filter((candidate) => candidateSearchText(candidate).includes(normalized));
+  if (matches.length === 1) return { status: 'found', candidate: matches[0]! };
+  if (matches.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup,
+      candidates: matches.slice(0, 8).map((candidate) => ({
+        id: candidate.id,
+        label: candidate.label,
+        status: candidate.status,
+        priority: candidate.priority,
+      })),
+    };
+  }
+  return {
+    status: 'missing_lookup',
+    usage: `Unknown duplicate-consolidation candidate ${lookup}. Use agent_harness mode:"learning_curator" query:"consolidation" to inspect candidate ids.`,
   };
 }
 

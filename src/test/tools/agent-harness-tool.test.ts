@@ -3020,6 +3020,10 @@ describe('agent_harness tool', () => {
             readonly duplicateIds?: readonly string[];
             readonly diffFields: readonly string[];
             readonly detailRoute: string;
+            readonly applyRoute?: string;
+            readonly mergeRoute?: string;
+            readonly stalePhaseRoute?: string;
+            readonly deletePhaseRoute?: string;
             readonly updateRoute?: string;
             readonly staleRoutes?: readonly string[];
             readonly deleteRoutes?: readonly string[];
@@ -3070,10 +3074,14 @@ describe('agent_harness tool', () => {
       ]);
       expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.candidateId.includes('consolidation:skill'))).toBe(true);
       expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.updateRoute?.includes('action:"update"'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.applyRoute?.includes('agent_learning_consolidation'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.mergeRoute?.includes('mode=merge'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.stalePhaseRoute?.includes('mode=stale'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.deletePhaseRoute?.includes('mode=delete'))).toBe(true);
       expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.staleRoutes?.join('\n').includes('action:"stale"'))).toBe(true);
       expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.deleteRoutes?.join('\n').includes('confirm:true'))).toBe(true);
       expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.rollbackRoutes?.join('\n').includes('rollback-learning-curator-consolidation'))).toBe(true);
-      expect(curator.consolidationBatch?.policy).toContain('no hidden batch mutation');
+      expect(curator.consolidationBatch?.policy).toContain('agent_learning_consolidation');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
@@ -3132,12 +3140,16 @@ describe('agent_harness tool', () => {
       const consolidationDetail = await executeHarnessJson<{
         readonly candidateId: string;
         readonly status: string;
-        readonly routes?: { readonly update: string | null; readonly stale: string | null; readonly delete: string | null };
+        readonly routes?: { readonly update: string | null; readonly stale: string | null; readonly delete: string | null; readonly apply?: string | null; readonly merge?: string | null; readonly stalePhase?: string | null; readonly deletePhase?: string | null };
         readonly cleanupRoutes?: readonly string[];
         readonly rollbackRoutes?: readonly string[];
       }>(fixture, { mode: 'learning_candidate', candidateId: consolidationCandidate?.candidateId });
       expect(consolidationDetail.status).toBe('needs-consolidation');
       expect(consolidationDetail.routes?.update).toContain('action:"update"');
+      expect(consolidationDetail.routes?.apply).toContain('agent_learning_consolidation');
+      expect(consolidationDetail.routes?.merge).toContain('mode=merge');
+      expect(consolidationDetail.routes?.stalePhase).toContain('mode=stale');
+      expect(consolidationDetail.routes?.deletePhase).toContain('mode=delete');
       expect(consolidationDetail.routes?.stale).toContain('action:"stale"');
       expect(consolidationDetail.routes?.delete).toContain('confirm:true');
       expect(consolidationDetail.cleanupRoutes?.join('\n')).toContain('Duplicate of');

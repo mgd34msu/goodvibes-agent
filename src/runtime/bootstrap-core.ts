@@ -35,6 +35,7 @@ import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
+import { registerAgentLearningConsolidationTool } from '../tools/agent-learning-consolidation-tool.ts';
 import { registerAgentLocalRegistryTool } from '../tools/agent-local-registry-tool.ts';
 import { registerAgentMediaGenerateTool } from '../tools/agent-media-generate-tool.ts';
 import { registerAgentModelCompareTool } from '../tools/agent-model-compare-tool.ts';
@@ -254,6 +255,7 @@ export async function initializeBootstrapCore(
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
   registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter);
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
+  registerAgentLearningConsolidationTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentMediaGenerateTool(toolRegistry, services.mediaProviders, services.artifactStore);
   registerAgentResearchRunsTool(toolRegistry, services.shellPaths);

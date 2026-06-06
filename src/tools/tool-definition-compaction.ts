@@ -34,6 +34,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent_documents: 'Create drafts, comments, suggestions, artifact attach/insert, and exports.',
   agent_knowledge: 'Read isolated Agent Knowledge.',
   agent_knowledge_ingest: 'Ingest confirmed source into Agent Knowledge.',
+  agent_learning_consolidation: 'Apply confirmed local duplicate learning phases.',
   agent_local_registry: 'Inspect/update Agent memory, notes, skills, routines.',
   agent_work_plan: 'Inspect/update the visible Agent-local work plan.',
   agent_operator_briefing: 'Read connected Agent operator state.',

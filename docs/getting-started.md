@@ -46,7 +46,7 @@ Primary first-run areas:
 - Research: read-only web research and URL inspection, read-only workflow planning, project-local visible research runs with log tails, browser-backed runner readiness/fallback posture, source queue, credibility review, reviewed-source bundles, plus confirmed sourced markdown report artifacts with source maps, citation coverage checks, and repair hints.
 - Documents & Compare: versioned markdown document drafts, review comments, AI suggestion review, draft browse/show/create/revise/review/suggest/accept/reject/artifact-attach/artifact-insert/export, uploads, exports, source checks, generated media artifacts, saved artifact browse/show/export/package, reviewed artifact-to-Knowledge promotion, saved text artifact reuse in blind comparison, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates.
 - Personal Ops: inbox/calendar connector readiness, email/calendar-capable MCP setup routes, expanded connector tool classification for read-only versus write-like inbox/calendar actions, schema-derived operation records with required fields, sample inputs, schema routes, and confirmation flags, inbox triage/draft and calendar agenda/conflict workflow cards with inspect routes and confirmation boundaries, plus live records for Agent-owned notes, routines, schedule receipts, and delivery channels.
-- Memory & Skills: local memory, notes, personas, skills, routines, learned behavior capture, prompt injection limited to reviewed/confident and setup-ready behavior, and a read-only learning curator for review/setup/stale/duplicate-consolidation/reviewed-note/completed-work/completed-research/saved-session memory and behavior candidates, including a guided duplicate-consolidation batch review plan.
+- Memory & Skills: local memory, notes, personas, skills, routines, learned behavior capture, prompt injection limited to reviewed/confident and setup-ready behavior, and a learning curator for review/setup/stale/duplicate-consolidation/reviewed-note/completed-work/completed-research/saved-session memory and behavior candidates, including guided duplicate-consolidation phase helpers with receipts.
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
 - Voice & Media: TTS setup, image input, and confirmed generated media.
 - Work & Automation: work-plan tracking, approvals, schedules, reminders, and explicit operator actions.
@@ -82,8 +82,8 @@ Common model routes:
 | Personal operations | `agent_harness mode:"personal_ops"`, `mode:"personal_ops_lane"` |
 | Local model choice | `agent_harness mode:"model_routing" query:"local"`, `mode:"model_route" modelRouteId:"local-model-cookbook"` |
 | Documents, artifacts, compare | `agent_harness mode:"document_ops"`, `mode:"document_ops_lane"`, `agent_documents`, `agent_artifacts`, `agent_model_compare` |
-| Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
-| Learning curator | `agent_harness mode:"learning_curator"`, `mode:"learning_candidate"` |
+| Local memory/notes/personas/skills/routines | `agent_local_registry`, `agent_learning_consolidation`, or confirmed workspace actions |
+| Learning curator | `agent_harness mode:"learning_curator"`, `mode:"learning_candidate"`, `agent_learning_consolidation` |
 | Work plan | `agent_work_plan` |
 | Visible autonomous work | `agent` with `mode:"spawn"`, `mode:"batch-spawn"`, `mode:"status"`, `mode:"message"`, `mode:"wait"`, or `mode:"cancel"` |
 | Channels, notifications, reminders, scheduled autonomy, media | `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_autonomy_schedule`, `agent_schedule_edit`, `agent_media_generate` |
@@ -126,7 +126,7 @@ Only reviewed, high-confidence local context should steer the assistant. Prompt 
 Use the workspace first:
 
 - Memory & Skills -> Create memory, Create note, or Capture learned behavior.
-- Memory & Skills -> Learning curator to rank stale, low-confidence, missing-setup, duplicate-consolidation candidates with visible diffs and rollback routes, expose an ordered duplicate-consolidation batch review plan, reviewed-note memory/behavior proposals, completed-work memory/behavior proposals, completed-research memory/behavior proposals, saved-session memory/behavior proposals, and review-needed local behavior records before they silently guide the assistant.
+- Memory & Skills -> Learning curator to rank stale, low-confidence, missing-setup, duplicate-consolidation candidates with visible diffs and rollback routes, expose an ordered duplicate-consolidation batch review plan, apply confirmed merge/stale/delete/rollback phases through `agent_learning_consolidation`, surface reviewed-note memory/behavior proposals, completed-work memory/behavior proposals, completed-research memory/behavior proposals, saved-session memory/behavior proposals, and review-needed local behavior records before they silently guide the assistant.
 - Notes -> Create notes for source triage, temporary decisions, and operator handoff.
 - Personas -> Create, inspect, activate, review, stale, or delete.
 - Skills -> Create, enable/disable, review, bundle, or delete.

@@ -121,10 +121,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Learning is automatic enough to be useful, but every durable behavior has provenance, review, rollback, and quality scoring.',
     goodVibesStatus: 'partial',
     owners: ['agent'],
-    goodVibesNow: 'Agent has local memory, notes, personas, skills, routines, learned-behavior capture, and prompt injection now uses only reviewed memory at or above the durable confidence threshold plus reviewed setup-ready skills, routines, bundles, and personas while listing suppressed unreviewed/setup-blocked behavior for curator review. The read-only learning curator ranks review, stale, missing-setup, low-confidence, duplicate-consolidation candidates with visible diffs/rollback routes, an ordered duplicate-consolidation batch review plan, reviewed-note, completed-work, completed-research, and saved-session memory/behavior proposals, and promotion candidates with existing safe routes.',
+    goodVibesNow: 'Agent has local memory, notes, personas, skills, routines, learned-behavior capture, and prompt injection now uses only reviewed memory at or above the durable confidence threshold plus reviewed setup-ready skills, routines, bundles, and personas while listing suppressed unreviewed/setup-blocked behavior for curator review. The read-only learning curator ranks review, stale, missing-setup, low-confidence, duplicate-consolidation candidates with visible diffs/rollback routes, an ordered duplicate-consolidation batch review plan, confirmed duplicate-consolidation phase helpers for preview/merge/stale/delete/rollback with durable receipts and delete refusal until duplicates are staged stale, reviewed-note, completed-work, completed-research, and saved-session memory/behavior proposals, and promotion candidates with existing safe routes.',
     nextMoves: [
       'Feed usefulness, freshness, source quality, and risk scores into deeper prompt ordering and review prioritization.',
-      'Add safe apply helpers for the duplicate-consolidation batch plan when the user explicitly approves each update/stale/delete phase.',
+      'Add exact-id recreate guidance for post-delete duplicate-consolidation receipts where the underlying local registry supports it safely.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Skills and memory are core extension points.' },

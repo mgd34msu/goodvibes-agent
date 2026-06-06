@@ -86,7 +86,7 @@ Every mutating or externally visible effect requires `confirm:true` plus `explic
 First-class model tools cover common workflows directly:
 
 - `agent_knowledge` and `agent_knowledge_ingest` for isolated Agent Knowledge reads and confirmed ingest.
-- `agent_local_registry` for Agent-local memory, notes, personas, skills, bundles, and routines.
+- `agent_local_registry` and `agent_learning_consolidation` for Agent-local memory, notes, personas, skills, bundles, routines, and confirmed duplicate-consolidation phases.
 - `agent_work_plan` for visible local work-plan tracking.
 - `agent_operator_briefing` and `agent_operator_action` for connected work/approval/automation/schedule posture and exact confirmed actions.
 - `agent_operator_method` for exact GoodVibes daemon contract parity. Read-only routes can run directly; write/admin routes require `confirm:true` and `explicitUserRequest`.
