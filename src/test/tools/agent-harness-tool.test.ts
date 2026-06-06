@@ -2274,7 +2274,10 @@ describe('agent_harness tool', () => {
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.disable');
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.delete');
       expect(schedules?.liveRecords?.[0]?.cancelRoute).toContain('schedules.disable');
+      expect(schedules?.liveRecords?.[0]?.pauseRoute).toContain('schedules.disable');
       expect(schedules?.liveRecords?.[0]?.availableControls).toContain('run');
+      expect(schedules?.liveRecords?.[0]?.availableControls).toContain('pause');
+      expect(schedules?.liveRecords?.[0]?.controls?.find((control) => control.id === 'pause')?.modelRoute).toContain('schedules.disable');
       expect(schedules?.liveRecords?.[0]?.controls?.find((control) => control.id === 'delete')?.confirmationRequired).toBe(true);
       expect(schedules?.modelRoute).toContain('agent_schedule_edit');
       expect(schedules?.createRoute).toContain('agent_autonomy_schedule');

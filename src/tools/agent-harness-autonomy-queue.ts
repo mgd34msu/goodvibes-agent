@@ -476,6 +476,7 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
         ].filter(Boolean).join(' | '),
         inspectRoute: '/schedule list',
         ...(enabled ? { cancelRoute: toggleRoute } : {}),
+        ...(enabled ? { pauseRoute: toggleRoute } : { resumeRoute: toggleRoute }),
         nextSteps: [
           runRoute,
           editRoute,
@@ -495,6 +496,7 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
           availableControl('inspect', 'Inspect schedules', 'read-only', '/schedule list'),
           availableControl('run', 'Run schedule now', 'confirmed-effect', runRoute),
           availableControl('edit', 'Edit schedule', 'confirmed-effect', editRoute),
+          availableControl(enabled ? 'pause' : 'resume', enabled ? 'Pause schedule' : 'Resume schedule', 'confirmed-effect', toggleRoute),
           availableControl(enabled ? 'disable' : 'enable', enabled ? 'Disable schedule' : 'Enable schedule', 'confirmed-effect', toggleRoute),
           availableControl('delete', 'Delete schedule', 'confirmed-effect', deleteRoute),
         ],

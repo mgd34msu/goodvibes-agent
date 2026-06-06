@@ -139,11 +139,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Schedules, cron jobs, recurring routines, and long-running tasks are autonomous but never hidden.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent has confirmed natural-language autonomous schedule creation when task, cadence, success criteria, and user request provenance are explicit; reminder scheduling; routine promotion; confirmed connected schedule editing; operator action tools; connected schedule posture; a read-only ongoing-work intake selector; and a read-only autonomy queue that maps visible owners, status, inspect routes, cancel/recovery routes, live research runs, live connected-host task records, live approval records, live automation run records, live schedule records, log tails, source ids, normalized available/unavailable controls with reasons, and exact confirmed checkpoint/pause/resume/cancel/edit/control routes where supported.',
+    goodVibesNow: 'Agent has confirmed natural-language autonomous schedule creation when task, cadence, success criteria, and user request provenance are explicit; reminder scheduling; routine promotion; confirmed connected schedule editing; operator action tools; connected schedule posture; a read-only ongoing-work intake selector; and a read-only autonomy queue that maps visible owners, status, inspect routes, cancel/recovery routes, live research runs, live connected-host task records, live approval records, live automation run records, live schedule records, log tails, source ids, normalized available/unavailable controls with reasons, and exact confirmed checkpoint/pause/resume/cancel/edit/control routes where supported, including first-class schedule pause/resume aliases over the daemon enable/disable lifecycle.',
     nextMoves: [
       'Attach deeper host output streams and diagnostics to live queue records when the connected host exposes them.',
       'Add richer schedule edit diff previews when the connected host exposes before/after schedule records.',
-      'Add first-class pause/resume controls to queue cards when the owning surface exposes legal lifecycle transitions.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Supports cron, wakeups, webhooks, Gmail triggers, and always-on gateway workflows.' },
