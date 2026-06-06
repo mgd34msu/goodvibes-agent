@@ -120,7 +120,7 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         state: metrics.executionRoutes > 0 ? 'ready' : 'setup',
         summary: metrics.executionRoutes > 0 ? 'Local read/edit/exec and recovery posture is inspectable.' : 'Execution posture needs tool availability review.',
         nextAction: 'Use local work routes first; delegate only for isolation, remote work, or explicit review.',
-        routes: ['agent_harness mode:"execution_posture"', 'agent_harness mode:"file_recovery"'],
+        routes: ['agent_harness mode:"project_context"', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"file_recovery"'],
       }),
       lane({
         id: 'personal-ops',
@@ -161,6 +161,7 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
 
 export function buildAssistantCockpitFromSummaries(input: {
   readonly setupPosture: unknown;
+  readonly projectContext?: unknown;
   readonly modelRouting: unknown;
   readonly executionPosture: unknown;
   readonly backgroundProcesses?: unknown;

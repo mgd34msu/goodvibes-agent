@@ -37,6 +37,7 @@ import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummar
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
 import { describePersonalOpsLane, personalOpsCatalogStatus, personalOpsSummary } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
+import { describeProjectContextFile, projectContextCatalogStatus, projectContextSummary } from './agent-harness-project-context.ts';
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
 import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
 import { describeHarnessReleaseReadinessItem, releaseReadinessInventoryStatus, releaseReadinessSummary } from './agent-harness-release-readiness.ts';
@@ -68,6 +69,7 @@ interface AgentHarnessToolArgs {
   readonly providerId?: unknown;
   readonly mcpServerId?: unknown;
   readonly setupItemId?: unknown;
+  readonly contextFileId?: unknown;
   readonly modelRouteId?: unknown;
   readonly executionRouteId?: unknown;
   readonly executionRecordId?: unknown;
@@ -192,6 +194,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
+    projectContext: 'List mode:"project_context"; inspect mode:"project_context_file"; context files are read-only and secret-scanned.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
     backgroundProcesses: 'List mode:"background_processes"; inspect mode:"background_process"; start/wait/stop tracked long-running local commands with mode:"run_background_process". PTY/stdin write/sudo are surfaced honestly as unavailable or foreground-only until safe substrate support exists.',
@@ -947,6 +950,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             status: 'unavailable',
             error: formatHarnessError(err),
           }));
+          const projectContext = projectContextCatalogStatus(deps.commandContext);
           const modelRouting = await modelRoutingCatalogStatus(deps.commandContext).catch((err) => ({
             modes: ['model_routing', 'model_route'],
             status: 'unavailable',
@@ -983,6 +987,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return output({
             assistant: buildAssistantCockpitFromSummaries({
               setupPosture,
+              projectContext,
               modelRouting,
               executionPosture,
               backgroundProcesses,
@@ -1005,6 +1010,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             providerAccounts,
             mcpServers,
             setupPosture,
+            projectContext,
             modelRouting,
             executionPosture,
             backgroundProcesses,
@@ -1151,6 +1157,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = await describeHarnessSetupItem(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.item);
           if (resolved.status === 'ambiguous') return error(`Ambiguous setup item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'project_context') return output(projectContextSummary(deps.commandContext, args));
+        if (args.mode === 'project_context_file') {
+          const resolved = describeProjectContextFile(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.file);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous project context file ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'provision_connected_host_token') {

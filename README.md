@@ -57,7 +57,7 @@ Workspace areas:
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Tools & MCP: MCP server setup, tool inventory, trust review, secrets, and settings.
 - Knowledge: isolated Agent Knowledge status, ask/search, source/node/issue libraries, item lookup, map review, connectors, ingest, review queue, and reindex.
-- Memory & Skills: VIBE.md personality, local memory posture, prompt-active recall, vector/embedding health, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
+- Memory & Skills: VIBE.md personality, project context files, local memory posture, prompt-active recall, vector/embedding health, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
 - Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook notification management.
 - Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, and provider readiness.
 - Automation: reminders, schedules, visible autonomous agents, routine promotion receipts, reconciliation, and exact confirmed approval/automation/schedule actions.
@@ -76,9 +76,10 @@ High-value `agent_harness` mode groups:
 - Discovery: `modes`, `workspace_categories`, `workspace_actions`, `commands`, `cli_commands`, `panels`, `ui_surfaces`, `shortcuts`, `keybindings`, `tools`, `settings`.
 - Single-item inspection: `mode`, `workspace_action`, `command`, `cli_command`, `panel`, `ui_surface`, `keybinding`, `tool`, `get_setting`.
 - User-visible effects: `run_workspace_action`, `run_command`, `run_background_process`, `open_panel`, `open_ui_surface`, `run_keybinding`, `set_keybinding`, `reset_keybinding`, `set_setting`, `reset_setting`.
-- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `model_routing`, `execution_posture`, `background_processes`, `personal_ops`, `memory_posture`, `document_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
+- Product posture: `channels`, `notifications`, `provider_accounts`, `mcp_servers`, `setup_posture`, `project_context`, `model_routing`, `execution_posture`, `background_processes`, `personal_ops`, `memory_posture`, `document_ops`, `pairing_posture`, `delegation_posture`, `security_posture`, `support_bundles`, `media_posture`, `sessions`.
 - Local long-running commands: `background_processes` and `background_process` inspect tracked ProcessManager jobs with bounded redacted output; confirmed `run_background_process` starts, waits on, or stops one visible local process. `run_background_process processAction:"capabilities"` reports the core process parity matrix for terminal background start, process list/poll/wait/log/kill/write, PTY, and sudo without overclaiming unsupported interactive routes.
 - Connected host: `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`; `daemon` and `daemon_status` are aliases for connected-host posture/status.
+- Project context: `project_context` lists secret-scanned `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, `HERMES_HOME/SOUL.md`, `.cursorrules`, and `.cursor/rules/*.mdc` files; `project_context_file` inspects one loaded or blocked file.
 - Operator/audit inspection: `release_evidence`, `release_evidence_artifact`, `release_readiness`, `release_readiness_item`.
 - Operator methods: `operator_methods`, `operator_method`.
 
@@ -99,6 +100,8 @@ Registered model tool definitions are compact by default. Top-level descriptions
 ## Local Behavior
 
 VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, surfaced in setup and the learning curator when blocked or truncated, and applied to the serial Agent conversation without requiring persona-registry ceremony. Formal Agent-local memory, notes, personas, skills, routines, and profiles remain stored under the Agent home and are injected only into the serial Agent conversation unless an explicit Agent workflow promotes or ingests reviewed material elsewhere.
+
+Project context files are separate from personality. GoodVibes Agent loads secret-scanned workspace instructions from `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, optional `HERMES_HOME/SOUL.md`, `.cursorrules`, and `.cursor/rules/*.mdc`, with target-aware discovery for subdirectory `AGENTS.md` files. These instructions can shape project work, but explicit user requests, tool contracts, confirmation gates, and safety rules override them.
 
 Useful workspace paths:
 

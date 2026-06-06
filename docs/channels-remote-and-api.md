@@ -15,7 +15,7 @@ Agent channel UX should show:
 - the command or workspace action needed to pair companion clients through QR-first setup;
 - the confirmed `Send channel message` action when the user explicitly wants a one-off delivery.
 
-VIBE.md, Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-host request. Companion pairing uses `/pair` without printing the raw token; manual token display requires `/pair --show-token --yes`. One-off delivery uses Agent Workspace -> Channels -> Send channel message or `/channels send ... --yes`.
+VIBE.md, project context files, Agent-local memory, routines, skills, and personas are not automatically broadcast to channels. External delivery is an effect and requires an exact command, an explicit routine promotion, or a user-approved connected-host request. Companion pairing uses `/pair` without printing the raw token; manual token display requires `/pair --show-token --yes`. One-off delivery uses Agent Workspace -> Channels -> Send channel message or `/channels send ... --yes`.
 
 The model can inspect pairing posture with `agent_harness` mode `pairing_posture`, and inspect one pairing route with mode `pairing_route` using `pairingRouteId`, `target`, or `query`. Those pairing modes return endpoint binding, pairing surface id, route catalog, and token fingerprint only; raw tokens and QR payloads are never returned by the read-only posture modes. QR display, manual token display, companion connection, channel delivery, task, approval, provider/model, and attachment actions stay visible user flows.
 

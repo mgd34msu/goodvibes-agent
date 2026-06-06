@@ -1348,6 +1348,91 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes project context files to the model without loading blocked content', async () => {
+    const fixture = makeFixture();
+    try {
+      mkdirSync(join(fixture.root, 'frontend', 'src'), { recursive: true });
+      mkdirSync(join(fixture.root, '.cursor', 'rules'), { recursive: true });
+      writeFileSync(join(fixture.root, 'AGENTS.md'), 'Prefer visible project context before hidden assumptions.');
+      writeFileSync(join(fixture.root, 'frontend', 'AGENTS.md'), 'Frontend work should use compact controls and visible state.');
+      writeFileSync(join(fixture.root, '.cursor', 'rules', 'ui.mdc'), 'Use focused UI rules for dense operator surfaces.');
+      writeFileSync(join(fixture.root, 'CLAUDE.md'), 'api_key=supersecretvalue\nDo not load this project secret.');
+
+      const summary = await executeHarnessJson<{
+        readonly projectContext?: {
+          readonly status: string;
+          readonly loaded: number;
+          readonly blocked: number;
+          readonly targetAware: boolean;
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.projectContext?.status).toBe('attention');
+      expect(summary.projectContext?.loaded).toBeGreaterThanOrEqual(1);
+      expect(summary.projectContext?.blocked).toBe(1);
+      expect(summary.projectContext?.targetAware).toBe(true);
+
+      const catalog = await executeHarnessJson<{
+        readonly status: string;
+        readonly returned: number;
+        readonly total: number;
+        readonly loaded: number;
+        readonly blocked: number;
+        readonly files: readonly {
+          readonly id: string;
+          readonly path: string;
+          readonly source: string;
+          readonly scope: string;
+          readonly status: string;
+          readonly body?: string;
+          readonly reason?: string;
+          readonly modelRoute: string;
+        }[];
+        readonly policy: string;
+      }>(fixture, { mode: 'project_context', target: 'frontend/src/App.ts', includeParameters: true });
+      expect(catalog.status).toBe('attention');
+      expect(catalog.loaded).toBeGreaterThanOrEqual(3);
+      expect(catalog.blocked).toBe(1);
+      expect(catalog.returned).toBe(catalog.total);
+      expect(catalog.policy).toContain('Secret-looking files are blocked');
+      expect(JSON.stringify(catalog)).not.toContain('Do not load this project secret');
+      expect(catalog.files.map((file) => file.source)).toEqual(expect.arrayContaining(['AGENTS.md', '.cursor/rules/*.mdc', 'CLAUDE.md']));
+      expectRowsHaveCompactModelRoutes(catalog.files);
+
+      const frontendContext = catalog.files.find((file) => file.path.endsWith(join('frontend', 'AGENTS.md')));
+      expect(frontendContext?.scope).toBe('subdirectory');
+      expect(frontendContext?.modelRoute).toContain('project_context_file');
+
+      const detail = await executeHarnessJson<{
+        readonly path: string;
+        readonly status: string;
+        readonly body: string;
+      }>(fixture, { mode: 'project_context_file', contextFileId: frontendContext?.id, target: 'frontend/src/App.ts' });
+      expect(detail.path).toBe(frontendContext?.path);
+      expect(detail.status).toBe('loaded');
+      expect(detail.body).toContain('compact controls');
+
+      const blocked = catalog.files.find((file) => file.status === 'blocked');
+      const blockedDetail = await executeHarnessJson<{
+        readonly status: string;
+        readonly reason: string;
+      }>(fixture, { mode: 'project_context_file', contextFileId: blocked?.id });
+      expect(blockedDetail.status).toBe('blocked');
+      expect(blockedDetail.reason).toContain('secret-looking');
+      expect(JSON.stringify(blockedDetail)).not.toContain('Do not load this project secret');
+
+      const cursorOnly = await executeHarnessJson<{
+        readonly returned: number;
+        readonly total: number;
+        readonly files: readonly { readonly source: string }[];
+      }>(fixture, { mode: 'project_context', query: 'cursor' });
+      expect(cursorOnly.returned).toBe(1);
+      expect(cursorOnly.total).toBeGreaterThan(cursorOnly.returned);
+      expect(cursorOnly.files[0]?.source).toBe('.cursor/rules/*.mdc');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('saves redacted setup smoke evidence artifacts when user-run output is provided', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });

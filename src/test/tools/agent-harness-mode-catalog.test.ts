@@ -119,6 +119,16 @@ describe('agent_harness mode catalog', () => {
     expect(auth.modes[0]?.parameters).toEqual(expect.arrayContaining(['confirm', 'explicitUserRequest']));
   });
 
+  test('finds project context files by AGENTS, Hermes, Claude, and Cursor wording', () => {
+    const context = listHarnessModes({ query: 'AGENTS.md .hermes.md CLAUDE.md cursor rules', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = context.modes.map((mode) => mode.id);
+    expect(ids).toContain('project_context');
+    expect(ids).toContain('project_context_file');
+    expect(context.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds Document Ops by uploads, artifacts, and blind compare wording', () => {
     const documentOps = listHarnessModes({ query: 'document upload artifact blind model compare', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

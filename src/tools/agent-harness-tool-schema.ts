@@ -5,6 +5,7 @@ export const AGENT_HARNESS_MODES = [
   'commands', 'command', 'run_command', 'channels', 'channel', 'notifications', 'notification_target',
   'provider_accounts', 'provider_account', 'mcp_servers', 'mcp_server',
   'setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke',
+  'project_context', 'project_context_file',
   'model_routing', 'model_route',
   'execution_posture', 'execution_route',
   'background_processes', 'background_process', 'run_background_process',
@@ -85,6 +86,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   setupItemId: {
     type: 'string',
     description: 'Setup item id for setup_item mode.',
+  },
+  contextFileId: {
+    type: 'string',
+    description: 'Project context file id for project_context_file mode.',
   },
   modelRouteId: {
     type: 'string',
