@@ -56,6 +56,17 @@ interface PersonalOpsConnectorSignal {
   readonly status: 'ready' | 'attention';
   readonly summary: string;
   readonly modelRoute: string;
+  readonly toolCount: number;
+  readonly capabilityTags: readonly string[];
+  readonly readTools?: readonly PersonalOpsConnectorTool[];
+  readonly writeTools?: readonly PersonalOpsConnectorTool[];
+}
+
+interface PersonalOpsConnectorTool {
+  readonly name: string;
+  readonly description?: string;
+  readonly effect: 'read-only' | 'confirmed-effect';
+  readonly capability: string;
 }
 
 interface PersonalOpsLiveRecord {
@@ -78,6 +89,12 @@ interface PersonalOpsWorkflow {
   readonly inspectRoutes: readonly string[];
   readonly prerequisites: readonly string[];
   readonly runBoundary: string;
+}
+
+interface McpToolRecord {
+  readonly serverName: string;
+  readonly toolName: string;
+  readonly description?: string;
 }
 
 export type PersonalOpsLaneResolution =
@@ -138,6 +155,26 @@ function mcpServerRecords(context: CommandContext): readonly {
   }
 }
 
+async function mcpToolRecords(context: CommandContext): Promise<readonly McpToolRecord[]> {
+  const api = context.clients?.mcpApi ?? context.extensions?.mcpRegistry;
+  if (!api || typeof (api as { readonly listAllTools?: unknown }).listAllTools !== 'function') return [];
+  try {
+    return await (api as { listAllTools: () => Promise<readonly McpToolRecord[]> }).listAllTools();
+  } catch {
+    return [];
+  }
+}
+
+function toolsByServer(tools: readonly McpToolRecord[]): ReadonlyMap<string, readonly McpToolRecord[]> {
+  const grouped = new Map<string, McpToolRecord[]>();
+  for (const tool of tools) {
+    const entries = grouped.get(tool.serverName) ?? [];
+    entries.push(tool);
+    grouped.set(tool.serverName, entries);
+  }
+  return grouped;
+}
+
 function mcpServerSearchText(server: ReturnType<typeof mcpServerRecords>[number]): string {
   return [
     server.name,
@@ -149,7 +186,55 @@ function mcpServerSearchText(server: ReturnType<typeof mcpServerRecords>[number]
   ].join('\n').toLowerCase();
 }
 
-function connectorSignalsMatching(context: CommandContext, tokens: readonly string[]): readonly PersonalOpsConnectorSignal[] {
+function toolCapability(tool: McpToolRecord, lane: 'inbox' | 'calendar'): PersonalOpsConnectorTool | null {
+  const text = [tool.toolName, tool.description ?? ''].join(' ').toLowerCase();
+  const record = (effect: PersonalOpsConnectorTool['effect'], capability: string): PersonalOpsConnectorTool => ({
+    name: tool.toolName,
+    ...(tool.description ? { description: tool.description } : {}),
+    effect,
+    capability,
+  });
+  if (lane === 'inbox') {
+    if (/(send|reply|draft|compose|archive|label|delete|trash|mark|move)/.test(text)) {
+      return record('confirmed-effect', 'inbox-write');
+    }
+    if (/(mail|email|gmail|imap|smtp|inbox|message|thread)/.test(text) && /(list|search|get|read|fetch|find|unread|query)/.test(text)) {
+      return record('read-only', 'inbox-read');
+    }
+  } else {
+    if (/(create|update|edit|delete|cancel|invite|rsvp|move|reschedule)/.test(text)) {
+      return record('confirmed-effect', 'calendar-write');
+    }
+    if (/(calendar|caldav|agenda|event|freebusy|availability|meeting)/.test(text) && /(list|search|get|read|fetch|find|query|window|upcoming)/.test(text)) {
+      return record('read-only', 'calendar-read');
+    }
+  }
+  return null;
+}
+
+function connectorToolSummary(tools: readonly McpToolRecord[], lane: 'inbox' | 'calendar'): {
+  readonly readTools: readonly PersonalOpsConnectorTool[];
+  readonly writeTools: readonly PersonalOpsConnectorTool[];
+  readonly capabilityTags: readonly string[];
+} {
+  const classified = tools
+    .map((tool) => toolCapability(tool, lane))
+    .filter((tool): tool is PersonalOpsConnectorTool => tool !== null)
+    .sort((left, right) => left.name.localeCompare(right.name));
+  const readTools = classified.filter((tool) => tool.effect === 'read-only');
+  const writeTools = classified.filter((tool) => tool.effect === 'confirmed-effect');
+  const capabilityTags = [...new Set(classified.map((tool) => tool.capability))].sort((left, right) => left.localeCompare(right));
+  return { readTools, writeTools, capabilityTags };
+}
+
+function connectorSignalsMatching(
+  context: CommandContext,
+  tokens: readonly string[],
+  options: {
+    readonly lane: 'inbox' | 'calendar';
+    readonly toolsByServer: ReadonlyMap<string, readonly McpToolRecord[]>;
+  },
+): readonly PersonalOpsConnectorSignal[] {
   if (tokens.length === 0) return [];
   return mcpServerRecords(context)
     .filter((server) => {
@@ -158,13 +243,23 @@ function connectorSignalsMatching(context: CommandContext, tokens: readonly stri
     })
     .map((server) => {
       const ready = server.connected && server.schemaFreshness === 'fresh' && server.trustMode !== 'blocked';
+      const serverTools = options.toolsByServer.get(server.name) ?? [];
+      const toolSummary = connectorToolSummary(serverTools, options.lane);
       return {
         id: `mcp:${server.name}`,
         kind: 'mcp-server' as const,
         label: server.name,
         status: ready ? 'ready' as const : 'attention' as const,
-        summary: `${server.connected ? 'connected' : 'disconnected'} ${server.trustMode} ${server.schemaFreshness}`,
+        summary: [
+          `${server.connected ? 'connected' : 'disconnected'} ${server.trustMode} ${server.schemaFreshness}`,
+          serverTools.length > 0 ? `${serverTools.length} tool(s)` : '',
+          toolSummary.capabilityTags.length > 0 ? toolSummary.capabilityTags.join(', ') : '',
+        ].filter(Boolean).join('; '),
         modelRoute: `agent_harness mode:"mcp_server" mcpServerId:"${server.name}"`,
+        toolCount: serverTools.length,
+        capabilityTags: toolSummary.capabilityTags,
+        ...(toolSummary.readTools.length > 0 ? { readTools: toolSummary.readTools.slice(0, 8) } : {}),
+        ...(toolSummary.writeTools.length > 0 ? { writeTools: toolSummary.writeTools.slice(0, 8) } : {}),
       };
     })
     .sort((left, right) => left.label.localeCompare(right.label));
@@ -172,6 +267,10 @@ function connectorSignalsMatching(context: CommandContext, tokens: readonly stri
 
 function connectorReady(signals: readonly PersonalOpsConnectorSignal[]): boolean {
   return signals.some((signal) => signal.status === 'ready');
+}
+
+function connectorToolCount(signals: readonly PersonalOpsConnectorSignal[], effect: PersonalOpsConnectorTool['effect']): number {
+  return signals.reduce((total, signal) => total + (effect === 'read-only' ? signal.readTools?.length ?? 0 : signal.writeTools?.length ?? 0), 0);
 }
 
 function workflowStatus(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): PersonalOpsWorkflowStatus {
@@ -200,11 +299,18 @@ function inboxWorkflows(methodIds: readonly string[], connectors: readonly Perso
   const status = workflowStatus(methodIds, connectors);
   const inspectRoutes = workflowInspectRoutes(methodIds, connectors, 'inbox');
   const modelRoute = workflowModelRoute('email', connectors);
+  const readToolCount = connectorToolCount(connectors, 'read-only');
+  const writeToolCount = connectorToolCount(connectors, 'confirmed-effect');
   const setupPrerequisite = status === 'needs-setup'
     ? ['Install or configure an email-capable daemon method, MCP server, or plugin first.']
     : status === 'attention'
       ? ['Review connector trust/schema freshness before reading inbox data.']
-      : ['Inspect the exact connector or daemon method schema before selecting inbox actions.'];
+      : [
+        'Inspect the exact connector or daemon method schema before selecting inbox actions.',
+        readToolCount > 0
+          ? `${readToolCount} classified read-only inbox tool(s) are available.`
+          : 'No classified read-only inbox tools were returned; inspect the connector schema before claiming live inbox access.',
+      ];
   return [
     {
       id: 'inbox-triage-briefing',
@@ -229,7 +335,13 @@ function inboxWorkflows(methodIds: readonly string[], connectors: readonly Perso
         : 'Finish email connector setup before drafting from live threads.',
       modelRoute,
       inspectRoutes,
-      prerequisites: [...setupPrerequisite, 'The user must identify the account, mailbox, or message selection.'],
+      prerequisites: [
+        ...setupPrerequisite,
+        'The user must identify the account, mailbox, or message selection.',
+        writeToolCount > 0
+          ? `${writeToolCount} write-like inbox tool(s) require explicit confirmation before send, label, archive, delete, or move effects.`
+          : 'No write-like inbox tools were classified; keep sending and mailbox mutation out of scope until a connector route is inspected.',
+      ],
       runBoundary: 'Drafting is conversation output; sending or labeling stays on the connector/tool route with confirmation.',
     },
   ];
@@ -239,11 +351,18 @@ function calendarWorkflows(methodIds: readonly string[], connectors: readonly Pe
   const status = workflowStatus(methodIds, connectors);
   const inspectRoutes = workflowInspectRoutes(methodIds, connectors, 'calendar');
   const modelRoute = workflowModelRoute('calendar', connectors);
+  const readToolCount = connectorToolCount(connectors, 'read-only');
+  const writeToolCount = connectorToolCount(connectors, 'confirmed-effect');
   const setupPrerequisite = status === 'needs-setup'
     ? ['Install or configure a calendar-capable daemon method, CalDAV MCP server, or plugin first.']
     : status === 'attention'
       ? ['Review connector trust/schema freshness before reading calendar data.']
-      : ['Inspect the exact connector or daemon method schema before selecting agenda actions.'];
+      : [
+        'Inspect the exact connector or daemon method schema before selecting agenda actions.',
+        readToolCount > 0
+          ? `${readToolCount} classified read-only calendar tool(s) are available.`
+          : 'No classified read-only calendar tools were returned; inspect the connector schema before claiming live agenda access.',
+      ];
   return [
     {
       id: 'calendar-agenda-briefing',
@@ -268,7 +387,13 @@ function calendarWorkflows(methodIds: readonly string[], connectors: readonly Pe
         : 'Finish calendar connector setup before scanning conflicts.',
       modelRoute,
       inspectRoutes,
-      prerequisites: [...setupPrerequisite, 'The user must provide a calendar/account scope if more than one exists.'],
+      prerequisites: [
+        ...setupPrerequisite,
+        'The user must provide a calendar/account scope if more than one exists.',
+        writeToolCount > 0
+          ? `${writeToolCount} write-like calendar tool(s) require explicit confirmation before event create, edit, delete, RSVP, or reschedule effects.`
+          : 'No write-like calendar tools were classified; keep event mutation out of scope until a connector route is inspected.',
+      ],
       runBoundary: 'Conflict findings are advisory; reminders use agent_reminder_schedule and calendar edits use confirmed connector actions.',
     },
   ];
@@ -292,6 +417,17 @@ function searchText(lane: PersonalOpsLane): string {
     lane.userRoute,
     lane.modelRoute,
     lane.signals.join('\n'),
+    lane.connectorSignals?.flatMap((signal) => [
+      signal.id,
+      signal.label,
+      signal.status,
+      signal.summary,
+      signal.modelRoute,
+      String(signal.toolCount),
+      signal.capabilityTags.join('\n'),
+      signal.readTools?.map((tool) => `${tool.name} ${tool.description ?? ''} ${tool.capability}`).join('\n') ?? '',
+      signal.writeTools?.map((tool) => `${tool.name} ${tool.description ?? ''} ${tool.capability}`).join('\n') ?? '',
+    ]).join('\n') ?? '',
     lane.workflows?.flatMap((workflow) => [
       workflow.id,
       workflow.label,
@@ -335,6 +471,10 @@ function describeConnectorSignal(signal: PersonalOpsConnectorSignal, includePara
     status: signal.status,
     summary: previewHarnessText(signal.summary, includeParameters ? 180 : 96),
     modelRoute: previewHarnessText(signal.modelRoute, includeParameters ? 140 : 96),
+    toolCount: signal.toolCount,
+    ...(signal.capabilityTags.length > 0 ? { capabilityTags: signal.capabilityTags } : {}),
+    ...(includeParameters && signal.readTools && signal.readTools.length > 0 ? { readTools: signal.readTools } : {}),
+    ...(includeParameters && signal.writeTools && signal.writeTools.length > 0 ? { writeTools: signal.writeTools } : {}),
   };
 }
 
@@ -420,19 +560,23 @@ function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLa
     id: signal.id,
     label: `${laneLabel} connector: ${signal.label}`,
     status: signal.status,
-    summary: signal.summary,
+    summary: [
+      signal.summary,
+      signal.capabilityTags.length > 0 ? `capabilities ${signal.capabilityTags.join(', ')}` : '',
+    ].filter(Boolean).join('; '),
     userRoute: 'Agent Workspace -> Tools & MCP',
     modelRoute: signal.modelRoute,
-    tags: ['connector', signal.kind],
+    tags: ['connector', signal.kind, ...signal.capabilityTags],
   }));
 }
 
-function buildLanes(context: CommandContext): readonly PersonalOpsLane[] {
+function buildLanes(context: CommandContext, options: { readonly toolsByServer?: ReadonlyMap<string, readonly McpToolRecord[]> } = {}): readonly PersonalOpsLane[] {
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
   const emailMethods = methodIdsMatching(['email', 'mail', 'imap', 'smtp']);
   const calendarMethods = methodIdsMatching(['calendar', 'caldav', 'agenda']);
-  const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail']);
-  const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda']);
+  const toolsByName = options.toolsByServer ?? new Map<string, readonly McpToolRecord[]>();
+  const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail'], { lane: 'inbox', toolsByServer: toolsByName });
+  const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda'], { lane: 'calendar', toolsByServer: toolsByName });
   const taskMethods = methodIdsMatching(['task', 'work-plan', 'workplan']);
   const scheduleMethods = methodIdsMatching(['schedule', 'reminder']);
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
@@ -615,9 +759,11 @@ export function personalOpsCatalogStatus(context: CommandContext): Record<string
   };
 }
 
-export function personalOpsSummary(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Record<string, unknown> {
+export async function personalOpsSummary(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Promise<Record<string, unknown>> {
   const includeParameters = args.includeParameters === true;
-  const lanes = buildLanes(context);
+  const lanes = buildLanes(context, {
+    toolsByServer: toolsByServer(includeParameters ? await mcpToolRecords(context) : []),
+  });
   const workflows = lanes.flatMap((lane) => lane.workflows ?? []);
   return {
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
@@ -634,7 +780,7 @@ export function personalOpsSummary(context: CommandContext, args: AgentHarnessPe
   };
 }
 
-export function describePersonalOpsLane(context: CommandContext, args: AgentHarnessPersonalOpsArgs): PersonalOpsLaneResolution {
+export async function describePersonalOpsLane(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Promise<PersonalOpsLaneResolution> {
   const laneId = readString(args.laneId);
   const target = readString(args.target);
   const query = readString(args.query);
@@ -646,7 +792,7 @@ export function describePersonalOpsLane(context: CommandContext, args: AgentHarn
     };
   }
   const normalized = input.toLowerCase();
-  const lanes = buildLanes(context);
+  const lanes = buildLanes(context, { toolsByServer: toolsByServer(await mcpToolRecords(context)) });
   const exact = lanes.find((lane) => lane.id === normalized);
   if (exact) return { status: 'found', lane: describeLane(exact, true) };
   const matches = lanes.filter((lane) => searchText(lane).includes(normalized));

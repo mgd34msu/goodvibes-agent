@@ -1116,9 +1116,9 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const confirmationError = requireConfirmedAction(args, 'File recovery');
           return confirmationError ? error(confirmationError) : output(runFileRecovery(deps.commandContext, args));
         }
-        if (args.mode === 'personal_ops') return output(personalOpsSummary(deps.commandContext, args));
+        if (args.mode === 'personal_ops') return output(await personalOpsSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops_lane') {
-          const resolved = describePersonalOpsLane(deps.commandContext, args);
+          const resolved = await describePersonalOpsLane(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.lane);
           if (resolved.status === 'ambiguous') return error(`Ambiguous Personal Ops lane ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);

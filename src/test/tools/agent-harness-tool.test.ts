@@ -920,6 +920,11 @@ describe('agent_harness tool', () => {
     try {
       const mcpApi = fixture.context.clients?.mcpApi as {
         listServerSecurity: () => readonly unknown[];
+        listAllTools?: () => Promise<readonly {
+          readonly serverName: string;
+          readonly toolName: string;
+          readonly description?: string;
+        }[]>;
       };
       mcpApi.listServerSecurity = () => [
         {
@@ -956,6 +961,33 @@ describe('agent_harness tool', () => {
           allowedHosts: ['calendar.example.test'],
         },
       ];
+      mcpApi.listAllTools = async () => [
+        {
+          serverName: 'gmail-inbox',
+          toolName: 'gmail.search_messages',
+          description: 'Search unread email messages and threads.',
+        },
+        {
+          serverName: 'gmail-inbox',
+          toolName: 'gmail.get_thread',
+          description: 'Read one email thread by id.',
+        },
+        {
+          serverName: 'gmail-inbox',
+          toolName: 'gmail.send_reply',
+          description: 'Send a reply to an email thread.',
+        },
+        {
+          serverName: 'caldav-agenda',
+          toolName: 'caldav.list_events',
+          description: 'List upcoming calendar events.',
+        },
+        {
+          serverName: 'caldav-agenda',
+          toolName: 'caldav.update_event',
+          description: 'Edit or reschedule a calendar event.',
+        },
+      ];
 
       const ops = await executeHarnessJson<{
         readonly workflowSummary: { readonly ready: number; readonly attention: number };
@@ -977,6 +1009,10 @@ describe('agent_harness tool', () => {
             readonly label: string;
             readonly status: string;
             readonly modelRoute: string;
+            readonly toolCount: number;
+            readonly capabilityTags?: readonly string[];
+            readonly readTools?: readonly { readonly name: string; readonly capability: string }[];
+            readonly writeTools?: readonly { readonly name: string; readonly effect: string }[];
           }[];
           readonly liveRecords?: readonly {
             readonly id: string;
@@ -996,28 +1032,37 @@ describe('agent_harness tool', () => {
       expect(inbox?.connectorSignals?.[0]?.id).toBe('mcp:gmail-inbox');
       expect(inbox?.connectorSignals?.[0]?.status).toBe('ready');
       expect(inbox?.connectorSignals?.[0]?.modelRoute).toContain('gmail-inbox');
+      expect(inbox?.connectorSignals?.[0]?.toolCount).toBe(3);
+      expect(inbox?.connectorSignals?.[0]?.capabilityTags).toEqual(['inbox-read', 'inbox-write']);
+      expect(inbox?.connectorSignals?.[0]?.readTools?.map((tool) => tool.name)).toEqual(['gmail.get_thread', 'gmail.search_messages']);
+      expect(inbox?.connectorSignals?.[0]?.writeTools?.[0]?.name).toBe('gmail.send_reply');
       expect(inbox?.workflows?.[0]?.id).toBe('inbox-triage-briefing');
       expect(inbox?.workflows?.[0]?.status).toBe('ready');
       expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');
+      expect(inbox?.workflows?.[0]?.prerequisites?.join('\n')).toContain('classified read-only inbox tool');
       expect(inbox?.workflows?.[1]?.runBoundary).toContain('sending');
+      expect(inbox?.workflows?.[1]?.prerequisites?.join('\n')).toContain('write-like inbox tool');
       expect(inbox?.liveRecords?.[0]?.id).toBe('mcp:gmail-inbox');
 
       expect(calendar?.status).toBe('partial');
       expect(calendar?.connectorSignals?.[0]?.id).toBe('mcp:caldav-agenda');
       expect(calendar?.connectorSignals?.[0]?.status).toBe('attention');
+      expect(calendar?.connectorSignals?.[0]?.capabilityTags).toEqual(['calendar-read', 'calendar-write']);
       expect(calendar?.workflows?.[0]?.status).toBe('attention');
       expect(calendar?.workflows?.[0]?.prerequisites?.join('\n')).toContain('trust/schema');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
         readonly status: string;
-        readonly connectorSignals?: readonly { readonly id: string; readonly modelRoute: string }[];
-        readonly workflows?: readonly { readonly id: string; readonly inspectRoutes?: readonly string[] }[];
+        readonly connectorSignals?: readonly { readonly id: string; readonly modelRoute: string; readonly readTools?: readonly { readonly name: string }[] }[];
+        readonly workflows?: readonly { readonly id: string; readonly inspectRoutes?: readonly string[]; readonly prerequisites?: readonly string[] }[];
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox' });
       expect(lane.id).toBe('inbox');
       expect(lane.status).toBe('partial');
       expect(lane.connectorSignals?.[0]?.modelRoute).toContain('mcp_server');
+      expect(lane.connectorSignals?.[0]?.readTools?.[0]?.name).toBe('gmail.get_thread');
       expect(lane.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');
+      expect(lane.workflows?.[0]?.prerequisites?.join('\n')).toContain('classified read-only inbox tool');
     } finally {
       fixture.cleanup();
     }
