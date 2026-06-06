@@ -1,10 +1,16 @@
+import { existsSync } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import type { ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 
 export interface AgentArtifactsToolArgs {
   readonly mode?: unknown;
   readonly artifactId?: unknown;
+  readonly destinationPath?: unknown;
+  readonly overwrite?: unknown;
   readonly query?: unknown;
   readonly kind?: unknown;
   readonly mimeType?: unknown;
@@ -13,9 +19,15 @@ export interface AgentArtifactsToolArgs {
   readonly limit?: unknown;
   readonly includeContent?: unknown;
   readonly previewBytes?: unknown;
+  readonly confirm?: unknown;
+  readonly explicitUserRequest?: unknown;
 }
 
 type AgentArtifactBrowserStore = Partial<Pick<ArtifactStore, 'get' | 'list' | 'readContent'>>;
+
+export interface AgentArtifactsToolOptions {
+  readonly projectRoot?: string;
+}
 
 interface LoadedArtifact {
   readonly descriptor: ArtifactDescriptor;
@@ -142,9 +154,15 @@ function contentPreview(artifact: ArtifactDescriptor, buffer: Buffer | undefined
   return buffer.byteLength > sliced.byteLength ? `${text}\n... (${formatBytes(buffer.byteLength - sliced.byteLength)} more)` : text;
 }
 
+function safeExportFilename(artifact: ArtifactDescriptor): string {
+  const filename = (artifact.filename || artifact.id).trim() || artifact.id;
+  return filename.replace(/[\\/]+/g, '-').replace(/^\.+$/, artifact.id);
+}
+
 function describeArtifact(artifact: ArtifactDescriptor, options: { readonly includeRoute: boolean }): readonly string[] {
   const purpose = metadataValue(artifact.metadata, 'purpose');
   const source = metadataValue(artifact.metadata, 'source') || metadataValue(artifact.metadata, 'sourceKind');
+  const exportPath = `exports/${safeExportFilename(artifact)}`;
   return [
     `${artifact.id}  ${artifact.kind}  ${artifact.mimeType}  ${formatBytes(artifact.sizeBytes)}`,
     `  filename ${artifact.filename ?? '(none)'}`,
@@ -153,6 +171,7 @@ function describeArtifact(artifact: ArtifactDescriptor, options: { readonly incl
     `  source ${source || artifact.sourceUri || '(none)'}`,
     `  sha256 ${artifact.sha256}`,
     ...(options.includeRoute ? [`  inspect agent_artifacts mode:"show" artifactId:"${artifact.id}" includeContent:true`] : []),
+    ...(options.includeRoute ? [`  export agent_artifacts mode:"export" artifactId:"${artifact.id}" destinationPath:"${exportPath}" confirm:true explicitUserRequest:"..."`] : []),
   ];
 }
 
@@ -211,22 +230,72 @@ function formatShow(loaded: LoadedArtifact, args: AgentArtifactsToolArgs): strin
   return lines.join('\n');
 }
 
-export function createAgentArtifactsTool(artifactStore?: AgentArtifactBrowserStore): Tool {
+function requireConfirmed(args: AgentArtifactsToolArgs, action: string): void {
+  const explicitUserRequest = readString(args.explicitUserRequest);
+  if (!explicitUserRequest) throw new Error(`${action} requires explicitUserRequest with the user's exact request or a short faithful summary.`);
+  if (args.confirm !== true) throw new Error(`${action} requires confirm:true after an explicit user request.`);
+}
+
+async function exportArtifactToFile(
+  store: AgentArtifactBrowserStore,
+  args: AgentArtifactsToolArgs,
+  options: AgentArtifactsToolOptions,
+): Promise<string> {
+  requireConfirmed(args, 'Agent artifact export');
+  if (!store.readContent) throw new Error('Artifact export requires an artifact store with readContent support.');
+  if (!options.projectRoot) throw new Error('Artifact export requires a projectRoot for path validation.');
+  const artifactId = readString(args.artifactId);
+  if (!artifactId) throw new Error('artifactId is required for mode:"export".');
+  const destinationPath = readString(args.destinationPath);
+  if (!destinationPath) throw new Error('destinationPath is required for mode:"export".');
+  const resolvedPath = resolveAndValidatePath(destinationPath, options.projectRoot);
+  const { record, buffer } = await store.readContent(artifactId);
+  const overwrite = readBoolean(args.overwrite);
+  if (existsSync(resolvedPath) && !overwrite) {
+    throw new Error(`Export target already exists: ${resolvedPath}. Pass overwrite:true only after the user confirms replacement.`);
+  }
+  await mkdir(dirname(resolvedPath), { recursive: true });
+  await writeFile(resolvedPath, buffer);
+  return [
+    'Exported Agent artifact',
+    `  artifact ${record.id}`,
+    `  path ${resolvedPath}`,
+    `  bytes ${record.sizeBytes}`,
+    `  mime ${record.mimeType}`,
+    `  filename ${record.filename ?? '(none)'}`,
+    `  sha256 ${record.sha256}`,
+    `  overwrite ${overwrite ? 'yes' : 'no'}`,
+    '  policy exact artifact bytes copied; artifact retained; content not printed',
+  ].join('\n');
+}
+
+export function createAgentArtifactsTool(
+  artifactStore?: AgentArtifactBrowserStore,
+  options: AgentArtifactsToolOptions = {},
+): Tool {
   return {
     definition: {
       name: 'agent_artifacts',
-      description: 'Browse and preview saved Agent artifacts.',
+      description: 'Browse, preview, and export saved Agent artifacts.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: ['list', 'show'],
-            description: 'List recent artifacts or show one artifact.',
+            enum: ['list', 'show', 'export'],
+            description: 'List, show, or export one saved artifact.',
           },
           artifactId: {
             type: 'string',
-            description: 'Artifact id for mode:"show".',
+            description: 'Artifact id for show or export.',
+          },
+          destinationPath: {
+            type: 'string',
+            description: 'Workspace path for mode:"export".',
+          },
+          overwrite: {
+            type: 'boolean',
+            description: 'Allow export to replace an existing file.',
           },
           query: {
             type: 'string',
@@ -260,12 +329,20 @@ export function createAgentArtifactsTool(artifactStore?: AgentArtifactBrowserSto
             type: 'number',
             description: 'Maximum text bytes to preview for mode:"show".',
           },
+          confirm: {
+            type: 'boolean',
+            description: 'Required true for mode:"export".',
+          },
+          explicitUserRequest: {
+            type: 'string',
+            description: 'User request authorizing export.',
+          },
         },
         required: ['mode'],
         additionalProperties: false,
       },
-      sideEffects: [],
-      concurrency: 'parallel',
+      sideEffects: ['write_fs'],
+      concurrency: 'serial',
     },
     execute: async (rawArgs: Record<string, unknown>) => {
       const args = rawArgs as AgentArtifactsToolArgs;
@@ -288,7 +365,10 @@ export function createAgentArtifactsTool(artifactStore?: AgentArtifactBrowserSto
           if (!loaded) return failure(`Unknown artifact ${artifactId}. Use agent_artifacts mode:"list" to inspect available artifacts.`);
           return output(formatShow(loaded, args));
         }
-        return failure(`Unknown agent_artifacts mode: ${mode || '<missing>'}. Use mode:"list" or mode:"show".`);
+        if (mode === 'export') {
+          return output(await exportArtifactToFile(artifactStore, args, options));
+        }
+        return failure(`Unknown agent_artifacts mode: ${mode || '<missing>'}. Use mode:"list", mode:"show", or mode:"export".`);
       } catch (error) {
         return failure(error instanceof Error ? error.message : String(error));
       }
@@ -299,6 +379,7 @@ export function createAgentArtifactsTool(artifactStore?: AgentArtifactBrowserSto
 export function registerAgentArtifactsTool(
   registry: ToolRegistry,
   artifactStore?: AgentArtifactBrowserStore,
+  options: AgentArtifactsToolOptions = {},
 ): void {
-  registry.register(createAgentArtifactsTool(artifactStore));
+  registry.register(createAgentArtifactsTool(artifactStore, options));
 }

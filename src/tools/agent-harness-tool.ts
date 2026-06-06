@@ -1,7 +1,7 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
-import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactPromoteKnowledgeToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
+import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactExportToolArgs, buildAgentArtifactPromoteKnowledgeToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
 import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
@@ -322,6 +322,38 @@ async function runWorkspaceEditorAction(
     const artifactToolArgs = buildAgentArtifactShowToolArgs(fieldReader(editor, fields));
     const result = await deps.toolRegistry.execute(
       'agent-harness-workspace-artifact-show',
+      'agent_artifacts',
+      artifactToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_artifacts',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'artifact-export-file') {
+    const confirmationError = requireConfirmedAction(args, 'Workspace artifact export');
+    if (confirmationError) return error(confirmationError);
+    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+      return output({
+        status: 'not_confirmed',
+        action: action.id,
+        editor: describeWorkspaceEditor(editor),
+        modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+        note: 'Type yes in the editor confirmation field before exporting the artifact to a workspace file.',
+      });
+    }
+    const artifactToolArgs = buildAgentArtifactExportToolArgs(
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Export a reviewed saved Agent artifact to a workspace file.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-artifact-export',
       'agent_artifacts',
       artifactToolArgs as unknown as Record<string, unknown>,
     );

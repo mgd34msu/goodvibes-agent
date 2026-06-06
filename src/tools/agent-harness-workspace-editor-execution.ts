@@ -78,6 +78,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action inspects one saved Agent artifact with redacted metadata and bounded text previews only.',
     };
   }
+  if (editorKind === 'artifact-export-file') {
+    return {
+      route: 'agent_artifacts',
+      tool: 'agent_artifacts',
+      action: 'export_artifact_file',
+      confirmation: 'required',
+      note: 'run_workspace_action copies one reviewed saved artifact to a workspace file after confirmation. It preserves exact bytes, refuses overwrite unless requested, and never deletes artifacts or prints content.',
+    };
+  }
   if (editorKind === 'artifact-promote-knowledge') {
     return {
       route: 'agent_knowledge_ingest',

@@ -1,4 +1,7 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { createAgentArtifactsTool, registerAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
@@ -148,6 +151,90 @@ describe('agent_artifacts tool', () => {
     expect(result.success).toBe(true);
     expect(result.output).toContain('Content preview omitted for non-text MIME type image/png.');
     expect(result.output).not.toContain('iVBOR');
+  });
+
+  test('exports exact artifact bytes to a validated workspace path', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-export-'));
+    try {
+      const store = new ArtifactBrowserTestStore();
+      const bytes = Buffer.from([0, 1, 2, 3, 255]);
+      store.add({
+        id: 'artifact-image',
+        kind: 'image',
+        mimeType: 'image/png',
+        filename: 'generated.png',
+        buffer: bytes,
+      });
+      const tool = createAgentArtifactsTool(store, { projectRoot: root });
+
+      const exported = await tool.execute({
+        mode: 'export',
+        artifactId: 'artifact-image',
+        destinationPath: 'exports/generated.png',
+        confirm: true,
+        explicitUserRequest: 'Export the generated image artifact.',
+      });
+
+      expect(exported.success).toBe(true);
+      expect(exported.output).toContain('Exported Agent artifact');
+      expect(exported.output).toContain('artifact artifact-image');
+      expect(exported.output).toContain('content not printed');
+      expect(readFileSync(join(root, 'exports', 'generated.png'))).toEqual(bytes);
+
+      const existing = await tool.execute({
+        mode: 'export',
+        artifactId: 'artifact-image',
+        destinationPath: 'exports/generated.png',
+        confirm: true,
+        explicitUserRequest: 'Export the generated image artifact again.',
+      });
+      expect(existing.success).toBe(false);
+      expect(existing.error).toContain('already exists');
+
+      const overwritten = await tool.execute({
+        mode: 'export',
+        artifactId: 'artifact-image',
+        destinationPath: 'exports/generated.png',
+        overwrite: true,
+        confirm: true,
+        explicitUserRequest: 'Replace the generated image export.',
+      });
+      expect(overwritten.success).toBe(true);
+      expect(overwritten.output).toContain('overwrite yes');
+      expect(readFileSync(join(root, 'exports', 'generated.png'))).toEqual(bytes);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('requires confirmation and rejects artifact export outside the workspace', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-export-'));
+    try {
+      const store = new ArtifactBrowserTestStore();
+      store.add({ id: 'artifact-text', text: 'body' });
+      const tool = createAgentArtifactsTool(store, { projectRoot: root });
+
+      const unconfirmed = await tool.execute({
+        mode: 'export',
+        artifactId: 'artifact-text',
+        destinationPath: 'exports/body.txt',
+        explicitUserRequest: 'Export the text artifact.',
+      });
+      expect(unconfirmed.success).toBe(false);
+      expect(unconfirmed.error).toContain('confirm:true');
+
+      const escaped = await tool.execute({
+        mode: 'export',
+        artifactId: 'artifact-text',
+        destinationPath: '../escaped.txt',
+        confirm: true,
+        explicitUserRequest: 'Export the text artifact.',
+      });
+      expect(escaped.success).toBe(false);
+      expect(escaped.error).toContain('outside the project root');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('fails clearly without an artifact store and registers with the tool registry', async () => {

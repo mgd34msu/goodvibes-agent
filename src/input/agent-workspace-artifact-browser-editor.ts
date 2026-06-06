@@ -3,8 +3,10 @@ import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './ag
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export interface AgentArtifactBrowserWorkspaceToolArgs {
-  readonly mode: 'list' | 'show';
+  readonly mode: 'list' | 'show' | 'export';
   readonly artifactId?: string;
+  readonly destinationPath?: string;
+  readonly overwrite?: boolean;
   readonly query?: string;
   readonly kind?: string;
   readonly mimeType?: string;
@@ -13,6 +15,8 @@ export interface AgentArtifactBrowserWorkspaceToolArgs {
   readonly limit?: number;
   readonly includeContent?: boolean;
   readonly previewBytes?: number;
+  readonly confirm?: true;
+  readonly explicitUserRequest?: string;
 }
 
 export interface AgentArtifactKnowledgePromotionWorkspaceToolArgs {
@@ -96,6 +100,22 @@ export function createAgentArtifactPromoteKnowledgeEditor(): AgentWorkspaceLocal
   };
 }
 
+export function createAgentArtifactExportEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'artifact-export-file',
+    mode: 'create',
+    title: 'Export Artifact',
+    selectedFieldIndex: 0,
+    message: 'Copy one saved artifact to a workspace file. The export preserves exact bytes, refuses overwrite unless enabled, and never prints artifact content.',
+    fields: [
+      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved artifact id such as artifact-123.' },
+      { id: 'destinationPath', label: 'Destination path', value: '', required: true, multiline: false, hint: 'Workspace-relative path such as exports/report.md.' },
+      { id: 'overwrite', label: 'Overwrite existing', value: 'no', required: false, multiline: false, hint: 'yes/no. Keep no unless replacing a reviewed file.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to copy this artifact to the destination path.' },
+    ],
+  };
+}
+
 export function buildAgentArtifactBrowserToolArgs(
   readField: AgentWorkspaceFieldReader,
 ): AgentArtifactBrowserWorkspaceToolArgs {
@@ -143,6 +163,20 @@ export function buildAgentArtifactPromoteKnowledgeToolArgs(
     ...(tags.length > 0 ? { tags } : {}),
     ...(folderPath ? { folderPath } : {}),
     ...(connectorId ? { connectorId } : {}),
+    confirm: true,
+    explicitUserRequest,
+  };
+}
+
+export function buildAgentArtifactExportToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentArtifactBrowserWorkspaceToolArgs {
+  return {
+    mode: 'export',
+    artifactId: readField('artifactId').trim(),
+    destinationPath: readField('destinationPath').trim(),
+    overwrite: isAffirmative(readField('overwrite')),
     confirm: true,
     explicitUserRequest,
   };
@@ -278,6 +312,75 @@ export function buildAgentArtifactPromoteKnowledgePromptSubmission(
       kind: 'guidance',
       title: 'Artifact Knowledge promotion',
       detail: 'Submitted a confirmed request to ingest one saved artifact into isolated Agent Knowledge.',
+      safety: 'safe',
+    },
+  };
+}
+
+export function buildAgentArtifactExportPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult?: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!isAffirmative(readField('confirm'))) {
+    return {
+      kind: 'editor',
+      editor: { ...editor, message: 'Type yes to confirm copying this artifact to the destination path.' },
+      status: 'Artifact export not confirmed.',
+    };
+  }
+
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit artifact export from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const args = buildAgentArtifactExportToolArgs(
+    readField,
+    'Export a reviewed saved Agent artifact to a workspace file.',
+  );
+  const prompt = [
+    'Export one reviewed saved Agent artifact to a workspace file.',
+    'Use the `agent_artifacts` tool with these arguments:',
+    `mode: ${JSON.stringify(args.mode)}`,
+    `artifactId: ${JSON.stringify(args.artifactId)}`,
+    `destinationPath: ${JSON.stringify(args.destinationPath)}`,
+    `overwrite: ${args.overwrite ? 'true' : 'false'}`,
+    'confirm: true',
+    `explicitUserRequest: ${JSON.stringify(args.explicitUserRequest)}`,
+    'Policy: copy exact artifact bytes to the workspace path; do not print content, delete artifacts, or write outside the project.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting artifact export request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Artifact export',
+      detail: 'Submitted a confirmed request to copy one saved artifact to a workspace file.',
       safety: 'safe',
     },
   };

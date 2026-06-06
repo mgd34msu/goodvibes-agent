@@ -244,7 +244,7 @@ export async function initializeBootstrapCore(
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
   });
-  registerAgentArtifactsTool(toolRegistry, services.artifactStore);
+  registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
   registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
   registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter);

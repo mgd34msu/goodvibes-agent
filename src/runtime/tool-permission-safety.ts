@@ -17,7 +17,6 @@ const READ_TOOL_NAMES = new Set([
   'inspect',
   'state',
   'registry',
-  'agent_artifacts',
   'goodvibes_context',
   'agent_harness',
   'agent_knowledge',
@@ -28,6 +27,7 @@ const WRITE_TOOL_NAMES = new Set([
   'write',
   'edit',
   'goodvibes_settings',
+  'agent_artifacts',
   'agent_documents',
   'agent_knowledge_ingest',
   'agent_local_registry',
@@ -49,9 +49,11 @@ export function installPermissionManagerSafetyGuard(manager: PermissionManagerLi
 
   manager.getCategory = (toolName, args = {}) => {
     try {
-      return originalGetCategory(toolName, args);
+      const category = originalGetCategory(toolName, args);
+      const knownCategory = fallbackPermissionCategoryForArgs(toolName, args);
+      return category === 'delegate' && knownCategory !== 'delegate' ? knownCategory : category;
     } catch {
-      return fallbackPermissionCategory(toolName);
+      return fallbackPermissionCategoryForArgs(toolName, args);
     }
   };
 
@@ -59,7 +61,7 @@ export function installPermissionManagerSafetyGuard(manager: PermissionManagerLi
     try {
       return await originalCheck(toolName, args);
     } catch {
-      return fallbackPermissionCategory(toolName) === 'read';
+      return fallbackPermissionCategoryForArgs(toolName, args) === 'read';
     }
   };
 
@@ -68,7 +70,7 @@ export function installPermissionManagerSafetyGuard(manager: PermissionManagerLi
       try {
         return await originalCheckDetailed(toolName, args);
       } catch (error) {
-        const category = fallbackPermissionCategory(toolName);
+        const category = fallbackPermissionCategoryForArgs(toolName, args);
         const approved = category === 'read';
         return {
           approved,
@@ -92,4 +94,12 @@ export function fallbackPermissionCategory(toolName: string): PermissionCategory
   if (WRITE_TOOL_NAMES.has(toolName)) return 'write';
   if (EXECUTE_TOOL_NAMES.has(toolName)) return 'execute';
   return 'delegate';
+}
+
+function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string, unknown>): PermissionCategory {
+  if (toolName === 'agent_artifacts') {
+    const mode = typeof args.mode === 'string' ? args.mode.trim() : '';
+    return mode === 'list' || mode === 'show' ? 'read' : 'write';
+  }
+  return fallbackPermissionCategory(toolName);
 }

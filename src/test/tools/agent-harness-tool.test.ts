@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
@@ -738,6 +738,8 @@ describe('agent_harness tool', () => {
       expect(documents?.actionIds).toContain('document-insert-artifact');
       expect(documents?.actionIds).toContain('document-attach-artifact');
       expect(documents?.actionIds).toContain('document-export-draft');
+      expect(exports?.actionIds).toContain('document-export-artifact-file');
+      expect(exports?.actionIds).toContain('artifact-export-file');
       expect(uploads?.status).toBe('ready');
       expect(uploads?.actionIds).toContain('document-ingest-file');
       expect(exports?.status).toBe('ready');
@@ -745,9 +747,11 @@ describe('agent_harness tool', () => {
       expect(sourceLibrary?.status).toBe('ready');
       expect(artifactBrowser?.status).toBe('ready');
       expect(artifactBrowser?.current).toContain('unified artifact browser');
+      expect(artifactBrowser?.current).toContain('artifact export-to-file');
       expect(artifactBrowser?.current).toContain('artifact-to-Knowledge promotion');
       expect(artifactBrowser?.actionIds).toContain('artifact-browse');
       expect(artifactBrowser?.actionIds).toContain('artifact-show');
+      expect(artifactBrowser?.actionIds).toContain('artifact-export-file');
       expect(artifactBrowser?.actionIds).toContain('artifact-promote-knowledge');
       expect(artifactBrowser?.actionIds).toContain('artifact-insert-document');
       expect(artifactBrowser?.actionIds).toContain('artifact-attach-document');
@@ -963,6 +967,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-export-file')?.modelRoute).toBe('agent_artifacts');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-artifact-file')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-promote-artifact')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-promote-knowledge')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
@@ -3104,7 +3110,7 @@ describe('agent_harness tool', () => {
     });
     const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
-      fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store));
+      fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store, { projectRoot: fixture.root }));
       registerStubTool(fixture.toolRegistry, 'agent_knowledge_ingest');
 
       const browse = await fixture.tool.execute({
@@ -3137,6 +3143,36 @@ describe('agent_harness tool', () => {
       expect(showPayload.output).toContain('Saved comparison report');
       expect(showPayload.output).toContain('"apiKey": "<redacted>"');
       expect(showPayload.output).not.toContain('not-for-transcript');
+
+      const unconfirmedExport = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'artifact-export-file',
+        confirm: true,
+        explicitUserRequest: 'Export the reviewed comparison artifact to a workspace file.',
+        fields: {
+          artifactId: 'artifact-1',
+          destinationPath: 'exports/comparison-export.md',
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmedExport.success).toBe(true);
+      expect(unconfirmedExport.output).toContain('"status": "not_confirmed"');
+
+      const artifactExport = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-export-artifact-file',
+        confirm: true,
+        explicitUserRequest: 'Export the reviewed comparison artifact to a workspace file.',
+        fields: {
+          artifactId: 'artifact-1',
+          destinationPath: 'exports/comparison-export.md',
+          confirm: 'yes',
+        },
+      });
+      expect(artifactExport.success).toBe(true);
+      expect(artifactExport.output).toContain('"tool": "agent_artifacts"');
+      expect(artifactExport.output).toContain('Exported Agent artifact');
+      expect(readFileSync(join(fixture.root, 'exports', 'comparison-export.md'), 'utf-8')).toContain('Saved comparison report');
 
       const unconfirmedPromotion = await fixture.tool.execute({
         mode: 'run_workspace_action',

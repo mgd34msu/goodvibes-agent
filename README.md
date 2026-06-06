@@ -51,7 +51,7 @@ Workspace areas:
 - Home: normal assistant chat, operator briefing, model selection, setup, and health.
 - Conversation: context usage, inline `@file`/`@folder`/`@url` references, compaction, title/session save/load/search/export, bookmarks, paste/image/TTS helpers, undo/redo/retry, clear/reset, shortcuts, and keybindings.
 - Research: read-only web research, URL inspection, source triage, and explicit handoff into Agent Knowledge.
-- Documents & Compare: document drafting, uploads, exports, source checks, generated media artifacts, artifact reuse, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates. Dedicated editing/version history and a unified artifact browser are tracked gaps.
+- Documents & Compare: versioned document drafting, uploads, exports, source checks, generated media artifacts, artifact browsing/export, artifact reuse, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, saved judgment artifacts, saved preference analytics, markdown report export, and confirmed winner route updates.
 - Artifacts: image attachment, conversation/session export, source-file ingest, source lookup, bookmark/browser-history import, and generated media artifacts.
 - Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery readiness in one daily operations area.
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
@@ -122,7 +122,7 @@ Agent does not fall back to default knowledge or other product-specific knowledg
 
 The Knowledge workspace and model tools support status, ask/search, source/node/issue lists, item lookup, map review, connector inspection, URL/file/URL-list/bookmark/browser-history/connector ingest, issue review, prompt packet/explain previews, consolidation, review queue, and reindex.
 
-Artifacts are first-class runtime objects for uploaded files, generated media, and delegated outputs. Generated media is stored as GoodVibes artifacts and reported by artifact id and metadata, not inline base64.
+Artifacts are first-class runtime objects for uploaded files, generated media, and delegated outputs. Saved artifacts can be browsed, previewed, attached to drafts, promoted to Agent Knowledge, or exported to workspace files after confirmation. Generated media is stored as GoodVibes artifacts and reported by artifact id and metadata, not inline base64.
 
 ## Connected Host
 
