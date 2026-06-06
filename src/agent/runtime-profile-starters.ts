@@ -22,6 +22,13 @@ export interface AgentRuntimeProfileStarterTemplate extends AgentRuntimeProfileT
     readonly triggers: readonly string[];
     readonly tags: readonly string[];
   }[];
+  readonly vibe?: {
+    readonly body: string;
+    readonly source: 'discovered' | 'template';
+    readonly appliedAs: 'global';
+    readonly sourcePaths: readonly string[];
+    readonly truncated: number;
+  };
 }
 
 export interface AgentRuntimeProfileStarterTemplateFile {

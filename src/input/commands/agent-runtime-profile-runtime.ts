@@ -49,7 +49,8 @@ function templateLine(template: AgentRuntimeProfileTemplateSummary): string {
     `    persona ${template.personaName}`,
     `    skills ${template.skillNames.join(', ')}`,
     `    routines ${template.routineNames.join(', ')}`,
-  ].join('\n');
+    template.vibeIncluded ? '    vibe included' : '',
+  ].filter(Boolean).join('\n');
 }
 
 function renderProfiles(homeDirectory: string): string {
@@ -106,7 +107,7 @@ function renderGuide(homeDirectory: string): string {
     '   /agent-profile templates',
     '2. Export a starter JSON file:',
     '   /agent-profile template export research ./agent-starter.json --yes',
-    '3. Edit id, name, description, persona, skills, and routines in that JSON file.',
+    '3. Edit id, name, description, persona, skills, routines, and optional vibe in that JSON file.',
     '4. Import it into this Agent home:',
     '   /agent-profile template import ./agent-starter.json --yes',
     '5. Create an Agent profile from the imported starter:',
@@ -126,9 +127,10 @@ function renderTemplatePreview(homeDirectory: string, templateId: string): strin
     `  persona ${file.template.persona.name}`,
     `  skills ${file.template.skills.map((skill) => skill.name).join(', ')}`,
     `  routines ${file.template.routines.map((routine) => routine.name).join(', ')}`,
+    file.template.vibe ? '  vibe included' : '',
     '',
     'Export/edit/import to customize this starter:',
-    `  /agent-profile template export ${file.template.id} ./agent-starter.json --yes`,
+    `  /agent-profile template export ${file.template.id} ./agent-starter.json --include-vibe --yes`,
   ].join('\n');
 }
 
@@ -242,17 +244,25 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             const templateId = commandArgs[2];
             const pathArg = commandArgs[3];
             if (!templateId || !pathArg) {
-              ctx.print('Usage: /agent-profile template export <id> <path> --yes');
+            ctx.print('Usage: /agent-profile template export <id> <path> [--include-vibe] --yes');
               return;
             }
             if (!parsed.yes) {
-              requireYesFlag(ctx, `export Agent starter template ${templateId}`, '/agent-profile template export <id> <path> --yes');
+              requireYesFlag(ctx, `export Agent starter template ${templateId}`, '/agent-profile template export <id> <path> [--include-vibe] --yes');
               return;
             }
             const targetPath = shellPaths.resolveWorkspacePath(pathArg);
             mkdirSync(dirname(targetPath), { recursive: true });
-            const template = exportAgentRuntimeProfileTemplate(homeDirectory, templateId, targetPath);
-            ctx.print(`Agent starter template exported: ${template.id}\n  path ${template.path ?? targetPath}\n  edit it, then import it with /agent-profile template import <path> --yes`);
+            const template = exportAgentRuntimeProfileTemplate(homeDirectory, templateId, targetPath, {
+              includeVibe: commandArgs.includes('--include-vibe'),
+              shellPaths,
+            });
+            ctx.print([
+              `Agent starter template exported: ${template.id}`,
+              `  path ${template.path ?? targetPath}`,
+              template.vibeIncluded ? '  vibe included' : '',
+              '  edit it, then import it with /agent-profile template import <path> --yes',
+            ].filter(Boolean).join('\n'));
             return;
           }
           if (mode === 'import') {
@@ -273,7 +283,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           if (mode === 'from-discovered' || mode === 'import-discovered') {
             const templateId = commandArgs[2];
             if (!templateId) {
-              ctx.print('Usage: /agent-profile template from-discovered <id> [--name <name>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--replace] --yes');
+              ctx.print('Usage: /agent-profile template from-discovered <id> [--name <name>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--include-vibe] [--replace] --yes');
               return;
             }
             if (!parsed.yes) {
@@ -287,6 +297,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
               persona: parseFlag(commandArgs, '--persona'),
               skills: parseCsvFlag(commandArgs, '--skills'),
               routines: parseCsvFlag(commandArgs, '--routines'),
+              includeVibe: commandArgs.includes('--include-vibe'),
               replace: commandArgs.includes('--replace'),
             });
             ctx.print([
@@ -294,11 +305,12 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
               `  persona ${template.personaName}`,
               `  skills ${template.skillNames.join(', ')}`,
               `  routines ${template.routineNames.join(', ')}`,
+              template.vibeIncluded ? '  vibe included' : '',
               `  use /agent-profile create <name> --template ${template.id} --yes`,
-            ].join('\n'));
+            ].filter(Boolean).join('\n'));
             return;
           }
-          ctx.print('Usage: /agent-profile template [show <id>|export <id> <path> --yes|import <path> --yes|from-discovered <id> --yes]');
+          ctx.print('Usage: /agent-profile template [show <id>|export <id> <path> [--include-vibe] --yes|import <path> --yes|from-discovered <id> --yes]');
           return;
         }
 
@@ -318,6 +330,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             `Agent profile created: ${profile.id}`,
             `  home ${profile.homeDirectory}`,
             profile.starterTemplateId ? `  starter: ${profile.starterTemplateId}` : '',
+            profile.starterTemplateApplication?.vibePath ? `  vibe ${profile.starterTemplateApplication.vibePath}` : '',
             `  launch goodvibes-agent --agent-profile ${profile.id}`,
           ].filter(Boolean).join('\n'));
           return;
@@ -326,7 +339,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
         if (sub === 'create-from-discovered' || sub === 'create-discovered') {
           const profileName = commandArgs[1];
           if (!profileName) {
-            ctx.print('Usage: /agent-profile create-from-discovered <name> [--template-id <id>] [--profile-name <display>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--replace] --yes');
+            ctx.print('Usage: /agent-profile create-from-discovered <name> [--template-id <id>] [--profile-name <display>] [--description <summary>] [--persona <name>] [--skills all|name,name] [--routines all|name,name] [--include-vibe] [--replace] --yes');
             return;
           }
           if (!parsed.yes) {
@@ -341,6 +354,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             persona: parseFlag(commandArgs, '--persona'),
             skills: parseCsvFlag(commandArgs, '--skills'),
             routines: parseCsvFlag(commandArgs, '--routines'),
+            includeVibe: commandArgs.includes('--include-vibe'),
             replace: commandArgs.includes('--replace'),
           });
           ctx.print([
@@ -350,8 +364,9 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             `  persona ${created.template.personaName}`,
             `  skills ${created.template.skillNames.join(', ')}`,
             `  routines ${created.template.routineNames.join(', ')}`,
+            created.template.vibeIncluded ? '  vibe included' : '',
             `  launch goodvibes-agent --agent-profile ${created.profile.id}`,
-          ].join('\n'));
+          ].filter(Boolean).join('\n'));
           return;
         }
 
@@ -369,7 +384,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
           return;
         }
 
-        ctx.print('Usage: /agent-profile [list|show <name>|default [<name>|clear] --yes|use <name> --yes|templates|guide|template show <id>|template export <id> <path> --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> --yes|delete <name> --yes]');
+        ctx.print('Usage: /agent-profile [list|show <name>|default [<name>|clear] --yes|use <name> --yes|templates|guide|template show <id>|template export <id> <path> [--include-vibe] --yes|template import <path> --yes|create <name> [--template <id>] --yes|create-from-discovered <name> [--include-vibe] --yes|delete <name> --yes]');
       } catch (error) {
         ctx.print([
           'Error',

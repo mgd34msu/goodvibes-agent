@@ -148,14 +148,21 @@ describe('profiles CLI command', () => {
   test('exports imports and applies a custom starter template through the CLI', async () => {
     const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-custom-starter-'));
     const path = join(home, 'custom-starter.json');
+    mkdirSync(join(home, '.goodvibes', 'agent'), { recursive: true });
+    writeFileSync(join(home, '.goodvibes', 'agent', 'VIBE.md'), [
+      '# CLI VIBE',
+      '',
+      'Prefer morning briefing answers with a short risk line.',
+    ].join('\n'));
 
     const exportRefused = await runProfilesCli(['profiles', 'templates', 'export', 'research', path], home);
     expect(exportRefused.result.exitCode).toBe(2);
     expect(exportRefused.output).toContain('without --yes');
 
-    const exported = await runProfilesCli(['profiles', 'templates', 'export', 'research', path, '--yes'], home);
+    const exported = await runProfilesCli(['profiles', 'templates', 'export', 'research', path, '--include-vibe', '--yes'], home);
     expect(exported.result.exitCode).toBe(0);
     expect(exported.output).toContain('Agent starter template exported: research');
+    expect(exported.output).toContain('vibe included');
 
     const raw = JSON.parse(readFileSync(path, 'utf-8')) as {
       template: {
@@ -164,8 +171,10 @@ describe('profiles CLI command', () => {
         persona: { name: string };
         skills: Array<{ name: string }>;
         routines: Array<{ name: string }>;
+        vibe?: { body?: string };
       };
     };
+    expect(raw.template.vibe?.body).toContain('short risk line');
     raw.template.id = 'daily-briefing';
     raw.template.name = 'Daily Briefing';
     raw.template.persona.name = 'Daily Briefing Operator';
@@ -180,14 +189,18 @@ describe('profiles CLI command', () => {
     const imported = await runProfilesCli(['profiles', 'templates', 'import', path, '--yes'], home);
     expect(imported.result.exitCode).toBe(0);
     expect(imported.output).toContain('Agent starter template imported: daily-briefing');
+    expect(imported.output).toContain('vibe included');
 
     const templates = await runProfilesCli(['profiles', 'templates'], home);
     expect(templates.output).toContain('daily-briefing');
     expect(templates.output).toContain('[local]');
+    expect(templates.output).toContain('vibe included');
 
     const created = await runProfilesCli(['profiles', 'create', 'briefing', '--template', 'daily-briefing', '--yes'], home);
     expect(created.result.exitCode).toBe(0);
     expect(created.output).toContain('starter: daily-briefing');
+    expect(created.output).toContain('vibe ');
+    expect(readFileSync(join(home, '.goodvibes', 'agent', 'profile-homes', 'briefing', '.goodvibes', 'agent', 'VIBE.md'), 'utf-8')).toContain('short risk line');
   });
 
   test('creates a starter template from discovered behavior through the CLI', async () => {

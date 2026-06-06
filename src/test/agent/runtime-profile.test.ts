@@ -145,6 +145,45 @@ describe('Agent profiles', () => {
     expect(persona.activePersona?.name).toBe('Lab Operator');
   });
 
+  test('exports imports and applies starter templates with VIBE.md when requested', () => {
+    const home = makeHome();
+    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-vibe-workspace-'));
+    mkdirSync(join(workspace, '.goodvibes', 'agent'), { recursive: true });
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'VIBE.md'), [
+      '# Project VIBE',
+      '',
+      'Prefer concise profile-specific operator replies.',
+    ].join('\n'));
+
+    const exportedPath = join(home, 'research-with-vibe.json');
+    const exported = exportAgentRuntimeProfileTemplate(home, 'research', exportedPath, {
+      includeVibe: true,
+      shellPaths: {
+        homeDirectory: home,
+        workingDirectory: workspace,
+      },
+    });
+    expect(exported.vibeIncluded).toBe(true);
+    const raw = JSON.parse(readFileSync(exportedPath, 'utf-8')) as {
+      template: {
+        id: string;
+        name: string;
+        vibe?: { body?: string; sourcePaths?: readonly string[] };
+      };
+    };
+    expect(raw.template.vibe?.body).toContain('Prefer concise profile-specific operator replies.');
+    expect(raw.template.vibe?.sourcePaths?.join('\n')).toContain('VIBE.md');
+    raw.template.id = 'research-with-vibe';
+    raw.template.name = 'Research With Vibe';
+    writeFileSync(exportedPath, `${JSON.stringify(raw, null, 2)}\n`, 'utf-8');
+
+    const imported = importAgentRuntimeProfileTemplate(home, exportedPath);
+    expect(imported.vibeIncluded).toBe(true);
+    const profile = createAgentRuntimeProfile(home, 'research-vibe', { templateId: 'research-with-vibe' });
+    expect(profile.starterTemplateApplication?.vibePath).toBe(join(profile.homeDirectory, '.goodvibes', 'agent', 'VIBE.md'));
+    expect(readFileSync(profile.starterTemplateApplication!.vibePath!, 'utf-8')).toContain('Prefer concise profile-specific operator replies.');
+  });
+
   test('creates a local starter template from discovered Agent behavior files', async () => {
     const home = makeHome();
     const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-discovery-workspace-'));
@@ -174,6 +213,11 @@ describe('Agent profiles', () => {
       '---',
       'Review work plan, approvals, routines, and Agent Knowledge status.',
     ].join('\n'));
+    writeFileSync(join(workspace, 'VIBE.md'), [
+      '# Research Desk VIBE',
+      '',
+      'Keep research profile answers source-first and compact.',
+    ].join('\n'));
 
     const starter = await createAgentRuntimeProfileTemplateFromDiscovered({
       homeDirectory: home,
@@ -181,12 +225,14 @@ describe('Agent profiles', () => {
     }, {
       id: 'research-desk',
       name: 'Research Desk',
+      includeVibe: true,
     });
 
     expect(starter.id).toBe('research-desk');
     expect(starter.personaName).toBe('Research Operator');
     expect(starter.skillNames).toEqual(['Daily Brief Skill']);
     expect(starter.routineNames).toEqual(['Evening Review']);
+    expect(starter.vibeIncluded).toBe(true);
     expect(listAgentRuntimeProfileTemplates(home).map((template) => template.id)).toContain('research-desk');
 
     const profile = createAgentRuntimeProfile(home, 'desk', { templateId: 'research-desk' });
@@ -196,6 +242,7 @@ describe('Agent profiles', () => {
     expect(persona.activePersona?.name).toBe('Research Operator');
     expect(skills.enabledSkills.map((skill) => skill.name)).toEqual(['Daily Brief Skill']);
     expect(routines.enabledRoutines.map((routine) => routine.name)).toEqual(['Evening Review']);
+    expect(readFileSync(join(profile.homeDirectory, '.goodvibes', 'agent', 'VIBE.md'), 'utf-8')).toContain('source-first');
   });
 
   test('creates a profile directly from discovered Agent behavior files', async () => {

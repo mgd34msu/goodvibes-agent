@@ -230,7 +230,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | --- | --- |
 | `/accounts` | Review provider auth routes, subscription windows, and billing-path safety. |
 | `/agent` | Open the GoodVibes Agent operator workspace. |
-| `/agent-profile` | Manage isolated Agent profiles and starter templates. |
+| `/agent-profile` | Manage isolated Agent profiles and starter templates, including opt-in VIBE.md starter export/import with `--include-vibe`. |
 | `/approval` | Review approval classes and run exact confirmed approval actions. |
 | `/auth` | Review provider auth posture and export redacted auth review bundles. |
 | `/automation` | Run confirmed connected-host automation actions from the Agent TUI. |

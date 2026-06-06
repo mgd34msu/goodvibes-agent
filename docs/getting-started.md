@@ -112,15 +112,15 @@ goodvibes-agent profiles templates
 goodvibes-agent profiles create household --template household --yes
 goodvibes-agent profiles use household --yes
 goodvibes-agent --agent-profile household
-goodvibes-agent profiles templates export research ./research-starter.json --yes
+goodvibes-agent profiles templates export research ./research-starter.json --include-vibe --yes
 goodvibes-agent profiles templates import ./research-starter.json --yes
 ```
 
-Named profiles isolate Agent-local config, sessions, memory, notes, personas, skills, routines, and setup state. GoodVibes settings import can bring over existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings. The workspace action and model route both preview changed counts first, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions.
+Named profiles isolate Agent-local config, sessions, VIBE.md, memory, notes, personas, skills, routines, and setup state. Starter export/from-discovered flows can include the current safe VIBE.md with `--include-vibe`; blocked VIBE.md files must be repaired first. GoodVibes settings import can bring over existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings. The workspace action and model route both preview changed counts first, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions.
 
 ## Local Behavior
 
-VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, surfaced in setup and the learning curator when blocked or truncated, and applied to the serial Agent conversation. They do not write into default knowledge or other product segments.
+VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, surfaced in setup and the learning curator when blocked or truncated, optionally carried through profile starter export/import with `--include-vibe`, and applied to the serial Agent conversation. They do not write into default knowledge or other product segments.
 
 Memory, notes, personas, routines, and Agent skills are local to GoodVibes Agent. Only reviewed, high-confidence local context should steer the assistant. Prompt context includes reviewed memory at or above the durable confidence threshold and reviewed setup-ready skills, routines, bundles, and personas. Enabled but unreviewed, stale, low-confidence, or setup-blocked records are surfaced as suppressed review work instead of being applied silently.
 

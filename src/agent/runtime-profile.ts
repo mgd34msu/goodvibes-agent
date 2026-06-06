@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import { AgentPersonaRegistry } from './persona-registry.ts';
+import { AgentPersonaRegistry, assertNoSecretLikeText } from './persona-registry.ts';
 import { AgentRoutineRegistry } from './routine-registry.ts';
 import { AgentSkillRegistry } from './skill-registry.ts';
+import { discoverVibeFiles } from './vibe-file.ts';
 import { discoverPersonas, type DiscoveredPersonaRecord } from './persona-discovery.ts';
 import { discoverRoutines, type DiscoveredRoutineRecord } from './routine-discovery.ts';
 import { discoverSkills, type SkillRecord } from './skill-discovery.ts';
@@ -20,6 +21,7 @@ export interface AgentRuntimeProfileTemplateSummary {
   readonly personaName: string;
   readonly skillNames: readonly string[];
   readonly routineNames: readonly string[];
+  readonly vibeIncluded?: boolean;
   readonly source: AgentRuntimeProfileTemplateSource;
   readonly path?: string;
 }
@@ -50,10 +52,20 @@ export interface AgentRuntimeProfileTemplateApplication {
   readonly personaIds: readonly string[];
   readonly skillIds: readonly string[];
   readonly routineIds: readonly string[];
+  readonly vibePath?: string;
 }
 
 export interface CreateAgentRuntimeProfileOptions {
   readonly templateId?: AgentRuntimeProfileTemplateId;
+}
+
+type AgentRuntimeProfileTemplateShellPaths =
+  Pick<ShellPathService, 'homeDirectory' | 'workingDirectory'>
+  & Partial<Pick<ShellPathService, 'resolveUserPath' | 'expandHomePath' | 'resolveWorkspacePath'>>;
+
+export interface AgentRuntimeProfileTemplateExportOptions {
+  readonly includeVibe?: boolean;
+  readonly shellPaths?: AgentRuntimeProfileTemplateShellPaths;
 }
 
 export interface CreateAgentRuntimeProfileTemplateFromDiscoveredOptions {
@@ -63,6 +75,7 @@ export interface CreateAgentRuntimeProfileTemplateFromDiscoveredOptions {
   readonly persona?: string;
   readonly skills?: readonly string[];
   readonly routines?: readonly string[];
+  readonly includeVibe?: boolean;
   readonly replace?: boolean;
 }
 
@@ -242,6 +255,7 @@ function summarizeTemplate(template: AgentRuntimeProfileStarterTemplate): AgentR
     personaName: template.personaName,
     skillNames: [...template.skillNames],
     routineNames: [...template.routineNames],
+    vibeIncluded: Boolean(template.vibe?.body.trim()),
     source: template.source,
     path: template.path,
   };
@@ -350,6 +364,73 @@ function parseTemplateRoutine(value: unknown): AgentRuntimeProfileStarterTemplat
   };
 }
 
+function parseTemplateVibe(value: unknown): AgentRuntimeProfileStarterTemplate['vibe'] | undefined {
+  if (value === undefined || value === null) return undefined;
+  const record = readTemplateObject(value, 'vibe');
+  const body = readTemplateTextBlock(record.body, 'vibe.body');
+  assertNoSecretLikeText([body], 'Agent starter VIBE.md');
+  const source = record.source === 'template' ? 'template' : 'discovered';
+  const appliedAs = record.appliedAs === 'global' ? 'global' : 'global';
+  const truncated = typeof record.truncated === 'number' && Number.isFinite(record.truncated)
+    ? Math.max(0, Math.trunc(record.truncated))
+    : 0;
+  return {
+    body,
+    source,
+    appliedAs,
+    sourcePaths: parseStringArray(record.sourcePaths),
+    truncated,
+  };
+}
+
+function profileTemplateVibeShellPaths(shellPaths: AgentRuntimeProfileTemplateShellPaths): Parameters<typeof discoverVibeFiles>[0] {
+  return {
+    homeDirectory: shellPaths.homeDirectory,
+    workingDirectory: shellPaths.workingDirectory,
+    resolveUserPath: shellPaths.resolveUserPath ?? ((...parts: string[]) => join(shellPaths.homeDirectory, '.goodvibes', ...parts)),
+    expandHomePath: shellPaths.expandHomePath ?? ((value: string) => value.startsWith('~/') ? join(shellPaths.homeDirectory, value.slice(2)) : value),
+    resolveWorkspacePath: shellPaths.resolveWorkspacePath ?? ((value: string) => {
+      const expanded = value.startsWith('~/') ? join(shellPaths.homeDirectory, value.slice(2)) : value;
+      return isAbsolute(expanded) ? resolve(expanded) : resolve(shellPaths.workingDirectory, expanded);
+    }),
+  };
+}
+
+function discoveredVibeToTemplate(
+  shellPaths: AgentRuntimeProfileTemplateExportOptions['shellPaths'],
+): AgentRuntimeProfileStarterTemplate['vibe'] | undefined {
+  if (!shellPaths) throw new Error('Including VIBE.md in a starter template requires shell path context.');
+  const snapshot = discoverVibeFiles(profileTemplateVibeShellPaths(shellPaths));
+  if (snapshot.blocked.length > 0) {
+    throw new Error(`Cannot include VIBE.md in a starter template while ${snapshot.blocked.length} VIBE.md file is blocked. Run /vibe status and repair it first.`);
+  }
+  if (snapshot.files.length === 0) return undefined;
+  const body = snapshot.files.map((file) => [
+    `## ${file.scope === 'global' ? 'Global' : 'Project'} VIBE.md`,
+    `Source: ${file.path}`,
+    '',
+    file.body,
+    file.truncated ? '[This VIBE.md was truncated before profile starter export.]' : '',
+  ].filter(Boolean).join('\n')).join('\n\n');
+  assertNoSecretLikeText([body], 'Agent starter VIBE.md');
+  return {
+    body,
+    source: 'discovered',
+    appliedAs: 'global',
+    sourcePaths: snapshot.files.map((file) => file.path),
+    truncated: snapshot.files.filter((file) => file.truncated).length,
+  };
+}
+
+function withOptionalVibe(
+  template: AgentRuntimeProfileStarterTemplate,
+  options: AgentRuntimeProfileTemplateExportOptions | undefined,
+): AgentRuntimeProfileStarterTemplate {
+  if (options?.includeVibe !== true) return template;
+  const vibe = discoveredVibeToTemplate(options.shellPaths);
+  return vibe ? { ...template, vibe } : template;
+}
+
 function parseStarterTemplate(raw: unknown, source: AgentRuntimeProfileTemplateSource, path?: string): AgentRuntimeProfileStarterTemplate {
   const file = readTemplateObject(raw, 'file');
   const templateRecord = readTemplateObject(file.template ?? raw, 'template');
@@ -357,6 +438,7 @@ function parseStarterTemplate(raw: unknown, source: AgentRuntimeProfileTemplateS
   const personaRecord = readTemplateObject(templateRecord.persona, 'persona');
   const skills = Array.isArray(templateRecord.skills) ? templateRecord.skills.map(parseTemplateSkill) : [];
   const routines = Array.isArray(templateRecord.routines) ? templateRecord.routines.map(parseTemplateRoutine) : [];
+  const vibe = parseTemplateVibe(templateRecord.vibe);
   if (skills.length === 0) throw new Error(`Starter template ${id} must include at least one skill.`);
   if (routines.length === 0) throw new Error(`Starter template ${id} must include at least one routine.`);
   const persona = {
@@ -378,6 +460,7 @@ function parseStarterTemplate(raw: unknown, source: AgentRuntimeProfileTemplateS
     persona,
     skills,
     routines,
+    ...(vibe ? { vibe: { ...vibe, source: 'template' } } : {}),
   };
 }
 
@@ -434,8 +517,13 @@ function templateFilePayload(template: AgentRuntimeProfileStarterTemplate): Agen
   };
 }
 
-export function exportAgentRuntimeProfileTemplate(baseHomeDirectory: string, templateId: AgentRuntimeProfileTemplateId, outputPath: string): AgentRuntimeProfileTemplateSummary {
-  const template = resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory);
+export function exportAgentRuntimeProfileTemplate(
+  baseHomeDirectory: string,
+  templateId: AgentRuntimeProfileTemplateId,
+  outputPath: string,
+  options: AgentRuntimeProfileTemplateExportOptions = {},
+): AgentRuntimeProfileTemplateSummary {
+  const template = withOptionalVibe(resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory), options);
   const target = outputPath.trim();
   if (!target) throw new Error('Template export path is required.');
   mkdirSync(dirname(target), { recursive: true });
@@ -472,6 +560,7 @@ export async function createAgentRuntimeProfileTemplateFromDiscovered(
     throw new Error(`Agent starter template already exists ${id}. Rerun with --replace to overwrite it.`);
   }
   const persona = discoveredPersonaToTemplate(selectedPersona);
+  const vibe = options.includeVibe ? discoveredVibeToTemplate(shellPaths) : undefined;
   const template: AgentRuntimeProfileStarterTemplate = {
     id,
     source: 'local',
@@ -484,6 +573,7 @@ export async function createAgentRuntimeProfileTemplateFromDiscovered(
     persona,
     skills: selectedSkills.map(discoveredSkillToTemplate),
     routines: selectedRoutines.map(discoveredRoutineToTemplate),
+    ...(vibe ? { vibe } : {}),
   };
   mkdirSync(dirname(target), { recursive: true });
   writeFileSync(target, `${JSON.stringify(templateFilePayload(template), null, 2)}\n`, 'utf-8');
@@ -510,6 +600,7 @@ export async function createAgentRuntimeProfileFromDiscovered(
     persona: options.persona,
     skills: options.skills,
     routines: options.routines,
+    includeVibe: options.includeVibe,
     replace: options.replace,
   });
   const profile = createAgentRuntimeProfile(shellPaths.homeDirectory, profileId, { templateId: template.id });
@@ -546,6 +637,15 @@ function createMissingRoutine(registry: AgentRoutineRegistry, template: AgentRun
   }).id;
 }
 
+function writeTemplateVibe(homeDirectory: string, template: AgentRuntimeProfileStarterTemplate): string | undefined {
+  if (!template.vibe?.body.trim()) return undefined;
+  assertNoSecretLikeText([template.vibe.body], 'Agent starter VIBE.md');
+  const path = join(homeDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'VIBE.md');
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${template.vibe.body.trimEnd()}\n`, 'utf-8');
+  return path;
+}
+
 export function applyAgentRuntimeProfileTemplate(homeDirectory: string, templateId: AgentRuntimeProfileTemplateId, baseHomeDirectory?: string): AgentRuntimeProfileTemplateApplication {
   const template = resolveAgentRuntimeProfileTemplate(templateId, baseHomeDirectory);
   const personaRegistry = new AgentPersonaRegistry(profileStorePath(homeDirectory, 'personas', 'personas.json'));
@@ -564,6 +664,7 @@ export function applyAgentRuntimeProfileTemplate(homeDirectory: string, template
   personaRegistry.setActive(persona.id);
   const skillIds = template.skills.map((skill) => createMissingSkill(skillRegistry, skill));
   const routineIds = template.routines.map((routine) => createMissingRoutine(routineRegistry, routine));
+  const vibePath = writeTemplateVibe(homeDirectory, template);
   return {
     id: template.id,
     name: template.name,
@@ -572,6 +673,7 @@ export function applyAgentRuntimeProfileTemplate(homeDirectory: string, template
     personaIds: [persona.id],
     skillIds,
     routineIds,
+    ...(vibePath ? { vibePath } : {}),
   };
 }
 

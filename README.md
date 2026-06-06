@@ -107,7 +107,7 @@ Useful workspace paths:
 - Personas -> Inspect, create, show, or import VIBE.md; create, inspect, activate, review, stale, or delete local personas.
 - Skills -> Create skills, import discovered skills, enable/disable, review, delete, and manage skill bundles.
 - Routines -> Create routines, start a routine in chat, review receipts, and explicitly promote one routine to a connected schedule.
-- Profiles -> Create isolated Agent profiles from built-in or imported starter templates.
+- Profiles -> Create isolated Agent profiles from built-in or imported starter templates, with opt-in VIBE.md portability through `--include-vibe`.
 
 Starting a routine prints its steps in the main conversation. Promotion to a connected schedule or automation job is separate, explicit, confirmation-gated, visible in the autonomy queue, and records a redacted local receipt.
 
