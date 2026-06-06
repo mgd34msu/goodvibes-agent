@@ -1,4 +1,5 @@
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
+import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { OnboardingStep1CapabilityItem, OnboardingSurfaceRecord } from '../runtime/onboarding/index.ts';
 import { collectOnboardingSnapshot, deriveStep1Capabilities, deriveStep1CapabilityFlags } from '../runtime/onboarding/index.ts';
 import type { CommandContext } from '../input/command-registry.ts';
@@ -18,6 +19,7 @@ export interface AgentHarnessSetupArgs {
   readonly query?: unknown;
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
+  readonly fields?: unknown;
   readonly explicitUserRequest?: unknown;
 }
 
@@ -37,6 +39,7 @@ type SetupRepairCardState = 'available' | 'requires-live-host' | 'missing';
 type SetupRepairCardEffect = 'read-only' | 'confirmed-effect';
 type SetupRepairRecommendation = 'recommended' | 'inspect-first' | 'not-needed' | 'unavailable';
 type SetupServiceProbeStatus = 'reachable' | 'unreachable' | 'not-enabled' | 'not-probed';
+type SetupSmokeArtifactStore = Pick<ArtifactStore, 'create'>;
 
 interface OperatorContractMethod {
   readonly id: string;
@@ -142,6 +145,12 @@ interface SetupInstallSmokeRunSummary {
   readonly total: number;
 }
 
+interface SetupSmokeEvidenceField {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+}
+
 interface SetupBootstrapStep {
   readonly id: string;
   readonly label: string;
@@ -172,6 +181,11 @@ function readStringArray(value: unknown): readonly string[] {
   return Array.isArray(value) ? value.map((entry) => readString(entry)).filter(Boolean) : [];
 }
 
+function readFieldMap(value: unknown): Readonly<Record<string, string>> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, typeof entry === 'string' ? entry : String(entry)]));
+}
+
 function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
@@ -189,6 +203,14 @@ function operatorMethodRoute(methodId: string, confirmed: boolean): string {
 function safeIso(value: number | null | undefined): string | null {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   return new Date(value).toISOString();
+}
+
+function setupSmokeArtifactStore(context: CommandContext): SetupSmokeArtifactStore | null {
+  const candidate = (context.platform as { readonly artifactStore?: unknown }).artifactStore;
+  if (candidate && typeof candidate === 'object' && 'create' in candidate && typeof (candidate as { readonly create?: unknown }).create === 'function') {
+    return candidate as SetupSmokeArtifactStore;
+  }
+  return null;
 }
 
 function surfaceRegistry(context: CommandContext): SurfaceRegistryLike | undefined {
@@ -534,6 +556,143 @@ function installSmokeSignals(plan: SetupInstallSmokePlan): readonly string[] {
     `install smoke: ${plan.status}`,
     ...plan.checks.map((check) => `${check.id}: ${check.status}`),
   ];
+}
+
+const SETUP_SMOKE_EVIDENCE_FIELD_DEFINITIONS: readonly { readonly id: string; readonly label: string }[] = [
+  { id: 'agentBinaryOutput', label: 'Agent binary output' },
+  { id: 'statusJson', label: 'Agent status JSON' },
+  { id: 'connectedHostStatusOutput', label: 'Connected-host status output' },
+  { id: 'setupPostureOutput', label: 'Setup posture output' },
+  { id: 'firstAssistantTurn', label: 'First assistant turn' },
+  { id: 'notes', label: 'Operator notes' },
+];
+
+const MAX_SETUP_SMOKE_FIELD_CHARS = 8_000;
+
+function redactSetupSmokeEvidence(input: string): string {
+  const bounded = input.slice(0, MAX_SETUP_SMOKE_FIELD_CHARS);
+  return bounded
+    .replace(/(\bauthorization\s*[:=]\s*)(?:bearer\s+)?[^\s,;]+/gi, '$1<redacted>')
+    .replace(/("?\b(?:api[-_]?key|apikey|token|secret|password|credential)\b"?\s*:\s*)("[^"]*"|[^\s,}]+)/gi, '$1"<redacted>"')
+    .replace(/(\b(?:api[-_]?key|apikey|token|secret|password|credential)\b\s*=\s*)[^\s&]+/gi, '$1<redacted>')
+    .replace(/([?&](?:api[-_]?key|apikey|token|secret|password|credential)=)[^&\s]+/gi, '$1<redacted>');
+}
+
+function setupSmokeEvidenceFields(fields: unknown): readonly SetupSmokeEvidenceField[] {
+  const values = readFieldMap(fields);
+  return SETUP_SMOKE_EVIDENCE_FIELD_DEFINITIONS
+    .map((definition) => {
+      const raw = values[definition.id]?.trim() ?? '';
+      return raw ? { ...definition, value: redactSetupSmokeEvidence(raw) } : null;
+    })
+    .filter((entry): entry is SetupSmokeEvidenceField => entry !== null);
+}
+
+function safeSetupSmokeFilename(capturedAt: string): string {
+  return `setup-smoke-${capturedAt.replace(/[:.]/g, '-').replace(/[^a-zA-Z0-9-]+/g, '-')}.md`;
+}
+
+function setupSmokeEvidenceMarkdown(input: {
+  readonly capturedAt: string;
+  readonly explicitUserRequest: string;
+  readonly smokePlan: SetupInstallSmokePlan;
+  readonly summary: SetupInstallSmokeRunSummary;
+  readonly blockedChecks: readonly string[];
+  readonly userRunChecks: readonly string[];
+  readonly evidenceFields: readonly SetupSmokeEvidenceField[];
+}): string {
+  const checkLines = input.smokePlan.checks.map((check) => `- ${check.id}: ${check.status} - ${redactSetupSmokeEvidence(check.evidence)}`);
+  const evidenceSections = input.evidenceFields.map((field) => [
+    `## ${field.label}`,
+    '',
+    '```text',
+    field.value,
+    '```',
+  ].join('\n'));
+  return [
+    '# GoodVibes Agent Setup Smoke Evidence',
+    '',
+    `Captured: ${input.capturedAt}`,
+    `Explicit user request: ${redactSetupSmokeEvidence(input.explicitUserRequest)}`,
+    `Smoke status: ${input.smokePlan.status}`,
+    `Ready checks: ${input.summary.ready}`,
+    `Blocked checks: ${input.blockedChecks.join(', ') || 'none'}`,
+    `User-run checks: ${input.userRunChecks.join(', ') || 'none'}`,
+    '',
+    '## Check Statuses',
+    '',
+    ...checkLines,
+    '',
+    '## Success Criteria',
+    '',
+    ...input.smokePlan.successCriteria.map((criterion) => `- ${criterion}`),
+    '',
+    ...evidenceSections,
+    '',
+    '## Policy',
+    '',
+    input.smokePlan.policy,
+    'Evidence fields are redacted before storage. Agent does not run package, host, or shell smoke commands implicitly.',
+  ].join('\n');
+}
+
+async function saveSetupSmokeArtifact(input: {
+  readonly context: CommandContext;
+  readonly capturedAt: string;
+  readonly explicitUserRequest: string;
+  readonly smokePlan: SetupInstallSmokePlan;
+  readonly summary: SetupInstallSmokeRunSummary;
+  readonly blockedChecks: readonly string[];
+  readonly userRunChecks: readonly string[];
+  readonly evidenceFields: readonly SetupSmokeEvidenceField[];
+}): Promise<Record<string, unknown>> {
+  if (input.evidenceFields.length === 0) {
+    return {
+      status: 'not_requested',
+      reason: 'Pass fields with user-run smoke output to save a redacted setup evidence artifact.',
+      supportedFields: SETUP_SMOKE_EVIDENCE_FIELD_DEFINITIONS.map((field) => field.id),
+    };
+  }
+  const artifactStore = setupSmokeArtifactStore(input.context);
+  if (!artifactStore) {
+    return {
+      status: 'unavailable',
+      reason: 'This runtime did not provide an artifact store with create support.',
+      evidenceFields: input.evidenceFields.map((field) => field.id),
+    };
+  }
+  const descriptor = await artifactStore.create({
+    kind: 'document',
+    mimeType: 'text/markdown',
+    filename: safeSetupSmokeFilename(input.capturedAt),
+    text: setupSmokeEvidenceMarkdown(input),
+    metadata: {
+      purpose: 'agent-setup-smoke-evidence',
+      source: 'agent-harness-run-setup-smoke',
+      capturedAt: input.capturedAt,
+      smokeStatus: input.smokePlan.status,
+      result: input.blockedChecks.length > 0 ? 'blocked' : 'ready-for-user-run',
+      blockedChecks: input.blockedChecks,
+      userRunChecks: input.userRunChecks,
+      evidenceFields: input.evidenceFields.map((field) => field.id),
+      checkStatuses: Object.fromEntries(input.smokePlan.checks.map((check) => [check.id, check.status])),
+      explicitUserRequest: redactSetupSmokeEvidence(input.explicitUserRequest),
+      redaction: 'token, secret, password, credential, authorization, and api-key-like values redacted before storage',
+    },
+  });
+  return {
+    status: 'saved',
+    artifactId: descriptor.id,
+    filename: descriptor.filename ?? null,
+    mimeType: descriptor.mimeType,
+    sizeBytes: descriptor.sizeBytes,
+    purpose: 'agent-setup-smoke-evidence',
+    evidenceFields: input.evidenceFields.map((field) => ({
+      id: field.id,
+      preview: previewHarnessText(field.value, 120),
+    })),
+    inspectRoute: `agent_artifacts show artifactId:"${descriptor.id}" includeContent:false`,
+  };
 }
 
 function installSmokeRunSummary(plan: SetupInstallSmokePlan): SetupInstallSmokeRunSummary {
@@ -1408,24 +1567,39 @@ export async function runSetupInstallSmoke(context: CommandContext, args: AgentH
   const summary = installSmokeRunSummary(smokePlan);
   const blockedChecks = smokePlan.checks.filter((check) => check.status === 'blocked').map((check) => check.id);
   const userRunChecks = smokePlan.checks.filter((check) => check.status === 'user-run').map((check) => check.id);
+  const capturedAt = new Date(snapshot.capturedAt).toISOString();
+  const explicitUserRequest = readString(args.explicitUserRequest);
+  const evidenceFields = setupSmokeEvidenceFields(args.fields);
+  const artifact = await saveSetupSmokeArtifact({
+    context,
+    capturedAt,
+    explicitUserRequest,
+    smokePlan,
+    summary,
+    blockedChecks,
+    userRunChecks,
+    evidenceFields,
+  });
   return {
     status: 'executed',
     mode: 'run_setup_smoke',
     setupItemId: 'install-smoke',
-    capturedAt: new Date(snapshot.capturedAt).toISOString(),
+    capturedAt,
     smokeStatus: smokePlan.status,
     result: installSmokeRunResult(smokePlan),
-    explicitUserRequest: previewHarnessText(readString(args.explicitUserRequest), 160),
+    explicitUserRequest: previewHarnessText(explicitUserRequest, 160),
     summary,
     blockedChecks,
     userRunChecks,
     checks: smokePlan.checks.map((check) => describeInstallSmokeCheck(check, includeParameters)),
+    artifact,
     successCriteria: includeParameters ? smokePlan.successCriteria : smokePlan.successCriteria.map((entry) => previewHarnessText(entry, 120)),
     nextAction: installSmokeNextAction(smokePlan),
     routes: {
       inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
       inspectSmoke: 'agent_harness mode:"setup_item" setupItemId:"install-smoke"',
       rerunSmoke: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+      saveEvidence: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
     },
     policy: {
       effect: 'confirmed-redacted-setup-smoke',

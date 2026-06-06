@@ -77,7 +77,7 @@ Discovery modes:
 | `autonomy_intake`, `autonomy_queue`, `autonomy_queue_item` | Ongoing-work route selection, visible autonomous work owners, status, live records, log tails, inspect routes, and normalized checkpoint/pause/resume/cancel/recovery controls. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, routine, duplicate-consolidation batch review, completed-work, completed-research, and saved-session review/proposal candidates. |
 | `document_ops`, `document_ops_lane` | Documents, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
-| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup plan with probe-fed connected-host repair/auth cards, token-safe install smoke checks, confirmed setup smoke execution, local model readiness, pairing, and build-delegation posture. |
+| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup plan with probe-fed connected-host repair/auth cards, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts, local model readiness, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |
 | `service_posture`, `connected_host`, `daemon` | Endpoint, connected-host, and daemon alias posture. |
@@ -107,7 +107,7 @@ Effect modes:
 | --- | --- |
 | `run_workspace_action` | Executes one resolved workspace action through the same editor, command, or local route as the TUI. |
 | `run_command` | Executes one resolved slash command through the shared command registry. |
-| `run_setup_smoke` | Collects redacted first-run setup smoke evidence without implicit shell or host commands. |
+| `run_setup_smoke` | Collects redacted first-run setup smoke evidence and can save user-run output as an artifact without implicit shell or host commands. |
 | `open_panel`, `open_ui_surface` | Routes visible shell navigation. |
 | `run_keybinding` | Runs supported shell-safe keybinding actions only. |
 | `set_keybinding`, `reset_keybinding` | Writes the same Agent `keybindings.json` file exposed to the user. |

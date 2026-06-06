@@ -1081,6 +1081,7 @@ describe('agent_harness tool', () => {
         readonly blockedChecks: readonly string[];
         readonly userRunChecks: readonly string[];
         readonly checks: readonly { readonly id: string; readonly status: string; readonly action: string; readonly route: string; readonly evidence: string }[];
+        readonly artifact: { readonly status: string; readonly reason?: string; readonly supportedFields?: readonly string[] };
         readonly nextAction: string;
         readonly routes: { readonly inspectSetup: string; readonly inspectSmoke: string; readonly rerunSmoke: string };
         readonly policy: { readonly effect: string; readonly shell: string; readonly secrets: string; readonly source: string };
@@ -1111,6 +1112,8 @@ describe('agent_harness tool', () => {
       ]);
       expect(smokeRun.checks.find((check) => check.id === 'agent-binary')?.action).toBe('user-visible-run');
       expect(smokeRun.checks.find((check) => check.id === 'connected-host-auth')?.action).toBe('fix-before-smoke');
+      expect(smokeRun.artifact.status).toBe('not_requested');
+      expect(smokeRun.artifact.supportedFields).toContain('agentBinaryOutput');
       expect(smokeRun.nextAction).toContain('Resolve blocked checks');
       expect(smokeRun.routes.inspectSetup).toContain('setup_posture');
       expect(smokeRun.routes.inspectSmoke).toContain('install-smoke');
@@ -1132,6 +1135,75 @@ describe('agent_harness tool', () => {
       expect(browserItem.lookup?.resolvedBy).toBe('plan-id');
       expect(browserItem.modelRoute).toContain('mcp_servers');
       expect(browserItem.signals?.join('\n')).toContain('No browser');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('saves redacted setup smoke evidence artifacts when user-run output is provided', async () => {
+    const artifacts = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      const smokeRun = await executeHarnessJson<{
+        readonly status: string;
+        readonly artifact: {
+          readonly status: string;
+          readonly artifactId?: string;
+          readonly filename?: string;
+          readonly purpose?: string;
+          readonly evidenceFields?: readonly { readonly id: string; readonly preview: string }[];
+          readonly inspectRoute?: string;
+        };
+      }>(fixture, {
+        mode: 'run_setup_smoke',
+        setupItemId: 'install-smoke',
+        confirm: true,
+        explicitUserRequest: 'Save the redacted setup smoke evidence.',
+        fields: {
+          agentBinaryOutput: 'goodvibes-agent 1.0.0\nAuthorization: Bearer binary-secret',
+          statusJson: '{"connectedHost":{"token":"host-secret"},"ok":true}',
+          firstAssistantTurn: 'Ready. apiKey=assistant-secret',
+          notes: 'Operator saw token=query-secret in https://example.test/status?token=query-secret',
+        },
+      });
+
+      expect(smokeRun.status).toBe('executed');
+      expect(smokeRun.artifact.status).toBe('saved');
+      expect(smokeRun.artifact.artifactId).toBe('artifact-1');
+      expect(smokeRun.artifact.filename).toContain('setup-smoke-');
+      expect(smokeRun.artifact.purpose).toBe('agent-setup-smoke-evidence');
+      expect(smokeRun.artifact.inspectRoute).toContain('agent_artifacts');
+      expect(smokeRun.artifact.evidenceFields?.map((field) => field.id)).toEqual([
+        'agentBinaryOutput',
+        'statusJson',
+        'firstAssistantTurn',
+        'notes',
+      ]);
+      expect(JSON.stringify(smokeRun)).not.toContain('binary-secret');
+      expect(JSON.stringify(smokeRun)).not.toContain('host-secret');
+      expect(JSON.stringify(smokeRun)).not.toContain('assistant-secret');
+      expect(JSON.stringify(smokeRun)).not.toContain('query-secret');
+
+      const artifact = artifacts.store.list(1)[0];
+      expect(artifact?.metadata).toMatchObject({
+        purpose: 'agent-setup-smoke-evidence',
+        source: 'agent-harness-run-setup-smoke',
+        smokeStatus: 'blocked',
+        evidenceFields: ['agentBinaryOutput', 'statusJson', 'firstAssistantTurn', 'notes'],
+      });
+      expect(JSON.stringify(artifact?.metadata)).not.toContain('binary-secret');
+      expect(JSON.stringify(artifact?.metadata)).not.toContain('host-secret');
+      expect(JSON.stringify(artifact?.metadata)).not.toContain('assistant-secret');
+      expect(JSON.stringify(artifact?.metadata)).not.toContain('query-secret');
+      const saved = await artifacts.store.readContent('artifact-1');
+      const content = saved.buffer.toString('utf-8');
+      expect(content).toContain('GoodVibes Agent Setup Smoke Evidence');
+      expect(content).toContain('Agent binary output');
+      expect(content).toContain('<redacted>');
+      expect(content).not.toContain('binary-secret');
+      expect(content).not.toContain('host-secret');
+      expect(content).not.toContain('assistant-secret');
+      expect(content).not.toContain('query-secret');
     } finally {
       fixture.cleanup();
     }
