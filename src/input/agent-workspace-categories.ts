@@ -335,7 +335,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Draft docs, files, artifacts, and compare readiness.',
     detail: 'Use this workspace when the user is producing or evaluating a document. Versioned drafts, review comments, AI suggestion review, artifact insertion/export, upload, source, artifact browsing, media, and blind comparison routes stay visible here.',
     actions: [
-      { id: 'document-ops-map', label: 'Readiness map', detail: 'Use agent_harness mode:"document_ops" to see document, upload, export, source, media, artifact, and blind compare lanes.', kind: 'guidance', safety: 'read-only' },
+      { id: 'document-ops-map', label: 'Readiness map', detail: 'Use agent_harness mode:"document_ops" to see document, reviewer-readiness, upload, export, source, media, artifact, and blind compare lanes.', kind: 'guidance', safety: 'read-only' },
       { id: 'document-browse-drafts', label: 'Browse document drafts', detail: 'List Agent-owned markdown drafts with status, version counts, tags, and exported artifact ids.', editorKind: 'document-browse', kind: 'editor', safety: 'read-only' },
       { id: 'document-show-draft', label: 'Show document draft', detail: 'Inspect one Agent-owned markdown draft with body and version history.', editorKind: 'document-show', kind: 'editor', safety: 'read-only' },
       { id: 'document-create-draft', label: 'Create document draft', detail: 'Open a confirmed form that saves a versioned Agent-owned markdown draft.', editorKind: 'document-create', kind: 'editor', safety: 'safe' },

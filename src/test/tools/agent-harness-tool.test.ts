@@ -30,6 +30,7 @@ import { createAgentResearchReportTool } from '../../tools/agent-research-report
 import { createAgentResearchRunsTool } from '../../tools/agent-research-runs-tool.ts';
 import { createAgentResearchSourcesTool } from '../../tools/agent-research-sources-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
+import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
@@ -4146,19 +4147,116 @@ describe('agent_harness tool', () => {
       fixture.toolRegistry.register(createAgentArtifactsTool(artifacts.store));
       registerStubTool(fixture.toolRegistry, 'agent_knowledge_ingest');
       registerStubTool(fixture.toolRegistry, 'agent_model_compare');
+      const documentRegistry = AgentDocumentRegistry.fromShellPaths(fixture.paths);
+      const draft = documentRegistry.create({
+        title: 'Reviewer packet',
+        body: 'Draft reviewer packet body.',
+        tags: ['review'],
+      });
+      documentRegistry.addComment(draft.id, { body: 'Clarify the release evidence section.' });
+      documentRegistry.suggestUpdate(draft.id, {
+        body: 'Draft reviewer packet body with clearer evidence.',
+        summary: 'Clarify evidence section.',
+        rationale: 'Reviewer asked for more explicit evidence.',
+      });
+      const savedComparison = await artifacts.store.create({
+        kind: 'data',
+        mimeType: 'application/json',
+        filename: 'blind-model-comparison-cmp_hidden.json',
+        text: '{}',
+        metadata: {
+          purpose: 'agent-model-compare',
+          comparisonId: 'cmp_hidden',
+          candidateCount: 2,
+          completedCandidates: 2,
+          revealIncludedInTranscript: false,
+        },
+      });
+      await artifacts.store.create({
+        kind: 'data',
+        mimeType: 'application/json',
+        filename: 'blind-model-comparison-judgment-hidden.json',
+        text: '{}',
+        metadata: {
+          purpose: 'agent-model-compare-judgment',
+          judgmentId: 'judgment-hidden',
+          comparisonId: 'cmp_hidden',
+          sourceArtifactId: savedComparison.id,
+          winnerBlindId: 'A',
+          revealIncludedInJudgment: false,
+        },
+      });
+      const revealedJudgment = await artifacts.store.create({
+        kind: 'data',
+        mimeType: 'application/json',
+        filename: 'blind-model-comparison-judgment-revealed.json',
+        text: '{}',
+        metadata: {
+          purpose: 'agent-model-compare-judgment',
+          judgmentId: 'judgment-revealed',
+          comparisonId: 'cmp_revealed',
+          winnerBlindId: 'B',
+          winnerModel: 'openai:gpt-4.1',
+          revealIncludedInJudgment: true,
+        },
+      });
+      await artifacts.store.create({
+        kind: 'data',
+        mimeType: 'text/markdown',
+        filename: 'blind-model-comparison-handoff-missing.md',
+        text: '# Handoff',
+        metadata: {
+          purpose: 'agent-model-compare-handoff',
+          handoffId: 'handoff-missing',
+          comparisonId: 'cmp_revealed',
+          sourceArtifactId: revealedJudgment.id,
+          sourceKind: 'judgment',
+          relatedArtifactIds: [],
+          revealIncludedInHandoff: true,
+        },
+      });
       const summary = await executeHarnessJson<{
-        readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly partial: number; readonly gap: number };
+        readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly attention: number; readonly partial: number; readonly gap: number };
       }>(fixture, { mode: 'summary' });
-      expect(summary.documentOps?.lanes).toBe(7);
+      expect(summary.documentOps?.lanes).toBe(8);
       expect(summary.documentOps?.ready).toBeGreaterThanOrEqual(2);
+      expect(summary.documentOps?.attention).toBeGreaterThanOrEqual(1);
       expect(summary.documentOps?.partial).toBeGreaterThanOrEqual(1);
       expect(summary.documentOps?.gap).toBe(0);
 
       const ops = await executeHarnessJson<{
+        readonly reviewerReadiness?: {
+          readonly status: string;
+          readonly summary: {
+            readonly openComments: number;
+            readonly proposedSuggestions: number;
+            readonly documentsMissingSourceArtifacts: number;
+            readonly unrevealedComparisons: number;
+            readonly hiddenJudgments: number;
+            readonly revealedJudgments: number;
+            readonly handoffsMissingRelatedArtifacts: number;
+          };
+          readonly checks: readonly {
+            readonly id: string;
+            readonly status: string;
+            readonly count: number;
+            readonly inspectRoute: string;
+            readonly repairRoute?: string;
+          }[];
+        };
         readonly lanes: readonly {
           readonly id: string;
           readonly status: string;
           readonly current: string;
+          readonly reviewerReadiness?: {
+            readonly status: string;
+            readonly checks: readonly {
+              readonly id: string;
+              readonly status: string;
+              readonly count: number;
+              readonly repairRoute?: string;
+            }[];
+          };
           readonly actionIds?: readonly string[];
         }[];
         readonly policy: string;
@@ -4171,6 +4269,7 @@ describe('agent_harness tool', () => {
       const documents = ops.lanes.find((lane) => lane.id === 'documents');
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
       const exports = ops.lanes.find((lane) => lane.id === 'exports');
+      const reviewerReadiness = ops.lanes.find((lane) => lane.id === 'reviewer_readiness');
       const sourceLibrary = ops.lanes.find((lane) => lane.id === 'source_library');
       const artifactBrowser = ops.lanes.find((lane) => lane.id === 'artifact_browser');
       const modelCompare = ops.lanes.find((lane) => lane.id === 'model_compare');
@@ -4194,6 +4293,28 @@ describe('agent_harness tool', () => {
       expect(uploads?.actionIds).toContain('document-ingest-file');
       expect(exports?.status).toBe('ready');
       expect(exports?.actionIds).toContain('document-export-conversation');
+      expect(reviewerReadiness?.status).toBe('attention');
+      expect(reviewerReadiness?.current).toContain('1 open comment');
+      expect(reviewerReadiness?.actionIds).toContain('document-resolve-comment');
+      expect(reviewerReadiness?.actionIds).toContain('document-accept-suggestion');
+      expect(reviewerReadiness?.actionIds).toContain('document-apply-compare');
+      expect(ops.reviewerReadiness?.status).toBe('attention');
+      expect(ops.reviewerReadiness?.summary.openComments).toBe(1);
+      expect(ops.reviewerReadiness?.summary.proposedSuggestions).toBe(1);
+      expect(ops.reviewerReadiness?.summary.documentsMissingSourceArtifacts).toBe(1);
+      expect(ops.reviewerReadiness?.summary.unrevealedComparisons).toBe(1);
+      expect(ops.reviewerReadiness?.summary.hiddenJudgments).toBe(1);
+      expect(ops.reviewerReadiness?.summary.revealedJudgments).toBe(1);
+      expect(ops.reviewerReadiness?.summary.handoffsMissingRelatedArtifacts).toBe(1);
+      const reviewCheck = ops.reviewerReadiness?.checks.find((check) => check.id === 'document-review-state');
+      const revealCheck = ops.reviewerReadiness?.checks.find((check) => check.id === 'comparison-reveal');
+      const routeDecisionCheck = ops.reviewerReadiness?.checks.find((check) => check.id === 'route-change-decision');
+      const handoffCheck = ops.reviewerReadiness?.checks.find((check) => check.id === 'handoff-archive-evidence');
+      expect(reviewCheck?.status).toBe('attention');
+      expect(reviewCheck?.repairRoute).toContain('resolveComment');
+      expect(revealCheck?.repairRoute).toContain('agent_model_compare reveal');
+      expect(routeDecisionCheck?.repairRoute).toContain(`artifactId:"${revealedJudgment.id}"`);
+      expect(handoffCheck?.repairRoute).toContain('relatedArtifactIds');
       expect(sourceLibrary?.status).toBe('ready');
       expect(artifactBrowser?.status).toBe('ready');
       expect(artifactBrowser?.current).toContain('unified artifact browser');
@@ -4234,6 +4355,17 @@ describe('agent_harness tool', () => {
       expect(lane.id).toBe('model_compare');
       expect(lane.status).toBe('partial');
       expect(lane.routes?.model).toBe('agent_model_compare');
+
+      const reviewerLane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly reviewerReadiness?: {
+          readonly checks: readonly { readonly id: string; readonly repairRoute?: string }[];
+        };
+      }>(fixture, { mode: 'document_ops_lane', laneId: 'reviewer_readiness' });
+      expect(reviewerLane.id).toBe('reviewer_readiness');
+      expect(reviewerLane.status).toBe('attention');
+      expect(reviewerLane.reviewerReadiness?.checks.find((check) => check.id === 'source-artifacts')?.repairRoute).toContain('attachArtifact');
     } finally {
       fixture.cleanup();
     }

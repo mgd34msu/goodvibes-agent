@@ -213,7 +213,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     researchWorkflow: 'Start mode:"research_workflow" for deep-research route planning; it sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
     researchRuns: 'List mode:"research_runs"; inspect mode:"research_run"; checkpoint/cancel/complete uses agent_research_runs, reports use agent_research_report.',
     researchQueue: 'List mode:"research_queue"; inspect mode:"research_source"; capture/review uses agent_research_sources, reports use agent_research_report, ingest uses agent_knowledge_ingest.',
-    documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare.',
+    documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, reviewer readiness, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
     securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
