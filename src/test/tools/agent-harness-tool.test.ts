@@ -2376,6 +2376,11 @@ describe('agent_harness tool', () => {
         expect(result.output, action.id).toContain('"fields"');
         expect(result.output, action.id).toContain('"modelExecution"');
       }
+
+      const compare = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'document-run-compare' });
+      expect(compare.success).toBe(true);
+      expect(compare.output).toContain('"id": "artifactId"');
+      expect(compare.output).toContain('Optional saved text artifact id');
     } finally {
       fixture.cleanup();
     }

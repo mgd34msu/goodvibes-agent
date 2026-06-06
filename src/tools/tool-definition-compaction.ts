@@ -42,7 +42,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent_channel_send: 'Send confirmed message to configured Agent target.',
   agent_notify: 'Send one confirmed plain-text notification.',
   agent_media_generate: 'Generate one confirmed image or video artifact.',
-  agent_model_compare: 'Blind compare workflow, export, and analytics.',
+  agent_model_compare: 'Blind compare prompts or artifacts, export, analytics.',
 };
 
 function compactText(value: string, limit: number): string {

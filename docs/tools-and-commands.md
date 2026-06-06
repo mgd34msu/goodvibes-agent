@@ -47,7 +47,7 @@ High-signal TUI routes:
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |
 | `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
 | `agent_media_generate` | Generate one confirmed image/video artifact. |
-| `agent_model_compare` | Run, review, judge, analytics, apply, export, or reveal one blind model comparison. |
+| `agent_model_compare` | Run, review, judge, analytics, apply, export, or reveal one blind model comparison, optionally from a saved text artifact. |
 
 ## `agent_harness`
 

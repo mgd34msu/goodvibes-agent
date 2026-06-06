@@ -89,6 +89,7 @@ interface StoredComparison {
   readonly createdAt: string;
   readonly promptPreview: string;
   readonly rubric: string;
+  readonly sourceArtifact?: SavedComparisonArtifact;
   readonly candidates: readonly CompareCandidateResult[];
   readonly artifact?: SavedComparisonArtifact;
   readonly artifactStatus?: ComparisonArtifactStatus;
@@ -136,6 +137,7 @@ const DEFAULT_CANDIDATE_COUNT = 2;
 const DEFAULT_MAX_TOKENS = 2_048;
 const MAX_COMPLETION_TOKENS = 8_192;
 const DEFAULT_CANDIDATE_OUTPUT_CHARS = 12_000;
+const MAX_SOURCE_ARTIFACT_BYTES = 18_000;
 const COMPARISON_STORE_LIMIT = 25;
 const BLIND_LABELS = ['A', 'B', 'C', 'D'] as const;
 
@@ -181,6 +183,18 @@ function previewText(value: string, limit = 96): string {
   const normalized = value.replace(/\s+/g, ' ').trim();
   if (normalized.length <= limit) return normalized;
   return `${normalized.slice(0, limit - 3).trimEnd()}...`;
+}
+
+function isTextLike(mimeType: string): boolean {
+  const normalized = mimeType.toLowerCase();
+  return normalized.startsWith('text/')
+    || normalized.includes('json')
+    || normalized.includes('xml')
+    || normalized.includes('yaml')
+    || normalized.includes('csv')
+    || normalized.includes('javascript')
+    || normalized.includes('typescript')
+    || normalized.includes('markdown');
 }
 
 function readModelRefs(value: unknown): readonly string[] {
@@ -391,6 +405,7 @@ function formatReveal(comparison: StoredComparison): string {
     `Blind model comparison reveal ${comparison.comparisonId}`,
     `created ${comparison.createdAt}`,
     `prompt ${comparison.promptPreview}`,
+    ...(comparison.sourceArtifact ? [`source artifact ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
     ...(comparison.artifact ? [`artifact ${comparison.artifact.artifactId} (${comparison.artifact.mimeType}, ${comparison.artifact.sizeBytes} bytes)`] : []),
     '',
     ...comparison.candidates.map((candidate) => `${candidate.blindId}: ${candidate.model.registryKey} (${candidate.model.displayName})`),
@@ -468,6 +483,7 @@ function formatReview(comparison: StoredComparison, reveal: boolean): string {
     `created ${comparison.createdAt}`,
     `prompt ${comparison.promptPreview}`,
     `rubric ${comparison.rubric || '(none)'}`,
+    ...(comparison.sourceArtifact ? [`source artifact ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
     formatArtifactStatus(comparison),
     '',
     'Review board',
@@ -805,6 +821,7 @@ function comparisonExportMarkdown(comparison: StoredComparison, reveal: boolean)
     `Created: ${comparison.createdAt}`,
     `Prompt: ${comparison.promptPreview}`,
     `Rubric: ${comparison.rubric || '(none)'}`,
+    ...(comparison.sourceArtifact ? [`Source artifact: ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
     `Reveal included: ${reveal ? 'yes' : 'no'}`,
     '',
     '## Candidates',
@@ -931,6 +948,7 @@ function formatRunResult(comparison: StoredComparison, reveal: boolean): string 
     `created ${comparison.createdAt}`,
     `prompt ${comparison.promptPreview}`,
     `rubric ${comparison.rubric || '(none)'}`,
+    ...(comparison.sourceArtifact ? [`source artifact ${comparison.sourceArtifact.artifactId} (${comparison.sourceArtifact.mimeType}, ${comparison.sourceArtifact.sizeBytes} bytes)`] : []),
     `candidates ${comparison.candidates.length}; completed ${completed}; reveal ${reveal ? 'included' : 'hidden'}`,
     formatArtifactStatus(comparison),
     '',
@@ -958,6 +976,7 @@ function formatPreview(
   return [
     'Agent blind model comparison preview',
     `  prompt ${previewText(readString(args.prompt) || '(missing)')}`,
+    ...(readString(args.artifactId) ? [`  source artifact ${readString(args.artifactId)}`] : []),
     `  candidates ${refs.length > 0 ? refs.length : candidateCount}`,
     `  selection ${refs.length > 0 ? 'user supplied model refs' : 'auto-select from selectable models'}`,
     `  rubric ${previewText(readString(args.rubric) || '(none)')}`,
@@ -1023,6 +1042,7 @@ function comparisonArtifactText(input: {
     createdAt: input.comparison.createdAt,
     prompt: input.prompt,
     promptPreview: input.comparison.promptPreview,
+    ...(input.comparison.sourceArtifact ? { sourceArtifact: input.comparison.sourceArtifact } : {}),
     ...(input.systemPrompt ? { systemPrompt: input.systemPrompt } : {}),
     maxTokens: input.maxTokens,
     rubric: input.comparison.rubric,
@@ -1042,6 +1062,50 @@ function toSavedComparisonArtifact(descriptor: ArtifactDescriptor): SavedCompari
     ...(descriptor.filename ? { filename: descriptor.filename } : {}),
     mimeType: descriptor.mimeType,
     sizeBytes: descriptor.sizeBytes,
+  };
+}
+
+async function loadRunSourceArtifact(
+  artifactStore: AgentModelCompareArtifactStore | undefined,
+  artifactId: string,
+): Promise<{ readonly artifact: SavedComparisonArtifact; readonly promptBlock: string }> {
+  if (!artifactStore?.readContent) {
+    throw new Error('Saved artifact comparison requires an artifact store with readContent support.');
+  }
+  const { record, buffer } = await artifactStore.readContent(artifactId);
+  if (!isTextLike(record.mimeType)) {
+    throw new Error(`Saved artifact ${record.id} is ${record.mimeType}; blind comparison can only inline text-like artifacts.`);
+  }
+  const sliced = buffer.subarray(0, Math.min(buffer.byteLength, MAX_SOURCE_ARTIFACT_BYTES));
+  const text = sliced.toString('utf-8').replace(/\0/g, '').trim();
+  const lines = [
+    'Saved artifact context',
+    `Artifact ID: ${record.id}`,
+    `Filename: ${record.filename ?? '(none)'}`,
+    `MIME: ${record.mimeType}`,
+    '',
+    text || '(empty text artifact)',
+  ];
+  if (buffer.byteLength > sliced.byteLength) {
+    lines.push('', `[Artifact content truncated at ${MAX_SOURCE_ARTIFACT_BYTES} bytes.]`);
+  }
+  return {
+    artifact: toSavedComparisonArtifact(record),
+    promptBlock: lines.join('\n'),
+  };
+}
+
+async function buildRunPromptFromArtifact(input: {
+  readonly artifactStore?: AgentModelCompareArtifactStore;
+  readonly prompt: string;
+  readonly artifactId: string;
+}): Promise<{ readonly prompt: string; readonly sourceArtifact?: SavedComparisonArtifact }> {
+  if (!input.artifactId) return { prompt: input.prompt };
+  const loaded = await loadRunSourceArtifact(input.artifactStore, input.artifactId);
+  const instruction = input.prompt || 'Compare model responses using the saved artifact context below.';
+  return {
+    prompt: [instruction, '', loaded.promptBlock].join('\n'),
+    sourceArtifact: loaded.artifact,
   };
 }
 
@@ -1073,6 +1137,7 @@ async function saveComparisonArtifact(input: {
         purpose: 'agent-model-compare',
         comparisonId: input.comparison.comparisonId,
         promptPreview: input.comparison.promptPreview,
+        ...(input.comparison.sourceArtifact ? { sourceArtifactId: input.comparison.sourceArtifact.artifactId } : {}),
         candidateCount: input.comparison.candidates.length,
         completedCandidates: input.comparison.candidates.filter((candidate) => candidate.status === 'completed').length,
         revealStored: true,
@@ -1151,11 +1216,21 @@ function parseComparisonArtifactPayload(
     .filter((candidate): candidate is CompareCandidateResult => candidate !== null);
   if (candidates.length === 0) return null;
   const prompt = readString(payload.prompt);
+  const sourceArtifact = readRecord(payload.sourceArtifact);
+  const sourceArtifactId = readString(sourceArtifact?.artifactId);
   return {
     comparisonId: readString(payload.comparisonId) || `cmp_from_${artifact.artifactId}`,
     createdAt: readString(payload.createdAt) || new Date().toISOString(),
     promptPreview: readString(payload.promptPreview) || previewText(prompt || '(prompt unavailable)', 160),
     rubric: readString(payload.rubric),
+    ...(sourceArtifactId ? {
+      sourceArtifact: {
+        artifactId: sourceArtifactId,
+        ...(readString(sourceArtifact?.filename) ? { filename: readString(sourceArtifact?.filename) } : {}),
+        mimeType: readString(sourceArtifact?.mimeType) || 'application/octet-stream',
+        sizeBytes: Math.max(0, readNumber(sourceArtifact?.sizeBytes, 0)),
+      },
+    } : {}),
     candidates,
     artifact,
     artifactStatus: { state: 'saved', message: `loaded from ${artifact.artifactId}` },
@@ -1201,7 +1276,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Blind compare workflow, export, and analytics.',
+      description: 'Blind compare prompts or saved text artifacts.',
       parameters: {
         type: 'object',
         properties: {
@@ -1249,7 +1324,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           },
           artifactId: {
             type: 'string',
-            description: 'Saved comparison or judgment artifact id.',
+            description: 'Run source artifact, saved comparison, or judgment artifact id.',
           },
           winnerBlindId: {
             type: 'string',
@@ -1480,12 +1555,12 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           }));
         }
 
-        const prompt = readString(args.prompt);
+        const promptInput = readString(args.prompt);
         const explicitUserRequest = readString(args.explicitUserRequest);
+        const sourceArtifactId = readString(args.artifactId);
         const refs = readModelRefs(args.modelRefs);
         const candidateCount = clamp(readNumber(args.candidateCount, DEFAULT_CANDIDATE_COUNT), MIN_CANDIDATES, MAX_CANDIDATES);
-        if (!prompt) return failure('prompt is required.');
-        if (prompt.length > MAX_PROMPT_CHARS) return failure(`prompt exceeds ${MAX_PROMPT_CHARS} characters.`);
+        if (!promptInput && !sourceArtifactId) return failure('prompt or artifactId is required.');
         if (!explicitUserRequest) {
           return failure('explicitUserRequest is required so model comparison stays tied to a direct user request.');
         }
@@ -1496,6 +1571,13 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to run this comparison.',
           ].join('\n'));
         }
+        const runPrompt = await buildRunPromptFromArtifact({
+          artifactStore: deps.artifactStore,
+          prompt: promptInput,
+          artifactId: sourceArtifactId,
+        });
+        const prompt = runPrompt.prompt;
+        if (prompt.length > MAX_PROMPT_CHARS) return failure(`prompt exceeds ${MAX_PROMPT_CHARS} characters.`);
 
         const maxTokens = clamp(readNumber(args.maxTokens, DEFAULT_MAX_TOKENS), 1, MAX_COMPLETION_TOKENS);
         const systemPrompt = readString(args.systemPrompt);
@@ -1514,6 +1596,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           createdAt: new Date().toISOString(),
           promptPreview: previewText(prompt, 160),
           rubric: readString(args.rubric),
+          ...(runPrompt.sourceArtifact ? { sourceArtifact: runPrompt.sourceArtifact } : {}),
           candidates: results,
         };
         const saved = await saveComparisonArtifact({

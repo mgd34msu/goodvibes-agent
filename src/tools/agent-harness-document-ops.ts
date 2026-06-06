@@ -221,7 +221,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Agent has project-scoped markdown document drafts with version history, review status, review comments, AI suggestion review, read-only inspection, confirmed artifact insertion, and confirmed artifact export.'
         : 'Agent can draft and revise documents in the main conversation and export transcript/session artifacts, but the dedicated markdown draft tool is not fully wired.',
       next: documentsReady
-        ? 'Add richer attach/export/compare reuse targets on top of versioned drafts, comments, suggestions, and artifact insertion.'
+        ? 'Add richer attach/export reuse targets on top of versioned drafts, comments, suggestions, artifact insertion, and artifact-backed comparison.'
         : 'Wire agent_documents plus browse/show/create/revise/review/export workspace actions.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Create document draft',
       modelRoute: documentsReady ? 'agent_documents' : 'agent_harness mode:"workspace_actions" categoryId:"documents"',
@@ -330,10 +330,10 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: modelCompareReady ? 'partial' : 'gap',
       outcome: 'Run the same prompt across multiple models, hide model identities while judging, save a judgment, then apply the revealed winner only after confirmation.',
       current: modelCompareReady
-        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics, markdown report export, and a separate confirmed winner route update.'
+        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt or saved text artifact delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, confirmed saved judgment artifacts, saved preference analytics, markdown report export, and a separate confirmed winner route update.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
-        ? 'Build cross-session synthesis around saved comparison, judgment, analytics, export, and route-update artifacts.'
+        ? 'Build cross-session synthesis around saved comparison, judgment, analytics, export, route-update, and source-artifact reuse artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
@@ -341,6 +341,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Current model ${snapshot.provider} / ${snapshot.modelDisplayName}`,
         `Blind compare runner: ${modelCompareReady ? 'available' : 'gap'}`,
         `Saved comparison artifact: ${modelCompareReady && context.platform.artifactStore ? 'available' : 'gap'}`,
+        `Artifact-to-compare reuse: ${modelCompareActions.includes('document-run-compare') ? 'available' : 'gap'}`,
         `Saved review board: ${modelCompareActions.includes('document-review-compare') ? 'available' : 'gap'}`,
         `Saved judgment artifact: ${modelCompareActions.includes('document-judge-compare') ? 'available' : 'gap'}`,
         `Saved preference analytics: ${modelCompareActions.includes('document-compare-analytics') ? 'available' : 'gap'}`,

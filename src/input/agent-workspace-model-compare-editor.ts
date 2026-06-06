@@ -5,6 +5,7 @@ type AgentWorkspaceFieldReader = (fieldId: string) => string;
 export interface AgentModelCompareWorkspaceToolArgs {
   readonly mode: 'run';
   readonly prompt: string;
+  readonly artifactId?: string;
   readonly modelRefs?: readonly string[];
   readonly candidateCount?: number;
   readonly rubric?: string;
@@ -84,6 +85,7 @@ export function createAgentModelCompareEditor(): AgentWorkspaceLocalEditor {
     message: 'Run one prompt against two to four selectable models and save a local JSON review artifact. Leave models blank to auto-select candidates. Type yes on the final field to confirm.',
     fields: [
       { id: 'prompt', label: 'Prompt', value: '', required: true, multiline: true, hint: 'Exact prompt sent identically to every candidate model. Ctrl-J inserts a new line.' },
+      { id: 'artifactId', label: 'Source artifact', value: '', required: false, multiline: false, hint: 'Optional saved text artifact id to include identically in the candidate prompt.' },
       { id: 'modelRefs', label: 'Models', value: '', required: false, multiline: true, hint: 'Optional registry keys or model ids, separated by commas or new lines. Blank auto-selects.' },
       { id: 'candidateCount', label: 'Auto count', value: '2', required: false, multiline: false, hint: 'Used only when Models is blank. 2 to 4.' },
       { id: 'rubric', label: 'Rubric', value: '', required: false, multiline: true, hint: 'Optional judging rubric shown with blinded results.' },
@@ -177,6 +179,7 @@ export function buildAgentModelCompareToolArgs(
   explicitUserRequest: string,
 ): AgentModelCompareWorkspaceToolArgs {
   const prompt = readField('prompt').trim();
+  const artifactId = readField('artifactId').trim();
   const modelRefs = readList(readField('modelRefs'));
   const candidateCount = readPositiveInteger(readField('candidateCount'));
   const rubric = readField('rubric').trim();
@@ -187,6 +190,7 @@ export function buildAgentModelCompareToolArgs(
   return {
     mode: 'run',
     prompt,
+    ...(artifactId ? { artifactId } : {}),
     ...(modelRefs.length > 0 ? { modelRefs } : {}),
     ...(candidateCount !== null ? { candidateCount } : {}),
     ...(rubric ? { rubric } : {}),
@@ -318,6 +322,7 @@ export function buildAgentModelComparePromptSubmission(
   }
 
   const modelRefs = readList(readField('modelRefs'));
+  const artifactId = readField('artifactId').trim();
   const candidateCount = readPositiveInteger(readField('candidateCount')) ?? 2;
   const reveal = isAffirmative(readField('reveal'));
   const rubric = readField('rubric').trim();
@@ -331,6 +336,8 @@ export function buildAgentModelComparePromptSubmission(
     '',
     'Candidate prompt:',
     quoteBlock(readField('prompt')),
+    '',
+    artifactId ? `Source artifact id: ${artifactId}.` : 'Source artifact id: none.',
     '',
     modelRefs.length > 0
       ? `Candidate models: ${modelRefs.join(', ')}.`

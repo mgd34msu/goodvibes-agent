@@ -176,7 +176,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
       {
         area: 'Documents and artifacts',
-        can: 'Create, revise, version, review, comment on, suggest changes to, insert saved artifacts into, and export Agent document drafts; browse saved artifacts; promote reviewed artifacts into isolated Agent Knowledge; handle uploads, source checks, generated media artifacts, and run confirmed blind model comparisons with durable review, judgment, and route-update actions.',
+        can: 'Create, revise, version, review, comment on, suggest changes to, insert saved artifacts into, and export Agent document drafts; browse saved artifacts; promote reviewed artifacts into isolated Agent Knowledge; handle uploads, source checks, generated media artifacts, and run confirmed blind model comparisons from prompts or saved text artifacts with durable review, judgment, and route-update actions.',
         tools: [optionalTool('agent_harness'), optionalTool('agent_documents'), optionalTool('agent_artifacts'), optionalTool('agent_knowledge'), optionalTool('agent_knowledge_ingest'), optionalTool('agent_media_generate'), optionalTool('agent_model_compare')],
         inspect: 'agent_harness mode:"document_ops"',
       },

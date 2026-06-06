@@ -253,6 +253,75 @@ describe('agent_model_compare tool', () => {
     expect(payload.candidates?.[0]?.content).toBe('Candidate A style answer.');
   });
 
+  test('runs blind comparison from a saved text artifact as shared prompt context', async () => {
+    const artifacts = artifactStore();
+    const source = await artifacts.store.create({
+      kind: 'document',
+      mimeType: 'text/markdown',
+      filename: 'launch-brief.md',
+      text: 'Launch facts: ship the safer artifact reuse workflow.',
+      metadata: { purpose: 'source-brief' },
+    });
+    const item = fixture({ artifactStore: artifacts.store });
+
+    const result = await item.tool.execute({
+      mode: 'run',
+      artifactId: source.id,
+      prompt: 'Write a concise launch summary from the saved artifact.',
+      modelRefs: ['openai:gpt-4.1', 'anthropic:claude-sonnet'],
+      rubric: 'Prefer faithful use of saved source facts.',
+      confirm: true,
+      explicitUserRequest: 'Compare summaries from the saved launch brief artifact.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain(`source artifact ${source.id}`);
+    expect(result.output).toContain('artifact artifact-2 blind-model-comparison-');
+    expect(result.output).not.toContain('openai:gpt-4.1');
+    expect(item.openai.calls[0]?.messages).toEqual(item.anthropic.calls[0]?.messages);
+    const prompt = item.openai.calls[0]?.messages[0]?.content;
+    expect(prompt).toContain('Write a concise launch summary from the saved artifact.');
+    expect(prompt).toContain('Saved artifact context');
+    expect(prompt).toContain(`Artifact ID: ${source.id}`);
+    expect(prompt).toContain('Launch facts: ship the safer artifact reuse workflow.');
+    expect(artifacts.inputs).toHaveLength(2);
+    expect(artifacts.inputs[1]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare',
+      sourceArtifactId: source.id,
+    });
+    const payload = JSON.parse(artifacts.inputs[1]?.text ?? '{}') as {
+      readonly sourceArtifact?: { readonly artifactId?: string };
+      readonly prompt?: string;
+    };
+    expect(payload.sourceArtifact?.artifactId).toBe(source.id);
+    expect(payload.prompt).toContain('Launch facts: ship the safer artifact reuse workflow.');
+  });
+
+  test('rejects non-text source artifacts for blind comparison prompts', async () => {
+    const artifacts = artifactStore();
+    const image = await artifacts.store.create({
+      kind: 'image',
+      mimeType: 'image/png',
+      filename: 'image.png',
+      text: '',
+      metadata: { purpose: 'generated-image' },
+    });
+    const item = fixture({ artifactStore: artifacts.store });
+
+    const result = await item.tool.execute({
+      mode: 'run',
+      artifactId: image.id,
+      prompt: 'Compare descriptions of this saved image.',
+      confirm: true,
+      explicitUserRequest: 'Compare a saved image artifact.',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('can only inline text-like artifacts');
+    expect(item.openai.calls).toEqual([]);
+    expect(item.anthropic.calls).toEqual([]);
+  });
+
   test('reviews and reveals a saved comparison artifact across tool instances', async () => {
     const artifacts = artifactStore();
     const runner = fixture({ artifactStore: artifacts.store });
