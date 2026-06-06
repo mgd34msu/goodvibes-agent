@@ -4,6 +4,7 @@ import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-sna
 import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-types.ts';
 import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import { agentHarnessVibeHealth } from './agent-harness-vibe-health.ts';
 
 type LearningCandidateStatus =
   | 'needs-review'
@@ -14,8 +15,9 @@ type LearningCandidateStatus =
   | 'ready-to-promote'
   | 'ready';
 type LocalLearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
-type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'research_run' | 'session' | 'capture';
+type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'research_run' | 'session' | 'capture' | 'vibe';
 type LearningProposalTarget = 'memory' | 'skill' | 'routine' | 'persona';
+type VibeCandidateKind = 'blocked' | 'truncated';
 
 interface SessionInfoLike {
   readonly name: string;
@@ -560,6 +562,81 @@ function captureCandidate(): LearningCandidate {
   };
 }
 
+function stableVibeIdSuffix(value: string): string {
+  const slug = value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 52) || 'vibe';
+  let hash = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = ((hash * 31) + value.charCodeAt(index)) >>> 0;
+  }
+  return `${slug}-${hash.toString(36)}`;
+}
+
+function vibeStatusRoute(): string {
+  return 'agent_harness mode:"run_command" command:"/vibe status" confirm:true explicitUserRequest:"Inspect VIBE.md personality status."';
+}
+
+function vibeCommandInspectRoute(): string {
+  return 'agent_harness mode:"command" commandName:"vibe"';
+}
+
+function vibeCandidate(
+  kind: VibeCandidateKind,
+  path: string,
+  scope: string,
+  reason: string,
+): LearningCandidate {
+  const isBlocked = kind === 'blocked';
+  return {
+    id: `vibe:${kind}:${stableVibeIdSuffix(path)}`,
+    label: `${isBlocked ? 'Blocked' : 'Truncated'} ${scope} VIBE.md`,
+    domain: 'vibe',
+    recordId: path,
+    status: isBlocked ? 'needs-setup' : 'needs-review',
+    priority: isBlocked ? 88 : 72,
+    reason,
+    next: isBlocked
+      ? 'Inspect /vibe status, edit or remove blocked content, then rerun status before relying on personality instructions.'
+      : 'Inspect /vibe status and shorten the file if omitted personality instructions matter for this user.',
+    scores: {
+      usefulness: 75,
+      freshness: isBlocked ? 45 : 58,
+      sourceQuality: scope === 'project' ? 76 : 70,
+      risk: isBlocked ? 86 : 58,
+    },
+    ...(isBlocked ? { missingRequirements: ['VIBE.md file is not loaded into the prompt until the blocked content is repaired.'] } : {}),
+    proposalFields: {
+      path,
+      scope,
+      kind,
+      reason: previewHarnessText(reason, 220),
+      statusRoute: vibeStatusRoute(),
+    },
+    inspectRoute: vibeStatusRoute(),
+    modelRoute: 'agent_harness mode:"learning_curator" query:"vibe"',
+    reviewRoute: vibeCommandInspectRoute(),
+    createRoute: 'agent_harness mode:"run_command" command:"/vibe init --yes" confirm:true explicitUserRequest:"Create or refresh the project VIBE.md starter."',
+  };
+}
+
+function vibeHealthCandidates(context: CommandContext): readonly LearningCandidate[] {
+  const health = agentHarnessVibeHealth(context);
+  return [
+    ...health.blockedFiles.map((file) => vibeCandidate('blocked', file.path, file.scope, file.reason)),
+    ...health.files
+      .filter((file) => file.truncated)
+      .map((file) => vibeCandidate(
+        'truncated',
+        file.path,
+        file.scope,
+        'VIBE.md was loaded, but only the first safe prompt budget was applied.',
+      )),
+  ];
+}
+
 function noteProposalTarget(item: AgentWorkspaceLocalLibraryItem): LearningProposalTarget | null {
   const tags = item.tags.map((tag) => tag.toLowerCase());
   const text = [item.name, item.description, ...tags].join('\n').toLowerCase();
@@ -1029,6 +1106,7 @@ function candidateSearchText(candidate: LearningCandidate): string {
     candidate.id,
     candidate.label,
     candidate.domain,
+    candidate.recordId ?? '',
     candidate.status,
     candidate.reason,
     candidate.next,
@@ -1058,6 +1136,7 @@ function buildLearningCandidates(context: CommandContext): readonly LearningCand
     ...workPlanCompletionCandidates(context),
     ...researchRunCompletionCandidates(context),
     ...sessionCompletionCandidates(context),
+    ...vibeHealthCandidates(context),
   ];
   if (candidates.length === 0) candidates.push(captureCandidate());
   return candidates.sort((left, right) => right.priority - left.priority || left.label.localeCompare(right.label));
@@ -1106,7 +1185,7 @@ function describeCandidate(candidate: LearningCandidate, includeParameters: bool
         create: candidate.createRoute ?? null,
         delete: candidate.deleteRoute ?? null,
       },
-      policy: 'Learning curator rows are read-only. Duplicate consolidation phases use agent_learning_consolidation with confirmation, while create, review, promote, enable, schedule, and non-batch local effects stay on existing confirmed routes.',
+      policy: 'Learning curator rows are read-only. VIBE.md personality issues route to existing /vibe inspection/init/import commands. Duplicate consolidation phases use agent_learning_consolidation with confirmation, while create, review, promote, enable, schedule, and non-batch local effects stay on existing confirmed routes.',
     } : {}),
   };
 }
@@ -1217,6 +1296,7 @@ export function learningCuratorCatalogStatus(context: CommandContext): Record<st
     needsConsolidation: candidates.filter((candidate) => candidate.status === 'needs-consolidation').length,
     lowConfidence: candidates.filter((candidate) => candidate.status === 'low-confidence').length,
     proposedBehavior: candidates.filter((candidate) => candidate.status === 'proposal-ready').length,
+    personalityIssues: candidates.filter((candidate) => candidate.domain === 'vibe').length,
     readyToPromote: candidates.filter((candidate) => candidate.status === 'ready-to-promote').length,
     readOnly: true,
   };
@@ -1237,6 +1317,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
       needsConsolidation: all.filter((candidate) => candidate.status === 'needs-consolidation').length,
       lowConfidence: all.filter((candidate) => candidate.status === 'low-confidence').length,
       proposedBehavior: all.filter((candidate) => candidate.status === 'proposal-ready').length,
+      personalityIssues: all.filter((candidate) => candidate.domain === 'vibe').length,
       readyToPromote: all.filter((candidate) => candidate.status === 'ready-to-promote').length,
       ready: all.filter((candidate) => candidate.status === 'ready').length,
     },
@@ -1245,7 +1326,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, saved sessions, duplicate consolidation, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, saved sessions, VIBE.md personality health cards, duplicate consolidation, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 

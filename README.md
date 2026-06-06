@@ -98,7 +98,7 @@ Registered model tool definitions are compact by default. Top-level descriptions
 
 ## Local Behavior
 
-VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, and applied to the serial Agent conversation without requiring persona-registry ceremony. Formal Agent-local memory, notes, personas, skills, routines, and profiles remain stored under the Agent home and are injected only into the serial Agent conversation unless an explicit Agent workflow promotes or ingests reviewed material elsewhere.
+VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, surfaced in setup and the learning curator when blocked or truncated, and applied to the serial Agent conversation without requiring persona-registry ceremony. Formal Agent-local memory, notes, personas, skills, routines, and profiles remain stored under the Agent home and are injected only into the serial Agent conversation unless an explicit Agent workflow promotes or ingests reviewed material elsewhere.
 
 Useful workspace paths:
 

@@ -1200,6 +1200,97 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('surfaces VIBE.md personality health in setup and learning curator', async () => {
+    const fixture = makeFixture();
+    try {
+      writeFileSync(join(fixture.root, 'VIBE.md'), '# Project VIBE\n\napi_key=supersecretvalue\n');
+      const globalVibePath = fixture.paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'VIBE.md');
+      mkdirSync(join(fixture.root, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT), { recursive: true });
+      writeFileSync(globalVibePath, `# Global VIBE\n\n${'Prefer calm direct answers. '.repeat(420)}\n`);
+
+      const posture = await executeHarnessJson<{
+        readonly readinessPlan: readonly {
+          readonly setupItemId: string;
+          readonly status: string;
+          readonly priority: number;
+          readonly signals?: readonly string[];
+          readonly primaryHandoff?: { readonly id: string; readonly modelRoute: string };
+          readonly handoffs?: readonly { readonly id: string; readonly requiresConfirmation?: boolean }[];
+          readonly vibeHealth?: {
+            readonly applied: number;
+            readonly blocked: number;
+            readonly truncated: number;
+            readonly files: readonly { readonly path: string; readonly truncated?: boolean }[];
+            readonly blockedFiles: readonly { readonly path: string; readonly reason: string }[];
+          };
+        }[];
+      }>(fixture, { mode: 'setup_posture', includeParameters: true });
+      const vibeItem = posture.readinessPlan.find((item) => item.setupItemId === 'vibe-personality');
+      expect(vibeItem?.status).toBe('check');
+      expect(vibeItem?.priority).toBe(35);
+      expect(vibeItem?.signals?.join('\n')).toContain('blocked VIBE.md files: 1');
+      expect(vibeItem?.signals?.join('\n')).toContain('truncated VIBE.md files: 1');
+      expect(vibeItem?.primaryHandoff?.id).toBe('inspect-vibe-status');
+      expect(vibeItem?.primaryHandoff?.modelRoute).toContain('commandName:"vibe"');
+      expect(vibeItem?.handoffs?.some((handoff) => handoff.id === 'init-project-vibe' && handoff.requiresConfirmation)).toBe(true);
+      expect(vibeItem?.handoffs?.some((handoff) => handoff.id === 'import-vibe-persona' && handoff.requiresConfirmation)).toBe(true);
+      expect(vibeItem?.vibeHealth?.applied).toBe(1);
+      expect(vibeItem?.vibeHealth?.blocked).toBe(1);
+      expect(vibeItem?.vibeHealth?.truncated).toBe(1);
+      expect(vibeItem?.vibeHealth?.files[0]?.path).toBe(globalVibePath);
+      expect(vibeItem?.vibeHealth?.files[0]?.truncated).toBe(true);
+      expect(vibeItem?.vibeHealth?.blockedFiles[0]?.path).toBe(join(fixture.root, 'VIBE.md'));
+      expect(vibeItem?.vibeHealth?.blockedFiles[0]?.reason).toContain('secret-looking');
+
+      const summary = await executeHarnessJson<{
+        readonly learningCurator?: { readonly personalityIssues: number; readonly needsReview: number; readonly needsSetup: number };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.learningCurator?.personalityIssues).toBe(2);
+      expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
+      expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
+
+      const curator = await executeHarnessJson<{
+        readonly summary: { readonly personalityIssues: number };
+        readonly candidates: readonly {
+          readonly candidateId: string;
+          readonly domain: string;
+          readonly status: string;
+          readonly recordId: string;
+          readonly proposalFields?: Record<string, string>;
+          readonly inspectRoute: string;
+          readonly reviewRoute?: string;
+          readonly createRoute?: string;
+        }[];
+        readonly policy: string;
+      }>(fixture, { mode: 'learning_curator', query: 'vibe', includeParameters: true });
+      expect(curator.summary.personalityIssues).toBe(2);
+      expect(curator.policy).toContain('VIBE.md personality health');
+      expectRowsHaveCompactModelRoutes(curator.candidates);
+      const blocked = curator.candidates.find((candidate) => candidate.status === 'needs-setup');
+      const truncated = curator.candidates.find((candidate) => candidate.status === 'needs-review');
+      expect(blocked?.domain).toBe('vibe');
+      expect(blocked?.recordId).toBe(join(fixture.root, 'VIBE.md'));
+      expect(blocked?.proposalFields?.reason).toContain('secret-looking');
+      expect(blocked?.inspectRoute).toContain('/vibe status');
+      expect(blocked?.reviewRoute).toContain('commandName:"vibe"');
+      expect(blocked?.createRoute).toContain('/vibe init');
+      expect(truncated?.domain).toBe('vibe');
+      expect(truncated?.recordId).toBe(globalVibePath);
+
+      const detail = await executeHarnessJson<{
+        readonly candidateId: string;
+        readonly domain: string;
+        readonly routes?: { readonly inspect: string; readonly review: string | null; readonly create: string | null };
+      }>(fixture, { mode: 'learning_candidate', candidateId: blocked?.candidateId });
+      expect(detail.domain).toBe('vibe');
+      expect(detail.routes?.inspect).toContain('/vibe status');
+      expect(detail.routes?.review).toContain('commandName:"vibe"');
+      expect(detail.routes?.create).toContain('/vibe init');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('saves redacted setup smoke evidence artifacts when user-run output is provided', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });

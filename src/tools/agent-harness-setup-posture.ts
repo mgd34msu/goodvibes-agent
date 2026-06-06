@@ -16,6 +16,7 @@ import { localModelCookbook } from './agent-harness-model-routing.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
 import { connectedHostOperatorTokenFingerprint, connectedHostOperatorTokenPath, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
+import { agentHarnessVibeHealth, type AgentHarnessVibeHealth } from './agent-harness-vibe-health.ts';
 
 export interface AgentHarnessSetupArgs {
   readonly setupItemId?: unknown;
@@ -69,6 +70,7 @@ interface SetupPlanItem {
   readonly authPosture?: SetupConnectedHostAuthPosture;
   readonly installSmokePlan?: SetupInstallSmokePlan;
   readonly localModelReadiness?: Record<string, unknown>;
+  readonly vibeHealth?: AgentHarnessVibeHealth;
 }
 
 interface SetupRepairCard {
@@ -1518,6 +1520,52 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           requiresConfirmation: true,
         }),
       ];
+    case 'vibe-personality':
+      return [
+        setupHandoff({
+          id: 'inspect-vibe-status',
+          label: 'Inspect VIBE.md status',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"command" commandName:"vibe"',
+          nextStep: 'Review applied, blocked, and truncated VIBE.md personality files before relying on custom assistant tone.',
+          safety: 'Read-only command inspection and setup posture; blocked VIBE.md content is not loaded into the prompt.',
+        }),
+        setupHandoff({
+          id: 'show-vibe-status',
+          label: 'Show VIBE.md status',
+          kind: 'confirmed-route',
+          effect: 'confirmed-effect',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"run_command" command:"/vibe status" confirm:true explicitUserRequest:"Inspect VIBE.md personality status."',
+          nextStep: 'Use the visible /vibe status output to decide whether to edit, initialize, or import personality instructions.',
+          safety: 'Confirmed slash-command invocation; status does not print blocked file bodies or secret values.',
+          requiresConfirmation: true,
+        }),
+        setupHandoff({
+          id: 'init-project-vibe',
+          label: 'Create project VIBE.md',
+          kind: 'confirmed-route',
+          effect: 'confirmed-effect',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"run_command" command:"/vibe init --yes" confirm:true explicitUserRequest:"Create a project VIBE.md personality file."',
+          nextStep: 'Create a starter project personality file only when the user wants a local assistant vibe.',
+          safety: 'Confirmed local file write in the current project scope.',
+          requiresConfirmation: true,
+        }),
+        setupHandoff({
+          id: 'import-vibe-persona',
+          label: 'Import VIBE.md persona',
+          kind: 'confirmed-route',
+          effect: 'confirmed-effect',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"run_command" command:"/vibe import-persona project --review --use --yes" confirm:true explicitUserRequest:"Import the project VIBE.md into a reviewed active persona."',
+          nextStep: 'Use this when the user wants VIBE.md to become reviewed Agent-local persona context.',
+          safety: 'Confirmed Agent-local persona write; does not ingest VIBE.md into default knowledge.',
+          requiresConfirmation: true,
+        }),
+      ];
     case 'communication-channels':
       return [
         setupHandoff({
@@ -1674,6 +1722,7 @@ function buildSetupPlan(
   const serviceProbe = connectedHostServiceProbe(servicePosture);
   const authPosture = connectedHostAuthPosture(context, snapshot);
   const smokePlan = installSmokePlan(providerAccess, serviceProbe, authPosture);
+  const vibeHealth = agentHarnessVibeHealth(context);
 
   const plan: SetupPlanItem[] = [
     {
@@ -1778,6 +1827,19 @@ function buildSetupPlan(
       userRoute: 'Agent Workspace -> Knowledge',
       modelRoute: 'agent_harness mode:"connected_host_status" or agent_knowledge',
       relatedSetupItemId: agentKnowledge.id,
+    },
+    {
+      id: 'vibe-personality',
+      label: 'VIBE.md personality',
+      status: vibeHealth.status,
+      priority: 35,
+      blocksAutonomy: false,
+      reason: 'VIBE.md is the user-friendly personality file for how GoodVibes Agent should feel, but blocked or truncated files should be visible before they shape a session.',
+      nextAction: vibeHealth.nextAction,
+      userRoute: vibeHealth.userRoute,
+      modelRoute: vibeHealth.modelRoute,
+      signals: vibeHealth.signals,
+      vibeHealth,
     },
     {
       id: 'local-behavior',
@@ -1928,6 +1990,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(includeParameters && item.authPosture ? { authPosture: item.authPosture } : {}),
     ...(includeParameters && item.installSmokePlan ? { installSmokePlan: item.installSmokePlan } : {}),
     ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),
+    ...(includeParameters && item.vibeHealth ? { vibeHealth: item.vibeHealth } : {}),
     ...(includeParameters && handoffs.length > 0 ? { handoffs: handoffs.map((handoff) => describeHandoffCard(handoff, true)) } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),
