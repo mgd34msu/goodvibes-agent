@@ -2046,6 +2046,26 @@ describe('agent_harness tool', () => {
 
       const curator = await executeHarnessJson<{
         readonly summary: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly needsConsolidation: number; readonly lowConfidence: number; readonly proposedBehavior: number; readonly readyToPromote: number };
+        readonly consolidationBatch?: {
+          readonly status: string;
+          readonly candidates: number;
+          readonly duplicateRecords: number;
+          readonly domains: readonly { readonly domain: string; readonly candidates: number; readonly duplicateRecords: number }[];
+          readonly routes: { readonly reviewQueue: string; readonly candidateDetail: string; readonly survivorRecord: string };
+          readonly phases: readonly { readonly id: string; readonly route: string }[];
+          readonly topCandidates: readonly {
+            readonly candidateId: string;
+            readonly survivorId: string;
+            readonly duplicateIds?: readonly string[];
+            readonly diffFields: readonly string[];
+            readonly detailRoute: string;
+            readonly updateRoute?: string;
+            readonly staleRoutes?: readonly string[];
+            readonly deleteRoutes?: readonly string[];
+            readonly rollbackRoutes?: readonly string[];
+          }[];
+          readonly policy: string;
+        };
         readonly candidates: readonly {
           readonly candidateId: string;
           readonly label: string;
@@ -2074,6 +2094,25 @@ describe('agent_harness tool', () => {
       expect(curator.summary.proposedBehavior).toBeGreaterThan(5);
       expect(curator.summary.needsConsolidation).toBeGreaterThan(0);
       expect(curator.policy).toContain('duplicate consolidation');
+      expect(curator.consolidationBatch?.status).toBe('ready');
+      expect(curator.consolidationBatch?.candidates).toBeGreaterThan(0);
+      expect(curator.consolidationBatch?.duplicateRecords).toBeGreaterThan(0);
+      expect(curator.consolidationBatch?.domains.some((domain) => domain.domain === 'skill')).toBe(true);
+      expect(curator.consolidationBatch?.routes.reviewQueue).toContain('query:"consolidation"');
+      expect(curator.consolidationBatch?.routes.candidateDetail).toContain('learning_candidate');
+      expect(curator.consolidationBatch?.phases.map((phase) => phase.id)).toEqual([
+        'inspect',
+        'merge-survivor',
+        'stale-duplicates',
+        'verify',
+        'delete-after-approval',
+      ]);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.candidateId.includes('consolidation:skill'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.updateRoute?.includes('action:"update"'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.staleRoutes?.join('\n').includes('action:"stale"'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.deleteRoutes?.join('\n').includes('confirm:true'))).toBe(true);
+      expect(curator.consolidationBatch?.topCandidates.some((candidate) => candidate.rollbackRoutes?.join('\n').includes('rollback-learning-curator-consolidation'))).toBe(true);
+      expect(curator.consolidationBatch?.policy).toContain('no hidden batch mutation');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');

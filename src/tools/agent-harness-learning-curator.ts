@@ -94,6 +94,34 @@ interface LearningCandidate {
   readonly consolidation?: LearningConsolidationPlan;
 }
 
+interface LearningConsolidationBatchCandidate {
+  readonly candidateId: string;
+  readonly label: string;
+  readonly domain: LearningCandidateDomain;
+  readonly survivorId: string;
+  readonly duplicateCount: number;
+  readonly duplicateIds?: readonly string[];
+  readonly diffFields: readonly string[];
+  readonly detailRoute: string;
+  readonly updateRoute?: string;
+  readonly staleRoute?: string;
+  readonly deleteRoute?: string;
+  readonly staleRoutes?: readonly string[];
+  readonly deleteRoutes?: readonly string[];
+  readonly rollbackRoutes?: readonly string[];
+}
+
+interface LearningConsolidationBatchPlan {
+  readonly status: 'ready';
+  readonly candidates: number;
+  readonly duplicateRecords: number;
+  readonly domains: readonly Record<string, unknown>[];
+  readonly routes: Record<string, string>;
+  readonly phases: readonly Record<string, unknown>[];
+  readonly topCandidates: readonly LearningConsolidationBatchCandidate[];
+  readonly policy: string;
+}
+
 export type LearningCandidateResolution =
   | { readonly status: 'found'; readonly candidate: Record<string, unknown> }
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
@@ -1022,6 +1050,91 @@ function describeCandidate(candidate: LearningCandidate, includeParameters: bool
   };
 }
 
+function learningConsolidationBatchPlan(
+  candidates: readonly LearningCandidate[],
+  includeParameters: boolean,
+): LearningConsolidationBatchPlan | undefined {
+  const consolidationCandidates = candidates.filter((candidate) => candidate.consolidation !== undefined);
+  if (consolidationCandidates.length === 0) return undefined;
+  const domainCounts = new Map<string, { candidates: number; duplicateRecords: number }>();
+  for (const candidate of consolidationCandidates) {
+    const duplicateRecords = candidate.consolidation?.duplicateIds.length ?? 0;
+    const current = domainCounts.get(candidate.domain) ?? { candidates: 0, duplicateRecords: 0 };
+    current.candidates += 1;
+    current.duplicateRecords += duplicateRecords;
+    domainCounts.set(candidate.domain, current);
+  }
+  const domains = [...domainCounts.entries()]
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([domain, counts]) => ({ domain, ...counts }));
+  const topCandidates = consolidationCandidates.slice(0, 8).map((candidate) => {
+    const consolidation = candidate.consolidation!;
+    return {
+      candidateId: candidate.id,
+      label: candidate.label,
+      domain: candidate.domain,
+      survivorId: consolidation.survivorId,
+      duplicateCount: consolidation.duplicateIds.length,
+      ...(includeParameters ? { duplicateIds: consolidation.duplicateIds } : {}),
+      diffFields: consolidation.diffs.map((diff) => diff.field),
+      detailRoute: `agent_harness mode:"learning_candidate" candidateId:"${routeValue(candidate.id)}"`,
+      ...(candidate.updateRoute ? { updateRoute: candidate.updateRoute } : {}),
+      ...(candidate.staleRoute ? { staleRoute: candidate.staleRoute } : {}),
+      ...(candidate.deleteRoute ? { deleteRoute: candidate.deleteRoute } : {}),
+      ...(includeParameters ? {
+        staleRoutes: consolidation.staleRoutes,
+        deleteRoutes: consolidation.deleteRoutes,
+        rollbackRoutes: consolidation.rollbackRoutes,
+      } : {}),
+    };
+  });
+  return {
+    status: 'ready',
+    candidates: consolidationCandidates.length,
+    duplicateRecords: consolidationCandidates.reduce((total, candidate) => total + (candidate.consolidation?.duplicateIds.length ?? 0), 0),
+    domains,
+    routes: {
+      reviewQueue: 'agent_harness mode:"learning_curator" query:"consolidation" includeParameters:true',
+      candidateDetail: 'agent_harness mode:"learning_candidate" candidateId:"<candidateId>"',
+      survivorRecord: 'agent_local_registry domain:"<domain>" action:"get" id:"<survivorId>"',
+    },
+    phases: [
+      {
+        id: 'inspect',
+        label: 'Inspect every duplicate group',
+        goal: 'Open the candidate detail and survivor/duplicate records before changing durable context.',
+        route: 'agent_harness mode:"learning_curator" query:"consolidation" includeParameters:true',
+      },
+      {
+        id: 'merge-survivor',
+        label: 'Merge visible survivor fields',
+        goal: 'Apply the survivor update route only when the visible diffs preserve useful names, descriptions, tags, and triggers.',
+        route: 'Use each topCandidates[].updateRoute when present.',
+      },
+      {
+        id: 'stale-duplicates',
+        label: 'Stage duplicates as stale',
+        goal: 'Mark duplicates stale before deleting them so rollback remains one reviewed route away.',
+        route: 'Use each topCandidates[].staleRoutes in candidate detail order.',
+      },
+      {
+        id: 'verify',
+        label: 'Verify prompt impact and rollback',
+        goal: 'Re-run the curator, check the survivor, and keep rollback routes visible until the user accepts the result.',
+        route: 'agent_harness mode:"learning_curator" query:"consolidation" includeParameters:true',
+      },
+      {
+        id: 'delete-after-approval',
+        label: 'Delete only after explicit approval',
+        goal: 'Use delete routes only after the user confirms the stale duplicates are no longer needed.',
+        route: 'Use each topCandidates[].deleteRoutes after explicit approval.',
+      },
+    ],
+    topCandidates,
+    policy: 'This is an ordered review plan only. Each update, stale, delete, and rollback action remains an existing confirmed Agent-local route; there is no hidden batch mutation.',
+  };
+}
+
 function nextActions(candidates: readonly LearningCandidate[]): readonly string[] {
   return candidates
     .filter((candidate) => candidate.status !== 'ready')
@@ -1050,6 +1163,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
   const limit = readLimit(args.limit, 100);
   const all = buildLearningCandidates(context);
   const filtered = all.filter((candidate) => !query || candidateSearchText(candidate).includes(query));
+  const consolidationBatch = learningConsolidationBatchPlan(all, includeParameters);
   return {
     summary: {
       candidates: all.length,
@@ -1062,6 +1176,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
       ready: all.filter((candidate) => candidate.status === 'ready').length,
     },
     candidates: filtered.slice(0, limit).map((candidate) => describeCandidate(candidate, includeParameters)),
+    ...(consolidationBatch ? { consolidationBatch } : {}),
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
