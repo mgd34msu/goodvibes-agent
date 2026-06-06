@@ -1,5 +1,5 @@
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
-import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
+import type { ArtifactDescriptor, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { OnboardingStep1CapabilityItem, OnboardingSurfaceRecord } from '../runtime/onboarding/index.ts';
 import { collectOnboardingSnapshot, deriveStep1Capabilities, deriveStep1CapabilityFlags } from '../runtime/onboarding/index.ts';
 import type { CommandContext } from '../input/command-registry.ts';
@@ -39,7 +39,7 @@ type SetupRepairCardState = 'available' | 'requires-live-host' | 'missing';
 type SetupRepairCardEffect = 'read-only' | 'confirmed-effect';
 type SetupRepairRecommendation = 'recommended' | 'inspect-first' | 'not-needed' | 'unavailable';
 type SetupServiceProbeStatus = 'reachable' | 'unreachable' | 'not-enabled' | 'not-probed';
-type SetupSmokeArtifactStore = Pick<ArtifactStore, 'create'>;
+type SetupSmokeArtifactStore = Partial<Pick<ArtifactStore, 'create' | 'list'>>;
 
 interface OperatorContractMethod {
   readonly id: string;
@@ -207,7 +207,7 @@ function safeIso(value: number | null | undefined): string | null {
 
 function setupSmokeArtifactStore(context: CommandContext): SetupSmokeArtifactStore | null {
   const candidate = (context.platform as { readonly artifactStore?: unknown }).artifactStore;
-  if (candidate && typeof candidate === 'object' && 'create' in candidate && typeof (candidate as { readonly create?: unknown }).create === 'function') {
+  if (candidate && typeof candidate === 'object') {
     return candidate as SetupSmokeArtifactStore;
   }
   return null;
@@ -654,7 +654,7 @@ async function saveSetupSmokeArtifact(input: {
     };
   }
   const artifactStore = setupSmokeArtifactStore(input.context);
-  if (!artifactStore) {
+  if (!artifactStore?.create) {
     return {
       status: 'unavailable',
       reason: 'This runtime did not provide an artifact store with create support.',
@@ -692,6 +692,50 @@ async function saveSetupSmokeArtifact(input: {
       preview: previewHarnessText(field.value, 120),
     })),
     inspectRoute: `agent_artifacts show artifactId:"${descriptor.id}" includeContent:false`,
+  };
+}
+
+function readArtifactMetadataString(artifact: ArtifactDescriptor, key: string): string {
+  const value = artifact.metadata[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function readArtifactMetadataStringArray(artifact: ArtifactDescriptor, key: string): readonly string[] {
+  const value = artifact.metadata[key];
+  return Array.isArray(value) ? value.map((entry) => readString(entry)).filter(Boolean) : [];
+}
+
+function latestSetupSmokeEvidence(context: CommandContext): Record<string, unknown> {
+  const artifactStore = setupSmokeArtifactStore(context);
+  if (!artifactStore?.list) {
+    return {
+      status: 'unavailable',
+      reason: 'Artifact list support is unavailable in this runtime.',
+    };
+  }
+  const artifacts = artifactStore.list(100)
+    .filter((artifact) => readArtifactMetadataString(artifact, 'purpose') === 'agent-setup-smoke-evidence')
+    .sort((left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0));
+  const latest = artifacts[0];
+  if (!latest) {
+    return {
+      status: 'none',
+      reason: 'No saved setup smoke evidence artifact found.',
+      saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+    };
+  }
+  return {
+    status: 'saved',
+    artifactId: latest.id,
+    filename: latest.filename ?? null,
+    capturedAt: readArtifactMetadataString(latest, 'capturedAt') || safeIso(latest.createdAt),
+    smokeStatus: readArtifactMetadataString(latest, 'smokeStatus') || 'unknown',
+    result: readArtifactMetadataString(latest, 'result') || 'unknown',
+    blockedChecks: readArtifactMetadataStringArray(latest, 'blockedChecks'),
+    userRunChecks: readArtifactMetadataStringArray(latest, 'userRunChecks'),
+    evidenceFields: readArtifactMetadataStringArray(latest, 'evidenceFields'),
+    inspectRoute: `agent_artifacts show artifactId:"${latest.id}" includeContent:false`,
+    rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
   };
 }
 
@@ -1468,6 +1512,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
   const snapshot = await collectSnapshot(context);
   const servicePosture = await collectServicePosture(context);
   const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
+  const setupSmokeEvidence = latestSetupSmokeEvidence(context);
   return {
     modes: ['setup_posture', 'setup_item', 'run_setup_smoke'],
     capabilities: deriveStep1Capabilities(snapshot).length,
@@ -1476,6 +1521,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
     autonomyBlockers: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
     collectionIssues: snapshot.collectionIssues.length,
     setupMarkerExists: snapshot.acknowledgements.exists,
+    setupSmokeEvidence,
     readOnly: true,
   };
 }
@@ -1487,6 +1533,7 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
   const includeParameters = args.includeParameters === true;
   const all = deriveStep1Capabilities(snapshot);
   const plan = buildSetupPlan(context, snapshot, all, servicePosture);
+  const setupSmokeEvidence = latestSetupSmokeEvidence(context);
   const filtered = all
     .filter((item) => !query || itemSearchText(item).includes(query))
     .slice(0, readLimit(args.limit, 100));
@@ -1521,7 +1568,9 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
       localBehavior: summarizeLocalBehavior(snapshot),
       capabilityFlags: deriveStep1CapabilityFlags(snapshot),
       readinessPlan: planSummary(plan),
+      setupSmokeEvidence,
     },
+    setupSmokeEvidence,
     currentRoute: snapshot.providerRouting,
     issues: snapshot.collectionIssues,
     readinessPlan: filteredPlan.map((item) => describePlanItem(item, includeParameters)),

@@ -28,6 +28,7 @@ export interface AssistantCockpit {
 
 export interface AssistantCockpitMetrics {
   readonly setupBlockers: number;
+  readonly setupSmokeResult?: string;
   readonly modelStatus: string;
   readonly executionRoutes: number;
   readonly personalGaps: number;
@@ -51,8 +52,26 @@ function readString(record: Record<string, unknown>, key: string): string {
   return typeof record[key] === 'string' ? String(record[key]) : '';
 }
 
+function readNestedRecord(record: Record<string, unknown>, key: string): Record<string, unknown> {
+  return readRecord(record[key]);
+}
+
 function lane(options: AssistantCockpitLane): AssistantCockpitLane {
   return options;
+}
+
+function setupLaneSummary(metrics: AssistantCockpitMetrics): string {
+  const base = metrics.setupBlockers > 0
+    ? `${metrics.setupBlockers} setup blocker(s) before autonomous work.`
+    : 'First-run setup has no blocking assistant issue.';
+  return metrics.setupSmokeResult ? `${base} Last smoke ${metrics.setupSmokeResult}.` : base;
+}
+
+function setupLaneNextAction(metrics: AssistantCockpitMetrics): string {
+  if (metrics.setupSmokeResult === 'blocked') return 'Review the saved smoke artifact, resolve blockers, then rerun setup smoke.';
+  if (metrics.setupSmokeResult === 'ready-for-user-run') return 'Complete remaining user-run smoke checks, then start the user task.';
+  if (metrics.setupBlockers === 0 && !metrics.setupSmokeResult) return 'Run setup smoke before trusting ongoing autonomous work.';
+  return 'Use setup posture for the next visible setup step.';
 }
 
 export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetrics): AssistantCockpit {
@@ -77,8 +96,8 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         id: 'setup',
         label: 'Get the assistant working',
         state: metrics.setupBlockers > 0 ? 'attention' : 'ready',
-        summary: metrics.setupBlockers > 0 ? `${metrics.setupBlockers} setup blocker(s) before autonomous work.` : 'First-run setup has no blocking assistant issue.',
-        nextAction: 'Use setup posture for the next visible setup step.',
+        summary: setupLaneSummary(metrics),
+        nextAction: setupLaneNextAction(metrics),
         routes: ['agent_harness mode:"setup_posture"', 'agent_harness mode:"setup_item"', 'agent_harness mode:"run_setup_smoke"'],
       }),
       lane({
@@ -152,8 +171,10 @@ export function buildAssistantCockpitFromSummaries(input: {
   const research = readRecord(input.researchRuns);
   const documents = readRecord(input.documentOps);
   const security = readRecord(input.securityPosture);
+  const setupSmokeEvidence = readNestedRecord(setup, 'setupSmokeEvidence');
   return buildAssistantCockpitFromMetrics({
     setupBlockers: readNumber(setup, 'autonomyBlockers') || readNumber(setup, 'blockedPlanItems'),
+    setupSmokeResult: readString(setupSmokeEvidence, 'result') || undefined,
     modelStatus: readString(model, 'status'),
     executionRoutes: readNumber(execution, 'routes'),
     personalGaps: readNumber(personal, 'gap'),
@@ -191,6 +212,7 @@ export function buildAssistantCockpitFromWorkspaceSnapshot(snapshot: AgentWorksp
 
   return buildAssistantCockpitFromMetrics({
     setupBlockers,
+    setupSmokeResult: undefined,
     modelStatus,
     executionRoutes: 1,
     personalGaps,

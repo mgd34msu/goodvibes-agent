@@ -1204,6 +1204,35 @@ describe('agent_harness tool', () => {
       expect(content).not.toContain('host-secret');
       expect(content).not.toContain('assistant-secret');
       expect(content).not.toContain('query-secret');
+
+      const summary = await executeHarnessJson<{
+        readonly assistant?: {
+          readonly lanes?: readonly {
+            readonly id: string;
+            readonly summary: string;
+            readonly nextAction: string;
+          }[];
+        };
+        readonly setupPosture?: {
+          readonly setupSmokeEvidence?: {
+            readonly status: string;
+            readonly artifactId: string;
+            readonly result: string;
+            readonly evidenceFields: readonly string[];
+            readonly inspectRoute: string;
+          };
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.setupPosture?.setupSmokeEvidence).toMatchObject({
+        status: 'saved',
+        artifactId: 'artifact-1',
+        result: 'blocked',
+        evidenceFields: ['agentBinaryOutput', 'statusJson', 'firstAssistantTurn', 'notes'],
+      });
+      expect(summary.setupPosture?.setupSmokeEvidence?.inspectRoute).toContain('agent_artifacts');
+      const setupLane = summary.assistant?.lanes?.find((lane) => lane.id === 'setup');
+      expect(setupLane?.summary).toContain('Last smoke blocked');
+      expect(setupLane?.nextAction).toContain('saved smoke artifact');
     } finally {
       fixture.cleanup();
     }
