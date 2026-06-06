@@ -143,10 +143,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Schedules, cron jobs, recurring routines, and long-running tasks are autonomous but never hidden.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent has reminder scheduling, routine promotion, operator action tools, connected schedule posture, a read-only ongoing-work intake selector, and a read-only autonomy queue that maps visible owners, status, inspect routes, cancel/recovery routes, live research runs, live connected-host task records, live approval records, live automation run records, and live schedule records with progress, log tails, source ids, and exact confirmed control routes where supported.',
+    goodVibesNow: 'Agent has confirmed natural-language autonomous schedule creation when task, cadence, success criteria, and user request provenance are explicit; reminder scheduling; routine promotion; operator action tools; connected schedule posture; a read-only ongoing-work intake selector; and a read-only autonomy queue that maps visible owners, status, inspect routes, cancel/recovery routes, live research runs, live connected-host task records, live approval records, live automation run records, live schedule records, and exact confirmed control routes where supported.',
     nextMoves: [
       'Attach richer daemon retry, checkpoint, and host log detail to live queue records when the connected host exposes it.',
-      'Turn conservative ongoing-work intake into confirmed natural-language recurring task creation when timing, owner, delivery, and success criteria are explicit.',
+      'Add schedule edit/delete flows with the same explicit confirmation and queue visibility as creation/run controls.',
       'Add retry metadata and richer cancel/recovery detail to queue cards when the owning surface supports it.',
     ],
     competitorSignals: [

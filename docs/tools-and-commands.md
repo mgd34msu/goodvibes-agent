@@ -10,6 +10,7 @@ GoodVibes Agent is a TUI-first operator assistant. The workspace is the primary 
 - Connected-host lifecycle is external. Agent reports and uses public routes, but does not start, stop, restart, install, expose, or mutate the host listener.
 - Local read/edit/exec is available for explicit work in the current Agent workspace when permissions are sufficient. `execution_posture` exposes process monitor, live tail, tool inspector, browser/desktop setup, execution history, and file recovery routes for local work. `execution_history` lists recent redacted tool/shell/edit records with result summaries and follow-up routes. File edit/write recovery is inspectable through `file_recovery` and applied only through confirmed `run_file_recovery`. Delegation is for isolation, parallelism, remote execution, separate worktrees, or user-requested delegated review.
 - External delivery, notifications, reminders, media generation, setting writes, keybinding writes, UI routing, slash-command execution, workspace-action execution, local destructive changes, and connected-host operator actions require explicit user request and confirmation.
+- Autonomous scheduled work uses `agent_autonomy_schedule` and requires an explicit task, cadence, success criteria, and user request. Simple notification/reminder follow-ups stay on `agent_reminder_schedule`.
 
 ## User-Facing Surfaces
 
@@ -48,6 +49,7 @@ High-signal TUI routes:
 | `agent_research_report` | Save one confirmed sourced markdown research report artifact with source map, citation coverage metadata, and repair hints. |
 | `agent_channel_send` | Send one confirmed channel message. |
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |
+| `agent_autonomy_schedule` | Create one confirmed visible autonomous Agent schedule. |
 | `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
 | `agent_media_generate` | Generate one confirmed image/video artifact. |
 | `agent_model_compare` | Run, review, judge, analytics, apply, export, or reveal one blind model comparison, optionally from a saved text artifact. |
@@ -154,7 +156,7 @@ None of those modes expose host start, stop, restart, install, expose-listener, 
 
 ## Visible Autonomy
 
-Use `agent_harness mode:"autonomy_intake"` first when the user asks for ongoing work and the safest route is not obvious. It is read-only and returns the likely route, missing fields, and confirmation boundary. Use `agent_harness mode:"autonomy_queue"` before creating recurring reminders, routine schedules, delegated work, run controls, approval decisions, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research runs, connected-host tasks, approvals, automation runs, and schedules include live records with status/progress, source ids, next steps, log tails when available, and exact inspect/checkpoint/cancel/approve/deny/retry/run routes where supported. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
+Use `agent_harness mode:"autonomy_intake"` first when the user asks for ongoing work and the safest route is not obvious. It is read-only and returns the likely route, missing fields, and confirmation boundary. `agent_autonomy_schedule` creates one visible connected schedule only when the user gives task, cadence, success criteria, confirmation, and request provenance. Use `agent_harness mode:"autonomy_queue"` before creating recurring autonomous work, reminders, routine schedules, delegated work, run controls, approval decisions, or follow-up delivery. The queue is read-only and normalizes work-plan, research-run, connected task, approval, automation, schedule, reminder, routine-promotion, delegated-agent, and delivery cards. Research runs, connected-host tasks, approvals, automation runs, and schedules include live records with status/progress, source ids, next steps, log tails when available, and exact inspect/checkpoint/cancel/approve/deny/retry/run routes where supported. Inspect one card with `mode:"autonomy_queue_item"`; create, run, pause, resume, cancel, approve, deny, send, and schedule effects stay on the owning confirmed route returned by that card.
 
 ## Agent Knowledge
 

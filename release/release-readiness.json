@@ -188,6 +188,21 @@
       }
     },
     {
+      "id": "autonomous-schedule-creation",
+      "capability": "Direct recurring autonomous Agent work can be created as one visible connected schedule only with explicit task, cadence, success criteria, and request provenance.",
+      "owner": "agent",
+      "status": "covered",
+      "evidence": "src/agent/autonomy-schedule.ts; src/tools/agent-autonomy-schedule-tool.ts; src/tools/agent-harness-autonomy-intake.ts; src/tools/agent-harness-autonomy-queue.ts; docs/tools-and-commands.md",
+      "action": "Keep autonomous schedules distinct from reminders and routine promotion, with success criteria and confirmation required before schedule creation.",
+      "quality": {
+        "capabilityCoverage": "Covers natural-language recurring Agent work through confirmed schedules.create payloads, explicit task and success criteria capture, safe execution policy, delivery options, and visible queue/intake routes.",
+        "userAccess": "The user can ask for ongoing work in normal language, inspect missing fields through autonomy intake, and supervise created schedules through the schedule workspace and autonomy queue.",
+        "modelAccess": "agent_autonomy_schedule exposes the confirmed creation route; agent_harness mode:\"autonomy_intake\", mode:\"autonomy_queue\", mode:\"autonomy_queue_item\", mode:\"tools\", and mode:\"tool\" expose route selection, missing fields, queue cards, and tool schema discovery.",
+        "safetyBoundary": "Schedule creation requires confirm:true, explicitUserRequest, task, cadence, and successCriteria; auto-approval and unsafe external content remain disabled in the generated schedule policy.",
+        "releaseEvidence": "Readiness evidence cites the Agent autonomy schedule implementation, harness intake/queue wiring, package docs, and focused tool tests."
+      }
+    },
+    {
       "id": "reminders-and-notifications",
       "capability": "Reminder scheduling and notification delivery are explicit, confirmed, and routed through configured targets without leaking tokens.",
       "owner": "agent",

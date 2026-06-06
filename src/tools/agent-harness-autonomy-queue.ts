@@ -682,6 +682,24 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       liveRecords: automationRecords,
     },
     {
+      id: 'autonomous-schedule-requests',
+      label: 'Autonomous schedule requests',
+      status: scheduleMethods.length > 0 ? 'ready' : 'needs-setup',
+      owner: 'agent-and-connected-host',
+      kind: 'schedule',
+      visible: true,
+      cancellable: false,
+      count: scheduleMethods.length,
+      current: `${scheduleMethods.length} schedule/reminder daemon method(s); autonomous schedules require explicit task, cadence, success criteria, and user request provenance.`,
+      next: scheduleMethods.length > 0
+        ? 'Create one visible autonomous schedule only after the user gives exact timing and success criteria.'
+        : 'Update the connected GoodVibes host until schedules.create is available.',
+      inspectRoute: 'agent_harness mode:"autonomy_intake" query:"..."',
+      modelRoute: 'agent_autonomy_schedule',
+      createRoute: 'agent_autonomy_schedule task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+      methodIds: scheduleMethods,
+    },
+    {
       id: 'connected-schedules',
       label: 'Connected schedules',
       status: scheduleStatus,
@@ -700,7 +718,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
           : 'List schedules or reconcile routine receipts before triggering one schedule by id.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
       modelRoute: 'agent_harness mode:"operator_methods" query:"schedule"',
-      createRoute: 'agent_harness mode:"run_workspace_action" actionId:"schedule-reminder" confirm:true explicitUserRequest:"..."',
+      createRoute: 'agent_autonomy_schedule task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,
       liveRecords: scheduleRecords,
     },

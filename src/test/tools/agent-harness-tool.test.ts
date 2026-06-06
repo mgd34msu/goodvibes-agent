@@ -856,7 +856,8 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'reminders' });
       expect(lane.id).toBe('reminders');
       expect(lane.status).toBe('ready');
-      expect(lane.routes?.model).toBe('agent_reminder_schedule');
+      expect(lane.routes?.model).toContain('agent_reminder_schedule');
+      expect(lane.routes?.model).toContain('agent_autonomy_schedule');
 
       const notesLane = await executeHarnessJson<{
         readonly id: string;
@@ -1087,6 +1088,7 @@ describe('agent_harness tool', () => {
       const hostTasks = queue.queue.find((item) => item.queueItemId === 'connected-host-tasks');
       const approvals = queue.queue.find((item) => item.queueItemId === 'pending-approvals');
       const automation = queue.queue.find((item) => item.queueItemId === 'automation-runs');
+      const autonomousScheduleRequests = queue.queue.find((item) => item.queueItemId === 'autonomous-schedule-requests');
       const schedules = queue.queue.find((item) => item.queueItemId === 'connected-schedules');
       const routines = queue.queue.find((item) => item.queueItemId === 'routine-schedule-promotions');
       expect(workPlan?.owner).toBe('agent');
@@ -1118,9 +1120,12 @@ describe('agent_harness tool', () => {
       expect(automation?.liveRecords?.[0]?.id).toBe('auto-run-1');
       expect(automation?.liveRecords?.[0]?.cancelRoute).toContain('automation.runs.cancel');
       expect(automation?.liveRecords?.[0]?.sourceIds).toContain('sched-live-1');
+      expect(autonomousScheduleRequests?.modelRoute).toBe('agent_autonomy_schedule');
+      expect(autonomousScheduleRequests?.createRoute).toContain('successCriteria');
       expect(schedules?.status).toBe('active');
       expect(schedules?.liveRecords?.[0]?.id).toBe('sched-live-1');
       expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.run');
+      expect(schedules?.createRoute).toContain('agent_autonomy_schedule');
       expect(routines?.inspectRoute).toContain('schedule-receipts');
 
       const item = await executeHarnessJson<{
@@ -1186,6 +1191,25 @@ describe('agent_harness tool', () => {
       expect(reminder.preferred.requiresConfirmation).toBe(true);
       expect(reminder.preferred.missingFields).toBeUndefined();
       expect(reminder.policy).toContain('Autonomy intake is read-only');
+
+      const autonomousSchedule = await executeHarnessJson<{
+        readonly preferred: {
+          readonly id: string;
+          readonly modelRoute: string;
+          readonly missingFields?: readonly string[];
+          readonly userQuestion?: string;
+        };
+      }>(fixture, {
+        mode: 'autonomy_intake',
+        query: 'Run a daily operator report.',
+        includeParameters: true,
+      });
+      expect(autonomousSchedule.preferred.id).toBe('confirmed-autonomous-schedule');
+      expect(autonomousSchedule.preferred.modelRoute).toContain('agent_autonomy_schedule');
+      expect(autonomousSchedule.preferred.modelRoute).toContain('successCriteria');
+      expect(autonomousSchedule.preferred.missingFields).toContain('scheduleValue');
+      expect(autonomousSchedule.preferred.missingFields).toContain('successCriteria');
+      expect(autonomousSchedule.preferred.userQuestion).toContain('success criteria');
 
       const routine = await executeHarnessJson<{
         readonly preferred: {
@@ -3377,6 +3401,7 @@ describe('agent_harness tool', () => {
         'agent_knowledge_ingest',
         'agent_channel_send',
         'agent_notify',
+        'agent_autonomy_schedule',
         'agent_reminder_schedule',
         'agent_media_generate',
         'agent_model_compare',

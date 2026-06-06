@@ -183,7 +183,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'connected-host-state',
       confirmation,
-      preferredModelTool: 'agent_reminder_schedule or agent_operator_action',
+      preferredModelTool: 'agent_autonomy_schedule or agent_reminder_schedule/operator_action',
       boundary: 'Connected schedules require an explicit user request and do not create hidden Agent jobs or local schedulers.',
     };
   }
@@ -509,11 +509,11 @@ export function connectedHostCapabilityMap(toolRegistry: ToolRegistry): readonly
     withAvailability({
       id: 'reminders-and-schedules',
       effect: 'confirmed-connected-host-state',
-      modelTools: ['agent_reminder_schedule'],
+      modelTools: ['agent_autonomy_schedule', 'agent_reminder_schedule'],
       workspaceCategories: ['automation', 'routines'],
       slashCommandFamilies: ['schedule', 'reminder'],
       scheduleKinds: ['at', 'every', 'cron'],
-      purpose: 'Create one connected reminder schedule from a direct user request.',
+      purpose: 'Create one connected reminder or autonomous Agent schedule from a direct user request.',
     }),
     withAvailability({
       id: 'voice-media',
@@ -565,8 +565,8 @@ export function connectedHostRouteFamilies(): readonly Record<string, unknown>[]
     {
       id: 'connected-schedules',
       routes: ['public schedule creation/run routes'],
-      modelTools: ['agent_reminder_schedule', 'agent_operator_action'],
-      modelRoute: 'agent_reminder_schedule or agent_operator_action',
+      modelTools: ['agent_autonomy_schedule', 'agent_reminder_schedule', 'agent_operator_action'],
+      modelRoute: 'agent_autonomy_schedule or agent_reminder_schedule/operator_action',
       boundary: 'Connected schedules only; no hidden local scheduler or separate Agent job.',
     },
   ];

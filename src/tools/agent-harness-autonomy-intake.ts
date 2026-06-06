@@ -103,14 +103,37 @@ function reminderRoute(request: string, schedule: ScheduleDetection): string {
   return `agent_reminder_schedule message:"${message}" scheduleKind:"${kind}" scheduleValue:"${value}" confirm:true explicitUserRequest:"..."`;
 }
 
+function autonomyScheduleRoute(request: string, schedule: ScheduleDetection): string {
+  const task = previewHarnessText(request, 96).replace(/"/g, "'");
+  const kind = schedule.kind ?? 'at|every|cron';
+  const value = schedule.value ?? '...';
+  return `agent_autonomy_schedule task:"${task}" successCriteria:"..." scheduleKind:"${kind}" scheduleValue:"${value}" confirm:true explicitUserRequest:"..."`;
+}
+
 function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
   const lower = request.toLowerCase();
   const schedule = detectSchedule(request);
   const candidates: AutonomyRouteCandidate[] = [];
   const scheduled = schedule.missing.length > 0 || schedule.kind !== undefined;
   const asksForReminder = hasAny(lower, ['remind', 'reminder', 'follow up', 'follow-up', 'ping me', 'notify me']);
-  const asksForRoutine = hasAny(lower, ['routine', 'checklist', 'recurring task', 'daily report', 'weekly report', 'daily review', 'weekly review']);
+  const asksForRoutine = hasAny(lower, ['routine', 'checklist', 'recurring task', 'daily review', 'weekly review']);
   const asksForResearch = hasAny(lower, ['research', 'investigate', 'market map', 'source', 'report']);
+  const asksForAutonomousSchedule = scheduled && !asksForReminder && hasAny(lower, [
+    'audit',
+    'brief',
+    'briefing',
+    'check',
+    'daily report',
+    'weekly report',
+    'digest',
+    'monitor',
+    'research',
+    'review',
+    'run',
+    'scan',
+    'summarize',
+    'triage',
+  ]);
   const asksForDelegation = hasAny(lower, ['build', 'fix', 'implement', 'refactor', 'code', 'test']) && hasAny(lower, ['background', 'subagent', 'delegate', 'parallel']);
   const asksForApproval = hasAny(lower, ['approval', 'approve', 'deny']);
   const asksForAutomationControl = hasAny(lower, ['cancel', 'retry', 'pause', 'resume', 'run now'])
@@ -159,7 +182,27 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
     });
   }
 
-  if (asksForRoutine || (scheduled && asksForResearch)) {
+  if (asksForAutonomousSchedule && !asksForRoutine) {
+    const missingFields = [
+      ...schedule.missing,
+      'successCriteria',
+    ];
+    candidates.push({
+      id: 'confirmed-autonomous-schedule',
+      label: 'Create one confirmed autonomous Agent schedule',
+      confidence: asksForResearch ? 'high' : 'medium',
+      why: 'The request asks for recurring Agent work, not just a reminder notification.',
+      modelRoute: autonomyScheduleRoute(request, schedule),
+      inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"autonomous-schedule-requests"',
+      requiresConfirmation: true,
+      missingFields: missingFields.length > 0 ? missingFields : undefined,
+      userQuestion: schedule.missing.length > 0
+        ? 'What exact cadence and success criteria should this scheduled Agent work use?'
+        : 'What should count as a successful scheduled run?',
+    });
+  }
+
+  if (asksForRoutine) {
     candidates.push({
       id: 'reviewed-routine-schedule',
       label: 'Promote a reviewed Agent routine to a connected schedule',
