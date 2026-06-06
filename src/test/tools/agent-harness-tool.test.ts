@@ -496,7 +496,9 @@ describe('agent_harness tool', () => {
       };
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
+      expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
+      expect(summaryJson.modeGuide?.inspect).toContain('personal_ops_lane');
 
       const allModes = await fixture.tool.execute({ mode: 'modes', limit: 500 });
       expect(allModes.success).toBe(true);
@@ -526,6 +528,10 @@ describe('agent_harness tool', () => {
         'reset_setting',
       ]));
       expect(settingsJson.modes.filter((entry) => entry.parameters !== undefined)).toEqual([]);
+
+      const personalModes = await fixture.tool.execute({ mode: 'modes', query: 'personal operations' });
+      expect(personalModes.success).toBe(true);
+      expect(personalModes.output).toContain('personal_ops');
 
       const detailedModes = await fixture.tool.execute({
         mode: 'modes',
@@ -571,6 +577,63 @@ describe('agent_harness tool', () => {
       const missing = await fixture.tool.execute({ mode: 'mode' });
       expect(missing.success).toBe(false);
       expect(missing.error).toContain('mode inspection requires target or query');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes Personal Ops readiness without faking email or calendar connectors', async () => {
+    const fixture = makeFixture();
+    try {
+      AgentNoteRegistry.fromShellPaths(fixture.paths).create({
+        title: 'Follow-up queue',
+        body: 'Track pending replies, reminders, and handoffs here.',
+        tags: ['personal-ops'],
+        source: 'agent',
+        provenance: 'test',
+      });
+
+      const summary = await executeHarnessJson<{
+        readonly personalOps?: { readonly lanes: number; readonly gap: number; readonly ready: number };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.personalOps?.lanes).toBe(7);
+      expect(summary.personalOps?.gap).toBeGreaterThanOrEqual(2);
+      expect(summary.personalOps?.ready).toBeGreaterThan(0);
+
+      const ops = await executeHarnessJson<{
+        readonly lanes: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly current: string;
+          readonly methodIds?: readonly string[];
+        }[];
+        readonly policy: string;
+        readonly nextActions: readonly string[];
+      }>(fixture, { mode: 'personal_ops', includeParameters: true });
+      expect(ops.policy).toContain('Missing email/calendar connectors');
+      expect(ops.nextActions.join('\n')).toContain('Inbox');
+
+      const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
+      const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
+      const notes = ops.lanes.find((lane) => lane.id === 'notes');
+      const tasks = ops.lanes.find((lane) => lane.id === 'tasks');
+      const reminders = ops.lanes.find((lane) => lane.id === 'reminders');
+      expect(inbox?.status).toBe('gap');
+      expect(inbox?.current).toContain('No email/IMAP/SMTP methods');
+      expect(calendar?.status).toBe('gap');
+      expect(notes?.status).toBe('ready');
+      expect(notes?.current).toContain('1 note');
+      expect(tasks?.methodIds).toContain('tasks.list');
+      expect(reminders?.methodIds).toContain('schedules.create');
+
+      const lane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly routes?: { readonly model: string };
+      }>(fixture, { mode: 'personal_ops_lane', laneId: 'reminders' });
+      expect(lane.id).toBe('reminders');
+      expect(lane.status).toBe('ready');
+      expect(lane.routes?.model).toBe('agent_reminder_schedule');
     } finally {
       fixture.cleanup();
     }
@@ -687,6 +750,7 @@ describe('agent_harness tool', () => {
         readonly actions: number;
       };
       expect(workspacePayload.categories.find((entry) => entry.id === 'home')?.actions).toBeGreaterThan(0);
+      expect(workspacePayload.categories.find((entry) => entry.id === 'personal-ops')?.actions).toBeGreaterThan(0);
       expect(workspacePayload.actions).toBeGreaterThan(0);
       expectCompactSummaryFields(workspacePayload);
 
@@ -737,6 +801,7 @@ describe('agent_harness tool', () => {
         || entry.modelRoute.length > 72
       ))).toEqual([]);
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-home')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });

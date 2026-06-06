@@ -19,6 +19,7 @@ import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } fr
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary } from './agent-harness-model-routing.ts';
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
+import { describePersonalOpsLane, personalOpsCatalogStatus, personalOpsSummary } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
 import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
@@ -48,6 +49,7 @@ interface AgentHarnessToolArgs {
   readonly mcpServerId?: unknown;
   readonly setupItemId?: unknown;
   readonly modelRouteId?: unknown;
+  readonly laneId?: unknown;
   readonly pairingRouteId?: unknown;
   readonly delegationRouteId?: unknown;
   readonly findingId?: unknown;
@@ -158,6 +160,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; setup mutations stay confirmed visible flows.',
     modelRouting: 'List mode:"model_routing"; inspect mode:"model_route"; selection and provider edits stay confirmed visible flows.',
+    personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
     pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
     securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
@@ -441,6 +444,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               status: 'unavailable',
               error: formatHarnessError(err),
             })),
+            personalOps: personalOpsCatalogStatus(deps.commandContext),
             pairingPosture: pairingPostureCatalogStatus(deps.commandContext),
             delegationPosture: delegationPostureCatalogStatus(deps.commandContext),
             securityPosture: securityPostureCatalogStatus(deps.commandContext),
@@ -584,6 +588,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = await describeHarnessModelRoute(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.route);
           if (resolved.status === 'ambiguous') return error(`Ambiguous model route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'personal_ops') return output(personalOpsSummary(deps.commandContext, args));
+        if (args.mode === 'personal_ops_lane') {
+          const resolved = describePersonalOpsLane(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.lane);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous Personal Ops lane ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'pairing_posture') return output(pairingPostureSummary(deps.commandContext, args));

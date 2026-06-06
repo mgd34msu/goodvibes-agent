@@ -356,6 +356,18 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Timeout ${snapshot.automationDefaultTimeoutMs} ms; catch-up ${snapshot.automationCatchUpWindowMinutes} min; cooldown ${snapshot.automationFailureCooldownMs} ms.`, fg: PALETTE.info },
       { text: `Delete one-shot jobs after success: ${snapshot.automationDeleteAfterRun ? 'yes' : 'no'}.`, fg: snapshot.automationDeleteAfterRun ? PALETTE.info : PALETTE.muted },
     );
+  } else if (category.id === 'personal-ops') {
+    const ready = readyRoutineItems(snapshot);
+    const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
+    const enabledChannels = snapshot.channels.filter((channel) => channel.enabled).length;
+    const configuredTargets = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
+    base.push(
+      { text: `Personal Ops: notes ${snapshot.localNoteCount}; routines ${snapshot.localRoutineCount}/${snapshot.enabledRoutineCount}; schedule-ready ${ready.length}.`, fg: PALETTE.info },
+      { text: `Tasks: work plan and host task inspection; reminders via confirmed schedules; receipts ${snapshot.routineScheduleReceiptCount}.`, fg: PALETTE.good },
+      { text: `Delivery: ${readyChannels}/${snapshot.channels.length} channels ready; ${enabledChannels} enabled; ${configuredTargets} configured target(s).`, fg: readyChannels > 0 ? PALETTE.good : PALETTE.warn },
+      { text: 'Email/calendar: connector setup needed before inbox triage or agenda workflows are first-class.', fg: PALETTE.warn },
+      { text: 'Model route: agent_harness mode:"personal_ops" or personal_ops_lane.', fg: PALETTE.muted },
+    );
   } else if (category.id === 'artifacts') {
     const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;
     base.push(

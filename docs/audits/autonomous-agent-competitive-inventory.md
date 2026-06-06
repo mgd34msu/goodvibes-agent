@@ -19,7 +19,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 | First-run and always-on setup | Onboard can install gateway service | Installers and setup wizard configure dependencies and gateway | Docker/native start with admin bootstrap | Partial: onboarding exists, host lifecycle is external | Better |
 | Models and local model cookbook | Multi-provider, subscription auth, failover | Many providers and managed tool gateway | Hardware-aware Cookbook for Ollama, llama.cpp, vLLM | Partial: routing exists, local serving UX is thin | Better |
 | Omnichannel inbox and delivery | Very broad channel list and DM safety | Telegram, Discord, Slack, WhatsApp, Signal, email | Email, browser, ntfy, PWA | Parity on foundations, needs setup UX polish | Better |
-| Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Gap: no first-class email/calendar product | Better |
+| Email, calendar, notes, tasks | Mail/calendar/reminder workflows in showcase | Email gateway and workspace skills | IMAP/SMTP triage, CalDAV, notes/tasks | Partial: Personal Ops maps notes/tasks/reminders; email/calendar connectors missing | Better |
 | Closed learning loop | Skills and memory | Autonomous memory, skills, session search, user model | Persistent vector/keyword memory and skills | Partial: local libraries exist, no curator loop | Better |
 | Autonomous schedules/background work | Cron, wakeups, webhooks, triggers | Built-in cron with delivery | Scheduled tasks and reminders | Partial: schedules exist, policy is too defensive | Better |
 | Computer use, browser, shell | Browser, canvas, nodes, system.run | Terminal backends, browser, code execution, computer use | opencode with web/files/shell/MCP | Partial: capabilities exist but Agent diverts execution | Better |
@@ -45,8 +45,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Prefer supervised execution over refusal or delegation friction when the Agent has local permission and workspace context.
 - Use delegation and remote runners for isolation, parallelism, or remote execution, not because the user picked the wrong entrypoint.
 - Add a visible autonomy queue for schedules, recurring routines, reminders, long-running tasks, and delegated work.
-- Build first-class personal operations: email, calendar, notes, tasks, reminders, and briefings.
+- Build first-class email/calendar connectors and promote Personal Ops from readiness map into a live inbox/agenda/task queue.
 - Add a learning curator that proposes memory, skill, and routine updates with provenance and rollback.
 - Turn research into a report workflow with source quality, citations, artifacts, and explicit knowledge ingest.
 - Make browser, mobile, voice, and device control setup discoverable and repairable from the same assistant cockpit.
-

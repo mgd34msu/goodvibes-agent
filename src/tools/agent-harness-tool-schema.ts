@@ -6,6 +6,7 @@ export const AGENT_HARNESS_MODES = [
   'provider_accounts', 'provider_account', 'mcp_servers', 'mcp_server',
   'setup_posture', 'setup_item',
   'model_routing', 'model_route',
+  'personal_ops', 'personal_ops_lane',
   'pairing_posture', 'pairing_route',
   'delegation_posture', 'delegation_route',
   'security_posture', 'security_finding', 'support_bundles', 'support_bundle',
@@ -78,6 +79,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   modelRouteId: {
     type: 'string',
     description: 'Model route id or model key for model_route mode.',
+  },
+  laneId: {
+    type: 'string',
+    description: 'Personal Ops lane id for personal_ops_lane mode.',
   },
   pairingRouteId: {
     type: 'string',

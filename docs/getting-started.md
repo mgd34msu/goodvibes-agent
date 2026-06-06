@@ -43,6 +43,7 @@ Primary first-run areas:
 - Setup: provider/model, connected-host compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
 - Home: normal chat, operator briefing, model selection, and health.
 - Knowledge: isolated Agent Knowledge status, ask/search, inspection, and confirmed ingest.
+- Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery.
 - Memory & Skills: local memory, notes, personas, skills, routines, and learned behavior capture.
 - Channels: companion pairing, channel readiness, notification targets, and confirmed sends.
 - Voice & Media: TTS setup, image input, and confirmed generated media.
@@ -74,6 +75,7 @@ Common model routes:
 | Keybindings | `agent_harness mode:"shortcuts"`, `mode:"keybindings"`, `mode:"keybinding"`, `mode:"run_keybinding"`, `mode:"set_keybinding"` |
 | Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
+| Personal operations | `agent_harness mode:"personal_ops"`, `mode:"personal_ops_lane"` |
 | Local memory/notes/personas/skills/routines | `agent_local_registry` or confirmed workspace actions |
 | Work plan | `agent_work_plan` |
 | Visible autonomous work | `agent` with `mode:"spawn"`, `mode:"batch-spawn"`, `mode:"status"`, `mode:"message"`, `mode:"wait"`, or `mode:"cancel"` |

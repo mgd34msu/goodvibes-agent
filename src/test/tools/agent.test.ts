@@ -1270,10 +1270,13 @@ describe('spawn mode', () => {
       readonly runtime?: string;
       readonly currentContract?: Record<string, unknown>;
       readonly canDoNow?: readonly Record<string, unknown>[];
+      readonly commonRoutes?: Record<string, unknown>;
     };
     expect(payload.runtime).toBe('GoodVibes Agent');
     expect(payload.currentContract?.autonomy).toContain('User-directed operator agent');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Harness operation');
+    expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Personal operations');
+    expect(payload.commonRoutes?.personalOps).toContain('agent_harness mode:"personal_ops"');
 
     const legacy = await registry.execute('call-context-legacy', 'goodvibes_context', {
       mode: ['home', 'graph'].join(''),

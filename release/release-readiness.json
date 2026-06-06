@@ -152,7 +152,7 @@
       "quality": {
         "capabilityCoverage": "Covers durable local memory, scratch notes, personas, profiles, search/review/stale/delete flows, and promotion without knowledge contamination.",
         "userAccess": "The user can manage records through Agent workspace Memory, Notes, Personas, Profiles, and /memory or /personas mirrors.",
-        "modelAccess": "agent_local_registry exposes record lookup/search/get/create/update/review/use/delete for memory, notes, personas, skills, skill bundles, and routines; agent_harness exposes confirmed workspace editor routes when the user starts from visible workspace forms.",
+        "modelAccess": "agent_local_registry exposes record lookup/search/get/create/update/review/use/delete for memory, notes, personas, skills, skill bundles, and routines; agent_harness mode:\"personal_ops\" and mode:\"personal_ops_lane\" expose notes, tasks, reminders, routines, delivery readiness, and honest email/calendar connector gaps; agent_harness exposes confirmed workspace editor routes when the user starts from visible workspace forms.",
         "safetyBoundary": "Local libraries reject secret-looking content and keep destructive or cross-surface promotion actions confirmation-gated.",
         "releaseEvidence": "Readiness evidence cites local registries and CLI/runtime commands, with package policy requiring model-visible local action docs."
       }

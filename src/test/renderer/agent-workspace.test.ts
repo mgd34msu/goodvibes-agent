@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
+import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
@@ -166,7 +167,7 @@ function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
   };
 }
 
-function liveCommandContext(): CommandContext {
+function liveCommandContext(options: { readonly includePersonalOpsNote?: boolean } = {}): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const tokenDir = join(root, '.goodvibes', 'daemon');
@@ -220,6 +221,15 @@ function liveCommandContext(): CommandContext {
     requirements: [{ kind: 'env', name: 'GOODVIBES_AGENT_TEST_MISSING_ROUTINE_TOKEN' }],
     enabled: true,
   });
+  if (options.includePersonalOpsNote === true) {
+    AgentNoteRegistry.fromShellPaths(shellPaths).create({
+      title: 'Follow-up queue',
+      body: 'Track replies, calendar holds, and reminder ideas.',
+      tags: ['personal-ops'],
+      source: 'agent',
+      provenance: 'test',
+    });
+  }
   return {
     executeCommand: async () => true,
     print: () => undefined,
@@ -390,6 +400,21 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('tunnel provider setup');
     expect(output).not.toContain('non-Agent assistant segment');
     expect(output).not.toContain('non-Agent graph segment');
+  });
+
+  test('renders Personal Ops as one daily operations surface', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({ includePersonalOpsNote: true }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personal-ops');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    expect(output).toContain('Personal Ops');
+    expect(output).toContain('Personal Ops: notes 1; routines 1/1');
+    expect(output).toContain('Email/calendar: connector setup needed');
+    expect(output).toContain('Create reminder');
+    expect(output).toContain('Delivery channels');
+    expect(output).toContain('agent_harness mode:"personal_ops"');
   });
 
   test('keeps onboarding context compact enough to show setting actions', () => {

@@ -60,6 +60,8 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'setup_item', kind: 'inspect', family: 'setup', summary: 'Inspect one setup/onboarding posture item and visible remediation route.', parameters: ['setupItemId', 'target', 'query'] },
   { id: 'model_routing', kind: 'discover', family: 'providers', summary: 'List model/provider route, models, pins, and safe route settings.', next: 'Use model_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'model_route', kind: 'inspect', family: 'providers', summary: 'Inspect one model route or model candidate and visible selection paths.', parameters: ['modelRouteId', 'target', 'query'] },
+  { id: 'personal_ops', kind: 'discover', family: 'personal-ops', summary: 'Map email, calendar, notes, tasks, reminders, and delivery.', next: 'Use personal_ops_lane for personal operations.', parameters: ['includeParameters'] },
+  { id: 'personal_ops_lane', kind: 'inspect', family: 'personal-ops', summary: 'Inspect email, calendar, tasks, reminders, or delivery lane.', parameters: ['laneId', 'target', 'query'] },
   { id: 'pairing_posture', kind: 'discover', family: 'companion', summary: 'List pairing routes, token posture, and safe handoff readiness.', next: 'Use pairing_route.', parameters: ['query', 'limit', 'includeParameters'] },
   { id: 'pairing_route', kind: 'inspect', family: 'companion', summary: 'Inspect one companion pairing route and safe visible handoff.', parameters: ['pairingRouteId', 'target', 'query'] },
   { id: 'delegation_posture', kind: 'discover', family: 'delegation', summary: 'List explicit build/fix/review delegation routes and boundaries.', next: 'Use delegation_route.', parameters: ['query', 'limit', 'includeParameters'] },

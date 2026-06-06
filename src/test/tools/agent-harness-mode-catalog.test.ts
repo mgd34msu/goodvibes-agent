@@ -55,6 +55,16 @@ describe('agent_harness mode catalog', () => {
     expect(daemon.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds Personal Ops by natural user task wording', () => {
+    const personalOps = listHarnessModes({ query: 'email calendar tasks reminders', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = personalOps.modes.map((mode) => mode.id);
+    expect(ids).toContain('personal_ops');
+    expect(ids).toContain('personal_ops_lane');
+    expect(personalOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('returns exact, ambiguous, and missing inspection outcomes without guessing', () => {
     expect(describeHarnessMode({ target: 'SET_SETTING' })).toMatchObject({
       status: 'found',

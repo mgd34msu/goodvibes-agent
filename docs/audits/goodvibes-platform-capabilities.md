@@ -42,7 +42,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 ## Remaining Product Gaps
 
-- First-class email and calendar UX.
+- First-class email and calendar connectors and live Personal Ops queue.
 - Deep research report workflow with source quality and artifact output.
 - Document editor and blind model comparison.
 - Local model serving cookbook and hardware-aware setup.

@@ -103,13 +103,13 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     userOutcome: 'The assistant can triage email, draft replies, track calendar context, and act on notes or tasks with reminders.',
     targetStandard: 'better',
     bestInClassRequirement: 'Email, calendar, notes, tasks, reminders, and schedules share one reviewed personal operations surface.',
-    goodVibesStatus: 'gap',
+    goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent has notes, work plans, reminders, channels, and schedules, but no first-class email inbox or calendar triage product.',
+    goodVibesNow: 'Agent now has a unified Personal Ops workspace and model-visible readiness map for notes, work plans, tasks, reminders, routines, schedules, and delivery, while email inbox and calendar triage still require connectors.',
     nextMoves: [
       'Add provider-agnostic email account setup, inbox triage, summary, labels, and draft reply workflows.',
       'Add CalDAV or calendar connector support with agenda briefing, conflict detection, and reminder creation.',
-      'Unify notes, tasks, reminders, and calendar items into one personal operations queue.',
+      'Turn the Personal Ops readiness map into a live queue with inbox, agenda, task, note, reminder, schedule, and delivery records.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Showcases mail, calendar, reminders, issues, and personal operating-system workflows.' },
@@ -301,4 +301,3 @@ export function competitiveInventoryStatusCounts(): Record<GoodVibesCompetitiveS
     gap: 0,
   });
 }
-

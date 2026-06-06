@@ -19,6 +19,7 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
   'onboarding-voice-media',
   'onboarding-context',
   'onboarding-automation',
+  'personal-ops',
   'research',
   'artifacts',
   'conversation',
