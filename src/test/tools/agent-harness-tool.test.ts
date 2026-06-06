@@ -2536,7 +2536,7 @@ describe('agent_harness tool', () => {
                 queuedAt: now - 300_000,
                 startedAt: now - 240_000,
                 endedAt: now - 180_000,
-                error: 'network timeout',
+                error: 'network timeout token=host-secret-token',
                 retryPolicy: {
                   maxAttempts: 3,
                   currentAttempt: 1,
@@ -2728,6 +2728,13 @@ describe('agent_harness tool', () => {
             readonly pauseRoute?: string;
             readonly resumeRoute?: string;
             readonly logTail?: readonly string[];
+            readonly output?: {
+              readonly status: string;
+              readonly route: string;
+              readonly source: string;
+              readonly preview?: string;
+              readonly policy: string;
+            };
             readonly diagnostics?: readonly string[];
             readonly sourceIds?: readonly string[];
             readonly nextSteps?: readonly string[];
@@ -2785,6 +2792,9 @@ describe('agent_harness tool', () => {
       expect(hostTasks?.liveRecords?.[0]?.inspectRoute).toBe('/tasks show host-task-live');
       expect(hostTasks?.liveRecords?.[0]?.cancelRoute).toContain('tasks.cancel');
       expect(hostTasks?.liveRecords?.[0]?.availableControls).toContain('cancel');
+      expect(hostTasks?.liveRecords?.[0]?.output?.status).toBe('route-only');
+      expect(hostTasks?.liveRecords?.[0]?.output?.route).toBe('/tasks output host-task-live');
+      expect(hostTasks?.liveRecords?.[0]?.output?.source).toBe('not-published');
       expect(hostTasks?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('output route /tasks output host-task-live');
       expect(hostTasks?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.confirmationRequired).toBe(true);
       expect(hostTasks?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.modelRoute).toContain('tasks.cancel');
@@ -2793,7 +2803,14 @@ describe('agent_harness tool', () => {
       expect(failedHostTask?.availableControls).toContain('retry');
       expect(failedHostTask?.controls?.find((control) => control.id === 'retry')?.modelRoute).toContain('tasks.retry');
       expect(failedHostTask?.logTail?.join('\n')).toContain('network timeout');
+      expect(failedHostTask?.logTail?.join('\n')).not.toContain('host-secret-token');
+      expect(failedHostTask?.output?.status).toBe('preview');
+      expect(failedHostTask?.output?.route).toBe('/tasks output host-task-failed');
+      expect(failedHostTask?.output?.source).toBe('runtime-task-error');
+      expect(failedHostTask?.output?.preview).toContain('token=<redacted>');
+      expect(failedHostTask?.output?.preview).not.toContain('host-secret-token');
       expect(failedHostTask?.diagnostics?.join('\n')).toContain('retry attempt 1/3');
+      expect(failedHostTask?.diagnostics?.join('\n')).not.toContain('host-secret-token');
       expect(approvals?.owner).toBe('connected-host');
       expect(approvals?.status).toBe('attention');
       expect(approvals?.cancelRoute).toContain('approval-cancel');

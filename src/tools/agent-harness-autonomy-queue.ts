@@ -61,8 +61,17 @@ interface AutonomyQueueLiveRecord {
   readonly nextSteps?: readonly string[];
   readonly sourceIds?: readonly string[];
   readonly logTail?: readonly string[];
+  readonly output?: AutonomyQueueRecordOutput;
   readonly diagnostics?: readonly string[];
   readonly controls?: readonly AutonomyQueueRecordControl[];
+}
+
+interface AutonomyQueueRecordOutput {
+  readonly status: 'preview' | 'route-only';
+  readonly route: string;
+  readonly source: 'runtime-task-result' | 'runtime-task-error' | 'not-published';
+  readonly preview?: string;
+  readonly policy: string;
 }
 
 interface AutonomyQueueRecordControl {
@@ -113,12 +122,24 @@ function formatTimeFragment(label: string, value: number | undefined): string {
   return formatted ? `${label} ${formatted}` : '';
 }
 
+const SENSITIVE_TEXT_PATTERNS: readonly [RegExp, string][] = [
+  [/("?\b(?:api[-_]?key|apikey|token|secret|password|passwd|credential|authorization)\b"?\s*:\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, '$1"<redacted>"'],
+  [/\b([A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTHORIZATION|BEARER)[A-Z0-9_]*)=("[^"]*"|'[^']*'|[^\s]+)/gi, '$1=<redacted>'],
+  [/(\b(?:token|secret|password|passwd|api[-_]?key|apikey|authorization|credential)\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, '$1<redacted>'],
+  [/(Authorization:\s*Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1<redacted>'],
+  [/(\s--(?:token|password|secret|api-key|api_key)\s+)("[^"]*"|'[^']*'|[^\s]+)/gi, '$1<redacted>'],
+];
+
+function redactHarnessOutputText(value: string): string {
+  return SENSITIVE_TEXT_PATTERNS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+}
+
 function compactUnknown(value: unknown): string {
   if (value === undefined || value === null) return '';
-  if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim();
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (typeof value === 'string') return redactHarnessOutputText(value.replace(/\s+/g, ' ').trim());
+  if (typeof value === 'number' || typeof value === 'boolean') return redactHarnessOutputText(String(value));
   try {
-    return JSON.stringify(value).replace(/\s+/g, ' ').trim();
+    return redactHarnessOutputText(JSON.stringify(value).replace(/\s+/g, ' ').trim());
   } catch {
     return '';
   }
@@ -202,6 +223,36 @@ function firstAvailableControlRoute(records: readonly AutonomyQueueLiveRecord[],
   return undefined;
 }
 
+function taskOutputDescriptor(task: UiTasksSnapshot['tasks'][number]): AutonomyQueueRecordOutput {
+  const route = `/tasks output ${task.id}`;
+  const resultPreview = task.result !== undefined ? compactUnknown(task.result) : '';
+  if (resultPreview.length > 0) {
+    return {
+      status: 'preview',
+      route,
+      source: 'runtime-task-result',
+      preview: previewHarnessText(resultPreview, 240),
+      policy: 'Bounded preview from the connected-host task read model; secret-looking text is redacted. Use the route for the full host-owned output view when available.',
+    };
+  }
+  const errorPreview = task.error ? compactUnknown(task.error) : '';
+  if (errorPreview.length > 0) {
+    return {
+      status: 'preview',
+      route,
+      source: 'runtime-task-error',
+      preview: previewHarnessText(errorPreview, 240),
+      policy: 'Bounded error preview from the connected-host task read model; secret-looking text is redacted. Use the route for the full host-owned output view when available.',
+    };
+  }
+  return {
+    status: 'route-only',
+    route,
+    source: 'not-published',
+    policy: 'The connected host has not published task result/error text in the task read model. Use the route for host-owned output if that host exposes it.',
+  };
+}
+
 function taskDiagnostics(task: UiTasksSnapshot['tasks'][number]): readonly string[] {
   const retry = task.retryPolicy
     ? `retry attempt ${task.retryPolicy.currentAttempt}/${task.retryPolicy.maxAttempts} backoff ${task.retryPolicy.backoff} delay ${task.retryPolicy.delayMs}ms categories ${task.retryPolicy.retryOn.join(',')}`
@@ -214,6 +265,7 @@ function taskDiagnostics(task: UiTasksSnapshot['tasks'][number]): readonly strin
     task.childTaskIds.length > 0 ? `children ${task.childTaskIds.join(',')}` : '',
     task.correlationId ? `correlation ${task.correlationId}` : '',
     task.turnId ? `turn ${task.turnId}` : '',
+    task.error ? `error ${compactUnknown(task.error)}` : '',
     task.result !== undefined ? `result ${compactUnknown(task.result)}` : '',
     `output route /tasks output ${task.id}`,
   ].filter((value): value is string => value.length > 0);
@@ -317,9 +369,10 @@ function taskLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRec
       formatTimeFragment('ended', task.endedAt),
       retry,
       task.retryAt ? `retry ${formatEpochMs(task.retryAt)}` : '',
-      task.error ? `error ${task.error}` : '',
-      task.result !== undefined ? `result ${compactUnknown(task.result)}` : task.description ?? '',
+      task.error ? `error ${compactUnknown(task.error)}` : '',
+      task.result !== undefined ? `result ${compactUnknown(task.result)}` : compactUnknown(task.description),
     ].filter(Boolean).join(' | ');
+    const output = taskOutputDescriptor(task);
     return {
       id: task.id,
       label: task.title,
@@ -342,7 +395,8 @@ function taskLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRec
         task.correlationId,
         task.turnId,
       ].filter((value): value is string => typeof value === 'string' && value.length > 0),
-      ...(task.error ? { logTail: [task.error] } : {}),
+      ...(task.error ? { logTail: [compactUnknown(task.error)] } : {}),
+      output,
       diagnostics: taskDiagnostics(task),
       controls: [
         availableControl('inspect', 'Inspect task', 'read-only', `/tasks show ${task.id}`),
@@ -700,6 +754,13 @@ function itemSearchText(item: AutonomyQueueItem): string {
       record.nextSteps?.join('\n') ?? '',
       record.sourceIds?.join('\n') ?? '',
       record.logTail?.join('\n') ?? '',
+      record.output ? [
+        record.output.status,
+        record.output.route,
+        record.output.source,
+        record.output.preview ?? '',
+        record.output.policy,
+      ].join('\n') : '',
       record.diagnostics?.join('\n') ?? '',
       record.controls?.map((control) => [
         control.id,
@@ -725,6 +786,16 @@ function describeControl(control: AutonomyQueueRecordControl): Record<string, un
   };
 }
 
+function describeOutput(output: AutonomyQueueRecordOutput, includeParameters: boolean): Record<string, unknown> {
+  return {
+    status: output.status,
+    route: output.route,
+    source: output.source,
+    ...(output.preview ? { preview: previewHarnessText(output.preview, includeParameters ? 220 : 96) } : {}),
+    policy: previewHarnessText(output.policy, includeParameters ? 180 : 96),
+  };
+}
+
 function describeLiveRecord(record: AutonomyQueueLiveRecord, includeParameters: boolean): Record<string, unknown> {
   const availableControls = record.controls
     ?.filter((control) => control.state === 'available')
@@ -745,6 +816,7 @@ function describeLiveRecord(record: AutonomyQueueLiveRecord, includeParameters: 
     ...(record.nextSteps && record.nextSteps.length > 0 ? { nextSteps: record.nextSteps.slice(0, includeParameters ? 8 : 3) } : {}),
     ...(record.sourceIds && record.sourceIds.length > 0 ? { sourceIds: record.sourceIds.slice(0, includeParameters ? 12 : 4) } : {}),
     ...(record.logTail && record.logTail.length > 0 ? { logTail: record.logTail.slice(-(includeParameters ? 5 : 2)) } : {}),
+    ...(record.output ? { output: describeOutput(record.output, includeParameters) } : {}),
     ...(record.diagnostics && record.diagnostics.length > 0 ? { diagnostics: record.diagnostics.slice(0, includeParameters ? 10 : 3).map((line) => previewHarnessText(line, includeParameters ? 160 : 96)) } : {}),
     ...(availableControls && availableControls.length > 0 ? { availableControls: availableControls.slice(0, includeParameters ? 8 : 4) } : {}),
     ...(includeParameters && record.controls && record.controls.length > 0 ? { controls: record.controls.map(describeControl) } : {}),
