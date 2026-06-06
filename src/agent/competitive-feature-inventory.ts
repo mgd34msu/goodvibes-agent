@@ -47,10 +47,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'One guided flow verifies dependencies, installs or starts the host, configures auth, pairs channels, and leaves a working assistant.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, connected-host auth, provider/model access, local model readiness, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host setup includes live service probe evidence, token-safe auth posture, recommended diagnostic/status cards, confirmed service install/start/restart routes that stay inspect-first unless service status proves need, offline bootstrap commands for missing-host setup, and fixtures for missing host, unreachable host, reachable host, missing token, and model-unconfigured paths.',
+    goodVibesNow: 'Agent has onboarding, diagnostics, redacted GoodVibes settings import preview/apply, and a model-visible first-run setup plan that orders connected-host readiness, connected-host auth, provider/model access, local model readiness, Agent Knowledge, local behavior, channels, automation review, browser/desktop control, delegation, and finish state with exact user and model routes. Connected-host setup includes live service probe evidence, token-safe auth posture with exact pairing route ids and host-owned provisioning boundaries, recommended diagnostic/status cards, confirmed service install/start/restart routes that stay inspect-first unless service status proves need, offline bootstrap commands for missing-host setup, and fixtures for missing host, unreachable host, reachable host, missing token, and model-unconfigured paths.',
     nextMoves: [
       'Add end-to-end install smoke that proves a user can go from package install to reachable assistant.',
-      'Turn the missing-token setup row into an exact pairing/provisioning handoff when the connected host exposes a public pairing route for Agent.',
+      'Add a host-side connected-token provisioning route when the connected host exposes a safe public contract for it.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Onboarding can install the Gateway daemon so it stays running.' },

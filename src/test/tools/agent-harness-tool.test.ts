@@ -1102,20 +1102,31 @@ describe('agent_harness tool', () => {
               readonly path: string;
               readonly fingerprint?: string;
             };
-            readonly routes: { readonly reviewCommand: string; readonly connectedHostStatus: string; readonly pairingPosture: string };
+            readonly routes: {
+              readonly reviewCommand: string;
+              readonly connectedHostStatus: string;
+              readonly pairingPosture: string;
+              readonly qrPairingRoute: string;
+              readonly manualTokenRoute: string;
+              readonly tokenProvisioningOwner: string;
+            };
           };
         }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-auth' });
 
         expect(missing.setupItemId).toBe('connected-host-auth');
         expect(missing.status).toBe('blocked');
         expect(missing.blocksAutonomy).toBe(true);
-        expect(missing.nextAction).toContain('Pair or provision connected-host operator access');
+        expect(missing.nextAction).toContain('Provision connected-host operator access through the owning GoodVibes host');
         expect(missing.signals?.join('\n')).toContain('operator token: missing');
+        expect(missing.signals?.join('\n')).toContain('Agent does not create, rotate, or clear connected-host operator tokens');
         expect(missing.authPosture?.owner).toBe('connected-host');
         expect(missing.authPosture?.operatorToken).toMatchObject({ present: false, usable: false });
         expect(missing.authPosture?.routes.reviewCommand).toBe('/auth review');
         expect(missing.authPosture?.routes.connectedHostStatus).toContain('connected_host_status');
         expect(missing.authPosture?.routes.pairingPosture).toContain('pairing_posture');
+        expect(missing.authPosture?.routes.qrPairingRoute).toContain('qr-pairing');
+        expect(missing.authPosture?.routes.manualTokenRoute).toContain('manual-token-display');
+        expect(missing.authPosture?.routes.tokenProvisioningOwner).toContain('owning GoodVibes host');
 
         writeConnectedHostOperatorToken(fixture);
         const ready = await executeHarnessJson<{

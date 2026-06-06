@@ -111,6 +111,9 @@ interface SetupConnectedHostAuthPosture {
     readonly reviewCommand: string;
     readonly connectedHostStatus: string;
     readonly pairingPosture: string;
+    readonly qrPairingRoute: string;
+    readonly manualTokenRoute: string;
+    readonly tokenProvisioningOwner: string;
   };
 }
 
@@ -387,6 +390,9 @@ function connectedHostAuthPosture(
       reviewCommand: '/auth review',
       connectedHostStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
       pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
+      qrPairingRoute: 'agent_harness mode:"pairing_route" pairingRouteId:"qr-pairing"',
+      manualTokenRoute: 'agent_harness mode:"pairing_route" pairingRouteId:"manual-token-display"',
+      tokenProvisioningOwner: 'owning GoodVibes host; Agent does not create, rotate, or clear connected-host operator tokens',
     },
   };
 }
@@ -399,7 +405,7 @@ function connectedHostAuthStatus(posture: SetupConnectedHostAuthPosture): SetupP
 
 function connectedHostAuthNextAction(posture: SetupConnectedHostAuthPosture): string {
   if (!posture.operatorToken.present) {
-    return 'Pair or provision connected-host operator access through the owning GoodVibes host, then rerun auth review and connected-host status.';
+    return 'Provision connected-host operator access through the owning GoodVibes host, inspect pairing posture for the visible handoff routes, then rerun auth review and connected-host status.';
   }
   if (!posture.operatorToken.usable) {
     return 'Repair or replace the connected-host operator token through the owning GoodVibes host, then rerun auth review.';
@@ -418,6 +424,7 @@ function connectedHostAuthSignals(posture: SetupConnectedHostAuthPosture): reado
     `compatibility auth users: ${posture.compatibilityAuth.users}`,
     `compatibility auth sessions: ${posture.compatibilityAuth.sessions}`,
     `bootstrap credential: ${posture.compatibilityAuth.bootstrapCredentialPresent ? 'present' : 'missing'} (${posture.compatibilityAuth.bootstrapCredentialPath})`,
+    `token provisioning owner: ${posture.routes.tokenProvisioningOwner}`,
   ];
 }
 
