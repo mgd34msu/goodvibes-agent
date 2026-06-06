@@ -457,10 +457,13 @@ describe('renderAgentWorkspace', () => {
     let output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Research');
     expect(output).toContain('Research route: openai-subscriber / GPT-5.5');
+    expect(output).toContain('Source queue: 0 candidate; 0 reviewed; 0 rejected; 0 used.');
     expect(output).toContain('Web and URL inspection stay read-only');
-    expect(output).toContain('Sourced report artifacts are available through agent_research_report');
+    expect(output).toContain('Source review uses agent_research_sources; report artifacts use agent_research_report');
     expect(output).toContain('Research in conversation');
     expect(output).toContain('Inspect URL');
+    expect(output).toContain('Source queue');
+    expect(output).toContain('Add source to queue');
     expect(output).toContain('Save research report');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'research-save-report');

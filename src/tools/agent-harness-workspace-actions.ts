@@ -141,6 +141,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   ) return 'agent_artifacts';
   if (editorKind === 'artifact-promote-knowledge') return 'agent_knowledge_ingest';
   if (editorKind === 'web-research' || editorKind === 'web-fetch') return 'main conversation prompt';
+  if (editorKind === 'research-source') return 'agent_research_sources';
   if (editorKind === 'research-report') return 'agent_research_report';
   if (editorKind === 'media-generate') return 'agent_media_generate';
   if (
@@ -171,6 +172,7 @@ function localActionRouteHint(action: AgentWorkspaceAction): string {
 
 function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
+  if (action.id === 'research-source-queue') return 'agent_harness mode:"research_queue"';
   if (
     action.id === 'personal-ops-autonomy-queue'
     || action.id === 'work-autonomy-queue'

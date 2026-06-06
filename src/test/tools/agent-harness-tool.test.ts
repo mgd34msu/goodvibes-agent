@@ -25,8 +25,10 @@ import { createAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
+import { createAgentResearchSourcesTool } from '../../tools/agent-research-sources-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { listGoodVibesCliCommands } from '../../cli/parser.ts';
@@ -549,6 +551,7 @@ describe('agent_harness tool', () => {
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
       expect(summaryJson.modeGuide?.inspect).toContain('personal_ops_lane');
+      expect(summaryJson.modeGuide?.inspect).toContain('research_source');
       expect(summaryJson.modeGuide?.inspect).toContain('document_ops_lane');
 
       const allModes = await fixture.tool.execute({ mode: 'modes', limit: 500 });
@@ -839,6 +842,83 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'memory-learning-curator' });
       expect(action.id).toBe('memory-learning-curator');
       expect(action.modelRoute).toBe('agent_harness mode:"learning_curator"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes a read-only research source queue with report handoff routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const registry = AgentResearchSourceRegistry.fromShellPaths(fixture.paths);
+      const candidate = registry.create({
+        question: 'Which local model route should we try first?',
+        title: 'Ollama setup docs',
+        url: 'https://example.test/ollama?token=secret-token',
+        publisher: 'Ollama',
+        summary: 'Official setup docs for a simple local model route.',
+        evidence: 'Setup flow is simple and local.',
+        tags: ['local-models'],
+        provenance: 'test-research-queue',
+      });
+      const reviewed = registry.review(candidate.id, {
+        credibility: 'high',
+        score: 91,
+        note: 'Official source; useful for report citation.',
+      });
+
+      const summary = await executeHarnessJson<{
+        readonly researchQueue?: { readonly sources: number; readonly reviewed: number; readonly readOnly: boolean };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.researchQueue?.sources).toBe(1);
+      expect(summary.researchQueue?.reviewed).toBe(1);
+      expect(summary.researchQueue?.readOnly).toBe(true);
+
+      const queue = await executeHarnessJson<{
+        readonly summary: { readonly sources: number; readonly reviewed: number; readonly candidates: number };
+        readonly sources: readonly {
+          readonly sourceId: string;
+          readonly status: string;
+          readonly credibility: string;
+          readonly score: number;
+          readonly modelRoute: string;
+          readonly reportRoute?: string;
+          readonly ingestRoute?: string;
+          readonly reportSourceLine: string;
+          readonly url?: string;
+        }[];
+        readonly policy: string;
+      }>(fixture, { mode: 'research_queue', includeParameters: true });
+      expect(queue.summary.sources).toBe(1);
+      expect(queue.summary.reviewed).toBe(1);
+      expect(queue.summary.candidates).toBe(0);
+      expect(queue.policy).toContain('Research queue is read-only');
+      expectRowsHaveCompactModelRoutes(queue.sources);
+      expect(queue.sources[0]?.sourceId).toBe(reviewed.id);
+      expect(queue.sources[0]?.status).toBe('reviewed');
+      expect(queue.sources[0]?.credibility).toBe('high');
+      expect(queue.sources[0]?.score).toBe(91);
+      expect(queue.sources[0]?.reportRoute).toContain('research-save-report');
+      expect(queue.sources[0]?.ingestRoute).toContain('agent_knowledge_ingest');
+      expect(queue.sources[0]?.reportSourceLine).toContain('Ollama setup docs');
+      expect(queue.sources[0]?.url).toContain('token=%3Credacted%3E');
+      expect(queue.sources[0]?.url).not.toContain('secret-token');
+
+      const source = await executeHarnessJson<{
+        readonly sourceId: string;
+        readonly reportSourceLine: string;
+        readonly policy?: string;
+      }>(fixture, { mode: 'research_source', sourceId: reviewed.id });
+      expect(source.sourceId).toBe(reviewed.id);
+      expect(source.reportSourceLine).toContain('high');
+      expect(source.policy).toContain('Research queue rows are local project state only');
+
+      const action = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'research-source-queue' });
+      expect(action.id).toBe('research-source-queue');
+      expect(action.modelRoute).toBe('agent_harness mode:"research_queue"');
     } finally {
       fixture.cleanup();
     }
@@ -1178,6 +1258,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-source-queue')?.modelRoute).toBe('agent_harness mode:"research_queue"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-add-source')?.modelRoute).toBe('agent_research_sources');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-save-report')?.modelRoute).toBe('agent_research_report');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
@@ -2602,6 +2684,7 @@ describe('agent_harness tool', () => {
       const local = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'memory-create' });
       const commandBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'conversation-save' });
       const promptBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-main' });
+      const researchSource = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-add-source' });
       const researchReport = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-save-report' });
       const directLocal = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'learned-behavior' });
       const profile = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'runtime-profile-create' });
@@ -2609,6 +2692,7 @@ describe('agent_harness tool', () => {
       expect(local.success).toBe(true);
       expect(commandBacked.success).toBe(true);
       expect(promptBacked.success).toBe(true);
+      expect(researchSource.success).toBe(true);
       expect(researchReport.success).toBe(true);
       expect(directLocal.success).toBe(true);
       expect(profile.success).toBe(true);
@@ -2627,6 +2711,12 @@ describe('agent_harness tool', () => {
         route: 'main-conversation-prompt',
         result: 'prompt',
         confirmation: 'not-required',
+      });
+      expect(JSON.parse(researchSource.output).modelExecution).toMatchObject({
+        route: 'agent_research_sources',
+        tool: 'agent_research_sources',
+        action: 'add_source_candidate',
+        confirmation: 'required',
       });
       expect(JSON.parse(researchReport.output).modelExecution).toMatchObject({
         route: 'agent_research_report',
@@ -3529,6 +3619,67 @@ describe('agent_harness tool', () => {
       });
       expect(JSON.stringify(artifact?.metadata)).toContain('token=%3Credacted%3E');
       expect(JSON.stringify(artifact?.metadata)).not.toContain('token=secret');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs confirmed research source workspace editor through agent_research_sources', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.toolRegistry.register(createAgentResearchSourcesTool(fixture.paths));
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'research-add-source',
+        confirm: true,
+        explicitUserRequest: 'Add the reviewed Ollama source to the research queue.',
+        fields: {
+          question: 'Which local model route should we try?',
+          title: 'Ollama docs',
+          url: 'https://example.test/ollama?token=secret',
+          summary: 'Official docs for the simplest local model setup.',
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmed.success).toBe(true);
+      expect(unconfirmed.output).toContain('"status": "not_confirmed"');
+      expect(unconfirmed.output).toContain('research-add-source');
+
+      const saved = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'research-add-source',
+        confirm: true,
+        explicitUserRequest: 'Add the reviewed Ollama source to the research queue.',
+        fields: {
+          question: 'Which local model route should we try?',
+          title: 'Ollama docs',
+          url: 'https://example.test/ollama?token=secret',
+          publisher: 'Ollama',
+          publishedAt: '2026-06-01',
+          summary: 'Official docs for the simplest local model setup.',
+          evidence: 'Setup is local and minimal.',
+          credibility: 'high',
+          score: '92',
+          tags: 'research,local',
+          note: 'Official source for the first recommendation.',
+          confirm: 'yes',
+        },
+      });
+      expect(saved.success).toBe(true);
+      expect(saved.output).toContain('"status": "executed_model_tool"');
+      expect(saved.output).toContain('"tool": "agent_research_sources"');
+      expect(saved.output).toContain('Added Agent research source');
+      expect(saved.output).not.toContain('token=secret');
+
+      const source = AgentResearchSourceRegistry.fromShellPaths(fixture.paths).get('ollama-docs');
+      expect(source?.question).toBe('Which local model route should we try?');
+      expect(source?.url).toContain('token=%3Credacted%3E');
+      expect(source?.url).not.toContain('token=secret');
+      expect(source?.credibility).toBe('high');
+      expect(source?.status).toBe('reviewed');
+      expect(source?.score).toBe(92);
+      expect(source?.tags).toEqual(['research', 'local']);
     } finally {
       fixture.cleanup();
     }

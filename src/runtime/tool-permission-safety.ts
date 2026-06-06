@@ -31,6 +31,7 @@ const WRITE_TOOL_NAMES = new Set([
   'agent_documents',
   'agent_knowledge_ingest',
   'agent_local_registry',
+  'agent_research_sources',
   'agent_research_report',
   'agent_work_plan',
 ]);

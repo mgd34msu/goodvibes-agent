@@ -6,6 +6,7 @@ import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-ed
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
 import { buildAgentResearchReportToolArgs } from '../input/agent-workspace-research-report-editor.ts';
+import { buildAgentResearchSourceToolArgs } from '../input/agent-workspace-research-source-editor.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
@@ -31,6 +32,7 @@ import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostur
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
 import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
 import { describeHarnessReleaseReadinessItem, releaseReadinessInventoryStatus, releaseReadinessSummary } from './agent-harness-release-readiness.ts';
+import { describeResearchSource, researchQueueCatalogStatus, researchQueueSummary } from './agent-harness-research-queue.ts';
 import { describeHarnessSecurityFinding, describeHarnessSupportBundle, securityPostureCatalogStatus, securityPostureSummary, supportBundleCatalogStatus, supportBundleSummary } from './agent-harness-security-posture.ts';
 import { describeHarnessSession, sessionCatalogStatus, sessionSummary } from './agent-harness-session-metadata.ts';
 import { describeHarnessServiceEndpoint, servicePostureCatalogStatus, servicePostureSummary } from './agent-harness-service-posture.ts';
@@ -59,6 +61,7 @@ interface AgentHarnessToolArgs {
   readonly laneId?: unknown;
   readonly queueItemId?: unknown;
   readonly candidateId?: unknown;
+  readonly sourceId?: unknown;
   readonly pairingRouteId?: unknown;
   readonly delegationRouteId?: unknown;
   readonly findingId?: unknown;
@@ -172,6 +175,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     personalOps: 'List mode:"personal_ops"; inspect mode:"personal_ops_lane"; use returned routes for inbox, agenda, notes, tasks, reminders, routines, and delivery.',
     autonomyQueue: 'List mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay on owning confirmed routes.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
+    researchQueue: 'List mode:"research_queue"; inspect mode:"research_source"; capture/review uses agent_research_sources, reports use agent_research_report, ingest uses agent_knowledge_ingest.',
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'List mode:"pairing_posture"; inspect mode:"pairing_route"; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
@@ -464,6 +468,38 @@ async function runWorkspaceEditorAction(
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',
       action: action.id,
       tool: 'agent_research_report',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'research-source') {
+    const confirmationError = requireConfirmedAction(args, 'Workspace research source queue add');
+    if (confirmationError) return error(confirmationError);
+    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+      return output({
+        status: 'not_confirmed',
+        action: action.id,
+        editor: describeWorkspaceEditor(editor),
+        modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+        note: 'Type yes in the editor confirmation field before adding the source to the local research queue.',
+      });
+    }
+    const sourceToolArgs = buildAgentResearchSourceToolArgs(
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Add one source to the project-local research queue.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-research-source',
+      'agent_research_sources',
+      sourceToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_research_sources',
       output: result.output ?? null,
       error: result.error ?? null,
       modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
@@ -833,6 +869,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             personalOps: personalOpsCatalogStatus(deps.commandContext),
             autonomyQueue: autonomyQueueCatalogStatus(deps.commandContext),
             learningCurator: learningCuratorCatalogStatus(deps.commandContext),
+            researchQueue: researchQueueCatalogStatus(deps.commandContext),
             documentOps: documentOpsCatalogStatus(deps.commandContext),
             pairingPosture: pairingPostureCatalogStatus(deps.commandContext),
             delegationPosture: delegationPostureCatalogStatus(deps.commandContext),
@@ -998,6 +1035,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describeLearningCandidate(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.candidate);
           if (resolved.status === 'ambiguous') return error(`Ambiguous learning candidate ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'research_queue') return output(researchQueueSummary(deps.commandContext, args));
+        if (args.mode === 'research_source') {
+          const resolved = describeResearchSource(deps.commandContext, args);
+          if (resolved.status === 'found') return output(resolved.source);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous research source ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'document_ops') return output(documentOpsSummary(deps.commandContext, args));

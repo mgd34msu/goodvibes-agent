@@ -9,6 +9,7 @@ export const AGENT_HARNESS_MODES = [
   'personal_ops', 'personal_ops_lane',
   'autonomy_queue', 'autonomy_queue_item',
   'learning_curator', 'learning_candidate',
+  'research_queue', 'research_source',
   'document_ops', 'document_ops_lane',
   'pairing_posture', 'pairing_route',
   'delegation_posture', 'delegation_route',
@@ -94,6 +95,10 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   candidateId: {
     type: 'string',
     description: 'Candidate id for learning_candidate mode.',
+  },
+  sourceId: {
+    type: 'string',
+    description: 'Research source id for research_source mode.',
   },
   pairingRouteId: {
     type: 'string',

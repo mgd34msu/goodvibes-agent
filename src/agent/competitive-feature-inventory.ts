@@ -200,10 +200,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Research plans, source quality, citations, synthesis, visual report output, and knowledge ingest are one coherent workflow.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'Agent has web research, URL inspection, Agent Knowledge, ingest routes, and confirmed sourced report artifact saving with citation/source maps; live source queues, cancellation, and checkpoint resume are still missing.',
+    goodVibesNow: 'Agent has web research, URL inspection, Agent Knowledge, ingest routes, a project-local research source queue with credibility, score, review/reject/use state, report-ready source lines, and confirmed sourced report artifact saving with citation/source maps; live cancellation, checkpoint resume, and richer visual report output are still missing.',
     nextMoves: [
-      'Add a deep research mode with plan, live source queue, credibility scoring, report drafting, and explicit knowledge ingest.',
-      'Add source bundle review and credibility scoring assistants before report save.',
+      'Add a deep research mode with plan, live runner state, source queue updates, report drafting, and explicit knowledge ingest.',
+      'Add source bundle review assistants and citation coverage checks before report save.',
       'Add live cancellation and checkpoint resume for long research runs.',
     ],
     competitorSignals: [

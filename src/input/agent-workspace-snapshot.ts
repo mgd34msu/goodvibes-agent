@@ -6,6 +6,7 @@ import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { formatAgentRecordOrigin } from '../agent/record-labels.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
+import { AgentResearchSourceRegistry } from '../agent/research-source-registry.ts';
 import {
   AgentSkillRegistry,
   evaluateAgentSkillBundleReadiness,
@@ -327,6 +328,22 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, successful: 0, failed: 0, latest: null };
     }
   })();
+  const researchSourceSnapshot = (() => {
+    try {
+      const shellPaths = context.workspace?.shellPaths;
+      if (!shellPaths) return { count: 0, candidate: 0, reviewed: 0, rejected: 0, used: 0 };
+      const snapshot = AgentResearchSourceRegistry.fromShellPaths(shellPaths).snapshot();
+      return {
+        count: snapshot.sources.length,
+        candidate: snapshot.candidates.length,
+        reviewed: snapshot.reviewed.length,
+        rejected: snapshot.rejected.length,
+        used: snapshot.used.length,
+      };
+    } catch {
+      return { count: 0, candidate: 0, reviewed: 0, rejected: 0, used: 0 };
+    }
+  })();
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
   const profileBaseHome = inferRuntimeProfileBaseHome(context.workspace?.shellPaths?.homeDirectory ?? '');
   const runtimeProfiles = (() => {
@@ -565,6 +582,11 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     localNoteCount: noteSnapshot.count,
     localNoteReviewQueueCount: noteSnapshot.reviewQueueCount,
     localNotes: noteSnapshot.items,
+    researchSourceCount: researchSourceSnapshot.count,
+    researchSourceCandidateCount: researchSourceSnapshot.candidate,
+    researchSourceReviewedCount: researchSourceSnapshot.reviewed,
+    researchSourceRejectedCount: researchSourceSnapshot.rejected,
+    researchSourceUsedCount: researchSourceSnapshot.used,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,
