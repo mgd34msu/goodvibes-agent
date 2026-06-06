@@ -31,6 +31,7 @@ const MAX_COMPACT_LOG_PREVIEW_CHARS = 600;
 const DEFAULT_BACKGROUND_TIMEOUT_MS = 30 * 60 * 1000;
 const MAX_BACKGROUND_TIMEOUT_MS = 8 * 60 * 60 * 1000;
 const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
+const PROCESS_PARITY_METHODS = ['terminal(background=true)', 'process(list)', 'process(poll)', 'process(wait)', 'process(log)', 'process(kill)', 'process(write)', 'pty', 'sudo'] as const;
 const SENSITIVE_TEXT_PATTERNS: readonly [RegExp, string][] = [
   [/\b([A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTHORIZATION|BEARER)[A-Z0-9_]*)=("[^"]*"|'[^']*'|[^\s]+)/gi, '$1=<redacted>'],
   [/(\b(?:token|secret|password|passwd|api[-_]?key|authorization|credential)\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s]+)/gi, '$1<redacted>'],
@@ -167,15 +168,99 @@ function candidateProcess(entry: BackgroundProcess): Record<string, unknown> {
   };
 }
 
+function sudoCredentialSignal(): Record<string, unknown> {
+  return {
+    envPresent: Boolean(process.env.SUDO_PASSWORD),
+    checked: 'process.env.SUDO_PASSWORD only',
+    policy: 'The harness never reads, stores, or prints the password value. A credential signal alone is not enough for hidden background sudo execution.',
+  };
+}
+
+function processToolParity(): readonly Record<string, unknown>[] {
+  return [
+    {
+      capability: 'terminal(background=true)',
+      status: 'supported',
+      userOutcome: 'Start one visible tracked local command without blocking the conversation.',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"start" command:"..." confirm:true explicitUserRequest:"..."',
+    },
+    {
+      capability: 'process(list)',
+      status: 'supported',
+      userOutcome: 'See every tracked local background process from the shared ProcessManager.',
+      modelRoute: 'agent_harness mode:"background_processes"',
+    },
+    {
+      capability: 'process(poll)',
+      status: 'supported',
+      userOutcome: 'Poll one tracked process status without waiting.',
+      modelRoute: 'agent_harness mode:"background_process" processId:"..."',
+    },
+    {
+      capability: 'process(wait)',
+      status: 'supported',
+      userOutcome: 'Wait on one tracked process with a bounded timeout.',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"wait" processId:"..." confirm:true explicitUserRequest:"..."',
+    },
+    {
+      capability: 'process(log)',
+      status: 'supported',
+      userOutcome: 'Read bounded, redacted stdout/stderr tails for one tracked process.',
+      modelRoute: 'agent_harness mode:"background_process" processId:"..." includeParameters:true',
+    },
+    {
+      capability: 'process(kill)',
+      status: 'supported',
+      userOutcome: 'Stop and remove one tracked process from the shared ProcessManager.',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"stop" processId:"..." confirm:true explicitUserRequest:"..."',
+    },
+    {
+      capability: 'process(write)',
+      status: 'blocked-contract-gap',
+      userOutcome: 'Interactive input is not exposed because the SDK ProcessManager has no safe stdin handle.',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"write" processId:"..." data:"..."',
+    },
+    {
+      capability: 'pty',
+      status: 'blocked-contract-gap',
+      userOutcome: 'Interactive CLIs need a published PTY/session API before Agent can make them safe and visible.',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"start" pty:true command:"..."',
+    },
+    {
+      capability: 'sudo',
+      status: 'visible-only',
+      userOutcome: 'Privilege prompts must stay foreground or use a future safe credential-prompt contract.',
+      modelRoute: 'agent_harness mode:"execution_route" executionRouteId:"local-shell-command"',
+    },
+  ];
+}
+
 function capabilities(): Record<string, unknown> {
   return {
     start: 'agent_harness mode:"run_background_process" processAction:"start" command:"..." confirm:true explicitUserRequest:"..."',
     inspect: 'agent_harness mode:"background_processes" or mode:"background_process"',
     wait: 'agent_harness mode:"run_background_process" processAction:"wait" processId:"..." confirm:true explicitUserRequest:"..."',
     stop: 'agent_harness mode:"run_background_process" processAction:"stop" processId:"..." confirm:true explicitUserRequest:"..."',
+    parity: processToolParity(),
+    substrate: {
+      localProcessManager: {
+        status: 'available-when-runtime-wires-processManager',
+        supports: ['spawn', 'list', 'status', 'output', 'stop'],
+        missing: ['stdin write', 'PTY session', 'sudo prompt mediation'],
+      },
+      daemonOperatorContract: {
+        status: 'no-published-terminal-or-pty-method',
+        auditedTerms: ['terminal', 'process.write', 'pty', 'sudo'],
+        closestRoutes: [
+          'agent_harness mode:"operator_methods" query:"tasks"',
+          'agent_harness mode:"operator_methods" query:"automation"',
+          'agent_harness mode:"operator_methods" query:"sessions"',
+        ],
+      },
+    },
     pty: {
       status: 'not-yet-supported-in-agent-harness',
-      guidance: 'Use foreground exec for noninteractive commands. Interactive PTY and stdin write need SDK/daemon support before Agent can expose them safely.',
+      guidance: 'Use foreground exec for noninteractive commands. Interactive PTY needs a published SDK/daemon session API before Agent can expose it safely.',
     },
     stdinWrite: {
       status: 'not-yet-supported-in-agent-harness',
@@ -184,6 +269,7 @@ function capabilities(): Record<string, unknown> {
     sudo: {
       status: 'foreground-or-user-supervised-only',
       guidance: 'Do not run hidden background sudo prompts. If sudo is needed, keep it visible and never print or persist raw password values. Future support can use a prompt or SUDO_PASSWORD from ~/.goodvibes/.env without exposing the value.',
+      credentialSignal: sudoCredentialSignal(),
     },
   };
 }
@@ -368,6 +454,14 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
   }
 
   const action = readProcessAction(args);
+  if (action === 'capabilities' || action === 'doctor' || action === 'parity') {
+    return {
+      status: 'available',
+      capabilities: capabilities(),
+      methods: PROCESS_PARITY_METHODS,
+      policy: 'This is a read-only process UX contract report. It does not start, stop, or write to any process.',
+    };
+  }
   if (action === 'start' || action === 'spawn' || action === 'run') {
     const confirmationError = requireConfirmed(args, 'Background process start');
     if (confirmationError) throw new Error(confirmationError);

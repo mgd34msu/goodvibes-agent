@@ -2949,13 +2949,24 @@ describe('agent_harness tool', () => {
       const empty = await executeHarnessJson<{
         readonly status: string;
         readonly summary: { readonly tracked: number; readonly running: number };
-        readonly capabilities: { readonly start: string; readonly pty: { readonly status: string }; readonly sudo: { readonly status: string } };
+        readonly capabilities: {
+          readonly start: string;
+          readonly parity: readonly { readonly capability: string; readonly status: string; readonly modelRoute: string }[];
+          readonly substrate: { readonly localProcessManager: { readonly supports: readonly string[] }; readonly daemonOperatorContract: { readonly status: string } };
+          readonly pty: { readonly status: string };
+          readonly sudo: { readonly status: string; readonly credentialSignal: { readonly checked: string } };
+        };
       }>(fixture, { mode: 'background_processes', includeParameters: true });
       expect(empty.status).toBe('available');
       expect(empty.summary.tracked).toBe(0);
       expect(empty.capabilities.start).toContain('run_background_process');
+      expect(empty.capabilities.parity.find((entry) => entry.capability === 'process(wait)')?.status).toBe('supported');
+      expect(empty.capabilities.parity.find((entry) => entry.capability === 'process(write)')?.status).toBe('blocked-contract-gap');
+      expect(empty.capabilities.substrate.localProcessManager.supports).toContain('spawn');
+      expect(empty.capabilities.substrate.daemonOperatorContract.status).toContain('no-published-terminal');
       expect(empty.capabilities.pty.status).toContain('not-yet-supported');
       expect(empty.capabilities.sudo.status).toContain('foreground');
+      expect(empty.capabilities.sudo.credentialSignal.checked).toContain('SUDO_PASSWORD');
 
       const unconfirmed = await fixture.tool.execute({
         mode: 'run_background_process',
@@ -3062,6 +3073,19 @@ describe('agent_harness tool', () => {
       expect(sudo.status).toBe('blocked');
       expect(sudo.capability).toBe('sudo');
       expect(sudo.reason).toContain('Background sudo prompts');
+
+      const capabilities = await executeHarnessJson<{
+        readonly status: string;
+        readonly capabilities: { readonly parity: readonly { readonly capability: string; readonly status: string }[] };
+        readonly policy: string;
+      }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'capabilities',
+      });
+      expect(capabilities.status).toBe('available');
+      expect(capabilities.capabilities.parity.map((entry) => entry.capability)).toContain('terminal(background=true)');
+      expect(capabilities.capabilities.parity.find((entry) => entry.capability === 'pty')?.status).toBe('blocked-contract-gap');
+      expect(capabilities.policy).toContain('read-only');
     } finally {
       fixture.cleanup();
     }
