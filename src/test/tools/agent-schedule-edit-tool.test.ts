@@ -100,15 +100,64 @@ function scheduleResponse(): Response {
   });
 }
 
+function schedulesListResponse(): Response {
+  return new Response(JSON.stringify({
+    jobs: [
+      {
+        id: 'sched-edit-1',
+        name: 'Daily queue review',
+        labels: [],
+        createdAt: 1,
+        updatedAt: 2,
+        status: 'enabled',
+        enabled: true,
+        schedule: { kind: 'cron', expression: '0 8 * * *', timezone: 'America/Chicago' },
+        execution: { prompt: 'current prompt', target: { kind: 'main' } },
+        delivery: {
+          mode: 'none',
+          targets: [],
+          fallbackTargets: [],
+          includeSummary: true,
+          includeTranscript: false,
+          includeLinks: true,
+        },
+        failure: {
+          action: 'retry',
+          maxConsecutiveFailures: 3,
+          cooldownMs: 3600000,
+          retryPolicy: { maxAttempts: 2, delayMs: 60000, strategy: 'exponential' },
+        },
+        source: {
+          id: 'source-sched-edit-1',
+          kind: 'schedule',
+          label: 'schedule',
+          enabled: true,
+          createdAt: 1,
+          updatedAt: 2,
+          metadata: {},
+        },
+        runCount: 0,
+        successCount: 0,
+        failureCount: 0,
+        deleteAfterRun: false,
+      },
+    ],
+    runs: [],
+  }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
 describe('agent_schedule_edit tool', () => {
-  test('previews without calling the connected host when confirmation is missing', async () => {
+  test('previews schedule edits with a read-only current-state diff before confirmation', async () => {
     const paths = shellPaths();
     const tool = createAgentScheduleEditTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
     globalThis.fetch = (async () => {
       calls += 1;
-      return scheduleResponse();
+      return schedulesListResponse();
     }) satisfies typeof fetch;
 
     try {
@@ -124,7 +173,9 @@ describe('agent_schedule_edit tool', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('GoodVibes schedule edit preview');
       expect(result.error).toContain('confirmation required');
-      expect(calls).toBe(0);
+      expect(result.error).toContain('current source schedules.list GET /api/automation/schedules');
+      expect(result.error).toContain('schedule 0 8 * * * [America/Chicago] -> 0 9 * * * [America/Chicago]');
+      expect(calls).toBe(1);
     } finally {
       globalThis.fetch = originalFetch;
     }

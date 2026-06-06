@@ -32,6 +32,22 @@ function patchScheduleValue(preview: ScheduleEditPreview): string {
   return scheduleValue(preview.payload.schedule);
 }
 
+function formatCurrentScheduleDiff(preview: ScheduleEditPreview): readonly string[] {
+  const current = preview.current;
+  if (!current) return [];
+  const lines = [
+    `  current source ${current.method} GET ${current.route}`,
+    current.found
+      ? `  current status ${current.status ?? 'unknown'}`
+      : `  current schedule not found`,
+    current.note ? `  current note ${current.note}` : '',
+  ];
+  for (const diff of current.diffs) {
+    lines.push(`  ${diff.field} ${diff.before} -> ${diff.after}${diff.changed ? '' : ' (unchanged)'}`);
+  }
+  return lines.filter((line) => line !== '');
+}
+
 function responseRecord(result: ScheduleEditSuccess): Record<string, unknown> {
   return isRecord(result.schedule) ? result.schedule : {};
 }
@@ -52,6 +68,7 @@ export function formatScheduleEditPreview(preview: ScheduleEditPreview): string 
     `  route PATCH ${preview.route.replace('{jobId}', preview.scheduleId)}`,
     `  schedule ${preview.scheduleId}`,
     `  changes ${preview.changes.join(', ')}`,
+    ...formatCurrentScheduleDiff(preview),
     preview.payload.name ? `  name ${preview.payload.name}` : '',
     preview.payload.schedule ? `  schedule ${patchScheduleValue(preview)}` : '',
     preview.payload.prompt ? '  prompt replacement prepared' : '',

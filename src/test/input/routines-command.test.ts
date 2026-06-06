@@ -478,13 +478,13 @@ describe('/routines command', () => {
     }
   });
 
-  test('previews schedule edits without connected-host calls', async () => {
+  test('previews schedule edits with connected-host current-state diffs', async () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;
     globalThis.fetch = (async () => {
       calls += 1;
-      return scheduleResponse();
+      return schedulesListResponse();
     }) satisfies typeof fetch;
 
     try {
@@ -501,7 +501,9 @@ describe('/routines command', () => {
       expect(text).toContain('GoodVibes schedule edit preview');
       expect(text).toContain('automation.jobs.patch');
       expect(text).toContain('changes name, schedule');
-      expect(calls).toBe(0);
+      expect(text).toContain('current source schedules.list GET /api/automation/schedules');
+      expect(text).toContain('name Agent routine: Inbox Sweep -> Daily queue review');
+      expect(calls).toBe(1);
     } finally {
       globalThis.fetch = originalFetch;
     }

@@ -4,6 +4,7 @@ import type { ShellPathService } from '@/runtime/index.ts';
 import {
   buildScheduleEditPreview,
   editConnectedSchedule,
+  enrichScheduleEditPreviewFromConnectedHost,
   parseScheduleEditArgs,
   resolveScheduleEditConnectedHostConnection,
   scheduleEditKindFromValue,
@@ -180,14 +181,15 @@ export function createAgentScheduleEditTool(
             error: parsed.errors.join('\n'),
           };
         }
-        const preview = buildScheduleEditPreview(parsed);
+        let preview = buildScheduleEditPreview(parsed);
+        const connection = resolveScheduleEditConnectedHostConnection(configManager, shellPaths.homeDirectory);
         if (!parsed.yes) {
+          preview = await enrichScheduleEditPreviewFromConnectedHost(connection, preview);
           return {
             success: false,
             error: confirmationError(preview),
           };
         }
-        const connection = resolveScheduleEditConnectedHostConnection(configManager, shellPaths.homeDirectory);
         return outputForResult(await editConnectedSchedule(connection, preview));
       } catch (error) {
         return {

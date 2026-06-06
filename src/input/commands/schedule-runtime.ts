@@ -37,6 +37,7 @@ import {
 import {
   buildScheduleEditPreview,
   editConnectedSchedule,
+  enrichScheduleEditPreviewFromConnectedHost,
   parseScheduleEditArgs,
   resolveScheduleEditConnectedHostConnection,
 } from '../../agent/schedule-edit.ts';
@@ -141,8 +142,15 @@ async function editSchedule(args: readonly string[], ctx: CommandContext): Promi
     ].join('\n'));
     return;
   }
-  const preview = buildScheduleEditPreview(parsed);
+  let preview = buildScheduleEditPreview(parsed);
   if (!parsed.yes) {
+    try {
+      const shellPaths = requireShellPaths(ctx);
+      const connection = resolveScheduleEditConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+      preview = await enrichScheduleEditPreviewFromConnectedHost(connection, preview);
+    } catch {
+      // A basic preview is still safer than blocking confirmation on local path services.
+    }
     ctx.print(formatScheduleEditPreview(preview));
     return;
   }

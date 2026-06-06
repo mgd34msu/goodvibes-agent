@@ -208,11 +208,11 @@
       "owner": "agent",
       "status": "covered",
       "evidence": "src/agent/schedule-edit.ts; src/tools/agent-schedule-edit-tool.ts; src/input/commands/schedule-runtime.ts; src/tools/agent-harness-autonomy-queue.ts; docs/tools-and-commands.md",
-      "action": "Keep schedule edits exact-id, previewed, and confirmation-gated through automation.jobs.patch.",
+      "action": "Keep schedule edits exact-id, read-only diff previewed, and confirmation-gated through automation.jobs.patch.",
       "quality": {
-        "capabilityCoverage": "Covers confirmed connected schedule patching for cadence, display name, exact prompt, or rebuilt autonomous task prompt using the public automation.jobs.patch route.",
-        "userAccess": "The user can edit schedules through the Automation workspace form or /schedule edit with preview-before-confirm behavior.",
-        "modelAccess": "agent_schedule_edit exposes the confirmed edit route; agent_harness mode:\"autonomy_queue\" and mode:\"workspace_action\" expose live schedule edit next steps and editor schemas.",
+        "capabilityCoverage": "Covers confirmed connected schedule patching for cadence, display name, exact prompt, or rebuilt autonomous task prompt using the public automation.jobs.patch route, with unconfirmed read-only schedules.list current-state diffs when the connected host exposes schedule records.",
+        "userAccess": "The user can edit schedules through the Automation workspace form or /schedule edit with preview-before-confirm behavior that shows before/after name, cadence, and prompt-presence changes when current state is available.",
+        "modelAccess": "agent_schedule_edit exposes read-only diff previews plus the confirmed edit route; agent_harness mode:\"autonomy_queue\" and mode:\"workspace_action\" expose live schedule edit next steps and editor schemas.",
         "safetyBoundary": "Schedule edits require confirm:true or --yes plus explicit request provenance, and do not create hidden local jobs or bypass public operator routes.",
         "releaseEvidence": "Readiness evidence cites the schedule edit implementation, workspace/queue wiring, docs, and focused model-tool plus slash-command tests."
       }

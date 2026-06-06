@@ -1,6 +1,7 @@
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import {
+  formatEveryInterval,
   normalizeAtSchedule,
   normalizeCronSchedule,
   normalizeEverySchedule,
@@ -12,6 +13,8 @@ import {
 } from './autonomy-schedule.ts';
 import {
   resolveAgentConnectedHostConnection,
+  ROUTINE_SCHEDULE_LIST_METHOD,
+  ROUTINE_SCHEDULE_ROUTE,
   type AgentConnectedHostConfigReader,
   type AgentConnectedHostConnection,
   type RoutineScheduleKind,
@@ -20,6 +23,7 @@ import {
 
 type SchedulePatchInput = OperatorMethodInput<'automation.jobs.patch'>;
 type SchedulePatchOutput = OperatorMethodOutput<'automation.jobs.patch'>;
+type ScheduleListOutput = OperatorMethodOutput<'schedules.list'>;
 
 export const SCHEDULE_EDIT_METHOD = 'automation.jobs.patch';
 export const SCHEDULE_EDIT_ROUTE = '/api/automation/jobs/{jobId}';
@@ -49,6 +53,24 @@ export interface ScheduleEditPreview {
   readonly explicitUserRequest: string;
   readonly changes: readonly string[];
   readonly payload: SchedulePatchInput;
+  readonly current?: ScheduleEditCurrentSchedule;
+}
+
+export interface ScheduleEditFieldDiff {
+  readonly field: 'name' | 'schedule' | 'prompt';
+  readonly before: string;
+  readonly after: string;
+  readonly changed: boolean;
+}
+
+export interface ScheduleEditCurrentSchedule {
+  readonly method: typeof ROUTINE_SCHEDULE_LIST_METHOD;
+  readonly route: typeof ROUTINE_SCHEDULE_ROUTE;
+  readonly scheduleId: string;
+  readonly found: boolean;
+  readonly status?: string;
+  readonly diffs: readonly ScheduleEditFieldDiff[];
+  readonly note?: string;
 }
 
 export interface ScheduleEditSuccess {
@@ -100,6 +122,95 @@ function scheduleDefinition(schedule: RoutineScheduleSpec, timezone?: string, st
   const at = Date.parse(schedule.value);
   if (!Number.isFinite(at)) throw new Error(`Invalid --at timestamp: ${schedule.value}`);
   return normalizeAtSchedule(at);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readString(record: Record<string, unknown>, key: string): string | null {
+  const value = record[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function scheduleValue(schedule: unknown): string {
+  if (!isRecord(schedule)) return 'unknown';
+  if (schedule.kind === 'cron') {
+    return [
+      readString(schedule, 'expression') ?? '',
+      readString(schedule, 'timezone') ? `[${readString(schedule, 'timezone')}]` : '',
+      typeof schedule.staggerMs === 'number' ? `[stagger ${schedule.staggerMs}ms]` : '',
+    ].filter(Boolean).join(' ') || 'cron';
+  }
+  if (schedule.kind === 'every' && typeof schedule.intervalMs === 'number') return formatEveryInterval(schedule.intervalMs);
+  if (schedule.kind === 'at' && typeof schedule.at === 'number') return new Date(schedule.at).toISOString();
+  return String(schedule.kind ?? 'unknown');
+}
+
+function promptState(job: Record<string, unknown>): string {
+  const execution = isRecord(job.execution) ? job.execution : {};
+  const prompt = readString(execution, 'prompt') ?? readString(job, 'prompt');
+  return prompt?.trim() ? 'existing prompt present' : 'no existing prompt';
+}
+
+function readScheduleJob(output: ScheduleListOutput, scheduleId: string): Record<string, unknown> | null {
+  const record: Record<string, unknown> = isRecord(output as unknown) ? output as Record<string, unknown> : {};
+  const jobs = Array.isArray(record.jobs) ? record.jobs : [];
+  for (const job of jobs) {
+    if (!isRecord(job)) continue;
+    if (readString(job, 'id') === scheduleId) return job;
+  }
+  return null;
+}
+
+function diffChanged(before: string, after: string): boolean {
+  return before.trim() !== after.trim();
+}
+
+function buildCurrentScheduleContext(
+  preview: ScheduleEditPreview,
+  output: ScheduleListOutput,
+): ScheduleEditCurrentSchedule {
+  const job = readScheduleJob(output, preview.scheduleId);
+  if (!job) {
+    return {
+      method: ROUTINE_SCHEDULE_LIST_METHOD,
+      route: ROUTINE_SCHEDULE_ROUTE,
+      scheduleId: preview.scheduleId,
+      found: false,
+      diffs: [],
+      note: 'No current schedule record matched this id; review the requested patch before confirming.',
+    };
+  }
+
+  const diffs: ScheduleEditFieldDiff[] = [];
+  if (preview.payload.name) {
+    const before = readString(job, 'name') ?? 'unknown';
+    const after = preview.payload.name;
+    diffs.push({ field: 'name', before, after, changed: diffChanged(before, after) });
+  }
+  if (preview.payload.schedule) {
+    const before = scheduleValue(job.schedule);
+    const after = scheduleValue(preview.payload.schedule);
+    diffs.push({ field: 'schedule', before, after, changed: diffChanged(before, after) });
+  }
+  if (preview.payload.prompt) {
+    diffs.push({
+      field: 'prompt',
+      before: promptState(job),
+      after: 'replacement prompt prepared',
+      changed: true,
+    });
+  }
+
+  return {
+    method: ROUTINE_SCHEDULE_LIST_METHOD,
+    route: ROUTINE_SCHEDULE_ROUTE,
+    scheduleId: preview.scheduleId,
+    found: true,
+    status: readString(job, 'status') ?? undefined,
+    diffs,
+  };
 }
 
 function pushRequiredPairErrors(parsed: {
@@ -265,6 +376,33 @@ export function buildScheduleEditPreview(parsed: ParsedScheduleEditArgs): Schedu
     changes: changeList(parsed),
     payload: buildScheduleEditPayload(parsed),
   };
+}
+
+export async function enrichScheduleEditPreviewFromConnectedHost(
+  connection: AgentConnectedHostConnection,
+  preview: ScheduleEditPreview,
+): Promise<ScheduleEditPreview> {
+  if (!connection.token) return preview;
+  try {
+    const sdk = createBrowserGoodVibesSdk({ baseUrl: connection.baseUrl, authToken: connection.token });
+    const output = await sdk.operator.invoke(ROUTINE_SCHEDULE_LIST_METHOD, {});
+    return {
+      ...preview,
+      current: buildCurrentScheduleContext(preview, output),
+    };
+  } catch (error) {
+    return {
+      ...preview,
+      current: {
+        method: ROUTINE_SCHEDULE_LIST_METHOD,
+        route: ROUTINE_SCHEDULE_ROUTE,
+        scheduleId: preview.scheduleId,
+        found: false,
+        diffs: [],
+        note: `Could not read current schedule state: ${summarizeError(error)}`,
+      },
+    };
+  }
 }
 
 async function fetchConnectedHostStatus(connection: AgentConnectedHostConnection): Promise<{
