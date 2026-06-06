@@ -5,7 +5,14 @@ import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-ty
 import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
-type LearningCandidateStatus = 'needs-review' | 'needs-setup' | 'low-confidence' | 'proposal-ready' | 'ready-to-promote' | 'ready';
+type LearningCandidateStatus =
+  | 'needs-review'
+  | 'needs-setup'
+  | 'needs-consolidation'
+  | 'low-confidence'
+  | 'proposal-ready'
+  | 'ready-to-promote'
+  | 'ready';
 type LocalLearningCandidateDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
 type LearningCandidateDomain = LocalLearningCandidateDomain | 'work_plan' | 'research_run' | 'session' | 'capture';
 type LearningProposalTarget = 'memory' | 'skill' | 'routine' | 'persona';
@@ -40,6 +47,24 @@ interface LearningScores {
   readonly risk: number;
 }
 
+interface LearningConsolidationDiff {
+  readonly field: string;
+  readonly survivor: string;
+  readonly duplicates: readonly string[];
+  readonly merged: string;
+}
+
+interface LearningConsolidationPlan {
+  readonly survivorId: string;
+  readonly duplicateIds: readonly string[];
+  readonly sharedKey: string;
+  readonly diffs: readonly LearningConsolidationDiff[];
+  readonly updateRoute?: string;
+  readonly staleRoutes: readonly string[];
+  readonly deleteRoutes: readonly string[];
+  readonly rollbackRoutes: readonly string[];
+}
+
 interface LearningCandidate {
   readonly id: string;
   readonly label: string;
@@ -61,8 +86,12 @@ interface LearningCandidate {
   readonly modelRoute: string;
   readonly reviewRoute?: string;
   readonly staleRoute?: string;
+  readonly updateRoute?: string;
   readonly createRoute?: string;
   readonly deleteRoute?: string;
+  readonly cleanupRoutes?: readonly string[];
+  readonly rollbackRoutes?: readonly string[];
+  readonly consolidation?: LearningConsolidationPlan;
 }
 
 export type LearningCandidateResolution =
@@ -141,6 +170,14 @@ function localRegistryModelRoute(domain: LocalLearningCandidateDomain): string {
   return `agent_local_registry domain:"${routeDomain(domain)}" action:"get"`;
 }
 
+function routeValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function routeList(values: readonly string[]): string {
+  return `[${values.map((value) => `"${routeValue(value)}"`).join(',')}]`;
+}
+
 function candidateBase(
   domain: LocalLearningCandidateDomain,
   item: AgentWorkspaceLocalLibraryItem,
@@ -171,6 +208,254 @@ function candidateBase(
     staleRoute: `${localRegistryRoute(domain, 'stale', item.id)} reason:"..."`,
     deleteRoute: `${localRegistryRoute(domain, 'delete', item.id)} confirm:true explicitUserRequest:"..."`,
   };
+}
+
+const CONSOLIDATION_DOMAINS: readonly LocalLearningCandidateDomain[] = ['memory', 'persona', 'skill', 'routine'];
+
+function normalizeDuplicateKey(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function duplicateKeySlug(value: string): string {
+  return normalizeDuplicateKey(value).replace(/\s+/g, '-').slice(0, 52) || 'duplicate';
+}
+
+function uniqueText(values: readonly string[]): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(trimmed);
+  }
+  return result;
+}
+
+function uniqueSorted(values: readonly string[]): readonly string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function itemConsolidationScore(item: AgentWorkspaceLocalLibraryItem): number {
+  const scores = scoresForItem(item);
+  const reviewSignal = isReviewed(item) ? 26 : item.reviewState === 'fresh' ? 10 : 0;
+  const usageSignal = (item.enabled ? 12 : 0) + (item.active ? 16 : 0) + Math.min(12, (item.startCount ?? 0) * 3);
+  const confidenceSignal = item.confidence === undefined ? 0 : item.confidence / 4;
+  return scores.usefulness + scores.freshness + scores.sourceQuality - scores.risk + reviewSignal + usageSignal + confidenceSignal;
+}
+
+function chooseConsolidationSurvivor(items: readonly AgentWorkspaceLocalLibraryItem[]): AgentWorkspaceLocalLibraryItem {
+  return [...items].sort((left, right) => {
+    const byScore = itemConsolidationScore(right) - itemConsolidationScore(left);
+    if (byScore !== 0) return byScore;
+    const byReview = (isReviewed(right) ? 1 : 0) - (isReviewed(left) ? 1 : 0);
+    if (byReview !== 0) return byReview;
+    return left.id.localeCompare(right.id);
+  })[0]!;
+}
+
+function mergeableDescription(domain: LocalLearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem): string {
+  if (domain === 'memory') {
+    const fallback = item.scope && item.cls ? `${item.scope}/${item.cls}` : '';
+    return item.description === fallback ? '' : item.description;
+  }
+  return item.description;
+}
+
+function mergedDescription(
+  domain: LocalLearningCandidateDomain,
+  survivor: AgentWorkspaceLocalLibraryItem,
+  duplicates: readonly AgentWorkspaceLocalLibraryItem[],
+): string {
+  const descriptions = uniqueText([survivor, ...duplicates].map((item) => mergeableDescription(domain, item)));
+  if (descriptions.length === 0) return '';
+  return previewHarnessText(descriptions.join('\n\n'), 900);
+}
+
+function mergedTags(items: readonly AgentWorkspaceLocalLibraryItem[]): readonly string[] {
+  return uniqueSorted(items.flatMap((item) => item.tags));
+}
+
+function mergedTriggers(items: readonly AgentWorkspaceLocalLibraryItem[]): readonly string[] {
+  return uniqueSorted(items.flatMap((item) => item.triggers));
+}
+
+function consolidationDiff(
+  field: string,
+  survivor: string,
+  duplicateValues: readonly string[],
+  merged: string,
+): LearningConsolidationDiff | null {
+  const duplicates = uniqueText(duplicateValues);
+  if (duplicates.length === 0 && !merged) return null;
+  const normalizedSurvivor = survivor.trim().toLowerCase();
+  const differs = duplicates.some((value) => value.trim().toLowerCase() !== normalizedSurvivor)
+    || merged.trim().toLowerCase() !== normalizedSurvivor;
+  if (!differs) return null;
+  return {
+    field,
+    survivor: survivor || '(empty)',
+    duplicates,
+    merged: merged || '(empty)',
+  };
+}
+
+function consolidationDiffs(
+  domain: LocalLearningCandidateDomain,
+  survivor: AgentWorkspaceLocalLibraryItem,
+  duplicates: readonly AgentWorkspaceLocalLibraryItem[],
+): readonly LearningConsolidationDiff[] {
+  const all = [survivor, ...duplicates];
+  const tags = mergedTags(all).join(', ');
+  const triggers = mergedTriggers(all).join(', ');
+  return [
+    consolidationDiff('name', survivor.name, duplicates.map((item) => item.name), survivor.name),
+    consolidationDiff('description', mergeableDescription(domain, survivor), duplicates.map((item) => mergeableDescription(domain, item)), mergedDescription(domain, survivor, duplicates)),
+    consolidationDiff('tags', survivor.tags.join(', '), duplicates.map((item) => item.tags.join(', ')), tags),
+    domain === 'memory' ? null : consolidationDiff('triggers', survivor.triggers.join(', '), duplicates.map((item) => item.triggers.join(', ')), triggers),
+  ].filter((diff): diff is LearningConsolidationDiff => diff !== null);
+}
+
+function updateRouteForConsolidation(
+  domain: LocalLearningCandidateDomain,
+  survivor: AgentWorkspaceLocalLibraryItem,
+  duplicates: readonly AgentWorkspaceLocalLibraryItem[],
+): string | undefined {
+  const all = [survivor, ...duplicates];
+  const tags = mergedTags(all);
+  const triggers = mergedTriggers(all);
+  const description = mergedDescription(domain, survivor, duplicates);
+  const fields: string[] = [];
+  if (domain === 'memory') {
+    if (description) fields.push(`detail:"${routeValue(description)}"`);
+    if (tags.length > 0) fields.push(`tags:${routeList(tags)}`);
+  } else {
+    if (description) fields.push(`description:"${routeValue(description)}"`);
+    if (tags.length > 0) fields.push(`tags:${routeList(tags)}`);
+    if (triggers.length > 0) fields.push(`triggers:${routeList(triggers)}`);
+  }
+  if (fields.length === 0) return undefined;
+  return [
+    localRegistryRoute(domain, 'update', survivor.id),
+    ...fields,
+    'provenance:"learning-curator-consolidation"',
+  ].join(' ');
+}
+
+function rollbackUpdateRouteForConsolidation(domain: LocalLearningCandidateDomain, survivor: AgentWorkspaceLocalLibraryItem): string {
+  const fields: string[] = [];
+  const description = mergeableDescription(domain, survivor);
+  if (domain === 'memory') {
+    if (description) fields.push(`detail:"${routeValue(description)}"`);
+    fields.push(`tags:${routeList(survivor.tags)}`);
+  } else {
+    if (description) fields.push(`description:"${routeValue(description)}"`);
+    fields.push(`tags:${routeList(survivor.tags)}`);
+    fields.push(`triggers:${routeList(survivor.triggers)}`);
+  }
+  return [
+    localRegistryRoute(domain, 'update', survivor.id),
+    ...fields,
+    'provenance:"rollback-learning-curator-consolidation"',
+  ].join(' ');
+}
+
+function consolidationProposalFields(plan: LearningConsolidationPlan): Readonly<Record<string, string>> {
+  return {
+    survivorId: plan.survivorId,
+    duplicateIds: plan.duplicateIds.join(','),
+    visibleDiff: plan.diffs.length > 0
+      ? plan.diffs.map((diff) => `${diff.field}: keep [${diff.survivor}], merge [${diff.merged}]`).join('\n')
+      : 'Visible metadata matches; inspect record bodies before marking duplicates stale.',
+    staleFirst: plan.staleRoutes.join('\n'),
+    rollback: plan.rollbackRoutes.join('\n'),
+  };
+}
+
+function consolidationCandidate(
+  domain: LocalLearningCandidateDomain,
+  key: string,
+  items: readonly AgentWorkspaceLocalLibraryItem[],
+): LearningCandidate | null {
+  if (items.length < 2) return null;
+  const survivor = chooseConsolidationSurvivor(items);
+  const duplicates = items.filter((item) => item.id !== survivor.id);
+  if (duplicates.length === 0) return null;
+  const updateRoute = updateRouteForConsolidation(domain, survivor, duplicates);
+  const staleRoutes = duplicates.map((item) => `${localRegistryRoute(domain, 'stale', item.id)} reason:"Duplicate of ${routeValue(survivor.id)}; staged by learning curator consolidation."`);
+  const deleteRoutes = duplicates.map((item) => `${localRegistryRoute(domain, 'delete', item.id)} confirm:true explicitUserRequest:"Delete duplicate ${routeValue(domain)} ${routeValue(item.id)} after reviewed consolidation."`);
+  const rollbackRoutes = [
+    ...(updateRoute ? [rollbackUpdateRouteForConsolidation(domain, survivor)] : []),
+    ...duplicates.map((item) => localRegistryRoute(domain, 'review', item.id)),
+  ];
+  const diffs = consolidationDiffs(domain, survivor, duplicates);
+  const plan: LearningConsolidationPlan = {
+    survivorId: survivor.id,
+    duplicateIds: duplicates.map((item) => item.id),
+    sharedKey: key,
+    diffs,
+    ...(updateRoute ? { updateRoute } : {}),
+    staleRoutes,
+    deleteRoutes,
+    rollbackRoutes,
+  };
+  const enabledDuplicateCount = duplicates.filter((item) => item.enabled || item.active).length;
+  return {
+    id: `consolidation:${domain}:${duplicateKeySlug(key)}`,
+    label: `Consolidate duplicate ${domain}: ${survivor.name}`,
+    domain,
+    recordId: survivor.id,
+    status: 'needs-consolidation',
+    priority: clampScore(72 + Math.min(16, duplicates.length * 4) + enabledDuplicateCount * 5),
+    reason: `${items.length} Agent-local ${domain} records share the same normalized name.`,
+    next: 'Inspect every record, update the survivor with merged visible fields, mark duplicates stale first, then delete only after explicit review.',
+    scores: {
+      usefulness: clampScore(64 + Math.min(18, items.length * 4)),
+      freshness: Math.max(...items.map(itemFreshness)),
+      sourceQuality: Math.max(...items.map(itemSourceQuality)),
+      risk: clampScore(34 + enabledDuplicateCount * 12 + Math.min(18, duplicates.length * 4)),
+    },
+    reviewState: survivor.reviewState,
+    ...(survivor.enabled === undefined ? {} : { enabled: survivor.enabled }),
+    ...(survivor.active === undefined ? {} : { active: survivor.active }),
+    ...(survivor.confidence === undefined ? {} : { confidence: survivor.confidence }),
+    proposalFields: consolidationProposalFields(plan),
+    consolidation: plan,
+    inspectRoute: localRegistryRoute(domain, 'get', survivor.id),
+    modelRoute: 'agent_harness mode:"learning_curator" query:"consolidation"',
+    reviewRoute: localRegistryRoute(domain, 'review', survivor.id),
+    ...(staleRoutes[0] ? { staleRoute: staleRoutes[0] } : {}),
+    ...(updateRoute ? { updateRoute } : {}),
+    ...(deleteRoutes[0] ? { deleteRoute: deleteRoutes[0] } : {}),
+    cleanupRoutes: staleRoutes,
+    rollbackRoutes,
+  };
+}
+
+function consolidationCandidatesForDomain(
+  domain: LocalLearningCandidateDomain,
+  items: readonly AgentWorkspaceLocalLibraryItem[],
+): readonly LearningCandidate[] {
+  if (!CONSOLIDATION_DOMAINS.includes(domain)) return [];
+  const groups = new Map<string, AgentWorkspaceLocalLibraryItem[]>();
+  for (const item of items) {
+    const key = normalizeDuplicateKey(item.name);
+    if (key.length < 4) continue;
+    const group = groups.get(key) ?? [];
+    group.push(item);
+    groups.set(key, group);
+  }
+  return [...groups.entries()].flatMap(([key, group]) => {
+    const candidate = consolidationCandidate(domain, key, group);
+    return candidate ? [candidate] : [];
+  });
 }
 
 function captureCandidate(): LearningCandidate {
@@ -666,6 +951,7 @@ function candidateSearchText(candidate: LearningCandidate): string {
     candidate.missingRequirements?.join('\n') ?? '',
     candidate.proposalTarget ?? '',
     Object.values(candidate.proposalFields ?? {}).join('\n'),
+    candidate.consolidation ? JSON.stringify(candidate.consolidation) : '',
     candidate.inspectRoute,
     candidate.modelRoute,
   ].join('\n').toLowerCase();
@@ -680,6 +966,10 @@ function buildLearningCandidates(context: CommandContext): readonly LearningCand
     ...snapshot.localSkills.flatMap((item) => candidatesForItem('skill', item)),
     ...snapshot.localSkillBundles.flatMap((item) => candidatesForItem('skill_bundle', item)),
     ...snapshot.localRoutines.flatMap((item) => candidatesForItem('routine', item)),
+    ...consolidationCandidatesForDomain('memory', snapshot.localMemories),
+    ...consolidationCandidatesForDomain('persona', snapshot.localPersonas),
+    ...consolidationCandidatesForDomain('skill', snapshot.localSkills),
+    ...consolidationCandidatesForDomain('routine', snapshot.localRoutines),
     ...workPlanCompletionCandidates(context),
     ...researchRunCompletionCandidates(context),
     ...sessionCompletionCandidates(context),
@@ -710,8 +1000,12 @@ function describeCandidate(candidate: LearningCandidate, includeParameters: bool
     inspectRoute: candidate.inspectRoute,
     ...(candidate.reviewRoute ? { reviewRoute: candidate.reviewRoute } : {}),
     ...(candidate.staleRoute ? { staleRoute: candidate.staleRoute } : {}),
+    ...(candidate.updateRoute ? { updateRoute: candidate.updateRoute } : {}),
     ...(candidate.createRoute ? { createRoute: candidate.createRoute } : {}),
     ...(candidate.deleteRoute ? { deleteRoute: candidate.deleteRoute } : {}),
+    ...(includeParameters && candidate.cleanupRoutes ? { cleanupRoutes: candidate.cleanupRoutes } : {}),
+    ...(includeParameters && candidate.rollbackRoutes ? { rollbackRoutes: candidate.rollbackRoutes } : {}),
+    ...(includeParameters && candidate.consolidation ? { consolidation: candidate.consolidation } : {}),
     ...(lookup ? { lookup } : {}),
     ...(includeParameters ? {
       routes: {
@@ -719,6 +1013,7 @@ function describeCandidate(candidate: LearningCandidate, includeParameters: bool
         model: candidate.modelRoute,
         review: candidate.reviewRoute ?? null,
         stale: candidate.staleRoute ?? null,
+        update: candidate.updateRoute ?? null,
         create: candidate.createRoute ?? null,
         delete: candidate.deleteRoute ?? null,
       },
@@ -741,6 +1036,7 @@ export function learningCuratorCatalogStatus(context: CommandContext): Record<st
     candidates: candidates.length,
     needsReview: candidates.filter((candidate) => candidate.status === 'needs-review').length,
     needsSetup: candidates.filter((candidate) => candidate.status === 'needs-setup').length,
+    needsConsolidation: candidates.filter((candidate) => candidate.status === 'needs-consolidation').length,
     lowConfidence: candidates.filter((candidate) => candidate.status === 'low-confidence').length,
     proposedBehavior: candidates.filter((candidate) => candidate.status === 'proposal-ready').length,
     readyToPromote: candidates.filter((candidate) => candidate.status === 'ready-to-promote').length,
@@ -759,6 +1055,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
       candidates: all.length,
       needsReview: all.filter((candidate) => candidate.status === 'needs-review').length,
       needsSetup: all.filter((candidate) => candidate.status === 'needs-setup').length,
+      needsConsolidation: all.filter((candidate) => candidate.status === 'needs-consolidation').length,
       lowConfidence: all.filter((candidate) => candidate.status === 'low-confidence').length,
       proposedBehavior: all.filter((candidate) => candidate.status === 'proposal-ready').length,
       readyToPromote: all.filter((candidate) => candidate.status === 'ready-to-promote').length,
@@ -768,7 +1065,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, saved sessions, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, saved sessions, duplicate consolidation, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 

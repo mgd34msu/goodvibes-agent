@@ -1667,6 +1667,14 @@ describe('agent_harness tool', () => {
         review: { state: 'fresh', confidence: 42 },
         provenance: [{ kind: 'event', ref: 'test-learning-curator' }],
       });
+      await memoryRegistry.add({
+        cls: 'fact',
+        summary: 'Use the private deployment checklist before release.',
+        detail: 'Duplicate copy adds UX inventory and package verification context.',
+        tags: ['release', 'ux-inventory'],
+        review: { state: 'fresh', confidence: 84 },
+        provenance: [{ kind: 'event', ref: 'test-learning-curator-duplicate' }],
+      });
       const noteRegistry = AgentNoteRegistry.fromShellPaths(fixture.paths);
       const sourceNote = noteRegistry.create({
         title: 'Reviewed source note',
@@ -1756,7 +1764,8 @@ describe('agent_harness tool', () => {
         source: 'agent',
       });
       personaRegistry.setActive(persona.id);
-      AgentSkillRegistry.fromShellPaths(fixture.paths).create({
+      const skillRegistry = AgentSkillRegistry.fromShellPaths(fixture.paths);
+      skillRegistry.create({
         name: 'Missing command skill',
         description: 'Needs an unavailable command before use.',
         procedure: 'Run the missing command and summarize results.',
@@ -1764,19 +1773,28 @@ describe('agent_harness tool', () => {
         enabled: true,
         source: 'agent',
       });
+      skillRegistry.create({
+        name: 'Missing command skill!',
+        description: 'Duplicate skill adds package verification and UX inventory notes.',
+        procedure: 'Run package verification, check UX inventory, then summarize results.',
+        triggers: ['release'],
+        tags: ['release', 'verification'],
+        source: 'agent',
+      });
 
       const summary = await executeHarnessJson<{
-        readonly learningCurator?: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly proposedBehavior: number; readonly readOnly: boolean };
+        readonly learningCurator?: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly needsConsolidation: number; readonly lowConfidence: number; readonly proposedBehavior: number; readonly readOnly: boolean };
       }>(fixture, { mode: 'summary' });
       expect(summary.learningCurator?.candidates).toBeGreaterThan(3);
       expect(summary.learningCurator?.needsReview).toBeGreaterThan(0);
       expect(summary.learningCurator?.needsSetup).toBeGreaterThan(0);
+      expect(summary.learningCurator?.needsConsolidation).toBeGreaterThan(0);
       expect(summary.learningCurator?.lowConfidence).toBeGreaterThan(0);
       expect(summary.learningCurator?.proposedBehavior).toBeGreaterThan(5);
       expect(summary.learningCurator?.readOnly).toBe(true);
 
       const curator = await executeHarnessJson<{
-        readonly summary: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly proposedBehavior: number; readonly readyToPromote: number };
+        readonly summary: { readonly candidates: number; readonly needsReview: number; readonly needsSetup: number; readonly needsConsolidation: number; readonly lowConfidence: number; readonly proposedBehavior: number; readonly readyToPromote: number };
         readonly candidates: readonly {
           readonly candidateId: string;
           readonly label: string;
@@ -1788,14 +1806,23 @@ describe('agent_harness tool', () => {
           readonly scores: { readonly usefulness: number; readonly freshness: number; readonly sourceQuality: number; readonly risk: number };
           readonly inspectRoute: string;
           readonly reviewRoute?: string;
+          readonly updateRoute?: string;
           readonly createRoute?: string;
+          readonly cleanupRoutes?: readonly string[];
+          readonly rollbackRoutes?: readonly string[];
+          readonly consolidation?: {
+            readonly survivorId: string;
+            readonly duplicateIds: readonly string[];
+            readonly diffs: readonly { readonly field: string; readonly survivor: string; readonly merged: string }[];
+          };
         }[];
         readonly policy: string;
       }>(fixture, { mode: 'learning_curator', includeParameters: true });
       expect(curator.summary.candidates).toBeGreaterThan(3);
       expect(curator.summary.readyToPromote).toBeGreaterThan(0);
       expect(curator.summary.proposedBehavior).toBeGreaterThan(5);
-      expect(curator.policy).toContain('saved sessions');
+      expect(curator.summary.needsConsolidation).toBeGreaterThan(0);
+      expect(curator.policy).toContain('duplicate consolidation');
       expectRowsHaveCompactModelRoutes(curator.candidates);
       const memoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `memory:${memory.id}:low-confidence`);
       const personaCandidate = curator.candidates.find((candidate) => candidate.domain === 'persona' && candidate.status === 'needs-review');
@@ -1807,6 +1834,7 @@ describe('agent_harness tool', () => {
       const completedMemoryCandidate = curator.candidates.find((candidate) => candidate.candidateId === `work-plan-proposal:memory:${completedDecision.id}`);
       const researchCandidate = curator.candidates.find((candidate) => candidate.candidateId === `research-run-proposal:skill:${completedResearch.id}`);
       const sessionCandidate = curator.candidates.find((candidate) => candidate.candidateId === `session-proposal:skill:${savedLearningSession.name}`);
+      const consolidationCandidate = curator.candidates.find((candidate) => candidate.status === 'needs-consolidation' && candidate.domain === 'skill');
       expect(memoryCandidate?.reviewRoute).toContain('agent_local_registry');
       expect(memoryCandidate?.scores.risk).toBeGreaterThan(0);
       expect(personaCandidate?.label).toContain('Fresh operator persona');
@@ -1836,6 +1864,12 @@ describe('agent_harness tool', () => {
       expect(sessionCandidate?.createRoute).toContain('learned-behavior');
       expect(sessionCandidate?.proposalTarget).toBe('skill');
       expect(sessionCandidate?.proposalFields?.notes).toContain('typecheck');
+      expect(consolidationCandidate?.candidateId).toContain('consolidation:skill');
+      expect(consolidationCandidate?.updateRoute).toContain('action:"update"');
+      expect(consolidationCandidate?.cleanupRoutes?.join('\n')).toContain('action:"stale"');
+      expect(consolidationCandidate?.rollbackRoutes?.join('\n')).toContain('action:"review"');
+      expect(consolidationCandidate?.consolidation?.duplicateIds.length).toBeGreaterThan(0);
+      expect(consolidationCandidate?.consolidation?.diffs.some((diff) => diff.field === 'description')).toBe(true);
 
       const candidate = await executeHarnessJson<{
         readonly candidateId: string;
@@ -1843,6 +1877,20 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'learning_candidate', candidateId: `memory:${memory.id}:low-confidence` });
       expect(candidate.candidateId).toBe(`memory:${memory.id}:low-confidence`);
       expect(candidate.routes?.review).toContain('action:"review"');
+
+      const consolidationDetail = await executeHarnessJson<{
+        readonly candidateId: string;
+        readonly status: string;
+        readonly routes?: { readonly update: string | null; readonly stale: string | null; readonly delete: string | null };
+        readonly cleanupRoutes?: readonly string[];
+        readonly rollbackRoutes?: readonly string[];
+      }>(fixture, { mode: 'learning_candidate', candidateId: consolidationCandidate?.candidateId });
+      expect(consolidationDetail.status).toBe('needs-consolidation');
+      expect(consolidationDetail.routes?.update).toContain('action:"update"');
+      expect(consolidationDetail.routes?.stale).toContain('action:"stale"');
+      expect(consolidationDetail.routes?.delete).toContain('confirm:true');
+      expect(consolidationDetail.cleanupRoutes?.join('\n')).toContain('Duplicate of');
+      expect(consolidationDetail.rollbackRoutes?.join('\n')).toContain('rollback-learning-curator-consolidation');
 
       const action = await executeHarnessJson<{
         readonly id: string;
