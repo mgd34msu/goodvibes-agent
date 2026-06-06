@@ -687,6 +687,7 @@ describe('agent_harness tool', () => {
       expect(modelCompare?.actionIds).toContain('document-review-compare');
       expect(modelCompare?.actionIds).toContain('document-judge-compare');
       expect(modelCompare?.actionIds).toContain('document-apply-compare');
+      expect(modelCompare?.actionIds).toContain('document-export-compare');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -873,6 +874,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-review-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-judge-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
@@ -2879,6 +2881,35 @@ describe('agent_harness tool', () => {
       expect(apply.output).toContain('"status": "executed_model_tool"');
       expect(apply.output).toContain('"tool": "agent_model_compare"');
       expect(apply.output).toContain('agent_model_compare executed');
+
+      const exportUnconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-export-compare',
+        fields: {
+          artifactId: 'artifact-1',
+          confirm: 'no',
+        },
+        confirm: true,
+        explicitUserRequest: 'Export comparison report.',
+      });
+      expect(exportUnconfirmed.success).toBe(true);
+      expect(exportUnconfirmed.output).toContain('"status": "not_confirmed"');
+
+      const exportReport = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-export-compare',
+        fields: {
+          artifactId: 'artifact-1',
+          reveal: 'yes',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Export comparison report.',
+      });
+      expect(exportReport.success).toBe(true);
+      expect(exportReport.output).toContain('"status": "executed_model_tool"');
+      expect(exportReport.output).toContain('"tool": "agent_model_compare"');
+      expect(exportReport.output).toContain('agent_model_compare executed');
     } finally {
       fixture.cleanup();
     }

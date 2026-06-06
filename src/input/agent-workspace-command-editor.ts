@@ -2,7 +2,7 @@ import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-bas
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
-import { buildAgentModelCompareApplyPromptSubmission, buildAgentModelCompareJudgmentPromptSubmission, buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission } from './agent-workspace-model-compare-editor.ts';
+import { buildAgentModelCompareApplyPromptSubmission, buildAgentModelCompareExportPromptSubmission, buildAgentModelCompareJudgmentPromptSubmission, buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission } from './agent-workspace-model-compare-editor.ts';
 import { buildAgentReminderScheduleEditorSubmission } from './agent-workspace-reminder-schedule-editor.ts';
 import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-routine-schedule-editor.ts';
 import { buildAgentWorkspaceWebResearchSubmission } from './agent-workspace-web-research-editor.ts';
@@ -25,6 +25,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'model-compare-review'
   | 'model-compare-judge'
   | 'model-compare-apply'
+  | 'model-compare-export'
   | 'mcp-server'
   | 'notify-webhook'
   | 'notify-webhook-remove'
@@ -94,6 +95,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'model-compare-review'
     || kind === 'model-compare-judge'
     || kind === 'model-compare-apply'
+    || kind === 'model-compare-export'
     || kind === 'routine-schedule'
     || kind === 'reminder-schedule'
     || isAgentWorkspaceBasicCommandEditorKind(kind);
@@ -123,6 +125,9 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'model-compare-apply') {
     return buildAgentModelCompareApplyPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'model-compare-export') {
+    return buildAgentModelCompareExportPromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (isAgentWorkspaceBasicCommandEditorKind(editor.kind)) {
     return buildAgentWorkspaceBasicCommandEditorSubmission(editor, readField, commandDispatchAvailable);

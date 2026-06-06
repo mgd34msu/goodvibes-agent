@@ -41,6 +41,14 @@ export interface AgentModelCompareApplyWorkspaceToolArgs {
   readonly explicitUserRequest: string;
 }
 
+export interface AgentModelCompareExportWorkspaceToolArgs {
+  readonly mode: 'export';
+  readonly artifactId: string;
+  readonly reveal?: boolean;
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
+}
+
 function readList(value: string): readonly string[] {
   return value.split(/[\n,]/).map((entry) => entry.trim()).filter(Boolean);
 }
@@ -129,6 +137,21 @@ export function createAgentModelCompareApplyEditor(): AgentWorkspaceLocalEditor 
   };
 }
 
+export function createAgentModelCompareExportEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'model-compare-export',
+    mode: 'create',
+    title: 'Export Compare Report',
+    selectedFieldIndex: 0,
+    message: 'Export a saved comparison or saved judgment artifact as a local markdown report. This does not change the selected model.',
+    fields: [
+      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved comparison or judgment artifact id such as artifact-123.' },
+      { id: 'reveal', label: 'Reveal in export', value: 'no', required: false, multiline: false, hint: 'yes/no. For comparison artifacts, yes includes model identities. Judgment artifacts use their saved reveal state.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to create one local markdown report artifact.' },
+    ],
+  };
+}
+
 export function buildAgentModelCompareToolArgs(
   readField: AgentWorkspaceFieldReader,
   explicitUserRequest: string,
@@ -196,6 +219,19 @@ export function buildAgentModelCompareApplyToolArgs(
   return {
     mode: 'apply',
     artifactId: readField('artifactId').trim(),
+    confirm: true,
+    explicitUserRequest,
+  };
+}
+
+export function buildAgentModelCompareExportToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentModelCompareExportWorkspaceToolArgs {
+  return {
+    mode: 'export',
+    artifactId: readField('artifactId').trim(),
+    reveal: isAffirmative(readField('reveal')),
     confirm: true,
     explicitUserRequest,
   };
@@ -494,6 +530,80 @@ export function buildAgentModelCompareApplyPromptSubmission(
       kind: 'guidance',
       title: 'Apply compare winner',
       detail: 'Submitted a confirmed request to apply a revealed comparison judgment to the selected model route.',
+      safety: 'safe',
+    },
+  };
+}
+
+export function buildAgentModelCompareExportPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!isAffirmative(readField('confirm'))) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        selectedFieldIndex: Math.max(0, editor.fields.findIndex((field) => field.id === 'confirm')),
+        message: 'Export not confirmed. Type yes, then press Enter.',
+      },
+      status: 'Export not confirmed.',
+      actionResult: {
+        kind: 'error',
+        title: 'Export not confirmed',
+        detail: 'Type yes on the confirmation field before creating the markdown report artifact.',
+        safety: 'safe',
+      },
+    };
+  }
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the comparison export request from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const artifactId = readField('artifactId').trim();
+  const reveal = isAffirmative(readField('reveal'));
+  const explicitUserRequest = 'Export the saved blind model comparison artifact from the Agent workspace form.';
+  const prompt = [
+    'Export a saved blind model comparison or judgment artifact with the `agent_model_compare` tool.',
+    'Use mode:"export" and confirm:true because this workspace form was explicitly confirmed by the user.',
+    `Use explicitUserRequest: ${JSON.stringify(explicitUserRequest)}.`,
+    artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
+    `Reveal model identities in comparison exports: ${reveal ? 'yes' : 'no'}.`,
+    'Create one local markdown artifact and do not change model routing.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting comparison export request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Export compare report',
+      detail: 'Submitted a confirmed request to export a saved comparison or judgment as markdown.',
       safety: 'safe',
     },
   };

@@ -96,6 +96,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action applies a revealed saved comparison judgment to provider.model after explicit confirmation.',
     };
   }
+  if (editorKind === 'model-compare-export') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'export_comparison_report',
+      confirmation: 'required',
+      note: 'run_workspace_action creates one local markdown report from a saved comparison or judgment artifact without changing model routing.',
+    };
+  }
   if (isAgentWorkspaceCommandEditorKind(editorKind)) {
     return {
       route: 'slash-command-dispatch',

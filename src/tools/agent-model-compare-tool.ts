@@ -98,6 +98,7 @@ interface LoadedComparisonJudgment {
   readonly comparisonId: string;
   readonly winnerBlindId: string;
   readonly reasons: string;
+  readonly notes: string;
   readonly revealIncludedInJudgment: boolean;
   readonly winnerModel?: {
     readonly registryKey: string;
@@ -124,6 +125,7 @@ const MODE_REVEAL = 'reveal';
 const MODE_REVIEW = 'review';
 const MODE_JUDGE = 'judge';
 const MODE_APPLY = 'apply';
+const MODE_EXPORT = 'export';
 const MAX_PROMPT_CHARS = 24_000;
 const MIN_CANDIDATES = 2;
 const MAX_CANDIDATES = 4;
@@ -634,6 +636,7 @@ function parseJudgmentArtifactPayload(value: unknown, artifact: SavedComparisonA
     comparisonId: readString(payload.comparisonId) || 'unknown-comparison',
     winnerBlindId: readString(payload.winnerBlindId) || '?',
     reasons: readString(payload.reasons),
+    notes: readString(payload.notes),
     revealIncludedInJudgment: payload.revealIncludedInJudgment === true,
     ...(registryKey ? {
       winnerModel: {
@@ -652,7 +655,12 @@ async function loadJudgmentFromArtifact(
 ): Promise<LoadedComparisonJudgment | null> {
   if (!artifactStore?.readContent) return null;
   const { record, buffer } = await artifactStore.readContent(artifactId);
-  const payload = JSON.parse(buffer.toString('utf-8')) as unknown;
+  let payload: unknown;
+  try {
+    payload = JSON.parse(buffer.toString('utf-8')) as unknown;
+  } catch {
+    return null;
+  }
   return parseJudgmentArtifactPayload(payload, toSavedComparisonArtifact(record));
 }
 
@@ -691,6 +699,138 @@ function formatApplyResult(input: {
   if (input.result.previousModel) lines.push(`previous model ${input.result.previousModel}`);
   lines.push('Judgment and comparison artifacts were not changed.');
   return lines.join('\n');
+}
+
+function markdownBlock(value: string): string {
+  const fence = value.includes('```') ? '~~~~' : '```';
+  return `${fence}\n${value || '(empty)'}\n${fence}`;
+}
+
+function comparisonExportMarkdown(comparison: StoredComparison, reveal: boolean): string {
+  const lines = [
+    '# Blind Model Comparison',
+    '',
+    `Comparison: ${comparison.comparisonId}`,
+    `Created: ${comparison.createdAt}`,
+    `Prompt: ${comparison.promptPreview}`,
+    `Rubric: ${comparison.rubric || '(none)'}`,
+    `Reveal included: ${reveal ? 'yes' : 'no'}`,
+    '',
+    '## Candidates',
+    '',
+  ];
+  for (const candidate of comparison.candidates) {
+    lines.push(`### Candidate ${candidate.blindId}`);
+    lines.push('');
+    lines.push(`Status: ${candidate.status}`);
+    lines.push(`Latency: ${candidate.latencyMs}ms`);
+    if (reveal) lines.push(`Model: ${candidate.model.registryKey} (${candidate.model.displayName})`);
+    if (candidate.status === 'failed') {
+      lines.push(`Error: ${reveal ? candidate.error ?? 'unknown' : 'Provider-specific error hidden until reveal.'}`);
+      lines.push('');
+      continue;
+    }
+    lines.push(`Stop: ${candidate.stopReason ?? 'unknown'}`);
+    lines.push(`Usage: ${formatUsage(candidate.usage)}`);
+    lines.push('');
+    lines.push(markdownBlock(candidate.content));
+    lines.push('');
+  }
+  lines.push('## Decision Worksheet');
+  lines.push('');
+  lines.push('- Winner:');
+  lines.push('- Reasons:');
+  lines.push('- Risks:');
+  lines.push('');
+  return lines.join('\n');
+}
+
+function judgmentExportMarkdown(judgment: LoadedComparisonJudgment): string {
+  const lines = [
+    '# Blind Model Comparison Judgment',
+    '',
+    `Judgment: ${judgment.judgmentId}`,
+    `Comparison: ${judgment.comparisonId}`,
+    `Winner: Candidate ${judgment.winnerBlindId}`,
+    ...(judgment.winnerModel ? [`Winner model: ${judgment.winnerModel.registryKey} (${judgment.winnerModel.displayName})`] : ['Winner model: (not revealed in judgment)']),
+    '',
+    '## Reasons',
+    '',
+    judgment.reasons || '(none)',
+    '',
+  ];
+  if (judgment.notes) {
+    lines.push('## Notes');
+    lines.push('');
+    lines.push(judgment.notes);
+    lines.push('');
+  }
+  lines.push('## Route Update');
+  lines.push('');
+  if (judgment.winnerModel) {
+    lines.push(`Confirmed apply route: agent_model_compare mode:"apply" artifactId:"${judgment.artifact.artifactId}" confirm:true explicitUserRequest:"..."`);
+  } else {
+    lines.push('Save or reveal the judgment before applying a model route update.');
+  }
+  lines.push('');
+  return lines.join('\n');
+}
+
+async function saveComparisonExportArtifact(input: {
+  readonly artifactStore?: AgentModelCompareArtifactStore;
+  readonly sourceArtifactId: string;
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly comparisonId: string;
+  readonly markdown: string;
+  readonly reveal: boolean;
+}): Promise<SavedComparisonArtifact> {
+  if (!input.artifactStore) throw new Error('Cannot export comparison because the artifact store is unavailable.');
+  const exportId = `exp_${randomUUID()}`;
+  const descriptor = await input.artifactStore.create({
+    kind: 'data',
+    mimeType: 'text/markdown',
+    filename: `blind-model-comparison-export-${exportId}.md`,
+    text: input.markdown,
+    metadata: {
+      purpose: 'agent-model-compare-export',
+      exportId,
+      sourceArtifactId: input.sourceArtifactId,
+      sourceKind: input.sourceKind,
+      comparisonId: input.comparisonId,
+      revealIncludedInExport: input.reveal,
+    },
+  });
+  return toSavedComparisonArtifact(descriptor);
+}
+
+function formatExportPreview(input: {
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly sourceArtifactId: string;
+  readonly comparisonId: string;
+  readonly reveal: boolean;
+}): string {
+  return [
+    'Agent blind model comparison export preview',
+    `  source ${input.sourceArtifactId} (${input.sourceKind})`,
+    `  comparison ${input.comparisonId}`,
+    `  format markdown`,
+    `  reveal ${input.reveal ? 'include model identities when available' : 'keep model identities hidden'}`,
+    '  policy creates one local markdown artifact and does not change model routing',
+  ].join('\n');
+}
+
+function formatExportResult(input: {
+  readonly sourceKind: 'comparison' | 'judgment';
+  readonly sourceArtifactId: string;
+  readonly comparisonId: string;
+  readonly artifact: SavedComparisonArtifact;
+}): string {
+  return [
+    `Blind model comparison export saved for ${input.comparisonId}`,
+    `source ${input.sourceArtifactId} (${input.sourceKind})`,
+    `artifact ${input.artifact.artifactId}${input.artifact.filename ? ` ${input.artifact.filename}` : ''} (${input.artifact.mimeType}, ${input.artifact.sizeBytes} bytes)`,
+    'No selected model was changed.',
+  ].join('\n');
 }
 
 function formatRunResult(comparison: StoredComparison, reveal: boolean): string {
@@ -736,10 +876,10 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'judge' | 'apply' | 'export' {
   const mode = readString(value) || MODE_RUN;
-  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW || mode === MODE_JUDGE || mode === MODE_APPLY) return mode;
-  throw new Error('mode must be run, reveal, review, judge, or apply.');
+  if (mode === MODE_RUN || mode === MODE_REVEAL || mode === MODE_REVIEW || mode === MODE_JUDGE || mode === MODE_APPLY || mode === MODE_EXPORT) return mode;
+  throw new Error('mode must be run, reveal, review, judge, apply, or export.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -930,7 +1070,12 @@ async function loadComparisonFromArtifact(
   if (!artifactStore?.readContent) return null;
   const { record, buffer } = await artifactStore.readContent(artifactId);
   const artifact = toSavedComparisonArtifact(record);
-  const parsed = JSON.parse(buffer.toString('utf-8')) as unknown;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(buffer.toString('utf-8')) as unknown;
+  } catch {
+    return null;
+  }
   return parseComparisonArtifactPayload(parsed, artifact);
 }
 
@@ -957,14 +1102,14 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Run, review, judge, apply, or reveal one blind comparison.',
+      description: 'Run/review/judge/apply/export/reveal blind comparisons.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY],
-            description: 'Use run, review, reveal, judge, or apply winner.',
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_JUDGE, MODE_APPLY, MODE_EXPORT],
+            description: 'Use run, review, reveal, judge, apply, or export.',
           },
           prompt: {
             type: 'string',
@@ -1025,7 +1170,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true for run, judge, and apply modes.',
+            description: 'Required true for run, judge, apply, and export.',
           },
           explicitUserRequest: {
             type: 'string',
@@ -1141,6 +1286,80 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           const result = await deps.applyModelRoute(judgment.winnerModel.registryKey);
           await deps.modelCatalog.recordModelUsage?.(judgment.winnerModel.registryKey);
           return output(formatApplyResult({ judgment, result }));
+        }
+
+        if (mode === MODE_EXPORT) {
+          const artifactId = readString(args.artifactId);
+          const explicitUserRequest = readString(args.explicitUserRequest);
+          if (!artifactId) return failure('export mode requires a saved comparison or judgment artifactId.');
+          if (!explicitUserRequest) {
+            return failure('explicitUserRequest is required so exports stay tied to a direct user request.');
+          }
+          if (!deps.artifactStore?.readContent || !deps.artifactStore.create) {
+            return failure('Saved comparison export is unavailable because this runtime cannot read and create artifact content.');
+          }
+
+          const comparison = await loadComparisonFromArtifact(deps.artifactStore, artifactId);
+          if (comparison) {
+            const reveal = readBoolean(args.reveal);
+            if (!readBoolean(args.confirm)) {
+              return failure([
+                formatExportPreview({
+                  sourceKind: 'comparison',
+                  sourceArtifactId: artifactId,
+                  comparisonId: comparison.comparisonId,
+                  reveal,
+                }),
+                '',
+                'Export confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to create this markdown report.',
+              ].join('\n'));
+            }
+            const artifact = await saveComparisonExportArtifact({
+              artifactStore: deps.artifactStore,
+              sourceArtifactId: artifactId,
+              sourceKind: 'comparison',
+              comparisonId: comparison.comparisonId,
+              markdown: comparisonExportMarkdown(comparison, reveal),
+              reveal,
+            });
+            rememberComparison(comparisons, comparison);
+            return output(formatExportResult({
+              sourceKind: 'comparison',
+              sourceArtifactId: artifactId,
+              comparisonId: comparison.comparisonId,
+              artifact,
+            }));
+          }
+
+          const judgment = await loadJudgmentFromArtifact(deps.artifactStore, artifactId);
+          if (!judgment) return failure('Unknown comparison or judgment artifact. Pass a saved blind model comparison artifactId.');
+          const reveal = judgment.revealIncludedInJudgment;
+          if (!readBoolean(args.confirm)) {
+            return failure([
+              formatExportPreview({
+                sourceKind: 'judgment',
+                sourceArtifactId: artifactId,
+                comparisonId: judgment.comparisonId,
+                reveal,
+              }),
+              '',
+              'Export confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to create this markdown report.',
+            ].join('\n'));
+          }
+          const artifact = await saveComparisonExportArtifact({
+            artifactStore: deps.artifactStore,
+            sourceArtifactId: artifactId,
+            sourceKind: 'judgment',
+            comparisonId: judgment.comparisonId,
+            markdown: judgmentExportMarkdown(judgment),
+            reveal,
+          });
+          return output(formatExportResult({
+            sourceKind: 'judgment',
+            sourceArtifactId: artifactId,
+            comparisonId: judgment.comparisonId,
+            artifact,
+          }));
         }
 
         const prompt = readString(args.prompt);

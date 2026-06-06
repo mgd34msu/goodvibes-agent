@@ -398,6 +398,65 @@ describe('agent_model_compare tool', () => {
     expect(apply.output).toContain('selected model anthropic:claude-sonnet');
     expect(apply.output).toContain('previous model openai:gpt-4.1');
     expect(reviewer.appliedModelRoutes).toEqual(['anthropic:claude-sonnet']);
+
+    const exportPreview = await reviewer.tool.execute({
+      mode: 'export',
+      artifactId: 'artifact-1',
+      confirm: false,
+      explicitUserRequest: 'Export the comparison report.',
+    });
+    expect(exportPreview.success).toBe(false);
+    expect(exportPreview.error).toContain('comparison export preview');
+    expect(artifacts.inputs).toHaveLength(3);
+
+    const comparisonExport = await reviewer.tool.execute({
+      mode: 'export',
+      artifactId: 'artifact-1',
+      reveal: false,
+      confirm: true,
+      explicitUserRequest: 'Export the comparison report.',
+    });
+    expect(comparisonExport.success).toBe(true);
+    expect(comparisonExport.output).toContain('Blind model comparison export saved');
+    expect(comparisonExport.output).toContain('source artifact-1 (comparison)');
+    expect(comparisonExport.output).toContain('artifact-4');
+    expect(comparisonExport.output).toContain('No selected model was changed.');
+    expect(artifacts.inputs).toHaveLength(4);
+    expect(artifacts.inputs[3]?.mimeType).toBe('text/markdown');
+    expect(artifacts.inputs[3]?.metadata?.purpose).toBe('agent-model-compare-export');
+    expect(artifacts.inputs[3]?.metadata?.sourceKind).toBe('comparison');
+    const comparisonExportText = artifacts.inputs[3]?.text ?? '';
+    expect(comparisonExportText).toContain('# Blind Model Comparison');
+    expect(comparisonExportText).toContain('Candidate A style answer.');
+    expect(comparisonExportText).toContain('Candidate B style answer.');
+    expect(comparisonExportText).not.toContain('openai:gpt-4.1');
+    expect(comparisonExportText).not.toContain('anthropic:claude-sonnet');
+
+    const judgmentExport = await reviewer.tool.execute({
+      mode: 'export',
+      artifactId: 'artifact-2',
+      confirm: true,
+      explicitUserRequest: 'Export the judgment report.',
+    });
+    expect(judgmentExport.success).toBe(true);
+    expect(judgmentExport.output).toContain('Blind model comparison export saved');
+    expect(judgmentExport.output).toContain('source artifact-2 (judgment)');
+    expect(judgmentExport.output).toContain('artifact-5');
+    expect(artifacts.inputs).toHaveLength(5);
+    expect(artifacts.inputs[4]?.mimeType).toBe('text/markdown');
+    expect(artifacts.inputs[4]?.metadata?.purpose).toBe('agent-model-compare-export');
+    expect(artifacts.inputs[4]?.metadata?.sourceKind).toBe('judgment');
+    const judgmentExportText = artifacts.inputs[4]?.text ?? '';
+    expect(judgmentExportText).toContain('# Blind Model Comparison Judgment');
+    expect(judgmentExportText).toContain('Winner model: anthropic:claude-sonnet');
+    expect(judgmentExportText).toContain('Candidate B was more concrete.');
+    expect(judgmentExportText).toContain('Use this as evidence before any route change.');
+
+    const listAfterExport = await reviewer.tool.execute({ mode: 'review' });
+    expect(listAfterExport.success).toBe(true);
+    expect(listAfterExport.output).toContain('artifact-1');
+    expect(listAfterExport.output).not.toContain('artifact-4');
+    expect(listAfterExport.output).not.toContain('artifact-5');
   });
 
   test('can deliberately skip artifact persistence', async () => {
