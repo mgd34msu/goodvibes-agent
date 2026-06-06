@@ -73,6 +73,19 @@ describe('agent_harness mode catalog', () => {
       readonly modes: readonly { readonly id: string }[];
     };
     expect(sudo.modes.map((mode) => mode.id)).toContain('run_background_process');
+
+    const processTool = listHarnessModes({ query: 'process tool session id poll kill write', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[] }[];
+    };
+    const runBackgroundProcess = processTool.modes.find((mode) => mode.id === 'run_background_process');
+    expect(runBackgroundProcess?.parameters).toEqual(expect.arrayContaining([
+      'processAction',
+      'action',
+      'sessionId',
+      'session_id',
+      'processSessionId',
+      'data',
+    ]));
   });
 
   test('finds Personal Ops by natural user task wording', () => {

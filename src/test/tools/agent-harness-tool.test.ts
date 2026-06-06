@@ -3227,6 +3227,9 @@ describe('agent_harness tool', () => {
       const started = await executeHarnessJson<{
         readonly status: string;
         readonly processId: string;
+        readonly processSessionId: string;
+        readonly sessionId: string;
+        readonly session_id: string;
         readonly pid: number;
         readonly command: string;
         readonly routes: { readonly inspect: string; readonly stop: string; readonly visibleMonitor: string };
@@ -3239,6 +3242,9 @@ describe('agent_harness tool', () => {
       });
       expect(started.status).toBe('started');
       expect(started.processId).toMatch(/^bg_/);
+      expect(started.processSessionId).toBe(started.processId);
+      expect(started.sessionId).toBe(started.processId);
+      expect(started.session_id).toBe(started.processId);
       expect(started.pid).toBeGreaterThan(0);
       expect(started.command).toContain('printf');
       expect(started.routes.inspect).toContain(started.processId);
@@ -3263,20 +3269,46 @@ describe('agent_harness tool', () => {
 
       const inspected = await executeHarnessJson<{
         readonly processId: string;
+        readonly sessionId: string;
+        readonly session_id: string;
         readonly status: string;
         readonly output?: { readonly stdoutTail: string; readonly stderrTail: string; readonly policy: string };
       }>(fixture, {
         mode: 'background_process',
-        processId: started.processId,
+        session_id: started.session_id,
       });
       expect(inspected.processId).toBe(started.processId);
+      expect(inspected.sessionId).toBe(started.processId);
+      expect(inspected.session_id).toBe(started.processId);
       expect(inspected.status).toBe('succeeded');
       expect(inspected.output?.policy).toContain('redacted');
 
+      const polled = await executeHarnessJson<{
+        readonly processId: string;
+        readonly status: string;
+      }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'poll',
+        sessionId: started.sessionId,
+      });
+      expect(polled.processId).toBe(started.processId);
+      expect(polled.status).toBe('succeeded');
+
+      const logged = await executeHarnessJson<{
+        readonly processId: string;
+        readonly output?: { readonly stdoutTail: string };
+      }>(fixture, {
+        mode: 'run_background_process',
+        action: 'log',
+        processSessionId: started.processSessionId,
+      });
+      expect(logged.processId).toBe(started.processId);
+      expect(logged.output?.stdoutTail).toContain('hello');
+
       const stopped = await executeHarnessJson<{ readonly status: string; readonly processId: string }>(fixture, {
         mode: 'run_background_process',
-        processAction: 'stop',
-        processId: started.processId,
+        processAction: 'kill',
+        sessionId: started.sessionId,
         confirm: true,
         explicitUserRequest: 'Remove the tracked completed smoke command.',
       });
@@ -3300,7 +3332,7 @@ describe('agent_harness tool', () => {
       expect(pty.capability).toBe('pty');
       expect(pty.guidance).toContain('Interactive PTY');
 
-      const write = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly guidance: string }>(fixture, {
+      const write = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly guidance: string; readonly processId: string | null; readonly dataReceived: boolean }>(fixture, {
         mode: 'run_background_process',
         processAction: 'status',
         processId: 'bg_missing',
@@ -3309,6 +3341,17 @@ describe('agent_harness tool', () => {
       expect(write.status).toBe('unsupported');
       expect(write.capability).toBe('stdinWrite');
       expect(write.guidance).toContain('stdin write');
+      expect(write.processId).toBe('bg_missing');
+      expect(write.dataReceived).toBe(true);
+
+      const writeAction = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly processId: string | null }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'write',
+        sessionId: 'bg_missing',
+      });
+      expect(writeAction.status).toBe('unsupported');
+      expect(writeAction.capability).toBe('stdinWrite');
+      expect(writeAction.processId).toBe('bg_missing');
 
       const sudo = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly reason: string }>(fixture, {
         mode: 'run_background_process',

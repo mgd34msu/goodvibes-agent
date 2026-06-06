@@ -112,10 +112,19 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
     type: 'string',
     description: 'Background process id for process inspect or lifecycle modes.',
   },
+  processSessionId: {
+    type: 'string',
+    description: 'Process session id alias for background process modes.',
+  },
   processAction: {
     type: 'string',
-    enum: ['start', 'stop', 'wait', 'list', 'status', 'log', 'output'],
-    description: 'Background process lifecycle action to run.',
+    enum: ['start', 'spawn', 'run', 'stop', 'kill', 'cancel', 'wait', 'list', 'status', 'poll', 'log', 'output', 'write', 'capabilities', 'doctor', 'parity'],
+    description: 'Background process lifecycle action or process-style alias.',
+  },
+  action: {
+    type: 'string',
+    enum: ['start', 'spawn', 'run', 'stop', 'kill', 'cancel', 'wait', 'list', 'status', 'poll', 'log', 'output', 'write', 'capabilities', 'doctor', 'parity'],
+    description: 'Process-style action alias for run_background_process.',
   },
   cwd: {
     type: 'string',
@@ -180,7 +189,11 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   sessionId: {
     type: 'string',
-    description: 'Saved session id for session mode.',
+    description: 'Saved session id, or process session id in process modes.',
+  },
+  session_id: {
+    type: 'string',
+    description: 'Snake-case process session id alias.',
   },
   categoryId: {
     type: 'string',

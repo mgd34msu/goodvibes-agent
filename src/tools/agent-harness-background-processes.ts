@@ -4,6 +4,10 @@ import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessBackgroundProcessArgs {
   readonly processId?: unknown;
+  readonly processSessionId?: unknown;
+  readonly sessionId?: unknown;
+  readonly session_id?: unknown;
+  readonly action?: unknown;
   readonly processAction?: unknown;
   readonly command?: unknown;
   readonly target?: unknown;
@@ -19,7 +23,7 @@ export interface AgentHarnessBackgroundProcessArgs {
   readonly explicitUserRequest?: unknown;
 }
 
-type BackgroundProcessLookupSource = 'processId' | 'target' | 'query';
+type BackgroundProcessLookupSource = 'processId' | 'processSessionId' | 'sessionId' | 'session_id' | 'target' | 'query';
 
 export type BackgroundProcessResolution =
   | { readonly status: 'found'; readonly process: Record<string, unknown> }
@@ -96,6 +100,18 @@ function routeFor(processId: string, mode: 'background_process' | 'run_backgroun
   return `agent_harness mode:"${mode}" processId:"${processId}"${actionPart}`;
 }
 
+function readProcessSessionId(args: AgentHarnessBackgroundProcessArgs): { readonly source: BackgroundProcessLookupSource; readonly input: string } | null {
+  const processId = readString(args.processId) || readField(args, 'processId');
+  if (processId) return { source: 'processId', input: processId };
+  const processSessionId = readString(args.processSessionId) || readField(args, 'processSessionId');
+  if (processSessionId) return { source: 'processSessionId', input: processSessionId };
+  const sessionId = readString(args.sessionId) || readField(args, 'sessionId');
+  if (sessionId) return { source: 'sessionId', input: sessionId };
+  const snakeSessionId = readString(args.session_id) || readField(args, 'session_id');
+  if (snakeSessionId) return { source: 'session_id', input: snakeSessionId };
+  return null;
+}
+
 function describeProcessEntry(
   manager: ProcessManager,
   entry: BackgroundProcess,
@@ -106,6 +122,9 @@ function describeProcessEntry(
   const stderrTail = compactText(output.stderr, options.includeParameters ? MAX_LOG_PREVIEW_CHARS : MAX_COMPACT_LOG_PREVIEW_CHARS);
   return {
     processId: entry.id,
+    processSessionId: entry.id,
+    sessionId: entry.id,
+    session_id: entry.id,
     pid: entry.pid,
     status: processStatus(entry),
     done: entry.done,
@@ -142,8 +161,8 @@ function processSearchText(entry: BackgroundProcess): string {
 }
 
 function lookupFromArgs(args: AgentHarnessBackgroundProcessArgs): { readonly source: BackgroundProcessLookupSource; readonly input: string } | null {
-  const processId = readString(args.processId) || readField(args, 'processId');
-  if (processId) return { source: 'processId', input: processId };
+  const processSession = readProcessSessionId(args);
+  if (processSession) return processSession;
   const target = readString(args.target);
   if (target) return { source: 'target', input: target };
   const query = readString(args.query);
@@ -162,6 +181,9 @@ function matchingProcesses(manager: ProcessManager, input: string): readonly Bac
 function candidateProcess(entry: BackgroundProcess): Record<string, unknown> {
   return {
     processId: entry.id,
+    processSessionId: entry.id,
+    sessionId: entry.id,
+    session_id: entry.id,
     pid: entry.pid,
     status: processStatus(entry),
     command: previewHarnessText(redactText(entry.cmd), 96),
@@ -194,7 +216,7 @@ function processToolParity(): readonly Record<string, unknown>[] {
       capability: 'process(poll)',
       status: 'supported',
       userOutcome: 'Poll one tracked process status without waiting.',
-      modelRoute: 'agent_harness mode:"background_process" processId:"..."',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"poll" sessionId:"..."',
     },
     {
       capability: 'process(wait)',
@@ -212,7 +234,7 @@ function processToolParity(): readonly Record<string, unknown>[] {
       capability: 'process(kill)',
       status: 'supported',
       userOutcome: 'Stop and remove one tracked process from the shared ProcessManager.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"stop" processId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"kill" sessionId:"..." confirm:true explicitUserRequest:"..."',
     },
     {
       capability: 'process(write)',
@@ -239,8 +261,18 @@ function capabilities(): Record<string, unknown> {
   return {
     start: 'agent_harness mode:"run_background_process" processAction:"start" command:"..." confirm:true explicitUserRequest:"..."',
     inspect: 'agent_harness mode:"background_processes" or mode:"background_process"',
-    wait: 'agent_harness mode:"run_background_process" processAction:"wait" processId:"..." confirm:true explicitUserRequest:"..."',
-    stop: 'agent_harness mode:"run_background_process" processAction:"stop" processId:"..." confirm:true explicitUserRequest:"..."',
+    wait: 'agent_harness mode:"run_background_process" processAction:"wait" processId|sessionId:"..." confirm:true explicitUserRequest:"..."',
+    stop: 'agent_harness mode:"run_background_process" processAction:"kill" processId|sessionId:"..." confirm:true explicitUserRequest:"..."',
+    aliases: {
+      actions: {
+        poll: 'status',
+        kill: 'stop',
+        log: 'output',
+        write: 'unsupported until ProcessManager exposes stdin',
+      },
+      ids: ['processId', 'processSessionId', 'sessionId', 'session_id'],
+      userOutcome: 'The harness accepts the process-tool words users expect while returning stable processId/sessionId aliases.',
+    },
     parity: processToolParity(),
     substrate: {
       localProcessManager: {
@@ -387,11 +419,15 @@ function requireConfirmed(args: AgentHarnessBackgroundProcessArgs, action: strin
 }
 
 function readProcessAction(args: AgentHarnessBackgroundProcessArgs): string {
-  return (
+  const action = (
     readString(args.processAction)
+    || readString(args.action)
     || readField(args, 'action')
     || (readString(args.command) || readField(args, 'command') ? 'start' : '')
   ).toLowerCase();
+  if (action === 'poll') return 'status';
+  if (action === 'kill') return 'stop';
+  return action;
 }
 
 function readCommand(args: AgentHarnessBackgroundProcessArgs): string {
@@ -399,7 +435,7 @@ function readCommand(args: AgentHarnessBackgroundProcessArgs): string {
 }
 
 function readProcessId(args: AgentHarnessBackgroundProcessArgs): string {
-  return readString(args.processId) || readField(args, 'processId') || readString(args.target);
+  return readProcessSessionId(args)?.input || readString(args.target);
 }
 
 function readCwd(context: CommandContext, args: AgentHarnessBackgroundProcessArgs): string | undefined {
@@ -450,10 +486,21 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
       ...(capabilities().stdinWrite as Record<string, unknown>),
       status: 'unsupported',
       capability: 'stdinWrite',
+      processId: readProcessId(args) || null,
+      dataReceived: true,
     };
   }
 
   const action = readProcessAction(args);
+  if (action === 'write') {
+    return {
+      ...(capabilities().stdinWrite as Record<string, unknown>),
+      status: 'unsupported',
+      capability: 'stdinWrite',
+      processId: readProcessId(args) || null,
+      dataReceived: Boolean(readString(args.data) || readField(args, 'data')),
+    };
+  }
   if (action === 'capabilities' || action === 'doctor' || action === 'parity') {
     return {
       status: 'available',
@@ -481,6 +528,9 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
     return {
       status: 'started',
       processId: result.process_id,
+      processSessionId: result.process_id,
+      sessionId: result.process_id,
+      session_id: result.process_id,
       pid: result.pid,
       command: redactText(command),
       cwd,
@@ -505,6 +555,9 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
     return {
       status: stopped ? 'stopped' : 'not_found',
       processId,
+      processSessionId: processId,
+      sessionId: processId,
+      session_id: processId,
       policy: stopped
         ? 'The process was signaled and removed from the shared ProcessManager.'
         : 'No tracked process matched that id.',
@@ -521,6 +574,9 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
     return {
       status: entry?.done ? 'completed' : entry ? 'still_running' : 'not_found',
       processId,
+      processSessionId: processId,
+      sessionId: processId,
+      session_id: processId,
       timeoutMs,
       ...(entry ? { process: describeProcessEntry(manager, entry, { includeParameters: true }) } : {}),
       policy: 'Wait observes the tracked process and does not send input or signals.',
@@ -537,5 +593,5 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
     };
   }
 
-  throw new Error('run_background_process requires processAction start, stop, wait, list, status, log, or output.');
+  throw new Error('run_background_process requires processAction start, stop/kill, wait, list, status/poll, log/output, write, or capabilities.');
 }
