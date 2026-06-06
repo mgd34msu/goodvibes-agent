@@ -447,6 +447,31 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('agent_harness mode:"document_ops"');
   });
 
+  test('renders Research with source report artifacts and a confirmed save form', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'research');
+
+    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Research');
+    expect(output).toContain('Research route: openai-subscriber / GPT-5.5');
+    expect(output).toContain('Web and URL inspection stay read-only');
+    expect(output).toContain('Sourced report artifacts are available through agent_research_report');
+    expect(output).toContain('Research in conversation');
+    expect(output).toContain('Inspect URL');
+    expect(output).toContain('Save research report');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'research-save-report');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Save Research Report');
+    expect(output).toContain('Title *');
+    expect(output).toContain('Question *');
+    expect(output).toContain('Sources *');
+    expect(workspace.localEditor?.fields.some((field) => field.id === 'confidence')).toBe(true);
+    expect(workspace.localEditor?.fields.some((field) => field.id === 'confirm' && field.required)).toBe(true);
+  });
+
   test('keeps onboarding context compact enough to show setting actions', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined, 'setup');

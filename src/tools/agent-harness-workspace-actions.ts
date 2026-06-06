@@ -141,6 +141,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   ) return 'agent_artifacts';
   if (editorKind === 'artifact-promote-knowledge') return 'agent_knowledge_ingest';
   if (editorKind === 'web-research' || editorKind === 'web-fetch') return 'main conversation prompt';
+  if (editorKind === 'research-report') return 'agent_research_report';
   if (editorKind === 'media-generate') return 'agent_media_generate';
   if (
     editorKind === 'model-compare'

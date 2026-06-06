@@ -24,7 +24,7 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 | Autonomous schedules/background work | Cron, wakeups, webhooks, triggers | Built-in cron with delivery | Scheduled tasks and reminders | Partial: schedules exist, policy is too defensive | Better |
 | Computer use, browser, shell | Browser, canvas, nodes, system.run | Terminal backends, browser, code execution, computer use | opencode with web/files/shell/MCP | Partial: capabilities exist but Agent diverts execution | Better |
 | Multi-agent and remote execution | Multi-agent routing and session tools | Subagents, kanban, worktrees | Agent runs whole tasks | Partial: foundations exist, Agent blocks fanout | Better |
-| Deep research and reports | Research-oriented workflows | Web tools, session search, trajectory tooling | Deep Research visual reports | Partial: search and knowledge exist, report UX missing | Better |
+| Deep research and reports | Research-oriented workflows | Web tools, session search, trajectory tooling | Deep Research visual reports | Partial: web/URL research, knowledge ingest, and sourced report artifacts exist; live source queue and checkpointed runner missing | Better |
 | Documents and model comparison | Canvas/web primitives | TUI/dashboard/session tools | Documents and blind Compare | Parity: Document Ops has project-scoped versioned markdown drafts with browse/show/create/revise/review/comment/suggest/accept-suggestion/reject-suggestion/artifact-attach/artifact-insert/export, unified artifact browse/show/export/package plus confirmed artifact-to-Knowledge promotion, artifact-to-document attachment, and artifact-to-compare reuse for saved text artifacts, and a confirmed blind runner with durable JSON artifacts, saved review boards, saved judgments, saved preference analytics, markdown report export, and confirmed route updates | Parity |
 | Mobile, voice, device nodes | macOS/iOS/Android nodes and voice | Termux, messaging, voice memo transcription | Responsive PWA | Partial: pairing and voice exist, command depth unfinished | Better |
 | Web dashboard and PWA | Control UI and WebChat | Local dashboard | Primary responsive web UI | Partial: host has foundations, Agent is terminal-first | Better |
@@ -47,6 +47,6 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Add a visible autonomy queue for schedules, recurring routines, reminders, long-running tasks, and delegated work.
 - Build first-class email/calendar connectors and promote Personal Ops from readiness map into a live inbox/agenda/task queue.
 - Add a learning curator that proposes memory, skill, and routine updates with provenance and rollback.
-- Turn research into a report workflow with source quality, citations, artifacts, and explicit knowledge ingest.
+- Turn research into a live report workflow with source queue, credibility review, citations, artifacts, cancellation, and explicit knowledge ingest.
 - Extend Document Ops beyond parity with compressed artifact packages, cross-session synthesis, reviewer-ready suggestion summaries, and richer comparison handoffs.
 - Make browser, mobile, voice, and device control setup discoverable and repairable from the same assistant cockpit.

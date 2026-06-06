@@ -51,6 +51,7 @@ export type AgentWorkspaceEditorKind =
   | AgentWorkspaceLocalEditorKind
   | 'web-research'
   | 'web-fetch'
+  | 'research-report'
   | 'knowledge-url'
   | 'knowledge-urls'
   | 'knowledge-file'

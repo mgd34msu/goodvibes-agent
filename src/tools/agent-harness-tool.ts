@@ -5,6 +5,7 @@ import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactExportToolArgs, bu
 import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
+import { buildAgentResearchReportToolArgs } from '../input/agent-workspace-research-report-editor.ts';
 import { isAffirmative, splitList } from '../input/agent-workspace-editors.ts';
 import { createAgentWorkspaceLearnedBehavior } from '../input/agent-workspace-learned-behavior.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/agent-workspace-types.ts';
@@ -425,6 +426,38 @@ async function runWorkspaceEditorAction(
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',
       action: action.id,
       tool: 'agent_knowledge_ingest',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'research-report') {
+    const confirmationError = requireConfirmedAction(args, 'Workspace research report artifact save');
+    if (confirmationError) return error(confirmationError);
+    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+      return output({
+        status: 'not_confirmed',
+        action: action.id,
+        editor: describeWorkspaceEditor(editor),
+        modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+        note: 'Type yes in the editor confirmation field before saving the sourced research report artifact.',
+      });
+    }
+    const researchToolArgs = buildAgentResearchReportToolArgs(
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Save a reviewed source-grounded research report as an Agent artifact.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-research-report',
+      'agent_research_report',
+      researchToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_research_report',
       output: result.output ?? null,
       error: result.error ?? null,
       modelExecution: describeWorkspaceEditorModelExecution(editor.kind),

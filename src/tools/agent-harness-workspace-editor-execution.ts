@@ -60,6 +60,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action returns the main-conversation prompt produced by this editor; use that prompt as the conversation task instead of creating a hidden nested turn.',
     };
   }
+  if (editorKind === 'research-report') {
+    return {
+      route: 'agent_research_report',
+      tool: 'agent_research_report',
+      action: 'save_research_report_artifact',
+      confirmation: 'required',
+      note: 'run_workspace_action saves one reviewed source-grounded markdown report as a local artifact with a source map. It does not ingest Agent Knowledge or send external messages.',
+    };
+  }
   if (editorKind === 'artifact-browser') {
     return {
       route: 'agent_artifacts',

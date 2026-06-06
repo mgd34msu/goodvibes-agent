@@ -43,7 +43,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 ## Remaining Product Gaps
 
 - First-class email and calendar connectors and live Personal Ops queue.
-- Deep research report workflow with source quality and artifact output.
+- Deep research source queue, credibility scoring, cancellation, and checkpoint/resume beyond saved sourced report artifacts.
 - Local model serving cookbook and hardware-aware setup.
 - Browser/computer-use setup and recovery.
 - Learning curator for memory, skill, routine, and preference updates.

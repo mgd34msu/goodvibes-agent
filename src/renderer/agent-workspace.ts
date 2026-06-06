@@ -356,6 +356,13 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Timeout ${snapshot.automationDefaultTimeoutMs} ms; catch-up ${snapshot.automationCatchUpWindowMinutes} min; cooldown ${snapshot.automationFailureCooldownMs} ms.`, fg: PALETTE.info },
       { text: `Delete one-shot jobs after success: ${snapshot.automationDeleteAfterRun ? 'yes' : 'no'}.`, fg: snapshot.automationDeleteAfterRun ? PALETTE.info : PALETTE.muted },
     );
+  } else if (category.id === 'research') {
+    base.push(
+      { text: `Research route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}.`, fg: PALETTE.info },
+      { text: `Browser: ${snapshot.voiceMediaReadiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: 'Web and URL inspection stay read-only until the user confirms source ingest.', fg: PALETTE.good },
+      { text: 'Sourced report artifacts are available through agent_research_report.', fg: PALETTE.good },
+    );
   } else if (category.id === 'personal-ops') {
     const ready = readyRoutineItems(snapshot);
     const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
@@ -395,13 +402,6 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Route: ${snapshot.knowledgeRoute}; isolation ${snapshot.knowledgeIsolation}.`, fg: PALETTE.info },
       { text: 'Ask/search, ingest, review, reindex, and reports stay Agent-owned.', fg: PALETTE.good },
       { text: 'Ingest requires explicit confirmation.', fg: PALETTE.warn },
-    );
-  } else if (category.id === 'research') {
-    base.push(
-      { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
-      { text: `Browser: ${snapshot.voiceMediaReadiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: 'Research is read-only. Knowledge ingest is a separate confirmed action.', fg: PALETTE.good },
-      { text: compactText(snapshot.voiceMediaReadiness.browserToolNextStep), fg: PALETTE.muted },
     );
   } else if (category.id === 'documents') {
     const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;

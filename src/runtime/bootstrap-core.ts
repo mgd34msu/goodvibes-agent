@@ -42,6 +42,7 @@ import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
 import { registerAgentOperatorMethodTool } from '../tools/agent-operator-method-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
+import { registerAgentResearchReportTool } from '../tools/agent-research-report-tool.ts';
 import { getTerminalSize } from '../shell/terminal-size.ts';
 import { registerAgentWorkPlanTool } from '../tools/agent-work-plan-tool.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
@@ -251,6 +252,7 @@ export async function initializeBootstrapCore(
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentMediaGenerateTool(toolRegistry, services.mediaProviders, services.artifactStore);
+  registerAgentResearchReportTool(toolRegistry, services.artifactStore);
   registerAgentModelCompareTool(toolRegistry, {
     modelCatalog: services.providerRegistry,
     providerRegistry: services.providerRegistry,

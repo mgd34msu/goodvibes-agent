@@ -24,6 +24,7 @@ import { createAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
 import { createAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
+import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
@@ -986,6 +987,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-save-report')?.modelRoute).toBe('agent_research_report');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
       expect(listedWithEditors.success).toBe(true);
@@ -2196,6 +2198,7 @@ describe('agent_harness tool', () => {
         'agent_reminder_schedule',
         'agent_media_generate',
         'agent_model_compare',
+        'agent_research_report',
       ]) {
         registerStubTool(fixture.toolRegistry, name);
       }
@@ -2408,12 +2411,14 @@ describe('agent_harness tool', () => {
       const local = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'memory-create' });
       const commandBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'conversation-save' });
       const promptBacked = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-main' });
+      const researchReport = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'research-save-report' });
       const directLocal = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'learned-behavior' });
       const profile = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'runtime-profile-create' });
 
       expect(local.success).toBe(true);
       expect(commandBacked.success).toBe(true);
       expect(promptBacked.success).toBe(true);
+      expect(researchReport.success).toBe(true);
       expect(directLocal.success).toBe(true);
       expect(profile.success).toBe(true);
 
@@ -2431,6 +2436,12 @@ describe('agent_harness tool', () => {
         route: 'main-conversation-prompt',
         result: 'prompt',
         confirmation: 'not-required',
+      });
+      expect(JSON.parse(researchReport.output).modelExecution).toMatchObject({
+        route: 'agent_research_report',
+        tool: 'agent_research_report',
+        action: 'save_research_report_artifact',
+        confirmation: 'required',
       });
       expect(JSON.parse(directLocal.output).modelExecution).toMatchObject({
         route: 'direct-agent-local-create',
@@ -3260,6 +3271,73 @@ describe('agent_harness tool', () => {
       expect(promotion.output).toContain('"status": "executed_model_tool"');
       expect(promotion.output).toContain('"tool": "agent_knowledge_ingest"');
       expect(promotion.output).toContain('agent_knowledge_ingest executed');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs confirmed research report workspace editor through agent_research_report', async () => {
+    const artifacts = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      fixture.toolRegistry.register(createAgentResearchReportTool(artifacts.store));
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'research-save-report',
+        confirm: true,
+        explicitUserRequest: 'Save the reviewed local-model research report.',
+        fields: {
+          title: 'Local Model Options',
+          question: 'Which local model route should we try?',
+          summary: 'Ollama is easiest.',
+          sources: 'Ollama docs | https://example.test/ollama?token=secret | high | Official docs.',
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmed.success).toBe(true);
+      expect(unconfirmed.output).toContain('"status": "not_confirmed"');
+      expect(unconfirmed.output).toContain('research-save-report');
+
+      const saved = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'research-save-report',
+        confirm: true,
+        explicitUserRequest: 'Save the reviewed local-model research report.',
+        fields: {
+          title: 'Local Model Options',
+          question: 'Which local model route should we try?',
+          summary: 'Ollama is easiest.',
+          reportMarkdown: 'Ollama is easiest [S1].',
+          sources: 'Ollama docs | https://example.test/ollama?token=secret | high | Official docs.',
+          findings: 'Use Ollama first.',
+          gaps: 'Benchmark latency locally.',
+          recommendations: 'Try Ollama before adding another provider.',
+          methodology: 'Reviewed only source lines explicitly provided in the form.',
+          confidence: 'medium',
+          tags: 'research,local',
+          confirm: 'yes',
+        },
+      });
+      expect(saved.success).toBe(true);
+      expect(saved.output).toContain('"status": "executed_model_tool"');
+      expect(saved.output).toContain('"tool": "agent_research_report"');
+      expect(saved.output).toContain('Saved Agent research report artifact');
+      expect(saved.output).not.toContain('Ollama is easiest [S1].');
+      expect(saved.output).not.toContain('token=secret');
+
+      const artifact = artifacts.store.list(1)[0];
+      expect(artifact?.filename).toBe('local-model-options.md');
+      expect(artifact?.metadata).toMatchObject({
+        purpose: 'agent-research-report',
+        source: 'agent-research-report',
+        title: 'Local Model Options',
+        question: 'Which local model route should we try?',
+        sourceCount: 1,
+        tags: ['research', 'local'],
+      });
+      expect(JSON.stringify(artifact?.metadata)).toContain('token=%3Credacted%3E');
+      expect(JSON.stringify(artifact?.metadata)).not.toContain('token=secret');
     } finally {
       fixture.cleanup();
     }

@@ -43,6 +43,7 @@ High-signal TUI routes:
 | `agent_operator_action` | Run exact confirmed approval/automation/schedule actions. |
 | `agent_documents` | Create, revise, review, comment on, suggest changes to, list, show, attach saved artifacts to, insert saved artifacts into, and export project-scoped versioned Agent document drafts. |
 | `agent_artifacts` | Browse, preview, export, and package saved Agent artifacts. |
+| `agent_research_report` | Save one confirmed sourced markdown research report artifact with a source map. |
 | `agent_channel_send` | Send one confirmed channel message. |
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |
 | `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
@@ -119,6 +120,7 @@ Execution routes:
 
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
 - Agent document draft browse/show/create/revise/review/comment/suggest/accept-suggestion/reject-suggestion/artifact-insert/export dispatches through `agent_documents`.
+- Confirmed sourced research report artifact saves dispatch through `agent_research_report`.
 - Confirmed Agent Knowledge URL/file/artifact-id/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.
 - Command-backed editors dispatch through `run_command`.
 - Learned-behavior and profile creation use the Agent-local or slash-command route.

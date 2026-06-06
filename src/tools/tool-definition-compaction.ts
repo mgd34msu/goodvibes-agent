@@ -38,6 +38,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent_work_plan: 'Inspect/update the visible Agent-local work plan.',
   agent_operator_briefing: 'Read connected Agent operator state.',
   agent_operator_action: 'Run one confirmed allowlisted operator action.',
+  agent_research_report: 'Save one confirmed sourced research report artifact.',
   agent_reminder_schedule: 'Schedule one confirmed Agent reminder.',
   agent_channel_send: 'Send confirmed message to configured Agent target.',
   agent_notify: 'Send one confirmed plain-text notification.',
