@@ -14,6 +14,7 @@ export interface AgentResearchReportToolArgs {
   readonly methodology?: unknown;
   readonly confidence?: unknown;
   readonly tags?: unknown;
+  readonly requireCitationCoverage?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -28,6 +29,15 @@ interface ResearchSource {
   readonly accessedAt?: string;
   readonly credibility: string;
   readonly note?: string;
+}
+
+interface CitationCoverage {
+  readonly sourceCount: number;
+  readonly citedSourceIds: readonly string[];
+  readonly missingSourceIds: readonly string[];
+  readonly unknownCitationIds: readonly string[];
+  readonly coverageRatio: number;
+  readonly pass: boolean;
 }
 
 const MAX_REPORT_CHARS = 80_000;
@@ -157,6 +167,52 @@ function sourceMapSection(sources: readonly ResearchSource[]): string {
   return lines.join('\n');
 }
 
+function reportBodyText(args: AgentResearchReportToolArgs): string {
+  return [
+    readString(args.summary),
+    readString(args.reportMarkdown),
+    ...readList(args.findings),
+    ...readList(args.gaps),
+    ...readList(args.recommendations),
+    readString(args.methodology),
+  ].filter(Boolean).join('\n');
+}
+
+function citationCoverage(args: AgentResearchReportToolArgs, sources: readonly ResearchSource[]): CitationCoverage {
+  const sourceIds = sources.map((_, index) => `S${index + 1}`);
+  const valid = new Set(sourceIds);
+  const cited = new Set<string>();
+  const unknown = new Set<string>();
+  for (const match of reportBodyText(args).matchAll(/\[S(\d+)\]/gi)) {
+    const id = `S${Number(match[1] ?? 0)}`;
+    if (valid.has(id)) cited.add(id);
+    else unknown.add(id);
+  }
+  const citedSourceIds = sourceIds.filter((id) => cited.has(id));
+  const missingSourceIds = sourceIds.filter((id) => !cited.has(id));
+  const unknownCitationIds = Array.from(unknown).sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+  return {
+    sourceCount: sourceIds.length,
+    citedSourceIds,
+    missingSourceIds,
+    unknownCitationIds,
+    coverageRatio: sourceIds.length > 0 ? Number((citedSourceIds.length / sourceIds.length).toFixed(3)) : 1,
+    pass: missingSourceIds.length === 0 && unknownCitationIds.length === 0,
+  };
+}
+
+function citationCoverageSection(coverage: CitationCoverage): string {
+  return [
+    '## Citation Coverage',
+    '',
+    `- Sources: ${coverage.sourceCount}`,
+    `- Cited in body: ${coverage.citedSourceIds.join(', ') || '(none)'}`,
+    `- Uncited in body: ${coverage.missingSourceIds.join(', ') || '(none)'}`,
+    `- Unknown citations: ${coverage.unknownCitationIds.join(', ') || '(none)'}`,
+    '',
+  ].join('\n');
+}
+
 function buildMarkdown(args: AgentResearchReportToolArgs, sources: readonly ResearchSource[]): string {
   const title = readString(args.title);
   const question = readString(args.question);
@@ -167,6 +223,7 @@ function buildMarkdown(args: AgentResearchReportToolArgs, sources: readonly Rese
   const recommendations = readList(args.recommendations);
   const methodology = readString(args.methodology);
   const confidence = readString(args.confidence);
+  const coverage = citationCoverage(args, sources);
   const generatedAt = new Date().toISOString();
   const lines = [
     `# ${title}`,
@@ -185,6 +242,7 @@ function buildMarkdown(args: AgentResearchReportToolArgs, sources: readonly Rese
   const recommendationSection = listSection('Recommendations', recommendations);
   if (recommendationSection) lines.push(recommendationSection);
   if (methodology) lines.push('## Method', '', methodology, '');
+  lines.push(citationCoverageSection(coverage));
   lines.push(sourceMapSection(sources));
   return lines.join('\n').replace(/\n{4,}/g, '\n\n\n').trimEnd() + '\n';
 }
@@ -224,6 +282,10 @@ async function saveResearchReport(
       'Model tool confirmation required. Call this tool with confirm:true only after the user explicitly asked GoodVibes Agent to save this research report.',
     ].join('\n'));
   }
+  const coverage = citationCoverage(args, sources);
+  if (readBoolean(args.requireCitationCoverage) && !coverage.pass) {
+    throw new Error(`Citation coverage check failed. Missing body citations: ${coverage.missingSourceIds.join(', ') || '(none)'}. Unknown citations: ${coverage.unknownCitationIds.join(', ') || '(none)'}.`);
+  }
   const markdown = buildMarkdown(args, sources);
   if (markdown.length > MAX_REPORT_CHARS) throw new Error(`Research report is too large (${markdown.length} chars). Keep it under ${MAX_REPORT_CHARS}.`);
   return artifactStore.create({
@@ -240,9 +302,26 @@ async function saveResearchReport(
       tags: readTags(args.tags),
       sourceCount: sources.length,
       sources: sourceMetadata(sources),
+      citationCoverage: coverage,
       explicitUserRequest,
     },
   });
+}
+
+function coverageFromMetadata(metadata: ArtifactDescriptor['metadata']): CitationCoverage | null {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+  const value = (metadata as Record<string, unknown>).citationCoverage;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (typeof record.sourceCount !== 'number') return null;
+  return {
+    sourceCount: record.sourceCount,
+    citedSourceIds: Array.isArray(record.citedSourceIds) ? record.citedSourceIds.filter((entry): entry is string => typeof entry === 'string') : [],
+    missingSourceIds: Array.isArray(record.missingSourceIds) ? record.missingSourceIds.filter((entry): entry is string => typeof entry === 'string') : [],
+    unknownCitationIds: Array.isArray(record.unknownCitationIds) ? record.unknownCitationIds.filter((entry): entry is string => typeof entry === 'string') : [],
+    coverageRatio: typeof record.coverageRatio === 'number' ? record.coverageRatio : 0,
+    pass: record.pass === true,
+  };
 }
 
 export function createAgentResearchReportTool(
@@ -281,6 +360,7 @@ export function createAgentResearchReportTool(
           },
           methodology: { type: 'string', description: 'How sources were selected and judged.' },
           confidence: { type: 'string', description: 'Overall confidence label.' },
+          requireCitationCoverage: { type: 'boolean', description: 'Fail save unless all sources are cited in body.' },
           tags: {
             type: 'array',
             items: { type: 'string' },
@@ -300,6 +380,7 @@ export function createAgentResearchReportTool(
       const args = rawArgs as AgentResearchReportToolArgs;
       try {
         const descriptor = await saveResearchReport(artifactStore, args);
+        const coverage = coverageFromMetadata(descriptor.metadata);
         return output([
           'Saved Agent research report artifact',
           `  artifact ${descriptor.id}`,
@@ -307,6 +388,7 @@ export function createAgentResearchReportTool(
           `  bytes ${descriptor.sizeBytes}`,
           `  mime ${descriptor.mimeType}`,
           `  sources ${readSources(args.sources).length}`,
+          coverage ? `  citationCoverage ${coverage.citedSourceIds.length}/${coverage.sourceCount} cited; uncited ${coverage.missingSourceIds.length}; unknown ${coverage.unknownCitationIds.length}` : '',
           `  sha256 ${descriptor.sha256}`,
           '  policy sourced markdown saved as artifact; content not printed',
           `  inspect agent_artifacts mode:"show" artifactId:"${descriptor.id}" includeContent:true`,

@@ -20,6 +20,7 @@ export interface AgentResearchReportWorkspaceToolArgs {
   readonly recommendations?: readonly string[];
   readonly methodology?: string;
   readonly confidence?: string;
+  readonly requireCitationCoverage?: boolean;
   readonly tags?: readonly string[];
   readonly confirm: true;
   readonly explicitUserRequest: string;
@@ -89,6 +90,7 @@ export function createAgentResearchReportEditor(): AgentWorkspaceLocalEditor {
       { id: 'recommendations', label: 'Recommendations', value: '', required: false, multiline: true, hint: 'Optional next actions, one per line.' },
       { id: 'methodology', label: 'Method', value: '', required: false, multiline: true, hint: 'How sources were found, filtered, and judged.' },
       { id: 'confidence', label: 'Confidence', value: 'medium', required: false, multiline: false, hint: 'Overall confidence such as high, medium, low, or mixed.' },
+      { id: 'requireCitationCoverage', label: 'Require citations', value: '', required: false, multiline: false, hint: 'Type yes to require every listed source to be cited as [S1], [S2], etc. in the report body.' },
       { id: 'tags', label: 'Tags', value: 'research', required: false, multiline: false, hint: 'Comma-separated optional artifact tags.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save this report as an artifact.' },
     ],
@@ -106,6 +108,7 @@ export function buildAgentResearchReportToolArgs(
   const recommendations = splitList(readField('recommendations'));
   const methodology = readField('methodology').trim();
   const confidence = readField('confidence').trim();
+  const requireCitationCoverage = isAffirmative(readField('requireCitationCoverage'));
   const tags = splitTags(readField('tags'));
   return {
     title: readField('title').trim(),
@@ -118,6 +121,7 @@ export function buildAgentResearchReportToolArgs(
     ...(recommendations.length > 0 ? { recommendations } : {}),
     ...(methodology ? { methodology } : {}),
     ...(confidence ? { confidence } : {}),
+    ...(requireCitationCoverage ? { requireCitationCoverage } : {}),
     ...(tags.length > 0 ? { tags } : {}),
     confirm: true,
     explicitUserRequest,
@@ -181,6 +185,7 @@ export function buildAgentResearchReportPromptSubmission(
     args.recommendations ? `recommendations: ${JSON.stringify(args.recommendations)}` : 'recommendations: none',
     args.methodology ? `methodology: ${JSON.stringify(args.methodology)}` : 'methodology: none',
     args.confidence ? `confidence: ${JSON.stringify(args.confidence)}` : 'confidence: none',
+    args.requireCitationCoverage ? 'requireCitationCoverage: true' : 'requireCitationCoverage: false',
     args.tags ? `tags: ${JSON.stringify(args.tags)}` : 'tags: none',
     'confirm: true',
     `explicitUserRequest: ${JSON.stringify(args.explicitUserRequest)}`,

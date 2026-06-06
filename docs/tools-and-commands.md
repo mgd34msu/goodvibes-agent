@@ -45,7 +45,7 @@ High-signal TUI routes:
 | `agent_artifacts` | Browse, preview, export, and package saved Agent artifacts. |
 | `agent_research_runs` | Create, checkpoint, pause, resume, cancel, complete, fail, and list project-local visible research run records. |
 | `agent_research_sources` | Capture, review, reject, mark used, and list project-local research source queue records. |
-| `agent_research_report` | Save one confirmed sourced markdown research report artifact with a source map. |
+| `agent_research_report` | Save one confirmed sourced markdown research report artifact with source map and citation coverage metadata. |
 | `agent_channel_send` | Send one confirmed channel message. |
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |
 | `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
@@ -126,7 +126,7 @@ Execution routes:
 - Local memory, notes, personas, skills, routines, and bundles dispatch through `agent_local_registry`.
 - Read-only learning review uses `agent_harness mode:"learning_curator"` and `mode:"learning_candidate"`; writes stay on `agent_local_registry` or visible workspace actions.
 - Agent document draft browse/show/create/revise/review/comment/suggest/accept-suggestion/reject-suggestion/artifact-insert/export dispatches through `agent_documents`.
-- Visible research run creation/checkpoint/pause/resume/cancel/complete dispatches through `agent_research_runs`; source capture and credibility review dispatch through `agent_research_sources`; confirmed sourced research report artifact saves dispatch through `agent_research_report`.
+- Visible research run creation/checkpoint/pause/resume/cancel/complete dispatches through `agent_research_runs`; source capture and credibility review dispatch through `agent_research_sources`; confirmed sourced research report artifact saves and citation coverage checks dispatch through `agent_research_report`.
 - Confirmed Agent Knowledge URL/file/artifact-id/bookmark/browser-history/connector ingest dispatches through `agent_knowledge_ingest`.
 - Command-backed editors dispatch through `run_command`.
 - Learned-behavior and profile creation use the Agent-local or slash-command route.

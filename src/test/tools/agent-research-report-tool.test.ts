@@ -63,6 +63,7 @@ describe('agent_research_report tool', () => {
     expect(result.output).toContain('Saved Agent research report artifact');
     expect(result.output).toContain('artifact artifact-1');
     expect(result.output).toContain('sources 2');
+    expect(result.output).toContain('citationCoverage 2/2 cited; uncited 0; unknown 0');
     expect(result.output).not.toContain('Ollama is easiest for first setup');
     expect(result.output).not.toContain('secret-token');
 
@@ -76,11 +77,21 @@ describe('agent_research_report tool', () => {
       confidence: 'medium',
       tags: ['research', 'local-models'],
       sourceCount: 2,
+      citationCoverage: {
+        sourceCount: 2,
+        citedSourceIds: ['S1', 'S2'],
+        missingSourceIds: [],
+        unknownCitationIds: [],
+        coverageRatio: 1,
+        pass: true,
+      },
     });
     const sources = record?.metadata.sources as Array<{ readonly url?: string }>;
     expect(sources[0]?.url).toContain('token=%3Credacted%3E');
     const content = store.contents.get('artifact-1') ?? '';
     expect(content).toContain('# Local Model Options');
+    expect(content).toContain('## Citation Coverage');
+    expect(content).toContain('Cited in body: S1, S2');
     expect(content).toContain('## Source Map');
     expect(content).toContain('[S1] Ollama docs');
     expect(content).toContain('token=%3Credacted%3E');
@@ -112,6 +123,51 @@ describe('agent_research_report tool', () => {
     });
     expect(unsourced.success).toBe(false);
     expect(unsourced.error).toContain('reviewed source');
+  });
+
+  test('records citation coverage warnings and can enforce complete body citations', async () => {
+    const store = new ResearchReportArtifactStore();
+    const tool = createAgentResearchReportTool(store);
+
+    const loose = await tool.execute({
+      title: 'Coverage Warnings',
+      question: 'Are sources cited?',
+      summary: 'Only one source is cited [S1], and one unknown citation appears [S3].',
+      sources: [
+        { title: 'Source one', url: 'https://example.test/one', credibility: 'high' },
+        { title: 'Source two', url: 'https://example.test/two', credibility: 'medium' },
+      ],
+      confirm: true,
+      explicitUserRequest: 'Save the report with coverage metadata.',
+    });
+    expect(loose.success).toBe(true);
+    expect(loose.output).toContain('citationCoverage 1/2 cited; uncited 1; unknown 1');
+    expect(store.records[0]?.metadata).toMatchObject({
+      citationCoverage: {
+        sourceCount: 2,
+        citedSourceIds: ['S1'],
+        missingSourceIds: ['S2'],
+        unknownCitationIds: ['S3'],
+        coverageRatio: 0.5,
+        pass: false,
+      },
+    });
+
+    const strict = await tool.execute({
+      title: 'Strict Coverage',
+      question: 'Are sources cited?',
+      summary: 'Only one source is cited [S1].',
+      sources: [
+        { title: 'Source one', url: 'https://example.test/one', credibility: 'high' },
+        { title: 'Source two', url: 'https://example.test/two', credibility: 'medium' },
+      ],
+      requireCitationCoverage: true,
+      confirm: true,
+      explicitUserRequest: 'Save only if every source is cited.',
+    });
+    expect(strict.success).toBe(false);
+    expect(strict.error).toContain('Citation coverage check failed');
+    expect(strict.error).toContain('Missing body citations: S2');
   });
 
   test('fails clearly without an artifact store and registers with the tool registry', async () => {
