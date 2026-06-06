@@ -2091,11 +2091,54 @@ describe('agent_harness tool', () => {
               attempt: 2,
               sessionId: 'session-alpha',
               routeId: 'route-live-1',
+              route: {
+                id: 'route-live-1',
+                kind: 'thread',
+                surfaceKind: 'slack',
+                surfaceId: 'surface-live-1',
+                externalId: 'C0123',
+                threadId: '1700000000.000100',
+                channelId: 'C0123',
+                sessionId: 'session-alpha',
+                jobId: 'sched-live-1',
+                runId: 'auto-run-1',
+                title: 'Ops daily brief',
+                lastSeenAt: now - 15_000,
+                createdAt: now - 90_000,
+                updatedAt: now - 15_000,
+                metadata: {},
+              },
               continuationMode: 'background',
               executionIntent: { mode: 'background', targetKind: 'background' },
               deliveryIds: ['delivery-live-1'],
+              deliveryAttempts: [{
+                id: 'delivery-live-1',
+                runId: 'auto-run-1',
+                jobId: 'sched-live-1',
+                target: { kind: 'surface', surfaceKind: 'slack', routeId: 'route-live-1' },
+                status: 'sent',
+                startedAt: now - 20_000,
+                endedAt: now - 18_000,
+                responseId: 'message-live-1',
+              }],
               modelId: 'gpt-4.1',
               providerId: 'openai',
+              telemetry: {
+                usage: {
+                  inputTokens: 1200,
+                  outputTokens: 300,
+                  cacheReadTokens: 100,
+                  cacheWriteTokens: 20,
+                  reasoningTokens: 40,
+                },
+                llmCallCount: 2,
+                toolCallCount: 5,
+                turnCount: 3,
+                modelId: 'gpt-4.1',
+                providerId: 'openai',
+                reasoningSummaryPresent: true,
+                source: 'local-agent',
+              },
             }],
             totalJobs: 1,
             totalRuns: 1,
@@ -2184,6 +2227,7 @@ describe('agent_harness tool', () => {
             readonly pauseRoute?: string;
             readonly resumeRoute?: string;
             readonly logTail?: readonly string[];
+            readonly diagnostics?: readonly string[];
             readonly sourceIds?: readonly string[];
             readonly nextSteps?: readonly string[];
             readonly availableControls?: readonly string[];
@@ -2240,6 +2284,7 @@ describe('agent_harness tool', () => {
       expect(hostTasks?.liveRecords?.[0]?.inspectRoute).toBe('/tasks show host-task-live');
       expect(hostTasks?.liveRecords?.[0]?.cancelRoute).toContain('tasks.cancel');
       expect(hostTasks?.liveRecords?.[0]?.availableControls).toContain('cancel');
+      expect(hostTasks?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('output route /tasks output host-task-live');
       expect(hostTasks?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.confirmationRequired).toBe(true);
       expect(hostTasks?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.modelRoute).toContain('tasks.cancel');
       const failedHostTask = hostTasks?.liveRecords?.find((record) => record.id === 'host-task-failed');
@@ -2247,6 +2292,7 @@ describe('agent_harness tool', () => {
       expect(failedHostTask?.availableControls).toContain('retry');
       expect(failedHostTask?.controls?.find((control) => control.id === 'retry')?.modelRoute).toContain('tasks.retry');
       expect(failedHostTask?.logTail?.join('\n')).toContain('network timeout');
+      expect(failedHostTask?.diagnostics?.join('\n')).toContain('retry attempt 1/3');
       expect(approvals?.owner).toBe('connected-host');
       expect(approvals?.status).toBe('attention');
       expect(approvals?.cancelRoute).toContain('approval-cancel');
@@ -2263,6 +2309,9 @@ describe('agent_harness tool', () => {
       expect(automation?.liveRecords?.[0]?.availableControls).toContain('cancel');
       expect(automation?.liveRecords?.[0]?.controls?.find((control) => control.id === 'retry')?.state).toBe('unavailable');
       expect(automation?.liveRecords?.[0]?.sourceIds).toContain('sched-live-1');
+      expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('telemetry usage input 1200 output 300');
+      expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('telemetry calls llm 2 tool 5 turns 3');
+      expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('delivery delivery-live-1 sent');
       expect(autonomousScheduleRequests?.modelRoute).toBe('agent_autonomy_schedule');
       expect(autonomousScheduleRequests?.createRoute).toContain('successCriteria');
       expect(schedules?.status).toBe('active');

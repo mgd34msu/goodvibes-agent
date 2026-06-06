@@ -60,6 +60,7 @@ interface AutonomyQueueLiveRecord {
   readonly nextSteps?: readonly string[];
   readonly sourceIds?: readonly string[];
   readonly logTail?: readonly string[];
+  readonly diagnostics?: readonly string[];
   readonly controls?: readonly AutonomyQueueRecordControl[];
 }
 
@@ -200,6 +201,72 @@ function firstAvailableControlRoute(records: readonly AutonomyQueueLiveRecord[],
   return undefined;
 }
 
+function taskDiagnostics(task: UiTasksSnapshot['tasks'][number]): readonly string[] {
+  const retry = task.retryPolicy
+    ? `retry attempt ${task.retryPolicy.currentAttempt}/${task.retryPolicy.maxAttempts} backoff ${task.retryPolicy.backoff} delay ${task.retryPolicy.delayMs}ms categories ${task.retryPolicy.retryOn.join(',')}`
+    : '';
+  return [
+    retry,
+    task.retryAt ? `retry eligible ${formatEpochMs(task.retryAt)}` : '',
+    task.exitCode !== undefined ? `exit code ${task.exitCode}` : '',
+    task.parentTaskId ? `parent ${task.parentTaskId}` : '',
+    task.childTaskIds.length > 0 ? `children ${task.childTaskIds.join(',')}` : '',
+    task.correlationId ? `correlation ${task.correlationId}` : '',
+    task.turnId ? `turn ${task.turnId}` : '',
+    task.result !== undefined ? `result ${compactUnknown(task.result)}` : '',
+    `output route /tasks output ${task.id}`,
+  ].filter((value): value is string => value.length > 0);
+}
+
+function automationRunDiagnostics(run: UiAutomationSnapshot['runs'][number]): readonly string[] {
+  const telemetry = run.telemetry;
+  const usage = telemetry?.usage;
+  const usageSummary = usage
+    ? [
+      `telemetry usage input ${usage.inputTokens}`,
+      `output ${usage.outputTokens}`,
+      `cache-read ${usage.cacheReadTokens}`,
+      `cache-write ${usage.cacheWriteTokens}`,
+      usage.reasoningTokens !== undefined ? `reasoning ${usage.reasoningTokens}` : '',
+    ].filter(Boolean).join(' ')
+    : '';
+  const callSummary = telemetry
+    ? [
+      telemetry.llmCallCount !== undefined ? `llm ${telemetry.llmCallCount}` : '',
+      telemetry.toolCallCount !== undefined ? `tool ${telemetry.toolCallCount}` : '',
+      telemetry.turnCount !== undefined ? `turns ${telemetry.turnCount}` : '',
+      telemetry.reasoningSummaryPresent !== undefined ? `reasoning-summary ${telemetry.reasoningSummaryPresent ? 'yes' : 'no'}` : '',
+    ].filter(Boolean).join(' ')
+    : '';
+  const route = run.route
+    ? [
+      `route ${run.route.id}`,
+      run.route.surfaceKind,
+      run.route.kind,
+      run.route.title,
+    ].filter(Boolean).join(' ')
+    : '';
+  const deliveries = (run.deliveryAttempts ?? []).slice(-3).map((delivery) => [
+    `delivery ${delivery.id}`,
+    delivery.status,
+    delivery.responseId ? `response ${delivery.responseId}` : '',
+    delivery.endedAt ? `ended ${formatEpochMs(delivery.endedAt)}` : '',
+  ].filter(Boolean).join(' '));
+  return [
+    run.continuationMode ? `continuation ${run.continuationMode}` : '',
+    run.executionIntent ? `intent ${compactUnknown(run.executionIntent)}` : '',
+    telemetry?.source ? `telemetry source ${telemetry.source}` : '',
+    telemetry?.modelId ? `telemetry model ${telemetry.modelId}` : '',
+    telemetry?.providerId ? `telemetry provider ${telemetry.providerId}` : '',
+    usageSummary,
+    callSummary ? `telemetry calls ${callSummary}` : '',
+    route,
+    ...deliveries,
+    run.result !== undefined ? `result ${compactUnknown(run.result)}` : '',
+    run.cancelledReason ? `cancelled ${run.cancelledReason}` : '',
+  ].filter((value): value is string => value.length > 0);
+}
+
 function scheduleEditRoute(job: UiAutomationSnapshot['jobs'][number]): string {
   const schedule = job.schedule;
   const value = schedule.kind === 'cron'
@@ -275,6 +342,7 @@ function taskLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRec
         task.turnId,
       ].filter((value): value is string => typeof value === 'string' && value.length > 0),
       ...(task.error ? { logTail: [task.error] } : {}),
+      diagnostics: taskDiagnostics(task),
       controls: [
         availableControl('inspect', 'Inspect task', 'read-only', `/tasks show ${task.id}`),
         availableControl('output', 'Show output', 'read-only', `/tasks output ${task.id}`),
@@ -425,6 +493,7 @@ function automationRunLiveRecords(context: CommandContext): readonly AutonomyQue
           run.error,
           run.cancelledReason,
         ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+        diagnostics: automationRunDiagnostics(run),
         controls: [
           availableControl('inspect', 'Inspect schedule list', 'read-only', 'agent_harness mode:"workspace_action" actionId:"schedule-list"'),
           active
@@ -629,6 +698,7 @@ function itemSearchText(item: AutonomyQueueItem): string {
       record.nextSteps?.join('\n') ?? '',
       record.sourceIds?.join('\n') ?? '',
       record.logTail?.join('\n') ?? '',
+      record.diagnostics?.join('\n') ?? '',
       record.controls?.map((control) => [
         control.id,
         control.label,
@@ -673,6 +743,7 @@ function describeLiveRecord(record: AutonomyQueueLiveRecord, includeParameters: 
     ...(record.nextSteps && record.nextSteps.length > 0 ? { nextSteps: record.nextSteps.slice(0, includeParameters ? 8 : 3) } : {}),
     ...(record.sourceIds && record.sourceIds.length > 0 ? { sourceIds: record.sourceIds.slice(0, includeParameters ? 12 : 4) } : {}),
     ...(record.logTail && record.logTail.length > 0 ? { logTail: record.logTail.slice(-(includeParameters ? 5 : 2)) } : {}),
+    ...(record.diagnostics && record.diagnostics.length > 0 ? { diagnostics: record.diagnostics.slice(0, includeParameters ? 10 : 3).map((line) => previewHarnessText(line, includeParameters ? 160 : 96)) } : {}),
     ...(availableControls && availableControls.length > 0 ? { availableControls: availableControls.slice(0, includeParameters ? 8 : 4) } : {}),
     ...(includeParameters && record.controls && record.controls.length > 0 ? { controls: record.controls.map(describeControl) } : {}),
   };
