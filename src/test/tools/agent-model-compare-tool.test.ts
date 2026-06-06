@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChatRequest, ChatResponse, LLMProvider } from '@pellux/goodvibes-sdk/platform/providers';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import {
@@ -30,7 +31,29 @@ class CompareTestProvider implements LLMProvider {
   }
 }
 
-function fixture() {
+function artifactStore() {
+  const inputs: ArtifactCreateInput[] = [];
+  const store: Pick<ArtifactStore, 'create'> = {
+    async create(input: ArtifactCreateInput): Promise<ArtifactDescriptor> {
+      inputs.push(input);
+      return {
+        id: `artifact-${inputs.length}`,
+        kind: input.kind ?? 'data',
+        mimeType: input.mimeType ?? 'application/json',
+        filename: input.filename,
+        sizeBytes: Buffer.byteLength(input.text ?? '', 'utf-8'),
+        sha256: `sha-${inputs.length}`,
+        createdAt: Date.now(),
+        acquisitionMode: 'inline-data',
+        fetchMode: 'not-applicable',
+        metadata: input.metadata ?? {},
+      };
+    },
+  };
+  return { inputs, store };
+}
+
+function fixture(options: { readonly artifactStore?: Pick<ArtifactStore, 'create'> } = {}) {
   const models: AgentModelCompareCatalogModel[] = [
     {
       modelId: 'gpt-4.1',
@@ -70,6 +93,7 @@ function fixture() {
         return provider;
       },
     },
+    artifactStore: options.artifactStore,
   });
 
   return {
@@ -148,6 +172,72 @@ describe('agent_model_compare tool', () => {
     expect(result.output).toContain('Reveal');
     expect(result.output).toContain('A: openai:gpt-4.1 (GPT-4.1)');
     expect(result.output).toContain('No selected model was changed.');
+  });
+
+  test('saves a durable comparison artifact without leaking identities into blind output', async () => {
+    const artifacts = artifactStore();
+    const item = fixture({ artifactStore: artifacts.store });
+
+    const result = await item.tool.execute({
+      mode: 'run',
+      prompt: 'Write a concise product update.',
+      modelRefs: ['openai:gpt-4.1', 'anthropic:claude-sonnet'],
+      rubric: 'Prefer accurate, user-facing phrasing.',
+      confirm: true,
+      explicitUserRequest: 'Compare product update drafts.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('artifact artifact-1 blind-model-comparison-');
+    expect(result.output).toContain('includes full prompt, blinded outputs, and reveal map');
+    expect(result.output).not.toContain('openai:gpt-4.1');
+    expect(result.output).not.toContain('anthropic:claude-sonnet');
+    expect(artifacts.inputs).toHaveLength(1);
+    expect(artifacts.inputs[0]?.filename).toMatch(/^blind-model-comparison-cmp_/);
+    expect(artifacts.inputs[0]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare',
+      candidateCount: 2,
+      completedCandidates: 2,
+      revealStored: true,
+      revealIncludedInTranscript: false,
+    });
+
+    const payload = JSON.parse(artifacts.inputs[0]?.text ?? '{}') as {
+      readonly schema?: string;
+      readonly prompt?: string;
+      readonly rubric?: string;
+      readonly reviewFlow?: { readonly routeMutation?: string };
+      readonly candidates?: readonly {
+        readonly blindId?: string;
+        readonly content?: string;
+        readonly model?: { readonly registryKey?: string };
+      }[];
+    };
+    expect(payload.schema).toBe('goodvibes.agent.model_compare.v1');
+    expect(payload.prompt).toBe('Write a concise product update.');
+    expect(payload.rubric).toBe('Prefer accurate, user-facing phrasing.');
+    expect(payload.reviewFlow?.routeMutation).toBe('none');
+    expect(payload.candidates?.map((candidate) => candidate.blindId)).toEqual(['A', 'B']);
+    expect(payload.candidates?.[0]?.model?.registryKey).toBe('openai:gpt-4.1');
+    expect(payload.candidates?.[1]?.model?.registryKey).toBe('anthropic:claude-sonnet');
+    expect(payload.candidates?.[0]?.content).toBe('Candidate A style answer.');
+  });
+
+  test('can deliberately skip artifact persistence', async () => {
+    const artifacts = artifactStore();
+    const item = fixture({ artifactStore: artifacts.store });
+
+    const result = await item.tool.execute({
+      mode: 'run',
+      prompt: 'Write a concise product update.',
+      saveArtifact: false,
+      confirm: true,
+      explicitUserRequest: 'Compare product update drafts without saving.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('artifact not saved (saveArtifact false)');
+    expect(artifacts.inputs).toEqual([]);
   });
 
   test('is registered in the model tool registry', () => {

@@ -51,7 +51,7 @@ Workspace areas:
 - Home: normal assistant chat, operator briefing, model selection, setup, and health.
 - Conversation: context usage, inline `@file`/`@folder`/`@url` references, compaction, title/session save/load/search/export, bookmarks, paste/image/TTS helpers, undo/redo/retry, clear/reset, shortcuts, and keybindings.
 - Research: read-only web research, URL inspection, source triage, and explicit handoff into Agent Knowledge.
-- Documents & Compare: document drafting, uploads, exports, source checks, generated media artifacts, artifact reuse, and confirmed blind model comparison with delayed reveal. Dedicated editing/version history, saved comparison review, and a unified artifact browser are tracked gaps.
+- Documents & Compare: document drafting, uploads, exports, source checks, generated media artifacts, artifact reuse, and confirmed blind model comparison with delayed reveal plus durable JSON comparison artifacts. Dedicated editing/version history, visual comparison review, saved preference handoff, and a unified artifact browser are tracked gaps.
 - Artifacts: image attachment, conversation/session export, source-file ingest, source lookup, bookmark/browser-history import, and generated media artifacts.
 - Personal Ops: inbox/calendar connector readiness, notes, work plans, host tasks, reminders, routines, schedules, and delivery readiness in one daily operations area.
 - Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.

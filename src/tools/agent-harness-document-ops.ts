@@ -256,17 +256,17 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       status: modelCompareReady ? 'partial' : 'gap',
       outcome: 'Run the same prompt across multiple models, hide model identities while judging, then reveal and save the winner.',
       current: modelCompareReady
-        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, and no automatic route mutation. Saved comparison artifacts, visual side-by-side review, and winner handoff are still missing.'
+        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, and no automatic route mutation. Visual side-by-side review, saved judgments, and winner handoff are still missing.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
-        ? 'Add saved judgments, visual side-by-side review, comparison export, preference capture, and a separate confirmed route-update handoff.'
+        ? 'Add visual side-by-side review, saved judgments, comparison export from artifacts, preference capture, and a separate confirmed route-update handoff.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
       signals: [
         `Current model ${snapshot.provider} / ${snapshot.modelDisplayName}`,
         `Blind compare runner: ${modelCompareReady ? 'available' : 'gap'}`,
-        'Saved comparison artifact: gap',
+        `Saved comparison artifact: ${modelCompareReady && context.platform.artifactStore ? 'available' : 'gap'}`,
       ],
       actionIds: modelCompareActions,
     },
@@ -304,7 +304,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     lanes: lanes.map((lane) => describeLane(lane, includeParameters)),
     returned: lanes.length,
     total: lanes.length,
-    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing, unified artifact browsing, and saved comparison review remain explicit gaps until real workflows exist.',
+    policy: 'Document Ops unifies documents, uploads, exports, sources, media artifacts, artifact browsing, and model comparison. Dedicated document editing, unified artifact browsing, visual comparison review, and saved preference handoff remain explicit gaps until real workflows exist.',
     nextActions: nextActions(lanes),
   };
 }

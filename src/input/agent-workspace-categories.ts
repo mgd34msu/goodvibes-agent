@@ -331,7 +331,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     group: 'DAY-TO-DAY',
     label: 'Documents & Compare',
     summary: 'Draft docs, files, artifacts, and compare readiness.',
-    detail: 'Use this workspace when the user is producing or evaluating a document. Upload, export, source, artifact, media, and blind comparison routes stay visible here; dedicated document editing and saved comparison review remain explicit gaps until implemented.',
+    detail: 'Use this workspace when the user is producing or evaluating a document. Upload, export, source, artifact, media, and blind comparison routes stay visible here; dedicated document editing, visual comparison review, and saved preference handoff remain explicit gaps until implemented.',
     actions: [
       { id: 'document-ops-map', label: 'Readiness map', detail: 'Use agent_harness mode:"document_ops" to see document, upload, export, source, media, artifact, and blind compare lanes.', kind: 'guidance', safety: 'read-only' },
       { id: 'document-draft-chat', label: 'Draft in conversation', detail: 'Draft or revise a document in the main conversation, then export or save the resulting artifact through the visible export routes.', kind: 'guidance', safety: 'safe' },

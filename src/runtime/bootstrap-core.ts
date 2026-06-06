@@ -250,6 +250,7 @@ export async function initializeBootstrapCore(
   registerAgentModelCompareTool(toolRegistry, {
     modelCatalog: services.providerRegistry,
     providerRegistry: services.providerRegistry,
+    artifactStore: services.artifactStore,
   });
   registerAgentNotifyTool(toolRegistry, configManager, services.webhookNotifier);
   registerAgentOperatorActionTool(toolRegistry, services.shellPaths, configManager);
