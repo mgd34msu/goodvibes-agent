@@ -379,6 +379,7 @@ async function runWorkspaceEditorAction(
     || editor.kind === 'document-accept-suggestion'
     || editor.kind === 'document-reject-suggestion'
     || editor.kind === 'document-insert-artifact'
+    || editor.kind === 'document-attach-artifact'
     || editor.kind === 'document-export'
   ) {
     const isMutation = editor.kind !== 'document-browse' && editor.kind !== 'document-show';

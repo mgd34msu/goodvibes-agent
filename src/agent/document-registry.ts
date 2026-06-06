@@ -39,6 +39,19 @@ export interface AgentDocumentSuggestion {
   readonly resolvedAt?: string;
 }
 
+export interface AgentDocumentAttachment {
+  readonly id: string;
+  readonly artifactId: string;
+  readonly label: string;
+  readonly note?: string;
+  readonly filename?: string;
+  readonly mimeType?: string;
+  readonly kind?: string;
+  readonly sizeBytes?: number;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 export interface AgentDocumentRecord {
   readonly id: string;
   readonly title: string;
@@ -50,6 +63,7 @@ export interface AgentDocumentRecord {
   readonly versions: readonly AgentDocumentVersion[];
   readonly comments: readonly AgentDocumentComment[];
   readonly suggestions: readonly AgentDocumentSuggestion[];
+  readonly attachments: readonly AgentDocumentAttachment[];
   readonly lastArtifactId?: string;
 }
 
@@ -80,6 +94,16 @@ export interface AgentDocumentSuggestionInput {
   readonly status?: AgentDocumentStatus;
   readonly summary?: string;
   readonly rationale?: string;
+}
+
+export interface AgentDocumentAttachmentInput {
+  readonly artifactId: string;
+  readonly label?: string;
+  readonly note?: string;
+  readonly filename?: string;
+  readonly mimeType?: string;
+  readonly kind?: string;
+  readonly sizeBytes?: number;
 }
 
 export interface AgentDocumentSnapshot {
@@ -216,6 +240,34 @@ function parseSuggestion(value: unknown): AgentDocumentSuggestion | null {
   };
 }
 
+function parseAttachment(value: unknown): AgentDocumentAttachment | null {
+  if (!isRecord(value)) return null;
+  const id = readString(value.id).trim();
+  const artifactId = readString(value.artifactId).trim();
+  const label = readString(value.label).trim();
+  if (!id || !artifactId || !label) return null;
+  const createdAt = readString(value.createdAt, nowIso());
+  const sizeBytes = typeof value.sizeBytes === 'number' && Number.isFinite(value.sizeBytes)
+    ? Math.max(0, Math.trunc(value.sizeBytes))
+    : undefined;
+  const note = readString(value.note).trim();
+  const filename = readString(value.filename).trim();
+  const mimeType = readString(value.mimeType).trim();
+  const kind = readString(value.kind).trim();
+  return {
+    id,
+    artifactId,
+    label,
+    ...(note ? { note } : {}),
+    ...(filename ? { filename } : {}),
+    ...(mimeType ? { mimeType } : {}),
+    ...(kind ? { kind } : {}),
+    ...(sizeBytes === undefined ? {} : { sizeBytes }),
+    createdAt,
+    updatedAt: readString(value.updatedAt, createdAt),
+  };
+}
+
 function parseDocument(value: unknown): AgentDocumentRecord | null {
   if (!isRecord(value)) return null;
   const id = readString(value.id).trim();
@@ -232,6 +284,9 @@ function parseDocument(value: unknown): AgentDocumentRecord | null {
   const suggestions = Array.isArray(value.suggestions)
     ? value.suggestions.map(parseSuggestion).filter((entry): entry is AgentDocumentSuggestion => entry !== null)
     : [];
+  const attachments = Array.isArray(value.attachments)
+    ? value.attachments.map(parseAttachment).filter((entry): entry is AgentDocumentAttachment => entry !== null)
+    : [];
   const lastArtifactId = readString(value.lastArtifactId).trim();
   return {
     id,
@@ -244,6 +299,7 @@ function parseDocument(value: unknown): AgentDocumentRecord | null {
     versions,
     comments,
     suggestions,
+    attachments,
     lastArtifactId: lastArtifactId || undefined,
   };
 }
@@ -273,17 +329,35 @@ export function renderAgentDocumentMarkdown(document: AgentDocumentRecord): stri
   const comments = document.comments.length > 0 ? `\nComments: ${openComments} open / ${document.comments.length} total` : '';
   const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
   const suggestions = document.suggestions.length > 0 ? `\nSuggestions: ${proposedSuggestions} proposed / ${document.suggestions.length} total` : '';
-  return [
+  const attachments = document.attachments.length > 0 ? `\nAttachments: ${document.attachments.length}` : '';
+  const lines = [
     `# ${document.title}`,
     '',
     `Document ID: ${document.id}`,
     `Version: ${document.versions.at(-1)?.id ?? 'v1'}`,
     `Status: ${document.status}`,
-    `Updated: ${document.updatedAt}${tags}${comments}${suggestions}`,
+    `Updated: ${document.updatedAt}${tags}${comments}${suggestions}${attachments}`,
     '',
     document.body,
     '',
-  ].join('\n');
+  ];
+  if (document.attachments.length > 0) {
+    lines.push(
+      '## Attached Artifacts',
+      '',
+      ...document.attachments.map((attachment) => {
+        const details = [
+          attachment.filename ?? '',
+          attachment.mimeType ?? '',
+          attachment.kind ?? '',
+        ].filter(Boolean).join(' / ');
+        const note = attachment.note ? ` - ${attachment.note}` : '';
+        return `- ${attachment.id}: ${attachment.label} (${attachment.artifactId}${details ? `, ${details}` : ''})${note}`;
+      }),
+      '',
+    );
+  }
+  return lines.join('\n');
 }
 
 export class AgentDocumentRegistry {
@@ -315,6 +389,15 @@ export class AgentDocumentRegistry {
       document.status,
       document.lastArtifactId ?? '',
       ...document.tags,
+      ...document.attachments.map((attachment) => [
+        attachment.id,
+        attachment.artifactId,
+        attachment.label,
+        attachment.note ?? '',
+        attachment.filename ?? '',
+        attachment.mimeType ?? '',
+        attachment.kind ?? '',
+      ].join(' ')),
       ...document.comments.map((comment) => `${comment.id} ${comment.status} ${comment.body}`),
       ...document.suggestions.map((suggestion) => `${suggestion.id} ${suggestion.status} ${suggestion.summary} ${suggestion.rationale} ${suggestion.body}`),
     ].some((field) => field.toLowerCase().includes(normalized)));
@@ -358,6 +441,7 @@ export class AgentDocumentRegistry {
       versions: [version],
       comments: [],
       suggestions: [],
+      attachments: [],
     };
     this.writeStore({ ...store, documents: [...store.documents, document] });
     return document;
@@ -561,6 +645,46 @@ export class AgentDocumentRegistry {
     return updated;
   }
 
+  public attachArtifact(idOrTitle: string, input: AgentDocumentAttachmentInput): AgentDocumentRecord {
+    const store = this.readStore();
+    const existing = this.findInStore(store, idOrTitle);
+    if (!existing) throw new Error(`Unknown document ${idOrTitle}`);
+    const artifactId = input.artifactId.trim();
+    if (!artifactId) throw new Error('artifactId is required.');
+    const label = normalizeTitle(input.label?.trim() || input.filename?.trim() || artifactId);
+    const note = input.note?.trim() || undefined;
+    assertDocumentContentSafe([label, note ?? '']);
+    const timestamp = nowIso();
+    const duplicate = existing.attachments.find((attachment) => attachment.artifactId.toLowerCase() === artifactId.toLowerCase());
+    const snapshot = {
+      artifactId,
+      label,
+      ...(note ? { note } : {}),
+      ...(input.filename?.trim() ? { filename: input.filename.trim() } : {}),
+      ...(input.mimeType?.trim() ? { mimeType: input.mimeType.trim() } : {}),
+      ...(input.kind?.trim() ? { kind: input.kind.trim() } : {}),
+      ...(typeof input.sizeBytes === 'number' && Number.isFinite(input.sizeBytes)
+        ? { sizeBytes: Math.max(0, Math.trunc(input.sizeBytes)) }
+        : {}),
+    };
+    const attachment: AgentDocumentAttachment = duplicate
+      ? { ...duplicate, ...snapshot, updatedAt: timestamp }
+      : { id: this.nextAttachmentId(existing.attachments), ...snapshot, createdAt: timestamp, updatedAt: timestamp };
+    const attachments = duplicate
+      ? existing.attachments.map((entry) => entry.id === duplicate.id ? attachment : entry)
+      : [...existing.attachments, attachment];
+    const updated: AgentDocumentRecord = {
+      ...existing,
+      attachments,
+      updatedAt: timestamp,
+    };
+    this.writeStore({
+      ...store,
+      documents: store.documents.map((document) => document.id === existing.id ? updated : document),
+    });
+    return updated;
+  }
+
   public markReviewed(idOrTitle: string): AgentDocumentRecord {
     return this.update(idOrTitle, { status: 'reviewed', summary: 'Marked reviewed.' });
   }
@@ -620,6 +744,15 @@ export class AgentDocumentRegistry {
       if (!existing.has(candidate)) return candidate;
     }
     throw new Error('Unable to allocate a unique document suggestion id.');
+  }
+
+  private nextAttachmentId(attachments: readonly AgentDocumentAttachment[]): string {
+    const existing = new Set(attachments.map((attachment) => attachment.id));
+    for (let index = 1; index < 10_000; index += 1) {
+      const candidate = `a${index}`;
+      if (!existing.has(candidate)) return candidate;
+    }
+    throw new Error('Unable to allocate a unique document attachment id.');
   }
 
   private findSuggestion(document: AgentDocumentRecord, suggestionId: string): AgentDocumentSuggestion | null {

@@ -83,6 +83,35 @@ describe('AgentDocumentRegistry', () => {
     expect(renderAgentDocumentMarkdown(resolved)).toContain('Comments: 0 open / 1 total');
   });
 
+  test('attaches artifacts without changing document body versions', () => {
+    const documents = registry();
+    const created = documents.create({
+      title: 'Attachment Draft',
+      body: 'Body with external evidence.',
+    });
+    const attached = documents.attachArtifact(created.id, {
+      artifactId: 'artifact-123',
+      label: 'Reviewed chart',
+      note: 'Use this chart as supporting evidence.',
+      filename: 'chart.png',
+      mimeType: 'image/png',
+      kind: 'image',
+      sizeBytes: 2048,
+    });
+
+    expect(attached.attachments).toHaveLength(1);
+    expect(attached.attachments[0]?.id).toBe('a1');
+    expect(attached.attachments[0]?.artifactId).toBe('artifact-123');
+    expect(attached.versions).toHaveLength(1);
+    expect(attached.body).toBe(created.body);
+    expect(documents.search('chart.png')[0]?.id).toBe(created.id);
+
+    const markdown = renderAgentDocumentMarkdown(attached);
+    expect(markdown).toContain('Attachments: 1');
+    expect(markdown).toContain('## Attached Artifacts');
+    expect(markdown).toContain('a1: Reviewed chart (artifact-123, chart.png / image/png / image)');
+  });
+
   test('stores accepts and rejects AI suggestions through explicit review', () => {
     const documents = registry();
     const created = documents.create({

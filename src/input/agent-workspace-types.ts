@@ -79,6 +79,7 @@ export type AgentWorkspaceEditorKind =
   | 'document-accept-suggestion'
   | 'document-reject-suggestion'
   | 'document-insert-artifact'
+  | 'document-attach-artifact'
   | 'document-export'
   | 'memory-search'
   | 'memory-get'

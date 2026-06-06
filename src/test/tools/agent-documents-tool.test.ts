@@ -74,6 +74,27 @@ describe('agent_documents tool', () => {
       text: 'Source note body.',
       metadata: { purpose: 'source-note' },
     });
+    const attached = await tool.execute({
+      mode: 'attachArtifact',
+      documentId: 'launch-plan',
+      artifactId: sourceArtifact.id,
+      attachmentLabel: 'Reviewed Source Note',
+      attachmentNote: 'Keep this note available without changing the draft body.',
+      confirm: true,
+      explicitUserRequest: 'Attach the reviewed source note to the launch plan.',
+    });
+    expect(attached.success).toBe(true);
+    expect(attached.output).toContain('Attached artifact to Agent document');
+    expect(attached.output).toContain('attachment a1');
+    expect(attached.output).toContain('attachments 1');
+    expect(attached.output).toContain('versions 2');
+
+    const attachedShow = await tool.execute({ mode: 'show', documentId: 'launch-plan', includeVersions: true });
+    expect(attachedShow.success).toBe(true);
+    expect(attachedShow.output).toContain('attachments 1');
+    expect(attachedShow.output).toContain(`artifact ${sourceArtifact.id}`);
+    expect(attachedShow.output).toContain('Keep this note available without changing the draft body.');
+
     const inserted = await tool.execute({
       mode: 'insertArtifact',
       documentId: 'launch-plan',
@@ -198,6 +219,7 @@ describe('agent_documents tool', () => {
       source: 'agent-documents',
       documentId: 'launch-plan',
       status: 'reviewed',
+      attachmentIds: [sourceArtifact.id],
     });
   });
 

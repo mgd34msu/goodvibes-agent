@@ -3,9 +3,11 @@ import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './ag
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
 export interface AgentDocumentWorkspaceToolArgs {
-  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'suggest' | 'acceptSuggestion' | 'rejectSuggestion' | 'export' | 'insertArtifact';
+  readonly mode: 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'suggest' | 'acceptSuggestion' | 'rejectSuggestion' | 'export' | 'insertArtifact' | 'attachArtifact';
   readonly documentId?: string;
   readonly artifactId?: string;
+  readonly attachmentLabel?: string;
+  readonly attachmentNote?: string;
   readonly commentId?: string;
   readonly comment?: string;
   readonly suggestionId?: string;
@@ -235,6 +237,23 @@ export function createAgentDocumentInsertArtifactEditor(): AgentWorkspaceLocalEd
   };
 }
 
+export function createAgentDocumentAttachArtifactEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-attach-artifact',
+    mode: 'create',
+    title: 'Attach Artifact to Document',
+    selectedFieldIndex: 0,
+    message: 'Attach one saved artifact to an Agent-owned markdown draft without changing the document body. The attachment appears in show/export metadata.',
+    fields: [
+      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title to attach the artifact to.' },
+      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved artifact id such as artifact-123.' },
+      { id: 'attachmentLabel', label: 'Label', value: '', required: false, multiline: false, hint: 'Optional short label. Defaults to the artifact filename or id.' },
+      { id: 'attachmentNote', label: 'Note', value: '', required: false, multiline: true, hint: 'Optional note explaining why this artifact belongs with the draft. Ctrl-J inserts a new line.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to attach this artifact to the document.' },
+    ],
+  };
+}
+
 export function buildAgentDocumentToolArgs(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
@@ -361,6 +380,19 @@ export function buildAgentDocumentToolArgs(
       explicitUserRequest,
     };
   }
+  if (editor.kind === 'document-attach-artifact') {
+    const attachmentLabel = readField('attachmentLabel').trim();
+    const attachmentNote = readField('attachmentNote').trim();
+    return {
+      mode: 'attachArtifact',
+      documentId,
+      artifactId: readField('artifactId').trim(),
+      ...(attachmentLabel ? { attachmentLabel } : {}),
+      ...(attachmentNote ? { attachmentNote } : {}),
+      confirm: true,
+      explicitUserRequest,
+    };
+  }
   return {
     mode: 'export',
     documentId,
@@ -393,6 +425,7 @@ export function buildAgentDocumentPromptSubmission(
     || editor.kind === 'document-accept-suggestion'
     || editor.kind === 'document-reject-suggestion'
     || editor.kind === 'document-insert-artifact'
+    || editor.kind === 'document-attach-artifact'
     || editor.kind === 'document-export';
   if (mutation && !isAffirmative(readField('confirm'))) {
     return {
@@ -429,6 +462,8 @@ export function buildAgentDocumentPromptSubmission(
     `mode: ${JSON.stringify(args.mode)}`,
     args.documentId ? `documentId: ${JSON.stringify(args.documentId)}` : 'documentId: none',
     args.artifactId ? `artifactId: ${JSON.stringify(args.artifactId)}` : 'artifactId: none',
+    args.attachmentLabel ? `attachmentLabel: ${JSON.stringify(args.attachmentLabel)}` : 'attachmentLabel: none',
+    args.attachmentNote ? `attachmentNote: ${JSON.stringify(args.attachmentNote)}` : 'attachmentNote: none',
     args.commentId ? `commentId: ${JSON.stringify(args.commentId)}` : 'commentId: none',
     args.comment ? `comment: ${JSON.stringify(args.comment)}` : 'comment: none',
     args.suggestionId ? `suggestionId: ${JSON.stringify(args.suggestionId)}` : 'suggestionId: none',

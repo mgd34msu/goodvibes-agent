@@ -41,7 +41,7 @@ High-signal TUI routes:
 | `agent_work_plan` | Keep the visible Agent-local work plan current. |
 | `agent_operator_briefing` | Read connected work, approvals, automation, schedules, and capacity posture. |
 | `agent_operator_action` | Run exact confirmed approval/automation/schedule actions. |
-| `agent_documents` | Create, revise, review, comment on, suggest changes to, list, show, insert saved artifacts into, and export project-scoped versioned Agent document drafts. |
+| `agent_documents` | Create, revise, review, comment on, suggest changes to, list, show, attach saved artifacts to, insert saved artifacts into, and export project-scoped versioned Agent document drafts. |
 | `agent_artifacts` | Browse saved Agent artifacts and preview text-like content with redacted metadata. |
 | `agent_channel_send` | Send one confirmed channel message. |
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |

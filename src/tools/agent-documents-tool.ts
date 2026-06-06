@@ -9,7 +9,7 @@ import {
   type AgentDocumentStatus,
 } from '../agent/document-registry.ts';
 
-export type AgentDocumentsToolMode = 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'suggest' | 'acceptSuggestion' | 'rejectSuggestion' | 'export' | 'insertArtifact';
+export type AgentDocumentsToolMode = 'list' | 'show' | 'create' | 'update' | 'review' | 'comment' | 'resolveComment' | 'suggest' | 'acceptSuggestion' | 'rejectSuggestion' | 'export' | 'insertArtifact' | 'attachArtifact';
 
 export interface AgentDocumentsToolArgs {
   readonly mode?: unknown;
@@ -20,6 +20,8 @@ export interface AgentDocumentsToolArgs {
   readonly tags?: unknown;
   readonly status?: unknown;
   readonly artifactId?: unknown;
+  readonly attachmentLabel?: unknown;
+  readonly attachmentNote?: unknown;
   readonly commentId?: unknown;
   readonly comment?: unknown;
   readonly suggestionId?: unknown;
@@ -36,7 +38,7 @@ export interface AgentDocumentsToolArgs {
 
 type AgentDocumentArtifactStore = Partial<Pick<ArtifactStore, 'create' | 'get' | 'readContent'>>;
 
-const MODES: readonly AgentDocumentsToolMode[] = ['list', 'show', 'create', 'update', 'review', 'comment', 'resolveComment', 'suggest', 'acceptSuggestion', 'rejectSuggestion', 'export', 'insertArtifact'];
+const MODES: readonly AgentDocumentsToolMode[] = ['list', 'show', 'create', 'update', 'review', 'comment', 'resolveComment', 'suggest', 'acceptSuggestion', 'rejectSuggestion', 'export', 'insertArtifact', 'attachArtifact'];
 const MAX_INSERT_TEXT_BYTES = 40_000;
 
 function isMode(value: unknown): value is AgentDocumentsToolMode {
@@ -122,7 +124,8 @@ function formatDocumentSummary(document: AgentDocumentRecord): string {
   const comments = document.comments.length > 0 ? ` comments ${openComments}/${document.comments.length}` : '';
   const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
   const suggestions = document.suggestions.length > 0 ? ` suggestions ${proposedSuggestions}/${document.suggestions.length}` : '';
-  return `${document.id}  ${document.status}  versions ${document.versions.length}${comments}${suggestions}  updated ${document.updatedAt}${tags}${artifact}  ${document.title}`;
+  const attachments = document.attachments.length > 0 ? ` attachments ${document.attachments.length}` : '';
+  return `${document.id}  ${document.status}  versions ${document.versions.length}${comments}${suggestions}${attachments}  updated ${document.updatedAt}${tags}${artifact}  ${document.title}`;
 }
 
 function formatList(documents: readonly AgentDocumentRecord[], total: number, query: string): string {
@@ -153,6 +156,7 @@ function formatShow(document: AgentDocumentRecord, includeVersions: boolean): st
     `  versions ${document.versions.length}`,
     `  comments ${openComments}/${document.comments.length}`,
     `  suggestions ${proposedSuggestions}/${document.suggestions.length}`,
+    `  attachments ${document.attachments.length}`,
     `  created ${document.createdAt}`,
     `  updated ${document.updatedAt}`,
     `  lastArtifact ${document.lastArtifactId ?? '(none)'}`,
@@ -178,6 +182,21 @@ function formatShow(document: AgentDocumentRecord, includeVersions: boolean): st
       '',
       'Suggestions',
       ...document.suggestions.map((suggestion) => `  - ${suggestion.id}  ${suggestion.status}  ${suggestion.createdAt}  ${suggestion.summary}  ${suggestion.rationale}`),
+    );
+  }
+  if (document.attachments.length > 0) {
+    lines.push(
+      '',
+      'Attachments',
+      ...document.attachments.map((attachment) => {
+        const details = [
+          attachment.filename ?? '',
+          attachment.mimeType ?? '',
+          attachment.kind ?? '',
+        ].filter(Boolean).join(' / ');
+        const note = attachment.note ? `  ${attachment.note}` : '';
+        return `  - ${attachment.id}  artifact ${attachment.artifactId}  ${attachment.label}${details ? `  ${details}` : ''}${note}`;
+      }),
     );
   }
   return lines.join('\n');
@@ -283,6 +302,7 @@ function formatExport(document: AgentDocumentRecord, artifact: ArtifactDescripto
     'Exported Agent document',
     `  document ${document.id}`,
     `  version ${exportedVersionId(document)}`,
+    `  attachments ${document.attachments.length}`,
     `  artifact ${artifact.id}`,
     `  filename ${artifact.filename ?? '(none)'}`,
     `  route agent_artifacts mode:"show" artifactId:"${artifact.id}" includeContent:true`,
@@ -307,10 +327,42 @@ async function exportDocument(
       documentId: document.id,
       versionId,
       status: document.status,
+      attachmentIds: document.attachments.map((attachment) => attachment.artifactId),
     },
   });
   registry.updateArtifactId(document.id, artifact.id);
   return formatExport({ ...document, lastArtifactId: artifact.id }, artifact);
+}
+
+async function attachArtifactToDocument(
+  registry: AgentDocumentRegistry,
+  artifactStore: AgentDocumentArtifactStore | undefined,
+  args: AgentDocumentsToolArgs,
+): Promise<string> {
+  const documentId = requireDocumentId(args);
+  const artifactId = requireArtifactId(args);
+  const document = registry.get(documentId);
+  if (!document) throw new Error(`Unknown Agent document ${documentId}.`);
+  const loaded = await loadArtifactForInsert(artifactStore, artifactId, false);
+  const updated = registry.attachArtifact(document.id, {
+    artifactId: loaded.descriptor.id,
+    label: readString(args.attachmentLabel) || loaded.descriptor.filename || loaded.descriptor.id,
+    note: readString(args.attachmentNote),
+    filename: loaded.descriptor.filename,
+    mimeType: loaded.descriptor.mimeType,
+    kind: loaded.descriptor.kind,
+    sizeBytes: loaded.descriptor.sizeBytes,
+  });
+  const attachment = updated.attachments.find((entry) => entry.artifactId === loaded.descriptor.id);
+  return [
+    'Attached artifact to Agent document',
+    `  document ${updated.id}`,
+    `  attachment ${attachment?.id ?? '(unknown)'}`,
+    `  artifact ${loaded.descriptor.id}`,
+    `  attachments ${updated.attachments.length}`,
+    `  versions ${updated.versions.length}`,
+    '  body unchanged',
+  ].join('\n');
 }
 
 async function insertArtifactIntoDocument(
@@ -350,7 +402,7 @@ export function createAgentDocumentsTool(
   return {
     definition: {
       name: 'agent_documents',
-      description: 'Create, review suggestions, insert artifacts, and export drafts.',
+      description: 'Create drafts, review suggestions, attach artifacts, and export.',
       parameters: {
         type: 'object',
         properties: {
@@ -403,7 +455,15 @@ export function createAgentDocumentsTool(
           },
           artifactId: {
             type: 'string',
-            description: 'Saved artifact id for mode:"insertArtifact".',
+            description: 'Saved artifact id for insertArtifact or attachArtifact.',
+          },
+          attachmentLabel: {
+            type: 'string',
+            description: 'Optional user-facing label for mode:"attachArtifact".',
+          },
+          attachmentNote: {
+            type: 'string',
+            description: 'Optional attachment note for mode:"attachArtifact".',
           },
           placement: {
             type: 'string',
@@ -574,6 +634,10 @@ export function createAgentDocumentsTool(
         if (mode === 'insertArtifact') {
           requireConfirmed(args, 'Agent document artifact insertion');
           return output(await insertArtifactIntoDocument(registry, artifactStore, args));
+        }
+        if (mode === 'attachArtifact') {
+          requireConfirmed(args, 'Agent document artifact attachment');
+          return output(await attachArtifactToDocument(registry, artifactStore, args));
         }
         requireConfirmed(args, 'Agent document export');
         const document = registry.get(requireDocumentId(args));

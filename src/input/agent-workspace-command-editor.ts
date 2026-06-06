@@ -35,6 +35,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'document-accept-suggestion'
   | 'document-reject-suggestion'
   | 'document-insert-artifact'
+  | 'document-attach-artifact'
   | 'document-export'
   | 'model-compare-review'
   | 'model-compare-judge'
@@ -124,6 +125,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'document-accept-suggestion'
     || kind === 'document-reject-suggestion'
     || kind === 'document-insert-artifact'
+    || kind === 'document-attach-artifact'
     || kind === 'document-export'
     || kind === 'model-compare-review'
     || kind === 'model-compare-judge'
@@ -166,6 +168,7 @@ export function buildAgentWorkspaceCommandEditorSubmission(
     || editor.kind === 'document-accept-suggestion'
     || editor.kind === 'document-reject-suggestion'
     || editor.kind === 'document-insert-artifact'
+    || editor.kind === 'document-attach-artifact'
     || editor.kind === 'document-export'
   ) {
     return buildAgentDocumentPromptSubmission(editor, readField, promptDispatchAvailable);
