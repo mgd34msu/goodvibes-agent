@@ -172,6 +172,11 @@ describe('agent_harness mode catalog', () => {
     expect(ids).toContain('agent_orchestration');
     expect(ids).toContain('agent_orchestration_agent');
     expect(orchestration.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+
+    const dispatch = listHarnessModes({ query: 'approved work plan dispatch agents', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string }[];
+    };
+    expect(dispatch.modes.map((mode) => mode.id)).toContain('agent_orchestration');
   });
 
   test('finds Document Ops by uploads, artifacts, and blind compare wording', () => {

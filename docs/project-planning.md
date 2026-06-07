@@ -70,7 +70,7 @@ The work-plan tracker is for concrete, durable task state after work becomes act
 
 Use `/workplan` when the work already has tasks and needs status tracking. Use `/delegate` when explicit build/fix/review work should go to GoodVibes TUI; include the original ask, delegation reason, success evidence, workspace/worktree hint, priority, and explicit review intent.
 
-The model can keep the same visible work plan current with `agent_work_plan`. It can also inspect planning/work-plan visibility through `agent_harness` workspace and panel metadata, and inspect explicit build-delegation posture with `delegation_posture`/`delegation_route`; destructive work-plan changes and delegated submissions still require explicit user request and confirmation.
+The model can keep the same visible work plan current with `agent_work_plan`. Approved items can be dispatched through confirmed `agent_work_plan action:"dispatch_agents"` into visible `agent` spawn or batch-spawn calls, with linked-agent receipts written back to the plan. It can also inspect planning/work-plan visibility through `agent_harness` workspace and panel metadata, and inspect explicit build-delegation posture with `delegation_posture`/`delegation_route`; destructive work-plan changes, agent dispatch, and delegated submissions still require explicit user request and confirmation.
 
 ## Agent Knowledge Boundary
 

@@ -334,7 +334,7 @@ function managedExecutionPlan(
         label: 'Intake and lane selection',
         status: 'ready',
         purpose: 'Choose serial chat, one visible agent, batch agents, delegated review, or remote inspection based on user outcome.',
-        routes: ['agent_harness mode:"delegation_posture"', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"agent_orchestration"'],
+        routes: ['agent_harness mode:"delegation_posture"', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"agent_orchestration"', 'agent_work_plan action:"dispatch_agents" ids:["..."] confirm:true explicitUserRequest:"..."'],
       },
       {
         id: 'visible-agent-work',
@@ -458,8 +458,9 @@ function decisionCards(agentToolAvailable: boolean): readonly Record<string, unk
       status: agentToolAvailable ? 'ready' : 'unavailable',
       chooseWhen: ['A large task already has approval for parallel work and needs milestones, evidence, and cancellation routes.'],
       requiredFields: ['original user ask', 'lane reason', 'success criteria', 'per-runner evidence', 'cancel/recovery route'],
-      modelRoute: 'agent_harness mode:"agent_orchestration"',
-      policy: 'Read-only plan surface first; actual spawn, message, wait, cancel, or remote mutation stays on confirmed first-class routes.',
+      modelRoute: 'agent_work_plan action:"dispatch_agents" ids:["..."] confirm:true explicitUserRequest:"..."',
+      inspectRoute: 'agent_harness mode:"agent_orchestration"',
+      policy: 'Read-only plan surface first; approved work-plan dispatch, spawn, message, wait, cancel, or remote mutation stays on confirmed first-class routes.',
     },
     {
       id: 'inspect-or-control-visible-agent',
