@@ -136,11 +136,14 @@ interface LocalModelBenchmarkEvidence {
 type LocalModelEndpointSource = 'provider-registry' | 'model-registry' | 'environment';
 
 interface LocalModelServerEndpoint {
+  readonly kind: 'local-server-endpoint';
   readonly id: string;
   readonly providerId: string | null;
   readonly stack: string | null;
   readonly baseUrl: string;
   readonly modelsUrl: string;
+  readonly diagnosticStatus: 'registered-route-needs-smoke' | 'needs-provider-after-smoke';
+  readonly inspectRoute: string;
   readonly sources: readonly LocalModelEndpointSource[];
   readonly sourceDetails: readonly string[];
   readonly modelRoutes: readonly string[];
@@ -149,6 +152,13 @@ interface LocalModelServerEndpoint {
   readonly refreshRoute: string;
   readonly addProviderRoute: string | null;
   readonly notes: readonly string[];
+  readonly diagnostics?: {
+    readonly liveProbe: 'not-run';
+    readonly successCriteria: readonly string[];
+    readonly failureTriage: readonly string[];
+    readonly afterSmoke: readonly string[];
+    readonly policy: string;
+  };
 }
 
 interface LocalModelServerDefaultEndpoint {
@@ -472,6 +482,31 @@ function localEndpointId(baseUrl: string): string {
   return `local-${baseUrl.toLowerCase().replace(/^https?:\/\//, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')}`;
 }
 
+function localEndpointInspectRoute(endpointId: string): string {
+  return `agent_harness mode:"model_route" modelRouteId:"${endpointId}"`;
+}
+
+function localEndpointDiagnostics(endpoint: MutableLocalModelServerEndpoint, providerExists: boolean): NonNullable<LocalModelServerEndpoint['diagnostics']> {
+  const stack = endpoint.stack ?? 'OpenAI-compatible';
+  return {
+    liveProbe: 'not-run',
+    successCriteria: [
+      'The confirmed smoke command exits 0.',
+      'The model-list endpoint returns JSON without credentials in output.',
+      'At least one model id is visible before refresh or benchmark.',
+    ],
+    failureTriage: [
+      `If connection is refused, start the ${stack} server and load a model before refreshing Agent models.`,
+      'If the endpoint returns 404, verify the base URL path; most OpenAI-compatible servers should use /v1.',
+      'If the host is 0.0.0.0 or a LAN address, switch Agent to a trusted client URL such as 127.0.0.1 or the intended private host.',
+    ],
+    afterSmoke: providerExists
+      ? ['Run the refresh route, then run a local benchmark before changing the default route.']
+      : ['Add the provider route only after smoke succeeds, then refresh models and run a local benchmark.'],
+    policy: 'Diagnostics are read-only criteria and confirmed route hints. Agent does not probe the network, add providers, refresh models, benchmark, or change routes from this inspection.',
+  };
+}
+
 function localModelServerDefaults(): readonly LocalModelServerDefaultEndpoint[] {
   const defaults = [
     {
@@ -686,7 +721,7 @@ function collectLocalServerEndpointCandidates(context: CommandContext): readonly
   return [...endpoints.values()].sort((left, right) => left.baseUrl.localeCompare(right.baseUrl));
 }
 
-function describeLocalServerEndpoint(endpoint: MutableLocalModelServerEndpoint): LocalModelServerEndpoint {
+function describeLocalServerEndpoint(endpoint: MutableLocalModelServerEndpoint, includeParameters = false): LocalModelServerEndpoint {
   const modelsUrl = modelsUrlFor(endpoint.baseUrl);
   const providerExists = Boolean(endpoint.providerId) || endpoint.modelRoutes.size > 0;
   const notes = new Set(endpoint.notes);
@@ -696,12 +731,16 @@ function describeLocalServerEndpoint(endpoint: MutableLocalModelServerEndpoint):
   if (!providerExists) {
     notes.add('No registered model route was found for this endpoint yet.');
   }
+  const id = localEndpointId(endpoint.baseUrl);
   return {
-    id: localEndpointId(endpoint.baseUrl),
+    kind: 'local-server-endpoint',
+    id,
     providerId: endpoint.providerId,
     stack: endpoint.stack,
     baseUrl: endpoint.baseUrl,
     modelsUrl,
+    diagnosticStatus: providerExists ? 'registered-route-needs-smoke' : 'needs-provider-after-smoke',
+    inspectRoute: localEndpointInspectRoute(id),
     sources: [...endpoint.sources].sort((a, b) => a.localeCompare(b)),
     sourceDetails: [...endpoint.sourceDetails].sort((a, b) => a.localeCompare(b)),
     modelRoutes: [...endpoint.modelRoutes].sort((a, b) => a.localeCompare(b)),
@@ -710,6 +749,7 @@ function describeLocalServerEndpoint(endpoint: MutableLocalModelServerEndpoint):
     refreshRoute: 'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh models after verifying the local server."',
     addProviderRoute: providerExists ? null : localProviderAddRoute(endpoint.providerId, endpoint.stack, endpoint.baseUrl),
     notes: [...notes],
+    ...(includeParameters ? { diagnostics: localEndpointDiagnostics(endpoint, providerExists) } : {}),
   };
 }
 
@@ -717,7 +757,7 @@ function localModelServerHealthMap(
   context: CommandContext,
   includeParameters: boolean,
 ): LocalModelServerHealthMap {
-  const endpoints = collectLocalServerEndpointCandidates(context).map(describeLocalServerEndpoint);
+  const endpoints = collectLocalServerEndpointCandidates(context).map((endpoint) => describeLocalServerEndpoint(endpoint, includeParameters));
   const returned = endpoints.slice(0, includeParameters ? 8 : 3);
   const suggestedDefaults = localModelServerDefaults().slice(0, includeParameters ? 4 : 2);
   const first = returned[0];
@@ -1674,6 +1714,38 @@ function modelSearchText(model: ModelCandidate): string {
   ].join('\n').toLowerCase();
 }
 
+function localEndpointSearchText(endpoint: LocalModelServerEndpoint): string {
+  return [
+    endpoint.id,
+    endpoint.providerId ?? '',
+    endpoint.stack ?? '',
+    endpoint.baseUrl,
+    endpoint.modelsUrl,
+    endpoint.diagnosticStatus,
+    ...endpoint.sources,
+    ...endpoint.sourceDetails,
+    ...endpoint.modelRoutes,
+    ...endpoint.notes,
+  ].join('\n').toLowerCase();
+}
+
+function describeLocalServerEndpointRoute(endpoint: LocalModelServerEndpoint, lookup?: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...endpoint,
+    ...(lookup ? { lookup } : {}),
+    modelRouteId: endpoint.id,
+    label: `Local model server ${endpoint.baseUrl}`,
+    modelRoute: endpoint.inspectRoute,
+    modelAccess: {
+      smoke: endpoint.smokeRoute,
+      refresh: endpoint.refreshRoute,
+      addProvider: endpoint.addProviderRoute,
+      cookbook: 'agent_harness mode:"model_routing" query:"local" includeParameters:true',
+    },
+    policy: endpoint.diagnostics?.policy ?? 'Read-only local model endpoint inspection. The smoke test, refresh, provider add, benchmark, and route changes remain separate visible confirmed actions.',
+  };
+}
+
 function describeRoute(route: RouteCandidate, options: { readonly context: CommandContext; readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> }): Record<string, unknown> {
   return {
     kind: 'route',
@@ -1772,6 +1844,17 @@ function describeCandidate(entry: RouteCandidate | ModelCandidate): Record<strin
   };
 }
 
+function describeEndpointCandidate(endpoint: LocalModelServerEndpoint): Record<string, unknown> {
+  return {
+    kind: endpoint.kind,
+    modelRouteId: endpoint.id,
+    baseUrl: endpoint.baseUrl,
+    stack: endpoint.stack,
+    diagnosticStatus: endpoint.diagnosticStatus,
+    modelRoute: endpoint.inspectRoute,
+  };
+}
+
 function modelRoutingModelRoute(): string {
   return 'agent_harness mode:"model_route" or mode:"run_command"';
 }
@@ -1858,25 +1941,37 @@ export async function describeHarnessModelRoute(context: CommandContext, args: A
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'model_route requires modelRouteId, target, or query. Use mode:"model_routing" to inspect route and model ids.',
+      usage: 'model_route requires modelRouteId, target, or query. Use mode:"model_routing" to inspect route, model, and local endpoint ids.',
     };
   }
   const [models] = await Promise.all([loadModels(context)]);
   const routes = routeCandidates(context);
+  const endpoints = collectLocalServerEndpointCandidates(context).map((endpoint) => describeLocalServerEndpoint(endpoint, true));
   const normalized = lookup.input.toLowerCase();
   const exactRoute = routes.find((route) => route.id === lookup.input);
   if (exactRoute) return { status: 'found', route: describeRoute(exactRoute, { context, includeParameters: true, lookup: { ...lookup, resolvedBy: 'route-id' } }) };
   const exactModel = models.find((model) => model.registryKey === lookup.input || model.modelId === lookup.input);
   if (exactModel) return { status: 'found', route: describeModel(exactModel, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'model-id' } }) };
+  const exactEndpoint = endpoints.find((endpoint) => endpoint.id === lookup.input || endpoint.baseUrl === lookup.input || endpoint.modelsUrl === lookup.input);
+  if (exactEndpoint) return { status: 'found', route: describeLocalServerEndpointRoute(exactEndpoint, { ...lookup, resolvedBy: 'local-endpoint-id' }) };
   const insensitiveRoute = routes.find((route) => route.id.toLowerCase() === normalized);
   if (insensitiveRoute) return { status: 'found', route: describeRoute(insensitiveRoute, { context, includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-route-id' } }) };
   const insensitiveModel = models.find((model) => model.registryKey.toLowerCase() === normalized || model.modelId.toLowerCase() === normalized);
   if (insensitiveModel) return { status: 'found', route: describeModel(insensitiveModel, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'case-insensitive-model-id' } }) };
+  const insensitiveEndpoint = endpoints.find((endpoint) => endpoint.id.toLowerCase() === normalized || endpoint.baseUrl.toLowerCase() === normalized || endpoint.modelsUrl.toLowerCase() === normalized);
+  if (insensitiveEndpoint) return { status: 'found', route: describeLocalServerEndpointRoute(insensitiveEndpoint, { ...lookup, resolvedBy: 'case-insensitive-local-endpoint-id' }) };
   const searched = [
     ...routes.filter((route) => routeSearchText(route).includes(normalized)),
     ...models.filter((model) => modelSearchText(model).includes(normalized)),
   ];
-  if (searched.length === 1) {
+  const searchedEndpoints = endpoints.filter((endpoint) => localEndpointSearchText(endpoint).includes(normalized));
+  if (searched.length === 0 && searchedEndpoints.length === 1) {
+    return {
+      status: 'found',
+      route: describeLocalServerEndpointRoute(searchedEndpoints[0]!, { ...lookup, resolvedBy: 'local-endpoint-search' }),
+    };
+  }
+  if (searched.length === 1 && searchedEndpoints.length === 0) {
     const found = searched[0]!;
     return {
       status: 'found',
@@ -1885,15 +1980,18 @@ export async function describeHarnessModelRoute(context: CommandContext, args: A
         : describeModel(found, { includeParameters: true, lookup: { ...lookup, resolvedBy: 'search' } }),
     };
   }
-  if (searched.length > 1) {
+  if (searched.length + searchedEndpoints.length > 1) {
     return {
       status: 'ambiguous',
       input: lookup.input,
-      candidates: searched.slice(0, 8).map(describeCandidate),
+      candidates: [
+        ...searched.slice(0, 8).map(describeCandidate),
+        ...searchedEndpoints.slice(0, Math.max(0, 8 - searched.length)).map(describeEndpointCandidate),
+      ],
     };
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown model route ${lookup.input}. Use mode:"model_routing" to inspect route and model ids.`,
+    usage: `Unknown model route ${lookup.input}. Use mode:"model_routing" to inspect route, model, and local endpoint ids.`,
   };
 }
