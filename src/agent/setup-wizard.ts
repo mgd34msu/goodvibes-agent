@@ -62,7 +62,20 @@ export interface AgentSetupWizardCheckpoint {
   readonly path: string | null;
   readonly note?: string;
   readonly parseError?: string;
+  readonly autoAdvance?: AgentSetupWizardCheckpointAutoAdvance;
   readonly markCurrentRoute: string;
+  readonly clearRoute: string;
+  readonly inspectRoute: string;
+}
+
+export interface AgentSetupWizardCheckpointAutoAdvance {
+  readonly status: 'advanced' | 'live-priority';
+  readonly fromStepId: string | null;
+  readonly fromStepLabel: string | null;
+  readonly toStepId: string | null;
+  readonly toStepLabel: string | null;
+  readonly reason: string;
+  readonly evidence: string;
   readonly clearRoute: string;
   readonly inspectRoute: string;
 }
@@ -209,8 +222,20 @@ function buildCheckpoint(
       currentStepLabel: checkpoint.currentStepLabel ?? savedItem.label,
       resumed: false,
       summary: `Saved setup checkpoint for ${savedItem.label}; live blocker ${blockingItem.label} is taking priority.`,
+      autoAdvance: {
+        status: 'live-priority',
+        fromStepId: savedItem.id,
+        fromStepLabel: savedItem.label,
+        toStepId: blockingItem.id,
+        toStepLabel: blockingItem.label,
+        reason: 'A live blocking setup item takes priority over the saved checkpoint.',
+        evidence: `${blockingItem.label} is currently ${blockingItem.status}.`,
+        clearRoute: withRoutes.clearRoute,
+        inspectRoute: withRoutes.inspectRoute,
+      },
     };
   }
+  const nextItem = firstAttentionItem(items);
   return {
     ...withRoutes,
     status: 'stale',
@@ -218,6 +243,21 @@ function buildCheckpoint(
     summary: savedItem?.status === 'ready'
       ? `Saved checkpoint ${savedItem.label} is already ready; live setup posture is taking over.`
       : 'Saved checkpoint no longer matches a current setup step; live setup posture is taking over.',
+    autoAdvance: {
+      status: 'advanced',
+      fromStepId: savedItem?.id ?? checkpoint.currentStepId,
+      fromStepLabel: savedItem?.label ?? checkpoint.currentStepLabel,
+      toStepId: nextItem?.id ?? null,
+      toStepLabel: nextItem?.label ?? null,
+      reason: savedItem?.status === 'ready'
+        ? 'The saved checkpoint step is ready, so the wizard advanced to live setup posture.'
+        : 'The saved checkpoint step is no longer in the live setup plan, so the wizard advanced to live setup posture.',
+      evidence: savedItem?.status === 'ready'
+        ? `${savedItem.label} source status is ready.`
+        : 'No matching live setup item exists for the saved checkpoint id.',
+      clearRoute: withRoutes.clearRoute,
+      inspectRoute: withRoutes.inspectRoute,
+    },
   };
 }
 

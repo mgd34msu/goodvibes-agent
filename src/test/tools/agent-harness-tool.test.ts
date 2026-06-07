@@ -1420,6 +1420,40 @@ describe('agent_harness tool', () => {
       expect(inspected.checkpoint.summary).toContain('Resuming Connected-host auth');
       expect(inspected.currentStep?.id).toBe('connected-host-auth');
 
+      writeConnectedHostOperatorToken(fixture);
+      const advanced = await executeHarnessJson<{
+        readonly checkpoint: {
+          readonly status: string;
+          readonly currentStepId: string;
+          readonly resumed: boolean;
+          readonly summary: string;
+          readonly autoAdvance?: {
+            readonly status: string;
+            readonly fromStepId: string | null;
+            readonly fromStepLabel: string | null;
+            readonly toStepId: string | null;
+            readonly toStepLabel: string | null;
+            readonly reason: string;
+            readonly evidence: string;
+            readonly clearRoute: string;
+          };
+        };
+        readonly currentStep: { readonly id: string; readonly status: string } | null;
+      }>(fixture, { mode: 'setup_checkpoint' });
+      expect(advanced.checkpoint.status).toBe('stale');
+      expect(advanced.checkpoint.resumed).toBe(false);
+      expect(advanced.checkpoint.summary).toContain('already ready');
+      expect(advanced.checkpoint.autoAdvance).toMatchObject({
+        status: 'advanced',
+        fromStepId: 'connected-host-auth',
+        fromStepLabel: 'Connected-host auth',
+      });
+      expect(advanced.checkpoint.autoAdvance?.toStepId).not.toBe('connected-host-auth');
+      expect(advanced.checkpoint.autoAdvance?.reason).toContain('advanced');
+      expect(advanced.checkpoint.autoAdvance?.evidence).toContain('source status is ready');
+      expect(advanced.checkpoint.autoAdvance?.clearRoute).toContain('clear_setup_checkpoint');
+      expect(advanced.currentStep?.id).not.toBe('connected-host-auth');
+
       const workspaceSaved = await executeHarnessJson<{
         readonly status: string;
         readonly result: {
