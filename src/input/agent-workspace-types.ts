@@ -1,5 +1,5 @@
 import type { ModelPickerTarget } from './model-picker.ts';
-import type { AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
+import type { AgentWorkspaceChannelSetupGuide, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 import type { AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import type { AgentWorkspaceVoiceMediaReadiness } from './agent-workspace-voice-media.ts';
 import type { AgentBehaviorDiscoverySnapshot } from '../agent/behavior-discovery-summary.ts';
@@ -630,6 +630,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly delegatedReviewPolicy: 'explicit-build-delegation-only';
   readonly companionAccess: AgentWorkspaceCompanionAccessSummary;
   readonly channels: readonly AgentWorkspaceChannelStatus[];
+  readonly channelSetupGuide: AgentWorkspaceChannelSetupGuide;
   readonly voiceProviderCount: number;
   readonly voiceStreamingProviderCount: number;
   readonly voiceSttProviderCount: number;

@@ -1,6 +1,6 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import type { AgentWorkspaceChannelStatus } from '../input/agent-workspace-channels.ts';
-import { buildAgentWorkspaceChannels } from '../input/agent-workspace-channels.ts';
+import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } from '../input/agent-workspace-channels.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessChannelArgs {
@@ -15,6 +15,11 @@ type ChannelLookupSource = 'channelId' | 'target' | 'query';
 
 type ChannelResolution =
   | { readonly status: 'found'; readonly channel: Record<string, unknown> }
+  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
+  | { readonly status: 'missing_lookup'; readonly usage: string };
+
+type ChannelSetupGuideResolution =
+  | { readonly status: 'found'; readonly guide: Record<string, unknown> }
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
   | { readonly status: 'missing_lookup'; readonly usage: string };
 
@@ -68,6 +73,12 @@ function channelModelRoute(): string {
   return 'agent_channel_send or agent_harness mode:"channel"';
 }
 
+function channelSetupGuideModelRoute(channelId?: string): string {
+  return channelId
+    ? `agent_harness mode:"channel_setup_guide" channelId:"${channelId}"`
+    : 'agent_harness mode:"channel_setup_guide"';
+}
+
 function describeChannel(
   channel: AgentWorkspaceChannelStatus,
   options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {},
@@ -89,6 +100,7 @@ function describeChannel(
     defaultTargetKeys: channel.defaultTargetKeys,
     configuredDefaultTargetKeys: channel.configuredDefaultTargetKeys,
     modelRoute: channelModelRoute(),
+    setupGuideRoute: channelSetupGuideModelRoute(channel.id),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters
       ? {
@@ -124,12 +136,20 @@ function describeChannel(
 
 export function channelReadinessCatalogStatus(context: CommandContext): Record<string, unknown> {
   const channels = buildAgentWorkspaceChannels(context);
+  const guide = buildAgentWorkspaceChannelSetupGuide(channels);
   return {
-    modes: ['channels', 'channel'],
+    modes: ['channels', 'channel', 'channel_setup_guide'],
     channels: channels.length,
     enabled: channels.filter((channel) => channel.enabled).length,
     ready: channels.filter((channel) => channel.ready).length,
     attention: channels.filter((channel) => channel.enabled && channel.setupState !== 'ready').length,
+    setupGuide: {
+      status: guide.status,
+      currentChannelId: guide.currentChannelId,
+      currentStepId: guide.currentStepId,
+      progressLabel: guide.progressLabel,
+      modelRoute: channelSetupGuideModelRoute(guide.currentChannelId ?? undefined),
+    },
     readOnly: true,
     deliveryTool: 'agent_channel_send',
   };
@@ -150,6 +170,10 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
     enabled: channels.filter((channel) => channel.enabled).length,
     ready: channels.filter((channel) => channel.ready).length,
     attention: channels.filter((channel) => channel.enabled && channel.setupState !== 'ready').length,
+    setupGuide: {
+      status: buildAgentWorkspaceChannelSetupGuide(channels).status,
+      modelRoute: channelSetupGuideModelRoute(),
+    },
     policy: 'Read-only channel readiness catalog. It returns key names, setup state, delivery posture, and model routes without printing secrets or sending messages.',
   };
 }
@@ -184,5 +208,72 @@ export function describeHarnessChannel(context: CommandContext, args: AgentHarne
   return {
     status: 'missing_lookup',
     usage: `Unknown channel ${lookup.input}. Use mode:"channels" to inspect available channel ids.`,
+  };
+}
+
+export function describeHarnessChannelSetupGuide(context: CommandContext, args: AgentHarnessChannelArgs): ChannelSetupGuideResolution {
+  const channels = buildAgentWorkspaceChannels(context);
+  const lookup = channelLookupFromArgs(args);
+  if (!lookup) {
+    const guide = buildAgentWorkspaceChannelSetupGuide(channels);
+    return {
+      status: 'found',
+      guide: {
+        mode: 'channel_setup_guide',
+        guide,
+        routes: {
+          channels: 'agent_harness mode:"channels"',
+          currentChannel: guide.currentChannelId ? channelSetupGuideModelRoute(guide.currentChannelId) : null,
+        },
+        policy: guide.policy,
+      },
+    };
+  }
+  const normalized = lookup.input.toLowerCase();
+  const exact = channels.find((channel) => channel.id === lookup.input || channel.id.toLowerCase() === normalized || channel.label.toLowerCase() === normalized);
+  if (exact) {
+    const guide = buildAgentWorkspaceChannelSetupGuide(channels, { channelId: exact.id });
+    return {
+      status: 'found',
+      guide: {
+        mode: 'channel_setup_guide',
+        guide,
+        lookup: { ...lookup, resolvedBy: exact.id === lookup.input ? 'id' : 'case-insensitive' },
+        routes: {
+          channel: `agent_harness mode:"channel" channelId:"${exact.id}"`,
+          channels: 'agent_harness mode:"channels"',
+        },
+        policy: guide.policy,
+      },
+    };
+  }
+  const searched = channels.filter((channel) => channelSearchText(channel).includes(normalized));
+  if (searched.length === 1) {
+    const channel = searched[0]!;
+    const guide = buildAgentWorkspaceChannelSetupGuide(channels, { channelId: channel.id });
+    return {
+      status: 'found',
+      guide: {
+        mode: 'channel_setup_guide',
+        guide,
+        lookup: { ...lookup, resolvedBy: 'search' },
+        routes: {
+          channel: `agent_harness mode:"channel" channelId:"${channel.id}"`,
+          channels: 'agent_harness mode:"channels"',
+        },
+        policy: guide.policy,
+      },
+    };
+  }
+  if (searched.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup.input,
+      candidates: searched.slice(0, 8).map(describeChannelCandidate),
+    };
+  }
+  return {
+    status: 'missing_lookup',
+    usage: `Unknown channel setup guide target ${lookup.input}. Use mode:"channels" to inspect available channel ids.`,
   };
 }

@@ -476,6 +476,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'channel-setup-path', label: 'Setup path', detail: 'Use this workspace as the channel setup guide: pair companion, inspect readiness, check accounts/policies/status, review one channel, then add delivery targets only through confirmed forms.', kind: 'guidance', safety: 'safe' },
       { id: 'pair', label: 'Pair companion', detail: 'Open the QR pairing view for companion app setup.', command: '/pair', kind: 'command', safety: 'safe' },
+      { id: 'channel-guide', label: 'Channel setup guide', detail: 'Show the ordered per-channel setup guide with setup schema, policy, live status, and explicit test-send steps.', command: '/channels guide', kind: 'command', safety: 'read-only' },
       { id: 'channel-readiness', label: 'Channel readiness', detail: 'Show the read-only readiness matrix.', command: '/channels', kind: 'command', safety: 'read-only' },
       { id: 'channel-attention', label: 'Needs attention', detail: 'Show enabled channels that still need setup or a delivery target.', command: '/channels attention', kind: 'command', safety: 'read-only' },
       { id: 'channel-accounts', label: 'Channel accounts', detail: 'Inspect connected channel accounts without printing secret values or sending messages.', command: '/channels accounts', kind: 'command', safety: 'read-only' },

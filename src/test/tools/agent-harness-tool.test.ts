@@ -4644,6 +4644,23 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'channels', limit: 3 });
       expectRowsHaveCompactModelRoutes(channels.channels);
 
+      fixture.configManager.setDynamic('surfaces.telegram.enabled', true);
+      fixture.configManager.setDynamic('surfaces.telegram.botToken', 'telegram-secret-token');
+      const channelGuide = await executeHarnessJson<{
+        readonly guide: {
+          readonly currentChannelId: string | null;
+          readonly currentStepId: string | null;
+          readonly steps: readonly { readonly id: string; readonly status: string; readonly userRoute: string }[];
+          readonly policy: string;
+        };
+      }>(fixture, { mode: 'channel_setup_guide', channelId: 'telegram' });
+      expect(channelGuide.guide.currentChannelId).toBe('telegram');
+      expect(channelGuide.guide.currentStepId).toBe('choose-delivery-target');
+      expect(channelGuide.guide.steps.find((step) => step.id === 'review-policy')?.userRoute).toBe('/channels policies');
+      expect(channelGuide.guide.steps.find((step) => step.id === 'send-explicit-test')?.status).toBe('pending');
+      expect(channelGuide.guide.policy).toContain('Read-only channel setup guide');
+      expect(JSON.stringify(channelGuide)).not.toContain('telegram-secret-token');
+
       const notifications = await executeHarnessJson<{
         readonly targets: readonly Record<string, unknown>[];
       }>(fixture, { mode: 'notifications' });

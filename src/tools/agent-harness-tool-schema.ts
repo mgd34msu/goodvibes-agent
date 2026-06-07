@@ -2,7 +2,7 @@ export const AGENT_HARNESS_MODES = [
   'summary', 'modes', 'mode', 'cli_commands', 'cli_command', 'panels', 'panel', 'open_panel',
   'ui_surfaces', 'ui_surface', 'open_ui_surface',
   'shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding',
-  'commands', 'command', 'run_command', 'channels', 'channel', 'notifications', 'notification_target',
+  'commands', 'command', 'run_command', 'channels', 'channel', 'channel_setup_guide', 'notifications', 'notification_target',
   'provider_accounts', 'provider_account', 'mcp_servers', 'mcp_server',
   'setup_posture', 'setup_item', 'setup_checkpoint', 'mark_setup_checkpoint', 'clear_setup_checkpoint', 'provision_connected_host_token', 'run_setup_smoke',
   'project_context', 'project_context_file',

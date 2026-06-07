@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import type { CommandContext } from '../command-registry.ts';
-import type { AgentWorkspaceChannelStatus } from '../agent-workspace-channels.ts';
-import { buildAgentWorkspaceChannels } from '../agent-workspace-channels.ts';
+import type { AgentWorkspaceChannelSetupGuide, AgentWorkspaceChannelStatus } from '../agent-workspace-channels.ts';
+import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } from '../agent-workspace-channels.ts';
 import {
   buildAgentChannelDeliveryPreview,
   deliverAgentChannelMessage,
@@ -285,6 +285,36 @@ function printChannelDetail(
   ].join('\n'));
 }
 
+function formatGuideStepStatus(status: string): string {
+  if (status === 'complete') return '[x]';
+  if (status === 'current') return '[>]';
+  return '[ ]';
+}
+
+function formatChannelSetupGuide(guide: AgentWorkspaceChannelSetupGuide): string {
+  const lines = [
+    'Channel Setup Guide',
+    `  state: ${guide.status}`,
+    `  progress: ${guide.progressLabel}`,
+    `  current channel: ${guide.currentChannelLabel ?? 'choose a channel'}${guide.currentChannelId ? ` (${guide.currentChannelId})` : ''}`,
+    `  summary: ${guide.summary}`,
+    `  ready: ${guide.readyChannels}/${guide.totalChannels}; enabled: ${guide.enabledChannels}; attention: ${guide.attentionChannels}; targets: ${guide.configuredTargets}`,
+    `  policy: ${guide.policy}`,
+    '',
+    '  Steps',
+  ];
+  for (const step of guide.steps) {
+    lines.push(`  ${formatGuideStepStatus(step.status)} ${step.label}: ${step.userRoute}`);
+    if (step.status === 'current') lines.push(`      next: ${step.detail}`);
+  }
+  lines.push('', '  Channel order');
+  for (const channel of guide.channels.slice(0, 10)) {
+    lines.push(`  - ${channel.label}: ${channel.setupState}; ${channel.summary}; guide ${channel.guideRoute}`);
+  }
+  if (guide.channels.length > 10) lines.push(`  ${guide.channels.length - 10} more channel(s) omitted.`);
+  return lines.join('\n');
+}
+
 function formatChannelAccounts(body: unknown): string {
   const root = isRecord(body) ? body : {};
   const accounts = readRecordArray(root, 'accounts');
@@ -420,8 +450,8 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
     name: 'channels',
     aliases: ['channel'],
     description: 'Inspect Agent channel readiness or send an explicitly confirmed delivery message',
-    usage: '[list|readiness|ready|attention|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
-    argsHint: 'list|readiness|ready|attention|show|send|accounts|policies|status|doctor|setup',
+    usage: '[list|readiness|ready|attention|guide [id]|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
+    argsHint: 'list|readiness|ready|attention|guide|show|send|accounts|policies|status|doctor|setup',
     async handler(args, ctx) {
       const channels = buildAgentWorkspaceChannels(ctx);
       const subcommand = (args[0] ?? 'readiness').trim().toLowerCase();
@@ -438,6 +468,12 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
 
       if (subcommand === 'attention' || subcommand === 'issues') {
         printChannelSummary(ctx.print, channels, 'attention');
+        return;
+      }
+
+      if (subcommand === 'guide' || subcommand === 'setup-guide') {
+        const channelId = args[1]?.trim();
+        ctx.print(formatChannelSetupGuide(buildAgentWorkspaceChannelSetupGuide(channels, channelId ? { channelId } : {})));
         return;
       }
 
@@ -517,7 +553,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      ctx.print('Usage: /channels [list|readiness|ready|attention|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]');
+      ctx.print('Usage: /channels [list|readiness|ready|attention|guide [id]|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]');
     },
   });
 }

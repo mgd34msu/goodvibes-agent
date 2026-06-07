@@ -1721,9 +1721,13 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Companion: goodvibes-agent; token ready sha256:');
     expect(output).not.toContain('goodvibes-agent-test-token');
     expect(output).toContain('Channels: 2/14 ready; 2 enabled; 1 target(s).');
-    expect(output).toContain('Next: Telegram');
+    expect(output).toContain('Setup guide: 5/8 Choose target; Telegram.');
+    expect(output).toContain('Next: Choose target - /channels show telegram');
+    expect(output).toContain('Guide checks setup schema, accounts, allowlist policy, live status, and explicit test sends.');
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
+    expect(output).toContain('Channel setup guide');
+    expect(output).toContain('/channels guide');
     expect(output).toContain('Channel readiness');
     expect(output).toContain('/channels');
     expect(output).toContain('Needs attention');

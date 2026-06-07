@@ -83,11 +83,11 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Channel setup is guided, inbound trust is default-safe, delivery is reliable, and the user can inspect every route from one place.',
     goodVibesStatus: 'parity',
     owners: ['agent', 'connected-host', 'companion'],
-    goodVibesNow: 'GoodVibes has broad channel adapters, readiness, policy, account inspection, pairing, notification, and confirmed send routes.',
+    goodVibesNow: 'GoodVibes has broad channel adapters, readiness, policy, account inspection, pairing, notification, confirmed send routes, and an Agent-owned channel setup guide in the workspace, `/channels guide`, and `agent_harness mode:"channel_setup_guide"`. The guide ranks the next channel, walks the user through choosing a surface, enabling it intentionally, inspecting setup schema, configuring secret-backed settings, choosing delivery targets, reviewing allowlist policy, checking live status/doctor output, and sending only one explicitly confirmed test.',
     nextMoves: [
-      'Turn per-channel setup into a step-by-step wizard with live probes and owner allowlist checks.',
       'Add a unified inbox and triage view for pending messages, channel errors, and delivery retries.',
       'Certify real delivery outcomes per channel before claiming release readiness.',
+      'Attach structured connected-host setup-schema, account, policy, status, and doctor receipts to the channel setup guide when the host publishes stable success/failure evidence.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Lists broad messaging support across WhatsApp, Telegram, Slack, Discord, iMessage, Matrix, Teams, and more.' },

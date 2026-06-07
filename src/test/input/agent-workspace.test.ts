@@ -3117,8 +3117,15 @@ describe('AgentWorkspace', () => {
     expect(slack?.delivery).toBe('default-ready');
     expect(discord?.ready).toBe(false);
     expect(discord?.missingConfigCount).toBe(2);
+    expect(snapshot.channelSetupGuide.status).toBe('attention');
+    expect(snapshot.channelSetupGuide.currentChannelId).toBe('discord');
+    expect(snapshot.channelSetupGuide.currentStepId).toBe('inspect-setup-schema');
+    expect(snapshot.channelSetupGuide.steps.map((step) => step.id)).toContain('review-policy');
+    expect(snapshot.channelSetupGuide.steps.map((step) => step.id)).toContain('send-explicit-test');
     expect(JSON.stringify(snapshot.channels)).not.toContain('SLACK_BOT_TOKEN');
     expect(JSON.stringify(snapshot.channels)).not.toContain('DISCORD_BOT_TOKEN');
+    expect(JSON.stringify(snapshot.channelSetupGuide)).not.toContain('SLACK_BOT_TOKEN');
+    expect(JSON.stringify(snapshot.channelSetupGuide)).not.toContain('DISCORD_BOT_TOKEN');
   });
 
   test('channels command prints read-only readiness without secret values', async () => {

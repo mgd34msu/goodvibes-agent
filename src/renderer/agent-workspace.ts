@@ -462,9 +462,11 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
     const needsConfig = snapshot.channels.filter((channel) => channel.setupState === 'needs-config');
     const needsTarget = snapshot.channels.filter((channel) => channel.setupState === 'needs-target');
+    const guide = snapshot.channelSetupGuide;
     base.push(
       { text: `Channels: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled.`, fg: enabledCount > 0 ? PALETTE.info : PALETTE.muted },
       { text: `Needs config: ${needsConfig.length}; needs target: ${needsTarget.length}.`, fg: needsConfig.length > 0 || needsTarget.length > 0 ? PALETTE.warn : PALETTE.good },
+      { text: `Setup guide: ${guide.progressLabel}; ${guide.currentChannelLabel ?? 'choose a channel'}.`, fg: guide.status === 'ready' ? PALETTE.good : PALETTE.warn },
       { text: 'Enable only the channels you want; hidden channel fields appear after the channel is enabled.', fg: PALETTE.good },
     );
   } else if (category.id === 'onboarding-voice-media') {
@@ -521,14 +523,15 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
     const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
     const configuredDefaults = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
-    const needsTarget = snapshot.channels.filter((channel) => channel.setupState === 'needs-target');
-    const needsConfig = snapshot.channels.filter((channel) => channel.setupState === 'needs-config');
-    const nextAttentionChannel = needsConfig[0] ?? needsTarget[0] ?? snapshot.channels.find((channel) => !channel.enabled);
+    const guide = snapshot.channelSetupGuide;
+    const currentGuideStep = guide.steps.find((step) => step.status === 'current') ?? null;
     base.push(
       { text: `API: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
       companionAccessLine(snapshot),
       { text: `Channels: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} target(s).`, fg: PALETTE.info },
-      { text: `Next: ${nextAttentionChannel ? `${nextAttentionChannel.label} - ${compactText(nextAttentionChannel.nextStep)}` : 'All enabled channels ready.'}`, fg: nextAttentionChannel ? PALETTE.warn : PALETTE.good },
+      { text: `Setup guide: ${guide.progressLabel}; ${guide.currentChannelLabel ?? 'choose a channel'}.`, fg: guide.status === 'ready' ? PALETTE.good : PALETTE.warn },
+      { text: `Next: ${currentGuideStep ? `${currentGuideStep.label} - ${compactText(currentGuideStep.userRoute)}` : 'All enabled channels ready.'}`, fg: currentGuideStep ? PALETTE.warn : PALETTE.good },
+      { text: 'Guide checks setup schema, accounts, allowlist policy, live status, and explicit test sends.', fg: PALETTE.good },
       { text: 'Secrets hidden; sends require explicit action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'knowledge') {

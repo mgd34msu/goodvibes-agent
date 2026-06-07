@@ -75,7 +75,7 @@ Discovery modes:
 | `shortcuts`, `keybindings` | Fixed shortcuts and configurable keybindings with direct route/access metadata. |
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
-| `channels`, `notifications` | Channel readiness and redacted notification targets. |
+| `channels`, `notifications` | Channel readiness, ordered channel setup guide state, and redacted notification targets. |
 | `project_context` | Secret-scanned `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, `HERMES_HOME/SOUL.md`, `.cursorrules`, and `.cursor/rules/*.mdc` files, including target-aware subdirectory context. |
 | `agent_orchestration` | Live visible Agent records, serial-by-default policy, spawn/batch-spawn decision cards, templates, and first-class `agent` routes for list/inspect/message/wait/cancel. |
 | `provider_accounts`, `model_routing`, `execution_posture`, `background_processes`, `background_process`, `run_background_process`, `execution_history`, `file_recovery` | Provider auth, provider/model route posture, readiness scores, hardware-scored local model cookbook with setup plans, confirmed benchmark action/history, local-vs-delegated execution routing, tracked local background process lifecycle, redacted execution records, and file edit recovery. |
@@ -97,7 +97,7 @@ Single-item inspect modes:
 | `workspace_action` | `actionId`, `command`, `target`, `query` |
 | `command`, `cli_command` | `command`, `commandName`, `cliCommand`, `target`, `query` |
 | `panel`, `ui_surface`, `keybinding`, `tool` | Exact id/name or `target`/`query` |
-| `channel`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query` |
+| `channel`, `channel_setup_guide`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query` |
 | `project_context_file` | `contextFileId`, `target`, or `query` |
 | `agent_orchestration_agent` | `agentId`, `target`, or `query` |
 | `setup_item`, `model_route`, `execution_route`, `pairing_route`, `delegation_route` | Exact id/model key or `target`/`query` |

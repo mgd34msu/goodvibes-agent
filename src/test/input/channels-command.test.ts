@@ -106,6 +106,25 @@ describe('/channels command', () => {
     expect(output).not.toContain('discord-redacted-token');
   });
 
+  test('prints a read-only channel setup guide with policy and live-check steps', async () => {
+    const { context, printed } = channelContext();
+
+    await runChannels(['guide', 'telegram'], context);
+
+    const output = printed.join('\n');
+    expect(output).toContain('Channel Setup Guide');
+    expect(output).toContain('current channel: Telegram (telegram)');
+    expect(output).toContain('progress: 5/8 Choose target');
+    expect(output).toContain('[>] Choose target: /channels show telegram');
+    expect(output).toContain('Review allowlist');
+    expect(output).toContain('/channels policies');
+    expect(output).toContain('Run live checks');
+    expect(output).toContain('/channels doctor telegram');
+    expect(output).toContain('Send explicit test');
+    expect(output).toContain('policy: Read-only channel setup guide.');
+    expect(output).not.toContain('telegram-redacted-token');
+  });
+
   test('shows one channel with config-key names and next step only', async () => {
     const { context, printed } = channelContext();
 

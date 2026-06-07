@@ -40,7 +40,7 @@ import {
 } from '../agent/setup-wizard.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken, type ConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
-import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
+import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { getAgentWorkspaceConfigReader } from './agent-workspace-config-reader.ts';
 import { buildAgentWorkspaceSetupChecklist, type AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
@@ -1653,6 +1653,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     }
   })();
   const channels = buildAgentWorkspaceChannels(context);
+  const channelSetupGuide = buildAgentWorkspaceChannelSetupGuide(channels);
   const voiceMediaReadiness = buildAgentWorkspaceVoiceMediaReadiness({
     context,
     voiceProviders: voiceProviderDescriptors,
@@ -1795,6 +1796,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     delegatedReviewPolicy: 'explicit-build-delegation-only',
     companionAccess,
     channels,
+    channelSetupGuide,
     voiceProviderCount: voiceProviders.length,
     voiceStreamingProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('tts-stream')).length,
     voiceSttProviderCount: voiceProviders.filter((entry) => entry.capabilities.includes('stt')).length,

@@ -20,6 +20,58 @@ export interface AgentWorkspaceChannelStatus {
   readonly nextStep: string;
 }
 
+export type AgentWorkspaceChannelSetupGuideStatus = 'ready' | 'attention' | 'setup-needed';
+export type AgentWorkspaceChannelSetupGuideStepStatus = 'complete' | 'current' | 'pending';
+export type AgentWorkspaceChannelSetupGuideStepSafety = 'read-only' | 'settings' | 'confirmed';
+
+export interface AgentWorkspaceChannelSetupGuideStep {
+  readonly id: string;
+  readonly label: string;
+  readonly status: AgentWorkspaceChannelSetupGuideStepStatus;
+  readonly detail: string;
+  readonly userRoute: string;
+  readonly modelRoute: string;
+  readonly safety: AgentWorkspaceChannelSetupGuideStepSafety;
+}
+
+export interface AgentWorkspaceChannelSetupGuideChannel {
+  readonly channelId: string;
+  readonly label: string;
+  readonly setupState: AgentWorkspaceChannelStatus['setupState'];
+  readonly enabled: boolean;
+  readonly ready: boolean;
+  readonly delivery: AgentWorkspaceChannelStatus['delivery'];
+  readonly riskLabel: string;
+  readonly summary: string;
+  readonly guideRoute: string;
+  readonly modelRoute: string;
+}
+
+export interface AgentWorkspaceChannelSetupGuide {
+  readonly status: AgentWorkspaceChannelSetupGuideStatus;
+  readonly summary: string;
+  readonly progressLabel: string;
+  readonly totalChannels: number;
+  readonly enabledChannels: number;
+  readonly readyChannels: number;
+  readonly attentionChannels: number;
+  readonly configuredTargets: number;
+  readonly currentChannelId: string | null;
+  readonly currentChannelLabel: string | null;
+  readonly currentStepId: string | null;
+  readonly currentStepLabel: string | null;
+  readonly channels: readonly AgentWorkspaceChannelSetupGuideChannel[];
+  readonly steps: readonly AgentWorkspaceChannelSetupGuideStep[];
+  readonly routes: {
+    readonly readiness: string;
+    readonly attention: string;
+    readonly accounts: string;
+    readonly policies: string;
+    readonly status: string;
+  };
+  readonly policy: string;
+}
+
 interface AgentWorkspaceConfigReader {
   get(key: string): unknown;
 }
@@ -272,4 +324,215 @@ function buildChannelStatus(context: CommandContext, spec: AgentWorkspaceChannel
 
 export function buildAgentWorkspaceChannels(context: CommandContext): readonly AgentWorkspaceChannelStatus[] {
   return AGENT_WORKSPACE_CHANNEL_SPECS.map((spec) => buildChannelStatus(context, spec));
+}
+
+function channelGuideModelRoute(channelId?: string): string {
+  return channelId
+    ? `agent_harness mode:"channel_setup_guide" channelId:"${channelId}"`
+    : 'agent_harness mode:"channel_setup_guide"';
+}
+
+function summarizeGuideChannel(channel: AgentWorkspaceChannelStatus): string {
+  if (!channel.enabled) return `Enable ${channel.label} only if the user wants this surface.`;
+  if (channel.setupState === 'needs-config') return `Missing ${channel.missingRequiredKeys.length} required config key(s).`;
+  if (channel.setupState === 'needs-target') return 'Ready for explicit targets; default target is not configured.';
+  return `${channel.label} is ready; delivery still requires explicit user action.`;
+}
+
+function rankedChannelGuideChannels(channels: readonly AgentWorkspaceChannelStatus[]): readonly AgentWorkspaceChannelStatus[] {
+  const rank = (channel: AgentWorkspaceChannelStatus): number => {
+    if (channel.setupState === 'needs-config') return 0;
+    if (channel.setupState === 'needs-target') return 1;
+    if (channel.setupState === 'disabled') return 2;
+    return 3;
+  };
+  return [...channels].sort((left, right) => rank(left) - rank(right) || left.label.localeCompare(right.label));
+}
+
+function currentGuideChannel(channels: readonly AgentWorkspaceChannelStatus[]): AgentWorkspaceChannelStatus | null {
+  const ranked = rankedChannelGuideChannels(channels);
+  return ranked[0] ?? null;
+}
+
+function currentGuideStepId(channel: AgentWorkspaceChannelStatus | null): string {
+  if (!channel) return 'choose-channel';
+  if (!channel.enabled) return 'enable-channel';
+  if (channel.setupState === 'needs-config') return 'inspect-setup-schema';
+  if (channel.setupState === 'needs-target') return 'choose-delivery-target';
+  return 'review-policy';
+}
+
+function guideStepStatus(stepId: string, currentStepId: string, order: readonly string[]): AgentWorkspaceChannelSetupGuideStepStatus {
+  const stepIndex = order.indexOf(stepId);
+  const currentIndex = order.indexOf(currentStepId);
+  if (stepIndex < currentIndex) return 'complete';
+  if (stepIndex === currentIndex) return 'current';
+  return 'pending';
+}
+
+function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly AgentWorkspaceChannelSetupGuideStep[] {
+  const channelId = channel?.id ?? '<channel-id>';
+  const channelLabel = channel?.label ?? 'a channel';
+  const currentStepId = currentGuideStepId(channel);
+  const order = [
+    'choose-channel',
+    'enable-channel',
+    'inspect-setup-schema',
+    'configure-secrets',
+    'choose-delivery-target',
+    'review-policy',
+    'run-live-checks',
+    'send-explicit-test',
+  ] as const;
+  const missingConfig = channel && channel.missingRequiredKeys.length > 0
+    ? channel.missingRequiredKeys.join(', ')
+    : 'the required secret refs or host-owned settings';
+  const targetKeys = channel && channel.defaultTargetKeys.length > 0
+    ? channel.defaultTargetKeys.join(', ')
+    : 'an explicit delivery target';
+  const makeStep = (
+    id: typeof order[number],
+    label: string,
+    detail: string,
+    userRoute: string,
+    modelRoute: string,
+    safety: AgentWorkspaceChannelSetupGuideStepSafety,
+  ): AgentWorkspaceChannelSetupGuideStep => ({
+    id,
+    label,
+    status: guideStepStatus(id, currentStepId, order),
+    detail,
+    userRoute,
+    modelRoute,
+    safety,
+  });
+  return [
+    makeStep(
+      'choose-channel',
+      'Choose channel',
+      'Pick the channel the user actually wants before collecting credentials or exposing delivery routes.',
+      '/channels',
+      'agent_harness mode:"channels"',
+      'read-only',
+    ),
+    makeStep(
+      'enable-channel',
+      'Enable surface',
+      `Enable ${channelLabel} in the owning GoodVibes host or Agent settings only after the user chooses it.`,
+      `/settings surfaces.${channelId}.enabled`,
+      `agent_harness mode:"settings" query:"surfaces.${channelId}.enabled" includeParameters:true`,
+      'settings',
+    ),
+    makeStep(
+      'inspect-setup-schema',
+      'Inspect setup schema',
+      `Open the read-only ${channelLabel} setup schema before asking for credentials.`,
+      `/channels setup ${channelId}`,
+      `agent_harness mode:"channel" channelId:"${channelId}" includeParameters:true`,
+      'read-only',
+    ),
+    makeStep(
+      'configure-secrets',
+      'Configure secrets',
+      `Configure ${missingConfig}; secret values must stay in the secret manager or owning host.`,
+      `/settings surfaces.${channelId}`,
+      `agent_harness mode:"settings" query:"surfaces.${channelId}" includeParameters:true`,
+      'settings',
+    ),
+    makeStep(
+      'choose-delivery-target',
+      'Choose target',
+      `Configure ${targetKeys}, or require the user to provide an explicit target on every send.`,
+      `/channels show ${channelId}`,
+      `agent_harness mode:"channel" channelId:"${channelId}" includeParameters:true`,
+      'read-only',
+    ),
+    makeStep(
+      'review-policy',
+      'Review allowlist',
+      `Review ${channelLabel} account and allowlist policy before any delivery test.`,
+      '/channels policies',
+      'agent_harness mode:"channels" includeParameters:true',
+      'read-only',
+    ),
+    makeStep(
+      'run-live-checks',
+      'Run live checks',
+      `Inspect connected-host status and doctor output for ${channelLabel}; do not run repair actions from the guide.`,
+      `/channels doctor ${channelId}`,
+      `agent_harness mode:"channel" channelId:"${channelId}" includeParameters:true`,
+      'read-only',
+    ),
+    makeStep(
+      'send-explicit-test',
+      'Send explicit test',
+      'Send one test message only after the user asks for that exact target and confirms the send.',
+      `/channels send --channel ${channelId}:route:Label --message "Test from GoodVibes Agent" --yes`,
+      'agent_channel_send confirm:true explicitUserRequest:"..."',
+      'confirmed',
+    ),
+  ];
+}
+
+export function buildAgentWorkspaceChannelSetupGuide(
+  channels: readonly AgentWorkspaceChannelStatus[],
+  options: { readonly channelId?: string } = {},
+): AgentWorkspaceChannelSetupGuide {
+  const lookup = options.channelId?.trim().toLowerCase();
+  const requested = lookup
+    ? channels.find((channel) => channel.id.toLowerCase() === lookup || channel.label.toLowerCase() === lookup) ?? null
+    : null;
+  const ranked = rankedChannelGuideChannels(channels);
+  const current = requested ?? currentGuideChannel(channels);
+  const enabledChannels = channels.filter((channel) => channel.enabled).length;
+  const readyChannels = channels.filter((channel) => channel.ready).length;
+  const attentionChannels = channels.filter((channel) => channel.enabled && channel.setupState !== 'ready').length;
+  const configuredTargets = channels.filter((channel) => channel.defaultTarget === 'configured').length;
+  const status: AgentWorkspaceChannelSetupGuideStatus = attentionChannels > 0
+    ? 'attention'
+    : readyChannels > 0
+      ? 'ready'
+      : 'setup-needed';
+  const steps = buildGuideSteps(current);
+  const currentStep = steps.find((step) => step.status === 'current') ?? null;
+  const summary = status === 'attention'
+    ? `${attentionChannels} enabled channel(s) need setup. Start with ${current?.label ?? 'the first attention channel'}.`
+    : status === 'ready'
+      ? `${readyChannels}/${channels.length} channel(s) ready. Review allowlists and use explicit delivery tests only on request.`
+      : 'No channel is ready yet. Choose one channel, enable it intentionally, then configure only that surface.';
+  return {
+    status,
+    summary,
+    progressLabel: currentStep ? `${steps.findIndex((step) => step.id === currentStep.id) + 1}/${steps.length} ${currentStep.label}` : `0/${steps.length}`,
+    totalChannels: channels.length,
+    enabledChannels,
+    readyChannels,
+    attentionChannels,
+    configuredTargets,
+    currentChannelId: current?.id ?? null,
+    currentChannelLabel: current?.label ?? null,
+    currentStepId: currentStep?.id ?? null,
+    currentStepLabel: currentStep?.label ?? null,
+    channels: ranked.map((channel) => ({
+      channelId: channel.id,
+      label: channel.label,
+      setupState: channel.setupState,
+      enabled: channel.enabled,
+      ready: channel.ready,
+      delivery: channel.delivery,
+      riskLabel: channel.riskLabel,
+      summary: summarizeGuideChannel(channel),
+      guideRoute: `/channels guide ${channel.id}`,
+      modelRoute: channelGuideModelRoute(channel.id),
+    })),
+    steps,
+    routes: {
+      readiness: '/channels',
+      attention: '/channels attention',
+      accounts: '/channels accounts',
+      policies: '/channels policies',
+      status: '/channels status',
+    },
+    policy: 'Read-only channel setup guide. Credentials stay in secret-backed settings or the owning GoodVibes host, and delivery tests require explicit confirmed user action.',
+  };
 }

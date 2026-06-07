@@ -240,10 +240,10 @@
       "evidence": "src/input/commands/channels-runtime.ts; src/agent/channel-delivery.ts; src/tools/agent-channel-send-tool.ts; src/tools/agent-harness-channel-metadata.ts; docs/channels-remote-and-api.md",
       "action": "Keep channel delivery exact-target and confirmation-gated.",
       "quality": {
-        "capabilityCoverage": "Covers channel readiness, account posture, setup guidance, policy, status, and one-message confirmed delivery across configured channel surfaces.",
-        "userAccess": "The user can inspect and send channel messages through Agent Workspace -> Channels and /channels mirrors.",
-        "modelAccess": "agent_harness mode:\"channels\" and mode:\"channel\" exposes structured readiness, setup state, delivery posture, risk labels, and safe config-key names; agent_channel_send exposes the exact confirmed send route.",
-        "safetyBoundary": "Channel sends require explicit target and confirmation, do not infer routes from chat, and do not expose secret values.",
+        "capabilityCoverage": "Covers channel readiness, ordered per-channel setup guide, account posture, setup schema guidance, allowlist policy, live status/doctor checks, and one-message confirmed delivery across configured channel surfaces.",
+        "userAccess": "The user can inspect setup progress, channel readiness, and send channel messages through Agent Workspace -> Channels, /channels guide, and /channels mirrors.",
+        "modelAccess": "agent_harness mode:\"channels\", mode:\"channel\", and mode:\"channel_setup_guide\" expose structured readiness, current setup guide step, delivery posture, risk labels, safe config-key names, allowlist/status/doctor routes, and explicit test-send boundary; agent_channel_send exposes the exact confirmed send route.",
+        "safetyBoundary": "Channel sends require explicit target and confirmation, the setup guide is read-only, does not infer routes from chat, and does not expose secret values.",
         "releaseEvidence": "Readiness evidence cites channel runtime/tool/docs sources, and live certification requires real external channel outcome coverage before release."
       }
     },
@@ -437,7 +437,7 @@
       "quality": {
         "capabilityCoverage": "Covers core external messaging routes, delivery records, ingress/egress, account lifecycle, directory lookup, target resolution, render policy, and adapter contracts through connected-host ownership.",
         "userAccess": "The user sees channel readiness and confirmed sends in Agent while connected-host owns adapter lifecycle and route execution.",
-        "modelAccess": "agent_channel_send plus agent_harness mode:\"channels\" and mode:\"channel\", connected-host capability, channel workspace, slash-command, and settings metadata expose channel operation boundaries to the model.",
+        "modelAccess": "agent_channel_send plus agent_harness mode:\"channels\", mode:\"channel\", and mode:\"channel_setup_guide\", connected-host capability, channel workspace, slash-command, and settings metadata expose channel operation boundaries to the model.",
         "safetyBoundary": "Agent never owns host lifecycle or secret-bearing adapters; it routes exact confirmed delivery through public connected-host contracts.",
         "releaseEvidence": "Readiness evidence cites connected-host evidence alias and Agent channel docs, with live outcome certification covering real delivery before release."
       }
@@ -557,7 +557,7 @@
       "quality": {
         "capabilityCoverage": "Covers the long-tail channel matrix through connected-host surface unions, plugin registry, delivery strategies, setup schemas, and operator channel routes.",
         "userAccess": "The user sees all configured channel readiness and exact send paths through Agent channel surfaces.",
-        "modelAccess": "agent_channel_send and agent_harness mode:\"channels\" and mode:\"channel\", channel workspace, command, settings, and connected-host capability reports expose the channel matrix to the model.",
+        "modelAccess": "agent_channel_send and agent_harness mode:\"channels\", mode:\"channel\", and mode:\"channel_setup_guide\", channel workspace, command, settings, and connected-host capability reports expose the channel matrix to the model.",
         "safetyBoundary": "Agent keeps adapter setup and secret-bearing lifecycle in connected-host ownership while confirmed sends stay exact-target.",
         "releaseEvidence": "Readiness evidence cites connected-host long-tail channel inventory and Agent channel docs, with live outcome certification covering external sends."
       }
@@ -572,7 +572,7 @@
       "quality": {
         "capabilityCoverage": "Covers phone-call style conversation or notification delivery as a channel-class surface through connected-host telephony adapters and routed delivery.",
         "userAccess": "The user can inspect telephony readiness and send via channel/reminder/routine delivery routes when configured.",
-        "modelAccess": "agent_channel_send, agent_reminder_schedule, and agent_harness mode:\"channels\" and mode:\"channel\" plus connected-host metadata expose telephony as a routed channel surface to the model.",
+        "modelAccess": "agent_channel_send, agent_reminder_schedule, and agent_harness mode:\"channels\", mode:\"channel\", and mode:\"channel_setup_guide\" plus connected-host metadata expose telephony as a routed channel surface to the model.",
         "safetyBoundary": "Agent does not own telephony adapter credentials or service lifecycle and uses explicit target/confirmation rules for delivery.",
         "releaseEvidence": "Readiness evidence cites connected-host telephony inventory and Agent channel/reminder/routine sources."
       }
