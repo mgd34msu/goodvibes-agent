@@ -2949,6 +2949,7 @@ describe('agent_harness tool', () => {
           readonly vector?: string;
           readonly embeddingProviders?: number;
           readonly externalProviderRecordsPublished?: boolean;
+          readonly externalProviderSetupGuideStatus?: string;
         };
       }>(fixture, { mode: 'summary' });
       expect(summary.memoryPosture?.status).toBe('ready');
@@ -2957,6 +2958,7 @@ describe('agent_harness tool', () => {
       expect(summary.memoryPosture?.vector).toBe('ready');
       expect(summary.memoryPosture?.embeddingProviders).toBe(1);
       expect(summary.memoryPosture?.externalProviderRecordsPublished).toBe(false);
+      expect(summary.memoryPosture?.externalProviderSetupGuideStatus).toBe('contract-needed');
 
       const posture = await executeHarnessJson<{
         readonly status: string;
@@ -2981,7 +2983,10 @@ describe('agent_harness tool', () => {
         readonly externalMemory: {
           readonly status: string;
           readonly providerRecordsPublished: boolean;
+          readonly setupGuideStatus?: string;
           readonly checkedProviders: readonly string[];
+          readonly requiredHostContracts?: readonly string[];
+          readonly providerLookup?: string;
         };
         readonly nextActions: readonly string[];
         readonly policy: string;
@@ -3000,8 +3005,11 @@ describe('agent_harness tool', () => {
       expect(posture.providers.find((provider) => provider.id === 'mem0')?.setupRoute).toContain('connected_host_capability');
       expect(posture.externalMemory.status).toBe('not-published');
       expect(posture.externalMemory.providerRecordsPublished).toBe(false);
+      expect(posture.externalMemory.setupGuideStatus).toBe('contract-needed');
       expect(posture.externalMemory.checkedProviders).toContain('supermemory');
-      expect(posture.nextActions.join('\n')).toContain('External memory backends');
+      expect(posture.externalMemory.requiredHostContracts?.join('\n')).toContain('Credential reference');
+      expect(posture.externalMemory.providerLookup).toContain('memory_provider');
+      expect(posture.nextActions.join('\n')).toContain('memory_provider');
       expect(posture.policy).toContain('read-only');
 
       const provider = await executeHarnessJson<{
@@ -3022,11 +3030,29 @@ describe('agent_harness tool', () => {
         readonly kind: string;
         readonly status: string;
         readonly summary: string;
+        readonly setupGuide?: {
+          readonly status: string;
+          readonly userOutcome: string;
+          readonly safeFirstStep: string;
+          readonly inspectRoutes: readonly string[];
+          readonly requiredHostContracts: readonly string[];
+          readonly credentialPolicy: string;
+          readonly confirmationPolicy: string;
+        };
       }>(fixture, { mode: 'memory_provider', providerId: 'supermemory' });
       expect(external.id).toBe('supermemory');
       expect(external.kind).toBe('external-memory');
       expect(external.status).toBe('not-published');
       expect(external.summary).toContain('not published');
+      expect(external.setupGuide).toMatchObject({
+        status: 'contract-needed',
+      });
+      expect(external.setupGuide?.userOutcome).toContain('Supermemory');
+      expect(external.setupGuide?.safeFirstStep).toContain('Agent-local memory');
+      expect(external.setupGuide?.inspectRoutes.join('\n')).toContain('connected_host_capability');
+      expect(external.setupGuide?.requiredHostContracts.join('\n')).toContain('Prompt-injection eligibility policy');
+      expect(external.setupGuide?.credentialPolicy).toContain('raw API keys');
+      expect(external.setupGuide?.confirmationPolicy).toContain('durable receipts');
 
       const actions = await executeHarnessJson<{
         readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];

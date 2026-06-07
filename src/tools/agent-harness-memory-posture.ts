@@ -6,6 +6,7 @@ import { previewHarnessText } from './agent-harness-text.ts';
 type MemoryPostureStatus = 'ready' | 'needs-review' | 'empty' | 'unavailable';
 type MemoryVectorPostureStatus = 'ready' | 'attention' | 'disabled' | 'unavailable';
 type MemoryExternalProviderStatus = 'not-published' | 'available';
+type MemoryExternalProviderSetupStatus = 'contract-needed' | 'ready';
 
 interface AgentHarnessMemoryPostureArgs {
   readonly providerId?: unknown;
@@ -28,6 +29,18 @@ interface MemoryPostureProvider {
   readonly dimensions?: number;
   readonly deterministic?: boolean;
   readonly metadata?: Readonly<Record<string, unknown>>;
+  readonly setupGuide?: MemoryExternalProviderSetupGuide;
+}
+
+interface MemoryExternalProviderSetupGuide {
+  readonly status: MemoryExternalProviderSetupStatus;
+  readonly userOutcome: string;
+  readonly currentState: string;
+  readonly safeFirstStep: string;
+  readonly inspectRoutes: readonly string[];
+  readonly requiredHostContracts: readonly string[];
+  readonly credentialPolicy: string;
+  readonly confirmationPolicy: string;
 }
 
 export type MemoryProviderResolution =
@@ -45,6 +58,16 @@ const EXTERNAL_MEMORY_PROVIDERS: readonly { readonly id: string; readonly label:
   { id: 'byterover', label: 'ByteRover' },
   { id: 'supermemory', label: 'Supermemory' },
 ];
+
+const EXTERNAL_MEMORY_REQUIRED_CONTRACTS = [
+  'Provider status/readiness record with stable provider id.',
+  'Credential reference or setup state that never returns raw secret values.',
+  'Bounded read/search route with redaction and source provenance.',
+  'Explicit write/upsert/import route with confirmation and durable receipt.',
+  'Forget/delete/disable route or an explicit not-supported contract.',
+  'Sync/export/import receipts with timestamps and failure reasons.',
+  'Prompt-injection eligibility policy for what may enter the Agent prompt.',
+] as const;
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -119,6 +142,24 @@ function describeEmbeddingProvider(
   };
 }
 
+function externalProviderSetupGuide(provider: typeof EXTERNAL_MEMORY_PROVIDERS[number]): MemoryExternalProviderSetupGuide {
+  return {
+    status: 'contract-needed',
+    userOutcome: `Use ${provider.label} as an external memory backend only after GoodVibes publishes provider setup, status, read, write, and receipt contracts.`,
+    currentState: `No concrete ${provider.label} provider record is published by the current SDK/daemon contract.`,
+    safeFirstStep: `Inspect connected-host and MCP setup for ${provider.label}; keep Agent-local memory as the active path until a ready provider record exists.`,
+    inspectRoutes: [
+      `agent_harness mode:"memory_provider" providerId:"${provider.id}" includeParameters:true`,
+      `agent_harness mode:"connected_host_capability" query:"${provider.id} memory provider"`,
+      `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
+      'agent_harness mode:"settings" query:"memory" includeHidden:true',
+    ],
+    requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
+    credentialPolicy: 'Provider credentials must use secret refs or connected-host auth state; raw API keys, tokens, and user memory payloads are never returned by posture inspection.',
+    confirmationPolicy: 'External memory writes, sync, import, export, forget/delete, and prompt-eligibility changes require explicit user request, confirmation, and durable receipts.',
+  };
+}
+
 function describeExternalProvider(
   provider: typeof EXTERNAL_MEMORY_PROVIDERS[number],
   includeParameters: boolean,
@@ -133,6 +174,7 @@ function describeExternalProvider(
     modelRoute: `agent_harness mode:"memory_provider" providerId:"${provider.id}"`,
     setupRoute: 'agent_harness mode:"connected_host_capability" query:"memory provider"',
     configured: false,
+    ...(includeParameters ? { setupGuide: externalProviderSetupGuide(provider) } : {}),
   };
 }
 
@@ -145,6 +187,16 @@ function providerSearchText(provider: MemoryPostureProvider): string {
     provider.summary,
     provider.modelRoute,
     provider.setupRoute ?? '',
+    provider.setupGuide ? [
+      provider.setupGuide.status,
+      provider.setupGuide.userOutcome,
+      provider.setupGuide.currentState,
+      provider.setupGuide.safeFirstStep,
+      provider.setupGuide.inspectRoutes.join('\n'),
+      provider.setupGuide.requiredHostContracts.join('\n'),
+      provider.setupGuide.credentialPolicy,
+      provider.setupGuide.confirmationPolicy,
+    ].join('\n') : '',
   ].join('\n').toLowerCase();
 }
 
@@ -162,6 +214,7 @@ function compactProvider(provider: MemoryPostureProvider, includeParameters: boo
     ...(includeParameters && typeof provider.dimensions === 'number' ? { dimensions: provider.dimensions } : {}),
     ...(includeParameters && typeof provider.deterministic === 'boolean' ? { deterministic: provider.deterministic } : {}),
     ...(includeParameters && provider.metadata ? { metadata: provider.metadata } : {}),
+    ...(includeParameters && provider.setupGuide ? { setupGuide: provider.setupGuide } : {}),
   };
 }
 
@@ -199,7 +252,7 @@ function nextActions(
   if (snapshot.localMemoryReviewQueueCount > 0) actions.push('Use learning_curator or memory review routes to clear the memory review queue.');
   if (vectorStatusValue === 'attention') actions.push('Run memory vector doctor, then rebuild the vector index if the reported issue is fixed.');
   if (doctor?.embeddings.warnings.length) actions.push('Inspect the active embedding provider warning before semantic recall or rebuild work.');
-  actions.push('External memory backends remain setup gaps until the SDK/daemon publishes concrete provider records.');
+  actions.push('Inspect memory_provider for one external backend to see the exact setup contracts GoodVibes must publish before use.');
   return actions.slice(0, 6);
 }
 
@@ -243,6 +296,7 @@ export async function memoryPostureCatalogStatus(context: CommandContext): Promi
     embeddingProviders: doctor?.embeddings.providers.length ?? 0,
     externalProviders: EXTERNAL_MEMORY_PROVIDERS.length,
     externalProviderRecordsPublished: false,
+    externalProviderSetupGuideStatus: 'contract-needed',
   };
 }
 
@@ -287,9 +341,12 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
     externalMemory: {
       status: 'not-published',
       providerRecordsPublished: false,
+      setupGuideStatus: 'contract-needed',
       checkedProviders: EXTERNAL_MEMORY_PROVIDERS.map((provider) => provider.id),
-      next: 'Use Agent-local memory now. Add external memory-provider posture only when the connected host or SDK publishes concrete provider records and setup routes.',
+      requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
+      next: 'Use Agent-local memory now. Inspect one external provider for the required setup/status/read/write/receipt contracts GoodVibes must publish before use.',
       inspectRoute: 'agent_harness mode:"connected_host_capability" query:"memory provider"',
+      providerLookup: 'agent_harness mode:"memory_provider" providerId:"<id>" includeParameters:true',
     },
     nextActions: nextActions(snapshot, status, vectorState, doctor),
     policy: 'Memory posture is read-only. Memory edits, vector rebuilds, and embedding-provider changes stay on existing confirmed Agent-local routes.',
