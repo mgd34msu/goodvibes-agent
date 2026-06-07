@@ -780,6 +780,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       { id: 'workplan', label: 'Review work plan', detail: 'Print a concise work plan summary in the main Agent transcript.', command: '/workplan list', kind: 'command', safety: 'read-only' },
       { id: 'work-autonomy-queue', label: 'Autonomy queue', detail: 'Inspect visible work-plan, host-task, approval, automation, schedule, routine, and delegation queue cards.', kind: 'guidance', safety: 'read-only' },
+      { id: 'work-background-processes', label: 'Background processes', detail: 'Inspect tracked local background processes, bounded output tails, visible monitor routes, and lifecycle controls with agent_harness mode:"background_processes".', kind: 'guidance', safety: 'read-only' },
+      { id: 'work-process-capabilities', label: 'Process capabilities', detail: 'Inspect process parity for start/list/poll/wait/log/kill/write, PTY, and sudo before choosing a local execution route.', kind: 'guidance', safety: 'read-only' },
       { id: 'workplan-show', label: 'Show work plan detail', detail: 'Open a read-only form for the detailed work plan view.', editorKind: 'workplan-show', kind: 'editor', safety: 'read-only' },
       { id: 'workplan-add', label: 'Add work item', detail: 'Open a form that creates one visible work plan item from the Agent workspace.', editorKind: 'workplan-add', kind: 'editor', safety: 'safe' },
       { id: 'workplan-status', label: 'Update work item status', detail: 'Open a form that updates one work plan item to pending, active, blocked, done, failed, or cancelled.', editorKind: 'workplan-status', kind: 'editor', safety: 'safe' },

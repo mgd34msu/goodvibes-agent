@@ -527,6 +527,22 @@ export interface AgentWorkspaceResearchContractSummary {
   readonly details: readonly string[];
 }
 
+export interface AgentWorkspaceProcessSupervisionSummary {
+  readonly status: 'available' | 'unavailable';
+  readonly tracked: number;
+  readonly running: number;
+  readonly completed: number;
+  readonly stdinWriteStatus: 'supported-with-confirmation' | 'not-yet-supported';
+  readonly stdinMethod: string | null;
+  readonly ptyStatus: 'contract-discovered' | 'not-yet-supported';
+  readonly ptyMethod: string | null;
+  readonly sudoStatus: 'foreground-only';
+  readonly processRoute: string;
+  readonly capabilitiesRoute: string;
+  readonly visibleMonitorRoute: string;
+  readonly liveTailRoute: string;
+}
+
 export interface AgentWorkspaceCompanionAccessSummary {
   readonly surface: 'goodvibes-agent';
   readonly hostUrl: string;
@@ -610,6 +626,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchRuns: readonly AgentWorkspaceResearchRunSummary[];
   readonly researchBrowserRunnerContract: AgentWorkspaceResearchContractSummary;
   readonly researchVisualReportContract: AgentWorkspaceResearchContractSummary;
+  readonly processSupervision: AgentWorkspaceProcessSupervisionSummary;
   readonly recentReviewerHandoffArtifactCount: number;
   readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
   readonly reviewerReadinessBadge: AgentWorkspaceReviewerReadinessBadge;

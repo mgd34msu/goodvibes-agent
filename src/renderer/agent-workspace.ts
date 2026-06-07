@@ -648,8 +648,12 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Scheduling requires a confirmed action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'work') {
+    const processSupervision = snapshot.processSupervision;
     base.push(
       { text: 'Work plans and approvals are read or explicitly confirmed.', fg: PALETTE.info },
+      { text: `Process supervision: ${processSupervision.status}; ${processSupervision.tracked} tracked; ${processSupervision.running} running; ${processSupervision.completed} completed.`, fg: processSupervision.running > 0 ? PALETTE.warn : processSupervision.status === 'available' ? PALETTE.good : PALETTE.warn },
+      { text: `Process parity: stdin ${processSupervision.stdinWriteStatus}; PTY ${processSupervision.ptyStatus}; sudo ${processSupervision.sudoStatus}.`, fg: processSupervision.stdinWriteStatus === 'supported-with-confirmation' || processSupervision.ptyStatus === 'contract-discovered' ? PALETTE.info : PALETTE.warn },
+      { text: 'Process routes: background_processes / capabilities / process monitor / live tail.', fg: PALETTE.good },
       { text: 'Autonomy queue covers work plan, host tasks, approvals, automation, schedules, routines, delegation, and delivery.', fg: PALETTE.good },
       { text: 'Selection alone does not approve, deny, cancel, or mutate requests.', fg: PALETTE.good },
       { text: 'Approval actions require id plus typed confirmation.', fg: PALETTE.warn },

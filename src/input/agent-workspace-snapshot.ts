@@ -47,6 +47,7 @@ import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaPr
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
+  AgentWorkspaceProcessSupervisionSummary,
   AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceResearchContractSummary,
   AgentWorkspaceResearchRunSummary,
@@ -286,6 +287,66 @@ function buildResearchVisualReportContract(sourceSnapshot: {
       'citation coverage',
       'artifact archive',
     ],
+  };
+}
+
+type WorkspaceProcessEntry = {
+  readonly id?: string;
+  readonly done?: boolean;
+};
+
+type WorkspaceProcessManager = {
+  readonly list?: () => readonly WorkspaceProcessEntry[];
+  readonly getStatus?: (processId: string) => WorkspaceProcessEntry | undefined;
+};
+
+const WORKSPACE_STDIN_METHOD_NAMES = ['write', 'writeInput', 'sendInput', 'writeStdin', 'sendStdin', 'stdinWrite'] as const;
+const WORKSPACE_PTY_METHOD_NAMES = ['spawnPty', 'openPty', 'createPty', 'pty'] as const;
+
+function processManagerMethodNames(manager: WorkspaceProcessManager | undefined): readonly string[] {
+  if (!manager) return [];
+  const record = manager as unknown as Record<string, unknown>;
+  const own = Object.keys(record);
+  const prototype = Object.getPrototypeOf(manager) as Record<string, unknown> | null;
+  const protoNames = prototype ? Object.getOwnPropertyNames(prototype) : [];
+  return [...new Set([...own, ...protoNames])]
+    .filter((name) => name !== 'constructor' && typeof record[name] === 'function')
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function buildProcessSupervisionSummary(context: CommandContext): AgentWorkspaceProcessSupervisionSummary {
+  const manager = context.workspace?.processManager as WorkspaceProcessManager | undefined;
+  const methodNames = processManagerMethodNames(manager);
+  const stdinMethod = WORKSPACE_STDIN_METHOD_NAMES.find((name) => methodNames.includes(name)) ?? null;
+  const ptyMethod = WORKSPACE_PTY_METHOD_NAMES.find((name) => methodNames.includes(name)) ?? null;
+  const listed = (() => {
+    try {
+      return manager?.list?.() ?? [];
+    } catch {
+      return [];
+    }
+  })();
+  const entries = listed.map((entry) => {
+    try {
+      return entry.id && manager?.getStatus ? manager.getStatus(entry.id) ?? entry : entry;
+    } catch {
+      return entry;
+    }
+  });
+  return {
+    status: manager ? 'available' : 'unavailable',
+    tracked: entries.length,
+    running: entries.filter((entry) => entry.done !== true).length,
+    completed: entries.filter((entry) => entry.done === true).length,
+    stdinWriteStatus: stdinMethod ? 'supported-with-confirmation' : 'not-yet-supported',
+    stdinMethod,
+    ptyStatus: ptyMethod ? 'contract-discovered' : 'not-yet-supported',
+    ptyMethod,
+    sudoStatus: 'foreground-only',
+    processRoute: 'agent_harness mode:"background_processes"',
+    capabilitiesRoute: 'agent_harness mode:"run_background_process" processAction:"capabilities"',
+    visibleMonitorRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
+    liveTailRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
   };
 }
 
@@ -1790,6 +1851,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   );
   const researchBrowserRunnerContract = buildResearchBrowserRunnerContract(context);
   const researchVisualReportContract = buildResearchVisualReportContract(researchSourceSnapshot);
+  const processSupervision = buildProcessSupervisionSummary(context);
 
   return {
     provider,
@@ -1860,6 +1922,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     researchRuns: researchRunSnapshot.items,
     researchBrowserRunnerContract,
     researchVisualReportContract,
+    processSupervision,
     recentReviewerHandoffArtifactCount: recentReviewerHandoffs.count,
     recentReviewerHandoffArtifacts: recentReviewerHandoffs.items,
     reviewerReadinessBadge: reviewerBadge,
