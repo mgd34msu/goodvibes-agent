@@ -13,6 +13,18 @@ import { buildVibePrompt, discoverVibeFiles } from './vibe-file.ts';
 
 export type PromptContextReceiptStatus = 'active' | 'attention' | 'empty' | 'unavailable';
 export type PromptContextReceiptSource = 'turn' | 'follow_up' | 'manual';
+export type PromptContextTurnOutcomeStatus = 'completed' | 'error' | 'cancelled';
+export type PromptContextTurnTerminalEvent = 'TURN_COMPLETED' | 'TURN_ERROR' | 'TURN_CANCEL';
+
+export interface PromptContextTurnOutcome {
+  readonly turnId: string;
+  readonly status: PromptContextTurnOutcomeStatus;
+  readonly terminalEvent: PromptContextTurnTerminalEvent;
+  readonly stopReason: string;
+  readonly completedAt: number;
+  readonly receiptIds: readonly string[];
+  readonly detail?: string;
+}
 
 export interface PromptContextReceiptSegment {
   readonly id: string;
@@ -47,6 +59,7 @@ export interface PromptContextReceipt extends PromptContextReceiptDraft {
   readonly receiptId: string;
   readonly createdAt: number;
   readonly sequence: number;
+  readonly turnOutcome?: PromptContextTurnOutcome;
 }
 
 export interface RuntimePromptCompositionInput {
@@ -63,6 +76,7 @@ export interface RuntimePromptCompositionInput {
 }
 
 const RECEIPT_STORE_LIMIT = 200;
+const OUTCOME_DETAIL_LIMIT = 240;
 
 function approxTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -74,6 +88,12 @@ function approxTokensForChars(chars: number): number {
 
 function promptHash(text: string): string {
   return createHash('sha256').update(text).digest('hex');
+}
+
+function compactOutcomeDetail(value: string | undefined): string | undefined {
+  const trimmed = value?.replace(/\s+/g, ' ').trim();
+  if (!trimmed) return undefined;
+  return trimmed.length > OUTCOME_DETAIL_LIMIT ? `${trimmed.slice(0, OUTCOME_DETAIL_LIMIT - 3)}...` : trimmed;
 }
 
 function joinPromptParts(...parts: Array<string | null | undefined>): string {
@@ -325,14 +345,52 @@ export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionI
   };
 }
 
-function parseReceiptLine(line: string): PromptContextReceipt | null {
+function isReceipt(value: unknown): value is PromptContextReceipt {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as { readonly receiptId?: unknown; readonly createdAt?: unknown; readonly sequence?: unknown };
+  return typeof candidate.receiptId === 'string' && typeof candidate.createdAt === 'number' && typeof candidate.sequence === 'number';
+}
+
+function isTurnOutcome(value: unknown): value is PromptContextTurnOutcome {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as {
+    readonly turnId?: unknown;
+    readonly status?: unknown;
+    readonly terminalEvent?: unknown;
+    readonly stopReason?: unknown;
+    readonly completedAt?: unknown;
+    readonly receiptIds?: unknown;
+  };
+  return typeof candidate.turnId === 'string'
+    && (candidate.status === 'completed' || candidate.status === 'error' || candidate.status === 'cancelled')
+    && (candidate.terminalEvent === 'TURN_COMPLETED' || candidate.terminalEvent === 'TURN_ERROR' || candidate.terminalEvent === 'TURN_CANCEL')
+    && typeof candidate.stopReason === 'string'
+    && typeof candidate.completedAt === 'number'
+    && Array.isArray(candidate.receiptIds);
+}
+
+function parseReceiptLine(line: string): { readonly receipt?: PromptContextReceipt; readonly outcome?: PromptContextTurnOutcome } | null {
   try {
-    const parsed = JSON.parse(line) as PromptContextReceipt;
-    if (!parsed || typeof parsed.receiptId !== 'string' || typeof parsed.createdAt !== 'number') return null;
-    return parsed;
+    const parsed = JSON.parse(line) as unknown;
+    if (isReceipt(parsed)) return { receipt: parsed };
+    if (parsed && typeof parsed === 'object') {
+      const candidate = parsed as { readonly kind?: unknown; readonly receipt?: unknown; readonly outcome?: unknown };
+      if (candidate.kind === 'receipt' && isReceipt(candidate.receipt)) return { receipt: candidate.receipt };
+      if (candidate.kind === 'turn_outcome' && isTurnOutcome(candidate.outcome)) return { outcome: candidate.outcome };
+    }
+    return null;
   } catch {
     return null;
   }
+}
+
+export interface PromptContextTurnOutcomeInput {
+  readonly turnId: string;
+  readonly status: PromptContextTurnOutcomeStatus;
+  readonly terminalEvent: PromptContextTurnTerminalEvent;
+  readonly stopReason: string;
+  readonly completedAt?: number;
+  readonly detail?: string;
 }
 
 export class AgentPromptContextReceiptStore {
@@ -378,19 +436,64 @@ export class AgentPromptContextReceiptStore {
     return this.receipts.length;
   }
 
+  public recordTurnOutcome(input: PromptContextTurnOutcomeInput): PromptContextTurnOutcome | null {
+    const turnId = input.turnId.trim();
+    if (!turnId) return null;
+    const detail = compactOutcomeDetail(input.detail);
+    const matchingReceiptIds = this.receipts
+      .filter((receipt) => receipt.turnId === turnId)
+      .map((receipt) => receipt.receiptId);
+    const outcome: PromptContextTurnOutcome = {
+      turnId,
+      status: input.status,
+      terminalEvent: input.terminalEvent,
+      stopReason: input.stopReason,
+      completedAt: input.completedAt ?? Date.now(),
+      receiptIds: matchingReceiptIds,
+      ...(detail ? { detail } : {}),
+    };
+    this.applyTurnOutcome(outcome);
+    this.appendTurnOutcome(outcome);
+    return outcome;
+  }
+
   private append(receipt: PromptContextReceipt): void {
     if (!this.receiptPath) return;
     mkdirSync(dirname(this.receiptPath), { recursive: true });
     appendFileSync(this.receiptPath, `${JSON.stringify(receipt)}\n`, 'utf-8');
   }
 
+  private appendTurnOutcome(outcome: PromptContextTurnOutcome): void {
+    if (!this.receiptPath) return;
+    mkdirSync(dirname(this.receiptPath), { recursive: true });
+    appendFileSync(this.receiptPath, `${JSON.stringify({ kind: 'turn_outcome', outcome })}\n`, 'utf-8');
+  }
+
   private load(): void {
     if (!this.receiptPath || !existsSync(this.receiptPath)) return;
     const lines = readFileSync(this.receiptPath, 'utf-8').split('\n').filter(Boolean);
-    const parsed = lines.map(parseReceiptLine).filter((receipt): receipt is PromptContextReceipt => Boolean(receipt));
-    this.receipts.push(...parsed.slice(-this.limit).reverse());
+    const parsed = lines.map(parseReceiptLine).filter((entry): entry is NonNullable<ReturnType<typeof parseReceiptLine>> => Boolean(entry));
+    const receipts = parsed.map((entry) => entry.receipt).filter((receipt): receipt is PromptContextReceipt => Boolean(receipt));
+    const outcomes = parsed.map((entry) => entry.outcome).filter((outcome): outcome is PromptContextTurnOutcome => Boolean(outcome));
+    const recentReceipts = receipts.slice(-this.limit);
+    for (const outcome of outcomes) {
+      for (const [index, receipt] of recentReceipts.entries()) {
+        if (receipt.turnId === outcome.turnId || outcome.receiptIds.includes(receipt.receiptId)) {
+          recentReceipts[index] = { ...receipt, turnOutcome: outcome };
+        }
+      }
+    }
+    this.receipts.push(...recentReceipts.reverse());
     this.sequence = this.receipts.reduce((max, receipt) => Math.max(max, receipt.sequence), 0);
     this.trim();
+  }
+
+  private applyTurnOutcome(outcome: PromptContextTurnOutcome): void {
+    for (const [index, receipt] of this.receipts.entries()) {
+      if (receipt.turnId === outcome.turnId || outcome.receiptIds.includes(receipt.receiptId)) {
+        this.receipts[index] = { ...receipt, turnOutcome: outcome };
+      }
+    }
   }
 
   private trim(): void {

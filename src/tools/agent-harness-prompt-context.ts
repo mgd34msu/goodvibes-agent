@@ -49,6 +49,13 @@ interface CompactPromptContextReceipt {
   readonly provider: string;
   readonly model: string;
   readonly contextWindow: number;
+  readonly turnOutcome?: {
+    readonly status: string;
+    readonly terminalEvent: string;
+    readonly stopReason: string;
+    readonly completedAt: number;
+    readonly detail?: string;
+  };
   readonly promptHash?: string;
   readonly promptChars?: number;
   readonly approxPromptTokens?: number;
@@ -222,6 +229,15 @@ function compactPromptContextReceipt(
     provider: receipt.provider,
     model: receipt.model,
     contextWindow: receipt.contextWindow,
+    ...(receipt.turnOutcome ? {
+      turnOutcome: {
+        status: receipt.turnOutcome.status,
+        terminalEvent: receipt.turnOutcome.terminalEvent,
+        stopReason: receipt.turnOutcome.stopReason,
+        completedAt: receipt.turnOutcome.completedAt,
+        ...(receipt.turnOutcome.detail ? { detail: receipt.turnOutcome.detail } : {}),
+      },
+    } : {}),
     ...(includeParameters ? {
       promptHash: receipt.promptHash,
       promptChars: receipt.promptChars,

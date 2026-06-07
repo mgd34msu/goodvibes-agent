@@ -101,11 +101,21 @@ describe('prompt context receipts', () => {
       const receiptPath = join(root, 'prompt-context-receipts.jsonl');
       const store = new AgentPromptContextReceiptStore(receiptPath);
       const stored = store.record(receipt);
+      const outcome = store.recordTurnOutcome({
+        turnId: 'turn-receipts',
+        status: 'completed',
+        terminalEvent: 'TURN_COMPLETED',
+        stopReason: 'completed',
+        completedAt: 1_700_000_000_000,
+      });
       const reloaded = new AgentPromptContextReceiptStore(receiptPath);
 
+      expect(outcome?.receiptIds).toContain(stored.receiptId);
       expect(store.latest()?.receiptId).toBe(stored.receiptId);
+      expect(store.latest()?.turnOutcome?.status).toBe('completed');
       expect(reloaded.latest()?.receiptId).toBe(stored.receiptId);
       expect(reloaded.latest()?.promptHash).toBe(receipt.promptHash);
+      expect(reloaded.latest()?.turnOutcome?.terminalEvent).toBe('TURN_COMPLETED');
     });
   });
 });

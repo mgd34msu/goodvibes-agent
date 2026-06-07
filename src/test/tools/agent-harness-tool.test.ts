@@ -1835,6 +1835,14 @@ describe('agent_harness tool', () => {
           approxTokens: 128,
         }],
       });
+      promptContextReceipts.recordTurnOutcome({
+        turnId: 'turn-prompt-context',
+        status: 'error',
+        terminalEvent: 'TURN_ERROR',
+        stopReason: 'provider_error',
+        detail: 'Provider rejected a test request.',
+        completedAt: 1_700_000_000_000,
+      });
       (fixture.context.clients as Record<string, unknown>).promptContextReceipts = promptContextReceipts;
 
       const summary = await executeHarnessJson<{
@@ -1869,10 +1877,16 @@ describe('agent_harness tool', () => {
           readonly latestReceiptId: string | null;
           readonly latestTurnId: string | null;
           readonly latest?: {
-            readonly receiptId: string;
-            readonly promptHash?: string;
-            readonly segments?: readonly { readonly id: string; readonly status: string }[];
-          } | null;
+          readonly receiptId: string;
+          readonly turnOutcome?: {
+            readonly status: string;
+            readonly terminalEvent: string;
+            readonly stopReason: string;
+            readonly detail?: string;
+          };
+          readonly promptHash?: string;
+          readonly segments?: readonly { readonly id: string; readonly status: string }[];
+        } | null;
         };
         readonly segments: readonly {
           readonly id: string;
@@ -1898,6 +1912,9 @@ describe('agent_harness tool', () => {
       expect(promptContext.receipts.count).toBe(1);
       expect(promptContext.receipts.latestReceiptId).toBe(storedReceipt.receiptId);
       expect(promptContext.receipts.latestTurnId).toBe('turn-prompt-context');
+      expect(promptContext.receipts.latest?.turnOutcome?.status).toBe('error');
+      expect(promptContext.receipts.latest?.turnOutcome?.terminalEvent).toBe('TURN_ERROR');
+      expect(promptContext.receipts.latest?.turnOutcome?.detail).toContain('Provider rejected');
       expect(promptContext.receipts.latest?.promptHash).toBe('b'.repeat(64));
       expect(promptContext.receipts.latest?.segments?.some((segment) => segment.id === 'memory' && segment.status === 'attention')).toBe(true);
 

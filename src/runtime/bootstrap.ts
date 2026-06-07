@@ -181,12 +181,32 @@ export async function bootstrapRuntime(
       activePromptTurnId = event.payload.turnId;
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_COMPLETED' }>>('TURN_COMPLETED', (event) => {
+      promptContextReceipts.recordTurnOutcome({
+        turnId: event.payload.turnId,
+        status: 'completed',
+        terminalEvent: 'TURN_COMPLETED',
+        stopReason: event.payload.stopReason,
+      });
       if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
+      promptContextReceipts.recordTurnOutcome({
+        turnId: event.payload.turnId,
+        status: 'error',
+        terminalEvent: 'TURN_ERROR',
+        stopReason: event.payload.stopReason,
+        detail: event.payload.error,
+      });
       if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_CANCEL' }>>('TURN_CANCEL', (event) => {
+      promptContextReceipts.recordTurnOutcome({
+        turnId: event.payload.turnId,
+        status: 'cancelled',
+        terminalEvent: 'TURN_CANCEL',
+        stopReason: event.payload.stopReason,
+        detail: event.payload.reason,
+      });
       if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
     }),
   );
