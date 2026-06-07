@@ -274,7 +274,7 @@ function buildResearchBrowserRunnerContract(context: CommandContext): AgentWorks
       : needsReview
         ? 'Review browser/desktop MCP trust, connection, and schema freshness before live browser-backed research.'
         : 'Use public web/fetch research now; configure a trusted browser/desktop route before live UI research.',
-    route: 'agent_harness mode:"research_workflow" includeParameters:true',
+    route: 'research action:"plan" includeParameters:true',
     details: [
       'visible run controls',
       'source capture receipts',
@@ -296,8 +296,8 @@ function buildResearchVisualReportContract(sourceSnapshot: {
       ? 'Save a sourced visual report packet now, then archive or promote the same reviewed artifact.'
       : 'Review at least one source before saving a report or visual packet.',
     route: sourceReady
-      ? 'agent_research_report title:"..." question:"..." sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."'
-      : 'agent_harness mode:"research_queue" includeParameters:true',
+      ? 'research action:"report" title:"..." question:"..." sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."'
+      : 'research action:"sources" includeParameters:true',
     details: [
       'at-a-glance',
       'evidence matrix',

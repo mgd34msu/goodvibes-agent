@@ -63,16 +63,16 @@ function nextForSource(source: AgentResearchSourceRecord): string {
 
 function buildQueueItem(source: AgentResearchSourceRecord): ResearchQueueItem {
   const reviewRoute = source.status === 'candidate' || source.status === 'rejected'
-    ? `agent_research_sources review id="${source.id}" confirm:true explicitUserRequest="..."`
+    ? `research action:"review_source" id="${source.id}" confirm:true explicitUserRequest="..."`
     : '';
   const rejectRoute = source.status !== 'rejected'
-    ? `agent_research_sources reject id="${source.id}" confirm:true explicitUserRequest="..."`
+    ? `research action:"reject_source" id="${source.id}" confirm:true explicitUserRequest="..."`
     : '';
   const reportRoute = source.status === 'reviewed' || source.status === 'used'
-    ? 'agent_harness mode:"workspace_action" actionId:"research-save-report"'
+    ? 'research action:"report" confirm:true explicitUserRequest:"..."'
     : '';
   const bundleRoute = source.status === 'reviewed' || source.status === 'used'
-    ? `agent_research_sources mode:bundle query:${routeString(source.id)} limit:10`
+    ? `research action:"bundle" query:${routeString(source.id)} limit:10`
     : '';
   const ingestRoute = source.status === 'reviewed' || source.status === 'used'
     ? 'agent_knowledge_ingest sourceKind="url" confirm=true explicitUserRequest="..."'
@@ -81,8 +81,8 @@ function buildQueueItem(source: AgentResearchSourceRecord): ResearchQueueItem {
     source,
     priority: Math.max(statusPriority(source.status), source.score),
     next: nextForSource(source),
-    modelRoute: 'agent_research_sources',
-    inspectRoute: `agent_research_sources show id="${source.id}"`,
+    modelRoute: 'research action:"source"',
+    inspectRoute: `research action:"source" sourceId="${source.id}"`,
     ...(bundleRoute ? { bundleRoute } : {}),
     ...(reviewRoute ? { reviewRoute } : {}),
     ...(rejectRoute ? { rejectRoute } : {}),
@@ -198,15 +198,15 @@ export function researchQueueSummary(context: CommandContext, args: AgentHarness
     bundle: {
       sources: bundleItems.length,
       route: query
-        ? `agent_research_sources mode:bundle query:${routeString(query)} limit:${Math.min(limit, 20)}`
-        : `agent_research_sources mode:bundle limit:${Math.min(limit, 20)}`,
-      reportRoute: 'agent_research_report requireCitationCoverage:true confirm:true explicitUserRequest:"..."',
+        ? `research action:"bundle" query:${routeString(query)} limit:${Math.min(limit, 20)}`
+        : `research action:"bundle" limit:${Math.min(limit, 20)}`,
+      reportRoute: 'research action:"report" requireCitationCoverage:true confirm:true explicitUserRequest:"..."',
       next: 'Use bundle route to assemble reviewed/used sources into citation-ready report input before saving a report artifact.',
     },
     returned: Math.min(filtered.length, limit),
     total: items.length,
     nextActions: nextActions(items),
-    policy: 'Research queue is read-only in the harness. Source capture/review writes use agent_research_sources; report artifacts and Knowledge ingest remain explicit separate steps.',
+    policy: 'Research queue is read-only in the harness. Source capture/review writes use confirmed research source actions; report artifacts and Knowledge ingest remain explicit separate steps.',
   };
 }
 
@@ -218,7 +218,7 @@ export function describeResearchSource(context: CommandContext, args: AgentHarne
   if (!input) {
     return {
       status: 'missing_lookup',
-      usage: 'research_source requires sourceId, target, or query. Use mode:"research_queue" to inspect source ids.',
+      usage: 'research_source requires sourceId, target, or query. Use research action:"sources" to inspect source ids.',
     };
   }
   const normalized = input.toLowerCase();
@@ -245,6 +245,6 @@ export function describeResearchSource(context: CommandContext, args: AgentHarne
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown research source ${input}. Use mode:"research_queue" to inspect source ids.`,
+    usage: `Unknown research source ${input}. Use research action:"sources" to inspect source ids.`,
   };
 }

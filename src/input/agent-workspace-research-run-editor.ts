@@ -98,7 +98,7 @@ export function buildAgentResearchRunPromptSubmission(
       kind: 'editor',
       editor: {
         ...editor,
-        message: 'Prompt dispatch is unavailable in this runtime. Use agent_research_runs mode:"create" with these fields.',
+        message: 'Prompt dispatch is unavailable in this runtime. Use research action:"create_run" with these fields.',
       },
       status: 'Prompt dispatch unavailable.',
       actionResult: {
@@ -116,8 +116,8 @@ export function buildAgentResearchRunPromptSubmission(
   );
   const prompt = [
     'Create this visible checkpointable local research run.',
-    'Use the `agent_research_runs` tool with these arguments:',
-    `mode: ${JSON.stringify(args.mode)}`,
+    'Use the `research` tool with these arguments:',
+    'action: "create_run"',
     `title: ${JSON.stringify(args.title)}`,
     `question: ${JSON.stringify(args.question)}`,
     args.goal ? `goal: ${JSON.stringify(args.goal)}` : 'goal: none',

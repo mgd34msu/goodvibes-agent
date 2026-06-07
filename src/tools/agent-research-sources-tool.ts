@@ -198,7 +198,7 @@ function formatSourceBundle(sources: readonly AgentResearchSourceRecord[], query
     return [
       'Agent research source bundle',
       'No reviewed or used Agent research sources matched.',
-      'next Review candidate sources with agent_research_sources mode:"review", then rerun mode:"bundle".',
+      'next Review candidate sources with research action:"review_source", then rerun action:"bundle".',
     ].join('\n');
   }
   const primaryQuestion = sources[0]?.question ?? '(mixed questions)';
@@ -218,7 +218,7 @@ function formatSourceBundle(sources: readonly AgentResearchSourceRecord[], query
     'Citation plan',
     ...sources.map((source, index) => `  [S${index + 1}] Cite when using: ${previewText(source.summary)}`),
     '',
-    'agent_research_report handoff',
+    'research action:"report" handoff',
     '  Use requireCitationCoverage:true and cite these sources as [S1], [S2], etc. in summary/reportMarkdown/findings.',
     '  sources:',
     JSON.stringify(reportSources, null, 2),

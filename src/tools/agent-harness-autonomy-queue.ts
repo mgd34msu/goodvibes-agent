@@ -671,11 +671,11 @@ function researchRunLiveRecords(snapshot: ReturnType<typeof buildAgentWorkspaceR
     const terminal = run.status === 'cancelled' || run.status === 'completed' || run.status === 'failed';
     const canPause = run.status === 'running' || run.status === 'blocked';
     const canResume = run.status === 'paused' || run.status === 'planned' || run.status === 'blocked';
-    const inspectRoute = `agent_research_runs show id="${run.id}"`;
-    const cancelRoute = `agent_research_runs cancel id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
-    const checkpointRoute = `agent_research_runs checkpoint id="${run.id}" note="..." progress:${run.progress} confirm:true explicitUserRequest:"..."`;
-    const pauseRoute = `agent_research_runs pause id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
-    const resumeRoute = `agent_research_runs resume id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
+    const inspectRoute = `research action:"run" runId="${run.id}"`;
+    const cancelRoute = `research action:"cancel" id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
+    const checkpointRoute = `research action:"checkpoint" id="${run.id}" note="..." progress:${run.progress} confirm:true explicitUserRequest:"..."`;
+    const pauseRoute = `research action:"pause" id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
+    const resumeRoute = `research action:"resume" id="${run.id}" note="..." confirm:true explicitUserRequest:"..."`;
     const availableNextRoutes = [
       checkpointRoute,
       ...(canPause ? [pauseRoute] : []),
@@ -952,10 +952,10 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         : snapshot.researchRunRunningCount > 0
           ? 'Checkpoint progress, source ids, and next steps before switching tasks or saving a report.'
           : 'Create a visible research run when the user wants resumable deep research.',
-      inspectRoute: 'agent_harness mode:"research_runs"',
-      modelRoute: 'agent_harness mode:"research_runs"',
-      cancelRoute: 'agent_research_runs cancel id="..." note="..." confirm:true explicitUserRequest="..."',
-      createRoute: 'agent_harness mode:"run_workspace_action" actionId:"research-start-run" confirm:true explicitUserRequest:"..."',
+      inspectRoute: 'research action:"runs"',
+      modelRoute: 'research action:"runs"',
+      cancelRoute: 'research action:"cancel" id="..." note="..." confirm:true explicitUserRequest="..."',
+      createRoute: 'research action:"create_run" title:"..." question:"..." confirm:true explicitUserRequest:"..."',
       liveRecords: researchRuns,
     },
     {

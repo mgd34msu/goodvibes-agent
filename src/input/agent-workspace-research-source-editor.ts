@@ -117,7 +117,7 @@ export function buildAgentResearchSourcePromptSubmission(
       kind: 'editor',
       editor: {
         ...editor,
-        message: 'Prompt dispatch is unavailable in this runtime. Use agent_research_sources mode:"add" with these fields.',
+        message: 'Prompt dispatch is unavailable in this runtime. Use research action:"add_source" with these fields.',
       },
       status: 'Prompt dispatch unavailable.',
       actionResult: {
@@ -135,8 +135,8 @@ export function buildAgentResearchSourcePromptSubmission(
   );
   const prompt = [
     'Add this source to the project-local research source queue.',
-    'Use the `agent_research_sources` tool with these arguments:',
-    `mode: ${JSON.stringify(args.mode)}`,
+    'Use the `research` tool with these arguments:',
+    'action: "add_source"',
     `question: ${JSON.stringify(args.question)}`,
     `title: ${JSON.stringify(args.title)}`,
     args.url ? `url: ${JSON.stringify(args.url)}` : 'url: none',

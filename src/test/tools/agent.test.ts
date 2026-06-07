@@ -1280,10 +1280,10 @@ describe('spawn mode', () => {
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Documents and artifacts');
     expect(payload.commonRoutes?.personalOps).toContain('personal_ops action:"briefing"');
     expect(payload.commonRoutes?.documentOps).toContain('agent_harness mode:"document_ops"');
-    expect(payload.commonRoutes?.researchWorkflow).toContain('agent_harness mode:"research_workflow"');
-    expect(payload.commonRoutes?.webResearch).toContain('multi-step: agent_harness mode:"research_workflow"');
+    expect(payload.commonRoutes?.researchWorkflow).toContain('research action:"plan"');
+    expect(payload.commonRoutes?.webResearch).toContain('multi-step: research action:"plan"');
     const webResearchCapability = payload.canDoNow?.find((entry) => entry.area === 'Web research') as { readonly inspect?: string } | undefined;
-    expect(webResearchCapability?.inspect).toContain('mode:"research_workflow"');
+    expect(webResearchCapability?.inspect).toContain('research action:"plan"');
 
     const legacy = await registry.execute('call-context-legacy', 'goodvibes_context', {
       mode: ['home', 'graph'].join(''),

@@ -571,7 +571,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Visual report contract: ${visualContract.label}; ${compactText(visualContract.next, 96)}`, fg: researchContractColor(visualContract.status), bold: visualContract.status !== 'visual-report-packet-ready' },
       { text: `Report requires: ${visualContract.details.join(', ')}.`, fg: PALETTE.muted },
       { text: 'Web and URL inspection stay read-only until the user confirms source ingest.', fg: PALETTE.good },
-      { text: 'Tools: agent_research_runs / agent_research_sources / agent_research_report.', fg: PALETTE.good },
+      { text: 'Model route: research action:"plan|runs|sources|report".', fg: PALETTE.good },
     );
   } else if (category.id === 'personal-ops') {
     const ready = readyRoutineItems(snapshot);

@@ -64,7 +64,7 @@ describe('agent_research_sources tool', () => {
       expect(bundled.output).toContain('Report source lines');
       expect(bundled.output).toContain('[S1] Official docs');
       expect(bundled.output).toContain('Citation plan');
-      expect(bundled.output).toContain('agent_research_report handoff');
+      expect(bundled.output).toContain('research action:"report" handoff');
       expect(bundled.output).toContain('requireCitationCoverage:true');
       expect(bundled.output).toContain('"title": "Official docs"');
       expect(bundled.output).not.toContain('secret-value');

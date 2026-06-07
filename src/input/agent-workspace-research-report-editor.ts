@@ -178,7 +178,8 @@ export function buildAgentResearchReportPromptSubmission(
   );
   const prompt = [
     'Save this reviewed source-grounded research report as an Agent artifact.',
-    'Use the `agent_research_report` tool with these arguments:',
+    'Use the `research` tool with these arguments:',
+    'action: "report"',
     `title: ${JSON.stringify(args.title)}`,
     `question: ${JSON.stringify(args.question)}`,
     args.summary ? `summary: ${JSON.stringify(args.summary)}` : 'summary: none',

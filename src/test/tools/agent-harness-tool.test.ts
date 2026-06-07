@@ -4332,17 +4332,17 @@ describe('agent_harness tool', () => {
       expect(researchRuns?.liveRecords?.[0]?.id).toBe('market-map-research');
       expect(researchRuns?.liveRecords?.[0]?.status).toBe('blocked');
       expect(researchRuns?.liveRecords?.[0]?.progress).toBe(35);
-      expect(researchRuns?.liveRecords?.[0]?.inspectRoute).toContain('agent_research_runs show');
-      expect(researchRuns?.liveRecords?.[0]?.cancelRoute).toContain('agent_research_runs cancel');
-      expect(researchRuns?.liveRecords?.[0]?.checkpointRoute).toContain('agent_research_runs checkpoint');
-      expect(researchRuns?.liveRecords?.[0]?.pauseRoute).toContain('agent_research_runs pause');
-      expect(researchRuns?.liveRecords?.[0]?.resumeRoute).toContain('agent_research_runs resume');
+      expect(researchRuns?.liveRecords?.[0]?.inspectRoute).toContain('research action:"run"');
+      expect(researchRuns?.liveRecords?.[0]?.cancelRoute).toContain('research action:"cancel"');
+      expect(researchRuns?.liveRecords?.[0]?.checkpointRoute).toContain('research action:"checkpoint"');
+      expect(researchRuns?.liveRecords?.[0]?.pauseRoute).toContain('research action:"pause"');
+      expect(researchRuns?.liveRecords?.[0]?.resumeRoute).toContain('research action:"resume"');
       expect(researchRuns?.liveRecords?.[0]?.availableControls).toContain('checkpoint');
       expect(researchRuns?.liveRecords?.[0]?.availableControls).toContain('pause');
       expect(researchRuns?.liveRecords?.[0]?.availableControls).toContain('resume');
-      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.modelRoute).toContain('agent_research_runs cancel');
-      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'pause')?.modelRoute).toContain('agent_research_runs pause');
-      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'resume')?.modelRoute).toContain('agent_research_runs resume');
+      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'cancel')?.modelRoute).toContain('research action:"cancel"');
+      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'pause')?.modelRoute).toContain('research action:"pause"');
+      expect(researchRuns?.liveRecords?.[0]?.controls?.find((control) => control.id === 'resume')?.modelRoute).toContain('research action:"resume"');
       expect(researchRuns?.liveRecords?.[0]?.logTail?.join('\n')).toContain('Waiting on source review before synthesis.');
       expect(researchRuns?.liveRecords?.[0]?.sourceIds).toContain('source-a');
       expect(researchRuns?.liveRecords?.[0]?.nextSteps).toContain('Review source-a');
@@ -5935,15 +5935,15 @@ describe('agent_harness tool', () => {
       expect(queue.summary.candidates).toBe(0);
       expect(queue.policy).toContain('Research queue is read-only');
       expect(queue.bundle?.sources).toBe(1);
-      expect(queue.bundle?.route).toContain('agent_research_sources mode:bundle');
+      expect(queue.bundle?.route).toContain('research action:"bundle"');
       expect(queue.bundle?.reportRoute).toContain('requireCitationCoverage:true');
       expectRowsHaveCompactModelRoutes(queue.sources);
       expect(queue.sources[0]?.sourceId).toBe(reviewed.id);
       expect(queue.sources[0]?.status).toBe('reviewed');
       expect(queue.sources[0]?.credibility).toBe('high');
       expect(queue.sources[0]?.score).toBe(91);
-      expect(queue.sources[0]?.bundleRoute).toContain('mode:bundle');
-      expect(queue.sources[0]?.reportRoute).toContain('research-save-report');
+      expect(queue.sources[0]?.bundleRoute).toContain('research action:"bundle"');
+      expect(queue.sources[0]?.reportRoute).toContain('research action:"report"');
       expect(queue.sources[0]?.ingestRoute).toContain('agent_knowledge_ingest');
       expect(queue.sources[0]?.reportSourceLine).toContain('Ollama setup docs');
       expect(queue.sources[0]?.url).toContain('token=%3Credacted%3E');
@@ -5956,7 +5956,7 @@ describe('agent_harness tool', () => {
         readonly policy?: string;
       }>(fixture, { mode: 'research_source', sourceId: reviewed.id });
       expect(source.sourceId).toBe(reviewed.id);
-      expect(source.bundleRoute).toContain('mode:bundle');
+      expect(source.bundleRoute).toContain('research action:"bundle"');
       expect(source.reportSourceLine).toContain('high');
       expect(source.policy).toContain('Research queue rows are local project state only');
 
@@ -5965,7 +5965,7 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'research-source-queue' });
       expect(action.id).toBe('research-source-queue');
-      expect(action.modelRoute).toBe('agent_harness mode:"research_queue"');
+      expect(action.modelRoute).toBe('research action:"sources"');
     } finally {
       fixture.cleanup();
     }
@@ -6035,9 +6035,9 @@ describe('agent_harness tool', () => {
       expect(queue.runs[0]?.status).toBe('running');
       expect(queue.runs[0]?.phase).toBe('reading');
       expect(queue.runs[0]?.progress).toBe(40);
-      expect(queue.runs[0]?.checkpointRoute).toContain('agent_research_runs checkpoint');
-      expect(queue.runs[0]?.cancelRoute).toContain('agent_research_runs cancel');
-      expect(queue.runs[0]?.completeRoute).toContain('agent_research_runs complete');
+      expect(queue.runs[0]?.checkpointRoute).toContain('research action:"checkpoint"');
+      expect(queue.runs[0]?.cancelRoute).toContain('research action:"cancel"');
+      expect(queue.runs[0]?.completeRoute).toContain('research action:"complete"');
       expect(queue.runs[0]?.logTail.join('\n')).toContain('Read official docs and captured source ids.');
       expect(queue.runs[0]?.runLine).toContain('Competitor deep research');
       expect(queue.runnerPosture.browserBackedResearch.status).toBe('setup-needed');
@@ -6046,8 +6046,8 @@ describe('agent_harness tool', () => {
       expect(queue.runnerPosture.browserBackedResearch.fallbackRoutes.join('\n')).toContain('web-fetch-research');
       expect(queue.runnerPosture.browserBackedResearch.workflows[0]?.id).toBe('browser-navigation');
       expect(queue.runnerPosture.browserBackedResearch.workflows[0]?.inspectRoute).toContain('setup action:"item"');
-      expect(queue.runnerPosture.sourceQueueRoute).toBe('agent_harness mode:"research_queue"');
-      expect(queue.runnerPosture.reportRoute).toContain('agent_research_report');
+      expect(queue.runnerPosture.sourceQueueRoute).toBe('research action:"sources"');
+      expect(queue.runnerPosture.reportRoute).toContain('research action:"report"');
       expect(queue.runnerPosture.policy).toContain('browser-backed research');
 
       const detail = await executeHarnessJson<{
@@ -6068,7 +6068,7 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'research-run-queue' });
       expect(action.id).toBe('research-run-queue');
-      expect(action.modelRoute).toBe('agent_harness mode:"research_runs"');
+      expect(action.modelRoute).toBe('research action:"runs"');
     } finally {
       fixture.cleanup();
     }
@@ -6134,10 +6134,10 @@ describe('agent_harness tool', () => {
       expect(workflow.status).toBe('ready-to-report');
       expect(workflow.question).toContain('browser-backed research');
       expect(workflow.run?.runId).toBe(started.id);
-      expect(workflow.run?.checkpointRoute).toContain('agent_research_runs mode:checkpoint');
-      expect(workflow.run?.completeRoute).toContain('agent_research_runs mode:complete');
+      expect(workflow.run?.checkpointRoute).toContain('research action:"checkpoint"');
+      expect(workflow.run?.completeRoute).toContain('research action:"complete"');
       expect(workflow.sourcePosture.reviewed).toBe(1);
-      expect(workflow.sourcePosture.bundleRoute).toContain('agent_research_sources mode:bundle');
+      expect(workflow.sourcePosture.bundleRoute).toContain('research action:"bundle"');
       expect(workflow.sourcePosture.reportReadySources[0]?.sourceId).toBe(reviewed.id);
       expect(workflow.sourcePosture.reportReadySources[0]?.reportLine).toContain('Browser automation docs');
       expect(workflow.browserBackedResearch.status).toBe('setup-needed');
@@ -6149,18 +6149,18 @@ describe('agent_harness tool', () => {
       expect(workflow.browserRunnerContract.fallbackRoutes.join('\n')).toContain('web-fetch-research');
       expect(workflow.browserRunnerContract.policy).toContain('not started by this workflow plan');
       expect(workflow.visualReportContract.status).toBe('visual-report-packet-ready');
-      expect(workflow.visualReportContract.currentRoute).toContain('agent_research_report');
+      expect(workflow.visualReportContract.currentRoute).toContain('research action:"report"');
       expect(workflow.visualReportContract.requiredSections).toEqual(expect.arrayContaining(['evidence matrix', 'findings board', 'source map', 'handoff checklist']));
       expect(workflow.visualReportContract.acceptanceCriteria.join('\n')).toContain('citation');
       expect(workflow.visualReportContract.acceptanceCriteria.join('\n')).toContain('visualReport:true');
       expect(workflow.visualReportContract.routes.saveVisualReport).toContain('visualReport:true');
-      expect(workflow.visualReportContract.routes.saveMarkdownReport).toContain('agent_research_report');
+      expect(workflow.visualReportContract.routes.saveMarkdownReport).toContain('research action:"report"');
       expect(workflow.visualReportContract.routes.archiveArtifacts).toContain('agent_artifacts mode:"archive"');
       expect(workflow.visualReportContract.policy).toContain('read-only planning');
       expect(workflow.workflow.map((step) => step.id)).toEqual(['visible-run', 'collect-sources', 'review-sources', 'save-report', 'promote-knowledge']);
       expect(workflow.workflow.find((step) => step.id === 'save-report')?.status).toBe('ready');
       expect(workflow.workflow.find((step) => step.id === 'save-report')?.reportRoute).toContain('visualReport:true');
-      expect(workflow.workflow.find((step) => step.id === 'save-report')?.reportRoute).toContain('agent_research_report');
+      expect(workflow.workflow.find((step) => step.id === 'save-report')?.reportRoute).toContain('research action:"report"');
       expect(workflow.routes.saveReport).toContain('visualReport:true');
       expect(workflow.routes.saveReport).toContain('requireCitationCoverage:true');
       expect(workflow.routes.completeRun).toContain(started.id);
@@ -6181,10 +6181,10 @@ describe('agent_harness tool', () => {
       expect(fresh.browserRunnerContract.status).toBe('setup-contract-needed');
       expect(fresh.browserRunnerContract.fallbackRoutes.join('\n')).toContain('web-fetch-research');
       expect(fresh.visualReportContract.status).toBe('waiting-for-reviewed-sources');
-      expect(fresh.visualReportContract.currentRoute).toContain('agent_research_sources mode:bundle');
+      expect(fresh.visualReportContract.currentRoute).toContain('research action:"bundle"');
       expect(fresh.visualReportContract.routes.reviewedSourceBundle).toContain('new competitor research request');
       expect(fresh.workflow.find((step) => step.id === 'visible-run')?.status).toBe('needed');
-      expect(fresh.workflow.find((step) => step.id === 'visible-run')?.route).toContain('agent_research_runs mode:create');
+      expect(fresh.workflow.find((step) => step.id === 'visible-run')?.route).toContain('research action:"create_run"');
       expect(fresh.routes.createRun).toContain('new competitor research request');
     } finally {
       fixture.cleanup();
@@ -7703,14 +7703,14 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'research-workflow-plan')?.modelRoute).toBe('agent_harness mode:"research_workflow"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-workflow-plan')?.modelRoute).toBe('research action:"plan"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'work-background-processes')?.modelRoute).toBe('agent_harness mode:"background_processes"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'work-process-capabilities')?.modelRoute).toBe('agent_harness mode:"background_processes"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'research-run-queue')?.modelRoute).toBe('agent_harness mode:"research_runs"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'research-start-run')?.modelRoute).toBe('agent_research_runs');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'research-source-queue')?.modelRoute).toBe('agent_harness mode:"research_queue"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'research-add-source')?.modelRoute).toBe('agent_research_sources');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'research-save-report')?.modelRoute).toBe('agent_research_report');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-run-queue')?.modelRoute).toBe('research action:"runs"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-start-run')?.modelRoute).toBe('research action:"create_run"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-source-queue')?.modelRoute).toBe('research action:"sources"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-add-source')?.modelRoute).toBe('research action:"add_source"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-save-report')?.modelRoute).toBe('research action:"report"');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });
       expect(listedWithEditors.success).toBe(true);

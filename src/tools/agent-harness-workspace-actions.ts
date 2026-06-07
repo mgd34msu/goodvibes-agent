@@ -148,9 +148,9 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   ) return 'agent_artifacts';
   if (editorKind === 'artifact-promote-knowledge') return 'agent_knowledge_ingest';
   if (editorKind === 'web-research' || editorKind === 'web-fetch') return 'main conversation prompt';
-  if (editorKind === 'research-run') return 'agent_research_runs';
-  if (editorKind === 'research-source') return 'agent_research_sources';
-  if (editorKind === 'research-report') return 'agent_research_report';
+  if (editorKind === 'research-run') return 'research action:"create_run"';
+  if (editorKind === 'research-source') return 'research action:"add_source"';
+  if (editorKind === 'research-report') return 'research action:"report"';
   if (editorKind === 'media-generate') return 'agent_media_generate';
   if (
     editorKind === 'model-compare'
@@ -194,9 +194,9 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'account-local-benchmark-evidence') return 'agent_harness mode:"model_routing" query:"local" includeParameters:true';
   if (action.id === 'assistant-browser-cockpit') return 'agent_harness mode:"open_ui_surface"';
-  if (action.id === 'research-workflow-plan') return 'agent_harness mode:"research_workflow"';
-  if (action.id === 'research-run-queue') return 'agent_harness mode:"research_runs"';
-  if (action.id === 'research-source-queue') return 'agent_harness mode:"research_queue"';
+  if (action.id === 'research-workflow-plan') return 'research action:"plan"';
+  if (action.id === 'research-run-queue') return 'research action:"runs"';
+  if (action.id === 'research-source-queue') return 'research action:"sources"';
   if (action.id === 'work-background-processes') return 'agent_harness mode:"background_processes"';
   if (action.id === 'work-process-capabilities') return 'agent_harness mode:"background_processes"';
   if (action.id === 'context-project-files') return 'agent_harness mode:"project_context"';

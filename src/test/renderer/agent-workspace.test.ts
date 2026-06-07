@@ -878,7 +878,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Visual report contract: waiting for reviewed sources');
     expect(output).toContain('Report requires: at-a-glance, evidence matrix, source map, citations, handoff, archive.');
     expect(output).toContain('Web and URL inspection stay read-only');
-    expect(output).toContain('Tools: agent_research_runs / agent_research_sources / agent_research_report.');
+    expect(output).toContain('Model route: research action:"plan|runs|sources|report".');
     expect(output).toContain('Research in conversation');
     expect(output).toContain('Inspect URL');
     expect(output).toContain('Plan workflow');

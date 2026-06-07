@@ -21,6 +21,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   personal_ops: 'Brief, route, inspect, and read Personal Ops.',
   query: 'Track operator queries, answers, and closure.',
   read: 'Read files, outlines, symbols, and ranges.',
+  research: 'Plan, track, source, and save research.',
   registry: 'Discover local skills, agents, tools, and templates.',
   remote: 'Manage remote runner pools and artifacts.',
   repl: 'Evaluate bounded JS, TS, Python, SQL, or GraphQL.',

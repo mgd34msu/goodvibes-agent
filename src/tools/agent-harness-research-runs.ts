@@ -73,32 +73,32 @@ function nextForRun(run: AgentResearchRunRecord): string {
 function buildRunItem(run: AgentResearchRunRecord): ResearchRunItem {
   const mutable = isMutable(run.status);
   const checkpointRoute = mutable
-    ? `agent_research_runs checkpoint id="${run.id}" confirm:true explicitUserRequest="..."`
+    ? `research action:"checkpoint" id="${run.id}" confirm:true explicitUserRequest="..."`
     : '';
   const pauseRoute = run.status === 'running' || run.status === 'blocked'
-    ? `agent_research_runs pause id="${run.id}" confirm:true explicitUserRequest="..."`
+    ? `research action:"pause" id="${run.id}" confirm:true explicitUserRequest="..."`
     : '';
   const resumeRoute = run.status === 'paused' || run.status === 'planned' || run.status === 'blocked'
-    ? `agent_research_runs resume id="${run.id}" confirm:true explicitUserRequest="..."`
+    ? `research action:"resume" id="${run.id}" confirm:true explicitUserRequest="..."`
     : '';
   const cancelRoute = mutable
-    ? `agent_research_runs cancel id="${run.id}" note="..." confirm:true explicitUserRequest="..."`
+    ? `research action:"cancel" id="${run.id}" note="..." confirm:true explicitUserRequest="..."`
     : '';
   const completeRoute = mutable
-    ? `agent_research_runs complete id="${run.id}" reportArtifactId="..." confirm:true explicitUserRequest="..."`
+    ? `research action:"complete" id="${run.id}" reportArtifactId="..." confirm:true explicitUserRequest="..."`
     : '';
   return {
     run,
     priority: statusPriority(run.status) + Math.min(20, Math.round(run.progress / 5)),
     next: nextForRun(run),
-    modelRoute: 'agent_research_runs',
-    inspectRoute: `agent_research_runs show id="${run.id}"`,
+    modelRoute: 'research action:"run"',
+    inspectRoute: `research action:"run" runId="${run.id}"`,
     ...(checkpointRoute ? { checkpointRoute } : {}),
     ...(pauseRoute ? { pauseRoute } : {}),
     ...(resumeRoute ? { resumeRoute } : {}),
     ...(cancelRoute ? { cancelRoute } : {}),
     ...(completeRoute ? { completeRoute } : {}),
-    reportRoute: 'agent_research_report confirm:true explicitUserRequest:"..."',
+    reportRoute: 'research action:"report" confirm:true explicitUserRequest:"..."',
   };
 }
 
@@ -200,9 +200,9 @@ function researchRunnerPosture(context: CommandContext, includeParameters: boole
         safety: previewHarnessText(workflow.safety, includeParameters ? 180 : 96),
       })),
     },
-    sourceQueueRoute: 'agent_harness mode:"research_queue"',
-    sourceReviewRoute: 'agent_research_sources',
-    reportRoute: 'agent_research_report confirm:true explicitUserRequest:"..."',
+    sourceQueueRoute: 'research action:"sources"',
+    sourceReviewRoute: 'research action:"review_source" confirm:true explicitUserRequest:"..."',
+    reportRoute: 'research action:"report" confirm:true explicitUserRequest:"..."',
     knowledgePromotionRoute: 'agent_knowledge_ingest sourceKind:"artifact" artifactId:"..." confirm:true explicitUserRequest:"..."',
     policy: 'Use browser-backed research only when browser/desktop control is ready or reviewed. Public web research can use web/fetch routes; report saving and Knowledge promotion remain separate confirmed effects.',
   };
@@ -251,7 +251,7 @@ export function researchRunsSummary(context: CommandContext, args: AgentHarnessR
     returned: Math.min(filtered.length, limit),
     total: items.length,
     nextActions: nextActions(items),
-    policy: 'Research runs are read-only in the harness. Run-state writes use agent_research_runs; sources, reports, Knowledge, and delivery stay on separate explicit tools.',
+    policy: 'Research runs are read-only in the harness. Run-state writes use confirmed research lifecycle actions; sources, reports, Knowledge, and delivery stay on separate explicit routes.',
   };
 }
 
@@ -263,7 +263,7 @@ export function describeResearchRun(context: CommandContext, args: AgentHarnessR
   if (!input) {
     return {
       status: 'missing_lookup',
-      usage: 'research_run requires runId, target, or query. Use mode:"research_runs" to inspect run ids.',
+      usage: 'research_run requires runId, target, or query. Use research action:"runs" to inspect run ids.',
     };
   }
   const normalized = input.toLowerCase();
@@ -290,6 +290,6 @@ export function describeResearchRun(context: CommandContext, args: AgentHarnessR
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown research run ${input}. Use mode:"research_runs" to inspect run ids.`,
+    usage: `Unknown research run ${input}. Use research action:"runs" to inspect run ids.`,
   };
 }

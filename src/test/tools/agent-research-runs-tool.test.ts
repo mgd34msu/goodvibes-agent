@@ -73,7 +73,7 @@ describe('agent_research_runs tool', () => {
       const shown = await tool.execute({ mode: 'show', id: 'deep-research-run' });
       expect(shown.success).toBe(true);
       expect(shown.output).toContain('Routes');
-      expect(shown.output).toContain('checkpoint agent_research_runs');
+      expect(shown.output).toContain('checkpoint research action:"checkpoint"');
 
       const started = await tool.execute({
         mode: 'start',
