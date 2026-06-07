@@ -153,9 +153,61 @@ function formatSourceDetail(source: AgentResearchSourceRecord): string {
     'Report source line',
     researchSourceReportLine(source),
     '',
+    'Next routes',
+    ...sourceNextRouteLines(source),
+    '',
     'Policy: source queue records are local project state only; use agent_knowledge_ingest separately for durable Agent Knowledge.',
   ];
   return lines.join('\n');
+}
+
+function routeString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function sourceNextRouteLines(source: AgentResearchSourceRecord): readonly string[] {
+  const lines = [
+    `  inspect research action:"source" sourceId:${routeString(source.id)}`,
+    `  queue research action:"sources" query:${routeString(source.question)} includeReportLines:true`,
+  ];
+  if (source.status === 'candidate') {
+    lines.push(
+      `  review research action:"review_source" id:${routeString(source.id)} credibility:"high|medium|mixed|low" score:80 note:"..." confirm:true explicitUserRequest:"..."`,
+      `  reject research action:"reject_source" id:${routeString(source.id)} note:"..." confirm:true explicitUserRequest:"..."`,
+    );
+  } else if (source.status === 'reviewed') {
+    lines.push(
+      `  bundle research action:"bundle" query:${routeString(source.question)} includeReportLines:true`,
+      `  report research action:"report" question:${routeString(source.question)} sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."`,
+      `  markUsed research action:"use_source" id:${routeString(source.id)} reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,
+      ...(source.url ? [
+        `  promoteUrl agent_knowledge_ingest sourceKind:"url" url:${routeString(source.url)} title:${routeString(source.title)} tags:["research"] confirm:true explicitUserRequest:"..."`,
+      ] : []),
+    );
+  } else if (source.status === 'used') {
+    lines.push(
+      `  bundle research action:"bundle" query:${routeString(source.question)} includeReportLines:true`,
+      ...(source.usedInReportArtifactId ? [
+        `  reportArtifact research action:"report_artifact" artifactId:${routeString(source.usedInReportArtifactId)}`,
+        `  promoteReport agent_knowledge_ingest sourceKind:"artifact" artifactId:${routeString(source.usedInReportArtifactId)} confirm:true explicitUserRequest:"..."`,
+      ] : [
+        `  attachReport research action:"use_source" id:${routeString(source.id)} reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,
+      ]),
+    );
+  } else {
+    lines.push(
+      `  search research action:"sources" status:"rejected" query:${routeString(source.question)}`,
+      `  reAdd research action:"add_source" question:${routeString(source.question)} title:${routeString(source.title)} summary:${routeString(source.summary)} confirm:true explicitUserRequest:"..."`,
+    );
+  }
+  return lines;
+}
+
+function deletedSourceRouteLines(source: AgentResearchSourceRecord): readonly string[] {
+  return [
+    `  queue research action:"sources" query:${routeString(source.question)} includeReportLines:true`,
+    `  reAdd research action:"add_source" question:${routeString(source.question)} title:${routeString(source.title)} summary:${routeString(source.summary)} confirm:true explicitUserRequest:"..."`,
+  ];
 }
 
 function previewText(value: string, maxLength = 160): string {
@@ -226,6 +278,7 @@ function formatSourceBundle(sources: readonly AgentResearchSourceRecord[], query
 }
 
 function formatMutationResult(action: string, source: AgentResearchSourceRecord): string {
+  const nextRoutes = action.startsWith('Deleted') ? deletedSourceRouteLines(source) : sourceNextRouteLines(source);
   return [
     action,
     `  id ${source.id}`,
@@ -234,6 +287,8 @@ function formatMutationResult(action: string, source: AgentResearchSourceRecord)
     `  score ${source.score}`,
     `  title ${source.title}`,
     `  reportLine ${researchSourceReportLine(source)}`,
+    '  nextRoutes',
+    ...nextRoutes,
     '  policy local source queue only; no Knowledge ingest or external message was sent',
   ].join('\n');
 }

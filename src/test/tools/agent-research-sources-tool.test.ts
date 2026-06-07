@@ -49,6 +49,9 @@ describe('agent_research_sources tool', () => {
       expect(added.success).toBe(true);
       expect(added.output).toContain('Added Agent research source');
       expect(added.output).toContain('reportLine Official docs');
+      expect(added.output).toContain('nextRoutes');
+      expect(added.output).toContain('bundle research action:"bundle" query:"Which source should we cite?"');
+      expect(added.output).toContain('promoteUrl agent_knowledge_ingest sourceKind:"url"');
       expect(added.output).not.toContain('secret-value');
 
       const listed = await tool.execute({ mode: 'list', includeReportLines: true });
@@ -95,6 +98,8 @@ describe('agent_research_sources tool', () => {
       const shown = await tool.execute({ mode: 'show', id: 'candidate-source' });
       expect(shown.success).toBe(true);
       expect(shown.output).toContain('Report source line');
+      expect(shown.output).toContain('Next routes');
+      expect(shown.output).toContain('review research action:"review_source" id:"candidate-source"');
 
       const reviewed = await tool.execute({
         mode: 'review',
@@ -108,6 +113,9 @@ describe('agent_research_sources tool', () => {
       expect(reviewed.success).toBe(true);
       expect(reviewed.output).toContain('Reviewed Agent research source');
       expect(reviewed.output).toContain('credibility medium');
+      expect(reviewed.output).toContain('report research action:"report" question:"What source should the report use?"');
+      expect(reviewed.output).toContain('markUsed research action:"use_source" id:"candidate-source"');
+      expect(reviewed.output).toContain('promoteUrl agent_knowledge_ingest sourceKind:"url" url:"https://example.test/candidate"');
 
       const used = await tool.execute({
         mode: 'use',
@@ -118,6 +126,8 @@ describe('agent_research_sources tool', () => {
       });
       expect(used.success).toBe(true);
       expect(used.output).toContain('Marked Agent research source used');
+      expect(used.output).toContain('reportArtifact research action:"report_artifact" artifactId:"artifact-9"');
+      expect(used.output).toContain('promoteReport agent_knowledge_ingest sourceKind:"artifact" artifactId:"artifact-9"');
 
       const rejected = await tool.execute({
         mode: 'reject',
@@ -128,6 +138,7 @@ describe('agent_research_sources tool', () => {
       });
       expect(rejected.success).toBe(true);
       expect(rejected.output).toContain('Rejected Agent research source');
+      expect(rejected.output).toContain('reAdd research action:"add_source" question:"What source should the report use?"');
 
       const unconfirmedDelete = await tool.execute({
         mode: 'delete',
@@ -145,6 +156,7 @@ describe('agent_research_sources tool', () => {
       });
       expect(deleted.success).toBe(true);
       expect(deleted.output).toContain('Deleted Agent research source');
+      expect(deleted.output).toContain('queue research action:"sources" query:"What source should the report use?"');
 
       const registry = new ToolRegistry();
       registerAgentResearchSourcesTool(registry, fixture.paths);
