@@ -47,6 +47,7 @@ function status(): Record<string, unknown> {
     actions: ['plan', 'status'],
     examples: [
       'route action:"plan" query:"fix the failing tests"',
+      'route action:"plan" query:"change the theme setting"',
       'route action:"plan" query:"run pytest in background"',
       'route action:"plan" query:"undo the last file edit"',
       'route action:"plan" query:"take a screenshot of the browser dashboard"',

@@ -82,6 +82,17 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes normal settings requests to the first-class settings tool', async () => {
+    const body = await route('change the theme setting');
+
+    expect(preferredId(body)).toBe('agent-settings-configuration');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'settings action:"list" query:"change the theme setting" includeParameters:true',
+      inspectRoute: 'settings action:"list" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
   test('routes command-shaped background work to local process controls', async () => {
     const body = await route('run pytest -v tests/ in background');
 

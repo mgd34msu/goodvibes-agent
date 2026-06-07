@@ -246,6 +246,29 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
+  if (hasAny(lower, ['setting', 'settings', 'config', 'configuration', 'preference', 'preferences']) && !hasAny(lower, ['import settings', 'tui settings', 'copy settings', 'settings import'])) {
+    const writeLike = hasAny(lower, ['set ', 'change', 'update', 'configure', 'reset', 'clear', 'default', 'restore']);
+    add({
+      id: 'agent-settings-configuration',
+      label: 'Agent settings inspection or change',
+      score: 84,
+      userSurface: 'Settings workspace',
+      userOutcome: 'Find the right Agent-owned setting and keep every setting mutation explicit and confirmed.',
+      why: 'The request mentions settings, configuration, or preferences without asking for GoodVibes TUI import.',
+      modelRoute: `settings action:"list" query:${quote(request)} includeParameters:true`,
+      inspectRoute: 'settings action:"list" includeParameters:true',
+      userRoute: 'Agent Workspace -> Settings',
+      requiresConfirmation: writeLike,
+      missingFields: writeLike ? ['setting key', 'new value or reset target', 'confirmation'] : undefined,
+      supportingRoutes: [
+        'settings action:"get" target:"..." includeParameters:true',
+        'settings action:"set" key:"..." value:... confirm:true explicitUserRequest:"..."',
+        'settings action:"reset" key:"..." confirm:true explicitUserRequest:"..."',
+      ],
+      policy: 'Settings search and inspection are read-only. Set/reset/import effects mutate only Agent-owned settings and require confirmation.',
+    });
+  }
+
   if (hasAny(lower, ['model', 'provider', 'openrouter', 'openai', 'anthropic', 'claude', 'subscription', 'local model', 'ollama', 'llama.cpp', 'llamacpp', 'vllm', 'context window'])) {
     add({
       id: 'model-provider-routing',
