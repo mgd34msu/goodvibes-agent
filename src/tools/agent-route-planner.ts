@@ -190,6 +190,12 @@ function processLifecycleLike(lower: string): boolean {
   ]);
 }
 
+function fileRecoveryLike(lower: string): boolean {
+  const recoveryWord = hasAny(lower, ['undo', 'redo', 'recover', 'recovery', 'restore', 'revert', 'roll back', 'rollback']);
+  if (!recoveryWord) return false;
+  return hasAny(lower, ['file', 'edit', 'write', 'patch', 'diff', 'change', 'snapshot', 'workspace']);
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -375,6 +381,28 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         'agent_operator_method methodId:"watchers.create" confirm:true explicitUserRequest:"..."',
       ],
       policy: 'Autonomy intake is read-only; schedule, watcher, run-control, and delivery effects stay on the owning confirmed route.',
+    });
+  }
+
+  if (fileRecoveryLike(lower)) {
+    add({
+      id: 'local-file-recovery',
+      label: 'Local file edit recovery',
+      score: 98,
+      userSurface: 'Safety and recovery workspace',
+      userOutcome: 'Inspect recent Agent file snapshots and apply exactly one confirmed undo or redo when needed.',
+      why: 'The request mentions undo, redo, restore, revert, or recovery for file/edit/write/patch changes.',
+      modelRoute: 'execution action:"recovery" includeParameters:true',
+      inspectRoute: 'execution action:"history" includeParameters:true',
+      userRoute: 'Agent Workspace -> Safety & Recovery',
+      requiresConfirmation: hasAny(lower, ['undo', 'redo', 'restore', 'revert', 'roll back', 'rollback']),
+      missingFields: ['recovery action when not obvious', 'snapshot target if multiple snapshots are available', 'confirmation before applying undo/redo'],
+      supportingRoutes: [
+        'execution action:"record" target:"..."',
+        'agent_harness mode:"file_recovery" includeParameters:true',
+        'agent_harness mode:"run_file_recovery" recoveryAction:"undo|redo" confirm:true explicitUserRequest:"..."',
+      ],
+      policy: 'Recovery inspection is read-only. Applying an undo or redo snapshot is a single confirmed local file mutation with before/after state tracked by FileUndoManager.',
     });
   }
 

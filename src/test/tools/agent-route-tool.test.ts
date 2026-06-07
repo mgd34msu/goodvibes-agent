@@ -99,6 +99,17 @@ describe('route adapter', () => {
     expect(preferredId(body)).toBe('autonomy-intake');
   });
 
+  test('routes file undo requests to recovery inspection', async () => {
+    const body = await route('undo the last file edit');
+
+    expect(preferredId(body)).toBe('local-file-recovery');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'execution action:"recovery" includeParameters:true',
+      inspectRoute: 'execution action:"history" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
   test('routes screenshot and browser-control tasks through the computer planner', async () => {
     const body = await route('take a screenshot of the logged-in browser dashboard');
 

@@ -11,6 +11,7 @@ Product-facing release notes for GoodVibes Agent.
 - Added `execution action:"capabilities|process_capabilities"` so process parity, PTY, stdin, and sudo posture reports are reachable from the first-class execution tool.
 - Added `computer action:"plan"` and `agent_harness mode:"browser_control_route"` for read-only browser navigation, screenshot, and desktop-control workflow routing; `route action:"plan"` now prefers that computer planner for screenshot, browser-control, screen-observation, and desktop-control wording.
 - Routed command-shaped background work through local process supervision so `route action:"plan"` prefers `execution action:"processes"` plus first-class `terminal`/`process` controls instead of delegation or autonomy for local long-running commands.
+- Routed file undo/redo/recovery wording through `execution action:"recovery"` so plain repair requests inspect FileUndoManager snapshots before any confirmed undo or redo is applied.
 - Added `security action:"explain"` and `agent_harness mode:"policy_explain"` for read-only allowed/denied/confirmation-required policy explanations.
 - Added registered-tool smoke coverage for the Agent-guarded platform tool roster.
 
