@@ -3,6 +3,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { delegationDecisionCards } from './agent-harness-delegation-posture.ts';
 import { fileRecoveryCatalogStatus } from './agent-harness-file-recovery.ts';
+import { sudoExecutionPosture } from './agent-harness-sudo-posture.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessExecutionArgs {
@@ -98,15 +99,15 @@ function routeDefinitions(): readonly ExecutionRoute[] {
     {
       id: 'local-shell-command',
       label: 'Local shell command',
-      detail: 'Run bounded foreground shell commands for discovery, builds, tests, formatting, and verification when the user request and workspace allow it.',
+      detail: 'Run bounded foreground shell commands for discovery, builds, tests, formatting, verification, and explicit user-supervised sudo when the user request and workspace allow it.',
       userOutcome: 'The user sees progress and results from the actual environment without extra routing decisions.',
       effect: 'local-effect',
-      preferredWhen: 'The task needs command output, project tests, build checks, package inspection, or safe one-off automation in the current workspace.',
+      preferredWhen: 'The task needs command output, project tests, build checks, package inspection, safe one-off automation, or visible privilege escalation in the current workspace.',
       useInsteadWhen: 'Use background_processes/run_background_process for user-approved long-running local commands; use delegation or connected-host tasks for isolation, remote execution, or parallelism.',
       toolNames: ['exec'],
       modelRoute: 'exec',
-      safety: 'Use foreground serial commands, avoid destructive operations unless explicitly requested, and report verification results clearly.',
-      nextStep: 'Call exec for bounded foreground commands, or inspect background_processes before starting tracked long-running local work.',
+      safety: 'Use foreground serial commands, avoid destructive operations unless explicitly requested, keep sudo visible and user-supervised, block hidden background sudo prompts, and report verification results clearly.',
+      nextStep: 'Call exec for bounded foreground commands, inspect setup_item sudo-execution-posture before escalation, or inspect background_processes before starting tracked long-running local work.',
     },
     {
       id: 'web-fetch-research',
@@ -331,6 +332,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       browserControl: browserControl.status,
       browserControlSetup: browserControl,
       delegationDecisionCards: delegationCards,
+      sudoPosture: sudoExecutionPosture(context),
       executionHistory: 'agent_harness mode:"execution_history"',
       backgroundProcesses: 'agent_harness mode:"background_processes"',
       fileRecovery: fileRecoveryCatalogStatus(context),

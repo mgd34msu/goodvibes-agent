@@ -13,6 +13,7 @@ import { requireLocalUserAuthManager, requirePlatform, requireProvider, requireS
 import type { BrowserControlPosture } from './agent-harness-browser-control.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { localModelCookbook } from './agent-harness-model-routing.ts';
+import { sudoExecutionPosture, type AgentHarnessSudoPosture } from './agent-harness-sudo-posture.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
 import { connectedHostOperatorTokenFingerprint, connectedHostOperatorTokenPath, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
@@ -84,6 +85,7 @@ interface SetupPlanItem {
   readonly installSmokePlan?: SetupInstallSmokePlan;
   readonly localModelReadiness?: Record<string, unknown>;
   readonly vibeHealth?: AgentHarnessVibeHealth;
+  readonly sudoPosture?: AgentHarnessSudoPosture;
 }
 
 interface SetupRepairCard {
@@ -375,6 +377,7 @@ function planSearchText(item: SetupPlanItem): string {
     JSON.stringify(item.serviceProbe ?? {}),
     JSON.stringify(item.authPosture ?? {}),
     JSON.stringify(item.installSmokePlan ?? {}),
+    JSON.stringify(item.sudoPosture ?? {}),
   ].join('\n').toLowerCase();
 }
 
@@ -1712,6 +1715,49 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           requiresConfirmation: true,
         }),
       ];
+    case 'sudo-execution-posture':
+      return [
+        setupHandoff({
+          id: 'inspect-sudo-posture',
+          label: 'Inspect sudo posture',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: item.userRoute,
+          modelRoute: 'agent_harness mode:"setup_item" setupItemId:"sudo-execution-posture"',
+          nextStep: 'Review foreground-only escalation posture, SUDO_PASSWORD presence, blocked background routes, and missing SDK/daemon contracts.',
+          safety: 'Read-only setup posture; raw sudo password values are never read, stored, or returned.',
+        }),
+        setupHandoff({
+          id: 'inspect-process-parity',
+          label: 'Inspect process parity',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: 'Agent Workspace -> Computer Use -> Background processes',
+          modelRoute: 'agent_harness mode:"run_background_process" processAction:"capabilities"',
+          nextStep: 'Check process list, poll, wait, log, kill, write, PTY, and sudo parity before choosing a process route.',
+          safety: 'Read-only parity report; does not start, stop, write to, or escalate a process.',
+        }),
+        setupHandoff({
+          id: 'inspect-foreground-shell-route',
+          label: 'Inspect foreground shell route',
+          kind: 'diagnostic',
+          effect: 'read-only',
+          userRoute: 'Agent Workspace -> Computer Use -> Local shell',
+          modelRoute: 'agent_harness mode:"execution_route" executionRouteId:"local-shell-command"',
+          nextStep: 'Use only visible foreground shell execution for explicit user-requested sudo until safe credential mediation exists.',
+          safety: 'Read-only route inspection; actual shell execution remains governed by the foreground exec policy.',
+        }),
+        setupHandoff({
+          id: 'review-sudo-env-guidance',
+          label: 'Review SUDO_PASSWORD guidance',
+          kind: 'user-command',
+          effect: 'user-run',
+          userRoute: item.sudoPosture?.credentialSignal.envFilePath ?? '~/.goodvibes/.env',
+          modelRoute: 'agent_harness mode:"setup_item" setupItemId:"sudo-execution-posture"',
+          nextStep: 'If a future safe credential contract requires SUDO_PASSWORD, the user configures it outside Agent and Agent only reports presence.',
+          safety: 'No Agent write route exists for sudo credentials; password values stay outside model-visible output.',
+        }),
+      ];
     case 'automation-review':
       return [
         setupHandoff({
@@ -1845,6 +1891,7 @@ function buildSetupPlan(
   const authPosture = connectedHostAuthPosture(context, snapshot);
   const smokePlan = installSmokePlan(providerAccess, serviceProbe, authPosture);
   const vibeHealth = agentHarnessVibeHealth(context);
+  const sudoPosture = sudoExecutionPosture(context);
 
   const plan: SetupPlanItem[] = [
     {
@@ -2021,6 +2068,19 @@ function buildSetupPlan(
       signals: browserControlSignals(browserControl),
     },
     {
+      id: 'sudo-execution-posture',
+      label: 'Sudo execution posture',
+      status: sudoPosture.setupStatus,
+      priority: 66,
+      blocksAutonomy: false,
+      reason: 'Privilege escalation must stay explicit, visible, and user-supervised; background sudo prompts, stdin password writes, and raw password display are blocked until the SDK/daemon publishes safe mediation.',
+      nextAction: sudoPosture.nextAction,
+      userRoute: 'Agent Workspace -> Computer Use -> Sudo posture',
+      modelRoute: sudoPosture.setupRoute,
+      signals: sudoPosture.signals,
+      sudoPosture,
+    },
+    {
       id: 'build-delegation',
       label: 'Build delegation boundary',
       status: setupPlanStatusForCapability(tuiDelegation, 'optional'),
@@ -2113,6 +2173,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(includeParameters && item.installSmokePlan ? { installSmokePlan: item.installSmokePlan } : {}),
     ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),
     ...(includeParameters && item.vibeHealth ? { vibeHealth: item.vibeHealth } : {}),
+    ...(includeParameters && item.sudoPosture ? { sudoPosture: item.sudoPosture } : {}),
     ...(includeParameters && handoffs.length > 0 ? { handoffs: handoffs.map((handoff) => describeHandoffCard(handoff, true)) } : {}),
     ...(includeParameters && item.repairCards && item.repairCards.length > 0 ? { repairCards: item.repairCards.map(describeRepairCard) } : {}),
     ...(includeParameters && item.bootstrapPlan ? { bootstrapPlan: item.bootstrapPlan } : {}),

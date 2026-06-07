@@ -1026,6 +1026,20 @@ describe('agent_harness tool', () => {
             };
             readonly nextActions?: readonly string[];
           };
+          readonly sudoPosture?: {
+            readonly status: string;
+            readonly setupStatus: string;
+            readonly setupRoute: string;
+            readonly credentialSignal: {
+              readonly envPresent: boolean;
+              readonly checked: string;
+              readonly rawValueReturned: boolean;
+              readonly valueUsableForBackgroundProcess: boolean;
+            };
+            readonly blockedRoutes: readonly { readonly id: string; readonly reason: string }[];
+            readonly missingContracts: readonly string[];
+            readonly policy: string;
+          };
         }[];
         readonly nextSetupActions: readonly {
           readonly setupItemId: string;
@@ -1166,6 +1180,25 @@ describe('agent_harness tool', () => {
       expect(browserControl?.modelRoute).toContain('mcp_servers');
       expect(browserControl?.signals?.join('\n')).toContain('No browser');
 
+      const sudoPosture = posture.readinessPlan.find((item) => item.setupItemId === 'sudo-execution-posture');
+      expect(['optional', 'check']).toContain(sudoPosture?.status);
+      expect(sudoPosture?.blocksAutonomy).toBe(false);
+      expect(sudoPosture?.priority).toBe(66);
+      expect(sudoPosture?.modelRoute).toContain('sudo-execution-posture');
+      expect(sudoPosture?.primaryHandoff?.id).toBe('inspect-sudo-posture');
+      expect(sudoPosture?.handoffs?.map((handoff) => handoff.id)).toEqual(expect.arrayContaining([
+        'inspect-process-parity',
+        'inspect-foreground-shell-route',
+        'review-sudo-env-guidance',
+      ]));
+      expect(sudoPosture?.signals?.join('\n')).toContain('background sudo prompt: blocked');
+      expect(sudoPosture?.sudoPosture?.credentialSignal.checked).toContain('SUDO_PASSWORD');
+      expect(sudoPosture?.sudoPosture?.credentialSignal.rawValueReturned).toBe(false);
+      expect(sudoPosture?.sudoPosture?.credentialSignal.valueUsableForBackgroundProcess).toBe(false);
+      expect(sudoPosture?.sudoPosture?.blockedRoutes.map((route) => route.id)).toContain('background-sudo-prompt');
+      expect(sudoPosture?.sudoPosture?.missingContracts).toContain('daemon credential-prompt mediation');
+      expect(sudoPosture?.sudoPosture?.policy).toContain('never reads');
+
       const hostItem = await executeHarnessJson<{
         readonly setupItemId: string;
         readonly status: string;
@@ -1302,6 +1335,31 @@ describe('agent_harness tool', () => {
       expect(browserItem.lookup?.resolvedBy).toBe('plan-id');
       expect(browserItem.modelRoute).toContain('mcp_servers');
       expect(browserItem.signals?.join('\n')).toContain('No browser');
+
+      const sudoItem = await executeHarnessJson<{
+        readonly setupItemId: string;
+        readonly status: string;
+        readonly lookup?: { readonly resolvedBy?: string };
+        readonly sudoPosture?: {
+          readonly setupRoute: string;
+          readonly credentialSignal: {
+            readonly checked: string;
+            readonly rawValueReturned: boolean;
+            readonly valueUsableForBackgroundProcess: boolean;
+          };
+          readonly supportedRoutes: readonly { readonly id: string; readonly route: string }[];
+          readonly blockedRoutes: readonly { readonly id: string; readonly reason: string }[];
+        };
+      }>(fixture, { mode: 'setup_item', setupItemId: 'sudo-execution-posture' });
+      expect(sudoItem.setupItemId).toBe('sudo-execution-posture');
+      expect(['optional', 'check']).toContain(sudoItem.status);
+      expect(sudoItem.lookup?.resolvedBy).toBe('plan-id');
+      expect(sudoItem.sudoPosture?.setupRoute).toContain('sudo-execution-posture');
+      expect(sudoItem.sudoPosture?.credentialSignal.checked).toContain('SUDO_PASSWORD');
+      expect(sudoItem.sudoPosture?.credentialSignal.rawValueReturned).toBe(false);
+      expect(sudoItem.sudoPosture?.credentialSignal.valueUsableForBackgroundProcess).toBe(false);
+      expect(sudoItem.sudoPosture?.supportedRoutes.map((route) => route.id)).toContain('foreground-supervised-shell');
+      expect(sudoItem.sudoPosture?.blockedRoutes.map((route) => route.id)).toContain('raw-password-display');
     } finally {
       fixture.cleanup();
     }
@@ -3280,6 +3338,16 @@ describe('agent_harness tool', () => {
             readonly setupChecklist: readonly string[];
             readonly fallbackRoutes: readonly string[];
           };
+          readonly sudoPosture: {
+            readonly status: string;
+            readonly setupRoute: string;
+            readonly credentialSignal: {
+              readonly checked: string;
+              readonly rawValueReturned: boolean;
+              readonly valueUsableForBackgroundProcess: boolean;
+            };
+            readonly blockedRoutes: readonly { readonly id: string }[];
+          };
           readonly supervision: {
             readonly processMonitorAvailable: boolean;
             readonly liveTailAvailable: boolean;
@@ -3317,6 +3385,12 @@ describe('agent_harness tool', () => {
       expect(posture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('setup_item');
       expect(posture.summary.browserControlSetup.setupChecklist.join('\n')).toContain('constrained trust');
       expect(posture.summary.browserControlSetup.fallbackRoutes.join('\n')).toContain('web-fetch-research');
+      expect(posture.summary.sudoPosture.status).toContain('foreground');
+      expect(posture.summary.sudoPosture.setupRoute).toContain('sudo-execution-posture');
+      expect(posture.summary.sudoPosture.credentialSignal.checked).toContain('SUDO_PASSWORD');
+      expect(posture.summary.sudoPosture.credentialSignal.rawValueReturned).toBe(false);
+      expect(posture.summary.sudoPosture.credentialSignal.valueUsableForBackgroundProcess).toBe(false);
+      expect(posture.summary.sudoPosture.blockedRoutes.map((route) => route.id)).toContain('background-sudo-prompt');
       expect(posture.summary.supervision.processMonitorAvailable).toBe(true);
       expect(posture.summary.supervision.liveTailAvailable).toBe(true);
       expect(posture.summary.registeredExecutionTools).toEqual(expect.arrayContaining(['read', 'edit', 'exec', 'fetch', 'web_search']));
@@ -3452,6 +3526,7 @@ describe('agent_harness tool', () => {
       expect(inspectedShell.executionRouteId).toBe('local-shell-command');
       expect(inspectedShell.availability).toBe('ready');
       expect(inspectedShell.safety).toContain('foreground serial');
+      expect(inspectedShell.safety).toContain('sudo');
       expect(inspectedShell.useInsteadWhen).toContain('background_processes');
 
       const inspectedDelegation = await executeHarnessJson<{
@@ -3488,7 +3563,16 @@ describe('agent_harness tool', () => {
           readonly parity: readonly { readonly capability: string; readonly status: string; readonly modelRoute: string }[];
           readonly substrate: { readonly localProcessManager: { readonly supports: readonly string[] }; readonly daemonOperatorContract: { readonly status: string } };
           readonly pty: { readonly status: string };
-          readonly sudo: { readonly status: string; readonly credentialSignal: { readonly checked: string } };
+          readonly sudo: {
+            readonly status: string;
+            readonly setupRoute: string;
+            readonly credentialSignal: {
+              readonly checked: string;
+              readonly rawValueReturned: boolean;
+              readonly valueUsableForBackgroundProcess: boolean;
+            };
+            readonly blockedRoutes: readonly { readonly id: string }[];
+          };
         };
       }>(fixture, { mode: 'background_processes', includeParameters: true });
       expect(empty.status).toBe('available');
@@ -3500,7 +3584,11 @@ describe('agent_harness tool', () => {
       expect(empty.capabilities.substrate.daemonOperatorContract.status).toContain('no-published-terminal');
       expect(empty.capabilities.pty.status).toContain('not-yet-supported');
       expect(empty.capabilities.sudo.status).toContain('foreground');
+      expect(empty.capabilities.sudo.setupRoute).toContain('sudo-execution-posture');
       expect(empty.capabilities.sudo.credentialSignal.checked).toContain('SUDO_PASSWORD');
+      expect(empty.capabilities.sudo.credentialSignal.rawValueReturned).toBe(false);
+      expect(empty.capabilities.sudo.credentialSignal.valueUsableForBackgroundProcess).toBe(false);
+      expect(empty.capabilities.sudo.blockedRoutes.map((route) => route.id)).toContain('background-sudo-prompt');
 
       const unconfirmed = await fixture.tool.execute({
         mode: 'run_background_process',
@@ -3640,7 +3728,16 @@ describe('agent_harness tool', () => {
       expect(writeAction.capability).toBe('stdinWrite');
       expect(writeAction.processId).toBe('bg_missing');
 
-      const sudo = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly reason: string }>(fixture, {
+      const sudo = await executeHarnessJson<{
+        readonly status: string;
+        readonly capability: string;
+        readonly reason: string;
+        readonly guidance: {
+          readonly setupRoute: string;
+          readonly credentialSignal: { readonly rawValueReturned: boolean };
+          readonly blockedRoutes: readonly { readonly id: string }[];
+        };
+      }>(fixture, {
         mode: 'run_background_process',
         processAction: 'start',
         command: 'sudo true',
@@ -3650,10 +3747,16 @@ describe('agent_harness tool', () => {
       expect(sudo.status).toBe('blocked');
       expect(sudo.capability).toBe('sudo');
       expect(sudo.reason).toContain('Background sudo prompts');
+      expect(sudo.guidance.setupRoute).toContain('sudo-execution-posture');
+      expect(sudo.guidance.credentialSignal.rawValueReturned).toBe(false);
+      expect(sudo.guidance.blockedRoutes.map((route) => route.id)).toContain('background-sudo-prompt');
 
       const capabilities = await executeHarnessJson<{
         readonly status: string;
-        readonly capabilities: { readonly parity: readonly { readonly capability: string; readonly status: string }[] };
+        readonly capabilities: {
+          readonly parity: readonly { readonly capability: string; readonly status: string }[];
+          readonly sudo: { readonly setupRoute: string; readonly credentialSignal: { readonly rawValueReturned: boolean } };
+        };
         readonly policy: string;
       }>(fixture, {
         mode: 'run_background_process',
@@ -3662,6 +3765,8 @@ describe('agent_harness tool', () => {
       expect(capabilities.status).toBe('available');
       expect(capabilities.capabilities.parity.map((entry) => entry.capability)).toContain('terminal(background=true)');
       expect(capabilities.capabilities.parity.find((entry) => entry.capability === 'pty')?.status).toBe('blocked-contract-gap');
+      expect(capabilities.capabilities.sudo.setupRoute).toContain('sudo-execution-posture');
+      expect(capabilities.capabilities.sudo.credentialSignal.rawValueReturned).toBe(false);
       expect(capabilities.policy).toContain('read-only');
     } finally {
       fixture.cleanup();

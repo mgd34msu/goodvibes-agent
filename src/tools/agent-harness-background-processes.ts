@@ -1,5 +1,6 @@
 import type { BackgroundProcess, ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
+import { sudoExecutionPosture } from './agent-harness-sudo-posture.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessBackgroundProcessArgs {
@@ -190,14 +191,6 @@ function candidateProcess(entry: BackgroundProcess): Record<string, unknown> {
   };
 }
 
-function sudoCredentialSignal(): Record<string, unknown> {
-  return {
-    envPresent: Boolean(process.env.SUDO_PASSWORD),
-    checked: 'process.env.SUDO_PASSWORD only',
-    policy: 'The harness never reads, stores, or prints the password value. A credential signal alone is not enough for hidden background sudo execution.',
-  };
-}
-
 function processToolParity(): readonly Record<string, unknown>[] {
   return [
     {
@@ -257,7 +250,8 @@ function processToolParity(): readonly Record<string, unknown>[] {
   ];
 }
 
-function capabilities(): Record<string, unknown> {
+function capabilities(context?: CommandContext): Record<string, unknown> {
+  const sudoPosture = sudoExecutionPosture(context);
   return {
     start: 'agent_harness mode:"run_background_process" processAction:"start" command:"..." confirm:true explicitUserRequest:"..."',
     inspect: 'agent_harness mode:"background_processes" or mode:"background_process"',
@@ -299,9 +293,8 @@ function capabilities(): Record<string, unknown> {
       guidance: 'ProcessManager currently tracks output and stop lifecycle; it does not expose a safe stdin write API.',
     },
     sudo: {
-      status: 'foreground-or-user-supervised-only',
-      guidance: 'Do not run hidden background sudo prompts. If sudo is needed, keep it visible and never print or persist raw password values. Future support can use a prompt or SUDO_PASSWORD from ~/.goodvibes/.env without exposing the value.',
-      credentialSignal: sudoCredentialSignal(),
+      ...sudoPosture,
+      guidance: sudoPosture.credentialSignal.guidance,
     },
   };
 }
@@ -337,7 +330,7 @@ export function backgroundProcessSummary(context: CommandContext, args: AgentHar
       processes: [],
       returned: 0,
       total: 0,
-      capabilities: capabilities(),
+      capabilities: capabilities(context),
       policy: 'Background process UX uses the shared GoodVibes ProcessManager when the current runtime wires it in.',
     };
   }
@@ -359,7 +352,7 @@ export function backgroundProcessSummary(context: CommandContext, args: AgentHar
     processes,
     returned: processes.length,
     total: entries.length,
-    capabilities: capabilities(),
+    capabilities: capabilities(context),
     policy: 'List/status/log routes are read-only and bounded. Starting, waiting on, or stopping a background process requires confirm:true and explicitUserRequest.',
   };
 }
@@ -476,14 +469,14 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
 
   if (args.pty === true || readField(args, 'pty').toLowerCase() === 'true') {
     return {
-      ...(capabilities().pty as Record<string, unknown>),
+      ...(capabilities(context).pty as Record<string, unknown>),
       status: 'unsupported',
       capability: 'pty',
     };
   }
   if (readString(args.data) || readField(args, 'data')) {
     return {
-      ...(capabilities().stdinWrite as Record<string, unknown>),
+      ...(capabilities(context).stdinWrite as Record<string, unknown>),
       status: 'unsupported',
       capability: 'stdinWrite',
       processId: readProcessId(args) || null,
@@ -494,7 +487,7 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
   const action = readProcessAction(args);
   if (action === 'write') {
     return {
-      ...(capabilities().stdinWrite as Record<string, unknown>),
+      ...(capabilities(context).stdinWrite as Record<string, unknown>),
       status: 'unsupported',
       capability: 'stdinWrite',
       processId: readProcessId(args) || null,
@@ -504,7 +497,7 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
   if (action === 'capabilities' || action === 'doctor' || action === 'parity') {
     return {
       status: 'available',
-      capabilities: capabilities(),
+      capabilities: capabilities(context),
       methods: PROCESS_PARITY_METHODS,
       policy: 'This is a read-only process UX contract report. It does not start, stop, or write to any process.',
     };
@@ -519,7 +512,7 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
         status: 'blocked',
         capability: 'sudo',
         reason: 'Background sudo prompts are not exposed by Agent because they can hang or hide privilege escalation.',
-        guidance: capabilities().sudo,
+        guidance: capabilities(context).sudo,
       };
     }
     const cwd = readCwd(context, args);

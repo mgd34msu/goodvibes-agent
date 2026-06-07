@@ -73,6 +73,8 @@ describe('agent_harness mode catalog', () => {
       readonly modes: readonly { readonly id: string }[];
     };
     expect(sudo.modes.map((mode) => mode.id)).toContain('run_background_process');
+    expect(sudo.modes.map((mode) => mode.id)).toContain('setup_posture');
+    expect(sudo.modes.map((mode) => mode.id)).toContain('execution_posture');
 
     const processTool = listHarnessModes({ query: 'process tool session id poll kill write', includeParameters: true, limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[] }[];
