@@ -155,6 +155,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action uses Agent-owned markdown drafts with version history, review comments, user-reviewed AI suggestions, artifact attachment, and artifact insertion. Export creates a saved markdown artifact with attachment metadata; insertion appends bounded text or a safe artifact reference. No default knowledge write occurs.',
     };
   }
+  if (editorKind === 'document-reviewer-readiness') {
+    return {
+      route: 'agent_harness',
+      tool: 'agent_harness',
+      action: 'inspect_reviewer_readiness_preflight',
+      confirmation: 'not-required',
+      note: 'run_workspace_action inspects the Document Ops reviewer-readiness lane before export, handoff archive, or model-route apply. It is read-only and returns exact repair routes.',
+    };
+  }
   if (editorKind === 'model-compare' || editorKind === 'local-model-benchmark') {
     return {
       route: 'agent_model_compare',
@@ -173,6 +182,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       action: 'review_saved_comparison_side_by_side_or_handoff_diff',
       confirmation: 'not-required',
       note: 'run_workspace_action renders saved blind comparison artifacts, a read-only review board, a side-by-side related-artifact evidence view, or a visual reviewer handoff diff through the first-class comparison tool; route updates stay separate.',
+    };
+  }
+  if (editorKind === 'model-compare-handoff-diff') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'diff_reviewer_handoff_artifacts',
+      confirmation: 'not-required',
+      note: 'run_workspace_action renders a visual reviewer handoff diff through the first-class comparison tool, with an optional section jump for all, metadata, policy, related artifacts, or comparison evidence.',
     };
   }
   if (editorKind === 'model-compare-judge') {

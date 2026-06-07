@@ -914,6 +914,18 @@ describe('agent_model_compare tool', () => {
     expect(handoffDiff.output).toContain('+ - c2 [open] Confirm the reviewer packet before archive.');
     expect(handoffDiff.output).toContain('No selected model was changed.');
 
+    const relatedHandoffDiff = await reviewer.tool.execute({
+      mode: 'handoffDiff',
+      leftArtifactId: 'artifact-7',
+      rightArtifactId: 'artifact-10',
+      sectionId: 'related',
+    });
+    expect(relatedHandoffDiff.success).toBe(true);
+    expect(relatedHandoffDiff.output).toContain('section jump Related Artifacts');
+    expect(relatedHandoffDiff.output).toContain('available sections Metadata delta');
+    expect(relatedHandoffDiff.output).toContain('- Ship the reviewed document workflow.');
+    expect(relatedHandoffDiff.output).toContain('+ Ship the reviewer handoff diff workflow.');
+
     const handoffDiffList = await reviewer.tool.execute({ mode: 'handoffDiff' });
     expect(handoffDiffList.success).toBe(true);
     expect(handoffDiffList.output).toContain('Saved blind comparison reviewer handoffs');

@@ -2,9 +2,10 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactExportToolArgs, buildAgentArtifactPackageToolArgs, buildAgentArtifactPromoteKnowledgeToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
+import { buildAgentDocumentReviewerReadinessToolArgs } from '../input/agent-workspace-document-ops-editor.ts';
 import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
-import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
+import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareHandoffDiffToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
 import { buildAgentResearchReportToolArgs } from '../input/agent-workspace-research-report-editor.ts';
 import { buildAgentResearchRunToolArgs } from '../input/agent-workspace-research-run-editor.ts';
 import { buildAgentResearchSourceToolArgs } from '../input/agent-workspace-research-source-editor.ts';
@@ -630,6 +631,23 @@ async function runWorkspaceEditorAction(
     });
   }
 
+  if (editor.kind === 'document-reviewer-readiness') {
+    const readinessArgs = buildAgentDocumentReviewerReadinessToolArgs(fieldReader(editor, fields));
+    const resolved = describeDocumentOpsLane(deps.commandContext, readinessArgs);
+    if (resolved.status !== 'found') {
+      return error(resolved.status === 'ambiguous'
+        ? `Ambiguous Document Ops lane reviewer_readiness. Candidates: ${JSON.stringify(resolved.candidates)}`
+        : resolved.usage);
+    }
+    return output({
+      status: 'executed_harness_lane',
+      action: action.id,
+      tool: 'agent_harness',
+      output: resolved.lane,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
   if (editor.kind === 'model-compare' || editor.kind === 'local-model-benchmark') {
     const confirmationError = requireConfirmedAction(args, 'Workspace blind model comparison');
     if (confirmationError) return error(confirmationError);
@@ -668,6 +686,23 @@ async function runWorkspaceEditorAction(
       'agent-harness-workspace-model-compare-review',
       'agent_model_compare',
       reviewToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_model_compare',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'model-compare-handoff-diff') {
+    const handoffDiffArgs = buildAgentModelCompareHandoffDiffToolArgs(fieldReader(editor, fields));
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-model-compare-handoff-diff',
+      'agent_model_compare',
+      handoffDiffArgs as unknown as Record<string, unknown>,
     );
     return output({
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',

@@ -26,6 +26,7 @@ export interface AgentModelCompareToolArgs {
   readonly artifactId?: unknown;
   readonly leftArtifactId?: unknown;
   readonly rightArtifactId?: unknown;
+  readonly sectionId?: unknown;
   readonly winner?: unknown;
   readonly winnerBlindId?: unknown;
   readonly reasons?: unknown;
@@ -1542,6 +1543,15 @@ function normalizedSectionContent(lines: readonly string[]): string {
 }
 
 function handoffSectionMap(text: string): Map<string, string> {
+  const lineMap = handoffSectionLineMap(text);
+  const normalized = new Map<string, string>();
+  for (const [section, lines] of lineMap) {
+    normalized.set(section, normalizedSectionContent(lines));
+  }
+  return normalized;
+}
+
+function handoffSectionLineMap(text: string): Map<string, string[]> {
   const sections = new Map<string, string[]>();
   let current = '(preamble)';
   let inCodeFence = false;
@@ -1565,11 +1575,37 @@ function handoffSectionMap(text: string): Map<string, string> {
     }
     sections.get(current)?.push(line);
   }
-  const normalized = new Map<string, string>();
-  for (const [section, lines] of sections) {
-    normalized.set(section, normalizedSectionContent(lines));
+  return sections;
+}
+
+function normalizeHandoffSectionAlias(value: string): string {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function resolveHandoffSectionName(sectionId: string, lineMap: Map<string, string[]>): string | null {
+  const normalized = normalizeHandoffSectionAlias(sectionId);
+  if (!normalized || normalized === 'all' || normalized === 'full') return null;
+  if (normalized === 'metadata' || normalized === 'metadatadelta') return 'Metadata delta';
+  const aliases = new Map<string, string>([
+    ['preamble', '(preamble)'],
+    ['header', 'Blind Model Comparison Reviewer Handoff'],
+    ['summary', 'Blind Model Comparison Reviewer Handoff'],
+    ['overview', 'Blind Model Comparison Reviewer Handoff'],
+    ['policy', 'Handoff Policy'],
+    ['handoffpolicy', 'Handoff Policy'],
+    ['related', 'Related Artifacts'],
+    ['relatedartifacts', 'Related Artifacts'],
+    ['artifacts', 'Related Artifacts'],
+    ['comparison', 'Comparison Evidence'],
+    ['comparisonevidence', 'Comparison Evidence'],
+    ['evidence', 'Comparison Evidence'],
+  ]);
+  const aliased = aliases.get(normalized);
+  if (aliased && lineMap.has(aliased)) return aliased;
+  for (const section of lineMap.keys()) {
+    if (normalizeHandoffSectionAlias(section) === normalized) return section;
   }
-  return normalized;
+  return '';
 }
 
 function formatHandoffMetadataDelta(
@@ -1669,14 +1705,33 @@ function formatHandoffSectionDiff(
 function formatHandoffDiff(input: {
   readonly left: LoadedHandoffDiffArtifact;
   readonly right: LoadedHandoffDiffArtifact;
+  readonly sectionId?: string;
 }): string {
-  const leftLines = input.left.text.split('\n').slice(0, MAX_HANDOFF_DIFF_INPUT_LINES);
-  const rightLines = input.right.text.split('\n').slice(0, MAX_HANDOFF_DIFF_INPUT_LINES);
+  const leftSectionLines = handoffSectionLineMap(input.left.text);
+  const rightSectionLines = handoffSectionLineMap(input.right.text);
+  const sectionName = resolveHandoffSectionName(
+    input.sectionId ?? '',
+    new Map([...leftSectionLines, ...rightSectionLines]),
+  );
+  const sectionAvailable = sectionName !== '';
+  const allSections = ['Metadata delta', ...Array.from(new Set([...leftSectionLines.keys(), ...rightSectionLines.keys()]))]
+    .filter((section) => section !== '(preamble)')
+    .join(', ');
+  const leftRawLines = sectionName
+    ? leftSectionLines.get(sectionName) ?? []
+    : input.left.text.split('\n');
+  const rightRawLines = sectionName
+    ? rightSectionLines.get(sectionName) ?? []
+    : input.right.text.split('\n');
+  const leftLines = leftRawLines.slice(0, MAX_HANDOFF_DIFF_INPUT_LINES);
+  const rightLines = rightRawLines.slice(0, MAX_HANDOFF_DIFF_INPUT_LINES);
   const diffRows = buildLineDiff(leftLines, rightLines);
   return [
     'Blind model comparison reviewer handoff visual diff',
     `left ${input.left.handoff.artifact.artifactId} (${input.left.handoff.handoffId})`,
     `right ${input.right.handoff.artifact.artifactId} (${input.right.handoff.handoffId})`,
+    `section jump ${sectionName ? sectionName : input.sectionId && !sectionAvailable ? `unmatched ${input.sectionId}` : 'all'}`,
+    `available sections ${allSections || '(none)'}`,
     `line window ${leftLines.length}/${input.left.originalLineCount} left, ${rightLines.length}/${input.right.originalLineCount} right`,
     ...(input.left.truncatedBytes > 0 || input.right.truncatedBytes > 0
       ? [`truncated bytes left ${input.left.truncatedBytes}, right ${input.right.truncatedBytes}`]
@@ -1692,7 +1747,7 @@ function formatHandoffDiff(input: {
     ...formatHandoffSectionDiff(input.left, input.right),
     '',
     'Aligned line diff',
-    ...formatHandoffDiffRows(diffRows),
+    ...(sectionAvailable ? formatHandoffDiffRows(diffRows) : [`  Section ${input.sectionId || '(blank)'} was not found. Use all, policy, related, or comparison.`]),
     '',
     'No selected model was changed.',
   ].join('\n');
@@ -2392,6 +2447,10 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             type: 'string',
             description: 'Right saved reviewer handoff artifact id for handoffDiff.',
           },
+          sectionId: {
+            type: 'string',
+            description: 'Optional handoffDiff jump: all, metadata, policy, related, comparison.',
+          },
           winnerBlindId: {
             type: 'string',
             description: 'Candidate label to save as winner, such as A or Candidate B.',
@@ -2536,7 +2595,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           if (!left || !right) {
             return failure('Unknown reviewer handoff artifact. Pass two saved blind model comparison handoff artifact ids.');
           }
-          return output(formatHandoffDiff({ left, right }));
+          return output(formatHandoffDiff({ left, right, sectionId: readString(args.sectionId) }));
         }
 
         if (mode === MODE_ANALYTICS) {

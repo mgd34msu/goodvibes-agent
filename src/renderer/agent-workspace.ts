@@ -418,7 +418,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Files: attach, paste, source ingest, and export; artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}.`, fg: PALETTE.good },
       { text: `Media artifacts: ${mediaReady}/${snapshot.mediaProviderCount} providers ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
       { text: 'Versioned drafts, review comments, AI suggestion review, artifact attachment/insertion, artifact browser, and Knowledge promotion are available.', fg: PALETTE.good },
-      { text: 'Compare artifact reuse, review/side-by-side/judgment, filtered analytics/synthesis, export/handoff/archive, and route update are available.', fg: PALETTE.good },
+      { text: 'Reviewer-readiness preflight, compare artifact reuse, review/side-by-side/judgment, filtered analytics/synthesis, handoff diff section jumps, export/handoff/archive, and route update are available.', fg: PALETTE.good },
       { text: 'Saved artifact export-to-file, package, and ZIP archive export are available.', fg: PALETTE.good },
       { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
     );
@@ -544,6 +544,17 @@ function editorContextLines(editor: AgentWorkspaceLocalEditor): ContextLine[] {
     lines.push(
       { text: `Editing: ${selected.label}${selected.required ? ' (required)' : ''}`, fg: PALETTE.title, bold: true },
       { text: compactText(selected.hint), fg: PALETTE.muted },
+    );
+  }
+  if (editor.kind === 'model-compare-handoff-diff') {
+    lines.push(
+      { text: 'Split view: compare left and right reviewer handoff artifacts without changing model routing.', fg: PALETTE.good },
+      { text: 'Section jumps: all, metadata, policy, related, comparison.', fg: PALETTE.info },
+    );
+  } else if (editor.kind === 'document-reviewer-readiness') {
+    lines.push(
+      { text: 'Preflight checks: comments, suggestions, source artifacts, comparison reveal, route decisions, handoff evidence.', fg: PALETTE.info },
+      { text: 'Use before export, handoff archive, or applying a comparison winner.', fg: PALETTE.good },
     );
   }
   return lines;

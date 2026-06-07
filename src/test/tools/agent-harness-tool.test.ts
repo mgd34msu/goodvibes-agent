@@ -4295,6 +4295,7 @@ describe('agent_harness tool', () => {
       expect(exports?.actionIds).toContain('document-export-conversation');
       expect(reviewerReadiness?.status).toBe('attention');
       expect(reviewerReadiness?.current).toContain('1 open comment');
+      expect(reviewerReadiness?.actionIds).toContain('document-reviewer-readiness');
       expect(reviewerReadiness?.actionIds).toContain('document-resolve-comment');
       expect(reviewerReadiness?.actionIds).toContain('document-accept-suggestion');
       expect(reviewerReadiness?.actionIds).toContain('document-apply-compare');
@@ -4333,6 +4334,7 @@ describe('agent_harness tool', () => {
       expect(modelCompare?.current).toContain('confirmed blind comparison runner');
       expect(modelCompare?.actionIds).toContain('document-run-compare');
       expect(modelCompare?.actionIds).toContain('document-review-compare');
+      expect(modelCompare?.actionIds).toContain('document-diff-handoffs');
       expect(modelCompare?.actionIds).toContain('document-judge-compare');
       expect(modelCompare?.actionIds).toContain('document-compare-analytics');
       expect(modelCompare?.actionIds).toContain('document-apply-compare');
@@ -4366,6 +4368,22 @@ describe('agent_harness tool', () => {
       expect(reviewerLane.id).toBe('reviewer_readiness');
       expect(reviewerLane.status).toBe('attention');
       expect(reviewerLane.reviewerReadiness?.checks.find((check) => check.id === 'source-artifacts')?.repairRoute).toContain('attachArtifact');
+
+      const readinessAction = await executeHarnessJson<{
+        readonly status: string;
+        readonly action: string;
+        readonly tool: string;
+        readonly output?: { readonly id?: string; readonly reviewerReadiness?: { readonly status?: string } };
+      }>(fixture, {
+        mode: 'run_workspace_action',
+        actionId: 'document-reviewer-readiness',
+        fields: { includeRoutes: 'yes' },
+      });
+      expect(readinessAction.status).toBe('executed_harness_lane');
+      expect(readinessAction.action).toBe('document-reviewer-readiness');
+      expect(readinessAction.tool).toBe('agent_harness');
+      expect(readinessAction.output?.id).toBe('reviewer_readiness');
+      expect(readinessAction.output?.reviewerReadiness?.status).toBe('attention');
     } finally {
       fixture.cleanup();
     }
@@ -7741,6 +7759,26 @@ describe('agent_harness tool', () => {
         mode: 'handoffDiff',
         leftArtifactId: 'artifact-7',
         rightArtifactId: 'artifact-10',
+      });
+
+      const explicitHandoffDiff = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-diff-handoffs',
+        fields: {
+          leftArtifactId: 'artifact-7',
+          rightArtifactId: 'artifact-10',
+          sectionId: 'related',
+        },
+      });
+      expect(explicitHandoffDiff.success).toBe(true);
+      expect(explicitHandoffDiff.output).toContain('"status": "executed_model_tool"');
+      expect(explicitHandoffDiff.output).toContain('"tool": "agent_model_compare"');
+      expect(explicitHandoffDiff.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'handoffDiff',
+        leftArtifactId: 'artifact-7',
+        rightArtifactId: 'artifact-10',
+        sectionId: 'related',
       });
 
       const judgmentUnconfirmed = await fixture.tool.execute({

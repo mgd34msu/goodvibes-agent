@@ -25,9 +25,17 @@ export interface AgentModelCompareReviewWorkspaceToolArgs {
   readonly artifactId?: string;
   readonly leftArtifactId?: string;
   readonly rightArtifactId?: string;
+  readonly sectionId?: string;
   readonly relatedArtifactIds?: readonly string[];
   readonly previewBytes?: number;
   readonly reveal?: boolean;
+}
+
+export interface AgentModelCompareHandoffDiffWorkspaceToolArgs {
+  readonly mode: 'handoffDiff';
+  readonly leftArtifactId?: string;
+  readonly rightArtifactId?: string;
+  readonly sectionId?: string;
 }
 
 export interface AgentModelCompareJudgmentWorkspaceToolArgs {
@@ -180,6 +188,21 @@ export function createAgentModelCompareReviewEditor(): AgentWorkspaceLocalEditor
   };
 }
 
+export function createAgentModelCompareHandoffDiffEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'model-compare-handoff-diff',
+    mode: 'create',
+    title: 'Diff Reviewer Handoffs',
+    selectedFieldIndex: 0,
+    message: 'Compare two saved reviewer handoff artifacts in the workspace split view. Use Section jump to focus the diff on all, metadata, policy, related, or comparison evidence.',
+    fields: [
+      { id: 'leftArtifactId', label: 'Left handoff', value: '', required: true, multiline: false, hint: 'First saved reviewer handoff artifact id, such as artifact-7.' },
+      { id: 'rightArtifactId', label: 'Right handoff', value: '', required: true, multiline: false, hint: 'Second saved reviewer handoff artifact id, such as artifact-10.' },
+      { id: 'sectionId', label: 'Section jump', value: 'all', required: false, multiline: false, hint: 'all, metadata, policy, related, or comparison. Related focuses changed document/artifact evidence.' },
+    ],
+  };
+}
+
 export function createAgentModelCompareJudgmentEditor(): AgentWorkspaceLocalEditor {
   return {
     kind: 'model-compare-judge',
@@ -294,10 +317,12 @@ export function buildAgentModelCompareReviewToolArgs(
   const previewBytes = readPositiveInteger(readField('previewBytes'));
   const reveal = isAffirmative(readField('reveal'));
   if (mode === 'handoffDiff') {
+    const sectionId = readField('sectionId').trim();
     return {
       mode,
       ...(leftArtifactId ? { leftArtifactId } : {}),
       ...(rightArtifactId ? { rightArtifactId } : {}),
+      ...(sectionId && sectionId.toLowerCase() !== 'all' ? { sectionId } : {}),
       ...(previewBytes !== null ? { previewBytes } : {}),
     };
   }
@@ -308,6 +333,18 @@ export function buildAgentModelCompareReviewToolArgs(
     ...(relatedArtifactIds.length > 0 ? { relatedArtifactIds } : {}),
     ...(previewBytes !== null ? { previewBytes } : {}),
     reveal,
+  };
+}
+
+export function buildAgentModelCompareHandoffDiffToolArgs(
+  readField: AgentWorkspaceFieldReader,
+): AgentModelCompareHandoffDiffWorkspaceToolArgs {
+  const sectionId = readField('sectionId').trim();
+  return {
+    mode: 'handoffDiff',
+    ...(readField('leftArtifactId').trim() ? { leftArtifactId: readField('leftArtifactId').trim() } : {}),
+    ...(readField('rightArtifactId').trim() ? { rightArtifactId: readField('rightArtifactId').trim() } : {}),
+    ...(sectionId && sectionId.toLowerCase() !== 'all' ? { sectionId } : {}),
   };
 }
 
@@ -551,6 +588,63 @@ export function buildAgentModelCompareReviewPromptSubmission(
             : 'Submitted a read-only request to review saved blind comparison artifacts.',
         safety: 'read-only',
       },
+  };
+}
+
+export function buildAgentModelCompareHandoffDiffPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the reviewer handoff diff request from the workspace form.',
+        safety: 'read-only',
+      },
+    };
+  }
+
+  const leftArtifactId = readField('leftArtifactId').trim();
+  const rightArtifactId = readField('rightArtifactId').trim();
+  const sectionId = readField('sectionId').trim() || 'all';
+  const prompt = [
+    'Render a visual diff between two saved reviewer handoff artifacts with the `agent_model_compare` tool.',
+    'Use mode:"handoffDiff".',
+    leftArtifactId ? `Use leftArtifactId: ${JSON.stringify(leftArtifactId)}.` : 'No leftArtifactId was provided; list saved reviewer handoffs if either id is missing.',
+    rightArtifactId ? `Use rightArtifactId: ${JSON.stringify(rightArtifactId)}.` : 'No rightArtifactId was provided; list saved reviewer handoffs if either id is missing.',
+    `Use sectionId: ${JSON.stringify(sectionId)}.`,
+    'Use the existing split-pane Agent workspace path for the result; do not change the selected model.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting reviewer handoff diff request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Reviewer handoff diff',
+      detail: 'Submitted a read-only request to compare two reviewer handoff artifacts with section jump focus.',
+      safety: 'read-only',
+    },
   };
 }
 

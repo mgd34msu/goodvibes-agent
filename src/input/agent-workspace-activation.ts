@@ -1,9 +1,10 @@
 import { createLearnedBehaviorEditor, createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
 import { createAgentArtifactBrowserEditor, createAgentArtifactExportEditor, createAgentArtifactPackageEditor, createAgentArtifactPromoteKnowledgeEditor, createAgentArtifactShowEditor } from './agent-workspace-artifact-browser-editor.ts';
 import { createAgentDocumentAcceptSuggestionEditor, createAgentDocumentAttachArtifactEditor, createAgentDocumentBrowseEditor, createAgentDocumentCommentEditor, createAgentDocumentCreateEditor, createAgentDocumentExportEditor, createAgentDocumentInsertArtifactEditor, createAgentDocumentRejectSuggestionEditor, createAgentDocumentResolveCommentEditor, createAgentDocumentReviewEditor, createAgentDocumentShowEditor, createAgentDocumentSuggestEditor, createAgentDocumentUpdateEditor } from './agent-workspace-document-editor.ts';
+import { createAgentDocumentReviewerReadinessEditor } from './agent-workspace-document-ops-editor.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
-import { createAgentLocalModelBenchmarkEditor, createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
+import { createAgentLocalModelBenchmarkEditor, createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareHandoffDiffEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
 import { createAgentResearchReportEditor } from './agent-workspace-research-report-editor.ts';
 import { createAgentResearchRunEditor } from './agent-workspace-research-run-editor.ts';
 import { createAgentResearchSourceEditor } from './agent-workspace-research-source-editor.ts';
@@ -211,9 +212,11 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'document-insert-artifact') return createAgentDocumentInsertArtifactEditor();
   if (editorKind === 'document-attach-artifact') return createAgentDocumentAttachArtifactEditor();
   if (editorKind === 'document-export') return createAgentDocumentExportEditor();
+  if (editorKind === 'document-reviewer-readiness') return createAgentDocumentReviewerReadinessEditor();
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
   if (editorKind === 'local-model-benchmark') return createAgentLocalModelBenchmarkEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();
+  if (editorKind === 'model-compare-handoff-diff') return createAgentModelCompareHandoffDiffEditor();
   if (editorKind === 'model-compare-judge') return createAgentModelCompareJudgmentEditor();
   if (editorKind === 'model-compare-apply') return createAgentModelCompareApplyEditor();
   if (editorKind === 'model-compare-export') return createAgentModelCompareExportEditor();

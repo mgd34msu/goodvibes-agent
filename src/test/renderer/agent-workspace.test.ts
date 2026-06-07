@@ -428,13 +428,13 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
 
-    const output = text(renderAgentWorkspace(workspace, 132, 44));
+    let output = text(renderAgentWorkspace(workspace, 132, 44));
 
     expect(output).toContain('Documents & Compare');
     expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Files: attach, paste, source ingest, and export');
     expect(output).toContain('Versioned drafts, review comments, AI suggestion review');
-    expect(output).toContain('Compare artifact reuse');
+    expect(output).toContain('compare artifact reuse');
     expect(output).toContain('Saved artifact export-to-file, package, and ZIP archive export are available');
     expect(output).toContain('Browse document drafts');
     expect(output).toContain('Show document draft');
@@ -446,13 +446,31 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Accept suggestion');
     expect(output).toContain('Reject suggestion');
     expect(output).toContain('Insert artifact in draft');
+    expect(output).toContain('Review readiness preflight');
     expect(output).toContain('Export document artifact');
     expect(output).toContain('Export saved artifact');
     expect(output).toContain('Export artifact package');
     expect(output).toContain('review/side-by-side/judgment');
-    expect(output).toContain('filtered analytics/synthesis');
+    expect(output).toContain('analytics/synthesis');
+    expect(output).toContain('handoff diff section jumps');
     expect(output).toContain('export/handoff/archive');
     expect(output).toContain('agent_harness mode:"document_ops"');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-reviewer-readiness');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Review Readiness Preflight');
+    expect(output).toContain('Repair routes');
+    expect(output).toContain('Preflight checks: comments, suggestions, source artifacts');
+    workspace.cancelLocalEditor();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-diff-handoffs');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Diff Reviewer Handoffs');
+    expect(output).toContain('Left handoff *');
+    expect(output).toContain('Section jump');
+    expect(output).toContain('Section jumps: all, metadata, policy, related, comparison.');
   });
 
   test('renders Research with source report artifacts and a confirmed save form', () => {

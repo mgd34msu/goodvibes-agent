@@ -418,6 +418,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-reject-suggestion',
     'document-insert-artifact',
     'document-attach-artifact',
+    'document-reviewer-readiness',
     'document-export-draft',
     'document-draft-chat',
   ], available);
@@ -481,11 +482,13 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
   const modelCompareActions = existingActions([
     'document-run-compare',
     'document-review-compare',
+    'document-diff-handoffs',
     'document-judge-compare',
     'document-compare-analytics',
     'document-apply-compare',
     'document-export-compare',
     'artifact-review-compare',
+    'artifact-diff-handoffs',
     'artifact-judge-compare',
     'artifact-compare-analytics',
     'artifact-apply-compare',
@@ -588,7 +591,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       outcome: 'Know what must be resolved before exporting, handing off, archiving, or applying comparison-backed route changes.',
       current: `${reviewerReadiness.summary.documents} document draft(s), ${reviewerReadiness.summary.openComments} open comment(s), ${reviewerReadiness.summary.proposedSuggestions} proposed suggestion(s), ${reviewerReadiness.summary.savedComparisons} saved comparison(s), ${reviewerReadiness.summary.revealedJudgments} revealed judgment(s).`,
       next: reviewerReadiness.next,
-      userRoute: 'Agent Workspace -> Documents & Compare -> Readiness map',
+      userRoute: 'Agent Workspace -> Documents & Compare -> Review readiness preflight',
       modelRoute: 'agent_harness mode:"document_ops_lane" laneId:"reviewer_readiness"',
       signals: [
         `Reviewer readiness ${reviewerReadiness.status}`,
@@ -603,6 +606,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       actionIds: [
         ...documentActions.filter((id) => [
           'document-show-draft',
+          'document-reviewer-readiness',
           'document-resolve-comment',
           'document-accept-suggestion',
           'document-reject-suggestion',
@@ -611,6 +615,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ].includes(id)),
         ...modelCompareActions.filter((id) => [
           'document-review-compare',
+          'document-diff-handoffs',
           'document-judge-compare',
           'document-apply-compare',
           'document-export-compare',
@@ -699,7 +704,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Blind compare runner: ${modelCompareReady ? 'available' : 'gap'}`,
         `Saved comparison artifact: ${modelCompareReady && context.platform.artifactStore ? 'available' : 'gap'}`,
         `Artifact-to-compare reuse: ${modelCompareActions.includes('document-run-compare') ? 'available' : 'gap'}`,
-        `Saved review board/side-by-side/handoff diff view: ${modelCompareActions.includes('document-review-compare') ? 'available' : 'gap'}`,
+        `Saved review board/side-by-side/handoff diff view: ${modelCompareActions.includes('document-review-compare') && modelCompareActions.includes('document-diff-handoffs') ? 'available' : 'gap'}`,
         `Saved judgment artifact: ${modelCompareActions.includes('document-judge-compare') ? 'available' : 'gap'}`,
         `Saved preference analytics/synthesis with task/document/benchmark filters: ${modelCompareActions.includes('document-compare-analytics') ? 'available' : 'gap'}`,
         `Winner route update: ${modelCompareActions.includes('document-apply-compare') ? 'available' : 'gap'}`,
