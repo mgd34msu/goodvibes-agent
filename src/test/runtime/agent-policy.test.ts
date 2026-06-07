@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -107,6 +107,8 @@ describe('Agent user-first autonomy policy', () => {
     expect(readPreview.success).toBe(true);
     expect(readPreview.output).toContain('"methodId": "services.status"');
     expect(readPreview.output).toContain('"confirmationRequired": false');
+    expect(readPreview.output).toContain('"expectedOutcome"');
+    expect(readPreview.output).toContain('"installed"');
 
     const writePreview = await tool.execute({
       methodId: 'automation.jobs.create',
@@ -115,5 +117,80 @@ describe('Agent user-first autonomy policy', () => {
     expect(writePreview.success).toBe(false);
     expect(writePreview.error).toContain('"confirm": true');
     expect(writePreview.error).toContain('"confirmationRequired": true');
+  });
+
+  test('generic operator method bridge certifies service repair receipts', async () => {
+    root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
+    mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
+    writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'service-repair-token' }));
+
+    const originalFetch = globalThis.fetch;
+    const requests: Array<{ readonly url: string; readonly method: string; readonly authorization: string | null }> = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({
+        url: String(input),
+        method: String(init?.method ?? 'GET'),
+        authorization: init?.headers instanceof Headers
+          ? init.headers.get('authorization')
+          : (init?.headers as Record<string, string> | undefined)?.authorization ?? null,
+      });
+      return new Response(JSON.stringify({
+        platform: 'linux',
+        path: '/tmp/goodvibes.service',
+        installed: true,
+        autostart: true,
+        running: true,
+        pid: 1234,
+        commandPreview: 'goodvibes service start',
+        suggestedCommands: [],
+        lastAction: 'start',
+        network: {
+          controlPlane: { ready: true },
+        },
+      }), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof globalThis.fetch;
+
+    try {
+      const tool = createAgentOperatorMethodTool(
+        { homeDirectory: root } as never,
+        {
+          get: (key: string) => key === 'controlPlane.port'
+            ? 3429
+            : key === 'controlPlane.host'
+              ? '127.0.0.1'
+              : undefined,
+        },
+      );
+      const result = await tool.execute({
+        methodId: 'services.start',
+        confirm: true,
+        explicitUserRequest: 'Start the GoodVibes service.',
+      });
+      expect(result.success).toBe(true);
+      if (!result.success) throw new Error(result.error);
+      const output = JSON.parse(result.output) as {
+        readonly body: { readonly running: boolean };
+        readonly outcome: {
+          readonly status: string;
+          readonly certified: boolean;
+          readonly evidence: { readonly running: boolean; readonly actionError: string | null };
+          readonly expectedOutcome: { readonly target: string; readonly verificationRoute: string };
+        };
+      };
+      expect(requests[0]).toEqual({
+        url: 'http://127.0.0.1:3429/api/service/start',
+        method: 'POST',
+        authorization: 'Bearer service-repair-token',
+      });
+      expect(output.body.running).toBe(true);
+      expect(output.outcome.status).toBe('certified');
+      expect(output.outcome.certified).toBe(true);
+      expect(output.outcome.evidence).toMatchObject({ running: true, actionError: null });
+      expect(output.outcome.expectedOutcome.target).toBe('running-service');
+      expect(output.outcome.expectedOutcome.verificationRoute).toContain('services.status');
+      expect(result.output).not.toContain('service-repair-token');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

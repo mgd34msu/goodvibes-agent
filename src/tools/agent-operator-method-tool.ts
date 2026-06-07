@@ -34,8 +34,11 @@ interface PreparedOperatorRoute {
   readonly payload: JsonRecord;
 }
 
+type ServiceMethodId = 'services.status' | 'services.install' | 'services.start' | 'services.restart';
+
 const READ_ONLY_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const MAX_OUTPUT_CHARS = 18_000;
+const SERVICE_METHOD_IDS = new Set<string>(['services.status', 'services.install', 'services.start', 'services.restart']);
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -129,9 +132,61 @@ function appendQuery(path: string, payload: JsonRecord): string {
   return `${path}${path.includes('?') ? '&' : '?'}${queryString}`;
 }
 
+function isServiceMethodId(methodId: string): methodId is ServiceMethodId {
+  return SERVICE_METHOD_IDS.has(methodId);
+}
+
+function serviceSuccessCriteria(methodId: ServiceMethodId): readonly string[] {
+  if (methodId === 'services.status') {
+    return [
+      'The daemon returns a service status receipt with installed, autostart, and running booleans.',
+      'The receipt has no actionError.',
+    ];
+  }
+  if (methodId === 'services.install') {
+    return [
+      'The daemon returns ok:true for services.install.',
+      'The service status receipt reports installed:true.',
+      'The receipt has no actionError.',
+      'Verify with services.status before retrying install, start, or restart.',
+    ];
+  }
+  if (methodId === 'services.start') {
+    return [
+      'The daemon returns ok:true for services.start.',
+      'The service status receipt reports running:true.',
+      'The receipt has no actionError.',
+      'Verify with services.status before retrying start or escalating.',
+    ];
+  }
+  return [
+    'The daemon returns ok:true for services.restart.',
+    'The service status receipt reports running:true after restart.',
+    'The receipt has no actionError.',
+    'Verify with services.status before retrying restart or escalating.',
+  ];
+}
+
+function serviceExpectedOutcome(methodId: ServiceMethodId): JsonRecord {
+  const target = methodId === 'services.status'
+    ? 'read-current-posture'
+    : methodId === 'services.install'
+      ? 'installed-service'
+      : methodId === 'services.start'
+        ? 'running-service'
+        : 'restarted-running-service';
+  return {
+    target,
+    successCriteria: serviceSuccessCriteria(methodId),
+    evidenceFields: ['installed', 'autostart', 'running', 'pid', 'lastAction', 'actionError', 'network.controlPlane.ready'],
+    verificationRoute: 'agent_operator_method methodId:"services.status"',
+    recoveryRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+  };
+}
+
 function summarizePreview(route: PreparedOperatorRoute): JsonRecord {
   const readOnly = methodIsReadOnly(route.method);
-  return {
+  const preview: JsonRecord = {
     methodId: route.method.id,
     title: route.method.title ?? route.method.id,
     category: route.method.category ?? 'uncategorized',
@@ -147,6 +202,8 @@ function summarizePreview(route: PreparedOperatorRoute): JsonRecord {
     body: READ_ONLY_HTTP_METHODS.has(route.httpMethod) ? undefined : route.payload,
     query: READ_ONLY_HTTP_METHODS.has(route.httpMethod) ? route.payload : undefined,
   };
+  if (isServiceMethodId(route.method.id)) preview.expectedOutcome = serviceExpectedOutcome(route.method.id);
+  return preview;
 }
 
 function redacted(value: unknown, depth = 0): unknown {
@@ -172,6 +229,53 @@ function stringifyOutput(value: unknown): string {
 
 function summarizeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function serviceReceiptEvidence(body: unknown): JsonRecord {
+  if (!isRecord(body)) return { receipt: 'not-json-object' };
+  const network = isRecord(body.network) ? body.network : {};
+  const controlPlane = isRecord(network.controlPlane) ? network.controlPlane : {};
+  return {
+    installed: typeof body.installed === 'boolean' ? body.installed : null,
+    autostart: typeof body.autostart === 'boolean' ? body.autostart : null,
+    running: typeof body.running === 'boolean' ? body.running : null,
+    pid: typeof body.pid === 'number' ? body.pid : null,
+    lastAction: typeof body.lastAction === 'string' ? body.lastAction : null,
+    actionError: typeof body.actionError === 'string' ? body.actionError : null,
+    controlPlaneReady: typeof controlPlane.ready === 'boolean' ? controlPlane.ready : null,
+  };
+}
+
+function serviceOutcomeCertified(methodId: ServiceMethodId, responseOk: boolean, body: unknown): boolean {
+  if (!responseOk || !isRecord(body) || typeof body.actionError === 'string') return false;
+  if (methodId === 'services.status') {
+    return typeof body.installed === 'boolean'
+      && typeof body.autostart === 'boolean'
+      && typeof body.running === 'boolean';
+  }
+  if (methodId === 'services.install') return body.installed === true;
+  if (methodId === 'services.start') return body.running === true;
+  return body.running === true;
+}
+
+function serviceOutcome(methodId: string, responseOk: boolean, body: unknown): JsonRecord | undefined {
+  if (!isServiceMethodId(methodId)) return undefined;
+  const certified = serviceOutcomeCertified(methodId, responseOk, body);
+  return {
+    kind: 'service-repair-receipt',
+    status: !responseOk
+      ? 'failed'
+      : certified
+        ? 'certified'
+        : 'needs-follow-up',
+    certified,
+    methodId,
+    evidence: serviceReceiptEvidence(body),
+    expectedOutcome: serviceExpectedOutcome(methodId),
+    nextStep: certified
+      ? 'Inspect services.status or connected-host status to confirm the setup wizard can advance.'
+      : 'Inspect services.status and connected-host setup posture before retrying a lifecycle mutation.',
+  };
 }
 
 async function readResponseBody(response: Response): Promise<unknown> {
@@ -283,6 +387,7 @@ export function createAgentOperatorMethodTool(
           ...(READ_ONLY_HTTP_METHODS.has(route.httpMethod) ? {} : { body: JSON.stringify(route.payload) }),
         });
         const body = await readResponseBody(response);
+        const outcome = serviceOutcome(route.method.id, response.ok, body);
         const output = {
           methodId: route.method.id,
           status: response.status,
@@ -290,6 +395,7 @@ export function createAgentOperatorMethodTool(
           route: `${route.httpMethod} ${requestPath}`,
           effect: preview.effect,
           body,
+          ...(outcome ? { outcome } : {}),
         };
         if (!response.ok) return { success: false, error: stringifyOutput(output) };
         return { success: true, output: stringifyOutput(output) };

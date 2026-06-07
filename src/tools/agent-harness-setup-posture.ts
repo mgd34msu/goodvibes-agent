@@ -99,6 +99,7 @@ interface SetupRepairCard {
   readonly prerequisite?: string;
   readonly recommendation: SetupRepairRecommendation;
   readonly liveEvidence?: SetupRepairLiveEvidence;
+  readonly outcome?: SetupRepairOutcome;
   readonly recommendedWhen: string;
   readonly safety: string;
 }
@@ -106,6 +107,14 @@ interface SetupRepairCard {
 interface SetupRepairLiveEvidence {
   readonly probeStatus: SetupServiceProbeStatus;
   readonly summary: string;
+}
+
+interface SetupRepairOutcome {
+  readonly target: string;
+  readonly successCriteria: readonly string[];
+  readonly evidenceFields: readonly string[];
+  readonly verificationRoute: string;
+  readonly recoveryRoute: string;
 }
 
 interface SetupServiceProbe {
@@ -1146,6 +1155,7 @@ function setupRepairCard(
     readonly prerequisite?: string;
     readonly recommendation?: SetupRepairRecommendation;
     readonly liveEvidence?: SetupRepairLiveEvidence;
+    readonly outcome?: SetupRepairOutcome;
     readonly recommendedWhen: string;
     readonly safety: string;
     readonly liveHostRequired?: boolean;
@@ -1168,8 +1178,58 @@ function setupRepairCard(
     ...(options.prerequisite ? { prerequisite: options.prerequisite } : {}),
     recommendation: !methodPresent || state === 'requires-live-host' ? 'unavailable' : options.recommendation ?? 'inspect-first',
     ...(options.liveEvidence ? { liveEvidence: options.liveEvidence } : {}),
+    ...(options.outcome ? { outcome: options.outcome } : {}),
     recommendedWhen: options.recommendedWhen,
     safety: options.safety,
+  };
+}
+
+function serviceRepairOutcome(methodId: 'services.status' | 'services.install' | 'services.start' | 'services.restart'): SetupRepairOutcome {
+  const common = {
+    evidenceFields: ['installed', 'autostart', 'running', 'pid', 'lastAction', 'actionError', 'network.controlPlane.ready'],
+    verificationRoute: operatorMethodRoute('services.status', false),
+    recoveryRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+  };
+  if (methodId === 'services.status') {
+    return {
+      target: 'read-current-posture',
+      successCriteria: [
+        'The daemon returns installed, autostart, and running booleans.',
+        'The receipt has no actionError.',
+      ],
+      ...common,
+    };
+  }
+  if (methodId === 'services.install') {
+    return {
+      target: 'installed-service',
+      successCriteria: [
+        'The confirmed services.install receipt reports installed:true.',
+        'The receipt has no actionError.',
+        'A follow-up services.status read confirms the same installed posture before retrying another lifecycle action.',
+      ],
+      ...common,
+    };
+  }
+  if (methodId === 'services.start') {
+    return {
+      target: 'running-service',
+      successCriteria: [
+        'The confirmed services.start receipt reports running:true.',
+        'The receipt has no actionError.',
+        'A follow-up services.status read confirms running:true before retrying start or escalating.',
+      ],
+      ...common,
+    };
+  }
+  return {
+    target: 'restarted-running-service',
+    successCriteria: [
+      'The confirmed services.restart receipt reports running:true after restart.',
+      'The receipt has no actionError.',
+      'A follow-up services.status read confirms running:true before retrying restart or escalating.',
+    ],
+    ...common,
   };
 }
 
@@ -1237,6 +1297,7 @@ function connectedHostRepairCards(
       liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
         ? 'Runtime endpoint is reachable; service status is optional unless the user is auditing install/autostart posture.'
         : 'Read service status before deciding whether install, start, or restart is actually needed.'),
+      outcome: serviceRepairOutcome('services.status'),
       recommendedWhen: 'Use when the daemon is reachable and the user needs install/autostart/running posture.',
       safety: 'Read-only daemon method.',
       liveHostRequired: hostIssue,
@@ -1252,6 +1313,7 @@ function connectedHostRepairCards(
       liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
         ? 'Runtime endpoint is already reachable; install is not recommended without service status evidence.'
         : 'Install is not recommended from endpoint reachability alone; require service status to prove the service is not installed.'),
+      outcome: serviceRepairOutcome('services.install'),
       recommendedWhen: 'Use only when service status says the platform service is not installed and the user explicitly asks to install it.',
       safety: 'Confirmed service mutation; no uninstall or stop action is included in first-run setup.',
       liveHostRequired: hostIssue,
@@ -1267,6 +1329,7 @@ function connectedHostRepairCards(
       liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
         ? 'Runtime endpoint is already reachable; start is not recommended without service status evidence.'
         : 'Start is not recommended from endpoint reachability alone; require service status to prove the service is installed but stopped.'),
+      outcome: serviceRepairOutcome('services.start'),
       recommendedWhen: 'Use only when service status says the service is installed but not running and the user explicitly asks to start it.',
       safety: 'Confirmed service mutation.',
       liveHostRequired: hostIssue,
@@ -1282,6 +1345,7 @@ function connectedHostRepairCards(
       liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
         ? 'Runtime endpoint is reachable; restart is not recommended unless diagnostics prove the host is unhealthy or incompatible.'
         : 'Restart is not recommended from endpoint reachability alone; require diagnostics or service status to prove a running unhealthy service.'),
+      outcome: serviceRepairOutcome('services.restart'),
       recommendedWhen: 'Use only when the service is running but unhealthy or incompatible and the user explicitly asks to restart it.',
       safety: 'Confirmed service mutation; use diagnostics first to avoid disrupting a healthy host.',
       liveHostRequired: hostIssue,
@@ -2122,6 +2186,13 @@ function describeRepairCard(card: SetupRepairCard): Record<string, unknown> {
     ...(card.liveEvidence ? { liveEvidence: {
       probeStatus: card.liveEvidence.probeStatus,
       summary: previewHarnessText(card.liveEvidence.summary, 160),
+    } } : {}),
+    ...(card.outcome ? { outcome: {
+      target: card.outcome.target,
+      successCriteria: card.outcome.successCriteria.map((criterion) => previewHarnessText(criterion, 160)),
+      evidenceFields: card.outcome.evidenceFields,
+      verificationRoute: previewHarnessText(card.outcome.verificationRoute, 160),
+      recoveryRoute: previewHarnessText(card.outcome.recoveryRoute, 160),
     } } : {}),
     recommendedWhen: previewHarnessText(card.recommendedWhen, 160),
     safety: previewHarnessText(card.safety, 160),

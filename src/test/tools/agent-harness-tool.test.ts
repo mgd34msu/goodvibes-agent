@@ -2207,6 +2207,13 @@ describe('agent_harness tool', () => {
           readonly state: string;
           readonly recommendation: string;
           readonly liveEvidence?: { readonly probeStatus: string; readonly summary: string };
+          readonly outcome?: {
+            readonly target: string;
+            readonly successCriteria: readonly string[];
+            readonly evidenceFields: readonly string[];
+            readonly verificationRoute: string;
+            readonly recoveryRoute: string;
+          };
         }[];
       }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
 
@@ -2235,8 +2242,14 @@ describe('agent_harness tool', () => {
       expect(start?.recommendation).toBe('inspect-first');
       expect(start?.liveEvidence?.probeStatus).toBe('unreachable');
       expect(start?.liveEvidence?.summary).toContain('service status');
+      expect(start?.outcome?.target).toBe('running-service');
+      expect(start?.outcome?.successCriteria.join('\n')).toContain('running:true');
+      expect(start?.outcome?.evidenceFields).toContain('actionError');
+      expect(start?.outcome?.verificationRoute).toContain('services.status');
       expect(install?.recommendation).toBe('inspect-first');
+      expect(install?.outcome?.target).toBe('installed-service');
       expect(restart?.recommendation).toBe('inspect-first');
+      expect(restart?.outcome?.target).toBe('restarted-running-service');
     } finally {
       fixture.cleanup();
     }
