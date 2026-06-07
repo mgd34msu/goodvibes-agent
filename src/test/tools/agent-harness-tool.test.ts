@@ -2955,6 +2955,15 @@ describe('agent_harness tool', () => {
             readonly schemaRoute?: string;
             readonly sampleInput?: Record<string, unknown>;
           };
+          readonly executionPlan?: readonly {
+            readonly id: string;
+            readonly routeKind: string;
+            readonly effect: string;
+            readonly requiresConfirmation: boolean;
+            readonly qualifiedName?: string;
+            readonly sampleInput?: Record<string, unknown>;
+            readonly policy: string;
+          }[];
           readonly nextSteps: readonly string[];
         };
         readonly laneRoute: string;
@@ -2968,6 +2977,11 @@ describe('agent_harness tool', () => {
       expect(inboxIntake.preferred.missingFields).toEqual(['query']);
       expect(inboxIntake.preferred.operation?.name).toBe('gmail.search_messages');
       expect(inboxIntake.preferred.operation?.sampleInput?.query).toBe('is:unread newer_than:7d');
+      expect(inboxIntake.preferred.executionPlan?.map((step) => step.routeKind)).toEqual(['connector-read', 'local-compose']);
+      expect(inboxIntake.preferred.executionPlan?.[0]?.qualifiedName).toBe('mcp:gmail-inbox:gmail.search_messages');
+      expect(inboxIntake.preferred.executionPlan?.[0]?.sampleInput?.query).toBe('is:unread newer_than:7d');
+      expect(inboxIntake.preferred.executionPlan?.[0]?.requiresConfirmation).toBe(false);
+      expect(inboxIntake.preferred.executionPlan?.[1]?.effect).toBe('local-only');
       expect(inboxIntake.preferred.nextSteps.join('\n')).toContain('bounded read/list/search route');
       expect(inboxIntake.laneRoute).toContain('laneId:"inbox"');
 
@@ -2976,6 +2990,14 @@ describe('agent_harness tool', () => {
           readonly id: string;
           readonly operation?: { readonly name: string; readonly qualifiedName?: string };
           readonly followUpOperation?: { readonly name: string; readonly confirmationRequired?: boolean };
+          readonly executionPlan?: readonly {
+            readonly id: string;
+            readonly routeKind: string;
+            readonly effect: string;
+            readonly requiresConfirmation: boolean;
+            readonly qualifiedName?: string;
+            readonly policy: string;
+          }[];
           readonly nextSteps: readonly string[];
         };
       }>(fixture, { mode: 'personal_ops_intake', query: 'Draft a reply to this email thread.', includeParameters: true });
@@ -2983,6 +3005,10 @@ describe('agent_harness tool', () => {
       expect(draftIntake.preferred.operation?.name).toBe('gmail.get_thread');
       expect(draftIntake.preferred.followUpOperation?.name).toBe('gmail.send_reply');
       expect(draftIntake.preferred.followUpOperation?.confirmationRequired).toBe(true);
+      expect(draftIntake.preferred.executionPlan?.map((step) => step.routeKind)).toEqual(['connector-read', 'local-compose', 'connector-confirmed-effect']);
+      expect(draftIntake.preferred.executionPlan?.[2]?.qualifiedName).toBe('mcp:gmail-inbox:gmail.send_reply');
+      expect(draftIntake.preferred.executionPlan?.[2]?.requiresConfirmation).toBe(true);
+      expect(draftIntake.preferred.executionPlan?.[2]?.policy).toContain('explicitly confirms');
       expect(draftIntake.preferred.nextSteps.join('\n')).toContain('separate confirmed connector action');
 
       const calendarIntake = await executeHarnessJson<{
@@ -2993,6 +3019,7 @@ describe('agent_harness tool', () => {
           readonly modelRoute: string;
           readonly missingFields?: readonly string[];
           readonly operation?: { readonly name: string; readonly connectorStatus?: string };
+          readonly executionPlan?: readonly { readonly id: string; readonly routeKind: string; readonly status: string; readonly policy: string }[];
           readonly nextSteps: readonly string[];
         };
       }>(fixture, { mode: 'personal_ops_intake', query: 'Brief my calendar for today.', includeParameters: true });
@@ -3002,6 +3029,9 @@ describe('agent_harness tool', () => {
       expect(calendarIntake.preferred.modelRoute).toContain('mcp:caldav-agenda:caldav.list_events');
       expect(calendarIntake.preferred.missingFields).toEqual(['connector trust/schema freshness']);
       expect(calendarIntake.preferred.operation?.connectorStatus).toBe('attention');
+      expect(calendarIntake.preferred.executionPlan?.[0]?.id).toBe('repair-connector-readiness');
+      expect(calendarIntake.preferred.executionPlan?.[0]?.routeKind).toBe('setup');
+      expect(calendarIntake.preferred.executionPlan?.[0]?.policy).toContain('schema freshness');
       expect(calendarIntake.preferred.nextSteps.join('\n')).toContain('Repair connector trust');
 
       const lane = await executeHarnessJson<{

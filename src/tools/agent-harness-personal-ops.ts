@@ -137,9 +137,27 @@ interface PersonalOpsIntakeCandidate {
   readonly workflowId?: string;
   readonly operation?: Record<string, unknown>;
   readonly followUpOperation?: Record<string, unknown>;
+  readonly executionPlan?: readonly PersonalOpsExecutionStep[];
   readonly requiredFields?: readonly string[];
   readonly missingFields?: readonly string[];
   readonly userQuestion?: string;
+}
+
+interface PersonalOpsExecutionStep {
+  readonly id: string;
+  readonly label: string;
+  readonly routeKind: 'connector-read' | 'local-compose' | 'connector-confirmed-effect' | 'setup';
+  readonly effect: 'read-only' | 'local-only' | 'confirmed-effect' | 'setup';
+  readonly requiresConfirmation: boolean;
+  readonly modelRoute: string;
+  readonly status: PersonalOpsWorkflowStatus;
+  readonly policy: string;
+  readonly connectorId?: string;
+  readonly connectorStatus?: PersonalOpsConnectorSignal['status'];
+  readonly qualifiedName?: string;
+  readonly schemaRoute?: string;
+  readonly requiredFields?: readonly string[];
+  readonly sampleInput?: Readonly<Record<string, unknown>>;
 }
 
 export type PersonalOpsLaneResolution =
@@ -1310,6 +1328,123 @@ function operationSummary(
   };
 }
 
+function toolModelRoute(tool: PersonalOpsConnectorTool | undefined): string {
+  if (!tool) return 'agent_harness mode:"personal_ops"';
+  return tool.schemaRoute ?? `agent_harness mode:"mcp_servers" query:"${tool.qualifiedName ?? tool.name}"`;
+}
+
+function connectorStep(options: {
+  readonly id: string;
+  readonly label: string;
+  readonly routeKind: PersonalOpsExecutionStep['routeKind'];
+  readonly status: PersonalOpsWorkflowStatus;
+  readonly tool: PersonalOpsConnectorTool;
+  readonly signal?: PersonalOpsConnectorSignal;
+  readonly includeParameters: boolean;
+  readonly policy: string;
+}): PersonalOpsExecutionStep {
+  return {
+    id: options.id,
+    label: options.label,
+    routeKind: options.routeKind,
+    effect: options.tool.effect,
+    requiresConfirmation: options.tool.effect === 'confirmed-effect',
+    modelRoute: toolModelRoute(options.tool),
+    status: options.status,
+    policy: options.policy,
+    ...(options.signal ? { connectorId: options.signal.id, connectorStatus: options.signal.status } : {}),
+    ...(options.tool.qualifiedName ? { qualifiedName: options.tool.qualifiedName } : {}),
+    ...(options.tool.schemaRoute ? { schemaRoute: options.tool.schemaRoute } : {}),
+    ...(options.includeParameters && options.tool.requiredFields ? { requiredFields: options.tool.requiredFields } : {}),
+    ...(options.includeParameters && options.tool.sampleInput ? { sampleInput: options.tool.sampleInput } : {}),
+  };
+}
+
+function workflowExecutionPlan(options: {
+  readonly lane: PersonalOpsLane;
+  readonly workflow: PersonalOpsWorkflow;
+  readonly operation?: { readonly signal: PersonalOpsConnectorSignal; readonly tool: PersonalOpsConnectorTool };
+  readonly followUpOperation?: { readonly signal: PersonalOpsConnectorSignal; readonly tool: PersonalOpsConnectorTool };
+  readonly includeParameters: boolean;
+  readonly readOnlyNext: string;
+  readonly mutationBoundary: string;
+}): readonly PersonalOpsExecutionStep[] {
+  if (options.workflow.status === 'needs-setup') {
+    return [{
+      id: 'setup-connector',
+      label: `Set up a ${options.lane.id === 'inbox' ? 'mail' : options.lane.id} connector`,
+      routeKind: 'setup',
+      effect: 'setup',
+      requiresConfirmation: false,
+      modelRoute: options.workflow.modelRoute,
+      status: 'needs-setup',
+      policy: 'Do not read personal data or create effects until a connector or daemon method is configured and reviewed.',
+    }];
+  }
+  if (options.workflow.status === 'attention') {
+    return [{
+      id: 'repair-connector-readiness',
+      label: 'Repair connector trust or schema freshness',
+      routeKind: 'setup',
+      effect: 'setup',
+      requiresConfirmation: false,
+      modelRoute: options.operation?.signal.modelRoute ?? options.workflow.modelRoute,
+      status: 'attention',
+      policy: 'Review connector trust, connection, and schema freshness before using live personal data.',
+    }];
+  }
+
+  const steps: PersonalOpsExecutionStep[] = [];
+  if (options.operation) {
+    steps.push(connectorStep({
+      id: 'read-live-context',
+      label: options.readOnlyNext,
+      routeKind: 'connector-read',
+      status: options.workflow.status,
+      tool: options.operation.tool,
+      signal: options.operation.signal,
+      includeParameters: options.includeParameters,
+      policy: 'Run only the selected bounded read route, then summarize or draft in the Agent transcript without mutating the provider.',
+    }));
+  } else {
+    steps.push({
+      id: 'inspect-read-route',
+      label: 'Inspect the exact read route before using live personal data.',
+      routeKind: 'setup',
+      effect: 'setup',
+      requiresConfirmation: false,
+      modelRoute: options.workflow.modelRoute,
+      status: options.workflow.status,
+      policy: 'No concrete connector tool is selected yet; inspect the lane before using personal data.',
+    });
+  }
+
+  steps.push({
+    id: 'compose-local-result',
+    label: options.lane.id === 'calendar' ? 'Summarize agenda or conflict findings locally.' : 'Summarize or draft locally without sending.',
+    routeKind: 'local-compose',
+    effect: 'local-only',
+    requiresConfirmation: false,
+    modelRoute: 'main Agent response',
+    status: options.workflow.status,
+    policy: 'Local composition does not send, edit, archive, label, or write provider records.',
+  });
+
+  if (options.followUpOperation) {
+    steps.push(connectorStep({
+      id: 'confirmed-follow-up-effect',
+      label: options.mutationBoundary,
+      routeKind: 'connector-confirmed-effect',
+      status: options.workflow.status,
+      tool: options.followUpOperation.tool,
+      signal: options.followUpOperation.signal,
+      includeParameters: options.includeParameters,
+      policy: 'Only run this follow-up after the user reviews the draft/change and explicitly confirms the exact provider effect.',
+    }));
+  }
+  return steps;
+}
+
 function recordOperationSummary(record: PersonalOpsLiveRecord | null, includeParameters: boolean): Record<string, unknown> | undefined {
   if (!record) return undefined;
   return {
@@ -1408,6 +1543,15 @@ function workflowCandidate(options: {
     nextSteps,
     ...(operation ? { operation: operationSummary(operation, options.operation?.signal, options.includeParameters) } : {}),
     ...(options.followUpOperation ? { followUpOperation: operationSummary(options.followUpOperation.tool, options.followUpOperation.signal, options.includeParameters) } : {}),
+    executionPlan: workflowExecutionPlan({
+      lane: options.lane,
+      workflow,
+      operation: options.operation,
+      followUpOperation: options.followUpOperation,
+      includeParameters: options.includeParameters,
+      readOnlyNext: options.readOnlyNext,
+      mutationBoundary: options.mutationBoundary,
+    }),
     ...(operation?.requiredFields && operation.requiredFields.length > 0 ? { requiredFields: operation.requiredFields } : {}),
     ...(missingFields && missingFields.length > 0 ? { missingFields } : {}),
     ...(workflow.status === 'needs-setup' ? { userQuestion: `Which ${options.lane.id === 'inbox' ? 'email' : options.lane.id} connector should GoodVibes use?` } : {}),
