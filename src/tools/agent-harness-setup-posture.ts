@@ -79,6 +79,7 @@ interface SetupPlanItem {
   readonly relatedSetupItemId?: string;
   readonly signals?: readonly string[];
   readonly repairCards?: readonly SetupRepairCard[];
+  readonly serviceLifecycleDecision?: SetupServiceLifecycleDecision;
   readonly bootstrapPlan?: SetupBootstrapPlan;
   readonly serviceProbe?: SetupServiceProbe;
   readonly authPosture?: SetupConnectedHostAuthPosture;
@@ -115,6 +116,21 @@ interface SetupRepairOutcome {
   readonly evidenceFields: readonly string[];
   readonly verificationRoute: string;
   readonly recoveryRoute: string;
+}
+
+interface SetupServiceLifecycleDecision {
+  readonly status: 'needs-status-receipt' | 'no-lifecycle-action' | 'bootstrap-first' | 'status-route-unavailable';
+  readonly recommendedAction: 'read-services-status' | 'inspect-service-posture' | 'none';
+  readonly modelRoute: string;
+  readonly reason: string;
+  readonly evidence: {
+    readonly probeStatus: SetupServiceProbeStatus;
+    readonly binding: string;
+    readonly hostIssue: boolean;
+    readonly serviceStatusMethodPublished: boolean;
+  };
+  readonly receiptRules: readonly string[];
+  readonly blockedMutations: readonly string[];
 }
 
 interface SetupServiceProbe {
@@ -383,6 +399,7 @@ function planSearchText(item: SetupPlanItem): string {
       card.recommendedWhen,
       card.safety,
     ].join(' ')).join('\n') ?? '',
+    JSON.stringify(item.serviceLifecycleDecision ?? {}),
     JSON.stringify(item.serviceProbe ?? {}),
     JSON.stringify(item.authPosture ?? {}),
     JSON.stringify(item.installSmokePlan ?? {}),
@@ -1353,6 +1370,77 @@ function connectedHostRepairCards(
   ];
 }
 
+function serviceLifecycleReceiptRules(): readonly string[] {
+  return [
+    'installed:false -> recommend confirmed services.install.',
+    'installed:true and running:false -> recommend confirmed services.start.',
+    'installed:true and running:true and network.controlPlane.ready:false -> recommend confirmed services.restart.',
+    'installed:true and running:true with no failed control-plane evidence -> no service lifecycle mutation.',
+  ];
+}
+
+function setupServiceLifecycleDecision(
+  snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
+  probe: SetupServiceProbe,
+): SetupServiceLifecycleDecision {
+  const methodIds = operatorMethodIds();
+  const statusPublished = methodIds.has('services.status');
+  const hostIssue = snapshot.collectionIssues.some((issue) => issue.area === 'host');
+  const evidence = {
+    probeStatus: probe.status,
+    binding: probe.binding,
+    hostIssue,
+    serviceStatusMethodPublished: statusPublished,
+  };
+  const blockedMutations = [
+    'services.install until a services.status receipt reports installed:false',
+    'services.start until a services.status receipt reports installed:true and running:false',
+    'services.restart until a services.status receipt reports installed:true, running:true, and network.controlPlane.ready:false or diagnostics prove an unhealthy running service',
+  ];
+  if (hostIssue) {
+    return {
+      status: 'bootstrap-first',
+      recommendedAction: 'inspect-service-posture',
+      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      reason: 'Agent cannot trust connected-host lifecycle methods until the owning host is reachable enough to return compatible status evidence.',
+      evidence,
+      receiptRules: serviceLifecycleReceiptRules(),
+      blockedMutations,
+    };
+  }
+  if (!statusPublished) {
+    return {
+      status: 'status-route-unavailable',
+      recommendedAction: 'inspect-service-posture',
+      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      reason: 'The connected-host operator contract does not publish services.status, so setup cannot select install/start/restart from a service receipt.',
+      evidence,
+      receiptRules: serviceLifecycleReceiptRules(),
+      blockedMutations,
+    };
+  }
+  if (probe.status === 'reachable') {
+    return {
+      status: 'no-lifecycle-action',
+      recommendedAction: 'none',
+      modelRoute: operatorMethodRoute('services.status', false),
+      reason: 'The runtime endpoint is reachable; no install/start/restart mutation is justified by probe evidence alone. Read services.status only for install/autostart audit or setup closeout.',
+      evidence,
+      receiptRules: serviceLifecycleReceiptRules(),
+      blockedMutations,
+    };
+  }
+  return {
+    status: 'needs-status-receipt',
+    recommendedAction: 'read-services-status',
+    modelRoute: operatorMethodRoute('services.status', false),
+    reason: 'Probe evidence is not enough to choose install, start, or restart. Read a services.status receipt first and let agent_operator_method return the exact lifecycle decision.',
+    evidence,
+    receiptRules: serviceLifecycleReceiptRules(),
+    blockedMutations,
+  };
+}
+
 function connectedHostBootstrapPlan(
   snapshot: Awaited<ReturnType<typeof collectSnapshot>>,
   probe: SetupServiceProbe,
@@ -1975,6 +2063,7 @@ function buildSetupPlan(
         ...snapshot.collectionIssues.filter((issue) => issue.area === 'host').map((issue) => issue.message),
       ],
       repairCards: connectedHostRepairCards(snapshot, serviceProbe),
+      serviceLifecycleDecision: setupServiceLifecycleDecision(snapshot, serviceProbe),
       bootstrapPlan: connectedHostBootstrapPlan(snapshot, serviceProbe),
       serviceProbe,
     },
@@ -2199,6 +2288,18 @@ function describeRepairCard(card: SetupRepairCard): Record<string, unknown> {
   };
 }
 
+function describeServiceLifecycleDecision(decision: SetupServiceLifecycleDecision): Record<string, unknown> {
+  return {
+    status: decision.status,
+    recommendedAction: decision.recommendedAction,
+    modelRoute: previewHarnessText(decision.modelRoute, 160),
+    reason: previewHarnessText(decision.reason, 180),
+    evidence: decision.evidence,
+    receiptRules: decision.receiptRules,
+    blockedMutations: decision.blockedMutations,
+  };
+}
+
 function describeHandoffCard(card: SetupHandoffCard, includeParameters: boolean): Record<string, unknown> {
   return {
     id: card.id,
@@ -2240,6 +2341,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(recommendedRepairCards && recommendedRepairCards.length > 0 ? { recommendedRepairCards } : {}),
     ...(item.bootstrapPlan ? { bootstrapRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"' } : {}),
     ...(includeParameters && item.serviceProbe ? { serviceProbe: item.serviceProbe } : {}),
+    ...(includeParameters && item.serviceLifecycleDecision ? { serviceLifecycleDecision: describeServiceLifecycleDecision(item.serviceLifecycleDecision) } : {}),
     ...(includeParameters && item.authPosture ? { authPosture: item.authPosture } : {}),
     ...(includeParameters && item.installSmokePlan ? { installSmokePlan: item.installSmokePlan } : {}),
     ...(includeParameters && item.localModelReadiness ? { localModelReadiness: item.localModelReadiness } : {}),

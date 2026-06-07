@@ -304,8 +304,122 @@ function serviceReceiptEvidence(body: unknown): JsonRecord {
   };
 }
 
+function serviceLifecycleRoute(methodId: ServiceMethodId): string {
+  return operatorMethodLikeRoute(methodId, methodId !== 'services.status');
+}
+
+function operatorMethodLikeRoute(methodId: string, confirmed: boolean): string {
+  return `agent_operator_method methodId:"${methodId}" input:{}${confirmed ? ' confirm:true explicitUserRequest:"..."' : ''}`;
+}
+
+function serviceLifecycleDecisionFromStatus(body: unknown): JsonRecord {
+  const evidence = serviceReceiptEvidence(body);
+  const common = {
+    evidence,
+    statusRoute: serviceLifecycleRoute('services.status'),
+    setupRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+    decisionRules: [
+      'installed:false -> services.install',
+      'installed:true and running:false -> services.start',
+      'installed:true and running:true and network.controlPlane.ready:false -> services.restart',
+      'installed:true and running:true with no failed control-plane evidence -> no lifecycle mutation',
+    ],
+  };
+  if (!isRecord(body)) {
+    return {
+      status: 'needs-follow-up',
+      action: 'read-status',
+      reason: 'The service status receipt was not a JSON object.',
+      modelRoute: serviceLifecycleRoute('services.status'),
+      ...common,
+    };
+  }
+  const actionError = typeof body.actionError === 'string' ? body.actionError.trim() : '';
+  if (actionError) {
+    return {
+      status: 'needs-diagnostics',
+      action: 'inspect-diagnostics',
+      reason: 'The service status receipt includes actionError; inspect diagnostics before any lifecycle mutation.',
+      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      ...common,
+    };
+  }
+  if (typeof body.installed !== 'boolean' || typeof body.running !== 'boolean' || typeof body.autostart !== 'boolean') {
+    return {
+      status: 'needs-follow-up',
+      action: 'read-status',
+      reason: 'The service status receipt is missing installed, autostart, or running booleans.',
+      modelRoute: serviceLifecycleRoute('services.status'),
+      ...common,
+    };
+  }
+  if (body.installed === false) {
+    return {
+      status: 'action-recommended',
+      action: 'install-service',
+      methodId: 'services.install',
+      modelRoute: serviceLifecycleRoute('services.install'),
+      reason: 'services.status reports installed:false.',
+      ...common,
+    };
+  }
+  if (body.running === false) {
+    return {
+      status: 'action-recommended',
+      action: 'start-service',
+      methodId: 'services.start',
+      modelRoute: serviceLifecycleRoute('services.start'),
+      reason: 'services.status reports installed:true and running:false.',
+      ...common,
+    };
+  }
+  const network = isRecord(body.network) ? body.network : {};
+  const controlPlane = isRecord(network.controlPlane) ? network.controlPlane : {};
+  if (controlPlane.ready === false) {
+    return {
+      status: 'action-recommended',
+      action: 'restart-service',
+      methodId: 'services.restart',
+      modelRoute: serviceLifecycleRoute('services.restart'),
+      reason: 'services.status reports the service is installed and running, but network.controlPlane.ready:false.',
+      ...common,
+    };
+  }
+  return {
+    status: 'no-action-needed',
+    action: 'none',
+    reason: 'services.status reports the service is installed and running with no failed control-plane readiness evidence.',
+    modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+    ...common,
+  };
+}
+
+function serviceLifecycleDecision(methodId: ServiceMethodId, responseOk: boolean, body: unknown): JsonRecord {
+  if (!responseOk) {
+    return {
+      status: 'needs-follow-up',
+      action: 'read-status',
+      reason: `The ${methodId} daemon call failed; do not retry a lifecycle mutation until services.status or service_posture explains the failure.`,
+      evidence: serviceReceiptEvidence(body),
+      statusRoute: serviceLifecycleRoute('services.status'),
+      setupRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+    };
+  }
+  if (methodId === 'services.status') return serviceLifecycleDecisionFromStatus(body);
+  return {
+    status: 'verify-status',
+    action: 'read-status',
+    reason: `${methodId} returned a receipt; verify services.status before closing or advancing setup.`,
+    evidence: serviceReceiptEvidence(body),
+    statusRoute: serviceLifecycleRoute('services.status'),
+    setupRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+    modelRoute: serviceLifecycleRoute('services.status'),
+  };
+}
+
 function serviceOutcomeCertified(methodId: ServiceMethodId, responseOk: boolean, body: unknown): boolean {
-  if (!responseOk || !isRecord(body) || typeof body.actionError === 'string') return false;
+  if (!responseOk || !isRecord(body) || (typeof body.actionError === 'string' && body.actionError.trim())) return false;
   if (methodId === 'services.status') {
     return typeof body.installed === 'boolean'
       && typeof body.autostart === 'boolean'
@@ -330,6 +444,7 @@ function serviceOutcome(methodId: string, responseOk: boolean, body: unknown): J
     methodId,
     evidence: serviceReceiptEvidence(body),
     expectedOutcome: serviceExpectedOutcome(methodId),
+    lifecycleDecision: serviceLifecycleDecision(methodId, responseOk, body),
     nextStep: certified
       ? 'Inspect services.status or connected-host status to confirm the setup wizard can advance.'
       : 'Inspect services.status and connected-host setup posture before retrying a lifecycle mutation.',

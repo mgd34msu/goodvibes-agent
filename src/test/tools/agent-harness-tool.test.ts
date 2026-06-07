@@ -993,6 +993,18 @@ describe('agent_harness tool', () => {
             readonly recommendedWhen: string;
             readonly safety: string;
           }[];
+          readonly serviceLifecycleDecision?: {
+            readonly status: string;
+            readonly recommendedAction: string;
+            readonly modelRoute: string;
+            readonly reason: string;
+            readonly evidence: {
+              readonly probeStatus: string;
+              readonly serviceStatusMethodPublished: boolean;
+            };
+            readonly receiptRules: readonly string[];
+            readonly blockedMutations: readonly string[];
+          };
           readonly bootstrapPlan?: {
             readonly status: string;
             readonly source: string;
@@ -1083,6 +1095,13 @@ describe('agent_harness tool', () => {
       expect(first?.handoffs?.map((handoff) => handoff.id)).toContain('connected-host-bootstrap');
       expect(first?.availableRepairCards).toContain('connected-host-status');
       expect(first?.bootstrapRoute).toContain('connected-host-readiness');
+      expect(first?.serviceLifecycleDecision?.status).toBe('needs-status-receipt');
+      expect(first?.serviceLifecycleDecision?.recommendedAction).toBe('read-services-status');
+      expect(first?.serviceLifecycleDecision?.modelRoute).toContain('services.status');
+      expect(first?.serviceLifecycleDecision?.reason).toContain('Probe evidence is not enough');
+      expect(first?.serviceLifecycleDecision?.evidence.serviceStatusMethodPublished).toBe(true);
+      expect(first?.serviceLifecycleDecision?.receiptRules.join('\n')).toContain('installed:false');
+      expect(first?.serviceLifecycleDecision?.blockedMutations.join('\n')).toContain('services.start');
       expect(first?.bootstrapPlan?.source).toContain('goodvibes-tui');
       expect(first?.bootstrapPlan?.steps.map((step) => step.id)).toEqual([
         'verify-bun',
@@ -1214,6 +1233,7 @@ describe('agent_harness tool', () => {
           readonly methodId?: string;
           readonly modelRoute?: string;
         }[];
+        readonly serviceLifecycleDecision?: { readonly status: string; readonly recommendedAction: string; readonly modelRoute: string };
         readonly policy?: { readonly effect: string };
       }>(fixture, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
       expect(hostItem.setupItemId).toBe('connected-host-readiness');
@@ -1223,6 +1243,9 @@ describe('agent_harness tool', () => {
       expect(hostItem.bootstrapPlan?.steps.find((step) => step.id === 'verify-bun')?.commands).toEqual(['bun --version']);
       expect(hostItem.bootstrapPlan?.policy).toContain('confirmed operator methods');
       expect(hostItem.repairCards?.find((card) => card.id === 'service-start')?.modelRoute).toContain('services.start');
+      expect(hostItem.serviceLifecycleDecision?.status).toBe('needs-status-receipt');
+      expect(hostItem.serviceLifecycleDecision?.recommendedAction).toBe('read-services-status');
+      expect(hostItem.serviceLifecycleDecision?.modelRoute).toContain('services.status');
       expect(hostItem.policy?.effect).toBe('read-only');
 
       const localModelItem = await executeHarnessJson<{
@@ -2202,6 +2225,14 @@ describe('agent_harness tool', () => {
           readonly diagnosticRoute: string;
           readonly issues: readonly string[];
         };
+        readonly serviceLifecycleDecision?: {
+          readonly status: string;
+          readonly recommendedAction: string;
+          readonly modelRoute: string;
+          readonly reason: string;
+          readonly receiptRules: readonly string[];
+          readonly blockedMutations: readonly string[];
+        };
         readonly repairCards?: readonly {
           readonly id: string;
           readonly state: string;
@@ -2226,6 +2257,12 @@ describe('agent_harness tool', () => {
       });
       expect(hostItem.serviceProbe?.diagnosticRoute).toContain('service_posture');
       expect(hostItem.signals?.join('\n')).toContain('runtime connection probe: unreachable 127.0.0.1:1');
+      expect(hostItem.serviceLifecycleDecision?.status).toBe('needs-status-receipt');
+      expect(hostItem.serviceLifecycleDecision?.recommendedAction).toBe('read-services-status');
+      expect(hostItem.serviceLifecycleDecision?.modelRoute).toContain('services.status');
+      expect(hostItem.serviceLifecycleDecision?.reason).toContain('status receipt first');
+      expect(hostItem.serviceLifecycleDecision?.receiptRules.join('\n')).toContain('running:false');
+      expect(hostItem.serviceLifecycleDecision?.blockedMutations.join('\n')).toContain('services.restart');
       expect(hostItem.recommendedRepairCards).toContain('connected-host-status');
       expect(hostItem.recommendedRepairCards).toContain('service-posture');
       expect(hostItem.recommendedRepairCards).toContain('service-status');
@@ -2410,12 +2447,15 @@ describe('agent_harness tool', () => {
           readonly status: string;
           readonly signals?: readonly string[];
           readonly bootstrapPlan?: { readonly status: string };
+          readonly serviceLifecycleDecision?: { readonly status: string; readonly recommendedAction: string };
           readonly repairCards?: readonly { readonly id: string; readonly state: string; readonly recommendation: string }[];
         }>(missingHost, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
 
         expect(host.status).toBe('blocked');
         expect(host.signals?.join('\n')).toContain('connected host registry unavailable');
         expect(host.bootstrapPlan?.status).toBe('recommended');
+        expect(host.serviceLifecycleDecision?.status).toBe('bootstrap-first');
+        expect(host.serviceLifecycleDecision?.recommendedAction).toBe('inspect-service-posture');
         expect(host.repairCards?.find((card) => card.id === 'service-start')?.state).toBe('requires-live-host');
         expect(host.repairCards?.find((card) => card.id === 'service-start')?.recommendation).toBe('unavailable');
       } finally {
@@ -2443,6 +2483,7 @@ describe('agent_harness tool', () => {
             readonly status: string;
             readonly serviceProbe?: { readonly status: string; readonly binding: string };
             readonly bootstrapPlan?: { readonly status: string };
+            readonly serviceLifecycleDecision?: { readonly status: string; readonly recommendedAction: string; readonly modelRoute: string };
             readonly recommendedRepairCards?: readonly string[];
             readonly repairCards?: readonly { readonly id: string; readonly recommendation: string }[];
           }>(reachableHost, { mode: 'setup_item', setupItemId: 'connected-host-readiness' });
@@ -2451,6 +2492,9 @@ describe('agent_harness tool', () => {
           expect(host.serviceProbe?.status).toBe('reachable');
           expect(host.serviceProbe?.binding).toBe(`127.0.0.1:${port}`);
           expect(host.bootstrapPlan?.status).toBe('optional');
+          expect(host.serviceLifecycleDecision?.status).toBe('no-lifecycle-action');
+          expect(host.serviceLifecycleDecision?.recommendedAction).toBe('none');
+          expect(host.serviceLifecycleDecision?.modelRoute).toContain('services.status');
           expect(host.recommendedRepairCards ?? []).not.toContain('service-status');
           expect(host.recommendedRepairCards ?? []).not.toContain('service-install');
           expect(host.recommendedRepairCards ?? []).not.toContain('service-start');

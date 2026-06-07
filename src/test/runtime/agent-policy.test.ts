@@ -203,6 +203,76 @@ describe('Agent user-first autonomy policy', () => {
     }
   });
 
+  test('generic operator method bridge recommends service lifecycle actions from status receipts', async () => {
+    root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
+    mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
+    writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'service-status-token' }));
+
+    const receipts = [
+      { installed: false, autostart: false, running: false, network: { controlPlane: { ready: false } } },
+      { installed: true, autostart: true, running: false, network: { controlPlane: { ready: false } } },
+      { installed: true, autostart: true, running: true, network: { controlPlane: { ready: false } } },
+      { installed: true, autostart: true, running: true, network: { controlPlane: { ready: true } } },
+    ];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      const receipt = receipts.shift();
+      if (!receipt) throw new Error('No queued service receipt.');
+      return new Response(JSON.stringify(receipt), { status: 200, headers: { 'content-type': 'application/json' } });
+    }) as typeof globalThis.fetch;
+
+    try {
+      const tool = createAgentOperatorMethodTool(
+        { homeDirectory: root } as never,
+        {
+          get: (key: string) => key === 'controlPlane.port'
+            ? 3429
+            : key === 'controlPlane.host'
+              ? '127.0.0.1'
+              : undefined,
+        },
+      );
+      const decisions: Array<{
+        readonly status: string;
+        readonly action: string;
+        readonly methodId?: string;
+        readonly modelRoute: string;
+      }> = [];
+      for (let index = 0; index < 4; index += 1) {
+        const result = await tool.execute({ methodId: 'services.status' });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error(result.error);
+        const output = JSON.parse(result.output) as {
+          readonly outcome: {
+            readonly lifecycleDecision: {
+              readonly status: string;
+              readonly action: string;
+              readonly methodId?: string;
+              readonly modelRoute: string;
+              readonly decisionRules: readonly string[];
+            };
+          };
+        };
+        expect(output.outcome.lifecycleDecision.decisionRules.join('\n')).toContain('installed:false');
+        decisions.push(output.outcome.lifecycleDecision);
+        expect(result.output).not.toContain('service-status-token');
+      }
+      expect(decisions.map((decision) => decision.action)).toEqual([
+        'install-service',
+        'start-service',
+        'restart-service',
+        'none',
+      ]);
+      expect(decisions[0]?.methodId).toBe('services.install');
+      expect(decisions[0]?.modelRoute).toContain('services.install');
+      expect(decisions[1]?.methodId).toBe('services.start');
+      expect(decisions[2]?.methodId).toBe('services.restart');
+      expect(decisions[3]?.status).toBe('no-action-needed');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   test('generic operator method bridge certifies watcher receipts', async () => {
     root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
     mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
