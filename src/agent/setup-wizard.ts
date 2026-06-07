@@ -1,6 +1,7 @@
 export type AgentSetupWizardSourceStatus = 'ready' | 'blocked' | 'recommended' | 'optional' | 'check';
 export type AgentSetupWizardStatus = 'complete' | 'active' | 'blocked';
 export type AgentSetupWizardStepStatus = 'done' | 'current' | 'pending' | 'blocked';
+export type AgentSetupWizardCheckpointStatus = 'available' | 'none' | 'stale' | 'unavailable';
 
 export interface AgentSetupWizardSourceItem {
   readonly id: string;
@@ -50,6 +51,22 @@ export interface AgentSetupWizardStep {
   readonly backtrackRoute: string | null;
 }
 
+export interface AgentSetupWizardCheckpoint {
+  readonly status: AgentSetupWizardCheckpointStatus;
+  readonly currentStepId: string | null;
+  readonly currentStepLabel: string | null;
+  readonly savedAt: string | null;
+  readonly source: string | null;
+  readonly resumed: boolean;
+  readonly summary: string;
+  readonly path: string | null;
+  readonly note?: string;
+  readonly parseError?: string;
+  readonly markCurrentRoute: string;
+  readonly clearRoute: string;
+  readonly inspectRoute: string;
+}
+
 export interface AgentSetupWizard {
   readonly available: true;
   readonly status: AgentSetupWizardStatus;
@@ -62,12 +79,14 @@ export interface AgentSetupWizard {
   readonly reviewRoute: string;
   readonly repeatedBlocker: AgentSetupWizardRepeatedBlocker | null;
   readonly smokeHistory: AgentSetupWizardSmokeHistory;
+  readonly checkpoint: AgentSetupWizardCheckpoint;
   readonly steps: readonly AgentSetupWizardStep[];
 }
 
 export interface BuildAgentSetupWizardInput {
   readonly items: readonly AgentSetupWizardSourceItem[];
   readonly smokeHistory?: AgentSetupWizardSmokeHistory;
+  readonly checkpoint?: AgentSetupWizardCheckpoint;
   readonly repeatedBlockerAliases?: Readonly<Record<string, readonly string[]>>;
   readonly reviewRoute?: string;
 }
@@ -75,6 +94,9 @@ export interface BuildAgentSetupWizardInput {
 export const DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE = 'agent_harness mode:"setup_posture" includeParameters:true';
 export const DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE = 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."';
 export const DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE = 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."';
+export const DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE = 'agent_harness mode:"mark_setup_checkpoint" confirm:true explicitUserRequest:"..."';
+export const DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE = 'agent_harness mode:"clear_setup_checkpoint" confirm:true explicitUserRequest:"..."';
+export const DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE = 'agent_harness mode:"setup_checkpoint"';
 
 export function emptyAgentSetupSmokeHistory(reason = 'No saved setup smoke evidence artifact found.'): AgentSetupWizardSmokeHistory {
   return {
@@ -92,11 +114,33 @@ export function emptyAgentSetupSmokeHistory(reason = 'No saved setup smoke evide
   };
 }
 
+export function emptyAgentSetupWizardCheckpoint(reason = 'No saved setup wizard checkpoint.'): AgentSetupWizardCheckpoint {
+  return {
+    status: 'none',
+    currentStepId: null,
+    currentStepLabel: null,
+    savedAt: null,
+    source: null,
+    resumed: false,
+    summary: reason,
+    path: null,
+    markCurrentRoute: DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
+    clearRoute: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+    inspectRoute: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+  };
+}
+
 function firstAttentionItem(items: readonly AgentSetupWizardSourceItem[]): AgentSetupWizardSourceItem | null {
   return items.find((item) => item.status === 'blocked')
     ?? items.find((item) => item.status === 'check')
     ?? items.find((item) => item.status === 'recommended')
     ?? items.find((item) => item.status === 'optional')
+    ?? null;
+}
+
+function firstBlockingItem(items: readonly AgentSetupWizardSourceItem[]): AgentSetupWizardSourceItem | null {
+  return items.find((item) => item.status === 'blocked')
+    ?? items.find((item) => item.status === 'check')
     ?? null;
 }
 
@@ -125,6 +169,58 @@ function itemFromRepeatedBlockers(
   return null;
 }
 
+function itemFromCheckpoint(
+  items: readonly AgentSetupWizardSourceItem[],
+  checkpoint: AgentSetupWizardCheckpoint,
+): AgentSetupWizardSourceItem | null {
+  if (checkpoint.status !== 'available' || !checkpoint.currentStepId) return null;
+  const item = items.find((candidate) => candidate.id === checkpoint.currentStepId);
+  if (!item || item.status === 'ready') return null;
+  return item;
+}
+
+function buildCheckpoint(
+  checkpoint: AgentSetupWizardCheckpoint,
+  items: readonly AgentSetupWizardSourceItem[],
+  resumedItem: AgentSetupWizardSourceItem | null,
+  blockingItem: AgentSetupWizardSourceItem | null,
+): AgentSetupWizardCheckpoint {
+  const withRoutes: AgentSetupWizardCheckpoint = {
+    ...checkpoint,
+    markCurrentRoute: checkpoint.markCurrentRoute || DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
+    clearRoute: checkpoint.clearRoute || DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+    inspectRoute: checkpoint.inspectRoute || DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+  };
+  if (checkpoint.status !== 'available') return withRoutes;
+  if (resumedItem) {
+    return {
+      ...withRoutes,
+      currentStepLabel: checkpoint.currentStepLabel ?? resumedItem.label,
+      resumed: true,
+      summary: `Resuming ${resumedItem.label} from saved setup checkpoint.`,
+    };
+  }
+  const savedItem = checkpoint.currentStepId
+    ? items.find((item) => item.id === checkpoint.currentStepId)
+    : null;
+  if (savedItem && savedItem.status !== 'ready' && blockingItem) {
+    return {
+      ...withRoutes,
+      currentStepLabel: checkpoint.currentStepLabel ?? savedItem.label,
+      resumed: false,
+      summary: `Saved setup checkpoint for ${savedItem.label}; live blocker ${blockingItem.label} is taking priority.`,
+    };
+  }
+  return {
+    ...withRoutes,
+    status: 'stale',
+    resumed: false,
+    summary: savedItem?.status === 'ready'
+      ? `Saved checkpoint ${savedItem.label} is already ready; live setup posture is taking over.`
+      : 'Saved checkpoint no longer matches a current setup step; live setup posture is taking over.',
+  };
+}
+
 function stepStatus(item: AgentSetupWizardSourceItem, currentId: string | null): AgentSetupWizardStepStatus {
   if (item.status === 'ready') return 'done';
   if (item.id === currentId) return 'current';
@@ -149,8 +245,13 @@ function buildStep(item: AgentSetupWizardSourceItem, currentId: string | null): 
 
 export function buildAgentSetupWizard(input: BuildAgentSetupWizardInput): AgentSetupWizard {
   const smokeHistory = input.smokeHistory ?? emptyAgentSetupSmokeHistory();
+  const inputCheckpoint = input.checkpoint ?? emptyAgentSetupWizardCheckpoint();
   const repeated = itemFromRepeatedBlockers(input.items, smokeHistory, input.repeatedBlockerAliases ?? {});
-  const current = repeated?.item ?? firstAttentionItem(input.items);
+  const blocking = firstBlockingItem(input.items);
+  const rawCheckpointItem = itemFromCheckpoint(input.items, inputCheckpoint);
+  const checkpointItem = blocking && rawCheckpointItem?.id !== blocking.id ? null : rawCheckpointItem;
+  const checkpoint = buildCheckpoint(inputCheckpoint, input.items, checkpointItem, blocking);
+  const current = repeated?.item ?? blocking ?? checkpointItem ?? firstAttentionItem(input.items);
   const currentId = current?.id ?? null;
   const steps = input.items.map((item) => buildStep(item, currentId));
   const completedSteps = steps.filter((step) => step.status === 'done').length;
@@ -176,6 +277,7 @@ export function buildAgentSetupWizard(input: BuildAgentSetupWizardInput): AgentS
     reviewRoute: input.reviewRoute ?? DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
     repeatedBlocker: repeated?.blocker ?? null,
     smokeHistory,
+    checkpoint,
     steps,
   };
 }

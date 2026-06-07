@@ -183,6 +183,11 @@ function localActionRouteHint(action: AgentWorkspaceAction): string {
 
 function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.kind === 'settings-import') return 'agent_harness mode:"run_workspace_action"';
+  if (action.kind === 'setup-checkpoint') {
+    if (action.setupCheckpointOperation === 'mark-current') return 'agent_harness mode:"mark_setup_checkpoint" confirm:true explicitUserRequest:"..."';
+    if (action.setupCheckpointOperation === 'clear') return 'agent_harness mode:"clear_setup_checkpoint" confirm:true explicitUserRequest:"..."';
+    return 'agent_harness mode:"setup_checkpoint"';
+  }
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'research-run-queue') return 'agent_harness mode:"research_runs"';
@@ -273,6 +278,19 @@ export function describeWorkspaceAction(
         confirmation: 'required',
         preview: 'available-without-confirmation',
         note: 'Copies only Agent-owned GoodVibes TUI settings and provider subscription state after explicit user confirmation.',
+      },
+    } : {}),
+    ...(action.kind === 'setup-checkpoint' ? {
+      setupCheckpointOperation: action.setupCheckpointOperation ?? 'show',
+      modelExecution: {
+        route: action.setupCheckpointOperation === 'mark-current'
+          ? 'mark_setup_checkpoint'
+          : action.setupCheckpointOperation === 'clear'
+            ? 'clear_setup_checkpoint'
+            : 'setup_checkpoint',
+        dispatcher: 'agent_harness',
+        confirmation: action.setupCheckpointOperation === 'show' ? 'not-required' : 'required',
+        note: 'Setup wizard checkpoints persist only the visible current setup step in Agent-owned state so first-run setup can resume across restarts.',
       },
     } : {}),
     ...(action.kind === 'local-selection' || action.kind === 'local-operation' ? {

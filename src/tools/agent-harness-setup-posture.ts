@@ -17,10 +17,16 @@ import { previewHarnessText } from './agent-harness-text.ts';
 import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
 import { connectedHostOperatorTokenFingerprint, connectedHostOperatorTokenPath, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { agentHarnessVibeHealth, type AgentHarnessVibeHealth } from './agent-harness-vibe-health.ts';
+import { clearSetupWizardCheckpoint, readSetupWizardCheckpoint, saveSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
 import {
+  DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
   buildAgentSetupWizard,
   emptyAgentSetupSmokeHistory,
+  emptyAgentSetupWizardCheckpoint,
   type AgentSetupWizard,
+  type AgentSetupWizardCheckpoint,
   type AgentSetupWizardSmokeHistory,
   type AgentSetupWizardSourceItem,
 } from '../agent/setup-wizard.ts';
@@ -907,6 +913,52 @@ function setupWizardSmokeHistory(context: CommandContext): AgentSetupWizardSmoke
   };
 }
 
+function setupWizardCheckpoint(context: CommandContext): AgentSetupWizardCheckpoint {
+  const routes = {
+    markCurrentRoute: DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
+    clearRoute: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+    inspectRoute: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+  };
+  try {
+    const shellPaths = requireShellPaths(context);
+    const snapshot = readSetupWizardCheckpoint(shellPaths);
+    if (!snapshot.exists) {
+      return {
+        ...emptyAgentSetupWizardCheckpoint(),
+        ...routes,
+        path: snapshot.path,
+      };
+    }
+    if (!snapshot.checkpoint) {
+      return {
+        ...emptyAgentSetupWizardCheckpoint(snapshot.parseError ?? 'Saved setup wizard checkpoint could not be read.'),
+        ...routes,
+        status: 'unavailable',
+        path: snapshot.path,
+        ...(snapshot.parseError ? { parseError: snapshot.parseError } : {}),
+      };
+    }
+    return {
+      status: 'available',
+      currentStepId: snapshot.checkpoint.currentStepId,
+      currentStepLabel: snapshot.checkpoint.currentStepLabel,
+      savedAt: snapshot.checkpoint.savedAt,
+      source: snapshot.checkpoint.source,
+      resumed: false,
+      summary: `Saved setup checkpoint for ${snapshot.checkpoint.currentStepLabel}.`,
+      path: snapshot.path,
+      ...(snapshot.checkpoint.note ? { note: snapshot.checkpoint.note } : {}),
+      ...routes,
+    };
+  } catch (error) {
+    return {
+      ...emptyAgentSetupWizardCheckpoint(previewHarnessText(error instanceof Error ? error.message : String(error), 160)),
+      ...routes,
+      status: 'unavailable',
+    };
+  }
+}
+
 const SETUP_WIZARD_PLAN_BLOCKER_ALIASES: Readonly<Record<string, readonly string[]>> = {
   'agent-binary': ['install-smoke', 'connected-host-readiness'],
   'connected-host-status': ['connected-host-readiness'],
@@ -933,6 +985,7 @@ function buildSetupWizard(plan: readonly SetupPlanItem[], context: CommandContex
   return buildAgentSetupWizard({
     items: plan.map(setupPlanItemToWizardSource),
     smokeHistory: setupWizardSmokeHistory(context),
+    checkpoint: setupWizardCheckpoint(context),
     repeatedBlockerAliases: SETUP_WIZARD_PLAN_BLOCKER_ALIASES,
   });
 }
@@ -2231,7 +2284,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
   const setupSmokeHistory = setupSmokeEvidenceHistory(context);
   const setupWizard = buildSetupWizard(plan, context);
   return {
-    modes: ['setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke'],
+    modes: ['setup_posture', 'setup_item', 'setup_checkpoint', 'mark_setup_checkpoint', 'clear_setup_checkpoint', 'provision_connected_host_token', 'run_setup_smoke'],
     capabilities: deriveStep1Capabilities(snapshot).length,
     planItems: plan.length,
     blockedPlanItems: plan.filter((item) => item.status === 'blocked').length,
@@ -2311,6 +2364,126 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
     returned: filtered.length,
     total: all.length,
     policy: 'Read-only setup/onboarding posture. Apply, import, auth, profile, channel, and setting mutations remain confirmation-gated through visible workspace, settings, slash-command, or first-class tool flows.',
+  };
+}
+
+export async function setupCheckpointSummary(context: CommandContext): Promise<Record<string, unknown>> {
+  const snapshot = await collectSnapshot(context);
+  const servicePosture = await collectServicePosture(context);
+  const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
+  const setupWizard = buildSetupWizard(plan, context);
+  return {
+    mode: 'setup_checkpoint',
+    checkpoint: setupWizard.checkpoint,
+    currentStep: setupWizard.currentStepId
+      ? setupWizard.steps.find((step) => step.id === setupWizard.currentStepId) ?? null
+      : null,
+    setupWizard: {
+      status: setupWizard.status,
+      progressLabel: setupWizard.progressLabel,
+      currentStepId: setupWizard.currentStepId,
+      currentStepLabel: setupWizard.currentStepLabel,
+      next: setupWizard.next,
+    },
+    routes: {
+      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      markCurrent: DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
+      clear: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+    },
+    policy: 'Read-only checkpoint inspection. Saving or clearing the setup wizard checkpoint requires a confirmed route with explicit user request.',
+  };
+}
+
+export async function markSetupCheckpoint(context: CommandContext, args: AgentHarnessSetupArgs): Promise<Record<string, unknown>> {
+  const snapshot = await collectSnapshot(context);
+  const servicePosture = await collectServicePosture(context);
+  const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
+  const setupWizard = buildSetupWizard(plan, context);
+  const requestedStepId = readString(args.setupItemId);
+  const step = requestedStepId
+    ? setupWizard.steps.find((candidate) => candidate.id === requestedStepId)
+    : setupWizard.currentStepId
+      ? setupWizard.steps.find((candidate) => candidate.id === setupWizard.currentStepId)
+      : null;
+  if (!step) {
+    return {
+      status: 'no_checkpoint_written',
+      mode: 'mark_setup_checkpoint',
+      reason: requestedStepId
+        ? `Unknown setup wizard step ${requestedStepId}.`
+        : 'Setup wizard has no current step to checkpoint.',
+      setupWizard: {
+        status: setupWizard.status,
+        currentStepId: setupWizard.currentStepId,
+        currentStepLabel: setupWizard.currentStepLabel,
+      },
+      routes: {
+        inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      },
+    };
+  }
+  if (step.sourceStatus === 'ready') {
+    return {
+      status: 'no_checkpoint_written',
+      mode: 'mark_setup_checkpoint',
+      reason: `Setup wizard step ${step.label} is already ready.`,
+      step,
+      routes: {
+        inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+        clear: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+      },
+    };
+  }
+  const shellPaths = requireShellPaths(context);
+  const checkpoint = saveSetupWizardCheckpoint(shellPaths, {
+    currentStepId: step.id,
+    currentStepLabel: step.label,
+    source: 'harness',
+    note: 'User-confirmed setup wizard checkpoint.',
+  });
+  const updatedWizard = buildSetupWizard(plan, context);
+  return {
+    status: 'checkpoint_saved',
+    mode: 'mark_setup_checkpoint',
+    explicitUserRequest: previewHarnessText(readString(args.explicitUserRequest), 160),
+    step,
+    checkpoint,
+    setupWizard: {
+      status: updatedWizard.status,
+      progressLabel: updatedWizard.progressLabel,
+      currentStepId: updatedWizard.currentStepId,
+      currentStepLabel: updatedWizard.currentStepLabel,
+      checkpoint: updatedWizard.checkpoint,
+    },
+    routes: {
+      inspectCheckpoint: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      clear: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+    },
+    policy: {
+      effect: 'confirmed-setup-checkpoint-save',
+      boundary: 'Only the current setup wizard step id, label, source, timestamp, and generic note were saved in Agent-owned setup state.',
+    },
+  };
+}
+
+export function clearSetupCheckpoint(context: CommandContext, args: AgentHarnessSetupArgs): Record<string, unknown> {
+  const shellPaths = requireShellPaths(context);
+  const checkpoint = clearSetupWizardCheckpoint(shellPaths);
+  return {
+    status: 'checkpoint_cleared',
+    mode: 'clear_setup_checkpoint',
+    explicitUserRequest: previewHarnessText(readString(args.explicitUserRequest), 160),
+    checkpoint,
+    routes: {
+      inspectCheckpoint: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      markCurrent: DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
+    },
+    policy: {
+      effect: 'confirmed-setup-checkpoint-clear',
+      boundary: 'Removed only the Agent-owned setup wizard checkpoint file.',
+    },
   };
 }
 

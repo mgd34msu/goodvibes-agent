@@ -83,7 +83,7 @@ Discovery modes:
 | `autonomy_intake`, `autonomy_queue`, `autonomy_queue_item` | Ongoing-work route selection, visible autonomous work owners, webhook/event-trigger setup intake, status, live records, log tails, task/run diagnostics, host task output routes/previews, inspect routes, and normalized checkpoint/pause/resume/cancel/recovery controls. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, routine, VIBE.md personality health, duplicate-consolidation batch review, completed-work, completed-research, and saved-session review/proposal candidates. |
 | `document_ops`, `document_ops_lane` | Documents, review packet timeline, review packet wizard, packet presets/defaults/freshness, reviewer-readiness checks, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
-| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup wizard with progress/current-step/backtracking routes and repeated-smoke-blocker focus, setup plan with probe-fed connected-host repair/auth cards, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness, pairing, and build-delegation posture. |
+| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup wizard with progress/current-step/checkpoint/backtracking routes and repeated-smoke-blocker focus, setup plan with probe-fed connected-host repair/auth cards, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness, pairing, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |
 | `service_posture`, `connected_host`, `daemon` | Endpoint, connected-host, and daemon alias posture. |
@@ -101,6 +101,7 @@ Single-item inspect modes:
 | `project_context_file` | `contextFileId`, `target`, or `query` |
 | `agent_orchestration_agent` | `agentId`, `target`, or `query` |
 | `setup_item`, `model_route`, `execution_route`, `pairing_route`, `delegation_route` | Exact id/model key or `target`/`query` |
+| `setup_checkpoint` | Saved setup wizard checkpoint and current resume step, no lookup required |
 | `personal_ops_lane`, `document_ops_lane` | `laneId`, `target`, or `query` |
 | `learning_candidate` | `candidateId`, `target`, or `query` |
 | `security_finding`, `support_bundle`, `media_provider`, `session` | Exact id/path or `target`/`query` |
@@ -116,6 +117,7 @@ Effect modes:
 | `run_workspace_action` | Executes one resolved workspace action through the same editor, command, or local route as the TUI. |
 | `run_command` | Executes one resolved slash command through the shared command registry. |
 | `provision_connected_host_token` | Creates or repairs the local canonical connected-host token after confirmation without returning the raw token. |
+| `mark_setup_checkpoint`, `clear_setup_checkpoint` | Saves or clears the Agent-owned setup wizard resume checkpoint after confirmation. |
 | `run_setup_smoke` | Collects redacted first-run setup smoke evidence and can save user-run output as an artifact without implicit shell or host commands. |
 | `open_panel`, `open_ui_surface` | Routes visible shell navigation. |
 | `run_keybinding` | Runs supported shell-safe keybinding actions only. |

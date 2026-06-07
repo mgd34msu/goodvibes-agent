@@ -60,6 +60,7 @@ function actionCommand(action: AgentWorkspaceAction): string {
   if (action.kind === 'editor') return action.editorKind ? `edit ${action.editorKind}` : 'edit form';
   if (action.kind === 'setting') return action.settingKey ? `setting ${action.settingKey}` : 'setting';
   if (action.kind === 'settings-import') return 'import GoodVibes settings';
+  if (action.kind === 'setup-checkpoint') return action.setupCheckpointOperation ? `setup checkpoint ${action.setupCheckpointOperation}` : 'setup checkpoint';
   if (action.kind === 'model-picker') return action.modelPickerFlow === 'model' ? 'model picker' : 'provider/model picker';
   if (action.kind === 'settings-modal') return action.settingsTarget ? `settings ${action.settingsTarget}` : 'settings';
   if (action.kind === 'local-selection') return action.selectionDelta && action.selectionDelta < 0 ? 'select previous' : 'select next';
@@ -131,6 +132,12 @@ function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLin
     lines.push({
       text: `Repeated blocker: ${wizard.repeatedBlocker.checkId} in ${wizard.repeatedBlocker.count} saved smoke run(s).`,
       fg: PALETTE.warn,
+    });
+  }
+  if (wizard.checkpoint.status !== 'none') {
+    lines.push({
+      text: `Setup checkpoint: ${compactText(wizard.checkpoint.summary, 112)}`,
+      fg: wizard.checkpoint.status === 'stale' || wizard.checkpoint.status === 'unavailable' ? PALETTE.warn : PALETTE.info,
     });
   }
   if (wizard.smokeHistory.status === 'available') {

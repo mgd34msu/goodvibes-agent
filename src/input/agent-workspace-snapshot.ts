@@ -22,13 +22,19 @@ import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-sum
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
 import { RoutineScheduleReceiptStore } from '../agent/routine-schedule-receipts.ts';
+import { readSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
 import {
+  DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
   DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
   DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
   buildAgentSetupWizard,
   emptyAgentSetupSmokeHistory,
+  emptyAgentSetupWizardCheckpoint,
   type AgentSetupWizard,
   type AgentSetupWizardBlockedCheckFrequency,
+  type AgentSetupWizardCheckpoint,
   type AgentSetupWizardSmokeHistory,
   type AgentSetupWizardSourceItem,
 } from '../agent/setup-wizard.ts';
@@ -289,6 +295,50 @@ function buildSetupSmokeHistory(artifacts: readonly ArtifactDescriptor[], artifa
     inspectLatestRoute: `agent_artifacts show artifactId:"${latest.id}" includeContent:false`,
     rerunRoute: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
     saveRoute: DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
+  };
+}
+
+function buildSetupWizardCheckpoint(context: CommandContext): AgentSetupWizardCheckpoint {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths || typeof shellPaths.resolveUserPath !== 'function') {
+    return {
+      ...emptyAgentSetupWizardCheckpoint('Agent shell paths are unavailable; setup wizard checkpoint storage cannot be inspected.'),
+      status: 'unavailable',
+    };
+  }
+  const snapshot = readSetupWizardCheckpoint(shellPaths);
+  const routes = {
+    markCurrentRoute: DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
+    clearRoute: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
+    inspectRoute: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
+  };
+  if (!snapshot.exists) {
+    return {
+      ...emptyAgentSetupWizardCheckpoint(),
+      ...routes,
+      path: snapshot.path,
+    };
+  }
+  if (!snapshot.checkpoint) {
+    return {
+      ...emptyAgentSetupWizardCheckpoint(snapshot.parseError ?? 'Saved setup wizard checkpoint could not be read.'),
+      ...routes,
+      status: 'unavailable',
+      path: snapshot.path,
+      ...(snapshot.parseError ? { parseError: snapshot.parseError } : {}),
+    };
+  }
+  return {
+    status: 'available',
+    currentStepId: snapshot.checkpoint.currentStepId,
+    currentStepLabel: snapshot.checkpoint.currentStepLabel,
+    savedAt: snapshot.checkpoint.savedAt,
+    source: snapshot.checkpoint.source,
+    resumed: false,
+    summary: `Saved setup checkpoint for ${snapshot.checkpoint.currentStepLabel}.`,
+    path: snapshot.path,
+    ...(snapshot.checkpoint.note ? { note: snapshot.checkpoint.note } : {}),
+    ...routes,
   };
 }
 
@@ -1241,6 +1291,7 @@ const SETUP_WIZARD_SNAPSHOT_BLOCKER_ALIASES: Readonly<Record<string, readonly st
 function buildWorkspaceSetupWizard(
   checklist: readonly AgentWorkspaceSetupChecklistItem[],
   smokeHistory: AgentSetupWizardSmokeHistory,
+  checkpoint: AgentSetupWizardCheckpoint,
 ): AgentSetupWizard {
   const items: AgentSetupWizardSourceItem[] = checklist.map((item) => ({
     id: item.id,
@@ -1254,6 +1305,7 @@ function buildWorkspaceSetupWizard(
   return buildAgentSetupWizard({
     items,
     smokeHistory,
+    checkpoint,
     repeatedBlockerAliases: SETUP_WIZARD_SNAPSHOT_BLOCKER_ALIASES,
   });
 }
@@ -1643,6 +1695,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const setupWizard = buildWorkspaceSetupWizard(
     setupChecklist,
     buildSetupSmokeHistory(artifactListSnapshot.items, artifactListSnapshot.available),
+    buildSetupWizardCheckpoint(context),
   );
 
   return {

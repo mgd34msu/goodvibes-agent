@@ -6,6 +6,7 @@ import type { CommandContext } from './command-registry.ts';
 import { AgentNoteRegistry } from '../agent/note-registry.ts';
 import { AgentPersonaRegistry } from '../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
+import { clearSetupWizardCheckpoint, readSetupWizardCheckpoint, saveSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
 import type { AgentRuntimeProfileInfo } from '../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { activateAgentWorkspaceSelection } from './agent-workspace-activation.ts';
@@ -400,6 +401,113 @@ export class AgentWorkspace {
 
   importTuiSettings(requestRender?: () => void): void {
     void this.importTuiSettingsAsync(requestRender);
+  }
+
+  applySetupCheckpointAction(action: AgentWorkspaceAction, requestRender?: () => void): void {
+    const shellPaths = this.context?.workspace?.shellPaths;
+    if (!shellPaths || typeof shellPaths.resolveUserPath !== 'function') {
+      this.status = 'Setup checkpoint storage is unavailable.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Setup checkpoint unavailable',
+        detail: 'The Agent workspace cannot locate Agent shell paths for setup checkpoint storage.',
+        safety: action.safety,
+      };
+      requestRender?.();
+      return;
+    }
+
+    try {
+      const operation = action.setupCheckpointOperation ?? 'show';
+      if (operation === 'show') {
+        const checkpoint = readSetupWizardCheckpoint(shellPaths);
+        const detail = checkpoint.checkpoint
+          ? `Saved setup checkpoint: ${checkpoint.checkpoint.currentStepLabel} (${checkpoint.checkpoint.currentStepId}) at ${checkpoint.checkpoint.savedAt}.`
+          : checkpoint.exists
+            ? `Saved setup checkpoint could not be read: ${checkpoint.parseError ?? 'invalid checkpoint file'}.`
+            : 'No setup wizard checkpoint is saved yet.';
+        this.status = checkpoint.checkpoint ? 'Setup checkpoint loaded.' : 'No setup checkpoint saved.';
+        this.lastActionResult = {
+          kind: checkpoint.exists && !checkpoint.checkpoint ? 'error' : 'guidance',
+          title: 'Setup checkpoint',
+          detail,
+          safety: action.safety,
+        };
+        requestRender?.();
+        return;
+      }
+
+      if (operation === 'clear') {
+        const before = readSetupWizardCheckpoint(shellPaths);
+        const checkpoint = clearSetupWizardCheckpoint(shellPaths);
+        this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+        this.clampSelection();
+        this.status = before.exists ? 'Setup checkpoint cleared.' : 'No setup checkpoint was saved.';
+        this.lastActionResult = {
+          kind: 'refreshed',
+          title: 'Setup checkpoint cleared',
+          detail: before.exists
+            ? `Cleared the Agent-owned setup wizard checkpoint at ${checkpoint.path}.`
+            : `No Agent-owned setup wizard checkpoint existed at ${checkpoint.path}.`,
+          safety: action.safety,
+        };
+        requestRender?.();
+        return;
+      }
+
+      const wizard = this.runtimeSnapshot?.setupWizard;
+      const current = wizard?.currentStepId
+        ? wizard.steps.find((step) => step.id === wizard.currentStepId) ?? null
+        : null;
+      if (!current) {
+        this.status = 'No current setup wizard step to save.';
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: 'Setup checkpoint not saved',
+          detail: 'The setup wizard is complete or unavailable, so there is no current step to resume.',
+          safety: action.safety,
+        };
+        requestRender?.();
+        return;
+      }
+      if (current.sourceStatus === 'ready') {
+        this.status = 'Setup checkpoint not saved.';
+        this.lastActionResult = {
+          kind: 'guidance',
+          title: 'Setup checkpoint not saved',
+          detail: `${current.label} is already ready; use the next live setup step instead.`,
+          safety: action.safety,
+        };
+        requestRender?.();
+        return;
+      }
+      const checkpoint = saveSetupWizardCheckpoint(shellPaths, {
+        currentStepId: current.id,
+        currentStepLabel: current.label,
+        source: 'workspace',
+        note: 'User-selected setup wizard checkpoint.',
+      });
+      this.runtimeSnapshot = this.context ? buildAgentWorkspaceRuntimeSnapshot(this.context) : this.runtimeSnapshot;
+      this.clampSelection();
+      this.status = `Saved setup checkpoint for ${current.label}.`;
+      this.lastActionResult = {
+        kind: 'refreshed',
+        title: 'Setup checkpoint saved',
+        detail: `Saved ${current.label} (${current.id}) as the Agent-owned setup resume point at ${checkpoint.path}.`,
+        safety: action.safety,
+      };
+      requestRender?.();
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      this.status = 'Setup checkpoint action failed.';
+      this.lastActionResult = {
+        kind: 'error',
+        title: 'Setup checkpoint action failed',
+        detail,
+        safety: action.safety,
+      };
+      requestRender?.();
+    }
   }
 
   private selectedItemForOperation(operation: AgentWorkspaceLocalOperation): AgentWorkspaceLocalLibraryItem | null {

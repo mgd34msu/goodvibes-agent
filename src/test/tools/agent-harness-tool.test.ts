@@ -1306,6 +1306,102 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('persists setup wizard checkpoints through confirmed harness and workspace routes', async () => {
+    const fixture = makeFixture();
+    try {
+      const initial = await executeHarnessJson<{
+        readonly checkpoint: { readonly status: string; readonly path: string | null; readonly resumed: boolean };
+        readonly setupWizard: { readonly currentStepId: string | null; readonly currentStepLabel: string | null };
+      }>(fixture, { mode: 'setup_checkpoint' });
+      expect(initial.checkpoint.status).toBe('none');
+      expect(initial.checkpoint.path).toContain('wizard-checkpoint.json');
+      expect(initial.setupWizard.currentStepId).toBe('connected-host-auth');
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'mark_setup_checkpoint',
+        explicitUserRequest: 'Save setup resume point.',
+      });
+      expect(unconfirmed.success).toBe(false);
+      expect(unconfirmed.error).toContain('confirm:true');
+
+      const saved = await executeHarnessJson<{
+        readonly status: string;
+        readonly step: { readonly id: string; readonly label: string; readonly sourceStatus: string };
+        readonly checkpoint: { readonly exists: boolean; readonly checkpoint?: { readonly currentStepId: string; readonly currentStepLabel: string; readonly source: string } | null };
+        readonly setupWizard: {
+          readonly currentStepId: string | null;
+          readonly checkpoint: { readonly status: string; readonly resumed: boolean; readonly summary: string };
+        };
+      }>(fixture, {
+        mode: 'mark_setup_checkpoint',
+        confirm: true,
+        explicitUserRequest: 'Save setup resume point.',
+      });
+      expect(saved.status).toBe('checkpoint_saved');
+      expect(saved.step).toMatchObject({ id: 'connected-host-auth', label: 'Connected-host auth', sourceStatus: 'blocked' });
+      expect(saved.checkpoint.exists).toBe(true);
+      expect(saved.checkpoint.checkpoint).toMatchObject({
+        currentStepId: 'connected-host-auth',
+        currentStepLabel: 'Connected-host auth',
+        source: 'harness',
+      });
+      expect(saved.setupWizard.currentStepId).toBe('connected-host-auth');
+      expect(saved.setupWizard.checkpoint).toMatchObject({
+        status: 'available',
+        resumed: true,
+      });
+
+      const inspected = await executeHarnessJson<{
+        readonly checkpoint: { readonly status: string; readonly currentStepId: string; readonly resumed: boolean; readonly summary: string };
+        readonly currentStep: { readonly id: string; readonly status: string } | null;
+      }>(fixture, { mode: 'setup_checkpoint' });
+      expect(inspected.checkpoint.status).toBe('available');
+      expect(inspected.checkpoint.currentStepId).toBe('connected-host-auth');
+      expect(inspected.checkpoint.resumed).toBe(true);
+      expect(inspected.checkpoint.summary).toContain('Resuming Connected-host auth');
+      expect(inspected.currentStep?.id).toBe('connected-host-auth');
+
+      const workspaceSaved = await executeHarnessJson<{
+        readonly status: string;
+        readonly result: {
+          readonly status: string;
+          readonly setupWizard: { readonly checkpoint: { readonly status: string; readonly resumed: boolean } };
+        };
+      }>(fixture, {
+        mode: 'run_workspace_action',
+        actionId: 'setup-checkpoint-mark-current',
+        confirm: true,
+        explicitUserRequest: 'Keep my setup wizard place.',
+      });
+      expect(workspaceSaved.status).toBe('checkpoint_action_completed');
+      expect(workspaceSaved.result.status).toBe('checkpoint_saved');
+      expect(workspaceSaved.result.setupWizard.checkpoint).toMatchObject({
+        status: 'available',
+        resumed: true,
+      });
+
+      const cleared = await executeHarnessJson<{
+        readonly status: string;
+        readonly checkpoint: { readonly exists: boolean; readonly checkpoint: null };
+      }>(fixture, {
+        mode: 'clear_setup_checkpoint',
+        confirm: true,
+        explicitUserRequest: 'Clear setup resume point.',
+      });
+      expect(cleared.status).toBe('checkpoint_cleared');
+      expect(cleared.checkpoint.exists).toBe(false);
+      expect(cleared.checkpoint.checkpoint).toBeNull();
+
+      const afterClear = await executeHarnessJson<{
+        readonly checkpoint: { readonly status: string; readonly resumed: boolean };
+      }>(fixture, { mode: 'setup_checkpoint' });
+      expect(afterClear.checkpoint.status).toBe('none');
+      expect(afterClear.checkpoint.resumed).toBe(false);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('surfaces VIBE.md personality health in setup and learning curator', async () => {
     const fixture = makeFixture();
     try {

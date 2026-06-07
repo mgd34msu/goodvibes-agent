@@ -44,7 +44,8 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
 
 export type AgentWorkspaceCategoryId = (typeof AGENT_WORKSPACE_CATEGORY_IDS)[number];
 
-export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'setting' | 'settings-import' | 'model-picker' | 'settings-modal' | 'local-selection' | 'local-operation' | 'onboarding-complete';
+export type AgentWorkspaceActionKind = 'command' | 'guidance' | 'workspace' | 'editor' | 'setting' | 'settings-import' | 'setup-checkpoint' | 'model-picker' | 'settings-modal' | 'local-selection' | 'local-operation' | 'onboarding-complete';
+export type AgentWorkspaceSetupCheckpointOperation = 'show' | 'mark-current' | 'clear';
 
 export type AgentWorkspaceLocalEditorKind = 'memory' | 'note' | 'persona' | 'skill' | 'routine' | 'profile';
 
@@ -301,6 +302,7 @@ export interface AgentWorkspaceAction {
   readonly modelPickerTarget?: ModelPickerTarget;
   readonly modelPickerFlow?: 'providerModel' | 'model';
   readonly settingsTarget?: string;
+  readonly setupCheckpointOperation?: AgentWorkspaceSetupCheckpointOperation;
   readonly visibleWhenSettingKey?: string;
   readonly visibleWhenSettingValue?: string | boolean | number;
   readonly localKind?: AgentWorkspaceLocalEditorKind;

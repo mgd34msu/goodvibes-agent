@@ -49,7 +49,7 @@ import { describeResearchSource, researchQueueCatalogStatus, researchQueueSummar
 import { describeHarnessSecurityFinding, describeHarnessSupportBundle, securityPostureCatalogStatus, securityPostureSummary, supportBundleCatalogStatus, supportBundleSummary } from './agent-harness-security-posture.ts';
 import { describeHarnessSession, sessionCatalogStatus, sessionSummary } from './agent-harness-session-metadata.ts';
 import { describeHarnessServiceEndpoint, servicePostureCatalogStatus, servicePostureSummary } from './agent-harness-service-posture.ts';
-import { describeHarnessSetupItem, provisionConnectedHostOperatorToken, runSetupInstallSmoke, setupPostureCatalogStatus, setupPostureSummary } from './agent-harness-setup-posture.ts';
+import { clearSetupCheckpoint, describeHarnessSetupItem, markSetupCheckpoint, provisionConnectedHostOperatorToken, runSetupInstallSmoke, setupCheckpointSummary, setupPostureCatalogStatus, setupPostureSummary } from './agent-harness-setup-posture.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
 import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type AgentHarnessMode } from './agent-harness-mode-catalog.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
@@ -199,7 +199,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
     providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
-    setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
+    setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; resume setup with mode:"setup_checkpoint"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
     projectContext: 'List mode:"project_context"; inspect mode:"project_context_file"; context files are read-only and secret-scanned.',
     agentOrchestration: 'List mode:"agent_orchestration"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
@@ -1085,6 +1085,26 @@ async function runWorkspaceAction(
       },
     });
   }
+  if (action.kind === 'setup-checkpoint') {
+    const operation = action.setupCheckpointOperation ?? 'show';
+    if (operation === 'show') {
+      return output({
+        status: 'checkpoint_inspected',
+        action: describeWorkspaceAction(category, action, { lookup }),
+        checkpoint: await setupCheckpointSummary(deps.commandContext),
+      });
+    }
+    const confirmationError = requireConfirmedAction(args, operation === 'clear' ? 'Setup wizard checkpoint clear' : 'Setup wizard checkpoint save');
+    if (confirmationError) return error(confirmationError);
+    const result = operation === 'clear'
+      ? clearSetupCheckpoint(deps.commandContext, args)
+      : await markSetupCheckpoint(deps.commandContext, args);
+    return output({
+      status: 'checkpoint_action_completed',
+      action: describeWorkspaceAction(category, action, { lookup }),
+      result,
+    });
+  }
   if (action.kind === 'editor' && action.editorKind) {
     const editor = createWorkspaceEditor(action.editorKind, buildWorkspaceEditorContext(deps.commandContext, args));
     if (!editor) return error(`No workspace editor route exists for ${action.editorKind}.`);
@@ -1128,7 +1148,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           }));
           const mcpServers = mcpServerCatalogStatus(deps.commandContext);
           const setupPosture = await setupPostureCatalogStatus(deps.commandContext).catch((err) => ({
-            modes: ['setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke'],
+            modes: ['setup_posture', 'setup_item', 'setup_checkpoint', 'mark_setup_checkpoint', 'clear_setup_checkpoint', 'provision_connected_host_token', 'run_setup_smoke'],
             status: 'unavailable',
             error: formatHarnessError(err),
           }));
@@ -1343,6 +1363,17 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'found') return output(resolved.item);
           if (resolved.status === 'ambiguous') return error(`Ambiguous setup item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
+        }
+        if (args.mode === 'setup_checkpoint') return output(await setupCheckpointSummary(deps.commandContext));
+        if (args.mode === 'mark_setup_checkpoint') {
+          const confirmationError = requireConfirmedAction(args, 'Setup wizard checkpoint save');
+          if (confirmationError) return error(confirmationError);
+          return output(await markSetupCheckpoint(deps.commandContext, args));
+        }
+        if (args.mode === 'clear_setup_checkpoint') {
+          const confirmationError = requireConfirmedAction(args, 'Setup wizard checkpoint clear');
+          if (confirmationError) return error(confirmationError);
+          return output(clearSetupCheckpoint(deps.commandContext, args));
         }
         if (args.mode === 'project_context') return output(projectContextSummary(deps.commandContext, args));
         if (args.mode === 'project_context_file') {

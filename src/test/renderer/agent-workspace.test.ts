@@ -6,6 +6,7 @@ import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { saveSetupWizardCheckpoint } from '../../agent/setup-wizard-checkpoint.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { routineScheduleReceiptStorePath } from '../../agent/routine-schedule-receipts.ts';
@@ -225,9 +226,18 @@ function liveCommandContext(options: {
   readonly includePersonalOpsNote?: boolean;
   readonly includeReviewerIssue?: boolean;
   readonly reviewerHandoffs?: readonly ArtifactDescriptor[];
+  readonly setupCheckpointStepId?: string;
 } = {}): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+  if (options.setupCheckpointStepId) {
+    saveSetupWizardCheckpoint(shellPaths, {
+      currentStepId: options.setupCheckpointStepId,
+      currentStepLabel: options.setupCheckpointStepId === 'install-smoke' ? 'Install smoke' : 'Provider and model',
+      source: 'workspace',
+      note: 'Renderer fixture checkpoint.',
+    });
+  }
   const tokenDir = join(root, '.goodvibes', 'daemon');
   mkdirSync(tokenDir, { recursive: true });
   writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'goodvibes-agent-test-token' }));
@@ -513,6 +523,18 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Setup wizard: 8/14 done; current Install smoke.');
     expect(output).toContain('Repeated blocker: setup-posture in 2 saved smoke run(s).');
     expect(output).toContain('Smoke history: 2 run(s); trend unchanged-blocked; latest blocked.');
+  });
+
+  test('renders saved setup checkpoint state on Start', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({ setupCheckpointStepId: 'install-smoke' }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 52));
+
+    expect(output).toContain('Setup checkpoint: Resuming Install smoke from saved setup checkpoint.');
+    expect(output).toContain('Save setup checkpoint');
+    expect(output).toContain('Clear setup checkpoint');
   });
 
   test('renders Personal Ops as one daily operations surface', () => {

@@ -13,6 +13,7 @@ import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agen
 import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands/agent-runtime-profile-runtime.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
+import { readSetupWizardCheckpoint } from '../../agent/setup-wizard-checkpoint.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile, getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, readAgentRuntimeProfileSelection, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
@@ -1203,6 +1204,35 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('GoodVibes TUI settings imported');
     expect(workspace.lastActionResult?.detail).toContain('Imported active subscription(s): openai.');
     expect(workspace.lastActionResult?.detail).toContain('Imported pending subscription(s): anthropic.');
+  });
+
+  test('Start workspace persists and clears setup wizard checkpoints', () => {
+    const { context, shellPaths } = persistentConfigContext();
+    const workspace = new AgentWorkspace();
+    workspace.open(context, () => undefined, 'setup');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-checkpoint-mark-current');
+    workspace.activateSelected();
+
+    const saved = readSetupWizardCheckpoint(shellPaths);
+    expect(saved.exists).toBe(true);
+    expect(saved.checkpoint?.currentStepId).toBe(workspace.runtimeSnapshot?.setupWizard.currentStepId);
+    expect(saved.checkpoint?.source).toBe('workspace');
+    expect(workspace.lastActionResult?.title).toBe('Setup checkpoint saved');
+    expect(workspace.runtimeSnapshot?.setupWizard.checkpoint.status).toBe('available');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-checkpoint-show');
+    workspace.activateSelected();
+    expect(workspace.lastActionResult?.title).toBe('Setup checkpoint');
+    expect(workspace.lastActionResult?.detail).toContain(saved.checkpoint?.currentStepLabel ?? '');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-checkpoint-clear');
+    workspace.activateSelected();
+    const cleared = readSetupWizardCheckpoint(shellPaths);
+    expect(cleared.exists).toBe(false);
+    expect(cleared.checkpoint).toBeNull();
+    expect(workspace.lastActionResult?.title).toBe('Setup checkpoint cleared');
+    expect(workspace.runtimeSnapshot?.setupWizard.checkpoint.status).toBe('none');
   });
 
   test('onboarding has no verify page and routes schema-backed Agent settings', () => {
