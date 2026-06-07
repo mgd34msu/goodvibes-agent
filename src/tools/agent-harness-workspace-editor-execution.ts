@@ -173,6 +173,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action inspects the Document Ops review packet wizard. It is read-only and returns progress, current step, backtrack routes, route-decision posture, and final evidence review guidance.',
     };
   }
+  if (editorKind === 'document-review-packet-preset') {
+    return {
+      route: 'agent_review_packet_presets',
+      tool: 'agent_review_packet_presets',
+      action: 'save_review_packet_preset',
+      confirmation: 'required',
+      note: 'run_workspace_action saves the current Document Ops packet ids as one reusable local preset artifact. It does not mutate document drafts, model routing, reviewer handoffs, or handoff archives.',
+    };
+  }
   if (editorKind === 'model-compare' || editorKind === 'local-model-benchmark') {
     return {
       route: 'agent_model_compare',

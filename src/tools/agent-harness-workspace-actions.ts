@@ -28,6 +28,7 @@ export interface WorkspaceEditorContext {
   readonly runtimeStarterTemplates: AgentWorkspaceRuntimeSnapshot['runtimeStarterTemplates'];
   readonly selectedRoutine: AgentWorkspaceLocalLibraryItem | null;
   readonly recentReviewerHandoffArtifacts: AgentWorkspaceRuntimeSnapshot['recentReviewerHandoffArtifacts'];
+  readonly reviewPacketDefaults: AgentWorkspaceRuntimeSnapshot['reviewPacketDefaults'] | null;
 }
 
 export interface WorkspaceActionLookup {
@@ -133,6 +134,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
     || editorKind === 'knowledge-consolidate'
   ) return 'agent_harness mode:"run_workspace_action"';
   if (editorKind.startsWith('knowledge-')) return 'agent_knowledge';
+  if (editorKind === 'document-review-packet-preset') return 'agent_review_packet_presets';
   if (editorKind.startsWith('document-')) return 'agent_documents';
   if (
     editorKind === 'artifact-browser'
@@ -213,12 +215,14 @@ export function buildWorkspaceEditorContext(context: CommandContext, args: Agent
       runtimeStarterTemplates: snapshot.runtimeStarterTemplates,
       selectedRoutine: selectedRoutineFromArgs(snapshot, args),
       recentReviewerHandoffArtifacts: snapshot.recentReviewerHandoffArtifacts,
+      reviewPacketDefaults: snapshot.reviewPacketDefaults,
     };
   } catch {
     return {
       runtimeStarterTemplates: [],
       selectedRoutine: null,
       recentReviewerHandoffArtifacts: [],
+      reviewPacketDefaults: null,
     };
   }
 }
@@ -231,6 +235,7 @@ export function createWorkspaceEditor(
     runtimeStarterTemplates: editorContext?.runtimeStarterTemplates ?? [],
     selectedRoutine: editorKind === 'routine-schedule' ? editorContext?.selectedRoutine ?? null : null,
     recentReviewerHandoffArtifacts: editorContext?.recentReviewerHandoffArtifacts ?? [],
+    reviewPacketDefaults: editorContext?.reviewPacketDefaults ?? null,
   });
 }
 

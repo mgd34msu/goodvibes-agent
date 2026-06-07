@@ -273,6 +273,10 @@ function isModelCompareRouteDecisionArtifact(artifact: ArtifactDescriptor): bool
   return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-model-compare-route-decision';
 }
 
+function isReviewPacketPresetArtifact(artifact: ArtifactDescriptor): boolean {
+  return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-review-packet-preset';
+}
+
 function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWorkspaceRecentReviewerHandoffArtifact {
   const metadata = artifact.metadata;
   return {
@@ -430,6 +434,28 @@ function buildReviewPacketTimeline(
       });
       continue;
     }
+    if (isReviewPacketPresetArtifact(artifact)) {
+      const name = readArtifactMetadataString(metadata, 'name') || artifact.filename || artifact.id;
+      const summary = readArtifactMetadataString(metadata, 'summary') || 'review packet preset';
+      const sourceArtifactId = readArtifactMetadataString(metadata, 'revealedJudgmentArtifactId')
+        || readArtifactMetadataString(metadata, 'judgmentArtifactId')
+        || readArtifactMetadataString(metadata, 'comparisonArtifactId')
+        || readArtifactMetadataString(metadata, 'documentExportArtifactId')
+        || 'none';
+      const handoffArtifactId = readArtifactMetadataString(metadata, 'handoffArtifactId') || 'none';
+      const relatedCount = readArtifactMetadataStringList(metadata, 'relatedArtifactIds').length;
+      events.push({
+        id: `packet-preset:${artifact.id}`,
+        kind: 'packet-preset',
+        at: artifact.createdAt,
+        label: `Packet preset: ${name}`,
+        detail: `${compactTimelineText(summary, 72)}; source ${sourceArtifactId}; handoff ${handoffArtifactId}; ${relatedCount} related artifact(s)`,
+        status: 'info',
+        route: `agent_review_packet_presets show artifactId:"${artifact.id}"`,
+        sourceId: artifact.id,
+      });
+      continue;
+    }
     if (isModelCompareExportArtifact(artifact)) {
       const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison';
       const sourceKind = readArtifactMetadataString(metadata, 'sourceKind') || 'unknown';
@@ -518,6 +544,8 @@ function buildReviewPacketDefaults(
     .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
   const latestHandoff = artifacts.filter(isReviewerHandoffArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
   const latestHandoffArchive = artifacts.filter(isReviewerHandoffArchiveArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const latestPreset = artifacts.filter(isReviewPacketPresetArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const presetMetadata = latestPreset?.metadata ?? {};
   const latestRevealedJudgmentComparisonId = readArtifactMetadataString(latestRevealedJudgment?.metadata ?? {}, 'comparisonId');
   const latestRouteDecision = artifacts
     .filter(isModelCompareRouteDecisionArtifact)
@@ -528,32 +556,49 @@ function buildReviewPacketDefaults(
       return judgmentArtifactId === latestRevealedJudgment.id || (latestRevealedJudgmentComparisonId.length > 0 && comparisonId === latestRevealedJudgmentComparisonId);
     })
     .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
-  const relatedArtifactIds = uniqueStrings([
+  const liveRelatedArtifactIds = uniqueStrings([
     latestDocumentExport?.id,
     latestDocument?.lastArtifactId,
     ...(latestDocument?.attachments.map((attachment) => attachment.artifactId) ?? []),
     readArtifactMetadataString(latestComparison?.metadata ?? {}, 'sourceArtifactId'),
     ...readArtifactMetadataStringList(latestHandoff?.metadata ?? {}, 'relatedArtifactIds'),
   ], 8);
-  const sourceArtifactId = latestRevealedJudgment?.id ?? latestJudgment?.id ?? latestComparison?.id ?? null;
-  const handoffArtifactId = latestHandoff?.id ?? null;
+  const presetRelatedArtifactIds = readArtifactMetadataStringList(presetMetadata, 'relatedArtifactIds').slice(0, 8);
+  const relatedArtifactIds = liveRelatedArtifactIds.length > 0 ? liveRelatedArtifactIds : presetRelatedArtifactIds;
+  const documentId = (latestDocument?.id ?? readArtifactMetadataString(presetMetadata, 'documentId')) || null;
+  const documentTitle = (latestDocument?.title ?? readArtifactMetadataString(presetMetadata, 'documentTitle')) || null;
+  const documentExportArtifactId = (latestDocumentExport?.id ?? readArtifactMetadataString(presetMetadata, 'documentExportArtifactId')) || null;
+  const comparisonArtifactId = (latestComparison?.id ?? readArtifactMetadataString(presetMetadata, 'comparisonArtifactId')) || null;
+  const judgmentArtifactId = (latestJudgment?.id ?? readArtifactMetadataString(presetMetadata, 'judgmentArtifactId')) || null;
+  const revealedJudgmentArtifactId = (latestRevealedJudgment?.id ?? readArtifactMetadataString(presetMetadata, 'revealedJudgmentArtifactId')) || null;
+  const routeDecisionArtifactId = (latestRouteDecision?.id ?? readArtifactMetadataString(presetMetadata, 'routeDecisionArtifactId')) || null;
+  const routeDecision = latestRouteDecision
+    ? readArtifactMetadataString(latestRouteDecision.metadata, 'decision') || null
+    : readArtifactMetadataString(presetMetadata, 'routeDecision') || null;
+  const handoffArtifactId = (latestHandoff?.id ?? readArtifactMetadataString(presetMetadata, 'handoffArtifactId')) || null;
+  const handoffArchiveArtifactId = (latestHandoffArchive?.id ?? readArtifactMetadataString(presetMetadata, 'handoffArchiveArtifactId')) || null;
+  const sourceArtifactId = revealedJudgmentArtifactId ?? judgmentArtifactId ?? comparisonArtifactId ?? null;
+  const reviewPacketPresetName = readArtifactMetadataString(presetMetadata, 'name') || null;
   const summary = [
-    latestDocument ? `document ${latestDocument.id}` : '',
+    documentId ? `document ${documentId}` : '',
     sourceArtifactId ? `source ${sourceArtifactId}` : '',
     handoffArtifactId ? `handoff ${handoffArtifactId}` : '',
     relatedArtifactIds.length > 0 ? `${relatedArtifactIds.length} related` : '',
+    latestPreset ? `preset ${latestPreset.id}` : '',
   ].filter(Boolean).join('; ') || 'no packet defaults yet';
   return {
-    documentId: latestDocument?.id ?? null,
-    documentTitle: latestDocument?.title ?? null,
-    documentExportArtifactId: latestDocumentExport?.id ?? null,
-    comparisonArtifactId: latestComparison?.id ?? null,
-    judgmentArtifactId: latestJudgment?.id ?? null,
-    revealedJudgmentArtifactId: latestRevealedJudgment?.id ?? null,
-    routeDecisionArtifactId: latestRouteDecision?.id ?? null,
-    routeDecision: latestRouteDecision ? readArtifactMetadataString(latestRouteDecision.metadata, 'decision') || null : null,
+    documentId,
+    documentTitle,
+    documentExportArtifactId,
+    comparisonArtifactId,
+    judgmentArtifactId,
+    revealedJudgmentArtifactId,
+    routeDecisionArtifactId,
+    routeDecision,
     handoffArtifactId,
-    handoffArchiveArtifactId: latestHandoffArchive?.id ?? null,
+    handoffArchiveArtifactId,
+    reviewPacketPresetArtifactId: latestPreset?.id ?? null,
+    reviewPacketPresetName,
     relatedArtifactIds,
     summary,
   };

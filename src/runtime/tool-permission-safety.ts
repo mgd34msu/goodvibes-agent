@@ -35,6 +35,7 @@ const WRITE_TOOL_NAMES = new Set([
   'agent_research_runs',
   'agent_research_sources',
   'agent_research_report',
+  'agent_review_packet_presets',
   'agent_work_plan',
 ]);
 
@@ -104,6 +105,10 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
   if (toolName === 'agent_artifacts') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';
     return mode === 'list' || mode === 'show' ? 'read' : 'write';
+  }
+  if (toolName === 'agent_review_packet_presets') {
+    const mode = typeof args.mode === 'string' ? args.mode.trim() : '';
+    return mode === 'list' || mode === 'show' || mode === '' ? 'read' : 'write';
   }
   return fallbackPermissionCategory(toolName);
 }

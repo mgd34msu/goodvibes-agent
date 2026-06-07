@@ -1,4 +1,4 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor, AgentWorkspaceReviewPacketDefaults } from './agent-workspace-types.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
@@ -6,6 +6,25 @@ export interface AgentDocumentReviewerReadinessToolArgs {
   readonly mode: 'document_ops_lane';
   readonly laneId: 'reviewer_readiness' | 'review_packet_wizard';
   readonly includeParameters: boolean;
+}
+
+export interface AgentDocumentReviewPacketPresetToolArgs {
+  readonly mode: 'save';
+  readonly name: string;
+  readonly documentId?: string;
+  readonly documentTitle?: string;
+  readonly documentExportArtifactId?: string;
+  readonly comparisonArtifactId?: string;
+  readonly judgmentArtifactId?: string;
+  readonly revealedJudgmentArtifactId?: string;
+  readonly routeDecisionArtifactId?: string;
+  readonly routeDecision?: string;
+  readonly handoffArtifactId?: string;
+  readonly handoffArchiveArtifactId?: string;
+  readonly relatedArtifactIds: readonly string[];
+  readonly summary?: string;
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
 }
 
 export function createAgentDocumentReviewerReadinessEditor(): AgentWorkspaceLocalEditor {
@@ -36,9 +55,55 @@ export function createAgentDocumentReviewPacketWizardEditor(): AgentWorkspaceLoc
   };
 }
 
+export function createAgentDocumentReviewPacketPresetEditor(
+  defaults: AgentWorkspaceReviewPacketDefaults | null = null,
+): AgentWorkspaceLocalEditor {
+  const title = defaults?.documentTitle || defaults?.documentId || 'Current reviewer packet';
+  return {
+    kind: 'document-review-packet-preset',
+    mode: 'create',
+    title: 'Save Review Packet Preset',
+    selectedFieldIndex: 0,
+    message: 'Save the current document, comparison, judgment, route decision, handoff, archive, and related evidence ids as a reusable local preset artifact. This does not change the document, selected model, or archive state.',
+    fields: [
+      { id: 'name', label: 'Preset name', value: `${title} preset`, required: true, multiline: false, hint: 'Short user-visible name for reusing this review packet.' },
+      { id: 'documentId', label: 'Document id', value: defaults?.documentId ?? '', required: false, multiline: false, hint: 'Agent document draft id.' },
+      { id: 'documentTitle', label: 'Document title', value: defaults?.documentTitle ?? '', required: false, multiline: false, hint: 'Optional title shown in preset summaries.' },
+      { id: 'documentExportArtifactId', label: 'Document export', value: defaults?.documentExportArtifactId ?? '', required: false, multiline: false, hint: 'Exported document evidence artifact id.' },
+      { id: 'comparisonArtifactId', label: 'Comparison', value: defaults?.comparisonArtifactId ?? '', required: false, multiline: false, hint: 'Saved blind comparison artifact id.' },
+      { id: 'judgmentArtifactId', label: 'Judgment', value: defaults?.judgmentArtifactId ?? '', required: false, multiline: false, hint: 'Saved comparison judgment artifact id.' },
+      { id: 'revealedJudgmentArtifactId', label: 'Revealed judgment', value: defaults?.revealedJudgmentArtifactId ?? '', required: false, multiline: false, hint: 'Revealed judgment artifact id for route decisions.' },
+      { id: 'routeDecisionArtifactId', label: 'Route decision', value: defaults?.routeDecisionArtifactId ?? '', required: false, multiline: false, hint: 'Saved leave-unchanged or applied-winner route-decision receipt id.' },
+      { id: 'routeDecision', label: 'Decision label', value: defaults?.routeDecision ?? '', required: false, multiline: false, hint: 'left-unchanged or applied-winner when known.' },
+      { id: 'handoffArtifactId', label: 'Reviewer handoff', value: defaults?.handoffArtifactId ?? '', required: false, multiline: false, hint: 'Reviewer handoff artifact id.' },
+      { id: 'handoffArchiveArtifactId', label: 'Handoff archive', value: defaults?.handoffArchiveArtifactId ?? '', required: false, multiline: false, hint: 'Final reviewer handoff ZIP artifact id.' },
+      { id: 'relatedArtifactIds', label: 'Related artifacts', value: defaults?.relatedArtifactIds.join('\n') ?? '', required: false, multiline: true, hint: 'Comma- or newline-separated source, export, attachment, receipt, or evidence artifact ids.' },
+      { id: 'summary', label: 'Summary', value: defaults?.summary ?? '', required: false, multiline: false, hint: 'Short packet summary shown in list and timeline views.' },
+      { id: 'confirm', label: 'Confirm save', value: 'no', required: true, multiline: false, hint: 'Type yes only after the user explicitly asks to save this packet preset.' },
+    ],
+  };
+}
+
 function isAffirmative(value: string): boolean {
   const normalized = value.trim().toLowerCase();
   return normalized === 'yes' || normalized === 'true';
+}
+
+function readList(value: string): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const entry of value.split(/[,\n]/)) {
+    const trimmed = entry.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    result.push(trimmed);
+  }
+  return result;
+}
+
+function optionalField(readField: AgentWorkspaceFieldReader, fieldId: string): string | undefined {
+  const value = readField(fieldId).trim();
+  return value ? value : undefined;
 }
 
 export function buildAgentDocumentReviewerReadinessToolArgs(
@@ -58,6 +123,41 @@ export function buildAgentDocumentReviewPacketWizardToolArgs(
     mode: 'document_ops_lane',
     laneId: 'review_packet_wizard',
     includeParameters: isAffirmative(readField('includeRoutes')),
+  };
+}
+
+export function buildAgentDocumentReviewPacketPresetToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentDocumentReviewPacketPresetToolArgs {
+  const documentId = optionalField(readField, 'documentId');
+  const documentTitle = optionalField(readField, 'documentTitle');
+  const documentExportArtifactId = optionalField(readField, 'documentExportArtifactId');
+  const comparisonArtifactId = optionalField(readField, 'comparisonArtifactId');
+  const judgmentArtifactId = optionalField(readField, 'judgmentArtifactId');
+  const revealedJudgmentArtifactId = optionalField(readField, 'revealedJudgmentArtifactId');
+  const routeDecisionArtifactId = optionalField(readField, 'routeDecisionArtifactId');
+  const routeDecision = optionalField(readField, 'routeDecision');
+  const handoffArtifactId = optionalField(readField, 'handoffArtifactId');
+  const handoffArchiveArtifactId = optionalField(readField, 'handoffArchiveArtifactId');
+  const summary = optionalField(readField, 'summary');
+  return {
+    mode: 'save',
+    name: readField('name').trim() || 'Reviewer packet preset',
+    ...(documentId ? { documentId } : {}),
+    ...(documentTitle ? { documentTitle } : {}),
+    ...(documentExportArtifactId ? { documentExportArtifactId } : {}),
+    ...(comparisonArtifactId ? { comparisonArtifactId } : {}),
+    ...(judgmentArtifactId ? { judgmentArtifactId } : {}),
+    ...(revealedJudgmentArtifactId ? { revealedJudgmentArtifactId } : {}),
+    ...(routeDecisionArtifactId ? { routeDecisionArtifactId } : {}),
+    ...(routeDecision ? { routeDecision } : {}),
+    ...(handoffArtifactId ? { handoffArtifactId } : {}),
+    ...(handoffArchiveArtifactId ? { handoffArchiveArtifactId } : {}),
+    relatedArtifactIds: readList(readField('relatedArtifactIds')),
+    ...(summary ? { summary } : {}),
+    confirm: isAffirmative(readField('confirm')),
+    explicitUserRequest,
   };
 }
 
@@ -108,6 +208,59 @@ export function buildAgentDocumentReviewerReadinessPromptSubmission(
       title: 'Review readiness preflight',
       detail: 'Submitted a read-only Document Ops readiness check before export, handoff archive, or route update.',
       safety: 'read-only',
+    },
+  };
+}
+
+export function buildAgentDocumentReviewPacketPresetPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the review packet preset save from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const toolArgs = buildAgentDocumentReviewPacketPresetToolArgs(
+    readField,
+    'Save this Document Ops review packet preset from the workspace form.',
+  );
+  return {
+    kind: 'prompt',
+    prompt: [
+      'Save a reusable Document Ops review packet preset with the `agent_review_packet_presets` tool.',
+      `Use these preset fields: ${JSON.stringify(toolArgs, null, 2)}.`,
+      'Only call the tool with confirm:true when the user explicitly asked GoodVibes Agent to save this preset. The save creates one local preset artifact and must not mutate documents, model routing, handoffs, or archives.',
+    ].join('\n'),
+    status: 'Submitting review packet preset save.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Save review packet preset',
+      detail: 'Submitted a confirmed preset-save request for the current document/review packet artifact ids.',
+      safety: 'safe',
     },
   };
 }

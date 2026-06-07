@@ -52,6 +52,9 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_artifacts', { mode: 'export' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'package' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'archive' })).toBe('write');
+    expect(manager.getCategory('agent_review_packet_presets', { mode: 'list' })).toBe('read');
+    expect(manager.getCategory('agent_review_packet_presets', { mode: 'show' })).toBe('read');
+    expect(manager.getCategory('agent_review_packet_presets', { mode: 'save' })).toBe('write');
     expect(manager.getCategory('unknown_tool')).toBe('delegate');
   });
 
@@ -65,6 +68,8 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_artifacts', { mode: 'export' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'package' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'archive' })).toBe('write');
+    expect(manager.getCategory('agent_review_packet_presets', { mode: 'list' })).toBe('read');
+    expect(manager.getCategory('agent_review_packet_presets', { mode: 'save' })).toBe('write');
     expect(manager.getCategory('exec')).toBe('execute');
     expect(manager.getCategory('agent_channel_send')).toBe('delegate');
   });
@@ -78,6 +83,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('agent_artifacts', { mode: 'export' })).resolves.toBe(false);
     await expect(manager.check('agent_artifacts', { mode: 'package' })).resolves.toBe(false);
     await expect(manager.check('agent_artifacts', { mode: 'archive' })).resolves.toBe(false);
+    await expect(manager.check('agent_review_packet_presets', { mode: 'show' })).resolves.toBe(true);
+    await expect(manager.check('agent_review_packet_presets', { mode: 'save' })).resolves.toBe(false);
     await expect(manager.check('exec', { commands: [] })).resolves.toBe(false);
 
     const detailed = await manager.checkDetailed('agent_harness', { mode: 'summary' });
@@ -88,6 +95,7 @@ describe('Agent tool permission safety guard', () => {
   test('keeps fallback category mapping explicit for registered tool families', () => {
     expect(fallbackPermissionCategory('agent_knowledge')).toBe('read');
     expect(fallbackPermissionCategory('agent_artifacts')).toBe('write');
+    expect(fallbackPermissionCategory('agent_review_packet_presets')).toBe('write');
     expect(fallbackPermissionCategory('agent_work_plan')).toBe('write');
     expect(fallbackPermissionCategory('unknown_tool')).toBe('delegate');
   });

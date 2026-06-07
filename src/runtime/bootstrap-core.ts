@@ -44,6 +44,7 @@ import { registerAgentOperatorActionTool } from '../tools/agent-operator-action-
 import { registerAgentOperatorBriefingTool } from '../tools/agent-operator-briefing-tool.ts';
 import { registerAgentOperatorMethodTool } from '../tools/agent-operator-method-tool.ts';
 import { registerAgentReminderScheduleTool } from '../tools/agent-reminder-schedule-tool.ts';
+import { registerAgentReviewPacketPresetsTool } from '../tools/agent-review-packet-presets-tool.ts';
 import { registerAgentResearchReportTool } from '../tools/agent-research-report-tool.ts';
 import { registerAgentResearchRunsTool } from '../tools/agent-research-runs-tool.ts';
 import { registerAgentResearchSourcesTool } from '../tools/agent-research-sources-tool.ts';
@@ -261,6 +262,7 @@ export async function initializeBootstrapCore(
   registerAgentResearchRunsTool(toolRegistry, services.shellPaths);
   registerAgentResearchSourcesTool(toolRegistry, services.shellPaths);
   registerAgentResearchReportTool(toolRegistry, services.artifactStore);
+  registerAgentReviewPacketPresetsTool(toolRegistry, services.artifactStore);
   registerAgentModelCompareTool(toolRegistry, {
     modelCatalog: services.providerRegistry,
     providerRegistry: services.providerRegistry,

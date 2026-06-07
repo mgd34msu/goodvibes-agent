@@ -41,6 +41,7 @@ describe('compactRegisteredToolDefinitions', () => {
     registry.register(makeTool('read', 'Verbose read tool description that should never reach the model catalog.'));
     registry.register(makeTool('goodvibes_context', 'Verbose runtime context description that should never reach the model catalog.'));
     registry.register(makeTool('agent_local_registry', 'Verbose local registry description that should never reach the model catalog.'));
+    registry.register(makeTool('agent_review_packet_presets', 'Verbose review packet preset description that should never reach the model catalog.'));
 
     compactRegisteredToolDefinitions(registry);
 
@@ -48,6 +49,7 @@ describe('compactRegisteredToolDefinitions', () => {
     expect(descriptions.get('read')).toBe('Read files, outlines, symbols, and ranges.');
     expect(descriptions.get('goodvibes_context')).toBe('Inspect current GoodVibes runtime and host harness.');
     expect(descriptions.get('agent_local_registry')).toBe('Inspect/update Agent memory, notes, skills, routines.');
+    expect(descriptions.get('agent_review_packet_presets')).toBe('Save/list reusable Document Ops packet presets.');
     for (const description of descriptions.values()) {
       expect(description.length).toBeLessThanOrEqual(56);
       expect(description).not.toContain('...');

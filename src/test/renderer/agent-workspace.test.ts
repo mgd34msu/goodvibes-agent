@@ -601,6 +601,23 @@ describe('renderAgentWorkspace', () => {
           relatedArtifactIds: [],
         }),
         reviewPacketArtifact({
+          id: 'preset-launch',
+          createdAt: now + 4_000,
+          filename: 'review-packet-preset-launch.json',
+          metadata: {
+            purpose: 'agent-review-packet-preset',
+            presetId: 'preset_launch',
+            name: 'Launch packet preset',
+            summary: 'document reviewer-packet; source judgment-launch; handoff handoff-launch; 1 related',
+            documentId: 'reviewer-packet',
+            documentTitle: 'Reviewer packet',
+            documentExportArtifactId: 'doc-export-launch',
+            revealedJudgmentArtifactId: 'judgment-launch',
+            handoffArtifactId: 'handoff-launch',
+            relatedArtifactIds: ['doc-export-launch'],
+          },
+        }),
+        reviewPacketArtifact({
           id: 'judgment-launch',
           createdAt: now + 2_000,
           filename: 'blind-model-comparison-judgment-launch.json',
@@ -633,14 +650,16 @@ describe('renderAgentWorkspace', () => {
     let output = text(renderAgentWorkspace(workspace, 150, 56));
 
     expect(output).toContain('Review packet timeline:');
+    expect(output).toContain('Packet packet-preset: Packet preset: Launch packet preset');
     expect(output).toContain('Packet handoff: Reviewer handoff: hnd_launch');
     expect(output).toContain('Packet judgment: Comparison judgment revealed: cmp_launch');
-    expect(output).toContain('Packet compare: Blind compare hidden: cmp_launch');
     expect(output).toContain('Packet next:');
     expect(output).toContain('related artifact(s)');
     expect(output).toContain('Packet wizard:');
     expect(output).toContain('current Draft review');
     expect(output).toContain('Packet defaults: document reviewer-packet');
+    expect(output).toContain('1 related; preset');
+    expect(output).toContain('preset-launch');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-review-packet-wizard');
     workspace.activateSelected();
@@ -668,6 +687,15 @@ describe('renderAgentWorkspace', () => {
     workspace.activateSelected();
     output = text(renderAgentWorkspace(workspace, 150, 56));
     expect(output).toContain('Default from latest revealed packet judgment');
+    expect(output).toContain('judgment-launch');
+    workspace.cancelLocalEditor();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-save-review-packet-preset');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 150, 56));
+    expect(output).toContain('Save Review Packet Preset');
+    expect(output).toContain('Launch packet preset');
+    expect(output).toContain('doc-export-launch');
     expect(output).toContain('judgment-launch');
   });
 

@@ -27,6 +27,7 @@ import { createAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
+import { createAgentReviewPacketPresetsTool } from '../../tools/agent-review-packet-presets-tool.ts';
 import { createAgentResearchRunsTool } from '../../tools/agent-research-runs-tool.ts';
 import { createAgentResearchSourcesTool } from '../../tools/agent-research-sources-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
@@ -5083,6 +5084,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-insert-document')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-attach-document')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-save-review-packet-preset')?.modelRoute).toBe('agent_review_packet_presets');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-export-file')?.modelRoute).toBe('agent_artifacts');
@@ -6322,6 +6324,7 @@ describe('agent_harness tool', () => {
         'agent_reminder_schedule',
         'agent_media_generate',
         'agent_model_compare',
+        'agent_review_packet_presets',
         'agent_research_runs',
         'agent_research_sources',
         'agent_research_report',
@@ -7356,6 +7359,90 @@ describe('agent_harness tool', () => {
         purpose: 'agent-document-export',
         documentId: 'launch-plan',
         attachmentIds: [sourceArtifact.id],
+      });
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs review packet preset workspace editor through agent_review_packet_presets', async () => {
+    const artifacts = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      fixture.toolRegistry.register(createAgentReviewPacketPresetsTool(artifacts.store));
+      const documentRegistry = AgentDocumentRegistry.fromShellPaths(fixture.paths);
+      const draft = documentRegistry.create({
+        title: 'Launch Packet',
+        body: 'Reviewed launch packet body.',
+        tags: ['launch'],
+      });
+      const docExport = await artifacts.store.create({
+        kind: 'document',
+        mimeType: 'text/markdown',
+        filename: 'launch-packet.md',
+        text: '# Launch Packet',
+        metadata: {
+          purpose: 'agent-document-export',
+          documentId: draft.id,
+          versionId: draft.currentVersionId,
+        },
+      });
+      const revealedJudgment = await artifacts.store.create({
+        kind: 'data',
+        mimeType: 'application/json',
+        filename: 'blind-model-comparison-judgment-launch.json',
+        text: '{}',
+        metadata: {
+          purpose: 'agent-model-compare-judgment',
+          judgmentId: 'jdg_launch',
+          comparisonId: 'cmp_launch',
+          winnerBlindId: 'B',
+          winnerModel: 'openai:gpt-5.5',
+          revealIncludedInJudgment: true,
+        },
+      });
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-save-review-packet-preset',
+        confirm: true,
+        explicitUserRequest: 'Save the current review packet preset.',
+        fields: {
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmed.success).toBe(true);
+      expect(unconfirmed.output).toContain('"status": "not_confirmed"');
+      expect(unconfirmed.output).toContain('Launch Packet preset');
+      expect(unconfirmed.output).toContain(docExport.id);
+      expect(unconfirmed.output).toContain(revealedJudgment.id);
+
+      const saved = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-save-review-packet-preset',
+        confirm: true,
+        explicitUserRequest: 'Save the current review packet preset.',
+        fields: {
+          name: 'Launch packet reviewer preset',
+          documentId: draft.id,
+          documentTitle: 'Launch Packet',
+          documentExportArtifactId: docExport.id,
+          revealedJudgmentArtifactId: revealedJudgment.id,
+          relatedArtifactIds: `${docExport.id}\n${revealedJudgment.id}`,
+          confirm: 'yes',
+        },
+      });
+      expect(saved.success).toBe(true);
+      expect(saved.output).toContain('"status": "executed_model_tool"');
+      expect(saved.output).toContain('"tool": "agent_review_packet_presets"');
+      expect(saved.output).toContain('Review packet preset saved');
+      expect(artifacts.store.list(1)[0]?.metadata).toMatchObject({
+        purpose: 'agent-review-packet-preset',
+        name: 'Launch packet reviewer preset',
+        documentId: draft.id,
+        documentExportArtifactId: docExport.id,
+        revealedJudgmentArtifactId: revealedJudgment.id,
+        relatedArtifactIds: [docExport.id, revealedJudgment.id],
       });
     } finally {
       fixture.cleanup();

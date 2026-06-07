@@ -86,6 +86,7 @@ export type AgentWorkspaceEditorKind =
   | 'document-export'
   | 'document-reviewer-readiness'
   | 'document-review-packet-wizard'
+  | 'document-review-packet-preset'
   | 'memory-search'
   | 'memory-get'
   | 'memory-explain'
@@ -389,6 +390,7 @@ export type AgentWorkspaceReviewPacketTimelineEventKind =
   | 'compare-export'
   | 'judgment'
   | 'route-decision'
+  | 'packet-preset'
   | 'handoff'
   | 'handoff-archive';
 
@@ -421,6 +423,8 @@ export interface AgentWorkspaceReviewPacketDefaults {
   readonly routeDecision: string | null;
   readonly handoffArtifactId: string | null;
   readonly handoffArchiveArtifactId: string | null;
+  readonly reviewPacketPresetArtifactId: string | null;
+  readonly reviewPacketPresetName: string | null;
   readonly relatedArtifactIds: readonly string[];
   readonly summary: string;
 }
