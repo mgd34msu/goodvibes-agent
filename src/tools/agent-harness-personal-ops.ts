@@ -176,6 +176,7 @@ export type PersonalOpsReadRunResult =
   | Record<string, unknown>;
 
 const LANE_IDS: readonly PersonalOpsLaneId[] = ['inbox', 'calendar', 'notes', 'tasks', 'reminders', 'routines', 'delivery'];
+const PERSONAL_OPS_READ_CONTROL_FIELDS = new Set(['saveReviewCards', 'saveReview', 'artifactTitle']);
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -1634,6 +1635,66 @@ function personalOpsReadReviewRecords(
   }];
 }
 
+async function savePersonalOpsReviewArtifact(options: {
+  readonly context: CommandContext;
+  readonly lane: PersonalOpsLane;
+  readonly sourceRecord: PersonalOpsLiveRecord;
+  readonly inputFields: Readonly<Record<string, unknown>>;
+  readonly reviewRecords: readonly Record<string, unknown>[];
+  readonly output: Record<string, unknown>;
+  readonly title?: string;
+}): Promise<Record<string, unknown>> {
+  const store = options.context.platform.artifactStore;
+  if (!store?.create) {
+    return {
+      status: 'unavailable',
+      reason: 'artifact_store_unavailable',
+      policy: 'Review-card persistence requires the Agent artifact store; raw connector output was not written.',
+    };
+  }
+  const createdAt = new Date().toISOString();
+  const safeTitle = previewHarnessText(options.title || `${options.lane.label} review cards`, 96)
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'personal-ops-review';
+  const payload = {
+    version: 1,
+    createdAt,
+    laneId: options.lane.id,
+    sourceRecordId: options.sourceRecord.id,
+    sourceTool: options.sourceRecord.qualifiedName,
+    reviewRecords: options.reviewRecords,
+    outputPreview: options.output.preview,
+    outputTruncated: options.output.truncated,
+    inputFieldKeys: Object.keys(options.inputFields).sort((left, right) => left.localeCompare(right)),
+    policy: 'Saved Personal Ops review-card artifacts contain redacted review cards and bounded previews only; full raw connector output and full input values are not stored.',
+  };
+  const descriptor = await store.create({
+    kind: 'data',
+    mimeType: 'application/json',
+    filename: `${safeTitle}-${Date.now()}.json`,
+    text: `${redactedPersonalOpsText(JSON.stringify(payload, null, 2))}\n`,
+    acquisitionMode: 'inline-data',
+    fetchMode: 'not-applicable',
+    metadata: {
+      purpose: 'personal-ops-review-cards',
+      laneId: options.lane.id,
+      sourceRecordId: options.sourceRecord.id,
+      sourceTool: options.sourceRecord.qualifiedName ?? '',
+      reviewRecordCount: options.reviewRecords.length,
+      fullRawConnectorOutputStored: false,
+    },
+  });
+  return {
+    status: 'saved',
+    artifactId: descriptor.id,
+    filename: descriptor.filename ?? null,
+    mimeType: descriptor.mimeType,
+    sizeBytes: descriptor.sizeBytes,
+    modelRoute: `agent_artifacts show artifactId:"${descriptor.id}"`,
+    policy: 'Artifact contains redacted review cards for later user review; provider mutations still require separate confirmation.',
+  };
+}
+
 function fieldInputValue(value: string, sample: unknown): unknown {
   if (typeof sample === 'number') {
     const parsed = Number(value);
@@ -1648,12 +1709,30 @@ function readInputFields(value: unknown, sampleInput?: Readonly<Record<string, u
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const fields: Record<string, unknown> = {};
   for (const [key, entry] of Object.entries(value)) {
+    if (PERSONAL_OPS_READ_CONTROL_FIELDS.has(key)) continue;
     if (entry === undefined || entry === null) continue;
     const text = typeof entry === 'string' ? entry.trim() : String(entry).trim();
     if (!text) continue;
     fields[key] = fieldInputValue(text, sampleInput?.[key]);
   }
   return fields;
+}
+
+function readRunControlString(fields: unknown, key: string): string {
+  const object = recordObject(fields);
+  const value = object?.[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readRunControlBoolean(fields: unknown, keys: readonly string[]): boolean {
+  const object = recordObject(fields);
+  if (!object) return false;
+  return keys.some((key) => {
+    const value = object[key];
+    if (value === true) return true;
+    if (typeof value !== 'string') return false;
+    return /^(1|true|yes|y|on)$/i.test(value.trim());
+  });
 }
 
 function missingRequiredInputFields(record: PersonalOpsLiveRecord, fields: Readonly<Record<string, unknown>>): readonly string[] {
@@ -2262,17 +2341,31 @@ export async function runPersonalOpsRead(context: CommandContext, args: AgentHar
   try {
     const result = await callTool(record.qualifiedName, fields);
     const reviewRecords = personalOpsReadReviewRecords(lane, record, result, includeParameters);
+    const output = boundedPersonalOpsResult(result, includeParameters);
+    const saveRequested = readRunControlBoolean(args.fields, ['saveReviewCards', 'saveReview']);
+    const savedReviewArtifact = saveRequested
+      ? await savePersonalOpsReviewArtifact({
+        context,
+        lane,
+        sourceRecord: record,
+        inputFields: fields,
+        reviewRecords,
+        output,
+        title: readRunControlString(args.fields, 'artifactTitle'),
+      })
+      : null;
     return {
       status: 'executed',
       record: recordSummary,
       input: fields,
-      output: boundedPersonalOpsResult(result, includeParameters),
+      output,
       reviewSummary: {
         kind: lane.id === 'calendar' ? 'calendar' : 'inbox',
         records: reviewRecords.length,
         source: record.qualifiedName,
       },
       reviewRecords,
+      ...(savedReviewArtifact ? { savedReviewArtifact } : {}),
       followUp: [
         'Summarize or draft only in the Agent transcript.',
         'Ask for explicit confirmation before any send, label, archive, delete, calendar edit, RSVP, or reschedule route.',

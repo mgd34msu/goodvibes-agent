@@ -2682,7 +2682,8 @@ describe('agent_harness tool', () => {
   });
 
   test('surfaces email and calendar MCP connectors as Personal Ops setup routes', async () => {
-    const fixture = makeFixture();
+    const artifactStore = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifactStore.store });
     try {
       const mcpApi = fixture.context.clients?.mcpApi as {
         listServerSecurity: () => readonly unknown[];
@@ -3104,12 +3105,24 @@ describe('agent_harness tool', () => {
           readonly sourceTool?: string;
           readonly followUpBoundary: string;
         }[];
+        readonly savedReviewArtifact?: {
+          readonly status: string;
+          readonly artifactId?: string;
+          readonly modelRoute?: string;
+          readonly policy?: string;
+        };
         readonly followUp?: readonly string[];
       }>(fixture, {
         mode: 'run_personal_ops_read',
         laneId: 'inbox',
         recordId: 'mcp:gmail-inbox:gmail.search_messages',
-        fields: { query: 'is:unread newer_than:7d', limit: '2', unreadOnly: 'true' },
+        fields: {
+          query: 'is:unread newer_than:7d',
+          limit: '2',
+          unreadOnly: 'true',
+          saveReviewCards: 'true',
+          artifactTitle: 'Inbox triage cards',
+        },
         confirm: true,
         explicitUserRequest: 'Triage my unread inbox.',
         includeParameters: true,
@@ -3135,11 +3148,32 @@ describe('agent_harness tool', () => {
       expect(executedRead.reviewRecords?.[0]?.summary).not.toContain('SECRET123');
       expect(executedRead.reviewRecords?.[0]?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
       expect(executedRead.reviewRecords?.[0]?.followUpBoundary).toContain('separate confirmed route');
+      expect(executedRead.savedReviewArtifact?.status).toBe('saved');
+      expect(executedRead.savedReviewArtifact?.artifactId).toBe('artifact-1');
+      expect(executedRead.savedReviewArtifact?.modelRoute).toContain('agent_artifacts');
+      expect(executedRead.savedReviewArtifact?.policy).toContain('redacted review cards');
       expect(executedRead.followUp?.join('\n')).toContain('explicit confirmation');
       expect(mcpToolCalls).toEqual([{
         qualifiedName: 'mcp:gmail-inbox:gmail.search_messages',
         input: { query: 'is:unread newer_than:7d', limit: 2, unreadOnly: true },
       }]);
+      expect(artifactStore.records).toHaveLength(1);
+      expect(artifactStore.records[0]?.metadata).toMatchObject({
+        purpose: 'personal-ops-review-cards',
+        laneId: 'inbox',
+        sourceRecordId: 'mcp:gmail-inbox:gmail.search_messages',
+        sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
+        reviewRecordCount: 1,
+        fullRawConnectorOutputStored: false,
+      });
+      const savedArtifact = await artifactStore.store.readContent('artifact-1');
+      const savedText = savedArtifact.buffer.toString('utf-8');
+      expect(savedText).toContain('"reviewRecords"');
+      expect(savedText).toContain('Quarterly planning');
+      expect(savedText).toContain('token=<redacted>');
+      expect(savedText).not.toContain('SECRET123');
+      expect(savedText).toContain('"inputFieldKeys"');
+      expect(savedText).not.toContain('is:unread newer_than:7d');
 
       const blockedWrite = await executeHarnessJson<{
         readonly status: string;
