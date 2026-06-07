@@ -5538,6 +5538,21 @@ describe('agent_harness tool', () => {
           readonly reportReadySources: readonly { readonly sourceId: string; readonly reportLine: string }[];
         };
         readonly browserBackedResearch: { readonly status: string; readonly fallbackRoutes: readonly string[] };
+        readonly browserRunnerContract: {
+          readonly status: string;
+          readonly requiredContracts: readonly string[];
+          readonly setupRoutes: readonly string[];
+          readonly fallbackRoutes: readonly string[];
+          readonly policy: string;
+        };
+        readonly visualReportContract: {
+          readonly status: string;
+          readonly currentRoute: string;
+          readonly requiredSections: readonly string[];
+          readonly acceptanceCriteria: readonly string[];
+          readonly routes: { readonly saveMarkdownReport: string; readonly archiveArtifacts: string };
+          readonly policy: string;
+        };
         readonly workflow: readonly { readonly id: string; readonly status: string; readonly route: string; readonly reportRoute?: string }[];
         readonly routes: { readonly saveReport: string; readonly completeRun?: string };
         readonly policy: string;
@@ -5553,6 +5568,19 @@ describe('agent_harness tool', () => {
       expect(workflow.sourcePosture.reportReadySources[0]?.reportLine).toContain('Browser automation docs');
       expect(workflow.browserBackedResearch.status).toBe('setup-needed');
       expect(workflow.browserBackedResearch.fallbackRoutes.join('\n')).toContain('web-fetch-research');
+      expect(workflow.browserRunnerContract.status).toBe('setup-contract-needed');
+      expect(workflow.browserRunnerContract.requiredContracts.join('\n')).toContain('pause/resume/cancel controls');
+      expect(workflow.browserRunnerContract.requiredContracts.join('\n')).toContain('Report draft/save handoff');
+      expect(workflow.browserRunnerContract.setupRoutes.join('\n')).toContain('browser-desktop-control');
+      expect(workflow.browserRunnerContract.fallbackRoutes.join('\n')).toContain('web-fetch-research');
+      expect(workflow.browserRunnerContract.policy).toContain('not started by this workflow plan');
+      expect(workflow.visualReportContract.status).toBe('markdown-report-ready-visual-contract-needed');
+      expect(workflow.visualReportContract.currentRoute).toContain('agent_research_report');
+      expect(workflow.visualReportContract.requiredSections).toEqual(expect.arrayContaining(['evidence table', 'source map']));
+      expect(workflow.visualReportContract.acceptanceCriteria.join('\n')).toContain('citation');
+      expect(workflow.visualReportContract.routes.saveMarkdownReport).toContain('agent_research_report');
+      expect(workflow.visualReportContract.routes.archiveArtifacts).toContain('agent_artifacts mode:"archive"');
+      expect(workflow.visualReportContract.policy).toContain('read-only planning');
       expect(workflow.workflow.map((step) => step.id)).toEqual(['visible-run', 'collect-sources', 'review-sources', 'save-report', 'promote-knowledge']);
       expect(workflow.workflow.find((step) => step.id === 'save-report')?.status).toBe('ready');
       expect(workflow.workflow.find((step) => step.id === 'save-report')?.reportRoute).toContain('agent_research_report');
@@ -5562,10 +5590,21 @@ describe('agent_harness tool', () => {
 
       const fresh = await executeHarnessJson<{
         readonly status: string;
+        readonly browserRunnerContract: { readonly status: string; readonly fallbackRoutes: readonly string[] };
+        readonly visualReportContract: {
+          readonly status: string;
+          readonly currentRoute: string;
+          readonly routes: { readonly reviewedSourceBundle: string };
+        };
         readonly workflow: readonly { readonly id: string; readonly status: string; readonly route: string }[];
         readonly routes: { readonly createRun: string };
       }>(fixture, { mode: 'research_workflow', query: 'new competitor research request' });
       expect(fresh.status).toBe('needs-visible-run');
+      expect(fresh.browserRunnerContract.status).toBe('setup-contract-needed');
+      expect(fresh.browserRunnerContract.fallbackRoutes.join('\n')).toContain('web-fetch-research');
+      expect(fresh.visualReportContract.status).toBe('waiting-for-reviewed-sources');
+      expect(fresh.visualReportContract.currentRoute).toContain('agent_research_sources mode:bundle');
+      expect(fresh.visualReportContract.routes.reviewedSourceBundle).toContain('new competitor research request');
       expect(fresh.workflow.find((step) => step.id === 'visible-run')?.status).toBe('needed');
       expect(fresh.workflow.find((step) => step.id === 'visible-run')?.route).toContain('agent_research_runs mode:create');
       expect(fresh.routes.createRun).toContain('new competitor research request');

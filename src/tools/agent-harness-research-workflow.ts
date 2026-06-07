@@ -128,6 +128,78 @@ function sourceSummary(source: AgentResearchSourceRecord): Record<string, unknow
   };
 }
 
+function browserRunnerContract(browser: ReturnType<typeof browserControlPosture>): Record<string, unknown> {
+  return {
+    status: browser.configured ? 'ready-with-confirmation' : 'setup-contract-needed',
+    userOutcome: 'Run browser-backed research only when live browser state, authenticated pages, or interactive source discovery are necessary.',
+    currentState: browser.configured
+      ? 'A reviewed browser/desktop route is configured; use it only after the user accepts the browser-backed research scope.'
+      : 'No reviewed browser-backed research runner is configured, so public web_search/fetch stays the current safe route.',
+    requiredContracts: [
+      'Trusted browser or desktop-control route with setup posture status ready.',
+      'Visible run id, phase/progress, current URL/task scope, checkpoint route, and pause/resume/cancel controls for every browser-backed research run.',
+      'Source-capture receipt for each accepted source with URL/title/publisher/summary/provenance.',
+      'Bounded log/output records suitable for the autonomy queue and research run log tail.',
+      'Report draft/save handoff that preserves reviewed source ids and citation coverage requirements.',
+      'No credential or page-content leakage outside bounded redacted source summaries.',
+    ],
+    setupRoutes: [
+      'agent_harness mode:"execution_posture" query:"browser research" includeParameters:true',
+      browser.setupRoute,
+      ...browser.fallbackRoutes,
+    ],
+    recommendedRoute: browser.recommendedRoute,
+    fallbackRoutes: browser.fallbackRoutes,
+    policy: 'Browser-backed research is not started by this workflow plan. Use bounded public web/fetch routes until the browser runner contract is ready and the user explicitly confirms the scope.',
+  };
+}
+
+function visualReportContract(options: {
+  readonly reviewedSources: number;
+  readonly reportRoute: string;
+  readonly bundleRoute: string;
+  readonly question: string;
+}): Record<string, unknown> {
+  return {
+    status: options.reviewedSources > 0 ? 'markdown-report-ready-visual-contract-needed' : 'waiting-for-reviewed-sources',
+    userOutcome: 'Produce an inspectable research report with source-backed findings, citations, caveats, and handoff/export routes.',
+    currentRoute: options.reviewedSources > 0 ? options.reportRoute : options.bundleRoute,
+    currentState: options.reviewedSources > 0
+      ? 'Agent can save a citation-covered markdown report artifact now; richer visual report rendering still needs a published browser/document report surface.'
+      : 'Review at least one source before saving a report or visual packet.',
+    requiredSections: [
+      'answer summary',
+      'key findings',
+      'evidence table',
+      'timeline or comparison matrix',
+      'source map',
+      'citation coverage',
+      'confidence and caveats',
+      'open questions',
+      'next actions',
+    ],
+    acceptanceCriteria: [
+      'Every material claim maps to a reviewed source line or an explicit caveat.',
+      'The report artifact includes citation coverage metadata and repair hints.',
+      'Visual rendering is an export/view layer over the same saved report/source artifacts, not a separate uncited answer.',
+      'Knowledge ingest remains a separate confirmed action after report review.',
+    ],
+    routes: {
+      reviewedSourceBundle: options.bundleRoute,
+      saveMarkdownReport: options.reportRoute,
+      reviewPacketWizard: 'agent_harness mode:"document_ops_lane" laneId:"review_packet_wizard"',
+      archiveArtifacts: 'agent_artifacts mode:"archive" artifactIds:["..."] destinationPath:"exports/research-report.zip" confirm:true explicitUserRequest:"..."',
+    },
+    fallbackRoutes: [
+      options.bundleRoute,
+      options.reportRoute,
+      'agent_harness mode:"document_ops_lane" laneId:"review_packet_wizard"',
+      'agent_artifacts mode:"archive" artifactIds:["..."] destinationPath:"exports/research-report.zip" confirm:true explicitUserRequest:"..."',
+    ],
+    policy: `This contract is read-only planning for ${previewHarnessText(options.question, 96)}; saving reports, exports, packages, shares, or Knowledge ingest stay on separate confirmed routes.`,
+  };
+}
+
 export function researchWorkflowSummary(context: CommandContext, args: AgentHarnessResearchWorkflowArgs): Record<string, unknown> {
   const includeParameters = args.includeParameters === true;
   const lookup = readString(args.runId) || readString(args.target) || readString(args.query);
@@ -184,6 +256,13 @@ export function researchWorkflowSummary(context: CommandContext, args: AgentHarn
         ? 'Use reviewed browser/desktop tooling only when live browser state or authenticated pages are necessary.'
         : 'Use bounded public web_search/fetch routes now; inspect setup before browser-backed execution.',
     },
+    browserRunnerContract: browserRunnerContract(browser),
+    visualReportContract: visualReportContract({
+      reviewedSources: reviewedSources.length,
+      reportRoute,
+      bundleRoute,
+      question,
+    }),
     workflow: [
       {
         id: 'visible-run',
