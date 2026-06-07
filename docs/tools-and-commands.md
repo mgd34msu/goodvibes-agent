@@ -81,7 +81,7 @@ Discovery modes:
 | `shortcuts`, `keybindings` | Fixed shortcuts and configurable keybindings with direct route/access metadata. |
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
-| `channels`, `channel_triage`, `channel_deliveries`, `notifications` | Channel readiness, ordered setup guide state, blockers/retry triage, redacted confirmed-send receipts, and redacted notification targets. |
+| `channels action:"status|channel|setup|triage|deliveries"`, `notifications` | Channel readiness, ordered setup guide state, blockers/retry triage, redacted confirmed-send receipts, and redacted notification targets. |
 | `context action:"files|file"` | Secret-scanned `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, `HERMES_HOME/SOUL.md`, `.cursorrules`, and `.cursor/rules/*.mdc` files, including target-aware subdirectory context. |
 | `context action:"prompt|receipts|receipt"` | Applied prompt composition order, recent durable receipt ids, exact receipt/turn/outcome filters, sanitized turn outcomes, selected context records, suppressed records, prompt previews on request, and approximate token budget; the same recent receipt outcomes are summarized in Agent Workspace -> Local Context with exact drill-in routes. |
 | `memory_posture`, `memory_provider` | Agent-local memory counts, prompt-active recall, vector stats, embedding-provider doctor warnings, provider inspection, and external-memory setup contract maps for Honcho, OpenViking, Mem0, Hindsight, Holographic, RetainDB, ByteRover, and Supermemory without claiming unpublished SDK/daemon provider records. |
@@ -106,7 +106,7 @@ Single-item inspect modes:
 | `workspace_action` | `actionId`, `command`, `target`, `query` |
 | `command`, `cli_command` | `command`, `commandName`, `cliCommand`, `target`, `query` |
 | `panel`, `ui_surface`, `keybinding`, `tool` | Exact id/name or `target`/`query` |
-| `channel`, `channel_setup_guide`, `channel_triage`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query`; `channel_triage` also accepts `limit` |
+| `channels action:"channel|setup|triage"`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query`; channel triage also accepts `limit` |
 | `project_context_file` | `contextFileId`, `target`, or `query` |
 | `agent_orchestration_agent` | `agentId`, `target`, or `query` |
 | `setup_item`, `model_route`, `execution_route`, `pairing_route`, `delegation_route` | Exact id/model key or `target`/`query` |

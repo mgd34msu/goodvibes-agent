@@ -139,7 +139,7 @@ function channelTriageReadiness(channels: readonly AgentWorkspaceChannelStatus[]
       delivery: channel.delivery,
       nextStep: channel.nextStep,
       userRoute: `/channels show ${channel.id}`,
-      modelRoute: `agent_harness mode:"channel" channelId:"${channel.id}"`,
+      modelRoute: `channels action:"channel" channelId:"${channel.id}"`,
     })),
     routes: {
       readiness: '/channels',
@@ -381,8 +381,8 @@ export async function buildAgentWorkspaceChannelTriage(
       status: '/channels status',
       policies: '/channels policies',
       setupGuide: '/channels guide',
-      modelRoute: 'agent_harness mode:"channel_triage"',
-      deliveryReceipts: 'agent_harness mode:"channel_deliveries"',
+      modelRoute: 'channels action:"triage"',
+      deliveryReceipts: 'channels action:"deliveries"',
       sendTool: 'agent_channel_send',
     },
     policy: 'Read-only channel triage. It never sends messages, mutates route bindings, repairs channels, retries jobs, or prints raw external addresses; every effect remains on an explicit confirmed route.',
@@ -476,6 +476,6 @@ export function formatAgentWorkspaceChannelTriage(triage: AgentWorkspaceChannelT
   lines.push('  /channels attention');
   lines.push('  /channels deliveries');
   lines.push('  /channels status');
-  lines.push('  agent_harness mode:"channel_triage"');
+  lines.push('  channels action:"triage"');
   return lines.join('\n');
 }

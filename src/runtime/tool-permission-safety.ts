@@ -18,6 +18,7 @@ const READ_TOOL_NAMES = new Set([
   'state',
   'registry',
   'goodvibes_context',
+  'channels',
   'context',
   'device',
   'host',
@@ -57,6 +58,7 @@ const READ_ONLY_SETUP_ACTIONS = new Set(['', 'status', 'summary', 'list', 'item'
 const READ_ONLY_VIBE_ACTIONS = new Set(['', 'status', 'summary', 'list', 'show', 'file', 'source', 'read', 'inspect']);
 const READ_ONLY_PERSONAL_OPS_ACTIONS = new Set(['', 'briefing', 'brief', 'daily', 'daily_brief', 'morning', 'status', 'summary', 'overview', 'map', 'list', 'intake', 'request', 'route', 'plan', 'triage', 'draft', 'lane', 'inspect', 'show']);
 const READ_ONLY_RESEARCH_ACTIONS = new Set(['', 'plan', 'workflow', 'research', 'runs', 'list_runs', 'run_list', 'run', 'show_run', 'inspect_run', 'sources', 'queue', 'source_queue', 'source', 'show_source', 'inspect_source', 'bundle', 'bundle_sources', 'source_bundle']);
+const READ_ONLY_CHANNELS_ACTIONS = new Set(['', 'status', 'summary', 'list', 'readiness', 'channels', 'channel', 'show', 'inspect', 'setup', 'guide', 'setup_guide', 'channel_setup_guide', 'triage', 'inbox', 'blockers', 'retries', 'channel_triage', 'deliveries', 'delivery', 'receipts', 'history', 'channel_deliveries']);
 const READ_ONLY_DEVICE_ACTIONS = new Set(['', 'status', 'map', 'capabilities', 'device', 'devices', 'mobile', 'phone', 'pairing', 'capability', 'route', 'pairing_route', 'show', 'inspect', 'browser', 'pwa', 'cockpit', 'browser_cockpit', 'web', 'control', 'browser_control', 'desktop', 'desktop_control', 'computer_use', 'voice', 'media', 'voice_media', 'workflows', 'provider', 'media_provider', 'voice_provider']);
 const READ_ONLY_MODELS_ACTIONS = new Set(['', 'status', 'routing', 'routes', 'models', 'model', 'readiness', 'route_readiness', 'route', 'model_route', 'inspect', 'show', 'candidate', 'endpoint', 'local', 'cookbook', 'local_cookbook', 'recipes', 'recipe', 'ollama', 'llama_cpp', 'llamacpp', 'vllm', 'local_servers', 'providers', 'provider_accounts', 'accounts', 'subscriptions', 'auth', 'logins', 'provider', 'provider_account', 'account', 'subscription', 'auth_status']);
 
@@ -186,6 +188,14 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_RESEARCH_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'channels') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase().replace(/-/g, '_')
+        : '';
+    return READ_ONLY_CHANNELS_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'device') {
     const action = typeof args.action === 'string'

@@ -215,7 +215,7 @@ function pairingRoutes(): readonly PairingRoute[] {
       detail: 'Read-only channel setup and delivery posture used after pairing when messages or reminders need an explicit delivery target.',
       effect: 'read-only',
       command: '/channels',
-      harnessRoute: 'agent_harness mode:"channels"',
+      harnessRoute: 'channels action:"status"',
       capabilityIds: ['channels', 'notifications'],
     },
   ];
@@ -280,7 +280,7 @@ function describeRoute(route: PairingRoute, options: {
         inspectRoute: 'agent_harness mode:"pairing_route"',
         connectedHostStatus: 'host action:"status"',
         connectedHostCapabilities: 'host action:"capabilities"',
-        channels: 'agent_harness mode:"channels"',
+        channels: 'channels action:"status"',
       },
     } : {}),
     ...(options.includeParameters && route.id === 'device-capability-map' && options.context ? {
@@ -535,11 +535,11 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
           ? 'Finish setup for enabled channels before relying on notifications.'
           : 'Choose one notification channel intentionally, then configure only that surface.',
       capabilities: ['channel delivery', 'desktop notification posture', 'webhook notification posture'],
-      modelRoute: 'agent_harness mode:"channel_setup_guide"',
+      modelRoute: 'channels action:"setup"',
       userRoute: '/channels',
       setupRoutes: [
-        'agent_harness mode:"channels" includeParameters:true',
-        'agent_harness mode:"channel_setup_guide"',
+        'channels action:"status" includeParameters:true',
+        'channels action:"setup"',
         'agent_harness mode:"notifications"',
       ],
       evidence: {

@@ -200,7 +200,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     uiSurfaces: 'Prefer device action:"browser|open_browser" for browser/PWA. List mode:"ui_surfaces"; inspect mode:"ui_surface"; navigate mode:"open_ui_surface" with confirmation.',
     shortcuts: 'List mode:"shortcuts"; inspect mode:"keybinding"; run mode:"run_keybinding"; edit with set_keybinding/reset_keybinding and confirmation.',
     slashCommands: 'List mode:"commands"; inspect mode:"command"; execute mode:"run_command" with confirmation.',
-    channels: 'List mode:"channels"; inspect mode:"channel" or mode:"channel_setup_guide"; triage blockers/messages/retries with mode:"channel_triage"; inspect receipts with mode:"channel_deliveries"; deliver with agent_channel_send and confirmation.',
+    channels: 'Prefer channels action:"status|channel|setup|triage|deliveries"; deliver with agent_channel_send and confirmation. Lower-level channel harness modes remain available for detail.',
     notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
     providerAccounts: 'Prefer models action:"providers|provider" for account and subscription posture. Lower-level mode:"provider_accounts" and mode:"provider_account" remain available; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',

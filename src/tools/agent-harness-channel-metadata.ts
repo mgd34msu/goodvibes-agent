@@ -67,26 +67,28 @@ function describeChannelCandidate(channel: AgentWorkspaceChannelStatus): Record<
     setupState: channel.setupState,
     ready: channel.ready,
     delivery: channel.delivery,
-    modelRoute: channelModelRoute(),
+    modelRoute: channelModelRoute(channel.id),
   };
 }
 
-function channelModelRoute(): string {
-  return 'agent_channel_send or agent_harness mode:"channel"';
+function channelModelRoute(channelId?: string): string {
+  return channelId
+    ? `channels action:"channel" channelId:"${channelId}"`
+    : 'channels action:"status"';
 }
 
 function channelSetupGuideModelRoute(channelId?: string): string {
   return channelId
-    ? `agent_harness mode:"channel_setup_guide" channelId:"${channelId}"`
-    : 'agent_harness mode:"channel_setup_guide"';
+    ? `channels action:"setup" channelId:"${channelId}"`
+    : 'channels action:"setup"';
 }
 
 function channelDeliveriesModelRoute(): string {
-  return 'agent_harness mode:"channel_deliveries"';
+  return 'channels action:"deliveries"';
 }
 
 function channelTriageModelRoute(): string {
-  return 'agent_harness mode:"channel_triage"';
+  return 'channels action:"triage"';
 }
 
 function describeChannel(
@@ -109,7 +111,7 @@ function describeChannel(
     missingConfigKeys: channel.missingRequiredKeys,
     defaultTargetKeys: channel.defaultTargetKeys,
     configuredDefaultTargetKeys: channel.configuredDefaultTargetKeys,
-    modelRoute: channelModelRoute(),
+    modelRoute: channelModelRoute(channel.id),
     setupGuideRoute: channelSetupGuideModelRoute(channel.id),
     ...(options.lookup ? { lookup: options.lookup } : {}),
     ...(options.includeParameters
@@ -149,6 +151,7 @@ export function channelReadinessCatalogStatus(context: CommandContext): Record<s
   const guide = buildAgentWorkspaceChannelSetupGuide(channels);
   return {
     modes: ['channels', 'channel', 'channel_setup_guide', 'channel_triage', 'channel_deliveries'],
+    modelRoute: 'channels action:"status"',
     channels: channels.length,
     enabled: channels.filter((channel) => channel.enabled).length,
     ready: channels.filter((channel) => channel.ready).length,
@@ -197,7 +200,7 @@ export function describeHarnessChannel(context: CommandContext, args: AgentHarne
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'channel requires channelId, target, or query. Use mode:"channels" to inspect available channel ids.',
+      usage: 'channels action:"channel" requires channelId, target, or query. Use channels action:"status" to inspect available channel ids.',
     };
   }
   const channels = buildAgentWorkspaceChannels(context);
@@ -221,7 +224,7 @@ export function describeHarnessChannel(context: CommandContext, args: AgentHarne
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown channel ${lookup.input}. Use mode:"channels" to inspect available channel ids.`,
+    usage: `Unknown channel ${lookup.input}. Use channels action:"status" to inspect available channel ids.`,
   };
 }
 
@@ -236,7 +239,7 @@ export function describeHarnessChannelSetupGuide(context: CommandContext, args: 
         mode: 'channel_setup_guide',
         guide,
         routes: {
-          channels: 'agent_harness mode:"channels"',
+          channels: 'channels action:"status"',
           currentChannel: guide.currentChannelId ? channelSetupGuideModelRoute(guide.currentChannelId) : null,
         },
         policy: guide.policy,
@@ -254,8 +257,8 @@ export function describeHarnessChannelSetupGuide(context: CommandContext, args: 
         guide,
         lookup: { ...lookup, resolvedBy: exact.id === lookup.input ? 'id' : 'case-insensitive' },
         routes: {
-          channel: `agent_harness mode:"channel" channelId:"${exact.id}"`,
-          channels: 'agent_harness mode:"channels"',
+          channel: channelModelRoute(exact.id),
+          channels: 'channels action:"status"',
         },
         policy: guide.policy,
       },
@@ -272,8 +275,8 @@ export function describeHarnessChannelSetupGuide(context: CommandContext, args: 
         guide,
         lookup: { ...lookup, resolvedBy: 'search' },
         routes: {
-          channel: `agent_harness mode:"channel" channelId:"${channel.id}"`,
-          channels: 'agent_harness mode:"channels"',
+          channel: channelModelRoute(channel.id),
+          channels: 'channels action:"status"',
         },
         policy: guide.policy,
       },
@@ -288,7 +291,7 @@ export function describeHarnessChannelSetupGuide(context: CommandContext, args: 
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown channel setup guide target ${lookup.input}. Use mode:"channels" to inspect available channel ids.`,
+    usage: `Unknown channel setup guide target ${lookup.input}. Use channels action:"status" to inspect available channel ids.`,
   };
 }
 
@@ -331,7 +334,7 @@ export function describeHarnessChannelDeliveries(context: CommandContext, args: 
     routes: {
       command: '/channels deliveries',
       sendTool: 'agent_channel_send',
-      channels: 'agent_harness mode:"channels"',
+      channels: 'channels action:"status"',
     },
     ...(snapshot.parseError ? { parseError: snapshot.parseError } : {}),
     policy: 'Read-only confirmed delivery history. Receipt targets redact webhook/link addresses, message bodies are bounded/redacted, and new sends still require explicit user confirmation.',

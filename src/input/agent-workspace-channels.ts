@@ -328,8 +328,8 @@ export function buildAgentWorkspaceChannels(context: CommandContext): readonly A
 
 function channelGuideModelRoute(channelId?: string): string {
   return channelId
-    ? `agent_harness mode:"channel_setup_guide" channelId:"${channelId}"`
-    : 'agent_harness mode:"channel_setup_guide"';
+    ? `channels action:"setup" channelId:"${channelId}"`
+    : 'channels action:"setup"';
 }
 
 function summarizeGuideChannel(channel: AgentWorkspaceChannelStatus): string {
@@ -412,7 +412,7 @@ function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly 
       'Choose channel',
       'Pick the channel the user actually wants before collecting credentials or exposing delivery routes.',
       '/channels',
-      'agent_harness mode:"channels"',
+      'channels action:"status"',
       'read-only',
     ),
     makeStep(
@@ -428,7 +428,7 @@ function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly 
       'Inspect setup schema',
       `Open the read-only ${channelLabel} setup schema before asking for credentials.`,
       `/channels setup ${channelId}`,
-      `agent_harness mode:"channel" channelId:"${channelId}" includeParameters:true`,
+      `channels action:"channel" channelId:"${channelId}" includeParameters:true`,
       'read-only',
     ),
     makeStep(
@@ -444,7 +444,7 @@ function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly 
       'Choose target',
       `Configure ${targetKeys}, or require the user to provide an explicit target on every send.`,
       `/channels show ${channelId}`,
-      `agent_harness mode:"channel" channelId:"${channelId}" includeParameters:true`,
+      `channels action:"channel" channelId:"${channelId}" includeParameters:true`,
       'read-only',
     ),
     makeStep(
@@ -452,7 +452,7 @@ function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly 
       'Review allowlist',
       `Review ${channelLabel} account and allowlist policy before any delivery test.`,
       '/channels policies',
-      'agent_harness mode:"channels" includeParameters:true',
+      'channels action:"status" includeParameters:true',
       'read-only',
     ),
     makeStep(
@@ -460,7 +460,7 @@ function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly 
       'Run live checks',
       `Inspect connected-host status and doctor output for ${channelLabel}; do not run repair actions from the guide.`,
       `/channels doctor ${channelId}`,
-      `agent_harness mode:"channel" channelId:"${channelId}" includeParameters:true`,
+      `channels action:"channel" channelId:"${channelId}" includeParameters:true`,
       'read-only',
     ),
     makeStep(

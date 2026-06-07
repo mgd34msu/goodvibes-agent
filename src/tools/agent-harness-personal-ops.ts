@@ -710,7 +710,7 @@ function reminderWorkflows(methodIds: readonly string[], deliveryConfigured: boo
       modelRoute: 'schedule action:"remind"',
       inspectRoutes: [
         'agent_harness mode:"workspace_action" actionId:"schedule-reminder"',
-        'agent_harness mode:"channels"',
+        'channels action:"status"',
         ...methodIds.filter((methodId) => methodId.startsWith('schedules.')).slice(0, 6).map((methodId) => `host action:"method" methodId:"${methodId}"`),
       ],
       prerequisites: [
@@ -912,7 +912,7 @@ function channelRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSn
     status: channel.setupState,
     summary: `${channel.delivery}; ${channel.riskLabel}. ${channel.nextStep}`,
     userRoute: 'Agent Workspace -> Channels',
-    modelRoute: `agent_harness mode:"channel" channelId:"${channel.id}"`,
+    modelRoute: `channels action:"channel" channelId:"${channel.id}"`,
     tags: [channel.risk, channel.delivery],
   }));
 }
@@ -1655,7 +1655,7 @@ function buildLanes(
         ? 'Use confirmed channel send or notification tools when the user asks for delivery.'
         : 'Enable and configure one delivery channel so personal-ops reminders and summaries can reach the user.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels',
-      modelRoute: 'agent_harness mode:"channels"',
+      modelRoute: 'channels action:"status"',
       signals: [
         `${readyChannels} ready channel(s)`,
         `${configuredTargets} configured default target(s)`,
@@ -2522,11 +2522,11 @@ function buildPersonalOpsIntakeCandidates(
       status: deliveryLane.status === 'ready' ? 'ready' : deliveryLane.status === 'needs-setup' ? 'needs-setup' : 'attention',
       confidence: 'medium',
       why: 'The request asks to deliver, send, notify, or use a communication channel.',
-      modelRoute: 'agent_harness mode:"channels"',
+      modelRoute: 'channels action:"status"',
       inspectRoutes: [
         'personal_ops action:"lane" laneId:"delivery"',
-        'agent_harness mode:"channel_triage"',
-        'agent_harness mode:"channel_deliveries"',
+        'channels action:"triage"',
+        'channels action:"deliveries"',
       ],
       requiresConfirmation: true,
       safetyBoundary: 'External sends require an explicit target, reviewed message, and confirmed channel send route.',

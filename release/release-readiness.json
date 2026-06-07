@@ -242,7 +242,7 @@
       "quality": {
         "capabilityCoverage": "Covers channel readiness, ordered per-channel setup guide, account posture, setup schema guidance, allowlist policy, live status/doctor checks, read-only channel triage, redacted confirmed-send receipt history, and one-message confirmed delivery across configured channel surfaces.",
         "userAccess": "The user can inspect setup progress, channel readiness, triage blockers/retries/messages/routes, recent redacted send receipts, and send channel messages through Agent Workspace -> Channels, /channels guide, /channels triage, /channels deliveries, and /channels mirrors.",
-        "modelAccess": "agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\" expose structured readiness, current setup guide step, daemon delivery attempts, visible surface messages, route bindings, redacted receipt history, delivery posture, risk labels, safe config-key names, allowlist/status/doctor routes, and explicit test-send boundary; agent_channel_send exposes the exact confirmed send route and returns the receipt id when the Agent shell path is available.",
+        "modelAccess": "channels action:\"status|channel|setup|triage|deliveries\" exposes structured readiness, current setup guide step, daemon delivery attempts, visible surface messages, route bindings, redacted receipt history, delivery posture, risk labels, safe config-key names, allowlist/status/doctor routes, and explicit test-send boundary; lower-level agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\" remain available for compatibility/detail coverage; agent_channel_send exposes the exact confirmed send route and returns the receipt id when the Agent shell path is available.",
         "safetyBoundary": "Channel sends require explicit target and confirmation, the setup guide and receipt ledger are read-only, receipts redact webhook/link addresses and bound/redact message previews, does not infer routes from chat, and does not expose secret values.",
         "releaseEvidence": "Readiness evidence cites channel runtime/tool/docs sources, and live certification requires real external channel outcome coverage before release."
       }
@@ -437,7 +437,7 @@
       "quality": {
         "capabilityCoverage": "Covers core external messaging routes, delivery records, ingress/egress, account lifecycle, directory lookup, target resolution, render policy, and adapter contracts through connected-host ownership.",
         "userAccess": "The user sees channel readiness, redacted confirmed-send receipts, and confirmed sends in Agent while connected-host owns adapter lifecycle and route execution.",
-        "modelAccess": "agent_channel_send plus agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\", connected-host capability, channel workspace, slash-command, and settings metadata expose channel operation boundaries to the model.",
+        "modelAccess": "channels action:\"status|channel|setup|triage|deliveries\", agent_channel_send, lower-level agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\", connected-host capability, channel workspace, slash-command, and settings metadata expose channel operation boundaries to the model.",
         "safetyBoundary": "Agent never owns host lifecycle or secret-bearing adapters; it routes exact confirmed delivery through public connected-host contracts.",
         "releaseEvidence": "Readiness evidence cites connected-host evidence alias and Agent channel docs, with live outcome certification covering real delivery before release."
       }
@@ -557,7 +557,7 @@
       "quality": {
         "capabilityCoverage": "Covers the long-tail channel matrix through connected-host surface unions, plugin registry, delivery strategies, setup schemas, and operator channel routes.",
         "userAccess": "The user sees all configured channel readiness, recent redacted delivery receipts, and exact send paths through Agent channel surfaces.",
-        "modelAccess": "agent_channel_send and agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\", channel workspace, command, settings, and connected-host capability reports expose the channel matrix to the model.",
+        "modelAccess": "channels action:\"status|channel|setup|triage|deliveries\", agent_channel_send, lower-level agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\", channel workspace, command, settings, and connected-host capability reports expose the channel matrix to the model.",
         "safetyBoundary": "Agent keeps adapter setup and secret-bearing lifecycle in connected-host ownership while confirmed sends stay exact-target.",
         "releaseEvidence": "Readiness evidence cites connected-host long-tail channel inventory and Agent channel docs, with live outcome certification covering external sends."
       }
@@ -572,7 +572,7 @@
       "quality": {
         "capabilityCoverage": "Covers phone-call style conversation or notification delivery as a channel-class surface through connected-host telephony adapters and routed delivery.",
         "userAccess": "The user can inspect telephony readiness and send via channel/reminder/routine delivery routes when configured.",
-        "modelAccess": "agent_channel_send, agent_reminder_schedule, and agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\" plus connected-host metadata expose telephony as a routed channel surface to the model.",
+        "modelAccess": "channels action:\"status|channel|setup|triage|deliveries\", agent_channel_send, agent_reminder_schedule, and lower-level agent_harness mode:\"channels\", mode:\"channel\", mode:\"channel_setup_guide\", mode:\"channel_triage\", and mode:\"channel_deliveries\" plus connected-host metadata expose telephony as a routed channel surface to the model.",
         "safetyBoundary": "Agent does not own telephony adapter credentials or service lifecycle and uses explicit target/confirmation rules for delivery.",
         "releaseEvidence": "Readiness evidence cites connected-host telephony inventory and Agent channel/reminder/routine sources."
       }

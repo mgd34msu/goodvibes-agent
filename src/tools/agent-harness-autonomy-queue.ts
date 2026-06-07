@@ -1139,8 +1139,8 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       next: readyChannels > 0
         ? 'Use confirmed notification or channel send tools only after the user asks for delivery.'
         : 'Pair or configure a delivery channel before promising proactive follow-up.',
-      inspectRoute: 'agent_harness mode:"channels"',
-      modelRoute: 'agent_harness mode:"channels"',
+      inspectRoute: 'channels action:"status"',
+      modelRoute: 'channels action:"status"',
       createRoute: 'agent_harness mode:"run_workspace_action" actionId:"personal-ops-channels" confirm:true explicitUserRequest:"..."',
     },
   ];

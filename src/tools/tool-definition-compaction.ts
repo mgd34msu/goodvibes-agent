@@ -7,6 +7,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent: 'Inspect explicit subagent tasks.',
   analyze: 'Analyze code impact, symbols, and project risk.',
   channel: 'Inspect or operate configured channel surfaces.',
+  channels: 'Inspect channel readiness, setup, triage, and receipts.',
   context: 'Inspect project instructions and prompt context.',
   control: 'Inspect commands, panels, and runtime posture.',
   device: 'Inspect/open device, voice, and browser routes.',

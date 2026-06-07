@@ -3049,7 +3049,7 @@ describe('agent_harness tool', () => {
       expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-pause')?.modelRoute).toContain('schedule action:"pause"');
       expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-resume')?.modelRoute).toContain('schedule action:"resume"');
       expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-delete')?.modelRoute).toContain('schedule action:"delete"');
-      expect(delivery?.liveRecords?.some((record) => record.modelRoute.includes('mode:"channel"'))).toBe(true);
+      expect(delivery?.liveRecords?.some((record) => record.modelRoute.includes('channels action:"channel"'))).toBe(true);
 
       const missingIntake = await executeHarnessJson<{
         readonly status: string;

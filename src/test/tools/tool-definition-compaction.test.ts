@@ -40,6 +40,7 @@ describe('compactRegisteredToolDefinitions', () => {
     const registry = new ToolRegistry();
     registry.register(makeTool('read', 'Verbose read tool description that should never reach the model catalog.'));
     registry.register(makeTool('goodvibes_context', 'Verbose runtime context description that should never reach the model catalog.'));
+    registry.register(makeTool('channels', 'Verbose channel route description that should never reach the model catalog.'));
     registry.register(makeTool('context', 'Verbose context route description that should never reach the model catalog.'));
     registry.register(makeTool('device', 'Verbose device and browser route description that should never reach the model catalog.'));
     registry.register(makeTool('host', 'Verbose GoodVibes host description that should never reach the model catalog.'));
@@ -57,6 +58,7 @@ describe('compactRegisteredToolDefinitions', () => {
     const descriptions = new Map(registry.getToolDefinitions().map((definition) => [definition.name, definition.description]));
     expect(descriptions.get('read')).toBe('Read files, outlines, symbols, and ranges.');
     expect(descriptions.get('goodvibes_context')).toBe('Inspect current GoodVibes runtime and host harness.');
+    expect(descriptions.get('channels')).toBe('Inspect channel readiness, setup, triage, and receipts.');
     expect(descriptions.get('context')).toBe('Inspect project instructions and prompt context.');
     expect(descriptions.get('device')).toBe('Inspect/open device, voice, and browser routes.');
     expect(descriptions.get('host')).toBe('Inspect GoodVibes host status, services, and methods.');
