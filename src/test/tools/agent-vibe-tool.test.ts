@@ -79,6 +79,10 @@ describe('vibe adapter', () => {
     const preview = await executeJson(tool, { action: 'init', scope: 'project' });
     expect(preview.status).toBe('confirmation_required');
     expect(preview.path).toBe(join(shellPaths.workingDirectory, 'VIBE.md'));
+    expect(preview.confirmationRoutes).toEqual(expect.objectContaining({
+      model: 'vibe action:"init" scope:"project" confirm:true explicitUserRequest:"..."',
+      cli: '/vibe init --yes',
+    }));
     expect(existsSync(join(shellPaths.workingDirectory, 'VIBE.md'))).toBe(false);
 
     const created = await executeJson(tool, {
@@ -106,6 +110,10 @@ describe('vibe adapter', () => {
     const preview = await executeJson(tool, { action: 'import_persona', scope: 'project', review: true, use: true });
     expect(preview.status).toBe('confirmation_required');
     expect(preview.name).toBe('Research Vibe');
+    expect(preview.confirmationRoutes).toEqual(expect.objectContaining({
+      model: 'vibe action:"import_persona" reference:"project" name:"Research Vibe" description:"Research-focused assistant personality." review:true use:true confirm:true explicitUserRequest:"..."',
+      cli: '/vibe import-persona "project" --name "Research Vibe" --description "Research-focused assistant personality." --review --use --yes',
+    }));
     expect(AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot().personas).toHaveLength(0);
 
     const imported = await executeJson(tool, {

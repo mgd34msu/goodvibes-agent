@@ -39,9 +39,14 @@ describe('/vibe command', () => {
     const text = out.join('\n');
     expect(text).toContain('GoodVibes Agent VIBE.md');
     expect(text).toContain('VIBE.md init preview');
+    expect(text).toContain('confirmationRoutes');
+    expect(text).toContain('vibe action:"init" scope:"project" confirm:true explicitUserRequest:"..."');
+    expect(text).toContain('/vibe init --yes');
     expect(text).toContain('Created project VIBE.md');
     expect(text).toContain('Project VIBE.md');
     expect(text).toContain('VIBE.md persona import preview');
+    expect(text).toContain('vibe action:"import_persona" reference:"project" name:"Project Vibe" description:"Imported project VIBE.md personality instructions." confirm:true explicitUserRequest:"..."');
+    expect(text).toContain('/vibe import-persona "project" --name "Project Vibe" --description "Imported project VIBE.md personality instructions." --yes');
     expect(text).toContain('Imported VIBE.md persona project-vibe');
     expect(text).toContain('reviewed yes');
     expect(text).toContain('active yes');

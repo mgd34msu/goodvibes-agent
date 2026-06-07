@@ -6,6 +6,11 @@ import {
   loadVibeImportSource,
   resolveVibePathReference,
 } from '../../agent/vibe-file.ts';
+import {
+  formatVibeConfirmationRouteLines,
+  vibeImportPersonaConfirmationRoutes,
+  vibeInitConfirmationRoutes,
+} from '../../agent/vibe-confirmation-routes.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { parseAgentLocalLibraryArgs } from './agent-local-library-args.ts';
 import { requireShellPaths } from './runtime-services.ts';
@@ -55,7 +60,7 @@ export function registerVibeRuntimeCommands(registry: CommandRegistry): void {
               'VIBE.md init preview',
               `  scope ${scope}`,
               `  path ${previewPath}`,
-              '  next rerun with --yes to create the file',
+              ...formatVibeConfirmationRouteLines(vibeInitConfirmationRoutes(scope, parsed.flags.has('force'))),
             ].join('\n'));
             return;
           }
@@ -94,7 +99,13 @@ export function registerVibeRuntimeCommands(registry: CommandRegistry): void {
               `  name ${name}`,
               `  description ${description}`,
               `  body characters ${source.body.length}`,
-              '  next rerun with --yes to import into the Agent-local persona registry',
+              ...formatVibeConfirmationRouteLines(vibeImportPersonaConfirmationRoutes({
+                reference,
+                name,
+                description,
+                review: parsed.flags.has('review'),
+                use: parsed.flags.has('use'),
+              })),
             ].join('\n'));
             return;
           }

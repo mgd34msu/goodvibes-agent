@@ -8,6 +8,10 @@ import {
   resolveVibePathReference,
   type AgentVibeFile,
 } from '../agent/vibe-file.ts';
+import {
+  vibeImportPersonaConfirmationRoutes,
+  vibeInitConfirmationRoutes,
+} from '../agent/vibe-confirmation-routes.ts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { requireShellPaths } from '../input/commands/runtime-services.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
@@ -195,6 +199,7 @@ export function createAgentVibeTool(commandContext: CommandContext): Tool {
               path,
               force: readBoolean(args.force),
               next: 'Run with confirm:true and explicitUserRequest after the user asks to create or replace this VIBE.md file.',
+              confirmationRoutes: vibeInitConfirmationRoutes(scope, readBoolean(args.force)),
             });
           }
           const intentError = requiresConfirmedUserIntent(args, 'init');
@@ -232,6 +237,13 @@ export function createAgentVibeTool(commandContext: CommandContext): Tool {
               use: readBoolean(args.use),
               bodyCharacters: source.body.length,
               next: 'Run with confirm:true and explicitUserRequest after the user asks to import VIBE.md into Agent-local personas.',
+              confirmationRoutes: vibeImportPersonaConfirmationRoutes({
+                reference,
+                name,
+                description,
+                review: readBoolean(args.review),
+                use: readBoolean(args.use),
+              }),
             });
           }
           const intentError = requiresConfirmedUserIntent(args, 'import_persona');
