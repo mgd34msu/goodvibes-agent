@@ -2233,6 +2233,40 @@ describe('agent_harness tool', () => {
       expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-delete')?.modelRoute).toContain('schedules.delete');
       expect(delivery?.liveRecords?.some((record) => record.modelRoute.includes('mode:"channel"'))).toBe(true);
 
+      const missingIntake = await executeHarnessJson<{
+        readonly status: string;
+        readonly preferred: {
+          readonly id: string;
+          readonly laneId: string;
+          readonly status: string;
+          readonly modelRoute: string;
+          readonly inspectRoutes: readonly string[];
+          readonly missingFields?: readonly string[];
+          readonly safetyBoundary: string;
+        };
+        readonly laneRoute: string;
+        readonly policy: string;
+      }>(fixture, { mode: 'personal_ops_intake', query: 'Triage my unread inbox.' });
+      expect(missingIntake.status).toBe('ready');
+      expect(missingIntake.preferred.id).toBe('inbox-triage-briefing');
+      expect(missingIntake.preferred.laneId).toBe('inbox');
+      expect(missingIntake.preferred.status).toBe('needs-setup');
+      expect(missingIntake.preferred.modelRoute).toContain('operator_methods');
+      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('personal_ops_lane');
+      expect(missingIntake.preferred.missingFields?.join('\n')).toContain('configured email connector');
+      expect(missingIntake.preferred.safetyBoundary).toContain('confirmation');
+      expect(missingIntake.laneRoute).toContain('laneId:"inbox"');
+      expect(missingIntake.policy).toContain('read-only');
+
+      const missingUsage = await executeHarnessJson<{
+        readonly status: string;
+        readonly usage: string;
+        readonly examples: readonly string[];
+      }>(fixture, { mode: 'personal_ops_intake' });
+      expect(missingUsage.status).toBe('missing_request');
+      expect(missingUsage.usage).toContain('personal_ops_intake');
+      expect(missingUsage.examples.join('\n')).toContain('Brief my calendar');
+
       const lane = await executeHarnessJson<{
         readonly id: string;
         readonly status: string;
@@ -2612,6 +2646,70 @@ describe('agent_harness tool', () => {
       expect(agendaRecord?.modelRoute).toContain('mcp schema');
       expect(agendaRecord?.requiredFields).toEqual(['end', 'start']);
       expect(agendaRecord?.sampleInput?.start).toBe('<start-iso>');
+
+      const inboxIntake = await executeHarnessJson<{
+        readonly preferred: {
+          readonly id: string;
+          readonly laneId: string;
+          readonly status: string;
+          readonly modelRoute: string;
+          readonly requiresConfirmation: boolean;
+          readonly requiredFields?: readonly string[];
+          readonly missingFields?: readonly string[];
+          readonly operation?: {
+            readonly name: string;
+            readonly qualifiedName?: string;
+            readonly schemaRoute?: string;
+            readonly sampleInput?: Record<string, unknown>;
+          };
+          readonly nextSteps: readonly string[];
+        };
+        readonly laneRoute: string;
+      }>(fixture, { mode: 'personal_ops_intake', query: 'Triage my unread email.', includeParameters: true });
+      expect(inboxIntake.preferred.id).toBe('inbox-triage-briefing');
+      expect(inboxIntake.preferred.laneId).toBe('inbox');
+      expect(inboxIntake.preferred.status).toBe('ready');
+      expect(inboxIntake.preferred.modelRoute).toContain('mcp:gmail-inbox:gmail.search_messages');
+      expect(inboxIntake.preferred.requiresConfirmation).toBe(false);
+      expect(inboxIntake.preferred.requiredFields).toEqual(['query']);
+      expect(inboxIntake.preferred.missingFields).toEqual(['query']);
+      expect(inboxIntake.preferred.operation?.name).toBe('gmail.search_messages');
+      expect(inboxIntake.preferred.operation?.sampleInput?.query).toBe('is:unread newer_than:7d');
+      expect(inboxIntake.preferred.nextSteps.join('\n')).toContain('bounded read/list/search route');
+      expect(inboxIntake.laneRoute).toContain('laneId:"inbox"');
+
+      const draftIntake = await executeHarnessJson<{
+        readonly preferred: {
+          readonly id: string;
+          readonly operation?: { readonly name: string; readonly qualifiedName?: string };
+          readonly followUpOperation?: { readonly name: string; readonly confirmationRequired?: boolean };
+          readonly nextSteps: readonly string[];
+        };
+      }>(fixture, { mode: 'personal_ops_intake', query: 'Draft a reply to this email thread.', includeParameters: true });
+      expect(draftIntake.preferred.id).toBe('inbox-draft-reply');
+      expect(draftIntake.preferred.operation?.name).toBe('gmail.get_thread');
+      expect(draftIntake.preferred.followUpOperation?.name).toBe('gmail.send_reply');
+      expect(draftIntake.preferred.followUpOperation?.confirmationRequired).toBe(true);
+      expect(draftIntake.preferred.nextSteps.join('\n')).toContain('separate confirmed connector action');
+
+      const calendarIntake = await executeHarnessJson<{
+        readonly preferred: {
+          readonly id: string;
+          readonly laneId: string;
+          readonly status: string;
+          readonly modelRoute: string;
+          readonly missingFields?: readonly string[];
+          readonly operation?: { readonly name: string; readonly connectorStatus?: string };
+          readonly nextSteps: readonly string[];
+        };
+      }>(fixture, { mode: 'personal_ops_intake', query: 'Brief my calendar for today.', includeParameters: true });
+      expect(calendarIntake.preferred.id).toBe('calendar-agenda-briefing');
+      expect(calendarIntake.preferred.laneId).toBe('calendar');
+      expect(calendarIntake.preferred.status).toBe('attention');
+      expect(calendarIntake.preferred.modelRoute).toContain('mcp:caldav-agenda:caldav.list_events');
+      expect(calendarIntake.preferred.missingFields).toEqual(['connector trust/schema freshness']);
+      expect(calendarIntake.preferred.operation?.connectorStatus).toBe('attention');
+      expect(calendarIntake.preferred.nextSteps.join('\n')).toContain('Repair connector trust');
 
       const lane = await executeHarnessJson<{
         readonly id: string;
@@ -5371,6 +5469,7 @@ describe('agent_harness tool', () => {
       ))).toEqual([]);
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('agent_harness mode:"personal_ops_intake"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');

@@ -192,6 +192,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'research-run-queue') return 'agent_harness mode:"research_runs"';
   if (action.id === 'research-source-queue') return 'agent_harness mode:"research_queue"';
+  if (action.id === 'personal-ops-intake') return 'agent_harness mode:"personal_ops_intake"';
   if (
     action.id === 'personal-ops-autonomy-queue'
     || action.id === 'work-autonomy-queue'

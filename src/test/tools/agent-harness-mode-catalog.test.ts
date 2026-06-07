@@ -94,6 +94,7 @@ describe('agent_harness mode catalog', () => {
     };
     const ids = personalOps.modes.map((mode) => mode.id);
     expect(ids).toContain('personal_ops');
+    expect(ids).toContain('personal_ops_intake');
     expect(ids).toContain('personal_ops_lane');
     expect(personalOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });

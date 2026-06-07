@@ -292,6 +292,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Use this as the daily operations hub. It gives one path for personal work while keeping missing email/calendar connectors explicit.',
     actions: [
       { id: 'personal-ops-map', label: 'Readiness map', detail: 'Use the detail pane and model route agent_harness mode:"personal_ops" to see which personal operations lanes are ready, partial, or missing setup.', kind: 'guidance', safety: 'safe' },
+      { id: 'personal-ops-intake', label: 'Request planner', detail: 'Use agent_harness mode:"personal_ops_intake" query:"..." to turn an inbox, agenda, task, reminder, note, routine, or delivery request into the safest visible route.', kind: 'guidance', safety: 'read-only' },
       { id: 'personal-ops-autonomy-queue', label: 'Autonomy queue', detail: 'Inspect visible ongoing work, owners, status, and cancel or recovery routes before creating more background work.', kind: 'guidance', safety: 'read-only' },
       { id: 'personal-ops-inbox', label: 'Inbox workflows', detail: 'Email inbox triage and draft review use workflow cards with reviewed connector routes and explicit send boundaries.', kind: 'guidance', safety: 'safe' },
       { id: 'personal-ops-calendar', label: 'Calendar workflows', detail: 'Calendar agenda and conflict checks use workflow cards with reviewed connector routes; reminders stay on confirmed schedules.', kind: 'guidance', safety: 'safe' },
