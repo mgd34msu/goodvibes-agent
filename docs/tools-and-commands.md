@@ -94,8 +94,8 @@ Discovery modes:
 | `document_ops`, `document_ops_lane` | Documents, review packet timeline, review packet wizard, packet presets/defaults/freshness, reviewer-readiness checks, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup wizard with direct `setup action:"status|item|checkpoint|token|smoke|finish"` route hints, progress/current-step/checkpoint/backtracking routes, checkpoint auto-advance evidence, repeated-smoke-blocker focus, setup closeout decisions, setup plan with probe-fed connected-host repair/auth cards, service lifecycle receipt gates, service repair success criteria, certified receipt outcomes, exact service lifecycle decisions, sudo execution posture, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness with endpoint smoke-test follow-through, pairing/device capability posture, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
-| `operator_methods` | Public operator and Agent Knowledge method catalog. |
-| `service_posture`, `connected_host`, `daemon` | Endpoint, connected-host, and daemon alias posture. |
+| `host action:"status|capabilities|capability|services|service|methods|method"` | Connected-host status, capability map/detail, service endpoint posture/detail, and public daemon method catalog/detail. |
+| `operator_methods`, `service_posture`, `connected_host`, `daemon` | Lower-level compatibility/detail routes for public operator methods, endpoint posture, connected-host posture, and daemon aliases. |
 | `release_evidence`, `release_readiness` | Operator/audit release artifacts and release-quality inventory. |
 
 Single-item inspect modes:
@@ -182,12 +182,11 @@ Keybinding discovery returns fixed shortcuts plus the live resolved binding tabl
 
 The connected host is external. Agent can inspect it through:
 
-- `service_posture` and `service_endpoint` for endpoint binding, network-facing posture, issues, optional probes, and redacted log tail.
-- `connected_host` and `daemon` for compact connected-host posture and direct `modelRoute` hints; use `includeParameters:true` for route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability.
-- `connected_host_capability` for one allowed or blocked capability with the matching route hint.
-- `connected_host_status` and `daemon_status` for live read-only readiness checks and the next diagnostic route.
+- `host action:"services|service"` for endpoint binding, network-facing posture, issues, optional probes, and redacted log tail.
+- `host action:"capabilities|capability"` for compact connected-host posture, direct `modelRoute` hints, route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability.
+- `host action:"status"` for live read-only readiness checks and the next diagnostic route.
 - `setup action:"item" setupItemId:"connected-host-readiness"` for the missing-host bootstrap plan: user-run Bun, GoodVibes host install/trust, binary verification, service start, and Agent reconnect commands before operator methods are reachable.
-- `operator_methods` and `operator_method` for the public method catalog.
+- `host action:"methods|method"` for the public method catalog.
 
 None of those modes expose host start, stop, restart, install, expose-listener, account creation, arbitrary route mutation, default knowledge access, hidden background Agent jobs, or implicit delegated review.
 

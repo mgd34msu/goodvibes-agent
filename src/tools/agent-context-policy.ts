@@ -43,7 +43,7 @@ const CONTEXT_TOOL_FALLBACK = {
     settings: 'settings action:"list"',
     commands: 'agent_harness mode:"commands"',
     workspace: 'agent_harness mode:"workspace"',
-    status: 'agent_harness mode:"connected_host_status"',
+    status: 'host action:"status"',
   },
 };
 
@@ -161,7 +161,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       {
         area: 'Harness operation',
         can: 'Discover and use harness modes, slash commands, workspace actions, settings, panels, UI surfaces, keybindings, and model tools.',
-        tools: [optionalTool('agent_harness'), optionalTool('settings'), 'goodvibes_context'],
+        tools: [optionalTool('agent_harness'), optionalTool('host'), optionalTool('settings'), 'goodvibes_context'],
         inspect: 'agent_harness mode:"modes" query:"capability"',
       },
       {
@@ -197,8 +197,8 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       {
         area: 'Provider and setup work',
         can: 'Inspect provider accounts, subscriptions, model routing, hardware-scored local model cookbook setup plans, confirmed local server checks, confirmed benchmark action routes, setup posture, service posture, connected-host status, and GoodVibes settings import; apply supported settings changes when explicitly requested.',
-        tools: [optionalTool('models'), optionalTool('setup'), optionalTool('settings'), optionalTool('agent_harness'), optionalTool('import_goodvibes_settings')],
-        inspect: 'setup action:"status"; use models action:"status|local|providers" for model/provider catalogs and settings action:"list|get" for detailed settings',
+        tools: [optionalTool('models'), optionalTool('setup'), optionalTool('host'), optionalTool('settings'), optionalTool('agent_harness'), optionalTool('import_goodvibes_settings')],
+        inspect: 'setup action:"status"; use host action:"status|services|methods" for host diagnostics, models action:"status|local|providers" for model/provider catalogs, and settings action:"list|get" for detailed settings',
       },
     ],
     needsSetupOrIntegration: [
@@ -219,6 +219,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       setup: 'setup action:"status"; inspect one row with action:"item" setupItemId:"..."; use action:"checkpoint"; confirmed effects use action:"save_checkpoint|clear_checkpoint|token|smoke|finish|import_settings" confirm:true explicitUserRequest:"..."',
       vibe: 'vibe action:"status"; inspect one file with action:"show" scope:"project|global"; confirmed effects use action:"init|import_persona" confirm:true explicitUserRequest:"..."',
       settings: 'settings action:"list"; inspect one setting with action:"get" key:"..."; confirmed changes use action:"set|reset" confirm:true explicitUserRequest:"..."; import existing GoodVibes settings with action:"import" and confirm:true only after approval',
+      host: 'host action:"status"; inspect capabilities/services/methods with action:"capabilities|capability|services|service|methods|method"; execute exact daemon operations separately with agent_operator_method after confirmation',
       settingsImport: 'settings action:"import"; previews by default and applies with confirm:true explicitUserRequest:"..." after user approval; import_goodvibes_settings remains available for compatibility',
       device: 'device action:"status"; inspect one capability/route with action:"capability" capabilityId:"..."; inspect browser/PWA readiness with action:"browser"; open the connected cockpit with action:"open_browser" confirm:true explicitUserRequest:"..."; inspect browser/desktop control with action:"control"; inspect voice/media with action:"voice"; inspect one provider with action:"provider"',
       models: 'models action:"status"; inspect one model/local endpoint route with action:"route" modelRouteId:"..."; inspect local cookbook with action:"local"; inspect providers with action:"providers"; inspect one provider with action:"provider" providerId:"..."; run local model server checks with action:"smoke" confirm:true explicitUserRequest:"..."',

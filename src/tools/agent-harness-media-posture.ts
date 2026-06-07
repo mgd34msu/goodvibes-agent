@@ -196,7 +196,7 @@ function buildVoiceInteractionWorkflows(
       modelRoute: 'agent_harness mode:"media_posture" query:"voice memo transcription" includeParameters:true',
       setupRoutes: [
         'agent_harness mode:"media_posture" query:"stt" includeParameters:true',
-        'agent_harness mode:"operator_methods" query:"voice.stt"',
+        'host action:"methods" query:"voice.stt"',
       ],
       evidence: {
         transcribeRuntime,

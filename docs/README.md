@@ -20,7 +20,7 @@ These are the package-facing docs for the GoodVibes Agent `1.0.x` release line.
 - Package executable: `goodvibes-agent`.
 - Install/runtime: Bun `1.3.10` or newer.
 - Agent version source: exact `package.json` semver, kept in sync with `CHANGELOG.md` and `src/version.ts` during release.
-- Connected-host compatibility: public Agent routes report readiness through the `compat` and `status` CLI commands plus `connected_host_status`.
+- Connected-host compatibility: public Agent routes report readiness through the `compat` and `status` CLI commands plus `host action:"status"`.
 - Connected host: owned outside Agent; Agent reports and uses it but does not manage lifecycle.
 - Agent Knowledge: only `/api/goodvibes-agent/knowledge/*`; no default knowledge fallback.
 - Local state: VIBE.md personality, project context files, memory, notes, personas, skills, routines, sessions, setup, and profiles live under the Agent home or current project.

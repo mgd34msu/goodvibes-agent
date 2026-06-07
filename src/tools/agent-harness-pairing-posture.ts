@@ -173,7 +173,7 @@ function pairingRoutes(): readonly PairingRoute[] {
       label: 'Connected host live posture',
       detail: 'Read-only reachability, token posture, and route readiness used before companion setup.',
       effect: 'read-only',
-      harnessRoute: 'agent_harness mode:"connected_host_status"',
+      harnessRoute: 'host action:"status"',
       capabilityIds: ['connected-host-status'],
     },
     {
@@ -181,7 +181,7 @@ function pairingRoutes(): readonly PairingRoute[] {
       label: 'Companion capability map',
       detail: 'Allowed and blocked companion route families for pairing, shared sessions, tasks, approvals, provider/model changes, attachments, and mobile command surfaces.',
       effect: 'read-only',
-      harnessRoute: 'agent_harness mode:"connected_host"',
+      harnessRoute: 'host action:"capabilities"',
       capabilityIds: [
         'companion-pairing',
         'shared-session',
@@ -278,8 +278,8 @@ function describeRoute(route: PairingRoute, options: {
       modelAccess: {
         inspectPairing: 'agent_harness mode:"pairing_posture"',
         inspectRoute: 'agent_harness mode:"pairing_route"',
-        connectedHostStatus: 'agent_harness mode:"connected_host_status"',
-        connectedHostCapabilities: 'agent_harness mode:"connected_host"',
+        connectedHostStatus: 'host action:"status"',
+        connectedHostCapabilities: 'host action:"capabilities"',
         channels: 'agent_harness mode:"channels"',
       },
     } : {}),
@@ -440,9 +440,9 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
         ? 'Use connected-host status before accepting companion-originated work.'
         : 'Enable and authenticate the control plane before relying on mobile command routing.',
       capabilities: ['shared session routing', 'task handoff', 'approval handoff', 'provider/model routing'],
-      modelRoute: 'agent_harness mode:"connected_host_status"',
+      modelRoute: 'host action:"status"',
       setupRoutes: [
-        'agent_harness mode:"service_endpoint" endpointId:"controlPlane"',
+        'host action:"service" endpointId:"controlPlane"',
         'setup action:"item" setupItemId:"connected-host-auth"',
       ],
       evidence: {
@@ -467,7 +467,7 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
       modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"connected-browser-cockpit" confirm:true explicitUserRequest:"..."',
       setupRoutes: [
         'agent_harness mode:"ui_surface" surfaceId:"connected-browser-cockpit"',
-        'agent_harness mode:"service_endpoint" endpointId:"web"',
+        'host action:"service" endpointId:"web"',
       ],
       evidence: {
         webEnabled,
@@ -582,10 +582,10 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
       summary: 'Camera and location sensor adapters are not published by the current Agent-visible SDK/daemon contract.',
       nextStep: 'Inspect operator methods for newly published camera/location contracts before claiming device access.',
       capabilities: ['camera permission posture', 'location permission posture', 'device sensor commands'],
-      modelRoute: 'agent_harness mode:"operator_methods" query:"camera location device"',
+      modelRoute: 'host action:"methods" query:"camera location device"',
       setupRoutes: [
-        'agent_harness mode:"operator_methods" query:"camera location device"',
-        'agent_harness mode:"connected_host" includeParameters:true',
+        'host action:"methods" query:"camera location device"',
+        'host action:"capabilities" includeParameters:true',
       ],
       evidence: {
         publishedByCurrentAgentContract: false,

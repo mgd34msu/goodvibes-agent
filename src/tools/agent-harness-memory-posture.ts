@@ -150,7 +150,7 @@ function externalProviderSetupGuide(provider: typeof EXTERNAL_MEMORY_PROVIDERS[n
     safeFirstStep: `Inspect connected-host and MCP setup for ${provider.label}; keep Agent-local memory as the active path until a ready provider record exists.`,
     inspectRoutes: [
       `agent_harness mode:"memory_provider" providerId:"${provider.id}" includeParameters:true`,
-      `agent_harness mode:"connected_host_capability" query:"${provider.id} memory provider"`,
+      `host action:"capability" query:"${provider.id} memory provider"`,
       `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
       'settings action:"list" query:"memory" includeHidden:true',
     ],
@@ -172,7 +172,7 @@ function describeExternalProvider(
     status,
     summary: previewHarnessText('External memory backend records are not published by the current GoodVibes SDK/daemon contract.', includeParameters ? 180 : 96),
     modelRoute: `agent_harness mode:"memory_provider" providerId:"${provider.id}"`,
-    setupRoute: 'agent_harness mode:"connected_host_capability" query:"memory provider"',
+    setupRoute: 'host action:"capability" query:"memory provider"',
     configured: false,
     ...(includeParameters ? { setupGuide: externalProviderSetupGuide(provider) } : {}),
   };
@@ -345,7 +345,7 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
       checkedProviders: EXTERNAL_MEMORY_PROVIDERS.map((provider) => provider.id),
       requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
       next: 'Use Agent-local memory now. Inspect one external provider for the required setup/status/read/write/receipt contracts GoodVibes must publish before use.',
-      inspectRoute: 'agent_harness mode:"connected_host_capability" query:"memory provider"',
+      inspectRoute: 'host action:"capability" query:"memory provider"',
       providerLookup: 'agent_harness mode:"memory_provider" providerId:"<id>" includeParameters:true',
     },
     nextActions: nextActions(snapshot, status, vectorState, doctor),

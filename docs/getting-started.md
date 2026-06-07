@@ -88,8 +88,8 @@ Common model routes:
 | Work plan | `agent_work_plan` including confirmed `dispatch_agents` for approved visible-agent work |
 | Visible autonomous work | `agent_harness mode:"agent_orchestration"`, `mode:"agent_orchestration_agent"`, then `agent` with `mode:"spawn"`, `mode:"batch-spawn"`, `mode:"status"`, `mode:"message"`, `mode:"wait"`, or `mode:"cancel"` |
 | Channels, notifications, reminders, scheduled autonomy, media | `agent_channel_send`, `agent_harness mode:"channel_triage"`, `agent_harness mode:"channel_deliveries"`, `agent_notify`, `schedule action:"list|create|remind|edit|run|pause|resume|delete"`, lower-level `agent_reminder_schedule`/`agent_autonomy_schedule`/`agent_schedule_edit`, `agent_media_generate` |
-| Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_operator_method`, `agent_harness mode:"operator_methods"` |
-| Connected host/daemon posture | `agent_harness mode:"service_posture"`, `mode:"connected_host"`, `mode:"connected_host_capability"`, `mode:"connected_host_status"`, `mode:"daemon"`, `mode:"daemon_status"` |
+| Operator state/actions | `agent_operator_briefing`, `agent_operator_action`, `agent_operator_method`; inspect method contracts with `host action:"methods|method"` |
+| Connected host/daemon posture | `host action:"status|capabilities|capability|services|service|methods|method"`; lower-level connected-host harness modes remain available for detailed inspection |
 | First-run setup plan | `setup action:"status"` exposes `setupCloseout`; use `action:"item"`, `action:"checkpoint"`, `action:"save_checkpoint"`, `action:"clear_checkpoint"`, `action:"token"`, `action:"smoke"`, and confirmed `action:"finish"` for the guided setup path |
 | Operator/audit evidence | `agent_harness mode:"release_evidence"`, `mode:"release_evidence_artifact"`, `mode:"release_readiness"`, `mode:"release_readiness_item"` |
 
@@ -185,7 +185,7 @@ Host diagnostics:
 - `goodvibes-agent doctor`
 - `goodvibes-agent compat`
 
-Model-visible diagnostics are `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status`. `agent_harness mode:"operator_methods"` inventories the full GoodVibes daemon contract. `agent_operator_method` can run read-only routes directly and write/admin routes only with `confirm:true` plus `explicitUserRequest`.
+Model-visible diagnostics prefer `host action:"status|capabilities|capability|services|service|methods|method"`. Lower-level `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status` harness modes remain available for compatibility and detailed inspection. `agent_operator_method` can run read-only routes directly and write/admin routes only with `confirm:true` plus `explicitUserRequest`.
 
 When no connected host is reachable, inspect `setup action:"item" setupItemId:"connected-host-readiness"` for the offline bootstrap plan. It returns user-run commands to verify Bun, install and trust the owning GoodVibes host package, verify host entrypoints, start the GoodVibes service, and reconnect Agent. Agent does not run those host install/start commands implicitly. When the host auth token is missing or malformed on the local machine, use `setup action:"token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."`; it uses the GoodVibes SDK pairing helper to create or repair `~/.goodvibes/daemon/operator-tokens.json`, preserves valid existing tokens, leaves environment tokens untouched, and returns only path/fingerprint metadata.
 

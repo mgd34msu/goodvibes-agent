@@ -133,7 +133,7 @@ function describeChannel(
             `/channels setup ${channel.id}`,
           ],
           settingsFilter: `settings action:"list" prefix:"surfaces.${channel.id}" includeHidden:true`,
-          connectedHostBoundary: 'agent_harness mode:"connected_host_capability" query:"delivery"',
+          connectedHostBoundary: 'host action:"capability" query:"delivery"',
           deliveryTargetShape: 'surface[:route[:label]]',
           exampleTarget: `${channel.id}:route:Label`,
         },

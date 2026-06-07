@@ -22,6 +22,10 @@ function settingsActions(...actions: readonly string[]): string {
   return `settings ${actions.map((action) => `action:"${action}"`).join('|')}`;
 }
 
+function hostActions(...actions: readonly string[]): string {
+  return `host ${actions.map((action) => `action:"${action}"`).join('|')}`;
+}
+
 export function describeCommandPolicy(commandName: string): CommandExecutionPolicy {
   const root = commandName.replace(/^\//, '').trim().toLowerCase();
   const confirmation = 'agent_harness mode:"run_command" requires confirm:true and explicitUserRequest for every slash command invocation.';
@@ -126,8 +130,8 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'read-only',
       confirmation,
       preferredModelTool: root === 'compat'
-        ? agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status')
-        : `${agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status')} or ${settingsActions('list', 'get')} or ${agentHarnessModes('tools', 'open_ui_surface')}`,
+        ? hostActions('services', 'service', 'status')
+        : `${hostActions('services', 'service', 'status')} or ${settingsActions('list', 'get')} or ${agentHarnessModes('tools', 'open_ui_surface')}`,
       boundary: 'Diagnostics and review commands inspect Agent, provider, MCP, security, and connected-host readiness without taking lifecycle ownership.',
     };
   }
@@ -369,7 +373,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'read-only',
       confirmation,
-      preferredModelTool: root === 'tasks' ? 'agent_operator_briefing' : agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status', 'connected_host', 'settings', 'tools'),
+      preferredModelTool: root === 'tasks' ? 'agent_operator_briefing' : `${hostActions('status', 'services', 'service', 'capabilities')} or ${settingsActions('list', 'get')} or ${agentHarnessModes('tools')}`,
       boundary: 'Diagnostics and posture commands are readable from Agent-owned settings, provider, model, and connected-host capability surfaces without taking connected-host lifecycle ownership.',
     };
   }
@@ -423,11 +427,11 @@ function connectedHostCapabilityModelRoute(capability: Record<string, unknown>):
     ? capability.modelTools.filter((tool): tool is string => typeof tool === 'string')
     : [];
   if (modelTools.length > 0) return previewHarnessText(modelTools.join(' or '));
-  return 'agent_harness mode:"connected_host_capability"';
+  return 'host action:"capability"';
 }
 
 function blockedConnectedHostModelRoute(): string {
-  return 'agent_harness mode:"service_posture" or mode:"connected_host_status"';
+  return hostActions('services', 'status');
 }
 
 export function connectedHostCapabilityMap(toolRegistry: ToolRegistry): readonly Record<string, unknown>[] {
@@ -436,10 +440,10 @@ export function connectedHostCapabilityMap(toolRegistry: ToolRegistry): readonly
     modelRoute: connectedHostCapabilityModelRoute(capability),
     harnessRoute: 'agent_harness mode:"connected_host_capability"',
     modelAccess: {
-      inspectCapability: 'agent_harness mode:"connected_host_capability"',
-      liveStatus: 'agent_harness mode:"connected_host_status"',
-      endpointPosture: 'agent_harness mode:"service_posture"',
-      routeFamilies: 'agent_harness mode:"connected_host" includeParameters:true',
+      inspectCapability: 'host action:"capability"',
+      liveStatus: 'host action:"status"',
+      endpointPosture: 'host action:"services"',
+      routeFamilies: 'host action:"capabilities" includeParameters:true',
       operate: connectedHostCapabilityModelRoute(capability),
     },
     available: capability.modelTools.every((toolName) => toolIsAvailable(toolRegistry, toolName)),
@@ -648,15 +652,15 @@ function connectedHostCapabilityDetail(entry: { readonly status: 'allowed' | 'bl
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       relatedRouteFamilies: relatedConnectedHostRouteFamilies(entry.capability),
       modelAccess: {
-        inspectCapability: 'agent_harness mode:"connected_host_capability"',
-        connectedHostInventory: 'agent_harness mode:"connected_host" includeParameters:true',
-        liveStatus: 'agent_harness mode:"connected_host_status"',
-        endpointPosture: 'agent_harness mode:"service_posture"',
+        inspectCapability: 'host action:"capability"',
+        connectedHostInventory: 'host action:"capabilities" includeParameters:true',
+        liveStatus: 'host action:"status"',
+        endpointPosture: 'host action:"services"',
         operate: connectedHostCapabilityModelRoute(entry.capability),
       },
-      operatorMethodMode: 'Use agent_harness mode:"operator_methods" for the public operator and Agent Knowledge method catalog. Use mode:"operator_method" for one method.',
-      servicePostureMode: 'Use agent_harness mode:"service_posture" for endpoint binding, network-facing posture, issue, and redacted-log diagnostics. Use mode:"service_endpoint" for one endpoint.',
-      statusMode: 'Use agent_harness mode:"connected_host_status" for live read-only reachability, token posture, and Agent Knowledge route readiness.',
+      operatorMethodMode: 'Use host action:"methods" for the public operator and Agent Knowledge method catalog. Use action:"method" for one method.',
+      servicePostureMode: 'Use host action:"services" for endpoint binding, network-facing posture, issue, and redacted-log diagnostics. Use action:"service" for one endpoint.',
+      statusMode: 'Use host action:"status" for live read-only reachability, token posture, and Agent Knowledge route readiness.',
       boundary: 'Use only the listed first-class model tools, slash-command families, and workspace categories. Mutations still require explicit confirmation through those tools or command routes.',
     };
   }
@@ -668,15 +672,15 @@ function connectedHostCapabilityDetail(entry: { readonly status: 'allowed' | 'bl
     allowed: false,
     available: false,
     modelAccess: {
-      inspectCapability: 'agent_harness mode:"connected_host_capability"',
-      connectedHostInventory: 'agent_harness mode:"connected_host" includeParameters:true',
-      liveStatus: 'agent_harness mode:"connected_host_status"',
-      endpointPosture: 'agent_harness mode:"service_posture"',
+      inspectCapability: 'host action:"capability"',
+      connectedHostInventory: 'host action:"capabilities" includeParameters:true',
+      liveStatus: 'host action:"status"',
+      endpointPosture: 'host action:"services"',
       operate: 'not exposed',
     },
     boundary: 'This connected-host surface is intentionally not exposed to the model as an Agent operation.',
-    servicePostureMode: 'Use agent_harness mode:"service_posture" or mode:"service_endpoint" only for read-only endpoint diagnostics.',
-    statusMode: 'Use agent_harness mode:"connected_host_status" only for read-only readiness diagnostics.',
+    servicePostureMode: 'Use host action:"services" or action:"service" only for read-only endpoint diagnostics.',
+    statusMode: 'Use host action:"status" only for read-only readiness diagnostics.',
   };
 }
 
@@ -726,12 +730,12 @@ export function connectedHostSummary(
       capabilityDetail: agentHarnessModes('connected_host_capability'),
       daemonAliases: agentHarnessModes('daemon', 'daemon_status'),
     },
-    modelRoute: 'agent_harness mode:"connected_host" or mode:"connected_host_capability"',
+    modelRoute: hostActions('capabilities', 'capability'),
     modelAccess: {
-      inventory: 'agent_harness mode:"connected_host" includeParameters:true',
-      liveStatus: 'agent_harness mode:"connected_host_status"',
-      capabilityDetail: 'agent_harness mode:"connected_host_capability" capabilityId:"..."',
-      servicePosture: 'agent_harness mode:"service_posture"',
+      inventory: 'host action:"capabilities" includeParameters:true',
+      liveStatus: 'host action:"status"',
+      capabilityDetail: 'host action:"capability" capabilityId:"..."',
+      servicePosture: 'host action:"services"',
       daemonAliases: 'agent_harness mode:"daemon" or mode:"daemon_status"',
       daemonStatusAlias: 'agent_harness mode:"daemon_status"',
       lifecycle: 'use setup or agent_operator_method with confirm:true and explicitUserRequest for supported daemon service methods.',
@@ -758,9 +762,9 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
       modelRoute: 'agent_operator_method',
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       modelAccess: {
-        inspectCapability: 'agent_harness mode:"connected_host_capability"',
-        liveStatus: 'agent_harness mode:"connected_host_status"',
-        endpointPosture: 'agent_harness mode:"service_posture"',
+        inspectCapability: 'host action:"capability"',
+        liveStatus: 'host action:"status"',
+        endpointPosture: 'host action:"services"',
         operate: 'agent_operator_method with confirm:true and explicitUserRequest when the daemon contract exposes the method',
       },
       reason: 'Lifecycle changes are powerful daemon operations. They are available only through explicit setup or confirmed operator methods, never as ambient background side effects.',
@@ -771,9 +775,9 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
       modelRoute: blockedConnectedHostModelRoute(),
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       modelAccess: {
-        inspectCapability: 'agent_harness mode:"connected_host_capability"',
+        inspectCapability: 'host action:"capability"',
         allowedAgentKnowledge: 'agent_knowledge or agent_knowledge_ingest',
-        liveStatus: 'agent_harness mode:"connected_host_status"',
+        liveStatus: 'host action:"status"',
         operate: 'not exposed',
       },
       reason: 'Agent model tools must stay inside the isolated Agent Knowledge route family.',
@@ -784,9 +788,9 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
       modelRoute: blockedConnectedHostModelRoute(),
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       modelAccess: {
-        inspectCapability: 'agent_harness mode:"connected_host_capability"',
+        inspectCapability: 'host action:"capability"',
         allowedAutonomy: 'agent tool spawn/batch-spawn, schedules, automation jobs, or confirmed delegation with visible status/cancel routes',
-        liveStatus: 'agent_harness mode:"connected_host_status"',
+        liveStatus: 'host action:"status"',
         operate: 'use a visible autonomy route',
       },
       reason: 'Autonomy is allowed when it is visible, statused, and cancellable. Hidden jobs are blocked.',
@@ -797,9 +801,9 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
       modelRoute: 'agent_operator_method',
       harnessRoute: 'agent_harness mode:"connected_host_capability"',
       modelAccess: {
-        inspectCapability: 'agent_harness mode:"connected_host_capability"',
+        inspectCapability: 'host action:"capability"',
         allowedActions: 'agent_operator_action for simple allowlisted mutations or agent_operator_method for exact confirmed daemon contract methods',
-        liveStatus: 'agent_harness mode:"connected_host_status"',
+        liveStatus: 'host action:"status"',
         operate: 'agent_operator_method with confirm:true and explicitUserRequest',
       },
       reason: 'Daemon mutations must resolve to a documented SDK operator method and carry explicit user authorization.',

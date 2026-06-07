@@ -535,12 +535,12 @@ function workflowModelRoute(
 ): string {
   const readyConnector = connectors.find((signal) => signal.status === 'ready') ?? connectors[0];
   if (readyConnector) return readyConnector.modelRoute;
-  return `agent_harness mode:"operator_methods" query:"${methodQuery}"`;
+  return `host action:"methods" query:"${methodQuery}"`;
 }
 
 function workflowInspectRoutes(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[], fallbackQuery: string): readonly string[] {
   const connectorRoutes = connectors.map((signal) => signal.modelRoute);
-  const methodRoutes = methodIds.slice(0, 6).map((methodId) => `agent_harness mode:"operator_method" methodId:"${methodId}"`);
+  const methodRoutes = methodIds.slice(0, 6).map((methodId) => `host action:"method" methodId:"${methodId}"`);
   const routes = [...connectorRoutes, ...methodRoutes];
   return routes.length > 0 ? routes : [`personal_ops action:"lane" laneId:"${fallbackQuery}"`];
 }
@@ -683,7 +683,7 @@ function taskWorkflows(methodIds: readonly string[]): readonly PersonalOpsWorkfl
       inspectRoutes: [
         'agent_harness mode:"workspace_action" actionId:"tasks-list"',
         'agent_harness mode:"workspace_action" actionId:"task-show"',
-        ...methodIds.slice(0, 6).map((methodId) => `agent_harness mode:"operator_method" methodId:"${methodId}"`),
+        ...methodIds.slice(0, 6).map((methodId) => `host action:"method" methodId:"${methodId}"`),
       ],
       prerequisites: hostTaskStatus === 'ready'
         ? [`${methodIds.length} task/work-plan daemon method(s) are discoverable.`]
@@ -711,7 +711,7 @@ function reminderWorkflows(methodIds: readonly string[], deliveryConfigured: boo
       inspectRoutes: [
         'agent_harness mode:"workspace_action" actionId:"schedule-reminder"',
         'agent_harness mode:"channels"',
-        ...methodIds.filter((methodId) => methodId.startsWith('schedules.')).slice(0, 6).map((methodId) => `agent_harness mode:"operator_method" methodId:"${methodId}"`),
+        ...methodIds.filter((methodId) => methodId.startsWith('schedules.')).slice(0, 6).map((methodId) => `host action:"method" methodId:"${methodId}"`),
       ],
       prerequisites: [
         'The user must provide a concrete reminder title and time.',
@@ -1518,7 +1518,7 @@ function buildLanes(
             ? 'Use saved thread queue records for local draft review or recap, then repair an email connector before reading fresh inbox data or sending.'
         : 'Install or build an email connector/MCP/plugin, then expose triage and draft-reply actions here.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
-      modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'agent_harness mode:"operator_methods" query:"email"',
+      modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'host action:"methods" query:"email"',
       signals: [
         `${emailMethods.length} email-like daemon method(s)`,
         `${emailConnectors.length} email-like MCP connector(s)`,
@@ -1556,7 +1556,7 @@ function buildLanes(
             ? 'Use saved event queue records for recap or reminder creation, then repair a calendar connector before reading fresh agenda data or editing events.'
         : 'Add a CalDAV/calendar connector and route agenda briefing, conflicts, and reminders through this lane.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
-      modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'agent_harness mode:"operator_methods" query:"calendar"',
+      modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'host action:"methods" query:"calendar"',
       signals: [
         `${calendarMethods.length} calendar-like daemon method(s)`,
         `${calendarConnectors.length} calendar-like MCP connector(s)`,

@@ -101,7 +101,7 @@ function describeEndpointCandidate(endpoint: CliServiceEndpointPosture): Record<
 }
 
 function serviceEndpointModelRoute(): string {
-  return 'agent_harness mode:"service_endpoint" or mode:"settings"';
+  return 'host action:"service" or settings action:"get"';
 }
 
 function endpointLookupFromArgs(args: AgentHarnessServicePostureArgs): { readonly source: ServiceEndpointLookupSource; readonly input: string } | null {
@@ -195,9 +195,9 @@ export async function servicePostureSummary(
     log: summarizeLog(posture, includeDetails),
     issues: posture.issues,
     ...(includeDetails ? { modelAccess: {
-      endpointLookup: 'Use mode:"service_endpoint" with endpointId, target, or query to inspect one endpoint.',
-      settings: 'Use mode:"settings" with includeHidden:true for endpoint setting descriptors. Host-owned listener settings remain read-only.',
-      liveHostStatus: 'Use mode:"connected_host_status" for token posture and Agent Knowledge route readiness.',
+      endpointLookup: 'Use host action:"service" with endpointId, target, or query to inspect one endpoint.',
+      settings: 'Use settings action:"list" includeHidden:true for endpoint setting descriptors. Host-owned listener settings remain read-only.',
+      liveHostStatus: 'Use host action:"status" for token posture and Agent Knowledge route readiness.',
     } } : {}),
   };
 }

@@ -267,6 +267,6 @@ export function describeHarnessOperatorMethod(args: AgentHarnessOperatorMethodAr
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown operator method ${lookup.input}. Use mode:"operator_methods" to inspect available methods.`,
+    usage: `Unknown operator method ${lookup.input}. Use host action:"methods" to inspect available methods.`,
   };
 }

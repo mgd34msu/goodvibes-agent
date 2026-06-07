@@ -34,7 +34,7 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 
 ## Current Code Decisions
 
-- `agent_harness mode:"operator_methods"` now inventories the live SDK operator contract instead of a small static shortlist.
+- `host action:"methods|method"` now fronts the live SDK operator contract inventory; lower-level harness operator modes remain available for compatibility.
 - `agent_operator_method` runs exact daemon contract methods with read-only direct execution and write/admin confirmation gates.
 - Shared-session follow-up and automation spawn paths now create visible Agent records instead of failing closed.
 - The footer reads the active agent read model so autonomous work is visible in the existing renderer.

@@ -958,7 +958,7 @@ describe('agent_harness tool', () => {
       expect(typeof summary.setupPosture?.blockedPlanItems).toBe('number');
       expect(summary.setupPosture?.autonomyBlockers).toBeGreaterThanOrEqual(1);
       expect(summary.setupPosture?.nextSetupHandoffs?.[0]?.setupItemId).toBe('connected-host-readiness');
-      expect(summary.setupPosture?.nextSetupHandoffs?.[0]?.handoffRoute).toContain('connected_host_status');
+      expect(summary.setupPosture?.nextSetupHandoffs?.[0]?.handoffRoute).toContain('host action:"status"');
       expect(summary.setupPosture?.setupWizard?.status).toBe('blocked');
       expect(summary.setupPosture?.setupWizard?.currentStepId).toBe('connected-host-auth');
       expect(summary.setupPosture?.setupWizard?.currentStepLabel).toBe('Connected-host auth');
@@ -1142,18 +1142,18 @@ describe('agent_harness tool', () => {
       });
       expect(posture.setupWizard.steps[0]?.id).toBe('connected-host-readiness');
       expect(posture.setupWizard.steps[0]?.status).toBe('blocked');
-      expect(posture.setupWizard.steps[0]?.modelRoute).toContain('connected_host_status');
+      expect(posture.setupWizard.steps[0]?.modelRoute).toContain('host action:"status"');
       expect(posture.setupWizard.steps.find((step) => step.id === 'connected-host-auth')?.status).toBe('current');
 
       const first = posture.readinessPlan[0];
       expect(first?.setupItemId).toBe('connected-host-readiness');
       expect(first?.status).toBe('check');
       expect(first?.blocksAutonomy).toBe(true);
-      expect(first?.modelRoute).toContain('connected_host_status');
+      expect(first?.modelRoute).toContain('host action:"status"');
       expect(first?.userRoute).toContain('Host compatibility');
       expect(first?.primaryHandoff?.id).toBe('connected-host-status');
       expect(first?.primaryHandoff?.kind).toBe('diagnostic');
-      expect(first?.primaryHandoff?.modelRoute).toContain('connected_host_status');
+      expect(first?.primaryHandoff?.modelRoute).toContain('host action:"status"');
       expect(first?.handoffs?.map((handoff) => handoff.id)).toContain('connected-host-bootstrap');
       expect(first?.availableRepairCards).toContain('connected-host-status');
       expect(first?.bootstrapRoute).toContain('connected-host-readiness');
@@ -1177,7 +1177,7 @@ describe('agent_harness tool', () => {
       expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'verify-goodvibes-binaries')?.commands.join('\n')).toContain('goodvibes-daemon --version');
       expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'start-goodvibes-host')?.commands.join('\n')).toContain('goodvibes service start');
       expect(first?.bootstrapPlan?.steps.find((step) => step.id === 'reconnect-agent')?.fallback).toContain('GOODVIBES_AGENT_RUNTIME_URL');
-      expect(first?.bootstrapPlan?.reconnectRoutes.agentStatus).toContain('connected_host_status');
+      expect(first?.bootstrapPlan?.reconnectRoutes.agentStatus).toContain('host action:"status"');
       expect(first?.bootstrapPlan?.policy).toContain('does not run host install/start commands implicitly');
       expect(first?.repairCards?.find((card) => card.id === 'service-status')?.methodId).toBe('services.status');
       expect(first?.repairCards?.find((card) => card.id === 'service-install')?.modelRoute).toContain('services.install');
@@ -1202,7 +1202,7 @@ describe('agent_harness tool', () => {
       expect(provider?.primaryHandoff?.modelRoute).toContain('surfaceId:"model-picker"');
       expect(provider?.primaryHandoff?.requiresConfirmation).toBe(true);
       expect(posture.nextSetupActions[0]?.setupItemId).toBe('connected-host-readiness');
-      expect(posture.nextSetupActions[0]?.handoffRoute).toContain('connected_host_status');
+      expect(posture.nextSetupActions[0]?.handoffRoute).toContain('host action:"status"');
       expect(posture.nextSetupActions.find((item) => item.setupItemId === 'connected-host-auth')?.handoffRoute).toContain('setup action:"token"');
 
       const installSmoke = posture.readinessPlan.find((item) => item.setupItemId === 'install-smoke');
@@ -1224,7 +1224,7 @@ describe('agent_harness tool', () => {
         'first-assistant-turn',
       ]);
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'agent-binary')?.route).toContain('goodvibes-agent --version');
-      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'connected-host-status')?.route).toContain('connected_host_status');
+      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'connected-host-status')?.route).toContain('host action:"status"');
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'connected-host-auth')?.route).toContain('connected-host-auth');
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'provider-model')?.route).toContain('models action:"status"');
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'first-assistant-turn')?.route).toContain('Say ready');
@@ -1301,7 +1301,7 @@ describe('agent_harness tool', () => {
       expect(hostItem.setupItemId).toBe('connected-host-readiness');
       expect(hostItem.status).toBe('check');
       expect(hostItem.lookup?.resolvedBy).toBe('plan-id');
-      expect(hostItem.modelRoute).toContain('connected_host_status');
+      expect(hostItem.modelRoute).toContain('host action:"status"');
       expect(hostItem.bootstrapPlan?.steps.find((step) => step.id === 'verify-bun')?.commands).toEqual(['bun --version']);
       expect(hostItem.bootstrapPlan?.policy).toContain('confirmed operator methods');
       expect(hostItem.repairCards?.find((card) => card.id === 'service-start')?.modelRoute).toContain('services.start');
@@ -2689,7 +2689,7 @@ describe('agent_harness tool', () => {
         enabled: true,
         binding: '127.0.0.1:1',
       });
-      expect(hostItem.serviceProbe?.diagnosticRoute).toContain('service_posture');
+      expect(hostItem.serviceProbe?.diagnosticRoute).toContain('host action:"service"');
       expect(hostItem.signals?.join('\n')).toContain('runtime connection probe: unreachable 127.0.0.1:1');
       expect(hostItem.serviceLifecycleDecision?.status).toBe('needs-status-receipt');
       expect(hostItem.serviceLifecycleDecision?.recommendedAction).toBe('read-services-status');
@@ -2767,7 +2767,7 @@ describe('agent_harness tool', () => {
         expect(missing.authPosture?.owner).toBe('connected-host');
         expect(missing.authPosture?.operatorToken).toMatchObject({ present: false, usable: false });
         expect(missing.authPosture?.routes.reviewCommand).toBe('/auth review');
-        expect(missing.authPosture?.routes.connectedHostStatus).toContain('connected_host_status');
+        expect(missing.authPosture?.routes.connectedHostStatus).toContain('host action:"status"');
         expect(missing.authPosture?.routes.pairingPosture).toContain('pairing_posture');
         expect(missing.authPosture?.routes.qrPairingRoute).toContain('qr-pairing');
         expect(missing.authPosture?.routes.manualTokenRoute).toContain('manual-token-display');
@@ -2830,7 +2830,7 @@ describe('agent_harness tool', () => {
         expect(provisioned.companionRecord?.peerId).toHaveLength(24);
         expect(provisioned.mutation?.performed).toBe(true);
         expect(provisioned.mutation?.source).toBe('getOrCreateCompanionToken');
-        expect(provisioned.routes.inspectStatus).toContain('connected_host_status');
+        expect(provisioned.routes.inspectStatus).toContain('host action:"status"');
         expect(provisioned.routes.runSetupSmoke).toContain('setup action:"smoke"');
         expect(provisioned.policy.secrets).toContain('raw token is not returned');
         expect(provisioned.policy.rotation).toContain('preserves a valid existing token');
@@ -3069,7 +3069,7 @@ describe('agent_harness tool', () => {
       expect(missingIntake.preferred.id).toBe('inbox-triage-briefing');
       expect(missingIntake.preferred.laneId).toBe('inbox');
       expect(missingIntake.preferred.status).toBe('needs-setup');
-      expect(missingIntake.preferred.modelRoute).toContain('operator_methods');
+      expect(missingIntake.preferred.modelRoute).toContain('host action:"methods"');
       expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('personal_ops action:"lane"');
       expect(missingIntake.preferred.missingFields?.join('\n')).toContain('configured email connector');
       expect(missingIntake.preferred.safetyBoundary).toContain('confirmation');
@@ -3299,7 +3299,7 @@ describe('agent_harness tool', () => {
       expect(posture.embeddings.syncProviders).toContain('hashed-local');
       expect(posture.providers.find((provider) => provider.id === 'hashed-local')?.active).toBe(true);
       expect(posture.providers.find((provider) => provider.id === 'honcho')?.status).toBe('not-published');
-      expect(posture.providers.find((provider) => provider.id === 'mem0')?.setupRoute).toContain('connected_host_capability');
+      expect(posture.providers.find((provider) => provider.id === 'mem0')?.setupRoute).toContain('host action:"capability"');
       expect(posture.externalMemory.status).toBe('not-published');
       expect(posture.externalMemory.providerRecordsPublished).toBe(false);
       expect(posture.externalMemory.setupGuideStatus).toBe('contract-needed');
@@ -3346,7 +3346,7 @@ describe('agent_harness tool', () => {
       });
       expect(external.setupGuide?.userOutcome).toContain('Supermemory');
       expect(external.setupGuide?.safeFirstStep).toContain('Agent-local memory');
-      expect(external.setupGuide?.inspectRoutes.join('\n')).toContain('connected_host_capability');
+      expect(external.setupGuide?.inspectRoutes.join('\n')).toContain('host action:"capability"');
       expect(external.setupGuide?.requiredHostContracts.join('\n')).toContain('Prompt-injection eligibility policy');
       expect(external.setupGuide?.credentialPolicy).toContain('raw API keys');
       expect(external.setupGuide?.confirmationPolicy).toContain('durable receipts');
@@ -6853,7 +6853,7 @@ describe('agent_harness tool', () => {
       const sensors = posture.deviceCapabilities.find((capability) => capability.id === 'camera-location-sensors');
       expect(sensors?.status).toBe('not-published');
       expect(sensors?.summary).toContain('not published');
-      expect(sensors?.setupRoutes?.join('\n')).toContain('operator_methods');
+      expect(sensors?.setupRoutes?.join('\n')).toContain('host action:"methods"');
       expect(JSON.stringify(posture)).not.toContain('device-map-secret-token');
       expect(JSON.stringify(posture)).not.toContain('telegram-secret-token');
       expect(JSON.stringify(posture)).not.toContain('secret-token');
@@ -7692,7 +7692,10 @@ describe('agent_harness tool', () => {
       const browserAction = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'assistant-browser-cockpit' });
       expect(browserAction.success).toBe(true);
       expect(browserAction.output).toContain('"surfaceId": "connected-browser-cockpit"');
-      expect(browserAction.output).toContain('service_endpoint');
+      const browserActionJson = JSON.parse(browserAction.output) as {
+        readonly modelExecution?: { readonly fallback?: string };
+      };
+      expect(browserActionJson.modelExecution?.fallback).toContain('host action:"service"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-promote-knowledge')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
@@ -8191,8 +8194,8 @@ describe('agent_harness tool', () => {
       expect(summaryJson.servicePosture?.modes).toEqual(['service_posture', 'service_endpoint']);
       expect(summaryJson.servicePosture?.endpointIds).toEqual(['controlPlane', 'httpListener', 'web']);
       expect(summaryJson.servicePosture?.readOnly).toBe(true);
-      expect(summaryJson.modelAccess?.operatorMethods).toContain('mode:"operator_methods"');
-      expect(summaryJson.modelAccess?.servicePosture).toContain('mode:"service_posture"');
+      expect(summaryJson.modelAccess?.operatorMethods).toContain('host action:"methods|method"');
+      expect(summaryJson.modelAccess?.servicePosture).toContain('host action:"services|service"');
 
       const catalog = await fixture.tool.execute({
         mode: 'operator_methods',
@@ -8624,7 +8627,12 @@ describe('agent_harness tool', () => {
       });
       expect(disabledBrowserCockpit.success).toBe(true);
       expect(disabledBrowserCockpit.output).toContain('"status": "setup_needed"');
-      expect(disabledBrowserCockpit.output).toContain('service_endpoint');
+      const disabledBrowserCockpitJson = JSON.parse(disabledBrowserCockpit.output) as {
+        readonly route?: { readonly setupRoutes?: { readonly inspectEndpoint?: string } };
+        readonly descriptor?: { readonly modelRoute?: string };
+      };
+      expect(disabledBrowserCockpitJson.route?.setupRoutes?.inspectEndpoint).toContain('host action:"service"');
+      expect(disabledBrowserCockpitJson.descriptor?.modelRoute).toContain('host action:"service"');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'knowledge' });
 
       const openedPanelPicker = await fixture.tool.execute({

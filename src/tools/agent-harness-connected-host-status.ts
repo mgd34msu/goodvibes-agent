@@ -88,7 +88,10 @@ export async function connectedHostStatusSummary(
   return {
     ownership: 'external-connected-host',
     readOnly: true,
-    modelRoute: 'agent_harness mode:"connected_host_status" or mode:"service_posture"',
+    modelRoute: 'host action:"status" or action:"services"',
+    compatibilityRoutes: {
+      modelRoute: 'agent_harness mode:"connected_host_status" or mode:"service_posture"',
+    },
     timeoutMs: CONNECTED_HOST_STATUS_TIMEOUT_MS,
     lifecycle: 'GoodVibes Agent can inspect daemon readiness and use confirmed operator methods for supported lifecycle/listener changes.',
     paths: {
@@ -140,7 +143,7 @@ export async function connectedHostStatusSummary(
       blockedCapabilities: blockedConnectedHostCapabilities().length,
     },
     ...(options.includeParameters ? { modelAccess: {
-      diagnostics: 'Use mode:"connected_host_status" for live read-only host readiness, mode:"service_posture" for endpoint posture, mode:"service_endpoint" for one endpoint, and mode:"connected_host" for capability and boundary inventory.',
+      diagnostics: 'Use host action:"status" for live readiness, action:"services|service" for endpoint posture, and action:"capabilities|capability" for capability inventory.',
       daemonAliases: 'mode:"daemon_status" is an alias for mode:"connected_host_status"; mode:"daemon" is an alias for mode:"connected_host".',
       lifecycle: 'Use setup or agent_operator_method with confirm:true and explicitUserRequest for supported daemon service methods.',
       cliMirrors: ['goodvibes-agent status --json', 'goodvibes-agent doctor', 'goodvibes-agent compat'],

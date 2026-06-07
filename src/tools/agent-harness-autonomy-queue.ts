@@ -980,7 +980,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
             ? 'Inspect host tasks before changing any work plan or automation state.'
         : 'Update the connected GoodVibes host or connector set until task inspection methods are present.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
-      modelRoute: 'agent_harness mode:"operator_methods" query:"task"',
+      modelRoute: 'host action:"methods" query:"task"',
       ...(taskCancelRoute ? { cancelRoute: taskCancelRoute } : {}),
       methodIds: taskMethods,
       liveRecords: taskRecords,
@@ -1001,7 +1001,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         ? 'Review pending approval records, risk, and args; approve, deny, or cancel exactly one id only when the user asks.'
         : 'Review the matrix, then approve, deny, or cancel one exact approval id only when the user asks.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"approvals"',
-      modelRoute: 'agent_harness mode:"operator_methods" query:"approval"',
+      modelRoute: 'host action:"methods" query:"approval"',
       cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"approval-cancel" confirm:true explicitUserRequest:"..."',
       methodIds: approvalMethods,
       liveRecords: approvalRecords,
@@ -1023,7 +1023,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         : automationRecords.some((record) => record.status === 'queued' || record.status === 'running')
           ? 'Inspect active automation runs and cancel only the exact run id the user authorizes.'
           : 'Inspect automation posture first. Use exact run/job ids for confirmed run control.',
-      inspectRoute: 'agent_harness mode:"operator_methods" query:"automation"',
+      inspectRoute: 'host action:"methods" query:"automation"',
       modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"automation"',
       cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"automation-run-cancel" confirm:true explicitUserRequest:"..."',
       methodIds: automationMethods,

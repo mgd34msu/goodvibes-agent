@@ -456,7 +456,7 @@ function connectedHostServiceProbe(posture: CliServicePosture | null): SetupServ
       label: 'runtime connection',
       enabled: false,
       binding: '(unavailable)',
-      diagnosticRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      diagnosticRoute: 'host action:"services" includeParameters:true',
       issues: ['Service posture probe is unavailable in this runtime.'],
     };
   }
@@ -474,7 +474,7 @@ function connectedHostServiceProbe(posture: CliServicePosture | null): SetupServ
     label: endpoint.label,
     enabled: endpoint.enabled,
     binding,
-    diagnosticRoute: 'agent_harness mode:"service_posture" endpointId:"controlPlane" includeParameters:true',
+    diagnosticRoute: 'host action:"service" endpointId:"controlPlane" includeParameters:true',
     issues: posture.issues,
   };
 }
@@ -528,7 +528,7 @@ function connectedHostAuthPosture(
     },
     routes: {
       reviewCommand: '/auth review',
-      connectedHostStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      connectedHostStatus: 'host action:"status" includeParameters:true',
       pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
       qrPairingRoute: 'agent_harness mode:"pairing_route" pairingRouteId:"qr-pairing"',
       manualTokenRoute: 'agent_harness mode:"pairing_route" pairingRouteId:"manual-token-display"',
@@ -597,7 +597,7 @@ function installSmokePlan(
       label: 'Connected host reachable',
       status: installSmokeCheckStatus(hostReady),
       evidence: `Runtime probe is ${serviceProbe.status} at ${serviceProbe.binding}.`,
-      route: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      route: 'host action:"status" includeParameters:true',
     },
     {
       id: 'connected-host-auth',
@@ -1289,7 +1289,7 @@ function connectedHostRepairCards(
       label: 'Inspect connected-host status',
       state: 'available',
       effect: 'read-only',
-      modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      modelRoute: 'host action:"status" includeParameters:true',
       userRoute: 'Agent Workspace -> Home -> Host compatibility',
       recommendation: statusRecommendation,
       liveEvidence: repairLiveEvidence(probe, probe.status === 'reachable'
@@ -1305,7 +1305,7 @@ function connectedHostRepairCards(
       label: 'Inspect service posture',
       state: 'available',
       effect: 'read-only',
-      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      modelRoute: 'host action:"services" includeParameters:true',
       userRoute: 'Agent Workspace -> Home -> Doctor diagnostics',
       recommendation: postureRecommendation,
       liveEvidence: repairLiveEvidence(probe, probe.issues.length > 0
@@ -1414,7 +1414,7 @@ function setupServiceLifecycleDecision(
     return {
       status: 'bootstrap-first',
       recommendedAction: 'inspect-service-posture',
-      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      modelRoute: 'host action:"services" includeParameters:true',
       reason: 'Agent cannot trust connected-host lifecycle methods until the owning host is reachable enough to return compatible status evidence.',
       evidence,
       receiptRules: serviceLifecycleReceiptRules(),
@@ -1425,7 +1425,7 @@ function setupServiceLifecycleDecision(
     return {
       status: 'status-route-unavailable',
       recommendedAction: 'inspect-service-posture',
-      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      modelRoute: 'host action:"services" includeParameters:true',
       reason: 'The connected-host operator contract does not publish services.status, so setup cannot select install/start/restart from a service receipt.',
       evidence,
       receiptRules: serviceLifecycleReceiptRules(),
@@ -1525,8 +1525,8 @@ function connectedHostBootstrapPlan(
       },
     ],
     reconnectRoutes: {
-      agentStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
-      serviceDiagnostics: 'agent_harness mode:"service_posture" includeParameters:true',
+      agentStatus: 'host action:"status" includeParameters:true',
+      serviceDiagnostics: 'host action:"services" includeParameters:true',
       setupItem: 'setup action:"item" setupItemId:"connected-host-readiness"',
     },
     policy: 'Bootstrap commands are user-run setup guidance. Agent does not run host install/start commands implicitly; once the host is reachable, exact service mutations stay on confirmed operator methods.',
@@ -1593,7 +1593,7 @@ function connectedHostReadinessHandoffs(item: SetupPlanItem): readonly SetupHand
       kind: 'diagnostic',
       effect: 'read-only',
       userRoute: item.userRoute,
-      modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      modelRoute: 'host action:"status" includeParameters:true',
       nextStep: 'Check reachability, compatibility, token posture, and Agent Knowledge readiness before repair.',
       safety: 'Read-only host diagnostic; redacts token values.',
     }),
@@ -1605,7 +1605,7 @@ function connectedHostReadinessHandoffs(item: SetupPlanItem): readonly SetupHand
       kind: 'diagnostic',
       effect: 'read-only',
       userRoute: 'Agent Workspace -> Home -> Doctor diagnostics',
-      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      modelRoute: 'host action:"services" includeParameters:true',
       nextStep: 'Review endpoint binding, reachability, and logs when host status is inconclusive.',
       safety: 'Read-only service diagnostic.',
     }),
@@ -1627,7 +1627,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
             kind: 'diagnostic',
             effect: 'read-only',
             userRoute: item.userRoute,
-            modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+            modelRoute: 'host action:"status" includeParameters:true',
             nextStep: 'Verify protected route readiness and Agent Knowledge before relying on daemon-backed automation.',
             safety: 'Read-only diagnostic; token values are never returned.',
           })
@@ -2067,7 +2067,7 @@ function buildSetupPlan(
       reason: 'Daemon-backed automation, Agent Knowledge, channels, and companion routes need a reachable compatible GoodVibes host.',
       nextAction: 'Run connected-host status, then start, update, or repair the owning GoodVibes host if the live check reports a gap.',
       userRoute: 'Agent Workspace -> Home -> Host compatibility',
-      modelRoute: 'agent_harness mode:"connected_host_status"',
+      modelRoute: 'host action:"status"',
       relatedSetupItemId: 'operator-terminal',
       signals: [
         serviceProbeSignal(serviceProbe),
@@ -2089,7 +2089,7 @@ function buildSetupPlan(
       nextAction: connectedHostAuthNextAction(authPosture),
       userRoute: 'Agent Workspace -> Host -> Connected-host auth owner; /auth review',
       modelRoute: authPosture.operatorToken.usable
-        ? 'agent_harness mode:"connected_host_status" includeParameters:true'
+        ? 'host action:"status" includeParameters:true'
         : authPosture.routes.provisionTokenRoute,
       relatedSetupItemId: 'operator-terminal',
       signals: connectedHostAuthSignals(authPosture),
@@ -2159,7 +2159,7 @@ function buildSetupPlan(
       reason: agentKnowledge.detail,
       nextAction: 'Inspect isolated Agent Knowledge status before source-backed memory or research ingest.',
       userRoute: 'Agent Workspace -> Knowledge',
-      modelRoute: 'agent_harness mode:"connected_host_status" or agent_knowledge',
+      modelRoute: 'host action:"status" or agent_knowledge',
       relatedSetupItemId: agentKnowledge.id,
     },
     {
@@ -2769,7 +2769,7 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
       },
       routes: {
         inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
-        inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+        inspectStatus: 'host action:"status" includeParameters:true',
         pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
       },
       policy: {
@@ -2800,7 +2800,7 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
         },
         routes: {
           inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
-          inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+          inspectStatus: 'host action:"status" includeParameters:true',
         },
       };
     }
@@ -2836,7 +2836,7 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
       },
       routes: {
         inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
-        inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+        inspectStatus: 'host action:"status" includeParameters:true',
         pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
         runSetupSmoke: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
       },
@@ -2862,7 +2862,7 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
       },
       routes: {
         inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
-        inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+        inspectStatus: 'host action:"status" includeParameters:true',
       },
       policy: {
         effect: 'confirmed-local-token-provisioning',

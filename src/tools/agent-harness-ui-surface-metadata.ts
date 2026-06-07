@@ -15,6 +15,10 @@ function settingsActions(...actions: readonly string[]): string {
   return `settings ${actions.map((action) => `action:"${action}"`).join('|')}`;
 }
 
+function hostActions(...actions: readonly string[]): string {
+  return `host ${actions.map((action) => `action:"${action}"`).join('|')}`;
+}
+
 export interface AgentHarnessUiSurfaceArgs {
   readonly query?: unknown;
   readonly surfaceId?: unknown;
@@ -193,7 +197,7 @@ function browserCockpitMobileAffordances(enabled: boolean, includeDetails: boole
       id: 'inspect-web-endpoint',
       label: 'Inspect web endpoint',
       status: 'ready',
-      modelRoute: 'agent_harness mode:"service_endpoint" endpointId:"web" includeParameters:true',
+      modelRoute: 'host action:"service" endpointId:"web" includeParameters:true',
     },
     {
       id: 'inspect-device-map',
@@ -292,9 +296,9 @@ function connectedBrowserCockpitRoute(context: CommandContext, options: { readon
     mobile: browserCockpitMobileAffordances(enabled, options.includeWorkspaceCoverage === true),
     receipts: browserCockpitReceipts(context, enabled, options.includeWorkspaceCoverage === true),
     setupRoutes: {
-      inspectEndpoint: 'agent_harness mode:"service_endpoint" endpointId:"web" includeParameters:true',
-      servicePosture: 'agent_harness mode:"service_posture" includeParameters:true',
-      connectedHostStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      inspectEndpoint: 'host action:"service" endpointId:"web" includeParameters:true',
+      servicePosture: 'host action:"services" includeParameters:true',
+      connectedHostStatus: 'host action:"status" includeParameters:true',
       settings: 'settings action:"list" query:"web" includeHidden:true',
     },
     policy: 'Opens the connected GoodVibes browser cockpit only after explicit user confirmation. Agent does not host a separate browser app or bypass connected-host setup.',
@@ -410,7 +414,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'workspace',
     summary: 'Connected-host browser cockpit/PWA route.',
     command: 'connected host web route',
-    preferredModelRoute: `Use ${agentHarnessModes('service_endpoint', 'service_posture', 'connected_host_status')} or ${settingsActions('list', 'get')} to inspect or repair web readiness; use mode:"open_ui_surface" only to visibly open the configured cockpit URL.`,
+    preferredModelRoute: `Use ${hostActions('service', 'services', 'status')} or ${settingsActions('list', 'get')} to inspect or repair web readiness; use mode:"open_ui_surface" only to visibly open the configured cockpit URL.`,
     available: (context) => {
       try {
         return context.platform?.configManager?.get?.('web.enabled') === true;
@@ -933,7 +937,7 @@ function surfaceCandidate(surface: UiSurfaceDefinition): Record<string, unknown>
 function uiSurfaceModelRoute(surface: UiSurfaceDefinition): string {
   switch (surface.id) {
     case 'connected-browser-cockpit':
-      return 'agent_harness mode:"service_endpoint" or mode:"open_ui_surface"';
+      return 'host action:"service" or agent_harness mode:"open_ui_surface"';
     case 'agent-workspace':
     case 'panel-picker':
     case 'security-panel':

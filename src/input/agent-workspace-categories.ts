@@ -314,7 +314,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'personal-ops-routines', label: 'Routine library', detail: 'Open repeatable workflows and schedule-promotion readiness.', targetCategoryId: 'routines', kind: 'workspace', safety: 'safe' },
       { id: 'personal-ops-schedules', label: 'Schedules', detail: 'Inspect connected schedules and promotion receipts from the automation area.', targetCategoryId: 'automation', kind: 'workspace', safety: 'safe' },
       { id: 'personal-ops-channels', label: 'Delivery channels', detail: 'Open pairing and channel readiness before sending summaries, reminders, or follow-ups.', targetCategoryId: 'channels', kind: 'workspace', safety: 'safe' },
-      { id: 'personal-ops-operator-methods', label: 'Exact daemon methods', detail: 'The model can inspect the live daemon contract with agent_harness mode:"operator_methods" query:"task" or personal_ops action:"lane" for one lane.', kind: 'guidance', safety: 'read-only' },
+      { id: 'personal-ops-operator-methods', label: 'Exact daemon methods', detail: 'The model can inspect the live daemon contract with host action:"methods" query:"task" or personal_ops action:"lane" for one lane.', kind: 'guidance', safety: 'read-only' },
     ],
   },
   {

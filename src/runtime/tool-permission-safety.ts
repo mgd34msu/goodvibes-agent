@@ -19,6 +19,7 @@ const READ_TOOL_NAMES = new Set([
   'registry',
   'goodvibes_context',
   'device',
+  'host',
   'models',
   'personal_ops',
   'research',

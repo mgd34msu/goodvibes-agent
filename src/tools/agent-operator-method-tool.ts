@@ -340,7 +340,7 @@ function serviceLifecycleDecisionFromStatus(body: unknown): JsonRecord {
       status: 'needs-diagnostics',
       action: 'inspect-diagnostics',
       reason: 'The service status receipt includes actionError; inspect diagnostics before any lifecycle mutation.',
-      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      modelRoute: 'host action:"services" includeParameters:true',
       ...common,
     };
   }
@@ -389,7 +389,7 @@ function serviceLifecycleDecisionFromStatus(body: unknown): JsonRecord {
     status: 'no-action-needed',
     action: 'none',
     reason: 'services.status reports the service is installed and running with no failed control-plane readiness evidence.',
-    modelRoute: 'agent_harness mode:"connected_host_status" includeParameters:true',
+    modelRoute: 'host action:"status" includeParameters:true',
     ...common,
   };
 }
@@ -399,11 +399,11 @@ function serviceLifecycleDecision(methodId: ServiceMethodId, responseOk: boolean
     return {
       status: 'needs-follow-up',
       action: 'read-status',
-      reason: `The ${methodId} daemon call failed; do not retry a lifecycle mutation until services.status or service_posture explains the failure.`,
+      reason: `The ${methodId} daemon call failed; do not retry a lifecycle mutation until services.status or host action:"services" explains the failure.`,
       evidence: serviceReceiptEvidence(body),
       statusRoute: serviceLifecycleRoute('services.status'),
       setupRoute: 'setup action:"item" setupItemId:"connected-host-readiness" includeParameters:true',
-      modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
+      modelRoute: 'host action:"services" includeParameters:true',
     };
   }
   if (methodId === 'services.status') return serviceLifecycleDecisionFromStatus(body);
@@ -559,7 +559,7 @@ export function createAgentOperatorMethodTool(
       if (!method) {
         return {
           success: false,
-          error: `Unknown GoodVibes operator method '${methodId}'. Inspect agent_harness mode:"operator_methods" first.`,
+          error: `Unknown GoodVibes operator method '${methodId}'. Inspect host action:"methods" first.`,
         };
       }
 

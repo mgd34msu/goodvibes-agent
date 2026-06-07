@@ -223,7 +223,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
       modelRoute: `schedule action:"create" task:"${shortRequest}" successCriteria:"..." scheduleKind:"${schedule.kind ?? 'at|every|cron'}" scheduleValue:"${schedule.value ?? '...'}" confirm:true explicitUserRequest:"..."`,
       inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
       setupRoutes: [
-        'agent_harness mode:"operator_method" methodId:"schedules.create"',
+        'host action:"method" methodId:"schedules.create"',
         'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
       ],
       evidence: {
@@ -251,10 +251,10 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
       capabilities: ['incoming webhook', 'watcher', 'event trigger', 'source trigger', 'github webhook'],
       requiredFields: ['trusted trigger source', 'source scope', 'task or run target', 'success criteria', 'confirmation'],
       modelRoute: 'agent_operator_method methodId:"watchers.create" confirm:true explicitUserRequest:"..."',
-      inspectRoute: 'agent_harness mode:"operator_method" methodId:"watchers.create"',
+      inspectRoute: 'host action:"method" methodId:"watchers.create"',
       setupRoutes: [
-        'agent_harness mode:"operator_methods" query:"watchers"',
-        'agent_harness mode:"operator_method" methodId:"watchers.list"',
+        'host action:"methods" query:"watchers"',
+        'host action:"method" methodId:"watchers.list"',
         'agent_harness mode:"autonomy_queue"',
       ],
       evidence: {
@@ -281,7 +281,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
       inspectRoute: 'personal_ops action:"lane" laneId:"inbox"',
       setupRoutes: [
         'personal_ops action:"status" query:"inbox gmail email"',
-        'agent_harness mode:"operator_method" methodId:"watchers.create"',
+        'host action:"method" methodId:"watchers.create"',
       ],
       evidence: {
         watcherCreatePublished,
@@ -303,11 +303,11 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
         : 'Keep supervision on autonomy_queue until control event stream routes are published.',
       capabilities: ['control events', 'event stream', 'always-on gateway supervision'],
       requiredFields: ['event scope', 'supervision route'],
-      modelRoute: 'agent_harness mode:"operator_methods" query:"control events stream"',
-      inspectRoute: 'agent_harness mode:"operator_methods" query:"control events"',
+      modelRoute: 'host action:"methods" query:"control events stream"',
+      inspectRoute: 'host action:"methods" query:"control events"',
       setupRoutes: [
         'agent_harness mode:"autonomy_queue"',
-        'agent_harness mode:"operator_methods" query:"control events"',
+        'host action:"methods" query:"control events"',
       ],
       evidence: {
         controlEventsPublished,
@@ -397,7 +397,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       confidence: 'high',
       why: 'The request asks for work to start from an external event, webhook, watcher, Gmail, or inbound message instead of a time-based schedule.',
       modelRoute: 'agent_operator_method methodId:"watchers.create" confirm:true explicitUserRequest:"..."',
-      inspectRoute: 'agent_harness mode:"operator_method" methodId:"watchers.create"',
+      inspectRoute: 'host action:"method" methodId:"watchers.create"',
       requiresConfirmation: true,
       missingFields: [
         'trusted trigger source and scope',
@@ -406,7 +406,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       ],
       userQuestion: 'Which trusted event source should be allowed to trigger this work, and what should count as a successful run?',
       setupRoutes: [
-        'agent_harness mode:"operator_methods" query:"watchers"',
+        'host action:"methods" query:"watchers"',
         'agent_harness mode:"autonomy_queue"',
       ],
       triggerWorkflowId: 'incoming-webhook-or-watcher',

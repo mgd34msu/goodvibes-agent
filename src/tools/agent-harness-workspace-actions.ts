@@ -315,7 +315,7 @@ export function describeWorkspaceAction(
         surfaceId: 'connected-browser-cockpit',
         confirmation: 'required',
         readinessRoute: 'agent_harness mode:"ui_surface" surfaceId:"connected-browser-cockpit" includeParameters:true',
-        fallback: 'Inspect agent_harness mode:"service_endpoint" endpointId:"web" or mode:"service_posture" when the web cockpit is not enabled.',
+        fallback: 'Inspect host action:"service" endpointId:"web" or host action:"services" when the web cockpit is not enabled.',
         note: 'Opens the connected-host browser/PWA cockpit through the configured web route; readiness inspection also reports workspace category coverage, mobile/PWA controls, and first-run receipt gaps without creating a separate Agent-hosted web app.',
       },
     } : {}),
