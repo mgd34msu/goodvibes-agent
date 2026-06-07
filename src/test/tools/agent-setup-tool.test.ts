@@ -35,10 +35,12 @@ describe('setup adapter', () => {
 
     await tool.execute({ action: 'status', includeParameters: true, query: 'host' });
     await tool.execute({ action: 'show', itemId: 'provider-access' });
+    await tool.execute({ action: 'repair', setupItemId: 'connected-host-readiness', includeParameters: true });
 
     expect(calls).toEqual([
       { mode: 'setup_posture', query: 'host', includeParameters: true },
       { mode: 'setup_item', setupItemId: 'provider-access' },
+      { mode: 'setup_repair', setupItemId: 'connected-host-readiness', includeParameters: true },
     ]);
   });
 

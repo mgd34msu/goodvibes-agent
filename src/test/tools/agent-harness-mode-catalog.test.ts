@@ -155,6 +155,13 @@ describe('agent_harness mode catalog', () => {
     expect(ids).toContain('setup_item');
     expect(setup.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
 
+    const repair = listHarnessModes({ query: 'repair setup launch host service status receipt', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const repairMode = repair.modes.find((mode) => mode.id === 'setup_repair');
+    expect(repairMode?.parameters).toEqual(expect.arrayContaining(['setupItemId', 'query', 'includeParameters']));
+    expect(repair.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+
     const smoke = listHarnessModes({ query: 'run setup smoke', includeParameters: true, limit: 5 }) as {
       readonly modes: readonly { readonly id: string; readonly requiresConfirmation?: boolean; readonly parameters?: readonly string[] }[];
     };

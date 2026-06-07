@@ -45,7 +45,7 @@ High-signal TUI routes:
 | `agent_work_plan` | Keep the visible Agent-local work plan current and dispatch approved plan items to visible agents with confirmation and receipts. |
 | `agent_operator_briefing` | Read connected work, approvals, automation, schedules, and capacity posture. |
 | `schedule` | List, create, edit, run, pause, resume, and delete connected schedules through existing confirmation gates. |
-| `setup` | Inspect first-run setup, show one setup row, inspect/save/clear checkpoints, repair token auth, run setup smoke, finish onboarding, and import GoodVibes settings through existing gates. |
+| `setup` | Inspect first-run setup, choose the next safe setup repair route, show one setup row, inspect/save/clear checkpoints, repair token auth, run setup smoke, finish onboarding, and import GoodVibes settings through existing gates. |
 | `security` | Read security posture/findings and explain why one model action is allowed, denied, or needs confirmation. |
 | `vibe` | Inspect VIBE.md status/show, create project/global VIBE.md, or import VIBE.md as an Agent-local persona through existing gates. |
 | `computer` | Inspect browser/PWA readiness, browser/desktop-control, MCP/setup posture, and open the browser cockpit through confirmation-gated visible routes. |
@@ -70,7 +70,7 @@ High-signal TUI routes:
 
 ## `agent_harness`
 
-Use `route action:"plan" query:"..."` first when a plain user task could map to several GoodVibes surfaces. It returns the preferred visible route, alternatives, missing fields, confirmation boundary, workspace matches, and harness mode matches without running tools. Use `agent_harness mode:"summary"` for the broader cockpit. It starts with an assistant cockpit for setup, chat/model, project work, Personal Ops, research/docs, background work, and safety/recovery before implementation counters. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, effect class, and short `modelRoute` or `modelAccess` hints when a route decision is needed. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
+Use `route action:"plan" query:"..."` first when a plain user task could map to several GoodVibes surfaces. It returns the preferred visible route, alternatives, missing fields, confirmation boundary, workspace matches, and harness mode matches without running tools. Use `setup action:"repair"` first when the user asks to fix setup or the connected host; it chooses the next safe token repair, status, services.status receipt, user-run bootstrap, or no-action route without executing it. Use `agent_harness mode:"summary"` for the broader cockpit. It starts with an assistant cockpit for setup, chat/model, project work, Personal Ops, research/docs, background work, and safety/recovery before implementation counters. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, effect class, and short `modelRoute` or `modelAccess` hints when a route decision is needed. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
 
 Discovery modes:
 
@@ -96,7 +96,7 @@ Discovery modes:
 | `autonomy action:"intake|queue|item|status"` | Ongoing-work route selection, visible autonomous work owners, schedule/watcher trigger posture, watcher receipt criteria, status, live records, log tails, task/run diagnostics, host task output routes/previews, inspect routes, and normalized checkpoint/pause/resume/cancel/recovery controls. Lower-level `autonomy_intake`, `autonomy_queue`, and `autonomy_queue_item` modes remain available for detailed compatibility inspection. |
 | `memory action:"curator|candidate"` plus lower-level `learning_curator`, `learning_candidate` | Score-driven prompt plan, ranked local memory, note, persona, skill, bundle, routine, VIBE.md personality health, duplicate-consolidation batch review, completed-work, completed-research, and saved-session review/proposal candidates. |
 | `document_ops`, `document_ops_lane` | Documents, review packet timeline, review packet wizard, packet presets/defaults/freshness, reviewer-readiness checks, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
-| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation action:"status|routes|route"` | MCP, first-run setup wizard with direct `setup action:"status|item|checkpoint|token|smoke|finish"` route hints, progress/current-step/checkpoint/backtracking routes, checkpoint auto-advance evidence, repeated-smoke-blocker focus, setup closeout decisions, setup plan with probe-fed connected-host repair/auth cards, service lifecycle receipt gates, service repair success criteria, certified receipt outcomes, exact service lifecycle decisions, sudo execution posture, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness with endpoint smoke-test follow-through, pairing/device capability posture, and build-delegation posture. Lower-level `delegation_posture` and `delegation_route` remain compatibility routes. |
+| `mcp_servers`, `setup_posture`, `setup_repair`, `pairing_posture`, `delegation action:"status|routes|route"` | MCP, first-run setup wizard with direct `setup action:"status|item|repair|checkpoint|token|smoke|finish"` route hints, progress/current-step/checkpoint/backtracking routes, checkpoint auto-advance evidence, repeated-smoke-blocker focus, setup closeout decisions, read-only repair decisions for token/status/bootstrap/lifecycle/no-action routes, setup plan with probe-fed connected-host repair/auth cards, service lifecycle receipt gates, service repair success criteria, certified receipt outcomes, exact service lifecycle decisions, sudo execution posture, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness with endpoint smoke-test follow-through, pairing/device capability posture, and build-delegation posture. Lower-level `delegation_posture` and `delegation_route` remain compatibility routes. |
 | `security action:"status|finding|explain"` plus lower-level `security_posture`, `security_finding`, `policy_explain` | Redacted security posture, exact findings, and read-only policy explanations for allowed, denied, or confirmation-required model actions. |
 | `support_bundles`, `media_posture`, `sessions` | Bundle route, voice/media, and session/bookmark posture. |
 | `host action:"status|capabilities|capability|services|service|methods|method"` | Connected-host status, capability map/detail, service endpoint posture/detail, and public daemon method catalog/detail. |
@@ -114,7 +114,7 @@ Single-item inspect modes:
 | `channels action:"channel|setup|triage"`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query`; channel triage also accepts `limit` |
 | `project_context_file` | `contextFileId`, `target`, or `query` |
 | `agent_orchestration_agent` | `agentId`, `target`, or `query` |
-| `setup_item`, `model_route`, `execution action:"route"`, `pairing_route`, `delegation action:"route"` | Exact id/model key or `target`/`query` |
+| `setup_item`, `setup_repair`, `model_route`, `execution action:"route"`, `pairing_route`, `delegation action:"route"` | Exact id/model key or `target`/`query` |
 | `setup_checkpoint` | Saved setup wizard checkpoint and current resume step, no lookup required |
 | `personal_ops_briefing`, `personal_ops_queue`, `personal_ops_intake` | `query` or `target` |
 | `personal_ops_lane`, `document_ops_lane` | `laneId`, `target`, or `query` |
@@ -129,7 +129,7 @@ Effect modes:
 
 | Mode | Effect |
 | --- | --- |
-| `setup` tool | Preferred first-run setup route: `action:"status|item|checkpoint"` reads, and `action:"save_checkpoint|clear_checkpoint|token|smoke|finish|import_settings"` delegates to existing confirmed setup effects. |
+| `setup` tool | Preferred first-run setup route: `action:"status|item|repair|checkpoint"` reads, and `action:"save_checkpoint|clear_checkpoint|token|smoke|finish|import_settings"` delegates to existing confirmed setup effects. |
 | `workspace action:"run"` | Executes one resolved workspace action through the same editor, command, or local route as the TUI; `actionId:"onboarding-apply-close"` is the confirmed setup closeout marker write. |
 | `workspace action:"run_command"` | Executes one resolved slash command through the shared command registry. |
 | `provision_connected_host_token` | Creates or repairs the local canonical connected-host token after confirmation without returning the raw token. |
@@ -190,6 +190,7 @@ The connected host is external. Agent can inspect it through:
 - `host action:"services|service"` for endpoint binding, network-facing posture, issues, optional probes, and redacted log tail.
 - `host action:"capabilities|capability"` for compact connected-host posture, direct `modelRoute` hints, route families, allowed capabilities, blocked lifecycle/non-Agent surfaces, and first-class tool availability.
 - `host action:"status"` for live read-only readiness checks and the next diagnostic route.
+- `setup action:"repair"` for the current setup blocker or a named host/auth/service target; it returns the safest next route without executing lifecycle, token, import, or UI effects.
 - `setup action:"item" setupItemId:"connected-host-readiness"` for the missing-host bootstrap plan: user-run Bun, GoodVibes host install/trust, binary verification, service start, and Agent reconnect commands before operator methods are reachable.
 - `host action:"methods|method"` for the public method catalog.
 

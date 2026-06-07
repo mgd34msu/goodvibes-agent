@@ -1319,6 +1319,38 @@ describe('agent_harness tool', () => {
       expect(hostItem.serviceLifecycleDecision?.modelRoute).toContain('services.status');
       expect(hostItem.policy?.effect).toBe('read-only');
 
+      const hostRepair = await executeHarnessJson<{
+        readonly mode: string;
+        readonly setupItemId: string;
+        readonly decision: {
+          readonly id: string;
+          readonly status: string;
+          readonly effect: string;
+          readonly modelRoute: string;
+          readonly requiresConfirmation?: boolean;
+        };
+        readonly possibleConfirmedRepairs?: readonly { readonly id: string; readonly requiresConfirmation?: boolean; readonly modelRoute: string }[];
+        readonly serviceLifecycleDecision?: { readonly status: string; readonly recommendedAction: string };
+        readonly policy: { readonly effect: string; readonly boundary: string; readonly hostOwnership: string };
+      }>(fixture, { mode: 'setup_repair', setupItemId: 'connected-host-readiness', includeParameters: true });
+      expect(hostRepair.mode).toBe('setup_repair');
+      expect(hostRepair.setupItemId).toBe('connected-host-readiness');
+      expect(hostRepair.decision.id).toBe('service-status');
+      expect(hostRepair.decision.status).toBe('inspect-first');
+      expect(hostRepair.decision.effect).toBe('read-only');
+      expect(hostRepair.decision.modelRoute).toContain('services.status');
+      expect(hostRepair.decision.requiresConfirmation).toBeUndefined();
+      expect(hostRepair.possibleConfirmedRepairs?.map((repair) => repair.id)).toEqual(expect.arrayContaining([
+        'service-install',
+        'service-start',
+        'service-restart',
+      ]));
+      expect(hostRepair.possibleConfirmedRepairs?.every((repair) => repair.requiresConfirmation === true)).toBe(true);
+      expect(hostRepair.serviceLifecycleDecision?.recommendedAction).toBe('read-services-status');
+      expect(hostRepair.policy.effect).toBe('read-only-repair-decision');
+      expect(hostRepair.policy.boundary).toContain('never starts');
+      expect(hostRepair.policy.hostOwnership).toContain('does not take ambient ownership');
+
       const localModelItem = await executeHarnessJson<{
         readonly setupItemId: string;
         readonly status: string;
@@ -2784,6 +2816,27 @@ describe('agent_harness tool', () => {
         expect(missing.authPosture?.routes.tokenProvisioningOwner).toContain('canonical token store');
         expect(missing.authPosture?.routes.tokenProvisioningSource).toContain('operator-tokens.json');
 
+        const repair = await executeHarnessJson<{
+          readonly mode: string;
+          readonly setupItemId: string;
+          readonly decision: {
+            readonly id: string;
+            readonly status: string;
+            readonly effect: string;
+            readonly modelRoute: string;
+            readonly requiresConfirmation?: boolean;
+          };
+          readonly policy: { readonly confirmation: string };
+        }>(fixture, { mode: 'setup_repair', setupItemId: 'connected-host-auth' });
+        expect(repair.mode).toBe('setup_repair');
+        expect(repair.setupItemId).toBe('connected-host-auth');
+        expect(repair.decision.id).toBe('provision-connected-host-token');
+        expect(repair.decision.status).toBe('confirmed-repair-available');
+        expect(repair.decision.effect).toBe('confirmed-effect');
+        expect(repair.decision.modelRoute).toContain('setup action:"token"');
+        expect(repair.decision.requiresConfirmation).toBe(true);
+        expect(repair.policy.confirmation).toContain('confirm:true');
+
         const unconfirmedProvision = await fixture.tool.execute({
           mode: 'provision_connected_host_token',
           setupItemId: 'connected-host-auth',
@@ -2901,6 +2954,22 @@ describe('agent_harness tool', () => {
         expect(host.serviceLifecycleDecision?.recommendedAction).toBe('inspect-service-posture');
         expect(host.repairCards?.find((card) => card.id === 'service-start')?.state).toBe('requires-live-host');
         expect(host.repairCards?.find((card) => card.id === 'service-start')?.recommendation).toBe('unavailable');
+
+        const repair = await executeHarnessJson<{
+          readonly setupItemId: string;
+          readonly decision: { readonly id: string; readonly status: string; readonly effect: string; readonly modelRoute: string };
+          readonly bootstrapPlan?: { readonly status: string; readonly steps: readonly { readonly id: string; readonly commands: readonly string[] }[] };
+          readonly policy: { readonly boundary: string; readonly hostOwnership: string };
+        }>(missingHost, { mode: 'setup_repair', setupItemId: 'connected-host-readiness', includeParameters: true });
+        expect(repair.setupItemId).toBe('connected-host-readiness');
+        expect(repair.decision.id).toBe('connected-host-bootstrap');
+        expect(repair.decision.status).toBe('user-run-bootstrap');
+        expect(repair.decision.effect).toBe('user-run');
+        expect(repair.decision.modelRoute).toContain('setup action:"item"');
+        expect(repair.bootstrapPlan?.status).toBe('recommended');
+        expect(repair.bootstrapPlan?.steps.find((step) => step.id === 'start-goodvibes-host')?.commands).toContain('goodvibes service start');
+        expect(repair.policy.boundary).toContain('never starts');
+        expect(repair.policy.hostOwnership).toContain('user-run bootstrap');
       } finally {
         missingHost.cleanup();
       }
@@ -2944,6 +3013,18 @@ describe('agent_harness tool', () => {
           expect(host.recommendedRepairCards ?? []).not.toContain('service-restart');
           expect(host.repairCards?.find((card) => card.id === 'service-status')?.recommendation).toBe('not-needed');
           expect(host.repairCards?.find((card) => card.id === 'service-start')?.recommendation).toBe('not-needed');
+
+          const repair = await executeHarnessJson<{
+            readonly setupItemId: string;
+            readonly decision: { readonly id: string; readonly status: string; readonly modelRoute: string; readonly requiresConfirmation?: boolean };
+            readonly possibleConfirmedRepairs?: readonly unknown[];
+          }>(reachableHost, { mode: 'setup_repair', setupItemId: 'connected-host-readiness' });
+          expect(repair.setupItemId).toBe('connected-host-readiness');
+          expect(repair.decision.id).toBe('connected-host-status');
+          expect(repair.decision.status).toBe('ready');
+          expect(repair.decision.modelRoute).toContain('host action:"status"');
+          expect(repair.decision.requiresConfirmation).toBeUndefined();
+          expect(repair.possibleConfirmedRepairs).toBeUndefined();
 
           const auth = await executeHarnessJson<{ readonly status: string }>(reachableHost, {
             mode: 'setup_item',

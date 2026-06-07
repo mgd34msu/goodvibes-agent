@@ -7,6 +7,7 @@ import { createAgentSettingsImportTool } from './agent-settings-import-tool.ts';
 type AgentSetupAction =
   | 'status'
   | 'item'
+  | 'repair'
   | 'checkpoint'
   | 'save_checkpoint'
   | 'clear_checkpoint'
@@ -61,6 +62,7 @@ function normalizeSetupAction(value: unknown): AgentSetupAction | null {
   if (!action) return null;
   if (action === 'setup' || action === 'posture' || action === 'status' || action === 'summary' || action === 'list') return 'status';
   if (action === 'item' || action === 'show' || action === 'inspect') return 'item';
+  if (action === 'repair' || action === 'fix' || action === 'diagnose_repair' || action === 'host_repair' || action === 'repair_host' || action === 'launch_host') return 'repair';
   if (action === 'checkpoint' || action === 'resume' || action === 'checkpoint_status') return 'checkpoint';
   if (action === 'save_checkpoint' || action === 'mark_checkpoint' || action === 'checkpoint_save' || action === 'save') return 'save_checkpoint';
   if (action === 'clear_checkpoint' || action === 'reset_checkpoint' || action === 'checkpoint_clear' || action === 'clear') return 'clear_checkpoint';
@@ -130,7 +132,7 @@ export function createAgentSetupTool(deps: AgentSetupToolDeps): Tool {
         properties: {
           action: {
             type: 'string',
-            enum: ['status', 'item', 'checkpoint', 'save_checkpoint', 'clear_checkpoint', 'token', 'smoke', 'finish', 'import_settings'],
+            enum: ['status', 'item', 'repair', 'checkpoint', 'save_checkpoint', 'clear_checkpoint', 'token', 'smoke', 'finish', 'import_settings'],
             description: 'Setup action; read status/item/checkpoint, confirm mutations.',
           },
           mode: { type: 'string', description: 'Alias for action.' },
@@ -155,6 +157,15 @@ export function createAgentSetupTool(deps: AgentSetupToolDeps): Tool {
 
       if (action === 'status') return harnessTool.execute(setupStatusArgs(args));
       if (action === 'item') return harnessTool.execute(setupItemArgs(args));
+      if (action === 'repair') {
+        return harnessTool.execute(compactArgs({
+          mode: 'setup_repair',
+          setupItemId: itemLookup(args) || undefined,
+          target: itemLookup(args) ? undefined : args.target,
+          query: itemLookup(args) ? undefined : args.query,
+          includeParameters: args.includeParameters,
+        }));
+      }
       if (action === 'checkpoint') return harnessTool.execute({ mode: 'setup_checkpoint' });
       if (action === 'save_checkpoint') {
         return harnessTool.execute({

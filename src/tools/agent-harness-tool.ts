@@ -53,7 +53,7 @@ import { describeResearchSource, researchQueueCatalogStatus, researchQueueSummar
 import { describeHarnessSecurityFinding, describeHarnessSupportBundle, securityPostureCatalogStatus, securityPostureSummary, supportBundleCatalogStatus, supportBundleSummary } from './agent-harness-security-posture.ts';
 import { describeHarnessSession, sessionCatalogStatus, sessionSummary } from './agent-harness-session-metadata.ts';
 import { describeHarnessServiceEndpoint, servicePostureCatalogStatus, servicePostureSummary } from './agent-harness-service-posture.ts';
-import { clearSetupCheckpoint, describeHarnessSetupItem, markSetupCheckpoint, provisionConnectedHostOperatorToken, runSetupInstallSmoke, setupCheckpointSummary, setupPostureCatalogStatus, setupPostureSummary } from './agent-harness-setup-posture.ts';
+import { clearSetupCheckpoint, describeHarnessSetupItem, markSetupCheckpoint, provisionConnectedHostOperatorToken, runSetupInstallSmoke, setupCheckpointSummary, setupPostureCatalogStatus, setupPostureSummary, setupRepairSummary } from './agent-harness-setup-posture.ts';
 import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent-harness-tool-schema.ts';
 import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type AgentHarnessMode } from './agent-harness-mode-catalog.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
@@ -209,7 +209,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
     providerAccounts: 'Prefer models action:"providers|provider" for account and subscription posture. Lower-level mode:"provider_accounts" and mode:"provider_account" remain available; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
-    setupPosture: 'Prefer setup action:"status|item|checkpoint|token|smoke|finish"; lower-level setup_* modes remain available for detailed harness inspection.',
+    setupPosture: 'Prefer setup action:"status|item|repair|checkpoint|token|smoke|finish"; lower-level setup_* modes remain available for detailed harness inspection.',
     routeDecision: 'Prefer route action:"plan" before choosing a specialized tool when the user task could map to setup, Personal Ops, research, autonomy, execution, delegation, workspace, host, or device routes.',
     projectContext: 'Prefer context action:"files|file"; lower-level project_context modes remain available for detail. Context files are read-only and secret-scanned.',
     promptContext: 'Prefer context action:"prompt|receipts|receipt" for prompt composition, selected/suppressed records, token budget, and prompt receipt outcomes.',
@@ -1197,7 +1197,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           }));
           const mcpServers = mcpServerCatalogStatus(deps.commandContext);
           const setupPosture = await setupPostureCatalogStatus(deps.commandContext).catch((err) => ({
-            modes: ['setup_posture', 'setup_item', 'setup_checkpoint', 'mark_setup_checkpoint', 'clear_setup_checkpoint', 'provision_connected_host_token', 'run_setup_smoke'],
+            modes: ['setup_posture', 'setup_item', 'setup_repair', 'setup_checkpoint', 'mark_setup_checkpoint', 'clear_setup_checkpoint', 'provision_connected_host_token', 'run_setup_smoke'],
             status: 'unavailable',
             error: formatHarnessError(err),
           }));
@@ -1426,6 +1426,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous setup item ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
+        if (args.mode === 'setup_repair') return output(await setupRepairSummary(deps.commandContext, args));
         if (args.mode === 'setup_checkpoint') return output(await setupCheckpointSummary(deps.commandContext));
         if (args.mode === 'mark_setup_checkpoint') {
           const confirmationError = requireConfirmedAction(args, 'Setup wizard checkpoint save');
