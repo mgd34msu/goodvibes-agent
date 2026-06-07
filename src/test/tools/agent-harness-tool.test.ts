@@ -5307,6 +5307,20 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'memory-learning-curator' });
       expect(action.id).toBe('memory-learning-curator');
       expect(action.modelRoute).toBe('agent_harness mode:"learning_curator"');
+
+      const projectContextAction = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'context-project-files' });
+      expect(projectContextAction.id).toBe('context-project-files');
+      expect(projectContextAction.modelRoute).toBe('agent_harness mode:"project_context"');
+
+      const projectContextFileAction = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'context-project-file' });
+      expect(projectContextFileAction.id).toBe('context-project-file');
+      expect(projectContextFileAction.modelRoute).toBe('agent_harness mode:"project_context_file"');
     } finally {
       fixture.cleanup();
     }

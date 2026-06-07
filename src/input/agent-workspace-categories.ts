@@ -254,6 +254,9 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Create/import memory, personas, skills, routines, notes, and Knowledge.',
     detail: 'Use this page to seed the assistant with durable local context. These forms create Agent-owned records or ingest reviewed sources.',
     actions: [
+      { id: 'context-vibe-status', label: 'Inspect VIBE.md', detail: 'Show project/global VIBE.md personality files, blocked files, and init paths before relying on a custom assistant feel.', command: '/vibe status', kind: 'command', safety: 'read-only' },
+      { id: 'context-project-files', label: 'Inspect project context', detail: 'List secret-scanned .hermes.md, HERMES.md, AGENTS.md, CLAUDE.md, SOUL.md, and Cursor context files with blocked/truncated status.', kind: 'guidance', safety: 'read-only' },
+      { id: 'context-project-file', label: 'Inspect one context file', detail: 'Inspect one loaded or blocked project context file by id, target, or query through the read-only context-file route.', kind: 'guidance', safety: 'read-only' },
       { id: 'context-profile-from-discovered', label: 'Profile from discovered files', detail: 'Create an isolated Agent profile from reviewed local persona, skill, and routine files.', editorKind: 'profile-from-discovered', kind: 'editor', safety: 'safe' },
       { id: 'context-persona-discovery', label: 'Import persona files', detail: 'Import discovered persona files into the Agent persona registry.', editorKind: 'persona-discovery-import', kind: 'editor', safety: 'safe' },
       { id: 'context-skill-discovery', label: 'Import skill files', detail: 'Import discovered skill files into the Agent skill registry.', editorKind: 'skill-discovery-import', kind: 'editor', safety: 'safe' },

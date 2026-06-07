@@ -527,6 +527,31 @@ export interface AgentWorkspaceResearchContractSummary {
   readonly details: readonly string[];
 }
 
+export interface AgentWorkspaceVibeSummary {
+  readonly status: 'ready' | 'attention' | 'needs-setup' | 'unavailable';
+  readonly applied: number;
+  readonly blocked: number;
+  readonly truncated: number;
+  readonly projectInitPath: string | null;
+  readonly globalInitPath: string | null;
+  readonly statusRoute: '/vibe status';
+  readonly initProjectRoute: '/vibe init';
+  readonly initGlobalRoute: '/vibe init --global';
+  readonly next: string;
+}
+
+export interface AgentWorkspaceProjectContextSummary {
+  readonly status: 'ready' | 'attention' | 'needs-setup' | 'unavailable';
+  readonly loaded: number;
+  readonly blocked: number;
+  readonly truncated: number;
+  readonly supportedSources: readonly string[];
+  readonly targetAware: boolean;
+  readonly catalogRoute: 'agent_harness mode:"project_context"';
+  readonly inspectRoute: 'agent_harness mode:"project_context_file"';
+  readonly next: string;
+}
+
 export interface AgentWorkspaceProcessSupervisionSummary {
   readonly status: 'available' | 'unavailable';
   readonly tracked: number;
@@ -626,6 +651,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchRuns: readonly AgentWorkspaceResearchRunSummary[];
   readonly researchBrowserRunnerContract: AgentWorkspaceResearchContractSummary;
   readonly researchVisualReportContract: AgentWorkspaceResearchContractSummary;
+  readonly vibe: AgentWorkspaceVibeSummary;
+  readonly projectContext: AgentWorkspaceProjectContextSummary;
   readonly processSupervision: AgentWorkspaceProcessSupervisionSummary;
   readonly recentReviewerHandoffArtifactCount: number;
   readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];

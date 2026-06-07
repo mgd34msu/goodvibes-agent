@@ -484,10 +484,15 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Telephony channel: ${snapshot.channels.find((channel) => channel.id === 'telephony')?.setupState ?? 'disabled'}.`, fg: PALETTE.info },
     );
   } else if (category.id === 'onboarding-context') {
+    const vibe = snapshot.vibe;
+    const projectContext = snapshot.projectContext;
     base.push(
       { text: `Local context: ${snapshot.localMemoryCount} memories, ${snapshot.localNoteCount} notes, ${snapshot.localPersonaCount} personas.`, fg: PALETTE.info },
       { text: `Skills: ${snapshot.enabledSkillCount}/${snapshot.localSkillCount} enabled; routines ${snapshot.enabledRoutineCount}/${snapshot.localRoutineCount} enabled.`, fg: PALETTE.info },
       { text: `Discovered files: personas ${snapshot.discoveredBehavior.personas.count}, skills ${snapshot.discoveredBehavior.skills.count}, routines ${snapshot.discoveredBehavior.routines.count}.`, fg: PALETTE.muted },
+      { text: `VIBE.md: ${vibe.applied} applied; ${vibe.blocked} blocked; ${vibe.truncated} truncated.`, fg: vibe.blocked > 0 ? PALETTE.warn : vibe.applied > 0 ? PALETTE.good : PALETTE.muted },
+      { text: `Project context: ${projectContext.loaded} loaded; ${projectContext.blocked} blocked; ${projectContext.truncated} truncated.`, fg: projectContext.blocked > 0 ? PALETTE.warn : projectContext.loaded > 0 ? PALETTE.good : PALETTE.muted },
+      { text: 'Context routes: /vibe status, project_context, and project_context_file.', fg: PALETTE.good },
     );
   } else if (category.id === 'onboarding-automation') {
     base.push(
@@ -623,9 +628,12 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: 'Notes stay local unless promoted by explicit action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'personas') {
+    const vibe = snapshot.vibe;
     base.push(
+      { text: `VIBE.md: ${vibe.applied} applied; ${vibe.blocked} blocked; ${vibe.truncated} truncated.`, fg: vibe.blocked > 0 ? PALETTE.warn : vibe.applied > 0 ? PALETTE.good : PALETTE.muted },
       { text: `Personas: ${snapshot.localPersonaCount}; active: ${snapshot.activePersonaName}`, fg: PALETTE.info },
       ...compactLocalLibraryLines('Persona Library', snapshot.localPersonas, 'Create one with Create persona.', workspace.selectedLocalLibraryItem('persona')?.id ?? null),
+      { text: 'VIBE.md is personality; project context files are separate workspace instructions.', fg: PALETTE.good },
       { text: 'Personas shape the serial main-conversation assistant.', fg: PALETTE.good },
     );
   } else if (category.id === 'skills') {

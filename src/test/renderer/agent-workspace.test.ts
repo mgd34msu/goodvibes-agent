@@ -1045,6 +1045,9 @@ describe('renderAgentWorkspace', () => {
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(root, '.goodvibes', 'agent', 'skills', 'daily-brief'), { recursive: true });
     mkdirSync(join(root, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    writeFileSync(join(root, 'VIBE.md'), 'Prefer direct, user-first operator handoffs.');
+    writeFileSync(join(root, 'AGENTS.md'), 'Use visible project context before hidden assumptions.');
+    writeFileSync(join(root, 'CLAUDE.md'), 'api_key=supersecretvalue\nDo not load this project secret.');
     writeFileSync(join(root, '.goodvibes', 'agent', 'personas', 'research.md'), [
       '---',
       'name: Research Operator',
@@ -1081,6 +1084,15 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Context');
     expect(output).toContain('Create/import memory, personas, skills, routines, notes, and Knowledge.');
+    expect(output).toContain('VIBE.md: 1 applied; 0 blocked; 0 truncated.');
+    expect(output).toContain('Project context: 1 loaded; 1 blocked; 0 truncated.');
+    expect(output).toContain('Context routes: /vibe status, project_context, and project_context_file.');
+    expect(output).toContain('Inspect VIBE.md');
+    expect(output).toContain('/vibe status');
+    expect(output).toContain('Inspect project context');
+    expect(output).toContain('project_context');
+    expect(output).toContain('Inspect one context file');
+    expect(output).toContain('project_context_file');
     expect(output).toContain('Profile from discovered files');
     expect(output).toContain('edit profile-from-discovered');
     expect(output).toContain('Import persona files');
@@ -1110,6 +1122,9 @@ describe('renderAgentWorkspace', () => {
       expect(output).not.toContain('->');
     };
 
+    expectSetupAction('context-vibe-status', 'Inspect VIBE.md', '/vibe status');
+    expectSetupAction('context-project-files', 'Inspect project context', 'project_context');
+    expectSetupAction('context-project-file', 'Inspect one context file', 'project_context_file');
     expectSetupAction('context-create-skill', 'Create skill', 'edit skill');
     expectSetupAction('context-create-routine', 'Create routine', 'edit routine');
     expectSetupAction('context-knowledge-url', 'Ingest URL', 'edit knowledge-url');
@@ -1157,6 +1172,8 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
     const personasOutput = text(renderAgentWorkspace(workspace, 132, 38));
     const normalizedPersonasOutput = personasOutput.replace(/\s+/g, ' ');
+    expect(normalizedPersonasOutput).toContain('VIBE.md: 0 applied; 0 blocked; 0 truncated.');
+    expect(normalizedPersonasOutput).toContain('VIBE.md is personality; project context files are separate workspace instructions.');
     expect(normalizedPersonasOutput).toContain('Personas shape the serial main-conversation assistant.');
     expect(normalizedPersonasOutput).toContain('Persona Library: 1; selected Research Analyst');
     expect(normalizedPersonasOutput).not.toContain('not separate workers');

@@ -20,9 +20,11 @@ import {
 } from '../agent/skill-registry.ts';
 import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
+import { discoverProjectContextFiles } from '../agent/project-context-files.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
 import { RoutineScheduleReceiptStore } from '../agent/routine-schedule-receipts.ts';
 import { readSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
+import { discoverVibeFiles } from '../agent/vibe-file.ts';
 import {
   DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
   DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
@@ -48,6 +50,7 @@ import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceProcessSupervisionSummary,
+  AgentWorkspaceProjectContextSummary,
   AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceResearchContractSummary,
   AgentWorkspaceResearchRunSummary,
@@ -63,6 +66,7 @@ import type {
   AgentWorkspaceRuntimeProfileItem,
   AgentWorkspaceRuntimeSnapshot,
   AgentWorkspaceRuntimeStarterTemplateItem,
+  AgentWorkspaceVibeSummary,
 } from './agent-workspace-types.ts';
 
 function readConfigString(context: CommandContext, key: string, fallback: string): string {
@@ -225,6 +229,7 @@ type WorkspaceMcpServerRecord = {
 };
 
 const RESEARCH_BROWSER_TERMS = ['browser', 'desktop', 'computer use', 'screenshot', 'screen recording'];
+const WORKSPACE_PROJECT_CONTEXT_SOURCES = ['.hermes.md', 'HERMES.md', 'AGENTS.md', 'CLAUDE.md', 'HERMES_HOME/SOUL.md', '.cursorrules', '.cursor/rules/*.mdc'] as const;
 
 function workspaceMcpServers(context: CommandContext): readonly WorkspaceMcpServerRecord[] {
   try {
@@ -288,6 +293,107 @@ function buildResearchVisualReportContract(sourceSnapshot: {
       'artifact archive',
     ],
   };
+}
+
+function buildVibeSummary(context: CommandContext): AgentWorkspaceVibeSummary {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths) {
+    return {
+      status: 'unavailable',
+      applied: 0,
+      blocked: 0,
+      truncated: 0,
+      projectInitPath: null,
+      globalInitPath: null,
+      statusRoute: '/vibe status',
+      initProjectRoute: '/vibe init',
+      initGlobalRoute: '/vibe init --global',
+      next: 'Open a normal Agent workspace before relying on VIBE.md personality files.',
+    };
+  }
+  try {
+    const snapshot = discoverVibeFiles(shellPaths);
+    const truncated = snapshot.files.filter((file) => file.truncated).length;
+    const status = snapshot.blocked.length > 0 ? 'attention' : snapshot.files.length > 0 ? 'ready' : 'needs-setup';
+    return {
+      status,
+      applied: snapshot.files.length,
+      blocked: snapshot.blocked.length,
+      truncated,
+      projectInitPath: snapshot.projectInitPath,
+      globalInitPath: snapshot.globalInitPath,
+      statusRoute: '/vibe status',
+      initProjectRoute: '/vibe init',
+      initGlobalRoute: '/vibe init --global',
+      next: snapshot.blocked.length > 0
+        ? 'Inspect blocked VIBE.md files before relying on custom personality.'
+        : snapshot.files.length > 0
+          ? 'VIBE.md personality is available for later main-conversation turns.'
+          : 'Create a VIBE.md only when the user wants a persistent assistant feel.',
+    };
+  } catch {
+    return {
+      status: 'unavailable',
+      applied: 0,
+      blocked: 0,
+      truncated: 0,
+      projectInitPath: null,
+      globalInitPath: null,
+      statusRoute: '/vibe status',
+      initProjectRoute: '/vibe init',
+      initGlobalRoute: '/vibe init --global',
+      next: 'VIBE.md discovery failed; use /vibe status for a focused diagnostic.',
+    };
+  }
+}
+
+function buildProjectContextSummary(context: CommandContext): AgentWorkspaceProjectContextSummary {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths) {
+    return {
+      status: 'unavailable',
+      loaded: 0,
+      blocked: 0,
+      truncated: 0,
+      supportedSources: WORKSPACE_PROJECT_CONTEXT_SOURCES,
+      targetAware: true,
+      catalogRoute: 'agent_harness mode:"project_context"',
+      inspectRoute: 'agent_harness mode:"project_context_file"',
+      next: 'Open a normal Agent workspace before relying on project context files.',
+    };
+  }
+  try {
+    const snapshot = discoverProjectContextFiles(shellPaths);
+    const truncated = snapshot.files.filter((file) => file.truncated).length;
+    const status = snapshot.blocked.length > 0 ? 'attention' : snapshot.files.length > 0 ? 'ready' : 'needs-setup';
+    return {
+      status,
+      loaded: snapshot.files.length,
+      blocked: snapshot.blocked.length,
+      truncated,
+      supportedSources: WORKSPACE_PROJECT_CONTEXT_SOURCES,
+      targetAware: true,
+      catalogRoute: 'agent_harness mode:"project_context"',
+      inspectRoute: 'agent_harness mode:"project_context_file"',
+      next: snapshot.blocked.length > 0
+        ? 'Inspect blocked context files before relying on project instructions.'
+        : snapshot.files.length > 0
+          ? 'Project context instructions are available; inspect target-specific files before nuanced work.'
+          : 'Add AGENTS.md or another supported context file when the project needs persistent instructions.',
+    };
+  } catch {
+    return {
+      status: 'unavailable',
+      loaded: 0,
+      blocked: 0,
+      truncated: 0,
+      supportedSources: WORKSPACE_PROJECT_CONTEXT_SOURCES,
+      targetAware: true,
+      catalogRoute: 'agent_harness mode:"project_context"',
+      inspectRoute: 'agent_harness mode:"project_context_file"',
+      next: 'Project context discovery failed; use project_context for a focused diagnostic.',
+    };
+  }
 }
 
 type WorkspaceProcessEntry = {
@@ -1851,6 +1957,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   );
   const researchBrowserRunnerContract = buildResearchBrowserRunnerContract(context);
   const researchVisualReportContract = buildResearchVisualReportContract(researchSourceSnapshot);
+  const vibe = buildVibeSummary(context);
+  const projectContext = buildProjectContextSummary(context);
   const processSupervision = buildProcessSupervisionSummary(context);
 
   return {
@@ -1922,6 +2030,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     researchRuns: researchRunSnapshot.items,
     researchBrowserRunnerContract,
     researchVisualReportContract,
+    vibe,
+    projectContext,
     processSupervision,
     recentReviewerHandoffArtifactCount: recentReviewerHandoffs.count,
     recentReviewerHandoffArtifacts: recentReviewerHandoffs.items,
