@@ -7652,14 +7652,14 @@ describe('agent_harness tool', () => {
         || entry.modelRoute.length > 72
       ))).toEqual([]);
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('device action:"open_browser"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('personal_ops action:"briefing"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('personal_ops action:"intake"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('agent_harness mode:"media_posture"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('agent_harness mode:"pairing_posture"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'browser-cockpit-readiness')?.modelRoute).toBe('agent_harness mode:"ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('device action:"voice"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('device action:"status"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'browser-cockpit-readiness')?.modelRoute).toBe('device action:"browser"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-route-readiness')?.modelRoute).toBe('agent_harness mode:"model_routing" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');

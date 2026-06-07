@@ -1277,8 +1277,10 @@ describe('spawn mode', () => {
     expect(payload.currentContract?.autonomy).toContain('User-directed operator agent');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Harness operation');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Personal operations');
+    expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Device, voice, and browser surfaces');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Documents and artifacts');
     expect(payload.commonRoutes?.personalOps).toContain('personal_ops action:"briefing"');
+    expect(payload.commonRoutes?.device).toContain('device action:"status"');
     expect(payload.commonRoutes?.documentOps).toContain('agent_harness mode:"document_ops"');
     expect(payload.commonRoutes?.researchWorkflow).toContain('research action:"plan"');
     expect(payload.commonRoutes?.webResearch).toContain('multi-step: research action:"plan"');

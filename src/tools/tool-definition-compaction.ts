@@ -8,6 +8,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   analyze: 'Analyze code impact, symbols, and project risk.',
   channel: 'Inspect or operate configured channel surfaces.',
   control: 'Inspect commands, panels, and runtime posture.',
+  device: 'Inspect/open device, voice, and browser routes.',
   edit: 'Edit files with exact, fuzzy, or regex replacements.',
   exec: 'Run shell commands with timeout and retry.',
   fetch: 'Fetch HTTP URLs with auth and sanitization.',

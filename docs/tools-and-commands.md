@@ -46,6 +46,7 @@ High-signal TUI routes:
 | `schedule` | List, create, edit, run, pause, resume, and delete connected schedules through existing confirmation gates. |
 | `setup` | Inspect first-run setup, show one setup row, inspect/save/clear checkpoints, repair token auth, run setup smoke, finish onboarding, and import GoodVibes settings through existing gates. |
 | `vibe` | Inspect VIBE.md status/show, create project/global VIBE.md, or import VIBE.md as an Agent-local persona through existing gates. |
+| `device` | Inspect device capability, browser/PWA, browser/desktop-control, voice/media, and provider posture; open browser cockpit or TTS pickers through confirmation-gated visible routes. |
 | `import_goodvibes_settings` | Preview or apply GoodVibes TUI settings import through the existing redacted import plan and confirmation gate. |
 | `agent_operator_action` | Run exact confirmed approval/automation/schedule actions. |
 | `agent_schedule_edit` | Edit one confirmed connected schedule by id. |
@@ -144,7 +145,7 @@ Registered model tool definitions are compact by default. Tool descriptions use 
 
 `panels` returns compact built-in panel rows with workspace route metadata and a short `modelRoute` for visible navigation or matching workspace operation. `panel` inspection adds policy detail and current open/focus state.
 
-`ui_surfaces` returns compact modal, picker, overlay, and workspace rows with a short `modelRoute`. `ui_surface` inspection and `includeParameters:true` add the longer `preferredModelRoute` and confirmation policy. The connected browser cockpit/PWA is `surfaceId:"connected-browser-cockpit"`; it resolves the configured connected-host web URL, opens only through confirmed `open_ui_surface`, returns service/web setup routes when disabled, and reports workspace category coverage, mobile/PWA controls, Agent onboarding marker status, and the currently unpublished browser/PWA first-run receipt contract.
+Use `device action:"browser"` for the connected browser cockpit/PWA readiness summary and `device action:"open_browser" confirm:true explicitUserRequest:"..."` for the visible browser handoff. `ui_surfaces` remains the lower-level modal, picker, overlay, and workspace catalog. `ui_surface` inspection and `includeParameters:true` add the longer `preferredModelRoute` and confirmation policy. The connected browser cockpit/PWA is `surfaceId:"connected-browser-cockpit"`; it resolves the configured connected-host web URL, opens only through confirmed `open_ui_surface`, returns service/web setup routes when disabled, and reports workspace category coverage, mobile/PWA controls, Agent onboarding marker status, and the currently unpublished browser/PWA first-run receipt contract.
 
 Execution routes:
 

@@ -56,6 +56,11 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'show' })).toBe('read');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'save' })).toBe('write');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
+    expect(manager.getCategory('device', { action: 'status' })).toBe('read');
+    expect(manager.getCategory('device', { action: 'browser' })).toBe('read');
+    expect(manager.getCategory('device', { action: 'control' })).toBe('read');
+    expect(manager.getCategory('device', { action: 'provider' })).toBe('read');
+    expect(manager.getCategory('device', { action: 'open_browser' })).toBe('write');
     expect(manager.getCategory('process', { action: 'list' })).toBe('read');
     expect(manager.getCategory('process', { action: 'log' })).toBe('read');
     expect(manager.getCategory('process', { action: 'kill' })).toBe('execute');
@@ -97,6 +102,9 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'list' })).toBe('read');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'save' })).toBe('write');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
+    expect(manager.getCategory('device')).toBe('read');
+    expect(manager.getCategory('device', { mode: 'pairing_route' })).toBe('read');
+    expect(manager.getCategory('device', { mode: 'open_tts_voice' })).toBe('write');
     expect(manager.getCategory('process', { action: 'poll' })).toBe('read');
     expect(manager.getCategory('process', { action: 'wait' })).toBe('execute');
     expect(manager.getCategory('personal_ops')).toBe('read');
@@ -133,6 +141,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('agent_review_packet_presets', { mode: 'show' })).resolves.toBe(true);
     await expect(manager.check('agent_review_packet_presets', { mode: 'save' })).resolves.toBe(false);
     await expect(manager.check('agent_review_packet_presets', { mode: 'refresh' })).resolves.toBe(false);
+    await expect(manager.check('device', { action: 'voice' })).resolves.toBe(true);
+    await expect(manager.check('device', { action: 'open_browser' })).resolves.toBe(false);
     await expect(manager.check('process', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('process', { action: 'kill' })).resolves.toBe(false);
     await expect(manager.check('personal_ops', { action: 'briefing' })).resolves.toBe(true);
@@ -161,6 +171,7 @@ describe('Agent tool permission safety guard', () => {
     expect(fallbackPermissionCategory('agent_review_packet_presets')).toBe('write');
     expect(fallbackPermissionCategory('agent_review_packet_share')).toBe('delegate');
     expect(fallbackPermissionCategory('agent_work_plan')).toBe('write');
+    expect(fallbackPermissionCategory('device')).toBe('read');
     expect(fallbackPermissionCategory('terminal')).toBe('execute');
     expect(fallbackPermissionCategory('process')).toBe('execute');
     expect(fallbackPermissionCategory('personal_ops')).toBe('read');
