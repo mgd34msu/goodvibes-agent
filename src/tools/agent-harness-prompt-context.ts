@@ -7,6 +7,7 @@ import { buildProjectContextPrompt, discoverProjectContextFiles } from '../agent
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, buildEnabledSkillsPrompt, evaluateAgentSkillBundleReadiness, evaluateAgentSkillReadiness } from '../agent/skill-registry.ts';
 import { buildVibePrompt, discoverVibeFiles } from '../agent/vibe-file.ts';
+import type { PromptContextReceipt } from '../agent/prompt-context-receipts.ts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -38,6 +39,29 @@ interface PromptModelInfo {
   readonly model: unknown;
   readonly label: string;
   readonly contextWindow: number;
+}
+
+interface CompactPromptContextReceipt {
+  readonly receiptId: string;
+  readonly turnId: string | null;
+  readonly source: string;
+  readonly createdAt: number;
+  readonly provider: string;
+  readonly model: string;
+  readonly contextWindow: number;
+  readonly promptHash?: string;
+  readonly promptChars?: number;
+  readonly approxPromptTokens?: number;
+  readonly activeRecords?: number;
+  readonly suppressedRecords?: number;
+  readonly segments?: readonly {
+    readonly id: string;
+    readonly status: string;
+    readonly activeCount: number;
+    readonly suppressedCount: number;
+    readonly promptChars: number;
+    readonly approxTokens: number;
+  }[];
 }
 
 function approxTokens(text: string): number {
@@ -184,6 +208,62 @@ function promptStatus(active: number, suppressed: number): PromptContextSegmentS
   if (suppressed > 0) return 'attention';
   if (active > 0) return 'active';
   return 'empty';
+}
+
+function compactPromptContextReceipt(
+  receipt: PromptContextReceipt,
+  includeParameters: boolean,
+): CompactPromptContextReceipt {
+  return {
+    receiptId: receipt.receiptId,
+    turnId: receipt.turnId,
+    source: receipt.source,
+    createdAt: receipt.createdAt,
+    provider: receipt.provider,
+    model: receipt.model,
+    contextWindow: receipt.contextWindow,
+    ...(includeParameters ? {
+      promptHash: receipt.promptHash,
+      promptChars: receipt.promptChars,
+      approxPromptTokens: receipt.approxPromptTokens,
+      activeRecords: receipt.activeRecords,
+      suppressedRecords: receipt.suppressedRecords,
+      segments: receipt.segments.map((segment) => ({
+        id: segment.id,
+        status: segment.status,
+        activeCount: segment.activeCount,
+        suppressedCount: segment.suppressedCount,
+        promptChars: segment.promptChars,
+        approxTokens: segment.approxTokens,
+      })),
+    } : {}),
+  };
+}
+
+function promptContextReceiptSummary(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
+  const store = context.clients?.promptContextReceipts;
+  if (!store) {
+    return {
+      status: 'unavailable',
+      count: 0,
+      latestReceiptId: null,
+      latestTurnId: null,
+      latestCreatedAt: null,
+      note: 'Prompt-context receipt storage is unavailable in this runtime.',
+    };
+  }
+  const latest = store.latest();
+  const recent = store.list(includeParameters ? 5 : 3);
+  return {
+    status: latest ? 'ready' : 'empty',
+    count: store.count(),
+    latestReceiptId: latest?.receiptId ?? null,
+    latestTurnId: latest?.turnId ?? null,
+    latestCreatedAt: latest?.createdAt ?? null,
+    inspectRoute: 'agent_harness mode:"prompt_context" includeParameters:true',
+    recent: recent.map((receipt) => compactPromptContextReceipt(receipt, includeParameters)),
+    ...(includeParameters ? { latest: latest ? compactPromptContextReceipt(latest, true) : null } : {}),
+  };
 }
 
 function promptContextSegments(context: CommandContext, includeParameters: boolean): readonly PromptContextSegment[] {
@@ -392,6 +472,7 @@ export function promptContextSummary(context: CommandContext, args: PromptContex
       contextWindow,
       percentOfWindow: contextWindow > 0 ? Math.round((approxPromptTokens / contextWindow) * 1000) / 10 : null,
     },
+    receipts: promptContextReceiptSummary(context, includeParameters),
     segments,
     routes: {
       promptPlan: 'agent_harness mode:"learning_curator" includeParameters:true',
@@ -406,12 +487,16 @@ export function promptContextSummary(context: CommandContext, args: PromptContex
 
 export function promptContextCatalogStatus(context: CommandContext): Record<string, unknown> {
   const summary = promptContextSummary(context, {});
+  const receipts = context.clients?.promptContextReceipts;
+  const latestReceipt = receipts?.latest() ?? null;
   return {
     modes: ['prompt_context'],
     status: summary.status,
     activeRecords: summary.activeRecords,
     suppressedRecords: summary.suppressedRecords,
     approxPromptTokens: summary.approxPromptTokens,
+    receiptCount: receipts?.count() ?? 0,
+    latestReceiptId: latestReceipt?.receiptId ?? null,
     modelRoute: 'agent_harness mode:"prompt_context" includeParameters:true',
   };
 }

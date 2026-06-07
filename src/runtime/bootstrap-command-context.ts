@@ -10,6 +10,7 @@ import type { OpsApi } from '@/runtime/index.ts';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { CommandContext } from '../input/command-registry.ts';
+import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
 import type { KeybindingsManager } from '../input/keybindings.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
@@ -110,6 +111,7 @@ export type CreateBootstrapCommandContextOptions = {
   operatorClient?: OperatorClient;
   peerClient?: PeerClient;
   agentKnowledgeApi?: KnowledgeApi;
+  promptContextReceipts?: AgentPromptContextReceiptStore;
   hookApi?: HookApi;
   mcpApi?: McpApi;
   opsApi?: OpsApi;
@@ -185,6 +187,7 @@ export function createBootstrapCommandContext(
     operatorClient,
     peerClient,
     agentKnowledgeApi,
+    promptContextReceipts,
     hookApi,
     mcpApi,
     opsApi,
@@ -261,6 +264,7 @@ export function createBootstrapCommandContext(
     operatorClient,
     peerClient,
     agentKnowledgeApi,
+    promptContextReceipts,
     providerApi,
     hookApi,
     mcpApi,

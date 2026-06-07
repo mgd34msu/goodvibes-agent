@@ -10,7 +10,6 @@
  *   - lifecycle.ts: save/shutdown helpers
  */
 import { Orchestrator, type OrchestratorUserInputOptions } from '../core/orchestrator.ts';
-import { getTierPromptSupplement, getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { CommandContext } from '../input/command-registry.ts';
@@ -30,7 +29,7 @@ import {
 } from '@/runtime/index.ts';
 import { scheduleBackgroundMcpDiscovery, startBackgroundProviderRegistration } from '@/runtime/index.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
-import type { ExternalServicesHandle, HostServiceStatus } from '@/runtime/index.ts';
+import type { ExternalServicesHandle, HostServiceStatus, TurnEvent } from '@/runtime/index.ts';
 import type { UiRuntimeServices } from './ui-services.ts';
 import { createDeferredStartupCoordinator } from '@/runtime/index.ts';
 import { initializeBootstrapCore } from './bootstrap-core.ts';
@@ -38,12 +37,7 @@ import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import { buildVibePrompt } from '../agent/vibe-file.ts';
-import { buildProjectContextPrompt } from '../agent/project-context-files.ts';
-import { buildActivePersonaPrompt } from '../agent/persona-registry.ts';
-import { buildEnabledSkillsPrompt } from '../agent/skill-registry.ts';
-import { buildEnabledRoutinesPrompt } from '../agent/routine-registry.ts';
-import { buildReviewedMemoryPrompt } from '../agent/memory-prompt.ts';
+import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { registerAgentHarnessTool } from '../tools/agent-harness-tool.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
 
@@ -62,10 +56,6 @@ const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '- Do not delegate planning, research, operations, knowledge, memory, configuration, approvals, observability, or ordinary assistant work when an Agent-owned route can satisfy the user directly.',
   '- For explicit build, implement, fix, patch, or review requests, choose the route that best serves the user: use available local read/edit/exec tools when the current Agent workspace and permissions are sufficient; use public shared-session/build-delegation for isolation, remote execution, parallelism, or connected coding workflows. Preserve the full original ask when delegating.',
 ].join('\n');
-
-function joinPromptParts(...parts: Array<string | null | undefined>): string {
-  return parts.map((part) => part?.trim()).filter((part): part is string => Boolean(part)).join('\n\n');
-}
 
 // ── Bootstrap context type ──────────────────────────────────────────────────
 
@@ -182,6 +172,24 @@ export async function bootstrapRuntime(
     runtimeSessionIdRef,
   } = await initializeBootstrapCore(stdout, options, (limit) => controlPlaneRecentEventsRef.value(limit));
   const providerRegistry = services.providerRegistry;
+  const promptContextReceipts = new AgentPromptContextReceiptStore(
+    services.shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'prompt-context-receipts.jsonl'),
+  );
+  let activePromptTurnId: string | null = null;
+  runtimeUnsubs.push(
+    runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
+      activePromptTurnId = event.payload.turnId;
+    }),
+    runtimeBus.on<Extract<TurnEvent, { type: 'TURN_COMPLETED' }>>('TURN_COMPLETED', (event) => {
+      if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
+    }),
+    runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
+      if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
+    }),
+    runtimeBus.on<Extract<TurnEvent, { type: 'TURN_CANCEL' }>>('TURN_CANCEL', (event) => {
+      if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
+    }),
+  );
   const {
     automationManager,
     hookDispatcher,
@@ -208,19 +216,20 @@ export async function bootstrapRuntime(
     getSystemPrompt: () => {
       const currentModel = providerRegistry.getCurrentModel();
       const contextWindow = providerRegistry.getContextWindowForModel(currentModel);
-      const tier = getTierForContextWindow(contextWindow);
-      const supplement = getTierPromptSupplement(tier);
-      return joinPromptParts(
-        runtime.systemPrompt,
-        buildVibePrompt(services.shellPaths),
-        buildProjectContextPrompt(services.shellPaths),
-        GOODVIBES_AGENT_OPERATOR_POLICY,
-        buildReviewedMemoryPrompt(services.memoryRegistry),
-        buildEnabledRoutinesPrompt(services.shellPaths),
-        buildEnabledSkillsPrompt(services.shellPaths),
-        buildActivePersonaPrompt(services.shellPaths),
-        supplement,
-      );
+      const composed = composeRuntimePromptWithReceipt({
+        sessionId: runtime.sessionId,
+        turnId: activePromptTurnId,
+        source: activePromptTurnId ? 'turn' : 'follow_up',
+        provider: runtime.provider,
+        model: currentModel,
+        contextWindow,
+        runtimePrompt: runtime.systemPrompt,
+        operatorPolicy: GOODVIBES_AGENT_OPERATOR_POLICY,
+        shellPaths: services.shellPaths,
+        memoryRegistry: services.memoryRegistry,
+      });
+      promptContextReceipts.record(composed.receipt);
+      return composed.prompt;
     },
     hookDispatcher,
     flagManager: services.featureFlags,
@@ -272,6 +281,7 @@ export async function bootstrapRuntime(
     writeLastSessionPointer,
     getControlPlaneRecentEvents: (limit) => controlPlaneRecentEventsRef.value(limit),
     toolRegistry,
+    promptContextReceipts,
     forensicsRegistry,
     policyRuntimeState: services.policyRuntimeState,
     uiServices,

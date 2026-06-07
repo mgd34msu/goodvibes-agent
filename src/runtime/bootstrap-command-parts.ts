@@ -3,6 +3,7 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { AdaptivePlanner } from '@pellux/goodvibes-sdk/platform/core';
 import type { ConversationManager } from '../core/conversation';
 import type { KnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
+import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
 import type { HookApi } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { McpApi } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { PanelManager } from '../panels/panel-manager.ts';
@@ -127,6 +128,7 @@ export interface BootstrapCommandSectionOptions {
   readonly peerClient?: PeerClient;
   readonly providerApi?: ProviderApi;
   readonly agentKnowledgeApi?: KnowledgeApi;
+  readonly promptContextReceipts?: AgentPromptContextReceiptStore;
   readonly hookApi?: HookApi;
   readonly mcpApi?: McpApi;
   readonly opsApi?: OpsApi;
@@ -360,7 +362,7 @@ export function createBootstrapCommandExtensionsSection(
 export function createBootstrapCommandClientsSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'operatorClient' | 'peerClient' | 'providerApi' | 'agentKnowledgeApi' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport'
+    'operatorClient' | 'peerClient' | 'providerApi' | 'agentKnowledgeApi' | 'promptContextReceipts' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport'
   >,
 ): BootstrapCommandClientSection {
   return {
@@ -368,6 +370,7 @@ export function createBootstrapCommandClientsSection(
     peer: options.peerClient,
     providerApi: options.providerApi,
     agentKnowledgeApi: options.agentKnowledgeApi,
+    promptContextReceipts: options.promptContextReceipts,
     hookApi: options.hookApi,
     mcpApi: options.mcpApi,
     opsApi: options.opsApi,

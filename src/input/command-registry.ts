@@ -18,6 +18,7 @@ import type { OpsApi } from '@/runtime/index.ts';
 import type { OperatorClient } from '@/runtime/index.ts';
 import type { PeerClient } from '@/runtime/index.ts';
 import type { DirectTransport } from '@/runtime/index.ts';
+import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
@@ -220,6 +221,7 @@ export interface CommandContext
     readonly peer?: PeerClient;
     readonly providerApi?: ProviderApi;
     readonly agentKnowledgeApi?: KnowledgeApi;
+    readonly promptContextReceipts?: AgentPromptContextReceiptStore;
     readonly hookApi?: HookApi;
     readonly mcpApi?: McpApi;
     readonly opsApi?: OpsApi;

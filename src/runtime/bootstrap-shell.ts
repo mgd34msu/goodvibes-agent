@@ -7,6 +7,7 @@ import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { RuntimeStore } from './store/index.ts';
 import type { RuntimeServices } from './services.ts';
 import type { CommandContext } from '../input/command-registry.ts';
+import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
 import type { OpsControlPlane } from '@/runtime/index.ts';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
@@ -54,6 +55,7 @@ export interface BootstrapShellOptions {
   readonly writeLastSessionPointer: (sessionId: string) => void;
   readonly getControlPlaneRecentEvents: (limit: number) => readonly ControlPlaneRecentEvent[];
   readonly toolRegistry: ToolRegistry;
+  readonly promptContextReceipts?: AgentPromptContextReceiptStore;
   readonly forensicsRegistry: ForensicsRegistry;
   readonly policyRuntimeState: PolicyRuntimeState;
   readonly uiServices: UiRuntimeServices;
@@ -114,6 +116,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     writeLastSessionPointer,
     getControlPlaneRecentEvents,
     toolRegistry,
+    promptContextReceipts,
     forensicsRegistry,
     policyRuntimeState,
     uiServices,
@@ -279,6 +282,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     operatorClient: directTransport.operator,
     peerClient: directTransport.peer,
     agentKnowledgeApi,
+    promptContextReceipts,
     hookApi,
     mcpApi,
     opsApi,

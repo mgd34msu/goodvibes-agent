@@ -36,6 +36,7 @@ import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { recordAgentChannelDeliveryReceipt } from '../../agent/channel-delivery-receipts.ts';
 import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentPromptContextReceiptStore } from '../../agent/prompt-context-receipts.ts';
 import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
@@ -1810,12 +1811,40 @@ describe('agent_harness tool', () => {
         source: 'agent',
       });
 
+      const promptContextReceipts = new AgentPromptContextReceiptStore();
+      const storedReceipt = promptContextReceipts.record({
+        sessionId: 'session-alpha',
+        turnId: 'turn-prompt-context',
+        source: 'turn',
+        provider: 'openai',
+        model: 'gpt-4.1',
+        contextWindow: 128_000,
+        promptHash: 'b'.repeat(64),
+        promptChars: 2048,
+        approxPromptTokens: 512,
+        activeRecords: 7,
+        suppressedRecords: 2,
+        segments: [{
+          id: 'memory',
+          label: 'Reviewed memory',
+          order: 5,
+          status: 'attention',
+          activeCount: 1,
+          suppressedCount: 2,
+          promptChars: 512,
+          approxTokens: 128,
+        }],
+      });
+      (fixture.context.clients as Record<string, unknown>).promptContextReceipts = promptContextReceipts;
+
       const summary = await executeHarnessJson<{
         readonly promptContext?: {
           readonly status: string;
           readonly activeRecords: number;
           readonly suppressedRecords: number;
           readonly approxPromptTokens: number;
+          readonly latestReceiptId?: string | null;
+          readonly receiptCount?: number;
           readonly modelRoute: string;
         };
       }>(fixture, { mode: 'summary' });
@@ -1823,6 +1852,8 @@ describe('agent_harness tool', () => {
       expect(summary.promptContext?.activeRecords).toBeGreaterThan(4);
       expect(summary.promptContext?.suppressedRecords).toBeGreaterThan(1);
       expect(summary.promptContext?.approxPromptTokens).toBeGreaterThan(0);
+      expect(summary.promptContext?.receiptCount).toBe(1);
+      expect(summary.promptContext?.latestReceiptId).toBe(storedReceipt.receiptId);
       expect(summary.promptContext?.modelRoute).toContain('prompt_context');
 
       const promptContext = await executeHarnessJson<{
@@ -1832,6 +1863,17 @@ describe('agent_harness tool', () => {
         readonly suppressedRecords: number;
         readonly approxPromptTokens: number;
         readonly budget: { readonly approxPromptTokens: number; readonly percentOfWindow: number | null };
+        readonly receipts: {
+          readonly status: string;
+          readonly count: number;
+          readonly latestReceiptId: string | null;
+          readonly latestTurnId: string | null;
+          readonly latest?: {
+            readonly receiptId: string;
+            readonly promptHash?: string;
+            readonly segments?: readonly { readonly id: string; readonly status: string }[];
+          } | null;
+        };
         readonly segments: readonly {
           readonly id: string;
           readonly status: string;
@@ -1852,6 +1894,12 @@ describe('agent_harness tool', () => {
       expect(promptContext.suppressedRecords).toBe(summary.promptContext?.suppressedRecords);
       expect(promptContext.approxPromptTokens).toBe(promptContext.budget.approxPromptTokens);
       expect(promptContext.budget.percentOfWindow).not.toBeNull();
+      expect(promptContext.receipts.status).toBe('ready');
+      expect(promptContext.receipts.count).toBe(1);
+      expect(promptContext.receipts.latestReceiptId).toBe(storedReceipt.receiptId);
+      expect(promptContext.receipts.latestTurnId).toBe('turn-prompt-context');
+      expect(promptContext.receipts.latest?.promptHash).toBe('b'.repeat(64));
+      expect(promptContext.receipts.latest?.segments?.some((segment) => segment.id === 'memory' && segment.status === 'attention')).toBe(true);
 
       const memory = promptContext.segments.find((segment) => segment.id === 'memory');
       expect(memory?.selected?.some((record) => record.id === 'mem-briefing')).toBe(true);
