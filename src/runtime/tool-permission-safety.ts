@@ -20,6 +20,7 @@ const READ_TOOL_NAMES = new Set([
   'goodvibes_context',
   'autonomy',
   'channels',
+  'computer',
   'context',
   'delegation',
   'device',
@@ -65,6 +66,7 @@ const READ_ONLY_PERSONAL_OPS_ACTIONS = new Set(['', 'briefing', 'brief', 'daily'
 const READ_ONLY_RESEARCH_ACTIONS = new Set(['', 'plan', 'workflow', 'research', 'runs', 'list_runs', 'run_list', 'run', 'show_run', 'inspect_run', 'sources', 'queue', 'source_queue', 'source', 'show_source', 'inspect_source', 'bundle', 'bundle_sources', 'source_bundle']);
 const READ_ONLY_CHANNELS_ACTIONS = new Set(['', 'status', 'summary', 'list', 'readiness', 'channels', 'channel', 'show', 'inspect', 'setup', 'guide', 'setup_guide', 'channel_setup_guide', 'triage', 'inbox', 'blockers', 'retries', 'channel_triage', 'deliveries', 'delivery', 'receipts', 'history', 'channel_deliveries']);
 const READ_ONLY_MEMORY_ACTIONS = new Set(['', 'status', 'summary', 'posture', 'memory_posture', 'recall', 'providers', 'provider', 'memory_provider', 'embedding', 'external', 'external_provider', 'curator', 'learning', 'learning_curator', 'queue', 'review_queue', 'plan', 'candidate', 'learning_candidate', 'card', 'inspect_candidate', 'list', 'records', 'memories', 'search', 'find', 'lookup', 'get', 'show', 'inspect', 'read']);
+const READ_ONLY_COMPUTER_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'computer', 'computer_use', 'control', 'route', 'browser_control', 'desktop', 'desktop_control', 'screenshot', 'screen', 'screen_recording', 'observe', 'browser', 'pwa', 'cockpit', 'browser_cockpit', 'web', 'setup', 'configure', 'browser_desktop_control', 'mcp', 'tools', 'servers', 'mcp_servers']);
 const READ_ONLY_DEVICE_ACTIONS = new Set(['', 'status', 'map', 'capabilities', 'device', 'devices', 'mobile', 'phone', 'pairing', 'capability', 'route', 'pairing_route', 'show', 'inspect', 'browser', 'pwa', 'cockpit', 'browser_cockpit', 'web', 'control', 'browser_control', 'desktop', 'desktop_control', 'computer_use', 'voice', 'media', 'voice_media', 'workflows', 'provider', 'media_provider', 'voice_provider']);
 const READ_ONLY_MODELS_ACTIONS = new Set(['', 'status', 'routing', 'routes', 'models', 'model', 'readiness', 'route_readiness', 'route', 'model_route', 'inspect', 'show', 'candidate', 'endpoint', 'local', 'cookbook', 'local_cookbook', 'recipes', 'recipe', 'ollama', 'llama_cpp', 'llamacpp', 'vllm', 'local_servers', 'providers', 'provider_accounts', 'accounts', 'subscriptions', 'auth', 'logins', 'provider', 'provider_account', 'account', 'subscription', 'auth_status']);
 const READ_ONLY_WORKSPACE_ACTIONS = new Set(['', 'status', 'summary', 'home', 'workspace', 'categories', 'workspace_categories', 'actions', 'list_actions', 'workspace_actions', 'tasks', 'action', 'show', 'inspect', 'workspace_action', 'surfaces', 'ui_surfaces', 'screens', 'views', 'surface', 'ui_surface', 'screen', 'view', 'panels', 'panes', 'panel', 'pane', 'shortcuts', 'shortcut_help', 'help', 'keybindings', 'bindings', 'keys', 'keybinding', 'binding', 'key', 'commands', 'slash_commands', 'command_catalog', 'command', 'slash_command', 'inspect_command', 'cli_commands', 'cli_catalog', 'cli_command', 'inspect_cli_command']);
@@ -214,6 +216,14 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_MEMORY_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'computer') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase().replace(/-/g, '_')
+        : '';
+    return READ_ONLY_COMPUTER_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'device') {
     const action = typeof args.action === 'string'

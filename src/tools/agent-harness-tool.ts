@@ -197,7 +197,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
   return {
     cliCommands: 'Prefer workspace action:"cli_commands|cli_command" for CLI discovery. Lower-level cli command modes remain available.',
     panels: 'Prefer workspace action:"panels|panel|open_panel"; visible navigation needs confirm:true and explicitUserRequest.',
-    uiSurfaces: 'Prefer workspace action:"surfaces|surface|open" for visible UI and device action:"browser|open_browser" for browser/PWA. Lower-level UI modes remain available.',
+    uiSurfaces: 'Prefer workspace action:"surfaces|surface|open" for visible UI and computer action:"browser|open_browser" for browser/PWA. Lower-level UI modes remain available.',
     shortcuts: 'Prefer workspace action:"shortcuts|keybindings|keybinding|run_keybinding|set_keybinding|reset_keybinding"; effects need confirmation.',
     slashCommands: 'Prefer workspace action:"commands|command|run_command"; slash-command execution needs confirmation.',
     channels: 'Prefer channels action:"status|channel|setup|triage|deliveries"; deliver with agent_channel_send and confirmation. Lower-level channel harness modes remain available for detail.',

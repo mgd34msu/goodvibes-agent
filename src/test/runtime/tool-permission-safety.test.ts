@@ -68,6 +68,12 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('execution', { action: 'run' })).toBe('write');
     expect(manager.getCategory('channels', { action: 'triage' })).toBe('read');
     expect(manager.getCategory('channels', { action: 'deliveries' })).toBe('read');
+    expect(manager.getCategory('computer', { action: 'status' })).toBe('read');
+    expect(manager.getCategory('computer', { action: 'control' })).toBe('read');
+    expect(manager.getCategory('computer', { action: 'browser' })).toBe('read');
+    expect(manager.getCategory('computer', { action: 'setup' })).toBe('read');
+    expect(manager.getCategory('computer', { action: 'mcp' })).toBe('read');
+    expect(manager.getCategory('computer', { action: 'open_browser' })).toBe('write');
     expect(manager.getCategory('context', { action: 'files' })).toBe('read');
     expect(manager.getCategory('context', { action: 'receipt' })).toBe('read');
     expect(manager.getCategory('device', { action: 'status' })).toBe('read');
@@ -220,6 +226,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('execution', { action: 'process' })).resolves.toBe(true);
     await expect(manager.check('execution', { action: 'run' })).resolves.toBe(false);
     await expect(manager.check('channels', { action: 'setup' })).resolves.toBe(true);
+    await expect(manager.check('computer', { action: 'browser' })).resolves.toBe(true);
+    await expect(manager.check('computer', { action: 'open_browser' })).resolves.toBe(false);
     await expect(manager.check('context', { action: 'prompt' })).resolves.toBe(true);
     await expect(manager.check('device', { action: 'voice' })).resolves.toBe(true);
     await expect(manager.check('device', { action: 'open_browser' })).resolves.toBe(false);

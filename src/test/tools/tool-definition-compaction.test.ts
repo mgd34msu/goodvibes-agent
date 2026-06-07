@@ -42,6 +42,7 @@ describe('compactRegisteredToolDefinitions', () => {
     registry.register(makeTool('goodvibes_context', 'Verbose runtime context description that should never reach the model catalog.'));
     registry.register(makeTool('autonomy', 'Verbose autonomy route description that should never reach the model catalog.'));
     registry.register(makeTool('channels', 'Verbose channel route description that should never reach the model catalog.'));
+    registry.register(makeTool('computer', 'Verbose computer route description that should never reach the model catalog.'));
     registry.register(makeTool('context', 'Verbose context route description that should never reach the model catalog.'));
     registry.register(makeTool('delegation', 'Verbose delegation route description that should never reach the model catalog.'));
     registry.register(makeTool('device', 'Verbose device and browser route description that should never reach the model catalog.'));
@@ -65,6 +66,7 @@ describe('compactRegisteredToolDefinitions', () => {
     expect(descriptions.get('goodvibes_context')).toBe('Inspect current GoodVibes runtime and host harness.');
     expect(descriptions.get('autonomy')).toBe('Route ongoing work and inspect visible autonomy.');
     expect(descriptions.get('channels')).toBe('Inspect channel readiness, setup, triage, and receipts.');
+    expect(descriptions.get('computer')).toBe('Inspect/open browser, desktop, and computer routes.');
     expect(descriptions.get('context')).toBe('Inspect project instructions and prompt context.');
     expect(descriptions.get('delegation')).toBe('Inspect build delegation routes and policy.');
     expect(descriptions.get('device')).toBe('Inspect/open device, voice, and browser routes.');

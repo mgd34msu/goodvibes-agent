@@ -193,7 +193,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'account-local-server-health') return 'models action:"smoke" confirm:true';
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'account-local-benchmark-evidence') return 'models action:"local" includeParameters:true';
-  if (action.id === 'assistant-browser-cockpit') return 'device action:"open_browser"';
+  if (action.id === 'assistant-browser-cockpit') return 'computer action:"open_browser"';
   if (action.id === 'research-workflow-plan') return 'research action:"plan"';
   if (action.id === 'research-run-queue') return 'research action:"runs"';
   if (action.id === 'research-source-queue') return 'research action:"sources"';
@@ -204,7 +204,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'context-prompt-context') return 'context action:"prompt" includeParameters:true';
   if (action.id === 'voice-workflow-posture') return 'device action:"voice"';
   if (action.id === 'device-capability-map') return 'device action:"status"';
-  if (action.id === 'browser-cockpit-readiness') return 'device action:"browser"';
+  if (action.id === 'browser-cockpit-readiness') return 'computer action:"browser"';
   if (action.id === 'personal-ops-briefing') return 'personal_ops action:"briefing"';
   if (action.id === 'personal-ops-intake') return 'personal_ops action:"intake"';
   if (

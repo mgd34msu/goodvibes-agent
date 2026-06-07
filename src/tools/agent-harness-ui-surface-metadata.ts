@@ -937,7 +937,7 @@ function surfaceCandidate(surface: UiSurfaceDefinition): Record<string, unknown>
 function uiSurfaceModelRoute(surface: UiSurfaceDefinition): string {
   switch (surface.id) {
     case 'connected-browser-cockpit':
-      return 'device action:"browser|open_browser" or workspace action:"open"';
+      return 'computer action:"browser|open_browser" or workspace action:"open"';
     case 'agent-workspace':
     case 'panel-picker':
     case 'security-panel':

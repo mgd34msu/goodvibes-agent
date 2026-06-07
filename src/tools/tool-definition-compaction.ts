@@ -9,6 +9,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   autonomy: 'Route ongoing work and inspect visible autonomy.',
   channel: 'Inspect or operate configured channel surfaces.',
   channels: 'Inspect channel readiness, setup, triage, and receipts.',
+  computer: 'Inspect/open browser, desktop, and computer routes.',
   context: 'Inspect project instructions and prompt context.',
   delegation: 'Inspect build delegation routes and policy.',
   control: 'Inspect commands, panels, and runtime posture.',
