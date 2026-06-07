@@ -1613,7 +1613,7 @@ function setupChecklistModelRoute(item: AgentWorkspaceSetupChecklistItem): strin
   if (item.id === 'persona') return 'agent_harness mode:"workspace" target:"personas"';
   if (item.id === 'skills') return 'agent_harness mode:"workspace" target:"skills"';
   if (item.id === 'routines') return 'agent_harness mode:"workspace" target:"routines"';
-  if (item.id === 'memory') return 'agent_harness mode:"memory_posture"';
+  if (item.id === 'memory') return 'memory action:"status"';
   if (item.id === 'notes') return 'personal_ops action:"lane" laneId:"notes"';
   if (item.id === 'channels') return 'channels action:"status"';
   if (item.id === 'voice-media') return 'device action:"voice"';

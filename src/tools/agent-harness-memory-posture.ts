@@ -132,7 +132,7 @@ function describeEmbeddingProvider(
     kind: 'embedding',
     status: provider.state,
     summary: previewHarnessText(provider.detail ?? `${provider.configured ? 'configured' : 'not configured'} memory embedding provider`, includeParameters ? 180 : 96),
-    modelRoute: `agent_harness mode:"memory_provider" providerId:"${provider.id}"`,
+    modelRoute: `memory action:"provider" providerId:"${provider.id}"`,
     setupRoute: `settings action:"set" key:"provider.embeddingProvider" value:"${provider.id}" confirm:true explicitUserRequest:"..."`,
     configured: provider.configured,
     active: provider.id === activeProviderId,
@@ -149,7 +149,7 @@ function externalProviderSetupGuide(provider: typeof EXTERNAL_MEMORY_PROVIDERS[n
     currentState: `No concrete ${provider.label} provider record is published by the current SDK/daemon contract.`,
     safeFirstStep: `Inspect connected-host and MCP setup for ${provider.label}; keep Agent-local memory as the active path until a ready provider record exists.`,
     inspectRoutes: [
-      `agent_harness mode:"memory_provider" providerId:"${provider.id}" includeParameters:true`,
+      `memory action:"provider" providerId:"${provider.id}" includeParameters:true`,
       `host action:"capability" query:"${provider.id} memory provider"`,
       `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
       'settings action:"list" query:"memory" includeHidden:true',
@@ -171,7 +171,7 @@ function describeExternalProvider(
     kind: 'external-memory',
     status,
     summary: previewHarnessText('External memory backend records are not published by the current GoodVibes SDK/daemon contract.', includeParameters ? 180 : 96),
-    modelRoute: `agent_harness mode:"memory_provider" providerId:"${provider.id}"`,
+    modelRoute: `memory action:"provider" providerId:"${provider.id}"`,
     setupRoute: 'host action:"capability" query:"memory provider"',
     configured: false,
     ...(includeParameters ? { setupGuide: externalProviderSetupGuide(provider) } : {}),
@@ -252,7 +252,7 @@ function nextActions(
   if (snapshot.localMemoryReviewQueueCount > 0) actions.push('Use learning_curator or memory review routes to clear the memory review queue.');
   if (vectorStatusValue === 'attention') actions.push('Run memory vector doctor, then rebuild the vector index if the reported issue is fixed.');
   if (doctor?.embeddings.warnings.length) actions.push('Inspect the active embedding provider warning before semantic recall or rebuild work.');
-  actions.push('Inspect memory_provider for one external backend to see the exact setup contracts GoodVibes must publish before use.');
+  actions.push('Inspect memory action:"provider" for one external backend to see the exact setup contracts GoodVibes must publish before use.');
   return actions.slice(0, 6);
 }
 
@@ -261,7 +261,7 @@ function compactVector(vector: MemoryVectorStats | null): Record<string, unknown
     return {
       status: 'unavailable',
       summary: 'Memory vector stats are not exposed in this runtime.',
-      modelRoute: 'agent_harness mode:"memory_posture"',
+      modelRoute: 'memory action:"status"',
     };
   }
   return {
@@ -288,6 +288,7 @@ export async function memoryPostureCatalogStatus(context: CommandContext): Promi
   const vectorState = vectorStatus(vector);
   return {
     modes: ['memory_posture', 'memory_provider'],
+    modelRoute: 'memory action:"status"',
     status,
     localMemories: snapshot.localMemoryCount,
     reviewQueue: snapshot.localMemoryReviewQueueCount,
@@ -321,11 +322,11 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
       sessionMemory: snapshot.sessionMemoryCount,
       policy: 'Only reviewed, high-confidence Agent-local memories are prompt-active. Fresh/stale/setup-blocked behavior stays visible for review.',
       routes: {
-        list: 'agent_harness mode:"workspace_action" actionId:"memory-list"',
-        search: 'agent_harness mode:"workspace_action" actionId:"memory-search"',
-        reviewQueue: 'agent_harness mode:"workspace_action" actionId:"memory-queue"',
-        create: 'agent_harness mode:"run_workspace_action" actionId:"memory-create" confirm:true explicitUserRequest:"..."',
-        curator: 'agent_harness mode:"learning_curator"',
+        list: 'memory action:"list"',
+        search: 'memory action:"search" query:"..."',
+        reviewQueue: 'memory action:"curator" query:"memory review"',
+        create: 'memory action:"create" summary:"..." explicitUserRequest:"..."',
+        curator: 'memory action:"curator"',
       },
     },
     vector: compactVector(vector),
@@ -346,13 +347,13 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
       requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
       next: 'Use Agent-local memory now. Inspect one external provider for the required setup/status/read/write/receipt contracts GoodVibes must publish before use.',
       inspectRoute: 'host action:"capability" query:"memory provider"',
-      providerLookup: 'agent_harness mode:"memory_provider" providerId:"<id>" includeParameters:true',
+      providerLookup: 'memory action:"provider" providerId:"<id>" includeParameters:true',
     },
     nextActions: nextActions(snapshot, status, vectorState, doctor),
     policy: 'Memory posture is read-only. Memory edits, vector rebuilds, and embedding-provider changes stay on existing confirmed Agent-local routes.',
     ...(includeParameters ? {
       checkedAt: doctor?.checkedAt ?? null,
-      providerLookup: 'agent_harness mode:"memory_provider" providerId:"<id>"',
+      providerLookup: 'memory action:"provider" providerId:"<id>"',
     } : {}),
   };
 }
@@ -362,7 +363,7 @@ export async function describeMemoryProvider(context: CommandContext, args: Agen
   if (!input) {
     return {
       status: 'missing_lookup',
-      usage: 'memory_provider requires providerId, target, or query. Use mode:"memory_posture" to inspect available provider ids.',
+      usage: 'memory action:"provider" requires providerId, target, or query. Use memory action:"status" to inspect available provider ids.',
     };
   }
   const includeParameters = args.includeParameters !== false;
@@ -389,6 +390,6 @@ export async function describeMemoryProvider(context: CommandContext, args: Agen
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown memory provider ${input}. Use mode:"memory_posture" to inspect available provider ids.`,
+    usage: `Unknown memory provider ${input}. Use memory action:"status" to inspect available provider ids.`,
   };
 }

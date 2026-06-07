@@ -211,7 +211,7 @@ function memorySegment(memory: PromptMemoryApi | undefined, includeParameters: b
       activeCount: 0,
       suppressedCount: 0,
       promptChars: 0,
-      route: 'agent_harness mode:"memory_posture"',
+      route: 'memory action:"status"',
       note: 'Agent-local memory API is unavailable in this runtime.',
     }, includeParameters);
   }
@@ -229,7 +229,7 @@ function memorySegment(memory: PromptMemoryApi | undefined, includeParameters: b
     suppressedCount: suppressed.length,
     promptChars: promptText.length,
     promptText,
-    route: 'agent_harness mode:"memory_posture"',
+    route: 'memory action:"status"',
     selected: active.map((record) => ({
       id: record.id,
       scope: record.scope,
@@ -469,7 +469,7 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
       suppressedCount: suppressedRoutines.length,
       promptChars: routinePrompt.length,
       promptText: routinePrompt,
-      route: 'agent_harness mode:"learning_curator" query:"routine"',
+      route: 'memory action:"curator" query:"routine"',
       selected: activeRoutines.map((routine) => ({ id: routine.id, name: routine.name, inspectRoute: `agent_local_registry domain:"routine" action:"get" recordId:"${routine.id}"` })),
       suppressed: suppressedRoutines.slice(0, 12).map((routine) => ({
         id: routine.id,
@@ -486,7 +486,7 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
       suppressedCount: suppressedSkills.length + suppressedBundles.length,
       promptChars: skillPrompt.length,
       promptText: skillPrompt,
-      route: 'agent_harness mode:"learning_curator" query:"skill"',
+      route: 'memory action:"curator" query:"skill"',
       selected: [
         ...activeBundles.map((bundle) => ({ id: bundle.id, domain: 'skill_bundle', name: bundle.name, inspectRoute: `agent_local_registry domain:"skill_bundle" action:"get" recordId:"${bundle.id}"` })),
         ...activeSkills.map((skill) => ({ id: skill.id, domain: 'skill', name: skill.name, inspectRoute: `agent_local_registry domain:"skill" action:"get" recordId:"${skill.id}"` })),
@@ -510,7 +510,7 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
       suppressedCount: activePersona && activePersona.reviewState !== 'reviewed' ? 1 : 0,
       promptChars: personaPrompt.length,
       promptText: personaPrompt,
-      route: 'agent_harness mode:"learning_curator" query:"persona"',
+      route: 'memory action:"curator" query:"persona"',
       selected: activePersona?.reviewState === 'reviewed' ? [{ id: activePersona.id, name: activePersona.name, inspectRoute: `agent_local_registry domain:"persona" action:"get" recordId:"${activePersona.id}"` }] : [],
       suppressed: activePersona && activePersona.reviewState !== 'reviewed' ? [{ id: activePersona.id, name: activePersona.name, reviewState: activePersona.reviewState }] : [],
     }, includeParameters),
@@ -562,11 +562,11 @@ export function promptContextSummary(context: CommandContext, args: PromptContex
     receipts: promptContextReceiptSummary(context, args, includeParameters),
     segments,
     routes: {
-      promptPlan: 'agent_harness mode:"learning_curator" includeParameters:true',
-      memoryPosture: 'agent_harness mode:"memory_posture"',
+      promptPlan: 'memory action:"curator" includeParameters:true',
+      memoryPosture: 'memory action:"status"',
       projectContext: 'context action:"files"',
       vibeStatus: 'vibe action:"status"',
-      learningCurator: 'agent_harness mode:"learning_curator"',
+      learningCurator: 'memory action:"curator"',
     },
     policy: 'Read-only prompt context inspection. It reports current prompt composition, selected records, suppressed review/setup work, and approximate token budget without creating memory, mutating behavior, or dumping raw secrets.',
   };

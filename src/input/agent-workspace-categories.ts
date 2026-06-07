@@ -636,7 +636,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     detail: 'Memory, notes, routines, skills, and personas stay Agent-local until stable shared registry contracts exist. Secrets must not be stored as memory or notes.',
     actions: [
       { id: 'memory-list', label: 'List memory', detail: 'Print the full Agent-owned memory list.', command: '/memory list', kind: 'command', safety: 'read-only' },
-      { id: 'memory-posture', label: 'Memory posture', detail: 'Inspect Agent-local memory, prompt-active recall, vector health, embedding providers, and external-memory provider gaps with agent_harness mode:"memory_posture".', kind: 'guidance', safety: 'read-only' },
+      { id: 'memory-posture', label: 'Memory posture', detail: 'Inspect Agent-local memory, prompt-active recall, vector health, embedding providers, and external-memory provider gaps with memory action:"status".', kind: 'guidance', safety: 'read-only' },
       { id: 'memory-search', label: 'Search memory', detail: 'Open an in-workspace Agent-local memory search form. This never queries default knowledge or other product routes.', editorKind: 'memory-search', kind: 'editor', safety: 'read-only' },
       { id: 'memory-get', label: 'Show memory by id', detail: 'Open an in-workspace form that prints one Agent-local memory record with provenance and links.', editorKind: 'memory-get', kind: 'editor', safety: 'read-only' },
       { id: 'memory-queue', label: 'Review queue', detail: 'Print the Agent-local memory review queue.', command: '/memory queue', kind: 'command', safety: 'read-only' },

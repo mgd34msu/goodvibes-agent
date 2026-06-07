@@ -1980,9 +1980,9 @@ describe('agent_harness tool', () => {
       const personaSegment = promptContext.segments.find((segment) => segment.id === 'persona');
       expect(personaSegment?.selected?.[0]?.name).toBe('Reviewed prompt inspector');
 
-      expect(promptContext.routes.promptPlan).toContain('learning_curator');
-      expect(promptContext.routes.memoryPosture).toContain('memory_posture');
-      expect(promptContext.routes.learningCurator).toContain('learning_curator');
+      expect(promptContext.routes.promptPlan).toContain('memory action:"curator"');
+      expect(promptContext.routes.memoryPosture).toContain('memory action:"status"');
+      expect(promptContext.routes.learningCurator).toContain('memory action:"curator"');
       expect(promptContext.policy).toContain('Read-only');
 
       const completedFilter = await executeHarnessJson<{
@@ -3291,7 +3291,7 @@ describe('agent_harness tool', () => {
       expect(posture.status).toBe('ready');
       expect(posture.localMemory.total).toBe(1);
       expect(posture.localMemory.promptActive).toBe(1);
-      expect(posture.localMemory.routes.curator).toBe('agent_harness mode:"learning_curator"');
+      expect(posture.localMemory.routes.curator).toBe('memory action:"curator"');
       expect(posture.vector.status).toBe('ready');
       expect(posture.vector.indexedRecords).toBe(1);
       expect(posture.vector.rebuildRoute).toContain('memory-vector-rebuild');
@@ -3305,8 +3305,8 @@ describe('agent_harness tool', () => {
       expect(posture.externalMemory.setupGuideStatus).toBe('contract-needed');
       expect(posture.externalMemory.checkedProviders).toContain('supermemory');
       expect(posture.externalMemory.requiredHostContracts?.join('\n')).toContain('Credential reference');
-      expect(posture.externalMemory.providerLookup).toContain('memory_provider');
-      expect(posture.nextActions.join('\n')).toContain('memory_provider');
+      expect(posture.externalMemory.providerLookup).toContain('memory action:"provider"');
+      expect(posture.nextActions.join('\n')).toContain('memory action:"provider"');
       expect(posture.policy).toContain('read-only');
 
       const provider = await executeHarnessJson<{
@@ -3354,7 +3354,7 @@ describe('agent_harness tool', () => {
       const actions = await executeHarnessJson<{
         readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];
       }>(fixture, { mode: 'workspace_actions', query: 'memory posture' });
-      expect(actions.actions.find((entry) => entry.id === 'memory-posture')?.modelRoute).toBe('agent_harness mode:"memory_posture"');
+      expect(actions.actions.find((entry) => entry.id === 'memory-posture')?.modelRoute).toBe('memory action:"status"');
     } finally {
       fixture.cleanup();
     }
@@ -5755,15 +5755,15 @@ describe('agent_harness tool', () => {
       expect(curator.promptPlan.consolidationQueue.some((candidate) => candidate.candidateId.includes('consolidation:skill'))).toBe(true);
       expect(curator.promptPlan.suppressed.lowConfidence).toBeGreaterThan(0);
       expect(curator.promptPlan.orderingRules.join('\n')).toContain('risk');
-      expect(curator.promptPlan.routes.memoryPosture).toContain('memory_posture');
-      expect(curator.promptPlan.routes.candidate).toContain('learning_candidate');
+      expect(curator.promptPlan.routes.memoryPosture).toContain('memory action:"status"');
+      expect(curator.promptPlan.routes.candidate).toContain('memory action:"candidate"');
       expect(curator.promptPlan.policy).toContain('read-only');
       expect(curator.consolidationBatch?.status).toBe('ready');
       expect(curator.consolidationBatch?.candidates).toBeGreaterThan(0);
       expect(curator.consolidationBatch?.duplicateRecords).toBeGreaterThan(0);
       expect(curator.consolidationBatch?.domains.some((domain) => domain.domain === 'skill')).toBe(true);
       expect(curator.consolidationBatch?.routes.reviewQueue).toContain('query:"consolidation"');
-      expect(curator.consolidationBatch?.routes.candidateDetail).toContain('learning_candidate');
+      expect(curator.consolidationBatch?.routes.candidateDetail).toContain('memory action:"candidate"');
       expect(curator.consolidationBatch?.phases.map((phase) => phase.id)).toEqual([
         'inspect',
         'merge-survivor',
@@ -5859,14 +5859,14 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'memory-learning-curator' });
       expect(action.id).toBe('memory-learning-curator');
-      expect(action.modelRoute).toBe('agent_harness mode:"learning_curator"');
+      expect(action.modelRoute).toBe('memory action:"curator"');
 
       const promptPlanAction = await executeHarnessJson<{
         readonly id: string;
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'memory-prompt-plan' });
       expect(promptPlanAction.id).toBe('memory-prompt-plan');
-      expect(promptPlanAction.modelRoute).toBe('agent_harness mode:"learning_curator" includeParameters:true');
+      expect(promptPlanAction.modelRoute).toBe('memory action:"curator" includeParameters:true');
 
       const projectContextAction = await executeHarnessJson<{
         readonly id: string;

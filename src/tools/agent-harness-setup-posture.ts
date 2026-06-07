@@ -1794,7 +1794,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'diagnostic',
           effect: 'read-only',
           userRoute: item.userRoute,
-          modelRoute: 'agent_harness mode:"learning_curator" includeParameters:true',
+          modelRoute: 'memory action:"curator" includeParameters:true',
           nextStep: 'Review memory, notes, personas, skills, routines, and suggested local behavior updates.',
           safety: 'Read-only curator posture; creates and imports stay confirmed workspace actions.',
         }),
@@ -2184,7 +2184,7 @@ function buildSetupPlan(
       reason: localBehavior.detail,
       nextAction: localBehavior.selected ? 'Review imported or customized local behavior.' : 'Import discovered behavior files or create the first persona, skill, or routine.',
       userRoute: 'Agent Workspace -> Local Context',
-      modelRoute: 'agent_harness mode:"learning_curator" or mode:"workspace_actions" categoryId:"onboarding-context"',
+      modelRoute: 'memory action:"curator" or agent_harness mode:"workspace_actions" categoryId:"onboarding-context"',
       relatedSetupItemId: localBehavior.id,
     },
     {

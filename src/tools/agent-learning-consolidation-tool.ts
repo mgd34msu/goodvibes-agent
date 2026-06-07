@@ -436,7 +436,7 @@ function previewCandidate(candidate: LearningCandidate): Record<string, unknown>
         effect: 'Delete only duplicates that are already stale. Exact-id rollback is not automatic after delete.',
       },
     ],
-    inspectRoute: `agent_harness mode:"learning_candidate" candidateId:"${candidate.id}"`,
+    inspectRoute: `memory action:"candidate" candidateId:"${candidate.id}"`,
     policy: 'Preview is read-only. Merge, stale, delete, and rollback each require confirm:true plus explicitUserRequest.',
   };
 }

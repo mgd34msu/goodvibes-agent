@@ -532,7 +532,7 @@ function consolidationCandidate(
     proposalFields: consolidationProposalFields(plan),
     consolidation: plan,
     inspectRoute: localRegistryRoute(domain, 'get', survivor.id),
-    modelRoute: 'agent_harness mode:"learning_curator" query:"consolidation"',
+    modelRoute: 'memory action:"curator" query:"consolidation"',
     reviewRoute: localRegistryRoute(domain, 'review', survivor.id),
     ...(staleRoutes[0] ? { staleRoute: staleRoutes[0] } : {}),
     ...(updateRoute ? { updateRoute } : {}),
@@ -632,7 +632,7 @@ function vibeCandidate(
       statusRoute: vibeStatusRoute(),
     },
     inspectRoute: vibeStatusRoute(),
-    modelRoute: 'agent_harness mode:"learning_curator" query:"vibe"',
+    modelRoute: 'memory action:"curator" query:"vibe"',
     reviewRoute: vibeCommandInspectRoute(),
     createRoute: 'vibe action:"init" scope:"project" confirm:true explicitUserRequest:"Create or refresh the project VIBE.md starter."',
   };
@@ -1233,7 +1233,7 @@ function learningConsolidationBatchPlan(
       duplicateCount: consolidation.duplicateIds.length,
       ...(includeParameters ? { duplicateIds: consolidation.duplicateIds } : {}),
       diffFields: consolidation.diffs.map((diff) => diff.field),
-      detailRoute: `agent_harness mode:"learning_candidate" candidateId:"${routeValue(candidate.id)}"`,
+      detailRoute: `memory action:"candidate" candidateId:"${routeValue(candidate.id)}"`,
       ...(candidate.updateRoute ? { updateRoute: candidate.updateRoute } : {}),
       applyRoute: `agent_learning_consolidation mode=preview candidateId:"${routeValue(candidate.id)}"`,
       mergeRoute: `agent_learning_consolidation mode=merge candidateId:"${routeValue(candidate.id)}" confirm:true explicitUserRequest:"..."`,
@@ -1254,8 +1254,8 @@ function learningConsolidationBatchPlan(
     duplicateRecords: consolidationCandidates.reduce((total, candidate) => total + (candidate.consolidation?.duplicateIds.length ?? 0), 0),
     domains,
     routes: {
-      reviewQueue: 'agent_harness mode:"learning_curator" query:"consolidation" includeParameters:true',
-      candidateDetail: 'agent_harness mode:"learning_candidate" candidateId:"<candidateId>"',
+      reviewQueue: 'memory action:"curator" query:"consolidation" includeParameters:true',
+      candidateDetail: 'memory action:"candidate" candidateId:"<candidateId>"',
       survivorRecord: 'agent_local_registry domain:"<domain>" action:"get" id:"<survivorId>"',
     },
     phases: [
@@ -1263,7 +1263,7 @@ function learningConsolidationBatchPlan(
         id: 'inspect',
         label: 'Inspect every duplicate group',
         goal: 'Open the candidate detail and survivor/duplicate records before changing durable context.',
-        route: 'agent_harness mode:"learning_curator" query:"consolidation" includeParameters:true',
+        route: 'memory action:"curator" query:"consolidation" includeParameters:true',
       },
       {
         id: 'merge-survivor',
@@ -1281,7 +1281,7 @@ function learningConsolidationBatchPlan(
         id: 'verify',
         label: 'Verify prompt impact and rollback',
         goal: 'Re-run the curator, check the survivor, and keep rollback routes visible until the user accepts the result.',
-        route: 'agent_harness mode:"learning_curator" query:"consolidation" includeParameters:true',
+        route: 'memory action:"curator" query:"consolidation" includeParameters:true',
       },
       {
         id: 'delete-after-approval',
@@ -1427,9 +1427,9 @@ function learningPromptPlan(context: CommandContext, candidates: readonly Learni
       'Proposals from notes, completed work, completed research, and saved sessions require explicit create or promotion routes before they can guide the assistant.',
     ],
     routes: {
-      memoryPosture: 'agent_harness mode:"memory_posture"',
-      curator: 'agent_harness mode:"learning_curator" includeParameters:true',
-      candidate: 'agent_harness mode:"learning_candidate" candidateId:"<candidateId>"',
+      memoryPosture: 'memory action:"status"',
+      curator: 'memory action:"curator" includeParameters:true',
+      candidate: 'memory action:"candidate" candidateId:"<candidateId>"',
       consolidation: 'agent_learning_consolidation mode=preview candidateId:"<candidateId>"',
     },
     policy: 'This prompt plan is read-only. It explains what can guide the assistant now, what remains suppressed, and which reviewed route should run before any durable memory, skill, routine, persona, or consolidation change.',
@@ -1491,7 +1491,7 @@ export function resolveLearningConsolidationCandidate(context: CommandContext, i
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'candidateId or query is required. Use agent_harness mode:"learning_curator" query:"consolidation" to inspect candidate ids.',
+      usage: 'candidateId or query is required. Use memory action:"curator" query:"consolidation" to inspect candidate ids.',
     };
   }
   const candidates = buildLearningCandidates(context).filter((candidate) => candidate.consolidation !== undefined);
@@ -1515,7 +1515,7 @@ export function resolveLearningConsolidationCandidate(context: CommandContext, i
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown duplicate-consolidation candidate ${lookup}. Use agent_harness mode:"learning_curator" query:"consolidation" to inspect candidate ids.`,
+    usage: `Unknown duplicate-consolidation candidate ${lookup}. Use memory action:"curator" query:"consolidation" to inspect candidate ids.`,
   };
 }
 
@@ -1527,7 +1527,7 @@ export function describeLearningCandidate(context: CommandContext, args: AgentHa
   if (!input) {
     return {
       status: 'missing_lookup',
-      usage: 'learning_candidate requires candidateId, target, or query. Use mode:"learning_curator" to inspect candidate ids.',
+      usage: 'memory action:"candidate" requires candidateId, target, or query. Use memory action:"curator" to inspect candidate ids.',
     };
   }
   const normalized = input.toLowerCase();
@@ -1553,6 +1553,6 @@ export function describeLearningCandidate(context: CommandContext, args: AgentHa
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown learning candidate ${input}. Use mode:"learning_curator" to inspect candidate ids.`,
+    usage: `Unknown learning candidate ${input}. Use memory action:"curator" to inspect candidate ids.`,
   };
 }
