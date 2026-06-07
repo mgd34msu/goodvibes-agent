@@ -18,6 +18,7 @@ const READ_TOOL_NAMES = new Set([
   'state',
   'registry',
   'goodvibes_context',
+  'context',
   'device',
   'host',
   'models',

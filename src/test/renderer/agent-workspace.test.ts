@@ -1156,13 +1156,13 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Create/import memory, personas, skills, routines, notes, and Knowledge.');
     expect(output).toContain('VIBE.md: 1 applied; 0 blocked; 0 truncated.');
     expect(output).toContain('Project context: 1 loaded; 1 blocked; 0 truncated.');
-    expect(output).toContain('Context routes: prompt_context, /vibe status, project_context, and project_context_file.');
+    expect(output).toContain('Context routes: context prompt/files/file/receipt, /vibe status.');
     expect(output).toContain('Inspect VIBE.md');
     expect(output).toContain('/vibe status');
     expect(output).toContain('Inspect project context');
-    expect(output).toContain('project_context');
+    expect(output).toContain('context action:"files"');
     expect(output).toContain('Inspect one context file');
-    expect(output).toContain('project_context_file');
+    expect(output).toContain('context action:"file"');
     expect(output).toContain('Profile from discovered files');
     expect(output).toContain('edit profile-from-discovered');
     expect(output).toContain('Import persona files');
@@ -1193,14 +1193,14 @@ describe('renderAgentWorkspace', () => {
     };
 
     expectSetupAction('context-vibe-status', 'Inspect VIBE.md', '/vibe status');
-    expectSetupAction('context-project-files', 'Inspect project context', 'project_context');
-    expectSetupAction('context-project-file', 'Inspect one context file', 'project_context_file');
-    expectSetupAction('context-prompt-context', 'Prompt context', 'prompt_context');
+    expectSetupAction('context-project-files', 'Inspect project context', 'context action:"files"');
+    expectSetupAction('context-project-file', 'Inspect one context file', 'context action:"file"');
+    expectSetupAction('context-prompt-context', 'Prompt context', 'context action:"prompt"');
     expectSetupAction('context-create-skill', 'Create skill', 'edit skill');
     expectSetupAction('context-create-routine', 'Create routine', 'edit routine');
     expectSetupAction('context-knowledge-url', 'Ingest URL', 'edit knowledge-url');
     expectSetupAction('context-knowledge-file', 'Ingest file', 'edit knowledge-file');
-    expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context routes: prompt_context');
+    expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context routes: context prompt/files/file/receipt');
   });
 
   test('renders prompt receipt outcomes in the Local Context workspace', () => {
@@ -1212,12 +1212,12 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Prompt receipt timeline: 1 total; completed 0; errors 1; cancelled 0; pending 0.');
     expect(output).toContain('Latest prompt receipt: error turn turn-renderer-fail; 3 applied / 1 suppressed; 512 tokens; stop provider_error.');
-    expect(output).toContain('Inspect latest prompt receipt: agent_harness mode:"prompt_context" receiptId:"promptctx-');
-    expect(output).toContain('Filter prompt receipt errors: agent_harness mode:"prompt_context" outcomeStatus:"error" includeParameters:true');
+    expect(output).toContain('Inspect latest prompt receipt: context action:"receipt" receiptId:"promptctx-');
+    expect(output).toContain('Filter prompt receipt errors: context action:"receipts" outcomeStatus:"error" includeParameters:true');
     expect(output).toContain('openai-subscriber/openai:gpt-5.5');
     expect(output).toContain('2 segment(s), 3 active, 1 suppressed.');
     expect(output).toContain('Latest outcome detail: Provider rejected the test request.');
-    expect(output).toContain('Inspect: agent_harness mode:"prompt_context" includeParameters:true');
+    expect(output).toContain('Inspect: context action:"prompt" includeParameters:true');
     expect(output).not.toContain('cccccccccccccccc');
   });
 

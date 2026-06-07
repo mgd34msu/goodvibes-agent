@@ -547,8 +547,8 @@ export interface AgentWorkspaceProjectContextSummary {
   readonly truncated: number;
   readonly supportedSources: readonly string[];
   readonly targetAware: boolean;
-  readonly catalogRoute: 'agent_harness mode:"project_context"';
-  readonly inspectRoute: 'agent_harness mode:"project_context_file"';
+  readonly catalogRoute: 'context action:"files"';
+  readonly inspectRoute: 'context action:"file"';
   readonly next: string;
 }
 
@@ -580,7 +580,7 @@ export interface AgentWorkspacePromptContextReceiptTimeline {
   readonly errorCount: number;
   readonly cancelledCount: number;
   readonly pendingCount: number;
-  readonly inspectRoute: 'agent_harness mode:"prompt_context" includeParameters:true';
+  readonly inspectRoute: 'context action:"prompt" includeParameters:true';
   readonly filterRoutes: {
     readonly completed: string;
     readonly error: string;

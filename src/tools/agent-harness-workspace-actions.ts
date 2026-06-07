@@ -199,9 +199,9 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'research-source-queue') return 'research action:"sources"';
   if (action.id === 'work-background-processes') return 'agent_harness mode:"background_processes"';
   if (action.id === 'work-process-capabilities') return 'agent_harness mode:"background_processes"';
-  if (action.id === 'context-project-files') return 'agent_harness mode:"project_context"';
-  if (action.id === 'context-project-file') return 'agent_harness mode:"project_context_file"';
-  if (action.id === 'context-prompt-context') return 'agent_harness mode:"prompt_context" includeParameters:true';
+  if (action.id === 'context-project-files') return 'context action:"files"';
+  if (action.id === 'context-project-file') return 'context action:"file"';
+  if (action.id === 'context-prompt-context') return 'context action:"prompt" includeParameters:true';
   if (action.id === 'voice-workflow-posture') return 'device action:"voice"';
   if (action.id === 'device-capability-map') return 'device action:"status"';
   if (action.id === 'browser-cockpit-readiness') return 'device action:"browser"';

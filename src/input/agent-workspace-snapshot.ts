@@ -233,15 +233,15 @@ type WorkspaceMcpServerRecord = {
 
 const RESEARCH_BROWSER_TERMS = ['browser', 'desktop', 'computer use', 'screenshot', 'screen recording'];
 const WORKSPACE_PROJECT_CONTEXT_SOURCES = ['.hermes.md', 'HERMES.md', 'AGENTS.md', 'CLAUDE.md', 'HERMES_HOME/SOUL.md', '.cursorrules', '.cursor/rules/*.mdc'] as const;
-const WORKSPACE_PROMPT_CONTEXT_INSPECT_ROUTE = 'agent_harness mode:"prompt_context" includeParameters:true' as const;
+const WORKSPACE_PROMPT_CONTEXT_INSPECT_ROUTE = 'context action:"prompt" includeParameters:true' as const;
 type WorkspacePromptReceiptOutcomeStatus = AgentWorkspacePromptContextReceiptSummary['outcomeStatus'];
 
 function promptReceiptInspectRoute(receiptId: string): string {
-  return `agent_harness mode:"prompt_context" receiptId:${JSON.stringify(receiptId)} includeParameters:true`;
+  return `context action:"receipt" receiptId:${JSON.stringify(receiptId)} includeParameters:true`;
 }
 
 function promptReceiptOutcomeRoute(status: WorkspacePromptReceiptOutcomeStatus): string {
-  return `agent_harness mode:"prompt_context" outcomeStatus:${JSON.stringify(status)} includeParameters:true`;
+  return `context action:"receipts" outcomeStatus:${JSON.stringify(status)} includeParameters:true`;
 }
 
 function workspaceMcpServers(context: CommandContext): readonly WorkspaceMcpServerRecord[] {
@@ -371,8 +371,8 @@ function buildProjectContextSummary(context: CommandContext): AgentWorkspaceProj
       truncated: 0,
       supportedSources: WORKSPACE_PROJECT_CONTEXT_SOURCES,
       targetAware: true,
-      catalogRoute: 'agent_harness mode:"project_context"',
-      inspectRoute: 'agent_harness mode:"project_context_file"',
+      catalogRoute: 'context action:"files"',
+      inspectRoute: 'context action:"file"',
       next: 'Open a normal Agent workspace before relying on project context files.',
     };
   }
@@ -387,8 +387,8 @@ function buildProjectContextSummary(context: CommandContext): AgentWorkspaceProj
       truncated,
       supportedSources: WORKSPACE_PROJECT_CONTEXT_SOURCES,
       targetAware: true,
-      catalogRoute: 'agent_harness mode:"project_context"',
-      inspectRoute: 'agent_harness mode:"project_context_file"',
+      catalogRoute: 'context action:"files"',
+      inspectRoute: 'context action:"file"',
       next: snapshot.blocked.length > 0
         ? 'Inspect blocked context files before relying on project instructions.'
         : snapshot.files.length > 0
@@ -403,9 +403,9 @@ function buildProjectContextSummary(context: CommandContext): AgentWorkspaceProj
       truncated: 0,
       supportedSources: WORKSPACE_PROJECT_CONTEXT_SOURCES,
       targetAware: true,
-      catalogRoute: 'agent_harness mode:"project_context"',
-      inspectRoute: 'agent_harness mode:"project_context_file"',
-      next: 'Project context discovery failed; use project_context for a focused diagnostic.',
+      catalogRoute: 'context action:"files"',
+      inspectRoute: 'context action:"file"',
+      next: 'Project context discovery failed; use context action:"files" for a focused diagnostic.',
     };
   }
 }
@@ -501,7 +501,7 @@ function buildPromptContextReceiptTimeline(context: CommandContext): AgentWorksp
         cancelled: promptReceiptOutcomeRoute('cancelled'),
         pending: promptReceiptOutcomeRoute('pending'),
       },
-      next: 'Prompt-context receipt history could not be read; use prompt_context for a focused diagnostic.',
+      next: 'Prompt-context receipt history could not be read; use context action:"prompt" for a focused diagnostic.',
       items: [],
     };
   }

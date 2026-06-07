@@ -1723,7 +1723,7 @@ describe('agent_harness tool', () => {
 
       const frontendContext = catalog.files.find((file) => file.path.endsWith(join('frontend', 'AGENTS.md')));
       expect(frontendContext?.scope).toBe('subdirectory');
-      expect(frontendContext?.modelRoute).toContain('project_context_file');
+      expect(frontendContext?.modelRoute).toContain('context action:"file"');
 
       const detail = await executeHarnessJson<{
         readonly path: string;
@@ -1894,7 +1894,7 @@ describe('agent_harness tool', () => {
       expect(summary.promptContext?.approxPromptTokens).toBeGreaterThan(0);
       expect(summary.promptContext?.receiptCount).toBe(2);
       expect(summary.promptContext?.latestReceiptId).toBe(storedReceipt.receiptId);
-      expect(summary.promptContext?.modelRoute).toContain('prompt_context');
+      expect(summary.promptContext?.modelRoute).toContain('context action:"prompt"');
 
       const promptContext = await executeHarnessJson<{
         readonly status: string;
@@ -2025,7 +2025,7 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'context-prompt-context' });
       expect(action.id).toBe('context-prompt-context');
-      expect(action.modelRoute).toBe('agent_harness mode:"prompt_context" includeParameters:true');
+      expect(action.modelRoute).toBe('context action:"prompt" includeParameters:true');
     } finally {
       fixture.cleanup();
     }
@@ -5873,14 +5873,14 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'context-project-files' });
       expect(projectContextAction.id).toBe('context-project-files');
-      expect(projectContextAction.modelRoute).toBe('agent_harness mode:"project_context"');
+      expect(projectContextAction.modelRoute).toBe('context action:"files"');
 
       const projectContextFileAction = await executeHarnessJson<{
         readonly id: string;
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'context-project-file' });
       expect(projectContextFileAction.id).toBe('context-project-file');
-      expect(projectContextFileAction.modelRoute).toBe('agent_harness mode:"project_context_file"');
+      expect(projectContextFileAction.modelRoute).toBe('context action:"file"');
     } finally {
       fixture.cleanup();
     }

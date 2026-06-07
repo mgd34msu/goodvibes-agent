@@ -100,15 +100,15 @@ function promptContextQuote(value: string): string {
 }
 
 function promptContextReceiptRoute(receiptId: string): string {
-  return `agent_harness mode:"prompt_context" receiptId:${promptContextQuote(receiptId)} includeParameters:true`;
+  return `context action:"receipt" receiptId:${promptContextQuote(receiptId)} includeParameters:true`;
 }
 
 function promptContextTurnRoute(turnId: string): string {
-  return `agent_harness mode:"prompt_context" turnId:${promptContextQuote(turnId)} includeParameters:true`;
+  return `context action:"receipt" turnId:${promptContextQuote(turnId)} includeParameters:true`;
 }
 
 function promptContextOutcomeRoute(status: PromptContextReceiptOutcomeFilter): string {
-  return `agent_harness mode:"prompt_context" outcomeStatus:${promptContextQuote(status)} includeParameters:true`;
+  return `context action:"receipts" outcomeStatus:${promptContextQuote(status)} includeParameters:true`;
 }
 
 function approxTokens(text: string): number {
@@ -335,7 +335,7 @@ function promptContextReceiptSummary(context: CommandContext, args: PromptContex
     latestReceiptId: latest?.receiptId ?? null,
     latestTurnId: latest?.turnId ?? null,
     latestCreatedAt: latest?.createdAt ?? null,
-    inspectRoute: 'agent_harness mode:"prompt_context" includeParameters:true',
+    inspectRoute: 'context action:"prompt" includeParameters:true',
     matchingCount: matchingReceipts.length,
     ...(hasFilter ? { filters } : {}),
     selected: selected ? compactPromptContextReceipt(selected, includeParameters) : null,
@@ -449,13 +449,13 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
       suppressedCount: projectContext.blocked.length,
       promptChars: projectContextPrompt.length,
       promptText: projectContextPrompt,
-      route: 'agent_harness mode:"project_context"',
+      route: 'context action:"files"',
       selected: projectContext.files.map((file) => ({
         id: file.id,
         source: file.source,
         scope: file.scope,
         truncated: file.truncated,
-        inspectRoute: `agent_harness mode:"project_context_file" contextFileId:"${file.id}"`,
+        inspectRoute: `context action:"file" contextFileId:"${file.id}"`,
       })),
       suppressed: projectContext.blocked.map((file) => ({ id: file.id, source: file.source, reason: file.reason })),
     }, includeParameters),
@@ -564,7 +564,7 @@ export function promptContextSummary(context: CommandContext, args: PromptContex
     routes: {
       promptPlan: 'agent_harness mode:"learning_curator" includeParameters:true',
       memoryPosture: 'agent_harness mode:"memory_posture"',
-      projectContext: 'agent_harness mode:"project_context"',
+      projectContext: 'context action:"files"',
       vibeStatus: 'vibe action:"status"',
       learningCurator: 'agent_harness mode:"learning_curator"',
     },
@@ -584,6 +584,6 @@ export function promptContextCatalogStatus(context: CommandContext): Record<stri
     approxPromptTokens: summary.approxPromptTokens,
     receiptCount: receipts?.count() ?? 0,
     latestReceiptId: latestReceipt?.receiptId ?? null,
-    modelRoute: 'agent_harness mode:"prompt_context" includeParameters:true',
+    modelRoute: 'context action:"prompt" includeParameters:true',
   };
 }

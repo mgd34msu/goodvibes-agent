@@ -55,7 +55,7 @@ function describeRecord(record: ProjectContextRecord, includeParameters: boolean
     summary: blocked
       ? previewHarnessText(record.reason, includeParameters ? 180 : 96)
       : previewHarnessText(record.body, includeParameters ? 240 : 96),
-    modelRoute: 'agent_harness mode:"project_context_file"',
+    modelRoute: 'context action:"file"',
     userRoute: 'Agent Workspace -> Context Inspector',
     ...(includeParameters && 'body' in record ? { body: record.body, truncated: record.truncated } : {}),
     ...(includeParameters && !('body' in record) ? { reason: record.reason } : {}),
@@ -123,7 +123,7 @@ export function projectContextSummary(context: CommandContext, args: AgentHarnes
 
 export function describeProjectContextFile(context: CommandContext, args: AgentHarnessProjectContextArgs): ProjectContextFileResolution {
   const input = readString(args.contextFileId || args.target || args.query);
-  if (!input) return { status: 'missing_lookup', usage: 'project_context_file requires contextFileId, target, or query. Use mode:"project_context" to inspect available context files.' };
+  if (!input) return { status: 'missing_lookup', usage: 'context action:"file" requires contextFileId, target, or query. Use context action:"files" to inspect available context files.' };
   const snapshot = snapshotForArgs(context, args);
   if (!snapshot) return { status: 'missing_lookup', usage: 'Project context discovery requires workspace shell paths.' };
   const includeParameters = args.includeParameters !== false;
@@ -140,5 +140,5 @@ export function describeProjectContextFile(context: CommandContext, args: AgentH
       candidates: matches.slice(0, 8).map((record) => describeRecord(record, false)),
     };
   }
-  return { status: 'missing_lookup', usage: `Unknown project context file ${input}. Use mode:"project_context" to inspect loaded and blocked files.` };
+  return { status: 'missing_lookup', usage: `Unknown project context file ${input}. Use context action:"files" to inspect loaded and blocked files.` };
 }

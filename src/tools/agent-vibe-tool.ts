@@ -160,7 +160,7 @@ export function createAgentVibeTool(commandContext: CommandContext): Tool {
               showGlobal: 'vibe action:"show" scope:"global"',
               initProject: 'vibe action:"init" scope:"project" confirm:true explicitUserRequest:"..."',
               importProjectPersona: 'vibe action:"import_persona" scope:"project" review:true use:true confirm:true explicitUserRequest:"..."',
-              promptContext: 'agent_harness mode:"prompt_context" includeParameters:true',
+              promptContext: 'context action:"prompt" includeParameters:true',
             },
             ...(readBoolean(args.includeParameters) ? { searchedPaths: snapshot.searchedPaths } : {}),
           });
@@ -262,7 +262,7 @@ export function createAgentVibeTool(commandContext: CommandContext): Tool {
             },
             routes: {
               inspectPersona: `agent_local_registry domain:"persona" action:"get" id:"${reviewed.id}"`,
-              promptContext: 'agent_harness mode:"prompt_context" includeParameters:true',
+              promptContext: 'context action:"prompt" includeParameters:true',
             },
             policy: {
               confirmation: 'confirmed',

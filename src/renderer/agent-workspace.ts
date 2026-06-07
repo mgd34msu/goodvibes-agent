@@ -550,7 +550,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `VIBE.md: ${vibe.applied} applied; ${vibe.blocked} blocked; ${vibe.truncated} truncated.`, fg: vibe.blocked > 0 ? PALETTE.warn : vibe.applied > 0 ? PALETTE.good : PALETTE.muted },
       { text: `Project context: ${projectContext.loaded} loaded; ${projectContext.blocked} blocked; ${projectContext.truncated} truncated.`, fg: projectContext.blocked > 0 ? PALETTE.warn : projectContext.loaded > 0 ? PALETTE.good : PALETTE.muted },
       ...promptReceiptTimelineLines(snapshot),
-      { text: 'Context routes: prompt_context, /vibe status, project_context, and project_context_file.', fg: PALETTE.good },
+      { text: 'Context routes: context prompt/files/file/receipt, /vibe status.', fg: PALETTE.good },
     );
   } else if (category.id === 'onboarding-automation') {
     base.push(
