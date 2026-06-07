@@ -182,6 +182,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action saves the current Document Ops packet ids as one reusable local preset artifact. It does not mutate document drafts, model routing, reviewer handoffs, or handoff archives.',
     };
   }
+  if (editorKind === 'document-review-packet-preset-refresh') {
+    return {
+      route: 'agent_review_packet_presets',
+      tool: 'agent_review_packet_presets',
+      action: 'refresh_review_packet_preset',
+      confirmation: 'required',
+      note: 'run_workspace_action saves one new local preset artifact from an existing preset freshness recommendation. It keeps the source preset intact and does not mutate document drafts, model routing, reviewer handoffs, or handoff archives.',
+    };
+  }
   if (editorKind === 'model-compare' || editorKind === 'local-model-benchmark') {
     return {
       route: 'agent_model_compare',

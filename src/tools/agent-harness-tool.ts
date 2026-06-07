@@ -2,7 +2,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactExportToolArgs, buildAgentArtifactPackageToolArgs, buildAgentArtifactPromoteKnowledgeToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
-import { buildAgentDocumentReviewerReadinessToolArgs, buildAgentDocumentReviewPacketPresetToolArgs, buildAgentDocumentReviewPacketWizardToolArgs } from '../input/agent-workspace-document-ops-editor.ts';
+import { buildAgentDocumentReviewerReadinessToolArgs, buildAgentDocumentReviewPacketPresetRefreshToolArgs, buildAgentDocumentReviewPacketPresetToolArgs, buildAgentDocumentReviewPacketWizardToolArgs } from '../input/agent-workspace-document-ops-editor.ts';
 import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareHandoffDiffToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareRouteDecisionToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
@@ -682,6 +682,37 @@ async function runWorkspaceEditorAction(
     );
     const result = await deps.toolRegistry.execute(
       'agent-harness-workspace-review-packet-preset',
+      'agent_review_packet_presets',
+      presetArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_review_packet_presets',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+  if (editor.kind === 'document-review-packet-preset-refresh') {
+    const confirmationError = requireConfirmedAction(args, 'Workspace review packet preset refresh');
+    if (confirmationError) return error(confirmationError);
+    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+      return output({
+        status: 'not_confirmed',
+        action: action.id,
+        editor: describeWorkspaceEditor(editor),
+        modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+        note: 'Type yes in the editor confirmation field before refreshing a review packet preset artifact.',
+      });
+    }
+    const presetArgs = buildAgentDocumentReviewPacketPresetRefreshToolArgs(
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Refresh the Document Ops review packet preset from an Agent workspace action.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-review-packet-preset-refresh',
       'agent_review_packet_presets',
       presetArgs as unknown as Record<string, unknown>,
     );

@@ -49,7 +49,7 @@ describe('compactRegisteredToolDefinitions', () => {
     expect(descriptions.get('read')).toBe('Read files, outlines, symbols, and ranges.');
     expect(descriptions.get('goodvibes_context')).toBe('Inspect current GoodVibes runtime and host harness.');
     expect(descriptions.get('agent_local_registry')).toBe('Inspect/update Agent memory, notes, skills, routines.');
-    expect(descriptions.get('agent_review_packet_presets')).toBe('Save/list/check Document Ops packet presets.');
+    expect(descriptions.get('agent_review_packet_presets')).toBe('Save/list/refresh Document Ops packet presets.');
     for (const description of descriptions.values()) {
       expect(description.length).toBeLessThanOrEqual(56);
       expect(description).not.toContain('...');

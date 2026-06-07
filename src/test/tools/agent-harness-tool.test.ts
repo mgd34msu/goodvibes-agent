@@ -5085,6 +5085,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-attach-document')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-save-review-packet-preset')?.modelRoute).toBe('agent_review_packet_presets');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-refresh-review-packet-preset')?.modelRoute).toBe('agent_review_packet_presets');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-export-file')?.modelRoute).toBe('agent_artifacts');
@@ -7443,6 +7444,42 @@ describe('agent_harness tool', () => {
         documentExportArtifactId: docExport.id,
         revealedJudgmentArtifactId: revealedJudgment.id,
         relatedArtifactIds: [docExport.id, revealedJudgment.id],
+      });
+
+      const savedPresetId = artifacts.store.list(1)[0]?.id;
+      expect(savedPresetId).toBeTruthy();
+      const newerDocExport = await artifacts.store.create({
+        kind: 'document',
+        mimeType: 'text/markdown',
+        filename: 'launch-packet-v2.md',
+        text: '# Launch Packet v2',
+        metadata: {
+          purpose: 'agent-document-export',
+          documentId: draft.id,
+          versionId: `${draft.currentVersionId}-refresh`,
+        },
+      });
+      const refreshed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-refresh-review-packet-preset',
+        confirm: true,
+        explicitUserRequest: 'Refresh the stale review packet preset.',
+        fields: {
+          artifactId: savedPresetId ?? '',
+          name: 'Launch packet refreshed preset',
+          confirm: 'yes',
+        },
+      });
+      expect(refreshed.success).toBe(true);
+      expect(refreshed.output).toContain('"status": "executed_model_tool"');
+      expect(refreshed.output).toContain('"tool": "agent_review_packet_presets"');
+      expect(refreshed.output).toContain('Review packet preset refreshed');
+      expect(artifacts.store.list(1)[0]?.metadata).toMatchObject({
+        purpose: 'agent-review-packet-preset',
+        name: 'Launch packet refreshed preset',
+        documentId: draft.id,
+        documentExportArtifactId: newerDocExport.id,
+        refreshOfArtifactId: savedPresetId ?? '',
       });
     } finally {
       fixture.cleanup();

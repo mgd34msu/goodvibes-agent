@@ -27,6 +27,15 @@ export interface AgentDocumentReviewPacketPresetToolArgs {
   readonly explicitUserRequest: string;
 }
 
+export interface AgentDocumentReviewPacketPresetRefreshToolArgs {
+  readonly mode: 'refresh';
+  readonly artifactId: string;
+  readonly name?: string;
+  readonly summary?: string;
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
+}
+
 export function createAgentDocumentReviewerReadinessEditor(): AgentWorkspaceLocalEditor {
   return {
     kind: 'document-reviewer-readiness',
@@ -80,6 +89,22 @@ export function createAgentDocumentReviewPacketPresetEditor(
       { id: 'relatedArtifactIds', label: 'Related artifacts', value: defaults?.relatedArtifactIds.join('\n') ?? '', required: false, multiline: true, hint: 'Comma- or newline-separated source, export, attachment, receipt, or evidence artifact ids.' },
       { id: 'summary', label: 'Summary', value: defaults?.summary ?? '', required: false, multiline: false, hint: 'Short packet summary shown in list and timeline views.' },
       { id: 'confirm', label: 'Confirm save', value: 'no', required: true, multiline: false, hint: 'Type yes only after the user explicitly asks to save this packet preset.' },
+    ],
+  };
+}
+
+export function createAgentDocumentReviewPacketPresetRefreshEditor(): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-review-packet-preset-refresh',
+    mode: 'create',
+    title: 'Refresh Review Packet Preset',
+    selectedFieldIndex: 0,
+    message: 'Save a new preset artifact from an existing stale preset using its freshness recommendations. This keeps the source preset as audit history and does not change documents, model routing, handoffs, or archives.',
+    fields: [
+      { id: 'artifactId', label: 'Preset artifact id', value: '', required: true, multiline: false, hint: 'Existing review packet preset artifact id from list/show output.' },
+      { id: 'name', label: 'New preset name', value: '', required: false, multiline: false, hint: 'Optional. Defaults to the old preset name plus "refreshed".' },
+      { id: 'summary', label: 'New summary', value: '', required: false, multiline: false, hint: 'Optional. Defaults to the old summary with stale ids replaced when possible.' },
+      { id: 'confirm', label: 'Confirm refresh', value: 'no', required: true, multiline: false, hint: 'Type yes only after the user explicitly asks to refresh this packet preset.' },
     ],
   };
 }
@@ -155,6 +180,22 @@ export function buildAgentDocumentReviewPacketPresetToolArgs(
     ...(handoffArtifactId ? { handoffArtifactId } : {}),
     ...(handoffArchiveArtifactId ? { handoffArchiveArtifactId } : {}),
     relatedArtifactIds: readList(readField('relatedArtifactIds')),
+    ...(summary ? { summary } : {}),
+    confirm: isAffirmative(readField('confirm')),
+    explicitUserRequest,
+  };
+}
+
+export function buildAgentDocumentReviewPacketPresetRefreshToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentDocumentReviewPacketPresetRefreshToolArgs {
+  const name = optionalField(readField, 'name');
+  const summary = optionalField(readField, 'summary');
+  return {
+    mode: 'refresh',
+    artifactId: readField('artifactId').trim(),
+    ...(name ? { name } : {}),
     ...(summary ? { summary } : {}),
     confirm: isAffirmative(readField('confirm')),
     explicitUserRequest,
@@ -260,6 +301,59 @@ export function buildAgentDocumentReviewPacketPresetPromptSubmission(
       kind: 'guidance',
       title: 'Save review packet preset',
       detail: 'Submitted a confirmed preset-save request for the current document/review packet artifact ids.',
+      safety: 'safe',
+    },
+  };
+}
+
+export function buildAgentDocumentReviewPacketPresetRefreshPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the review packet preset refresh from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const toolArgs = buildAgentDocumentReviewPacketPresetRefreshToolArgs(
+    readField,
+    'Refresh this Document Ops review packet preset from the workspace form.',
+  );
+  return {
+    kind: 'prompt',
+    prompt: [
+      'Refresh a stale reusable Document Ops review packet preset with the `agent_review_packet_presets` tool.',
+      `Use these refresh fields: ${JSON.stringify(toolArgs, null, 2)}.`,
+      'Only call the tool with confirm:true when the user explicitly asked GoodVibes Agent to refresh this preset. The refresh creates one new local preset artifact from freshness recommendations and must not mutate documents, model routing, handoffs, archives, or the source preset.',
+    ].join('\n'),
+    status: 'Submitting review packet preset refresh.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Refresh review packet preset',
+      detail: 'Submitted a confirmed preset-refresh request that saves a new local artifact from freshness recommendations.',
       safety: 'safe',
     },
   };

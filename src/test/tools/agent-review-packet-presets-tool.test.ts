@@ -285,6 +285,114 @@ describe('agent_review_packet_presets tool', () => {
     expect(shown.output).toContain('missing document export doc-missing; recommended doc-new');
   });
 
+  test('refreshes stale presets into new local preset artifacts from freshness recommendations', async () => {
+    const artifacts = artifactStore();
+    artifacts.addArtifact({
+      id: 'doc-old',
+      createdAt: 1_000,
+      purpose: 'agent-document-export',
+      metadata: { documentId: 'doc_launch', versionId: 'v1' },
+    });
+    artifacts.addArtifact({
+      id: 'doc-new',
+      createdAt: 2_000,
+      purpose: 'agent-document-export',
+      metadata: { documentId: 'doc_launch', versionId: 'v2' },
+    });
+    const tool = createAgentReviewPacketPresetsTool(artifacts.store);
+
+    await tool.execute({
+      mode: 'save',
+      name: 'Launch packet',
+      documentId: 'doc_launch',
+      documentExportArtifactId: 'doc-old',
+      relatedArtifactIds: ['doc-old'],
+      summary: 'document doc_launch; source doc-old; 1 related',
+      confirm: true,
+      explicitUserRequest: 'Save this packet preset.',
+    });
+
+    const shown = await tool.execute({ mode: 'show', artifactId: 'artifact-1' });
+    expect(shown.success).toBe(true);
+    expect(shown.output).toContain('refreshPreset agent_review_packet_presets mode:"refresh" artifactId:"artifact-1"');
+
+    const preview = await tool.execute({
+      mode: 'refresh',
+      artifactId: 'artifact-1',
+      explicitUserRequest: 'Refresh this stale packet preset.',
+    });
+    expect(preview.success).toBe(false);
+    expect(preview.error).toContain('Agent review packet preset refresh preview');
+    expect(preview.error).toContain('documentExport doc-new');
+    expect(artifacts.inputs).toHaveLength(1);
+
+    const refreshed = await tool.execute({
+      mode: 'refresh',
+      artifactId: 'artifact-1',
+      name: 'Launch packet refreshed',
+      confirm: true,
+      explicitUserRequest: 'Refresh this stale packet preset.',
+    });
+    expect(refreshed.success).toBe(true);
+    expect(refreshed.output).toContain('Review packet preset refreshed');
+    expect(refreshed.output).toContain('refreshedFrom artifact-1');
+    expect(refreshed.output).toContain('documentExport doc-new');
+    expect(refreshed.output).toContain('freshness repaired 1; unresolved 0');
+    expect(artifacts.records.at(-1)?.metadata).toMatchObject({
+      purpose: 'agent-review-packet-preset',
+      name: 'Launch packet refreshed',
+      documentId: 'doc_launch',
+      documentExportArtifactId: 'doc-new',
+      relatedArtifactIds: ['doc-new'],
+      refreshOfArtifactId: 'artifact-1',
+      freshnessMissingCount: 0,
+      freshnessSupersededCount: 1,
+      freshnessUnresolvedCount: 0,
+    });
+
+    const stored = await artifacts.store.readContent('artifact-2');
+    const body = JSON.parse(stored.buffer.toString('utf-8')) as {
+      readonly refresh: { readonly sourceArtifactId: string; readonly supersededCount: number };
+      readonly packet: { readonly documentExportArtifactId: string; readonly relatedArtifactIds: readonly string[]; readonly summary: string };
+    };
+    expect(body.refresh.sourceArtifactId).toBe('artifact-1');
+    expect(body.refresh.supersededCount).toBe(1);
+    expect(body.packet.documentExportArtifactId).toBe('doc-new');
+    expect(body.packet.relatedArtifactIds).toEqual(['doc-new']);
+    expect(body.packet.summary).toContain('source doc-new');
+  });
+
+  test('refresh mode does not create a duplicate artifact when the preset is current', async () => {
+    const artifacts = artifactStore();
+    artifacts.addArtifact({
+      id: 'doc-current',
+      createdAt: 1_000,
+      purpose: 'agent-document-export',
+      metadata: { documentId: 'doc_launch', versionId: 'v1' },
+    });
+    const tool = createAgentReviewPacketPresetsTool(artifacts.store);
+
+    await tool.execute({
+      mode: 'save',
+      name: 'Current packet',
+      documentId: 'doc_launch',
+      documentExportArtifactId: 'doc-current',
+      confirm: true,
+      explicitUserRequest: 'Save this packet preset.',
+    });
+
+    const refreshed = await tool.execute({
+      mode: 'refresh',
+      artifactId: 'artifact-1',
+      confirm: true,
+      explicitUserRequest: 'Refresh this packet preset.',
+    });
+    expect(refreshed.success).toBe(true);
+    expect(refreshed.output).toContain('Review packet preset already current');
+    expect(refreshed.output).toContain('no new preset artifact created');
+    expect(artifacts.inputs).toHaveLength(1);
+  });
+
   test('registers the preset tool', () => {
     const registry = new ToolRegistry();
     registerAgentReviewPacketPresetsTool(registry, artifactStore().store);

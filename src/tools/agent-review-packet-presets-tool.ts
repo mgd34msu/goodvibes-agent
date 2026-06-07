@@ -26,7 +26,7 @@ export interface AgentReviewPacketPresetsToolArgs {
 
 type AgentReviewPacketPresetArtifactStore = Pick<ArtifactStore, 'create'> & Partial<Pick<ArtifactStore, 'get' | 'list' | 'readContent'>>;
 
-type AgentReviewPacketPresetMode = 'list' | 'show' | 'save';
+type AgentReviewPacketPresetMode = 'list' | 'show' | 'save' | 'refresh';
 type ReviewPacketArtifactRole =
   | 'documentExport'
   | 'comparison'
@@ -60,6 +60,13 @@ interface ReviewPacketPresetRecord {
   readonly createdAt: string;
   readonly explicitUserRequest: string;
   readonly packet: ReviewPacketPresetPacket;
+  readonly refresh?: {
+    readonly sourceArtifactId: string;
+    readonly sourcePresetId?: string;
+    readonly missingCount: number;
+    readonly supersededCount: number;
+    readonly unresolvedCount: number;
+  };
   readonly policy: {
     readonly effect: 'save-local-preset-artifact-only';
     readonly documentsChanged: false;
@@ -174,7 +181,32 @@ function parseMode(value: unknown): AgentReviewPacketPresetMode {
   if (!mode || mode === 'list') return 'list';
   if (mode === 'show' || mode === 'get') return 'show';
   if (mode === 'save' || mode === 'create') return 'save';
-  throw new Error(`Unknown agent_review_packet_presets mode: ${mode}. Use mode:"list", mode:"show", or mode:"save".`);
+  if (mode === 'refresh' || mode === 'update') return 'refresh';
+  throw new Error(`Unknown agent_review_packet_presets mode: ${mode}. Use mode:"list", mode:"show", mode:"save", or mode:"refresh".`);
+}
+
+function defaultPacketSummary(input: {
+  readonly documentId?: string;
+  readonly documentExportArtifactId?: string;
+  readonly comparisonArtifactId?: string;
+  readonly judgmentArtifactId?: string;
+  readonly revealedJudgmentArtifactId?: string;
+  readonly handoffArtifactId?: string;
+  readonly handoffArchiveArtifactId?: string;
+  readonly relatedArtifactIds?: readonly string[];
+}): string {
+  const sourceArtifactId = input.revealedJudgmentArtifactId
+    || input.judgmentArtifactId
+    || input.comparisonArtifactId
+    || input.documentExportArtifactId;
+  const relatedArtifactIds = input.relatedArtifactIds ?? [];
+  return [
+    input.documentId ? `document ${input.documentId}` : '',
+    sourceArtifactId ? `source ${sourceArtifactId}` : '',
+    input.handoffArtifactId ? `handoff ${input.handoffArtifactId}` : '',
+    input.handoffArchiveArtifactId ? `archive ${input.handoffArchiveArtifactId}` : '',
+    relatedArtifactIds.length > 0 ? `${relatedArtifactIds.length} related` : '',
+  ].filter(Boolean).join('; ') || 'review packet preset';
 }
 
 function readPresetPacket(args: AgentReviewPacketPresetsToolArgs): ReviewPacketPresetPacket {
@@ -190,14 +222,16 @@ function readPresetPacket(args: AgentReviewPacketPresetsToolArgs): ReviewPacketP
   const handoffArchiveArtifactId = readString(args.handoffArchiveArtifactId);
   const relatedArtifactIds = readStringList(args.relatedArtifactIds);
   const explicitSummary = readString(args.summary);
-  const sourceArtifactId = revealedJudgmentArtifactId || judgmentArtifactId || comparisonArtifactId || documentExportArtifactId;
-  const summary = explicitSummary || [
-    documentId ? `document ${documentId}` : '',
-    sourceArtifactId ? `source ${sourceArtifactId}` : '',
-    handoffArtifactId ? `handoff ${handoffArtifactId}` : '',
-    handoffArchiveArtifactId ? `archive ${handoffArchiveArtifactId}` : '',
-    relatedArtifactIds.length > 0 ? `${relatedArtifactIds.length} related` : '',
-  ].filter(Boolean).join('; ') || 'review packet preset';
+  const summary = explicitSummary || defaultPacketSummary({
+    documentId,
+    documentExportArtifactId,
+    comparisonArtifactId,
+    judgmentArtifactId,
+    revealedJudgmentArtifactId,
+    handoffArtifactId,
+    handoffArchiveArtifactId,
+    relatedArtifactIds,
+  });
 
   if (!documentId
     && !documentExportArtifactId
@@ -284,6 +318,11 @@ function presetMetadata(record: ReviewPacketPresetRecord): Record<string, unknow
     handoffArtifactId: metadataValue(record.packet.handoffArtifactId),
     handoffArchiveArtifactId: metadataValue(record.packet.handoffArchiveArtifactId),
     relatedArtifactIds: record.packet.relatedArtifactIds,
+    refreshOfArtifactId: metadataValue(record.refresh?.sourceArtifactId),
+    refreshOfPresetId: metadataValue(record.refresh?.sourcePresetId),
+    freshnessMissingCount: record.refresh?.missingCount,
+    freshnessSupersededCount: record.refresh?.supersededCount,
+    freshnessUnresolvedCount: record.refresh?.unresolvedCount,
     source: 'agent-review-packet-presets',
     createdAt: record.createdAt,
     explicitUserRequest: record.explicitUserRequest,
@@ -663,6 +702,9 @@ function parsePresetBody(buffer: Buffer): ReviewPacketPresetRecord | null {
     const parsed = JSON.parse(buffer.toString('utf-8')) as Partial<ReviewPacketPresetRecord>;
     if (parsed.schema !== REVIEW_PACKET_PRESET_SCHEMA || parsed.schemaVersion !== 1 || !parsed.packet) return null;
     const packet = parsed.packet as Partial<ReviewPacketPresetPacket>;
+    const refresh = parsed.refresh && typeof parsed.refresh === 'object'
+      ? parsed.refresh as Record<string, unknown>
+      : null;
     return {
       schema: REVIEW_PACKET_PRESET_SCHEMA,
       schemaVersion: 1,
@@ -670,6 +712,19 @@ function parsePresetBody(buffer: Buffer): ReviewPacketPresetRecord | null {
       name: readString(parsed.name) || 'Reviewer packet preset',
       createdAt: readString(parsed.createdAt),
       explicitUserRequest: readString(parsed.explicitUserRequest),
+      ...(refresh
+        ? {
+          refresh: {
+            sourceArtifactId: readString(refresh.sourceArtifactId),
+            ...(readString(refresh.sourcePresetId)
+              ? { sourcePresetId: readString(refresh.sourcePresetId) }
+              : {}),
+            missingCount: readNumber(refresh.missingCount, 0),
+            supersededCount: readNumber(refresh.supersededCount, 0),
+            unresolvedCount: readNumber(refresh.unresolvedCount, 0),
+          },
+        }
+        : {}),
       packet: {
         ...(readString(packet.documentId) ? { documentId: readString(packet.documentId) } : {}),
         ...(readString(packet.documentTitle) ? { documentTitle: readString(packet.documentTitle) } : {}),
@@ -742,6 +797,138 @@ function formatSaveResult(descriptor: ArtifactDescriptor, record: ReviewPacketPr
   ].join('\n');
 }
 
+function packetReferenceFingerprint(packet: ReviewPacketPresetPacket): string {
+  return JSON.stringify({
+    documentId: packet.documentId ?? '',
+    documentTitle: packet.documentTitle ?? '',
+    documentExportArtifactId: packet.documentExportArtifactId ?? '',
+    comparisonArtifactId: packet.comparisonArtifactId ?? '',
+    judgmentArtifactId: packet.judgmentArtifactId ?? '',
+    revealedJudgmentArtifactId: packet.revealedJudgmentArtifactId ?? '',
+    routeDecisionArtifactId: packet.routeDecisionArtifactId ?? '',
+    routeDecision: packet.routeDecision ?? '',
+    handoffArtifactId: packet.handoffArtifactId ?? '',
+    handoffArchiveArtifactId: packet.handoffArchiveArtifactId ?? '',
+    relatedArtifactIds: packet.relatedArtifactIds,
+  });
+}
+
+function hasRefreshableReplacements(audit: ReviewPacketFreshnessAudit): boolean {
+  return audit.missing.some((missing) => Boolean(missing.replacementId)) || audit.superseded.length > 0;
+}
+
+function unresolvedFreshnessCount(audit: ReviewPacketFreshnessAudit): number {
+  return audit.missing.filter((missing) => !missing.replacementId).length;
+}
+
+function updateSummaryReferences(summary: string, audit: ReviewPacketFreshnessAudit): string {
+  let updated = summary;
+  const replace = (from: string, to: string | undefined): void => {
+    if (!to || !from || from === to) return;
+    updated = updated.split(from).join(to);
+  };
+  for (const missing of audit.missing) replace(missing.id, missing.replacementId);
+  for (const superseded of audit.superseded) replace(superseded.id, superseded.replacementId);
+  return updated.trim();
+}
+
+function refreshedPacket(
+  original: ReviewPacketPresetPacket,
+  audit: ReviewPacketFreshnessAudit,
+  explicitSummary: string,
+): ReviewPacketPresetPacket {
+  const recommended = audit.recommendedPacket;
+  const summary = explicitSummary
+    || updateSummaryReferences(original.summary, audit)
+    || defaultPacketSummary(recommended);
+  return { ...recommended, summary };
+}
+
+function buildRefreshRecord(input: {
+  readonly args: AgentReviewPacketPresetsToolArgs;
+  readonly loaded: LoadedReviewPacketPreset;
+  readonly audit: ReviewPacketFreshnessAudit;
+  readonly packet: ReviewPacketPresetPacket;
+}): ReviewPacketPresetRecord {
+  const explicitUserRequest = readString(input.args.explicitUserRequest);
+  if (!explicitUserRequest) {
+    throw new Error('explicitUserRequest is required so refreshed packet presets stay tied to a direct user request.');
+  }
+  const oldName = input.loaded.body?.name
+    || readMetadataString(input.loaded.descriptor.metadata, 'name')
+    || input.loaded.descriptor.filename
+    || input.loaded.descriptor.id;
+  const oldPresetId = input.loaded.body?.presetId || readMetadataString(input.loaded.descriptor.metadata, 'presetId');
+  const requestedName = readString(input.args.name);
+  return {
+    schema: REVIEW_PACKET_PRESET_SCHEMA,
+    schemaVersion: 1,
+    presetId: `packet_preset_${randomUUID()}`,
+    name: requestedName || `${oldName} refreshed`,
+    createdAt: new Date().toISOString(),
+    explicitUserRequest,
+    packet: refreshedPacket(input.packet, input.audit, readString(input.args.summary)),
+    refresh: {
+      sourceArtifactId: input.loaded.descriptor.id,
+      ...(oldPresetId ? { sourcePresetId: oldPresetId } : {}),
+      missingCount: input.audit.missing.length,
+      supersededCount: input.audit.superseded.length,
+      unresolvedCount: unresolvedFreshnessCount(input.audit),
+    },
+    policy: {
+      effect: 'save-local-preset-artifact-only',
+      documentsChanged: false,
+      modelRouteChanged: false,
+      handoffArchiveCreated: false,
+    },
+  };
+}
+
+function formatRefreshPreview(
+  source: LoadedReviewPacketPreset,
+  audit: ReviewPacketFreshnessAudit,
+  record: ReviewPacketPresetRecord,
+): string {
+  return [
+    'Agent review packet preset refresh preview',
+    `  refreshOf ${source.descriptor.id}`,
+    `  name ${record.name}`,
+    ...formatFreshnessLines(audit),
+    '  refreshed packet',
+    ...formatPacketLines(record.packet),
+    '  policy save one new local preset artifact only; source preset, documents, model routing, handoffs, and archives are unchanged',
+  ].join('\n');
+}
+
+function formatRefreshResult(
+  descriptor: ArtifactDescriptor,
+  source: LoadedReviewPacketPreset,
+  audit: ReviewPacketFreshnessAudit,
+  record: ReviewPacketPresetRecord,
+): string {
+  return [
+    'Review packet preset refreshed',
+    `  artifact ${descriptor.id}`,
+    `  refreshedFrom ${source.descriptor.id}`,
+    `  preset ${record.presetId}`,
+    `  name ${record.name}`,
+    ...formatPacketLines(record.packet),
+    `  freshness repaired ${audit.missing.filter((missing) => Boolean(missing.replacementId)).length + audit.superseded.length}; unresolved ${unresolvedFreshnessCount(audit)}`,
+    `  inspect agent_review_packet_presets mode:"show" artifactId:"${descriptor.id}"`,
+    '  policy local preset artifact only; source preset, documents, model routing, handoffs, and archives unchanged',
+  ].join('\n');
+}
+
+function formatAlreadyCurrent(source: LoadedReviewPacketPreset, audit: ReviewPacketFreshnessAudit): string {
+  return [
+    'Review packet preset already current',
+    `  artifact ${source.descriptor.id}`,
+    `  ${formatFreshnessSummary(audit)}`,
+    '  no new preset artifact created',
+    '  policy documents, model routing, handoffs, and archives unchanged',
+  ].join('\n');
+}
+
 function formatFreshnessSummary(audit: ReviewPacketFreshnessAudit): string {
   if (!audit.available) return 'freshness unchecked; artifact list unavailable';
   if (audit.status === 'current') return `freshness current; checked ${audit.scannedArtifacts} artifact(s)`;
@@ -795,8 +982,11 @@ function formatList(
         `    summary ${compactText(packet.summary, 120)}`,
         `    document ${packet.documentId ?? '(none)'}; source ${source}; handoff ${packet.handoffArtifactId ?? '(none)'}; archive ${packet.handoffArchiveArtifactId ?? '(none)'}; related ${packet.relatedArtifactIds.length}`,
         `    ${formatFreshnessSummary(audit)}`,
+        audit.status === 'needs-review' && hasRefreshableReplacements(audit)
+          ? `    refresh agent_review_packet_presets mode:"refresh" artifactId:"${artifact.id}" confirm:true explicitUserRequest:"..."`
+          : '',
         `    inspect agent_review_packet_presets mode:"show" artifactId:"${artifact.id}"`,
-      ];
+      ].filter(Boolean);
     }),
   ].join('\n');
 }
@@ -821,6 +1011,9 @@ function formatShow(loaded: LoadedReviewPacketPreset, audit: ReviewPacketFreshne
     routePacket.revealedJudgmentArtifactId ? `  routeDecision agent_model_compare mode:"routeDecision" artifactId:"${routePacket.revealedJudgmentArtifactId}" decision:"left-unchanged" confirm:true explicitUserRequest:"..."` : '',
     routePacket.handoffArtifactId ? `  archive agent_model_compare mode:"handoffArchive" artifactId:"${routePacket.handoffArtifactId}" confirm:true explicitUserRequest:"..."` : '',
     routePacket.handoffArchiveArtifactId ? `  inspectArchive agent_artifacts mode:"show" artifactId:"${routePacket.handoffArchiveArtifactId}"` : '',
+    audit.status === 'needs-review' && hasRefreshableReplacements(audit)
+      ? `  refreshPreset agent_review_packet_presets mode:"refresh" artifactId:"${loaded.descriptor.id}" confirm:true explicitUserRequest:"..."`
+      : '',
     '  policy read-only inspection; reuse routes still require explicit confirmation where shown',
   ].filter(Boolean).join('\n');
 }
@@ -845,22 +1038,22 @@ export function createAgentReviewPacketPresetsTool(
   return {
     definition: {
       name: 'agent_review_packet_presets',
-      description: 'Save and freshness-check reusable Document Ops packet presets.',
+      description: 'Save and refresh reusable Document Ops packet presets.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: ['list', 'show', 'save'],
-            description: 'List, show, or save one review packet preset.',
+            enum: ['list', 'show', 'save', 'refresh'],
+            description: 'List, show, save, or refresh one review packet preset.',
           },
           artifactId: {
             type: 'string',
-            description: 'Saved preset artifact id for show mode.',
+            description: 'Saved preset artifact id for show or refresh mode.',
           },
           name: {
             type: 'string',
-            description: 'Human-friendly preset name for save mode.',
+            description: 'Human-friendly preset name for save or refresh mode.',
           },
           documentId: {
             type: 'string',
@@ -917,11 +1110,11 @@ export function createAgentReviewPacketPresetsTool(
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true for save mode.',
+            description: 'Required true for save or refresh mode.',
           },
           explicitUserRequest: {
             type: 'string',
-            description: 'User request authorizing preset save.',
+            description: 'User request authorizing preset save or refresh.',
           },
         },
         required: ['mode'],
@@ -956,6 +1149,44 @@ export function createAgentReviewPacketPresetsTool(
             artifacts: allArtifacts,
             store: artifactStore,
           })));
+        }
+        if (mode === 'refresh') {
+          const artifactId = readString(args.artifactId);
+          if (!artifactId) return failure('artifactId is required for mode:"refresh".');
+          if (!artifactStore?.create) return failure('Review packet preset refresh is unavailable because this runtime did not provide an artifact store.');
+          if (!artifactStore.readContent && !artifactStore.list) return failure('Review packet preset refresh is unavailable because this runtime cannot read or list artifacts.');
+          if (!artifactStore.list) return failure('Review packet preset refresh is unavailable because this runtime cannot list artifacts for freshness checks.');
+          const loaded = await loadPresetArtifact(artifactStore, artifactId);
+          if (!loaded) return failure(`Unknown review packet preset artifact ${artifactId}. Use agent_review_packet_presets mode:"list" first.`);
+          const allArtifacts = artifactStore.list(MAX_FRESHNESS_ARTIFACT_SCAN);
+          const packet = loaded.body?.packet ?? packetFromMetadata(loaded.descriptor);
+          const audit = auditPresetFreshness({
+            packet,
+            descriptor: loaded.descriptor,
+            artifacts: allArtifacts,
+            store: artifactStore,
+          });
+          if (audit.status === 'current') return output(formatAlreadyCurrent(loaded, audit));
+          const record = buildRefreshRecord({ args, loaded, audit, packet });
+          if (
+            !hasRefreshableReplacements(audit)
+            || packetReferenceFingerprint(packet) === packetReferenceFingerprint(record.packet)
+          ) {
+            return failure([
+              'Review packet preset refresh could not find a safe replacement to save.',
+              ...formatFreshnessLines(audit),
+              'Inspect the preset and repair missing evidence manually before saving a new preset.',
+            ].join('\n'));
+          }
+          if (!readBoolean(args.confirm)) {
+            return failure([
+              formatRefreshPreview(loaded, audit, record),
+              '',
+              'Refresh confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to refresh this reviewer packet preset.',
+            ].join('\n'));
+          }
+          const descriptor = await artifactStore.create(presetCreateInput(record));
+          return output(formatRefreshResult(descriptor, loaded, audit, record));
         }
         if (!artifactStore?.create) return failure('Review packet preset save is unavailable because this runtime did not provide an artifact store.');
         const record = buildPresetRecord(args);

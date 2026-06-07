@@ -87,6 +87,7 @@ export type AgentWorkspaceEditorKind =
   | 'document-reviewer-readiness'
   | 'document-review-packet-wizard'
   | 'document-review-packet-preset'
+  | 'document-review-packet-preset-refresh'
   | 'memory-search'
   | 'memory-get'
   | 'memory-explain'

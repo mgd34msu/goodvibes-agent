@@ -519,10 +519,11 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Insert artifact in draft');
     expect(output).toContain('Review packet timeline');
     expect(output).toContain('Review packet wizard');
+    expect(output).toContain('Refresh packet preset');
     expect(output).toContain('Review readiness preflight');
     expect(output).toContain('Export document artifact');
     expect(output).toContain('Export saved artifact');
-    expect(output).toContain('Export artifact package');
+    expect(workspace.actions.some((action) => action.id === 'document-export-artifact-package')).toBe(true);
     expect(output).toContain('review/side-by-side/judgment');
     expect(output).toContain('analytics/synthesis');
     expect(output).toContain('handoff diff');
