@@ -115,6 +115,12 @@ function autonomousLike(lower: string): boolean {
   ]);
 }
 
+function directScheduleLike(lower: string): boolean {
+  if (hasAny(lower, ['remind me', 'reminder', 'create reminder', 'schedule reminder'])) return true;
+  if (hasAny(lower, ['schedule ', 'scheduled task', 'scheduled work', 'cron'])) return true;
+  return hasAny(lower, ['pause schedule', 'resume schedule', 'run schedule', 'edit schedule', 'delete schedule', 'cancel schedule', 'enable schedule', 'disable schedule']);
+}
+
 function browserControlLike(lower: string): boolean {
   return hasAny(lower, [
     'browser control',
@@ -382,6 +388,35 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         'research action:"report" runId:"..." confirm:true explicitUserRequest:"..."',
       ],
       policy: 'Planning and source search are read-only; visible run creation, source capture, lifecycle controls, and report saves stay confirmed.',
+    });
+  }
+
+  if (directScheduleLike(lower)) {
+    const reminder = hasAny(lower, ['remind', 'reminder']);
+    const lifecycle = hasAny(lower, ['pause', 'resume', 'run schedule', 'edit', 'delete', 'cancel', 'enable', 'disable']);
+    add({
+      id: 'direct-schedule-route',
+      label: reminder ? 'Reminder scheduling route' : 'Schedule management route',
+      score: 98,
+      userSurface: 'Work and schedules workspace',
+      userOutcome: 'Create, inspect, edit, or control schedules through the first-class schedule tool with confirmation boundaries.',
+      why: 'The request directly mentions reminders, schedules, cron, or schedule lifecycle controls.',
+      modelRoute: `schedule action:"list" query:${quote(request)} limit:5`,
+      inspectRoute: 'schedule action:"list"',
+      userRoute: 'Agent Workspace -> Work & Approvals',
+      requiresConfirmation: reminder || lifecycle || hasAny(lower, ['create', 'schedule ', 'cron']),
+      missingFields: reminder
+        ? ['reminder message', 'time or cadence', 'confirmation']
+        : lifecycle
+          ? ['schedule id', 'exact lifecycle action', 'confirmation']
+          : ['task', 'time/cadence', 'success criteria for autonomous work', 'confirmation'],
+      supportingRoutes: [
+        'schedule action:"remind" message:"..." scheduleKind:"at|every|cron" scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+        'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"at|every|cron" scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+        'schedule action:"edit|run|pause|resume|delete" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+        'autonomy action:"queue"',
+      ],
+      policy: 'Schedule listing is read-only. Reminder creation, autonomous schedule creation, edits, and lifecycle controls require exact fields plus confirmation.',
     });
   }
 

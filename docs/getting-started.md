@@ -69,7 +69,7 @@ Common model routes:
 
 | Need | Tool Or Mode |
 | --- | --- |
-| Choose the best route for a user task | `route action:"plan" query:"..."`; settings route through `settings action:"list"`; local background commands route through `execution action:"processes"`; file undo/redo routes through `execution action:"recovery"`; screenshot/browser/desktop-control tasks route through `computer action:"plan"`; lower-level `agent_harness mode:"route_decision"` remains available for compatibility/detail |
+| Choose the best route for a user task | `route action:"plan" query:"..."`; settings route through `settings action:"list"`; reminders/schedules route through `schedule action:"list"`; local background commands route through `execution action:"processes"`; file undo/redo routes through `execution action:"recovery"`; screenshot/browser/desktop-control tasks route through `computer action:"plan"`; lower-level `agent_harness mode:"route_decision"` remains available for compatibility/detail |
 | Harness mode discovery | `agent_harness mode:"modes"`, `mode:"mode"` |
 | Workspace actions | `workspace action:"status|actions|action|run"`; lower-level workspace harness modes remain available for compatibility/detail |
 | Slash commands | `workspace action:"commands|command|run_command"`; lower-level command harness modes remain available for compatibility/detail |

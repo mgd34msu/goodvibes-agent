@@ -82,6 +82,17 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes direct reminder requests through the schedule tool', async () => {
+    const body = await route('remind me tomorrow to stretch');
+
+    expect(preferredId(body)).toBe('direct-schedule-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'schedule action:"list" query:"remind me tomorrow to stretch" limit:5',
+      inspectRoute: 'schedule action:"list"',
+      requiresConfirmation: true,
+    });
+  });
+
   test('routes normal settings requests to the first-class settings tool', async () => {
     const body = await route('change the theme setting');
 
