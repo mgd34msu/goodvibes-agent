@@ -1,4 +1,4 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor, AgentWorkspaceReviewPacketDefaults } from './agent-workspace-types.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
@@ -204,7 +204,11 @@ export function createAgentDocumentRejectSuggestionEditor(): AgentWorkspaceLocal
   };
 }
 
-export function createAgentDocumentExportEditor(): AgentWorkspaceLocalEditor {
+export function createAgentDocumentExportEditor(defaults: AgentWorkspaceReviewPacketDefaults | null = null): AgentWorkspaceLocalEditor {
+  const defaultDocument = defaults?.documentId ?? '';
+  const defaultHint = defaults?.summary
+    ? `Packet default: ${defaults.summary}. ${defaults.documentTitle ? `Document: ${defaults.documentTitle}. ` : ''}Clear it to choose another document.`
+    : 'Document id or exact title to export.';
   return {
     kind: 'document-export',
     mode: 'create',
@@ -212,7 +216,7 @@ export function createAgentDocumentExportEditor(): AgentWorkspaceLocalEditor {
     selectedFieldIndex: 0,
     message: 'Export one Agent-owned markdown draft as a saved artifact with document id and version metadata.',
     fields: [
-      { id: 'documentId', label: 'Document id', value: '', required: true, multiline: false, hint: 'Document id or exact title to export.' },
+      { id: 'documentId', label: 'Document id', value: defaultDocument, required: true, multiline: false, hint: defaultDocument ? defaultHint : 'Document id or exact title to export.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to export this document as an artifact.' },
     ],
   };

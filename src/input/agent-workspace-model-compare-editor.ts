@@ -1,4 +1,4 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor, AgentWorkspaceRecentReviewerHandoffArtifact } from './agent-workspace-types.ts';
+import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor, AgentWorkspaceRecentReviewerHandoffArtifact, AgentWorkspaceReviewPacketDefaults } from './agent-workspace-types.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
@@ -229,32 +229,56 @@ export function createAgentModelCompareJudgmentEditor(): AgentWorkspaceLocalEdit
   };
 }
 
-export function createAgentModelCompareApplyEditor(): AgentWorkspaceLocalEditor {
+function packetSourceArtifactId(defaults: AgentWorkspaceReviewPacketDefaults | null): string {
+  return defaults?.revealedJudgmentArtifactId
+    ?? defaults?.judgmentArtifactId
+    ?? defaults?.comparisonArtifactId
+    ?? '';
+}
+
+export function createAgentModelCompareApplyEditor(defaults: AgentWorkspaceReviewPacketDefaults | null = null): AgentWorkspaceLocalEditor {
+  const artifactId = defaults?.revealedJudgmentArtifactId ?? '';
+  const artifactHint = defaults?.summary
+    ? `Default from latest revealed packet judgment. Packet default: ${defaults.summary}. Clear it to choose another saved judgment.`
+    : 'Saved revealed judgment artifact id such as artifact-123.';
   return {
     kind: 'model-compare-apply',
     mode: 'create',
     title: 'Apply Compare Winner',
     selectedFieldIndex: 0,
-    message: 'Apply a revealed saved judgment artifact to the main Agent model route. This changes provider.model after confirmation.',
+    message: artifactId
+      ? 'Apply a revealed saved judgment artifact to the main Agent model route.'
+      : 'Apply a revealed saved judgment artifact to the main Agent model route. This changes provider.model after confirmation.',
     fields: [
-      { id: 'artifactId', label: 'Judgment artifact id', value: '', required: true, multiline: false, hint: 'Saved revealed judgment artifact id such as artifact-123.' },
+      { id: 'artifactId', label: 'Judgment artifact id', value: artifactId, required: true, multiline: false, hint: artifactId ? artifactHint : 'Saved revealed judgment artifact id such as artifact-123.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to change the selected Agent model.' },
     ],
   };
 }
 
-export function createAgentModelCompareExportEditor(): AgentWorkspaceLocalEditor {
+export function createAgentModelCompareExportEditor(defaults: AgentWorkspaceReviewPacketDefaults | null = null): AgentWorkspaceLocalEditor {
+  const defaultKind = defaults?.handoffArtifactId
+    ? 'archive'
+    : defaults?.relatedArtifactIds.length
+      ? 'handoff'
+      : 'report';
+  const artifactId = defaultKind === 'archive'
+    ? defaults?.handoffArtifactId ?? ''
+    : packetSourceArtifactId(defaults);
+  const relatedArtifactIds = defaultKind === 'handoff' ? (defaults?.relatedArtifactIds ?? []).join('\n') : '';
   return {
     kind: 'model-compare-export',
     mode: 'create',
     title: 'Export Compare Report/Handoff',
     selectedFieldIndex: 0,
-    message: 'Export a saved comparison or judgment as a markdown report, create a reviewer handoff with related document/artifact ids, or archive a saved handoff as one ZIP artifact. This does not change the selected model.',
+    message: artifactId
+      ? 'Export a saved comparison or judgment as a markdown report, create a reviewer handoff with related document/artifact ids, or archive a saved handoff as one ZIP artifact.'
+      : 'Export a saved comparison or judgment as a markdown report, create a reviewer handoff with related document/artifact ids, or archive a saved handoff as one ZIP artifact. This does not change the selected model.',
     fields: [
-      { id: 'reportKind', label: 'Kind', value: 'report', required: false, multiline: false, hint: 'report, handoff, or archive. Archive expects a saved handoff artifact id and creates one ZIP artifact.' },
-      { id: 'artifactId', label: 'Artifact id', value: '', required: true, multiline: false, hint: 'Saved comparison/judgment artifact for report or handoff; saved handoff artifact for archive.' },
-      { id: 'relatedArtifactIds', label: 'Related artifacts', value: '', required: false, multiline: true, hint: 'For handoff: document export, archive, or artifact ids, separated by commas or new lines.' },
-      { id: 'reveal', label: 'Reveal in export', value: 'no', required: false, multiline: false, hint: 'yes/no. For comparison artifacts, yes includes model identities. Judgment artifacts use their saved reveal state.' },
+      { id: 'reportKind', label: 'Kind', value: defaultKind, required: false, multiline: false, hint: defaults?.handoffArtifactId ? `Default archive uses the latest reviewer handoff. Packet default: ${defaults.summary}. Change to report or handoff to use comparison/judgment artifacts.` : defaults?.relatedArtifactIds.length ? `Default handoff carries latest related packet evidence. Packet default: ${defaults.summary}. Change to report for markdown only.` : 'report, handoff, or archive. Archive expects a saved handoff artifact id and creates one ZIP artifact.' },
+      { id: 'artifactId', label: 'Artifact id', value: artifactId, required: true, multiline: false, hint: artifactId ? `Default from latest packet comparison, judgment, or reviewer handoff. Packet default: ${defaults?.summary ?? artifactId}. Clear it to choose another saved artifact.` : 'Saved comparison/judgment artifact for report or handoff; saved handoff artifact for archive.' },
+      { id: 'relatedArtifactIds', label: 'Related artifacts', value: relatedArtifactIds, required: false, multiline: true, hint: relatedArtifactIds ? `Default related evidence from latest document export, attachments, source artifacts, or handoff metadata. Packet default: ${defaults?.summary ?? relatedArtifactIds}.` : 'For handoff: document export, archive, or artifact ids, separated by commas or new lines.' },
+      { id: 'reveal', label: 'Reveal in export', value: defaultKind === 'handoff' ? 'yes' : 'no', required: false, multiline: false, hint: 'yes/no. For comparison artifacts, yes includes model identities. Judgment artifacts use their saved reveal state.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to create the local report, handoff, or ZIP archive artifact.' },
     ],
   };

@@ -407,6 +407,18 @@ export interface AgentWorkspaceReviewPacketTimeline {
   readonly items: readonly AgentWorkspaceReviewPacketTimelineEvent[];
 }
 
+export interface AgentWorkspaceReviewPacketDefaults {
+  readonly documentId: string | null;
+  readonly documentTitle: string | null;
+  readonly documentExportArtifactId: string | null;
+  readonly comparisonArtifactId: string | null;
+  readonly judgmentArtifactId: string | null;
+  readonly revealedJudgmentArtifactId: string | null;
+  readonly handoffArtifactId: string | null;
+  readonly relatedArtifactIds: readonly string[];
+  readonly summary: string;
+}
+
 export interface AgentWorkspaceRuntimeProfileItem {
   readonly id: string;
   readonly homeDirectory: string;
@@ -536,6 +548,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
   readonly reviewerReadinessBadge: AgentWorkspaceReviewerReadinessBadge;
   readonly reviewPacketTimeline: AgentWorkspaceReviewPacketTimeline;
+  readonly reviewPacketDefaults: AgentWorkspaceReviewPacketDefaults;
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];

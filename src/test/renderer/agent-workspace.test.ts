@@ -628,7 +628,7 @@ describe('renderAgentWorkspace', () => {
     }), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
 
-    const output = text(renderAgentWorkspace(workspace, 150, 56));
+    let output = text(renderAgentWorkspace(workspace, 150, 56));
 
     expect(output).toContain('Review packet timeline:');
     expect(output).toContain('Packet handoff: Reviewer handoff: hnd_launch');
@@ -636,6 +636,27 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Packet compare: Blind compare hidden: cmp_launch');
     expect(output).toContain('Packet next:');
     expect(output).toContain('related artifact(s)');
+    expect(output).toContain('Packet defaults: document reviewer-packet');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-draft');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 150, 56));
+    expect(output).toContain('Packet default: document reviewer-packet');
+    expect(output).toContain('reviewer-packet');
+    workspace.cancelLocalEditor();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-compare');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 150, 56));
+    expect(output).toContain('Default archive uses the latest reviewer handoff');
+    expect(output).toContain('handoff-launch');
+    workspace.cancelLocalEditor();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-apply-compare');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 150, 56));
+    expect(output).toContain('Default from latest revealed packet judgment');
+    expect(output).toContain('judgment-launch');
   });
 
   test('shows reviewer-readiness badges at export archive and route-apply points', () => {

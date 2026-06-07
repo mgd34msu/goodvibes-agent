@@ -23,6 +23,7 @@ import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceLocalOperation,
   AgentWorkspaceRecentReviewerHandoffArtifact,
+  AgentWorkspaceReviewPacketDefaults,
   AgentWorkspaceRuntimeSnapshot,
   AgentWorkspaceRuntimeStarterTemplateItem,
 } from './agent-workspace-types.ts';
@@ -90,6 +91,7 @@ export function activateAgentWorkspaceSelection(
       runtimeStarterTemplates: workspace.runtimeSnapshot?.runtimeStarterTemplates ?? [],
       selectedRoutine: workspace.selectedLocalLibraryItem('routine'),
       recentReviewerHandoffArtifacts: workspace.runtimeSnapshot?.recentReviewerHandoffArtifacts ?? [],
+      reviewPacketDefaults: workspace.runtimeSnapshot?.reviewPacketDefaults ?? null,
     });
     if (!editor) {
       workspace.status = `Editor unavailable: ${action.editorKind}.`;
@@ -188,6 +190,7 @@ export function createAgentWorkspaceEditor(
     readonly runtimeStarterTemplates?: readonly AgentWorkspaceRuntimeStarterTemplateItem[];
     readonly selectedRoutine?: AgentWorkspaceLocalLibraryItem | null;
     readonly recentReviewerHandoffArtifacts?: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
+    readonly reviewPacketDefaults?: AgentWorkspaceReviewPacketDefaults | null;
   } = {},
 ): AgentWorkspaceLocalEditor | null {
   if (editorKind === 'profile') return createProfileEditor(options.runtimeStarterTemplates ?? []);
@@ -214,15 +217,15 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'document-reject-suggestion') return createAgentDocumentRejectSuggestionEditor();
   if (editorKind === 'document-insert-artifact') return createAgentDocumentInsertArtifactEditor();
   if (editorKind === 'document-attach-artifact') return createAgentDocumentAttachArtifactEditor();
-  if (editorKind === 'document-export') return createAgentDocumentExportEditor();
+  if (editorKind === 'document-export') return createAgentDocumentExportEditor(options.reviewPacketDefaults ?? null);
   if (editorKind === 'document-reviewer-readiness') return createAgentDocumentReviewerReadinessEditor();
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
   if (editorKind === 'local-model-benchmark') return createAgentLocalModelBenchmarkEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();
   if (editorKind === 'model-compare-handoff-diff') return createAgentModelCompareHandoffDiffEditor(options.recentReviewerHandoffArtifacts ?? []);
   if (editorKind === 'model-compare-judge') return createAgentModelCompareJudgmentEditor();
-  if (editorKind === 'model-compare-apply') return createAgentModelCompareApplyEditor();
-  if (editorKind === 'model-compare-export') return createAgentModelCompareExportEditor();
+  if (editorKind === 'model-compare-apply') return createAgentModelCompareApplyEditor(options.reviewPacketDefaults ?? null);
+  if (editorKind === 'model-compare-export') return createAgentModelCompareExportEditor(options.reviewPacketDefaults ?? null);
   if (editorKind === 'model-compare-analytics') return createAgentModelCompareAnalyticsEditor();
   if (editorKind && isAgentWorkspaceBasicCommandEditorKind(editorKind)) return createAgentWorkspaceBasicCommandEditor(editorKind);
   if (editorKind === 'knowledge-ask') return createAgentKnowledgeQueryEditor('ask');

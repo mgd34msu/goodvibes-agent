@@ -32,6 +32,7 @@ import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceResearchRunSummary,
+  AgentWorkspaceReviewPacketDefaults,
   AgentWorkspaceReviewPacketTimeline,
   AgentWorkspaceReviewPacketTimelineEvent,
   AgentWorkspaceReviewerReadinessBadge,
@@ -217,6 +218,19 @@ function compactTimelineText(value: string, maxLength = 96): string {
   const normalized = value.replace(/\s+/g, ' ').trim();
   if (normalized.length <= maxLength) return normalized;
   return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function uniqueStrings(values: readonly (string | null | undefined)[], limit: number): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    result.push(trimmed);
+    if (result.length >= limit) break;
+  }
+  return result;
 }
 
 function isReviewerHandoffArtifact(artifact: ArtifactDescriptor): boolean {
@@ -457,6 +471,52 @@ function buildReviewPacketTimeline(
           ? 'Review packet timeline is clear; export, handoff, archive, or route decisions can use the visible readiness checks.'
           : 'Create or attach a document, source artifact, comparison, judgment, handoff, or archive to start a review packet timeline.',
     items: ordered.slice(0, 8),
+  };
+}
+
+function buildReviewPacketDefaults(
+  documents: readonly AgentDocumentRecord[],
+  artifacts: readonly ArtifactDescriptor[],
+): AgentWorkspaceReviewPacketDefaults {
+  const latestDocument = [...documents]
+    .filter((document) => document.status !== 'archived')
+    .sort((left, right) => isoToEpoch(right.updatedAt) - isoToEpoch(left.updatedAt) || left.id.localeCompare(right.id))[0] ?? null;
+  const latestDocumentExport = artifacts.filter(isDocumentExportArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const latestComparison = artifacts.filter(isModelCompareArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const latestJudgment = artifacts.filter(isModelCompareJudgmentArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const latestRevealedJudgment = artifacts
+    .filter((artifact) => (
+      isModelCompareJudgmentArtifact(artifact)
+      && artifact.metadata.revealIncludedInJudgment === true
+      && readArtifactMetadataString(artifact.metadata, 'winnerModel').length > 0
+    ))
+    .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const latestHandoff = artifacts.filter(isReviewerHandoffArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const relatedArtifactIds = uniqueStrings([
+    latestDocumentExport?.id,
+    latestDocument?.lastArtifactId,
+    ...(latestDocument?.attachments.map((attachment) => attachment.artifactId) ?? []),
+    readArtifactMetadataString(latestComparison?.metadata ?? {}, 'sourceArtifactId'),
+    ...readArtifactMetadataStringList(latestHandoff?.metadata ?? {}, 'relatedArtifactIds'),
+  ], 8);
+  const sourceArtifactId = latestRevealedJudgment?.id ?? latestJudgment?.id ?? latestComparison?.id ?? null;
+  const handoffArtifactId = latestHandoff?.id ?? null;
+  const summary = [
+    latestDocument ? `document ${latestDocument.id}` : '',
+    sourceArtifactId ? `source ${sourceArtifactId}` : '',
+    handoffArtifactId ? `handoff ${handoffArtifactId}` : '',
+    relatedArtifactIds.length > 0 ? `${relatedArtifactIds.length} related` : '',
+  ].filter(Boolean).join('; ') || 'no packet defaults yet';
+  return {
+    documentId: latestDocument?.id ?? null,
+    documentTitle: latestDocument?.title ?? null,
+    documentExportArtifactId: latestDocumentExport?.id ?? null,
+    comparisonArtifactId: latestComparison?.id ?? null,
+    judgmentArtifactId: latestJudgment?.id ?? null,
+    revealedJudgmentArtifactId: latestRevealedJudgment?.id ?? null,
+    handoffArtifactId,
+    relatedArtifactIds,
+    summary,
   };
 }
 
@@ -767,6 +827,10 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     artifactListSnapshot.items,
     artifactListSnapshot.available,
   );
+  const reviewPacketDefaults = buildReviewPacketDefaults(
+    documentDrafts,
+    artifactListSnapshot.items,
+  );
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
   const profileBaseHome = inferRuntimeProfileBaseHome(context.workspace?.shellPaths?.homeDirectory ?? '');
   const runtimeProfiles = (() => {
@@ -1025,6 +1089,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     recentReviewerHandoffArtifacts: recentReviewerHandoffs.items,
     reviewerReadinessBadge: reviewerBadge,
     reviewPacketTimeline,
+    reviewPacketDefaults,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

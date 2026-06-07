@@ -524,6 +524,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       reviewerHandoffArtifactLine(snapshot),
       { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
       ...reviewPacketTimelineLines(snapshot),
+      { text: `Packet defaults: ${snapshot.reviewPacketDefaults.summary}.`, fg: snapshot.reviewPacketDefaults.documentId || snapshot.reviewPacketDefaults.comparisonArtifactId || snapshot.reviewPacketDefaults.handoffArtifactId ? PALETTE.info : PALETTE.muted },
       { text: 'Versioned drafts, review comments, AI suggestion review, artifact attachment/insertion, artifact browser, and Knowledge promotion are available.', fg: PALETTE.good },
       { text: 'Reviewer-readiness preflight, compare artifact reuse, review/side-by-side/judgment, filtered analytics/synthesis, handoff diff section jumps, export/handoff/archive, and route update are available.', fg: PALETTE.good },
     );
