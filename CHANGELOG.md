@@ -6,6 +6,7 @@ Product-facing release notes for GoodVibes Agent.
 
 - Hardened the Agent model tool surface so goodvibes_context routes to the Agent harness instead of dead-ending.
 - Added tool execution and permission safety guards so registered model tools return structured failures instead of aborting turns.
+- Added `security action:"explain"` and `agent_harness mode:"policy_explain"` for read-only allowed/denied/confirmation-required policy explanations.
 - Added registered-tool smoke coverage for the Agent-guarded platform tool roster.
 
 ## 1.1.6 - 2026-06-05

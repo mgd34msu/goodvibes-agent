@@ -30,6 +30,7 @@ const READ_TOOL_NAMES = new Set([
   'models',
   'personal_ops',
   'research',
+  'security',
   'setup',
   'settings',
   'vibe',
@@ -134,7 +135,7 @@ export function fallbackPermissionCategory(toolName: string): PermissionCategory
   return 'delegate';
 }
 
-function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string, unknown>): PermissionCategory {
+export function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string, unknown>): PermissionCategory {
   if (toolName === 'process') {
     const action = typeof args.action === 'string'
       ? args.action.trim().toLowerCase()

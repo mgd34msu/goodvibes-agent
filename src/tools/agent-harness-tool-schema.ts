@@ -21,7 +21,7 @@ export const AGENT_HARNESS_MODES = [
   'document_ops', 'document_ops_lane',
   'pairing_posture', 'pairing_route',
   'delegation_posture', 'delegation_route',
-  'security_posture', 'security_finding', 'support_bundles', 'support_bundle',
+  'security_posture', 'security_finding', 'policy_explain', 'support_bundles', 'support_bundle',
   'media_posture', 'media_provider',
   'sessions', 'session',
   'settings', 'get_setting', 'set_setting',
@@ -281,6 +281,14 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   toolName: {
     type: 'string',
     description: 'First-class model tool name.',
+  },
+  tool: {
+    type: 'string',
+    description: 'Alias for toolName in policy_explain mode.',
+  },
+  toolArgs: {
+    type: 'object',
+    description: 'Model tool arguments for policy_explain mode.',
   },
   category: {
     type: 'string',

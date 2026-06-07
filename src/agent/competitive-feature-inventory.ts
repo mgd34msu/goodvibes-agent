@@ -270,11 +270,10 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Every risky action has clear scope, trust, provenance, approval UX, logs, rollback, and doctor repair.',
     goodVibesStatus: 'leading',
     owners: ['agent', 'connected-host', 'release'],
-    goodVibesNow: 'GoodVibes has strong permission policy, secrets, MCP trust, pairing, redaction, readiness, doctor, release evidence, and operator audit surfaces.',
+    goodVibesNow: 'GoodVibes has strong permission policy, secrets, MCP trust, pairing, redaction, readiness, doctor, release evidence, operator audit surfaces, and first-class policy explanations that show whether one model action is allowed, denied, or waiting on confirmation.',
     nextMoves: [
       'Keep strong defaults while reducing unnecessary confirmations for already-approved low-risk workflows.',
       'Attach every autonomous task to audit logs, artifacts, and rollback or cancel affordances.',
-      'Add user-facing policy explanations for why an action was allowed, denied, or needs confirmation.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Emphasizes secure defaults, DM pairing, allowlists, sandboxing, and doctor checks.' },

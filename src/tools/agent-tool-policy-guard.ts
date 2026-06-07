@@ -513,6 +513,87 @@ export function validateChannelToolInvocationForAgentPolicy(args: ModeToolArgs):
   return null;
 }
 
+export interface AgentToolPolicyInvocationExplanation {
+  readonly status: 'allowed' | 'denied';
+  readonly layer: 'agent_tool_policy';
+  readonly reason: string;
+  readonly allowedModes?: readonly string[];
+}
+
+function allowedByAgentPolicy(reason: string, allowedModes?: readonly string[]): AgentToolPolicyInvocationExplanation {
+  return {
+    status: 'allowed',
+    layer: 'agent_tool_policy',
+    reason,
+    ...(allowedModes ? { allowedModes } : {}),
+  };
+}
+
+function deniedByAgentPolicy(reason: string, allowedModes?: readonly string[]): AgentToolPolicyInvocationExplanation {
+  return {
+    status: 'denied',
+    layer: 'agent_tool_policy',
+    reason,
+    ...(allowedModes ? { allowedModes } : {}),
+  };
+}
+
+function explainModeRestrictedAgentPolicy(
+  args: ModeToolArgs,
+  allowedModes: readonly string[],
+  modeSet: ReadonlySet<string>,
+  denial: string,
+): AgentToolPolicyInvocationExplanation {
+  const denied = validateModeRestrictedToolInvocationForAgentPolicy(args, modeSet, denial);
+  if (denied) return deniedByAgentPolicy(denied, allowedModes);
+  const mode = typeof args.mode === 'string' && args.mode.trim() ? args.mode.trim() : '(default)';
+  return allowedByAgentPolicy(`Agent policy allows ${mode} for read-only inspection on this tool.`, allowedModes);
+}
+
+export function explainAgentToolPolicyInvocation(
+  toolName: string,
+  args: Record<string, unknown> = {},
+): AgentToolPolicyInvocationExplanation {
+  if (BLOCKED_MAIN_CONVERSATION_TOOL_NAME_SET.has(toolName)) return deniedByAgentPolicy(LOCAL_CODING_TOOL_DENIAL);
+  if (toolName === 'agent') {
+    const denied = validateAgentToolInvocationForAgentPolicy(args as AgentToolArgs);
+    return denied ? deniedByAgentPolicy(denied, READ_ONLY_AGENT_TOOL_MODES) : allowedByAgentPolicy('Agent policy allows visible tracked Agent modes.', READ_ONLY_AGENT_TOOL_MODES);
+  }
+  if (toolName === 'exec') {
+    const denied = validateExecToolInvocationForAgentPolicy(args as ExecToolArgs);
+    return denied ? deniedByAgentPolicy(denied) : allowedByAgentPolicy('Agent policy allows foreground serial shell execution.');
+  }
+  if (toolName === 'remote') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_REMOTE_TOOL_MODES, READ_ONLY_REMOTE_TOOL_MODE_SET, REMOTE_MUTATION_DENIAL);
+  if (toolName === 'channel') {
+    const modeDenied = validateModeRestrictedToolInvocationForAgentPolicy(args as ModeToolArgs, READ_ONLY_CHANNEL_TOOL_MODE_SET, CHANNEL_ACTION_DENIAL);
+    const channelDenied = modeDenied ?? validateChannelToolInvocationForAgentPolicy(args as ModeToolArgs);
+    return channelDenied
+      ? deniedByAgentPolicy(channelDenied, READ_ONLY_CHANNEL_TOOL_MODES)
+      : allowedByAgentPolicy('Agent policy allows read-only channel inspection.', READ_ONLY_CHANNEL_TOOL_MODES);
+  }
+  if (toolName === 'mcp') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_MCP_TOOL_MODES, READ_ONLY_MCP_TOOL_MODE_SET, MCP_SECURITY_MUTATION_DENIAL);
+  if (toolName === 'fetch') {
+    const denied = validateFetchToolInvocationForAgentPolicy(args as FetchToolArgs);
+    return denied ? deniedByAgentPolicy(denied, READ_ONLY_FETCH_METHODS) : allowedByAgentPolicy('Agent policy allows serial sanitized read-only HTTP fetches.', READ_ONLY_FETCH_METHODS);
+  }
+  if (toolName === 'state') {
+    const denied = validateStateToolInvocationForAgentPolicy(args as StateToolArgs);
+    return denied ? deniedByAgentPolicy(denied, READ_ONLY_STATE_TOOL_MODES) : allowedByAgentPolicy('Agent policy allows read-only runtime state inspection.', READ_ONLY_STATE_TOOL_MODES);
+  }
+  if (toolName === 'goodvibes_settings') return deniedByAgentPolicy(SETTINGS_MUTATION_DENIAL);
+  if (toolName === 'inspect') {
+    const denied = validateInspectToolInvocationForAgentPolicy(args as InspectToolArgs);
+    return denied ? deniedByAgentPolicy(denied) : allowedByAgentPolicy('Agent policy allows inspection and dry-run scaffolding only.');
+  }
+  if (toolName === 'control') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_CONTROL_TOOL_MODES, READ_ONLY_CONTROL_TOOL_MODE_SET, CONTROL_MUTATION_DENIAL);
+  if (toolName === 'task') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_TASK_TOOL_MODES, READ_ONLY_TASK_TOOL_MODE_SET, DURABLE_WORKFLOW_MUTATION_DENIAL);
+  if (toolName === 'team') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_TEAM_TOOL_MODES, READ_ONLY_TEAM_TOOL_MODE_SET, DURABLE_WORKFLOW_MUTATION_DENIAL);
+  if (toolName === 'worklist') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_WORKLIST_TOOL_MODES, READ_ONLY_WORKLIST_TOOL_MODE_SET, DURABLE_WORKFLOW_MUTATION_DENIAL);
+  if (toolName === 'packet') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_PACKET_TOOL_MODES, READ_ONLY_PACKET_TOOL_MODE_SET, DURABLE_WORKFLOW_MUTATION_DENIAL);
+  if (toolName === 'query') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_QUERY_TOOL_MODES, READ_ONLY_QUERY_TOOL_MODE_SET, DURABLE_WORKFLOW_MUTATION_DENIAL);
+  return allowedByAgentPolicy('No Agent-specific route guard blocks this invocation.');
+}
+
 export const AGENT_LOCAL_SPAWN_DENIAL_MESSAGE = LOCAL_AGENT_DENIAL;
 export const AGENT_READ_ONLY_TOOL_MODES = READ_ONLY_AGENT_TOOL_MODES;
 export const AGENT_BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = BLOCKED_MAIN_CONVERSATION_TOOL_NAMES;

@@ -312,12 +312,12 @@
       "capability": "MCP servers, tool inventory, trust posture, secrets, and security review are inspectable and confirmation-gated from the Agent workspace.",
       "owner": "agent",
       "status": "covered",
-      "evidence": "src/input/commands/mcp-runtime.ts; src/input/commands/security-runtime.ts; src/input/commands/product-runtime.ts; src/input/agent-workspace-categories.ts; src/tools/agent-harness-mcp-metadata.ts",
+      "evidence": "src/input/commands/mcp-runtime.ts; src/input/commands/security-runtime.ts; src/input/commands/product-runtime.ts; src/input/agent-workspace-categories.ts; src/tools/agent-harness-mcp-metadata.ts; src/tools/agent-security-tool.ts; src/tools/agent-policy-explanation.ts",
       "action": "Keep tool trust changes explicit and do not silently install or expose tools.",
       "quality": {
         "capabilityCoverage": "Covers MCP server setup, tool inventory, trust posture, security review, secrets, and confirmation-gated trust changes.",
         "userAccess": "The user can review MCP and tool trust through Agent workspace, /mcp, /security, /trust, and settings surfaces.",
-        "modelAccess": "agent_harness mode:\"mcp_servers\" and mode:\"mcp_server\" exposes read-only server posture, trust mode, role, quarantine state, and optional per-server tool inventory; mode:\"security_posture\" and mode:\"security_finding\" exposes trust/security findings; mode:\"tools\" and mode:\"tool\" expose compact model tool rows with direct harness inspection routes and detailed schemas on request; settings action:\"list|get|set\" exposes per-setting first-class modelRoute hints and confirmed setting routes.",
+        "modelAccess": "agent_harness mode:\"mcp_servers\" and mode:\"mcp_server\" exposes read-only server posture, trust mode, role, quarantine state, and optional per-server tool inventory; security action:\"status|finding|explain\" plus lower-level mode:\"security_posture\", mode:\"security_finding\", and mode:\"policy_explain\" exposes trust/security findings and read-only policy explanations for one model action; mode:\"tools\" and mode:\"tool\" expose compact model tool rows with direct harness inspection routes and detailed schemas on request; settings action:\"list|get|set\" exposes per-setting first-class modelRoute hints and confirmed setting routes.",
         "safetyBoundary": "Tool trust changes, secret writes, and server mutations are explicit and do not silently install or expose tools.",
         "releaseEvidence": "Readiness evidence cites MCP/security/product runtimes and the direct MCP server harness catalog, with package text policy and the verification ledger documenting model-visible harness boundaries."
       }
@@ -357,12 +357,12 @@
       "capability": "Support, auth, subscription, and trust bundles can be exported or inspected with redaction and explicit confirmation.",
       "owner": "agent",
       "status": "covered",
-      "evidence": "src/cli/bundle-command.ts; src/input/commands/recall-bundle.ts; src/input/commands/security-runtime.ts; src/input/commands/platform-access-runtime.ts; src/input/commands/product-runtime.ts; src/input/agent-workspace-categories.ts; src/tools/agent-harness-security-posture.ts",
+      "evidence": "src/cli/bundle-command.ts; src/input/commands/recall-bundle.ts; src/input/commands/security-runtime.ts; src/input/commands/platform-access-runtime.ts; src/input/commands/product-runtime.ts; src/input/agent-workspace-categories.ts; src/tools/agent-harness-security-posture.ts; src/tools/agent-security-tool.ts; src/tools/agent-policy-explanation.ts",
       "action": "Keep sensitive bundle export confirmation-gated.",
       "quality": {
         "capabilityCoverage": "Covers support, auth, subscription, trust, recall, and portable bundle inspection/export/import with redaction and confirmation.",
         "userAccess": "The user can export and inspect bundles through workspace routes and /bundle, /auth, /trust, /subscription, and recall bundle commands.",
-        "modelAccess": "agent_harness mode:\"security_posture\" and mode:\"security_finding\" exposes redacted token, policy, MCP, plugin, incident, auth, and support-bundle posture; mode:\"support_bundles\" and mode:\"support_bundle\" exposes bundle routes and redacted existing-bundle inspection without returning raw config, token, or secret values.",
+        "modelAccess": "security action:\"status|finding|explain\" plus lower-level agent_harness mode:\"security_posture\", mode:\"security_finding\", and mode:\"policy_explain\" exposes redacted token, policy, MCP, plugin, incident, auth, support-bundle posture, and policy explanations for one model action; mode:\"support_bundles\" and mode:\"support_bundle\" exposes bundle routes and redacted existing-bundle inspection without returning raw config, token, or secret values.",
         "safetyBoundary": "Sensitive bundle export/import and trust changes are confirmation-gated and redact secret values.",
         "releaseEvidence": "Readiness evidence cites bundle, security, auth, trust, workspace, and direct harness sources, with package policy and ledger accounting guarding token-safe documentation and install smoke."
       }

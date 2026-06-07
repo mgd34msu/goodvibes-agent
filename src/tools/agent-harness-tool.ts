@@ -39,6 +39,7 @@ import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummar
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
 import { describePersonalOpsLane, personalOpsBriefingSummary, personalOpsCatalogStatus, personalOpsIntakeSummary, personalOpsQueueSummary, personalOpsSummary, runPersonalOpsRead } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
+import { explainAgentPolicyDecision } from './agent-policy-explanation.ts';
 import { promptContextCatalogStatus, promptContextSummary } from './agent-harness-prompt-context.ts';
 import { describeProjectContextFile, projectContextCatalogStatus, projectContextSummary } from './agent-harness-project-context.ts';
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
@@ -119,6 +120,8 @@ interface AgentHarnessToolArgs {
   readonly endpointId?: unknown;
   readonly capabilityId?: unknown;
   readonly toolName?: unknown;
+  readonly tool?: unknown;
+  readonly toolArgs?: unknown;
   readonly agentId?: unknown;
   readonly category?: unknown;
   readonly prefix?: unknown;
@@ -224,7 +227,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, review packet wizard, reviewer readiness, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'Prefer device action:"status|capability" for device maps. Lower-level mode:"pairing_posture" and mode:"pairing_route" remain available; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'Prefer delegation action:"status|routes|route"; delegated submission stays confirmed visible flow.',
-    securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
+    securityPosture: 'Prefer security action:"status|finding|explain"; lower-level security modes remain available for detail.',
     supportBundles: 'List mode:"support_bundles"; inspect mode:"support_bundle"; export/import stays confirmation-gated.',
     mediaPosture: 'Prefer device action:"voice|provider" for voice/media posture. Lower-level mode:"media_posture" and mode:"media_provider" remain available; generate with agent_media_generate and confirmation.',
     sessions: 'List mode:"sessions"; inspect mode:"session"; save/resume/export/delete stays visible confirmed flow.',
@@ -1575,6 +1578,12 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const resolved = describeHarnessSecurityFinding(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.finding);
           if (resolved.status === 'ambiguous') return error(`Ambiguous security finding ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
+          return error(resolved.usage);
+        }
+        if (args.mode === 'policy_explain') {
+          const resolved = explainAgentPolicyDecision(deps.commandContext, deps.toolRegistry, args);
+          if (resolved.status === 'found') return output(resolved.explanation);
+          if (resolved.status === 'ambiguous') return error(`Ambiguous policy explanation target ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
         if (args.mode === 'support_bundles') return output(supportBundleSummary(args));

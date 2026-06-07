@@ -45,6 +45,7 @@ High-signal TUI routes:
 | `agent_operator_briefing` | Read connected work, approvals, automation, schedules, and capacity posture. |
 | `schedule` | List, create, edit, run, pause, resume, and delete connected schedules through existing confirmation gates. |
 | `setup` | Inspect first-run setup, show one setup row, inspect/save/clear checkpoints, repair token auth, run setup smoke, finish onboarding, and import GoodVibes settings through existing gates. |
+| `security` | Read security posture/findings and explain why one model action is allowed, denied, or needs confirmation. |
 | `vibe` | Inspect VIBE.md status/show, create project/global VIBE.md, or import VIBE.md as an Agent-local persona through existing gates. |
 | `computer` | Inspect browser/PWA readiness, browser/desktop-control, MCP/setup posture, and open the browser cockpit through confirmation-gated visible routes. |
 | `device` | Inspect device capability, companion/mobile, voice/media, and provider posture; open TTS pickers through confirmation-gated visible routes. Browser/PWA and desktop-control compatibility routes remain available, but `computer` is the primary route. |
@@ -94,7 +95,8 @@ Discovery modes:
 | `memory action:"curator|candidate"` plus lower-level `learning_curator`, `learning_candidate` | Score-driven prompt plan, ranked local memory, note, persona, skill, bundle, routine, VIBE.md personality health, duplicate-consolidation batch review, completed-work, completed-research, and saved-session review/proposal candidates. |
 | `document_ops`, `document_ops_lane` | Documents, review packet timeline, review packet wizard, packet presets/defaults/freshness, reviewer-readiness checks, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
 | `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation action:"status|routes|route"` | MCP, first-run setup wizard with direct `setup action:"status|item|checkpoint|token|smoke|finish"` route hints, progress/current-step/checkpoint/backtracking routes, checkpoint auto-advance evidence, repeated-smoke-blocker focus, setup closeout decisions, setup plan with probe-fed connected-host repair/auth cards, service lifecycle receipt gates, service repair success criteria, certified receipt outcomes, exact service lifecycle decisions, sudo execution posture, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness with endpoint smoke-test follow-through, pairing/device capability posture, and build-delegation posture. Lower-level `delegation_posture` and `delegation_route` remain compatibility routes. |
-| `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
+| `security action:"status|finding|explain"` plus lower-level `security_posture`, `security_finding`, `policy_explain` | Redacted security posture, exact findings, and read-only policy explanations for allowed, denied, or confirmation-required model actions. |
+| `support_bundles`, `media_posture`, `sessions` | Bundle route, voice/media, and session/bookmark posture. |
 | `host action:"status|capabilities|capability|services|service|methods|method"` | Connected-host status, capability map/detail, service endpoint posture/detail, and public daemon method catalog/detail. |
 | `operator_methods`, `service_posture`, `connected_host`, `daemon` | Lower-level compatibility/detail routes for public operator methods, endpoint posture, connected-host posture, and daemon aliases. |
 | `release_evidence`, `release_readiness` | Operator/audit release artifacts and release-quality inventory. |
@@ -115,7 +117,7 @@ Single-item inspect modes:
 | `personal_ops_briefing`, `personal_ops_queue`, `personal_ops_intake` | `query` or `target` |
 | `personal_ops_lane`, `document_ops_lane` | `laneId`, `target`, or `query` |
 | `memory action:"candidate"` or lower-level `learning_candidate` | `candidateId`, `target`, or `query` |
-| `security_finding`, `support_bundle`, `media_provider`, `session` | Exact id/path or `target`/`query` |
+| `security action:"finding|explain"`, lower-level `security_finding`, `policy_explain`, `support_bundle`, `media_provider`, `session` | Exact id/path/tool name or `target`/`query`; `policy_explain` also accepts `toolArgs` |
 | `get_setting`, `service_endpoint`, `operator_method` | Exact key/id or `target`/`query` |
 | `connected_host_capability` | `capabilityId`, `target`, `query` |
 | `connected_host_status`, `daemon_status` | Live read-only status, no lookup required |
