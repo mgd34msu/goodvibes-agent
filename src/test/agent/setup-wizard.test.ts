@@ -16,7 +16,7 @@ const baseItems: readonly AgentSetupWizardSourceItem[] = [
     status: 'recommended',
     detail: 'Choose a model.',
     userRoute: 'Start -> Provider and model',
-    modelRoute: 'agent_harness mode:"model_routing"',
+    modelRoute: 'models action:"status"',
   },
   {
     id: 'install-smoke',
@@ -113,7 +113,7 @@ describe('Agent setup wizard checkpoints', () => {
 
     expect(wizard.closeout.status).toBe('blocked');
     expect(wizard.closeout.primaryStepId).toBe('provider-model');
-    expect(wizard.closeout.modelRoute).toContain('model_routing');
+    expect(wizard.closeout.modelRoute).toContain('models action:"status"');
     expect(wizard.closeout.evidence.join('\n')).toContain('critical setup blockers: Provider and model');
   });
 

@@ -1196,7 +1196,7 @@ describe('agent_harness tool', () => {
       const provider = posture.readinessPlan.find((item) => item.setupItemId === 'provider-access');
       expect(['ready', 'blocked']).toContain(provider?.status);
       expect(provider?.blocksAutonomy).toBe(true);
-      expect(provider?.modelRoute).toContain('model_routing');
+      expect(provider?.modelRoute).toContain('models action:"status');
       expect(provider?.nextAction).toMatch(/Choose a provider\/model route|Review the current model route/);
       expect(provider?.primaryHandoff?.id).toBe('open-main-model-picker');
       expect(provider?.primaryHandoff?.modelRoute).toContain('surfaceId:"model-picker"');
@@ -1226,7 +1226,7 @@ describe('agent_harness tool', () => {
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'agent-binary')?.route).toContain('goodvibes-agent --version');
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'connected-host-status')?.route).toContain('connected_host_status');
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'connected-host-auth')?.route).toContain('connected-host-auth');
-      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'provider-model')?.route).toContain('model_routing');
+      expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'provider-model')?.route).toContain('models action:"status"');
       expect(installSmoke?.installSmokePlan?.checks.find((check) => check.id === 'first-assistant-turn')?.route).toContain('Say ready');
       expect(installSmoke?.installSmokePlan?.successCriteria.join('\n')).toContain('first assistant turn');
       expect(installSmoke?.installSmokePlan?.policy).toContain('does not run package, host, or shell smoke commands implicitly');
@@ -1234,13 +1234,13 @@ describe('agent_harness tool', () => {
       const localModels = posture.readinessPlan.find((item) => item.setupItemId === 'local-model-readiness');
       expect(localModels?.status).toBe('recommended');
       expect(localModels?.blocksAutonomy).toBe(false);
-      expect(localModels?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+      expect(localModels?.modelRoute).toBe('models action:"local"');
       expect(localModels?.primaryHandoff?.id).toBe('inspect-local-model-cookbook');
-      expect(localModels?.primaryHandoff?.modelRoute).toContain('query:"local"');
+      expect(localModels?.primaryHandoff?.modelRoute).toContain('models action:"local"');
       expect(localModels?.signals?.join('\n')).toContain('cookbook status');
       expect(localModels?.signals?.join('\n')).toContain('top recipe');
       expect(localModels?.localModelReadiness?.cookbookStatus).toBe('recommendations-only');
-      expect(localModels?.localModelReadiness?.inspectRoute).toContain('query:"local"');
+      expect(localModels?.localModelReadiness?.inspectRoute).toContain('models action:"local"');
       expect(localModels?.localModelReadiness?.inspectRecipeRoute).toContain('local-model-cookbook');
       expect(localModels?.localModelReadiness?.topRecipe?.id).toBeTruthy();
       expect(localModels?.localModelReadiness?.topRecipe?.readinessScore).toBeGreaterThan(0);
@@ -1323,7 +1323,7 @@ describe('agent_harness tool', () => {
       expect(localModelItem.setupItemId).toBe('local-model-readiness');
       expect(localModelItem.status).toBe('recommended');
       expect(localModelItem.lookup?.resolvedBy).toBe('plan-id');
-      expect(localModelItem.modelRoute).toContain('model_routing');
+      expect(localModelItem.modelRoute).toContain('models action:"local"');
       expect(localModelItem.localModelReadiness?.topRecipe?.readinessScore).toBeGreaterThan(0);
       expect(localModelItem.localModelReadiness?.readinessRubric?.dimensions.map((dimension) => dimension.id)).toContain('privacy');
 
@@ -7061,7 +7061,7 @@ describe('agent_harness tool', () => {
       expect(ollamaRecipe?.setupPlan?.confirmationBoundary).toContain('read-only guidance');
       expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
       const localRoute = cookbook.routes.find((route) => route.modelRouteId === 'local-model-cookbook');
-      expect(localRoute?.modelRoute).toBe('agent_harness mode:"model_route" or mode:"run_local_model_smoke"');
+      expect(localRoute?.modelRoute).toBe('models action:"route" or action:"smoke"');
       expect(JSON.stringify(localRoute?.currentValue)).toContain('hardwareProfile');
 
       const inspected = await executeHarnessJson<{
@@ -7088,21 +7088,21 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'account-local-model-cookbook' });
       expect(action.id).toBe('account-local-model-cookbook');
-      expect(action.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
+      expect(action.modelRoute).toBe('models action:"local"');
 
       const readinessAction = await executeHarnessJson<{
         readonly id: string;
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'account-route-readiness' });
       expect(readinessAction.id).toBe('account-route-readiness');
-      expect(readinessAction.modelRoute).toBe('agent_harness mode:"model_routing" includeParameters:true');
+      expect(readinessAction.modelRoute).toBe('models action:"status" includeParameters:true');
 
       const serverHealthAction = await executeHarnessJson<{
         readonly id: string;
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'account-local-server-health' });
       expect(serverHealthAction.id).toBe('account-local-server-health');
-      expect(serverHealthAction.modelRoute).toBe('agent_harness mode:"run_local_model_smoke" confirm:true');
+      expect(serverHealthAction.modelRoute).toBe('models action:"smoke" confirm:true');
 
       const benchmarkAction = await executeHarnessJson<{
         readonly id: string;
@@ -7121,7 +7121,7 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'account-local-benchmark-evidence' });
       expect(evidenceAction.id).toBe('account-local-benchmark-evidence');
-      expect(evidenceAction.modelRoute).toBe('agent_harness mode:"model_routing" query:"local" includeParameters:true');
+      expect(evidenceAction.modelRoute).toBe('models action:"local" includeParameters:true');
     } finally {
       restoreEnvForTest(previousEndpointEnv);
       fixture.cleanup();
@@ -7215,14 +7215,14 @@ describe('agent_harness tool', () => {
       expect(endpoint?.sourceDetails).toContain('model:ollama-local:qwen2.5-coder:7b');
       expect(endpoint?.modelRoutes).toContain('ollama-local:qwen2.5-coder:7b');
       expect(endpoint?.smokeCommand).toBe('curl -fsS http://127.0.0.1:11434/v1/models');
-      expect(endpoint?.smokeRoute).toContain('run_local_model_smoke');
+      expect(endpoint?.smokeRoute).toContain('models action:"smoke"');
       expect(endpoint?.refreshRoute).toContain('/refresh-models');
       expect(endpoint?.addProviderRoute).toBeNull();
       expect(endpoint?.notes.join('\n')).toContain('Provider already exists');
       expect(endpoint?.diagnostics?.successCriteria.join('\n')).toContain('confirmed smoke command exits 0');
       expect(endpoint?.diagnostics?.failureTriage.join('\n')).toContain('start the ollama server');
       expect(endpoint?.diagnostics?.afterSmoke.join('\n')).toContain('refresh route');
-      expect(endpoint?.diagnostics?.policy).toContain('run_local_model_smoke');
+      expect(endpoint?.diagnostics?.policy).toContain('models action:"smoke"');
       expect(cookbook.localCookbook.localServerHealth.nextActions.join('\n')).toContain('http://127.0.0.1:11434/v1/models');
       expect(cookbook.localCookbook.localServerHealth.policy).toContain('Read-only local endpoint map');
 
@@ -7244,11 +7244,11 @@ describe('agent_harness tool', () => {
       expect(endpointDetail.modelsUrl).toBe('http://127.0.0.1:11434/v1/models');
       expect(endpointDetail.diagnosticStatus).toBe('registered-route-needs-smoke');
       expect(endpointDetail.smokeCommand).toBe('curl -fsS http://127.0.0.1:11434/v1/models');
-      expect(endpointDetail.smokeRoute).toContain('run_local_model_smoke');
+      expect(endpointDetail.smokeRoute).toContain('models action:"smoke"');
       expect(endpointDetail.diagnostics?.successCriteria.join('\n')).toContain('model-list endpoint returns JSON');
       expect(endpointDetail.diagnostics?.failureTriage.join('\n')).toContain('/v1');
-      expect(endpointDetail.diagnostics?.policy).toContain('run_local_model_smoke');
-      expect(endpointDetail.modelAccess?.cookbook).toContain('model_routing');
+      expect(endpointDetail.diagnostics?.policy).toContain('models action:"smoke"');
+      expect(endpointDetail.modelAccess?.cookbook).toContain('models action:"local"');
       expect(endpointDetail.modelAccess?.smoke).toBe(endpointDetail.smokeRoute);
       expect(endpointDetail.modelAccess?.addProvider).toBeNull();
       expect(endpointDetail.lookup?.resolvedBy).toBe('local-endpoint-id');
@@ -7661,11 +7661,11 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('device action:"status"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'browser-cockpit-readiness')?.modelRoute).toBe('device action:"browser"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-route-readiness')?.modelRoute).toBe('agent_harness mode:"model_routing" includeParameters:true');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-server-health')?.modelRoute).toBe('agent_harness mode:"run_local_model_smoke" confirm:true');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-route-readiness')?.modelRoute).toBe('models action:"status" includeParameters:true');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('models action:"local"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-server-health')?.modelRoute).toBe('models action:"smoke" confirm:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-run-local-model-benchmark')?.modelRoute).toBe('agent_model_compare');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-benchmark-evidence')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local" includeParameters:true');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-benchmark-evidence')?.modelRoute).toBe('models action:"local" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-comment-draft')?.modelRoute).toBe('agent_documents');

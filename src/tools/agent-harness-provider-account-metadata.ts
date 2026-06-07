@@ -189,7 +189,7 @@ export async function describeHarnessProviderAccount(
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'provider_account requires providerId, target, or query. Use mode:"provider_accounts" to inspect provider ids.',
+      usage: 'provider_account requires providerId, target, or query. Prefer models action:"providers" to inspect provider ids.',
     };
   }
   const snapshot = await loadSnapshot(context);
@@ -211,6 +211,6 @@ export async function describeHarnessProviderAccount(
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown provider account ${lookup.input}. Use mode:"provider_accounts" to inspect provider ids.`,
+    usage: `Unknown provider account ${lookup.input}. Prefer models action:"providers" to inspect provider ids.`,
   };
 }

@@ -300,7 +300,7 @@ function buildReviewerReadinessChecklist(
         : 'No revealed model comparison judgment is waiting on an apply-or-leave-unchanged decision.',
       inspectRoute: firstRevealedJudgment
         ? `agent_model_compare review artifactId:"${firstRevealedJudgment.id}" reveal:true`
-        : 'agent_harness mode:"model_routing"',
+        : 'models action:"status"',
       repairRoute: firstRevealedJudgment
         ? `agent_model_compare apply artifactId:"${firstRevealedJudgment.id}" confirm:true explicitUserRequest:"..." or agent_model_compare routeDecision artifactId:"${firstRevealedJudgment.id}" decision:"left-unchanged" confirm:true explicitUserRequest:"..."`
         : undefined,
@@ -868,7 +868,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? 'Use cross-session synthesis and reviewer handoff ZIP archives around saved comparison, judgment, export, route-update, route-decision receipt, and source-artifact reuse artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
       userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
-      modelRoute: modelCompareReady ? 'agent_model_compare' : 'agent_harness mode:"model_routing"',
+      modelRoute: modelCompareReady ? 'agent_model_compare' : 'models action:"status"',
       signals: [
         `Current model ${snapshot.provider} / ${snapshot.modelDisplayName}`,
         `Blind compare runner: ${modelCompareReady ? 'available' : 'gap'}`,

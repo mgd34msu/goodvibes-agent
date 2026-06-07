@@ -506,7 +506,7 @@ function localEndpointInspectRoute(endpointId: string): string {
 
 function localEndpointSmokeRoute(endpointId?: string): string {
   const target = endpointId ? ` modelRouteId:"${endpointId}"` : '';
-  return `agent_harness mode:"run_local_model_smoke"${target} confirm:true explicitUserRequest:"Check local model servers."`;
+  return `models action:"smoke"${target} confirm:true explicitUserRequest:"Check local model servers."`;
 }
 
 function localEndpointDiagnostics(endpoint: MutableLocalModelServerEndpoint, providerExists: boolean): NonNullable<LocalModelServerEndpoint['diagnostics']> {
@@ -526,7 +526,7 @@ function localEndpointDiagnostics(endpoint: MutableLocalModelServerEndpoint, pro
     afterSmoke: providerExists
       ? ['Run the refresh route, then run a local benchmark before changing the default route.']
       : ['Add the provider route only after smoke succeeds, then refresh models and run a local benchmark.'],
-    policy: 'Diagnostics are read-only criteria and confirmed route hints. Agent probes local model-list endpoints only through run_local_model_smoke after explicit confirmation; provider add, refresh, benchmark, and route changes remain separate actions.',
+    policy: 'Diagnostics are read-only criteria and confirmed route hints. Agent probes local model-list endpoints only through models action:"smoke" after explicit confirmation; provider add, refresh, benchmark, and route changes remain separate actions.',
   };
 }
 
@@ -908,7 +908,7 @@ function localModelSmokeTargets(context: CommandContext, args: AgentHarnessModel
     return {
       status: 'missing_lookup',
       input: lookup,
-      usage: 'Unknown local model endpoint. Use mode:"model_routing" query:"local" includeParameters:true to inspect local endpoint ids, or omit the lookup to check detected/default local servers.',
+      usage: 'Unknown local model endpoint. Use models action:"local" includeParameters:true to inspect local endpoint ids, or omit the lookup to check detected/default local servers.',
     };
   }
   const pool = endpoints.length ? endpoints : defaults;
@@ -1051,7 +1051,7 @@ export async function runLocalModelServerSmoke(context: CommandContext, args: Ag
       liveProbe: 'not-run',
       endpoints: [],
       nextActions: ['Use the local model cookbook to start a local server or configure a local provider endpoint.'],
-      cookbookRoute: 'agent_harness mode:"model_routing" query:"local" includeParameters:true',
+      cookbookRoute: 'models action:"local" includeParameters:true',
       policy: 'No local model endpoint was probed because no candidate endpoints were available.',
     };
   }
@@ -1073,7 +1073,7 @@ export async function runLocalModelServerSmoke(context: CommandContext, args: Ag
     nextActions: passed.length > 0
       ? ['Refresh the model catalog and run the local benchmark action before changing the default route.']
       : ['Start a local model server, load one model, and rerun this confirmed smoke check.'],
-    cookbookRoute: 'agent_harness mode:"model_routing" query:"local" includeParameters:true',
+    cookbookRoute: 'models action:"local" includeParameters:true',
     policy: 'Confirmed read-only local model smoke. Agent only sends bounded GET requests to discovered or suggested local/private model-list endpoints; it does not add providers, refresh catalogs, benchmark, download models, or change routes.',
   };
 }
@@ -1794,7 +1794,7 @@ function describeLocalModelRecipe(
     hardware: previewHarnessText(recipe.hardware, includeParameters ? 180 : 96),
     hardwareMatched: fit.reasons.slice(0, includeParameters ? 6 : 3),
     detected,
-    modelRoute: 'agent_harness mode:"model_routing" or mode:"open_ui_surface"',
+      modelRoute: 'models action:"status" or agent_harness mode:"open_ui_surface"',
     ...(includeParameters ? {
       setup: recipe.setup,
       modelExamples: recipe.modelExamples,
@@ -1851,7 +1851,7 @@ export function localModelCookbook(context: CommandContext, includeParameters: b
       ],
     },
     nextActions,
-    modelRoute: 'agent_harness mode:"model_routing" query:"local"',
+    modelRoute: 'models action:"local"',
     policy: 'Read-only hardware-aware cookbook. Readiness scores are estimated until a live benchmark is recorded. Setup plans include download/start guidance and a confirmed benchmark action route, but installs, downloads, live benchmarks, provider edits, and route changes stay separate visible user actions.',
   };
 }
@@ -2035,7 +2035,7 @@ function describeLocalServerEndpointRoute(endpoint: LocalModelServerEndpoint, lo
       smoke: endpoint.smokeRoute,
       refresh: endpoint.refreshRoute,
       addProvider: endpoint.addProviderRoute,
-      cookbook: 'agent_harness mode:"model_routing" query:"local" includeParameters:true',
+      cookbook: 'models action:"local" includeParameters:true',
     },
     policy: endpoint.diagnostics?.policy ?? 'Read-only local model endpoint inspection. The smoke test, refresh, provider add, benchmark, and route changes remain separate visible confirmed actions.',
   };
@@ -2063,7 +2063,7 @@ function describeRoute(route: RouteCandidate, options: { readonly context: Comma
         mutation: 'Model/provider selection, catalog refresh, favorites, custom provider edits, and route setting changes stay explicit user-facing picker, settings, workspace, or slash-command flows.',
       },
       modelAccess: {
-        inspectRouting: 'agent_harness mode:"model_routing"',
+        inspectRouting: 'models action:"status"',
         inspectRoute: 'agent_harness mode:"model_route"',
         settingRead: 'agent_harness mode:"get_setting"',
         settingMutation: 'agent_harness mode:"set_setting" confirm:true explicitUserRequest:"..."',
@@ -2151,7 +2151,7 @@ function describeEndpointCandidate(endpoint: LocalModelServerEndpoint): Record<s
 }
 
 function modelRoutingModelRoute(): string {
-  return 'agent_harness mode:"model_route" or mode:"run_local_model_smoke"';
+  return 'models action:"route" or action:"smoke"';
 }
 
 function modelCandidateModelRoute(): string {
@@ -2236,7 +2236,7 @@ export async function describeHarnessModelRoute(context: CommandContext, args: A
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'model_route requires modelRouteId, target, or query. Use mode:"model_routing" to inspect route, model, and local endpoint ids.',
+      usage: 'model_route requires modelRouteId, target, or query. Prefer models action:"status" to inspect route, model, and local endpoint ids.',
     };
   }
   const [models] = await Promise.all([loadModels(context)]);
@@ -2287,6 +2287,6 @@ export async function describeHarnessModelRoute(context: CommandContext, args: A
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown model route ${lookup.input}. Use mode:"model_routing" to inspect route, model, and local endpoint ids.`,
+    usage: `Unknown model route ${lookup.input}. Prefer models action:"status" to inspect route, model, and local endpoint ids.`,
   };
 }

@@ -387,7 +387,7 @@ async function selectComparisonModels(
     const requested = resolveRequestedModels(refs, selectableModels);
     const missing = refs.length - requested.length;
     if (missing > 0) {
-      throw new Error(`Could not resolve ${missing} requested model reference(s). Use registry keys from mode:"model_routing".`);
+      throw new Error(`Could not resolve ${missing} requested model reference(s). Use registry keys from models action:"status".`);
     }
     if (requested.length < MIN_CANDIDATES) throw new Error(`Select at least ${MIN_CANDIDATES} different models.`);
     if (requested.length > MAX_CANDIDATES) throw new Error(`Select at most ${MAX_CANDIDATES} models.`);

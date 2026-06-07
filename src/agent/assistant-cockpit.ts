@@ -120,7 +120,7 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         state: metrics.modelStatus === 'degraded' ? 'attention' : 'ready',
         summary: metrics.modelStatus === 'degraded' ? 'Model/provider API is degraded; routing still has diagnostics.' : 'Model route posture is available.',
         nextAction: 'Inspect routing only when model choice, cost, privacy, or local setup matters.',
-        routes: ['agent_harness mode:"model_routing"', 'agent_harness mode:"provider_accounts"'],
+        routes: ['models action:"status"', 'models action:"providers"', 'models action:"local"'],
       }),
       lane({
         id: 'work-and-files',

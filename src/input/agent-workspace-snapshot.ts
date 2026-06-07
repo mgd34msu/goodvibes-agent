@@ -1605,9 +1605,9 @@ function setupChecklistUserRoute(item: AgentWorkspaceSetupChecklistItem): string
 
 function setupChecklistModelRoute(item: AgentWorkspaceSetupChecklistItem): string {
   if (item.id === 'runtime') return 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"';
-  if (item.id === 'provider-model') return 'agent_harness mode:"model_routing"';
+  if (item.id === 'provider-model') return 'models action:"status"';
   if (item.id === 'install-smoke') return DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE;
-  if (item.id === 'subscriptions') return 'agent_harness mode:"provider_accounts"';
+  if (item.id === 'subscriptions') return 'models action:"providers"';
   if (item.id === 'agent-knowledge') return 'agent_knowledge mode:"status"';
   if (item.id === 'profile') return 'agent_harness mode:"workspace_action" actionId:"profile-template-show"';
   if (item.id === 'persona') return 'agent_harness mode:"workspace" target:"personas"';

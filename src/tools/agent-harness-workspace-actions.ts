@@ -188,11 +188,11 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
     if (action.setupCheckpointOperation === 'clear') return 'agent_harness mode:"clear_setup_checkpoint" confirm:true explicitUserRequest:"..."';
     return 'agent_harness mode:"setup_checkpoint"';
   }
-  if (action.id === 'account-route-readiness') return 'agent_harness mode:"model_routing" includeParameters:true';
-  if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
-  if (action.id === 'account-local-server-health') return 'agent_harness mode:"run_local_model_smoke" confirm:true';
+  if (action.id === 'account-route-readiness') return 'models action:"status" includeParameters:true';
+  if (action.id === 'account-local-model-cookbook') return 'models action:"local"';
+  if (action.id === 'account-local-server-health') return 'models action:"smoke" confirm:true';
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
-  if (action.id === 'account-local-benchmark-evidence') return 'agent_harness mode:"model_routing" query:"local" includeParameters:true';
+  if (action.id === 'account-local-benchmark-evidence') return 'models action:"local" includeParameters:true';
   if (action.id === 'assistant-browser-cockpit') return 'device action:"open_browser"';
   if (action.id === 'research-workflow-plan') return 'research action:"plan"';
   if (action.id === 'research-run-queue') return 'research action:"runs"';

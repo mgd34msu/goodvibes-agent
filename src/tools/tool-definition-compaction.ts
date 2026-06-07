@@ -18,6 +18,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   import_goodvibes_settings: 'Preview/apply GoodVibes TUI settings import.',
   inspect: 'Inspect project structure, APIs, routes, and deps.',
   mcp: 'Inspect MCP servers, tools, schemas, and trust state.',
+  models: 'Inspect model routes, providers, cookbook, and checks.',
   packet: 'Manage implementation and execution packets.',
   personal_ops: 'Brief, route, inspect, and read Personal Ops.',
   query: 'Track operator queries, answers, and closure.',

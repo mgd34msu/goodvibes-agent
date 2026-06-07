@@ -1281,6 +1281,7 @@ describe('spawn mode', () => {
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Documents and artifacts');
     expect(payload.commonRoutes?.personalOps).toContain('personal_ops action:"briefing"');
     expect(payload.commonRoutes?.device).toContain('device action:"status"');
+    expect(payload.commonRoutes?.models).toContain('models action:"status"');
     expect(payload.commonRoutes?.documentOps).toContain('agent_harness mode:"document_ops"');
     expect(payload.commonRoutes?.researchWorkflow).toContain('research action:"plan"');
     expect(payload.commonRoutes?.webResearch).toContain('multi-step: research action:"plan"');
