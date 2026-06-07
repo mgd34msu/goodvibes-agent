@@ -3597,6 +3597,71 @@ describe('agent_harness tool', () => {
       expect(savedText).toContain('"inputFieldKeys"');
       expect(savedText).not.toContain('is:unread newer_than:7d');
 
+      const briefing = await executeHarnessJson<{
+        readonly status: string;
+        readonly title: string;
+        readonly readiness: { readonly ready: number; readonly attention: number; readonly 'needs-setup': number };
+        readonly steps: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly next: string;
+          readonly modelRoute: string;
+          readonly inspectRoutes: readonly string[];
+          readonly evidence: readonly string[];
+          readonly sourceCounts: {
+            readonly refreshableSavedRecords?: number;
+            readonly freshProviderReads?: number;
+            readonly attentionWorkflows?: number;
+          };
+          readonly confirmationBoundary: string;
+        }[];
+        readonly routes?: { readonly liveReadTemplate?: string; readonly autonomyQueue?: string };
+        readonly missingContracts?: readonly string[];
+        readonly policy?: string;
+      }>(fixture, {
+        mode: 'personal_ops_briefing',
+        query: 'Build my daily personal ops brief.',
+        includeParameters: true,
+      });
+      expect(briefing.status).toBe('attention');
+      expect(briefing.title).toContain('Daily Personal Ops');
+      expect(briefing.readiness.ready).toBeGreaterThan(0);
+      expect(briefing.readiness.attention).toBeGreaterThan(0);
+      expect(briefing.routes?.liveReadTemplate).toContain('run_personal_ops_read');
+      expect(briefing.routes?.autonomyQueue).toContain('autonomy_queue');
+      expect(briefing.policy).toContain('read-only');
+      expect(briefing.steps.map((step) => step.id)).toEqual(expect.arrayContaining([
+        'inbox',
+        'calendar',
+        'tasks',
+        'reminders',
+        'delivery',
+        'notes',
+        'autonomy-queue',
+      ]));
+      const inboxBrief = briefing.steps.find((step) => step.id === 'inbox');
+      expect(inboxBrief?.status).toBe('attention');
+      expect(inboxBrief?.modelRoute).toContain('personal_ops_lane');
+      expect(inboxBrief?.inspectRoutes.join('\n')).toContain('laneId:"inbox"');
+      expect(inboxBrief?.evidence.join('\n')).toContain('1 refreshable saved inbox queue item(s)');
+      expect(inboxBrief?.sourceCounts.refreshableSavedRecords).toBeGreaterThan(0);
+      expect(inboxBrief?.sourceCounts.freshProviderReads).toBeGreaterThan(0);
+      expect(inboxBrief?.confirmationBoundary).toContain('separate confirmed route');
+      const calendarBrief = briefing.steps.find((step) => step.id === 'calendar');
+      expect(calendarBrief?.status).toBe('attention');
+      expect(calendarBrief?.next).toContain('Repair connector trust');
+      expect(calendarBrief?.sourceCounts.attentionWorkflows).toBeGreaterThan(0);
+      const autonomyBrief = briefing.steps.find((step) => step.id === 'autonomy-queue');
+      expect(autonomyBrief?.status).toBe('ready');
+      expect(autonomyBrief?.confirmationBoundary).toContain('separate confirmed route');
+      expect(briefing.missingContracts?.join('\n')).toContain('Calendar');
+
+      const compactBriefing = await executeHarnessJson<{
+        readonly steps: readonly { readonly id: string; readonly evidence: readonly string[] }[];
+      }>(fixture, { mode: 'personal_ops_briefing' });
+      expect(compactBriefing.steps.find((step) => step.id === 'inbox')?.evidence.join('\n')).toContain('1 email-like MCP connector(s)');
+      expect(compactBriefing.steps.find((step) => step.id === 'calendar')?.evidence.join('\n')).toContain('1 calendar-like MCP connector(s)');
+
       const blockedWrite = await executeHarnessJson<{
         readonly status: string;
         readonly reason?: string;
@@ -6983,6 +7048,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('agent_harness mode:"personal_ops_briefing"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('agent_harness mode:"personal_ops_intake"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('agent_harness mode:"media_posture"');

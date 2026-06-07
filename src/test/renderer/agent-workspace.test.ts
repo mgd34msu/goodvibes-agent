@@ -550,13 +550,15 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Personal Ops');
     expect(output).toContain('Personal Ops: notes 1; routines 1/1');
+    expect(output).toContain('Daily briefing plan');
+    expect(output).toContain('Daily brief: plan inbox, agenda, tasks');
     expect(output).toContain('Request planner');
     expect(output).toContain('Autonomy queue');
     expect(output).toContain('inspect owners, status, and cancel/recovery routes');
     expect(output).toContain('Email/calendar: connector setup needed');
     expect(output).toContain('Create reminder');
     expect(output).toContain('Delivery channels');
-    expect(output).toContain('agent_harness mode:"personal_ops"');
+    expect(output).toContain('agent_harness mode:"personal_ops_briefing"');
   });
 
   test('renders Documents & Compare as a visible artifact and compare surface', () => {

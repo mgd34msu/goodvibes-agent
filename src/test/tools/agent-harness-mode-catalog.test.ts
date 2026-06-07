@@ -100,6 +100,12 @@ describe('agent_harness mode catalog', () => {
     expect(ids).toContain('personal_ops_lane');
     expect(personalOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
 
+    const dailyBrief = listHarnessModes({ query: 'daily brief morning personal ops', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    expect(dailyBrief.modes.map((mode) => mode.id)).toContain('personal_ops_briefing');
+    expect(dailyBrief.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+
     const trigger = listHarnessModes({ query: 'incoming webhook watcher trigger', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];
     };

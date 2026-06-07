@@ -204,6 +204,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'voice-workflow-posture') return 'agent_harness mode:"media_posture"';
   if (action.id === 'device-capability-map') return 'agent_harness mode:"pairing_posture"';
   if (action.id === 'browser-cockpit-readiness') return 'agent_harness mode:"ui_surface"';
+  if (action.id === 'personal-ops-briefing') return 'agent_harness mode:"personal_ops_briefing"';
   if (action.id === 'personal-ops-intake') return 'agent_harness mode:"personal_ops_intake"';
   if (
     action.id === 'personal-ops-autonomy-queue'

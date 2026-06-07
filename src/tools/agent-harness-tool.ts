@@ -37,7 +37,7 @@ import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSumma
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
-import { describePersonalOpsLane, personalOpsCatalogStatus, personalOpsIntakeSummary, personalOpsSummary, runPersonalOpsRead } from './agent-harness-personal-ops.ts';
+import { describePersonalOpsLane, personalOpsBriefingSummary, personalOpsCatalogStatus, personalOpsIntakeSummary, personalOpsSummary, runPersonalOpsRead } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
 import { describeProjectContextFile, projectContextCatalogStatus, projectContextSummary } from './agent-harness-project-context.ts';
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
@@ -208,7 +208,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     backgroundProcesses: 'List mode:"background_processes"; inspect mode:"background_process"; start/wait/stop tracked long-running local commands with mode:"run_background_process". Process-style poll/log/kill/write and sessionId aliases are accepted; processAction:"capabilities" probes SDK/daemon interactive contracts; write dispatches only when a safe ProcessManager stdin method exists and is explicitly confirmed; PTY/sudo stay typed-contract or foreground-only boundaries.',
     executionHistory: 'List mode:"execution_history" for activity cards; inspect mode:"execution_history_item"; use returned verification, supervision, and recovery routes.',
     fileRecovery: 'List mode:"file_recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
-    personalOps: 'Start mode:"personal_ops_intake" for a user request; list mode:"personal_ops"; inspect mode:"personal_ops_lane"; use run_personal_ops_read for one confirmed read-only inbox/calendar MCP operation.',
+    personalOps: 'Start mode:"personal_ops_briefing" for a daily brief; use mode:"personal_ops_intake" for one request; list mode:"personal_ops"; inspect mode:"personal_ops_lane"; use run_personal_ops_read for one confirmed read-only inbox/calendar MCP operation.',
     memoryPosture: 'List mode:"memory_posture"; inspect mode:"memory_provider"; memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',
     autonomyQueue: 'Start mode:"autonomy_intake" for ongoing-work requests; list mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay confirmed.',
     learningCurator: 'List mode:"learning_curator"; inspect mode:"learning_candidate"; writes stay on reviewed Agent-local routes.',
@@ -1485,6 +1485,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const confirmationError = requireConfirmedAction(args, 'File recovery');
           return confirmationError ? error(confirmationError) : output(runFileRecovery(deps.commandContext, args));
         }
+        if (args.mode === 'personal_ops_briefing') return output(await personalOpsBriefingSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops') return output(await personalOpsSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops_intake') return output(await personalOpsIntakeSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops_lane') {
