@@ -1,9 +1,9 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import type { CommandContext } from '../command-registry.ts';
 import type { AgentWorkspaceChannelSetupGuide, AgentWorkspaceChannelStatus } from '../agent-workspace-channels.ts';
+import { buildAgentWorkspaceChannelTriage, formatAgentWorkspaceChannelTriage } from '../agent-workspace-channel-triage.ts';
 import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } from '../agent-workspace-channels.ts';
+import { fetchConnectedHostReadOnlyRoute, formatConnectedHostRouteFailure } from '../connected-host-routes.ts';
 import {
   buildAgentChannelDeliveryPreview,
   deliverAgentChannelMessage,
@@ -30,35 +30,6 @@ interface ChannelSendArgs {
   readonly yes: boolean;
   readonly errors: readonly string[];
 }
-
-interface ChannelConnectedHostConnection {
-  readonly baseUrl: string;
-  readonly token: string | null;
-  readonly tokenPath: string;
-}
-
-interface ChannelRouteSuccess {
-  readonly ok: true;
-  readonly route: string;
-  readonly body: unknown;
-}
-
-interface ChannelRouteFailure {
-  readonly ok: false;
-  readonly route: string;
-  readonly kind: 'auth_required' | 'connected_host_unavailable' | 'connected_host_route_unavailable' | 'connected_host_error';
-  readonly baseUrl: string;
-  readonly message: string;
-}
-
-type ChannelRouteResult = ChannelRouteSuccess | ChannelRouteFailure;
-
-const CHANNEL_FAILURE_LABELS: Record<ChannelRouteFailure['kind'], string> = {
-  auth_required: 'auth required',
-  connected_host_unavailable: 'connected host unavailable',
-  connected_host_route_unavailable: 'connected host route unavailable',
-  connected_host_error: 'connected host error',
-};
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -160,86 +131,6 @@ function formatChannelDeliveryReceipts(context: CommandContext, limitArg?: strin
     '  policy confirmed sends only; message bodies and secret-bearing target values are bounded or redacted',
     ...receipts.map((receipt) => `  ${formatAgentChannelDeliveryReceiptLine(receipt)}`),
     ...(receipts.length === 0 ? ['  no channel deliveries recorded yet'] : []),
-  ].join('\n');
-}
-
-function resolveChannelConnectedHostConnection(context: CommandContext): ChannelConnectedHostConnection {
-  const hostValue = context.platform?.configManager?.get('controlPlane.host');
-  const portValue = context.platform?.configManager?.get('controlPlane.port');
-  const host = typeof hostValue === 'string' && hostValue.trim().length > 0 ? hostValue.trim() : '127.0.0.1';
-  const port = typeof portValue === 'number' && Number.isFinite(portValue) ? portValue : 3421;
-  const homeDirectory = context.workspace?.shellPaths?.homeDirectory ?? process.env.HOME ?? '';
-  const tokenPath = join(homeDirectory, '.goodvibes', 'daemon', 'operator-tokens.json');
-  if (!existsSync(tokenPath)) return { baseUrl: `http://${host}:${port}`, token: null, tokenPath };
-  try {
-    const parsed = JSON.parse(readFileSync(tokenPath, 'utf-8')) as unknown;
-    const token = isRecord(parsed) && typeof parsed.token === 'string' ? parsed.token : null;
-    return { baseUrl: `http://${host}:${port}`, token, tokenPath };
-  } catch {
-    return { baseUrl: `http://${host}:${port}`, token: null, tokenPath };
-  }
-}
-
-async function fetchChannelRoute(context: CommandContext, route: string): Promise<ChannelRouteResult> {
-  const connection = resolveChannelConnectedHostConnection(context);
-  if (!connection.token) {
-    return {
-      ok: false,
-      route,
-      kind: 'auth_required',
-      baseUrl: connection.baseUrl,
-      message: `No connected-host operator token found at ${connection.tokenPath}`,
-    };
-  }
-
-  try {
-    const response = await fetch(`${connection.baseUrl}${route}`, {
-      headers: { authorization: `Bearer ${connection.token}` },
-    });
-    const text = await response.text();
-    let body: unknown = text;
-    if (text.trim().length > 0) {
-      try {
-        body = JSON.parse(text) as unknown;
-      } catch {
-        body = text;
-      }
-    }
-    if (!response.ok) {
-      const detail = isRecord(body) && typeof body.error === 'string' ? body.error : text;
-      return {
-        ok: false,
-        route,
-        kind: response.status === 401 || response.status === 403
-          ? 'auth_required'
-          : response.status === 404
-            ? 'connected_host_route_unavailable'
-            : 'connected_host_error',
-        baseUrl: connection.baseUrl,
-        message: `HTTP ${response.status}${detail ? `: ${detail}` : ''}`,
-      };
-    }
-    return { ok: true, route, body };
-  } catch (error) {
-    return {
-      ok: false,
-      route,
-      kind: 'connected_host_unavailable',
-      baseUrl: connection.baseUrl,
-      message: error instanceof Error ? error.message : String(error),
-    };
-  }
-}
-
-function formatChannelRouteFailure(title: string, failure: ChannelRouteFailure): string {
-  return [
-    `${title}: unavailable`,
-    `  status: ${CHANNEL_FAILURE_LABELS[failure.kind]}`,
-    `  kind: ${failure.kind}`,
-    `  connected host: ${failure.baseUrl}`,
-    `  route: ${failure.route}`,
-    `  error: ${failure.message}`,
-    '  policy: read-only; no channel send/action route was called',
   ].join('\n');
 }
 
@@ -474,9 +365,9 @@ async function printReadOnlyChannelRoute(
   route: string,
   format: (body: unknown) => string,
 ): Promise<void> {
-  const result = await fetchChannelRoute(context, route);
+  const result = await fetchConnectedHostReadOnlyRoute(context, route);
   if (!result.ok) {
-    context.print(formatChannelRouteFailure(title, result));
+    context.print(formatConnectedHostRouteFailure(title, result, 'read-only; no channel send/action route was called'));
     return;
   }
   context.print(format(result.body));
@@ -487,8 +378,8 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
     name: 'channels',
     aliases: ['channel'],
     description: 'Inspect Agent channel readiness or send an explicitly confirmed delivery message',
-    usage: '[list|readiness|ready|attention|guide [id]|show <id>|deliveries [limit]|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
-    argsHint: 'list|readiness|ready|attention|guide|show|deliveries|send|accounts|policies|status|doctor|setup',
+    usage: '[list|readiness|ready|attention|triage [limit]|guide [id]|show <id>|deliveries [limit]|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
+    argsHint: 'list|readiness|ready|attention|triage|guide|show|deliveries|send|accounts|policies|status|doctor|setup',
     async handler(args, ctx) {
       const channels = buildAgentWorkspaceChannels(ctx);
       const subcommand = (args[0] ?? 'readiness').trim().toLowerCase();
@@ -511,6 +402,11 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
       if (subcommand === 'guide' || subcommand === 'setup-guide') {
         const channelId = args[1]?.trim();
         ctx.print(formatChannelSetupGuide(buildAgentWorkspaceChannelSetupGuide(channels, channelId ? { channelId } : {})));
+        return;
+      }
+
+      if (subcommand === 'triage' || subcommand === 'inbox') {
+        ctx.print(formatAgentWorkspaceChannelTriage(await buildAgentWorkspaceChannelTriage(ctx, { limit: args[1] })));
         return;
       }
 
@@ -609,7 +505,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      ctx.print('Usage: /channels [list|readiness|ready|attention|guide [id]|show <id>|deliveries [limit]|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]');
+      ctx.print('Usage: /channels [list|readiness|ready|attention|triage [limit]|guide [id]|show <id>|deliveries [limit]|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]');
     },
   });
 }

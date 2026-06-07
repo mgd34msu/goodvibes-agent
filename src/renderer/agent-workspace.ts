@@ -532,7 +532,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Setup guide: ${guide.progressLabel}; ${guide.currentChannelLabel ?? 'choose a channel'}.`, fg: guide.status === 'ready' ? PALETTE.good : PALETTE.warn },
       { text: `Next: ${currentGuideStep ? `${currentGuideStep.label} - ${compactText(currentGuideStep.userRoute)}` : 'All enabled channels ready.'}`, fg: currentGuideStep ? PALETTE.warn : PALETTE.good },
       { text: 'Guide checks setup schema, accounts, allowlist policy, live status, and explicit test sends.', fg: PALETTE.good },
-      { text: 'Delivery receipts: /channels deliveries keeps confirmed send outcomes inspectable.', fg: PALETTE.good },
+      { text: 'Triage: /channels triage shows blockers, delivery retries, surface messages, route bindings, and receipts.', fg: PALETTE.good },
       { text: 'Secrets hidden; sends require explicit action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'knowledge') {

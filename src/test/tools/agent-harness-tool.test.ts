@@ -4695,6 +4695,88 @@ describe('agent_harness tool', () => {
       expect(JSON.stringify(deliveries)).not.toContain('secret-token');
       expect(JSON.stringify(deliveries)).not.toContain('super-secret-value');
 
+      const originalFetch = globalThis.fetch;
+      const channelTriageToken = 'channel-triage-token';
+      try {
+        writeFileSync(join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: channelTriageToken }));
+        globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+          expect(readAuthorizationHeader(init?.headers)).toBe(`Bearer ${channelTriageToken}`);
+          const path = new URL(String(input)).pathname;
+          if (path === '/api/deliveries') {
+            return new Response(JSON.stringify({
+              totals: { queued: 1, started: 2, succeeded: 1, failed: 1, deadLettered: 0 },
+              attempts: [{
+                id: 'delivery-triage-1',
+                runId: 'run-triage-1',
+                jobId: 'job-triage-1',
+                status: 'failed',
+                target: { kind: 'webhook', address: 'https://hooks.example.test/services/T000/B000/harness-secret-token' },
+                error: 'HTTP 500 api_key=harness-secret-value',
+              }],
+            }));
+          }
+          if (path === '/api/control-plane/messages') {
+            return new Response(JSON.stringify({
+              messages: [{
+                id: 'surface-message-1',
+                surface: 'slack',
+                createdAt: 1,
+                title: 'Route token=surface-secret-value',
+                body: 'Body with https://hooks.example.test/services/T000/B000/surface-secret-token',
+                level: 'warn',
+                routeId: 'route-1',
+              }],
+            }));
+          }
+          if (path === '/api/routes/bindings') {
+            return new Response(JSON.stringify({
+              bindings: [{
+                id: 'binding-triage-1',
+                kind: 'channel',
+                surfaceKind: 'slack',
+                surfaceId: 'slack',
+                externalId: 'C-harness-secret-channel',
+                title: 'Ops',
+                lastSeenAt: 1,
+              }],
+            }));
+          }
+          return new Response('not found', { status: 404 });
+        }) as typeof globalThis.fetch;
+
+        const triage = await executeHarnessJson<{
+          readonly mode: string;
+          readonly status: string;
+          readonly deliveries: {
+            readonly retryCandidateCount: number;
+            readonly retryCandidates: readonly { readonly target: { readonly address?: string; readonly addressDigest?: string }; readonly error?: string }[];
+          };
+          readonly surfaceMessages: { readonly totalMessages: number; readonly messages: readonly { readonly title: string; readonly bodyPreview: string }[] };
+          readonly routeBindings: { readonly totalBindings: number; readonly bindings: readonly { readonly externalIdDigest: string | null }[] };
+          readonly inboundFeed: { readonly providerInboxFeed: string };
+        }>(fixture, { mode: 'channel_triage', limit: 3 });
+        expect(triage.mode).toBe('channel_triage');
+        expect(triage.status).toBe('attention');
+        expect(triage.deliveries.retryCandidateCount).toBe(1);
+        expect(triage.deliveries.retryCandidates[0]?.target.address).toBe('https://hooks.example.test/...');
+        expect(triage.deliveries.retryCandidates[0]?.target.addressDigest).toBeTruthy();
+        expect(triage.deliveries.retryCandidates[0]?.error).toBe('HTTP 500 api_key=[redacted]');
+        expect(triage.surfaceMessages.totalMessages).toBe(1);
+        expect(triage.surfaceMessages.messages[0]?.title).toBe('Route token=[redacted]');
+        expect(triage.surfaceMessages.messages[0]?.bodyPreview).toContain('[redacted-url]');
+        expect(triage.routeBindings.totalBindings).toBe(1);
+        expect(triage.routeBindings.bindings[0]?.externalIdDigest).toContain('sha256:');
+        expect(triage.inboundFeed.providerInboxFeed).toBe('not_published_by_current_channel_contract');
+        expect(JSON.stringify(triage)).not.toContain(channelTriageToken);
+        expect(JSON.stringify(triage)).not.toContain('harness-secret-token');
+        expect(JSON.stringify(triage)).not.toContain('harness-secret-value');
+        expect(JSON.stringify(triage)).not.toContain('surface-secret-token');
+        expect(JSON.stringify(triage)).not.toContain('surface-secret-value');
+        expect(JSON.stringify(triage)).not.toContain('C-harness-secret-channel');
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+
       const notifications = await executeHarnessJson<{
         readonly targets: readonly Record<string, unknown>[];
       }>(fixture, { mode: 'notifications' });

@@ -151,6 +151,16 @@ describe('agent_harness mode catalog', () => {
     expect(deliveries.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds channel triage by inbox, error, and retry wording', () => {
+    const triage = listHarnessModes({ query: 'channel inbox pending messages errors delivery retries', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const ids = triage.modes.map((mode) => mode.id);
+    expect(ids).toContain('channel_triage');
+    expect(triage.modes.find((mode) => mode.id === 'channel_triage')?.parameters).toEqual(expect.arrayContaining(['limit']));
+    expect(triage.modes.filter((mode) => mode.summary.length > 96)).toEqual([]);
+  });
+
   test('finds visible Agent orchestration by subagent and batch-spawn wording', () => {
     const orchestration = listHarnessModes({ query: 'subagent batch-spawn multi-agent cancellable agents', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

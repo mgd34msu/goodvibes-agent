@@ -16,7 +16,7 @@ import type { AgentWorkspaceAction, AgentWorkspaceLocalEditor } from '../input/a
 import { agentOrchestrationCatalogStatus, agentOrchestrationSummary, describeAgentOrchestrationAgent } from './agent-harness-agent-orchestration.ts';
 import { autonomyIntakeSummary } from './agent-harness-autonomy-intake.ts';
 import { autonomyQueueCatalogStatus, autonomyQueueSummary, describeAutonomyQueueItem } from './agent-harness-autonomy-queue.ts';
-import { channelReadinessCatalogStatus, describeHarnessChannel, describeHarnessChannelDeliveries, describeHarnessChannelSetupGuide, listHarnessChannels } from './agent-harness-channel-metadata.ts';
+import { channelReadinessCatalogStatus, describeHarnessChannel, describeHarnessChannelDeliveries, describeHarnessChannelSetupGuide, describeHarnessChannelTriage, listHarnessChannels } from './agent-harness-channel-metadata.ts';
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessCommand, listHarnessCommands, resolveHarnessCommandDetail, type CommandDetailLookup } from './agent-harness-command-catalog.ts';
 import { describeLearningCandidate, learningCuratorCatalogStatus, learningCuratorSummary } from './agent-harness-learning-curator.ts';
@@ -195,7 +195,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     uiSurfaces: 'List mode:"ui_surfaces"; inspect mode:"ui_surface"; navigate mode:"open_ui_surface" with confirmation.',
     shortcuts: 'List mode:"shortcuts"; inspect mode:"keybinding"; run mode:"run_keybinding"; edit with set_keybinding/reset_keybinding and confirmation.',
     slashCommands: 'List mode:"commands"; inspect mode:"command"; execute mode:"run_command" with confirmation.',
-    channels: 'List mode:"channels"; inspect mode:"channel" or mode:"channel_setup_guide"; inspect receipts with mode:"channel_deliveries"; deliver with agent_channel_send and confirmation.',
+    channels: 'List mode:"channels"; inspect mode:"channel" or mode:"channel_setup_guide"; triage blockers/messages/retries with mode:"channel_triage"; inspect receipts with mode:"channel_deliveries"; deliver with agent_channel_send and confirmation.',
     notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
     providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
@@ -1342,6 +1342,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous channel setup guide target ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
+        if (args.mode === 'channel_triage') return output(await describeHarnessChannelTriage(deps.commandContext, args));
         if (args.mode === 'channel_deliveries') return output(describeHarnessChannelDeliveries(deps.commandContext, args));
         if (args.mode === 'notifications') return output(listHarnessNotificationTargets(deps.commandContext, args));
         if (args.mode === 'notification_target') {

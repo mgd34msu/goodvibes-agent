@@ -232,6 +232,96 @@ describe('/channels command', () => {
     expect(output).toContain('primary (required)');
   });
 
+  test('prints channel triage across delivery attempts, surface messages, bindings, and receipts without leaking targets', async () => {
+    const deliveryRequests: ChannelDeliveryRequest[] = [];
+    const { context, printed } = channelContext({}, writeTokenHome(), deliveryRequests);
+
+    await runChannels([
+      'send',
+      '--webhook',
+      'https://hooks.example.test/services/T000/B000/local-secret-token',
+      '--message',
+      'Local receipt password=local-secret-value',
+      '--yes',
+    ], context);
+    printed.length = 0;
+
+    await withMockFetch(async (input, init) => {
+      expect(String(init?.headers ? (init.headers as Record<string, string>).authorization : '')).toContain('Bearer route-token-redacted');
+      const path = new URL(String(input)).pathname;
+      if (path === '/api/deliveries') {
+        return new Response(JSON.stringify({
+          totals: { queued: 1, started: 2, succeeded: 1, failed: 1, deadLettered: 0 },
+          attempts: [
+            {
+              id: 'delivery-1',
+              runId: 'run-1',
+              jobId: 'job-1',
+              status: 'failed',
+              target: { kind: 'webhook', address: 'https://hooks.example.test/services/T000/B000/remote-secret-token' },
+              error: 'HTTP 500 token=remote-secret-value',
+            },
+            {
+              id: 'delivery-2',
+              runId: 'run-2',
+              jobId: 'job-2',
+              status: 'sent',
+              target: { kind: 'surface', surfaceKind: 'slack', routeId: 'ops', label: 'Ops' },
+            },
+          ],
+        }));
+      }
+      if (path === '/api/control-plane/messages') {
+        return new Response(JSON.stringify({
+          messages: [{
+            id: 'message-1',
+            surface: 'slack',
+            createdAt: 1,
+            level: 'warn',
+            title: 'Slack token=message-secret-value',
+            body: 'Open https://hooks.example.test/services/T000/B000/message-secret-token',
+            routeId: 'route-1',
+          }],
+        }));
+      }
+      if (path === '/api/routes/bindings') {
+        return new Response(JSON.stringify({
+          bindings: [{
+            id: 'binding-1',
+            kind: 'channel',
+            surfaceKind: 'slack',
+            surfaceId: 'slack',
+            externalId: 'C-remote-secret-channel',
+            title: 'Ops',
+            lastSeenAt: 1,
+          }],
+        }));
+      }
+      return new Response('not found', { status: 404 });
+    }, async () => {
+      await runChannels(['triage', '5'], context);
+    });
+
+    const output = printed.join('\n');
+    expect(output).toContain('Channel Triage');
+    expect(output).toContain('summary: 1 channel setup blocker(s), 1 delivery attention item(s), 1 retry candidate(s), 1 visible surface message(s), 1 route binding(s).');
+    expect(output).toContain('inbox: visible_surface_messages; provider inbox feed not_published_by_current_channel_contract');
+    expect(output).toContain('delivery-1: failed webhook https://hooks.example.test/...');
+    expect(output).toContain('error=HTTP 500 token=[redacted]');
+    expect(output).toContain('slack: warn Slack token=[redacted]');
+    expect(output).toContain('binding-1: slack channel external=sha256:');
+    expect(output).toContain('Agent Receipts');
+    expect(output).toContain('target=webhook https://hooks.example.test/...');
+    expect(output).not.toContain('route-token-redacted');
+    expect(output).not.toContain('remote-secret-token');
+    expect(output).not.toContain('remote-secret-value');
+    expect(output).not.toContain('message-secret-token');
+    expect(output).not.toContain('message-secret-value');
+    expect(output).not.toContain('C-remote-secret-channel');
+    expect(output).not.toContain('local-secret-token');
+    expect(output).not.toContain('local-secret-value');
+  });
+
   test('connected-host channel routes fail closed when runtime auth is missing', async () => {
     const { context, printed } = channelContext();
 

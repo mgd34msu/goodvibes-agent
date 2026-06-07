@@ -1,6 +1,7 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import type { AgentWorkspaceChannelStatus } from '../input/agent-workspace-channels.ts';
 import { readAgentChannelDeliveryReceipts } from '../agent/channel-delivery-receipts.ts';
+import { buildAgentWorkspaceChannelTriage, type AgentWorkspaceChannelTriage } from '../input/agent-workspace-channel-triage.ts';
 import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } from '../input/agent-workspace-channels.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -84,6 +85,10 @@ function channelDeliveriesModelRoute(): string {
   return 'agent_harness mode:"channel_deliveries"';
 }
 
+function channelTriageModelRoute(): string {
+  return 'agent_harness mode:"channel_triage"';
+}
+
 function describeChannel(
   channel: AgentWorkspaceChannelStatus,
   options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {},
@@ -143,7 +148,7 @@ export function channelReadinessCatalogStatus(context: CommandContext): Record<s
   const channels = buildAgentWorkspaceChannels(context);
   const guide = buildAgentWorkspaceChannelSetupGuide(channels);
   return {
-    modes: ['channels', 'channel', 'channel_setup_guide', 'channel_deliveries'],
+    modes: ['channels', 'channel', 'channel_setup_guide', 'channel_triage', 'channel_deliveries'],
     channels: channels.length,
     enabled: channels.filter((channel) => channel.enabled).length,
     ready: channels.filter((channel) => channel.ready).length,
@@ -157,6 +162,7 @@ export function channelReadinessCatalogStatus(context: CommandContext): Record<s
     },
     readOnly: true,
     deliveryTool: 'agent_channel_send',
+    triage: channelTriageModelRoute(),
     deliveryReceipts: channelDeliveriesModelRoute(),
   };
 }
@@ -180,6 +186,7 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
       status: buildAgentWorkspaceChannelSetupGuide(channels).status,
       modelRoute: channelSetupGuideModelRoute(),
     },
+    triage: channelTriageModelRoute(),
     deliveryReceipts: channelDeliveriesModelRoute(),
     policy: 'Read-only channel readiness catalog. It returns key names, setup state, delivery posture, and model routes without printing secrets or sending messages.',
   };
@@ -329,4 +336,8 @@ export function describeHarnessChannelDeliveries(context: CommandContext, args: 
     ...(snapshot.parseError ? { parseError: snapshot.parseError } : {}),
     policy: 'Read-only confirmed delivery history. Receipt targets redact webhook/link addresses, message bodies are bounded/redacted, and new sends still require explicit user confirmation.',
   };
+}
+
+export async function describeHarnessChannelTriage(context: CommandContext, args: AgentHarnessChannelArgs): Promise<AgentWorkspaceChannelTriage> {
+  return buildAgentWorkspaceChannelTriage(context, args);
 }

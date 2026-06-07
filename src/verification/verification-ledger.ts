@@ -235,7 +235,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: channelReadiness.availableModes + channelReadiness.availableChannelIds,
       localBehaviorVerified: channelReadiness.availableModes + channelReadiness.availableChannelIds,
       externalOutcomeRequired: 0,
-      notes: `${channelReadiness.modes} agent_harness modes, channels, channel, channel_setup_guide, and channel_deliveries, and ${channelReadiness.channelIds} channel ids must stay locally inspectable without sending messages or exposing secret values.`,
+      notes: `${channelReadiness.modes} agent_harness modes, channels, channel, channel_setup_guide, channel_triage, and channel_deliveries, and ${channelReadiness.channelIds} channel ids must stay locally inspectable without sending messages or exposing secret values.`,
     },
     {
       area: 'Model-visible notification targets',

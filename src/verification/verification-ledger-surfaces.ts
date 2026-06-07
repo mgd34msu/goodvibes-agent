@@ -19,7 +19,7 @@ const QUALITY_DIMENSIONS = [
 
 const HARNESS_RELEASE_EVIDENCE_MODES = ['release_evidence', 'release_evidence_artifact'] as const;
 const HARNESS_SERVICE_POSTURE_MODES = ['service_posture', 'service_endpoint'] as const;
-const HARNESS_CHANNEL_READINESS_MODES = ['channels', 'channel', 'channel_setup_guide', 'channel_deliveries'] as const;
+const HARNESS_CHANNEL_READINESS_MODES = ['channels', 'channel', 'channel_setup_guide', 'channel_triage', 'channel_deliveries'] as const;
 const HARNESS_NOTIFICATION_TARGET_MODES = ['notifications', 'notification_target'] as const;
 const HARNESS_PROVIDER_ACCOUNT_MODES = ['provider_accounts', 'provider_account'] as const;
 const HARNESS_MCP_SERVER_MODES = ['mcp_servers', 'mcp_server'] as const;
