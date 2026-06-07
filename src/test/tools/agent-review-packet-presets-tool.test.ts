@@ -10,6 +10,32 @@ function artifactStore() {
   const inputs: ArtifactCreateInput[] = [];
   const records: ArtifactRecord[] = [];
   const contents = new Map<string, Buffer>();
+  const addArtifact = (input: {
+    readonly id: string;
+    readonly createdAt: number;
+    readonly purpose: string;
+    readonly filename?: string;
+    readonly metadata?: Record<string, unknown>;
+  }): ArtifactRecord => {
+    const buffer = Buffer.from(`${input.id}\n`, 'utf-8');
+    const record: ArtifactRecord = {
+      id: input.id,
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: input.filename ?? `${input.id}.json`,
+      sizeBytes: buffer.byteLength,
+      sha256: `sha-${input.id}`,
+      createdAt: input.createdAt,
+      acquisitionMode: 'inline-data',
+      fetchMode: 'not-applicable',
+      metadata: { purpose: input.purpose, ...(input.metadata ?? {}) },
+      contentPath: `/tmp/${input.id}.json`,
+      metadataPath: `/tmp/${input.id}.metadata.json`,
+    };
+    records.push(record);
+    contents.set(input.id, buffer);
+    return record;
+  };
   const store: Pick<ArtifactStore, 'create' | 'list' | 'readContent'> = {
     async create(input: ArtifactCreateInput): Promise<ArtifactDescriptor> {
       inputs.push(input);
@@ -43,7 +69,7 @@ function artifactStore() {
       return { record, buffer };
     },
   };
-  return { inputs, records, store };
+  return { addArtifact, inputs, records, store };
 }
 
 describe('agent_review_packet_presets tool', () => {
@@ -126,6 +152,137 @@ describe('agent_review_packet_presets tool', () => {
     expect(shown.output).toContain('handoff agent_model_compare mode:"handoff" artifactId:"artifact-judge"');
     expect(shown.output).toContain('routeDecision agent_model_compare mode:"routeDecision" artifactId:"artifact-judge"');
     expect(shown.output).toContain('archive agent_model_compare mode:"handoffArchive" artifactId:"artifact-handoff"');
+  });
+
+  test('audits preset freshness and routes reuse through newer matching evidence', async () => {
+    const artifacts = artifactStore();
+    artifacts.addArtifact({
+      id: 'doc-old',
+      createdAt: 1_000,
+      purpose: 'agent-document-export',
+      metadata: { documentId: 'doc_launch', versionId: 'v1' },
+    });
+    artifacts.addArtifact({
+      id: 'compare-old',
+      createdAt: 2_000,
+      purpose: 'agent-model-compare',
+      metadata: { comparisonId: 'cmp_launch', documentId: 'doc_launch', sourceArtifactId: 'doc-old' },
+    });
+    artifacts.addArtifact({
+      id: 'judge-old',
+      createdAt: 3_000,
+      purpose: 'agent-model-compare-judgment',
+      metadata: { comparisonId: 'cmp_launch', documentId: 'doc_launch', sourceArtifactId: 'doc-old', revealIncludedInJudgment: true, winnerModel: 'openai:gpt-5' },
+    });
+    artifacts.addArtifact({
+      id: 'route-old',
+      createdAt: 4_000,
+      purpose: 'agent-model-compare-route-decision',
+      metadata: { comparisonId: 'cmp_launch', judgmentArtifactId: 'judge-old', decision: 'left-unchanged' },
+    });
+    artifacts.addArtifact({
+      id: 'handoff-old',
+      createdAt: 5_000,
+      purpose: 'agent-model-compare-handoff',
+      metadata: { comparisonId: 'cmp_launch', sourceArtifactId: 'judge-old', sourceKind: 'judgment', relatedArtifactIds: ['doc-old'] },
+    });
+    artifacts.addArtifact({
+      id: 'archive-old',
+      createdAt: 6_000,
+      purpose: 'agent-model-compare-handoff-archive',
+      metadata: { comparisonId: 'cmp_launch', handoffArtifactId: 'handoff-old', sourceArtifactId: 'judge-old' },
+    });
+    artifacts.addArtifact({
+      id: 'doc-new',
+      createdAt: 7_000,
+      purpose: 'agent-document-export',
+      metadata: { documentId: 'doc_launch', versionId: 'v2' },
+    });
+    artifacts.addArtifact({
+      id: 'compare-new',
+      createdAt: 8_000,
+      purpose: 'agent-model-compare',
+      metadata: { comparisonId: 'cmp_launch_2', documentId: 'doc_launch', sourceArtifactId: 'doc-new' },
+    });
+    artifacts.addArtifact({
+      id: 'judge-new',
+      createdAt: 9_000,
+      purpose: 'agent-model-compare-judgment',
+      metadata: { comparisonId: 'cmp_launch', documentId: 'doc_launch', sourceArtifactId: 'doc-new', revealIncludedInJudgment: true, winnerModel: 'openai:gpt-5.5' },
+    });
+    artifacts.addArtifact({
+      id: 'route-new',
+      createdAt: 10_000,
+      purpose: 'agent-model-compare-route-decision',
+      metadata: { comparisonId: 'cmp_launch', judgmentArtifactId: 'judge-old', decision: 'applied-winner' },
+    });
+    artifacts.addArtifact({
+      id: 'handoff-new',
+      createdAt: 11_000,
+      purpose: 'agent-model-compare-handoff',
+      metadata: { comparisonId: 'cmp_launch', sourceArtifactId: 'judge-new', sourceKind: 'judgment', relatedArtifactIds: ['doc-new'] },
+    });
+    artifacts.addArtifact({
+      id: 'archive-new',
+      createdAt: 12_000,
+      purpose: 'agent-model-compare-handoff-archive',
+      metadata: { comparisonId: 'cmp_launch', handoffArtifactId: 'handoff-new', sourceArtifactId: 'judge-new' },
+    });
+    const tool = createAgentReviewPacketPresetsTool(artifacts.store);
+
+    await tool.execute({
+      mode: 'save',
+      name: 'Launch stale packet',
+      documentId: 'doc_launch',
+      documentExportArtifactId: 'doc-old',
+      comparisonArtifactId: 'compare-old',
+      revealedJudgmentArtifactId: 'judge-old',
+      routeDecisionArtifactId: 'route-old',
+      routeDecision: 'left-unchanged',
+      handoffArtifactId: 'handoff-old',
+      handoffArchiveArtifactId: 'archive-old',
+      relatedArtifactIds: ['doc-old'],
+      confirm: true,
+      explicitUserRequest: 'Save this packet preset.',
+    });
+
+    const listed = await tool.execute({ mode: 'list' });
+    expect(listed.success).toBe(true);
+    expect(listed.output).toContain('Launch stale packet');
+    expect(listed.output).toContain('freshness needs-review');
+
+    const shown = await tool.execute({ mode: 'show', artifactId: 'artifact-1' });
+    expect(shown.success).toBe(true);
+    expect(shown.output).toContain('newer document export doc-old -> doc-new');
+    expect(shown.output).toContain('newer revealed judgment judge-old -> judge-new');
+    expect(shown.output).toContain('sideBySide agent_model_compare mode:"sideBySide" artifactId:"judge-new" relatedArtifactIds:["doc-new"]');
+    expect(shown.output).toContain('routeDecision agent_model_compare mode:"routeDecision" artifactId:"judge-new"');
+    expect(shown.output).toContain('archive agent_model_compare mode:"handoffArchive" artifactId:"handoff-new"');
+    expect(shown.output).toContain('inspectArchive agent_artifacts mode:"show" artifactId:"archive-new"');
+  });
+
+  test('reports missing preset artifact ids and recommends replacements when metadata is sufficient', async () => {
+    const artifacts = artifactStore();
+    artifacts.addArtifact({
+      id: 'doc-new',
+      createdAt: 7_000,
+      purpose: 'agent-document-export',
+      metadata: { documentId: 'doc_launch', versionId: 'v2' },
+    });
+    const tool = createAgentReviewPacketPresetsTool(artifacts.store);
+
+    await tool.execute({
+      mode: 'save',
+      name: 'Missing packet',
+      documentId: 'doc_launch',
+      documentExportArtifactId: 'doc-missing',
+      confirm: true,
+      explicitUserRequest: 'Save this packet preset.',
+    });
+
+    const shown = await tool.execute({ mode: 'show', artifactId: 'artifact-1' });
+    expect(shown.success).toBe(true);
+    expect(shown.output).toContain('missing document export doc-missing; recommended doc-new');
   });
 
   test('registers the preset tool', () => {

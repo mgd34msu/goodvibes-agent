@@ -24,9 +24,18 @@ export interface AgentReviewPacketPresetsToolArgs {
   readonly explicitUserRequest?: unknown;
 }
 
-type AgentReviewPacketPresetArtifactStore = Pick<ArtifactStore, 'create'> & Partial<Pick<ArtifactStore, 'list' | 'readContent'>>;
+type AgentReviewPacketPresetArtifactStore = Pick<ArtifactStore, 'create'> & Partial<Pick<ArtifactStore, 'get' | 'list' | 'readContent'>>;
 
 type AgentReviewPacketPresetMode = 'list' | 'show' | 'save';
+type ReviewPacketArtifactRole =
+  | 'documentExport'
+  | 'comparison'
+  | 'judgment'
+  | 'revealedJudgment'
+  | 'routeDecision'
+  | 'handoff'
+  | 'handoffArchive'
+  | 'related';
 
 interface ReviewPacketPresetPacket {
   readonly documentId?: string;
@@ -65,11 +74,49 @@ interface LoadedReviewPacketPreset {
   readonly body?: ReviewPacketPresetRecord;
 }
 
+interface ReviewPacketArtifactReference {
+  readonly role: ReviewPacketArtifactRole;
+  readonly label: string;
+  readonly id: string;
+}
+
+interface ReviewPacketFreshnessMissing {
+  readonly role: ReviewPacketArtifactRole;
+  readonly label: string;
+  readonly id: string;
+  readonly replacementId?: string;
+  readonly reason?: string;
+}
+
+interface ReviewPacketFreshnessSuperseded {
+  readonly role: ReviewPacketArtifactRole;
+  readonly label: string;
+  readonly id: string;
+  readonly replacementId: string;
+  readonly reason: string;
+}
+
+interface ReviewPacketFreshnessAudit {
+  readonly available: boolean;
+  readonly scannedArtifacts: number;
+  readonly status: 'current' | 'needs-review' | 'unchecked';
+  readonly missing: readonly ReviewPacketFreshnessMissing[];
+  readonly superseded: readonly ReviewPacketFreshnessSuperseded[];
+  readonly recommendedPacket: ReviewPacketPresetPacket;
+}
+
 const REVIEW_PACKET_PRESET_PURPOSE = 'agent-review-packet-preset';
 const REVIEW_PACKET_PRESET_SCHEMA = 'goodvibes-agent.review-packet-preset';
 const DEFAULT_LIST_LIMIT = 20;
 const MAX_LIST_LIMIT = 100;
 const MAX_RELATED_ARTIFACTS = 30;
+const MAX_FRESHNESS_ARTIFACT_SCAN = 500;
+const PURPOSE_DOCUMENT_EXPORT = 'agent-document-export';
+const PURPOSE_MODEL_COMPARE = 'agent-model-compare';
+const PURPOSE_MODEL_COMPARE_JUDGMENT = 'agent-model-compare-judgment';
+const PURPOSE_MODEL_COMPARE_ROUTE_DECISION = 'agent-model-compare-route-decision';
+const PURPOSE_MODEL_COMPARE_HANDOFF = 'agent-model-compare-handoff';
+const PURPOSE_MODEL_COMPARE_HANDOFF_ARCHIVE = 'agent-model-compare-handoff-archive';
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -268,6 +315,332 @@ function isPresetArtifact(artifact: ArtifactDescriptor): boolean {
   return readMetadataString(artifact.metadata, 'purpose') === REVIEW_PACKET_PRESET_PURPOSE;
 }
 
+function artifactPurpose(artifact: ArtifactDescriptor): string {
+  return readMetadataString(artifact.metadata, 'purpose');
+}
+
+function hasPurpose(artifact: ArtifactDescriptor, purpose: string): boolean {
+  return artifactPurpose(artifact) === purpose;
+}
+
+function isRevealedJudgmentArtifact(artifact: ArtifactDescriptor): boolean {
+  return hasPurpose(artifact, PURPOSE_MODEL_COMPARE_JUDGMENT)
+    && artifact.metadata.revealIncludedInJudgment === true
+    && readMetadataString(artifact.metadata, 'winnerModel').length > 0;
+}
+
+function artifactIndex(artifacts: readonly ArtifactDescriptor[]): Map<string, ArtifactDescriptor> {
+  return new Map(artifacts.map((artifact) => [artifact.id, artifact]));
+}
+
+function artifactFromIndex(
+  store: AgentReviewPacketPresetArtifactStore | undefined,
+  index: ReadonlyMap<string, ArtifactDescriptor>,
+  id: string | undefined,
+): ArtifactDescriptor | null {
+  if (!id) return null;
+  const indexed = index.get(id);
+  if (indexed) return indexed;
+  try {
+    return store?.get?.(id) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function latestArtifact(
+  artifacts: readonly ArtifactDescriptor[],
+  predicate: (artifact: ArtifactDescriptor) => boolean,
+): ArtifactDescriptor | null {
+  return artifacts
+    .filter(predicate)
+    .sort((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id))[0] ?? null;
+}
+
+function firstMetadataString(
+  store: AgentReviewPacketPresetArtifactStore | undefined,
+  index: ReadonlyMap<string, ArtifactDescriptor>,
+  ids: readonly (string | undefined)[],
+  keys: readonly string[],
+): string {
+  for (const id of ids) {
+    const artifact = artifactFromIndex(store, index, id);
+    if (!artifact) continue;
+    for (const key of keys) {
+      const value = readMetadataString(artifact.metadata, key);
+      if (value) return value;
+    }
+  }
+  return '';
+}
+
+function packetDocumentId(
+  packet: ReviewPacketPresetPacket,
+  store: AgentReviewPacketPresetArtifactStore | undefined,
+  index: ReadonlyMap<string, ArtifactDescriptor>,
+): string {
+  return packet.documentId
+    || firstMetadataString(store, index, [
+      packet.documentExportArtifactId,
+      packet.comparisonArtifactId,
+      packet.judgmentArtifactId,
+      packet.revealedJudgmentArtifactId,
+      packet.routeDecisionArtifactId,
+      packet.handoffArtifactId,
+      packet.handoffArchiveArtifactId,
+    ], ['documentId', 'sourceDocumentId']);
+}
+
+function packetComparisonId(
+  packet: ReviewPacketPresetPacket,
+  store: AgentReviewPacketPresetArtifactStore | undefined,
+  index: ReadonlyMap<string, ArtifactDescriptor>,
+): string {
+  return firstMetadataString(store, index, [
+    packet.routeDecisionArtifactId,
+    packet.handoffArchiveArtifactId,
+    packet.handoffArtifactId,
+    packet.revealedJudgmentArtifactId,
+    packet.judgmentArtifactId,
+    packet.comparisonArtifactId,
+  ], ['comparisonId']);
+}
+
+function packetRunSourceArtifactId(
+  packet: ReviewPacketPresetPacket,
+  store: AgentReviewPacketPresetArtifactStore | undefined,
+  index: ReadonlyMap<string, ArtifactDescriptor>,
+): string {
+  return firstMetadataString(store, index, [
+    packet.comparisonArtifactId,
+    packet.judgmentArtifactId,
+    packet.revealedJudgmentArtifactId,
+    packet.handoffArtifactId,
+    packet.handoffArchiveArtifactId,
+  ], ['sourceArtifactId']) || packet.documentExportArtifactId || '';
+}
+
+function packetJudgmentArtifactId(
+  packet: ReviewPacketPresetPacket,
+  store: AgentReviewPacketPresetArtifactStore | undefined,
+  index: ReadonlyMap<string, ArtifactDescriptor>,
+): string {
+  return packet.revealedJudgmentArtifactId
+    || packet.judgmentArtifactId
+    || firstMetadataString(store, index, [packet.routeDecisionArtifactId], ['judgmentArtifactId']);
+}
+
+function packetHandoffSourceArtifactId(packet: ReviewPacketPresetPacket): string {
+  return sourceArtifactId(packet);
+}
+
+function freshnessReferences(packet: ReviewPacketPresetPacket): readonly ReviewPacketArtifactReference[] {
+  const references: ReviewPacketArtifactReference[] = [];
+  const add = (role: ReviewPacketArtifactRole, label: string, id: string | undefined): void => {
+    if (id) references.push({ role, label, id });
+  };
+  add('documentExport', 'document export', packet.documentExportArtifactId);
+  add('comparison', 'comparison', packet.comparisonArtifactId);
+  add('judgment', 'judgment', packet.judgmentArtifactId);
+  add('revealedJudgment', 'revealed judgment', packet.revealedJudgmentArtifactId);
+  add('routeDecision', 'route decision', packet.routeDecisionArtifactId);
+  add('handoff', 'reviewer handoff', packet.handoffArtifactId);
+  add('handoffArchive', 'handoff archive', packet.handoffArchiveArtifactId);
+  for (const id of packet.relatedArtifactIds) add('related', 'related artifact', id);
+  return references;
+}
+
+function replacementForRole(input: {
+  readonly role: ReviewPacketArtifactRole;
+  readonly packet: ReviewPacketPresetPacket;
+  readonly current: ArtifactDescriptor | null;
+  readonly artifacts: readonly ArtifactDescriptor[];
+  readonly store?: AgentReviewPacketPresetArtifactStore;
+  readonly index: ReadonlyMap<string, ArtifactDescriptor>;
+}): { readonly artifact: ArtifactDescriptor; readonly reason: string } | null {
+  const documentId = packetDocumentId(input.packet, input.store, input.index);
+  const comparisonId = packetComparisonId(input.packet, input.store, input.index);
+  const runSourceArtifactId = packetRunSourceArtifactId(input.packet, input.store, input.index);
+  const judgmentArtifactId = packetJudgmentArtifactId(input.packet, input.store, input.index);
+  const handoffSourceArtifactId = packetHandoffSourceArtifactId(input.packet);
+  const handoffArtifactId = input.packet.handoffArtifactId
+    || firstMetadataString(input.store, input.index, [input.packet.handoffArchiveArtifactId], ['handoffArtifactId']);
+
+  const currentCreatedAt = input.current?.createdAt ?? -1;
+  const newest = (predicate: (artifact: ArtifactDescriptor) => boolean): ArtifactDescriptor | null => {
+    const candidate = latestArtifact(input.artifacts, (artifact) => (
+      artifact.id !== input.current?.id
+      && artifact.createdAt > currentCreatedAt
+      && predicate(artifact)
+    ));
+    return candidate;
+  };
+
+  if (input.role === 'documentExport') {
+    if (!documentId) return null;
+    const artifact = newest((candidate) => (
+      hasPurpose(candidate, PURPOSE_DOCUMENT_EXPORT)
+      && readMetadataString(candidate.metadata, 'documentId') === documentId
+    ));
+    return artifact ? { artifact, reason: `newer document export for ${documentId}` } : null;
+  }
+
+  if (input.role === 'comparison') {
+    const artifact = newest((candidate) => {
+      if (!hasPurpose(candidate, PURPOSE_MODEL_COMPARE)) return false;
+      if (documentId && readMetadataString(candidate.metadata, 'documentId') === documentId) return true;
+      return Boolean(runSourceArtifactId && readMetadataString(candidate.metadata, 'sourceArtifactId') === runSourceArtifactId);
+    });
+    return artifact ? { artifact, reason: documentId ? `newer comparison for ${documentId}` : `newer comparison for source ${runSourceArtifactId}` } : null;
+  }
+
+  if (input.role === 'judgment' || input.role === 'revealedJudgment') {
+    const artifact = newest((candidate) => {
+      if (!hasPurpose(candidate, PURPOSE_MODEL_COMPARE_JUDGMENT)) return false;
+      if (input.role === 'revealedJudgment' && !isRevealedJudgmentArtifact(candidate)) return false;
+      if (comparisonId && readMetadataString(candidate.metadata, 'comparisonId') === comparisonId) return true;
+      if (documentId && readMetadataString(candidate.metadata, 'documentId') === documentId) return true;
+      return Boolean(runSourceArtifactId && readMetadataString(candidate.metadata, 'sourceArtifactId') === runSourceArtifactId);
+    });
+    return artifact ? { artifact, reason: comparisonId ? `newer judgment for ${comparisonId}` : 'newer matching judgment' } : null;
+  }
+
+  if (input.role === 'routeDecision') {
+    const artifact = newest((candidate) => (
+      hasPurpose(candidate, PURPOSE_MODEL_COMPARE_ROUTE_DECISION)
+      && (
+        Boolean(judgmentArtifactId && readMetadataString(candidate.metadata, 'judgmentArtifactId') === judgmentArtifactId)
+        || Boolean(comparisonId && readMetadataString(candidate.metadata, 'comparisonId') === comparisonId)
+      )
+    ));
+    return artifact ? { artifact, reason: comparisonId ? `newer route decision for ${comparisonId}` : 'newer route decision for judgment' } : null;
+  }
+
+  if (input.role === 'handoff') {
+    const artifact = newest((candidate) => (
+      hasPurpose(candidate, PURPOSE_MODEL_COMPARE_HANDOFF)
+      && (
+        Boolean(handoffSourceArtifactId && readMetadataString(candidate.metadata, 'sourceArtifactId') === handoffSourceArtifactId)
+        || Boolean(comparisonId && readMetadataString(candidate.metadata, 'comparisonId') === comparisonId)
+      )
+    ));
+    return artifact ? { artifact, reason: comparisonId ? `newer reviewer handoff for ${comparisonId}` : `newer reviewer handoff for source ${handoffSourceArtifactId}` } : null;
+  }
+
+  if (input.role === 'handoffArchive') {
+    const artifact = newest((candidate) => (
+      hasPurpose(candidate, PURPOSE_MODEL_COMPARE_HANDOFF_ARCHIVE)
+      && (
+        Boolean(handoffArtifactId && readMetadataString(candidate.metadata, 'handoffArtifactId') === handoffArtifactId)
+        || Boolean(comparisonId && readMetadataString(candidate.metadata, 'comparisonId') === comparisonId)
+      )
+    ));
+    return artifact ? { artifact, reason: comparisonId ? `newer handoff archive for ${comparisonId}` : 'newer handoff archive for handoff' } : null;
+  }
+
+  return null;
+}
+
+function applyFreshnessReplacements(
+  packet: ReviewPacketPresetPacket,
+  replacements: ReadonlyMap<string, string>,
+  roleReplacements: ReadonlyMap<ReviewPacketArtifactRole, string>,
+): ReviewPacketPresetPacket {
+  const replace = (value: string | undefined, role: ReviewPacketArtifactRole): string | undefined => {
+    if (!value) return undefined;
+    return roleReplacements.get(role) ?? replacements.get(value) ?? value;
+  };
+  const relatedArtifactIds = readStringList(packet.relatedArtifactIds.map((id) => replacements.get(id) ?? id));
+  return {
+    ...packet,
+    ...(replace(packet.documentExportArtifactId, 'documentExport') ? { documentExportArtifactId: replace(packet.documentExportArtifactId, 'documentExport') } : {}),
+    ...(replace(packet.comparisonArtifactId, 'comparison') ? { comparisonArtifactId: replace(packet.comparisonArtifactId, 'comparison') } : {}),
+    ...(replace(packet.judgmentArtifactId, 'judgment') ? { judgmentArtifactId: replace(packet.judgmentArtifactId, 'judgment') } : {}),
+    ...(replace(packet.revealedJudgmentArtifactId, 'revealedJudgment') ? { revealedJudgmentArtifactId: replace(packet.revealedJudgmentArtifactId, 'revealedJudgment') } : {}),
+    ...(replace(packet.routeDecisionArtifactId, 'routeDecision') ? { routeDecisionArtifactId: replace(packet.routeDecisionArtifactId, 'routeDecision') } : {}),
+    ...(replace(packet.handoffArtifactId, 'handoff') ? { handoffArtifactId: replace(packet.handoffArtifactId, 'handoff') } : {}),
+    ...(replace(packet.handoffArchiveArtifactId, 'handoffArchive') ? { handoffArchiveArtifactId: replace(packet.handoffArchiveArtifactId, 'handoffArchive') } : {}),
+    relatedArtifactIds,
+  };
+}
+
+function auditPresetFreshness(input: {
+  readonly packet: ReviewPacketPresetPacket;
+  readonly descriptor: ArtifactDescriptor;
+  readonly artifacts: readonly ArtifactDescriptor[] | null;
+  readonly store?: AgentReviewPacketPresetArtifactStore;
+}): ReviewPacketFreshnessAudit {
+  if (!input.artifacts) {
+    return {
+      available: false,
+      scannedArtifacts: 0,
+      status: 'unchecked',
+      missing: [],
+      superseded: [],
+      recommendedPacket: input.packet,
+    };
+  }
+  const allArtifacts = input.artifacts.some((artifact) => artifact.id === input.descriptor.id)
+    ? input.artifacts
+    : [input.descriptor, ...input.artifacts];
+  const index = artifactIndex(allArtifacts);
+  const missing: ReviewPacketFreshnessMissing[] = [];
+  const superseded: ReviewPacketFreshnessSuperseded[] = [];
+  const replacements = new Map<string, string>();
+  const roleReplacements = new Map<ReviewPacketArtifactRole, string>();
+  const seenReferences = new Set<string>();
+
+  for (const reference of freshnessReferences(input.packet)) {
+    const key = `${reference.role}:${reference.id}`;
+    if (seenReferences.has(key)) continue;
+    seenReferences.add(key);
+    const current = artifactFromIndex(input.store, index, reference.id);
+    const replacement = reference.role === 'related'
+      ? null
+      : replacementForRole({
+        role: reference.role,
+        packet: input.packet,
+        current,
+        artifacts: allArtifacts,
+        store: input.store,
+        index,
+      });
+    if (!current) {
+      missing.push({
+        role: reference.role,
+        label: reference.label,
+        id: reference.id,
+        ...(replacement ? { replacementId: replacement.artifact.id, reason: replacement.reason } : {}),
+      });
+      if (replacement) {
+        replacements.set(reference.id, replacement.artifact.id);
+        roleReplacements.set(reference.role, replacement.artifact.id);
+      }
+      continue;
+    }
+    if (replacement) {
+      superseded.push({
+        role: reference.role,
+        label: reference.label,
+        id: reference.id,
+        replacementId: replacement.artifact.id,
+        reason: replacement.reason,
+      });
+      replacements.set(reference.id, replacement.artifact.id);
+      roleReplacements.set(reference.role, replacement.artifact.id);
+    }
+  }
+
+  return {
+    available: true,
+    scannedArtifacts: allArtifacts.length,
+    status: missing.length > 0 || superseded.length > 0 ? 'needs-review' : 'current',
+    missing,
+    superseded,
+    recommendedPacket: applyFreshnessReplacements(input.packet, replacements, roleReplacements),
+  };
+}
+
 function packetFromMetadata(artifact: ArtifactDescriptor): ReviewPacketPresetPacket {
   return {
     ...(readMetadataString(artifact.metadata, 'documentId') ? { documentId: readMetadataString(artifact.metadata, 'documentId') } : {}),
@@ -369,7 +742,39 @@ function formatSaveResult(descriptor: ArtifactDescriptor, record: ReviewPacketPr
   ].join('\n');
 }
 
-function formatList(artifacts: readonly ArtifactDescriptor[], total: number): string {
+function formatFreshnessSummary(audit: ReviewPacketFreshnessAudit): string {
+  if (!audit.available) return 'freshness unchecked; artifact list unavailable';
+  if (audit.status === 'current') return `freshness current; checked ${audit.scannedArtifacts} artifact(s)`;
+  return `freshness needs-review; missing ${audit.missing.length}; newer ${audit.superseded.length}; checked ${audit.scannedArtifacts} artifact(s)`;
+}
+
+function formatFreshnessLines(audit: ReviewPacketFreshnessAudit): readonly string[] {
+  if (!audit.available) return ['  freshness unchecked; artifact list unavailable'];
+  const lines = [`  ${formatFreshnessSummary(audit)}`];
+  for (const missing of audit.missing.slice(0, 8)) {
+    lines.push(
+      `  missing ${missing.label} ${missing.id}${missing.replacementId ? `; recommended ${missing.replacementId} (${missing.reason ?? 'matching artifact'})` : ''}`,
+    );
+  }
+  for (const superseded of audit.superseded.slice(0, 8)) {
+    lines.push(`  newer ${superseded.label} ${superseded.id} -> ${superseded.replacementId} (${superseded.reason})`);
+  }
+  const shownMissing = Math.min(audit.missing.length, 8);
+  const shownSuperseded = Math.min(audit.superseded.length, 8);
+  const hidden = Math.max(0, audit.missing.length + audit.superseded.length - shownMissing - shownSuperseded);
+  if (hidden > 0) lines.push(`  freshness omitted ${hidden} additional issue(s)`);
+  if (audit.status === 'needs-review') {
+    lines.push('  policy inspect freshness before reuse; recommended routes below use newer ids when a safe replacement was found');
+  }
+  return lines;
+}
+
+function formatList(
+  artifacts: readonly ArtifactDescriptor[],
+  total: number,
+  allArtifacts: readonly ArtifactDescriptor[] | null,
+  store?: AgentReviewPacketPresetArtifactStore,
+): string {
   if (artifacts.length === 0) {
     return [
       'Saved review packet presets',
@@ -382,36 +787,40 @@ function formatList(artifacts: readonly ArtifactDescriptor[], total: number): st
     `  shown ${artifacts.length}/${total}`,
     ...artifacts.flatMap((artifact) => {
       const packet = packetFromMetadata(artifact);
+      const audit = auditPresetFreshness({ packet, descriptor: artifact, artifacts: allArtifacts, store });
       const name = readMetadataString(artifact.metadata, 'name') || artifact.filename || artifact.id;
       const source = sourceArtifactId(packet) || '(no source)';
       return [
         `  - ${artifact.id}: ${name}`,
         `    summary ${compactText(packet.summary, 120)}`,
         `    document ${packet.documentId ?? '(none)'}; source ${source}; handoff ${packet.handoffArtifactId ?? '(none)'}; archive ${packet.handoffArchiveArtifactId ?? '(none)'}; related ${packet.relatedArtifactIds.length}`,
+        `    ${formatFreshnessSummary(audit)}`,
         `    inspect agent_review_packet_presets mode:"show" artifactId:"${artifact.id}"`,
       ];
     }),
   ].join('\n');
 }
 
-function formatShow(loaded: LoadedReviewPacketPreset): string {
+function formatShow(loaded: LoadedReviewPacketPreset, audit: ReviewPacketFreshnessAudit): string {
   const packet = loaded.body?.packet ?? packetFromMetadata(loaded.descriptor);
+  const routePacket = audit.recommendedPacket;
   const name = loaded.body?.name || readMetadataString(loaded.descriptor.metadata, 'name') || loaded.descriptor.filename || loaded.descriptor.id;
   const presetId = loaded.body?.presetId || readMetadataString(loaded.descriptor.metadata, 'presetId') || loaded.descriptor.id;
-  const sourceId = sourceArtifactId(packet);
-  const related = JSON.stringify(packet.relatedArtifactIds);
+  const sourceId = sourceArtifactId(routePacket);
+  const related = JSON.stringify(routePacket.relatedArtifactIds);
   return [
     'Saved review packet preset',
     `  artifact ${loaded.descriptor.id}`,
     `  preset ${presetId}`,
     `  name ${name}`,
     ...formatPacketLines(packet),
+    ...formatFreshnessLines(audit),
     loaded.body?.explicitUserRequest ? `  explicitUserRequest ${compactText(loaded.body.explicitUserRequest, 140)}` : '',
     sourceId ? `  sideBySide agent_model_compare mode:"sideBySide" artifactId:"${sourceId}" relatedArtifactIds:${related}` : '',
     sourceId ? `  handoff agent_model_compare mode:"handoff" artifactId:"${sourceId}" relatedArtifactIds:${related} confirm:true explicitUserRequest:"..."` : '',
-    packet.revealedJudgmentArtifactId ? `  routeDecision agent_model_compare mode:"routeDecision" artifactId:"${packet.revealedJudgmentArtifactId}" decision:"left-unchanged" confirm:true explicitUserRequest:"..."` : '',
-    packet.handoffArtifactId ? `  archive agent_model_compare mode:"handoffArchive" artifactId:"${packet.handoffArtifactId}" confirm:true explicitUserRequest:"..."` : '',
-    packet.handoffArchiveArtifactId ? `  inspectArchive agent_artifacts mode:"show" artifactId:"${packet.handoffArchiveArtifactId}"` : '',
+    routePacket.revealedJudgmentArtifactId ? `  routeDecision agent_model_compare mode:"routeDecision" artifactId:"${routePacket.revealedJudgmentArtifactId}" decision:"left-unchanged" confirm:true explicitUserRequest:"..."` : '',
+    routePacket.handoffArtifactId ? `  archive agent_model_compare mode:"handoffArchive" artifactId:"${routePacket.handoffArtifactId}" confirm:true explicitUserRequest:"..."` : '',
+    routePacket.handoffArchiveArtifactId ? `  inspectArchive agent_artifacts mode:"show" artifactId:"${routePacket.handoffArchiveArtifactId}"` : '',
     '  policy read-only inspection; reuse routes still require explicit confirmation where shown',
   ].filter(Boolean).join('\n');
 }
@@ -436,7 +845,7 @@ export function createAgentReviewPacketPresetsTool(
   return {
     definition: {
       name: 'agent_review_packet_presets',
-      description: 'Save and inspect reusable Document Ops review packet presets.',
+      description: 'Save and freshness-check reusable Document Ops packet presets.',
       parameters: {
         type: 'object',
         properties: {
@@ -528,9 +937,10 @@ export function createAgentReviewPacketPresetsTool(
         if (mode === 'list') {
           if (!artifactStore?.list) return failure('Review packet preset list is unavailable because this runtime cannot list artifacts.');
           const limit = clamp(readNumber(args.limit, DEFAULT_LIST_LIMIT), 1, MAX_LIST_LIMIT);
-          const source = artifactStore.list(Math.max(limit * 4, limit)).filter(isPresetArtifact);
+          const allArtifacts = artifactStore.list(Math.max(MAX_FRESHNESS_ARTIFACT_SCAN, limit * 4));
+          const source = allArtifacts.filter(isPresetArtifact);
           const ordered = source.sort((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id));
-          return output(formatList(ordered.slice(0, limit), source.length));
+          return output(formatList(ordered.slice(0, limit), source.length, allArtifacts, artifactStore));
         }
         if (mode === 'show') {
           const artifactId = readString(args.artifactId);
@@ -538,7 +948,14 @@ export function createAgentReviewPacketPresetsTool(
           if (!artifactStore?.readContent && !artifactStore?.list) return failure('Review packet preset show is unavailable because this runtime cannot read or list artifacts.');
           const loaded = await loadPresetArtifact(artifactStore, artifactId);
           if (!loaded) return failure(`Unknown review packet preset artifact ${artifactId}. Use agent_review_packet_presets mode:"list" first.`);
-          return output(formatShow(loaded));
+          const allArtifacts = artifactStore.list?.(MAX_FRESHNESS_ARTIFACT_SCAN) ?? null;
+          const packet = loaded.body?.packet ?? packetFromMetadata(loaded.descriptor);
+          return output(formatShow(loaded, auditPresetFreshness({
+            packet,
+            descriptor: loaded.descriptor,
+            artifacts: allArtifacts,
+            store: artifactStore,
+          })));
         }
         if (!artifactStore?.create) return failure('Review packet preset save is unavailable because this runtime did not provide an artifact store.');
         const record = buildPresetRecord(args);

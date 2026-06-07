@@ -4313,7 +4313,7 @@ describe('agent_harness tool', () => {
       expect(reviewerReadiness?.actionIds).toContain('document-resolve-comment');
       expect(reviewerReadiness?.actionIds).toContain('document-accept-suggestion');
       expect(reviewerReadiness?.actionIds).toContain('document-apply-compare');
-      expect(reviewPacketTimeline?.status).toBe('ready');
+      expect(reviewPacketTimeline?.status).toBe('attention');
       expect(reviewPacketTimeline?.current).toContain('packet event');
       expect(reviewPacketTimeline?.actionIds).toContain('document-review-packet-timeline');
       expect(reviewPacketTimeline?.actionIds).toContain('document-review-compare');
@@ -4402,7 +4402,7 @@ describe('agent_harness tool', () => {
         readonly routes?: { readonly model: string };
       }>(fixture, { mode: 'document_ops_lane', laneId: 'review_packet_timeline' });
       expect(timelineLane.id).toBe('review_packet_timeline');
-      expect(timelineLane.status).toBe('ready');
+      expect(timelineLane.status).toBe('attention');
       expect(timelineLane.current).toContain('packet event');
       expect(timelineLane.signals.join('\n')).toContain('handoff');
       expect(timelineLane.signals.join('\n')).toContain('agent_model_compare');

@@ -277,6 +277,151 @@ function isReviewPacketPresetArtifact(artifact: ArtifactDescriptor): boolean {
   return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-review-packet-preset';
 }
 
+function artifactById(artifacts: readonly ArtifactDescriptor[], artifactId: string): ArtifactDescriptor | null {
+  return artifacts.find((artifact) => artifact.id === artifactId) ?? null;
+}
+
+function firstArtifactMetadataString(
+  artifacts: readonly ArtifactDescriptor[],
+  artifactIds: readonly string[],
+  keys: readonly string[],
+): string {
+  for (const artifactId of artifactIds) {
+    const artifact = artifactById(artifacts, artifactId);
+    if (!artifact) continue;
+    for (const key of keys) {
+      const value = readArtifactMetadataString(artifact.metadata, key);
+      if (value) return value;
+    }
+  }
+  return '';
+}
+
+function latestMatchingArtifact(
+  artifacts: readonly ArtifactDescriptor[],
+  currentArtifactId: string,
+  predicate: (artifact: ArtifactDescriptor) => boolean,
+): ArtifactDescriptor | null {
+  const current = artifactById(artifacts, currentArtifactId);
+  const currentCreatedAt = current?.createdAt ?? -1;
+  return artifacts
+    .filter((artifact) => artifact.id !== currentArtifactId && artifact.createdAt > currentCreatedAt && predicate(artifact))
+    .sort((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id))[0] ?? null;
+}
+
+function reviewPacketPresetFreshness(
+  preset: ArtifactDescriptor,
+  artifacts: readonly ArtifactDescriptor[],
+): { readonly missingCount: number; readonly newerCount: number; readonly summary: string; readonly status: 'info' | 'attention' } {
+  const metadata = preset.metadata;
+  const primaryIds = [
+    readArtifactMetadataString(metadata, 'documentExportArtifactId'),
+    readArtifactMetadataString(metadata, 'comparisonArtifactId'),
+    readArtifactMetadataString(metadata, 'judgmentArtifactId'),
+    readArtifactMetadataString(metadata, 'revealedJudgmentArtifactId'),
+    readArtifactMetadataString(metadata, 'routeDecisionArtifactId'),
+    readArtifactMetadataString(metadata, 'handoffArtifactId'),
+    readArtifactMetadataString(metadata, 'handoffArchiveArtifactId'),
+  ].filter(Boolean);
+  const relatedIds = readArtifactMetadataStringList(metadata, 'relatedArtifactIds');
+  const referencedIds = uniqueStrings([...primaryIds, ...relatedIds], 40);
+  const missingCount = referencedIds.filter((artifactId) => !artifactById(artifacts, artifactId)).length;
+  const documentId = readArtifactMetadataString(metadata, 'documentId')
+    || firstArtifactMetadataString(artifacts, primaryIds, ['documentId', 'sourceDocumentId']);
+  const comparisonId = firstArtifactMetadataString(artifacts, primaryIds, ['comparisonId']);
+  const sourceArtifactId = firstArtifactMetadataString(artifacts, primaryIds, ['sourceArtifactId'])
+    || readArtifactMetadataString(metadata, 'documentExportArtifactId');
+  const handoffSourceArtifactId = readArtifactMetadataString(metadata, 'revealedJudgmentArtifactId')
+    || readArtifactMetadataString(metadata, 'judgmentArtifactId')
+    || readArtifactMetadataString(metadata, 'comparisonArtifactId')
+    || readArtifactMetadataString(metadata, 'documentExportArtifactId');
+  const judgmentArtifactId = readArtifactMetadataString(metadata, 'revealedJudgmentArtifactId')
+    || readArtifactMetadataString(metadata, 'judgmentArtifactId')
+    || firstArtifactMetadataString(artifacts, [readArtifactMetadataString(metadata, 'routeDecisionArtifactId')], ['judgmentArtifactId']);
+  const handoffArtifactId = readArtifactMetadataString(metadata, 'handoffArtifactId')
+    || firstArtifactMetadataString(artifacts, [readArtifactMetadataString(metadata, 'handoffArchiveArtifactId')], ['handoffArtifactId']);
+  const documentExportArtifactId = readArtifactMetadataString(metadata, 'documentExportArtifactId');
+  const comparisonArtifactId = readArtifactMetadataString(metadata, 'comparisonArtifactId');
+  const judgmentPresetArtifactId = readArtifactMetadataString(metadata, 'judgmentArtifactId');
+  const revealedJudgmentArtifactId = readArtifactMetadataString(metadata, 'revealedJudgmentArtifactId');
+  const routeDecisionArtifactId = readArtifactMetadataString(metadata, 'routeDecisionArtifactId');
+  const handoffPresetArtifactId = readArtifactMetadataString(metadata, 'handoffArtifactId');
+  const handoffArchiveArtifactId = readArtifactMetadataString(metadata, 'handoffArchiveArtifactId');
+  const freshnessChecks: Array<ArtifactDescriptor | null> = [
+    documentId && documentExportArtifactId
+      ? latestMatchingArtifact(artifacts, documentExportArtifactId, (artifact) => (
+        isDocumentExportArtifact(artifact) && readArtifactMetadataString(artifact.metadata, 'documentId') === documentId
+      ))
+      : null,
+    comparisonArtifactId && (documentId || sourceArtifactId)
+      ? latestMatchingArtifact(artifacts, comparisonArtifactId, (artifact) => (
+        isModelCompareArtifact(artifact)
+        && (
+          Boolean(documentId && readArtifactMetadataString(artifact.metadata, 'documentId') === documentId)
+          || Boolean(sourceArtifactId && readArtifactMetadataString(artifact.metadata, 'sourceArtifactId') === sourceArtifactId)
+        )
+      ))
+      : null,
+    judgmentPresetArtifactId && (comparisonId || sourceArtifactId || documentId)
+      ? latestMatchingArtifact(artifacts, judgmentPresetArtifactId, (artifact) => (
+        isModelCompareJudgmentArtifact(artifact)
+        && (
+          Boolean(comparisonId && readArtifactMetadataString(artifact.metadata, 'comparisonId') === comparisonId)
+          || Boolean(documentId && readArtifactMetadataString(artifact.metadata, 'documentId') === documentId)
+          || Boolean(sourceArtifactId && readArtifactMetadataString(artifact.metadata, 'sourceArtifactId') === sourceArtifactId)
+        )
+      ))
+      : null,
+    revealedJudgmentArtifactId && (comparisonId || sourceArtifactId || documentId)
+      ? latestMatchingArtifact(artifacts, revealedJudgmentArtifactId, (artifact) => (
+        isModelCompareJudgmentArtifact(artifact)
+        && artifact.metadata.revealIncludedInJudgment === true
+        && readArtifactMetadataString(artifact.metadata, 'winnerModel').length > 0
+        && (
+          Boolean(comparisonId && readArtifactMetadataString(artifact.metadata, 'comparisonId') === comparisonId)
+          || Boolean(documentId && readArtifactMetadataString(artifact.metadata, 'documentId') === documentId)
+          || Boolean(sourceArtifactId && readArtifactMetadataString(artifact.metadata, 'sourceArtifactId') === sourceArtifactId)
+        )
+      ))
+      : null,
+    routeDecisionArtifactId && (comparisonId || judgmentArtifactId)
+      ? latestMatchingArtifact(artifacts, routeDecisionArtifactId, (artifact) => (
+        isModelCompareRouteDecisionArtifact(artifact)
+        && (
+          Boolean(judgmentArtifactId && readArtifactMetadataString(artifact.metadata, 'judgmentArtifactId') === judgmentArtifactId)
+          || Boolean(comparisonId && readArtifactMetadataString(artifact.metadata, 'comparisonId') === comparisonId)
+        )
+      ))
+      : null,
+    handoffPresetArtifactId && (comparisonId || handoffSourceArtifactId)
+      ? latestMatchingArtifact(artifacts, handoffPresetArtifactId, (artifact) => (
+        isReviewerHandoffArtifact(artifact)
+        && (
+          Boolean(handoffSourceArtifactId && readArtifactMetadataString(artifact.metadata, 'sourceArtifactId') === handoffSourceArtifactId)
+          || Boolean(comparisonId && readArtifactMetadataString(artifact.metadata, 'comparisonId') === comparisonId)
+        )
+      ))
+      : null,
+    handoffArchiveArtifactId && (comparisonId || handoffArtifactId)
+      ? latestMatchingArtifact(artifacts, handoffArchiveArtifactId, (artifact) => (
+        isReviewerHandoffArchiveArtifact(artifact)
+        && (
+          Boolean(handoffArtifactId && readArtifactMetadataString(artifact.metadata, 'handoffArtifactId') === handoffArtifactId)
+          || Boolean(comparisonId && readArtifactMetadataString(artifact.metadata, 'comparisonId') === comparisonId)
+        )
+      ))
+      : null,
+  ];
+  const newerCount = new Set(freshnessChecks.filter((artifact): artifact is ArtifactDescriptor => artifact !== null).map((artifact) => artifact.id)).size;
+  const needsReview = missingCount > 0 || newerCount > 0;
+  return {
+    missingCount,
+    newerCount,
+    summary: needsReview ? `freshness needs review: ${missingCount} missing, ${newerCount} newer` : 'freshness current',
+    status: needsReview ? 'attention' : 'info',
+  };
+}
+
 function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWorkspaceRecentReviewerHandoffArtifact {
   const metadata = artifact.metadata;
   return {
@@ -437,6 +582,7 @@ function buildReviewPacketTimeline(
     if (isReviewPacketPresetArtifact(artifact)) {
       const name = readArtifactMetadataString(metadata, 'name') || artifact.filename || artifact.id;
       const summary = readArtifactMetadataString(metadata, 'summary') || 'review packet preset';
+      const freshness = reviewPacketPresetFreshness(artifact, artifacts);
       const sourceArtifactId = readArtifactMetadataString(metadata, 'revealedJudgmentArtifactId')
         || readArtifactMetadataString(metadata, 'judgmentArtifactId')
         || readArtifactMetadataString(metadata, 'comparisonArtifactId')
@@ -449,8 +595,8 @@ function buildReviewPacketTimeline(
         kind: 'packet-preset',
         at: artifact.createdAt,
         label: `Packet preset: ${name}`,
-        detail: `${compactTimelineText(summary, 72)}; source ${sourceArtifactId}; handoff ${handoffArtifactId}; ${relatedCount} related artifact(s)`,
-        status: 'info',
+        detail: `${compactTimelineText(summary, 72)}; source ${sourceArtifactId}; handoff ${handoffArtifactId}; ${relatedCount} related artifact(s); ${freshness.summary}`,
+        status: freshness.status,
         route: `agent_review_packet_presets show artifactId:"${artifact.id}"`,
         sourceId: artifact.id,
       });

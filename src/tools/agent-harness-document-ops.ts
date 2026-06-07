@@ -700,7 +700,9 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       label: 'Review Packet Timeline',
       status: !snapshot.reviewPacketTimeline.available
         ? 'needs-setup'
-        : snapshot.reviewPacketTimeline.count > 0
+        : snapshot.reviewPacketTimeline.items.some((event) => event.status === 'attention')
+          ? 'attention'
+          : snapshot.reviewPacketTimeline.count > 0
           ? 'ready'
           : 'partial',
       outcome: 'Scan one chronological packet history across document review, source evidence, blind comparisons, judgments, handoffs, archives, and route decisions.',
