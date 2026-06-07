@@ -38,7 +38,7 @@ export function sudoExecutionPosture(context?: CommandContext): AgentHarnessSudo
   const sudoPasswordPresent = Boolean(process.env.SUDO_PASSWORD);
   const home = homeDirectory(context);
   const envFilePath = home ? join(home, '.goodvibes', '.env') : null;
-  const setupRoute = 'agent_harness mode:"setup_item" setupItemId:"sudo-execution-posture"';
+  const setupRoute = 'setup action:"item" setupItemId:"sudo-execution-posture"';
   const foregroundRoute = 'agent_harness mode:"execution_route" executionRouteId:"local-shell-command"';
   const processCapabilitiesRoute = 'agent_harness mode:"run_background_process" processAction:"capabilities"';
   return {

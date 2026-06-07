@@ -802,9 +802,9 @@ describe('agent_harness tool', () => {
         'background-work',
         'safety-and-recovery',
       ]);
-      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('setup_posture');
-      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('provision_connected_host_token');
-      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('run_setup_smoke');
+      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('setup action:"status"');
+      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('setup action:"token"');
+      expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'setup')?.routes.join('\n')).toContain('setup action:"smoke"');
       expect(summaryJson.assistant?.lanes?.find((lane) => lane.id === 'work-and-files')?.label).toBe('Work in this project');
       expect(summaryJson.harnessModes).toBeGreaterThan(60);
       expect(summaryJson.modeGuide?.discover).toContain('modes');
@@ -962,13 +962,13 @@ describe('agent_harness tool', () => {
       expect(summary.setupPosture?.setupWizard?.status).toBe('blocked');
       expect(summary.setupPosture?.setupWizard?.currentStepId).toBe('connected-host-auth');
       expect(summary.setupPosture?.setupWizard?.currentStepLabel).toBe('Connected-host auth');
-      expect(summary.setupPosture?.setupWizard?.reviewRoute).toContain('setup_posture');
+      expect(summary.setupPosture?.setupWizard?.reviewRoute).toContain('setup action:"status"');
       expect(summary.setupPosture?.setupCloseout).toMatchObject({
         status: 'blocked',
         primaryStepId: 'connected-host-auth',
         requiresConfirmation: false,
       });
-      expect(summary.setupPosture?.setupCloseout?.modelRoute).toContain('provision_connected_host_token');
+      expect(summary.setupPosture?.setupCloseout?.modelRoute).toContain('setup action:"token"');
 
       const posture = await executeHarnessJson<{
         readonly summary: {
@@ -1128,12 +1128,12 @@ describe('agent_harness tool', () => {
       expect(posture.setupWizard.progressLabel).toContain('setup step');
       expect(posture.setupWizard.next).toContain('Connected-host auth');
       expect(posture.setupWizard.smokeHistory.status).toBe('unavailable');
-      expect(posture.setupWizard.smokeHistory.rerunRoute).toContain('run_setup_smoke');
+      expect(posture.setupWizard.smokeHistory.rerunRoute).toContain('setup action:"smoke"');
       expect(posture.setupWizard.smokeHistory.saveRoute).toContain('fields:{...}');
       expect(posture.setupWizard.closeout.status).toBe('blocked');
       expect(posture.setupWizard.closeout.label).toBe('Fix setup blocker');
       expect(posture.setupWizard.closeout.primaryStepId).toBe('connected-host-auth');
-      expect(posture.setupWizard.closeout.modelRoute).toContain('provision_connected_host_token');
+      expect(posture.setupWizard.closeout.modelRoute).toContain('setup action:"token"');
       expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('critical setup blockers: Connected-host auth');
       expect(posture.setupCloseout).toMatchObject({
         status: 'blocked',
@@ -1191,7 +1191,7 @@ describe('agent_harness tool', () => {
       const auth = posture.readinessPlan.find((item) => item.setupItemId === 'connected-host-auth');
       expect(auth?.primaryHandoff?.id).toBe('provision-connected-host-token');
       expect(auth?.primaryHandoff?.requiresConfirmation).toBe(true);
-      expect(auth?.primaryHandoff?.modelRoute).toContain('provision_connected_host_token');
+      expect(auth?.primaryHandoff?.modelRoute).toContain('setup action:"token"');
 
       const provider = posture.readinessPlan.find((item) => item.setupItemId === 'provider-access');
       expect(['ready', 'blocked']).toContain(provider?.status);
@@ -1203,7 +1203,7 @@ describe('agent_harness tool', () => {
       expect(provider?.primaryHandoff?.requiresConfirmation).toBe(true);
       expect(posture.nextSetupActions[0]?.setupItemId).toBe('connected-host-readiness');
       expect(posture.nextSetupActions[0]?.handoffRoute).toContain('connected_host_status');
-      expect(posture.nextSetupActions.find((item) => item.setupItemId === 'connected-host-auth')?.handoffRoute).toContain('provision_connected_host_token');
+      expect(posture.nextSetupActions.find((item) => item.setupItemId === 'connected-host-auth')?.handoffRoute).toContain('setup action:"token"');
 
       const installSmoke = posture.readinessPlan.find((item) => item.setupItemId === 'install-smoke');
       expect(installSmoke?.status).toBe('blocked');
@@ -1211,7 +1211,7 @@ describe('agent_harness tool', () => {
       expect(installSmoke?.priority).toBe(22);
       expect(installSmoke?.modelRoute).toContain('install-smoke');
       expect(installSmoke?.primaryHandoff?.id).toBe('run-setup-smoke');
-      expect(installSmoke?.primaryHandoff?.modelRoute).toContain('run_setup_smoke');
+      expect(installSmoke?.primaryHandoff?.modelRoute).toContain('setup action:"smoke"');
       expect(installSmoke?.primaryHandoff?.requiresConfirmation).toBe(true);
       expect(installSmoke?.signals?.join('\n')).toContain('install smoke');
       expect(installSmoke?.installSmokePlan?.source).toContain('GoodVibes Agent installed package');
@@ -1400,9 +1400,9 @@ describe('agent_harness tool', () => {
       expect(smokeRun.artifact.status).toBe('not_requested');
       expect(smokeRun.artifact.supportedFields).toContain('agentBinaryOutput');
       expect(smokeRun.nextAction).toContain('Resolve blocked checks');
-      expect(smokeRun.routes.inspectSetup).toContain('setup_posture');
+      expect(smokeRun.routes.inspectSetup).toContain('setup action:"status"');
       expect(smokeRun.routes.inspectSmoke).toContain('install-smoke');
-      expect(smokeRun.routes.rerunSmoke).toContain('run_setup_smoke');
+      expect(smokeRun.routes.rerunSmoke).toContain('setup action:"smoke"');
       expect(smokeRun.policy.effect).toBe('confirmed-redacted-setup-smoke');
       expect(smokeRun.policy.shell).toContain('No package, host, or shell commands were executed implicitly');
       expect(smokeRun.policy.secrets).toContain('tokens are never returned');
@@ -1536,7 +1536,7 @@ describe('agent_harness tool', () => {
       expect(advanced.checkpoint.autoAdvance?.toStepId).not.toBe('connected-host-auth');
       expect(advanced.checkpoint.autoAdvance?.reason).toContain('advanced');
       expect(advanced.checkpoint.autoAdvance?.evidence).toContain('source status is ready');
-      expect(advanced.checkpoint.autoAdvance?.clearRoute).toContain('clear_setup_checkpoint');
+      expect(advanced.checkpoint.autoAdvance?.clearRoute).toContain('setup action:"clear_checkpoint"');
       expect(advanced.currentStep?.id).not.toBe('connected-host-auth');
 
       const workspaceSaved = await executeHarnessJson<{
@@ -2606,11 +2606,11 @@ describe('agent_harness tool', () => {
           primaryStepId: 'finish-onboarding',
           requiresConfirmation: true,
         });
-        expect(posture.setupCloseout.modelRoute).toContain('onboarding-apply-close');
+        expect(posture.setupCloseout.modelRoute).toContain('setup action:"finish"');
         expect(posture.setupCloseout.userRoute).toContain('Finish');
         expect(posture.setupCloseout.evidence.join('\n')).toContain('latest setup smoke: ready-for-user-run');
         expect(posture.setupWizard.closeout.status).toBe('ready-to-finish');
-        expect(posture.setupWizard.closeout.modelRoute).toContain('onboarding-apply-close');
+        expect(posture.setupWizard.closeout.modelRoute).toContain('setup action:"finish"');
 
         const finished = await executeHarnessJson<{
           readonly status: string;
@@ -2762,7 +2762,7 @@ describe('agent_harness tool', () => {
         expect(missing.blocksAutonomy).toBe(true);
         expect(missing.nextAction).toContain('confirmed connected-host token provisioning route');
         expect(missing.signals?.join('\n')).toContain('operator token: missing');
-        expect(missing.signals?.join('\n')).toContain('provision_connected_host_token');
+        expect(missing.signals?.join('\n')).toContain('setup action:"token"');
         expect(missing.signals?.join('\n')).toContain('getOrCreateCompanionToken');
         expect(missing.authPosture?.owner).toBe('connected-host');
         expect(missing.authPosture?.operatorToken).toMatchObject({ present: false, usable: false });
@@ -2771,7 +2771,7 @@ describe('agent_harness tool', () => {
         expect(missing.authPosture?.routes.pairingPosture).toContain('pairing_posture');
         expect(missing.authPosture?.routes.qrPairingRoute).toContain('qr-pairing');
         expect(missing.authPosture?.routes.manualTokenRoute).toContain('manual-token-display');
-        expect(missing.authPosture?.routes.provisionTokenRoute).toContain('provision_connected_host_token');
+        expect(missing.authPosture?.routes.provisionTokenRoute).toContain('setup action:"token"');
         expect(missing.authPosture?.routes.tokenProvisioningOwner).toContain('canonical token store');
         expect(missing.authPosture?.routes.tokenProvisioningSource).toContain('operator-tokens.json');
 
@@ -2831,7 +2831,7 @@ describe('agent_harness tool', () => {
         expect(provisioned.mutation?.performed).toBe(true);
         expect(provisioned.mutation?.source).toBe('getOrCreateCompanionToken');
         expect(provisioned.routes.inspectStatus).toContain('connected_host_status');
-        expect(provisioned.routes.runSetupSmoke).toContain('run_setup_smoke');
+        expect(provisioned.routes.runSetupSmoke).toContain('setup action:"smoke"');
         expect(provisioned.policy.secrets).toContain('raw token is not returned');
         expect(provisioned.policy.rotation).toContain('preserves a valid existing token');
         const tokenRecordPath = join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json');
@@ -4649,7 +4649,7 @@ describe('agent_harness tool', () => {
       expect(posture.summary.browserControlSetup.needsReview).toBe(false);
       expect(posture.summary.browserControlSetup.workflows[0]?.id).toBe('browser-navigation');
       expect(posture.summary.browserControlSetup.workflows[0]?.status).toBe('setup-needed');
-      expect(posture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('setup_item');
+      expect(posture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('setup action:"item"');
       expect(posture.summary.browserControlSetup.setupChecklist.join('\n')).toContain('constrained trust');
       expect(posture.summary.browserControlSetup.fallbackRoutes.join('\n')).toContain('web-fetch-research');
       expect(posture.summary.sudoPosture.status).toContain('foreground');
@@ -6045,7 +6045,7 @@ describe('agent_harness tool', () => {
       expect(queue.runnerPosture.browserBackedResearch.recommendedRoute).toContain('mcp_servers');
       expect(queue.runnerPosture.browserBackedResearch.fallbackRoutes.join('\n')).toContain('web-fetch-research');
       expect(queue.runnerPosture.browserBackedResearch.workflows[0]?.id).toBe('browser-navigation');
-      expect(queue.runnerPosture.browserBackedResearch.workflows[0]?.inspectRoute).toContain('setup_item');
+      expect(queue.runnerPosture.browserBackedResearch.workflows[0]?.inspectRoute).toContain('setup action:"item"');
       expect(queue.runnerPosture.sourceQueueRoute).toBe('agent_harness mode:"research_queue"');
       expect(queue.runnerPosture.reportRoute).toContain('agent_research_report');
       expect(queue.runnerPosture.policy).toContain('browser-backed research');

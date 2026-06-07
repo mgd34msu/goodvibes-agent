@@ -128,7 +128,7 @@ describe('Agent setup wizard checkpoints', () => {
     expect(wizard.closeout.status).toBe('needs-smoke-evidence');
     expect(wizard.closeout.primaryStepId).toBe('install-smoke');
     expect(wizard.closeout.requiresConfirmation).toBe(true);
-    expect(wizard.closeout.modelRoute).toContain('run_setup_smoke');
+    expect(wizard.closeout.modelRoute).toContain('setup action:"smoke"');
   });
 
   test('routes ready setup to finish and marks complete after the user marker exists', () => {
@@ -140,7 +140,7 @@ describe('Agent setup wizard checkpoints', () => {
       setupMarkerExists: false,
     });
     expect(readyToFinish.closeout.status).toBe('ready-to-finish');
-    expect(readyToFinish.closeout.modelRoute).toContain('onboarding-apply-close');
+    expect(readyToFinish.closeout.modelRoute).toContain('setup action:"finish"');
     expect(readyToFinish.closeout.requiresConfirmation).toBe(true);
 
     const complete = buildAgentSetupWizard({

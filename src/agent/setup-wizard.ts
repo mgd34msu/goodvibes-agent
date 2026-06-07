@@ -124,13 +124,13 @@ export interface BuildAgentSetupWizardInput {
   readonly reviewRoute?: string;
 }
 
-export const DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE = 'agent_harness mode:"setup_posture" includeParameters:true';
-export const DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE = 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."';
-export const DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE = 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."';
-export const DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE = 'agent_harness mode:"mark_setup_checkpoint" confirm:true explicitUserRequest:"..."';
-export const DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE = 'agent_harness mode:"clear_setup_checkpoint" confirm:true explicitUserRequest:"..."';
-export const DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE = 'agent_harness mode:"setup_checkpoint"';
-export const DEFAULT_AGENT_SETUP_WIZARD_FINISH_ROUTE = 'agent_harness mode:"run_workspace_action" actionId:"onboarding-apply-close" confirm:true explicitUserRequest:"Finish Agent onboarding after setup smoke evidence is ready."';
+export const DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE = 'setup action:"status" includeParameters:true';
+export const DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE = 'setup action:"smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."';
+export const DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE = 'setup action:"smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."';
+export const DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE = 'setup action:"save_checkpoint" confirm:true explicitUserRequest:"..."';
+export const DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE = 'setup action:"clear_checkpoint" confirm:true explicitUserRequest:"..."';
+export const DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE = 'setup action:"checkpoint"';
+export const DEFAULT_AGENT_SETUP_WIZARD_FINISH_ROUTE = 'setup action:"finish" confirm:true explicitUserRequest:"Finish Agent onboarding after setup smoke evidence is ready."';
 export const DEFAULT_AGENT_SETUP_WIZARD_FINISH_USER_ROUTE = 'Agent Workspace -> Finish -> Apply & close';
 
 export function emptyAgentSetupSmokeHistory(reason = 'No saved setup smoke evidence artifact found.'): AgentSetupWizardSmokeHistory {

@@ -164,7 +164,7 @@ function pairingRoutes(): readonly PairingRoute[] {
       label: 'Connected-host token provisioning',
       detail: 'Confirmed SDK-backed route that creates or repairs the local canonical connected-host token file without printing the raw token.',
       effect: 'confirmed-local-auth-provisioning',
-      harnessRoute: 'agent_harness mode:"provision_connected_host_token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."',
+      harnessRoute: 'setup action:"token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."',
       capabilityIds: ['connected-host-status', 'companion-pairing'],
       requiresConfirmation: true,
     },
@@ -416,8 +416,8 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
       modelRoute: 'agent_harness mode:"pairing_route" pairingRouteId:"qr-pairing"',
       userRoute: '/pair',
       setupRoutes: [
-        'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
-        'agent_harness mode:"provision_connected_host_token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."',
+        'setup action:"item" setupItemId:"connected-host-auth"',
+        'setup action:"token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."',
       ],
       evidence: {
         tokenPresent: hasToken,
@@ -443,7 +443,7 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
       modelRoute: 'agent_harness mode:"connected_host_status"',
       setupRoutes: [
         'agent_harness mode:"service_endpoint" endpointId:"controlPlane"',
-        'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+        'setup action:"item" setupItemId:"connected-host-auth"',
       ],
       evidence: {
         controlPlaneEnabled: endpointEnabled(state),

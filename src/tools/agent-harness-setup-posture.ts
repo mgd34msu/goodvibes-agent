@@ -24,6 +24,9 @@ import {
   DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
   DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
   DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
   buildAgentSetupWizard,
   emptyAgentSetupSmokeHistory,
   emptyAgentSetupWizardCheckpoint,
@@ -270,7 +273,7 @@ function safeIso(value: number | null | undefined): string | null {
 }
 
 function provisionConnectedHostTokenRoute(): string {
-  return 'agent_harness mode:"provision_connected_host_token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."';
+  return 'setup action:"token" setupItemId:"connected-host-auth" confirm:true explicitUserRequest:"..."';
 }
 
 function safeFileMode(path: string): string | null {
@@ -603,7 +606,7 @@ function installSmokePlan(
       evidence: authReady
         ? `Operator token is usable (${authPosture.operatorToken.fingerprint ?? 'fingerprint unavailable'}).`
         : `Operator token is ${authPosture.operatorToken.present ? 'present but not usable' : 'missing'} at ${authPosture.operatorToken.path}.`,
-      route: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+      route: 'setup action:"item" setupItemId:"connected-host-auth"',
     },
     {
       id: 'provider-model',
@@ -617,7 +620,7 @@ function installSmokePlan(
       label: 'Setup posture reviewed',
       status: 'user-run',
       evidence: 'Setup posture should show no unresolved autonomy blockers before ongoing work.',
-      route: 'agent_harness mode:"setup_posture" includeParameters:true',
+      route: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
     },
     {
       id: 'first-assistant-turn',
@@ -868,13 +871,13 @@ function latestSetupSmokeEvidence(context: CommandContext): Record<string, unkno
     return {
       status: 'none',
       reason: 'No saved setup smoke evidence artifact found.',
-      saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+      saveRoute: DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
     };
   }
   return {
     status: 'saved',
     ...describeSetupSmokeEvidenceArtifact(latest),
-    rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+    rerunRoute: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
   };
 }
 
@@ -888,7 +891,7 @@ function setupSmokeEvidenceHistory(context: CommandContext): Record<string, unkn
       total: 0,
       trend: 'none',
       reason: 'No saved setup smoke evidence artifact found.',
-      saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+      saveRoute: DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
     };
   }
   const resultCounts = artifacts.reduce<Record<string, number>>((counts, artifact) => {
@@ -906,8 +909,8 @@ function setupSmokeEvidenceHistory(context: CommandContext): Record<string, unkn
     blockedCheckFrequency: setupSmokeBlockedCheckFrequency(artifacts),
     recent: artifacts.slice(0, 5).map(describeSetupSmokeEvidenceArtifact),
     inspectLatestRoute: `agent_artifacts show artifactId:"${artifacts[0]!.id}" includeContent:false`,
-    rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
-    saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+    rerunRoute: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
+    saveRoute: DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
   };
 }
 
@@ -938,8 +941,8 @@ function setupWizardSmokeHistory(context: CommandContext): AgentSetupWizardSmoke
       count: typeof entry.count === 'number' ? entry.count : 0,
     })).filter((entry) => entry.checkId && entry.count > 0),
     inspectLatestRoute: `agent_artifacts show artifactId:"${artifacts[0]!.id}" includeContent:false`,
-    rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
-    saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+    rerunRoute: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
+    saveRoute: DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
   };
 }
 
@@ -1046,9 +1049,7 @@ function installSmokeRunResult(plan: SetupInstallSmokePlan): 'blocked' | 'ready-
 
 function installSmokeNextAction(plan: SetupInstallSmokePlan): string {
   const blocked = plan.checks.filter((check) => check.status === 'blocked').map((check) => check.id);
-  if (blocked.length > 0) {
-    return `Resolve blocked checks (${blocked.join(', ')}), then rerun mode:"run_setup_smoke".`;
-  }
+  if (blocked.length > 0) return `Resolve blocked checks (${blocked.join(', ')}), then rerun setup action:"smoke".`;
   const userRun = plan.checks.filter((check) => check.status === 'user-run').map((check) => check.id);
   return `Run user-visible checks (${userRun.join(', ')}), then keep the redacted output with the setup evidence.`;
 }
@@ -1217,7 +1218,7 @@ function serviceRepairOutcome(methodId: 'services.status' | 'services.install' |
   const common = {
     evidenceFields: ['installed', 'autostart', 'running', 'pid', 'lastAction', 'actionError', 'network.controlPlane.ready'],
     verificationRoute: operatorMethodRoute('services.status', false),
-    recoveryRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+    recoveryRoute: 'setup action:"item" setupItemId:"connected-host-readiness" includeParameters:true',
   };
   if (methodId === 'services.status') {
     return {
@@ -1526,7 +1527,7 @@ function connectedHostBootstrapPlan(
     reconnectRoutes: {
       agentStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
       serviceDiagnostics: 'agent_harness mode:"service_posture" includeParameters:true',
-      setupItem: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"',
+      setupItem: 'setup action:"item" setupItemId:"connected-host-readiness"',
     },
     policy: 'Bootstrap commands are user-run setup guidance. Agent does not run host install/start commands implicitly; once the host is reachable, exact service mutations stay on confirmed operator methods.',
   };
@@ -1580,7 +1581,7 @@ function connectedHostReadinessHandoffs(item: SetupPlanItem): readonly SetupHand
       kind: 'user-command',
       effect: 'user-run',
       userRoute: item.userRoute,
-      modelRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"',
+      modelRoute: 'setup action:"item" setupItemId:"connected-host-readiness"',
       nextStep: 'Show the Bun install, service start, binary verification, and reconnect commands for the user to run on the owning host.',
       safety: item.bootstrapPlan.policy,
     })]
@@ -1661,7 +1662,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'workspace-action',
           effect: 'read-only',
           userRoute: item.userRoute,
-          modelRoute: inspectWorkspaceActionRoute('import-goodvibes-tui-settings'),
+          modelRoute: 'import_goodvibes_settings action:"preview"',
           nextStep: 'Show importable setting and subscription counts before any migration.',
           safety: 'Read-only preview; raw provider secrets are not returned.',
         }),
@@ -1671,7 +1672,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'workspace-action',
           effect: 'confirmed-effect',
           userRoute: item.userRoute,
-          modelRoute: confirmedWorkspaceActionRoute('import-goodvibes-tui-settings', 'Import reviewed GoodVibes TUI settings into Agent-owned state.'),
+          modelRoute: 'setup action:"import_settings" confirm:true explicitUserRequest:"Import reviewed GoodVibes TUI settings into Agent-owned state."',
           nextStep: 'Apply only after the user has reviewed the preview and wants Agent to import the values.',
           safety: 'Confirmed Agent-owned settings migration; does not mutate the source GoodVibes TUI settings.',
           requiresConfirmation: true,
@@ -1719,7 +1720,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'confirmed-route',
           effect: 'confirmed-effect',
           userRoute: item.userRoute,
-          modelRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"Run the install smoke checks."',
+          modelRoute: 'setup action:"smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"Run the install smoke checks."',
           nextStep: item.status === 'blocked'
             ? 'Return the exact blocked checks and user-run checks without running shell or host commands implicitly.'
             : 'Capture the setup smoke result and then save redacted user-run evidence.',
@@ -1732,7 +1733,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'diagnostic',
           effect: 'read-only',
           userRoute: item.userRoute,
-          modelRoute: 'agent_harness mode:"setup_item" setupItemId:"install-smoke"',
+          modelRoute: 'setup action:"item" setupItemId:"install-smoke"',
           nextStep: 'Review check status, success criteria, and policy before asking the user to run evidence commands.',
           safety: 'Read-only smoke plan.',
         }),
@@ -1887,7 +1888,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'diagnostic',
           effect: 'read-only',
           userRoute: item.userRoute,
-          modelRoute: 'agent_harness mode:"setup_item" setupItemId:"sudo-execution-posture"',
+          modelRoute: 'setup action:"item" setupItemId:"sudo-execution-posture"',
           nextStep: 'Review foreground-only escalation posture, SUDO_PASSWORD presence, blocked background routes, and missing SDK/daemon contracts.',
           safety: 'Read-only setup posture; raw sudo password values are never read, stored, or returned.',
         }),
@@ -1917,7 +1918,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'user-command',
           effect: 'user-run',
           userRoute: item.sudoPosture?.credentialSignal.envFilePath ?? '~/.goodvibes/.env',
-          modelRoute: 'agent_harness mode:"setup_item" setupItemId:"sudo-execution-posture"',
+          modelRoute: 'setup action:"item" setupItemId:"sudo-execution-posture"',
           nextStep: 'If a future safe credential contract requires SUDO_PASSWORD, the user configures it outside Agent and Agent only reports presence.',
           safety: 'No Agent write route exists for sudo credentials; password values stay outside model-visible output.',
         }),
@@ -2002,7 +2003,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'workspace-action',
           effect: 'confirmed-effect',
           userRoute: 'Agent Workspace -> Finish',
-          modelRoute: confirmedWorkspaceActionRoute('onboarding-apply-close', 'Finish Agent onboarding after setup review.'),
+          modelRoute: 'setup action:"finish" confirm:true explicitUserRequest:"Finish Agent onboarding after setup review."',
           nextStep: 'Persist the setup completion marker only after the assistant is usable.',
           safety: 'Confirmed local onboarding marker write; no provider, host, channel, or automation mutation.',
           requiresConfirmation: true,
@@ -2106,7 +2107,7 @@ function buildSetupPlan(
         ? 'Preview the import, explain the changed setting and subscription counts, then apply only after the user confirms migration.'
         : 'Use this when migrating from GoodVibes TUI; the preview shows whether anything importable is present.',
       userRoute: 'Agent Workspace -> Start -> Import GoodVibes settings',
-      modelRoute: 'agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"',
+      modelRoute: 'import_goodvibes_settings action:"preview"',
       signals: settingsImportSignals(settingsImport),
     },
     {
@@ -2133,7 +2134,7 @@ function buildSetupPlan(
         ? 'Run the confirmed setup smoke route, then complete the user-visible package/status and first-turn checks.'
         : 'Resolve connected-host, connected-host auth, and provider/model blockers, then rerun the confirmed setup smoke route.',
       userRoute: 'Agent Workspace -> Start -> Install smoke',
-      modelRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke"',
+      modelRoute: 'setup action:"smoke" setupItemId:"install-smoke"',
       signals: installSmokeSignals(smokePlan),
       installSmokePlan: smokePlan,
     },
@@ -2351,7 +2352,7 @@ function describePlanItem(item: SetupPlanItem, includeParameters: boolean): Reco
     ...(item.signals && item.signals.length > 0 ? { signals: item.signals.slice(0, includeParameters ? 10 : 3) } : {}),
     ...(availableRepairCards && availableRepairCards.length > 0 ? { availableRepairCards } : {}),
     ...(recommendedRepairCards && recommendedRepairCards.length > 0 ? { recommendedRepairCards } : {}),
-    ...(item.bootstrapPlan ? { bootstrapRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"' } : {}),
+    ...(item.bootstrapPlan ? { bootstrapRoute: 'setup action:"item" setupItemId:"connected-host-readiness"' } : {}),
     ...(includeParameters && item.serviceProbe ? { serviceProbe: item.serviceProbe } : {}),
     ...(includeParameters && item.serviceLifecycleDecision ? { serviceLifecycleDecision: describeServiceLifecycleDecision(item.serviceLifecycleDecision) } : {}),
     ...(includeParameters && item.authPosture ? { authPosture: item.authPosture } : {}),
@@ -2491,8 +2492,8 @@ function describeItem(
           mutation: 'Setup apply, provider auth, local behavior import/create, channel delivery, and starter profile changes stay visible workspace, settings, slash-command, or first-class tool flows.',
         },
         modelAccess: {
-          inspectSetup: 'agent_harness mode:"setup_posture"',
-          inspectSetupItem: 'agent_harness mode:"setup_item"',
+          inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
+          inspectSetupItem: 'setup action:"item"',
           openOnboarding: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding" confirm:true explicitUserRequest:"..."',
           setupWorkspace: 'agent_harness mode:"workspace_action" target:"setup"',
           settings: 'agent_harness mode:"settings"; inspect or mutate with get_setting, set_setting, or reset_setting',
@@ -2510,7 +2511,7 @@ function describeItem(
 }
 
 function setupItemModelRoute(): string {
-  return 'agent_harness mode:"setup_item" or mode:"open_ui_surface"';
+  return 'setup action:"item" or agent_harness mode:"open_ui_surface"';
 }
 
 function describeCandidate(item: OnboardingStep1CapabilityItem): Record<string, unknown> {
@@ -2636,7 +2637,7 @@ export async function setupCheckpointSummary(context: CommandContext): Promise<R
       next: setupWizard.next,
     },
     routes: {
-      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
       markCurrent: DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
       clear: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
     },
@@ -2668,7 +2669,7 @@ export async function markSetupCheckpoint(context: CommandContext, args: AgentHa
         currentStepLabel: setupWizard.currentStepLabel,
       },
       routes: {
-        inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+        inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
       },
     };
   }
@@ -2679,7 +2680,7 @@ export async function markSetupCheckpoint(context: CommandContext, args: AgentHa
       reason: `Setup wizard step ${step.label} is already ready.`,
       step,
       routes: {
-        inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+        inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
         clear: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
       },
     };
@@ -2707,7 +2708,7 @@ export async function markSetupCheckpoint(context: CommandContext, args: AgentHa
     },
     routes: {
       inspectCheckpoint: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
-      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
       clear: DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE,
     },
     policy: {
@@ -2727,7 +2728,7 @@ export function clearSetupCheckpoint(context: CommandContext, args: AgentHarness
     checkpoint,
     routes: {
       inspectCheckpoint: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,
-      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
       markCurrent: DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE,
     },
     policy: {
@@ -2768,7 +2769,7 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
         reason: 'Environment-provided connected-host token is already effective; no local token file was written.',
       },
       routes: {
-        inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+        inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
         inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
         pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
       },
@@ -2799,7 +2800,7 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
           rawValueReturned: false,
         },
         routes: {
-          inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+          inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
           inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
         },
       };
@@ -2835,10 +2836,10 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
         source: 'getOrCreateCompanionToken',
       },
       routes: {
-        inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+        inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
         inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
         pairingPosture: 'agent_harness mode:"pairing_posture" includeParameters:true',
-        runSetupSmoke: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+        runSetupSmoke: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
       },
       policy: {
         effect: 'confirmed-local-token-provisioning',
@@ -2861,7 +2862,7 @@ export function provisionConnectedHostOperatorToken(context: CommandContext, arg
         rawValueReturned: false,
       },
       routes: {
-        inspectAuth: 'agent_harness mode:"setup_item" setupItemId:"connected-host-auth"',
+        inspectAuth: 'setup action:"item" setupItemId:"connected-host-auth"',
         inspectStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
       },
       policy: {
@@ -2926,10 +2927,10 @@ export async function runSetupInstallSmoke(context: CommandContext, args: AgentH
     successCriteria: includeParameters ? smokePlan.successCriteria : smokePlan.successCriteria.map((entry) => previewHarnessText(entry, 120)),
     nextAction: installSmokeNextAction(smokePlan),
     routes: {
-      inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
-      inspectSmoke: 'agent_harness mode:"setup_item" setupItemId:"install-smoke"',
-      rerunSmoke: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
-      saveEvidence: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+      inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
+      inspectSmoke: 'setup action:"item" setupItemId:"install-smoke"',
+      rerunSmoke: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
+      saveEvidence: DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
     },
     policy: {
       effect: 'confirmed-redacted-setup-smoke',

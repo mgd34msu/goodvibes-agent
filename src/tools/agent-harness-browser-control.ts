@@ -151,7 +151,7 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
     : needsReview
       ? 'agent_harness mode:"mcp_servers" query:"browser desktop"'
       : 'agent_harness mode:"mcp_servers" query:"browser desktop"';
-  const setupRoute = 'agent_harness mode:"setup_item" setupItemId:"browser-desktop-control"';
+  const setupRoute = 'setup action:"item" setupItemId:"browser-desktop-control"';
   return {
     status: configured ? 'ready' : needsReview ? 'attention' : 'setup-needed',
     configured,

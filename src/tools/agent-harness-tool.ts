@@ -204,7 +204,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
     providerAccounts: 'List mode:"provider_accounts"; inspect mode:"provider_account"; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
-    setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; resume setup with mode:"setup_checkpoint"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
+    setupPosture: 'Prefer setup action:"status|item|checkpoint|token|smoke|finish"; lower-level setup_* modes remain available for detailed harness inspection.',
     projectContext: 'List mode:"project_context"; inspect mode:"project_context_file"; context files are read-only and secret-scanned.',
     promptContext: 'Inspect mode:"prompt_context" to see current prompt composition, selected/suppressed records, token budget, and prompt receipt outcomes; drill into receiptId, turnId, or outcomeStatus without raw prompt bodies by default.',
     agentOrchestration: 'List mode:"agent_orchestration" for managed plan and closeout cards; dispatch approved plan items with agent_work_plan action:"dispatch_agents"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
@@ -1148,7 +1148,7 @@ async function runWorkspaceAction(
         mode: completionMarker.payload?.mode ?? null,
       },
       routes: {
-        inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+        inspectSetup: 'setup action:"status" includeParameters:true',
       },
       policy: {
         effect: 'confirmed-onboarding-marker-write',

@@ -254,7 +254,7 @@ function browserCockpitReceipts(context: CommandContext, enabled: boolean, inclu
         nextStep: 'Publish a connected-host browser/PWA completion receipt before using browser readiness as first-run closeout evidence.',
       },
     } : {}),
-    setupCloseoutRoute: 'agent_harness mode:"setup_posture" includeParameters:true',
+    setupCloseoutRoute: 'setup action:"status" includeParameters:true',
     policy: 'Agent reports its own user onboarding marker separately from the connected-host browser/PWA receipt contract so setup closeout does not overclaim browser readiness.',
   };
 }

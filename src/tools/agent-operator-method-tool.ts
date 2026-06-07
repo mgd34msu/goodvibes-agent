@@ -199,7 +199,7 @@ function serviceExpectedOutcome(methodId: ServiceMethodId): JsonRecord {
     successCriteria: serviceSuccessCriteria(methodId),
     evidenceFields: ['installed', 'autostart', 'running', 'pid', 'lastAction', 'actionError', 'network.controlPlane.ready'],
     verificationRoute: 'agent_operator_method methodId:"services.status"',
-    recoveryRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+    recoveryRoute: 'setup action:"item" setupItemId:"connected-host-readiness" includeParameters:true',
   };
 }
 
@@ -317,7 +317,7 @@ function serviceLifecycleDecisionFromStatus(body: unknown): JsonRecord {
   const common = {
     evidence,
     statusRoute: serviceLifecycleRoute('services.status'),
-    setupRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+    setupRoute: 'setup action:"item" setupItemId:"connected-host-readiness" includeParameters:true',
     decisionRules: [
       'installed:false -> services.install',
       'installed:true and running:false -> services.start',
@@ -402,7 +402,7 @@ function serviceLifecycleDecision(methodId: ServiceMethodId, responseOk: boolean
       reason: `The ${methodId} daemon call failed; do not retry a lifecycle mutation until services.status or service_posture explains the failure.`,
       evidence: serviceReceiptEvidence(body),
       statusRoute: serviceLifecycleRoute('services.status'),
-      setupRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+      setupRoute: 'setup action:"item" setupItemId:"connected-host-readiness" includeParameters:true',
       modelRoute: 'agent_harness mode:"service_posture" includeParameters:true',
     };
   }
@@ -413,7 +413,7 @@ function serviceLifecycleDecision(methodId: ServiceMethodId, responseOk: boolean
     reason: `${methodId} returned a receipt; verify services.status before closing or advancing setup.`,
     evidence: serviceReceiptEvidence(body),
     statusRoute: serviceLifecycleRoute('services.status'),
-    setupRoute: 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness" includeParameters:true',
+    setupRoute: 'setup action:"item" setupItemId:"connected-host-readiness" includeParameters:true',
     modelRoute: serviceLifecycleRoute('services.status'),
   };
 }
