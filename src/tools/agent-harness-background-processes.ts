@@ -191,9 +191,31 @@ function redactText(value: string): string {
 }
 
 function compactText(value: string, max: number): string {
+  return tailText(redactText(value), max);
+}
+
+function tailText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  return value.slice(Math.max(0, value.length - max)).trimStart();
+}
+
+function outputTail(value: string, max: number): {
+  readonly text: string;
+  readonly chars: number;
+  readonly bytes: number;
+  readonly truncated: boolean;
+  readonly omittedChars: number;
+} {
   const redacted = redactText(value);
-  if (redacted.length <= max) return redacted;
-  return `${redacted.slice(Math.max(0, redacted.length - max)).trimStart()}`;
+  const text = tailText(redacted, max);
+  const omittedChars = Math.max(0, redacted.length - text.length);
+  return {
+    text,
+    chars: redacted.length,
+    bytes: Buffer.byteLength(redacted),
+    truncated: omittedChars > 0,
+    omittedChars,
+  };
 }
 
 function safeJsonPreview(value: unknown): string {
@@ -264,8 +286,10 @@ function describeProcessEntry(
   options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {},
 ): Record<string, unknown> {
   const output = manager.getOutput(entry.id) ?? { stdout: '', stderr: '' };
-  const stdoutTail = compactText(output.stdout, options.includeParameters ? MAX_LOG_PREVIEW_CHARS : MAX_COMPACT_LOG_PREVIEW_CHARS);
-  const stderrTail = compactText(output.stderr, options.includeParameters ? MAX_LOG_PREVIEW_CHARS : MAX_COMPACT_LOG_PREVIEW_CHARS);
+  const maxOutputChars = options.includeParameters ? MAX_LOG_PREVIEW_CHARS : MAX_COMPACT_LOG_PREVIEW_CHARS;
+  const stdout = outputTail(output.stdout, maxOutputChars);
+  const stderr = outputTail(output.stderr, maxOutputChars);
+  const includeOutput = options.includeParameters === true || Boolean(stdout.text || stderr.text);
   return {
     processId: entry.id,
     processSessionId: entry.id,
@@ -280,17 +304,28 @@ function describeProcessEntry(
     ageMs: processAgeMs(entry),
     routes: {
       inspect: routeFor(entry.id, 'background_process'),
-      log: routeFor(entry.id, 'background_process'),
+      poll: routeFor(entry.id, 'run_background_process', 'poll'),
+      log: routeFor(entry.id, 'run_background_process', 'log'),
       wait: routeFor(entry.id, 'run_background_process', 'wait'),
       stop: routeFor(entry.id, 'run_background_process', 'stop'),
       visibleMonitor: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
       liveTail: `agent_harness mode:"open_ui_surface" surfaceId:"live-tail" target:"${entry.id}"`,
     },
-    ...(stdoutTail || stderrTail ? {
+    ...(includeOutput ? {
       output: {
-        stdoutTail,
-        stderrTail,
-        policy: 'Output is bounded and secret-looking text is redacted before model display.',
+        stdoutTail: stdout.text,
+        stderrTail: stderr.text,
+        stdoutChars: stdout.chars,
+        stderrChars: stderr.chars,
+        stdoutBytes: stdout.bytes,
+        stderrBytes: stderr.bytes,
+        stdoutTruncated: stdout.truncated,
+        stderrTruncated: stderr.truncated,
+        omittedStdoutChars: stdout.omittedChars,
+        omittedStderrChars: stderr.omittedChars,
+        maxOutputChars,
+        fullOutputIncluded: !stdout.truncated && !stderr.truncated,
+        policy: 'Output is bounded; counts are computed after secret-looking text is redacted before model display.',
       },
     } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
@@ -377,8 +412,8 @@ function processToolParity(context?: CommandContext): readonly Record<string, un
     {
       capability: 'process(log)',
       status: 'supported',
-      userOutcome: 'Read bounded, redacted stdout/stderr tails for one tracked process.',
-      modelRoute: 'agent_harness mode:"background_process" processId:"..." includeParameters:true',
+      userOutcome: 'Read redacted stdout/stderr tails with explicit truncation metadata.',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"log" sessionId:"..."',
     },
     {
       capability: 'process(kill)',
@@ -714,6 +749,8 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
       timeoutMs,
       routes: {
         inspect: result.process_id ? routeFor(result.process_id, 'background_process') : null,
+        poll: result.process_id ? routeFor(result.process_id, 'run_background_process', 'poll') : null,
+        log: result.process_id ? routeFor(result.process_id, 'run_background_process', 'log') : null,
         wait: result.process_id ? routeFor(result.process_id, 'run_background_process', 'wait') : null,
         stop: result.process_id ? routeFor(result.process_id, 'run_background_process', 'stop') : null,
         visibleMonitor: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',

@@ -4890,7 +4890,7 @@ describe('agent_harness tool', () => {
         readonly session_id: string;
         readonly pid: number;
         readonly command: string;
-        readonly routes: { readonly inspect: string; readonly stop: string; readonly visibleMonitor: string };
+        readonly routes: { readonly inspect: string; readonly poll: string; readonly log: string; readonly stop: string; readonly visibleMonitor: string };
       }>(fixture, {
         mode: 'run_background_process',
         processAction: 'start',
@@ -4906,11 +4906,22 @@ describe('agent_harness tool', () => {
       expect(started.pid).toBeGreaterThan(0);
       expect(started.command).toContain('printf');
       expect(started.routes.inspect).toContain(started.processId);
+      expect(started.routes.poll).toContain('processAction:"poll"');
+      expect(started.routes.log).toContain('processAction:"log"');
       expect(started.routes.visibleMonitor).toContain('process-monitor');
 
       const waited = await executeHarnessJson<{
         readonly status: string;
-        readonly process?: { readonly processId: string; readonly output?: { readonly stdoutTail: string; readonly stderrTail: string } };
+        readonly process?: {
+          readonly processId: string;
+          readonly output?: {
+            readonly stdoutTail: string;
+            readonly stderrTail: string;
+            readonly stdoutTruncated: boolean;
+            readonly stderrTruncated: boolean;
+            readonly fullOutputIncluded: boolean;
+          };
+        };
       }>(fixture, {
         mode: 'run_background_process',
         processAction: 'wait',
@@ -4924,13 +4935,17 @@ describe('agent_harness tool', () => {
       expect(waited.process?.output?.stdoutTail).toContain('hello');
       expect(waited.process?.output?.stderrTail).toContain('secret=<redacted>');
       expect(waited.process?.output?.stderrTail).not.toContain('abc123456');
+      expect(waited.process?.output?.stdoutTruncated).toBe(false);
+      expect(waited.process?.output?.stderrTruncated).toBe(false);
+      expect(waited.process?.output?.fullOutputIncluded).toBe(true);
 
       const inspected = await executeHarnessJson<{
         readonly processId: string;
         readonly sessionId: string;
         readonly session_id: string;
         readonly status: string;
-        readonly output?: { readonly stdoutTail: string; readonly stderrTail: string; readonly policy: string };
+        readonly routes: { readonly log: string };
+        readonly output?: { readonly stdoutTail: string; readonly stderrTail: string; readonly stdoutBytes: number; readonly stderrBytes: number; readonly maxOutputChars: number; readonly policy: string };
       }>(fixture, {
         mode: 'background_process',
         session_id: started.session_id,
@@ -4939,7 +4954,11 @@ describe('agent_harness tool', () => {
       expect(inspected.sessionId).toBe(started.processId);
       expect(inspected.session_id).toBe(started.processId);
       expect(inspected.status).toBe('succeeded');
+      expect(inspected.routes.log).toContain('processAction:"log"');
       expect(inspected.output?.policy).toContain('redacted');
+      expect(inspected.output?.stdoutBytes).toBeGreaterThan(0);
+      expect(inspected.output?.stderrBytes).toBeGreaterThan(0);
+      expect(inspected.output?.maxOutputChars).toBeGreaterThan(0);
 
       const polled = await executeHarnessJson<{
         readonly processId: string;
@@ -4954,7 +4973,7 @@ describe('agent_harness tool', () => {
 
       const logged = await executeHarnessJson<{
         readonly processId: string;
-        readonly output?: { readonly stdoutTail: string };
+        readonly output?: { readonly stdoutTail: string; readonly stdoutTruncated: boolean; readonly fullOutputIncluded: boolean };
       }>(fixture, {
         mode: 'run_background_process',
         action: 'log',
@@ -4962,6 +4981,53 @@ describe('agent_harness tool', () => {
       });
       expect(logged.processId).toBe(started.processId);
       expect(logged.output?.stdoutTail).toContain('hello');
+      expect(logged.output?.stdoutTruncated).toBe(false);
+      expect(logged.output?.fullOutputIncluded).toBe(true);
+
+      const longStarted = await executeHarnessJson<{ readonly processId: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'start',
+        command: 'printf "%05000d" 0',
+        confirm: true,
+        explicitUserRequest: 'Start a tracked long-output smoke command.',
+      });
+      await executeHarnessJson(fixture, {
+        mode: 'run_background_process',
+        processAction: 'wait',
+        processId: longStarted.processId,
+        timeoutMs: 5000,
+        confirm: true,
+        explicitUserRequest: 'Wait for the tracked long-output smoke command.',
+      });
+      const longLogged = await executeHarnessJson<{
+        readonly output?: {
+          readonly stdoutTail: string;
+          readonly stdoutChars: number;
+          readonly stdoutTruncated: boolean;
+          readonly omittedStdoutChars: number;
+          readonly maxOutputChars: number;
+          readonly fullOutputIncluded: boolean;
+        };
+      }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'log',
+        processId: longStarted.processId,
+      });
+      expect(longLogged.output?.stdoutChars).toBe(5000);
+      expect(longLogged.output?.stdoutTail.length).toBeLessThanOrEqual(longLogged.output?.maxOutputChars ?? 0);
+      expect(longLogged.output?.stdoutTruncated).toBe(true);
+      expect(longLogged.output?.omittedStdoutChars).toBeGreaterThan(0);
+      expect(longLogged.output?.fullOutputIncluded).toBe(false);
+
+      const longStopped = await executeHarnessJson<{ readonly status: string; readonly processId: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'kill',
+        processId: longStarted.processId,
+        confirm: true,
+        explicitUserRequest: 'Remove the tracked long-output smoke command.',
+      });
+      expect(longStopped.status).toBe('stopped');
+      expect(longStopped.processId).toBe(longStarted.processId);
 
       const stopped = await executeHarnessJson<{ readonly status: string; readonly processId: string }>(fixture, {
         mode: 'run_background_process',
