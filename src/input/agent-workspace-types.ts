@@ -567,6 +567,8 @@ export interface AgentWorkspacePromptContextReceiptSummary {
   readonly stopReason: string | null;
   readonly completedAt: number | null;
   readonly detail: string | null;
+  readonly inspectRoute: string;
+  readonly outcomeFilterRoute: string;
 }
 
 export interface AgentWorkspacePromptContextReceiptTimeline {
@@ -579,6 +581,12 @@ export interface AgentWorkspacePromptContextReceiptTimeline {
   readonly cancelledCount: number;
   readonly pendingCount: number;
   readonly inspectRoute: 'agent_harness mode:"prompt_context" includeParameters:true';
+  readonly filterRoutes: {
+    readonly completed: string;
+    readonly error: string;
+    readonly cancelled: string;
+    readonly pending: string;
+  };
   readonly next: string;
   readonly items: readonly AgentWorkspacePromptContextReceiptSummary[];
 }

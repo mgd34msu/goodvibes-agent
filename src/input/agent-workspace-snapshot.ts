@@ -234,6 +234,15 @@ type WorkspaceMcpServerRecord = {
 const RESEARCH_BROWSER_TERMS = ['browser', 'desktop', 'computer use', 'screenshot', 'screen recording'];
 const WORKSPACE_PROJECT_CONTEXT_SOURCES = ['.hermes.md', 'HERMES.md', 'AGENTS.md', 'CLAUDE.md', 'HERMES_HOME/SOUL.md', '.cursorrules', '.cursor/rules/*.mdc'] as const;
 const WORKSPACE_PROMPT_CONTEXT_INSPECT_ROUTE = 'agent_harness mode:"prompt_context" includeParameters:true' as const;
+type WorkspacePromptReceiptOutcomeStatus = AgentWorkspacePromptContextReceiptSummary['outcomeStatus'];
+
+function promptReceiptInspectRoute(receiptId: string): string {
+  return `agent_harness mode:"prompt_context" receiptId:${JSON.stringify(receiptId)} includeParameters:true`;
+}
+
+function promptReceiptOutcomeRoute(status: WorkspacePromptReceiptOutcomeStatus): string {
+  return `agent_harness mode:"prompt_context" outcomeStatus:${JSON.stringify(status)} includeParameters:true`;
+}
 
 function workspaceMcpServers(context: CommandContext): readonly WorkspaceMcpServerRecord[] {
   try {
@@ -402,6 +411,7 @@ function buildProjectContextSummary(context: CommandContext): AgentWorkspaceProj
 }
 
 function summarizePromptContextReceipt(receipt: PromptContextReceipt): AgentWorkspacePromptContextReceiptSummary {
+  const outcomeStatus = receipt.turnOutcome?.status ?? 'pending';
   return {
     receiptId: receipt.receiptId,
     turnId: receipt.turnId,
@@ -413,10 +423,12 @@ function summarizePromptContextReceipt(receipt: PromptContextReceipt): AgentWork
     suppressedRecords: receipt.suppressedRecords,
     segmentCount: receipt.segments.length,
     approxPromptTokens: receipt.approxPromptTokens,
-    outcomeStatus: receipt.turnOutcome?.status ?? 'pending',
+    outcomeStatus,
     stopReason: receipt.turnOutcome?.stopReason ?? null,
     completedAt: receipt.turnOutcome?.completedAt ?? null,
     detail: receipt.turnOutcome?.detail ?? null,
+    inspectRoute: promptReceiptInspectRoute(receipt.receiptId),
+    outcomeFilterRoute: promptReceiptOutcomeRoute(outcomeStatus),
   };
 }
 
@@ -433,6 +445,12 @@ function buildPromptContextReceiptTimeline(context: CommandContext): AgentWorksp
       cancelledCount: 0,
       pendingCount: 0,
       inspectRoute: WORKSPACE_PROMPT_CONTEXT_INSPECT_ROUTE,
+      filterRoutes: {
+        completed: promptReceiptOutcomeRoute('completed'),
+        error: promptReceiptOutcomeRoute('error'),
+        cancelled: promptReceiptOutcomeRoute('cancelled'),
+        pending: promptReceiptOutcomeRoute('pending'),
+      },
       next: 'Open a normal Agent workspace before relying on prompt-context receipt history.',
       items: [],
     };
@@ -455,6 +473,12 @@ function buildPromptContextReceiptTimeline(context: CommandContext): AgentWorksp
       cancelledCount,
       pendingCount,
       inspectRoute: WORKSPACE_PROMPT_CONTEXT_INSPECT_ROUTE,
+      filterRoutes: {
+        completed: promptReceiptOutcomeRoute('completed'),
+        error: promptReceiptOutcomeRoute('error'),
+        cancelled: promptReceiptOutcomeRoute('cancelled'),
+        pending: promptReceiptOutcomeRoute('pending'),
+      },
       next: count > 0
         ? 'Use Prompt context to inspect recent applied/suppressed context and terminal outcomes without raw prompt text.'
         : 'Run a normal Agent turn, then use Prompt context to review what local context was applied.',
@@ -471,6 +495,12 @@ function buildPromptContextReceiptTimeline(context: CommandContext): AgentWorksp
       cancelledCount: 0,
       pendingCount: 0,
       inspectRoute: WORKSPACE_PROMPT_CONTEXT_INSPECT_ROUTE,
+      filterRoutes: {
+        completed: promptReceiptOutcomeRoute('completed'),
+        error: promptReceiptOutcomeRoute('error'),
+        cancelled: promptReceiptOutcomeRoute('cancelled'),
+        pending: promptReceiptOutcomeRoute('pending'),
+      },
       next: 'Prompt-context receipt history could not be read; use prompt_context for a focused diagnostic.',
       items: [],
     };

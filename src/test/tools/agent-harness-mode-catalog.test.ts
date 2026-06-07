@@ -157,12 +157,12 @@ describe('agent_harness mode catalog', () => {
     expect(context.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
-  test('finds prompt context by selected memory and token budget wording', () => {
-    const context = listHarnessModes({ query: 'prompt context selected memory token budget', includeParameters: true, limit: 10 }) as {
+  test('finds prompt context by selected memory, receipt outcome, and token budget wording', () => {
+    const context = listHarnessModes({ query: 'prompt context selected memory token budget receipt outcome filters', includeParameters: true, limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly summary: string }[];
     };
     const promptContext = context.modes.find((mode) => mode.id === 'prompt_context');
-    expect(promptContext?.parameters).toEqual(expect.arrayContaining(['includeParameters']));
+    expect(promptContext?.parameters).toEqual(expect.arrayContaining(['receiptId', 'turnId', 'outcomeStatus', 'limit', 'includeParameters']));
     expect(context.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 

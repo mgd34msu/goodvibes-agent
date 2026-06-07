@@ -92,6 +92,19 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
     type: 'string',
     description: 'Project context file id for project_context_file mode.',
   },
+  receiptId: {
+    type: 'string',
+    description: 'Prompt-context receipt id for prompt_context drill-in.',
+  },
+  turnId: {
+    type: 'string',
+    description: 'Prompt-context turn id for prompt_context receipt filtering.',
+  },
+  outcomeStatus: {
+    type: 'string',
+    enum: ['completed', 'error', 'cancelled', 'pending'],
+    description: 'Prompt-context receipt outcome filter.',
+  },
   agentId: {
     type: 'string',
     description: 'Visible Agent id for agent_orchestration_agent mode.',

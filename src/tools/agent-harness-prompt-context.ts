@@ -13,9 +13,14 @@ import { previewHarnessText } from './agent-harness-text.ts';
 
 interface PromptContextArgs {
   readonly includeParameters?: unknown;
+  readonly receiptId?: unknown;
+  readonly turnId?: unknown;
+  readonly outcomeStatus?: unknown;
+  readonly limit?: unknown;
 }
 
 type PromptContextSegmentStatus = 'active' | 'attention' | 'empty' | 'unavailable';
+type PromptContextReceiptOutcomeFilter = 'completed' | 'error' | 'cancelled' | 'pending';
 
 interface PromptContextSegment {
   readonly id: string;
@@ -69,6 +74,41 @@ interface CompactPromptContextReceipt {
     readonly promptChars: number;
     readonly approxTokens: number;
   }[];
+}
+
+function readPromptString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readPromptLimit(value: unknown, fallback: number): number {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(50, Math.trunc(parsed)));
+}
+
+function readOutcomeStatus(value: unknown): PromptContextReceiptOutcomeFilter | null {
+  if (value === 'completed' || value === 'error' || value === 'cancelled' || value === 'pending') return value;
+  return null;
+}
+
+function promptContextReceiptOutcomeStatus(receipt: PromptContextReceipt): PromptContextReceiptOutcomeFilter {
+  return receipt.turnOutcome?.status ?? 'pending';
+}
+
+function promptContextQuote(value: string): string {
+  return JSON.stringify(value);
+}
+
+function promptContextReceiptRoute(receiptId: string): string {
+  return `agent_harness mode:"prompt_context" receiptId:${promptContextQuote(receiptId)} includeParameters:true`;
+}
+
+function promptContextTurnRoute(turnId: string): string {
+  return `agent_harness mode:"prompt_context" turnId:${promptContextQuote(turnId)} includeParameters:true`;
+}
+
+function promptContextOutcomeRoute(status: PromptContextReceiptOutcomeFilter): string {
+  return `agent_harness mode:"prompt_context" outcomeStatus:${promptContextQuote(status)} includeParameters:true`;
 }
 
 function approxTokens(text: string): number {
@@ -256,7 +296,7 @@ function compactPromptContextReceipt(
   };
 }
 
-function promptContextReceiptSummary(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
+function promptContextReceiptSummary(context: CommandContext, args: PromptContextArgs, includeParameters: boolean): Record<string, unknown> {
   const store = context.clients?.promptContextReceipts;
   if (!store) {
     return {
@@ -268,16 +308,47 @@ function promptContextReceiptSummary(context: CommandContext, includeParameters:
       note: 'Prompt-context receipt storage is unavailable in this runtime.',
     };
   }
+  const receiptId = readPromptString(args.receiptId);
+  const turnId = readPromptString(args.turnId);
+  const outcomeStatus = readOutcomeStatus(args.outcomeStatus);
+  const hasFilter = Boolean(receiptId || turnId || outcomeStatus);
+  const limit = readPromptLimit(args.limit, includeParameters ? 5 : 3);
   const latest = store.latest();
-  const recent = store.list(includeParameters ? 5 : 3);
+  const allReceipts = store.list(Math.max(store.count(), limit));
+  const baseReceipts = receiptId ? allReceipts.filter((receipt) => receipt.receiptId === receiptId) : allReceipts;
+  const matchingReceipts = baseReceipts.filter((receipt) => {
+    if (turnId && receipt.turnId !== turnId) return false;
+    if (outcomeStatus && promptContextReceiptOutcomeStatus(receipt) !== outcomeStatus) return false;
+    return true;
+  });
+  const recent = matchingReceipts.slice(0, limit);
+  const selected = hasFilter ? recent[0] ?? null : null;
+  const filters = {
+    ...(receiptId ? { receiptId } : {}),
+    ...(turnId ? { turnId } : {}),
+    ...(outcomeStatus ? { outcomeStatus } : {}),
+    limit,
+  };
   return {
-    status: latest ? 'ready' : 'empty',
+    status: latest ? hasFilter && recent.length === 0 ? 'not_found' : 'ready' : 'empty',
     count: store.count(),
     latestReceiptId: latest?.receiptId ?? null,
     latestTurnId: latest?.turnId ?? null,
     latestCreatedAt: latest?.createdAt ?? null,
     inspectRoute: 'agent_harness mode:"prompt_context" includeParameters:true',
+    matchingCount: matchingReceipts.length,
+    ...(hasFilter ? { filters } : {}),
+    selected: selected ? compactPromptContextReceipt(selected, includeParameters) : null,
     recent: recent.map((receipt) => compactPromptContextReceipt(receipt, includeParameters)),
+    routes: {
+      latestReceipt: latest ? promptContextReceiptRoute(latest.receiptId) : null,
+      filterCompleted: promptContextOutcomeRoute('completed'),
+      filterErrors: promptContextOutcomeRoute('error'),
+      filterCancelled: promptContextOutcomeRoute('cancelled'),
+      filterPending: promptContextOutcomeRoute('pending'),
+      ...(latest?.turnId ? { latestTurn: promptContextTurnRoute(latest.turnId) } : {}),
+      ...(selected ? { selectedReceipt: promptContextReceiptRoute(selected.receiptId) } : {}),
+    },
     ...(includeParameters ? { latest: latest ? compactPromptContextReceipt(latest, true) : null } : {}),
   };
 }
@@ -488,7 +559,7 @@ export function promptContextSummary(context: CommandContext, args: PromptContex
       contextWindow,
       percentOfWindow: contextWindow > 0 ? Math.round((approxPromptTokens / contextWindow) * 1000) / 10 : null,
     },
-    receipts: promptContextReceiptSummary(context, includeParameters),
+    receipts: promptContextReceiptSummary(context, args, includeParameters),
     segments,
     routes: {
       promptPlan: 'agent_harness mode:"learning_curator" includeParameters:true',

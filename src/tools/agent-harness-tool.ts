@@ -74,6 +74,9 @@ interface AgentHarnessToolArgs {
   readonly mcpServerId?: unknown;
   readonly setupItemId?: unknown;
   readonly contextFileId?: unknown;
+  readonly receiptId?: unknown;
+  readonly turnId?: unknown;
+  readonly outcomeStatus?: unknown;
   readonly modelRouteId?: unknown;
   readonly executionRouteId?: unknown;
   readonly executionRecordId?: unknown;
@@ -203,7 +206,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; resume setup with mode:"setup_checkpoint"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
     projectContext: 'List mode:"project_context"; inspect mode:"project_context_file"; context files are read-only and secret-scanned.',
-    promptContext: 'Inspect mode:"prompt_context" to see current prompt composition order, selected records, suppressed context, and approximate token budget without dumping full prompt bodies by default.',
+    promptContext: 'Inspect mode:"prompt_context" to see current prompt composition, selected/suppressed records, token budget, and prompt receipt outcomes; drill into receiptId, turnId, or outcomeStatus without raw prompt bodies by default.',
     agentOrchestration: 'List mode:"agent_orchestration" for managed plan and closeout cards; dispatch approved plan items with agent_work_plan action:"dispatch_agents"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',

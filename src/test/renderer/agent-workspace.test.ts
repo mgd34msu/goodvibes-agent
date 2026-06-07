@@ -1212,6 +1212,8 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Prompt receipt timeline: 1 total; completed 0; errors 1; cancelled 0; pending 0.');
     expect(output).toContain('Latest prompt receipt: error turn turn-renderer-fail; 3 applied / 1 suppressed; 512 tokens; stop provider_error.');
+    expect(output).toContain('Inspect latest prompt receipt: agent_harness mode:"prompt_context" receiptId:"promptctx-');
+    expect(output).toContain('Filter prompt receipt errors: agent_harness mode:"prompt_context" outcomeStatus:"error" includeParameters:true');
     expect(output).toContain('openai-subscriber/openai:gpt-5.5');
     expect(output).toContain('2 segment(s), 3 active, 1 suppressed.');
     expect(output).toContain('Latest outcome detail: Provider rejected the test request.');

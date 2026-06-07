@@ -329,6 +329,14 @@ function promptReceiptTimelineLines(snapshot: AgentWorkspaceRuntimeSnapshot): Co
     fg: promptReceiptOutcomeColor(latest.outcomeStatus),
     bold: latest.outcomeStatus === 'error' || latest.outcomeStatus === 'cancelled',
   });
+  lines.push({ text: `Inspect latest prompt receipt: ${latest.inspectRoute}`, fg: PALETTE.good });
+  if (timeline.errorCount > 0) {
+    lines.push({ text: `Filter prompt receipt errors: ${timeline.filterRoutes.error}`, fg: PALETTE.warn });
+  } else if (timeline.cancelledCount > 0) {
+    lines.push({ text: `Filter cancelled prompt receipts: ${timeline.filterRoutes.cancelled}`, fg: PALETTE.warn });
+  } else if (timeline.pendingCount > 0) {
+    lines.push({ text: `Filter pending prompt receipts: ${timeline.filterRoutes.pending}`, fg: PALETTE.info });
+  }
   for (const receipt of timeline.items.slice(0, 3)) {
     lines.push({
       text: `- ${receipt.receiptId}: ${receipt.outcomeStatus}; ${receipt.provider}/${receipt.model}; ${receipt.segmentCount} segment(s), ${receipt.activeRecords} active, ${receipt.suppressedRecords} suppressed.`,

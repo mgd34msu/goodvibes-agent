@@ -1812,6 +1812,36 @@ describe('agent_harness tool', () => {
       });
 
       const promptContextReceipts = new AgentPromptContextReceiptStore();
+      const completedReceipt = promptContextReceipts.record({
+        sessionId: 'session-alpha',
+        turnId: 'turn-prompt-context-ok',
+        source: 'turn',
+        provider: 'openai',
+        model: 'gpt-4.1',
+        contextWindow: 128_000,
+        promptHash: 'a'.repeat(64),
+        promptChars: 1024,
+        approxPromptTokens: 256,
+        activeRecords: 3,
+        suppressedRecords: 0,
+        segments: [{
+          id: 'vibe',
+          label: 'VIBE.md personality',
+          order: 2,
+          status: 'active',
+          activeCount: 1,
+          suppressedCount: 0,
+          promptChars: 256,
+          approxTokens: 64,
+        }],
+      });
+      promptContextReceipts.recordTurnOutcome({
+        turnId: 'turn-prompt-context-ok',
+        status: 'completed',
+        terminalEvent: 'TURN_COMPLETED',
+        stopReason: 'stop',
+        completedAt: 1_699_999_999_000,
+      });
       const storedReceipt = promptContextReceipts.record({
         sessionId: 'session-alpha',
         turnId: 'turn-prompt-context',
@@ -1860,7 +1890,7 @@ describe('agent_harness tool', () => {
       expect(summary.promptContext?.activeRecords).toBeGreaterThan(4);
       expect(summary.promptContext?.suppressedRecords).toBeGreaterThan(1);
       expect(summary.promptContext?.approxPromptTokens).toBeGreaterThan(0);
-      expect(summary.promptContext?.receiptCount).toBe(1);
+      expect(summary.promptContext?.receiptCount).toBe(2);
       expect(summary.promptContext?.latestReceiptId).toBe(storedReceipt.receiptId);
       expect(summary.promptContext?.modelRoute).toContain('prompt_context');
 
@@ -1876,17 +1906,24 @@ describe('agent_harness tool', () => {
           readonly count: number;
           readonly latestReceiptId: string | null;
           readonly latestTurnId: string | null;
-          readonly latest?: {
-          readonly receiptId: string;
-          readonly turnOutcome?: {
-            readonly status: string;
-            readonly terminalEvent: string;
-            readonly stopReason: string;
-            readonly detail?: string;
+          readonly matchingCount?: number;
+          readonly selected?: { readonly receiptId: string; readonly turnOutcome?: { readonly status: string } } | null;
+          readonly routes?: {
+            readonly latestReceipt?: string | null;
+            readonly filterCompleted?: string;
+            readonly filterErrors?: string;
           };
-          readonly promptHash?: string;
-          readonly segments?: readonly { readonly id: string; readonly status: string }[];
-        } | null;
+          readonly latest?: {
+            readonly receiptId: string;
+            readonly turnOutcome?: {
+              readonly status: string;
+              readonly terminalEvent: string;
+              readonly stopReason: string;
+              readonly detail?: string;
+            };
+            readonly promptHash?: string;
+            readonly segments?: readonly { readonly id: string; readonly status: string }[];
+          } | null;
         };
         readonly segments: readonly {
           readonly id: string;
@@ -1909,9 +1946,13 @@ describe('agent_harness tool', () => {
       expect(promptContext.approxPromptTokens).toBe(promptContext.budget.approxPromptTokens);
       expect(promptContext.budget.percentOfWindow).not.toBeNull();
       expect(promptContext.receipts.status).toBe('ready');
-      expect(promptContext.receipts.count).toBe(1);
+      expect(promptContext.receipts.count).toBe(2);
+      expect(promptContext.receipts.matchingCount).toBe(2);
       expect(promptContext.receipts.latestReceiptId).toBe(storedReceipt.receiptId);
       expect(promptContext.receipts.latestTurnId).toBe('turn-prompt-context');
+      expect(promptContext.receipts.selected).toBeNull();
+      expect(promptContext.receipts.routes?.latestReceipt).toContain(`receiptId:"${storedReceipt.receiptId}"`);
+      expect(promptContext.receipts.routes?.filterErrors).toContain('outcomeStatus:"error"');
       expect(promptContext.receipts.latest?.turnOutcome?.status).toBe('error');
       expect(promptContext.receipts.latest?.turnOutcome?.terminalEvent).toBe('TURN_ERROR');
       expect(promptContext.receipts.latest?.turnOutcome?.detail).toContain('Provider rejected');
@@ -1941,6 +1982,41 @@ describe('agent_harness tool', () => {
       expect(promptContext.routes.memoryPosture).toContain('memory_posture');
       expect(promptContext.routes.learningCurator).toContain('learning_curator');
       expect(promptContext.policy).toContain('Read-only');
+
+      const completedFilter = await executeHarnessJson<{
+        readonly receipts: {
+          readonly status: string;
+          readonly matchingCount: number;
+          readonly selected: {
+            readonly receiptId: string;
+            readonly turnId: string | null;
+            readonly turnOutcome?: { readonly status: string; readonly terminalEvent: string };
+            readonly promptHash?: string;
+          } | null;
+          readonly recent: readonly { readonly receiptId: string; readonly turnOutcome?: { readonly status: string } }[];
+        };
+      }>(fixture, { mode: 'prompt_context', outcomeStatus: 'completed', includeParameters: true });
+      expect(completedFilter.receipts.status).toBe('ready');
+      expect(completedFilter.receipts.matchingCount).toBe(1);
+      expect(completedFilter.receipts.selected?.receiptId).toBe(completedReceipt.receiptId);
+      expect(completedFilter.receipts.selected?.turnId).toBe('turn-prompt-context-ok');
+      expect(completedFilter.receipts.selected?.turnOutcome?.terminalEvent).toBe('TURN_COMPLETED');
+      expect(completedFilter.receipts.selected?.promptHash).toBe('a'.repeat(64));
+      expect(completedFilter.receipts.recent.map((receipt) => receipt.receiptId)).toEqual([completedReceipt.receiptId]);
+
+      const exactReceipt = await executeHarnessJson<{
+        readonly receipts: {
+          readonly status: string;
+          readonly matchingCount: number;
+          readonly selected: { readonly receiptId: string; readonly turnOutcome?: { readonly status: string } } | null;
+          readonly filters?: { readonly receiptId?: string; readonly limit: number };
+        };
+      }>(fixture, { mode: 'prompt_context', receiptId: storedReceipt.receiptId, limit: 1 });
+      expect(exactReceipt.receipts.status).toBe('ready');
+      expect(exactReceipt.receipts.matchingCount).toBe(1);
+      expect(exactReceipt.receipts.selected?.receiptId).toBe(storedReceipt.receiptId);
+      expect(exactReceipt.receipts.selected?.turnOutcome?.status).toBe('error');
+      expect(exactReceipt.receipts.filters?.receiptId).toBe(storedReceipt.receiptId);
 
       const action = await executeHarnessJson<{
         readonly id: string;
