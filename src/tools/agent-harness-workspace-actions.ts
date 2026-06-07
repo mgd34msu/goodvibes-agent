@@ -211,7 +211,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
     action.id === 'personal-ops-autonomy-queue'
     || action.id === 'work-autonomy-queue'
     || action.id === 'schedule-autonomy-queue'
-  ) return 'agent_harness mode:"autonomy_queue"';
+  ) return 'autonomy action:"queue"';
   if (action.id === 'memory-learning-curator') return 'memory action:"curator"';
   if (action.id === 'memory-prompt-plan') return 'memory action:"curator" includeParameters:true';
   if (action.id === 'memory-posture') return 'memory action:"status"';

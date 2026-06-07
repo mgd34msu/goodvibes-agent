@@ -3905,7 +3905,7 @@ describe('agent_harness tool', () => {
       expect(briefing.readiness.ready).toBeGreaterThan(0);
       expect(briefing.readiness.attention).toBeGreaterThan(0);
       expect(briefing.routes?.liveReadTemplate).toContain('personal_ops action:"read"');
-      expect(briefing.routes?.autonomyQueue).toContain('autonomy_queue');
+      expect(briefing.routes?.autonomyQueue).toBe('autonomy action:"queue"');
       expect(briefing.policy).toContain('read-only');
       expect(briefing.steps.map((step) => step.id)).toEqual(expect.arrayContaining([
         'inbox',
@@ -4434,7 +4434,7 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'personal-ops-autonomy-queue' });
       expect(action.id).toBe('personal-ops-autonomy-queue');
-      expect(action.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
+      expect(action.modelRoute).toBe('autonomy action:"queue"');
     } finally {
       fixture.cleanup();
     }
@@ -4450,7 +4450,7 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'autonomy_intake' });
       expect(missing.status).toBe('missing_request');
       expect(missing.usage).toContain('query');
-      expect(missing.queueRoute).toBe('agent_harness mode:"autonomy_queue"');
+      expect(missing.queueRoute).toBe('autonomy action:"queue"');
 
       const reminder = await executeHarnessJson<{
         readonly status: string;
@@ -7656,7 +7656,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('workspace action:"open"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('personal_ops action:"briefing"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('personal_ops action:"intake"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('autonomy action:"queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('device action:"voice"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('device action:"status"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'browser-cockpit-readiness')?.modelRoute).toBe('device action:"browser"');

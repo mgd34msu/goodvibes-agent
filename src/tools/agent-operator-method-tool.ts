@@ -237,7 +237,7 @@ function watcherExpectedOutcome(methodId: WatcherMethodId): JsonRecord {
     successCriteria: watcherSuccessCriteria(methodId),
     evidenceFields: ['id', 'kind', 'label', 'state', 'source.kind', 'source.enabled', 'sourceStatus', 'lastCheckpoint', 'lastError'],
     verificationRoute: 'agent_operator_method methodId:"watchers.list"',
-    recoveryRoute: 'agent_harness mode:"autonomy_intake" query:"watcher trigger" includeParameters:true',
+    recoveryRoute: 'autonomy action:"intake" query:"watcher trigger" includeParameters:true',
   };
 }
 
@@ -493,8 +493,8 @@ function watcherOutcome(methodId: string, responseOk: boolean, body: unknown): J
     evidence: watcherReceiptEvidence(body),
     expectedOutcome: watcherExpectedOutcome(methodId),
     nextStep: certified
-      ? 'Inspect watchers.list or autonomy_queue to verify the trigger remains visible and scoped.'
-      : 'Inspect watchers.list and autonomy_intake before retrying watcher setup or run control.',
+      ? 'Inspect watchers.list or autonomy action:"queue" to verify the trigger remains visible and scoped.'
+      : 'Inspect watchers.list and autonomy action:"intake" before retrying watcher setup or run control.',
   };
 }
 

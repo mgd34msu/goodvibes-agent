@@ -189,7 +189,7 @@ function routes(): readonly DelegationRoute[] {
       requiredFields: [],
       optionalFields: ['visible work-plan item', 'delegation reason', 'success criteria'],
       successEvidence: ['chosen visible route', 'confirmation receipt when delegated'],
-      statusRoutes: ['agent_harness mode:"execution_posture"', 'agent_harness mode:"autonomy_intake"'],
+      statusRoutes: ['agent_harness mode:"execution_posture"', 'autonomy action:"intake"'],
       recoveryRoutes: ['agent_harness mode:"delegation_posture"', 'Agent Workspace -> Work plan'],
       reviewPolicy: 'not-applicable',
     },
@@ -288,7 +288,7 @@ export function delegationDecisionCards(context: CommandContext): readonly Deleg
       ],
       routeIds: ['hidden-local-fanout-blocked'],
       requiredFields: [],
-      supervision: ['execution_posture', 'autonomy_intake', 'work plan'],
+      supervision: ['execution_posture', 'autonomy action:"intake"', 'work plan'],
       confirmationBoundary: 'Hidden fanout is never confirmed from Agent; convert to a visible owned route.',
     },
   ];

@@ -664,9 +664,9 @@ function taskWorkflows(methodIds: readonly string[]): readonly PersonalOpsWorkfl
       next: 'Review the plan, add or update one item when useful, and keep status changes visible.',
       modelRoute: 'agent_work_plan action:"list"',
       inspectRoutes: [
-        'agent_harness mode:"workspace_action" actionId:"workplan"',
-        'agent_harness mode:"workspace_action" actionId:"workplan-add"',
-        'agent_harness mode:"workspace_action" actionId:"workplan-status"',
+        'workspace action:"action" actionId:"workplan"',
+        'workspace action:"action" actionId:"workplan-add"',
+        'workspace action:"action" actionId:"workplan-status"',
       ],
       prerequisites: ['Use the work plan when the user asks for task tracking, multi-step work, or a visible checkpoint.'],
       runBoundary: 'Agent-owned work-plan edits stay local and visible; deletion/clear-completed routes require explicit confirmation.',
@@ -679,10 +679,10 @@ function taskWorkflows(methodIds: readonly string[]): readonly PersonalOpsWorkfl
       next: hostTaskStatus === 'ready'
         ? 'List host tasks, inspect one exact task id, then cancel or retry only through confirmed daemon controls when the user asks.'
         : 'Update or connect the GoodVibes host until task inspection methods are present.',
-      modelRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
+      modelRoute: 'workspace action:"action" actionId:"tasks-list"',
       inspectRoutes: [
-        'agent_harness mode:"workspace_action" actionId:"tasks-list"',
-        'agent_harness mode:"workspace_action" actionId:"task-show"',
+        'workspace action:"action" actionId:"tasks-list"',
+        'workspace action:"action" actionId:"task-show"',
         ...methodIds.slice(0, 6).map((methodId) => `host action:"method" methodId:"${methodId}"`),
       ],
       prerequisites: hostTaskStatus === 'ready'
@@ -709,7 +709,7 @@ function reminderWorkflows(methodIds: readonly string[], deliveryConfigured: boo
           : 'Update the connected GoodVibes host until schedule/reminder creation methods are available.',
       modelRoute: 'schedule action:"remind"',
       inspectRoutes: [
-        'agent_harness mode:"workspace_action" actionId:"schedule-reminder"',
+        'workspace action:"action" actionId:"schedule-reminder"',
         'channels action:"status"',
         ...methodIds.filter((methodId) => methodId.startsWith('schedules.')).slice(0, 6).map((methodId) => `host action:"method" methodId:"${methodId}"`),
       ],
@@ -727,11 +727,11 @@ function reminderWorkflows(methodIds: readonly string[], deliveryConfigured: boo
       next: scheduleStatus === 'ready'
         ? 'List schedules or inspect the autonomy queue, then control only one exact schedule id through confirmed routes.'
         : 'Update the connected GoodVibes host until schedule list/control methods are available.',
-      modelRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+      modelRoute: 'autonomy action:"item" queueItemId:"connected-schedules"',
       inspectRoutes: [
-        'agent_harness mode:"workspace_action" actionId:"schedule-list"',
-        'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
-        'agent_harness mode:"workspace_action" actionId:"schedule-edit"',
+        'workspace action:"action" actionId:"schedule-list"',
+        'autonomy action:"item" queueItemId:"connected-schedules"',
+        'workspace action:"action" actionId:"schedule-edit"',
       ],
       prerequisites: scheduleStatus === 'ready'
         ? [`${methodIds.length} schedule/reminder daemon method(s) are discoverable.`]
@@ -901,7 +901,7 @@ function routineReceiptRecord(receipt: ReturnType<typeof buildAgentWorkspaceRunt
     status: receipt.status,
     summary: `${receipt.routineName} -> ${receipt.scheduleKind} ${receipt.scheduleValue}`,
     userRoute: 'Agent Workspace -> Personal Ops -> Routine schedule receipts',
-    modelRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"routine-schedule-promotions"',
+    modelRoute: 'autonomy action:"item" queueItemId:"routine-schedule-promotions"',
   };
 }
 
@@ -1291,7 +1291,7 @@ function taskOperationRecords(methodIds: readonly string[]): readonly PersonalOp
       status: 'ready',
       summary: 'Inspect connected-host task state without creating, retrying, or mutating host tasks.',
       userRoute: 'Agent Workspace -> Work -> Host tasks',
-      modelRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
+      modelRoute: 'workspace action:"action" actionId:"tasks-list"',
       tags: ['host-task', 'task-read'],
       effect: 'read-only',
       capability: 'host-task-read',
@@ -1304,7 +1304,7 @@ function taskOperationRecords(methodIds: readonly string[]): readonly PersonalOp
       status: 'ready',
       summary: 'Inspect one exact connected-host task id and output before considering controls.',
       userRoute: 'Agent Workspace -> Work -> Inspect host task',
-      modelRoute: 'agent_harness mode:"workspace_action" actionId:"task-show"',
+      modelRoute: 'workspace action:"action" actionId:"task-show"',
       tags: ['host-task', 'task-read'],
       effect: 'read-only',
       capability: 'host-task-read',
@@ -1383,7 +1383,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
       status: 'ready',
       summary: 'Inspect configured schedules and history before running or mutating one.',
       userRoute: 'Agent Workspace -> Automation -> Schedules',
-      modelRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
+      modelRoute: 'workspace action:"action" actionId:"schedule-list"',
       tags: ['schedule', 'schedule-read'],
       effect: 'read-only',
       capability: 'schedule-read',
@@ -1635,7 +1635,7 @@ function buildLanes(
         ? 'Promote a reviewed routine to a connected schedule when the user asks for recurrence.'
         : 'Create or review a routine, resolve setup gaps, then promote only with explicit schedule confirmation.',
       userRoute: 'Agent Workspace -> Personal Ops -> Routine library',
-      modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"routines"',
+      modelRoute: 'workspace action:"actions" categoryId:"routines"',
       signals: [
         `${scheduleReadyRoutines} schedule-ready routine(s)`,
         `${snapshot.failedRoutineScheduleReceiptCount} failed promotion receipt(s)`,
@@ -2500,7 +2500,7 @@ function buildPersonalOpsIntakeCandidates(
       modelRoute: 'personal_ops action:"lane" laneId:"routines"',
       inspectRoutes: [
         'personal_ops action:"lane" laneId:"routines"',
-        'agent_harness mode:"workspace_actions" categoryId:"routines"',
+        'workspace action:"actions" categoryId:"routines"',
       ],
       requiresConfirmation: true,
       safetyBoundary: 'Routine creation/review is Agent-local; schedule promotion requires explicit cadence and confirmation.',
@@ -2690,15 +2690,15 @@ function autonomyBriefingStep(): Record<string, unknown> {
     status: 'ready' satisfies PersonalOpsBriefingStatus,
     purpose: 'Review visible ongoing work, owners, status, tails, receipts, and cancel or recovery routes before starting more autonomous work.',
     next: 'Inspect the autonomy queue and resolve running, blocked, or ownerless work before adding new background jobs.',
-    modelRoute: 'agent_harness mode:"autonomy_queue"',
+    modelRoute: 'autonomy action:"queue"',
     inspectRoutes: [
-      'agent_harness mode:"autonomy_queue"',
-      'agent_harness mode:"autonomy_intake" query:"daily operations follow-up"',
+      'autonomy action:"queue"',
+      'autonomy action:"intake" query:"daily operations follow-up"',
     ],
     evidence: [
       'Visible autonomy queue has a first-class harness mode',
       'Queue item inspection exposes cancel and recovery routes',
-      'New ongoing work should enter through autonomy_intake or a visible schedule/work-plan route',
+      'New ongoing work should enter through autonomy action:"intake" or a visible schedule/work-plan route',
     ],
     sourceCounts: {
       records: 0,
@@ -2772,8 +2772,8 @@ export async function personalOpsBriefingSummary(context: CommandContext, args: 
       intake: 'personal_ops action:"intake" query:"..."',
       laneTemplate: 'personal_ops action:"lane" laneId:"inbox|calendar|notes|tasks|reminders|routines|delivery"',
       liveReadTemplate: 'personal_ops action:"read" laneId:"inbox|calendar" recordId:"..." fields:{...} confirm:true explicitUserRequest:"..."',
-      autonomyQueue: 'agent_harness mode:"autonomy_queue"',
-      workspace: 'agent_harness mode:"workspace_actions" categoryId:"personal-ops"',
+      autonomyQueue: 'autonomy action:"queue"',
+      workspace: 'workspace action:"actions" categoryId:"personal-ops"',
     },
     nextActions: [
       'Start with ready steps, then resolve attention or setup steps before promising live provider state.',

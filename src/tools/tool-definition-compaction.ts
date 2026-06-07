@@ -6,6 +6,7 @@ const DEFAULT_TOOL_DESCRIPTION_LIMIT = 56;
 const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent: 'Inspect explicit subagent tasks.',
   analyze: 'Analyze code impact, symbols, and project risk.',
+  autonomy: 'Route ongoing work and inspect visible autonomy.',
   channel: 'Inspect or operate configured channel surfaces.',
   channels: 'Inspect channel readiness, setup, triage, and receipts.',
   context: 'Inspect project instructions and prompt context.',

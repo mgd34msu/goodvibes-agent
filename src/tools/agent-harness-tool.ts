@@ -215,7 +215,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     fileRecovery: 'List mode:"file_recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'Prefer personal_ops action:"briefing|status|intake|lane|read"; lower-level modes personal_ops_briefing/personal_ops/personal_ops_intake/personal_ops_lane/run_personal_ops_read remain available for harness inspection.',
     memoryPosture: 'Prefer memory action:"status|provider|curator|candidate|list|search|get"; memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',
-    autonomyQueue: 'Start mode:"autonomy_intake" for ongoing-work requests; list mode:"autonomy_queue"; inspect mode:"autonomy_queue_item"; effects stay confirmed.',
+    autonomyQueue: 'Prefer autonomy action:"intake|queue|item" for ongoing work and visible autonomous work; lower-level autonomy_* modes remain available for detail. Effects stay confirmed on the owning route.',
     learningCurator: 'Prefer memory action:"curator|candidate"; writes stay on reviewed Agent-local routes.',
     researchWorkflow: 'Prefer research action:"plan" for deep-research route planning; lower-level mode:"research_workflow" sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
     researchRuns: 'Prefer research action:"runs|run"; lower-level mode:"research_runs" and mode:"research_run" inspect run posture; checkpoint/cancel/complete stays confirmed.',

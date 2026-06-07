@@ -221,10 +221,10 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
       capabilities: ['cron', 'at', 'every', 'wakeups', 'scheduled autonomous work'],
       requiredFields: ['task', 'successCriteria', ...scheduleMissing],
       modelRoute: `schedule action:"create" task:"${shortRequest}" successCriteria:"..." scheduleKind:"${schedule.kind ?? 'at|every|cron'}" scheduleValue:"${schedule.value ?? '...'}" confirm:true explicitUserRequest:"..."`,
-      inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+      inspectRoute: 'autonomy action:"item" queueItemId:"connected-schedules"',
       setupRoutes: [
         'host action:"method" methodId:"schedules.create"',
-        'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+        'autonomy action:"item" queueItemId:"connected-schedules"',
       ],
       evidence: {
         schedulesCreatePublished,
@@ -255,7 +255,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
       setupRoutes: [
         'host action:"methods" query:"watchers"',
         'host action:"method" methodId:"watchers.list"',
-        'agent_harness mode:"autonomy_queue"',
+        'autonomy action:"queue"',
       ],
       evidence: {
         watcherCreatePublished,
@@ -300,13 +300,13 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
         : 'Control-plane event stream routes are not published in the current SDK contract.',
       nextStep: controlEventsPublished
         ? 'Use read-only control event routes for supervision, then route mutations through exact confirmed operator methods.'
-        : 'Keep supervision on autonomy_queue until control event stream routes are published.',
+        : 'Keep supervision on autonomy action:"queue" until control event stream routes are published.',
       capabilities: ['control events', 'event stream', 'always-on gateway supervision'],
       requiredFields: ['event scope', 'supervision route'],
       modelRoute: 'host action:"methods" query:"control events stream"',
       inspectRoute: 'host action:"methods" query:"control events"',
       setupRoutes: [
-        'agent_harness mode:"autonomy_queue"',
+        'autonomy action:"queue"',
         'host action:"methods" query:"control events"',
       ],
       evidence: {
@@ -368,8 +368,8 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       label: 'Control an existing automation or schedule',
       confidence: 'high',
       why: 'The request is about run, cancel, retry, pause, resume, or run-now control for an existing job/run/schedule.',
-      modelRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"automation-runs"',
-      inspectRoute: 'agent_harness mode:"autonomy_queue"',
+      modelRoute: 'autonomy action:"item" queueItemId:"automation-runs"',
+      inspectRoute: 'autonomy action:"queue"',
       requiresConfirmation: true,
       missingFields: ['exact jobId, runId, or scheduleId from the queue record'],
       userQuestion: 'Which exact job, run, or schedule id should be controlled?',
@@ -382,8 +382,8 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       label: 'Review or decide a pending approval',
       confidence: 'high',
       why: 'The request mentions approval review or decision.',
-      modelRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"pending-approvals"',
-      inspectRoute: 'agent_harness mode:"workspace_action" actionId:"approvals"',
+      modelRoute: 'autonomy action:"item" queueItemId:"pending-approvals"',
+      inspectRoute: 'workspace action:"action" actionId:"approvals"',
       requiresConfirmation: true,
       missingFields: ['exact approvalId', 'approve, deny, or cancel decision'],
       userQuestion: 'Which approval id and decision should be applied?',
@@ -407,7 +407,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       userQuestion: 'Which trusted event source should be allowed to trigger this work, and what should count as a successful run?',
       setupRoutes: [
         'host action:"methods" query:"watchers"',
-        'agent_harness mode:"autonomy_queue"',
+        'autonomy action:"queue"',
       ],
       triggerWorkflowId: 'incoming-webhook-or-watcher',
       policy: 'Watcher creation is an admin connected-host mutation and must stay source-scoped, visible, and confirmed.',
@@ -421,7 +421,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       confidence: asksForReminder ? 'high' : 'medium',
       why: 'The request looks like a reminder, follow-up, notification, or simple scheduled message.',
       modelRoute: reminderRoute(request, schedule),
-      inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"reminder-requests"',
+      inspectRoute: 'autonomy action:"item" queueItemId:"reminder-requests"',
       requiresConfirmation: true,
       missingFields: schedule.missing.length > 0 ? schedule.missing : undefined,
       userQuestion: schedule.missing.length > 0 ? 'What exact ISO time, interval, or cron expression should GoodVibes use?' : undefined,
@@ -439,7 +439,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       confidence: asksForResearch ? 'high' : 'medium',
       why: 'The request asks for recurring Agent work, not just a reminder notification.',
       modelRoute: autonomyScheduleRoute(request, schedule),
-      inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"autonomous-schedule-requests"',
+      inspectRoute: 'autonomy action:"item" queueItemId:"autonomous-schedule-requests"',
       requiresConfirmation: true,
       missingFields: missingFields.length > 0 ? missingFields : undefined,
       userQuestion: schedule.missing.length > 0
@@ -454,8 +454,8 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       label: 'Promote a reviewed Agent routine to a connected schedule',
       confidence: asksForRoutine ? 'high' : 'medium',
       why: 'The request sounds like recurring agent work rather than a simple reminder.',
-      modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"routines" query:"promote routine"',
-      inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"routine-schedule-promotions"',
+      modelRoute: 'workspace action:"actions" categoryId:"routines" query:"promote routine"',
+      inspectRoute: 'autonomy action:"item" queueItemId:"routine-schedule-promotions"',
       requiresConfirmation: true,
       missingFields: ['routineId', ...schedule.missing],
       userQuestion: 'Which reviewed routine should run, and what exact cadence should it use?',
@@ -483,7 +483,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       confidence: 'medium',
       why: 'The request asks for implementation work in the background, parallel, or delegated path.',
       modelRoute: 'agent_harness mode:"delegation_posture"',
-      inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"delegated-subagents"',
+      inspectRoute: 'autonomy action:"item" queueItemId:"delegated-subagents"',
       requiresConfirmation: true,
       missingFields: ['task scope', 'repo/worktree target', 'review expectation'],
       userQuestion: 'What exact implementation scope should be delegated, and what result should come back?',
@@ -510,8 +510,8 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       label: 'Inspect visible autonomy queue before acting',
       confidence: 'low',
       why: 'The request does not clearly map to a safe autonomous work route yet.',
-      modelRoute: 'agent_harness mode:"autonomy_queue"',
-      inspectRoute: 'agent_harness mode:"autonomy_queue"',
+      modelRoute: 'autonomy action:"queue"',
+      inspectRoute: 'autonomy action:"queue"',
       requiresConfirmation: false,
       missingFields: ['goal', 'owner', 'timing', 'success criteria'],
       userQuestion: 'What should run, when should it run, and how should success be reported?',
@@ -527,13 +527,13 @@ export function autonomyIntakeSummary(_context: CommandContext, args: AgentHarne
     const workflows = buildTriggerWorkflows('', { missing: [], notes: [] });
     return {
       status: 'missing_request',
-      usage: 'Use mode:"autonomy_intake" with query:"<ongoing work request>". This mode is read-only and returns the safest confirmed route.',
+      usage: 'Use autonomy action:"intake" with query:"<ongoing work request>". This action is read-only and returns the safest confirmed route.',
       examples: [
         'Remind me every 2h to check the deploy.',
         'Run the weekly operator report as a reviewed routine.',
         'Cancel the running automation job.',
       ],
-      queueRoute: 'agent_harness mode:"autonomy_queue"',
+      queueRoute: 'autonomy action:"queue"',
       triggerWorkflowSummary: triggerWorkflowSummary(workflows),
     };
   }
@@ -548,7 +548,7 @@ export function autonomyIntakeSummary(_context: CommandContext, args: AgentHarne
     candidates: candidates.slice(0, args.includeParameters === true ? 8 : 4),
     triggerWorkflowSummary: triggerWorkflowSummary(workflows),
     triggerWorkflows: workflows.map((workflow) => describeTriggerWorkflow(workflow, args.includeParameters === true)),
-    queueRoute: 'agent_harness mode:"autonomy_queue"',
+    queueRoute: 'autonomy action:"queue"',
     policy: 'Autonomy intake is read-only. It selects visible routes and missing fields; creation, approval, run control, delegation, and delivery still require the returned confirmed route plus explicit user request.',
   };
 }

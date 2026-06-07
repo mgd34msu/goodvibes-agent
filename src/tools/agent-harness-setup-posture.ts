@@ -1930,7 +1930,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'diagnostic',
           effect: 'read-only',
           userRoute: item.userRoute,
-          modelRoute: 'agent_harness mode:"autonomy_queue" includeParameters:true',
+          modelRoute: 'autonomy action:"queue" includeParameters:true',
           nextStep: 'Review visible schedules, approvals, work plans, automation runs, receipts, and cancel routes.',
           safety: 'Read-only autonomy queue posture.',
         }),
@@ -2209,7 +2209,7 @@ function buildSetupPlan(
       reason: automationReview.detail,
       nextAction: 'Review schedules, approvals, routine promotion, and visible autonomy queue controls before ongoing background work.',
       userRoute: 'Agent Workspace -> Personal Ops -> Autonomy queue',
-      modelRoute: 'agent_harness mode:"autonomy_queue"',
+      modelRoute: 'autonomy action:"queue"',
       relatedSetupItemId: automationReview.id,
     },
     {

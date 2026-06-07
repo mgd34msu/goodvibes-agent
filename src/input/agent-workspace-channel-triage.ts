@@ -178,8 +178,8 @@ function deliveryAttemptView(attempt: JsonRecord): DeliveryAttemptView {
     ...(responseId ? { responseId } : {}),
     inspectRoute: `/api/deliveries/${encodeURIComponent(id)}`,
     modelRoute: runId
-      ? `agent_harness mode:"autonomy_queue" query:"${runId}"`
-      : 'agent_harness mode:"autonomy_queue"',
+      ? `autonomy action:"queue" query:"${runId}"`
+      : 'autonomy action:"queue"',
   };
 }
 

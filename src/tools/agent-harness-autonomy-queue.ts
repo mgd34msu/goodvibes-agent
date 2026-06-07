@@ -527,14 +527,14 @@ function automationRunLiveRecords(context: CommandContext): readonly AutonomyQue
           run.error ? `error ${run.error}` : '',
           run.result !== undefined ? `result ${compactUnknown(run.result)}` : '',
         ].filter(Boolean).join(' | '),
-        inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
+        inspectRoute: 'workspace action:"action" actionId:"schedule-list"',
         ...(active ? {
           cancelRoute,
         } : {}),
         nextSteps: [
           ...(active ? [cancelRoute] : []),
           ...(failed ? [retryRoute] : []),
-          `agent_harness mode:"workspace_action" actionId:"schedule-list"`,
+          `workspace action:"action" actionId:"schedule-list"`,
         ],
         sourceIds: [
           run.jobId,
@@ -550,7 +550,7 @@ function automationRunLiveRecords(context: CommandContext): readonly AutonomyQue
         ].filter((value): value is string => typeof value === 'string' && value.length > 0),
         diagnostics: automationRunDiagnostics(run),
         controls: [
-          availableControl('inspect', 'Inspect schedule list', 'read-only', 'agent_harness mode:"workspace_action" actionId:"schedule-list"'),
+          availableControl('inspect', 'Inspect schedule list', 'read-only', 'workspace action:"action" actionId:"schedule-list"'),
           active
             ? availableControl('cancel', 'Cancel automation run', 'confirmed-effect', cancelRoute)
             : unavailableControl('cancel', 'Cancel automation run', `Run is ${run.status}; cancel is only offered for queued or running runs.`),
@@ -606,7 +606,7 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
           editRoute,
           toggleRoute,
           deleteRoute,
-          `agent_harness mode:"workspace_action" actionId:"schedule-list"`,
+          `workspace action:"action" actionId:"schedule-list"`,
         ],
         sourceIds: [
           job.source.id,
@@ -922,10 +922,10 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       count: taskMethods.length,
       current: `Work-plan actions are available in the Agent workspace; ${taskMethods.length} task/work-plan daemon method(s) are discoverable.`,
       next: 'Track ongoing user work here first, then update status to active, blocked, done, failed, or cancelled from the confirmed form.',
-      inspectRoute: 'agent_harness mode:"workspace_action" actionId:"workplan-show"',
+      inspectRoute: 'workspace action:"action" actionId:"workplan-show"',
       modelRoute: 'agent_work_plan',
-      cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"workplan-status" confirm:true explicitUserRequest:"..."',
-      createRoute: 'agent_harness mode:"run_workspace_action" actionId:"workplan-add" confirm:true explicitUserRequest:"..."',
+      cancelRoute: 'workspace action:"run" actionId:"workplan-status" confirm:true explicitUserRequest:"..."',
+      createRoute: 'workspace action:"run" actionId:"workplan-add" confirm:true explicitUserRequest:"..."',
       methodIds: taskMethods,
     },
     {
@@ -979,7 +979,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
           : taskMethods.length > 0
             ? 'Inspect host tasks before changing any work plan or automation state.'
         : 'Update the connected GoodVibes host or connector set until task inspection methods are present.',
-      inspectRoute: 'agent_harness mode:"workspace_action" actionId:"tasks-list"',
+      inspectRoute: 'workspace action:"action" actionId:"tasks-list"',
       modelRoute: 'host action:"methods" query:"task"',
       ...(taskCancelRoute ? { cancelRoute: taskCancelRoute } : {}),
       methodIds: taskMethods,
@@ -1000,9 +1000,9 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       next: approvalRecords.some((record) => record.status === 'pending' || record.status === 'claimed')
         ? 'Review pending approval records, risk, and args; approve, deny, or cancel exactly one id only when the user asks.'
         : 'Review the matrix, then approve, deny, or cancel one exact approval id only when the user asks.',
-      inspectRoute: 'agent_harness mode:"workspace_action" actionId:"approvals"',
+      inspectRoute: 'workspace action:"action" actionId:"approvals"',
       modelRoute: 'host action:"methods" query:"approval"',
-      cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"approval-cancel" confirm:true explicitUserRequest:"..."',
+      cancelRoute: 'workspace action:"run" actionId:"approval-cancel" confirm:true explicitUserRequest:"..."',
       methodIds: approvalMethods,
       liveRecords: approvalRecords,
     },
@@ -1024,8 +1024,8 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
           ? 'Inspect active automation runs and cancel only the exact run id the user authorizes.'
           : 'Inspect automation posture first. Use exact run/job ids for confirmed run control.',
       inspectRoute: 'host action:"methods" query:"automation"',
-      modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"automation"',
-      cancelRoute: 'agent_harness mode:"run_workspace_action" actionId:"automation-run-cancel" confirm:true explicitUserRequest:"..."',
+      modelRoute: 'workspace action:"actions" categoryId:"automation"',
+      cancelRoute: 'workspace action:"run" actionId:"automation-run-cancel" confirm:true explicitUserRequest:"..."',
       methodIds: automationMethods,
       liveRecords: automationRecords,
     },
@@ -1042,7 +1042,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       next: scheduleMethods.length > 0
         ? 'Create one visible autonomous schedule only after the user gives exact timing and success criteria.'
         : 'Update the connected GoodVibes host until schedules.create is available.',
-      inspectRoute: 'agent_harness mode:"autonomy_intake" query:"..."',
+      inspectRoute: 'autonomy action:"intake" query:"..."',
       modelRoute: 'schedule action:"create"',
       createRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,
@@ -1064,7 +1064,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         : scheduleRecords.length > 0
           ? 'Review live schedules or reconcile routine receipts before controlling one exact schedule id.'
           : 'List schedules or reconcile routine receipts before controlling one schedule by id.',
-      inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
+      inspectRoute: 'workspace action:"action" actionId:"schedule-list"',
       modelRoute: 'schedule action:"list|edit|run|pause|resume|delete"',
       cancelRoute: 'schedule action:"pause" scheduleId:"..." confirm:true explicitUserRequest:"..."',
       createRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
@@ -1104,9 +1104,9 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         : scheduleReadyRoutines > 0
           ? 'Promote one reviewed routine only when the user asks for recurrence.'
           : 'Create, enable, and review a routine before schedule promotion.',
-      inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-receipts"',
-      modelRoute: 'agent_harness mode:"workspace_actions" categoryId:"routines"',
-      createRoute: 'agent_harness mode:"run_workspace_action" actionId:"schedule-promote-routine" confirm:true explicitUserRequest:"..."',
+      inspectRoute: 'workspace action:"action" actionId:"schedule-receipts"',
+      modelRoute: 'workspace action:"actions" categoryId:"routines"',
+      createRoute: 'workspace action:"run" actionId:"schedule-promote-routine" confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,
     },
     {
@@ -1141,7 +1141,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         : 'Pair or configure a delivery channel before promising proactive follow-up.',
       inspectRoute: 'channels action:"status"',
       modelRoute: 'channels action:"status"',
-      createRoute: 'agent_harness mode:"run_workspace_action" actionId:"personal-ops-channels" confirm:true explicitUserRequest:"..."',
+      createRoute: 'workspace action:"run" actionId:"personal-ops-channels" confirm:true explicitUserRequest:"..."',
     },
   ];
   return items.sort((left, right) => statusRank(right.status) - statusRank(left.status) || left.label.localeCompare(right.label));
@@ -1201,7 +1201,7 @@ export function describeAutonomyQueueItem(context: CommandContext, args: AgentHa
   if (!input) {
     return {
       status: 'missing_lookup',
-      usage: 'autonomy_queue_item requires queueItemId, target, or query. Use mode:"autonomy_queue" to inspect queue item ids.',
+      usage: 'autonomy action:"item" requires queueItemId, target, or query. Use action:"queue" to inspect queue item ids.',
     };
   }
   const normalized = input.toLowerCase();
@@ -1226,6 +1226,6 @@ export function describeAutonomyQueueItem(context: CommandContext, args: AgentHa
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown autonomy queue item ${input}. Use mode:"autonomy_queue" to inspect queue item ids.`,
+    usage: `Unknown autonomy queue item ${input}. Use autonomy action:"queue" to inspect queue item ids.`,
   };
 }

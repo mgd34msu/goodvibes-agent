@@ -94,6 +94,7 @@ First-class model tools cover common workflows directly:
 - `workspace` for Agent workspace categories/actions, slash and CLI command discovery, visible UI/panel navigation, shortcuts, keybindings, and confirmed workspace/command/keybinding effects.
 - `agent_work_plan` for visible local work-plan tracking and confirmed dispatch of approved plan items to visible agents.
 - `personal_ops` for daily briefing, request intake, lane inspection, and one confirmed read-only inbox/calendar connector operation.
+- `autonomy action:"intake|queue|item|status"` for ongoing-work route selection and visible autonomous-work queue inspection without requiring harness mode names.
 - `agent_operator_briefing` and `agent_operator_action` for connected work/approval/automation/schedule posture and exact confirmed actions.
 - `agent_operator_method` for exact GoodVibes daemon contract parity. Read-only routes can run directly; write/admin routes require `confirm:true` and `explicitUserRequest`.
 - `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate`, and `agent_model_compare` for confirmed delivery, notification, reminder, media generation, and blind model comparison review/judgment.
