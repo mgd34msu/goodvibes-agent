@@ -7622,8 +7622,8 @@ describe('agent_harness tool', () => {
       const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly workspace?: string; readonly documentOps?: string } };
-      expect(summaryJson.modelAccess?.workspace).toContain('mode:"workspace"');
-      expect(summaryJson.modelAccess?.workspace).toContain('mode:"workspace_categories"');
+      expect(summaryJson.modelAccess?.workspace).toContain('workspace action:"status');
+      expect(summaryJson.modelAccess?.workspace).toContain('|actions');
       expect(summaryJson.modelAccess?.documentOps).toContain('mode:"document_ops"');
 
       const listed = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create' });
@@ -7653,14 +7653,14 @@ describe('agent_harness tool', () => {
       ))).toEqual([]);
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('device action:"open_browser"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('workspace action:"open"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('personal_ops action:"briefing"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('personal_ops action:"intake"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('device action:"voice"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('device action:"status"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'browser-cockpit-readiness')?.modelRoute).toBe('device action:"browser"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('workspace action:"open"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-route-readiness')?.modelRoute).toBe('models action:"status" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('models action:"local"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-server-health')?.modelRoute).toBe('models action:"smoke" confirm:true');
@@ -7707,8 +7707,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-workflow-plan')?.modelRoute).toBe('research action:"plan"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'work-background-processes')?.modelRoute).toBe('agent_harness mode:"background_processes"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'work-process-capabilities')?.modelRoute).toBe('agent_harness mode:"background_processes"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'work-background-processes')?.modelRoute).toBe('process action:"list"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'work-process-capabilities')?.modelRoute).toBe('process action:"capabilities"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-run-queue')?.modelRoute).toBe('research action:"runs"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-start-run')?.modelRoute).toBe('research action:"create_run"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-source-queue')?.modelRoute).toBe('research action:"sources"');
@@ -8268,7 +8268,7 @@ describe('agent_harness tool', () => {
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"cliCommands"');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly cliCommands?: string } };
-      expect(summaryJson.modelAccess?.cliCommands).toContain('mode:"cli_commands"');
+      expect(summaryJson.modelAccess?.cliCommands).toContain('workspace action:"cli_commands');
 
       const catalog = await fixture.tool.execute({ mode: 'cli_commands', query: 'knowledge' });
       expect(catalog.success).toBe(true);
@@ -8338,7 +8338,7 @@ describe('agent_harness tool', () => {
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"panels": 3');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly panels?: string } };
-      expect(summaryJson.modelAccess?.panels).toContain('mode:"panels"');
+      expect(summaryJson.modelAccess?.panels).toContain('workspace action:"panels');
 
       const panels = await fixture.tool.execute({ mode: 'panels', category: 'monitoring' });
       expect(panels.success).toBe(true);
@@ -8417,7 +8417,7 @@ describe('agent_harness tool', () => {
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"uiSurfaces"');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly uiSurfaces?: string } };
-      expect(summaryJson.modelAccess?.uiSurfaces).toContain('mode:"ui_surfaces"');
+      expect(summaryJson.modelAccess?.uiSurfaces).toContain('workspace action:"surfaces');
 
       const catalog = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'picker' });
       expect(catalog.success).toBe(true);
@@ -8439,7 +8439,7 @@ describe('agent_harness tool', () => {
         || surface.modelRoute.length === 0
         || surface.modelRoute.length > 72
       ))).toEqual([]);
-      expect(catalogJson.surfaces.find((surface) => surface.id === 'model-picker')?.modelRoute).toBe('settings action:"get|set" or agent_harness mode:"run_command"');
+      expect(catalogJson.surfaces.find((surface) => surface.id === 'model-picker')?.modelRoute).toBe('settings action:"get|set" or workspace action:"run_command"');
 
       const searchSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'search' });
       expect(searchSurfaces.success).toBe(true);
@@ -8474,7 +8474,7 @@ describe('agent_harness tool', () => {
       expect(activitySurfaces.success).toBe(true);
       expect(activitySurfaces.output).toContain('"id": "process-monitor"');
       expect(activitySurfaces.output).toContain('Visible running-process and live-output monitor.');
-      expect(activitySurfaces.output).toContain('first-class tools or agent_harness mode:\\"open_ui_surface\\"');
+      expect(activitySurfaces.output).toContain('first-class tools or workspace action:\\"open\\"');
 
       const outputSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'live-output' });
       expect(outputSurfaces.success).toBe(true);
@@ -8488,7 +8488,7 @@ describe('agent_harness tool', () => {
         readonly preferredModelRoute?: string;
       };
       expect(settingsJson.id).toBe('settings');
-      expect(settingsJson.modelRoute).toBe('settings action:"list|get|set" or agent_harness mode:"open_ui_surface"');
+      expect(settingsJson.modelRoute).toBe('settings action:"list|get|set" or workspace action:"open"');
       expect(settingsJson.preferredModelRoute).toContain('settings action:"list"|action:"get"|action:"set"|action:"reset"|action:"import"');
       expect(settingsJson.preferredModelRoute).not.toContain('settings/get_setting/set_setting/reset_setting');
       expectModelFacingText(settings.output);
@@ -8632,7 +8632,7 @@ describe('agent_harness tool', () => {
         readonly descriptor?: { readonly modelRoute?: string };
       };
       expect(disabledBrowserCockpitJson.route?.setupRoutes?.inspectEndpoint).toContain('host action:"service"');
-      expect(disabledBrowserCockpitJson.descriptor?.modelRoute).toContain('host action:"service"');
+      expect(disabledBrowserCockpitJson.descriptor?.modelRoute).toContain('device action:"browser|open_browser"');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'knowledge' });
 
       const openedPanelPicker = await fixture.tool.execute({
@@ -8827,8 +8827,8 @@ describe('agent_harness tool', () => {
       expect(summary.success).toBe(true);
       expect(summary.output).toContain('"shortcuts"');
       const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly shortcuts?: string } };
-      expect(summaryJson.modelAccess?.shortcuts).toContain('mode:"shortcuts"');
-      expect(summaryJson.modelAccess?.shortcuts).toContain('mode:"run_keybinding"');
+      expect(summaryJson.modelAccess?.shortcuts).toContain('workspace action:"shortcuts');
+      expect(summaryJson.modelAccess?.shortcuts).toContain('run_keybinding');
 
       const shortcuts = await fixture.tool.execute({ mode: 'shortcuts', query: 'help' });
       expect(shortcuts.success).toBe(true);

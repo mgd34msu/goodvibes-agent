@@ -39,6 +39,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   team: 'Manage team definitions, roles, and lanes.',
   terminal: 'Start visible tracked background shell commands.',
   vibe: 'Inspect/create/import VIBE.md personality.',
+  workspace: 'Inspect/open workspace actions, UI, commands, keys.',
   web_search: 'Search the web through the configured provider.',
   workflow: 'Inspect/control configured workflow automation.',
   worklist: 'Manage durable worklists and checklist items.',

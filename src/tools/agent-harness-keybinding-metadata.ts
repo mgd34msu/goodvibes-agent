@@ -250,11 +250,11 @@ function resolveHarnessKeybinding(context: CommandContext, args: HarnessKeybindi
 
 function keybindingModelRoute(action: KeyAction): string {
   const route = keybindingOperationRoute(action);
-  if (route.preferredMode === 'run_keybinding') return `agent_harness mode:"run_keybinding" actionId:"${action}"`;
-  if (route.preferredMode === 'open_ui_surface' && route.surfaceId) return `agent_harness mode:"open_ui_surface" surfaceId:"${route.surfaceId}"`;
-  if (route.preferredMode === 'open_ui_surface') return 'agent_harness mode:"open_ui_surface"';
-  if (route.preferredMode === 'run_command' && route.command) return `agent_harness mode:"run_command" command:"${route.command}"`;
-  if (route.preferredMode === 'run_command') return 'agent_harness mode:"run_command"';
+  if (route.preferredMode === 'run_keybinding') return `workspace action:"run_keybinding" actionId:"${action}"`;
+  if (route.preferredMode === 'open_ui_surface' && route.surfaceId) return `workspace action:"open" surfaceId:"${route.surfaceId}"`;
+  if (route.preferredMode === 'open_ui_surface') return 'workspace action:"open"';
+  if (route.preferredMode === 'run_command' && route.command) return `workspace action:"run_command" command:"${route.command}"`;
+  if (route.preferredMode === 'run_command') return 'workspace action:"run_command"';
   return 'direct-user-interaction';
 }
 
@@ -265,6 +265,10 @@ function keybindingModelAccess(action: KeyAction, operation: KeybindingOperation
     set: `agent_harness mode:"set_keybinding" actionId:"${action}" combo:{...} confirm:true explicitUserRequest:"..."`,
     reset: `agent_harness mode:"reset_keybinding" actionId:"${action}" confirm:true explicitUserRequest:"..."`,
     preferred: keybindingModelRoute(action),
+    directInspect: `workspace action:"keybinding" actionId:"${action}"`,
+    directRun: operation.supported ? `workspace action:"run_keybinding" actionId:"${action}" confirm:true explicitUserRequest:"..."` : 'not exposed',
+    directSet: `workspace action:"set_keybinding" actionId:"${action}" combo:{...} confirm:true explicitUserRequest:"..."`,
+    directReset: `workspace action:"reset_keybinding" actionId:"${action}" confirm:true explicitUserRequest:"..."`,
   };
 }
 
@@ -435,12 +439,12 @@ export function totalHarnessShortcuts(context: CommandContext): number {
 }
 
 function fixedShortcutModelRoute(shortcut: Record<string, string>): string {
-  if (shortcut.key.includes('/shortcuts')) return 'agent_harness mode:"shortcuts"';
-  if (shortcut.key.includes('/keybindings')) return 'agent_harness mode:"keybindings"';
-  if (shortcut.key.includes('?') || shortcut.key.includes('F1')) return 'agent_harness mode:"open_ui_surface" surfaceId:"help-overlay"';
-  if (shortcut.key.includes('F2')) return 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"';
+  if (shortcut.key.includes('/shortcuts')) return 'workspace action:"shortcuts"';
+  if (shortcut.key.includes('/keybindings')) return 'workspace action:"keybindings"';
+  if (shortcut.key.includes('?') || shortcut.key.includes('F1')) return 'workspace action:"open" surfaceId:"help-overlay"';
+  if (shortcut.key.includes('F2')) return 'workspace action:"open" surfaceId:"process-monitor"';
   if (shortcut.key.includes('Esc')) return 'direct-user-interaction';
-  if (shortcut.key.includes('Tab')) return 'agent_harness mode:"commands"';
+  if (shortcut.key.includes('Tab')) return 'workspace action:"commands"';
   if (shortcut.key.includes('Enter')) return 'main conversation';
   return 'direct-user-interaction';
 }
@@ -452,8 +456,8 @@ function describeFixedShortcut(shortcut: Record<string, string>): Record<string,
     userEditable: false,
     modelRoute: fixedShortcutModelRoute(shortcut),
     modelAccess: {
-      inspectShortcuts: 'agent_harness mode:"shortcuts"',
-      inspectKeybindings: 'agent_harness mode:"keybindings"',
+      inspectShortcuts: 'workspace action:"shortcuts"',
+      inspectKeybindings: 'workspace action:"keybindings"',
       preferred: fixedShortcutModelRoute(shortcut),
     },
   };

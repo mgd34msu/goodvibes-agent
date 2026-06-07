@@ -195,11 +195,11 @@ function compactHarnessModeGuide(): Record<string, unknown> {
 
 function detailedHarnessModelAccessGuide(): Record<string, string> {
   return {
-    cliCommands: 'List mode:"cli_commands"; inspect mode:"cli_command" with cliCommand|commandName|query. Discovery only.',
-    panels: 'List mode:"panels"; inspect mode:"panel"; navigate mode:"open_panel" with confirm:true and explicitUserRequest.',
-    uiSurfaces: 'Prefer device action:"browser|open_browser" for browser/PWA. List mode:"ui_surfaces"; inspect mode:"ui_surface"; navigate mode:"open_ui_surface" with confirmation.',
-    shortcuts: 'List mode:"shortcuts"; inspect mode:"keybinding"; run mode:"run_keybinding"; edit with set_keybinding/reset_keybinding and confirmation.',
-    slashCommands: 'List mode:"commands"; inspect mode:"command"; execute mode:"run_command" with confirmation.',
+    cliCommands: 'Prefer workspace action:"cli_commands|cli_command" for CLI discovery. Lower-level cli command modes remain available.',
+    panels: 'Prefer workspace action:"panels|panel|open_panel"; visible navigation needs confirm:true and explicitUserRequest.',
+    uiSurfaces: 'Prefer workspace action:"surfaces|surface|open" for visible UI and device action:"browser|open_browser" for browser/PWA. Lower-level UI modes remain available.',
+    shortcuts: 'Prefer workspace action:"shortcuts|keybindings|keybinding|run_keybinding|set_keybinding|reset_keybinding"; effects need confirmation.',
+    slashCommands: 'Prefer workspace action:"commands|command|run_command"; slash-command execution needs confirmation.',
     channels: 'Prefer channels action:"status|channel|setup|triage|deliveries"; deliver with agent_channel_send and confirmation. Lower-level channel harness modes remain available for detail.',
     notifications: 'List mode:"notifications"; inspect mode:"notification_target"; deliver with agent_notify and confirmation.',
     providerAccounts: 'Prefer models action:"providers|provider" for account and subscription posture. Lower-level mode:"provider_accounts" and mode:"provider_account" remain available; auth changes stay confirmed workspace/command flows.',
@@ -227,7 +227,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     supportBundles: 'List mode:"support_bundles"; inspect mode:"support_bundle"; export/import stays confirmation-gated.',
     mediaPosture: 'Prefer device action:"voice|provider" for voice/media posture. Lower-level mode:"media_posture" and mode:"media_provider" remain available; generate with agent_media_generate and confirmation.',
     sessions: 'List mode:"sessions"; inspect mode:"session"; save/resume/export/delete stays visible confirmed flow.',
-    workspace: 'List mode:"workspace" or mode:"workspace_categories"; actions via mode:"workspace_actions", mode:"workspace_action", and mode:"run_workspace_action"; includeParameters:true inlines editor schemas.',
+    workspace: 'Prefer workspace action:"status|actions|action|run|surfaces|surface|open|commands|command|run_command"; includeParameters:true inlines editor schemas.',
     settings: 'Prefer settings action:"list|get|set|reset|import"; list accepts category|prefix|query|includeHidden:true; lower-level settings modes remain for compatibility.',
     tools: 'List mode:"tools" with query|limit|includeParameters:true; inspect mode:"tool" with toolName|target|query.',
     modeCatalog: 'Search mode:"modes" with query|target; inspect one contract with mode:"mode" target:"...".',

@@ -51,6 +51,7 @@ describe('compactRegisteredToolDefinitions', () => {
     registry.register(makeTool('settings', 'Verbose settings description that should never reach the model catalog.'));
     registry.register(makeTool('setup', 'Verbose setup tool description that should never reach the model catalog.'));
     registry.register(makeTool('vibe', 'Verbose VIBE.md personality description that should never reach the model catalog.'));
+    registry.register(makeTool('workspace', 'Verbose workspace route description that should never reach the model catalog.'));
     registry.register(makeTool('agent_local_registry', 'Verbose local registry description that should never reach the model catalog.'));
     registry.register(makeTool('agent_review_packet_presets', 'Verbose review packet preset description that should never reach the model catalog.'));
 
@@ -70,6 +71,7 @@ describe('compactRegisteredToolDefinitions', () => {
     expect(descriptions.get('settings')).toBe('List, inspect, change, reset, or import settings.');
     expect(descriptions.get('setup')).toBe('Inspect and complete first-run Agent setup.');
     expect(descriptions.get('vibe')).toBe('Inspect/create/import VIBE.md personality.');
+    expect(descriptions.get('workspace')).toBe('Inspect/open workspace actions, UI, commands, keys.');
     expect(descriptions.get('agent_local_registry')).toBe('Inspect/update Agent memory, notes, skills, routines.');
     expect(descriptions.get('agent_review_packet_presets')).toBe('Save/list/refresh Document Ops packet presets.');
     for (const description of descriptions.values()) {

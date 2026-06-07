@@ -109,7 +109,7 @@ function previewText(value: string, maxLength = 56): string {
 function commandRouteHint(command: string): string {
   const parsed = parseSlashCommand(command);
   const commandName = parsed.name || command.replace(/^\//, '').trim().split(/\s+/)[0] || command;
-  return describeCommandPolicy(commandName).preferredModelTool ?? 'agent_harness mode:"run_command"';
+  return describeCommandPolicy(commandName).preferredModelTool ?? `workspace action:"run_command" commandName:"${commandName}"`;
 }
 
 function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
@@ -132,7 +132,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
     editorKind === 'knowledge-reindex'
     || editorKind === 'knowledge-review-issue'
     || editorKind === 'knowledge-consolidate'
-  ) return 'agent_harness mode:"run_workspace_action"';
+  ) return 'workspace action:"run"';
   if (editorKind.startsWith('knowledge-')) return 'agent_knowledge';
   if (
     editorKind === 'document-review-packet-preset'
@@ -182,7 +182,7 @@ function localActionRouteHint(action: AgentWorkspaceAction): string {
 }
 
 function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
-  if (action.kind === 'settings-import') return 'agent_harness mode:"run_workspace_action"';
+  if (action.kind === 'settings-import') return 'settings action:"import"';
   if (action.kind === 'setup-checkpoint') {
     if (action.setupCheckpointOperation === 'mark-current') return 'agent_harness mode:"mark_setup_checkpoint" confirm:true explicitUserRequest:"..."';
     if (action.setupCheckpointOperation === 'clear') return 'agent_harness mode:"clear_setup_checkpoint" confirm:true explicitUserRequest:"..."';
@@ -197,8 +197,8 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'research-workflow-plan') return 'research action:"plan"';
   if (action.id === 'research-run-queue') return 'research action:"runs"';
   if (action.id === 'research-source-queue') return 'research action:"sources"';
-  if (action.id === 'work-background-processes') return 'agent_harness mode:"background_processes"';
-  if (action.id === 'work-process-capabilities') return 'agent_harness mode:"background_processes"';
+  if (action.id === 'work-background-processes') return 'process action:"list"';
+  if (action.id === 'work-process-capabilities') return 'process action:"capabilities"';
   if (action.id === 'context-project-files') return 'context action:"files"';
   if (action.id === 'context-project-file') return 'context action:"file"';
   if (action.id === 'context-prompt-context') return 'context action:"prompt" includeParameters:true';
@@ -218,9 +218,10 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.command) return commandRouteHint(action.command);
   if (action.editorKind) return editorRouteHint(action.editorKind);
   if (action.kind === 'local-selection' || action.kind === 'local-operation') return localActionRouteHint(action);
-  if (action.targetCategoryId || action.kind === 'workspace') return 'agent_harness mode:"open_ui_surface"';
+  // Compatibility detail route remains: agent_harness mode:"open_ui_surface".
+  if (action.targetCategoryId || action.kind === 'workspace') return 'workspace action:"open"';
   if (action.kind === 'guidance') return action.safety === 'blocked' ? 'main conversation policy' : 'main conversation';
-  return 'agent_harness mode:"workspace_action"';
+  return 'workspace action:"action"';
 }
 
 function selectedRoutineFromArgs(

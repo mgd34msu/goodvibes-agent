@@ -58,7 +58,7 @@ function commandMatches(command: SlashCommand, query: string): boolean {
 
 function describeCommand(command: SlashCommand, lookup?: CommandDetailLookup): Record<string, unknown> {
   const policy = describeCommandPolicy(command.name);
-  const modelRoute = previewText(policy.preferredModelTool ?? 'agent_harness mode:"command", mode:"run_command"');
+  const modelRoute = previewText(policy.preferredModelTool ?? `workspace action:"command" commandName:"${command.name}"`);
   return {
     name: command.name,
     slash: `/${command.name}`,
@@ -71,6 +71,8 @@ function describeCommand(command: SlashCommand, lookup?: CommandDetailLookup): R
       inspect: `agent_harness mode:"command" commandName:"${command.name}"`,
       run: `agent_harness mode:"run_command" commandName:"${command.name}" confirm:true explicitUserRequest:"..."`,
       preferred: modelRoute,
+      directInspect: `workspace action:"command" commandName:"${command.name}"`,
+      directRun: `workspace action:"run_command" commandName:"${command.name}" confirm:true explicitUserRequest:"..."`,
     },
     ...(lookup ? {
       lookup: {
@@ -93,7 +95,7 @@ function describeCommandCandidate(command: SlashCommand): Record<string, unknown
     aliases: command.aliases ?? [],
     summary: previewText(command.description),
     effect: policy.effect,
-    modelRoute: previewText(policy.preferredModelTool ?? 'agent_harness mode:"command", mode:"run_command"'),
+    modelRoute: previewText(policy.preferredModelTool ?? `workspace action:"command" commandName:"${command.name}"`),
     ...(command.argsHint ? { argsHint: command.argsHint } : {}),
   };
 }

@@ -937,44 +937,44 @@ function surfaceCandidate(surface: UiSurfaceDefinition): Record<string, unknown>
 function uiSurfaceModelRoute(surface: UiSurfaceDefinition): string {
   switch (surface.id) {
     case 'connected-browser-cockpit':
-      return 'host action:"service" or agent_harness mode:"open_ui_surface"';
+      return 'device action:"browser|open_browser" or workspace action:"open"';
     case 'agent-workspace':
     case 'panel-picker':
     case 'security-panel':
     case 'subscription-panel':
     case 'mcp-workspace':
     case 'onboarding':
-      return 'agent_harness mode:"workspace_actions" or mode:"open_ui_surface"';
+      return 'workspace action:"actions|open"';
     case 'knowledge-panel':
-      return 'agent_knowledge, agent_knowledge_ingest, or workspace_actions';
+      return 'agent_knowledge, agent_knowledge_ingest, or workspace action:"actions"';
     case 'settings':
     case 'tts-provider-picker':
     case 'tts-voice-picker':
     case 'reasoning-effort-picker':
-      return 'settings action:"list|get|set" or agent_harness mode:"open_ui_surface"';
+      return 'settings action:"list|get|set" or workspace action:"open"';
     case 'model-picker':
     case 'provider-picker':
-      return 'settings action:"get|set" or agent_harness mode:"run_command"';
+      return 'settings action:"get|set" or workspace action:"run_command"';
     case 'session-picker':
     case 'bookmark-modal':
     case 'context-inspector':
     case 'slash-command-mode':
     case 'command-browser':
     case 'block-actions':
-      return 'agent_harness mode:"commands" or mode:"run_command"';
+      return 'workspace action:"commands|run_command"';
     case 'process-monitor':
     case 'live-tail':
     case 'file-picker':
-      return 'first-class tools or agent_harness mode:"open_ui_surface"';
+      return 'first-class tools or workspace action:"open"';
     case 'conversation-search':
     case 'prompt-history-search':
-      return 'agent_harness mode:"open_ui_surface"';
+      return 'workspace action:"open"';
     case 'help-overlay':
-      return 'agent_harness mode:"commands" or mode:"shortcuts"';
+      return 'workspace action:"commands|shortcuts"';
     case 'shortcuts-overlay':
-      return 'agent_harness mode:"shortcuts" or mode:"keybindings"';
+      return 'workspace action:"shortcuts|keybindings"';
     default:
-      return 'agent_harness mode:"open_ui_surface"';
+      return 'workspace action:"open"';
   }
 }
 

@@ -29,6 +29,7 @@ const READ_TOOL_NAMES = new Set([
   'setup',
   'settings',
   'vibe',
+  'workspace',
   'agent_harness',
   'agent_knowledge',
   'agent_operator_briefing',
@@ -63,6 +64,7 @@ const READ_ONLY_CHANNELS_ACTIONS = new Set(['', 'status', 'summary', 'list', 're
 const READ_ONLY_MEMORY_ACTIONS = new Set(['', 'status', 'summary', 'posture', 'memory_posture', 'recall', 'providers', 'provider', 'memory_provider', 'embedding', 'external', 'external_provider', 'curator', 'learning', 'learning_curator', 'queue', 'review_queue', 'plan', 'candidate', 'learning_candidate', 'card', 'inspect_candidate', 'list', 'records', 'memories', 'search', 'find', 'lookup', 'get', 'show', 'inspect', 'read']);
 const READ_ONLY_DEVICE_ACTIONS = new Set(['', 'status', 'map', 'capabilities', 'device', 'devices', 'mobile', 'phone', 'pairing', 'capability', 'route', 'pairing_route', 'show', 'inspect', 'browser', 'pwa', 'cockpit', 'browser_cockpit', 'web', 'control', 'browser_control', 'desktop', 'desktop_control', 'computer_use', 'voice', 'media', 'voice_media', 'workflows', 'provider', 'media_provider', 'voice_provider']);
 const READ_ONLY_MODELS_ACTIONS = new Set(['', 'status', 'routing', 'routes', 'models', 'model', 'readiness', 'route_readiness', 'route', 'model_route', 'inspect', 'show', 'candidate', 'endpoint', 'local', 'cookbook', 'local_cookbook', 'recipes', 'recipe', 'ollama', 'llama_cpp', 'llamacpp', 'vllm', 'local_servers', 'providers', 'provider_accounts', 'accounts', 'subscriptions', 'auth', 'logins', 'provider', 'provider_account', 'account', 'subscription', 'auth_status']);
+const READ_ONLY_WORKSPACE_ACTIONS = new Set(['', 'status', 'summary', 'home', 'workspace', 'categories', 'workspace_categories', 'actions', 'list_actions', 'workspace_actions', 'tasks', 'action', 'show', 'inspect', 'workspace_action', 'surfaces', 'ui_surfaces', 'screens', 'views', 'surface', 'ui_surface', 'screen', 'view', 'panels', 'panes', 'panel', 'pane', 'shortcuts', 'shortcut_help', 'help', 'keybindings', 'bindings', 'keys', 'keybinding', 'binding', 'key', 'commands', 'slash_commands', 'command_catalog', 'command', 'slash_command', 'inspect_command', 'cli_commands', 'cli_catalog', 'cli_command', 'inspect_cli_command']);
 
 type MarkedPermissionManager = PermissionManagerLike & { [SAFETY_MARKER]?: true };
 
@@ -222,6 +224,14 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_MODELS_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'workspace') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase().replace(/-/g, '_')
+        : '';
+    return READ_ONLY_WORKSPACE_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'agent_artifacts') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';
