@@ -3816,6 +3816,15 @@ describe('agent_harness tool', () => {
           readonly modelRoute?: string;
           readonly policy?: string;
         };
+        readonly nextRoutes?: {
+          readonly lane?: { readonly modelRoute: string; readonly requiresConfirmation: boolean };
+          readonly queue?: { readonly modelRoute: string; readonly requiresConfirmation: boolean };
+          readonly refresh?: { readonly modelRoute: string; readonly requiresConfirmation: boolean };
+          readonly artifact?: { readonly modelRoute: string; readonly requiresConfirmation: boolean };
+          readonly savedQueue?: { readonly modelRoute: string; readonly requiresConfirmation: boolean };
+          readonly localDraft?: { readonly effect: string; readonly modelRoute: string; readonly requiresConfirmation: boolean };
+          readonly sendBoundary?: { readonly modelRoute: string; readonly requiresConfirmation: boolean; readonly policy: string };
+        };
         readonly followUp?: readonly string[];
       }>(fixture, {
         mode: 'run_personal_ops_read',
@@ -3857,6 +3866,21 @@ describe('agent_harness tool', () => {
       expect(executedRead.savedReviewArtifact?.artifactId).toBe('artifact-1');
       expect(executedRead.savedReviewArtifact?.modelRoute).toContain('agent_artifacts');
       expect(executedRead.savedReviewArtifact?.policy).toContain('redacted review cards');
+      expect(executedRead.nextRoutes?.lane?.modelRoute).toBe('personal_ops action:"lane" laneId:"inbox" includeParameters:true');
+      expect(executedRead.nextRoutes?.lane?.requiresConfirmation).toBe(false);
+      expect(executedRead.nextRoutes?.queue?.modelRoute).toBe('personal_ops action:"queue" query:"inbox" includeParameters:true');
+      expect(executedRead.nextRoutes?.refresh?.modelRoute).toContain('personal_ops action:"read"');
+      expect(executedRead.nextRoutes?.refresh?.modelRoute).toContain('recordId:"mcp:gmail-inbox:gmail.search_messages"');
+      expect(executedRead.nextRoutes?.refresh?.requiresConfirmation).toBe(true);
+      expect(executedRead.nextRoutes?.artifact?.modelRoute).toBe('agent_artifacts show artifactId:"artifact-1" includeContent:true');
+      expect(executedRead.nextRoutes?.artifact?.requiresConfirmation).toBe(false);
+      expect(executedRead.nextRoutes?.savedQueue?.modelRoute).toBe('personal_ops action:"queue" query:"artifact-1" includeParameters:true');
+      expect(executedRead.nextRoutes?.localDraft?.effect).toBe('local-only');
+      expect(executedRead.nextRoutes?.localDraft?.modelRoute).toContain('artifact-1');
+      expect(executedRead.nextRoutes?.localDraft?.requiresConfirmation).toBe(false);
+      expect(executedRead.nextRoutes?.sendBoundary?.modelRoute).toContain('personal_ops action:"intake"');
+      expect(executedRead.nextRoutes?.sendBoundary?.requiresConfirmation).toBe(true);
+      expect(executedRead.nextRoutes?.sendBoundary?.policy).toContain('exact recipients and body');
       expect(executedRead.followUp?.join('\n')).toContain('explicit confirmation');
       expect(mcpToolCalls).toEqual([{
         qualifiedName: 'mcp:gmail-inbox:gmail.search_messages',

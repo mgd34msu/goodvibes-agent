@@ -114,6 +114,15 @@ interface PersonalOpsFollowUpRoute {
   readonly policy: string;
 }
 
+interface PersonalOpsRoutePacket {
+  readonly id: string;
+  readonly label: string;
+  readonly effect: 'read-only' | 'local-only' | 'confirmed-effect';
+  readonly modelRoute: string;
+  readonly requiresConfirmation: boolean;
+  readonly policy: string;
+}
+
 interface PersonalOpsRecordFreshness {
   readonly status:
     | 'fresh-provider-route-ready'
@@ -2133,6 +2142,127 @@ function executionRouteForRecord(record: PersonalOpsLiveRecord, laneId: Personal
   return personalOpsReadRunRoute(laneId, record.id);
 }
 
+function personalOpsRoutePacket(options: {
+  readonly id: string;
+  readonly label: string;
+  readonly effect: PersonalOpsRoutePacket['effect'];
+  readonly modelRoute: string;
+  readonly requiresConfirmation: boolean;
+  readonly policy: string;
+}): PersonalOpsRoutePacket {
+  return {
+    id: options.id,
+    label: options.label,
+    effect: options.effect,
+    modelRoute: options.modelRoute,
+    requiresConfirmation: options.requiresConfirmation,
+    policy: options.policy,
+  };
+}
+
+function savedReviewArtifactId(savedReviewArtifact: Record<string, unknown> | null): string {
+  const value = savedReviewArtifact?.artifactId;
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function personalOpsReadNextRoutes(options: {
+  readonly lane: PersonalOpsLane;
+  readonly runRoute: string;
+  readonly savedReviewArtifact: Record<string, unknown> | null;
+}): Record<string, PersonalOpsRoutePacket> {
+  const artifactId = savedReviewArtifactId(options.savedReviewArtifact);
+  const artifactRoute = artifactId ? `agent_artifacts show artifactId:"${artifactId}" includeContent:true` : '';
+  const localReviewRoute = artifactRoute || 'main Agent response';
+  const routes: Record<string, PersonalOpsRoutePacket> = {
+    lane: personalOpsRoutePacket({
+      id: 'inspect-personal-ops-lane',
+      label: `Inspect ${options.lane.label} lane`,
+      effect: 'read-only',
+      modelRoute: `personal_ops action:"lane" laneId:"${options.lane.id}" includeParameters:true`,
+      requiresConfirmation: false,
+      policy: 'Reopen the lane to inspect available records, connector readiness, and workflow cards before the next personal-data action.',
+    }),
+    queue: personalOpsRoutePacket({
+      id: 'inspect-personal-ops-queue',
+      label: `Inspect ${options.lane.label} review queue`,
+      effect: 'read-only',
+      modelRoute: `personal_ops action:"queue" query:"${options.lane.id}" includeParameters:true`,
+      requiresConfirmation: false,
+      policy: 'The queue is read-only; it lists saved review artifacts, fresh read routes, and follow-up boundaries without executing connectors.',
+    }),
+    refresh: personalOpsRoutePacket({
+      id: 'refresh-live-provider-read',
+      label: 'Refresh this provider read',
+      effect: 'read-only',
+      modelRoute: options.runRoute,
+      requiresConfirmation: true,
+      policy: 'Refreshing reads current provider data only after the user supplies current fields and confirms the bounded read; prior input values are not stored.',
+    }),
+  };
+  if (artifactRoute) {
+    routes.artifact = personalOpsRoutePacket({
+      id: 'reopen-saved-review-artifact',
+      label: 'Reopen saved review cards',
+      effect: 'read-only',
+      modelRoute: artifactRoute,
+      requiresConfirmation: false,
+      policy: 'Saved artifacts contain redacted review cards and bounded previews only; inspect them before local drafting, reminders, or any separate confirmed effect.',
+    });
+    routes.savedQueue = personalOpsRoutePacket({
+      id: 'find-saved-review-queue-records',
+      label: 'Find saved review queue records',
+      effect: 'read-only',
+      modelRoute: `personal_ops action:"queue" query:"${artifactId}" includeParameters:true`,
+      requiresConfirmation: false,
+      policy: 'Filter the read-only queue to the newly saved artifact so the next action starts from durable redacted cards instead of raw provider output.',
+    });
+  }
+  if (options.lane.id === 'calendar') {
+    routes.localReminderDraft = personalOpsRoutePacket({
+      id: 'draft-local-reminder-from-review',
+      label: 'Draft reminder locally from review cards',
+      effect: 'local-only',
+      modelRoute: localReviewRoute,
+      requiresConfirmation: false,
+      policy: 'Draft timing and message text in the Agent transcript first; creating a reminder is a separate confirmed schedule route.',
+    });
+    routes.createReminderBoundary = personalOpsRoutePacket({
+      id: 'create-reminder-confirmed-boundary',
+      label: 'Create reminder after review',
+      effect: 'confirmed-effect',
+      modelRoute: 'schedule action:"remind" message:"..." at:"..." confirm:true explicitUserRequest:"..."',
+      requiresConfirmation: true,
+      policy: 'Create one reminder only after the user reviews exact message text and timing.',
+    });
+    routes.calendarEditBoundary = personalOpsRoutePacket({
+      id: 'inspect-calendar-edit-boundary',
+      label: 'Inspect calendar edit route',
+      effect: 'confirmed-effect',
+      modelRoute: 'personal_ops action:"intake" query:"edit saved calendar event" includeParameters:true',
+      requiresConfirmation: true,
+      policy: 'Calendar edits, RSVP, reschedule, and deletes require a separate inspected connector route and explicit confirmation.',
+    });
+  } else {
+    routes.localDraft = personalOpsRoutePacket({
+      id: 'draft-local-reply-from-review',
+      label: 'Draft reply locally from review cards',
+      effect: 'local-only',
+      modelRoute: localReviewRoute,
+      requiresConfirmation: false,
+      policy: 'Drafting stays local in the Agent transcript and does not send, label, archive, move, or delete provider records.',
+    });
+    routes.sendBoundary = personalOpsRoutePacket({
+      id: 'inspect-send-boundary',
+      label: 'Inspect send route after review',
+      effect: 'confirmed-effect',
+      modelRoute: 'personal_ops action:"intake" query:"send reviewed reply from saved inbox review" includeParameters:true',
+      requiresConfirmation: true,
+      policy: 'Sending requires a write-like inbox connector route plus explicit confirmation of exact recipients and body.',
+    });
+  }
+  return routes;
+}
+
 function summarizeRunRecord(record: PersonalOpsLiveRecord, lane: PersonalOpsLane, includeParameters: boolean): Record<string, unknown> {
   return {
     laneId: lane.id,
@@ -3093,6 +3223,7 @@ export async function runPersonalOpsRead(context: CommandContext, args: AgentHar
         title: readRunControlString(args.fields, 'artifactTitle'),
       })
       : null;
+    const nextRoutes = personalOpsReadNextRoutes({ lane, runRoute, savedReviewArtifact });
     return {
       status: 'executed',
       record: recordSummary,
@@ -3105,6 +3236,7 @@ export async function runPersonalOpsRead(context: CommandContext, args: AgentHar
       },
       reviewRecords,
       ...(savedReviewArtifact ? { savedReviewArtifact } : {}),
+      nextRoutes,
       followUp: [
         'Summarize or draft only in the Agent transcript.',
         'Ask for explicit confirmation before any send, label, archive, delete, calendar edit, RSVP, or reschedule route.',

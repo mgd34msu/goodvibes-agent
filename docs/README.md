@@ -37,7 +37,7 @@ Agent-owned model tools expose Agent-controlled product surfaces plus operator/a
 - `computer` for direct browser/PWA, browser/desktop-control, setup, MCP, and confirmed visible browser cockpit handoffs; `device` remains the companion/mobile/voice/TTS/provider route while lower-level pairing/media/UI harness modes remain compatibility/detail routes.
 - `agent_knowledge` and `agent_knowledge_ingest` for isolated Agent Knowledge.
 - `vibe` for direct VIBE.md personality status/show, confirmed project or global VIBE.md initialization, and confirmed VIBE.md-to-persona import.
-- `personal_ops` for direct daily briefing, readiness status, request intake, lane inspection, and one confirmed read-only inbox/calendar connector operation while lower-level harness modes remain available for detailed inspection.
+- `personal_ops` for direct daily briefing, readiness status, request intake, lane inspection, and one confirmed read-only inbox/calendar connector operation with structured next routes while lower-level harness modes remain available for detailed inspection.
 - `agent_local_registry` and `agent_learning_consolidation` for Agent-local memory, notes, personas, skills, bundles, routines, confirmed duplicate-consolidation phases with receipts, and `agent_harness` learning-curator modes for ranked review/setup/stale, duplicate-consolidation, reviewed-note, completed-work, completed-research, and saved-session memory/behavior proposals.
 - `agent_work_plan` for visible local work-plan state and confirmed dispatch of approved plan items to visible agents, with linked receipts surfaced in orchestration closeout.
 - `agent_operator_briefing` and `agent_operator_action` for public connected operator state and exact confirmed actions.
