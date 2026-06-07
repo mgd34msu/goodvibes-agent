@@ -195,10 +195,10 @@
       "evidence": "src/agent/autonomy-schedule.ts; src/tools/agent-autonomy-schedule-tool.ts; src/tools/agent-harness-autonomy-intake.ts; src/tools/agent-harness-autonomy-queue.ts; docs/tools-and-commands.md",
       "action": "Keep autonomous schedules distinct from reminders and routine promotion, with success criteria and confirmation required before schedule creation.",
       "quality": {
-        "capabilityCoverage": "Covers natural-language recurring Agent work through confirmed schedules.create payloads, explicit task and success criteria capture, safe execution policy, delivery options, and visible queue/intake routes.",
-        "userAccess": "The user can ask for ongoing work in normal language, inspect missing fields through autonomy intake, and supervise created schedules through the schedule workspace and autonomy queue.",
-        "modelAccess": "agent_autonomy_schedule exposes the confirmed creation route; agent_harness mode:\"autonomy_intake\", mode:\"autonomy_queue\", mode:\"autonomy_queue_item\", mode:\"tools\", and mode:\"tool\" expose route selection, missing fields, visible webhook/event-trigger setup intake, queue cards, normalized live-record controls, exact confirmed research-run checkpoint/pause/resume/cancel routes, exact confirmed host cancel/retry/edit routes, and tool schema discovery.",
-        "safetyBoundary": "Schedule creation requires confirm:true, explicitUserRequest, task, cadence, and successCriteria; auto-approval and unsafe external content remain disabled in the generated schedule policy.",
+        "capabilityCoverage": "Covers natural-language recurring Agent work through confirmed schedules.create payloads, explicit task and success criteria capture, safe execution policy, delivery options, visible queue/intake routes, and trigger workflow posture for time-based wakeups/schedules, incoming webhook/event watchers, Gmail/email connector-gated triggers, and control-plane event streams.",
+        "userAccess": "The user can ask for ongoing work in normal language, inspect missing fields and trigger posture through autonomy intake, and supervise created schedules through the schedule workspace and autonomy queue.",
+        "modelAccess": "agent_autonomy_schedule exposes the confirmed creation route; agent_harness mode:\"autonomy_intake\", mode:\"autonomy_queue\", mode:\"autonomy_queue_item\", mode:\"tools\", and mode:\"tool\" expose route selection, missing fields, triggerWorkflowSummary, triggerWorkflows with ready/attention/setup-needed/not-published status, published watchers.create/list/run/start/stop posture, visible webhook/event-trigger setup intake, queue cards, normalized live-record controls, exact confirmed research-run checkpoint/pause/resume/cancel routes, exact confirmed host cancel/retry/edit routes, and tool schema discovery.",
+        "safetyBoundary": "Schedule creation requires confirm:true, explicitUserRequest, task, cadence, and successCriteria; watcher creation is an admin connected-host mutation requiring trusted source/scope, task or run target, success criteria, confirm:true, and explicitUserRequest; auto-approval and unsafe external content remain disabled in the generated schedule policy.",
         "releaseEvidence": "Readiness evidence cites the Agent autonomy schedule implementation, harness intake/queue wiring, package docs, and focused tool tests."
       }
     },
@@ -450,10 +450,10 @@
       "evidence": "goodvibes-connected-host: automation runtime and operator API contract inventory reviewed under runtime-contract-review; docs/tools-and-commands.md",
       "action": "Agent should expose read-only status and narrow confirmed actions, not host lifecycle ownership.",
       "quality": {
-        "capabilityCoverage": "Covers durable jobs, runs, schedules, watchers, deliveries, route bindings, and service lifecycle through connected-host runtime ownership.",
-        "userAccess": "The user can inspect automation state and run narrow confirmed actions from Agent without managing host services.",
-        "modelAccess": "agent_operator_briefing, agent_operator_action, and agent_harness connected-host capability reports expose automation status/action boundaries to the model.",
-        "safetyBoundary": "Agent does not create broad host automation definitions or lifecycle operations from chat.",
+        "capabilityCoverage": "Covers durable jobs, runs, schedules, watchers, deliveries, route bindings, and service lifecycle through connected-host runtime ownership, including published watcher create/list/run/start/stop operator methods.",
+        "userAccess": "The user can inspect automation state, route trigger setup through autonomy intake, and run narrow confirmed actions from Agent without managing host services.",
+        "modelAccess": "agent_operator_briefing, agent_operator_action, agent_harness mode:\"autonomy_intake\", mode:\"operator_methods\", mode:\"operator_method\", and connected-host capability reports expose automation status/action/watcher boundaries to the model.",
+        "safetyBoundary": "Agent does not create broad host automation definitions or lifecycle operations from chat; watcher creation stays an admin confirmed operator method with trusted source/scope and explicit user request.",
         "releaseEvidence": "Readiness evidence cites connected-host automation inventory and Agent tools docs, with live certification covering external automation outcomes."
       }
     },

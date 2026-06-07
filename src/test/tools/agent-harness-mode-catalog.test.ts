@@ -99,6 +99,12 @@ describe('agent_harness mode catalog', () => {
     expect(ids).toContain('personal_ops_intake');
     expect(ids).toContain('personal_ops_lane');
     expect(personalOps.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+
+    const trigger = listHarnessModes({ query: 'incoming webhook watcher trigger', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    expect(trigger.modes.map((mode) => mode.id)).toContain('autonomy_intake');
+    expect(trigger.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
   test('finds memory posture by recall and external memory provider wording', () => {

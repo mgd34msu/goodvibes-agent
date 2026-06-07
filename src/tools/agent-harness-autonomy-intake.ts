@@ -1,3 +1,4 @@
+import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -24,6 +25,27 @@ interface AutonomyRouteCandidate {
   readonly requiresConfirmation: boolean;
   readonly missingFields?: readonly string[];
   readonly userQuestion?: string;
+  readonly setupRoutes?: readonly string[];
+  readonly triggerWorkflowId?: string;
+  readonly policy?: string;
+}
+
+type TriggerWorkflowStatus = 'ready' | 'attention' | 'setup-needed' | 'not-published';
+
+interface TriggerWorkflow {
+  readonly id: string;
+  readonly label: string;
+  readonly status: TriggerWorkflowStatus;
+  readonly userOutcome: string;
+  readonly summary: string;
+  readonly nextStep: string;
+  readonly capabilities: readonly string[];
+  readonly requiredFields: readonly string[];
+  readonly modelRoute: string;
+  readonly inspectRoute: string;
+  readonly setupRoutes: readonly string[];
+  readonly evidence: Record<string, unknown>;
+  readonly policy: string;
 }
 
 function readString(value: unknown): string {
@@ -32,6 +54,39 @@ function readString(value: unknown): string {
 
 function hasAny(text: string, tokens: readonly string[]): boolean {
   return tokens.some((token) => text.includes(token));
+}
+
+function operatorMethodIds(): ReadonlySet<string> {
+  const methods = getOperatorContract().operator?.methods;
+  if (!Array.isArray(methods)) return new Set();
+  return new Set(methods.map((method) => (
+    method && typeof method === 'object' && 'id' in method && typeof method.id === 'string'
+      ? method.id
+      : ''
+  )).filter(Boolean));
+}
+
+function triggerWorkflowSummary(workflows: readonly TriggerWorkflow[]): Record<string, unknown> {
+  return {
+    total: workflows.length,
+    ready: workflows.filter((workflow) => workflow.status === 'ready').length,
+    attention: workflows.filter((workflow) => workflow.status === 'attention').length,
+    setupNeeded: workflows.filter((workflow) => workflow.status === 'setup-needed').length,
+    notPublished: workflows.filter((workflow) => workflow.status === 'not-published').length,
+    primaryNextStep: workflows.find((workflow) => workflow.status !== 'ready')?.nextStep
+      ?? 'Trigger routes are published; require explicit source, scope, task, success criteria, and confirmation before creating anything.',
+  };
+}
+
+function describeTriggerWorkflow(workflow: TriggerWorkflow, includeParameters: boolean): Record<string, unknown> {
+  if (includeParameters) return { ...workflow };
+  return {
+    workflowId: workflow.id,
+    label: workflow.label,
+    status: workflow.status,
+    summary: previewHarnessText(workflow.summary),
+    modelRoute: workflow.modelRoute,
+  };
 }
 
 function normalizeInterval(amount: string, rawUnit: string): string {
@@ -116,6 +171,132 @@ function asksForEventTrigger(lower: string): boolean {
   ]);
 }
 
+function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): readonly TriggerWorkflow[] {
+  const methodIds = operatorMethodIds();
+  const schedulesCreatePublished = methodIds.has('schedules.create');
+  const schedulesListPublished = methodIds.has('schedules.list');
+  const watcherCreatePublished = methodIds.has('watchers.create');
+  const watcherListPublished = methodIds.has('watchers.list');
+  const watcherRunPublished = methodIds.has('watchers.run');
+  const watcherStartStopPublished = methodIds.has('watchers.start') && methodIds.has('watchers.stop');
+  const controlEventsPublished = methodIds.has('control.events.stream') || methodIds.has('control.events.catalog');
+  const scheduleMissing = schedule.missing.length > 0 ? schedule.missing : schedule.kind ? [] : ['scheduleKind', 'scheduleValue'];
+  const scheduleReady = schedulesCreatePublished && schedule.kind !== undefined && scheduleMissing.length === 0;
+  const watcherReady = watcherCreatePublished && watcherListPublished;
+  const shortRequest = previewHarnessText(request || 'requested autonomous work', 96).replace(/"/g, "'");
+
+  return [
+    {
+      id: 'time-based-wakeup-schedule',
+      label: 'Time-based wakeup or schedule',
+      status: scheduleReady ? 'ready' : schedulesCreatePublished ? 'attention' : 'setup-needed',
+      userOutcome: 'Run autonomous work on an exact at/every/cron cadence without making the user understand scheduler internals.',
+      summary: scheduleReady
+        ? 'The request includes an exact cadence and the connected host publishes schedules.create.'
+        : schedulesCreatePublished
+          ? 'The schedule route is published, but this request still needs an exact cadence before creation.'
+          : 'The connected host does not publish schedules.create in the current SDK contract.',
+      nextStep: scheduleReady
+        ? 'Create only through agent_autonomy_schedule with confirm:true and explicit success criteria.'
+        : 'Ask for the exact ISO time, every interval, or cron expression before offering schedule creation.',
+      capabilities: ['cron', 'at', 'every', 'wakeups', 'scheduled autonomous work'],
+      requiredFields: ['task', 'successCriteria', ...scheduleMissing],
+      modelRoute: `agent_autonomy_schedule task:"${shortRequest}" successCriteria:"..." scheduleKind:"${schedule.kind ?? 'at|every|cron'}" scheduleValue:"${schedule.value ?? '...'}" confirm:true explicitUserRequest:"..."`,
+      inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+      setupRoutes: [
+        'agent_harness mode:"operator_method" methodId:"schedules.create"',
+        'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+      ],
+      evidence: {
+        schedulesCreatePublished,
+        schedulesListPublished,
+        detectedScheduleKind: schedule.kind ?? null,
+        detectedScheduleValue: schedule.value ?? null,
+        missingFields: scheduleMissing,
+      },
+      policy: 'Schedule creation is a confirmed connected-host mutation; vague recurring intent stays a question, not an inferred background job.',
+    },
+    {
+      id: 'incoming-webhook-or-watcher',
+      label: 'Incoming webhook or watcher trigger',
+      status: watcherReady ? 'ready' : watcherCreatePublished ? 'attention' : 'setup-needed',
+      userOutcome: 'Start visible work from a trusted incoming webhook, file/source watcher, or explicit event source.',
+      summary: watcherReady
+        ? 'The SDK operator contract publishes watcher create/list routes for trusted event-trigger setup.'
+        : watcherCreatePublished
+          ? 'Watcher creation is published, but watcher listing/readiness posture is incomplete.'
+          : 'Watcher creation is not published by the current connected-host contract.',
+      nextStep: watcherReady
+        ? 'Inspect watchers.create, then create only after the user provides source scope, run target, success criteria, and confirmation.'
+        : 'Use operator method discovery and do not claim incoming trigger setup until watcher routes are published.',
+      capabilities: ['incoming webhook', 'watcher', 'event trigger', 'source trigger', 'github webhook'],
+      requiredFields: ['trusted trigger source', 'source scope', 'task or run target', 'success criteria', 'confirmation'],
+      modelRoute: 'agent_operator_method methodId:"watchers.create" confirm:true explicitUserRequest:"..."',
+      inspectRoute: 'agent_harness mode:"operator_method" methodId:"watchers.create"',
+      setupRoutes: [
+        'agent_harness mode:"operator_methods" query:"watchers"',
+        'agent_harness mode:"operator_method" methodId:"watchers.list"',
+        'agent_harness mode:"autonomy_queue"',
+      ],
+      evidence: {
+        watcherCreatePublished,
+        watcherListPublished,
+        watcherRunPublished,
+        watcherStartStopPublished,
+      },
+      policy: 'Incoming triggers are admin connected-host mutations. They require a trusted source boundary, explicit run scope, and user confirmation before creation.',
+    },
+    {
+      id: 'gmail-or-email-trigger',
+      label: 'Gmail or email-triggered workflow',
+      status: watcherReady ? 'attention' : 'setup-needed',
+      userOutcome: 'React to inbox changes only through a configured connector and a permission-scoped watcher/source boundary.',
+      summary: watcherReady
+        ? 'Watcher routes exist, but email/Gmail automation still needs a configured Personal Ops connector and reviewed source scope.'
+        : 'Email-triggered work needs watcher routes plus a configured inbox connector before Agent can offer it.',
+      nextStep: 'Inspect Personal Ops inbox connector readiness before creating any watcher for email-triggered work.',
+      capabilities: ['gmail trigger', 'email trigger', 'inbox watcher', 'connector event'],
+      requiredFields: ['configured inbox connector', 'trusted mailbox/query scope', 'task to run', 'success criteria', 'confirmation'],
+      modelRoute: 'agent_harness mode:"personal_ops_lane" laneId:"inbox"',
+      inspectRoute: 'agent_harness mode:"personal_ops_lane" laneId:"inbox"',
+      setupRoutes: [
+        'agent_harness mode:"personal_ops" query:"inbox gmail email"',
+        'agent_harness mode:"operator_method" methodId:"watchers.create"',
+      ],
+      evidence: {
+        watcherCreatePublished,
+        watcherListPublished,
+        personalOpsRoutePublished: true,
+      },
+      policy: 'Agent does not poll or read mail silently. Email-triggered work needs connector setup, scoped query/source details, and confirmation.',
+    },
+    {
+      id: 'control-plane-event-stream',
+      label: 'Control-plane event stream',
+      status: controlEventsPublished ? 'ready' : 'not-published',
+      userOutcome: 'Use daemon control-plane events for status-aware supervision without inventing hidden background work.',
+      summary: controlEventsPublished
+        ? 'The operator contract publishes control event catalog or stream routes for read-only supervision.'
+        : 'Control-plane event stream routes are not published in the current SDK contract.',
+      nextStep: controlEventsPublished
+        ? 'Use read-only control event routes for supervision, then route mutations through exact confirmed operator methods.'
+        : 'Keep supervision on autonomy_queue until control event stream routes are published.',
+      capabilities: ['control events', 'event stream', 'always-on gateway supervision'],
+      requiredFields: ['event scope', 'supervision route'],
+      modelRoute: 'agent_harness mode:"operator_methods" query:"control events stream"',
+      inspectRoute: 'agent_harness mode:"operator_methods" query:"control events"',
+      setupRoutes: [
+        'agent_harness mode:"autonomy_queue"',
+        'agent_harness mode:"operator_methods" query:"control events"',
+      ],
+      evidence: {
+        controlEventsPublished,
+      },
+      policy: 'Read-only event streams can inform supervision; they do not authorize new effects without the owning confirmed route.',
+    },
+  ];
+}
+
 function reminderRoute(request: string, schedule: ScheduleDetection): string {
   const message = previewHarnessText(request, 72).replace(/"/g, "'");
   const kind = schedule.kind ?? 'at|every|cron';
@@ -192,19 +373,24 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
   if (asksForTrigger) {
     candidates.push({
       id: 'visible-event-trigger-intake',
-      label: 'Review visible webhook or event-trigger setup',
+      label: 'Create or review a visible webhook or event-trigger watcher',
       confidence: 'high',
       why: 'The request asks for work to start from an external event, webhook, watcher, Gmail, or inbound message instead of a time-based schedule.',
-      modelRoute: 'agent_harness mode:"operator_methods" query:"automation webhook watcher trigger source"',
-      inspectRoute: 'agent_harness mode:"autonomy_queue"',
-      requiresConfirmation: false,
+      modelRoute: 'agent_operator_method methodId:"watchers.create" confirm:true explicitUserRequest:"..."',
+      inspectRoute: 'agent_harness mode:"operator_method" methodId:"watchers.create"',
+      requiresConfirmation: true,
       missingFields: [
         'trusted trigger source and scope',
-        'connected-host trigger create/list route',
         'task to run',
         'success criteria',
       ],
       userQuestion: 'Which trusted event source should be allowed to trigger this work, and what should count as a successful run?',
+      setupRoutes: [
+        'agent_harness mode:"operator_methods" query:"watchers"',
+        'agent_harness mode:"autonomy_queue"',
+      ],
+      triggerWorkflowId: 'incoming-webhook-or-watcher',
+      policy: 'Watcher creation is an admin connected-host mutation and must stay source-scoped, visible, and confirmed.',
     });
   }
 
@@ -318,6 +504,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
 export function autonomyIntakeSummary(_context: CommandContext, args: AgentHarnessAutonomyIntakeArgs): Record<string, unknown> {
   const request = readString(args.query) || readString(args.target);
   if (!request) {
+    const workflows = buildTriggerWorkflows('', { missing: [], notes: [] });
     return {
       status: 'missing_request',
       usage: 'Use mode:"autonomy_intake" with query:"<ongoing work request>". This mode is read-only and returns the safest confirmed route.',
@@ -327,15 +514,20 @@ export function autonomyIntakeSummary(_context: CommandContext, args: AgentHarne
         'Cancel the running automation job.',
       ],
       queueRoute: 'agent_harness mode:"autonomy_queue"',
+      triggerWorkflowSummary: triggerWorkflowSummary(workflows),
     };
   }
+  const schedule = detectSchedule(request);
   const candidates = buildCandidates(request);
   const preferred = candidates[0]!;
+  const workflows = buildTriggerWorkflows(request, schedule);
   return {
     status: 'ready',
     request: previewHarnessText(request, args.includeParameters === true ? 220 : 120),
     preferred,
     candidates: candidates.slice(0, args.includeParameters === true ? 8 : 4),
+    triggerWorkflowSummary: triggerWorkflowSummary(workflows),
+    triggerWorkflows: workflows.map((workflow) => describeTriggerWorkflow(workflow, args.includeParameters === true)),
     queueRoute: 'agent_harness mode:"autonomy_queue"',
     policy: 'Autonomy intake is read-only. It selects visible routes and missing fields; creation, approval, run control, delegation, and delivery still require the returned confirmed route plus explicit user request.',
   };

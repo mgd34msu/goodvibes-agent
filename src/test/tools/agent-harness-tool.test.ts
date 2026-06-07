@@ -3535,18 +3535,42 @@ describe('agent_harness tool', () => {
           readonly requiresConfirmation: boolean;
           readonly missingFields?: readonly string[];
           readonly userQuestion?: string;
+          readonly setupRoutes?: readonly string[];
+          readonly triggerWorkflowId?: string;
         };
+        readonly triggerWorkflowSummary: {
+          readonly ready: number;
+          readonly attention: number;
+        };
+        readonly triggerWorkflows: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly requiredFields: readonly string[];
+          readonly evidence: Record<string, unknown>;
+          readonly policy: string;
+        }[];
       }>(fixture, {
         mode: 'autonomy_intake',
         query: 'When a webhook arrives from billing, run a triage brief.',
         includeParameters: true,
       });
       expect(trigger.preferred.id).toBe('visible-event-trigger-intake');
-      expect(trigger.preferred.modelRoute).toContain('operator_methods');
-      expect(trigger.preferred.modelRoute).toContain('webhook');
-      expect(trigger.preferred.requiresConfirmation).toBe(false);
+      expect(trigger.preferred.modelRoute).toContain('watchers.create');
+      expect(trigger.preferred.requiresConfirmation).toBe(true);
       expect(trigger.preferred.missingFields?.join('\n')).toContain('trusted trigger source');
       expect(trigger.preferred.userQuestion).toContain('trusted event source');
+      expect(trigger.preferred.setupRoutes?.join('\n')).toContain('watchers');
+      expect(trigger.preferred.triggerWorkflowId).toBe('incoming-webhook-or-watcher');
+      expect(trigger.triggerWorkflowSummary.ready).toBeGreaterThanOrEqual(2);
+      expect(trigger.triggerWorkflowSummary.attention).toBeGreaterThanOrEqual(1);
+      const watcher = trigger.triggerWorkflows.find((workflow) => workflow.id === 'incoming-webhook-or-watcher');
+      expect(watcher?.status).toBe('ready');
+      expect(watcher?.evidence.watcherCreatePublished).toBe(true);
+      expect(watcher?.requiredFields.join('\n')).toContain('trusted trigger source');
+      expect(watcher?.policy).toContain('Incoming triggers are admin connected-host mutations');
+      const gmail = trigger.triggerWorkflows.find((workflow) => workflow.id === 'gmail-or-email-trigger');
+      expect(gmail?.status).toBe('attention');
+      expect(gmail?.policy).toContain('does not poll or read mail silently');
     } finally {
       fixture.cleanup();
     }
