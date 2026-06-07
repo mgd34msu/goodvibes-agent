@@ -13,6 +13,7 @@ import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import type { Line } from '../../types/grid.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 
@@ -167,7 +168,40 @@ function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
   };
 }
 
-function liveCommandContext(options: { readonly includePersonalOpsNote?: boolean } = {}): CommandContext {
+function reviewerHandoffArtifact(input: {
+  readonly id: string;
+  readonly createdAt: number;
+  readonly handoffId: string;
+  readonly comparisonId: string;
+  readonly sourceArtifactId: string;
+  readonly sourceKind: string;
+  readonly relatedArtifactIds: readonly string[];
+}): ArtifactDescriptor {
+  return {
+    id: input.id,
+    kind: 'data',
+    mimeType: 'text/markdown',
+    filename: `blind-model-comparison-handoff-${input.handoffId}.md`,
+    sizeBytes: 1024,
+    sha256: `sha-${input.id}`,
+    createdAt: input.createdAt,
+    acquisitionMode: 'inline-data',
+    fetchMode: 'not-applicable',
+    metadata: {
+      purpose: 'agent-model-compare-handoff',
+      handoffId: input.handoffId,
+      comparisonId: input.comparisonId,
+      sourceArtifactId: input.sourceArtifactId,
+      sourceKind: input.sourceKind,
+      relatedArtifactIds: input.relatedArtifactIds,
+    },
+  };
+}
+
+function liveCommandContext(options: {
+  readonly includePersonalOpsNote?: boolean;
+  readonly reviewerHandoffs?: readonly ArtifactDescriptor[];
+} = {}): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const tokenDir = join(root, '.goodvibes', 'daemon');
@@ -307,6 +341,9 @@ function liveCommandContext(options: { readonly includePersonalOpsNote?: boolean
           { id: 'fal', label: 'Fal', capabilities: ['generate'] },
         ],
       },
+      ...(options.reviewerHandoffs
+        ? { artifactStore: { list: (limit = 100) => options.reviewerHandoffs!.slice(0, limit) } }
+        : {}),
     },
   } as unknown as CommandContext;
 }
@@ -468,9 +505,48 @@ describe('renderAgentWorkspace', () => {
     workspace.activateSelected();
     output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Diff Reviewer Handoffs');
-    expect(output).toContain('Left handoff *');
+    expect(output).toContain('Left handoff');
+    expect(output).toContain('No complete handoff pair selected; submitting lists recent saved handoffs.');
     expect(output).toContain('Section jump');
     expect(output).toContain('Section jumps: all, metadata, policy, related, comparison.');
+  });
+
+  test('prefills reviewer handoff diff form from recent artifact metadata', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({
+      reviewerHandoffs: [
+        reviewerHandoffArtifact({
+          id: 'artifact-newer',
+          createdAt: 1_700_000_010_000,
+          handoffId: 'hnd_newer',
+          comparisonId: 'cmp_launch',
+          sourceArtifactId: 'artifact-source-2',
+          sourceKind: 'comparison',
+          relatedArtifactIds: ['doc-export-2', 'brief-2'],
+        }),
+        reviewerHandoffArtifact({
+          id: 'artifact-older',
+          createdAt: 1_700_000_000_000,
+          handoffId: 'hnd_older',
+          comparisonId: 'cmp_launch',
+          sourceArtifactId: 'artifact-source-1',
+          sourceKind: 'judgment',
+          relatedArtifactIds: ['doc-export-1'],
+        }),
+      ],
+    }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
+
+    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Reviewer handoffs: 2 saved; diff defaults artifact-older -> artifact-newer.');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-diff-handoffs');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Current diff: artifact-older -> artifact-newer.');
+    expect(output).toContain('Recent choices: artifact-newer');
+    expect(output).toContain('artifact-older (judgment; related 1).');
+    expect(output).toContain('Older handoff hnd_older');
   });
 
   test('renders Research with source report artifacts and a confirmed save form', () => {

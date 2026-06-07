@@ -1,5 +1,6 @@
 import { basename, sep } from 'node:path';
 import { listAvailableSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
+import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
 import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
@@ -28,6 +29,7 @@ import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
+  AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceResearchRunSummary,
   AgentWorkspaceRoutineScheduleReceiptSummary,
   AgentWorkspaceRuntimeProfileItem,
@@ -183,6 +185,38 @@ function summarizeResearchRunItem(
     updatedAt: run.updatedAt,
     ...(run.note ? { note: run.note } : {}),
     ...(run.reportArtifactId ? { reportArtifactId: run.reportArtifactId } : {}),
+  };
+}
+
+function readArtifactMetadataString(metadata: Readonly<Record<string, unknown>>, key: string): string {
+  const value = metadata[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readArtifactMetadataStringList(metadata: Readonly<Record<string, unknown>>, key: string): readonly string[] {
+  const value = metadata[key];
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+}
+
+function isReviewerHandoffArtifact(artifact: ArtifactDescriptor): boolean {
+  const purpose = readArtifactMetadataString(artifact.metadata, 'purpose');
+  if (purpose === 'agent-model-compare-handoff') return true;
+  if (purpose.length > 0) return false;
+  return (artifact.filename ?? '').startsWith('blind-model-comparison-handoff-');
+}
+
+function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWorkspaceRecentReviewerHandoffArtifact {
+  const metadata = artifact.metadata;
+  return {
+    id: artifact.id,
+    filename: artifact.filename ?? '(unnamed handoff artifact)',
+    createdAt: artifact.createdAt,
+    handoffId: readArtifactMetadataString(metadata, 'handoffId') || 'unknown-handoff',
+    comparisonId: readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison',
+    sourceArtifactId: readArtifactMetadataString(metadata, 'sourceArtifactId') || '(missing source)',
+    sourceKind: readArtifactMetadataString(metadata, 'sourceKind') || 'unknown',
+    relatedArtifactCount: readArtifactMetadataStringList(metadata, 'relatedArtifactIds').length,
   };
 }
 
@@ -390,6 +424,20 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       };
     } catch {
       return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0, items: [] };
+    }
+  })();
+  const recentReviewerHandoffs = (() => {
+    try {
+      const artifacts = [...(context.platform?.artifactStore?.list?.(50) ?? [])];
+      const handoffs = artifacts
+        .filter(isReviewerHandoffArtifact)
+        .sort((left, right) => right.createdAt - left.createdAt);
+      return {
+        count: handoffs.length,
+        items: handoffs.slice(0, 6).map(summarizeReviewerHandoffArtifact),
+      };
+    } catch {
+      return { count: 0, items: [] };
     }
   })();
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
@@ -646,6 +694,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     researchRunBlockedCount: researchRunSnapshot.blocked,
     researchRunTerminalCount: researchRunSnapshot.terminal,
     researchRuns: researchRunSnapshot.items,
+    recentReviewerHandoffArtifactCount: recentReviewerHandoffs.count,
+    recentReviewerHandoffArtifacts: recentReviewerHandoffs.items,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

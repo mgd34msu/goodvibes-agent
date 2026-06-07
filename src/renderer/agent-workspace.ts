@@ -292,6 +292,28 @@ function automationNextActionLine(snapshot: AgentWorkspaceRuntimeSnapshot): Cont
   return { text: 'Next automation action: Create a reminder, or create/import a routine before recurring workflow promotion.', fg: PALETTE.warn, bold: true };
 }
 
+function reviewerHandoffArtifactLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
+  const recent = snapshot.recentReviewerHandoffArtifacts;
+  if (recent.length >= 2) {
+    const newer = recent[0]!;
+    const older = recent[1]!;
+    return {
+      text: `Reviewer handoffs: ${snapshot.recentReviewerHandoffArtifactCount} saved; diff defaults ${older.id} -> ${newer.id}.`,
+      fg: PALETTE.good,
+    };
+  }
+  if (recent.length === 1) {
+    return {
+      text: `Reviewer handoffs: 1 saved (${recent[0]!.id}); create one more handoff or leave diff ids blank to list choices.`,
+      fg: PALETTE.info,
+    };
+  }
+  return {
+    text: 'Reviewer handoffs: none saved yet; create a comparison handoff before diffing or archiving.',
+    fg: PALETTE.muted,
+  };
+}
+
 function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
   const base: ContextLine[] = [];
@@ -388,6 +410,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     base.push(
       { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
       { text: `Media: ${mediaReady}/${snapshot.mediaProviderCount} ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
+      reviewerHandoffArtifactLine(snapshot),
       { text: 'Files: attach, export, inspect, ingest reviewed sources, or generate media.', fg: PALETTE.good },
       { text: 'Knowledge ingest and media generation require explicit actions.', fg: PALETTE.warn },
     );
@@ -417,6 +440,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Document route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
       { text: `Files: attach, paste, source ingest, and export; artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}.`, fg: PALETTE.good },
       { text: `Media artifacts: ${mediaReady}/${snapshot.mediaProviderCount} providers ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
+      reviewerHandoffArtifactLine(snapshot),
       { text: 'Versioned drafts, review comments, AI suggestion review, artifact attachment/insertion, artifact browser, and Knowledge promotion are available.', fg: PALETTE.good },
       { text: 'Reviewer-readiness preflight, compare artifact reuse, review/side-by-side/judgment, filtered analytics/synthesis, handoff diff section jumps, export/handoff/archive, and route update are available.', fg: PALETTE.good },
       { text: 'Saved artifact export-to-file, package, and ZIP archive export are available.', fg: PALETTE.good },
@@ -533,7 +557,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
   return base;
 }
 
-function editorContextLines(editor: AgentWorkspaceLocalEditor): ContextLine[] {
+function editorContextLines(editor: AgentWorkspaceLocalEditor, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   const selected = editor.fields[editor.selectedFieldIndex];
   const lines: ContextLine[] = [
     { text: editor.title, fg: PALETTE.title, bold: true },
@@ -547,10 +571,22 @@ function editorContextLines(editor: AgentWorkspaceLocalEditor): ContextLine[] {
     );
   }
   if (editor.kind === 'model-compare-handoff-diff') {
+    const left = editor.fields.find((field) => field.id === 'leftArtifactId')?.value.trim();
+    const right = editor.fields.find((field) => field.id === 'rightArtifactId')?.value.trim();
     lines.push(
       { text: 'Split view: compare left and right reviewer handoff artifacts without changing model routing.', fg: PALETTE.good },
       { text: 'Section jumps: all, metadata, policy, related, comparison.', fg: PALETTE.info },
+      left && right
+        ? { text: `Current diff: ${left} -> ${right}.`, fg: PALETTE.good }
+        : { text: 'No complete handoff pair selected; submitting lists recent saved handoffs.', fg: PALETTE.info },
     );
+    if (snapshot?.recentReviewerHandoffArtifacts.length) {
+      const choices = snapshot.recentReviewerHandoffArtifacts
+        .slice(0, 4)
+        .map((artifact) => `${artifact.id} (${artifact.sourceKind}; related ${artifact.relatedArtifactCount})`)
+        .join(', ');
+      lines.push({ text: `Recent choices: ${choices}.`, fg: PALETTE.muted });
+    }
   } else if (editor.kind === 'document-reviewer-readiness') {
     lines.push(
       { text: 'Preflight checks: comments, suggestions, source artifacts, comparison reveal, route decisions, handoff evidence.', fg: PALETTE.info },
@@ -574,7 +610,7 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
       },
       { text: 'Enter opens; Esc clears.', fg: PALETTE.muted },
     ] satisfies ContextLine[] : []),
-    ...(workspace.localEditor ? editorContextLines(workspace.localEditor) : []),
+    ...(workspace.localEditor ? editorContextLines(workspace.localEditor, workspace.runtimeSnapshot) : []),
   ];
 
   const selectedActionLines: ContextLine[] = action

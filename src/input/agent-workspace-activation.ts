@@ -22,6 +22,7 @@ import type {
   AgentWorkspaceLocalEditorKind,
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceLocalOperation,
+  AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceRuntimeSnapshot,
   AgentWorkspaceRuntimeStarterTemplateItem,
 } from './agent-workspace-types.ts';
@@ -88,6 +89,7 @@ export function activateAgentWorkspaceSelection(
     const editor = createAgentWorkspaceEditor(action.editorKind, {
       runtimeStarterTemplates: workspace.runtimeSnapshot?.runtimeStarterTemplates ?? [],
       selectedRoutine: workspace.selectedLocalLibraryItem('routine'),
+      recentReviewerHandoffArtifacts: workspace.runtimeSnapshot?.recentReviewerHandoffArtifacts ?? [],
     });
     if (!editor) {
       workspace.status = `Editor unavailable: ${action.editorKind}.`;
@@ -185,6 +187,7 @@ export function createAgentWorkspaceEditor(
   options: {
     readonly runtimeStarterTemplates?: readonly AgentWorkspaceRuntimeStarterTemplateItem[];
     readonly selectedRoutine?: AgentWorkspaceLocalLibraryItem | null;
+    readonly recentReviewerHandoffArtifacts?: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
   } = {},
 ): AgentWorkspaceLocalEditor | null {
   if (editorKind === 'profile') return createProfileEditor(options.runtimeStarterTemplates ?? []);
@@ -216,7 +219,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
   if (editorKind === 'local-model-benchmark') return createAgentLocalModelBenchmarkEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();
-  if (editorKind === 'model-compare-handoff-diff') return createAgentModelCompareHandoffDiffEditor();
+  if (editorKind === 'model-compare-handoff-diff') return createAgentModelCompareHandoffDiffEditor(options.recentReviewerHandoffArtifacts ?? []);
   if (editorKind === 'model-compare-judge') return createAgentModelCompareJudgmentEditor();
   if (editorKind === 'model-compare-apply') return createAgentModelCompareApplyEditor();
   if (editorKind === 'model-compare-export') return createAgentModelCompareExportEditor();

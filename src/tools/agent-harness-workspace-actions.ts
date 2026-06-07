@@ -27,6 +27,7 @@ export interface AgentHarnessWorkspaceActionArgs {
 export interface WorkspaceEditorContext {
   readonly runtimeStarterTemplates: AgentWorkspaceRuntimeSnapshot['runtimeStarterTemplates'];
   readonly selectedRoutine: AgentWorkspaceLocalLibraryItem | null;
+  readonly recentReviewerHandoffArtifacts: AgentWorkspaceRuntimeSnapshot['recentReviewerHandoffArtifacts'];
 }
 
 export interface WorkspaceActionLookup {
@@ -210,11 +211,13 @@ export function buildWorkspaceEditorContext(context: CommandContext, args: Agent
     return {
       runtimeStarterTemplates: snapshot.runtimeStarterTemplates,
       selectedRoutine: selectedRoutineFromArgs(snapshot, args),
+      recentReviewerHandoffArtifacts: snapshot.recentReviewerHandoffArtifacts,
     };
   } catch {
     return {
       runtimeStarterTemplates: [],
       selectedRoutine: null,
+      recentReviewerHandoffArtifacts: [],
     };
   }
 }
@@ -226,6 +229,7 @@ export function createWorkspaceEditor(
   return createAgentWorkspaceEditor(editorKind, {
     runtimeStarterTemplates: editorContext?.runtimeStarterTemplates ?? [],
     selectedRoutine: editorKind === 'routine-schedule' ? editorContext?.selectedRoutine ?? null : null,
+    recentReviewerHandoffArtifacts: editorContext?.recentReviewerHandoffArtifacts ?? [],
   });
 }
 

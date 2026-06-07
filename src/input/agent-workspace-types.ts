@@ -352,6 +352,17 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly startCount?: number;
 }
 
+export interface AgentWorkspaceRecentReviewerHandoffArtifact {
+  readonly id: string;
+  readonly filename: string;
+  readonly createdAt: number;
+  readonly handoffId: string;
+  readonly comparisonId: string;
+  readonly sourceArtifactId: string;
+  readonly sourceKind: string;
+  readonly relatedArtifactCount: number;
+}
+
 export interface AgentWorkspaceRuntimeProfileItem {
   readonly id: string;
   readonly homeDirectory: string;
@@ -477,6 +488,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchRunBlockedCount: number;
   readonly researchRunTerminalCount: number;
   readonly researchRuns: readonly AgentWorkspaceResearchRunSummary[];
+  readonly recentReviewerHandoffArtifactCount: number;
+  readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];

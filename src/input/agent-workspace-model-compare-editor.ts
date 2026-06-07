@@ -1,4 +1,4 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor, AgentWorkspaceRecentReviewerHandoffArtifact } from './agent-workspace-types.ts';
 
 type AgentWorkspaceFieldReader = (fieldId: string) => string;
 
@@ -188,16 +188,23 @@ export function createAgentModelCompareReviewEditor(): AgentWorkspaceLocalEditor
   };
 }
 
-export function createAgentModelCompareHandoffDiffEditor(): AgentWorkspaceLocalEditor {
+export function createAgentModelCompareHandoffDiffEditor(
+  recentHandoffs: readonly AgentWorkspaceRecentReviewerHandoffArtifact[] = [],
+): AgentWorkspaceLocalEditor {
+  const right = recentHandoffs.length >= 2 ? recentHandoffs[0] : undefined;
+  const left = recentHandoffs.length >= 2 ? recentHandoffs[1] : undefined;
+  const recentHint = recentHandoffs.length >= 2
+    ? ` Prefilled with the two newest handoffs: ${left?.id ?? ''} -> ${right?.id ?? ''}.`
+    : ' Leave both ids blank to list recent saved handoffs.';
   return {
     kind: 'model-compare-handoff-diff',
     mode: 'create',
     title: 'Diff Reviewer Handoffs',
     selectedFieldIndex: 0,
-    message: 'Compare two saved reviewer handoff artifacts in the workspace split view. Use Section jump to focus the diff on all, metadata, policy, related, or comparison evidence.',
+    message: `Compare two saved reviewer handoff artifacts in the workspace split view. Use Section jump to focus the diff on all, metadata, policy, related, or comparison evidence.${recentHint}`,
     fields: [
-      { id: 'leftArtifactId', label: 'Left handoff', value: '', required: true, multiline: false, hint: 'First saved reviewer handoff artifact id, such as artifact-7.' },
-      { id: 'rightArtifactId', label: 'Right handoff', value: '', required: true, multiline: false, hint: 'Second saved reviewer handoff artifact id, such as artifact-10.' },
+      { id: 'leftArtifactId', label: 'Left handoff', value: left?.id ?? '', required: false, multiline: false, hint: left ? `Older handoff ${left.handoffId}; source ${left.sourceArtifactId}; related ${left.relatedArtifactCount}. Clear both ids to list saved handoffs.` : 'First saved reviewer handoff artifact id. Leave both handoff fields blank to list recent saved handoffs.' },
+      { id: 'rightArtifactId', label: 'Right handoff', value: right?.id ?? '', required: false, multiline: false, hint: right ? `Newer handoff ${right.handoffId}; source ${right.sourceArtifactId}; related ${right.relatedArtifactCount}. Clear both ids to list saved handoffs.` : 'Second saved reviewer handoff artifact id. Leave both handoff fields blank to list recent saved handoffs.' },
       { id: 'sectionId', label: 'Section jump', value: 'all', required: false, multiline: false, hint: 'all, metadata, policy, related, or comparison. Related focuses changed document/artifact evidence.' },
     ],
   };
