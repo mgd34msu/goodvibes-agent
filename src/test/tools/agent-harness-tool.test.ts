@@ -5487,6 +5487,70 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes voice interaction workflow posture without claiming wake-word support', async () => {
+    const fixture = makeFixture();
+    const previousOpenAiKey = process.env.OPENAI_API_KEY;
+    try {
+      process.env.OPENAI_API_KEY = 'voice-workflow-secret-key';
+      fixture.configManager.setDynamic('ui.voiceEnabled', true);
+      fixture.configManager.setDynamic('tts.provider', 'openai');
+      fixture.configManager.setDynamic('tts.voice', 'alloy');
+      (fixture.context as { submitSpokenInput?: (text: string) => void }).submitSpokenInput = () => {};
+      (fixture.context as { stopSpokenOutput?: () => void }).stopSpokenOutput = () => {};
+      const voiceRegistry = fixture.context.platform.voiceProviderRegistry as {
+        list: () => readonly { readonly id: string; readonly label: string; readonly capabilities: readonly string[] }[];
+        status?: () => Promise<readonly { readonly id: string; readonly state: string; readonly configured: boolean; readonly detail?: string }[]>;
+      };
+      voiceRegistry.list = () => [{ id: 'openai', label: 'OpenAI Voice', capabilities: ['tts', 'stt', 'realtime', 'voice-list'] }];
+      voiceRegistry.status = async () => [{ id: 'openai', state: 'ready', configured: true, detail: 'OpenAI voice ready.' }];
+      (fixture.context.platform as {
+        voiceService?: {
+          listVoices?: (providerId?: string) => Promise<readonly { readonly id: string; readonly label: string }[]>;
+          transcribe?: () => Promise<{ readonly text: string }>;
+        };
+      }).voiceService = {
+        listVoices: async (providerId?: string) => [{ id: `${providerId ?? 'default'}-voice-a`, label: 'Voice A' }],
+        transcribe: async () => ({ text: 'transcribed text' }),
+      };
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly voiceWorkflows: {
+            readonly ready: number;
+            readonly notPublished: number;
+          };
+        };
+        readonly voiceWorkflows: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly setupRoutes: readonly string[];
+          readonly evidence: Record<string, unknown>;
+          readonly policy: string;
+        }[];
+      }>(fixture, { mode: 'media_posture', query: 'voice', includeParameters: true });
+
+      expect(posture.summary.voiceWorkflows.ready).toBeGreaterThanOrEqual(3);
+      expect(posture.summary.voiceWorkflows.notPublished).toBe(1);
+      expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'push-to-talk')?.status).toBe('ready');
+      expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'voice-memo-transcription')?.status).toBe('ready');
+      expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'spoken-responses')?.status).toBe('ready');
+      const wake = posture.voiceWorkflows.find((workflow) => workflow.id === 'wake-and-speak');
+      expect(wake?.status).toBe('not-published');
+      expect(wake?.policy).toContain('does not claim always-listening');
+      expect(JSON.stringify(posture)).not.toContain('voice-workflow-secret-key');
+
+      const pushToTalk = await executeHarnessJson<{
+        readonly voiceWorkflows: readonly { readonly id: string; readonly status: string }[];
+      }>(fixture, { mode: 'media_posture', query: 'push to talk', includeParameters: true });
+      expect(pushToTalk.voiceWorkflows.map((workflow) => workflow.id)).toEqual(['push-to-talk']);
+      expect(pushToTalk.voiceWorkflows[0]?.status).toBe('ready');
+    } finally {
+      if (previousOpenAiKey === undefined) delete process.env.OPENAI_API_KEY;
+      else process.env.OPENAI_API_KEY = previousOpenAiKey;
+      fixture.cleanup();
+    }
+  });
+
   test('exposes a local model cookbook through model routing and workspace actions', async () => {
     const fixture = makeFixture();
     try {

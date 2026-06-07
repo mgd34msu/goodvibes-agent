@@ -16,11 +16,28 @@ type MediaProviderResolution =
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
   | { readonly status: 'missing_lookup'; readonly usage: string };
 
+type VoiceWorkflowStatus = 'ready' | 'attention' | 'setup-needed' | 'not-published';
+
 interface RuntimeProviderStatus {
   readonly id: string;
   readonly state: string;
   readonly configured: boolean;
   readonly detail?: string;
+}
+
+interface VoiceInteractionWorkflow {
+  readonly id: string;
+  readonly label: string;
+  readonly status: VoiceWorkflowStatus;
+  readonly userOutcome: string;
+  readonly summary: string;
+  readonly nextStep: string;
+  readonly capabilities: readonly string[];
+  readonly modelRoute: string;
+  readonly userRoute?: string;
+  readonly setupRoutes: readonly string[];
+  readonly evidence: Record<string, unknown>;
+  readonly policy: string;
 }
 
 function readString(value: unknown): string {
@@ -68,6 +85,184 @@ function providerSearchText(provider: AgentWorkspaceVoiceMediaProviderStatus, ru
     ...provider.secretKeyOptions,
     ...(runtimeStatus ? [runtimeStatus.state, runtimeStatus.configured ? 'configured' : 'unconfigured', runtimeStatus.detail ?? ''] : []),
   ].join('\n').toLowerCase();
+}
+
+function voiceWorkflowSearchText(workflow: VoiceInteractionWorkflow): string {
+  return [
+    workflow.id,
+    workflow.label,
+    workflow.status,
+    workflow.userOutcome,
+    workflow.summary,
+    workflow.nextStep,
+    workflow.modelRoute,
+    workflow.userRoute ?? '',
+    ...workflow.capabilities,
+  ].join('\n').toLowerCase();
+}
+
+function voiceWorkflowMatches(workflow: VoiceInteractionWorkflow, query: string): boolean {
+  if (!query) return true;
+  const text = voiceWorkflowSearchText(workflow);
+  if (text.includes(query)) return true;
+  const tokens = query.split(/\s+/).map((token) => token.trim()).filter(Boolean);
+  return tokens.length > 0 && tokens.every((token) => text.includes(token));
+}
+
+function voiceWorkflowSummary(workflows: readonly VoiceInteractionWorkflow[]): Record<string, unknown> {
+  return {
+    total: workflows.length,
+    ready: workflows.filter((workflow) => workflow.status === 'ready').length,
+    attention: workflows.filter((workflow) => workflow.status === 'attention').length,
+    setupNeeded: workflows.filter((workflow) => workflow.status === 'setup-needed').length,
+    notPublished: workflows.filter((workflow) => workflow.status === 'not-published').length,
+    primaryNextStep: workflows.find((workflow) => workflow.status !== 'ready')?.nextStep
+      ?? 'Voice workflows are ready; keep effects on explicit user-visible routes.',
+  };
+}
+
+function hasReadyVoiceFeature(readiness: ReturnType<typeof buildReadiness>, featureIds: readonly string[]): boolean {
+  return readiness.voiceProviders.some((provider) => (
+    provider.setupState === 'ready'
+    && featureIds.some((feature) => provider.features.includes(feature))
+  ));
+}
+
+function hasRegisteredVoiceFeature(readiness: ReturnType<typeof buildReadiness>, featureIds: readonly string[]): boolean {
+  return readiness.voiceProviders.some((provider) => featureIds.some((feature) => provider.features.includes(feature)));
+}
+
+function buildVoiceInteractionWorkflows(
+  context: CommandContext,
+  readiness: ReturnType<typeof buildReadiness>,
+): readonly VoiceInteractionWorkflow[] {
+  const voiceEnabled = readConfigBoolean(context, 'ui.voiceEnabled', false);
+  const spokenTurnRuntime = typeof context.submitSpokenInput === 'function';
+  const stopSpokenOutputRuntime = typeof context.stopSpokenOutput === 'function';
+  const transcribeRuntime = typeof context.platform.voiceService?.transcribe === 'function';
+  const speechInputReady = hasReadyVoiceFeature(readiness, ['stt', 'realtime']);
+  const speechInputRegistered = hasRegisteredVoiceFeature(readiness, ['stt', 'realtime']);
+  const selectedTtsReady = readiness.selectedTtsProviderStatus === 'ready';
+  const spokenReady = spokenTurnRuntime && selectedTtsReady && readiness.ttsVoiceConfigured;
+  const spokenAttention = spokenTurnRuntime && selectedTtsReady && !readiness.ttsVoiceConfigured;
+  const pushToTalkReady = voiceEnabled && spokenTurnRuntime && speechInputReady;
+  const pushToTalkAttention = voiceEnabled && (spokenTurnRuntime || speechInputRegistered);
+  const transcriptionReady = transcribeRuntime && speechInputReady;
+  const transcriptionAttention = transcribeRuntime || speechInputRegistered;
+
+  return [
+    {
+      id: 'push-to-talk',
+      label: 'Push-to-talk input',
+      status: pushToTalkReady ? 'ready' : pushToTalkAttention ? 'attention' : 'setup-needed',
+      userOutcome: 'Speak a short prompt when the local voice surface and speech-input provider are ready.',
+      summary: pushToTalkReady
+        ? 'Voice surface, spoken-turn runtime, and a ready STT/realtime provider are available.'
+        : pushToTalkAttention
+          ? 'Some voice input pieces are present, but the full push-to-talk route is not ready.'
+          : 'Voice input needs the voice surface plus a ready STT or realtime provider.',
+      nextStep: pushToTalkReady
+        ? 'Use the visible voice surface when the user asks to speak to the assistant.'
+        : 'Review /voice and media provider posture before presenting push-to-talk as available.',
+      capabilities: ['push-to-talk', 'speech input', 'stt', 'realtime voice'],
+      modelRoute: 'agent_harness mode:"media_posture" query:"push to talk" includeParameters:true',
+      userRoute: '/voice review',
+      setupRoutes: [
+        'agent_harness mode:"settings" query:"ui.voiceEnabled" includeParameters:true',
+        'agent_harness mode:"media_posture" query:"stt realtime" includeParameters:true',
+      ],
+      evidence: {
+        voiceSurfaceEnabled: voiceEnabled,
+        spokenTurnRuntime,
+        speechInputReady,
+        speechInputRegistered,
+      },
+      policy: 'Voice input stays a visible local operator surface; provider setup and transcript submission are separate explicit routes.',
+    },
+    {
+      id: 'voice-memo-transcription',
+      label: 'Voice memo transcription',
+      status: transcriptionReady ? 'ready' : transcriptionAttention ? 'attention' : 'setup-needed',
+      userOutcome: 'Transcribe an audio note only when a speech-to-text provider and runtime route are both present.',
+      summary: transcriptionReady
+        ? 'Speech-to-text provider and voiceService.transcribe are available.'
+        : transcriptionAttention
+          ? 'A speech-to-text provider or runtime route is present, but transcription is not fully ready.'
+          : 'No ready speech-to-text transcription route is available.',
+      nextStep: transcriptionReady
+        ? 'Route audio transcription through reviewed media or connected-host voice routes when the user supplies audio.'
+        : 'Configure a provider with STT capability and confirm the runtime exposes voiceService.transcribe.',
+      capabilities: ['voice memo', 'speech-to-text', 'audio transcription'],
+      modelRoute: 'agent_harness mode:"media_posture" query:"voice memo transcription" includeParameters:true',
+      setupRoutes: [
+        'agent_harness mode:"media_posture" query:"stt" includeParameters:true',
+        'agent_harness mode:"operator_methods" query:"voice.stt"',
+      ],
+      evidence: {
+        transcribeRuntime,
+        speechInputReady,
+        speechInputRegistered,
+      },
+      policy: 'Audio bytes are not printed into chat; transcription must use reviewed media or connected-host voice routes.',
+    },
+    {
+      id: 'spoken-responses',
+      label: 'Spoken responses',
+      status: spokenReady ? 'ready' : spokenAttention ? 'attention' : 'setup-needed',
+      userOutcome: 'Play an assistant answer aloud with a predictable TTS provider and voice.',
+      summary: spokenReady
+        ? 'Spoken-turn runtime, selected TTS provider, and voice setting are ready.'
+        : spokenAttention
+          ? 'Spoken-turn runtime and provider are ready, but the exact voice is not configured.'
+          : 'Spoken responses need a ready selected TTS provider and runtime spoken-turn route.',
+      nextStep: spokenReady
+        ? 'Use /tts only when the user asks for spoken output.'
+        : 'Choose a ready TTS provider and voice, then verify the runtime exposes submitSpokenInput.',
+      capabilities: ['tts', 'spoken answer', 'stop spoken output'],
+      modelRoute: 'agent_harness mode:"media_posture" query:"spoken responses" includeParameters:true',
+      userRoute: '/tts <prompt>',
+      setupRoutes: [
+        'agent_harness mode:"open_ui_surface" surfaceId:"tts-provider-picker" confirm:true explicitUserRequest:"..."',
+        'agent_harness mode:"open_ui_surface" surfaceId:"tts-voice-picker" confirm:true explicitUserRequest:"..."',
+      ],
+      evidence: {
+        spokenTurnRuntime,
+        stopSpokenOutputRuntime,
+        selectedTtsProviderStatus: readiness.selectedTtsProviderStatus,
+        ttsVoiceConfigured: readiness.ttsVoiceConfigured,
+      },
+      policy: 'Spoken turns submit normal assistant prompts and may call model/speech providers; playback stop is local runtime control.',
+    },
+    {
+      id: 'wake-and-speak',
+      label: 'Wake and speak',
+      status: 'not-published',
+      userOutcome: 'Use wake-word or always-listening input only after a permission-scoped runtime contract exists.',
+      summary: 'Wake-word or always-listening voice capture is not published by the current Agent runtime contract.',
+      nextStep: 'Use explicit voice input or /tts until a wake-word route is published with visible permission controls.',
+      capabilities: ['wake word', 'always listening', 'permission repair'],
+      modelRoute: 'agent_harness mode:"media_posture" query:"wake word" includeParameters:true',
+      setupRoutes: [
+        'agent_harness mode:"media_posture" query:"push to talk" includeParameters:true',
+        'agent_harness mode:"pairing_posture" query:"device" includeParameters:true',
+      ],
+      evidence: {
+        publishedByCurrentAgentContract: false,
+      },
+      policy: 'Agent does not claim always-listening behavior without an explicit permission-scoped runtime contract.',
+    },
+  ];
+}
+
+function describeVoiceWorkflow(workflow: VoiceInteractionWorkflow, includeParameters: boolean): Record<string, unknown> {
+  if (includeParameters) return { ...workflow };
+  return {
+    workflowId: workflow.id,
+    label: workflow.label,
+    status: workflow.status,
+    summary: previewHarnessText(workflow.summary),
+    modelRoute: workflow.modelRoute,
+  };
 }
 
 function describeProviderCandidate(provider: AgentWorkspaceVoiceMediaProviderStatus): Record<string, unknown> {
@@ -179,12 +374,14 @@ function buildReadiness(context: CommandContext) {
 
 export function mediaPostureCatalogStatus(context: CommandContext): Record<string, unknown> {
   const readiness = buildReadiness(context);
+  const voiceWorkflows = buildVoiceInteractionWorkflows(context, readiness);
   return {
     modes: ['media_posture', 'media_provider'],
     voiceProviders: readiness.voiceProviders.length,
     mediaProviders: readiness.mediaProviders.length,
     readyVoiceProviders: readiness.readyVoiceProviderCount,
     readyMediaProviders: readiness.readyMediaProviderCount,
+    voiceWorkflowSummary: voiceWorkflowSummary(voiceWorkflows),
     readOnly: true,
   };
 }
@@ -199,9 +396,14 @@ export async function mediaPostureSummary(context: CommandContext, args: AgentHa
     ...readiness.mediaProviders.map((provider) => ({ provider, runtimeStatus: mediaStatuses.get(provider.id) })),
   ];
   const query = readString(args.query).toLowerCase();
+  const limit = readLimit(args.limit, 100);
+  const voiceWorkflows = buildVoiceInteractionWorkflows(context, readiness);
   const filtered = providers
     .filter(({ provider, runtimeStatus }) => !query || providerSearchText(provider, runtimeStatus).includes(query))
-    .slice(0, readLimit(args.limit, 100));
+    .slice(0, limit);
+  const filteredVoiceWorkflows = voiceWorkflows
+    .filter((workflow) => voiceWorkflowMatches(workflow, query))
+    .slice(0, limit);
   return {
     status: 'available',
     summary: {
@@ -215,6 +417,8 @@ export async function mediaPostureSummary(context: CommandContext, args: AgentHa
       ttsResponseRouteConfigured: readiness.ttsResponseRouteConfigured,
       voiceSurfaceEnabled: readConfigBoolean(context, 'ui.voiceEnabled', false),
       browserToolState: readiness.browserToolState,
+      voiceWorkflows: voiceWorkflowSummary(voiceWorkflows),
+      returnedVoiceWorkflows: filteredVoiceWorkflows.length,
       artifactStoreAvailable: Boolean(context.platform.artifactStore),
       ttsProviderSetting: readConfigString(context, 'tts.provider') || null,
       ttsVoiceSettingConfigured: readConfigString(context, 'tts.voice').length > 0,
@@ -223,6 +427,7 @@ export async function mediaPostureSummary(context: CommandContext, args: AgentHa
     providers: filtered.map(({ provider, runtimeStatus }) => describeProvider(provider, runtimeStatus, {
       includeParameters: args.includeParameters === true,
     })),
+    voiceWorkflows: filteredVoiceWorkflows.map((workflow) => describeVoiceWorkflow(workflow, args.includeParameters === true)),
     returned: filtered.length,
     total: providers.length,
     policy: 'Read-only voice/media posture. Media generation, voice enable/disable, TTS setting changes, and bundle export stay confirmation-gated through first-class tools, settings modes, workspace actions, or slash-command mirrors.',
@@ -232,6 +437,7 @@ export async function mediaPostureSummary(context: CommandContext, args: AgentHa
       singleProviderMode: 'media_provider',
       ttsProviderPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"tts-provider-picker" confirm:true explicitUserRequest:"..."',
       ttsVoicePicker: 'agent_harness mode:"open_ui_surface" surfaceId:"tts-voice-picker" confirm:true explicitUserRequest:"..."',
+      voiceWorkflowPosture: 'agent_harness mode:"media_posture" query:"push to talk" includeParameters:true',
       commands: ['/media providers', '/voice review', '/tts <prompt>', '/image <path>'],
     } } : {}),
   };
