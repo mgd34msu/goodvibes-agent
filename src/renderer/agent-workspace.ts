@@ -118,12 +118,27 @@ function setupAttentionItems(snapshot: AgentWorkspaceRuntimeSnapshot, limit: num
 function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
   const counts = setupCounts(snapshot);
   const nextItems = setupAttentionItems(snapshot, 3);
+  const wizard = snapshot.setupWizard;
   const lines: ContextLine[] = [
     { text: 'Onboarding', fg: PALETTE.title, bold: true },
     { text: `${counts.ready}/${snapshot.setupChecklist.length} ready; ${counts.recommended} recommended; ${counts.optional} optional; ${counts.blocked} blocked.`, fg: counts.blocked > 0 ? PALETTE.warn : PALETTE.info },
+    { text: `Setup wizard: ${wizard.completedSteps}/${wizard.totalSteps} done; ${wizard.currentStepLabel ? `current ${wizard.currentStepLabel}` : wizard.status}.`, fg: wizard.status === 'complete' ? PALETTE.good : wizard.status === 'blocked' ? PALETTE.warn : PALETTE.info },
+    { text: `Wizard next: ${compactText(wizard.next, 112)}`, fg: wizard.status === 'complete' ? PALETTE.good : wizard.status === 'blocked' ? PALETTE.warn : PALETTE.info },
     { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}.`, fg: PALETTE.info },
     { text: `Local: ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines, ${snapshot.localMemoryCount} memories.`, fg: PALETTE.info },
   ];
+  if (wizard.repeatedBlocker) {
+    lines.push({
+      text: `Repeated blocker: ${wizard.repeatedBlocker.checkId} in ${wizard.repeatedBlocker.count} saved smoke run(s).`,
+      fg: PALETTE.warn,
+    });
+  }
+  if (wizard.smokeHistory.status === 'available') {
+    lines.push({
+      text: `Smoke history: ${wizard.smokeHistory.total} run(s); trend ${wizard.smokeHistory.trend}; latest ${wizard.smokeHistory.latestResult ?? 'unknown'}.`,
+      fg: wizard.smokeHistory.latestResult === 'blocked' ? PALETTE.warn : PALETTE.info,
+    });
+  }
   if (nextItems.length > 0) {
     const item = nextItems[0]!;
     lines.push({

@@ -22,11 +22,21 @@ import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-sum
 import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
 import { RoutineScheduleReceiptStore } from '../agent/routine-schedule-receipts.ts';
+import {
+  DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
+  DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
+  buildAgentSetupWizard,
+  emptyAgentSetupSmokeHistory,
+  type AgentSetupWizard,
+  type AgentSetupWizardBlockedCheckFrequency,
+  type AgentSetupWizardSmokeHistory,
+  type AgentSetupWizardSourceItem,
+} from '../agent/setup-wizard.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken, type ConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
 import { getAgentWorkspaceConfigReader } from './agent-workspace-config-reader.ts';
-import { buildAgentWorkspaceSetupChecklist } from './agent-workspace-setup.ts';
+import { buildAgentWorkspaceSetupChecklist, type AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
@@ -211,6 +221,75 @@ function readArtifactMetadataStringList(metadata: Readonly<Record<string, unknow
 function readArtifactMetadataNumber(metadata: Readonly<Record<string, unknown>>, key: string): number | null {
   const value = metadata[key];
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function isSetupSmokeEvidenceArtifact(artifact: ArtifactDescriptor): boolean {
+  return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-setup-smoke-evidence';
+}
+
+function setupSmokeEvidenceScore(artifact: ArtifactDescriptor): number {
+  const result = readArtifactMetadataString(artifact.metadata, 'result');
+  if (result === 'ready-for-user-run') return 2;
+  if (result === 'blocked') return 0;
+  return 1;
+}
+
+function setupSmokeEvidenceTrend(artifacts: readonly ArtifactDescriptor[]): string {
+  if (artifacts.length === 0) return 'none';
+  if (artifacts.length === 1) return 'first-run';
+  const latest = setupSmokeEvidenceScore(artifacts[0]!);
+  const previous = setupSmokeEvidenceScore(artifacts[1]!);
+  if (latest > previous) return 'improving';
+  if (latest < previous) return 'regressing';
+  const result = readArtifactMetadataString(artifacts[0]!.metadata, 'result');
+  if (result === 'ready-for-user-run') return 'unchanged-ready';
+  if (result === 'blocked') return 'unchanged-blocked';
+  return 'unchanged';
+}
+
+function setupSmokeBlockedCheckFrequency(artifacts: readonly ArtifactDescriptor[]): readonly AgentSetupWizardBlockedCheckFrequency[] {
+  const counts = new Map<string, number>();
+  for (const artifact of artifacts) {
+    for (const checkId of readArtifactMetadataStringList(artifact.metadata, 'blockedChecks')) {
+      counts.set(checkId, (counts.get(checkId) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 8)
+    .map(([checkId, count]) => ({ checkId, count }));
+}
+
+function buildSetupSmokeHistory(artifacts: readonly ArtifactDescriptor[], artifactListAvailable: boolean): AgentSetupWizardSmokeHistory {
+  if (!artifactListAvailable) {
+    return {
+      ...emptyAgentSetupSmokeHistory('Artifact list support is unavailable in this runtime.'),
+      status: 'unavailable',
+    };
+  }
+  const setupSmokeArtifacts = artifacts
+    .filter(isSetupSmokeEvidenceArtifact)
+    .sort((left, right) => (right.createdAt ?? 0) - (left.createdAt ?? 0));
+  if (setupSmokeArtifacts.length === 0) return emptyAgentSetupSmokeHistory();
+  const resultCounts = setupSmokeArtifacts.reduce<Record<string, number>>((counts, artifact) => {
+    const result = readArtifactMetadataString(artifact.metadata, 'result') || 'unknown';
+    counts[result] = (counts[result] ?? 0) + 1;
+    return counts;
+  }, {});
+  const latest = setupSmokeArtifacts[0]!;
+  const previous = setupSmokeArtifacts[1] ?? null;
+  return {
+    status: 'available',
+    total: setupSmokeArtifacts.length,
+    trend: setupSmokeEvidenceTrend(setupSmokeArtifacts),
+    latestResult: readArtifactMetadataString(latest.metadata, 'result') || 'unknown',
+    previousResult: previous ? readArtifactMetadataString(previous.metadata, 'result') || 'unknown' : null,
+    resultCounts,
+    blockedCheckFrequency: setupSmokeBlockedCheckFrequency(setupSmokeArtifacts),
+    inspectLatestRoute: `agent_artifacts show artifactId:"${latest.id}" includeContent:false`,
+    rerunRoute: DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE,
+    saveRoute: DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE,
+  };
 }
 
 function isoToEpoch(value: string): number {
@@ -1116,6 +1195,69 @@ function summarizeStarterTemplate(template: ReturnType<typeof listAgentRuntimePr
   };
 }
 
+function setupChecklistUserRoute(item: AgentWorkspaceSetupChecklistItem): string {
+  return item.command ?? 'Start';
+}
+
+function setupChecklistModelRoute(item: AgentWorkspaceSetupChecklistItem): string {
+  if (item.id === 'runtime') return 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"';
+  if (item.id === 'provider-model') return 'agent_harness mode:"model_routing"';
+  if (item.id === 'install-smoke') return DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE;
+  if (item.id === 'subscriptions') return 'agent_harness mode:"provider_accounts"';
+  if (item.id === 'agent-knowledge') return 'agent_knowledge mode:"status"';
+  if (item.id === 'profile') return 'agent_harness mode:"workspace_action" actionId:"profile-template-show"';
+  if (item.id === 'persona') return 'agent_harness mode:"workspace" target:"personas"';
+  if (item.id === 'skills') return 'agent_harness mode:"workspace" target:"skills"';
+  if (item.id === 'routines') return 'agent_harness mode:"workspace" target:"routines"';
+  if (item.id === 'memory') return 'agent_harness mode:"memory_posture"';
+  if (item.id === 'notes') return 'agent_harness mode:"personal_ops_lane" laneId:"notes"';
+  if (item.id === 'channels') return 'agent_harness mode:"channels"';
+  if (item.id === 'voice-media') return 'agent_harness mode:"media_posture"';
+  return `agent_harness mode:"setup_item" setupItemId:"${item.id}"`;
+}
+
+function setupChecklistActionId(item: AgentWorkspaceSetupChecklistItem): string {
+  if (item.id === 'provider-model') return 'setup-provider-model';
+  if (item.id === 'subscriptions') return 'subscription-login-start';
+  if (item.id === 'agent-knowledge') return 'knowledge-status';
+  if (item.id === 'profile') return 'profile-template-show';
+  if (item.id === 'persona') return 'persona-search';
+  if (item.id === 'skills') return 'skill-search';
+  if (item.id === 'routines') return 'routine-search';
+  if (item.id === 'channels') return 'channel-show';
+  if (item.id === 'voice-media') return 'voice-enable';
+  return item.id;
+}
+
+const SETUP_WIZARD_SNAPSHOT_BLOCKER_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  'agent-binary': ['runtime', 'install-smoke'],
+  'connected-host-status': ['runtime'],
+  'connected-host-auth': ['connected-host-auth'],
+  'provider-model': ['provider-model'],
+  'setup-posture': ['install-smoke'],
+  'first-assistant-turn': ['install-smoke'],
+};
+
+function buildWorkspaceSetupWizard(
+  checklist: readonly AgentWorkspaceSetupChecklistItem[],
+  smokeHistory: AgentSetupWizardSmokeHistory,
+): AgentSetupWizard {
+  const items: AgentSetupWizardSourceItem[] = checklist.map((item) => ({
+    id: item.id,
+    label: item.label,
+    status: item.status,
+    detail: item.detail,
+    userRoute: setupChecklistUserRoute(item),
+    modelRoute: setupChecklistModelRoute(item),
+    actionId: setupChecklistActionId(item),
+  }));
+  return buildAgentSetupWizard({
+    items,
+    smokeHistory,
+    repeatedBlockerAliases: SETUP_WIZARD_SNAPSHOT_BLOCKER_ALIASES,
+  });
+}
+
 export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): AgentWorkspaceRuntimeSnapshot {
   const host = readConfigString(context, 'controlPlane.host', '127.0.0.1');
   const port = readConfigNumber(context, 'controlPlane.port', 3421);
@@ -1498,6 +1640,10 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     runtimeProfileCount: runtimeProfiles.length,
     runtimeStarterTemplateCount: runtimeStarterTemplates.length,
   });
+  const setupWizard = buildWorkspaceSetupWizard(
+    setupChecklist,
+    buildSetupSmokeHistory(artifactListSnapshot.items, artifactListSnapshot.available),
+  );
 
   return {
     provider,
@@ -1625,6 +1771,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     localStarterTemplateCount: runtimeStarterTemplates.filter((template) => template.source === 'local').length,
     runtimeStarterTemplates: runtimeStarterTemplates.map(summarizeStarterTemplate),
     setupChecklist,
+    setupWizard,
     warnings,
   };
 }

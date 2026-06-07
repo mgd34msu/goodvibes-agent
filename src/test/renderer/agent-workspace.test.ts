@@ -457,6 +457,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Onboarding');
     expect(output).toContain('8/14 ready; 4 recommended; 2 optional; 0 blocked.');
+    expect(output).toContain('Setup wizard: 8/14 done; current Install smoke.');
+    expect(output).toContain('Wizard next: Install smoke');
     expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
     expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
     expect(output).toContain('Next: Install smoke (recommended)');
@@ -474,6 +476,43 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('tunnel provider setup');
     expect(output).not.toContain('non-Agent assistant segment');
     expect(output).not.toContain('non-Agent graph segment');
+  });
+
+  test('focuses setup wizard on repeated saved smoke blockers', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({
+      reviewerHandoffs: [
+        reviewPacketArtifact({
+          id: 'setup-smoke-new',
+          filename: 'setup-smoke-new.md',
+          createdAt: 2000,
+          metadata: {
+            purpose: 'agent-setup-smoke-evidence',
+            result: 'blocked',
+            smokeStatus: 'blocked',
+            blockedChecks: ['setup-posture'],
+          },
+        }),
+        reviewPacketArtifact({
+          id: 'setup-smoke-old',
+          filename: 'setup-smoke-old.md',
+          createdAt: 1000,
+          metadata: {
+            purpose: 'agent-setup-smoke-evidence',
+            result: 'blocked',
+            smokeStatus: 'blocked',
+            blockedChecks: ['setup-posture'],
+          },
+        }),
+      ],
+    }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 52));
+
+    expect(output).toContain('Setup wizard: 8/14 done; current Install smoke.');
+    expect(output).toContain('Repeated blocker: setup-posture in 2 saved smoke run(s).');
+    expect(output).toContain('Smoke history: 2 run(s); trend unchanged-blocked; latest blocked.');
   });
 
   test('renders Personal Ops as one daily operations surface', () => {

@@ -17,6 +17,13 @@ import { previewHarnessText } from './agent-harness-text.ts';
 import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
 import { connectedHostOperatorTokenFingerprint, connectedHostOperatorTokenPath, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { agentHarnessVibeHealth, type AgentHarnessVibeHealth } from './agent-harness-vibe-health.ts';
+import {
+  buildAgentSetupWizard,
+  emptyAgentSetupSmokeHistory,
+  type AgentSetupWizard,
+  type AgentSetupWizardSmokeHistory,
+  type AgentSetupWizardSourceItem,
+} from '../agent/setup-wizard.ts';
 
 export interface AgentHarnessSetupArgs {
   readonly setupItemId?: unknown;
@@ -866,6 +873,68 @@ function setupSmokeEvidenceHistory(context: CommandContext): Record<string, unkn
     rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
     saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
   };
+}
+
+function setupWizardSmokeHistory(context: CommandContext): AgentSetupWizardSmokeHistory {
+  const listed = setupSmokeEvidenceArtifacts(context);
+  if (listed.status === 'unavailable') {
+    return {
+      ...emptyAgentSetupSmokeHistory(listed.reason),
+      status: 'unavailable',
+    };
+  }
+  const artifacts = listed.artifacts;
+  if (artifacts.length === 0) return emptyAgentSetupSmokeHistory();
+  const resultCounts = artifacts.reduce<Record<string, number>>((counts, artifact) => {
+    const result = readArtifactMetadataString(artifact, 'result') || 'unknown';
+    counts[result] = (counts[result] ?? 0) + 1;
+    return counts;
+  }, {});
+  return {
+    status: 'available',
+    total: artifacts.length,
+    trend: setupSmokeEvidenceTrend(artifacts),
+    latestResult: readArtifactMetadataString(artifacts[0]!, 'result') || 'unknown',
+    previousResult: artifacts[1] ? readArtifactMetadataString(artifacts[1], 'result') || 'unknown' : null,
+    resultCounts,
+    blockedCheckFrequency: setupSmokeBlockedCheckFrequency(artifacts).map((entry) => ({
+      checkId: readString(entry.checkId),
+      count: typeof entry.count === 'number' ? entry.count : 0,
+    })).filter((entry) => entry.checkId && entry.count > 0),
+    inspectLatestRoute: `agent_artifacts show artifactId:"${artifacts[0]!.id}" includeContent:false`,
+    rerunRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+    saveRoute: 'agent_harness mode:"run_setup_smoke" setupItemId:"install-smoke" fields:{...} confirm:true explicitUserRequest:"..."',
+  };
+}
+
+const SETUP_WIZARD_PLAN_BLOCKER_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  'agent-binary': ['install-smoke', 'connected-host-readiness'],
+  'connected-host-status': ['connected-host-readiness'],
+  'connected-host-auth': ['connected-host-auth'],
+  'provider-model': ['provider-access'],
+  'setup-posture': ['install-smoke'],
+  'first-assistant-turn': ['install-smoke'],
+};
+
+function setupPlanItemToWizardSource(item: SetupPlanItem): AgentSetupWizardSourceItem {
+  const primaryHandoff = setupHandoffsForItem(item)[0];
+  return {
+    id: item.id,
+    label: item.label,
+    status: item.status,
+    detail: item.nextAction || item.reason,
+    userRoute: primaryHandoff?.userRoute ?? item.userRoute,
+    modelRoute: primaryHandoff?.modelRoute ?? item.modelRoute,
+    actionId: primaryHandoff?.id ?? item.id,
+  };
+}
+
+function buildSetupWizard(plan: readonly SetupPlanItem[], context: CommandContext): AgentSetupWizard {
+  return buildAgentSetupWizard({
+    items: plan.map(setupPlanItemToWizardSource),
+    smokeHistory: setupWizardSmokeHistory(context),
+    repeatedBlockerAliases: SETUP_WIZARD_PLAN_BLOCKER_ALIASES,
+  });
 }
 
 function installSmokeRunSummary(plan: SetupInstallSmokePlan): SetupInstallSmokeRunSummary {
@@ -2160,6 +2229,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
   const plan = buildSetupPlan(context, snapshot, deriveStep1Capabilities(snapshot), servicePosture);
   const setupSmokeEvidence = latestSetupSmokeEvidence(context);
   const setupSmokeHistory = setupSmokeEvidenceHistory(context);
+  const setupWizard = buildSetupWizard(plan, context);
   return {
     modes: ['setup_posture', 'setup_item', 'provision_connected_host_token', 'run_setup_smoke'],
     capabilities: deriveStep1Capabilities(snapshot).length,
@@ -2167,6 +2237,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
     blockedPlanItems: plan.filter((item) => item.status === 'blocked').length,
     autonomyBlockers: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
     nextSetupHandoffs: nextSetupHandoffSummaries(plan, 5),
+    setupWizard,
     collectionIssues: snapshot.collectionIssues.length,
     setupMarkerExists: snapshot.acknowledgements.exists,
     setupSmokeEvidence,
@@ -2184,6 +2255,7 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
   const plan = buildSetupPlan(context, snapshot, all, servicePosture);
   const setupSmokeEvidence = latestSetupSmokeEvidence(context);
   const setupSmokeHistory = setupSmokeEvidenceHistory(context);
+  const setupWizard = buildSetupWizard(plan, context);
   const filtered = all
     .filter((item) => !query || itemSearchText(item).includes(query))
     .slice(0, readLimit(args.limit, 100));
@@ -2220,9 +2292,17 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
       readinessPlan: planSummary(plan),
       setupSmokeEvidence,
       setupSmokeHistory,
+      setupWizard: {
+        status: setupWizard.status,
+        progressLabel: setupWizard.progressLabel,
+        currentStepId: setupWizard.currentStepId,
+        currentStepLabel: setupWizard.currentStepLabel,
+        repeatedBlocker: setupWizard.repeatedBlocker,
+      },
     },
     setupSmokeEvidence,
     setupSmokeHistory,
+    setupWizard,
     currentRoute: snapshot.providerRouting,
     issues: snapshot.collectionIssues,
     readinessPlan: filteredPlan.map((item) => describePlanItem(item, includeParameters)),

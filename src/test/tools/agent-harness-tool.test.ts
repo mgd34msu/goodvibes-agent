@@ -914,6 +914,14 @@ describe('agent_harness tool', () => {
             readonly handoffKind?: string;
             readonly requiresConfirmation?: boolean;
           }[];
+          readonly setupWizard?: {
+            readonly status: string;
+            readonly completedSteps: number;
+            readonly totalSteps: number;
+            readonly currentStepId: string;
+            readonly currentStepLabel: string;
+            readonly reviewRoute: string;
+          };
         };
       }>(fixture, { mode: 'summary', includeParameters: true });
       expect(summary.setupPosture?.planItems).toBeGreaterThanOrEqual(7);
@@ -921,6 +929,10 @@ describe('agent_harness tool', () => {
       expect(summary.setupPosture?.autonomyBlockers).toBeGreaterThanOrEqual(1);
       expect(summary.setupPosture?.nextSetupHandoffs?.[0]?.setupItemId).toBe('connected-host-readiness');
       expect(summary.setupPosture?.nextSetupHandoffs?.[0]?.handoffRoute).toContain('connected_host_status');
+      expect(summary.setupPosture?.setupWizard?.status).toBe('blocked');
+      expect(summary.setupPosture?.setupWizard?.currentStepId).toBe('connected-host-auth');
+      expect(summary.setupPosture?.setupWizard?.currentStepLabel).toBe('Connected-host auth');
+      expect(summary.setupPosture?.setupWizard?.reviewRoute).toContain('setup_posture');
 
       const posture = await executeHarnessJson<{
         readonly summary: {
@@ -929,6 +941,17 @@ describe('agent_harness tool', () => {
             readonly check: number;
             readonly blocksAutonomy: number;
           };
+        };
+        readonly setupWizard: {
+          readonly status: string;
+          readonly completedSteps: number;
+          readonly totalSteps: number;
+          readonly currentStepId: string;
+          readonly currentStepLabel: string;
+          readonly progressLabel: string;
+          readonly next: string;
+          readonly smokeHistory: { readonly status: string; readonly total: number; readonly rerunRoute: string; readonly saveRoute: string };
+          readonly steps: readonly { readonly id: string; readonly status: string; readonly modelRoute: string; readonly backtrackRoute?: string | null }[];
         };
         readonly readinessPlan: readonly {
           readonly setupItemId: string;
@@ -1020,6 +1043,18 @@ describe('agent_harness tool', () => {
       expect(posture.summary.readinessPlan.check).toBeGreaterThanOrEqual(1);
       expect(posture.summary.readinessPlan.blocksAutonomy).toBeGreaterThanOrEqual(1);
       expect(posture.policy).toContain('Read-only setup/onboarding posture');
+      expect(posture.setupWizard.status).toBe('blocked');
+      expect(posture.setupWizard.currentStepId).toBe('connected-host-auth');
+      expect(posture.setupWizard.currentStepLabel).toBe('Connected-host auth');
+      expect(posture.setupWizard.progressLabel).toContain('setup step');
+      expect(posture.setupWizard.next).toContain('Connected-host auth');
+      expect(posture.setupWizard.smokeHistory.status).toBe('unavailable');
+      expect(posture.setupWizard.smokeHistory.rerunRoute).toContain('run_setup_smoke');
+      expect(posture.setupWizard.smokeHistory.saveRoute).toContain('fields:{...}');
+      expect(posture.setupWizard.steps[0]?.id).toBe('connected-host-readiness');
+      expect(posture.setupWizard.steps[0]?.status).toBe('blocked');
+      expect(posture.setupWizard.steps[0]?.modelRoute).toContain('connected_host_status');
+      expect(posture.setupWizard.steps.find((step) => step.id === 'connected-host-auth')?.status).toBe('current');
 
       const first = posture.readinessPlan[0];
       expect(first?.setupItemId).toBe('connected-host-readiness');
@@ -1671,6 +1706,20 @@ describe('agent_harness tool', () => {
             readonly blockedCheckFrequency: readonly { readonly checkId: string; readonly count: number }[];
             readonly recent: readonly { readonly artifactId: string; readonly result: string }[];
           };
+          readonly setupWizard?: {
+            readonly currentStepId: string;
+            readonly currentStepLabel: string;
+            readonly repeatedBlocker?: {
+              readonly setupItemId: string;
+              readonly checkId: string;
+              readonly count: number;
+            } | null;
+            readonly smokeHistory: {
+              readonly status: string;
+              readonly total: number;
+              readonly latestResult: string;
+            };
+          };
         };
       }>(fixture, { mode: 'summary' });
       expect(summary.setupPosture?.setupSmokeEvidence).toMatchObject({
@@ -1691,6 +1740,18 @@ describe('agent_harness tool', () => {
       expect(summary.setupPosture?.setupSmokeHistory?.recent[0]).toMatchObject({
         artifactId: 'artifact-1',
         result: 'blocked',
+      });
+      expect(summary.setupPosture?.setupWizard?.currentStepId).toBe('connected-host-auth');
+      expect(summary.setupPosture?.setupWizard?.currentStepLabel).toBe('Connected-host auth');
+      expect(summary.setupPosture?.setupWizard?.repeatedBlocker).toMatchObject({
+        setupItemId: 'connected-host-auth',
+        checkId: 'connected-host-auth',
+        count: 1,
+      });
+      expect(summary.setupPosture?.setupWizard?.smokeHistory).toMatchObject({
+        status: 'available',
+        total: 1,
+        latestResult: 'blocked',
       });
       const setupLane = summary.assistant?.lanes?.find((lane) => lane.id === 'setup');
       expect(setupLane?.summary).toContain('Last smoke blocked');

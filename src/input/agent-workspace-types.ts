@@ -3,6 +3,7 @@ import type { AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts'
 import type { AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import type { AgentWorkspaceVoiceMediaReadiness } from './agent-workspace-voice-media.ts';
 import type { AgentBehaviorDiscoverySnapshot } from '../agent/behavior-discovery-summary.ts';
+import type { AgentSetupWizard } from '../agent/setup-wizard.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
@@ -656,5 +657,6 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly localStarterTemplateCount: number;
   readonly runtimeStarterTemplates: readonly AgentWorkspaceRuntimeStarterTemplateItem[];
   readonly setupChecklist: readonly AgentWorkspaceSetupChecklistItem[];
+  readonly setupWizard: AgentSetupWizard;
   readonly warnings: readonly string[];
 }
