@@ -146,6 +146,50 @@ function browserControlLike(lower: string): boolean {
   ]);
 }
 
+function processLifecycleLike(lower: string): boolean {
+  if (lower.includes('background') && hasAny(lower, [
+    'build',
+    'bun ',
+    'command',
+    'dev server',
+    'execute',
+    'launch',
+    'npm ',
+    'pnpm ',
+    'process',
+    'pytest',
+    'server',
+    'start ',
+    'terminal',
+    'test',
+    'yarn ',
+  ])) return true;
+  return hasAny(lower, [
+    'background process',
+    'background command',
+    'background:true',
+    'run in background',
+    'run it in the background',
+    'start in background',
+    'terminal background',
+    'terminal command',
+    'process action',
+    'process list',
+    'process poll',
+    'process log',
+    'process wait',
+    'process kill',
+    'process write',
+    'poll process',
+    'log process',
+    'wait process',
+    'kill process',
+    'stop process',
+    'stdin',
+    'pty',
+  ]);
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -331,6 +375,35 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         'agent_operator_method methodId:"watchers.create" confirm:true explicitUserRequest:"..."',
       ],
       policy: 'Autonomy intake is read-only; schedule, watcher, run-control, and delivery effects stay on the owning confirmed route.',
+    });
+  }
+
+  if (processLifecycleLike(lower)) {
+    const starting = hasAny(lower, ['run ', 'start ', 'launch ', 'execute ', 'terminal command', 'background:true', 'run in background', 'start in background']);
+    const lifecycle = hasAny(lower, ['poll', 'log', 'wait', 'kill', 'stop', 'write', 'send input', 'stdin']);
+    add({
+      id: 'local-background-process',
+      label: 'Local background process controls',
+      score: 99,
+      userSurface: 'Work and process supervision workspace',
+      userOutcome: 'Start or manage long-running local commands through visible process ids, logs, and cancellation routes.',
+      why: 'The request mentions terminal background commands, process lifecycle actions, stdin, PTY, or process supervision.',
+      modelRoute: 'execution action:"processes" includeParameters:true',
+      inspectRoute: 'execution action:"capabilities"',
+      userRoute: 'Agent Workspace -> Work & Approvals',
+      requiresConfirmation: starting || hasAny(lower, ['wait', 'kill', 'stop', 'write', 'send input']),
+      missingFields: starting
+        ? ['command', 'working directory when not the current workspace', 'confirmation']
+        : lifecycle
+          ? ['process id or session id']
+          : undefined,
+      supportingRoutes: [
+        'terminal command:"..." background:true confirm:true explicitUserRequest:"..."',
+        'process action:"list"',
+        'process action:"poll|log|wait|kill|write" session_id:"..."',
+        'process action:"capabilities"',
+      ],
+      policy: 'Process planning and listing are read-only. Starting commands, waiting, killing, and stdin writes use the first-class terminal/process confirmation boundaries with bounded redacted logs.',
     });
   }
 

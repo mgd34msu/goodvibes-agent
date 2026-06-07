@@ -82,6 +82,23 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes command-shaped background work to local process controls', async () => {
+    const body = await route('run pytest -v tests/ in background');
+
+    expect(preferredId(body)).toBe('local-background-process');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'execution action:"processes" includeParameters:true',
+      inspectRoute: 'execution action:"capabilities"',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('keeps scheduled background work on visible autonomy intake', async () => {
+    const body = await route('run a weekly source-backed research report in background');
+
+    expect(preferredId(body)).toBe('autonomy-intake');
+  });
+
   test('routes screenshot and browser-control tasks through the computer planner', async () => {
     const body = await route('take a screenshot of the logged-in browser dashboard');
 
