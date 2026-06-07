@@ -2581,6 +2581,67 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('surfaces saved Personal Ops review artifacts as durable inbox lane records', async () => {
+    const artifacts = createHarnessArtifactStore();
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'saved-inbox-review.json',
+      text: '{"reviewRecords":[]}\n',
+      acquisitionMode: 'inline-data',
+      fetchMode: 'not-applicable',
+      metadata: {
+        purpose: 'personal-ops-review-cards',
+        laneId: 'inbox',
+        sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
+        reviewRecordCount: 2,
+        fullRawConnectorOutputStored: false,
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      const ops = await executeHarnessJson<{
+        readonly lanes: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly current: string;
+          readonly signals: readonly string[];
+          readonly liveRecords?: readonly {
+            readonly id: string;
+            readonly label: string;
+            readonly status: string;
+            readonly summary: string;
+            readonly modelRoute: string;
+            readonly tags?: readonly string[];
+            readonly effect?: string;
+            readonly capability?: string;
+            readonly artifactId?: string;
+            readonly reviewRecordCount?: number;
+            readonly sourceTool?: string;
+          }[];
+        }[];
+      }>(fixture, { mode: 'personal_ops', includeParameters: true });
+
+      const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
+      const savedReview = inbox?.liveRecords?.find((record) => record.id === 'review-artifact:artifact-1');
+      expect(inbox?.status).toBe('partial');
+      expect(inbox?.current).toContain('Saved inbox review artifacts');
+      expect(inbox?.signals).toContain('1 saved inbox review artifact(s)');
+      expect(savedReview?.label).toContain('Saved inbox review');
+      expect(savedReview?.status).toBe('ready');
+      expect(savedReview?.summary).toContain('2 normalized review cards');
+      expect(savedReview?.modelRoute).toContain('agent_artifacts show artifactId:"artifact-1"');
+      expect(savedReview?.tags).toContain('saved-review');
+      expect(savedReview?.effect).toBe('read-only');
+      expect(savedReview?.capability).toBe('inbox-review-artifact');
+      expect(savedReview?.artifactId).toBe('artifact-1');
+      expect(savedReview?.reviewRecordCount).toBe(2);
+      expect(savedReview?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('surfaces Agent memory, vector recall, and external memory-provider posture', async () => {
     const fixture = makeFixture();
     try {
@@ -3197,9 +3258,27 @@ describe('agent_harness tool', () => {
         readonly status: string;
         readonly connectorSignals?: readonly { readonly id: string; readonly modelRoute: string; readonly readTools?: readonly { readonly name: string }[] }[];
         readonly workflows?: readonly { readonly id: string; readonly inspectRoutes?: readonly string[]; readonly prerequisites?: readonly string[] }[];
+        readonly liveRecords?: readonly {
+          readonly id: string;
+          readonly label: string;
+          readonly modelRoute: string;
+          readonly effect?: string;
+          readonly capability?: string;
+          readonly artifactId?: string;
+          readonly reviewRecordCount?: number;
+          readonly sourceTool?: string;
+        }[];
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox' });
       expect(lane.id).toBe('inbox');
       expect(lane.status).toBe('partial');
+      const savedReviewRecord = lane.liveRecords?.find((record) => record.id === 'review-artifact:artifact-1');
+      expect(savedReviewRecord?.label).toContain('Saved inbox review');
+      expect(savedReviewRecord?.modelRoute).toContain('artifact-1');
+      expect(savedReviewRecord?.effect).toBe('read-only');
+      expect(savedReviewRecord?.capability).toBe('inbox-review-artifact');
+      expect(savedReviewRecord?.artifactId).toBe('artifact-1');
+      expect(savedReviewRecord?.reviewRecordCount).toBe(1);
+      expect(savedReviewRecord?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
       expect(lane.connectorSignals?.[0]?.modelRoute).toContain('mcp_server');
       expect(lane.connectorSignals?.[0]?.readTools?.[0]?.name).toBe('gmail.get_thread');
       expect(lane.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');

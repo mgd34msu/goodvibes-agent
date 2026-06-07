@@ -1,5 +1,6 @@
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
@@ -95,6 +96,9 @@ interface PersonalOpsLiveRecord {
   readonly optionalFields?: readonly string[];
   readonly sampleInput?: Readonly<Record<string, unknown>>;
   readonly confirmationRequired?: boolean;
+  readonly artifactId?: string;
+  readonly reviewRecordCount?: number;
+  readonly sourceTool?: string;
 }
 
 interface PersonalOpsWorkflow {
@@ -776,6 +780,9 @@ function describeLiveRecord(record: PersonalOpsLiveRecord, includeParameters: bo
     ...(includeParameters && record.optionalFields ? { optionalFields: record.optionalFields.slice(0, 12) } : {}),
     ...(includeParameters && record.sampleInput ? { sampleInput: record.sampleInput } : {}),
     ...(includeParameters && typeof record.confirmationRequired === 'boolean' ? { confirmationRequired: record.confirmationRequired } : {}),
+    ...(includeParameters && record.artifactId ? { artifactId: record.artifactId } : {}),
+    ...(includeParameters && typeof record.reviewRecordCount === 'number' ? { reviewRecordCount: record.reviewRecordCount } : {}),
+    ...(includeParameters && record.sourceTool ? { sourceTool: record.sourceTool } : {}),
   };
 }
 
@@ -909,6 +916,78 @@ function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLa
         confirmationRequired: tool.effect === 'confirmed-effect',
       }));
     return [summaryRecord, ...operationRecords];
+  });
+}
+
+function artifactMetadata(artifact: ArtifactDescriptor): Readonly<Record<string, unknown>> {
+  return artifact.metadata && typeof artifact.metadata === 'object' && !Array.isArray(artifact.metadata)
+    ? artifact.metadata
+    : {};
+}
+
+function artifactMetadataString(artifact: ArtifactDescriptor, key: string): string {
+  const value = artifactMetadata(artifact)[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function artifactMetadataNumber(artifact: ArtifactDescriptor, key: string): number | null {
+  const value = artifactMetadata(artifact)[key];
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly ArtifactDescriptor[] {
+  const store = context.platform.artifactStore;
+  if (!store?.list) return [];
+  try {
+    return store.list(100)
+      .filter((artifact) => artifactMetadataString(artifact, 'purpose') === 'personal-ops-review-cards')
+      .filter((artifact) => artifactMetadataString(artifact, 'laneId') === laneId)
+      .sort((left, right) => {
+        const leftCreated = typeof left.createdAt === 'number' ? left.createdAt : 0;
+        const rightCreated = typeof right.createdAt === 'number' ? right.createdAt : 0;
+        return rightCreated - leftCreated;
+      })
+      .slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly PersonalOpsLiveRecord[] {
+  return savedReviewArtifacts(context, laneId).map((artifact) => {
+    const reviewRecordCount = artifactMetadataNumber(artifact, 'reviewRecordCount') ?? 0;
+    const sourceTool = artifactMetadataString(artifact, 'sourceTool') || artifactMetadataString(artifact, 'sourceRecordId');
+    const createdAt = typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt)
+      ? new Date(artifact.createdAt).toISOString()
+      : '';
+    const countText = reviewRecordCount > 0
+      ? `${reviewRecordCount} normalized review card${reviewRecordCount === 1 ? '' : 's'}`
+      : 'normalized review cards';
+    return {
+      id: `review-artifact:${artifact.id}`,
+      label: `${laneId === 'calendar' ? 'Saved agenda review' : 'Saved inbox review'}: ${artifact.filename ?? artifact.id}`,
+      status: 'ready',
+      summary: [
+        `${countText} saved for later review.`,
+        sourceTool ? `Source ${sourceTool}.` : '',
+        createdAt ? `Saved ${createdAt}.` : '',
+        'Use the artifact route to reopen redacted cards before summary, draft, or promotion work.',
+      ].filter(Boolean).join(' '),
+      userRoute: 'Agent Workspace -> Artifacts -> Browse artifacts',
+      modelRoute: `agent_artifacts show artifactId:"${artifact.id}" includeContent:true`,
+      tags: ['saved-review', 'artifact', laneId === 'calendar' ? 'calendar-read' : 'inbox-read'],
+      effect: 'read-only',
+      capability: laneId === 'calendar' ? 'calendar-review-artifact' : 'inbox-review-artifact',
+      confirmationRequired: false,
+      artifactId: artifact.id,
+      reviewRecordCount,
+      ...(sourceTool ? { sourceTool } : {}),
+    };
   });
 }
 
@@ -1149,6 +1228,8 @@ function buildLanes(
   const schemasByQualifiedName = options.schemasByQualifiedName ?? new Map<string, McpToolSchema>();
   const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail'], { lane: 'inbox', toolsByServer: toolsByName, schemasByQualifiedName });
   const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda'], { lane: 'calendar', toolsByServer: toolsByName, schemasByQualifiedName });
+  const inboxArtifactRecords = savedReviewArtifactRecords(context, 'inbox');
+  const calendarArtifactRecords = savedReviewArtifactRecords(context, 'calendar');
   const taskMethods = methodIdsMatching(['task', 'work-plan', 'workplan']);
   const scheduleMethods = methodIdsMatching(['schedule', 'reminder']);
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
@@ -1164,56 +1245,72 @@ function buildLanes(
     {
       id: 'inbox',
       label: 'Inbox',
-      status: emailMethods.length > 0 || emailConnectors.length > 0 ? 'partial' : 'gap',
+      status: emailMethods.length > 0 || emailConnectors.length > 0 || inboxArtifactRecords.length > 0 ? 'partial' : 'gap',
       outcome: 'Triage inbound email or message inboxes, summarize threads, draft replies, and send only after confirmation.',
       current: emailMethods.length > 0
         ? 'The daemon contract exposes email-like methods; Personal Ops workflow cards now guide inbox triage and draft boundaries around exact methods.'
         : emailConnectors.length > 0
           ? 'A configured MCP connector looks email-capable; Personal Ops workflow cards now guide inbox triage, schema-derived operation records, and draft boundaries around its exact tools.'
+          : inboxArtifactRecords.length > 0
+            ? 'Saved inbox review artifacts are available for recap or promotion; no fresh email connector is currently ready.'
         : 'No email/IMAP/SMTP methods are present in the current GoodVibes SDK operator contract.',
       next: emailMethods.length > 0
         ? 'Use the inbox workflow cards to inspect exact methods, read selected threads, summarize priorities, and keep send as a separate confirmation.'
         : emailConnectors.length > 0
           ? 'Use the inbox workflow cards and operation records to inspect matching MCP connector schemas, then route triage only through reviewed connector actions.'
+          : inboxArtifactRecords.length > 0
+            ? 'Open saved review artifacts for local recap or promotion, then repair an email connector before reading fresh inbox data.'
         : 'Install or build an email connector/MCP/plugin, then expose triage and draft-reply actions here.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
       modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'agent_harness mode:"operator_methods" query:"email"',
       signals: [
         `${emailMethods.length} email-like daemon method(s)`,
         `${emailConnectors.length} email-like MCP connector(s)`,
+        `${inboxArtifactRecords.length} saved inbox review artifact(s)`,
         `${readyChannels}/${snapshot.channels.length} channel(s) ready for delivery`,
       ],
       methodIds: emailMethods,
       connectorSignals: emailConnectors,
       workflows: inboxWorkflows(emailMethods, emailConnectors),
-      liveRecords: connectorRecords(emailConnectors, 'Inbox'),
+      liveRecords: [
+        ...inboxArtifactRecords,
+        ...connectorRecords(emailConnectors, 'Inbox'),
+      ],
     },
     {
       id: 'calendar',
       label: 'Calendar',
-      status: calendarMethods.length > 0 || calendarConnectors.length > 0 ? 'partial' : 'gap',
+      status: calendarMethods.length > 0 || calendarConnectors.length > 0 || calendarArtifactRecords.length > 0 ? 'partial' : 'gap',
       outcome: 'Read agenda context, identify conflicts, prepare briefings, and create reminders for calendar-driven work.',
       current: calendarMethods.length > 0
         ? 'The daemon contract exposes calendar-like methods; Personal Ops workflow cards now guide agenda briefing and conflict-scan boundaries.'
         : calendarConnectors.length > 0
           ? 'A configured MCP connector looks calendar-capable; Personal Ops workflow cards now guide agenda briefing, schema-derived operation records, and conflict-scan boundaries around its exact tools.'
+          : calendarArtifactRecords.length > 0
+            ? 'Saved calendar review artifacts are available for recap or promotion; no fresh calendar connector is currently ready.'
         : 'No calendar/CalDAV/agenda methods are present in the current GoodVibes SDK operator contract.',
       next: calendarMethods.length > 0
         ? 'Use the calendar workflow cards to inspect exact methods, fetch a bounded agenda window, and propose reminders or follow-ups.'
         : calendarConnectors.length > 0
           ? 'Use the calendar workflow cards and operation records to inspect matching MCP connector schemas, then route agenda work only through reviewed connector actions.'
+          : calendarArtifactRecords.length > 0
+            ? 'Open saved review artifacts for local recap or promotion, then repair a calendar connector before reading fresh agenda data.'
         : 'Add a CalDAV/calendar connector and route agenda briefing, conflicts, and reminders through this lane.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
       modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'agent_harness mode:"operator_methods" query:"calendar"',
       signals: [
         `${calendarMethods.length} calendar-like daemon method(s)`,
         `${calendarConnectors.length} calendar-like MCP connector(s)`,
+        `${calendarArtifactRecords.length} saved calendar review artifact(s)`,
         `${scheduleMethods.length} schedule/reminder method(s) available for follow-up`,
       ],
       methodIds: calendarMethods,
       connectorSignals: calendarConnectors,
       workflows: calendarWorkflows(calendarMethods, calendarConnectors),
-      liveRecords: connectorRecords(calendarConnectors, 'Calendar'),
+      liveRecords: [
+        ...calendarArtifactRecords,
+        ...connectorRecords(calendarConnectors, 'Calendar'),
+      ],
     },
     {
       id: 'notes',
@@ -1327,6 +1424,8 @@ function liveRecordSearchText(record: PersonalOpsLiveRecord): string {
     record.modelRoute,
     record.qualifiedName ?? '',
     record.capability ?? '',
+    record.artifactId ?? '',
+    record.sourceTool ?? '',
     record.tags?.join('\n') ?? '',
   ].join('\n').toLowerCase();
 }
