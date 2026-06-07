@@ -45,6 +45,12 @@ interface TriggerWorkflow {
   readonly inspectRoute: string;
   readonly setupRoutes: readonly string[];
   readonly evidence: Record<string, unknown>;
+  readonly outcome?: {
+    readonly target: string;
+    readonly successCriteria: readonly string[];
+    readonly evidenceFields: readonly string[];
+    readonly verificationRoute: string;
+  };
   readonly policy: string;
 }
 
@@ -86,6 +92,19 @@ function describeTriggerWorkflow(workflow: TriggerWorkflow, includeParameters: b
     status: workflow.status,
     summary: previewHarnessText(workflow.summary),
     modelRoute: workflow.modelRoute,
+  };
+}
+
+function watcherTriggerOutcome(): TriggerWorkflow['outcome'] {
+  return {
+    target: 'created-visible-watcher',
+    successCriteria: [
+      'The confirmed watchers.create receipt includes id, label, kind, state, source, and metadata.',
+      'The receipt has no lastError.',
+      'A follow-up watchers.list read shows the watcher remains visible before assuming the trigger is active.',
+    ],
+    evidenceFields: ['id', 'kind', 'label', 'state', 'source.kind', 'source.enabled', 'sourceStatus', 'lastCheckpoint', 'lastError'],
+    verificationRoute: 'agent_operator_method methodId:"watchers.list"',
   };
 }
 
@@ -244,6 +263,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
         watcherRunPublished,
         watcherStartStopPublished,
       },
+      outcome: watcherTriggerOutcome(),
       policy: 'Incoming triggers are admin connected-host mutations. They require a trusted source boundary, explicit run scope, and user confirmation before creation.',
     },
     {

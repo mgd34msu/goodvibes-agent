@@ -3870,6 +3870,12 @@ describe('agent_harness tool', () => {
           readonly status: string;
           readonly requiredFields: readonly string[];
           readonly evidence: Record<string, unknown>;
+          readonly outcome?: {
+            readonly target: string;
+            readonly successCriteria: readonly string[];
+            readonly evidenceFields: readonly string[];
+            readonly verificationRoute: string;
+          };
           readonly policy: string;
         }[];
       }>(fixture, {
@@ -3890,6 +3896,10 @@ describe('agent_harness tool', () => {
       expect(watcher?.status).toBe('ready');
       expect(watcher?.evidence.watcherCreatePublished).toBe(true);
       expect(watcher?.requiredFields.join('\n')).toContain('trusted trigger source');
+      expect(watcher?.outcome?.target).toBe('created-visible-watcher');
+      expect(watcher?.outcome?.successCriteria.join('\n')).toContain('watchers.create receipt');
+      expect(watcher?.outcome?.evidenceFields).toContain('lastError');
+      expect(watcher?.outcome?.verificationRoute).toContain('watchers.list');
       expect(watcher?.policy).toContain('Incoming triggers are admin connected-host mutations');
       const gmail = trigger.triggerWorkflows.find((workflow) => workflow.id === 'gmail-or-email-trigger');
       expect(gmail?.status).toBe('attention');

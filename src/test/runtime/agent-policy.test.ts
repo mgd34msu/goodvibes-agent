@@ -117,6 +117,15 @@ describe('Agent user-first autonomy policy', () => {
     expect(writePreview.success).toBe(false);
     expect(writePreview.error).toContain('"confirm": true');
     expect(writePreview.error).toContain('"confirmationRequired": true');
+
+    const watcherPreview = await tool.execute({
+      methodId: 'watchers.create',
+      input: { label: 'Billing webhook triage', kind: 'webhook' },
+      dryRun: true,
+    });
+    expect(watcherPreview.success).toBe(true);
+    expect(watcherPreview.output).toContain('"expectedOutcome"');
+    expect(watcherPreview.output).toContain('"created-visible-watcher"');
   });
 
   test('generic operator method bridge certifies service repair receipts', async () => {
@@ -189,6 +198,75 @@ describe('Agent user-first autonomy policy', () => {
       expect(output.outcome.expectedOutcome.target).toBe('running-service');
       expect(output.outcome.expectedOutcome.verificationRoute).toContain('services.status');
       expect(result.output).not.toContain('service-repair-token');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('generic operator method bridge certifies watcher receipts', async () => {
+    root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
+    mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
+    writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'watcher-receipt-token' }));
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({
+      id: 'watcher-billing',
+      kind: 'webhook',
+      label: 'Billing webhook triage',
+      state: 'active',
+      source: {
+        id: 'billing',
+        kind: 'webhook',
+        label: 'Billing webhook',
+        enabled: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        metadata: {},
+      },
+      metadata: {},
+      lastCheckpoint: 'created',
+    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof globalThis.fetch;
+
+    try {
+      const tool = createAgentOperatorMethodTool(
+        { homeDirectory: root } as never,
+        {
+          get: (key: string) => key === 'controlPlane.port'
+            ? 3429
+            : key === 'controlPlane.host'
+              ? '127.0.0.1'
+              : undefined,
+        },
+      );
+      const result = await tool.execute({
+        methodId: 'watchers.create',
+        input: { label: 'Billing webhook triage', kind: 'webhook' },
+        confirm: true,
+        explicitUserRequest: 'Create a billing webhook watcher.',
+      });
+      expect(result.success).toBe(true);
+      if (!result.success) throw new Error(result.error);
+      const output = JSON.parse(result.output) as {
+        readonly outcome: {
+          readonly kind: string;
+          readonly status: string;
+          readonly certified: boolean;
+          readonly evidence: { readonly id: string; readonly state: string; readonly sourceEnabled: boolean; readonly lastError: string | null };
+          readonly expectedOutcome: { readonly target: string; readonly verificationRoute: string };
+        };
+      };
+      expect(output.outcome.kind).toBe('watcher-receipt');
+      expect(output.outcome.status).toBe('certified');
+      expect(output.outcome.certified).toBe(true);
+      expect(output.outcome.evidence).toMatchObject({
+        id: 'watcher-billing',
+        state: 'active',
+        sourceEnabled: true,
+        lastError: null,
+      });
+      expect(output.outcome.expectedOutcome.target).toBe('created-visible-watcher');
+      expect(output.outcome.expectedOutcome.verificationRoute).toContain('watchers.list');
+      expect(result.output).not.toContain('watcher-receipt-token');
     } finally {
       globalThis.fetch = originalFetch;
     }

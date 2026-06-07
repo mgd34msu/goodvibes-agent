@@ -35,10 +35,25 @@ interface PreparedOperatorRoute {
 }
 
 type ServiceMethodId = 'services.status' | 'services.install' | 'services.start' | 'services.restart';
+type WatcherMethodId =
+  | 'watchers.create'
+  | 'watchers.patch'
+  | 'watchers.run'
+  | 'watchers.start'
+  | 'watchers.stop'
+  | 'watchers.delete';
 
 const READ_ONLY_HTTP_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const MAX_OUTPUT_CHARS = 18_000;
 const SERVICE_METHOD_IDS = new Set<string>(['services.status', 'services.install', 'services.start', 'services.restart']);
+const WATCHER_METHOD_IDS = new Set<string>([
+  'watchers.create',
+  'watchers.patch',
+  'watchers.run',
+  'watchers.start',
+  'watchers.stop',
+  'watchers.delete',
+]);
 
 function isRecord(value: unknown): value is JsonRecord {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -136,6 +151,10 @@ function isServiceMethodId(methodId: string): methodId is ServiceMethodId {
   return SERVICE_METHOD_IDS.has(methodId);
 }
 
+function isWatcherMethodId(methodId: string): methodId is WatcherMethodId {
+  return WATCHER_METHOD_IDS.has(methodId);
+}
+
 function serviceSuccessCriteria(methodId: ServiceMethodId): readonly string[] {
   if (methodId === 'services.status') {
     return [
@@ -184,6 +203,44 @@ function serviceExpectedOutcome(methodId: ServiceMethodId): JsonRecord {
   };
 }
 
+function watcherSuccessCriteria(methodId: WatcherMethodId): readonly string[] {
+  if (methodId === 'watchers.delete') {
+    return [
+      'The daemon returns ok:true for watchers.delete.',
+      'The watcher receipt reports removed:true.',
+      'Verify with watchers.list before recreating or assuming no trigger remains.',
+    ];
+  }
+  const action = methodId.split('.')[1] ?? 'watcher';
+  return [
+    `The daemon returns ok:true for ${methodId}.`,
+    'The watcher receipt includes id, label, kind, state, source, and metadata.',
+    'The watcher receipt has no lastError.',
+    `Verify with watchers.list before retrying ${action} or assuming the trigger is active.`,
+  ];
+}
+
+function watcherExpectedOutcome(methodId: WatcherMethodId): JsonRecord {
+  const target = methodId === 'watchers.create'
+    ? 'created-visible-watcher'
+    : methodId === 'watchers.patch'
+      ? 'updated-visible-watcher'
+      : methodId === 'watchers.run'
+        ? 'triggered-watcher-run'
+        : methodId === 'watchers.start'
+          ? 'started-watcher'
+          : methodId === 'watchers.stop'
+            ? 'stopped-watcher'
+            : 'deleted-watcher';
+  return {
+    target,
+    successCriteria: watcherSuccessCriteria(methodId),
+    evidenceFields: ['id', 'kind', 'label', 'state', 'source.kind', 'source.enabled', 'sourceStatus', 'lastCheckpoint', 'lastError'],
+    verificationRoute: 'agent_operator_method methodId:"watchers.list"',
+    recoveryRoute: 'agent_harness mode:"autonomy_intake" query:"watcher trigger" includeParameters:true',
+  };
+}
+
 function summarizePreview(route: PreparedOperatorRoute): JsonRecord {
   const readOnly = methodIsReadOnly(route.method);
   const preview: JsonRecord = {
@@ -203,6 +260,7 @@ function summarizePreview(route: PreparedOperatorRoute): JsonRecord {
     query: READ_ONLY_HTTP_METHODS.has(route.httpMethod) ? route.payload : undefined,
   };
   if (isServiceMethodId(route.method.id)) preview.expectedOutcome = serviceExpectedOutcome(route.method.id);
+  if (isWatcherMethodId(route.method.id)) preview.expectedOutcome = watcherExpectedOutcome(route.method.id);
   return preview;
 }
 
@@ -276,6 +334,58 @@ function serviceOutcome(methodId: string, responseOk: boolean, body: unknown): J
       ? 'Inspect services.status or connected-host status to confirm the setup wizard can advance.'
       : 'Inspect services.status and connected-host setup posture before retrying a lifecycle mutation.',
   };
+}
+
+function watcherReceiptEvidence(body: unknown): JsonRecord {
+  if (!isRecord(body)) return { receipt: 'not-json-object' };
+  const source = isRecord(body.source) ? body.source : {};
+  return {
+    id: typeof body.id === 'string' ? body.id : null,
+    kind: typeof body.kind === 'string' ? body.kind : null,
+    label: typeof body.label === 'string' ? body.label : null,
+    state: typeof body.state === 'string' ? body.state : null,
+    sourceKind: typeof source.kind === 'string' ? source.kind : null,
+    sourceEnabled: typeof source.enabled === 'boolean' ? source.enabled : null,
+    sourceStatus: typeof body.sourceStatus === 'string' ? body.sourceStatus : null,
+    lastCheckpoint: typeof body.lastCheckpoint === 'string' ? body.lastCheckpoint : null,
+    lastError: typeof body.lastError === 'string' ? body.lastError : null,
+  };
+}
+
+function watcherOutcomeCertified(methodId: WatcherMethodId, responseOk: boolean, body: unknown): boolean {
+  if (!responseOk || !isRecord(body)) return false;
+  if (methodId === 'watchers.delete') return body.removed === true;
+  if (typeof body.lastError === 'string' && body.lastError.trim()) return false;
+  return typeof body.id === 'string'
+    && typeof body.kind === 'string'
+    && typeof body.label === 'string'
+    && typeof body.state === 'string'
+    && isRecord(body.source);
+}
+
+function watcherOutcome(methodId: string, responseOk: boolean, body: unknown): JsonRecord | undefined {
+  if (!isWatcherMethodId(methodId)) return undefined;
+  const certified = watcherOutcomeCertified(methodId, responseOk, body);
+  return {
+    kind: 'watcher-receipt',
+    status: !responseOk
+      ? 'failed'
+      : certified
+        ? 'certified'
+        : 'needs-follow-up',
+    certified,
+    methodId,
+    evidence: watcherReceiptEvidence(body),
+    expectedOutcome: watcherExpectedOutcome(methodId),
+    nextStep: certified
+      ? 'Inspect watchers.list or autonomy_queue to verify the trigger remains visible and scoped.'
+      : 'Inspect watchers.list and autonomy_intake before retrying watcher setup or run control.',
+  };
+}
+
+function operatorOutcome(methodId: string, responseOk: boolean, body: unknown): JsonRecord | undefined {
+  return serviceOutcome(methodId, responseOk, body)
+    ?? watcherOutcome(methodId, responseOk, body);
 }
 
 async function readResponseBody(response: Response): Promise<unknown> {
@@ -387,7 +497,7 @@ export function createAgentOperatorMethodTool(
           ...(READ_ONLY_HTTP_METHODS.has(route.httpMethod) ? {} : { body: JSON.stringify(route.payload) }),
         });
         const body = await readResponseBody(response);
-        const outcome = serviceOutcome(route.method.id, response.ok, body);
+        const outcome = operatorOutcome(route.method.id, response.ok, body);
         const output = {
           methodId: route.method.id,
           status: response.status,
