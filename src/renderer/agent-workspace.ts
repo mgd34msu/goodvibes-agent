@@ -383,6 +383,12 @@ function reviewerReadinessBadgeLabel(status: AgentWorkspaceRuntimeSnapshot['revi
   return 'setup needed';
 }
 
+function researchContractColor(status: string): string {
+  if (status === 'ready-with-confirmation' || status === 'markdown-ready-visual-contract-needed') return PALETTE.good;
+  if (status === 'needs-review') return PALETTE.warn;
+  return PALETTE.info;
+}
+
 function reviewerReadinessContextLines(editor: AgentWorkspaceLocalEditor, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [];
   if (
@@ -490,13 +496,19 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Delete one-shot jobs after success: ${snapshot.automationDeleteAfterRun ? 'yes' : 'no'}.`, fg: snapshot.automationDeleteAfterRun ? PALETTE.info : PALETTE.muted },
     );
   } else if (category.id === 'research') {
+    const runnerContract = snapshot.researchBrowserRunnerContract;
+    const visualContract = snapshot.researchVisualReportContract;
     base.push(
       { text: `Research route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}.`, fg: PALETTE.info },
       { text: `Browser: ${snapshot.voiceMediaReadiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: `Browser runner contract: ${runnerContract.label}; ${compactText(runnerContract.next, 96)}`, fg: researchContractColor(runnerContract.status), bold: runnerContract.status !== 'ready-with-confirmation' },
+      { text: `Runner requires: ${runnerContract.details.join(', ')}.`, fg: PALETTE.muted },
       { text: `Research runs: ${snapshot.researchRunRunningCount} running; ${snapshot.researchRunPausedCount} paused; ${snapshot.researchRunBlockedCount} blocked; ${snapshot.researchRunPlannedCount} planned.`, fg: snapshot.researchRunRunningCount > 0 || snapshot.researchRunBlockedCount > 0 ? PALETTE.warn : snapshot.researchRunPausedCount > 0 || snapshot.researchRunPlannedCount > 0 ? PALETTE.info : PALETTE.muted },
       { text: `Source queue: ${snapshot.researchSourceCandidateCount} candidate; ${snapshot.researchSourceReviewedCount} reviewed; ${snapshot.researchSourceRejectedCount} rejected; ${snapshot.researchSourceUsedCount} used.`, fg: snapshot.researchSourceCandidateCount > 0 ? PALETTE.warn : snapshot.researchSourceReviewedCount > 0 ? PALETTE.good : PALETTE.muted },
+      { text: `Visual report contract: ${visualContract.label}; ${compactText(visualContract.next, 96)}`, fg: researchContractColor(visualContract.status), bold: visualContract.status !== 'markdown-ready-visual-contract-needed' },
+      { text: `Report requires: ${visualContract.details.join(', ')}.`, fg: PALETTE.muted },
       { text: 'Web and URL inspection stay read-only until the user confirms source ingest.', fg: PALETTE.good },
-      { text: 'Run state uses agent_research_runs; source review uses agent_research_sources; reports use agent_research_report.', fg: PALETTE.good },
+      { text: 'Tools: agent_research_runs / agent_research_sources / agent_research_report.', fg: PALETTE.good },
     );
   } else if (category.id === 'personal-ops') {
     const ready = readyRoutineItems(snapshot);

@@ -519,6 +519,14 @@ export interface AgentWorkspaceResearchRunSummary {
   readonly reportArtifactId?: string;
 }
 
+export interface AgentWorkspaceResearchContractSummary {
+  readonly status: string;
+  readonly label: string;
+  readonly next: string;
+  readonly route: string;
+  readonly details: readonly string[];
+}
+
 export interface AgentWorkspaceCompanionAccessSummary {
   readonly surface: 'goodvibes-agent';
   readonly hostUrl: string;
@@ -600,6 +608,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchRunBlockedCount: number;
   readonly researchRunTerminalCount: number;
   readonly researchRuns: readonly AgentWorkspaceResearchRunSummary[];
+  readonly researchBrowserRunnerContract: AgentWorkspaceResearchContractSummary;
+  readonly researchVisualReportContract: AgentWorkspaceResearchContractSummary;
   readonly recentReviewerHandoffArtifactCount: number;
   readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
   readonly reviewerReadinessBadge: AgentWorkspaceReviewerReadinessBadge;

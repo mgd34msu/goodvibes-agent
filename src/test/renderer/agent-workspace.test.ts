@@ -818,11 +818,15 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Research route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Research runs: 0 running; 0 paused; 0 blocked; 0 planned.');
     expect(output).toContain('Source queue: 0 candidate; 0 reviewed; 0 rejected; 0 used.');
+    expect(output).toContain('Browser runner contract: needs setup review');
+    expect(output).toContain('Runner requires: visible run controls, source capture receipts, bounded logs, report handoff.');
+    expect(output).toContain('Visual report contract: waiting for reviewed sources');
+    expect(output).toContain('Report requires: answer summary, evidence table, source map, citation coverage, artifact archive.');
     expect(output).toContain('Web and URL inspection stay read-only');
-    expect(output).toContain('Run state uses agent_research_runs; source review uses agent_research_sources; reports use');
-    expect(output).toContain('agent_research_report.');
+    expect(output).toContain('Tools: agent_research_runs / agent_research_sources / agent_research_report.');
     expect(output).toContain('Research in conversation');
     expect(output).toContain('Inspect URL');
+    expect(output).toContain('Plan workflow');
     expect(output).toContain('Research runs');
     expect(output).toContain('Start research run');
     expect(output).toContain('Source queue');

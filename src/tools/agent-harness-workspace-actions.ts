@@ -191,6 +191,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'assistant-browser-cockpit') return 'agent_harness mode:"open_ui_surface"';
+  if (action.id === 'research-workflow-plan') return 'agent_harness mode:"research_workflow"';
   if (action.id === 'research-run-queue') return 'agent_harness mode:"research_runs"';
   if (action.id === 'research-source-queue') return 'agent_harness mode:"research_queue"';
   if (action.id === 'personal-ops-intake') return 'agent_harness mode:"personal_ops_intake"';

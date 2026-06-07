@@ -48,6 +48,7 @@ import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceRecentReviewerHandoffArtifact,
+  AgentWorkspaceResearchContractSummary,
   AgentWorkspaceResearchRunSummary,
   AgentWorkspaceReviewPacketDefaults,
   AgentWorkspaceReviewPacketPresetLineage,
@@ -211,6 +212,80 @@ function summarizeResearchRunItem(
     updatedAt: run.updatedAt,
     ...(run.note ? { note: run.note } : {}),
     ...(run.reportArtifactId ? { reportArtifactId: run.reportArtifactId } : {}),
+  };
+}
+
+type WorkspaceMcpServerRecord = {
+  readonly name?: string;
+  readonly role?: string;
+  readonly connected?: boolean;
+  readonly trustMode?: string;
+  readonly schemaFreshness?: string;
+};
+
+const RESEARCH_BROWSER_TERMS = ['browser', 'desktop', 'computer use', 'screenshot', 'screen recording'];
+
+function workspaceMcpServers(context: CommandContext): readonly WorkspaceMcpServerRecord[] {
+  try {
+    return (context.clients?.mcpApi?.listServerSecurity?.() ?? []) as readonly WorkspaceMcpServerRecord[];
+  } catch {
+    return [];
+  }
+}
+
+function matchesResearchBrowserTerm(server: WorkspaceMcpServerRecord): boolean {
+  const haystack = `${server.name ?? ''}\n${server.role ?? ''}`.toLowerCase();
+  return RESEARCH_BROWSER_TERMS.some((term) => haystack.includes(term));
+}
+
+function buildResearchBrowserRunnerContract(context: CommandContext): AgentWorkspaceResearchContractSummary {
+  const browserServers = workspaceMcpServers(context).filter(matchesResearchBrowserTerm);
+  const ready = browserServers.some((server) =>
+    server.connected === true
+    && server.schemaFreshness === 'fresh'
+    && server.trustMode !== 'blocked'
+    && server.trustMode !== 'quarantined'
+  );
+  const needsReview = !ready && browserServers.length > 0;
+  return {
+    status: ready ? 'ready-with-confirmation' : needsReview ? 'needs-review' : 'setup-contract-needed',
+    label: ready ? 'ready with confirmation' : needsReview ? 'needs setup review' : 'setup needed',
+    next: ready
+      ? 'Use browser-backed research only when live browser state or authentication is necessary.'
+      : needsReview
+        ? 'Review browser/desktop MCP trust, connection, and schema freshness before live browser-backed research.'
+        : 'Use public web/fetch research now; configure a trusted browser/desktop route before live UI research.',
+    route: 'agent_harness mode:"research_workflow" includeParameters:true',
+    details: [
+      'visible run controls',
+      'source capture receipts',
+      'bounded logs',
+      'report handoff',
+    ],
+  };
+}
+
+function buildResearchVisualReportContract(sourceSnapshot: {
+  readonly reviewed: number;
+  readonly used: number;
+}): AgentWorkspaceResearchContractSummary {
+  const sourceReady = sourceSnapshot.reviewed + sourceSnapshot.used > 0;
+  return {
+    status: sourceReady ? 'markdown-ready-visual-contract-needed' : 'waiting-for-reviewed-sources',
+    label: sourceReady ? 'markdown ready; visual renderer needed' : 'waiting for reviewed sources',
+    next: sourceReady
+      ? 'Save a sourced markdown report now, then use the same reviewed artifacts for richer visual output.'
+      : 'Review at least one source before saving a report or visual packet.',
+    route: sourceReady
+      ? 'agent_research_report title:"..." question:"..." sources:[...] requireCitationCoverage:true confirm:true explicitUserRequest:"..."'
+      : 'agent_harness mode:"research_queue" includeParameters:true',
+    details: [
+      'answer summary',
+      'evidence table',
+      'source map',
+      'citation coverage',
+      'artifact archive',
+    ],
   };
 }
 
@@ -1713,6 +1788,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     buildSetupWizardCheckpoint(context),
     setupCompletionMarkerExists(context),
   );
+  const researchBrowserRunnerContract = buildResearchBrowserRunnerContract(context);
+  const researchVisualReportContract = buildResearchVisualReportContract(researchSourceSnapshot);
 
   return {
     provider,
@@ -1781,6 +1858,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     researchRunBlockedCount: researchRunSnapshot.blocked,
     researchRunTerminalCount: researchRunSnapshot.terminal,
     researchRuns: researchRunSnapshot.items,
+    researchBrowserRunnerContract,
+    researchVisualReportContract,
     recentReviewerHandoffArtifactCount: recentReviewerHandoffs.count,
     recentReviewerHandoffArtifacts: recentReviewerHandoffs.items,
     reviewerReadinessBadge: reviewerBadge,
