@@ -423,7 +423,28 @@ function describeReviewPacketWizardStep(step: AgentWorkspaceReviewPacketWizardSt
   };
 }
 
+function describeReviewPacketPresetLineage(
+  lineage: AgentWorkspaceReviewPacketWizard['presetLineage'],
+  includeParameters: boolean,
+): Record<string, unknown> | null {
+  if (!lineage) return null;
+  return {
+    artifactId: lineage.artifactId,
+    presetId: lineage.presetId,
+    name: lineage.name,
+    refreshed: lineage.refreshed,
+    refreshedFromArtifactId: lineage.refreshedFromArtifactId,
+    refreshedFromPresetId: lineage.refreshedFromPresetId,
+    freshnessMissingCount: lineage.freshnessMissingCount,
+    freshnessSupersededCount: lineage.freshnessSupersededCount,
+    freshnessUnresolvedCount: lineage.freshnessUnresolvedCount,
+    summary: previewHarnessText(lineage.summary, includeParameters ? 220 : 120),
+    inspectRoute: previewHarnessText(lineage.inspectRoute, includeParameters ? 220 : 120),
+  };
+}
+
 function describeReviewPacketWizard(wizard: AgentWorkspaceReviewPacketWizard, includeParameters: boolean): Record<string, unknown> {
+  const presetLineage = describeReviewPacketPresetLineage(wizard.presetLineage, includeParameters);
   return {
     status: wizard.status,
     progress: `${wizard.completedSteps}/${wizard.totalSteps}`,
@@ -433,6 +454,7 @@ function describeReviewPacketWizard(wizard: AgentWorkspaceReviewPacketWizard, in
     currentStepLabel: wizard.currentStepLabel,
     next: previewHarnessText(wizard.next, includeParameters ? 240 : 120),
     finalReview: previewHarnessText(wizard.finalReview, includeParameters ? 220 : 120),
+    ...(presetLineage ? { presetLineage } : {}),
     steps: wizard.steps
       .slice(0, includeParameters ? wizard.steps.length : 4)
       .map((step) => describeReviewPacketWizardStep(step, includeParameters)),

@@ -414,6 +414,20 @@ export interface AgentWorkspaceReviewPacketTimeline {
   readonly items: readonly AgentWorkspaceReviewPacketTimelineEvent[];
 }
 
+export interface AgentWorkspaceReviewPacketPresetLineage {
+  readonly artifactId: string;
+  readonly presetId: string | null;
+  readonly name: string | null;
+  readonly refreshed: boolean;
+  readonly refreshedFromArtifactId: string | null;
+  readonly refreshedFromPresetId: string | null;
+  readonly freshnessMissingCount: number | null;
+  readonly freshnessSupersededCount: number | null;
+  readonly freshnessUnresolvedCount: number | null;
+  readonly summary: string;
+  readonly inspectRoute: string;
+}
+
 export interface AgentWorkspaceReviewPacketDefaults {
   readonly documentId: string | null;
   readonly documentTitle: string | null;
@@ -427,6 +441,7 @@ export interface AgentWorkspaceReviewPacketDefaults {
   readonly handoffArchiveArtifactId: string | null;
   readonly reviewPacketPresetArtifactId: string | null;
   readonly reviewPacketPresetName: string | null;
+  readonly reviewPacketPresetLineage: AgentWorkspaceReviewPacketPresetLineage | null;
   readonly relatedArtifactIds: readonly string[];
   readonly summary: string;
 }
@@ -453,6 +468,7 @@ export interface AgentWorkspaceReviewPacketWizard {
   readonly currentStepLabel: string | null;
   readonly next: string;
   readonly finalReview: string;
+  readonly presetLineage: AgentWorkspaceReviewPacketPresetLineage | null;
   readonly steps: readonly AgentWorkspaceReviewPacketWizardStep[];
 }
 

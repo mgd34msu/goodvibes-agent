@@ -33,6 +33,7 @@ import type {
   AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceResearchRunSummary,
   AgentWorkspaceReviewPacketDefaults,
+  AgentWorkspaceReviewPacketPresetLineage,
   AgentWorkspaceReviewPacketTimeline,
   AgentWorkspaceReviewPacketTimelineEvent,
   AgentWorkspaceReviewPacketWizard,
@@ -422,6 +423,44 @@ function reviewPacketPresetFreshness(
   };
 }
 
+function buildReviewPacketPresetLineage(preset: ArtifactDescriptor | null): AgentWorkspaceReviewPacketPresetLineage | null {
+  if (!preset) return null;
+  const metadata = preset.metadata;
+  const refreshedFromArtifactId = readArtifactMetadataString(metadata, 'refreshOfArtifactId') || null;
+  const refreshedFromPresetId = readArtifactMetadataString(metadata, 'refreshOfPresetId') || null;
+  const freshnessMissingCount = readArtifactMetadataNumber(metadata, 'freshnessMissingCount');
+  const freshnessSupersededCount = readArtifactMetadataNumber(metadata, 'freshnessSupersededCount');
+  const freshnessUnresolvedCount = readArtifactMetadataNumber(metadata, 'freshnessUnresolvedCount');
+  const repairedCount = (freshnessMissingCount ?? 0) + (freshnessSupersededCount ?? 0);
+  const name = readArtifactMetadataString(metadata, 'name') || null;
+  const presetId = readArtifactMetadataString(metadata, 'presetId') || null;
+  const displayName = name ?? preset.filename ?? preset.id;
+  const summary = refreshedFromArtifactId
+    ? [
+      `${displayName} refreshed from ${refreshedFromArtifactId}`,
+      refreshedFromPresetId ? `source preset ${refreshedFromPresetId}` : '',
+      `repaired ${repairedCount}`,
+      `unresolved ${freshnessUnresolvedCount ?? 0}`,
+    ].filter(Boolean).join('; ')
+    : [
+      `${displayName} has no refresh lineage`,
+      presetId ? `preset ${presetId}` : '',
+    ].filter(Boolean).join('; ');
+  return {
+    artifactId: preset.id,
+    presetId,
+    name,
+    refreshed: Boolean(refreshedFromArtifactId),
+    refreshedFromArtifactId,
+    refreshedFromPresetId,
+    freshnessMissingCount,
+    freshnessSupersededCount,
+    freshnessUnresolvedCount,
+    summary,
+    inspectRoute: `agent_review_packet_presets show artifactId:"${preset.id}"`,
+  };
+}
+
 function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWorkspaceRecentReviewerHandoffArtifact {
   const metadata = artifact.metadata;
   return {
@@ -725,6 +764,7 @@ function buildReviewPacketDefaults(
   const handoffArchiveArtifactId = (latestHandoffArchive?.id ?? readArtifactMetadataString(presetMetadata, 'handoffArchiveArtifactId')) || null;
   const sourceArtifactId = revealedJudgmentArtifactId ?? judgmentArtifactId ?? comparisonArtifactId ?? null;
   const reviewPacketPresetName = readArtifactMetadataString(presetMetadata, 'name') || null;
+  const reviewPacketPresetLineage = buildReviewPacketPresetLineage(latestPreset);
   const summary = [
     documentId ? `document ${documentId}` : '',
     sourceArtifactId ? `source ${sourceArtifactId}` : '',
@@ -745,6 +785,7 @@ function buildReviewPacketDefaults(
     handoffArchiveArtifactId,
     reviewPacketPresetArtifactId: latestPreset?.id ?? null,
     reviewPacketPresetName,
+    reviewPacketPresetLineage,
     relatedArtifactIds,
     summary,
   };
@@ -793,6 +834,18 @@ function buildReviewPacketWizard(
   const handoffReady = Boolean(defaults.handoffArtifactId && defaults.relatedArtifactIds.length > 0);
   const archiveReady = Boolean(defaults.handoffArchiveArtifactId);
   const routeDecisionDone = Boolean(defaults.routeDecisionArtifactId || archiveReady);
+  const presetLineage = defaults.reviewPacketPresetLineage;
+  const finalArchiveReview = archiveReady
+    ? [
+      `Inspect final archive ${defaults.handoffArchiveArtifactId}.`,
+      presetLineage?.refreshed
+        ? `Verify refreshed preset lineage: ${presetLineage.summary}.`
+        : presetLineage
+          ? `Preset lineage: ${presetLineage.summary}.`
+          : 'No saved packet preset lineage is attached.',
+      'Use Documents & Compare -> Share review packet only after the user confirms the delivery target.',
+    ].join(' ')
+    : 'Final evidence review stays pending until a reviewer handoff ZIP archive exists.';
   const documentRoute = latestDocument
     ? `agent_documents show documentId:"${latestDocument.id}" includeVersions:true`
     : 'agent_documents list';
@@ -930,9 +983,8 @@ function buildReviewPacketWizard(
     next: current
       ? `${current.label}: ${current.detail}`
       : 'Review packet wizard is complete; inspect the final archive and saved packet evidence.',
-    finalReview: archiveReady
-      ? `Inspect final archive ${defaults.handoffArchiveArtifactId}, then use Documents & Compare -> Share review packet only after the user confirms the delivery target.`
-      : 'Final evidence review stays pending until a reviewer handoff ZIP archive exists.',
+    finalReview: finalArchiveReview,
+    presetLineage,
     steps,
   };
 }

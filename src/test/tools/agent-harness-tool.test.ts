@@ -7495,6 +7495,27 @@ describe('agent_harness tool', () => {
         documentExportArtifactId: newerDocExport.id,
         refreshOfArtifactId: savedPresetId ?? '',
       });
+      const wizard = await executeHarnessJson<{
+        readonly reviewPacketWizard?: {
+          readonly finalReview?: string;
+          readonly presetLineage?: {
+            readonly artifactId: string;
+            readonly refreshed: boolean;
+            readonly refreshedFromArtifactId: string | null;
+            readonly freshnessSupersededCount: number | null;
+            readonly summary: string;
+            readonly inspectRoute: string;
+          };
+        };
+      }>(fixture, { mode: 'document_ops_lane', laneId: 'review_packet_wizard', includeParameters: true });
+      expect(wizard.reviewPacketWizard?.presetLineage).toMatchObject({
+        artifactId: artifacts.store.list(1)[0]?.id,
+        refreshed: true,
+        refreshedFromArtifactId: savedPresetId,
+        freshnessSupersededCount: 1,
+      });
+      expect(wizard.reviewPacketWizard?.presetLineage?.summary).toContain('refreshed from');
+      expect(wizard.reviewPacketWizard?.presetLineage?.inspectRoute).toContain('agent_review_packet_presets show');
     } finally {
       fixture.cleanup();
     }

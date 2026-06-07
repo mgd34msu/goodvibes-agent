@@ -617,6 +617,11 @@ describe('renderAgentWorkspace', () => {
             revealedJudgmentArtifactId: 'judgment-launch',
             handoffArtifactId: 'handoff-launch',
             relatedArtifactIds: ['doc-export-launch'],
+            refreshOfArtifactId: 'preset-old',
+            refreshOfPresetId: 'preset_old',
+            freshnessMissingCount: 1,
+            freshnessSupersededCount: 2,
+            freshnessUnresolvedCount: 0,
           },
         }),
         reviewPacketArtifact({
@@ -662,6 +667,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Packet defaults: document reviewer-packet');
     expect(output).toContain('1 related; preset');
     expect(output).toContain('preset-launch');
+    expect(output).toContain('Preset lineage:');
+    expect(output).toContain('refreshed from preset-old');
+    expect(output).toContain('repaired 3');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-review-packet-wizard');
     workspace.activateSelected();
