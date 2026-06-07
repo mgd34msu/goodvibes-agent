@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
+import { AgentPromptContextReceiptStore } from '../../agent/prompt-context-receipts.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { saveSetupWizardCheckpoint } from '../../agent/setup-wizard-checkpoint.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
@@ -227,6 +228,7 @@ function liveCommandContext(options: {
   readonly includeReviewerIssue?: boolean;
   readonly reviewerHandoffs?: readonly ArtifactDescriptor[];
   readonly setupCheckpointStepId?: string;
+  readonly includePromptReceipts?: boolean;
 } = {}): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
@@ -296,6 +298,52 @@ function liveCommandContext(options: {
       tags: ['personal-ops'],
       source: 'agent',
       provenance: 'test',
+    });
+  }
+  const promptContextReceipts = new AgentPromptContextReceiptStore();
+  if (options.includePromptReceipts === true) {
+    promptContextReceipts.record({
+      sessionId: 'agent-session-1',
+      turnId: 'turn-renderer-fail',
+      source: 'turn',
+      provider: 'openai-subscriber',
+      model: 'openai:gpt-5.5',
+      contextWindow: 256000,
+      promptHash: 'c'.repeat(64),
+      promptChars: 2048,
+      approxPromptTokens: 512,
+      activeRecords: 3,
+      suppressedRecords: 1,
+      segments: [
+        {
+          id: 'vibe',
+          label: 'VIBE.md',
+          order: 10,
+          status: 'active',
+          activeCount: 1,
+          suppressedCount: 0,
+          promptChars: 256,
+          approxTokens: 64,
+        },
+        {
+          id: 'memory',
+          label: 'Memory',
+          order: 30,
+          status: 'attention',
+          activeCount: 2,
+          suppressedCount: 1,
+          promptChars: 512,
+          approxTokens: 128,
+        },
+      ],
+    });
+    promptContextReceipts.recordTurnOutcome({
+      turnId: 'turn-renderer-fail',
+      status: 'error',
+      terminalEvent: 'TURN_ERROR',
+      stopReason: 'provider_error',
+      detail: 'Provider rejected the test request.',
+      completedAt: 1_700_000_000_000,
     });
   }
   if (options.includeReviewerIssue === true) {
@@ -371,6 +419,7 @@ function liveCommandContext(options: {
           },
         ],
       },
+      ...(options.includePromptReceipts === true ? { promptContextReceipts } : {}),
     },
     platform: {
       configManager: {
@@ -1152,6 +1201,22 @@ describe('renderAgentWorkspace', () => {
     expectSetupAction('context-knowledge-url', 'Ingest URL', 'edit knowledge-url');
     expectSetupAction('context-knowledge-file', 'Ingest file', 'edit knowledge-file');
     expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context routes: prompt_context');
+  });
+
+  test('renders prompt receipt outcomes in the Local Context workspace', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({ includePromptReceipts: true }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
+
+    const output = text(renderAgentWorkspace(workspace, 150, 56));
+
+    expect(output).toContain('Prompt receipt timeline: 1 total; completed 0; errors 1; cancelled 0; pending 0.');
+    expect(output).toContain('Latest prompt receipt: error turn turn-renderer-fail; 3 applied / 1 suppressed; 512 tokens; stop provider_error.');
+    expect(output).toContain('openai-subscriber/openai:gpt-5.5');
+    expect(output).toContain('2 segment(s), 3 active, 1 suppressed.');
+    expect(output).toContain('Latest outcome detail: Provider rejected the test request.');
+    expect(output).toContain('Inspect: agent_harness mode:"prompt_context" includeParameters:true');
+    expect(output).not.toContain('cccccccccccccccc');
   });
 
   test('renders local persona posture in the memory workspace', () => {

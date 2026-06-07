@@ -552,6 +552,37 @@ export interface AgentWorkspaceProjectContextSummary {
   readonly next: string;
 }
 
+export interface AgentWorkspacePromptContextReceiptSummary {
+  readonly receiptId: string;
+  readonly turnId: string | null;
+  readonly source: string;
+  readonly provider: string;
+  readonly model: string;
+  readonly createdAt: number;
+  readonly activeRecords: number;
+  readonly suppressedRecords: number;
+  readonly segmentCount: number;
+  readonly approxPromptTokens: number;
+  readonly outcomeStatus: 'completed' | 'error' | 'cancelled' | 'pending';
+  readonly stopReason: string | null;
+  readonly completedAt: number | null;
+  readonly detail: string | null;
+}
+
+export interface AgentWorkspacePromptContextReceiptTimeline {
+  readonly status: 'ready' | 'empty' | 'unavailable';
+  readonly count: number;
+  readonly latestReceiptId: string | null;
+  readonly latestTurnId: string | null;
+  readonly completedCount: number;
+  readonly errorCount: number;
+  readonly cancelledCount: number;
+  readonly pendingCount: number;
+  readonly inspectRoute: 'agent_harness mode:"prompt_context" includeParameters:true';
+  readonly next: string;
+  readonly items: readonly AgentWorkspacePromptContextReceiptSummary[];
+}
+
 export interface AgentWorkspaceProcessSupervisionSummary {
   readonly status: 'available' | 'unavailable';
   readonly tracked: number;
@@ -653,6 +684,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchVisualReportContract: AgentWorkspaceResearchContractSummary;
   readonly vibe: AgentWorkspaceVibeSummary;
   readonly projectContext: AgentWorkspaceProjectContextSummary;
+  readonly promptContextReceipts: AgentWorkspacePromptContextReceiptTimeline;
   readonly processSupervision: AgentWorkspaceProcessSupervisionSummary;
   readonly recentReviewerHandoffArtifactCount: number;
   readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];

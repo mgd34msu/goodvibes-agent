@@ -296,6 +296,52 @@ function compactRoutineReceiptLine(snapshot: AgentWorkspaceRuntimeSnapshot): Con
   };
 }
 
+function promptReceiptOutcomeColor(status: AgentWorkspaceRuntimeSnapshot['promptContextReceipts']['items'][number]['outcomeStatus']): string {
+  if (status === 'completed') return PALETTE.good;
+  if (status === 'error' || status === 'cancelled') return PALETTE.warn;
+  return PALETTE.info;
+}
+
+function promptReceiptTimelineLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const timeline = snapshot.promptContextReceipts;
+  if (timeline.status === 'unavailable') {
+    return [
+      { text: 'Prompt receipt timeline: unavailable in this runtime.', fg: PALETTE.warn },
+      { text: `Next: ${compactText(timeline.next, 104)}`, fg: PALETTE.warn },
+    ];
+  }
+  const lines: ContextLine[] = [
+    {
+      text: `Prompt receipt timeline: ${timeline.count} total; completed ${timeline.completedCount}; errors ${timeline.errorCount}; cancelled ${timeline.cancelledCount}; pending ${timeline.pendingCount}.`,
+      fg: timeline.errorCount > 0 || timeline.cancelledCount > 0 ? PALETTE.warn : timeline.count > 0 ? PALETTE.good : PALETTE.muted,
+      bold: timeline.errorCount > 0 || timeline.cancelledCount > 0,
+    },
+  ];
+  const latest = timeline.items[0] ?? null;
+  if (!latest) {
+    lines.push({ text: `Next: ${compactText(timeline.next, 104)}`, fg: PALETTE.info });
+    return lines;
+  }
+  const turnLabel = latest.turnId ?? 'manual/no-turn';
+  const stop = latest.stopReason ? `; stop ${latest.stopReason}` : '';
+  lines.push({
+    text: `Latest prompt receipt: ${latest.outcomeStatus} turn ${turnLabel}; ${latest.activeRecords} applied / ${latest.suppressedRecords} suppressed; ${latest.approxPromptTokens} tokens${stop}.`,
+    fg: promptReceiptOutcomeColor(latest.outcomeStatus),
+    bold: latest.outcomeStatus === 'error' || latest.outcomeStatus === 'cancelled',
+  });
+  for (const receipt of timeline.items.slice(0, 3)) {
+    lines.push({
+      text: `- ${receipt.receiptId}: ${receipt.outcomeStatus}; ${receipt.provider}/${receipt.model}; ${receipt.segmentCount} segment(s), ${receipt.activeRecords} active, ${receipt.suppressedRecords} suppressed.`,
+      fg: promptReceiptOutcomeColor(receipt.outcomeStatus),
+    });
+  }
+  if (latest.detail) {
+    lines.push({ text: `Latest outcome detail: ${compactText(latest.detail, 104)}`, fg: PALETTE.warn });
+  }
+  lines.push({ text: `Inspect: ${timeline.inspectRoute}`, fg: PALETTE.good });
+  return lines;
+}
+
 function automationNextActionLine(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine {
   const ready = readyRoutineItems(snapshot);
   const needsSetup = routinesNeedingSetup(snapshot);
@@ -495,6 +541,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Discovered files: personas ${snapshot.discoveredBehavior.personas.count}, skills ${snapshot.discoveredBehavior.skills.count}, routines ${snapshot.discoveredBehavior.routines.count}.`, fg: PALETTE.muted },
       { text: `VIBE.md: ${vibe.applied} applied; ${vibe.blocked} blocked; ${vibe.truncated} truncated.`, fg: vibe.blocked > 0 ? PALETTE.warn : vibe.applied > 0 ? PALETTE.good : PALETTE.muted },
       { text: `Project context: ${projectContext.loaded} loaded; ${projectContext.blocked} blocked; ${projectContext.truncated} truncated.`, fg: projectContext.blocked > 0 ? PALETTE.warn : projectContext.loaded > 0 ? PALETTE.good : PALETTE.muted },
+      ...promptReceiptTimelineLines(snapshot),
       { text: 'Context routes: prompt_context, /vibe status, project_context, and project_context_file.', fg: PALETTE.good },
     );
   } else if (category.id === 'onboarding-automation') {
