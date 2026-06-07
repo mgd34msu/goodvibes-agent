@@ -607,7 +607,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Email/calendar: connector setup needed');
     expect(output).toContain('Create reminder');
     expect(output).toContain('Delivery channels');
-    expect(output).toContain('personal_ops action:"briefing|intake|lane|read"');
+    expect(output).toContain('personal_ops action:"briefing|status|queue|intake|lane|read"');
   });
 
   test('renders Documents & Compare as a visible artifact and compare surface', () => {

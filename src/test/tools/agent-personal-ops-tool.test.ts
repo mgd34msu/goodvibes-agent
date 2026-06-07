@@ -34,12 +34,14 @@ describe('personal_ops adapter', () => {
 
     await tool.execute({ action: 'briefing', query: 'today', limit: 5 });
     await tool.execute({ action: 'overview', includeParameters: true });
+    await tool.execute({ action: 'queue', target: 'saved review', limit: 3 });
     await tool.execute({ action: 'triage', query: 'Triage my unread inbox.', includeParameters: true });
     await tool.execute({ action: 'inspect', laneId: 'calendar' });
 
     expect(calls).toEqual([
       { mode: 'personal_ops_briefing', query: 'today', limit: 5 },
       { mode: 'personal_ops', includeParameters: true },
+      { mode: 'personal_ops_queue', target: 'saved review', limit: 3 },
       { mode: 'personal_ops_intake', query: 'Triage my unread inbox.', includeParameters: true },
       { mode: 'personal_ops_lane', laneId: 'calendar' },
     ]);

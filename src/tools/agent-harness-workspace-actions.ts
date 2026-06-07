@@ -209,6 +209,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'device-capability-map') return 'device action:"status"';
   if (action.id === 'browser-cockpit-readiness') return 'computer action:"browser"';
   if (action.id === 'personal-ops-briefing') return 'personal_ops action:"briefing"';
+  if (action.id === 'personal-ops-queue') return 'personal_ops action:"queue"';
   if (action.id === 'personal-ops-intake') return 'personal_ops action:"intake"';
   if (
     action.id === 'personal-ops-autonomy-queue'

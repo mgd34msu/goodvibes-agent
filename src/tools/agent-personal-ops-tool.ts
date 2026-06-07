@@ -3,7 +3,7 @@ import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { createAgentHarnessTool } from './agent-harness-tool.ts';
 
-type AgentPersonalOpsAction = 'briefing' | 'status' | 'intake' | 'lane' | 'read';
+type AgentPersonalOpsAction = 'briefing' | 'status' | 'queue' | 'intake' | 'lane' | 'read';
 
 interface AgentPersonalOpsToolArgs {
   readonly action?: unknown;
@@ -42,6 +42,7 @@ function normalizePersonalOpsAction(value: unknown): AgentPersonalOpsAction | nu
   if (!action) return null;
   if (action === 'briefing' || action === 'brief' || action === 'daily' || action === 'daily_brief' || action === 'morning') return 'briefing';
   if (action === 'status' || action === 'summary' || action === 'overview' || action === 'map' || action === 'list') return 'status';
+  if (action === 'queue' || action === 'queues' || action === 'review_queue' || action === 'review_queues' || action === 'personal_queue' || action === 'ops_queue') return 'queue';
   if (action === 'intake' || action === 'request' || action === 'route' || action === 'plan' || action === 'triage' || action === 'draft') return 'intake';
   if (action === 'lane' || action === 'inspect' || action === 'show') return 'lane';
   if (action === 'read' || action === 'run' || action === 'execute' || action === 'fresh_read' || action === 'refresh') return 'read';
@@ -99,6 +100,16 @@ function intakeArgs(args: AgentPersonalOpsToolArgs): Record<string, unknown> {
   });
 }
 
+function queueArgs(args: AgentPersonalOpsToolArgs): Record<string, unknown> {
+  return compactArgs({
+    mode: 'personal_ops_queue',
+    query: args.query,
+    target: args.target,
+    limit: args.limit,
+    includeParameters: args.includeParameters,
+  });
+}
+
 function laneArgs(args: AgentPersonalOpsToolArgs): Record<string, unknown> {
   return compactArgs({
     mode: 'personal_ops_lane',
@@ -139,7 +150,7 @@ export function createAgentPersonalOpsTool(deps: AgentPersonalOpsToolDeps): Tool
         properties: {
           action: {
             type: 'string',
-            enum: ['briefing', 'status', 'intake', 'lane', 'read'],
+            enum: ['briefing', 'status', 'queue', 'intake', 'lane', 'read'],
             description: 'Discovery actions are read-only; read needs confirmation.',
           },
           mode: { type: 'string', description: 'Alias for action.' },
@@ -167,6 +178,7 @@ export function createAgentPersonalOpsTool(deps: AgentPersonalOpsToolDeps): Tool
 
       if (action === 'briefing') return harnessTool.execute(briefingArgs(args));
       if (action === 'status') return harnessTool.execute(statusArgs(args));
+      if (action === 'queue') return harnessTool.execute(queueArgs(args));
       if (action === 'intake') return harnessTool.execute(intakeArgs(args));
       if (action === 'lane') return harnessTool.execute(laneArgs(args));
       if (action === 'read') return harnessTool.execute(readArgs(args));

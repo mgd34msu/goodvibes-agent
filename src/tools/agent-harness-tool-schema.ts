@@ -12,7 +12,7 @@ export const AGENT_HARNESS_MODES = [
   'background_processes', 'background_process', 'run_background_process',
   'execution_history', 'execution_history_item',
   'file_recovery', 'run_file_recovery',
-  'personal_ops_briefing', 'personal_ops', 'personal_ops_intake', 'personal_ops_lane', 'run_personal_ops_read',
+  'personal_ops_briefing', 'personal_ops', 'personal_ops_queue', 'personal_ops_intake', 'personal_ops_lane', 'run_personal_ops_read',
   'memory_posture', 'memory_provider',
   'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
   'learning_curator', 'learning_candidate',

@@ -99,6 +99,7 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('process', { action: 'kill' })).toBe('execute');
     expect(manager.getCategory('terminal', { background: true })).toBe('execute');
     expect(manager.getCategory('personal_ops', { action: 'briefing' })).toBe('read');
+    expect(manager.getCategory('personal_ops', { action: 'queue' })).toBe('read');
     expect(manager.getCategory('personal_ops', { action: 'intake' })).toBe('read');
     expect(manager.getCategory('personal_ops', { action: 'lane' })).toBe('read');
     expect(manager.getCategory('personal_ops', { action: 'read' })).toBe('write');
@@ -244,6 +245,7 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('process', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('process', { action: 'kill' })).resolves.toBe(false);
     await expect(manager.check('personal_ops', { action: 'briefing' })).resolves.toBe(true);
+    await expect(manager.check('personal_ops', { action: 'queue' })).resolves.toBe(true);
     await expect(manager.check('personal_ops', { action: 'read' })).resolves.toBe(false);
     await expect(manager.check('research', { action: 'sources' })).resolves.toBe(true);
     await expect(manager.check('research', { action: 'browser' })).resolves.toBe(true);

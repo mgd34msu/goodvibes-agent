@@ -582,10 +582,11 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Personal Ops: notes ${snapshot.localNoteCount}; routines ${snapshot.localRoutineCount}/${snapshot.enabledRoutineCount}; schedule-ready ${ready.length}.`, fg: PALETTE.info },
       { text: 'Daily brief: plan inbox, agenda, tasks, reminders, routines, delivery, notes, and autonomy before live reads or effects.', fg: PALETTE.good },
       { text: `Tasks: work plan and host task inspection; reminders via confirmed schedules; receipts ${snapshot.routineScheduleReceiptCount}.`, fg: PALETTE.good },
+      { text: 'Review queue: saved inbox threads/calendar events, refresh routes, and follow-up boundaries stay in one read-only list.', fg: PALETTE.good },
       { text: 'Autonomy queue: inspect owners, status, and cancel/recovery routes before adding background work.', fg: PALETTE.good },
       { text: `Delivery: ${readyChannels}/${snapshot.channels.length} channels ready; ${enabledChannels} enabled; ${configuredTargets} configured target(s).`, fg: readyChannels > 0 ? PALETTE.good : PALETTE.warn },
       { text: 'Email/calendar: connector setup needed before inbox triage or agenda workflows are first-class.', fg: PALETTE.warn },
-      { text: 'Model route: personal_ops action:"briefing|intake|lane|read".', fg: PALETTE.muted },
+      { text: 'Model route: personal_ops action:"briefing|status|queue|intake|lane|read".', fg: PALETTE.muted },
     );
   } else if (category.id === 'artifacts') {
     const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;

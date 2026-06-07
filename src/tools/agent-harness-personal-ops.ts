@@ -210,6 +210,14 @@ export type PersonalOpsReadRunResult =
 
 const LANE_IDS: readonly PersonalOpsLaneId[] = ['inbox', 'calendar', 'notes', 'tasks', 'reminders', 'routines', 'delivery'];
 const PERSONAL_OPS_READ_CONTROL_FIELDS = new Set(['saveReviewCards', 'saveReview', 'artifactTitle']);
+const QUEUE_CAPABILITIES = new Set([
+  'inbox-read',
+  'calendar-read',
+  'inbox-thread-review',
+  'calendar-event-review',
+  'inbox-review-artifact',
+  'calendar-review-artifact',
+]);
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -2563,7 +2571,7 @@ export function personalOpsCatalogStatus(context: CommandContext): Record<string
     return acc;
   }, { ready: 0, partial: 0, 'needs-setup': 0, gap: 0 });
   return {
-    modes: ['personal_ops_briefing', 'personal_ops', 'personal_ops_lane', 'personal_ops_intake', 'run_personal_ops_read'],
+    modes: ['personal_ops_briefing', 'personal_ops', 'personal_ops_queue', 'personal_ops_lane', 'personal_ops_intake', 'run_personal_ops_read'],
     lanes: lanes.length,
     ...counts,
     workflows: workflows.length,
@@ -2807,6 +2815,143 @@ export async function personalOpsSummary(context: CommandContext, args: AgentHar
     },
     policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Lanes include live records when Agent owns them and schema-derived connector operation records when MCP schemas are available. Missing email/calendar connectors, messages, and events are reported as setup/data gaps, not faked.',
     nextActions: nextActions(lanes),
+  };
+}
+
+function queueRecordType(record: PersonalOpsLiveRecord): string {
+  if (record.capability === 'inbox-thread-review') return 'saved-inbox-thread';
+  if (record.capability === 'calendar-event-review') return 'saved-calendar-event';
+  if (record.capability === 'inbox-review-artifact') return 'saved-inbox-review';
+  if (record.capability === 'calendar-review-artifact') return 'saved-calendar-review';
+  if (record.freshness?.status === 'fresh-provider-route-ready') return 'fresh-provider-read';
+  if (record.freshness?.status === 'connector-attention') return 'provider-read-attention';
+  return record.capability ?? 'personal-ops-record';
+}
+
+function queueStatusRank(record: PersonalOpsLiveRecord): number {
+  if (record.freshness?.status === 'saved-review-refreshable') return 100;
+  if (record.capability === 'inbox-thread-review' || record.capability === 'calendar-event-review') return 90;
+  if (record.freshness?.status === 'fresh-provider-route-ready') return 80;
+  if (record.capability === 'inbox-review-artifact' || record.capability === 'calendar-review-artifact') return 70;
+  if (record.freshness?.status === 'connector-attention') return 50;
+  if (record.freshness?.status === 'provider-contract-missing') return 35;
+  if (record.freshness?.status === 'source-tool-missing') return 25;
+  return 10;
+}
+
+function isPersonalOpsQueueRecord(record: PersonalOpsLiveRecord): boolean {
+  if (record.freshness?.source === 'saved-review-artifact') return true;
+  if (record.freshness?.status === 'fresh-provider-route-ready' || record.freshness?.status === 'connector-attention') return true;
+  return record.capability ? QUEUE_CAPABILITIES.has(record.capability) : false;
+}
+
+function describeQueueItem(lane: PersonalOpsLane, record: PersonalOpsLiveRecord, includeParameters: boolean): Record<string, unknown> {
+  const refreshRoute = record.freshness?.refreshRoute;
+  const followUpRoutes = (record.followUpRoutes ?? []).slice(0, includeParameters ? 8 : 3);
+  return {
+    queueItemId: `${lane.id}:${record.id}`,
+    laneId: lane.id,
+    laneLabel: lane.label,
+    type: queueRecordType(record),
+    label: record.label,
+    status: record.status,
+    summary: previewHarnessText(record.summary, includeParameters ? 220 : 120),
+    modelRoute: previewHarnessText(record.modelRoute, includeParameters ? 180 : 120),
+    inspectRoute: record.modelRoute,
+    effect: record.effect ?? 'read-only',
+    capability: record.capability,
+    confirmationRequired: Boolean(record.confirmationRequired),
+    ...(record.freshness ? {
+      freshness: {
+        status: record.freshness.status,
+        source: record.freshness.source,
+        ...(record.freshness.sourceTool ? { sourceTool: record.freshness.sourceTool } : {}),
+        ...(record.freshness.lastReviewedAt ? { lastReviewedAt: record.freshness.lastReviewedAt } : {}),
+        ...(refreshRoute ? { refreshRoute, refreshRequiresConfirmation: true } : {}),
+        policy: previewHarnessText(record.freshness.policy, includeParameters ? 220 : 120),
+      },
+    } : {}),
+    routes: {
+      lane: `personal_ops action:"lane" laneId:"${lane.id}"`,
+      inspect: record.modelRoute,
+      ...(refreshRoute ? { refresh: refreshRoute } : {}),
+      ...(record.artifactId ? { artifact: `agent_artifacts show artifactId:"${record.artifactId}" includeContent:true` } : {}),
+    },
+    followUpRoutes,
+    ...(includeParameters && record.tags && record.tags.length > 0 ? { tags: record.tags } : {}),
+    ...(includeParameters && record.requiredFields ? { requiredFields: record.requiredFields } : {}),
+    ...(includeParameters && record.sampleInput ? { sampleInput: record.sampleInput } : {}),
+    ...(includeParameters && record.artifactId ? { artifactId: record.artifactId } : {}),
+    ...(includeParameters && record.reviewLabels ? { reviewLabels: record.reviewLabels } : {}),
+    ...(includeParameters && record.sourceTool ? { sourceTool: record.sourceTool } : {}),
+  };
+}
+
+function queueSearchText(item: { readonly lane: PersonalOpsLane; readonly record: PersonalOpsLiveRecord }): string {
+  return [
+    item.lane.id,
+    item.lane.label,
+    liveRecordSearchText(item.record),
+  ].join('\n').toLowerCase();
+}
+
+export async function personalOpsQueueSummary(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Promise<Record<string, unknown>> {
+  const includeParameters = args.includeParameters === true;
+  const query = readString(args.query) || readString(args.target);
+  const tools = await mcpToolRecords(context);
+  const lanes = buildLanes(context, {
+    toolsByServer: toolsByServer(tools),
+    schemasByQualifiedName: includeParameters ? await mcpToolSchemas(context, tools) : new Map<string, McpToolSchema>(),
+  });
+  const queueLanes = lanes.filter((lane) => lane.id === 'inbox' || lane.id === 'calendar');
+  const allItems = queueLanes
+    .flatMap((lane) => (lane.liveRecords ?? [])
+      .filter(isPersonalOpsQueueRecord)
+      .map((record) => ({ lane, record })))
+    .filter((item) => !query || queueSearchText(item).includes(query.toLowerCase()))
+    .sort((left, right) => queueStatusRank(right.record) - queueStatusRank(left.record) || left.lane.id.localeCompare(right.lane.id) || left.record.label.localeCompare(right.record.label));
+  const limit = readLimit(args.limit, includeParameters ? 20 : 8);
+  const items = allItems.slice(0, limit).map((item) => describeQueueItem(item.lane, item.record, includeParameters));
+  const readRecords = allItems.filter((item) => item.record.effect === 'read-only');
+  const confirmedFollowUps = allItems.reduce((total, item) => total + (item.record.followUpRoutes ?? []).filter((route) => route.requiresConfirmation).length, 0);
+  const freshProviderReads = allItems.filter((item) => item.record.freshness?.status === 'fresh-provider-route-ready').length;
+  const refreshableSavedRecords = allItems.filter((item) => item.record.freshness?.status === 'saved-review-refreshable').length;
+  const savedReviewRecords = allItems.filter((item) => item.record.freshness?.source === 'saved-review-artifact' || typeof item.record.reviewRecordCount === 'number').length;
+  const attentionRecords = allItems.filter((item) => item.record.freshness?.status === 'connector-attention' || item.lane.status === 'gap' || item.lane.status === 'needs-setup').length;
+  return {
+    status: allItems.length > 0 ? attentionRecords > 0 ? 'attention' : 'ready' : 'empty',
+    queue: items,
+    returned: items.length,
+    total: allItems.length,
+    summary: {
+      inbox: allItems.filter((item) => item.lane.id === 'inbox').length,
+      calendar: allItems.filter((item) => item.lane.id === 'calendar').length,
+      readOnlyRecords: readRecords.length,
+      freshProviderReads,
+      refreshableSavedRecords,
+      savedReviewRecords,
+      attentionRecords,
+      confirmedFollowUps,
+    },
+    routes: {
+      status: 'personal_ops action:"status"',
+      briefing: 'personal_ops action:"briefing"',
+      intake: 'personal_ops action:"intake" query:"..."',
+      inboxLane: 'personal_ops action:"lane" laneId:"inbox"',
+      calendarLane: 'personal_ops action:"lane" laneId:"calendar"',
+      liveReadTemplate: 'personal_ops action:"read" laneId:"inbox|calendar" recordId:"..." fields:{...} confirm:true explicitUserRequest:"..."',
+    },
+    nextActions: allItems.length > 0
+      ? [
+        refreshableSavedRecords > 0 ? 'Refresh one saved queue item only through its returned confirmed read route when the user asks for current provider state.' : '',
+        freshProviderReads > 0 ? 'Run one fresh provider read at a time, summarize it, and save review cards when the user wants a durable queue.' : '',
+        'Use saved redacted queue artifacts for recap or local drafts before any external send, label, archive, edit, RSVP, or delete.',
+      ].filter(Boolean).slice(0, includeParameters ? 5 : 3)
+      : [
+        'Run personal_ops action:"intake" for the user request to find a safe connector route.',
+        'Set up an inbox or calendar connector before promising fresh queue state.',
+      ],
+    policy: 'Personal Ops queue is read-only. It aggregates existing saved review artifacts and connector read-route records; it does not execute MCP tools, read live provider data, send messages, edit calendar events, create reminders, or mutate artifacts.',
   };
 }
 

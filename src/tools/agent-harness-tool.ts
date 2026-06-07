@@ -37,7 +37,7 @@ import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSumma
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
-import { describePersonalOpsLane, personalOpsBriefingSummary, personalOpsCatalogStatus, personalOpsIntakeSummary, personalOpsSummary, runPersonalOpsRead } from './agent-harness-personal-ops.ts';
+import { describePersonalOpsLane, personalOpsBriefingSummary, personalOpsCatalogStatus, personalOpsIntakeSummary, personalOpsQueueSummary, personalOpsSummary, runPersonalOpsRead } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
 import { promptContextCatalogStatus, promptContextSummary } from './agent-harness-prompt-context.ts';
 import { describeProjectContextFile, projectContextCatalogStatus, projectContextSummary } from './agent-harness-project-context.ts';
@@ -213,7 +213,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     backgroundProcesses: 'Use execution action:"processes|process" to inspect tracked local commands, terminal background:true to start visible tracked commands, and process action:list|poll|log|wait|kill|write to manage them. Lower-level background_* modes remain for compatibility. process action:"capabilities" probes SDK/daemon interactive contracts; write dispatches only when a safe ProcessManager stdin method exists and is explicitly confirmed; PTY/sudo stay typed-contract or foreground-only boundaries.',
     executionHistory: 'Prefer execution action:"history|record" for activity cards and records; use returned verification, supervision, and recovery routes.',
     fileRecovery: 'Prefer execution action:"recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
-    personalOps: 'Prefer personal_ops action:"briefing|status|intake|lane|read"; lower-level modes personal_ops_briefing/personal_ops/personal_ops_intake/personal_ops_lane/run_personal_ops_read remain available for harness inspection.',
+    personalOps: 'Prefer personal_ops action:"briefing|status|queue|intake|lane|read"; lower-level modes personal_ops_briefing/personal_ops/personal_ops_queue/personal_ops_intake/personal_ops_lane/run_personal_ops_read remain available for harness inspection.',
     memoryPosture: 'Prefer memory action:"status|provider|curator|candidate|list|search|get"; memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',
     autonomyQueue: 'Prefer autonomy action:"intake|queue|item" for ongoing work and visible autonomous work; lower-level autonomy_* modes remain available for detail. Effects stay confirmed on the owning route.',
     learningCurator: 'Prefer memory action:"curator|candidate"; writes stay on reviewed Agent-local routes.',
@@ -1499,6 +1499,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'personal_ops_briefing') return output(await personalOpsBriefingSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops') return output(await personalOpsSummary(deps.commandContext, args));
+        if (args.mode === 'personal_ops_queue') return output(await personalOpsQueueSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops_intake') return output(await personalOpsIntakeSummary(deps.commandContext, args));
         if (args.mode === 'personal_ops_lane') {
           const resolved = await describePersonalOpsLane(deps.commandContext, args);

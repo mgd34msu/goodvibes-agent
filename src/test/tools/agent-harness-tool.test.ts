@@ -4022,6 +4022,71 @@ describe('agent_harness tool', () => {
       expect(lane.connectorSignals?.[0]?.readTools?.[0]?.name).toBe('gmail.get_thread');
       expect(lane.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');
       expect(lane.workflows?.[0]?.prerequisites?.join('\n')).toContain('classified read-only inbox tool');
+
+      const queue = await executeHarnessJson<{
+        readonly status: string;
+        readonly returned: number;
+        readonly total: number;
+        readonly summary: {
+          readonly inbox: number;
+          readonly calendar: number;
+          readonly freshProviderReads: number;
+          readonly refreshableSavedRecords: number;
+          readonly savedReviewRecords: number;
+          readonly attentionRecords: number;
+          readonly confirmedFollowUps: number;
+        };
+        readonly queue: readonly {
+          readonly queueItemId: string;
+          readonly laneId: string;
+          readonly type: string;
+          readonly capability?: string;
+          readonly freshness?: {
+            readonly status: string;
+            readonly refreshRoute?: string;
+            readonly refreshRequiresConfirmation?: boolean;
+          };
+          readonly routes: {
+            readonly lane: string;
+            readonly inspect: string;
+            readonly refresh?: string;
+            readonly artifact?: string;
+          };
+          readonly followUpRoutes?: readonly { readonly id: string; readonly requiresConfirmation: boolean; readonly modelRoute: string }[];
+        }[];
+        readonly routes: { readonly liveReadTemplate: string };
+        readonly policy: string;
+      }>(fixture, { mode: 'personal_ops_queue', includeParameters: true });
+      expect(queue.status).toBe('attention');
+      expect(queue.total).toBeGreaterThanOrEqual(5);
+      expect(queue.returned).toBe(queue.queue.length);
+      expect(queue.summary.inbox).toBeGreaterThan(0);
+      expect(queue.summary.calendar).toBeGreaterThan(0);
+      expect(queue.summary.freshProviderReads).toBeGreaterThan(0);
+      expect(queue.summary.refreshableSavedRecords).toBeGreaterThan(0);
+      expect(queue.summary.savedReviewRecords).toBeGreaterThan(0);
+      expect(queue.summary.attentionRecords).toBeGreaterThan(0);
+      expect(queue.summary.confirmedFollowUps).toBeGreaterThan(0);
+      expect(queue.routes.liveReadTemplate).toContain('personal_ops action:"read"');
+      expect(queue.policy).toContain('read-only');
+      const queueThread = queue.queue.find((record) => record.queueItemId === 'inbox:review-thread:artifact-1:msg-1');
+      expect(queueThread?.type).toBe('saved-inbox-thread');
+      expect(queueThread?.freshness?.status).toBe('saved-review-refreshable');
+      expect(queueThread?.freshness?.refreshRequiresConfirmation).toBe(true);
+      expect(queueThread?.routes.refresh).toContain('recordId:"mcp:gmail-inbox:gmail.search_messages"');
+      expect(queueThread?.routes.artifact).toContain('artifact-1');
+      expect(queueThread?.followUpRoutes?.find((route) => route.id === 'send-reviewed-reply-boundary')?.requiresConfirmation).toBe(true);
+      const providerRead = queue.queue.find((record) => record.type === 'fresh-provider-read' && record.capability === 'inbox-read');
+      expect(providerRead?.freshness?.status).toBe('fresh-provider-route-ready');
+      expect(providerRead?.routes.lane).toBe('personal_ops action:"lane" laneId:"inbox"');
+
+      const compactQueue = await executeHarnessJson<{
+        readonly queue: readonly { readonly queueItemId: string }[];
+        readonly total: number;
+      }>(fixture, { mode: 'personal_ops_queue', query: 'review-thread:artifact-1:msg-1', limit: 1 });
+      expect(compactQueue.total).toBe(1);
+      expect(compactQueue.queue).toHaveLength(1);
+      expect(compactQueue.queue[0]?.queueItemId).toBe('inbox:review-thread:artifact-1:msg-1');
     } finally {
       fixture.cleanup();
     }
@@ -7665,6 +7730,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('computer action:"open_browser"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('workspace action:"open"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('personal_ops action:"briefing"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-queue')?.modelRoute).toBe('personal_ops action:"queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('personal_ops action:"intake"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('autonomy action:"queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('device action:"voice"');
