@@ -190,6 +190,10 @@ describe('agent_autonomy_schedule tool', () => {
 
       expect(result.success).toBe(true);
       expect(result.output).toContain('Created GoodVibes schedule for autonomous Agent work');
+      expect(result.output).toContain('nextRoutes');
+      expect(result.output).toContain('schedule action:"list" query:"sched-autonomy-1"');
+      expect(result.output).toContain('autonomy action:"item" queueItemId:"connected-schedules" includeParameters:true');
+      expect(result.output).toContain('schedule action:"pause" scheduleId:"sched-autonomy-1" confirm:true explicitUserRequest:"..."');
       expect(requests).toHaveLength(1);
       expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/automation/schedules');
       expect(requests[0]?.method).toBe('POST');

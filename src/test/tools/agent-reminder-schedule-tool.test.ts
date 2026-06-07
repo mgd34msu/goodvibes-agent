@@ -186,6 +186,10 @@ describe('agent_reminder_schedule tool', () => {
 
       expect(result.success).toBe(true);
       expect(result.output).toContain('Created GoodVibes schedule for Agent reminder');
+      expect(result.output).toContain('nextRoutes');
+      expect(result.output).toContain('schedule action:"list" query:"sched-reminder-1"');
+      expect(result.output).toContain('schedule action:"edit" scheduleId:"sched-reminder-1" confirm:true explicitUserRequest:"..."');
+      expect(result.output).toContain('schedule action:"delete" scheduleId:"sched-reminder-1" confirm:true explicitUserRequest:"..."');
       expect(requests).toHaveLength(1);
       expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/automation/schedules');
       expect(requests[0]?.method).toBe('POST');

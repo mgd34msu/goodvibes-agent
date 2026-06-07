@@ -233,6 +233,10 @@ describe('agent_schedule_edit tool', () => {
 
       expect(result.success).toBe(true);
       expect(result.output).toContain('Updated GoodVibes schedule');
+      expect(result.output).toContain('nextRoutes');
+      expect(result.output).toContain('schedule action:"list" query:"sched-edit-1"');
+      expect(result.output).toContain('schedule action:"run" scheduleId:"sched-edit-1" confirm:true explicitUserRequest:"..."');
+      expect(result.output).toContain('schedule action:"delete" scheduleId:"sched-edit-1" confirm:true explicitUserRequest:"..."');
       expect(requests).toHaveLength(1);
       expect(requests[0]?.url).toBe('http://127.0.0.1:3421/api/automation/jobs/sched-edit-1');
       expect(requests[0]?.method).toBe('PATCH');

@@ -1,4 +1,5 @@
 import type { OperatorMethodInput } from '@pellux/goodvibes-sdk/contracts';
+import { scheduleNextRouteLines } from './schedule-next-routes.ts';
 
 export type JsonRecord = Record<string, unknown>;
 
@@ -333,13 +334,20 @@ function formatOperatorActionFailureKind(kind: OperatorActionFailure['kind']): s
   return 'connected host error';
 }
 
+function scheduleIdFromActionPath(path: string): string {
+  const match = /\/api\/automation\/schedules\/([^/]+)/.exec(path);
+  return match?.[1] ? decodeURIComponent(match[1]) : '';
+}
+
 export function formatOperatorActionSuccess(baseUrl: string, result: OperatorActionSuccess): string {
+  const scheduleId = result.methodId.startsWith('schedules.') ? scheduleIdFromActionPath(result.path) : '';
   return [
     'Agent operator action completed',
     `  method: ${result.methodId}`,
     `  route: ${result.httpMethod} ${result.path}`,
     `  connected host: ${baseUrl}`,
     `  status: ${statusFromOperatorActionBody(result.body)}`,
+    ...(scheduleId ? scheduleNextRouteLines(scheduleId, { deleted: result.methodId === 'schedules.delete' }) : []),
   ].join('\n');
 }
 

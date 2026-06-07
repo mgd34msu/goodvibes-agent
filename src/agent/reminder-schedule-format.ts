@@ -4,6 +4,7 @@ import {
   type ReminderSchedulePreview,
   type ReminderScheduleSuccess,
 } from './reminder-schedule.ts';
+import { scheduleNextRouteLines } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -58,7 +59,7 @@ export function formatReminderScheduleSuccess(result: ReminderScheduleSuccess): 
     `  status ${status}`,
     `  route ${result.kind} ${result.route}`,
     `  reminder ${result.message}`,
-    '  next inspect with /schedule list',
+    ...scheduleNextRouteLines(id),
   ].join('\n');
 }
 

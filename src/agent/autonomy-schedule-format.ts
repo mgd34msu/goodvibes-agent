@@ -4,6 +4,7 @@ import {
   type AutonomySchedulePreview,
   type AutonomyScheduleSuccess,
 } from './autonomy-schedule.ts';
+import { scheduleNextRouteLines } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -59,7 +60,7 @@ export function formatAutonomyScheduleSuccess(result: AutonomyScheduleSuccess): 
     `  status ${status}`,
     `  route ${result.kind} ${result.route}`,
     `  task ${result.task}`,
-    '  next inspect with /schedule list or agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+    ...scheduleNextRouteLines(id),
   ].join('\n');
 }
 

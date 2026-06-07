@@ -267,6 +267,9 @@ describe('schedule adapter tool', () => {
 
       expect(result.success).toBe(true);
       expect(result.output).toContain('method: schedules.disable');
+      expect(result.output).toContain('nextRoutes');
+      expect(result.output).toContain('schedule action:"list" query:"sched-1"');
+      expect(result.output).toContain('schedule action:"resume" scheduleId:"sched-1" confirm:true explicitUserRequest:"..."');
       expect(requests).toEqual([{
         url: 'http://127.0.0.1:3421/api/automation/schedules/sched-1/disable',
         method: 'POST',

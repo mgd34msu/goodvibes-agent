@@ -4,6 +4,7 @@ import type {
   ScheduleEditPreview,
   ScheduleEditSuccess,
 } from './schedule-edit.ts';
+import { scheduleNextRouteLines } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -89,7 +90,7 @@ export function formatScheduleEditSuccess(result: ScheduleEditSuccess): string {
     `  route PATCH ${result.route.replace('{jobId}', result.scheduleId)}`,
     `  status ${status}`,
     isRecord(record.schedule) ? `  schedule ${scheduleValue(record.schedule)}` : '',
-    '  next inspect with /schedule list or agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
+    ...scheduleNextRouteLines(id),
   ].filter((line) => line !== '').join('\n');
 }
 
