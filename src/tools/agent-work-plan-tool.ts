@@ -122,6 +122,51 @@ function formatItem(item: WorkPlanItem): string {
   return `${item.id}  ${formatStatus(item.status)}${owner}${source}${completed}  ${item.title}`;
 }
 
+function routeArg(value: string): string {
+  return JSON.stringify(value);
+}
+
+function agentRoute(mode: string, agentId: string): string {
+  return `agent { mode: ${routeArg(mode)}, agentId: ${routeArg(agentId)} }`;
+}
+
+function workPlanRoute(action: string, id?: string, status?: WorkPlanItemStatus): string {
+  return [
+    `agent_work_plan action:${routeArg(action)}`,
+    id ? `id:${routeArg(id)}` : '',
+    status ? `status:${routeArg(status)}` : '',
+  ].filter(Boolean).join(' ');
+}
+
+function linkedAgentId(item: WorkPlanItem): string {
+  const value = item.linked?.agentId;
+  return typeof value === 'string' && value.trim() ? value.trim() : '';
+}
+
+function nextRouteLine(id: string, route: string): string {
+  return `    ${id} ${route}`;
+}
+
+function workPlanNextRouteLines(item: WorkPlanItem): readonly string[] {
+  const agentId = linkedAgentId(item);
+  const lines = [
+    '  nextRoutes',
+    nextRouteLine('inspectWorkItem', workPlanRoute('get', item.id)),
+    nextRouteLine('markDone', workPlanRoute('set_status', item.id, 'done')),
+    nextRouteLine('markBlocked', workPlanRoute('set_status', item.id, 'blocked')),
+  ];
+  if (agentId) {
+    lines.push(
+      nextRouteLine('inspectAgent', agentRoute('get', agentId)),
+      nextRouteLine('waitAgent', agentRoute('wait', agentId)),
+      nextRouteLine('messageAgent', agentRoute('message', agentId)),
+      nextRouteLine('cancelAgent', agentRoute('cancel', agentId)),
+      nextRouteLine('orchestrationDetail', `agent_harness mode:"agent_orchestration_agent" agentId:${routeArg(agentId)} includeParameters:true`),
+    );
+  }
+  return lines;
+}
+
 function formatItemDetail(item: WorkPlanItem): string {
   return [
     formatItem(item),
@@ -132,6 +177,8 @@ function formatItemDetail(item: WorkPlanItem): string {
       : 'linked (none)',
     '',
     item.notes || '(no notes)',
+    '',
+    ...workPlanNextRouteLines(item),
   ].join('\n');
 }
 
@@ -285,6 +332,24 @@ function appendDispatchReceipt(notes: string | undefined, agentId: string, route
   return [notes?.trim() ?? '', receipt].filter((part) => part.length > 0).join('\n\n');
 }
 
+function dispatchNextRouteLines(receipts: readonly { readonly item: WorkPlanItem; readonly agentId: string }[]): readonly string[] {
+  return [
+    '  nextRoutes',
+    nextRouteLine('orchestration', 'agent_harness mode:"agent_orchestration" includeParameters:true'),
+    nextRouteLine('workPlan', 'agent_work_plan action:"list"'),
+    ...receipts.flatMap((receipt, index) => {
+      const prefix = receipts.length > 1 ? `agent${index + 1}` : 'agent';
+      return [
+        nextRouteLine(`${prefix}.inspect`, agentRoute('get', receipt.agentId)),
+        nextRouteLine(`${prefix}.wait`, agentRoute('wait', receipt.agentId)),
+        nextRouteLine(`${prefix}.message`, agentRoute('message', receipt.agentId)),
+        nextRouteLine(`${prefix}.cancel`, agentRoute('cancel', receipt.agentId)),
+        nextRouteLine(`${prefix}.workItem`, workPlanRoute('get', receipt.item.id)),
+      ];
+    }),
+  ];
+}
+
 async function dispatchAgentsFromWorkPlan(
   store: WorkPlanStore,
   args: AgentWorkPlanToolArgs,
@@ -336,8 +401,7 @@ async function dispatchAgentsFromWorkPlan(
     `  cohort ${cohort}`,
     `  saved receipts ${receipts.length}`,
     ...receipts.map((receipt) => `  - ${receipt.item.id} -> ${receipt.agentId}  ${previewText(receipt.item.title, 100)}`),
-    '  inspect agent_harness mode:"agent_orchestration"',
-    '  inspect plan agent_work_plan action:"list"',
+    ...dispatchNextRouteLines(receipts),
   ].join('\n'));
 }
 

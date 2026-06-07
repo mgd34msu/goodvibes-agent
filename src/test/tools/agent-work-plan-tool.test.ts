@@ -88,6 +88,8 @@ describe('agent_work_plan tool', () => {
     expect(detail.success).toBe(true);
     expect(detail.output).toContain('Review visible plan');
     expect(detail.output).toContain('source=test');
+    expect(detail.output).toContain('nextRoutes');
+    expect(detail.output).toContain(`agent_work_plan action:"set_status" id:"${item.id}" status:"done"`);
   });
 
   test('updates title owner and notes', async () => {
@@ -155,6 +157,9 @@ describe('agent_work_plan tool', () => {
     expect(dispatched.success).toBe(true);
     expect(dispatched.output).toContain('Dispatched Agent work plan items');
     expect(dispatched.output).toContain('agent-single');
+    expect(dispatched.output).toContain('nextRoutes');
+    expect(dispatched.output).toContain('agent { mode: "wait", agentId: "agent-single" }');
+    expect(dispatched.output).toContain(`agent_work_plan action:"get" id:"${item.id}"`);
     expect(calls).toHaveLength(1);
     expect(calls[0]?.mode).toBe('spawn');
     expect(calls[0]?.task).toBe('Fix provider selector');
@@ -167,6 +172,12 @@ describe('agent_work_plan tool', () => {
     expect(updated.linked?.agentId).toBe('agent-single');
     expect(updated.notes).toContain('Agent dispatch receipt');
     expect(updated.notes).toContain('agent-single');
+
+    const detail = await tool.execute({ action: 'get', id: item.id });
+    expect(detail.success).toBe(true);
+    expect(detail.output).toContain('linked agentId agent-single');
+    expect(detail.output).toContain('agent { mode: "message", agentId: "agent-single" }');
+    expect(detail.output).toContain('agent_harness mode:"agent_orchestration_agent" agentId:"agent-single" includeParameters:true');
   });
 
   test('dispatches multiple selected work plan items through first-class batch-spawn and links returned agents', async () => {
@@ -195,6 +206,9 @@ describe('agent_work_plan tool', () => {
 
     expect(dispatched.success).toBe(true);
     expect(dispatched.output).toContain('saved receipts 2');
+    expect(dispatched.output).toContain('agent1.inspect agent { mode: "get", agentId: "agent-alpha" }');
+    expect(dispatched.output).toContain('agent2.cancel agent { mode: "cancel", agentId: "agent-beta" }');
+    expect(dispatched.output).toContain(`agent2.workItem agent_work_plan action:"get" id:"${second.id}"`);
     expect(calls).toHaveLength(1);
     expect(calls[0]?.mode).toBe('batch-spawn');
     expect(calls[0]?.cohort).toBe('release-plan');
