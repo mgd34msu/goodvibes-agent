@@ -26,6 +26,7 @@ import { describeCliCommandPolicy, describeCommandPolicy } from '../../tools/age
 import { createAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
 import { createAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
+import { registerAgentTerminalProcessTools } from '../../tools/agent-terminal-process-tools.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
 import { createAgentReviewPacketPresetsTool } from '../../tools/agent-review-packet-presets-tool.ts';
@@ -482,6 +483,7 @@ function makeFixture(options: {
     toolRegistry,
   });
   toolRegistry.register(tool);
+  registerAgentTerminalProcessTools(toolRegistry, context);
 
   return {
     root,
@@ -5038,6 +5040,94 @@ describe('agent_harness tool', () => {
       });
       expect(stopped.status).toBe('stopped');
       expect(stopped.processId).toBe(started.processId);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('exposes terminal and process adapters for tracked background process UX', async () => {
+    const fixture = makeFixture();
+    try {
+      const foreground = await fixture.toolRegistry.execute('terminal-foreground', 'terminal', {
+        command: 'printf "foreground"',
+      });
+      expect(foreground.success).toBe(false);
+      expect(foreground.error).toContain('background:true');
+
+      const started = await fixture.toolRegistry.execute('terminal-start', 'terminal', {
+        command: 'printf "adapter-output"',
+        background: true,
+        confirm: true,
+        explicitUserRequest: 'Start a tracked adapter smoke command.',
+      });
+      expect(started.success).toBe(true);
+      if (!started.success) throw new Error(started.error);
+      const startedJson = JSON.parse(started.output ?? '{}') as {
+        readonly status: string;
+        readonly processId: string;
+        readonly session_id: string;
+        readonly routes: { readonly log: string; readonly poll: string; readonly stop: string };
+      };
+      expect(startedJson.status).toBe('started');
+      expect(startedJson.processId).toMatch(/^bg_/);
+      expect(startedJson.routes.log).toContain('processAction:"log"');
+      expect(startedJson.routes.poll).toContain('processAction:"poll"');
+
+      const waited = await fixture.toolRegistry.execute('process-wait', 'process', {
+        action: 'wait',
+        session_id: startedJson.session_id,
+        timeoutMs: 5000,
+        confirm: true,
+        explicitUserRequest: 'Wait for the tracked adapter smoke command.',
+      });
+      expect(waited.success).toBe(true);
+      if (!waited.success) throw new Error(waited.error);
+      const waitedJson = JSON.parse(waited.output ?? '{}') as { readonly status: string };
+      expect(waitedJson.status).toBe('completed');
+
+      const logged = await fixture.toolRegistry.execute('process-log', 'process', {
+        action: 'log',
+        sessionId: startedJson.processId,
+      });
+      expect(logged.success).toBe(true);
+      if (!logged.success) throw new Error(logged.error);
+      const loggedJson = JSON.parse(logged.output ?? '{}') as {
+        readonly processId: string;
+        readonly output?: { readonly stdoutTail: string; readonly stdoutTruncated: boolean; readonly fullOutputIncluded: boolean };
+      };
+      expect(loggedJson.processId).toBe(startedJson.processId);
+      expect(loggedJson.output?.stdoutTail).toContain('adapter-output');
+      expect(loggedJson.output?.stdoutTruncated).toBe(false);
+      expect(loggedJson.output?.fullOutputIncluded).toBe(true);
+
+      const listed = await fixture.toolRegistry.execute('process-list', 'process', { action: 'list' });
+      expect(listed.success).toBe(true);
+      if (!listed.success) throw new Error(listed.error);
+      expect(listed.output).toContain(startedJson.processId);
+
+      const terminalTool = await fixture.tool.execute({ mode: 'tool', toolName: 'terminal' });
+      expect(terminalTool.success).toBe(true);
+      if (!terminalTool.success) throw new Error(terminalTool.error);
+      expect(terminalTool.output).toContain('"name": "terminal"');
+      expect(terminalTool.output).toContain('"background"');
+
+      const processTool = await fixture.tool.execute({ mode: 'tool', toolName: 'process' });
+      expect(processTool.success).toBe(true);
+      if (!processTool.success) throw new Error(processTool.error);
+      expect(processTool.output).toContain('"name": "process"');
+      expect(processTool.output).toContain('"action"');
+
+      const stopped = await fixture.toolRegistry.execute('process-kill', 'process', {
+        action: 'kill',
+        processId: startedJson.processId,
+        confirm: true,
+        explicitUserRequest: 'Remove the tracked adapter smoke command.',
+      });
+      expect(stopped.success).toBe(true);
+      if (!stopped.success) throw new Error(stopped.error);
+      const stoppedJson = JSON.parse(stopped.output ?? '{}') as { readonly status: string; readonly processId: string };
+      expect(stoppedJson.status).toBe('stopped');
+      expect(stoppedJson.processId).toBe(startedJson.processId);
     } finally {
       fixture.cleanup();
     }

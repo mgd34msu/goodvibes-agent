@@ -39,6 +39,7 @@ import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { registerAgentHarnessTool } from '../tools/agent-harness-tool.ts';
+import { registerAgentTerminalProcessTools } from '../tools/agent-terminal-process-tools.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
@@ -317,6 +318,7 @@ export async function bootstrapRuntime(
   const commandContext = shell.commandContext;
   const inputHistory = shell.inputHistory;
   registerAgentHarnessTool(toolRegistry, commandRegistry, commandContext);
+  registerAgentTerminalProcessTools(toolRegistry, commandContext);
   compactRegisteredToolDefinitions(toolRegistry);
   const pluginCommandRegistry = {
     register(command: {

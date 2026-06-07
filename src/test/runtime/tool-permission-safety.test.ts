@@ -56,6 +56,10 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'show' })).toBe('read');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'save' })).toBe('write');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
+    expect(manager.getCategory('process', { action: 'list' })).toBe('read');
+    expect(manager.getCategory('process', { action: 'log' })).toBe('read');
+    expect(manager.getCategory('process', { action: 'kill' })).toBe('execute');
+    expect(manager.getCategory('terminal', { background: true })).toBe('execute');
     expect(manager.getCategory('agent_review_packet_share')).toBe('delegate');
     expect(manager.getCategory('unknown_tool')).toBe('delegate');
   });
@@ -73,7 +77,10 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'list' })).toBe('read');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'save' })).toBe('write');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
+    expect(manager.getCategory('process', { action: 'poll' })).toBe('read');
+    expect(manager.getCategory('process', { action: 'wait' })).toBe('execute');
     expect(manager.getCategory('exec')).toBe('execute');
+    expect(manager.getCategory('terminal')).toBe('execute');
     expect(manager.getCategory('agent_channel_send')).toBe('delegate');
     expect(manager.getCategory('agent_review_packet_share')).toBe('delegate');
   });
@@ -90,7 +97,10 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('agent_review_packet_presets', { mode: 'show' })).resolves.toBe(true);
     await expect(manager.check('agent_review_packet_presets', { mode: 'save' })).resolves.toBe(false);
     await expect(manager.check('agent_review_packet_presets', { mode: 'refresh' })).resolves.toBe(false);
+    await expect(manager.check('process', { action: 'list' })).resolves.toBe(true);
+    await expect(manager.check('process', { action: 'kill' })).resolves.toBe(false);
     await expect(manager.check('exec', { commands: [] })).resolves.toBe(false);
+    await expect(manager.check('terminal', { background: true })).resolves.toBe(false);
 
     const detailed = await manager.checkDetailed('agent_harness', { mode: 'summary' });
     expect(detailed.approved).toBe(true);
@@ -103,6 +113,8 @@ describe('Agent tool permission safety guard', () => {
     expect(fallbackPermissionCategory('agent_review_packet_presets')).toBe('write');
     expect(fallbackPermissionCategory('agent_review_packet_share')).toBe('delegate');
     expect(fallbackPermissionCategory('agent_work_plan')).toBe('write');
+    expect(fallbackPermissionCategory('terminal')).toBe('execute');
+    expect(fallbackPermissionCategory('process')).toBe('execute');
     expect(fallbackPermissionCategory('unknown_tool')).toBe('delegate');
   });
 });
