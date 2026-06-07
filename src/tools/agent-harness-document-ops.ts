@@ -10,6 +10,7 @@ export type DocumentOpsLaneId =
   | 'uploads'
   | 'exports'
   | 'reviewer_readiness'
+  | 'review_packet_timeline'
   | 'source_library'
   | 'media_artifacts'
   | 'artifact_browser'
@@ -78,6 +79,7 @@ const LANE_IDS: readonly DocumentOpsLaneId[] = [
   'uploads',
   'exports',
   'reviewer_readiness',
+  'review_packet_timeline',
   'source_library',
   'media_artifacts',
   'artifact_browser',
@@ -418,6 +420,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-reject-suggestion',
     'document-insert-artifact',
     'document-attach-artifact',
+    'document-review-packet-timeline',
     'document-reviewer-readiness',
     'document-export-draft',
     'document-draft-chat',
@@ -629,6 +632,51 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       reviewerReadiness,
     },
     {
+      id: 'review_packet_timeline',
+      label: 'Review Packet Timeline',
+      status: !snapshot.reviewPacketTimeline.available
+        ? 'needs-setup'
+        : snapshot.reviewPacketTimeline.count > 0
+          ? 'ready'
+          : 'partial',
+      outcome: 'Scan one chronological packet history across document review, source evidence, blind comparisons, judgments, handoffs, archives, and route decisions.',
+      current: snapshot.reviewPacketTimeline.items[0]
+        ? `${snapshot.reviewPacketTimeline.count} packet event(s); latest ${snapshot.reviewPacketTimeline.items[0].label}.`
+        : 'No document, artifact, comparison, judgment, handoff, archive, or route-decision packet events are available yet.',
+      next: snapshot.reviewPacketTimeline.next,
+      userRoute: 'Agent Workspace -> Documents & Compare -> Review packet timeline',
+      modelRoute: 'agent_harness mode:"document_ops_lane" laneId:"review_packet_timeline"',
+      signals: [
+        `Timeline available ${snapshot.reviewPacketTimeline.available ? 'yes' : 'no'}`,
+        `Timeline events ${snapshot.reviewPacketTimeline.count}`,
+        ...snapshot.reviewPacketTimeline.items.slice(0, 5).map((event) => `${event.status}: ${event.kind} ${event.label} -> ${event.route}`),
+      ],
+      actionIds: [
+        ...documentActions.filter((id) => [
+          'document-review-packet-timeline',
+          'document-show-draft',
+          'document-reviewer-readiness',
+          'document-resolve-comment',
+          'document-accept-suggestion',
+          'document-reject-suggestion',
+          'document-attach-artifact',
+          'document-export-draft',
+        ].includes(id)),
+        ...modelCompareActions.filter((id) => [
+          'document-review-compare',
+          'document-diff-handoffs',
+          'document-judge-compare',
+          'document-apply-compare',
+          'document-export-compare',
+        ].includes(id)),
+        ...artifactBrowserActions.filter((id) => [
+          'artifact-browse',
+          'artifact-show',
+          'artifact-export-package',
+        ].includes(id)),
+      ],
+    },
+    {
       id: 'source_library',
       label: 'Sources',
       status: sourceActions.length >= 2 ? 'ready' : sourceActions.length > 0 ? 'partial' : 'gap',
@@ -748,7 +796,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     returned: lanes.length,
     total: lanes.length,
     ...(reviewerReadiness ? { reviewerReadiness: describeReviewerReadiness(reviewerReadiness, includeParameters) } : {}),
-    policy: 'Document Ops unifies versioned document drafts, reviewer-readiness checks, review comments, AI suggestion review, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison.',
+    policy: 'Document Ops unifies versioned document drafts, chronological review packet timelines, reviewer-readiness checks, review comments, AI suggestion review, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison.',
     nextActions: nextActions(lanes),
   };
 }

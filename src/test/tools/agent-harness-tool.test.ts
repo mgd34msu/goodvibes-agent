@@ -4218,7 +4218,7 @@ describe('agent_harness tool', () => {
       const summary = await executeHarnessJson<{
         readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly attention: number; readonly partial: number; readonly gap: number };
       }>(fixture, { mode: 'summary' });
-      expect(summary.documentOps?.lanes).toBe(8);
+      expect(summary.documentOps?.lanes).toBe(9);
       expect(summary.documentOps?.ready).toBeGreaterThanOrEqual(2);
       expect(summary.documentOps?.attention).toBeGreaterThanOrEqual(1);
       expect(summary.documentOps?.partial).toBeGreaterThanOrEqual(1);
@@ -4264,12 +4264,14 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'document_ops', includeParameters: true });
       expect(ops.policy).toContain('model comparison');
       expect(ops.policy).toContain('AI suggestion review');
+      expect(ops.policy).toContain('chronological review packet timelines');
       expect(ops.nextActions.join('\n')).not.toContain('AI suggestion review');
 
       const documents = ops.lanes.find((lane) => lane.id === 'documents');
       const uploads = ops.lanes.find((lane) => lane.id === 'uploads');
       const exports = ops.lanes.find((lane) => lane.id === 'exports');
       const reviewerReadiness = ops.lanes.find((lane) => lane.id === 'reviewer_readiness');
+      const reviewPacketTimeline = ops.lanes.find((lane) => lane.id === 'review_packet_timeline');
       const sourceLibrary = ops.lanes.find((lane) => lane.id === 'source_library');
       const artifactBrowser = ops.lanes.find((lane) => lane.id === 'artifact_browser');
       const modelCompare = ops.lanes.find((lane) => lane.id === 'model_compare');
@@ -4299,6 +4301,10 @@ describe('agent_harness tool', () => {
       expect(reviewerReadiness?.actionIds).toContain('document-resolve-comment');
       expect(reviewerReadiness?.actionIds).toContain('document-accept-suggestion');
       expect(reviewerReadiness?.actionIds).toContain('document-apply-compare');
+      expect(reviewPacketTimeline?.status).toBe('ready');
+      expect(reviewPacketTimeline?.current).toContain('packet event');
+      expect(reviewPacketTimeline?.actionIds).toContain('document-review-packet-timeline');
+      expect(reviewPacketTimeline?.actionIds).toContain('document-review-compare');
       expect(ops.reviewerReadiness?.status).toBe('attention');
       expect(ops.reviewerReadiness?.summary.openComments).toBe(1);
       expect(ops.reviewerReadiness?.summary.proposedSuggestions).toBe(1);
@@ -4368,6 +4374,21 @@ describe('agent_harness tool', () => {
       expect(reviewerLane.id).toBe('reviewer_readiness');
       expect(reviewerLane.status).toBe('attention');
       expect(reviewerLane.reviewerReadiness?.checks.find((check) => check.id === 'source-artifacts')?.repairRoute).toContain('attachArtifact');
+
+      const timelineLane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly current: string;
+        readonly next: string;
+        readonly signals: readonly string[];
+        readonly routes?: { readonly model: string };
+      }>(fixture, { mode: 'document_ops_lane', laneId: 'review_packet_timeline' });
+      expect(timelineLane.id).toBe('review_packet_timeline');
+      expect(timelineLane.status).toBe('ready');
+      expect(timelineLane.current).toContain('packet event');
+      expect(timelineLane.signals.join('\n')).toContain('handoff');
+      expect(timelineLane.signals.join('\n')).toContain('agent_model_compare');
+      expect(timelineLane.routes?.model).toBe('agent_harness mode:"document_ops_lane" laneId:"review_packet_timeline"');
 
       const readinessAction = await executeHarnessJson<{
         readonly status: string;

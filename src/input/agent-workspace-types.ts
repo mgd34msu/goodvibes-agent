@@ -377,6 +377,36 @@ export interface AgentWorkspaceReviewerReadinessBadge {
   readonly handoffsMissingRelatedArtifacts: number;
 }
 
+export type AgentWorkspaceReviewPacketTimelineEventKind =
+  | 'document'
+  | 'comment'
+  | 'suggestion'
+  | 'attachment'
+  | 'document-export'
+  | 'compare'
+  | 'compare-export'
+  | 'judgment'
+  | 'handoff'
+  | 'handoff-archive';
+
+export interface AgentWorkspaceReviewPacketTimelineEvent {
+  readonly id: string;
+  readonly kind: AgentWorkspaceReviewPacketTimelineEventKind;
+  readonly at: number;
+  readonly label: string;
+  readonly detail: string;
+  readonly status: 'ready' | 'attention' | 'complete' | 'info';
+  readonly route: string;
+  readonly sourceId: string;
+}
+
+export interface AgentWorkspaceReviewPacketTimeline {
+  readonly available: boolean;
+  readonly count: number;
+  readonly next: string;
+  readonly items: readonly AgentWorkspaceReviewPacketTimelineEvent[];
+}
+
 export interface AgentWorkspaceRuntimeProfileItem {
   readonly id: string;
   readonly homeDirectory: string;
@@ -505,6 +535,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly recentReviewerHandoffArtifactCount: number;
   readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
   readonly reviewerReadinessBadge: AgentWorkspaceReviewerReadinessBadge;
+  readonly reviewPacketTimeline: AgentWorkspaceReviewPacketTimeline;
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];

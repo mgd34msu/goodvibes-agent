@@ -32,6 +32,8 @@ import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceResearchRunSummary,
+  AgentWorkspaceReviewPacketTimeline,
+  AgentWorkspaceReviewPacketTimelineEvent,
   AgentWorkspaceReviewerReadinessBadge,
   AgentWorkspaceRoutineScheduleReceiptSummary,
   AgentWorkspaceRuntimeProfileItem,
@@ -201,6 +203,22 @@ function readArtifactMetadataStringList(metadata: Readonly<Record<string, unknow
   return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
 }
 
+function readArtifactMetadataNumber(metadata: Readonly<Record<string, unknown>>, key: string): number | null {
+  const value = metadata[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function isoToEpoch(value: string): number {
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
+function compactTimelineText(value: string, maxLength = 96): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
 function isReviewerHandoffArtifact(artifact: ArtifactDescriptor): boolean {
   const purpose = readArtifactMetadataString(artifact.metadata, 'purpose');
   if (purpose === 'agent-model-compare-handoff') return true;
@@ -220,6 +238,18 @@ function isModelCompareJudgmentArtifact(artifact: ArtifactDescriptor): boolean {
   if (purpose === 'agent-model-compare-judgment') return true;
   if (purpose.length > 0) return false;
   return (artifact.filename ?? '').startsWith('blind-model-comparison-judgment-');
+}
+
+function isDocumentExportArtifact(artifact: ArtifactDescriptor): boolean {
+  return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-document-export';
+}
+
+function isModelCompareExportArtifact(artifact: ArtifactDescriptor): boolean {
+  return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-model-compare-export';
+}
+
+function isReviewerHandoffArchiveArtifact(artifact: ArtifactDescriptor): boolean {
+  return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-model-compare-handoff-archive';
 }
 
 function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWorkspaceRecentReviewerHandoffArtifact {
@@ -244,6 +274,190 @@ function readDocumentDrafts(context: CommandContext): readonly AgentDocumentReco
   } catch {
     return [];
   }
+}
+
+function buildReviewPacketTimeline(
+  documents: readonly AgentDocumentRecord[],
+  artifacts: readonly ArtifactDescriptor[],
+  artifactListAvailable: boolean,
+): AgentWorkspaceReviewPacketTimeline {
+  const events: AgentWorkspaceReviewPacketTimelineEvent[] = [];
+  for (const document of documents) {
+    const openComments = document.comments.filter((comment) => comment.status === 'open').length;
+    const proposedSuggestions = document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length;
+    events.push({
+      id: `document:${document.id}`,
+      kind: 'document',
+      at: isoToEpoch(document.updatedAt),
+      label: `Document ${document.status}: ${document.title}`,
+      detail: `${document.versions.length} version(s), ${openComments} open comment(s), ${proposedSuggestions} proposed suggestion(s), ${document.attachments.length} attachment(s), last artifact ${document.lastArtifactId ?? 'none'}`,
+      status: openComments + proposedSuggestions > 0 ? 'attention' : document.status === 'reviewed' ? 'ready' : 'info',
+      route: `agent_documents show documentId:"${document.id}" includeVersions:true`,
+      sourceId: document.id,
+    });
+    for (const comment of document.comments) {
+      events.push({
+        id: `comment:${document.id}:${comment.id}`,
+        kind: 'comment',
+        at: isoToEpoch(comment.resolvedAt ?? comment.updatedAt ?? comment.createdAt),
+        label: `${comment.status === 'open' ? 'Open' : 'Resolved'} comment: ${document.title}`,
+        detail: compactTimelineText(comment.body),
+        status: comment.status === 'open' ? 'attention' : 'complete',
+        route: comment.status === 'open'
+          ? `agent_documents resolveComment documentId:"${document.id}" commentId:"${comment.id}" confirm:true explicitUserRequest:"..."`
+          : `agent_documents show documentId:"${document.id}" includeVersions:true`,
+        sourceId: comment.id,
+      });
+    }
+    for (const suggestion of document.suggestions) {
+      events.push({
+        id: `suggestion:${document.id}:${suggestion.id}`,
+        kind: 'suggestion',
+        at: isoToEpoch(suggestion.resolvedAt ?? suggestion.updatedAt ?? suggestion.createdAt),
+        label: `${suggestion.status === 'proposed' ? 'Proposed' : suggestion.status === 'accepted' ? 'Accepted' : 'Rejected'} suggestion: ${suggestion.title}`,
+        detail: compactTimelineText(`${document.title}: ${suggestion.summary}`),
+        status: suggestion.status === 'proposed' ? 'attention' : 'complete',
+        route: suggestion.status === 'proposed'
+          ? `agent_documents acceptSuggestion documentId:"${document.id}" suggestionId:"${suggestion.id}" confirm:true explicitUserRequest:"..." or agent_documents rejectSuggestion documentId:"${document.id}" suggestionId:"${suggestion.id}" confirm:true explicitUserRequest:"..."`
+          : `agent_documents show documentId:"${document.id}" includeVersions:true`,
+        sourceId: suggestion.id,
+      });
+    }
+    for (const attachment of document.attachments) {
+      events.push({
+        id: `attachment:${document.id}:${attachment.id}`,
+        kind: 'attachment',
+        at: isoToEpoch(attachment.updatedAt ?? attachment.createdAt),
+        label: `Attached artifact: ${attachment.label}`,
+        detail: `${document.title}: ${attachment.artifactId}${attachment.note ? ` - ${compactTimelineText(attachment.note, 64)}` : ''}`,
+        status: 'complete',
+        route: `agent_artifacts show artifactId:"${attachment.artifactId}"`,
+        sourceId: attachment.artifactId,
+      });
+    }
+  }
+
+  for (const artifact of artifacts) {
+    const metadata = artifact.metadata;
+    if (isDocumentExportArtifact(artifact)) {
+      const documentId = readArtifactMetadataString(metadata, 'documentId') || 'unknown-document';
+      const versionId = readArtifactMetadataString(metadata, 'versionId') || 'unknown-version';
+      events.push({
+        id: `document-export:${artifact.id}`,
+        kind: 'document-export',
+        at: artifact.createdAt,
+        label: `Document export: ${documentId}`,
+        detail: `version ${versionId}; artifact ${artifact.id}`,
+        status: 'complete',
+        route: `agent_artifacts show artifactId:"${artifact.id}"`,
+        sourceId: artifact.id,
+      });
+      continue;
+    }
+    if (isModelCompareArtifact(artifact)) {
+      const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || artifact.id;
+      const completed = readArtifactMetadataNumber(metadata, 'completedCandidates');
+      const candidates = readArtifactMetadataNumber(metadata, 'candidateCount');
+      const source = readArtifactMetadataString(metadata, 'sourceArtifactId') || readArtifactMetadataString(metadata, 'documentId') || 'none';
+      const revealed = metadata.revealIncludedInTranscript === true;
+      events.push({
+        id: `compare:${artifact.id}`,
+        kind: 'compare',
+        at: artifact.createdAt,
+        label: `Blind compare ${revealed ? 'revealed' : 'hidden'}: ${comparisonId}`,
+        detail: `${completed ?? '?'}/${candidates ?? '?'} candidate(s) complete; source ${source}`,
+        status: revealed ? 'ready' : 'attention',
+        route: revealed ? `agent_model_compare review artifactId:"${artifact.id}" reveal:true` : `agent_model_compare reveal artifactId:"${artifact.id}"`,
+        sourceId: artifact.id,
+      });
+      continue;
+    }
+    if (isModelCompareJudgmentArtifact(artifact)) {
+      const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison';
+      const winnerBlindId = readArtifactMetadataString(metadata, 'winnerBlindId') || 'unknown-winner';
+      const winnerModel = readArtifactMetadataString(metadata, 'winnerModel');
+      const revealed = metadata.revealIncludedInJudgment === true && winnerModel.length > 0;
+      events.push({
+        id: `judgment:${artifact.id}`,
+        kind: 'judgment',
+        at: artifact.createdAt,
+        label: `Comparison judgment ${revealed ? 'revealed' : 'hidden'}: ${comparisonId}`,
+        detail: revealed ? `winner ${winnerModel}; blind slot ${winnerBlindId}` : `winner blind slot ${winnerBlindId}; reveal needed before route decisions`,
+        status: 'attention',
+        route: revealed
+          ? `agent_model_compare apply artifactId:"${artifact.id}" confirm:true explicitUserRequest:"..."`
+          : `agent_model_compare review artifactId:"${artifact.id}"`,
+        sourceId: artifact.id,
+      });
+      continue;
+    }
+    if (isModelCompareExportArtifact(artifact)) {
+      const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison';
+      const sourceKind = readArtifactMetadataString(metadata, 'sourceKind') || 'unknown';
+      events.push({
+        id: `compare-export:${artifact.id}`,
+        kind: 'compare-export',
+        at: artifact.createdAt,
+        label: `Compare report: ${comparisonId}`,
+        detail: `${sourceKind} report artifact ${artifact.id}`,
+        status: 'complete',
+        route: `agent_artifacts show artifactId:"${artifact.id}"`,
+        sourceId: artifact.id,
+      });
+      continue;
+    }
+    if (isReviewerHandoffArtifact(artifact)) {
+      const handoffId = readArtifactMetadataString(metadata, 'handoffId') || artifact.id;
+      const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison';
+      const sourceKind = readArtifactMetadataString(metadata, 'sourceKind') || 'unknown';
+      const relatedCount = readArtifactMetadataStringList(metadata, 'relatedArtifactIds').length;
+      events.push({
+        id: `handoff:${artifact.id}`,
+        kind: 'handoff',
+        at: artifact.createdAt,
+        label: `Reviewer handoff: ${handoffId}`,
+        detail: `${comparisonId}; source ${sourceKind}; ${relatedCount} related artifact(s)`,
+        status: relatedCount > 0 ? 'ready' : 'attention',
+        route: relatedCount > 0
+          ? `agent_model_compare handoffDiff leftArtifactId:"${artifact.id}" rightArtifactId:"..."`
+          : `agent_model_compare handoff artifactId:"${readArtifactMetadataString(metadata, 'sourceArtifactId') || artifact.id}" relatedArtifactIds:"..." confirm:true explicitUserRequest:"..."`,
+        sourceId: artifact.id,
+      });
+      continue;
+    }
+    if (isReviewerHandoffArchiveArtifact(artifact)) {
+      const archiveId = readArtifactMetadataString(metadata, 'archiveId') || artifact.id;
+      const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison';
+      const artifactCount = readArtifactMetadataNumber(metadata, 'artifactCount');
+      events.push({
+        id: `handoff-archive:${artifact.id}`,
+        kind: 'handoff-archive',
+        at: artifact.createdAt,
+        label: `Handoff archive: ${archiveId}`,
+        detail: `${comparisonId}; ${artifactCount ?? '?'} artifact(s) packaged`,
+        status: 'complete',
+        route: `agent_artifacts show artifactId:"${artifact.id}"`,
+        sourceId: artifact.id,
+      });
+    }
+  }
+
+  const ordered = events
+    .filter((event) => Number.isFinite(event.at))
+    .sort((left, right) => right.at - left.at || left.id.localeCompare(right.id));
+  const attention = ordered.find((event) => event.status === 'attention');
+  return {
+    available: artifactListAvailable,
+    count: ordered.length,
+    next: !artifactListAvailable
+      ? 'Artifact listing is unavailable; timeline shows document-local events only.'
+      : attention
+        ? `${attention.label}: ${attention.detail}`
+        : ordered.length > 0
+          ? 'Review packet timeline is clear; export, handoff, archive, or route decisions can use the visible readiness checks.'
+          : 'Create or attach a document, source artifact, comparison, judgment, handoff, or archive to start a review packet timeline.',
+    items: ordered.slice(0, 8),
+  };
 }
 
 function reviewerReadinessBadge(
@@ -542,8 +756,14 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, items: [] };
     }
   })();
+  const documentDrafts = readDocumentDrafts(context);
   const reviewerBadge = reviewerReadinessBadge(
-    readDocumentDrafts(context),
+    documentDrafts,
+    artifactListSnapshot.items,
+    artifactListSnapshot.available,
+  );
+  const reviewPacketTimeline = buildReviewPacketTimeline(
+    documentDrafts,
     artifactListSnapshot.items,
     artifactListSnapshot.available,
   );
@@ -804,6 +1024,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     recentReviewerHandoffArtifactCount: recentReviewerHandoffs.count,
     recentReviewerHandoffArtifacts: recentReviewerHandoffs.items,
     reviewerReadinessBadge: reviewerBadge,
+    reviewPacketTimeline,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

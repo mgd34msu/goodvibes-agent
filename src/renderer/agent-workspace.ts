@@ -314,6 +314,40 @@ function reviewerHandoffArtifactLine(snapshot: AgentWorkspaceRuntimeSnapshot): C
   };
 }
 
+function reviewPacketTimelineStatusColor(status: AgentWorkspaceRuntimeSnapshot['reviewPacketTimeline']['items'][number]['status']): string {
+  if (status === 'attention') return PALETTE.warn;
+  if (status === 'ready' || status === 'complete') return PALETTE.good;
+  return PALETTE.info;
+}
+
+function reviewPacketTimelineLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
+  const timeline = snapshot.reviewPacketTimeline;
+  if (timeline.items.length === 0) {
+    return [
+      {
+        text: timeline.available
+          ? 'Review packet timeline: no document, artifact, comparison, judgment, handoff, or archive events yet.'
+          : 'Review packet timeline: artifact history unavailable; no document-local events yet.',
+        fg: timeline.available ? PALETTE.muted : PALETTE.warn,
+      },
+      { text: `Packet next: ${compactText(timeline.next, 110)}`, fg: timeline.available ? PALETTE.info : PALETTE.warn },
+    ];
+  }
+  const visible = timeline.items.slice(0, 3);
+  return [
+    {
+      text: `Review packet timeline: ${timeline.count} event(s); showing ${visible.length} latest${timeline.available ? '' : '; artifacts unavailable'}.`,
+      fg: timeline.available ? PALETTE.info : PALETTE.warn,
+    },
+    ...visible.map((event): ContextLine => ({
+      text: `Packet ${event.kind}: ${compactText(`${event.label} - ${event.detail}`, 116)}`,
+      fg: reviewPacketTimelineStatusColor(event.status),
+      bold: event.status === 'attention',
+    })),
+    { text: `Packet next: ${compactText(timeline.next, 110)}`, fg: timeline.items.some((event) => event.status === 'attention') ? PALETTE.warn : PALETTE.good },
+  ];
+}
+
 function reviewerReadinessBadgeColor(status: AgentWorkspaceRuntimeSnapshot['reviewerReadinessBadge']['status']): string {
   if (status === 'ready') return PALETTE.good;
   if (status === 'attention') return PALETTE.warn;
@@ -485,13 +519,13 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;
     base.push(
       { text: `Document route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
-      { text: `Files: attach, paste, source ingest, and export; artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}.`, fg: PALETTE.good },
+      { text: `Files: attach, paste, source ingest, export-to-file/package/ZIP; artifact limit ${formatMegabytes(snapshot.artifactMaxBytes)}.`, fg: PALETTE.good },
       { text: `Media artifacts: ${mediaReady}/${snapshot.mediaProviderCount} providers ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
       reviewerHandoffArtifactLine(snapshot),
+      { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
+      ...reviewPacketTimelineLines(snapshot),
       { text: 'Versioned drafts, review comments, AI suggestion review, artifact attachment/insertion, artifact browser, and Knowledge promotion are available.', fg: PALETTE.good },
       { text: 'Reviewer-readiness preflight, compare artifact reuse, review/side-by-side/judgment, filtered analytics/synthesis, handoff diff section jumps, export/handoff/archive, and route update are available.', fg: PALETTE.good },
-      { text: 'Saved artifact export-to-file, package, and ZIP archive export are available.', fg: PALETTE.good },
-      { text: 'Model route: agent_harness mode:"document_ops" or document_ops_lane.', fg: PALETTE.muted },
     );
   } else if (category.id === 'tools') {
     base.push(

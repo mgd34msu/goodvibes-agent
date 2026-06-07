@@ -199,6 +199,28 @@ function reviewerHandoffArtifact(input: {
   };
 }
 
+function reviewPacketArtifact(input: {
+  readonly id: string;
+  readonly createdAt: number;
+  readonly filename: string;
+  readonly metadata: Record<string, unknown>;
+  readonly kind?: ArtifactDescriptor['kind'];
+  readonly mimeType?: string;
+}): ArtifactDescriptor {
+  return {
+    id: input.id,
+    kind: input.kind ?? 'data',
+    mimeType: input.mimeType ?? 'application/json',
+    filename: input.filename,
+    sizeBytes: 512,
+    sha256: `sha-${input.id}`,
+    createdAt: input.createdAt,
+    acquisitionMode: 'inline-data',
+    fetchMode: 'not-applicable',
+    metadata: input.metadata,
+  };
+}
+
 function liveCommandContext(options: {
   readonly includePersonalOpsNote?: boolean;
   readonly includeReviewerIssue?: boolean;
@@ -480,10 +502,10 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Documents & Compare');
     expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
-    expect(output).toContain('Files: attach, paste, source ingest, and export');
+    expect(output).toContain('Files: attach, paste, source ingest, export-to-file/package/ZIP');
+    expect(output).toContain('Review packet timeline: artifact history unavailable; no document-local events yet.');
     expect(output).toContain('Versioned drafts, review comments, AI suggestion review');
     expect(output).toContain('compare artifact reuse');
-    expect(output).toContain('Saved artifact export-to-file, package, and ZIP archive export are available');
     expect(output).toContain('Browse document drafts');
     expect(output).toContain('Show document draft');
     expect(output).toContain('Create document draft');
@@ -494,6 +516,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Accept suggestion');
     expect(output).toContain('Reject suggestion');
     expect(output).toContain('Insert artifact in draft');
+    expect(output).toContain('Review packet timeline');
     expect(output).toContain('Review readiness preflight');
     expect(output).toContain('Export document artifact');
     expect(output).toContain('Export saved artifact');
@@ -558,6 +581,61 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Recent choices: artifact-newer');
     expect(output).toContain('artifact-older (judgment; related 1).');
     expect(output).toContain('Older handoff hnd_older');
+  });
+
+  test('renders a chronological review packet timeline for documents and compare artifacts', () => {
+    const now = Date.now();
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({
+      includeReviewerIssue: true,
+      reviewerHandoffs: [
+        reviewerHandoffArtifact({
+          id: 'handoff-launch',
+          createdAt: now + 3_000,
+          handoffId: 'hnd_launch',
+          comparisonId: 'cmp_launch',
+          sourceArtifactId: 'judgment-launch',
+          sourceKind: 'judgment',
+          relatedArtifactIds: [],
+        }),
+        reviewPacketArtifact({
+          id: 'judgment-launch',
+          createdAt: now + 2_000,
+          filename: 'blind-model-comparison-judgment-launch.json',
+          metadata: {
+            purpose: 'agent-model-compare-judgment',
+            judgmentId: 'jdg_launch',
+            comparisonId: 'cmp_launch',
+            winnerBlindId: 'B',
+            winnerModel: 'openai:gpt-5.5',
+            revealIncludedInJudgment: true,
+          },
+        }),
+        reviewPacketArtifact({
+          id: 'compare-launch',
+          createdAt: now + 1_000,
+          filename: 'blind-model-comparison-cmp_launch.json',
+          metadata: {
+            purpose: 'agent-model-compare',
+            comparisonId: 'cmp_launch',
+            candidateCount: 2,
+            completedCandidates: 2,
+            revealIncludedInTranscript: false,
+            sourceArtifactId: 'doc-export-launch',
+          },
+        }),
+      ],
+    }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
+
+    const output = text(renderAgentWorkspace(workspace, 150, 56));
+
+    expect(output).toContain('Review packet timeline:');
+    expect(output).toContain('Packet handoff: Reviewer handoff: hnd_launch');
+    expect(output).toContain('Packet judgment: Comparison judgment revealed: cmp_launch');
+    expect(output).toContain('Packet compare: Blind compare hidden: cmp_launch');
+    expect(output).toContain('Packet next:');
+    expect(output).toContain('related artifact(s)');
   });
 
   test('shows reviewer-readiness badges at export archive and route-apply points', () => {
