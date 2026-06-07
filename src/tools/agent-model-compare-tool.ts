@@ -542,6 +542,13 @@ function isModelCompareHandoffArtifact(artifact: ArtifactDescriptor): boolean {
   return readString(artifact.filename).startsWith('blind-model-comparison-handoff-');
 }
 
+function isModelCompareRouteDecisionArtifact(artifact: ArtifactDescriptor): boolean {
+  const purpose = readString(artifact.metadata.purpose);
+  if (purpose === 'agent-model-compare-route-decision') return true;
+  if (purpose) return false;
+  return readString(artifact.filename).startsWith('blind-model-comparison-route-decision-');
+}
+
 function formatSavedHandoffArtifacts(artifactStore?: AgentModelCompareArtifactStore): string {
   if (!artifactStore?.list) {
     return 'Saved blind comparison reviewer handoffs are unavailable because the artifact store does not expose listing in this runtime.';
@@ -1581,7 +1588,7 @@ async function saveComparisonHandoffArtifact(input: {
 }
 
 interface LoadedHandoffArchiveArtifact {
-  readonly role: 'handoff' | 'source' | 'related';
+  readonly role: 'handoff' | 'source' | 'related' | 'route-decision';
   readonly record: ArtifactRecord;
   readonly buffer: Buffer;
 }
@@ -1590,6 +1597,7 @@ interface ComparisonHandoffArchivePayload {
   readonly artifactCount: number;
   readonly sourceBytes: number;
   readonly includedArtifactIds: readonly string[];
+  readonly routeDecisionArtifactIds: readonly string[];
   readonly entries: readonly ArtifactPackageEntry[];
 }
 
@@ -1875,6 +1883,7 @@ function formatHandoffDiff(input: {
 async function loadHandoffArchiveArtifacts(
   artifactStore: AgentModelCompareArtifactStore | undefined,
   handoff: LoadedComparisonHandoff,
+  routeDecisionArtifactIds: readonly string[] = [],
 ): Promise<readonly LoadedHandoffArchiveArtifact[]> {
   if (!artifactStore?.readContent) {
     throw new Error('Reviewer handoff archive requires an artifact store with readContent support.');
@@ -1883,6 +1892,7 @@ async function loadHandoffArchiveArtifacts(
     { id: handoff.artifact.artifactId, role: 'handoff' },
     { id: handoff.sourceArtifactId, role: 'source' },
     ...handoff.relatedArtifactIds.map((id) => ({ id, role: 'related' as const })),
+    ...routeDecisionArtifactIds.map((id) => ({ id, role: 'route-decision' as const })),
   ];
   const seen = new Set<string>();
   const artifacts: LoadedHandoffArchiveArtifact[] = [];
@@ -1898,6 +1908,26 @@ async function loadHandoffArchiveArtifacts(
   return artifacts;
 }
 
+function findRouteDecisionArtifactIdsForHandoff(
+  artifactStore: AgentModelCompareArtifactStore | undefined,
+  handoff: LoadedComparisonHandoff,
+): readonly string[] {
+  if (!artifactStore?.list) return [];
+  const seen = new Set<string>();
+  const matches: string[] = [];
+  for (const artifact of artifactStore.list(100).filter(isModelCompareRouteDecisionArtifact)) {
+    const judgmentArtifactId = readString(artifact.metadata.judgmentArtifactId);
+    const comparisonId = readString(artifact.metadata.comparisonId);
+    const matchesSource = handoff.sourceKind === 'judgment'
+      ? judgmentArtifactId === handoff.sourceArtifactId
+      : comparisonId === handoff.comparisonId;
+    if (!matchesSource || seen.has(artifact.id)) continue;
+    seen.add(artifact.id);
+    matches.push(artifact.id);
+  }
+  return matches;
+}
+
 function buildComparisonHandoffArchivePayload(input: {
   readonly handoff: LoadedComparisonHandoff;
   readonly artifacts: readonly LoadedHandoffArchiveArtifact[];
@@ -1907,6 +1937,9 @@ function buildComparisonHandoffArchivePayload(input: {
   const manifestArtifacts: Array<Record<string, unknown>> = [];
   const fileLines: string[] = [];
   let sourceBytes = 0;
+  const routeDecisionArtifactIds = input.artifacts
+    .filter((artifact) => artifact.role === 'route-decision')
+    .map((artifact) => artifact.record.id);
 
   for (let index = 0; index < input.artifacts.length; index += 1) {
     const artifact = input.artifacts[index]!;
@@ -1947,6 +1980,7 @@ function buildComparisonHandoffArchivePayload(input: {
       sourceArtifactId: input.handoff.sourceArtifactId,
       sourceKind: input.handoff.sourceKind,
       relatedArtifactIds: input.handoff.relatedArtifactIds,
+      routeDecisionArtifactIds,
       revealIncludedInHandoff: input.handoff.revealIncludedInHandoff,
     },
     artifactCount: input.artifacts.length,
@@ -1976,6 +2010,7 @@ function buildComparisonHandoffArchivePayload(input: {
         `Handoff artifact: ${input.handoff.artifact.artifactId}`,
         `Source artifact: ${input.handoff.sourceArtifactId} (${input.handoff.sourceKind})`,
         `Related artifacts: ${input.handoff.relatedArtifactIds.length}`,
+        `Route-decision receipts: ${routeDecisionArtifactIds.length}`,
         `Source bytes: ${sourceBytes}`,
         '',
         'Files',
@@ -1995,6 +2030,7 @@ function buildComparisonHandoffArchivePayload(input: {
     artifactCount: input.artifacts.length,
     sourceBytes,
     includedArtifactIds: input.artifacts.map((artifact) => artifact.record.id),
+    routeDecisionArtifactIds,
     entries,
   };
 }
@@ -2020,6 +2056,7 @@ async function saveComparisonHandoffArchiveArtifact(input: {
       sourceArtifactId: input.handoff.sourceArtifactId,
       sourceKind: input.handoff.sourceKind,
       relatedArtifactIds: input.handoff.relatedArtifactIds,
+      routeDecisionArtifactIds: input.payload.routeDecisionArtifactIds,
       includedArtifactIds: input.payload.includedArtifactIds,
       comparisonId: input.handoff.comparisonId,
       artifactCount: input.payload.artifactCount,
@@ -2066,6 +2103,7 @@ function formatHandoffPreview(input: {
 
 function formatHandoffArchivePreview(input: {
   readonly handoff: LoadedComparisonHandoff;
+  readonly routeDecisionArtifactIds: readonly string[];
 }): string {
   return [
     'Agent blind model comparison reviewer handoff archive preview',
@@ -2073,6 +2111,7 @@ function formatHandoffArchivePreview(input: {
     `  comparison ${input.handoff.comparisonId}`,
     `  source ${input.handoff.sourceArtifactId} (${input.handoff.sourceKind})`,
     `  related artifacts ${input.handoff.relatedArtifactIds.join(', ') || '(none)'}`,
+    `  route-decision receipts ${input.routeDecisionArtifactIds.join(', ') || '(none)'}`,
     `  reveal ${input.handoff.revealIncludedInHandoff ? 'handoff includes model identities when available' : 'handoff keeps model identities hidden'}`,
     '  policy creates one local ZIP artifact with exact handoff/source/evidence bytes, redacted manifest metadata, and no model route change',
   ].join('\n');
@@ -2113,6 +2152,7 @@ function formatHandoffArchiveResult(input: {
   readonly handoff: LoadedComparisonHandoff;
   readonly artifact: SavedComparisonArtifact;
   readonly artifactCount: number;
+  readonly routeDecisionArtifactCount: number;
   readonly sourceBytes: number;
   readonly archiveBytes: number;
 }): string {
@@ -2122,6 +2162,7 @@ function formatHandoffArchiveResult(input: {
     `handoff ${input.handoff.artifact.artifactId} (${input.handoff.handoffId})`,
     `source ${input.handoff.sourceArtifactId} (${input.handoff.sourceKind})`,
     `related artifacts ${input.handoff.relatedArtifactIds.length}`,
+    `route-decision receipts ${input.routeDecisionArtifactCount}`,
     `included artifacts ${input.artifactCount}`,
     `source bytes ${formatArchiveBytes(input.sourceBytes)}`,
     `archive ${input.artifact.artifactId}${input.artifact.filename ? ` ${input.artifact.filename}` : ''} (${input.artifact.mimeType}, ${input.archiveBytes} bytes)`,
@@ -3063,15 +3104,16 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
 
           const handoff = await loadHandoffFromArtifact(deps.artifactStore, artifactId);
           if (!handoff) return failure('Unknown reviewer handoff artifact. Pass a saved blind model comparison handoff artifactId.');
+          const routeDecisionArtifactIds = findRouteDecisionArtifactIdsForHandoff(deps.artifactStore, handoff);
           if (!readBoolean(args.confirm)) {
             return failure([
-              formatHandoffArchivePreview({ handoff }),
+              formatHandoffArchivePreview({ handoff, routeDecisionArtifactIds }),
               '',
               'Handoff archive confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to create this reviewer handoff ZIP.',
             ].join('\n'));
           }
 
-          const artifacts = await loadHandoffArchiveArtifacts(deps.artifactStore, handoff);
+          const artifacts = await loadHandoffArchiveArtifacts(deps.artifactStore, handoff, routeDecisionArtifactIds);
           const payload = buildComparisonHandoffArchivePayload({ handoff, artifacts });
           const archive = createZipArchive(payload.entries);
           const artifact = await saveComparisonHandoffArchiveArtifact({
@@ -3084,6 +3126,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             handoff,
             artifact,
             artifactCount: payload.artifactCount,
+            routeDecisionArtifactCount: payload.routeDecisionArtifactIds.length,
             sourceBytes: payload.sourceBytes,
             archiveBytes: archive.byteLength,
           }));

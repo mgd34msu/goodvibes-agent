@@ -833,6 +833,7 @@ describe('agent_model_compare tool', () => {
     expect(archivePreview.error).toContain('reviewer handoff archive preview');
     expect(archivePreview.error).toContain('source artifact-2 (judgment)');
     expect(archivePreview.error).toContain(`related artifacts ${documentExport.id}`);
+    expect(archivePreview.error).toContain('route-decision receipts artifact-4');
     expect(artifacts.inputs).toHaveLength(8);
 
     const archive = await reviewer.tool.execute({
@@ -845,7 +846,8 @@ describe('agent_model_compare tool', () => {
     expect(archive.output).toContain('Blind model comparison reviewer handoff archive saved');
     expect(archive.output).toContain('handoff artifact-8');
     expect(archive.output).toContain('source artifact-2 (judgment)');
-    expect(archive.output).toContain('included artifacts 3');
+    expect(archive.output).toContain('route-decision receipts 1');
+    expect(archive.output).toContain('included artifacts 4');
     expect(archive.output).toContain('archive artifact-9');
     expect(archive.output).toContain('export agent_artifacts mode:"export" artifactId:"artifact-9"');
     expect(archive.output).toContain('No selected model was changed.');
@@ -858,27 +860,35 @@ describe('agent_model_compare tool', () => {
       sourceArtifactId: 'artifact-2',
       sourceKind: 'judgment',
       relatedArtifactIds: [documentExport.id],
-      includedArtifactIds: ['artifact-8', 'artifact-2', documentExport.id],
-      artifactCount: 3,
+      routeDecisionArtifactIds: ['artifact-4'],
+      includedArtifactIds: ['artifact-8', 'artifact-2', documentExport.id, 'artifact-4'],
+      artifactCount: 4,
     });
     const archiveBytes = Buffer.from(String(artifacts.inputs[8]?.dataBase64 ?? ''), 'base64');
     const entries = unzipLocalEntries(archiveBytes);
     expect(entries.get('README.md')?.toString('utf-8')).toContain('GoodVibes Agent Comparison Handoff Archive');
     const manifest = JSON.parse(entries.get('manifest.json')?.toString('utf-8') ?? '{}') as {
       readonly archiveKind?: string;
-      readonly handoff?: { readonly sourceArtifactId?: string; readonly relatedArtifactIds?: readonly string[] };
+      readonly handoff?: {
+        readonly sourceArtifactId?: string;
+        readonly relatedArtifactIds?: readonly string[];
+        readonly routeDecisionArtifactIds?: readonly string[];
+      };
       readonly artifacts?: readonly { readonly role?: string; readonly id?: string; readonly file?: string }[];
     };
     expect(manifest.archiveKind).toBe('agent-model-compare-handoff');
     expect(manifest.handoff?.sourceArtifactId).toBe('artifact-2');
     expect(manifest.handoff?.relatedArtifactIds).toEqual([documentExport.id]);
-    expect(manifest.artifacts?.map((entry) => entry.role)).toEqual(['handoff', 'source', 'related']);
+    expect(manifest.handoff?.routeDecisionArtifactIds).toEqual(['artifact-4']);
+    expect(manifest.artifacts?.map((entry) => entry.role)).toEqual(['handoff', 'source', 'related', 'route-decision']);
     const handoffEntry = manifest.artifacts?.find((entry) => entry.role === 'handoff');
     const sourceEntry = manifest.artifacts?.find((entry) => entry.role === 'source');
     const relatedEntry = manifest.artifacts?.find((entry) => entry.role === 'related');
+    const routeDecisionEntry = manifest.artifacts?.find((entry) => entry.role === 'route-decision');
     expect(entries.get(String(handoffEntry?.file))?.toString('utf-8')).toContain('# Blind Model Comparison Reviewer Handoff');
     expect(entries.get(String(sourceEntry?.file))?.toString('utf-8')).toContain('"schema": "goodvibes.agent.model_compare_judgment.v1"');
     expect(entries.get(String(relatedEntry?.file))?.toString('utf-8')).toContain('# Launch Plan');
+    expect(entries.get(String(routeDecisionEntry?.file))?.toString('utf-8')).toContain('"schema": "goodvibes.agent.model_compare.route_decision.v1"');
 
     const archiveList = await reviewer.tool.execute({ mode: 'handoffArchive' });
     expect(archiveList.success).toBe(true);
