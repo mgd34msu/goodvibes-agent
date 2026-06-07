@@ -233,9 +233,9 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'Voice, mobile, notifications, camera, screen, location, and device commands are paired, permission-aware, and reliable.',
     goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host', 'companion'],
-    goodVibesNow: 'Agent has voice/TTS, pairing, channel readiness, and mobile-depth release goals, but device command depth is not yet a finished user surface.',
+    goodVibesNow: 'Agent now exposes a read-only companion device capability map across pairing, mobile command routing, browser/PWA, voice/TTS, notifications, and browser/desktop control with ready/attention/setup-needed states; camera and location remain honest not-published contract gaps.',
     nextMoves: [
-      'Finish companion app command depth with visible device capability maps and permission repair.',
+      'Finish companion app command depth and permission repair using the visible capability map as the user-facing checklist.',
       'Add push-to-talk and wake/speak workflows that work from companion surfaces.',
       'Certify camera, screen, notification, location, and local command routes by platform.',
     ],

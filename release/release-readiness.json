@@ -255,9 +255,9 @@
       "evidence": "src/input/agent-workspace-categories.ts; src/input/commands/qrcode-runtime.ts; src/tools/agent-harness-pairing-posture.ts; src/cli/help.ts",
       "action": "Keep token display redacted unless the user explicitly asks for manual pairing output.",
       "quality": {
-        "capabilityCoverage": "Covers QR-first companion pairing, manual-token fallback, shared-session posture, realtime client readiness, and safe token display.",
-        "userAccess": "The user can pair through workspace access routes, /pair, and /qrcode, with manual token display requiring explicit confirmation.",
-        "modelAccess": "agent_harness mode:\"pairing_posture\" and mode:\"pairing_route\" exposes companion pairing endpoint binding, pairing surface id, token presence/fingerprint, route catalog, connected-host status/capability routes, channel readiness routes, and single pairing-route lookup without returning raw tokens or QR payloads.",
+        "capabilityCoverage": "Covers QR-first companion pairing, manual-token fallback, shared-session posture, realtime client readiness, safe token display, and a read-only companion device capability map for pairing, mobile command routing, browser/PWA, voice/TTS, notifications, browser/desktop control, and unpublished camera/location posture.",
+        "userAccess": "The user can pair through workspace access routes, /pair, and /qrcode, with manual token display requiring explicit confirmation; device and mobile readiness is inspectable through pairing posture before the user tries a phone/browser/voice handoff.",
+        "modelAccess": "agent_harness mode:\"pairing_posture\" and mode:\"pairing_route\" expose companion pairing endpoint binding, pairing surface id, token presence/fingerprint, route catalog, deviceCapabilitySummary, compact deviceCapabilities rows, the device-capability-map route, connected-host status/capability routes, channel readiness routes, and single pairing-route lookup without returning raw tokens or QR payloads.",
         "safetyBoundary": "Raw pairing tokens are hidden by default and only displayed when the user explicitly requests manual output.",
         "releaseEvidence": "Readiness evidence cites workspace, QR runtime, direct harness, and help surfaces, with live certification covering connected-host pairing readiness."
       }
@@ -527,7 +527,7 @@
       "quality": {
         "capabilityCoverage": "Covers token bootstrap, QR pairing, realtime delivery, browser/mobile-safe client surfaces, foreground events, and transport compatibility through connected-host ownership.",
         "userAccess": "The user pairs companion clients and sees realtime compatibility from Agent while token issuance remains outside Agent.",
-        "modelAccess": "agent_harness mode:\"pairing_posture\", mode:\"pairing_route\", mode:\"service_posture\", mode:\"service_endpoint\", mode:\"connected_host\", mode:\"connected_host_capability\", and mode:\"connected_host_status\" expose pairing endpoint binding, token fingerprint, route catalog, realtime/status boundaries, and single route/capability lookup without returning raw tokens or QR payloads; connected-host rows include compact modelRoute hints for safe follow-up.",
+        "modelAccess": "agent_harness mode:\"pairing_posture\", mode:\"pairing_route\", mode:\"service_posture\", mode:\"service_endpoint\", mode:\"connected_host\", mode:\"connected_host_capability\", and mode:\"connected_host_status\" expose pairing endpoint binding, token fingerprint, route catalog, device capability map status for browser/mobile/voice/delivery/desktop readiness, realtime/status boundaries, and single route/capability lookup without returning raw tokens or QR payloads; connected-host rows include compact modelRoute hints for safe follow-up.",
         "safetyBoundary": "Agent renders pairing UX and status without owning token issuance or exposing raw tokens by default.",
         "releaseEvidence": "Readiness evidence cites connected-host pairing/realtime inventory and channel docs, with live certification covering pairing readiness."
       }
@@ -583,11 +583,11 @@
       "owner": "companion",
       "status": "covered",
       "evidence": "goodvibes-companion: companion command-depth, pairing, chat, shared-session, approvals, tasks, provider/model controls, attachments, and realtime foreground-event inventory reviewed under runtime-contract-review; docs/channels-remote-and-api.md",
-      "action": "Keep the companion app aligned with public connected-host contracts for secure auth, QR pairing, companion chat, shared sessions, approvals, tasks, provider/model controls, attachments, and realtime foreground events.",
+      "action": "Keep the companion app aligned with public connected-host contracts for secure auth, QR pairing, companion chat, shared sessions, approvals, tasks, provider/model controls, attachments, realtime foreground events, and permission-scoped device APIs that can populate the Agent capability map.",
       "quality": {
-        "capabilityCoverage": "Covers companion command depth beyond pairing: chat, shared sessions, approvals, tasks, provider/model controls, attachments, and realtime foreground events.",
-        "userAccess": "The user gets companion-facing command depth through the companion app and Agent pairing/session surfaces.",
-        "modelAccess": "agent_harness mode:\"pairing_posture\" and mode:\"pairing_route\", mode:\"model_routing\" and mode:\"model_route\", connected_host, connected_host_capability, connected_host_status, operator methods, and first-class operator/channel/media tools expose pairing, shared-session, task, approval, provider/model, attachment, and mobile route boundaries for companion workflows.",
+        "capabilityCoverage": "Covers companion command depth beyond pairing: chat, shared sessions, approvals, tasks, provider/model controls, attachments, realtime foreground events, and Agent-visible ready/attention/setup-needed/not-published posture for mobile command routing, browser/PWA, voice/TTS, notifications, browser/desktop control, and camera/location sensors.",
+        "userAccess": "The user gets companion-facing command depth through the companion app and Agent pairing/session surfaces, with the Agent capability map showing what is ready, what needs setup, and which camera/location sensor contracts are not published yet.",
+        "modelAccess": "agent_harness mode:\"pairing_posture\" and mode:\"pairing_route\" expose the companion device capability map and device-capability-map route; mode:\"model_routing\" and mode:\"model_route\", connected_host, connected_host_capability, connected_host_status, operator methods, and first-class operator/channel/media tools expose pairing, shared-session, task, approval, provider/model, attachment, and mobile route boundaries for companion workflows.",
         "safetyBoundary": "Companion commands align to public connected-host contracts for secure auth and do not bypass Agent confirmation or token policy.",
         "releaseEvidence": "Readiness evidence cites companion evidence alias and channel docs, with live certification covering companion/pairing outcomes."
       }

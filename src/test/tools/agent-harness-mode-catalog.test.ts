@@ -176,6 +176,22 @@ describe('agent_harness mode catalog', () => {
     expect(web.modes.filter((mode) => mode.summary.length > 96)).toEqual([]);
   });
 
+  test('finds companion device capability wording', () => {
+    const device = listHarnessModes({ query: 'phone camera location device commands', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const ids = device.modes.map((mode) => mode.id);
+    expect(ids).toContain('pairing_posture');
+    expect(ids).toContain('pairing_route');
+    expect(device.modes.find((mode) => mode.id === 'pairing_posture')?.parameters).toEqual(expect.arrayContaining(['query', 'includeParameters']));
+    expect(device.modes.filter((mode) => mode.summary.length > 96)).toEqual([]);
+
+    const voice = listHarnessModes({ query: 'phone voice push to talk', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string }[];
+    };
+    expect(voice.modes.map((mode) => mode.id)).toContain('media_posture');
+  });
+
   test('finds visible Agent orchestration by subagent and batch-spawn wording', () => {
     const orchestration = listHarnessModes({ query: 'subagent batch-spawn multi-agent cancellable agents', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

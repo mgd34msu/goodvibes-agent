@@ -5415,6 +5415,78 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes a companion device capability map with honest unpublished sensor posture', async () => {
+    const fixture = makeFixture();
+    try {
+      writeFileSync(join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({
+        token: 'device-map-secret-token',
+      }));
+      fixture.configManager.setDynamic('controlPlane.enabled', true);
+      fixture.configManager.setDynamic('web.enabled', true);
+      fixture.configManager.setDynamic('ui.voiceEnabled', true);
+      fixture.configManager.setDynamic('tts.provider', 'stream-voice');
+      fixture.configManager.setDynamic('tts.voice', '');
+      fixture.configManager.setDynamic('notifications.webhookUrls', ['https://hooks.example.test/device-map/secret-token']);
+      fixture.configManager.setDynamic('surfaces.telegram.enabled', true);
+      fixture.configManager.setDynamic('surfaces.telegram.botToken', 'telegram-secret-token');
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly deviceCapabilities: {
+            readonly total: number;
+            readonly ready: number;
+            readonly attention: number;
+            readonly setupNeeded: number;
+            readonly notPublished: number;
+            readonly primaryNextStep: string;
+          };
+        };
+        readonly pairing: {
+          readonly endpoint: { readonly enabled: boolean };
+          readonly token: { readonly present: boolean; readonly rawValueReturned: boolean };
+        };
+        readonly deviceCapabilities: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly summary: string;
+          readonly evidence?: Record<string, unknown>;
+          readonly setupRoutes?: readonly string[];
+          readonly policy?: string;
+        }[];
+      }>(fixture, { mode: 'pairing_posture', query: 'device', includeParameters: true });
+
+      expect(posture.summary.deviceCapabilities.total).toBeGreaterThanOrEqual(8);
+      expect(posture.summary.deviceCapabilities.ready).toBeGreaterThanOrEqual(3);
+      expect(posture.summary.deviceCapabilities.attention).toBeGreaterThanOrEqual(1);
+      expect(posture.summary.deviceCapabilities.notPublished).toBe(1);
+      expect(posture.pairing.endpoint.enabled).toBe(true);
+      expect(posture.pairing.token).toMatchObject({ present: true, rawValueReturned: false });
+      expect(posture.deviceCapabilities.find((capability) => capability.id === 'browser-cockpit-pwa')?.status).toBe('ready');
+      expect(posture.deviceCapabilities.find((capability) => capability.id === 'voice-controls')?.status).toBe('attention');
+      expect(posture.deviceCapabilities.find((capability) => capability.id === 'browser-desktop-control')?.status).toBe('setup-needed');
+      const sensors = posture.deviceCapabilities.find((capability) => capability.id === 'camera-location-sensors');
+      expect(sensors?.status).toBe('not-published');
+      expect(sensors?.summary).toContain('not published');
+      expect(sensors?.setupRoutes?.join('\n')).toContain('operator_methods');
+      expect(JSON.stringify(posture)).not.toContain('device-map-secret-token');
+      expect(JSON.stringify(posture)).not.toContain('telegram-secret-token');
+      expect(JSON.stringify(posture)).not.toContain('secret-token');
+
+      const route = await executeHarnessJson<{
+        readonly pairingRouteId: string;
+        readonly deviceCapabilityMap: {
+          readonly capabilities: readonly { readonly id: string; readonly status: string }[];
+          readonly policy: string;
+        };
+      }>(fixture, { mode: 'pairing_route', query: 'camera location' });
+      expect(route.pairingRouteId).toBe('device-capability-map');
+      expect(route.deviceCapabilityMap.capabilities.find((capability) => capability.id === 'camera-location-sensors')?.status).toBe('not-published');
+      expect(route.deviceCapabilityMap.policy).toContain('does not pair devices');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes a local model cookbook through model routing and workspace actions', async () => {
     const fixture = makeFixture();
     try {
