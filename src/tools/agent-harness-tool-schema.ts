@@ -1,5 +1,5 @@
 export const AGENT_HARNESS_MODES = [
-  'summary', 'modes', 'mode', 'cli_commands', 'cli_command', 'panels', 'panel', 'open_panel',
+  'summary', 'modes', 'mode', 'route_decision', 'cli_commands', 'cli_command', 'panels', 'panel', 'open_panel',
   'ui_surfaces', 'ui_surface', 'open_ui_surface',
   'shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding',
   'commands', 'command', 'run_command', 'channels', 'channel', 'channel_setup_guide', 'channel_triage', 'channel_deliveries', 'notifications', 'notification_target',

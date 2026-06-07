@@ -45,6 +45,15 @@ describe('agent_harness mode catalog', () => {
     expect(runCommand?.parameters).toEqual(expect.arrayContaining(['confirm', 'explicitUserRequest']));
   });
 
+  test('finds route decision by user-task wording', () => {
+    const routes = listHarnessModes({ query: 'which tool should this user task use one assistant route', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const routeDecision = routes.modes.find((mode) => mode.id === 'route_decision');
+    expect(routeDecision?.parameters).toEqual(expect.arrayContaining(['query', 'target', 'limit', 'includeParameters']));
+    expect(routes.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds connected-host daemon aliases by GoodVibes daemon wording', () => {
     const daemon = listHarnessModes({ query: 'goodvibes-daemon', limit: 5 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

@@ -35,6 +35,7 @@ High-signal TUI routes:
 
 | Tool | Use |
 | --- | --- |
+| `route` | Pick the best visible Agent route for a plain user task without executing tools or creating hidden work. |
 | `agent` | Spawn, batch-spawn, inspect, message, wait, cancel, and report visible Agent subagents. |
 | `agent_harness` | Discover and operate Agent harness routes, including visible surfaces and operator/audit inspection. |
 | `agent_knowledge` | Read isolated Agent Knowledge: status, ask/search, lists, item, map, connectors. |
@@ -69,7 +70,7 @@ High-signal TUI routes:
 
 ## `agent_harness`
 
-Use `agent_harness mode:"summary"` first. It starts with an assistant cockpit for setup, chat/model, project work, Personal Ops, research/docs, background work, and safety/recovery before implementation counters. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, effect class, and short `modelRoute` or `modelAccess` hints when a route decision is needed. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
+Use `route action:"plan" query:"..."` first when a plain user task could map to several GoodVibes surfaces. It returns the preferred visible route, alternatives, missing fields, confirmation boundary, workspace matches, and harness mode matches without running tools. Use `agent_harness mode:"summary"` for the broader cockpit. It starts with an assistant cockpit for setup, chat/model, project work, Personal Ops, research/docs, background work, and safety/recovery before implementation counters. Use `mode:"modes"` to search every harness mode by task, family, effect type, id, alias, or parameter name. Use `mode:"mode"` to inspect one mode contract. Summary and plural catalog modes are compact by default. They return counts, ids, labels, state, effect class, and short `modelRoute` or `modelAccess` hints when a route decision is needed. Use `includeParameters:true` or a singular inspect mode when the model needs full schemas, policy detail, editor fields, redacted log tail, release artifact data, route hints, or tool parameters.
 
 Discovery modes:
 
@@ -77,6 +78,7 @@ Discovery modes:
 | --- | --- |
 | `summary` | Assistant cockpit lanes, compact counts, status, and drill-in guide. |
 | `modes` | Searchable catalog of every `agent_harness` mode and its task fit. |
+| `route action:"plan"` plus lower-level `route_decision` | User-task route planning across Agent setup, Personal Ops, research, autonomy, execution, delegation, workspace, host, device, channel, security, and Knowledge surfaces. |
 | `workspace action:"status|actions|action"` plus lower-level `workspace`, `workspace_categories`, `workspace_actions` | Workspace categories and actions. |
 | `workspace action:"commands|command|cli_commands|cli_command"` plus lower-level `commands`, `cli_commands` | Slash commands and top-level package CLI mirrors with compact policy and route hints. |
 | `workspace action:"panels|panel|surfaces|surface"` plus lower-level `panels`, `ui_surfaces` | Built-in panels and visible modal/overlay/picker/workspace surfaces. |

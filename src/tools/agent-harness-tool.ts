@@ -43,6 +43,7 @@ import { explainAgentPolicyDecision } from './agent-policy-explanation.ts';
 import { promptContextCatalogStatus, promptContextSummary } from './agent-harness-prompt-context.ts';
 import { describeProjectContextFile, projectContextCatalogStatus, projectContextSummary } from './agent-harness-project-context.ts';
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
+import { planAgentTaskRoute } from './agent-route-planner.ts';
 import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
 import { describeHarnessReleaseReadinessItem, releaseReadinessInventoryStatus, releaseReadinessSummary } from './agent-harness-release-readiness.ts';
 import { researchBriefingCatalogStatus, researchBriefingSummary } from './agent-harness-research-briefing.ts';
@@ -209,6 +210,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     providerAccounts: 'Prefer models action:"providers|provider" for account and subscription posture. Lower-level mode:"provider_accounts" and mode:"provider_account" remain available; auth changes stay confirmed workspace/command flows.',
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
     setupPosture: 'Prefer setup action:"status|item|checkpoint|token|smoke|finish"; lower-level setup_* modes remain available for detailed harness inspection.',
+    routeDecision: 'Prefer route action:"plan" before choosing a specialized tool when the user task could map to setup, Personal Ops, research, autonomy, execution, delegation, workspace, host, or device routes.',
     projectContext: 'Prefer context action:"files|file"; lower-level project_context modes remain available for detail. Context files are read-only and secret-scanned.',
     promptContext: 'Prefer context action:"prompt|receipts|receipt" for prompt composition, selected/suppressed records, token budget, and prompt receipt outcomes.',
     agentOrchestration: 'List mode:"agent_orchestration" for managed plan and closeout cards; dispatch approved plan items with agent_work_plan action:"dispatch_agents"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
@@ -1306,6 +1308,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (mode.status === 'missing_lookup') return error(String(mode.usage));
           return output(mode.mode);
         }
+        if (args.mode === 'route_decision') return output(planAgentTaskRoute(deps.commandContext, args));
         if (args.mode === 'cli_commands') {
           const commands = listHarnessCliCommands(args);
           return output({
