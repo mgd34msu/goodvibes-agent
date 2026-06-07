@@ -8,6 +8,7 @@ import {
   type RoutineScheduleReceipt,
   type RoutineScheduleReceiptSnapshot,
 } from './routine-schedule-promotion.ts';
+import { scheduleNextRouteLines } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -79,7 +80,7 @@ export function formatRoutineScheduleSuccess(result: RoutineSchedulePromotionSuc
     `  schedule ${id}`,
     `  status ${status}`,
     `  route ${result.kind} ${result.route}`,
-    '  next inspect with /schedule list or schedule observability',
+    ...scheduleNextRouteLines(id),
   ].join('\n');
 }
 

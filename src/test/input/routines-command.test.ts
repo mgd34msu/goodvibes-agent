@@ -335,6 +335,10 @@ describe('/routines command', () => {
       const promotionText = out.join('\n');
       const receiptId = promotionText.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
       expect(promotionText).toContain('Created GoodVibes schedule for Agent routine');
+      expect(promotionText).toContain('nextRoutes');
+      expect(promotionText).toContain('schedule action:"list" query:"sched-1"');
+      expect(promotionText).toContain('autonomy action:"item" queueItemId:"connected-schedules" includeParameters:true');
+      expect(promotionText).toContain('schedule action:"run" scheduleId:"sched-1" confirm:true explicitUserRequest:"..."');
       expect(receiptId).toEqual(expect.stringMatching(/^routine-schedule-[a-z0-9-]+$/));
 
       await registry.execute('schedule', ['receipts'], ctx);

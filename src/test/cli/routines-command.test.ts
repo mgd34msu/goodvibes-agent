@@ -403,6 +403,10 @@ describe('routines CLI command', () => {
       }));
       expect(payload.prompt).toContain('Use isolated Agent Knowledge routes only');
       expect(payload.prompt).toContain('never use default knowledge or non-Agent knowledge spaces');
+      expect(result.output).toContain('nextRoutes');
+      expect(result.output).toContain('schedule action:"list" query:"sched-cli-1"');
+      expect(result.output).toContain('autonomy action:"item" queueItemId:"connected-schedules" includeParameters:true');
+      expect(result.output).toContain('schedule action:"delete" scheduleId:"sched-cli-1" confirm:true explicitUserRequest:"..."');
       const receiptId = result.output.match(/receipt: (routine-schedule-[a-z0-9-]+)/)?.[1];
       expect(receiptId).toEqual(expect.stringMatching(/^routine-schedule-[a-z0-9-]+$/));
 

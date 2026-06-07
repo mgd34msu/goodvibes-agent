@@ -180,9 +180,9 @@
       "evidence": "src/agent/routine-schedule-promotion.ts; src/agent/routine-schedule-receipts.ts; src/input/commands/routines-runtime.ts; docs/getting-started.md",
       "action": "Keep local routine start separate from durable connected-host schedule creation.",
       "quality": {
-        "capabilityCoverage": "Covers explicit promotion from local routines to durable connected schedules with receipts, redaction, reconciliation, and delivery options.",
+        "capabilityCoverage": "Covers explicit promotion from local routines to durable connected schedules with receipts, redaction, reconciliation, delivery options, and post-action schedule nextRoutes.",
         "userAccess": "The user can promote routines through workspace schedule forms or /routines and /schedule mirrors using explicit confirmation.",
-        "modelAccess": "workspace action:\"actions|action|run\" exposes routine selection, schedule editor schemas, and confirmed dispatch; first-class reminder/operator route guidance remains available for exact schedule or connected-host effects.",
+        "modelAccess": "workspace action:\"actions|action|run\" exposes routine selection, schedule editor schemas, confirmed dispatch, and post-action schedule nextRoutes; first-class reminder/operator route guidance remains available for exact schedule or connected-host effects.",
         "safetyBoundary": "Local routine execution stays separate from durable schedule creation, and schedule promotion requires explicit confirmation and redacted receipts.",
         "releaseEvidence": "Readiness evidence cites schedule promotion and receipts code plus docs, with live verification covering connected schedule posture."
       }
