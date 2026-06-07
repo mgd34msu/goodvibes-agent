@@ -542,7 +542,7 @@ function workflowInspectRoutes(methodIds: readonly string[], connectors: readonl
   const connectorRoutes = connectors.map((signal) => signal.modelRoute);
   const methodRoutes = methodIds.slice(0, 6).map((methodId) => `agent_harness mode:"operator_method" methodId:"${methodId}"`);
   const routes = [...connectorRoutes, ...methodRoutes];
-  return routes.length > 0 ? routes : [`agent_harness mode:"personal_ops_lane" laneId:"${fallbackQuery}"`];
+  return routes.length > 0 ? routes : [`personal_ops action:"lane" laneId:"${fallbackQuery}"`];
 }
 
 function inboxWorkflows(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): readonly PersonalOpsWorkflow[] {
@@ -918,7 +918,7 @@ function channelRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSn
 }
 
 function personalOpsReadRunRoute(laneId: PersonalOpsLaneId, recordId: string): string {
-  return `agent_harness mode:"run_personal_ops_read" laneId:"${laneId}" recordId:"${recordId}" fields:{...} confirm:true explicitUserRequest:"..."`;
+  return `personal_ops action:"read" laneId:"${laneId}" recordId:"${recordId}" fields:{...} confirm:true explicitUserRequest:"..."`;
 }
 
 function connectorReadFreshness(signal: PersonalOpsConnectorSignal, tool: PersonalOpsConnectorTool, laneId: PersonalOpsLaneId): PersonalOpsRecordFreshness | undefined {
@@ -1164,7 +1164,7 @@ function savedReviewQueueRecords(
                 id: 'calendar-edit-boundary',
                 label: 'Inspect calendar edit route',
                 effect: 'confirmed-effect',
-                modelRoute: 'agent_harness mode:"personal_ops_intake" query:"edit saved calendar event" includeParameters:true',
+                modelRoute: 'personal_ops action:"intake" query:"edit saved calendar event" includeParameters:true',
                 requiresConfirmation: true,
                 policy: 'Calendar edits, RSVP, reschedule, and deletes require a separate inspected connector route and explicit confirmation.',
               },
@@ -1190,7 +1190,7 @@ function savedReviewQueueRecords(
                 id: 'send-reviewed-reply-boundary',
                 label: 'Inspect send route for reviewed reply',
                 effect: 'confirmed-effect',
-                modelRoute: 'agent_harness mode:"personal_ops_intake" query:"send reviewed reply from saved inbox review" includeParameters:true',
+                modelRoute: 'personal_ops action:"intake" query:"send reviewed reply from saved inbox review" includeParameters:true',
                 requiresConfirmation: true,
                 policy: 'Send only after a write-like inbox connector route is inspected and the user confirms exact recipients and body.',
               },
@@ -1722,7 +1722,7 @@ function operationSummary(
 }
 
 function toolModelRoute(tool: PersonalOpsConnectorTool | undefined): string {
-  if (!tool) return 'agent_harness mode:"personal_ops"';
+  if (!tool) return 'personal_ops action:"status"';
   return tool.schemaRoute ?? `agent_harness mode:"mcp_servers" query:"${tool.qualifiedName ?? tool.name}"`;
 }
 
@@ -2301,7 +2301,7 @@ function recordCandidate(options: {
     confidence: options.confidence,
     why: options.why,
     modelRoute: record.modelRoute,
-    inspectRoutes: [record.modelRoute, `agent_harness mode:"personal_ops_lane" laneId:"${options.lane.id}"`],
+    inspectRoutes: [record.modelRoute, `personal_ops action:"lane" laneId:"${options.lane.id}"`],
     requiresConfirmation: options.requiresConfirmation,
     safetyBoundary: options.safetyBoundary,
     nextSteps: options.nextSteps,
@@ -2320,14 +2320,14 @@ function setupCandidate(lane: PersonalOpsLane, request: string): PersonalOpsInta
     status: lane.status === 'gap' || lane.status === 'needs-setup' ? 'needs-setup' : lane.status === 'ready' ? 'ready' : 'attention',
     confidence: 'low',
     why: `The request "${previewHarnessText(request, 80)}" does not clearly name one personal operation, so the safest next step is a readiness map.`,
-    modelRoute: 'agent_harness mode:"personal_ops"',
-    inspectRoutes: ['agent_harness mode:"personal_ops"'],
+    modelRoute: 'personal_ops action:"status"',
+    inspectRoutes: ['personal_ops action:"status"'],
     requiresConfirmation: false,
     safetyBoundary: 'Readiness inspection is read-only; personal-data reads and all sends or mutations remain on their owning routes.',
     nextSteps: [
       'Inspect Personal Ops readiness.',
       'Choose one lane: inbox, calendar, notes, tasks, reminders, routines, or delivery.',
-      'Re-run personal_ops_intake with the specific user request.',
+      'Re-run personal_ops action:"intake" with the specific user request.',
     ],
     missingFields: ['specific personal operation goal'],
     userQuestion: 'Should this be inbox, calendar, notes, tasks, reminders, routines, or delivery work?',
@@ -2478,7 +2478,7 @@ function buildPersonalOpsIntakeCandidates(
       confidence: 'medium' as const,
       why: 'The request asks to capture or note working context.',
       modelRoute: 'agent_local_registry domain:"notes" action:"create"',
-      inspectRoutes: ['agent_harness mode:"personal_ops_lane" laneId:"notes"'],
+      inspectRoutes: ['personal_ops action:"lane" laneId:"notes"'],
       requiresConfirmation: false,
       safetyBoundary: 'Notes are Agent-local scratchpad records; promotion to memory or Knowledge stays separate and reviewed.',
       nextSteps: ['Create a scratchpad note with a short title and body.', 'Review or promote the note only when it proves useful.'],
@@ -2497,9 +2497,9 @@ function buildPersonalOpsIntakeCandidates(
       status: routineLane.status === 'ready' ? 'ready' : routineLane.status === 'needs-setup' ? 'needs-setup' : 'attention',
       confidence: 'medium',
       why: 'The request asks about a routine, checklist, or repeatable workflow.',
-      modelRoute: 'agent_harness mode:"personal_ops_lane" laneId:"routines"',
+      modelRoute: 'personal_ops action:"lane" laneId:"routines"',
       inspectRoutes: [
-        'agent_harness mode:"personal_ops_lane" laneId:"routines"',
+        'personal_ops action:"lane" laneId:"routines"',
         'agent_harness mode:"workspace_actions" categoryId:"routines"',
       ],
       requiresConfirmation: true,
@@ -2524,7 +2524,7 @@ function buildPersonalOpsIntakeCandidates(
       why: 'The request asks to deliver, send, notify, or use a communication channel.',
       modelRoute: 'agent_harness mode:"channels"',
       inspectRoutes: [
-        'agent_harness mode:"personal_ops_lane" laneId:"delivery"',
+        'personal_ops action:"lane" laneId:"delivery"',
         'agent_harness mode:"channel_triage"',
         'agent_harness mode:"channel_deliveries"',
       ],
@@ -2619,7 +2619,7 @@ function briefingNext(lane: PersonalOpsLane): string {
   const savedReviewRecords = recordCount(lane, (record) => record.freshness?.source === 'saved-review-artifact' || typeof record.reviewRecordCount === 'number');
   const attentionWorkflows = workflowCount(lane, 'attention');
   if ((lane.id === 'inbox' || lane.id === 'calendar') && freshProviderReads > 0) {
-    return 'Pick one bounded read-only record and run it with run_personal_ops_read only when the user asks for live provider data.';
+    return 'Pick one bounded read-only record and run it with personal_ops action:"read" only when the user asks for live provider data.';
   }
   if ((lane.id === 'inbox' || lane.id === 'calendar') && refreshableSavedRecords > 0) {
     return 'Recap the saved redacted queue first; refresh a single record only through the returned confirmed read route.';
@@ -2641,8 +2641,8 @@ function briefingStepForLane(lane: PersonalOpsLane, includeParameters: boolean):
   const savedReviewRecords = recordCount(lane, (record) => record.freshness?.source === 'saved-review-artifact' || typeof record.reviewRecordCount === 'number');
   const readOnlyRecords = recordCount(lane, (record) => record.effect === 'read-only');
   const confirmedEffectRecords = recordCount(lane, (record) => record.effect === 'confirmed-effect' || record.confirmationRequired === true);
-  const laneRoute = `agent_harness mode:"personal_ops_lane" laneId:"${lane.id}"`;
-  const intakeRoute = `agent_harness mode:"personal_ops_intake" query:"${lane.label.toLowerCase()} daily briefing"`;
+  const laneRoute = `personal_ops action:"lane" laneId:"${lane.id}"`;
+  const intakeRoute = `personal_ops action:"intake" query:"${lane.label.toLowerCase()} daily briefing"`;
   const workflowRoutes = workflows
     .map((workflow) => workflow.modelRoute)
     .filter((route, index, routes) => route && routes.indexOf(route) === index)
@@ -2768,17 +2768,17 @@ export async function personalOpsBriefingSummary(context: CommandContext, args: 
       connectorSignals: lanes.reduce((sum, lane) => sum + (lane.connectorSignals?.length ?? 0), 0),
     },
     routes: {
-      personalOps: 'agent_harness mode:"personal_ops"',
-      intake: 'agent_harness mode:"personal_ops_intake" query:"..."',
-      laneTemplate: 'agent_harness mode:"personal_ops_lane" laneId:"inbox|calendar|notes|tasks|reminders|routines|delivery"',
-      liveReadTemplate: 'agent_harness mode:"run_personal_ops_read" laneId:"inbox|calendar" recordId:"..." fields:{...} confirm:true explicitUserRequest:"..."',
+      personalOps: 'personal_ops action:"status"',
+      intake: 'personal_ops action:"intake" query:"..."',
+      laneTemplate: 'personal_ops action:"lane" laneId:"inbox|calendar|notes|tasks|reminders|routines|delivery"',
+      liveReadTemplate: 'personal_ops action:"read" laneId:"inbox|calendar" recordId:"..." fields:{...} confirm:true explicitUserRequest:"..."',
       autonomyQueue: 'agent_harness mode:"autonomy_queue"',
       workspace: 'agent_harness mode:"workspace_actions" categoryId:"personal-ops"',
     },
     nextActions: [
       'Start with ready steps, then resolve attention or setup steps before promising live provider state.',
       'Use saved redacted inbox/calendar review queues for recap when fresh connectors are not ready.',
-      'Run exactly one live personal-data read at a time through run_personal_ops_read, then summarize before any follow-up effect.',
+      'Run exactly one live personal-data read at a time through personal_ops action:"read", then summarize before any follow-up effect.',
       ...nextActions(lanes).slice(0, 3),
     ].slice(0, includeParameters ? 8 : 5),
     missingContracts,
@@ -2815,14 +2815,14 @@ export async function personalOpsIntakeSummary(context: CommandContext, args: Ag
   if (!request) {
     return {
       status: 'missing_request',
-      usage: 'Use mode:"personal_ops_intake" with query:"<personal operations request>". This mode is read-only and returns the safest lane, route, missing fields, and confirmation boundary.',
+      usage: 'Use personal_ops action:"intake" with query:"<personal operations request>". This action is read-only and returns the safest lane, route, missing fields, and confirmation boundary.',
       examples: [
         'Triage my unread inbox.',
         'Draft a reply to this email thread.',
         'Brief my calendar for today.',
         'Remind me tomorrow at 9am to send the report.',
       ],
-      personalOpsRoute: 'agent_harness mode:"personal_ops"',
+      personalOpsRoute: 'personal_ops action:"status"',
     };
   }
   const includeParameters = args.includeParameters === true;
@@ -2839,8 +2839,8 @@ export async function personalOpsIntakeSummary(context: CommandContext, args: Ag
     request: previewHarnessText(request, includeParameters ? 220 : 120),
     preferred,
     candidates,
-    personalOpsRoute: 'agent_harness mode:"personal_ops"',
-    laneRoute: `agent_harness mode:"personal_ops_lane" laneId:"${preferred.laneId}"`,
+    personalOpsRoute: 'personal_ops action:"status"',
+    laneRoute: `personal_ops action:"lane" laneId:"${preferred.laneId}"`,
     policy: 'Personal Ops intake is read-only. It chooses the safest visible lane and route; live personal-data reads must use reviewed connector or daemon routes, and every send, edit, schedule, or external effect still requires explicit confirmation.',
   };
 }
@@ -2861,10 +2861,10 @@ export async function runPersonalOpsRead(context: CommandContext, args: AgentHar
   if (!resolved) {
     return {
       status: 'missing_lookup',
-      usage: 'run_personal_ops_read requires laneId plus recordId, target, or query for one read-only inbox/calendar connector operation.',
+      usage: 'personal_ops action:"read" requires laneId plus recordId, target, or query for one read-only inbox/calendar connector operation.',
       examples: [
-        'agent_harness mode:"personal_ops_intake" query:"Triage my unread email." includeParameters:true',
-        'agent_harness mode:"run_personal_ops_read" laneId:"inbox" recordId:"mcp:gmail-inbox:gmail.search_messages" fields:{"query":"is:unread newer_than:7d"} confirm:true explicitUserRequest:"Triage my unread inbox."',
+        'personal_ops action:"intake" query:"Triage my unread email." includeParameters:true',
+        'personal_ops action:"read" laneId:"inbox" recordId:"mcp:gmail-inbox:gmail.search_messages" fields:{"query":"is:unread newer_than:7d"} confirm:true explicitUserRequest:"Triage my unread inbox."',
       ],
     };
   }
@@ -2881,7 +2881,7 @@ export async function runPersonalOpsRead(context: CommandContext, args: AgentHar
       reason: 'connector_not_ready',
       record: recordSummary,
       next: 'Repair connector trust, connection, or schema freshness before reading live personal data.',
-      inspectRoutes: [record.modelRoute, `agent_harness mode:"personal_ops_lane" laneId:"${lane.id}"`],
+      inspectRoutes: [record.modelRoute, `personal_ops action:"lane" laneId:"${lane.id}"`],
       policy: 'Personal Ops never reads personal provider data from attention or setup-needed connectors.',
     };
   }
@@ -2891,7 +2891,7 @@ export async function runPersonalOpsRead(context: CommandContext, args: AgentHar
       reason: 'not_read_only',
       record: recordSummary,
       next: 'Use the returned confirmed-effect route only after the user reviews the intended provider mutation.',
-      policy: 'run_personal_ops_read refuses send, edit, label, archive, delete, move, create, RSVP, and reschedule operations.',
+      policy: 'personal_ops action:"read" refuses send, edit, label, archive, delete, move, create, RSVP, and reschedule operations.',
     };
   }
   if (!record.qualifiedName) {
@@ -2985,7 +2985,7 @@ export async function describePersonalOpsLane(context: CommandContext, args: Age
   if (!input) {
     return {
       status: 'missing_lookup',
-      usage: `personal_ops_lane requires laneId, target, or query. Lane ids: ${LANE_IDS.join(', ')}.`,
+      usage: `personal_ops action:"lane" requires laneId, target, or query. Lane ids: ${LANE_IDS.join(', ')}.`,
     };
   }
   const normalized = input.toLowerCase();

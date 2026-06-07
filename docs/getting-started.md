@@ -79,7 +79,7 @@ Common model routes:
 | Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
 | Research runs, sources, and reports | `agent_harness mode:"research_workflow"`, `mode:"research_runs"`, `mode:"research_run"`, `mode:"research_queue"`, `agent_research_runs`, `agent_research_sources`, `agent_research_report` |
-| Personal operations | `agent_harness mode:"personal_ops_briefing"`, `mode:"personal_ops_intake"`, `mode:"personal_ops"`, `mode:"personal_ops_lane"`, `mode:"run_personal_ops_read"` |
+| Personal operations | `personal_ops action:"briefing|status|intake|lane|read"`; lower-level `agent_harness mode:"personal_ops_briefing"`, `mode:"personal_ops_intake"`, `mode:"personal_ops"`, `mode:"personal_ops_lane"`, and `mode:"run_personal_ops_read"` remain available for detailed inspection |
 | Local model choice | `agent_harness mode:"model_routing" query:"local"`, `mode:"model_routing" includeParameters:true`, `mode:"model_route" modelRouteId:"local-model-cookbook"`, `mode:"run_local_model_smoke"`; the local cookbook includes endpoint candidates, exact endpoint inspection through `model_route`, confirmed model-list smoke checks, and the `account-local-server-health` workspace action route |
 | Local background processes | `terminal command:"..." background:true`, `process action:"list|poll|log|wait|kill"`, plus `agent_harness mode:"background_processes"` for route inspection |
 | Documents, artifacts, compare | `agent_harness mode:"document_ops"`, `mode:"document_ops_lane"`, `agent_documents`, `agent_review_packet_presets`, `agent_review_packet_share`, `agent_artifacts`, `agent_model_compare` |

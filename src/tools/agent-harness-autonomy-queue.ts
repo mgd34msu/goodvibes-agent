@@ -1084,7 +1084,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       next: readyChannels > 0 || configuredTargets > 0
         ? 'Create one reminder only after the user gives real timing and delivery scope.'
         : 'Configure at least one delivery target before relying on reminder delivery.',
-      inspectRoute: 'agent_harness mode:"personal_ops_lane" laneId:"reminders"',
+      inspectRoute: 'personal_ops action:"lane" laneId:"reminders"',
       modelRoute: 'schedule action:"remind"',
       createRoute: 'schedule action:"remind" message:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,

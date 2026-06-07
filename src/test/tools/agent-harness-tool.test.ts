@@ -3012,7 +3012,7 @@ describe('agent_harness tool', () => {
       expect(inbox?.current).toContain('No email/IMAP/SMTP methods');
       expect(inbox?.workflows?.[0]?.id).toBe('inbox-triage-briefing');
       expect(inbox?.workflows?.[0]?.status).toBe('needs-setup');
-      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('personal_ops_lane');
+      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('personal_ops action:"lane"');
       expect(inbox?.workflows?.[0]?.runBoundary).toContain('confirmation');
       expect(calendar?.status).toBe('gap');
       expect(calendar?.workflows?.[0]?.id).toBe('calendar-agenda-briefing');
@@ -3070,7 +3070,7 @@ describe('agent_harness tool', () => {
       expect(missingIntake.preferred.laneId).toBe('inbox');
       expect(missingIntake.preferred.status).toBe('needs-setup');
       expect(missingIntake.preferred.modelRoute).toContain('operator_methods');
-      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('personal_ops_lane');
+      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('personal_ops action:"lane"');
       expect(missingIntake.preferred.missingFields?.join('\n')).toContain('configured email connector');
       expect(missingIntake.preferred.safetyBoundary).toContain('confirmation');
       expect(missingIntake.laneRoute).toContain('laneId:"inbox"');
@@ -3082,7 +3082,7 @@ describe('agent_harness tool', () => {
         readonly examples: readonly string[];
       }>(fixture, { mode: 'personal_ops_intake' });
       expect(missingUsage.status).toBe('missing_request');
-      expect(missingUsage.usage).toContain('personal_ops_intake');
+      expect(missingUsage.usage).toContain('personal_ops action:"intake"');
       expect(missingUsage.examples.join('\n')).toContain('Brief my calendar');
 
       const lane = await executeHarnessJson<{
@@ -3640,7 +3640,7 @@ describe('agent_harness tool', () => {
         sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
         requiredFields: ['query'],
       });
-      expect(inboxSearchRecord?.freshness?.refreshRoute).toContain('run_personal_ops_read');
+      expect(inboxSearchRecord?.freshness?.refreshRoute).toContain('personal_ops action:"read"');
       const inboxSendRecord = inbox?.liveRecords?.find((record) => record.id === 'mcp:gmail-inbox:gmail.send_reply');
       expect(inboxSendRecord?.effect).toBe('confirmed-effect');
       expect(inboxSendRecord?.confirmationRequired).toBe(true);
@@ -3769,7 +3769,7 @@ describe('agent_harness tool', () => {
       expect(missingRead.status).toBe('missing_fields');
       expect(missingRead.missingFields).toEqual(['query']);
       expect(missingRead.sampleInput?.query).toBe('is:unread newer_than:7d');
-      expect(missingRead.runRoute).toContain('run_personal_ops_read');
+      expect(missingRead.runRoute).toContain('personal_ops action:"read"');
       expect(mcpToolCalls).toHaveLength(0);
 
       const unconfirmedRead = await executeHarnessJson<{
@@ -3904,7 +3904,7 @@ describe('agent_harness tool', () => {
       expect(briefing.title).toContain('Daily Personal Ops');
       expect(briefing.readiness.ready).toBeGreaterThan(0);
       expect(briefing.readiness.attention).toBeGreaterThan(0);
-      expect(briefing.routes?.liveReadTemplate).toContain('run_personal_ops_read');
+      expect(briefing.routes?.liveReadTemplate).toContain('personal_ops action:"read"');
       expect(briefing.routes?.autonomyQueue).toContain('autonomy_queue');
       expect(briefing.policy).toContain('read-only');
       expect(briefing.steps.map((step) => step.id)).toEqual(expect.arrayContaining([
@@ -3918,7 +3918,7 @@ describe('agent_harness tool', () => {
       ]));
       const inboxBrief = briefing.steps.find((step) => step.id === 'inbox');
       expect(inboxBrief?.status).toBe('attention');
-      expect(inboxBrief?.modelRoute).toContain('personal_ops_lane');
+      expect(inboxBrief?.modelRoute).toContain('personal_ops action:"lane"');
       expect(inboxBrief?.inspectRoutes.join('\n')).toContain('laneId:"inbox"');
       expect(inboxBrief?.evidence.join('\n')).toContain('1 refreshable saved inbox queue item(s)');
       expect(inboxBrief?.sourceCounts.refreshableSavedRecords).toBeGreaterThan(0);
@@ -7654,8 +7654,8 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('agent_harness mode:"personal_ops_briefing"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('agent_harness mode:"personal_ops_intake"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('personal_ops action:"briefing"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('personal_ops action:"intake"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('agent_harness mode:"media_posture"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('agent_harness mode:"pairing_posture"');

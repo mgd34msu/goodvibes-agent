@@ -136,7 +136,7 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         state: metrics.personalGaps > 0 ? 'attention' : 'ready',
         summary: metrics.personalGaps > 0 ? `${metrics.personalGaps} personal-ops lane(s) need setup.` : 'Personal Ops lanes are available or safely identified.',
         nextAction: 'Use Personal Ops lanes for inbox, calendar, notes, tasks, and delivery readiness.',
-        routes: ['agent_harness mode:"personal_ops"', 'agent_harness mode:"personal_ops_lane"'],
+        routes: ['personal_ops action:"briefing"', 'personal_ops action:"intake" query:"..."', 'personal_ops action:"lane" laneId:"..."'],
       }),
       lane({
         id: 'research-and-docs',

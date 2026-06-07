@@ -18,6 +18,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   inspect: 'Inspect project structure, APIs, routes, and deps.',
   mcp: 'Inspect MCP servers, tools, schemas, and trust state.',
   packet: 'Manage implementation and execution packets.',
+  personal_ops: 'Brief, route, inspect, and read Personal Ops.',
   query: 'Track operator queries, answers, and closure.',
   read: 'Read files, outlines, symbols, and ranges.',
   registry: 'Discover local skills, agents, tools, and templates.',

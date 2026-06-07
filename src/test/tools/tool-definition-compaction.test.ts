@@ -40,6 +40,7 @@ describe('compactRegisteredToolDefinitions', () => {
     const registry = new ToolRegistry();
     registry.register(makeTool('read', 'Verbose read tool description that should never reach the model catalog.'));
     registry.register(makeTool('goodvibes_context', 'Verbose runtime context description that should never reach the model catalog.'));
+    registry.register(makeTool('personal_ops', 'Verbose personal operations description that should never reach the model catalog.'));
     registry.register(makeTool('setup', 'Verbose setup tool description that should never reach the model catalog.'));
     registry.register(makeTool('vibe', 'Verbose VIBE.md personality description that should never reach the model catalog.'));
     registry.register(makeTool('agent_local_registry', 'Verbose local registry description that should never reach the model catalog.'));
@@ -50,6 +51,7 @@ describe('compactRegisteredToolDefinitions', () => {
     const descriptions = new Map(registry.getToolDefinitions().map((definition) => [definition.name, definition.description]));
     expect(descriptions.get('read')).toBe('Read files, outlines, symbols, and ranges.');
     expect(descriptions.get('goodvibes_context')).toBe('Inspect current GoodVibes runtime and host harness.');
+    expect(descriptions.get('personal_ops')).toBe('Brief, route, inspect, and read Personal Ops.');
     expect(descriptions.get('setup')).toBe('Inspect and complete first-run Agent setup.');
     expect(descriptions.get('vibe')).toBe('Inspect/create/import VIBE.md personality.');
     expect(descriptions.get('agent_local_registry')).toBe('Inspect/update Agent memory, notes, skills, routines.');

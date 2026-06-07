@@ -60,6 +60,10 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('process', { action: 'log' })).toBe('read');
     expect(manager.getCategory('process', { action: 'kill' })).toBe('execute');
     expect(manager.getCategory('terminal', { background: true })).toBe('execute');
+    expect(manager.getCategory('personal_ops', { action: 'briefing' })).toBe('read');
+    expect(manager.getCategory('personal_ops', { action: 'intake' })).toBe('read');
+    expect(manager.getCategory('personal_ops', { action: 'lane' })).toBe('read');
+    expect(manager.getCategory('personal_ops', { action: 'read' })).toBe('write');
     expect(manager.getCategory('schedule', { action: 'list' })).toBe('read');
     expect(manager.getCategory('schedule', { action: 'pause' })).toBe('execute');
     expect(manager.getCategory('setup', { action: 'status' })).toBe('read');
@@ -91,6 +95,9 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
     expect(manager.getCategory('process', { action: 'poll' })).toBe('read');
     expect(manager.getCategory('process', { action: 'wait' })).toBe('execute');
+    expect(manager.getCategory('personal_ops')).toBe('read');
+    expect(manager.getCategory('personal_ops', { mode: 'triage' })).toBe('read');
+    expect(manager.getCategory('personal_ops', { mode: 'run' })).toBe('write');
     expect(manager.getCategory('schedule', { action: 'status' })).toBe('read');
     expect(manager.getCategory('schedule', { action: 'create' })).toBe('execute');
     expect(manager.getCategory('setup')).toBe('read');
@@ -121,6 +128,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('agent_review_packet_presets', { mode: 'refresh' })).resolves.toBe(false);
     await expect(manager.check('process', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('process', { action: 'kill' })).resolves.toBe(false);
+    await expect(manager.check('personal_ops', { action: 'briefing' })).resolves.toBe(true);
+    await expect(manager.check('personal_ops', { action: 'read' })).resolves.toBe(false);
     await expect(manager.check('schedule', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('schedule', { action: 'run' })).resolves.toBe(false);
     await expect(manager.check('setup', { action: 'status' })).resolves.toBe(true);
@@ -145,6 +154,7 @@ describe('Agent tool permission safety guard', () => {
     expect(fallbackPermissionCategory('agent_work_plan')).toBe('write');
     expect(fallbackPermissionCategory('terminal')).toBe('execute');
     expect(fallbackPermissionCategory('process')).toBe('execute');
+    expect(fallbackPermissionCategory('personal_ops')).toBe('read');
     expect(fallbackPermissionCategory('schedule')).toBe('delegate');
     expect(fallbackPermissionCategory('setup')).toBe('read');
     expect(fallbackPermissionCategory('vibe')).toBe('read');
