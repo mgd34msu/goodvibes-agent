@@ -588,6 +588,8 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Voice: ${readiness.readyVoiceProviderCount}/${snapshot.voiceProviderCount} ready; TTS ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}.`, fg: readiness.readyVoiceProviderCount > 0 ? PALETTE.good : PALETTE.warn },
       { text: `Media: ${readiness.readyMediaProviderCount}/${snapshot.mediaProviderCount} ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: readiness.readyMediaProviderCount > 0 ? PALETTE.good : PALETTE.warn },
       { text: `Browser: ${readiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
+      { text: 'Voice workflows: push-to-talk, voice memo, spoken responses, wake-word posture via media_posture.', fg: PALETTE.info },
+      { text: 'Device map: pairing, mobile/PWA, notifications, browser/desktop, camera/location via pairing_posture.', fg: PALETTE.info },
       { text: readiness.nextSteps[0] ? `Next: ${compactText(readiness.nextSteps[0])}` : 'Next: voice/media setup is ready.', fg: readiness.nextSteps.length > 0 ? PALETTE.info : PALETTE.good },
       { text: 'Secrets hidden; voice, browser, and media side effects require explicit action.', fg: PALETTE.warn },
     );
