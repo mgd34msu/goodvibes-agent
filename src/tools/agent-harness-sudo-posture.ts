@@ -39,8 +39,8 @@ export function sudoExecutionPosture(context?: CommandContext): AgentHarnessSudo
   const home = homeDirectory(context);
   const envFilePath = home ? join(home, '.goodvibes', '.env') : null;
   const setupRoute = 'setup action:"item" setupItemId:"sudo-execution-posture"';
-  const foregroundRoute = 'agent_harness mode:"execution_route" executionRouteId:"local-shell-command"';
-  const processCapabilitiesRoute = 'agent_harness mode:"run_background_process" processAction:"capabilities"';
+  const foregroundRoute = 'execution action:"route" id:"local-shell-command"';
+  const processCapabilitiesRoute = 'process action:"capabilities"';
   return {
     capability: 'sudo',
     status: 'foreground-or-user-supervised-only',
@@ -79,12 +79,12 @@ export function sudoExecutionPosture(context?: CommandContext): AgentHarnessSudo
     blockedRoutes: [
       {
         id: 'background-sudo-prompt',
-        route: 'agent_harness mode:"run_background_process" processAction:"start" command:"sudo ..."',
+        route: 'terminal command:"sudo ..." background:true',
         reason: 'Blocked because background password prompts can hang or hide privilege escalation.',
       },
       {
         id: 'stdin-password-write',
-        route: 'agent_harness mode:"run_background_process" processAction:"write" data:"..."',
+        route: 'process action:"write" data:"..."',
         reason: 'Blocked until ProcessManager exposes a safe stdin/credential-prompt contract.',
       },
       {

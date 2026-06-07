@@ -88,7 +88,7 @@ function supervisionRoutes(context: CommandContext, record: AgentExecutionRecord
     routes.push({
       id: 'tool-inspector',
       label: 'Tool Call Inspector',
-      modelRoute: 'agent_harness mode:"open_panel" panelId:"tools"',
+      modelRoute: 'workspace action:"open_panel" panelId:"tools"',
       requiresConfirmation: true,
     });
   }
@@ -97,7 +97,7 @@ function supervisionRoutes(context: CommandContext, record: AgentExecutionRecord
       routes.push({
         id: 'process-monitor',
         label: 'Runtime Activity Monitor',
-        modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
+        modelRoute: 'workspace action:"open" surfaceId:"process-monitor"',
         requiresConfirmation: true,
       });
     }
@@ -105,7 +105,7 @@ function supervisionRoutes(context: CommandContext, record: AgentExecutionRecord
       routes.push({
         id: 'live-tail',
         label: 'Live Process Output',
-        modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
+        modelRoute: 'workspace action:"open" surfaceId:"live-tail"',
         requiresConfirmation: true,
       });
     }
@@ -114,7 +114,7 @@ function supervisionRoutes(context: CommandContext, record: AgentExecutionRecord
 }
 
 function routeForRecord(record: AgentExecutionRecord): string {
-  return `agent_harness mode:"execution_history_item" executionRecordId:"${record.id}"`;
+  return `execution action:"record" id:"${record.id}"`;
 }
 
 function uniqueStrings(values: readonly string[], limit = 8): readonly string[] {
@@ -326,7 +326,7 @@ function activityCard(context: CommandContext, cardRecords: readonly AgentExecut
     routes: {
       inspectLatest: routeForRecord(latest),
       ...(firstFailure ? { inspectFirstFailure: routeForRecord(firstFailure) } : {}),
-      ...(recoverableIds.length > 0 ? { fileRecovery: 'agent_harness mode:"file_recovery"' } : {}),
+      ...(recoverableIds.length > 0 ? { fileRecovery: 'execution action:"recovery"' } : {}),
       supervision,
     },
     nextAction: activityNextAction(status, verification, recoverableIds),
@@ -384,7 +384,7 @@ function describeRecord(
     ...(record.cancelReason ? { cancelReason: previewHarnessText(record.cancelReason, includeParameters ? 220 : 96) } : {}),
     userCard: activityCard(context, [record], includeParameters, 'record'),
     supervisionRoutes: supervisionRoutes(context, record),
-    ...(recoverable ? { recoveryRoute: 'agent_harness mode:"file_recovery"' } : {}),
+    ...(recoverable ? { recoveryRoute: 'execution action:"recovery"' } : {}),
     modelRoute: routeForRecord(record),
     ...(lookup ? { lookup } : {}),
     ...(includeParameters ? {
@@ -392,13 +392,13 @@ function describeRecord(
       policy: {
         effect: 'read-only',
         values: 'Execution history stores bounded, redacted args and result summaries only; raw file bytes, binary bodies, and secret-looking argument keys are not exposed.',
-        mutation: 'Follow-up UI routing and file recovery remain confirmation-gated through open_panel, open_ui_surface, file_recovery, or run_file_recovery.',
+        mutation: 'Follow-up UI routing and file recovery remain confirmation-gated through workspace open routes, execution recovery inspection, or run_file_recovery.',
       },
       modelAccess: {
-        inspectHistory: 'agent_harness mode:"execution_history"',
+        inspectHistory: 'execution action:"history"',
         inspectRecord: routeForRecord(record),
-        toolInspector: 'agent_harness mode:"open_panel" panelId:"tools" confirm:true explicitUserRequest:"..."',
-        fileRecovery: 'agent_harness mode:"file_recovery"',
+        toolInspector: 'workspace action:"open_panel" panelId:"tools" confirm:true explicitUserRequest:"..."',
+        fileRecovery: 'execution action:"recovery"',
       },
     } : {}),
   };
@@ -464,7 +464,7 @@ export function describeExecutionHistoryItem(context: CommandContext, args: Agen
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'execution_history_item requires executionRecordId, recordId, target, or query. Use mode:"execution_history" to inspect recent record ids.',
+      usage: 'execution action:"record" requires executionRecordId, recordId, target, or query. Use execution action:"history" to inspect recent record ids.',
     };
   }
   const all = records(context);
@@ -484,6 +484,6 @@ export function describeExecutionHistoryItem(context: CommandContext, args: Agen
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown execution history record ${lookup.input}. Use mode:"execution_history" to inspect recent record ids.`,
+    usage: `Unknown execution history record ${lookup.input}. Use execution action:"history" to inspect recent record ids.`,
   };
 }

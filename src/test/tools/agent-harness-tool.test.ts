@@ -865,11 +865,19 @@ describe('agent_harness tool', () => {
 
       const recoveryModes = await fixture.tool.execute({ mode: 'modes', query: 'file edit undo recovery' });
       expect(recoveryModes.success).toBe(true);
-      expect(recoveryModes.output).toContain('file_recovery');
+      const recoveryModesJson = JSON.parse(recoveryModes.output ?? '{}') as {
+        readonly modes: readonly { readonly id: string; readonly next?: string }[];
+      };
+      expect(recoveryModesJson.modes[0]?.id).toBe('file_recovery');
+      expect(recoveryModesJson.modes[0]?.next).toContain('execution action:"recovery"');
 
       const historyModes = await fixture.tool.execute({ mode: 'modes', query: 'execution history record' });
       expect(historyModes.success).toBe(true);
-      expect(historyModes.output).toContain('execution_history');
+      const historyModesJson = JSON.parse(historyModes.output ?? '{}') as {
+        readonly modes: readonly { readonly id: string; readonly next?: string }[];
+      };
+      expect(historyModesJson.modes.map((mode) => mode.id)).toContain('execution_history');
+      expect(historyModesJson.modes.find((mode) => mode.id === 'execution_history')?.next).toContain('execution action:"history"');
 
       const documentModes = await fixture.tool.execute({ mode: 'modes', query: 'blind model comparison documents uploads' });
       expect(documentModes.success).toBe(true);
@@ -4595,6 +4603,7 @@ describe('agent_harness tool', () => {
           readonly delegationPolicy: string;
           readonly browserControl: string;
           readonly executionHistory: string;
+          readonly backgroundProcesses: string;
           readonly browserControlSetup: {
             readonly status: string;
             readonly setupRoute: string;
@@ -4629,6 +4638,7 @@ describe('agent_harness tool', () => {
           readonly availability: string;
           readonly modelRoute: string;
           readonly nextStep?: string;
+          readonly recoveryRoute?: string;
           readonly supervisionRoutes?: readonly {
             readonly id: string;
             readonly available: boolean;
@@ -4641,9 +4651,9 @@ describe('agent_harness tool', () => {
       });
       expect(posture.summary.localFirstPolicy).toContain('Use local read/edit/exec');
       expect(posture.summary.delegationPolicy).toContain('isolation');
-      expect(JSON.stringify(posture.summary)).toContain('background_processes');
+      expect(posture.summary.backgroundProcesses).toContain('execution action:"processes"');
       expect(posture.summary.browserControl).toBe('setup-needed');
-      expect(posture.summary.executionHistory).toContain('execution_history');
+      expect(posture.summary.executionHistory).toContain('execution action:"history"');
       expect(posture.summary.browserControlSetup.setupRoute).toContain('browser-desktop-control');
       expect(posture.summary.browserControlSetup.recommendedRoute).toContain('mcp_servers');
       expect(posture.summary.browserControlSetup.needsReview).toBe(false);
@@ -4668,12 +4678,12 @@ describe('agent_harness tool', () => {
       expect(shell?.modelRoute).toBe('exec');
       expect(shell?.supervisionRoutes?.map((route) => route.id)).toEqual(expect.arrayContaining(['process-monitor', 'live-tail', 'tool-inspector']));
       expect(shell?.supervisionRoutes?.find((route) => route.id === 'process-monitor')?.available).toBe(true);
-      expect(shell?.supervisionRoutes?.find((route) => route.id === 'live-tail')?.modelRoute).toContain('open_ui_surface');
+      expect(shell?.supervisionRoutes?.find((route) => route.id === 'live-tail')?.modelRoute).toContain('workspace action:"open"');
 
       const edit = posture.routes.find((route) => route.executionRouteId === 'local-edit-write');
       expect(edit?.availability).toBe('ready');
       expect(edit?.modelRoute).toBe('edit/write');
-      expect(JSON.stringify(edit)).toContain('file_recovery');
+      expect(edit?.recoveryRoute).toContain('execution action:"recovery"');
       expect(edit?.supervisionRoutes?.map((route) => route.id)).toContain('tool-inspector');
 
       const browser = posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control');
@@ -4754,9 +4764,9 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'execution_posture' });
       expect(configuredPosture.summary.browserControl).toBe('ready');
       expect(configuredPosture.summary.browserControlSetup.toolMatches).toContain('browser_screenshot');
-      expect(configuredPosture.summary.browserControlSetup.recommendedRoute).toContain('execution_route');
+      expect(configuredPosture.summary.browserControlSetup.recommendedRoute).toContain('execution action:"route"');
       expect(configuredPosture.summary.browserControlSetup.workflows[0]?.status).toBe('ready');
-      expect(configuredPosture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('execution_route');
+      expect(configuredPosture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('execution action:"route"');
       expect(configuredPosture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control')?.availability).toBe('ready');
 
       const configuredBrowserSetup = await executeHarnessJson<{
@@ -4767,7 +4777,7 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'setup_item', setupItemId: 'browser-desktop-control' });
       expect(configuredBrowserSetup.setupItemId).toBe('browser-desktop-control');
       expect(configuredBrowserSetup.status).toBe('ready');
-      expect(configuredBrowserSetup.modelRoute).toContain('execution_route');
+      expect(configuredBrowserSetup.modelRoute).toContain('execution action:"route"');
       expect(configuredBrowserSetup.signals?.join('\n')).toContain('browser_screenshot');
 
       const delegated = posture.routes.find((route) => route.executionRouteId === 'delegation-isolation-parallel-remote');
@@ -4794,7 +4804,7 @@ describe('agent_harness tool', () => {
       expect(inspectedShell.availability).toBe('ready');
       expect(inspectedShell.safety).toContain('foreground serial');
       expect(inspectedShell.safety).toContain('sudo');
-      expect(inspectedShell.useInsteadWhen).toContain('background_processes');
+      expect(inspectedShell.useInsteadWhen).toContain('execution action:"processes"');
 
       const inspectedDelegation = await executeHarnessJson<{
         readonly executionRouteId: string;
@@ -4855,7 +4865,7 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'background_processes', includeParameters: true });
       expect(empty.status).toBe('available');
       expect(empty.summary.tracked).toBe(0);
-      expect(empty.capabilities.start).toContain('run_background_process');
+      expect(empty.capabilities.start).toContain('terminal command');
       expect(empty.capabilities.parity.find((entry) => entry.capability === 'process(wait)')?.status).toBe('supported');
       expect(empty.capabilities.parity.find((entry) => entry.capability === 'process(write)')?.status).toBe('blocked-contract-gap');
       expect(empty.capabilities.substrate.localProcessManager.supports).toContain('spawn');
@@ -4866,7 +4876,7 @@ describe('agent_harness tool', () => {
       expect(empty.capabilities.substrate.auditedTerms).toContain('sessions.inputs');
       expect(empty.capabilities.pty.status).toContain('not-yet-supported');
       expect(empty.capabilities.stdinWrite.status).toContain('not-yet-supported');
-      expect(empty.capabilities.stdinWrite.modelRoute).toContain('processAction:"write"');
+      expect(empty.capabilities.stdinWrite.modelRoute).toContain('process action:"write"');
       expect(empty.capabilities.sudo.status).toContain('foreground');
       expect(empty.capabilities.sudo.setupRoute).toContain('sudo-execution-posture');
       expect(empty.capabilities.sudo.credentialSignal.checked).toContain('SUDO_PASSWORD');
@@ -4907,8 +4917,8 @@ describe('agent_harness tool', () => {
       expect(started.pid).toBeGreaterThan(0);
       expect(started.command).toContain('printf');
       expect(started.routes.inspect).toContain(started.processId);
-      expect(started.routes.poll).toContain('processAction:"poll"');
-      expect(started.routes.log).toContain('processAction:"log"');
+      expect(started.routes.poll).toContain('process action:"poll"');
+      expect(started.routes.log).toContain('process action:"log"');
       expect(started.routes.visibleMonitor).toContain('process-monitor');
 
       const waited = await executeHarnessJson<{
@@ -4955,7 +4965,7 @@ describe('agent_harness tool', () => {
       expect(inspected.sessionId).toBe(started.processId);
       expect(inspected.session_id).toBe(started.processId);
       expect(inspected.status).toBe('succeeded');
-      expect(inspected.routes.log).toContain('processAction:"log"');
+      expect(inspected.routes.log).toContain('process action:"log"');
       expect(inspected.output?.policy).toContain('redacted');
       expect(inspected.output?.stdoutBytes).toBeGreaterThan(0);
       expect(inspected.output?.stderrBytes).toBeGreaterThan(0);
@@ -5069,8 +5079,8 @@ describe('agent_harness tool', () => {
       };
       expect(startedJson.status).toBe('started');
       expect(startedJson.processId).toMatch(/^bg_/);
-      expect(startedJson.routes.log).toContain('processAction:"log"');
-      expect(startedJson.routes.poll).toContain('processAction:"poll"');
+      expect(startedJson.routes.log).toContain('process action:"log"');
+      expect(startedJson.routes.poll).toContain('process action:"poll"');
 
       const waited = await fixture.toolRegistry.execute('process-wait', 'process', {
         action: 'wait',
@@ -5407,7 +5417,7 @@ describe('agent_harness tool', () => {
       expect(card.processOutput?.status).toBe('bounded-summary-attached');
       expect(card.processOutput?.evidence[0]?.executionRecordId).toBe('call-shell');
       expect(card.processOutput?.liveRoutes.map((route) => route.id)).toEqual(['process-monitor', 'live-tail']);
-      expect(card.routes.fileRecovery).toContain('file_recovery');
+      expect(card.routes.fileRecovery).toContain('execution action:"recovery"');
       expect(card.routes.inspectLatest).toContain('call-shell');
       expect(card.routes.supervision.map((route) => route.id)).toEqual(['process-monitor', 'live-tail']);
       expect(card.nextAction).toContain('No recovery action');
@@ -5417,7 +5427,7 @@ describe('agent_harness tool', () => {
       expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.userCard?.activityCardId).toBe('record:call-shell');
       expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.userCard?.verification.status).toBe('passed');
       expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.supervisionRoutes?.map((route) => route.id)).toEqual(expect.arrayContaining(['process-monitor', 'live-tail']));
-      expect(summary.records.find((record) => record.executionRecordId === 'call-edit')?.recoveryRoute).toContain('file_recovery');
+      expect(summary.records.find((record) => record.executionRecordId === 'call-edit')?.recoveryRoute).toContain('execution action:"recovery"');
 
       const searched = await executeHarnessJson<{
         readonly returnedActivityCards: number;
@@ -5442,7 +5452,7 @@ describe('agent_harness tool', () => {
       expect(inspected.lookup?.resolvedBy).toBe('id');
       expect(inspected.policy?.effect).toBe('read-only');
       expect(inspected.policy?.values).toContain('redacted args');
-      expect(inspected.modelAccess?.fileRecovery).toContain('file_recovery');
+      expect(inspected.modelAccess?.fileRecovery).toContain('execution action:"recovery"');
     } finally {
       fixture.cleanup();
     }
@@ -7707,7 +7717,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-workflow-plan')?.modelRoute).toBe('research action:"plan"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'work-background-processes')?.modelRoute).toBe('process action:"list"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'work-background-processes')?.modelRoute).toBe('execution action:"processes"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'work-process-capabilities')?.modelRoute).toBe('process action:"capabilities"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-run-queue')?.modelRoute).toBe('research action:"runs"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-start-run')?.modelRoute).toBe('research action:"create_run"');

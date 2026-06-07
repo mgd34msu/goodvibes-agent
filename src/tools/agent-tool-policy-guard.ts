@@ -142,7 +142,7 @@ const LOCAL_CODING_TOOL_DENIAL = [
 const BACKGROUND_EXEC_DENIAL = [
   'GoodVibes Agent only runs foreground, serial command-line work from the main conversation.',
   'Raw exec background flags, parallel command batches, bg_* controls, and exec pre-command file operations are disabled here.',
-  'For user-approved long-running local commands, use agent_harness mode:"background_processes" and mode:"run_background_process". Delegate only when isolation, remote execution, or parallel work is the user benefit.',
+  'For user-approved long-running local commands, use execution action:"processes", terminal background:true, and process lifecycle actions. Delegate only when isolation, remote execution, or parallel work is the user benefit.',
 ].join(' ');
 
 const REMOTE_MUTATION_DENIAL = [

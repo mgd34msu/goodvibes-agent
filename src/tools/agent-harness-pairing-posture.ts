@@ -565,7 +565,7 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
       modelRoute: browserPosture.recommendedRoute,
       setupRoutes: [
         browserPosture.setupRoute,
-        'agent_harness mode:"execution_posture" query:"browser desktop" includeParameters:true',
+        'execution action:"status" query:"browser desktop" includeParameters:true',
       ],
       evidence: {
         toolMatches: browserPosture.toolMatches,

@@ -23,6 +23,7 @@ const READ_TOOL_NAMES = new Set([
   'context',
   'delegation',
   'device',
+  'execution',
   'host',
   'memory',
   'models',
@@ -69,6 +70,7 @@ const READ_ONLY_MODELS_ACTIONS = new Set(['', 'status', 'routing', 'routes', 'mo
 const READ_ONLY_WORKSPACE_ACTIONS = new Set(['', 'status', 'summary', 'home', 'workspace', 'categories', 'workspace_categories', 'actions', 'list_actions', 'workspace_actions', 'tasks', 'action', 'show', 'inspect', 'workspace_action', 'surfaces', 'ui_surfaces', 'screens', 'views', 'surface', 'ui_surface', 'screen', 'view', 'panels', 'panes', 'panel', 'pane', 'shortcuts', 'shortcut_help', 'help', 'keybindings', 'bindings', 'keys', 'keybinding', 'binding', 'key', 'commands', 'slash_commands', 'command_catalog', 'command', 'slash_command', 'inspect_command', 'cli_commands', 'cli_catalog', 'cli_command', 'inspect_cli_command']);
 const READ_ONLY_AUTONOMY_ACTIONS = new Set(['', 'intake', 'request', 'route', 'plan', 'triage', 'autonomy_intake', 'queue', 'list', 'work', 'ongoing', 'autonomy_queue', 'item', 'card', 'show', 'inspect', 'autonomy_queue_item', 'status', 'summary', 'overview']);
 const READ_ONLY_DELEGATION_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'policy', 'decision', 'decisions', 'delegation_posture', 'routes', 'list', 'catalog', 'posture', 'route', 'item', 'card', 'show', 'inspect', 'delegation_route']);
+const READ_ONLY_EXECUTION_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'routes', 'posture', 'execution_posture', 'route', 'show_route', 'inspect_route', 'execution_route', 'history', 'activity', 'records', 'execution_history', 'record', 'item', 'show', 'inspect', 'execution_history_item', 'processes', 'background', 'backgrounds', 'background_processes', 'capabilities', 'process_capabilities', 'process', 'background_process', 'recovery', 'file_recovery', 'undo_redo']);
 
 type MarkedPermissionManager = PermissionManagerLike & { [SAFETY_MARKER]?: true };
 
@@ -252,6 +254,14 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_DELEGATION_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'execution') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase().replace(/-/g, '_')
+        : '';
+    return READ_ONLY_EXECUTION_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'agent_artifacts') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';

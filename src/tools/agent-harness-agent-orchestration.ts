@@ -430,7 +430,7 @@ function managedExecutionPlan(
         label: 'Intake and lane selection',
         status: 'ready',
         purpose: 'Choose serial chat, one visible agent, batch agents, delegated review, or remote inspection based on user outcome.',
-        routes: ['delegation action:"status"', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"agent_orchestration"', 'agent_work_plan action:"dispatch_agents" ids:["..."] confirm:true explicitUserRequest:"..."'],
+        routes: ['delegation action:"status"', 'execution action:"status"', 'agent_harness mode:"agent_orchestration"', 'agent_work_plan action:"dispatch_agents" ids:["..."] confirm:true explicitUserRequest:"..."'],
       },
       {
         id: 'visible-agent-work',
@@ -463,7 +463,7 @@ function managedExecutionPlan(
         dispatchReceipts: dispatchReceiptCount,
         autoAttachedRemoteArtifacts: artifacts.length,
         requiredEvidence: ['changed files or artifact', 'test or verification output', 'agent status', 'recovery route when writes happened'],
-        routes: ['agent_harness mode:"agent_orchestration"', 'agent_harness mode:"execution_history"', 'agent_harness mode:"file_recovery"', 'delegation action:"status"', 'agent_work_plan action:"list"'],
+        routes: ['agent_harness mode:"agent_orchestration"', 'execution action:"history"', 'execution action:"recovery"', 'delegation action:"status"', 'agent_work_plan action:"list"'],
       },
     ],
     workItems: items,

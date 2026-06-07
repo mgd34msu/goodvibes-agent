@@ -93,7 +93,7 @@ export function fileRecoverySummary(context: CommandContext, args: AgentHarnessF
     policy: 'Read-only file recovery posture. Recovery content is not exposed; run_file_recovery requires confirm:true and explicitUserRequest.',
     ...(args.includeParameters === true ? {
       modelAccess: {
-        inspect: 'agent_harness mode:"file_recovery"',
+        inspect: 'execution action:"recovery"',
         undo: 'agent_harness mode:"run_file_recovery" recoveryAction:"undo" confirm:true explicitUserRequest:"..."',
         redo: 'agent_harness mode:"run_file_recovery" recoveryAction:"redo" confirm:true explicitUserRequest:"..."',
       },
@@ -113,7 +113,7 @@ export function runFileRecovery(context: CommandContext, args: AgentHarnessFileR
   if (!action) {
     return {
       status: 'missing_action',
-      usage: 'run_file_recovery requires recoveryAction:"undo" or recoveryAction:"redo". Use mode:"file_recovery" first to inspect depth.',
+      usage: 'run_file_recovery requires recoveryAction:"undo" or recoveryAction:"redo". Use execution action:"recovery" first to inspect depth.',
     };
   }
   const result = action === 'undo' ? manager.undo() : manager.redo();

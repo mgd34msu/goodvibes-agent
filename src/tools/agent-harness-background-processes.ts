@@ -264,8 +264,10 @@ function processAgeMs(entry: BackgroundProcess, now = Date.now()): number {
 }
 
 function routeFor(processId: string, mode: 'background_process' | 'run_background_process', action?: string): string {
-  const actionPart = action ? ` processAction:"${action}"` : '';
-  return `agent_harness mode:"${mode}" processId:"${processId}"${actionPart}`;
+  if (mode === 'background_process') return `execution action:"process" processId:"${processId}"`;
+  const processAction = action === 'stop' ? 'kill' : action || 'poll';
+  const confirmation = ['wait', 'kill', 'stop', 'write', 'start'].includes(processAction) ? ' confirm:true explicitUserRequest:"..."' : '';
+  return `process action:"${processAction}" processId:"${processId}"${confirmation}`;
 }
 
 function readProcessSessionId(args: AgentHarnessBackgroundProcessArgs): { readonly source: BackgroundProcessLookupSource; readonly input: string } | null {
@@ -308,8 +310,8 @@ function describeProcessEntry(
       log: routeFor(entry.id, 'run_background_process', 'log'),
       wait: routeFor(entry.id, 'run_background_process', 'wait'),
       stop: routeFor(entry.id, 'run_background_process', 'stop'),
-      visibleMonitor: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
-      liveTail: `agent_harness mode:"open_ui_surface" surfaceId:"live-tail" target:"${entry.id}"`,
+      visibleMonitor: 'workspace action:"open" surfaceId:"process-monitor"',
+      liveTail: `workspace action:"open" surfaceId:"live-tail" target:"${entry.id}"`,
     },
     ...(includeOutput ? {
       output: {
@@ -389,37 +391,37 @@ function processToolParity(context?: CommandContext): readonly Record<string, un
       capability: 'terminal(background=true)',
       status: 'supported',
       userOutcome: 'Start one visible tracked local command without blocking the conversation.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"start" command:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'terminal command:"..." background:true confirm:true explicitUserRequest:"..."',
     },
     {
       capability: 'process(list)',
       status: 'supported',
       userOutcome: 'See every tracked local background process from the shared ProcessManager.',
-      modelRoute: 'agent_harness mode:"background_processes"',
+      modelRoute: 'execution action:"processes"',
     },
     {
       capability: 'process(poll)',
       status: 'supported',
       userOutcome: 'Poll one tracked process status without waiting.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"poll" sessionId:"..."',
+      modelRoute: 'process action:"poll" sessionId:"..."',
     },
     {
       capability: 'process(wait)',
       status: 'supported',
       userOutcome: 'Wait on one tracked process with a bounded timeout.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"wait" processId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'process action:"wait" processId:"..." confirm:true explicitUserRequest:"..."',
     },
     {
       capability: 'process(log)',
       status: 'supported',
       userOutcome: 'Read redacted stdout/stderr tails with explicit truncation metadata.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"log" sessionId:"..."',
+      modelRoute: 'process action:"log" sessionId:"..."',
     },
     {
       capability: 'process(kill)',
       status: 'supported',
       userOutcome: 'Stop and remove one tracked process from the shared ProcessManager.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"kill" sessionId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'process action:"kill" sessionId:"..." confirm:true explicitUserRequest:"..."',
     },
     {
       capability: 'process(write)',
@@ -427,7 +429,7 @@ function processToolParity(context?: CommandContext): readonly Record<string, un
       userOutcome: writeStatus === 'contract-discovered'
         ? 'Interactive input has a published contract; Agent requires confirmation and a process id before writing.'
         : 'Interactive input is not exposed because the SDK ProcessManager has no safe stdin handle.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"write" processId:"..." data:"..."',
+      modelRoute: 'process action:"write" processId:"..." data:"..." confirm:true explicitUserRequest:"..."',
     },
     {
       capability: 'pty',
@@ -435,13 +437,13 @@ function processToolParity(context?: CommandContext): readonly Record<string, un
       userOutcome: ptyStatus === 'contract-discovered'
         ? 'A PTY-like contract is discoverable; Agent still requires an explicit session API before generic PTY spawn is enabled.'
         : 'Interactive CLIs need a published PTY/session API before Agent can make them safe and visible.',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"start" pty:true command:"..."',
+      modelRoute: 'terminal command:"..." background:true pty:true confirm:true explicitUserRequest:"..."',
     },
     {
       capability: 'sudo',
       status: 'visible-only',
       userOutcome: 'Privilege prompts must stay foreground or use a future safe credential-prompt contract.',
-      modelRoute: 'agent_harness mode:"execution_route" executionRouteId:"local-shell-command"',
+      modelRoute: 'execution action:"route" id:"local-shell-command"',
     },
   ];
 }
@@ -453,10 +455,10 @@ function capabilities(context?: CommandContext): Record<string, unknown> {
   const stdinWrite = localProcessManager.stdinWrite as Record<string, unknown>;
   const pty = localProcessManager.pty as Record<string, unknown>;
   return {
-    start: 'agent_harness mode:"run_background_process" processAction:"start" command:"..." confirm:true explicitUserRequest:"..."',
-    inspect: 'agent_harness mode:"background_processes" or mode:"background_process"',
-    wait: 'agent_harness mode:"run_background_process" processAction:"wait" processId|sessionId:"..." confirm:true explicitUserRequest:"..."',
-    stop: 'agent_harness mode:"run_background_process" processAction:"kill" processId|sessionId:"..." confirm:true explicitUserRequest:"..."',
+    start: 'terminal command:"..." background:true confirm:true explicitUserRequest:"..."',
+    inspect: 'execution action:"processes" or action:"process"',
+    wait: 'process action:"wait" processId|sessionId:"..." confirm:true explicitUserRequest:"..."',
+    stop: 'process action:"kill" processId|sessionId:"..." confirm:true explicitUserRequest:"..."',
     aliases: {
       actions: {
         poll: 'status',
@@ -480,7 +482,7 @@ function capabilities(context?: CommandContext): Record<string, unknown> {
     },
     stdinWrite: {
       status: stdinWrite.status === 'contract-discovered' ? 'supported-with-confirmation' : 'not-yet-supported-in-agent-harness',
-      modelRoute: 'agent_harness mode:"run_background_process" processAction:"write" processId:"..." data:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'process action:"write" processId:"..." data:"..." confirm:true explicitUserRequest:"..."',
       guidance: stdinWrite.status === 'contract-discovered'
         ? 'The shared ProcessManager exposes a stdin write method. Agent requires confirm:true, explicitUserRequest, one exact process id, and non-empty data.'
         : 'ProcessManager currently tracks output and stop lifecycle; it does not expose a safe stdin write API.',
@@ -539,8 +541,8 @@ export function backgroundProcessSummary(context: CommandContext, args: AgentHar
       tracked: entries.length,
       running: entries.filter((entry) => !entry.done).length,
       completed: entries.filter((entry) => entry.done).length,
-      visibleMonitor: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
-      liveTail: 'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
+      visibleMonitor: 'workspace action:"open" surfaceId:"process-monitor"',
+      liveTail: 'workspace action:"open" surfaceId:"live-tail"',
     },
     processes,
     returned: processes.length,
@@ -562,7 +564,7 @@ export function describeBackgroundProcess(context: CommandContext, args: AgentHa
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'background_process requires processId, target, or query. Use mode:"background_processes" to inspect tracked process ids.',
+      usage: 'execution action:"process" requires processId, target, or query. Use execution action:"processes" to inspect tracked process ids.',
     };
   }
   const exact = manager.getStatus(lookup.input);
@@ -594,7 +596,7 @@ export function describeBackgroundProcess(context: CommandContext, args: AgentHa
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown background process ${lookup.input}. Use mode:"background_processes" to inspect tracked process ids.`,
+    usage: `Unknown background process ${lookup.input}. Use execution action:"processes" to inspect tracked process ids.`,
   };
 }
 
@@ -753,8 +755,8 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
         log: result.process_id ? routeFor(result.process_id, 'run_background_process', 'log') : null,
         wait: result.process_id ? routeFor(result.process_id, 'run_background_process', 'wait') : null,
         stop: result.process_id ? routeFor(result.process_id, 'run_background_process', 'stop') : null,
-        visibleMonitor: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
-        liveTail: result.process_id ? `agent_harness mode:"open_ui_surface" surfaceId:"live-tail" target:"${result.process_id}"` : null,
+        visibleMonitor: 'workspace action:"open" surfaceId:"process-monitor"',
+        liveTail: result.process_id ? `workspace action:"open" surfaceId:"live-tail" target:"${result.process_id}"` : null,
       },
       policy: 'Started as a tracked local background process with bounded timeout and visible monitor/live-tail routes.',
     };

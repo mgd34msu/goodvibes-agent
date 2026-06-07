@@ -1933,7 +1933,7 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Process supervision: available; 0 tracked; 0 running; 0 completed.');
     expect(output).toContain('Process parity: stdin not-yet-supported; PTY not-yet-supported; sudo foreground-only.');
-    expect(output).toContain('Process routes: background_processes / capabilities / process monitor / live tail.');
+    expect(output).toContain('Process routes: execution / capabilities / process monitor / live tail.');
     expect(output).toContain('Background processes');
     expect(output).toContain('Process capabilities');
     expect(output).toContain('Add work item');

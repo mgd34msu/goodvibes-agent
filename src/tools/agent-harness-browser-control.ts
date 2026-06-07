@@ -147,7 +147,7 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
   const needsReview = mcpServers.some((server) => server.readiness === 'attention');
   const configured = toolMatches.length > 0 || readyBrowserMcp;
   const recommendedRoute = configured
-    ? 'agent_harness mode:"execution_route" executionRouteId:"browser-or-desktop-control"'
+    ? 'execution action:"route" id:"browser-or-desktop-control"'
     : needsReview
       ? 'agent_harness mode:"mcp_servers" query:"browser desktop"'
       : 'agent_harness mode:"mcp_servers" query:"browser desktop"';
@@ -166,10 +166,10 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
       'Ask for confirmation before screenshots, authenticated browsing, account changes, purchases, sends, or destructive desktop actions.',
     ],
     fallbackRoutes: [
-      'agent_harness mode:"execution_route" executionRouteId:"web-fetch-research"',
+      'execution action:"route" id:"web-fetch-research"',
       'agent_harness mode:"mcp_servers" query:"browser desktop"',
     ],
-    executionRoute: 'agent_harness mode:"execution_route" executionRouteId:"browser-or-desktop-control"',
+    executionRoute: 'execution action:"route" id:"browser-or-desktop-control"',
     setupRoute,
     recommendedRoute,
     policy: 'Browser and desktop control stays explicit: no live UI control is assumed unless a trusted tool or fresh constrained MCP server is configured.',

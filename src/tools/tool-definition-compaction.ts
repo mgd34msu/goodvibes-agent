@@ -13,6 +13,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   delegation: 'Inspect build delegation routes and policy.',
   control: 'Inspect commands, panels, and runtime posture.',
   device: 'Inspect/open device, voice, and browser routes.',
+  execution: 'Inspect local work routes, history, and recovery.',
   edit: 'Edit files with exact, fuzzy, or regex replacements.',
   exec: 'Run shell commands with timeout and retry.',
   fetch: 'Fetch HTTP URLs with auth and sanitization.',

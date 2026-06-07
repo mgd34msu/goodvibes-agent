@@ -146,8 +146,8 @@ function routes(): readonly DelegationRoute[] {
       requiredFields: [],
       optionalFields: ['work plan item', 'verification command', 'user-visible success criteria'],
       successEvidence: ['direct answer', 'local diff', 'test result', 'artifact id when an Agent tool saves one'],
-      statusRoutes: ['main conversation', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"execution_history"'],
-      recoveryRoutes: ['agent_harness mode:"file_recovery"', 'agent_harness mode:"execution_route" executionRouteId:"local-edit-write"'],
+      statusRoutes: ['main conversation', 'execution action:"status"', 'execution action:"history"'],
+      recoveryRoutes: ['execution action:"recovery"', 'execution action:"route" id:"local-edit-write"'],
       reviewPolicy: 'not-applicable',
     },
     {
@@ -160,8 +160,8 @@ function routes(): readonly DelegationRoute[] {
       requiredFields: ['user request or task objective'],
       optionalFields: ['files/components in scope', 'verification command', 'risk notes'],
       successEvidence: ['changed files', 'command/test output', 'execution history record', 'file recovery snapshot when edits were made'],
-      statusRoutes: ['agent_harness mode:"execution_history"', 'agent_harness mode:"execution_route" executionRouteId:"local-shell-command"'],
-      recoveryRoutes: ['agent_harness mode:"file_recovery"', 'agent_harness mode:"run_file_recovery"'],
+      statusRoutes: ['execution action:"history"', 'execution action:"route" id:"local-shell-command"'],
+      recoveryRoutes: ['execution action:"recovery"', 'agent_harness mode:"run_file_recovery"'],
       reviewPolicy: 'not-applicable',
     },
     {
@@ -189,7 +189,7 @@ function routes(): readonly DelegationRoute[] {
       requiredFields: [],
       optionalFields: ['visible work-plan item', 'delegation reason', 'success criteria'],
       successEvidence: ['chosen visible route', 'confirmation receipt when delegated'],
-      statusRoutes: ['agent_harness mode:"execution_posture"', 'autonomy action:"intake"'],
+      statusRoutes: ['execution action:"status"', 'autonomy action:"intake"'],
       recoveryRoutes: ['delegation action:"status"', 'Agent Workspace -> Work plan'],
       reviewPolicy: 'not-applicable',
     },
@@ -215,7 +215,7 @@ export function delegationDecisionCards(context: CommandContext): readonly Deleg
       ],
       routeIds: ['ordinary-agent-work', 'local-agent-execution'],
       requiredFields: ['task objective'],
-      supervision: ['execution_posture', 'execution_history', 'file_recovery'],
+      supervision: ['execution action:"status"', 'execution action:"history"', 'execution action:"recovery"'],
       confirmationBoundary: 'Use normal Agent tool confirmations; no shared-session delegation is submitted.',
     },
     {
@@ -288,7 +288,7 @@ export function delegationDecisionCards(context: CommandContext): readonly Deleg
       ],
       routeIds: ['hidden-local-fanout-blocked'],
       requiredFields: [],
-      supervision: ['execution_posture', 'autonomy action:"intake"', 'work plan'],
+      supervision: ['execution action:"status"', 'autonomy action:"intake"', 'work plan'],
       confirmationBoundary: 'Hidden fanout is never confirmed from Agent; convert to a visible owned route.',
     },
   ];

@@ -560,10 +560,10 @@ function buildProcessSupervisionSummary(context: CommandContext): AgentWorkspace
     ptyStatus: ptyMethod ? 'contract-discovered' : 'not-yet-supported',
     ptyMethod,
     sudoStatus: 'foreground-only',
-    processRoute: 'agent_harness mode:"background_processes"',
-    capabilitiesRoute: 'agent_harness mode:"run_background_process" processAction:"capabilities"',
-    visibleMonitorRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
-    liveTailRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
+    processRoute: 'execution action:"processes"',
+    capabilitiesRoute: 'process action:"capabilities"',
+    visibleMonitorRoute: 'workspace action:"open" surfaceId:"process-monitor"',
+    liveTailRoute: 'workspace action:"open" surfaceId:"live-tail"',
   };
 }
 

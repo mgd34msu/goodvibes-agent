@@ -144,7 +144,7 @@ function browserRunnerContract(browser: ReturnType<typeof browserControlPosture>
       'No credential or page-content leakage outside bounded redacted source summaries.',
     ],
     setupRoutes: [
-      'agent_harness mode:"execution_posture" query:"browser research" includeParameters:true',
+      'execution action:"status" query:"browser research" includeParameters:true',
       browser.setupRoute,
       ...browser.fallbackRoutes,
     ],

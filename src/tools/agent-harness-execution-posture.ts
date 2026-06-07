@@ -92,7 +92,7 @@ function routeDefinitions(): readonly ExecutionRoute[] {
       useInsteadWhen: 'Use delegation for isolated worktrees, remote machines, parallel workers, or work that needs a separate coding UI.',
       anyToolNames: ['edit', 'write'],
       modelRoute: 'edit/write',
-      recoveryRoute: 'agent_harness mode:"file_recovery"',
+      recoveryRoute: 'execution action:"recovery"',
       safety: 'Respect user-owned dirty worktree changes, keep edits scoped, and verify with tests or static checks when feasible.',
       nextStep: 'Use local edit/write tooling, then run targeted verification through the local shell route when appropriate.',
     },
@@ -103,11 +103,11 @@ function routeDefinitions(): readonly ExecutionRoute[] {
       userOutcome: 'The user sees progress and results from the actual environment without extra routing decisions.',
       effect: 'local-effect',
       preferredWhen: 'The task needs command output, project tests, build checks, package inspection, safe one-off automation, or visible privilege escalation in the current workspace.',
-      useInsteadWhen: 'Use background_processes/run_background_process for user-approved long-running local commands; use delegation or connected-host tasks for isolation, remote execution, or parallelism.',
+      useInsteadWhen: 'Use execution action:"processes" plus terminal/process for user-approved long-running local commands; use delegation or connected-host tasks for isolation, remote execution, or parallelism.',
       toolNames: ['exec'],
       modelRoute: 'exec',
       safety: 'Use foreground serial commands, avoid destructive operations unless explicitly requested, keep sudo visible and user-supervised, block hidden background sudo prompts, and report verification results clearly.',
-      nextStep: 'Call exec for bounded foreground commands, inspect setup_item sudo-execution-posture before escalation, or inspect background_processes before starting tracked long-running local work.',
+      nextStep: 'Call exec for bounded foreground commands, inspect setup_item sudo-execution-posture before escalation, or inspect execution action:"processes" before starting tracked long-running local work.',
     },
     {
       id: 'web-fetch-research',
@@ -215,14 +215,14 @@ function executionSupervisionRoutes(context: CommandContext, route: ExecutionRou
         id: 'process-monitor',
         label: 'Runtime Activity Monitor',
         available: typeof context.openProcessModal === 'function',
-        modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
+        modelRoute: 'workspace action:"open" surfaceId:"process-monitor"',
         requiresConfirmation: true,
       },
       {
         id: 'live-tail',
         label: 'Live Process Output',
         available: typeof context.openLiveTail === 'function',
-        modelRoute: 'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
+        modelRoute: 'workspace action:"open" surfaceId:"live-tail"',
         requiresConfirmation: true,
       },
     );
@@ -232,7 +232,7 @@ function executionSupervisionRoutes(context: CommandContext, route: ExecutionRou
       id: 'tool-inspector',
       label: 'Tool Call Inspector',
       available: toolInspectorAvailable(context),
-      modelRoute: 'agent_harness mode:"open_panel" panelId:"tools"',
+      modelRoute: 'workspace action:"open_panel" panelId:"tools"',
       requiresConfirmation: true,
     });
   }
@@ -245,9 +245,9 @@ function executionSupervisionSummary(context: CommandContext): Record<string, un
     liveTailAvailable: typeof context.openLiveTail === 'function',
     toolInspectorAvailable: toolInspectorAvailable(context),
     routes: [
-      'agent_harness mode:"open_ui_surface" surfaceId:"process-monitor"',
-      'agent_harness mode:"open_ui_surface" surfaceId:"live-tail"',
-      'agent_harness mode:"open_panel" panelId:"tools"',
+      'workspace action:"open" surfaceId:"process-monitor"',
+      'workspace action:"open" surfaceId:"live-tail"',
+      'workspace action:"open_panel" panelId:"tools"',
     ],
   };
 }
@@ -286,11 +286,11 @@ function describeRoute(
         ...(browserControl ? { browserControl } : {}),
         ...(delegationCards ? { delegationDecisionCards: delegationCards } : {}),
         modelAccess: {
-          inspectPosture: 'agent_harness mode:"execution_posture"',
-          inspectRoute: `agent_harness mode:"execution_route" executionRouteId:"${route.id}"`,
+          inspectPosture: 'execution action:"status"',
+          inspectRoute: `execution action:"route" id:"${route.id}"`,
           inspectTools: 'agent_harness mode:"tools"',
           inspectDelegation: 'delegation action:"status"',
-          inspectFileRecovery: route.recoveryRoute ?? 'agent_harness mode:"file_recovery"',
+          inspectFileRecovery: route.recoveryRoute ?? 'execution action:"recovery"',
         },
       }
       : {}),
@@ -333,8 +333,8 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       browserControlSetup: browserControl,
       delegationDecisionCards: delegationCards,
       sudoPosture: sudoExecutionPosture(context),
-      executionHistory: 'agent_harness mode:"execution_history"',
-      backgroundProcesses: 'agent_harness mode:"background_processes"',
+      executionHistory: 'execution action:"history"',
+      backgroundProcesses: 'execution action:"processes"',
       fileRecovery: fileRecoveryCatalogStatus(context),
       supervision: executionSupervisionSummary(context),
       registeredExecutionTools: [...registeredToolNames(toolRegistry)].filter((name) => ['read', 'find', 'inspect', 'analyze', 'edit', 'write', 'exec', 'fetch', 'web_search'].includes(name)).sort(),
@@ -357,7 +357,7 @@ export function describeHarnessExecutionRoute(context: CommandContext, toolRegis
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'execution_route requires executionRouteId, target, or query. Use mode:"execution_posture" to inspect execution route ids.',
+      usage: 'execution action:"route" requires executionRouteId, target, or query. Use execution action:"status" to inspect execution route ids.',
     };
   }
   const all = routeDefinitions();
@@ -377,6 +377,6 @@ export function describeHarnessExecutionRoute(context: CommandContext, toolRegis
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown execution route ${lookup.input}. Use mode:"execution_posture" to list route ids.`,
+    usage: `Unknown execution route ${lookup.input}. Use execution action:"status" to list route ids.`,
   };
 }
