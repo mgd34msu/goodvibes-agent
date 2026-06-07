@@ -269,6 +269,10 @@ function isReviewerHandoffArchiveArtifact(artifact: ArtifactDescriptor): boolean
   return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-model-compare-handoff-archive';
 }
 
+function isModelCompareRouteDecisionArtifact(artifact: ArtifactDescriptor): boolean {
+  return readArtifactMetadataString(artifact.metadata, 'purpose') === 'agent-model-compare-route-decision';
+}
+
 function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWorkspaceRecentReviewerHandoffArtifact {
   const metadata = artifact.metadata;
   return {
@@ -408,6 +412,24 @@ function buildReviewPacketTimeline(
       });
       continue;
     }
+    if (isModelCompareRouteDecisionArtifact(artifact)) {
+      const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison';
+      const decisionId = readArtifactMetadataString(metadata, 'decisionId') || artifact.id;
+      const decision = readArtifactMetadataString(metadata, 'decision') || 'unknown-decision';
+      const judgmentArtifactId = readArtifactMetadataString(metadata, 'judgmentArtifactId') || 'unknown-judgment';
+      const selectedModel = readArtifactMetadataString(metadata, 'selectedModel') || readArtifactMetadataString(metadata, 'currentModel') || 'unknown-model';
+      events.push({
+        id: `route-decision:${artifact.id}`,
+        kind: 'route-decision',
+        at: artifact.createdAt,
+        label: `Route decision: ${decisionId}`,
+        detail: `${comparisonId}; ${decision}; judgment ${judgmentArtifactId}; selected ${selectedModel}`,
+        status: 'complete',
+        route: `agent_artifacts show artifactId:"${artifact.id}"`,
+        sourceId: artifact.id,
+      });
+      continue;
+    }
     if (isModelCompareExportArtifact(artifact)) {
       const comparisonId = readArtifactMetadataString(metadata, 'comparisonId') || 'unknown-comparison';
       const sourceKind = readArtifactMetadataString(metadata, 'sourceKind') || 'unknown';
@@ -496,6 +518,16 @@ function buildReviewPacketDefaults(
     .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
   const latestHandoff = artifacts.filter(isReviewerHandoffArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
   const latestHandoffArchive = artifacts.filter(isReviewerHandoffArchiveArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const latestRevealedJudgmentComparisonId = readArtifactMetadataString(latestRevealedJudgment?.metadata ?? {}, 'comparisonId');
+  const latestRouteDecision = artifacts
+    .filter(isModelCompareRouteDecisionArtifact)
+    .filter((artifact) => {
+      if (!latestRevealedJudgment) return true;
+      const judgmentArtifactId = readArtifactMetadataString(artifact.metadata, 'judgmentArtifactId');
+      const comparisonId = readArtifactMetadataString(artifact.metadata, 'comparisonId');
+      return judgmentArtifactId === latestRevealedJudgment.id || (latestRevealedJudgmentComparisonId.length > 0 && comparisonId === latestRevealedJudgmentComparisonId);
+    })
+    .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
   const relatedArtifactIds = uniqueStrings([
     latestDocumentExport?.id,
     latestDocument?.lastArtifactId,
@@ -518,6 +550,8 @@ function buildReviewPacketDefaults(
     comparisonArtifactId: latestComparison?.id ?? null,
     judgmentArtifactId: latestJudgment?.id ?? null,
     revealedJudgmentArtifactId: latestRevealedJudgment?.id ?? null,
+    routeDecisionArtifactId: latestRouteDecision?.id ?? null,
+    routeDecision: latestRouteDecision ? readArtifactMetadataString(latestRouteDecision.metadata, 'decision') || null : null,
     handoffArtifactId,
     handoffArchiveArtifactId: latestHandoffArchive?.id ?? null,
     relatedArtifactIds,
@@ -567,7 +601,7 @@ function buildReviewPacketWizard(
   const judgmentReady = Boolean(defaults.revealedJudgmentArtifactId);
   const handoffReady = Boolean(defaults.handoffArtifactId && defaults.relatedArtifactIds.length > 0);
   const archiveReady = Boolean(defaults.handoffArchiveArtifactId);
-  const routeDecisionDone = archiveReady;
+  const routeDecisionDone = Boolean(defaults.routeDecisionArtifactId || archiveReady);
   const documentRoute = latestDocument
     ? `agent_documents show documentId:"${latestDocument.id}" includeVersions:true`
     : 'agent_documents list';
@@ -651,22 +685,27 @@ function buildReviewPacketWizard(
     label: 'Route decision',
     status: routeDecisionDone ? 'done' : handoffReady ? 'current' : judgmentReady ? 'pending' : 'blocked',
     detail: routeDecisionDone
-      ? 'Final packet evidence exists; route-decision review has been carried to archive/final review.'
+      ? defaults.routeDecisionArtifactId
+        ? `Route decision ${defaults.routeDecisionArtifactId} records ${defaults.routeDecision ?? 'a saved decision'}.`
+        : 'Final packet evidence exists; route-decision review has been carried to archive/final review.'
       : handoffReady
         ? 'Apply the revealed winner or explicitly leave the current model unchanged before final archive review.'
         : judgmentReady
           ? 'Create reviewer handoff evidence before applying or leaving the revealed winning route.'
           : 'A revealed judgment is required before deciding whether to update the selected model route.',
-    userRoute: 'Documents & Compare -> Apply compare winner',
+    userRoute: 'Documents & Compare -> Apply compare winner or Record route decision',
     modelRoute: defaults.revealedJudgmentArtifactId
-      ? `agent_model_compare apply artifactId:"${defaults.revealedJudgmentArtifactId}" confirm:true explicitUserRequest:"..."`
+      ? `agent_model_compare apply artifactId:"${defaults.revealedJudgmentArtifactId}" confirm:true explicitUserRequest:"..." or agent_model_compare routeDecision artifactId:"${defaults.revealedJudgmentArtifactId}" decision:"left-unchanged" confirm:true explicitUserRequest:"..."`
       : 'agent_harness mode:"workspace_action" actionId:"document-apply-compare"',
     actionId: 'document-apply-compare',
+    backtrackRoute: defaults.routeDecisionArtifactId
+      ? `agent_artifacts show artifactId:"${defaults.routeDecisionArtifactId}"`
+      : null,
   }));
   steps.push(buildReviewPacketWizardStep({
     id: 'final-archive-review',
     label: 'Final archive review',
-    status: archiveReady ? 'done' : handoffReady && routeDecisionDone ? 'current' : handoffReady ? 'pending' : 'blocked',
+    status: archiveReady ? 'done' : routeDecisionDone && handoffReady ? 'current' : handoffReady ? 'pending' : 'blocked',
     detail: archiveReady
       ? `Reviewer packet archive ${defaults.handoffArchiveArtifactId} is ready for final evidence review.`
       : handoffReady
@@ -718,6 +757,7 @@ function reviewerReadinessBadge(
   const documentsMissingSourceArtifacts = reviewDocuments.filter((document) => document.attachments.length === 0 && !document.lastArtifactId).length;
   const comparisons = artifacts.filter(isModelCompareArtifact);
   const judgments = artifacts.filter(isModelCompareJudgmentArtifact);
+  const routeDecisions = artifacts.filter(isModelCompareRouteDecisionArtifact);
   const handoffs = artifacts.filter(isReviewerHandoffArtifact);
   const revealedJudgments = judgments.filter((artifact) => (
     artifact.metadata.revealIncludedInJudgment === true
@@ -727,6 +767,12 @@ function reviewerReadinessBadge(
     artifact.metadata.revealIncludedInJudgment !== true
     || readArtifactMetadataString(artifact.metadata, 'winnerModel').length === 0
   ));
+  const routeDecisionComparisonIds = new Set(routeDecisions.map((artifact) => readArtifactMetadataString(artifact.metadata, 'comparisonId')).filter(Boolean));
+  const routeDecisionJudgmentArtifactIds = new Set(routeDecisions.map((artifact) => readArtifactMetadataString(artifact.metadata, 'judgmentArtifactId')).filter(Boolean));
+  const revealedJudgmentsWaitingOnRouteDecision = revealedJudgments.filter((artifact) => {
+    const comparisonId = readArtifactMetadataString(artifact.metadata, 'comparisonId');
+    return !routeDecisionJudgmentArtifactIds.has(artifact.id) && (!comparisonId || !routeDecisionComparisonIds.has(comparisonId));
+  });
   const revealedComparisonIds = new Set(revealedJudgments.map((artifact) => readArtifactMetadataString(artifact.metadata, 'comparisonId')).filter(Boolean));
   const unrevealedComparisons = comparisons.filter((artifact) => {
     const comparisonId = readArtifactMetadataString(artifact.metadata, 'comparisonId');
@@ -743,7 +789,7 @@ function reviewerReadinessBadge(
     + missingSourceArtifacts
     + unrevealedComparisons.length
     + hiddenJudgments.length
-    + revealedJudgments.length
+    + revealedJudgmentsWaitingOnRouteDecision.length
     + handoffsMissingRelatedArtifacts;
   const next = !artifactListAvailable
     ? 'Artifact listing is unavailable; run Review readiness preflight before export, archive, or route update.'
@@ -753,14 +799,14 @@ function reviewerReadinessBadge(
         ? 'Attach source artifacts or related evidence before export, handoff, or archive.'
         : unrevealedComparisons.length + hiddenJudgments.length > 0
           ? 'Reveal comparison/judgment identity before applying a model route or final reviewer handoff.'
-          : revealedJudgments.length > 0
+          : revealedJudgmentsWaitingOnRouteDecision.length > 0
             ? 'Apply the revealed winner or explicitly leave routing unchanged before archiving.'
             : handoffsMissingRelatedArtifacts > 0
               ? 'Recreate reviewer handoffs with related evidence before ZIP archive.'
               : 'Reviewer readiness preflight is clear for export, handoff archive, or route update.';
   return {
     status: !artifactListAvailable ? 'needs-setup' : issueCount > 0 ? 'attention' : 'ready',
-    summary: `${issueCount} issue(s): ${openComments} comment(s), ${proposedSuggestions} suggestion(s), ${missingSourceArtifacts} source/evidence gap(s), ${unrevealedComparisons.length + hiddenJudgments.length} hidden comparison item(s), ${revealedJudgments.length} route decision(s), ${handoffsMissingRelatedArtifacts} handoff evidence gap(s).`,
+    summary: `${issueCount} issue(s): ${openComments} comment(s), ${proposedSuggestions} suggestion(s), ${missingSourceArtifacts} source/evidence gap(s), ${unrevealedComparisons.length + hiddenJudgments.length} hidden comparison item(s), ${revealedJudgmentsWaitingOnRouteDecision.length} route decision(s), ${handoffsMissingRelatedArtifacts} handoff evidence gap(s).`,
     next,
     issueCount,
     openComments,
@@ -768,7 +814,7 @@ function reviewerReadinessBadge(
     missingSourceArtifacts,
     unrevealedComparisons: unrevealedComparisons.length,
     hiddenJudgments: hiddenJudgments.length,
-    revealedJudgments: revealedJudgments.length,
+    revealedJudgments: revealedJudgmentsWaitingOnRouteDecision.length,
     handoffsMissingRelatedArtifacts,
   };
 }

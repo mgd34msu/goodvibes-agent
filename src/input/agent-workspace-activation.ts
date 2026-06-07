@@ -4,7 +4,7 @@ import { createAgentDocumentAcceptSuggestionEditor, createAgentDocumentAttachArt
 import { createAgentDocumentReviewerReadinessEditor, createAgentDocumentReviewPacketWizardEditor } from './agent-workspace-document-ops-editor.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
-import { createAgentLocalModelBenchmarkEditor, createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareHandoffDiffEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor } from './agent-workspace-model-compare-editor.ts';
+import { createAgentLocalModelBenchmarkEditor, createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareHandoffDiffEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor, createAgentModelCompareRouteDecisionEditor } from './agent-workspace-model-compare-editor.ts';
 import { createAgentResearchReportEditor } from './agent-workspace-research-report-editor.ts';
 import { createAgentResearchRunEditor } from './agent-workspace-research-run-editor.ts';
 import { createAgentResearchSourceEditor } from './agent-workspace-research-source-editor.ts';
@@ -226,6 +226,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'model-compare-handoff-diff') return createAgentModelCompareHandoffDiffEditor(options.recentReviewerHandoffArtifacts ?? []);
   if (editorKind === 'model-compare-judge') return createAgentModelCompareJudgmentEditor();
   if (editorKind === 'model-compare-apply') return createAgentModelCompareApplyEditor(options.reviewPacketDefaults ?? null);
+  if (editorKind === 'model-compare-route-decision') return createAgentModelCompareRouteDecisionEditor(options.reviewPacketDefaults ?? null);
   if (editorKind === 'model-compare-export') return createAgentModelCompareExportEditor(options.reviewPacketDefaults ?? null);
   if (editorKind === 'model-compare-analytics') return createAgentModelCompareAnalyticsEditor();
   if (editorKind && isAgentWorkspaceBasicCommandEditorKind(editorKind)) return createAgentWorkspaceBasicCommandEditor(editorKind);

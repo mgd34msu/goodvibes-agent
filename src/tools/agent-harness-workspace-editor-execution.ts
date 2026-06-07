@@ -220,6 +220,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action applies a revealed saved comparison judgment to provider.model after explicit confirmation.',
     };
   }
+  if (editorKind === 'model-compare-route-decision') {
+    return {
+      route: 'agent_model_compare',
+      tool: 'agent_model_compare',
+      action: 'record_comparison_route_decision',
+      confirmation: 'required',
+      note: 'run_workspace_action saves a leave-unchanged route-decision receipt for a revealed comparison judgment without changing provider.model.',
+    };
+  }
   if (editorKind === 'model-compare-export') {
     return {
       route: 'agent_model_compare',

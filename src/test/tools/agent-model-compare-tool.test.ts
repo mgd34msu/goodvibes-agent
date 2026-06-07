@@ -644,7 +644,25 @@ describe('agent_model_compare tool', () => {
     expect(apply.output).toContain('Applied blind model comparison winner');
     expect(apply.output).toContain('selected model anthropic:claude-sonnet');
     expect(apply.output).toContain('previous model openai:gpt-4.1');
+    expect(apply.output).toContain('route decision receipt artifact-4');
     expect(reviewer.appliedModelRoutes).toEqual(['anthropic:claude-sonnet']);
+    expect(artifacts.inputs).toHaveLength(4);
+    expect(artifacts.inputs[3]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare-route-decision',
+      decision: 'applied-winner',
+      judgmentArtifactId: 'artifact-2',
+      winnerModel: 'anthropic:claude-sonnet',
+      previousModel: 'openai:gpt-4.1',
+      selectedModel: 'anthropic:claude-sonnet',
+    });
+    const applyReceiptPayload = JSON.parse(artifacts.inputs[3]?.text ?? '{}') as {
+      readonly schema?: string;
+      readonly decision?: string;
+      readonly selectedModel?: string;
+    };
+    expect(applyReceiptPayload.schema).toBe('goodvibes.agent.model_compare.route_decision.v1');
+    expect(applyReceiptPayload.decision).toBe('applied-winner');
+    expect(applyReceiptPayload.selectedModel).toBe('anthropic:claude-sonnet');
 
     const exportPreview = await reviewer.tool.execute({
       mode: 'export',
@@ -654,7 +672,7 @@ describe('agent_model_compare tool', () => {
     });
     expect(exportPreview.success).toBe(false);
     expect(exportPreview.error).toContain('comparison export preview');
-    expect(artifacts.inputs).toHaveLength(3);
+    expect(artifacts.inputs).toHaveLength(4);
 
     const comparisonExport = await reviewer.tool.execute({
       mode: 'export',
@@ -666,13 +684,13 @@ describe('agent_model_compare tool', () => {
     expect(comparisonExport.success).toBe(true);
     expect(comparisonExport.output).toContain('Blind model comparison export saved');
     expect(comparisonExport.output).toContain('source artifact-1 (comparison)');
-    expect(comparisonExport.output).toContain('artifact-4');
+    expect(comparisonExport.output).toContain('artifact-5');
     expect(comparisonExport.output).toContain('No selected model was changed.');
-    expect(artifacts.inputs).toHaveLength(4);
-    expect(artifacts.inputs[3]?.mimeType).toBe('text/markdown');
-    expect(artifacts.inputs[3]?.metadata?.purpose).toBe('agent-model-compare-export');
-    expect(artifacts.inputs[3]?.metadata?.sourceKind).toBe('comparison');
-    const comparisonExportText = artifacts.inputs[3]?.text ?? '';
+    expect(artifacts.inputs).toHaveLength(5);
+    expect(artifacts.inputs[4]?.mimeType).toBe('text/markdown');
+    expect(artifacts.inputs[4]?.metadata?.purpose).toBe('agent-model-compare-export');
+    expect(artifacts.inputs[4]?.metadata?.sourceKind).toBe('comparison');
+    const comparisonExportText = artifacts.inputs[4]?.text ?? '';
     expect(comparisonExportText).toContain('# Blind Model Comparison');
     expect(comparisonExportText).toContain('Candidate A style answer.');
     expect(comparisonExportText).toContain('Candidate B style answer.');
@@ -688,12 +706,12 @@ describe('agent_model_compare tool', () => {
     expect(judgmentExport.success).toBe(true);
     expect(judgmentExport.output).toContain('Blind model comparison export saved');
     expect(judgmentExport.output).toContain('source artifact-2 (judgment)');
-    expect(judgmentExport.output).toContain('artifact-5');
-    expect(artifacts.inputs).toHaveLength(5);
-    expect(artifacts.inputs[4]?.mimeType).toBe('text/markdown');
-    expect(artifacts.inputs[4]?.metadata?.purpose).toBe('agent-model-compare-export');
-    expect(artifacts.inputs[4]?.metadata?.sourceKind).toBe('judgment');
-    const judgmentExportText = artifacts.inputs[4]?.text ?? '';
+    expect(judgmentExport.output).toContain('artifact-6');
+    expect(artifacts.inputs).toHaveLength(6);
+    expect(artifacts.inputs[5]?.mimeType).toBe('text/markdown');
+    expect(artifacts.inputs[5]?.metadata?.purpose).toBe('agent-model-compare-export');
+    expect(artifacts.inputs[5]?.metadata?.sourceKind).toBe('judgment');
+    const judgmentExportText = artifacts.inputs[5]?.text ?? '';
     expect(judgmentExportText).toContain('# Blind Model Comparison Judgment');
     expect(judgmentExportText).toContain('Winner model: anthropic:claude-sonnet');
     expect(judgmentExportText).toContain('Candidate B was more concrete.');
@@ -704,6 +722,7 @@ describe('agent_model_compare tool', () => {
     expect(listAfterExport.output).toContain('artifact-1');
     expect(listAfterExport.output).not.toContain('artifact-4');
     expect(listAfterExport.output).not.toContain('artifact-5');
+    expect(listAfterExport.output).not.toContain('artifact-6');
 
     const analyticsAfterExport = await reviewer.tool.execute({
       mode: 'analytics',
@@ -713,6 +732,7 @@ describe('agent_model_compare tool', () => {
     expect(analyticsAfterExport.output).toContain('judgments 2; revealed 1; hidden 1');
     expect(analyticsAfterExport.output).not.toContain('artifact-4');
     expect(analyticsAfterExport.output).not.toContain('artifact-5');
+    expect(analyticsAfterExport.output).not.toContain('artifact-6');
     expect(analyticsAfterExport.output).not.toContain('Candidate B was more concrete.');
 
     const documentExport = await artifacts.store.create({
@@ -733,7 +753,7 @@ describe('agent_model_compare tool', () => {
         documentId: 'doc_launch',
       },
     });
-    expect(documentExport.id).toBe('artifact-6');
+    expect(documentExport.id).toBe('artifact-7');
 
     const sideBySide = await reviewer.tool.execute({
       mode: 'sideBySide',
@@ -745,20 +765,20 @@ describe('agent_model_compare tool', () => {
     expect(sideBySide.output).toContain('Blind model comparison side-by-side reviewer view');
     expect(sideBySide.output).toContain('Left pane: related document/artifact evidence');
     expect(sideBySide.output).toContain('Right pane: comparison evidence');
-    expect(sideBySide.output).toContain('artifact-6 launch-plan.md');
+    expect(sideBySide.output).toContain('artifact-7 launch-plan.md');
     expect(sideBySide.output).toContain('# Launch Plan');
     expect(sideBySide.output).toContain('winner Candidate B');
     expect(sideBySide.output).toContain('winner model anthropic:claude-sonnet');
     expect(sideBySide.output).toContain('create handoff agent_model_compare mode:"handoff"');
     expect(sideBySide.output).toContain('No selected model was changed.');
-    expect(artifacts.inputs).toHaveLength(6);
+    expect(artifacts.inputs).toHaveLength(7);
 
     const sideBySideList = await reviewer.tool.execute({ mode: 'sideBySide' });
     expect(sideBySideList.success).toBe(true);
     expect(sideBySideList.output).toContain('Saved blind comparison artifacts');
     expect(sideBySideList.output).toContain('mode:"sideBySide"');
     expect(sideBySideList.output).toContain('Choose a saved comparison or judgment artifactId');
-    expect(artifacts.inputs).toHaveLength(6);
+    expect(artifacts.inputs).toHaveLength(7);
 
     const handoffPreview = await reviewer.tool.execute({
       mode: 'handoff',
@@ -770,7 +790,7 @@ describe('agent_model_compare tool', () => {
     expect(handoffPreview.success).toBe(false);
     expect(handoffPreview.error).toContain('reviewer handoff preview');
     expect(handoffPreview.error).toContain(`related artifacts ${documentExport.id}`);
-    expect(artifacts.inputs).toHaveLength(6);
+    expect(artifacts.inputs).toHaveLength(7);
 
     const handoff = await reviewer.tool.execute({
       mode: 'handoff',
@@ -783,17 +803,17 @@ describe('agent_model_compare tool', () => {
     expect(handoff.output).toContain('Blind model comparison reviewer handoff saved');
     expect(handoff.output).toContain('source artifact-2 (judgment)');
     expect(handoff.output).toContain('related artifacts 1');
-    expect(handoff.output).toContain('artifact artifact-7');
+    expect(handoff.output).toContain('artifact artifact-8');
     expect(handoff.output).toContain('No selected model was changed.');
-    expect(artifacts.inputs).toHaveLength(7);
-    expect(artifacts.inputs[6]?.mimeType).toBe('text/markdown');
-    expect(artifacts.inputs[6]?.metadata).toMatchObject({
+    expect(artifacts.inputs).toHaveLength(8);
+    expect(artifacts.inputs[7]?.mimeType).toBe('text/markdown');
+    expect(artifacts.inputs[7]?.metadata).toMatchObject({
       purpose: 'agent-model-compare-handoff',
       sourceArtifactId: 'artifact-2',
       sourceKind: 'judgment',
       relatedArtifactIds: [documentExport.id],
     });
-    const handoffText = artifacts.inputs[6]?.text ?? '';
+    const handoffText = artifacts.inputs[7]?.text ?? '';
     expect(handoffText).toContain('# Blind Model Comparison Reviewer Handoff');
     expect(handoffText).toContain('## Related Artifacts');
     expect(handoffText).toContain('# Launch Plan');
@@ -805,7 +825,7 @@ describe('agent_model_compare tool', () => {
 
     const archivePreview = await reviewer.tool.execute({
       mode: 'handoffArchive',
-      artifactId: 'artifact-7',
+      artifactId: 'artifact-8',
       confirm: false,
       explicitUserRequest: 'Archive the reviewer handoff.',
     });
@@ -813,35 +833,35 @@ describe('agent_model_compare tool', () => {
     expect(archivePreview.error).toContain('reviewer handoff archive preview');
     expect(archivePreview.error).toContain('source artifact-2 (judgment)');
     expect(archivePreview.error).toContain(`related artifacts ${documentExport.id}`);
-    expect(artifacts.inputs).toHaveLength(7);
+    expect(artifacts.inputs).toHaveLength(8);
 
     const archive = await reviewer.tool.execute({
       mode: 'handoffArchive',
-      artifactId: 'artifact-7',
+      artifactId: 'artifact-8',
       confirm: true,
       explicitUserRequest: 'Archive the reviewer handoff.',
     });
     expect(archive.success).toBe(true);
     expect(archive.output).toContain('Blind model comparison reviewer handoff archive saved');
-    expect(archive.output).toContain('handoff artifact-7');
+    expect(archive.output).toContain('handoff artifact-8');
     expect(archive.output).toContain('source artifact-2 (judgment)');
     expect(archive.output).toContain('included artifacts 3');
-    expect(archive.output).toContain('archive artifact-8');
-    expect(archive.output).toContain('export agent_artifacts mode:"export" artifactId:"artifact-8"');
+    expect(archive.output).toContain('archive artifact-9');
+    expect(archive.output).toContain('export agent_artifacts mode:"export" artifactId:"artifact-9"');
     expect(archive.output).toContain('No selected model was changed.');
-    expect(artifacts.inputs).toHaveLength(8);
-    expect(artifacts.inputs[7]?.kind).toBe('archive');
-    expect(artifacts.inputs[7]?.mimeType).toBe('application/zip');
-    expect(artifacts.inputs[7]?.metadata).toMatchObject({
+    expect(artifacts.inputs).toHaveLength(9);
+    expect(artifacts.inputs[8]?.kind).toBe('archive');
+    expect(artifacts.inputs[8]?.mimeType).toBe('application/zip');
+    expect(artifacts.inputs[8]?.metadata).toMatchObject({
       purpose: 'agent-model-compare-handoff-archive',
-      handoffArtifactId: 'artifact-7',
+      handoffArtifactId: 'artifact-8',
       sourceArtifactId: 'artifact-2',
       sourceKind: 'judgment',
       relatedArtifactIds: [documentExport.id],
-      includedArtifactIds: ['artifact-7', 'artifact-2', documentExport.id],
+      includedArtifactIds: ['artifact-8', 'artifact-2', documentExport.id],
       artifactCount: 3,
     });
-    const archiveBytes = Buffer.from(String(artifacts.inputs[7]?.dataBase64 ?? ''), 'base64');
+    const archiveBytes = Buffer.from(String(artifacts.inputs[8]?.dataBase64 ?? ''), 'base64');
     const entries = unzipLocalEntries(archiveBytes);
     expect(entries.get('README.md')?.toString('utf-8')).toContain('GoodVibes Agent Comparison Handoff Archive');
     const manifest = JSON.parse(entries.get('manifest.json')?.toString('utf-8') ?? '{}') as {
@@ -863,7 +883,7 @@ describe('agent_model_compare tool', () => {
     const archiveList = await reviewer.tool.execute({ mode: 'handoffArchive' });
     expect(archiveList.success).toBe(true);
     expect(archiveList.output).toContain('Saved blind comparison reviewer handoffs');
-    expect(archiveList.output).toContain('artifact-7');
+    expect(archiveList.output).toContain('artifact-8');
 
     const documentExportV2 = await artifacts.store.create({
       kind: 'data',
@@ -884,7 +904,7 @@ describe('agent_model_compare tool', () => {
         documentId: 'doc_launch',
       },
     });
-    expect(documentExportV2.id).toBe('artifact-9');
+    expect(documentExportV2.id).toBe('artifact-10');
 
     const secondHandoff = await reviewer.tool.execute({
       mode: 'handoff',
@@ -894,17 +914,17 @@ describe('agent_model_compare tool', () => {
       explicitUserRequest: 'Create a second reviewer handoff for comparison.',
     });
     expect(secondHandoff.success).toBe(true);
-    expect(secondHandoff.output).toContain('artifact artifact-10');
+    expect(secondHandoff.output).toContain('artifact artifact-11');
 
     const handoffDiff = await reviewer.tool.execute({
       mode: 'handoffDiff',
-      leftArtifactId: 'artifact-7',
-      rightArtifactId: 'artifact-10',
+      leftArtifactId: 'artifact-8',
+      rightArtifactId: 'artifact-11',
     });
     expect(handoffDiff.success).toBe(true);
     expect(handoffDiff.output).toContain('Blind model comparison reviewer handoff visual diff');
-    expect(handoffDiff.output).toContain('left artifact-7');
-    expect(handoffDiff.output).toContain('right artifact-10');
+    expect(handoffDiff.output).toContain('left artifact-8');
+    expect(handoffDiff.output).toContain('right artifact-11');
     expect(handoffDiff.output).toContain('Metadata delta');
     expect(handoffDiff.output).toContain('related artifacts: changed');
     expect(handoffDiff.output).toContain('Section delta');
@@ -916,8 +936,8 @@ describe('agent_model_compare tool', () => {
 
     const relatedHandoffDiff = await reviewer.tool.execute({
       mode: 'handoffDiff',
-      leftArtifactId: 'artifact-7',
-      rightArtifactId: 'artifact-10',
+      leftArtifactId: 'artifact-8',
+      rightArtifactId: 'artifact-11',
       sectionId: 'related',
     });
     expect(relatedHandoffDiff.success).toBe(true);
@@ -930,7 +950,7 @@ describe('agent_model_compare tool', () => {
     expect(handoffDiffList.success).toBe(true);
     expect(handoffDiffList.output).toContain('Saved blind comparison reviewer handoffs');
     expect(handoffDiffList.output).toContain('leftArtifactId');
-    expect(handoffDiffList.output).toContain('artifact-10');
+    expect(handoffDiffList.output).toContain('artifact-11');
   });
 
   test('can deliberately skip artifact persistence', async () => {
@@ -948,6 +968,67 @@ describe('agent_model_compare tool', () => {
     expect(result.success).toBe(true);
     expect(result.output).toContain('artifact not saved (saveArtifact false)');
     expect(artifacts.inputs).toEqual([]);
+  });
+
+  test('records leave-unchanged route-decision receipts without changing model routing', async () => {
+    const artifacts = artifactStore();
+    const runner = fixture({ artifactStore: artifacts.store });
+
+    const run = await runner.tool.execute({
+      mode: 'run',
+      prompt: 'Compare route-decision wording.',
+      modelRefs: ['openai:gpt-4.1', 'anthropic:claude-sonnet'],
+      confirm: true,
+      explicitUserRequest: 'Compare route-decision wording.',
+    });
+    expect(run.success).toBe(true);
+
+    const reviewer = fixture({ artifactStore: artifacts.store });
+    const judgment = await reviewer.tool.execute({
+      mode: 'judge',
+      artifactId: 'artifact-1',
+      winnerBlindId: 'B',
+      reasons: 'Candidate B was better, but keep the current model for now.',
+      reveal: true,
+      confirm: true,
+      explicitUserRequest: 'Save the comparison winner.',
+    });
+    expect(judgment.success).toBe(true);
+
+    const preview = await reviewer.tool.execute({
+      mode: 'routeDecision',
+      artifactId: 'artifact-2',
+      decision: 'left-unchanged',
+      confirm: false,
+      explicitUserRequest: 'Leave the current model unchanged for this judgment.',
+    });
+    expect(preview.success).toBe(false);
+    expect(preview.error).toContain('route-decision preview');
+    expect(preview.error).toContain('decision left-unchanged');
+    expect(artifacts.inputs).toHaveLength(2);
+    expect(reviewer.appliedModelRoutes).toEqual([]);
+
+    const receipt = await reviewer.tool.execute({
+      mode: 'routeDecision',
+      artifactId: 'artifact-2',
+      decision: 'left-unchanged',
+      confirm: true,
+      explicitUserRequest: 'Leave the current model unchanged for this judgment.',
+    });
+    expect(receipt.success).toBe(true);
+    expect(receipt.output).toContain('Recorded blind model comparison route decision left-unchanged');
+    expect(receipt.output).toContain('route decision receipt artifact-3');
+    expect(receipt.output).toContain('No selected model was changed.');
+    expect(reviewer.appliedModelRoutes).toEqual([]);
+    expect(artifacts.inputs).toHaveLength(3);
+    expect(artifacts.inputs[2]?.metadata).toMatchObject({
+      purpose: 'agent-model-compare-route-decision',
+      decision: 'left-unchanged',
+      judgmentArtifactId: 'artifact-2',
+      winnerModel: 'anthropic:claude-sonnet',
+      currentModel: 'openai:gpt-4.1',
+      selectedModel: 'openai:gpt-4.1',
+    });
   });
 
   test('is registered in the model tool registry', () => {

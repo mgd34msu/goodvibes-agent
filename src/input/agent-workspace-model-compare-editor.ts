@@ -57,6 +57,14 @@ export interface AgentModelCompareApplyWorkspaceToolArgs {
   readonly explicitUserRequest: string;
 }
 
+export interface AgentModelCompareRouteDecisionWorkspaceToolArgs {
+  readonly mode: 'routeDecision';
+  readonly artifactId: string;
+  readonly decision: 'left-unchanged';
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
+}
+
 export interface AgentModelCompareExportWorkspaceToolArgs {
   readonly mode: 'export' | 'handoff' | 'handoffArchive';
   readonly artifactId: string;
@@ -256,6 +264,27 @@ export function createAgentModelCompareApplyEditor(defaults: AgentWorkspaceRevie
   };
 }
 
+export function createAgentModelCompareRouteDecisionEditor(defaults: AgentWorkspaceReviewPacketDefaults | null = null): AgentWorkspaceLocalEditor {
+  const artifactId = defaults?.revealedJudgmentArtifactId ?? '';
+  const artifactHint = defaults?.summary
+    ? `Default from latest revealed packet judgment. Packet default: ${defaults.summary}.`
+    : 'Saved revealed judgment artifact id such as artifact-123.';
+  return {
+    kind: 'model-compare-route-decision',
+    mode: 'create',
+    title: 'Record Route Decision',
+    selectedFieldIndex: 0,
+    message: artifactId
+      ? 'Record that the current Agent model route should stay unchanged for this revealed judgment.'
+      : 'Record that the current Agent model route should stay unchanged for a revealed saved judgment.',
+    fields: [
+      { id: 'artifactId', label: 'Judgment artifact id', value: artifactId, required: true, multiline: false, hint: artifactHint },
+      { id: 'decision', label: 'Decision', value: 'left-unchanged', required: true, multiline: false, hint: 'left-unchanged. Use Apply Compare Winner for route updates.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save the route-decision receipt without changing the selected model.' },
+    ],
+  };
+}
+
 export function createAgentModelCompareExportEditor(defaults: AgentWorkspaceReviewPacketDefaults | null = null): AgentWorkspaceLocalEditor {
   const defaultKind = defaults?.handoffArtifactId
     ? 'archive'
@@ -406,6 +435,19 @@ export function buildAgentModelCompareApplyToolArgs(
   return {
     mode: 'apply',
     artifactId: readField('artifactId').trim(),
+    confirm: true,
+    explicitUserRequest,
+  };
+}
+
+export function buildAgentModelCompareRouteDecisionToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentModelCompareRouteDecisionWorkspaceToolArgs {
+  return {
+    mode: 'routeDecision',
+    artifactId: readField('artifactId').trim(),
+    decision: 'left-unchanged',
     confirm: true,
     explicitUserRequest,
   };
@@ -828,6 +870,78 @@ export function buildAgentModelCompareApplyPromptSubmission(
       kind: 'guidance',
       title: 'Apply compare winner',
       detail: 'Submitted a confirmed request to apply a revealed comparison judgment to the selected model route.',
+      safety: 'safe',
+    },
+  };
+}
+
+export function buildAgentModelCompareRouteDecisionPromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!isAffirmative(readField('confirm'))) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        selectedFieldIndex: Math.max(0, editor.fields.findIndex((field) => field.id === 'confirm')),
+        message: 'Route decision not confirmed. Type yes, then press Enter.',
+      },
+      status: 'Route decision not confirmed.',
+      actionResult: {
+        kind: 'error',
+        title: 'Route decision not confirmed',
+        detail: 'Type yes on the confirmation field before saving a leave-unchanged route-decision receipt.',
+        safety: 'safe',
+      },
+    };
+  }
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the comparison route-decision receipt request from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const artifactId = readField('artifactId').trim();
+  const explicitUserRequest = 'Record that the revealed blind model comparison judgment should leave the current Agent model route unchanged.';
+  const prompt = [
+    'Record a blind model comparison route-decision receipt with the `agent_model_compare` tool.',
+    'Use mode:"routeDecision", decision:"left-unchanged", and confirm:true because this workspace form was explicitly confirmed by the user.',
+    `Use explicitUserRequest: ${JSON.stringify(explicitUserRequest)}.`,
+    artifactId ? `Use artifactId: ${JSON.stringify(artifactId)}.` : 'No artifactId was provided.',
+    'Do not change the selected model route from this form.',
+  ].join('\n');
+
+  return {
+    kind: 'prompt',
+    prompt,
+    status: 'Submitting comparison route-decision receipt request.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Record route decision',
+      detail: 'Submitted a confirmed request to save a leave-unchanged comparison route-decision receipt.',
       safety: 'safe',
     },
   };

@@ -130,6 +130,7 @@ export type AgentWorkspaceEditorKind =
   | 'model-compare-handoff-diff'
   | 'model-compare-judge'
   | 'model-compare-apply'
+  | 'model-compare-route-decision'
   | 'model-compare-export'
   | 'model-compare-analytics'
   | 'skill-bundle'
@@ -387,6 +388,7 @@ export type AgentWorkspaceReviewPacketTimelineEventKind =
   | 'compare'
   | 'compare-export'
   | 'judgment'
+  | 'route-decision'
   | 'handoff'
   | 'handoff-archive';
 
@@ -415,6 +417,8 @@ export interface AgentWorkspaceReviewPacketDefaults {
   readonly comparisonArtifactId: string | null;
   readonly judgmentArtifactId: string | null;
   readonly revealedJudgmentArtifactId: string | null;
+  readonly routeDecisionArtifactId: string | null;
+  readonly routeDecision: string | null;
   readonly handoffArtifactId: string | null;
   readonly handoffArchiveArtifactId: string | null;
   readonly relatedArtifactIds: readonly string[];

@@ -31,6 +31,7 @@ export interface AgentModelCompareToolArgs {
   readonly winnerBlindId?: unknown;
   readonly reasons?: unknown;
   readonly notes?: unknown;
+  readonly decision?: unknown;
   readonly limit?: unknown;
   readonly includeReasons?: unknown;
   readonly taskType?: unknown;
@@ -162,6 +163,7 @@ const MODE_REVIEW = 'review';
 const MODE_SIDE_BY_SIDE = 'sideBySide';
 const MODE_JUDGE = 'judge';
 const MODE_APPLY = 'apply';
+const MODE_ROUTE_DECISION = 'routeDecision';
 const MODE_EXPORT = 'export';
 const MODE_HANDOFF = 'handoff';
 const MODE_HANDOFF_ARCHIVE = 'handoffArchive';
@@ -888,6 +890,8 @@ function formatApplyPreview(judgment: LoadedComparisonJudgment): string {
 function formatApplyResult(input: {
   readonly judgment: LoadedComparisonJudgment;
   readonly result: AgentModelCompareRouteUpdateResult;
+  readonly receipt?: SavedComparisonArtifact | null;
+  readonly receiptError?: string | null;
 }): string {
   const lines = [
     `Applied blind model comparison winner ${input.judgment.judgmentId}`,
@@ -896,8 +900,123 @@ function formatApplyResult(input: {
     `selected model ${input.result.selectedModel}`,
   ];
   if (input.result.previousModel) lines.push(`previous model ${input.result.previousModel}`);
+  if (input.receipt) lines.push(`route decision receipt ${input.receipt.artifactId}${input.receipt.filename ? ` ${input.receipt.filename}` : ''}`);
+  if (input.receiptError) lines.push(`route decision receipt unavailable: ${input.receiptError}`);
   lines.push('Judgment and comparison artifacts were not changed.');
   return lines.join('\n');
+}
+
+type ComparisonRouteDecision = 'applied-winner' | 'left-unchanged';
+
+function parseRouteDecision(value: unknown): ComparisonRouteDecision | null {
+  const normalized = readString(value).toLowerCase().replace(/[\s_-]+/g, '');
+  if (normalized === 'leftunchanged' || normalized === 'leaveunchanged' || normalized === 'keepcurrent' || normalized === 'nochange' || normalized === 'unchanged') {
+    return 'left-unchanged';
+  }
+  if (normalized === 'appliedwinner' || normalized === 'applywinner' || normalized === 'apply') return 'applied-winner';
+  return null;
+}
+
+function routeDecisionArtifactText(input: {
+  readonly decisionId: string;
+  readonly decision: ComparisonRouteDecision;
+  readonly judgment: LoadedComparisonJudgment;
+  readonly route?: AgentModelCompareRouteUpdateResult | null;
+  readonly currentModel?: string | null;
+  readonly explicitUserRequest: string;
+}): string {
+  return `${JSON.stringify({
+    schema: 'goodvibes.agent.model_compare.route_decision.v1',
+    decisionId: input.decisionId,
+    decision: input.decision,
+    createdAt: new Date().toISOString(),
+    comparisonId: input.judgment.comparisonId,
+    judgmentId: input.judgment.judgmentId,
+    judgmentArtifactId: input.judgment.artifact.artifactId,
+    winnerBlindId: input.judgment.winnerBlindId,
+    winnerModel: input.judgment.winnerModel?.registryKey ?? null,
+    currentModel: input.currentModel ?? input.route?.selectedModel ?? null,
+    previousModel: input.route?.previousModel ?? null,
+    selectedModel: input.route?.selectedModel ?? input.currentModel ?? null,
+    explicitUserRequest: input.explicitUserRequest,
+    policy: {
+      mutation: input.decision === 'applied-winner' ? 'provider.model updated through confirmed apply' : 'provider.model intentionally left unchanged',
+      transcript: 'Route-decision evidence is saved as an artifact; comparison and judgment artifacts are not modified.',
+    },
+  }, null, 2)}\n`;
+}
+
+async function saveRouteDecisionArtifact(input: {
+  readonly artifactStore?: AgentModelCompareArtifactStore;
+  readonly decision: ComparisonRouteDecision;
+  readonly judgment: LoadedComparisonJudgment;
+  readonly route?: AgentModelCompareRouteUpdateResult | null;
+  readonly currentModel?: string | null;
+  readonly explicitUserRequest: string;
+}): Promise<SavedComparisonArtifact> {
+  if (!input.artifactStore) throw new Error('Cannot save route decision because the artifact store is unavailable.');
+  const decisionId = `rdec_${randomUUID()}`;
+  const descriptor = await input.artifactStore.create({
+    kind: 'data',
+    mimeType: 'application/json',
+    filename: `blind-model-comparison-route-decision-${decisionId}.json`,
+    text: routeDecisionArtifactText({
+      decisionId,
+      decision: input.decision,
+      judgment: input.judgment,
+      route: input.route,
+      currentModel: input.currentModel,
+      explicitUserRequest: input.explicitUserRequest,
+    }),
+    metadata: {
+      purpose: 'agent-model-compare-route-decision',
+      decisionId,
+      decision: input.decision,
+      comparisonId: input.judgment.comparisonId,
+      judgmentId: input.judgment.judgmentId,
+      judgmentArtifactId: input.judgment.artifact.artifactId,
+      winnerBlindId: input.judgment.winnerBlindId,
+      ...(input.judgment.winnerModel?.registryKey ? { winnerModel: input.judgment.winnerModel.registryKey } : {}),
+      ...(input.currentModel ? { currentModel: input.currentModel } : {}),
+      ...(input.route?.previousModel ? { previousModel: input.route.previousModel } : {}),
+      selectedModel: input.route?.selectedModel ?? input.currentModel ?? null,
+    },
+  });
+  return toSavedComparisonArtifact(descriptor);
+}
+
+function formatRouteDecisionPreview(input: {
+  readonly judgment: LoadedComparisonJudgment;
+  readonly decision: ComparisonRouteDecision;
+  readonly currentModel?: string | null;
+}): string {
+  return [
+    'Agent blind model comparison route-decision preview',
+    `  decision ${input.decision}`,
+    `  judgment ${input.judgment.judgmentId}`,
+    `  comparison ${input.judgment.comparisonId}`,
+    `  winner Candidate ${input.judgment.winnerBlindId}`,
+    `  winner model ${input.judgment.winnerModel?.registryKey ?? '(not revealed in judgment)'}`,
+    `  current model ${input.currentModel ?? '(unknown)'}`,
+    '  policy creates one local route-decision receipt and does not change model routing',
+  ].join('\n');
+}
+
+function formatRouteDecisionResult(input: {
+  readonly judgment: LoadedComparisonJudgment;
+  readonly decision: ComparisonRouteDecision;
+  readonly receipt: SavedComparisonArtifact;
+  readonly currentModel?: string | null;
+}): string {
+  return [
+    `Recorded blind model comparison route decision ${input.decision}`,
+    `comparison ${input.judgment.comparisonId}`,
+    `judgment ${input.judgment.judgmentId}`,
+    `winner Candidate ${input.judgment.winnerBlindId}`,
+    `current model ${input.currentModel ?? '(unknown)'}`,
+    `route decision receipt ${input.receipt.artifactId}${input.receipt.filename ? ` ${input.receipt.filename}` : ''}`,
+    'No selected model was changed.',
+  ].join('\n');
 }
 
 function incrementCount(map: Map<string, number>, key: string): void {
@@ -2064,7 +2183,7 @@ function formatPreview(
   ].join('\n');
 }
 
-function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' | 'judge' | 'apply' | 'export' | 'handoff' | 'handoffArchive' | 'handoffDiff' | 'analytics' | 'synthesis' {
+function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' | 'judge' | 'apply' | 'routeDecision' | 'export' | 'handoff' | 'handoffArchive' | 'handoffDiff' | 'analytics' | 'synthesis' {
   const mode = readString(value) || MODE_RUN;
   if (
     mode === MODE_RUN
@@ -2073,6 +2192,7 @@ function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' |
     || mode === MODE_SIDE_BY_SIDE
     || mode === MODE_JUDGE
     || mode === MODE_APPLY
+    || mode === MODE_ROUTE_DECISION
     || mode === MODE_EXPORT
     || mode === MODE_HANDOFF
     || mode === MODE_HANDOFF_ARCHIVE
@@ -2080,7 +2200,7 @@ function parseMode(value: unknown): 'run' | 'reveal' | 'review' | 'sideBySide' |
     || mode === MODE_ANALYTICS
     || mode === MODE_SYNTHESIS
   ) return mode;
-  throw new Error('mode must be run, reveal, review, sideBySide, judge, apply, export, handoff, handoffArchive, handoffDiff, analytics, or synthesis.');
+  throw new Error('mode must be run, reveal, review, sideBySide, judge, apply, routeDecision, export, handoff, handoffArchive, handoffDiff, analytics, or synthesis.');
 }
 
 function rememberComparison(store: Map<string, StoredComparison>, comparison: StoredComparison): void {
@@ -2377,13 +2497,13 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
   return {
     definition: {
       name: 'agent_model_compare',
-      description: 'Blind compare prompts/artifacts, review, handoff, diff.',
+      description: 'Blind compare prompts/artifacts, review, route decisions, handoff, diff.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
-            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_SIDE_BY_SIDE, MODE_JUDGE, MODE_APPLY, MODE_EXPORT, MODE_HANDOFF, MODE_HANDOFF_ARCHIVE, MODE_HANDOFF_DIFF, MODE_ANALYTICS, MODE_SYNTHESIS],
+            enum: [MODE_RUN, MODE_REVEAL, MODE_REVIEW, MODE_SIDE_BY_SIDE, MODE_JUDGE, MODE_APPLY, MODE_ROUTE_DECISION, MODE_EXPORT, MODE_HANDOFF, MODE_HANDOFF_ARCHIVE, MODE_HANDOFF_DIFF, MODE_ANALYTICS, MODE_SYNTHESIS],
             description: 'Select compare workflow mode.',
           },
           prompt: {
@@ -2467,6 +2587,11 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             type: 'string',
             description: 'Optional extra judgment notes.',
           },
+          decision: {
+            type: 'string',
+            enum: ['left-unchanged', 'leave-unchanged', 'keep-current', 'no-change', 'applied-winner'],
+            description: 'Route-decision receipt choice for routeDecision mode.',
+          },
           limit: {
             type: 'number',
             description: 'Max saved judgments to inspect.',
@@ -2486,7 +2611,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           },
           confirm: {
             type: 'boolean',
-            description: 'Required true for run, judge, apply, and export.',
+            description: 'Required true for provider calls and mutating modes.',
           },
           explicitUserRequest: {
             type: 'string',
@@ -2700,7 +2825,57 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
           await ensureSelectableWinnerModel(deps.modelCatalog, judgment.winnerModel.registryKey);
           const result = await deps.applyModelRoute(judgment.winnerModel.registryKey);
           await deps.modelCatalog.recordModelUsage?.(judgment.winnerModel.registryKey);
-          return output(formatApplyResult({ judgment, result }));
+          let receipt: SavedComparisonArtifact | null = null;
+          let receiptError: string | null = null;
+          try {
+            receipt = await saveRouteDecisionArtifact({
+              artifactStore: deps.artifactStore,
+              decision: 'applied-winner',
+              judgment,
+              route: result,
+              explicitUserRequest,
+            });
+          } catch (error) {
+            receiptError = error instanceof Error ? error.message : String(error);
+          }
+          return output(formatApplyResult({ judgment, result, receipt, receiptError }));
+        }
+
+        if (mode === MODE_ROUTE_DECISION) {
+          const artifactId = readString(args.artifactId);
+          const explicitUserRequest = readString(args.explicitUserRequest);
+          const decision = parseRouteDecision(args.decision);
+          if (!artifactId) return failure('routeDecision mode requires a saved judgment artifactId.');
+          if (!explicitUserRequest) {
+            return failure('explicitUserRequest is required so route-decision receipts stay tied to a direct user request.');
+          }
+          if (decision !== 'left-unchanged') {
+            return failure('routeDecision mode records leave-unchanged decisions. Use mode:"apply" to apply a revealed winner.');
+          }
+          if (!deps.artifactStore?.readContent || !deps.artifactStore.create) {
+            return failure('Route-decision receipts are unavailable because this runtime cannot read and create artifact content.');
+          }
+          const judgment = await loadJudgmentFromArtifact(deps.artifactStore, artifactId);
+          if (!judgment) return failure('Unknown judgment artifact. Pass a saved model comparison judgment artifactId.');
+          if (!judgment.revealIncludedInJudgment || !judgment.winnerModel?.registryKey) {
+            return failure('Judgment artifact does not include a revealed winner model. Save or reveal the judgment before recording a route decision.');
+          }
+          const currentModel = (await resolveCurrentModel(deps.modelCatalog))?.registryKey ?? null;
+          if (!readBoolean(args.confirm)) {
+            return failure([
+              formatRouteDecisionPreview({ judgment, decision, currentModel }),
+              '',
+              'Route-decision confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to leave the current model route unchanged.',
+            ].join('\n'));
+          }
+          const receipt = await saveRouteDecisionArtifact({
+            artifactStore: deps.artifactStore,
+            decision,
+            judgment,
+            currentModel,
+            explicitUserRequest,
+          });
+          return output(formatRouteDecisionResult({ judgment, decision, receipt, currentModel }));
         }
 
         if (mode === MODE_EXPORT) {

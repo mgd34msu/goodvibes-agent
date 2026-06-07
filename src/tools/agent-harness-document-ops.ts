@@ -144,6 +144,10 @@ function isModelCompareJudgmentArtifact(artifact: ArtifactDescriptor): boolean {
   return readMetadataString(artifact.filename).startsWith('blind-model-comparison-judgment-');
 }
 
+function isModelCompareRouteDecisionArtifact(artifact: ArtifactDescriptor): boolean {
+  return artifactPurpose(artifact) === 'agent-model-compare-route-decision';
+}
+
 function isModelCompareHandoffArtifact(artifact: ArtifactDescriptor): boolean {
   const purpose = artifactPurpose(artifact);
   if (purpose === 'agent-model-compare-handoff') return true;
@@ -191,6 +195,7 @@ function buildReviewerReadinessChecklist(
   const artifacts = readArtifacts(context);
   const comparisons = artifacts.filter(isModelCompareArtifact);
   const judgments = artifacts.filter(isModelCompareJudgmentArtifact);
+  const routeDecisions = artifacts.filter(isModelCompareRouteDecisionArtifact);
   const handoffs = artifacts.filter(isModelCompareHandoffArtifact);
   const revealedJudgments = judgments.filter((artifact) => (
     artifact.metadata.revealIncludedInJudgment === true
@@ -200,6 +205,12 @@ function buildReviewerReadinessChecklist(
     artifact.metadata.revealIncludedInJudgment !== true
     || readMetadataString(artifact.metadata.winnerModel).length === 0
   ));
+  const routeDecisionComparisonIds = new Set(routeDecisions.map((artifact) => readMetadataString(artifact.metadata.comparisonId)).filter(Boolean));
+  const routeDecisionJudgmentArtifactIds = new Set(routeDecisions.map((artifact) => readMetadataString(artifact.metadata.judgmentArtifactId)).filter(Boolean));
+  const revealedJudgmentsWaitingOnRouteDecision = revealedJudgments.filter((artifact) => {
+    const comparisonId = readMetadataString(artifact.metadata.comparisonId);
+    return !routeDecisionJudgmentArtifactIds.has(artifact.id) && (!comparisonId || !routeDecisionComparisonIds.has(comparisonId));
+  });
   const revealedComparisonIds = new Set(revealedJudgments.map((artifact) => readMetadataString(artifact.metadata.comparisonId)).filter(Boolean));
   const unrevealedComparisons = comparisons.filter((artifact) => {
     const comparisonId = readMetadataString(artifact.metadata.comparisonId);
@@ -215,7 +226,7 @@ function buildReviewerReadinessChecklist(
   const firstProposedSuggestionDocument = reviewDocuments.find((document) => document.suggestions.some((suggestion) => suggestion.status === 'proposed'));
   const firstUnrevealedComparison = unrevealedComparisons[0];
   const firstHiddenJudgment = hiddenJudgments[0];
-  const firstRevealedJudgment = revealedJudgments[0];
+  const firstRevealedJudgment = revealedJudgmentsWaitingOnRouteDecision[0];
   const firstHandoffMissingRelated = handoffs.find((artifact) => readMetadataStringList(artifact.metadata.relatedArtifactIds).length === 0);
 
   const checks: ReviewerReadinessCheck[] = [
@@ -282,16 +293,16 @@ function buildReviewerReadinessChecklist(
     {
       id: 'route-change-decision',
       label: 'Route-change decision',
-      status: revealedJudgments.length > 0 ? 'attention' : 'pass',
-      count: revealedJudgments.length,
-      detail: revealedJudgments.length > 0
-        ? `${revealedJudgments.length} revealed judgment(s) can drive a confirmed model route update, or the user can explicitly leave routing unchanged before archiving.`
+      status: revealedJudgmentsWaitingOnRouteDecision.length > 0 ? 'attention' : 'pass',
+      count: revealedJudgmentsWaitingOnRouteDecision.length,
+      detail: revealedJudgmentsWaitingOnRouteDecision.length > 0
+        ? `${revealedJudgmentsWaitingOnRouteDecision.length} revealed judgment(s) can drive a confirmed model route update, or the user can explicitly leave routing unchanged before archiving.`
         : 'No revealed model comparison judgment is waiting on an apply-or-leave-unchanged decision.',
       inspectRoute: firstRevealedJudgment
         ? `agent_model_compare review artifactId:"${firstRevealedJudgment.id}" reveal:true`
         : 'agent_harness mode:"model_routing"',
       repairRoute: firstRevealedJudgment
-        ? `agent_model_compare apply artifactId:"${firstRevealedJudgment.id}" confirm:true explicitUserRequest:"..."`
+        ? `agent_model_compare apply artifactId:"${firstRevealedJudgment.id}" confirm:true explicitUserRequest:"..." or agent_model_compare routeDecision artifactId:"${firstRevealedJudgment.id}" decision:"left-unchanged" confirm:true explicitUserRequest:"..."`
         : undefined,
     },
     {
@@ -325,7 +336,7 @@ function buildReviewerReadinessChecklist(
       savedComparisons: comparisons.length,
       unrevealedComparisons: unrevealedComparisons.length,
       hiddenJudgments: hiddenJudgments.length,
-      revealedJudgments: revealedJudgments.length,
+      revealedJudgments: revealedJudgmentsWaitingOnRouteDecision.length,
       handoffsMissingRelatedArtifacts,
     },
     checks,
@@ -539,6 +550,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-judge-compare',
     'document-compare-analytics',
     'document-apply-compare',
+    'document-record-route-decision',
     'document-export-compare',
     'artifact-review-compare',
     'artifact-diff-handoffs',
@@ -752,6 +764,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       ],
       actionIds: existingActions([
         'document-review-packet-wizard',
+        'document-record-route-decision',
         ...snapshot.reviewPacketWizard.steps.map((step) => step.actionId),
       ], available),
       reviewPacketWizard: snapshot.reviewPacketWizard,
@@ -818,9 +831,9 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       id: 'model_compare',
       label: 'Blind Model Compare',
       status: modelCompareReady ? 'partial' : 'gap',
-      outcome: 'Run the same prompt across multiple models, hide model identities while judging, save a judgment, then apply the revealed winner only after confirmation.',
+      outcome: 'Run the same prompt across multiple models, hide model identities while judging, save a judgment, then apply the revealed winner or record leave-unchanged evidence only after confirmation.',
       current: modelCompareReady
-        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt or saved text artifact delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, side-by-side reviewer views, visual reviewer handoff diffs, confirmed saved judgment artifacts, task/document/benchmark-filtered preference analytics/synthesis, markdown report export, reviewer handoff artifacts, one-click reviewer handoff ZIP archives with source evidence, and a separate confirmed winner route update.'
+        ? 'Agent has a confirmed blind comparison runner with selectable or auto-selected candidates, identical prompt or saved text artifact delivery, rubric capture, delayed reveal, durable JSON comparison artifacts, read-only saved review boards, side-by-side reviewer views, visual reviewer handoff diffs, confirmed saved judgment artifacts, task/document/benchmark-filtered preference analytics/synthesis, markdown report export, reviewer handoff artifacts, one-click reviewer handoff ZIP archives with source evidence, separate confirmed winner route updates, and leave-unchanged route-decision receipts.'
         : 'Model routing and model catalog inspection exist, but Agent does not have a blind side-by-side comparison runner or saved comparison artifacts.',
       next: modelCompareReady
         ? 'Use cross-session synthesis and reviewer handoff ZIP archives around saved comparison, judgment, export, route-update, and source-artifact reuse artifacts.'
@@ -836,6 +849,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Saved judgment artifact: ${modelCompareActions.includes('document-judge-compare') ? 'available' : 'gap'}`,
         `Saved preference analytics/synthesis with task/document/benchmark filters: ${modelCompareActions.includes('document-compare-analytics') ? 'available' : 'gap'}`,
         `Winner route update: ${modelCompareActions.includes('document-apply-compare') ? 'available' : 'gap'}`,
+        `Leave-unchanged route receipt: ${modelCompareActions.includes('document-record-route-decision') ? 'available' : 'gap'}`,
         `Markdown export/handoff/archive: ${modelCompareActions.includes('document-export-compare') ? 'available' : 'gap'}`,
       ],
       actionIds: modelCompareActions,

@@ -7964,6 +7964,47 @@ describe('agent_harness tool', () => {
       expect(apply.output).toContain('"status": "executed_model_tool"');
       expect(apply.output).toContain('"tool": "agent_model_compare"');
       expect(apply.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'apply',
+        artifactId: 'artifact-2',
+        confirm: true,
+      });
+
+      const routeDecisionUnconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-record-route-decision',
+        fields: {
+          artifactId: 'artifact-2',
+          decision: 'left-unchanged',
+          confirm: 'no',
+        },
+        confirm: true,
+        explicitUserRequest: 'Leave comparison route unchanged.',
+      });
+      expect(routeDecisionUnconfirmed.success).toBe(true);
+      expect(routeDecisionUnconfirmed.output).toContain('"status": "not_confirmed"');
+
+      const routeDecision = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-record-route-decision',
+        fields: {
+          artifactId: 'artifact-2',
+          decision: 'left-unchanged',
+          confirm: 'yes',
+        },
+        confirm: true,
+        explicitUserRequest: 'Leave comparison route unchanged.',
+      });
+      expect(routeDecision.success).toBe(true);
+      expect(routeDecision.output).toContain('"status": "executed_model_tool"');
+      expect(routeDecision.output).toContain('"tool": "agent_model_compare"');
+      expect(routeDecision.output).toContain('agent_model_compare executed');
+      expect(modelCompareCalls.at(-1)).toMatchObject({
+        mode: 'routeDecision',
+        artifactId: 'artifact-2',
+        decision: 'left-unchanged',
+        confirm: true,
+      });
 
       const exportUnconfirmed = await fixture.tool.execute({
         mode: 'run_workspace_action',

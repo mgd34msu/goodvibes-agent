@@ -152,6 +152,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
     || editorKind === 'model-compare-review'
     || editorKind === 'model-compare-judge'
     || editorKind === 'model-compare-apply'
+    || editorKind === 'model-compare-route-decision'
     || editorKind === 'model-compare-export'
     || editorKind === 'model-compare-analytics'
   ) return 'agent_model_compare';

@@ -5,7 +5,7 @@ import { buildAgentDocumentReviewerReadinessPromptSubmission, buildAgentDocument
 import { buildAgentDocumentPromptSubmission } from './agent-workspace-document-editor.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
-import { buildAgentModelCompareAnalyticsPromptSubmission, buildAgentModelCompareApplyPromptSubmission, buildAgentModelCompareExportPromptSubmission, buildAgentModelCompareHandoffDiffPromptSubmission, buildAgentModelCompareJudgmentPromptSubmission, buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission } from './agent-workspace-model-compare-editor.ts';
+import { buildAgentModelCompareAnalyticsPromptSubmission, buildAgentModelCompareApplyPromptSubmission, buildAgentModelCompareExportPromptSubmission, buildAgentModelCompareHandoffDiffPromptSubmission, buildAgentModelCompareJudgmentPromptSubmission, buildAgentModelComparePromptSubmission, buildAgentModelCompareReviewPromptSubmission, buildAgentModelCompareRouteDecisionPromptSubmission } from './agent-workspace-model-compare-editor.ts';
 import { buildAgentResearchReportPromptSubmission } from './agent-workspace-research-report-editor.ts';
 import { buildAgentResearchRunPromptSubmission } from './agent-workspace-research-run-editor.ts';
 import { buildAgentResearchSourcePromptSubmission } from './agent-workspace-research-source-editor.ts';
@@ -50,6 +50,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'model-compare-handoff-diff'
   | 'model-compare-judge'
   | 'model-compare-apply'
+  | 'model-compare-route-decision'
   | 'model-compare-export'
   | 'model-compare-analytics'
   | 'mcp-server'
@@ -150,6 +151,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'model-compare-handoff-diff'
     || kind === 'model-compare-judge'
     || kind === 'model-compare-apply'
+    || kind === 'model-compare-route-decision'
     || kind === 'model-compare-export'
     || kind === 'model-compare-analytics'
     || kind === 'routine-schedule'
@@ -228,6 +230,9 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'model-compare-apply') {
     return buildAgentModelCompareApplyPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'model-compare-route-decision') {
+    return buildAgentModelCompareRouteDecisionPromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (editor.kind === 'model-compare-export') {
     return buildAgentModelCompareExportPromptSubmission(editor, readField, promptDispatchAvailable);

@@ -5,7 +5,7 @@ import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactExportToolArgs, bu
 import { buildAgentDocumentReviewerReadinessToolArgs, buildAgentDocumentReviewPacketWizardToolArgs } from '../input/agent-workspace-document-ops-editor.ts';
 import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
-import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareHandoffDiffToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
+import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareHandoffDiffToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareRouteDecisionToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
 import { buildAgentResearchReportToolArgs } from '../input/agent-workspace-research-report-editor.ts';
 import { buildAgentResearchRunToolArgs } from '../input/agent-workspace-research-run-editor.ts';
 import { buildAgentResearchSourceToolArgs } from '../input/agent-workspace-research-source-editor.ts';
@@ -783,6 +783,38 @@ async function runWorkspaceEditorAction(
       'agent-harness-workspace-model-compare-apply',
       'agent_model_compare',
       applyToolArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_model_compare',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+
+  if (editor.kind === 'model-compare-route-decision') {
+    const confirmationError = requireConfirmedAction(args, 'Workspace comparison route decision');
+    if (confirmationError) return error(confirmationError);
+    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+      return output({
+        status: 'not_confirmed',
+        action: action.id,
+        editor: describeWorkspaceEditor(editor),
+        modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+        note: 'Type yes in the editor confirmation field before saving the route-decision receipt.',
+      });
+    }
+    const routeDecisionToolArgs = buildAgentModelCompareRouteDecisionToolArgs(
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Record a leave-unchanged blind model comparison route decision from an Agent workspace action.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-model-compare-route-decision',
+      'agent_model_compare',
+      routeDecisionToolArgs as unknown as Record<string, unknown>,
     );
     return output({
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',
