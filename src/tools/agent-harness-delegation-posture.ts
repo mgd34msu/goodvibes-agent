@@ -92,7 +92,7 @@ function routes(): readonly DelegationRoute[] {
       requiredFields: ['full original user ask', 'delegation reason', 'success criteria or expected evidence'],
       optionalFields: ['workspace/worktree hint', 'deadline/priority', 'review requested yes/no'],
       successEvidence: ['delegation receipt/session id', 'status update', 'diff or artifact summary', 'verification result when available'],
-      statusRoutes: ['/delegate status', '/health remote', 'agent_harness mode:"delegation_posture"'],
+      statusRoutes: ['/delegate status', '/health remote', 'delegation action:"status"'],
       recoveryRoutes: ['Open GoodVibes TUI shared session', 'Use local Agent read/edit/exec when the current workspace is sufficient'],
       commandTemplate: '/delegate <full original user ask>',
       workspaceActionId: 'delegate-task',
@@ -113,7 +113,7 @@ function routes(): readonly DelegationRoute[] {
       requiredFields: ['full original user ask', 'explicit review request', 'review focus', 'success criteria or expected evidence'],
       optionalFields: ['files/components in scope', 'known risks', 'deadline/priority'],
       successEvidence: ['review receipt/session id', 'findings or approval summary', 'artifact/diff references', 'follow-up questions when blocked'],
-      statusRoutes: ['/delegate status', '/health remote', 'agent_harness mode:"delegation_route" delegationRouteId:"delegate-build-task-with-review"'],
+      statusRoutes: ['/delegate status', '/health remote', 'delegation action:"route" delegationRouteId:"delegate-build-task-with-review"'],
       recoveryRoutes: ['Use local Agent review when the current workspace is sufficient', 'Open GoodVibes TUI shared session for review follow-up'],
       commandTemplate: '/delegate --review <full original user ask>',
       workspaceActionId: 'delegate-task',
@@ -190,7 +190,7 @@ function routes(): readonly DelegationRoute[] {
       optionalFields: ['visible work-plan item', 'delegation reason', 'success criteria'],
       successEvidence: ['chosen visible route', 'confirmation receipt when delegated'],
       statusRoutes: ['agent_harness mode:"execution_posture"', 'autonomy action:"intake"'],
-      recoveryRoutes: ['agent_harness mode:"delegation_posture"', 'Agent Workspace -> Work plan'],
+      recoveryRoutes: ['delegation action:"status"', 'Agent Workspace -> Work plan'],
       reviewPolicy: 'not-applicable',
     },
   ];
@@ -326,9 +326,7 @@ function describeCandidate(route: DelegationRoute): Record<string, unknown> {
 }
 
 function delegationRouteModelRoute(route: DelegationRoute): string {
-  if (route.workspaceActionId) return 'agent_harness mode:"run_workspace_action"';
-  if (route.command || route.commandTemplate) return 'agent_harness mode:"run_command"';
-  return route.effect === 'main-conversation' ? 'main conversation' : 'agent_harness mode:"delegation_route"';
+  return route.effect === 'main-conversation' ? 'main conversation' : `delegation action:"route" id:"${route.id}"`;
 }
 
 function describeRoute(
@@ -368,12 +366,12 @@ function describeRoute(
         mutation: 'Delegated work submission stays a visible confirmed workspace or slash-command flow and must preserve the full original user ask.',
       },
       modelAccess: {
-        inspectDelegation: 'agent_harness mode:"delegation_posture"',
-        inspectRoute: 'agent_harness mode:"delegation_route"',
-        workspaceAction: route.workspaceActionId ? `agent_harness mode:"workspace_action" actionId:"${route.workspaceActionId}"` : null,
-        runWorkspaceAction: route.workspaceActionId ? `agent_harness mode:"run_workspace_action" actionId:"${route.workspaceActionId}" confirm:true explicitUserRequest:"..."` : null,
-        runCommand: route.command ? `agent_harness mode:"run_command" command:"${route.command}" confirm:true explicitUserRequest:"..."` : null,
-        runCommandTemplate: route.commandTemplate ? `agent_harness mode:"run_command" command:"${route.commandTemplate}" confirm:true explicitUserRequest:"..."` : null,
+        inspectDelegation: 'delegation action:"status"',
+        inspectRoute: 'delegation action:"route"',
+        workspaceAction: route.workspaceActionId ? `workspace action:"action" actionId:"${route.workspaceActionId}"` : null,
+        runWorkspaceAction: route.workspaceActionId ? `workspace action:"run" actionId:"${route.workspaceActionId}" confirm:true explicitUserRequest:"..."` : null,
+        runCommand: route.command ? `workspace action:"run_command" command:"${route.command}" confirm:true explicitUserRequest:"..."` : null,
+        runCommandTemplate: route.commandTemplate ? `workspace action:"run_command" command:"${route.commandTemplate}" confirm:true explicitUserRequest:"..."` : null,
       },
     } : {}),
   };
@@ -419,7 +417,7 @@ export function describeHarnessDelegationRoute(context: CommandContext, args: Ag
   if (!lookup) {
     return {
       status: 'missing_lookup',
-      usage: 'delegation_route requires delegationRouteId, target, or query. Use mode:"delegation_posture" to inspect delegation route ids.',
+      usage: 'delegation action:"route" requires delegationRouteId, target, or query. Use delegation action:"status" to inspect delegation route ids.',
     };
   }
   const all = routes();
@@ -439,6 +437,6 @@ export function describeHarnessDelegationRoute(context: CommandContext, args: Ag
   }
   return {
     status: 'missing_lookup',
-    usage: `Unknown delegation route ${lookup.input}. Use mode:"delegation_posture" to inspect delegation route ids.`,
+    usage: `Unknown delegation route ${lookup.input}. Use delegation action:"status" to inspect delegation route ids.`,
   };
 }

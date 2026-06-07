@@ -222,7 +222,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     researchQueue: 'Prefer research action:"sources|source|bundle"; lower-level mode:"research_queue" and mode:"research_source" inspect source posture; capture/review/report/ingest stay confirmed.',
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, review packet wizard, reviewer readiness, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'Prefer device action:"status|capability" for device maps. Lower-level mode:"pairing_posture" and mode:"pairing_route" remain available; raw token/QR and pairing effects stay visible user flows.',
-    delegationPosture: 'List mode:"delegation_posture"; inspect mode:"delegation_route"; delegated submission stays confirmed visible flow.',
+    delegationPosture: 'Prefer delegation action:"status|routes|route"; delegated submission stays confirmed visible flow.',
     securityPosture: 'List mode:"security_posture"; inspect mode:"security_finding"; mutate only through confirmed security routes.',
     supportBundles: 'List mode:"support_bundles"; inspect mode:"support_bundle"; export/import stays confirmation-gated.',
     mediaPosture: 'Prefer device action:"voice|provider" for voice/media posture. Lower-level mode:"media_posture" and mode:"media_provider" remain available; generate with agent_media_generate and confirmation.',

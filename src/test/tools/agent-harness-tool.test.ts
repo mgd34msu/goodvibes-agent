@@ -4772,7 +4772,7 @@ describe('agent_harness tool', () => {
 
       const delegated = posture.routes.find((route) => route.executionRouteId === 'delegation-isolation-parallel-remote');
       expect(delegated?.availability).toBe('ready');
-      expect(delegated?.nextStep).toContain('delegation_posture');
+      expect(delegated?.nextStep).toContain('delegation action:"status"');
       expect(posture.summary.delegationDecisionCards.map((card) => card.lane)).toEqual(expect.arrayContaining([
         'local-first',
         'tui-shared-session',

@@ -59,6 +59,9 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('autonomy', { action: 'intake' })).toBe('read');
     expect(manager.getCategory('autonomy', { action: 'queue' })).toBe('read');
     expect(manager.getCategory('autonomy', { action: 'item' })).toBe('read');
+    expect(manager.getCategory('delegation', { action: 'status' })).toBe('read');
+    expect(manager.getCategory('delegation', { action: 'routes' })).toBe('read');
+    expect(manager.getCategory('delegation', { action: 'route' })).toBe('read');
     expect(manager.getCategory('channels', { action: 'triage' })).toBe('read');
     expect(manager.getCategory('channels', { action: 'deliveries' })).toBe('read');
     expect(manager.getCategory('context', { action: 'files' })).toBe('read');
@@ -139,6 +142,8 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
     expect(manager.getCategory('autonomy')).toBe('read');
     expect(manager.getCategory('autonomy', { mode: 'autonomy_queue_item' })).toBe('read');
+    expect(manager.getCategory('delegation')).toBe('read');
+    expect(manager.getCategory('delegation', { mode: 'delegation_route' })).toBe('read');
     expect(manager.getCategory('channels')).toBe('read');
     expect(manager.getCategory('channels', { mode: 'channel_setup_guide' })).toBe('read');
     expect(manager.getCategory('context')).toBe('read');
@@ -202,6 +207,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('agent_review_packet_presets', { mode: 'refresh' })).resolves.toBe(false);
     await expect(manager.check('autonomy', { action: 'intake' })).resolves.toBe(true);
     await expect(manager.check('autonomy', { action: 'queue' })).resolves.toBe(true);
+    await expect(manager.check('delegation', { action: 'status' })).resolves.toBe(true);
+    await expect(manager.check('delegation', { action: 'route' })).resolves.toBe(true);
     await expect(manager.check('channels', { action: 'setup' })).resolves.toBe(true);
     await expect(manager.check('context', { action: 'prompt' })).resolves.toBe(true);
     await expect(manager.check('device', { action: 'voice' })).resolves.toBe(true);

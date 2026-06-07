@@ -21,6 +21,7 @@ const READ_TOOL_NAMES = new Set([
   'autonomy',
   'channels',
   'context',
+  'delegation',
   'device',
   'host',
   'memory',
@@ -67,6 +68,7 @@ const READ_ONLY_DEVICE_ACTIONS = new Set(['', 'status', 'map', 'capabilities', '
 const READ_ONLY_MODELS_ACTIONS = new Set(['', 'status', 'routing', 'routes', 'models', 'model', 'readiness', 'route_readiness', 'route', 'model_route', 'inspect', 'show', 'candidate', 'endpoint', 'local', 'cookbook', 'local_cookbook', 'recipes', 'recipe', 'ollama', 'llama_cpp', 'llamacpp', 'vllm', 'local_servers', 'providers', 'provider_accounts', 'accounts', 'subscriptions', 'auth', 'logins', 'provider', 'provider_account', 'account', 'subscription', 'auth_status']);
 const READ_ONLY_WORKSPACE_ACTIONS = new Set(['', 'status', 'summary', 'home', 'workspace', 'categories', 'workspace_categories', 'actions', 'list_actions', 'workspace_actions', 'tasks', 'action', 'show', 'inspect', 'workspace_action', 'surfaces', 'ui_surfaces', 'screens', 'views', 'surface', 'ui_surface', 'screen', 'view', 'panels', 'panes', 'panel', 'pane', 'shortcuts', 'shortcut_help', 'help', 'keybindings', 'bindings', 'keys', 'keybinding', 'binding', 'key', 'commands', 'slash_commands', 'command_catalog', 'command', 'slash_command', 'inspect_command', 'cli_commands', 'cli_catalog', 'cli_command', 'inspect_cli_command']);
 const READ_ONLY_AUTONOMY_ACTIONS = new Set(['', 'intake', 'request', 'route', 'plan', 'triage', 'autonomy_intake', 'queue', 'list', 'work', 'ongoing', 'autonomy_queue', 'item', 'card', 'show', 'inspect', 'autonomy_queue_item', 'status', 'summary', 'overview']);
+const READ_ONLY_DELEGATION_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'policy', 'decision', 'decisions', 'delegation_posture', 'routes', 'list', 'catalog', 'posture', 'route', 'item', 'card', 'show', 'inspect', 'delegation_route']);
 
 type MarkedPermissionManager = PermissionManagerLike & { [SAFETY_MARKER]?: true };
 
@@ -242,6 +244,14 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_AUTONOMY_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'delegation') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase().replace(/-/g, '_')
+        : '';
+    return READ_ONLY_DELEGATION_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'agent_artifacts') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';

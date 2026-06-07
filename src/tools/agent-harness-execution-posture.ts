@@ -143,9 +143,9 @@ function routeDefinitions(): readonly ExecutionRoute[] {
       effect: 'delegated-work',
       preferredWhen: 'The task needs a remote host, isolated worktree, parallel agent, separate coding UI, or user-requested delegated review.',
       useInsteadWhen: 'Use local read/edit/exec when the current workspace and permissions are sufficient for a normal implementation or verification task.',
-      modelRoute: 'agent_harness delegation_route',
+      modelRoute: 'delegation action:"status"',
       safety: 'Delegated work submission must preserve the full original ask and remain visible and confirmation-gated.',
-      nextStep: 'Inspect delegation_posture or delegation_route before submitting a confirmed handoff.',
+      nextStep: 'Inspect delegation action:"status" or action:"route" before submitting a confirmed handoff.',
     },
   ];
 }
@@ -289,7 +289,7 @@ function describeRoute(
           inspectPosture: 'agent_harness mode:"execution_posture"',
           inspectRoute: `agent_harness mode:"execution_route" executionRouteId:"${route.id}"`,
           inspectTools: 'agent_harness mode:"tools"',
-          inspectDelegation: 'agent_harness mode:"delegation_posture"',
+          inspectDelegation: 'delegation action:"status"',
           inspectFileRecovery: route.recoveryRoute ?? 'agent_harness mode:"file_recovery"',
         },
       }

@@ -430,7 +430,7 @@ function managedExecutionPlan(
         label: 'Intake and lane selection',
         status: 'ready',
         purpose: 'Choose serial chat, one visible agent, batch agents, delegated review, or remote inspection based on user outcome.',
-        routes: ['agent_harness mode:"delegation_posture"', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"agent_orchestration"', 'agent_work_plan action:"dispatch_agents" ids:["..."] confirm:true explicitUserRequest:"..."'],
+        routes: ['delegation action:"status"', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"agent_orchestration"', 'agent_work_plan action:"dispatch_agents" ids:["..."] confirm:true explicitUserRequest:"..."'],
       },
       {
         id: 'visible-agent-work',
@@ -450,9 +450,9 @@ function managedExecutionPlan(
         contracts: contracts.length,
         artifacts: artifacts.length,
         routes: {
-          pools: remoteToolAvailable ? 'remote { mode: "pools", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
-          contracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
-          artifacts: remoteToolAvailable ? 'remote { mode: "artifacts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
+          pools: remoteToolAvailable ? 'remote { mode: "pools", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
+          contracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
+          artifacts: remoteToolAvailable ? 'remote { mode: "artifacts", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
         },
       },
       {
@@ -463,7 +463,7 @@ function managedExecutionPlan(
         dispatchReceipts: dispatchReceiptCount,
         autoAttachedRemoteArtifacts: artifacts.length,
         requiredEvidence: ['changed files or artifact', 'test or verification output', 'agent status', 'recovery route when writes happened'],
-        routes: ['agent_harness mode:"agent_orchestration"', 'agent_harness mode:"execution_history"', 'agent_harness mode:"file_recovery"', 'agent_harness mode:"delegation_posture"', 'agent_work_plan action:"list"'],
+        routes: ['agent_harness mode:"agent_orchestration"', 'agent_harness mode:"execution_history"', 'agent_harness mode:"file_recovery"', 'delegation action:"status"', 'agent_work_plan action:"list"'],
       },
     ],
     workItems: items,
@@ -482,8 +482,8 @@ function managedExecutionPlan(
       spawn: 'agent { mode: "spawn" }',
       batchSpawn: 'agent { mode: "batch-spawn" }',
       listAgents: 'agent { mode: "list" }',
-      remoteContracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
-      remoteArtifacts: remoteToolAvailable ? 'remote { mode: "artifacts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
+      remoteContracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
+      remoteArtifacts: remoteToolAvailable ? 'remote { mode: "artifacts", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
     },
     policy: 'Managed execution plans are read-only summaries. Parallel work must remain visible, cancellable, attached to evidence, and justified by user outcome.',
   };
@@ -574,7 +574,7 @@ function decisionCards(agentToolAvailable: boolean): readonly Record<string, unk
       label: 'Block hidden fanout',
       status: 'blocked',
       chooseWhen: ['A request implies invisible background agents, unmanaged parallel coding workers, or orphaned jobs.'],
-      saferRoutes: ['visible work plan', 'research run', 'confirmed schedule', 'agent { mode: "spawn" }', 'agent_harness mode:"delegation_posture"'],
+      saferRoutes: ['visible work plan', 'research run', 'confirmed schedule', 'agent { mode: "spawn" }', 'delegation action:"status"'],
     },
   ];
 }

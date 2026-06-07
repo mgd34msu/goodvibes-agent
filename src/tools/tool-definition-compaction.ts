@@ -10,6 +10,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   channel: 'Inspect or operate configured channel surfaces.',
   channels: 'Inspect channel readiness, setup, triage, and receipts.',
   context: 'Inspect project instructions and prompt context.',
+  delegation: 'Inspect build delegation routes and policy.',
   control: 'Inspect commands, panels, and runtime posture.',
   device: 'Inspect/open device, voice, and browser routes.',
   edit: 'Edit files with exact, fuzzy, or regex replacements.',

@@ -1978,7 +1978,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'diagnostic',
           effect: 'read-only',
           userRoute: item.userRoute,
-          modelRoute: 'agent_harness mode:"delegation_posture" includeParameters:true',
+          modelRoute: 'delegation action:"status" includeParameters:true',
           nextStep: 'Check explicit GoodVibes TUI handoff routes and boundaries before delegating code work.',
           safety: 'Read-only delegation posture; no task is delegated.',
         }),
@@ -2254,7 +2254,7 @@ function buildSetupPlan(
       reason: tuiDelegation.detail,
       nextAction: 'Use delegation for explicit build, fix, review, isolation, or parallelism work rather than as a setup prerequisite.',
       userRoute: 'Agent Workspace -> Home -> Connected host',
-      modelRoute: 'agent_harness mode:"delegation_posture"',
+      modelRoute: 'delegation action:"status"',
       relatedSetupItemId: tuiDelegation.id,
     },
     {

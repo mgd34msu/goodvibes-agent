@@ -482,7 +482,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
       label: 'Delegate isolated build/fix/review work',
       confidence: 'medium',
       why: 'The request asks for implementation work in the background, parallel, or delegated path.',
-      modelRoute: 'agent_harness mode:"delegation_posture"',
+      modelRoute: 'delegation action:"status"',
       inspectRoute: 'autonomy action:"item" queueItemId:"delegated-subagents"',
       requiresConfirmation: true,
       missingFields: ['task scope', 'repo/worktree target', 'review expectation'],
