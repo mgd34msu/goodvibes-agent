@@ -923,6 +923,12 @@ describe('agent_harness tool', () => {
             readonly currentStepLabel: string;
             readonly reviewRoute: string;
           };
+          readonly setupCloseout?: {
+            readonly status: string;
+            readonly primaryStepId: string | null;
+            readonly modelRoute: string;
+            readonly requiresConfirmation: boolean;
+          };
         };
       }>(fixture, { mode: 'summary', includeParameters: true });
       expect(summary.setupPosture?.planItems).toBeGreaterThanOrEqual(7);
@@ -934,6 +940,12 @@ describe('agent_harness tool', () => {
       expect(summary.setupPosture?.setupWizard?.currentStepId).toBe('connected-host-auth');
       expect(summary.setupPosture?.setupWizard?.currentStepLabel).toBe('Connected-host auth');
       expect(summary.setupPosture?.setupWizard?.reviewRoute).toContain('setup_posture');
+      expect(summary.setupPosture?.setupCloseout).toMatchObject({
+        status: 'blocked',
+        primaryStepId: 'connected-host-auth',
+        requiresConfirmation: false,
+      });
+      expect(summary.setupPosture?.setupCloseout?.modelRoute).toContain('provision_connected_host_token');
 
       const posture = await executeHarnessJson<{
         readonly summary: {
@@ -951,8 +963,25 @@ describe('agent_harness tool', () => {
           readonly currentStepLabel: string;
           readonly progressLabel: string;
           readonly next: string;
+          readonly closeout: {
+            readonly status: string;
+            readonly label: string;
+            readonly summary: string;
+            readonly primaryStepId: string | null;
+            readonly primaryStepLabel: string | null;
+            readonly modelRoute: string;
+            readonly userRoute: string;
+            readonly requiresConfirmation: boolean;
+            readonly evidence: readonly string[];
+          };
           readonly smokeHistory: { readonly status: string; readonly total: number; readonly rerunRoute: string; readonly saveRoute: string };
           readonly steps: readonly { readonly id: string; readonly status: string; readonly modelRoute: string; readonly backtrackRoute?: string | null }[];
+        };
+        readonly setupCloseout: {
+          readonly status: string;
+          readonly primaryStepId: string | null;
+          readonly modelRoute: string;
+          readonly requiresConfirmation: boolean;
         };
         readonly readinessPlan: readonly {
           readonly setupItemId: string;
@@ -1078,6 +1107,16 @@ describe('agent_harness tool', () => {
       expect(posture.setupWizard.smokeHistory.status).toBe('unavailable');
       expect(posture.setupWizard.smokeHistory.rerunRoute).toContain('run_setup_smoke');
       expect(posture.setupWizard.smokeHistory.saveRoute).toContain('fields:{...}');
+      expect(posture.setupWizard.closeout.status).toBe('blocked');
+      expect(posture.setupWizard.closeout.label).toBe('Fix setup blocker');
+      expect(posture.setupWizard.closeout.primaryStepId).toBe('connected-host-auth');
+      expect(posture.setupWizard.closeout.modelRoute).toContain('provision_connected_host_token');
+      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('critical setup blockers: Connected-host auth');
+      expect(posture.setupCloseout).toMatchObject({
+        status: 'blocked',
+        primaryStepId: 'connected-host-auth',
+        requiresConfirmation: false,
+      });
       expect(posture.setupWizard.steps[0]?.id).toBe('connected-host-readiness');
       expect(posture.setupWizard.steps[0]?.status).toBe('blocked');
       expect(posture.setupWizard.steps[0]?.modelRoute).toContain('connected_host_status');
@@ -2207,6 +2246,103 @@ describe('agent_harness tool', () => {
     } finally {
       fixture.cleanup();
     }
+  });
+
+  test('promotes ready setup smoke evidence into a confirmed setup closeout path', async () => {
+    await withTcpListener(async (port) => {
+      const artifacts = createHarnessArtifactStore();
+      const fixture = makeFixture({ artifactStore: artifacts.store, controlPlaneEnabled: true, controlPlanePort: port });
+      try {
+        if (!fixture.secretsManager) throw new Error('Expected fixture secrets manager.');
+        await fixture.secretsManager.set('OPENAI_API_KEY', 'provider-secret-for-closeout');
+        writeConnectedHostOperatorToken(fixture);
+
+        const smokeRun = await executeHarnessJson<{
+          readonly result: string;
+          readonly smokeStatus: string;
+          readonly blockedChecks: readonly string[];
+          readonly artifact: { readonly status: string; readonly artifactId?: string };
+        }>(fixture, {
+          mode: 'run_setup_smoke',
+          setupItemId: 'install-smoke',
+          confirm: true,
+          explicitUserRequest: 'Save final setup smoke evidence for closeout.',
+          fields: {
+            agentBinaryOutput: 'goodvibes-agent 1.0.0\nstatus ok',
+            statusJson: '{"connectedHost":{"reachable":true},"provider":"openai"}',
+            setupPostureOutput: 'setup posture reviewed; no critical blockers',
+            firstAssistantTurn: 'Ready. Active model route is openai/gpt-4.1.',
+          },
+        });
+        expect(smokeRun.result).toBe('ready-for-user-run');
+        expect(smokeRun.smokeStatus).toBe('ready-to-run');
+        expect(smokeRun.blockedChecks).toEqual([]);
+        expect(smokeRun.artifact.status).toBe('saved');
+
+        const posture = await executeHarnessJson<{
+          readonly setupCloseout: {
+            readonly status: string;
+            readonly label: string;
+            readonly primaryStepId: string | null;
+            readonly modelRoute: string;
+            readonly userRoute: string;
+            readonly requiresConfirmation: boolean;
+            readonly evidence: readonly string[];
+          };
+          readonly setupWizard: {
+            readonly closeout: {
+              readonly status: string;
+              readonly primaryStepId: string | null;
+              readonly modelRoute: string;
+            };
+          };
+          readonly readinessPlan: readonly { readonly setupItemId: string; readonly status: string; readonly blocksAutonomy: boolean }[];
+        }>(fixture, { mode: 'setup_posture', includeParameters: true });
+
+        expect(posture.readinessPlan
+          .filter((item) => item.blocksAutonomy)
+          .every((item) => item.status !== 'blocked')).toBe(true);
+        expect(posture.setupCloseout).toMatchObject({
+          status: 'ready-to-finish',
+          label: 'Finish setup',
+          primaryStepId: 'finish-onboarding',
+          requiresConfirmation: true,
+        });
+        expect(posture.setupCloseout.modelRoute).toContain('onboarding-apply-close');
+        expect(posture.setupCloseout.userRoute).toContain('Finish');
+        expect(posture.setupCloseout.evidence.join('\n')).toContain('latest setup smoke: ready-for-user-run');
+        expect(posture.setupWizard.closeout.status).toBe('ready-to-finish');
+        expect(posture.setupWizard.closeout.modelRoute).toContain('onboarding-apply-close');
+
+        const finished = await executeHarnessJson<{
+          readonly status: string;
+          readonly checkMarker: { readonly exists: boolean; readonly source: string | null; readonly mode: string | null };
+          readonly completionMarker: { readonly exists: boolean; readonly source: string | null; readonly mode: string | null };
+          readonly policy: { readonly effect: string; readonly boundary: string };
+        }>(fixture, {
+          mode: 'run_workspace_action',
+          actionId: 'onboarding-apply-close',
+          confirm: true,
+          explicitUserRequest: 'Finish Agent onboarding after setup smoke evidence is ready.',
+        });
+        expect(finished.status).toBe('onboarding_completed');
+        expect(finished.checkMarker).toMatchObject({ exists: true, source: 'wizard', mode: 'new' });
+        expect(finished.completionMarker).toMatchObject({ exists: true, source: 'wizard', mode: 'new' });
+        expect(finished.policy.effect).toBe('confirmed-onboarding-marker-write');
+        expect(finished.policy.boundary).toContain('does not mutate provider credentials');
+
+        const after = await executeHarnessJson<{
+          readonly setupCloseout: { readonly status: string; readonly label: string; readonly requiresConfirmation: boolean };
+        }>(fixture, { mode: 'setup_posture' });
+        expect(after.setupCloseout).toMatchObject({
+          status: 'complete',
+          label: 'Setup complete',
+          requiresConfirmation: false,
+        });
+      } finally {
+        fixture.cleanup();
+      }
+    });
   });
 
   test('uses live service probes before recommending connected-host lifecycle repair', async () => {

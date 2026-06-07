@@ -44,6 +44,7 @@ import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } fro
 import { getAgentWorkspaceConfigReader } from './agent-workspace-config-reader.ts';
 import { buildAgentWorkspaceSetupChecklist, type AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import { buildAgentWorkspaceVoiceMediaReadiness, type AgentWorkspaceVoiceMediaProviderDescriptor } from './agent-workspace-voice-media.ts';
+import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceRecentReviewerHandoffArtifact,
@@ -1292,6 +1293,7 @@ function buildWorkspaceSetupWizard(
   checklist: readonly AgentWorkspaceSetupChecklistItem[],
   smokeHistory: AgentSetupWizardSmokeHistory,
   checkpoint: AgentSetupWizardCheckpoint,
+  setupMarkerExists: boolean,
 ): AgentSetupWizard {
   const items: AgentSetupWizardSourceItem[] = checklist.map((item) => ({
     id: item.id,
@@ -1306,8 +1308,20 @@ function buildWorkspaceSetupWizard(
     items,
     smokeHistory,
     checkpoint,
+    closeoutCriticalStepIds: ['runtime', 'connected-host-auth', 'provider-model'],
+    setupMarkerExists,
     repeatedBlockerAliases: SETUP_WIZARD_SNAPSHOT_BLOCKER_ALIASES,
   });
+}
+
+function setupCompletionMarkerExists(context: CommandContext): boolean {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths || typeof shellPaths.resolveUserPath !== 'function') return false;
+  try {
+    return readOnboardingCompletionMarker(shellPaths, 'user').exists;
+  } catch {
+    return false;
+  }
 }
 
 export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): AgentWorkspaceRuntimeSnapshot {
@@ -1697,6 +1711,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     setupChecklist,
     buildSetupSmokeHistory(artifactListSnapshot.items, artifactListSnapshot.available),
     buildSetupWizardCheckpoint(context),
+    setupCompletionMarkerExists(context),
   );
 
   return {

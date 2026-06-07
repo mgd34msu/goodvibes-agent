@@ -125,9 +125,18 @@ function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLin
     { text: `${counts.ready}/${snapshot.setupChecklist.length} ready; ${counts.recommended} recommended; ${counts.optional} optional; ${counts.blocked} blocked.`, fg: counts.blocked > 0 ? PALETTE.warn : PALETTE.info },
     { text: `Setup wizard: ${wizard.completedSteps}/${wizard.totalSteps} done; ${wizard.currentStepLabel ? `current ${wizard.currentStepLabel}` : wizard.status}.`, fg: wizard.status === 'complete' ? PALETTE.good : wizard.status === 'blocked' ? PALETTE.warn : PALETTE.info },
     { text: `Wizard next: ${compactText(wizard.next, 112)}`, fg: wizard.status === 'complete' ? PALETTE.good : wizard.status === 'blocked' ? PALETTE.warn : PALETTE.info },
+    { text: `Setup closeout: ${wizard.closeout.label}; ${compactText(wizard.closeout.nextAction, 104)}`, fg: wizard.closeout.status === 'complete' || wizard.closeout.status === 'ready-to-finish' ? PALETTE.good : wizard.closeout.status === 'blocked' ? PALETTE.warn : PALETTE.info },
     { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}.`, fg: PALETTE.info },
     { text: `Local: ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines, ${snapshot.localMemoryCount} memories.`, fg: PALETTE.info },
   ];
+  if (nextItems.length > 0) {
+    const item = nextItems[0]!;
+    lines.push({
+      text: `Next: ${item.label} (${setupStatusLabel(item.status).toLowerCase()})`,
+      fg: setupStatusColor(item.status),
+      bold: item.status === 'blocked',
+    });
+  }
   if (wizard.repeatedBlocker) {
     lines.push({
       text: `Repeated blocker: ${wizard.repeatedBlocker.checkId} in ${wizard.repeatedBlocker.count} saved smoke run(s).`,
@@ -144,14 +153,6 @@ function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLin
     lines.push({
       text: `Smoke history: ${wizard.smokeHistory.total} run(s); trend ${wizard.smokeHistory.trend}; latest ${wizard.smokeHistory.latestResult ?? 'unknown'}.`,
       fg: wizard.smokeHistory.latestResult === 'blocked' ? PALETTE.warn : PALETTE.info,
-    });
-  }
-  if (nextItems.length > 0) {
-    const item = nextItems[0]!;
-    lines.push({
-      text: `Next: ${item.label} (${setupStatusLabel(item.status).toLowerCase()})`,
-      fg: setupStatusColor(item.status),
-      bold: item.status === 'blocked',
     });
   }
   return lines;

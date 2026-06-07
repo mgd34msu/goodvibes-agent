@@ -83,7 +83,7 @@ Discovery modes:
 | `autonomy_intake`, `autonomy_queue`, `autonomy_queue_item` | Ongoing-work route selection, visible autonomous work owners, schedule/watcher trigger posture, watcher receipt criteria, status, live records, log tails, task/run diagnostics, host task output routes/previews, inspect routes, and normalized checkpoint/pause/resume/cancel/recovery controls. |
 | `learning_curator`, `learning_candidate` | Ranked local memory, note, persona, skill, bundle, routine, VIBE.md personality health, duplicate-consolidation batch review, completed-work, completed-research, and saved-session review/proposal candidates. |
 | `document_ops`, `document_ops_lane` | Documents, review packet timeline, review packet wizard, packet presets/defaults/freshness, reviewer-readiness checks, uploads, exports, sources, artifact browse/promotion, media artifacts, and blind model comparison. |
-| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup wizard with progress/current-step/checkpoint/backtracking routes, checkpoint auto-advance evidence, and repeated-smoke-blocker focus, setup plan with probe-fed connected-host repair/auth cards, service lifecycle receipt gates, service repair success criteria, certified receipt outcomes, exact service lifecycle decisions, sudo execution posture, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness, pairing/device capability posture, and build-delegation posture. |
+| `mcp_servers`, `setup_posture`, `pairing_posture`, `delegation_posture` | MCP, first-run setup wizard with progress/current-step/checkpoint/backtracking routes, checkpoint auto-advance evidence, repeated-smoke-blocker focus, setup closeout decisions, setup plan with probe-fed connected-host repair/auth cards, service lifecycle receipt gates, service repair success criteria, certified receipt outcomes, exact service lifecycle decisions, sudo execution posture, primary handoffs for actionable setup rows, confirmed local token provisioning, token-safe install smoke checks, confirmed setup smoke execution, saved redacted smoke evidence artifacts with history/trend surfacing, local model readiness, pairing/device capability posture, and build-delegation posture. |
 | `security_posture`, `support_bundles`, `media_posture`, `sessions` | Security, bundle route, voice/media, and session/bookmark posture. |
 | `operator_methods` | Public operator and Agent Knowledge method catalog. |
 | `service_posture`, `connected_host`, `daemon` | Endpoint, connected-host, and daemon alias posture. |
@@ -115,11 +115,11 @@ Effect modes:
 
 | Mode | Effect |
 | --- | --- |
-| `run_workspace_action` | Executes one resolved workspace action through the same editor, command, or local route as the TUI. |
+| `run_workspace_action` | Executes one resolved workspace action through the same editor, command, or local route as the TUI; `actionId:"onboarding-apply-close"` is the confirmed setup closeout marker write. |
 | `run_command` | Executes one resolved slash command through the shared command registry. |
 | `provision_connected_host_token` | Creates or repairs the local canonical connected-host token after confirmation without returning the raw token. |
 | `mark_setup_checkpoint`, `clear_setup_checkpoint` | Saves or clears the Agent-owned setup wizard resume checkpoint after confirmation. |
-| `run_setup_smoke` | Collects redacted first-run setup smoke evidence and can save user-run output as an artifact without implicit shell or host commands. |
+| `run_setup_smoke` | Collects redacted first-run setup smoke evidence and can save user-run output as an artifact without implicit shell or host commands; `setup_posture` uses that evidence for setup closeout. |
 | `open_panel`, `open_ui_surface` | Routes visible shell navigation. |
 | `run_keybinding` | Runs supported shell-safe keybinding actions only. |
 | `set_keybinding`, `reset_keybinding` | Writes the same Agent `keybindings.json` file exposed to the user. |

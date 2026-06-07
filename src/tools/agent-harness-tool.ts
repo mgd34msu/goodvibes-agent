@@ -58,6 +58,7 @@ import { describeWorkspaceEditorModelExecution } from './agent-harness-workspace
 import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
 import { countHarnessSettings, formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
 import { buildAssistantCockpitFromSummaries } from '../agent/assistant-cockpit.ts';
+import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 
 interface AgentHarnessToolArgs {
   readonly mode?: unknown;
@@ -1112,6 +1113,43 @@ async function runWorkspaceAction(
   }
   if (action.kind === 'local-selection' || action.kind === 'local-operation') {
     return runLocalWorkspaceAction(deps, action, args);
+  }
+  if (action.kind === 'onboarding-complete') {
+    const confirmationError = requireConfirmedAction(args, 'Onboarding completion');
+    if (confirmationError) return error(confirmationError);
+    const explicitUserRequest = readString(args.explicitUserRequest);
+    if (!explicitUserRequest) return error('Onboarding completion requires explicitUserRequest when confirm is true.');
+    const shellPaths = deps.commandContext.workspace?.shellPaths;
+    if (!shellPaths) return error('Onboarding completion requires Agent shell paths.');
+    const marker = { scope: 'user', source: 'wizard', mode: 'new', workspaceRoot: shellPaths.workingDirectory } as const;
+    const checkMarker = writeOnboardingCheckMarker(shellPaths, marker);
+    const completionMarker = writeOnboardingCompletionMarker(shellPaths, marker);
+    return output({
+      status: 'onboarding_completed',
+      action: describeWorkspaceAction(category, action, { lookup }),
+      explicitUserRequest,
+      checkMarker: {
+        exists: checkMarker.exists,
+        path: checkMarker.path,
+        updatedAt: checkMarker.payload?.updatedAt ?? null,
+        source: checkMarker.payload?.source ?? null,
+        mode: checkMarker.payload?.mode ?? null,
+      },
+      completionMarker: {
+        exists: completionMarker.exists,
+        path: completionMarker.path,
+        updatedAt: completionMarker.payload?.updatedAt ?? null,
+        source: completionMarker.payload?.source ?? null,
+        mode: completionMarker.payload?.mode ?? null,
+      },
+      routes: {
+        inspectSetup: 'agent_harness mode:"setup_posture" includeParameters:true',
+      },
+      policy: {
+        effect: 'confirmed-onboarding-marker-write',
+        boundary: 'Writes only the user onboarding check and completion markers. It does not mutate provider credentials, connected-host state, channels, schedules, or local behavior.',
+      },
+    });
   }
   const editorContext = buildWorkspaceEditorContext(deps.commandContext, args);
   return output({

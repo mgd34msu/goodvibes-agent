@@ -2,6 +2,7 @@ export type AgentSetupWizardSourceStatus = 'ready' | 'blocked' | 'recommended' |
 export type AgentSetupWizardStatus = 'complete' | 'active' | 'blocked';
 export type AgentSetupWizardStepStatus = 'done' | 'current' | 'pending' | 'blocked';
 export type AgentSetupWizardCheckpointStatus = 'available' | 'none' | 'stale' | 'unavailable';
+export type AgentSetupWizardCloseoutStatus = 'complete' | 'ready-to-finish' | 'needs-smoke-evidence' | 'blocked';
 
 export interface AgentSetupWizardSourceItem {
   readonly id: string;
@@ -51,6 +52,20 @@ export interface AgentSetupWizardStep {
   readonly backtrackRoute: string | null;
 }
 
+export interface AgentSetupWizardCloseout {
+  readonly status: AgentSetupWizardCloseoutStatus;
+  readonly label: string;
+  readonly summary: string;
+  readonly nextAction: string;
+  readonly primaryStepId: string | null;
+  readonly primaryStepLabel: string | null;
+  readonly userRoute: string;
+  readonly modelRoute: string;
+  readonly requiresConfirmation: boolean;
+  readonly evidence: readonly string[];
+  readonly policy: string;
+}
+
 export interface AgentSetupWizardCheckpoint {
   readonly status: AgentSetupWizardCheckpointStatus;
   readonly currentStepId: string | null;
@@ -92,6 +107,7 @@ export interface AgentSetupWizard {
   readonly reviewRoute: string;
   readonly repeatedBlocker: AgentSetupWizardRepeatedBlocker | null;
   readonly smokeHistory: AgentSetupWizardSmokeHistory;
+  readonly closeout: AgentSetupWizardCloseout;
   readonly checkpoint: AgentSetupWizardCheckpoint;
   readonly steps: readonly AgentSetupWizardStep[];
 }
@@ -100,6 +116,10 @@ export interface BuildAgentSetupWizardInput {
   readonly items: readonly AgentSetupWizardSourceItem[];
   readonly smokeHistory?: AgentSetupWizardSmokeHistory;
   readonly checkpoint?: AgentSetupWizardCheckpoint;
+  readonly closeoutCriticalStepIds?: readonly string[];
+  readonly setupMarkerExists?: boolean;
+  readonly finishRoute?: string;
+  readonly finishUserRoute?: string;
   readonly repeatedBlockerAliases?: Readonly<Record<string, readonly string[]>>;
   readonly reviewRoute?: string;
 }
@@ -110,6 +130,8 @@ export const DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE = 'agent_harness mode:"
 export const DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE = 'agent_harness mode:"mark_setup_checkpoint" confirm:true explicitUserRequest:"..."';
 export const DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE = 'agent_harness mode:"clear_setup_checkpoint" confirm:true explicitUserRequest:"..."';
 export const DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE = 'agent_harness mode:"setup_checkpoint"';
+export const DEFAULT_AGENT_SETUP_WIZARD_FINISH_ROUTE = 'agent_harness mode:"run_workspace_action" actionId:"onboarding-apply-close" confirm:true explicitUserRequest:"Finish Agent onboarding after setup smoke evidence is ready."';
+export const DEFAULT_AGENT_SETUP_WIZARD_FINISH_USER_ROUTE = 'Agent Workspace -> Finish -> Apply & close';
 
 export function emptyAgentSetupSmokeHistory(reason = 'No saved setup smoke evidence artifact found.'): AgentSetupWizardSmokeHistory {
   return {
@@ -283,6 +305,99 @@ function buildStep(item: AgentSetupWizardSourceItem, currentId: string | null): 
   };
 }
 
+function buildCloseout(input: {
+  readonly items: readonly AgentSetupWizardSourceItem[];
+  readonly smokeHistory: AgentSetupWizardSmokeHistory;
+  readonly criticalStepIds: readonly string[];
+  readonly setupMarkerExists: boolean;
+  readonly reviewRoute: string;
+  readonly finishRoute: string;
+  readonly finishUserRoute: string;
+}): AgentSetupWizardCloseout {
+  const critical = new Set(input.criticalStepIds);
+  const primaryBlocker = input.items.find((item) => (
+    critical.has(item.id) && item.status === 'blocked'
+  )) ?? null;
+  const smokeReady = input.smokeHistory.status === 'available' && input.smokeHistory.latestResult === 'ready-for-user-run';
+  const latestSmoke = input.smokeHistory.status === 'available'
+    ? input.smokeHistory.latestResult ?? 'unknown'
+    : input.smokeHistory.status;
+  const evidence = [
+    `critical setup blockers: ${primaryBlocker ? `${primaryBlocker.label} (${primaryBlocker.status})` : 'none'}`,
+    `setup marker: ${input.setupMarkerExists ? 'present' : 'missing'}`,
+    `latest setup smoke: ${latestSmoke}`,
+    `setup smoke history: ${input.smokeHistory.status}; total ${input.smokeHistory.total}; trend ${input.smokeHistory.trend}`,
+  ];
+  const policy = 'Setup closeout is advisory until a confirmed finish route writes the local onboarding marker. Optional setup recommendations do not block closeout, but unresolved critical blockers or missing ready setup smoke evidence do.';
+
+  if (primaryBlocker) {
+    return {
+      status: 'blocked',
+      label: 'Fix setup blocker',
+      summary: `${primaryBlocker.label} is blocking normal Agent use.`,
+      nextAction: primaryBlocker.detail,
+      primaryStepId: primaryBlocker.id,
+      primaryStepLabel: primaryBlocker.label,
+      userRoute: primaryBlocker.userRoute,
+      modelRoute: primaryBlocker.modelRoute,
+      requiresConfirmation: false,
+      evidence,
+      policy,
+    };
+  }
+
+  if (!smokeReady) {
+    const prior = input.smokeHistory.latestResult === 'blocked'
+      ? 'The latest saved setup smoke was blocked; rerun it now that critical setup is ready.'
+      : input.smokeHistory.status === 'unavailable'
+        ? 'Critical setup is ready, but this runtime cannot prove a saved setup smoke artifact.'
+        : 'Critical setup is ready, but no ready setup smoke evidence is saved yet.';
+    return {
+      status: 'needs-smoke-evidence',
+      label: 'Run final setup smoke',
+      summary: prior,
+      nextAction: 'Run the confirmed setup smoke route, capture user-visible package/status and first-turn output, then save the redacted evidence.',
+      primaryStepId: 'install-smoke',
+      primaryStepLabel: 'Install smoke',
+      userRoute: 'Agent Workspace -> Start -> Install smoke',
+      modelRoute: input.smokeHistory.saveRoute,
+      requiresConfirmation: true,
+      evidence,
+      policy,
+    };
+  }
+
+  if (!input.setupMarkerExists) {
+    return {
+      status: 'ready-to-finish',
+      label: 'Finish setup',
+      summary: 'Critical setup is ready and the latest saved setup smoke evidence is ready for user-run closeout.',
+      nextAction: 'Write the onboarding completion marker so future launches start in the main conversation instead of first-run setup.',
+      primaryStepId: 'finish-onboarding',
+      primaryStepLabel: 'Finish onboarding state',
+      userRoute: input.finishUserRoute,
+      modelRoute: input.finishRoute,
+      requiresConfirmation: true,
+      evidence,
+      policy,
+    };
+  }
+
+  return {
+    status: 'complete',
+    label: 'Setup complete',
+    summary: 'Critical setup, setup smoke evidence, and the onboarding completion marker are all present.',
+    nextAction: 'Use setup only when provider, host, channel, automation, local behavior, or runtime-profile decisions change.',
+    primaryStepId: null,
+    primaryStepLabel: null,
+    userRoute: 'Agent Workspace -> Home',
+    modelRoute: input.reviewRoute,
+    requiresConfirmation: false,
+    evidence,
+    policy,
+  };
+}
+
 export function buildAgentSetupWizard(input: BuildAgentSetupWizardInput): AgentSetupWizard {
   const smokeHistory = input.smokeHistory ?? emptyAgentSetupSmokeHistory();
   const inputCheckpoint = input.checkpoint ?? emptyAgentSetupWizardCheckpoint();
@@ -317,6 +432,15 @@ export function buildAgentSetupWizard(input: BuildAgentSetupWizardInput): AgentS
     reviewRoute: input.reviewRoute ?? DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
     repeatedBlocker: repeated?.blocker ?? null,
     smokeHistory,
+    closeout: buildCloseout({
+      items: input.items,
+      smokeHistory,
+      criticalStepIds: input.closeoutCriticalStepIds ?? [],
+      setupMarkerExists: input.setupMarkerExists === true,
+      reviewRoute: input.reviewRoute ?? DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
+      finishRoute: input.finishRoute ?? DEFAULT_AGENT_SETUP_WIZARD_FINISH_ROUTE,
+      finishUserRoute: input.finishUserRoute ?? DEFAULT_AGENT_SETUP_WIZARD_FINISH_USER_ROUTE,
+    }),
     checkpoint,
     steps,
   };

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildAgentSetupWizard, emptyAgentSetupSmokeHistory, type AgentSetupWizardCheckpoint, type AgentSetupWizardSourceItem } from '../../agent/setup-wizard.ts';
+import { buildAgentSetupWizard, emptyAgentSetupSmokeHistory, type AgentSetupWizardCheckpoint, type AgentSetupWizardSmokeHistory, type AgentSetupWizardSourceItem } from '../../agent/setup-wizard.ts';
 
 const baseItems: readonly AgentSetupWizardSourceItem[] = [
   {
@@ -41,6 +41,21 @@ function checkpoint(stepId = 'install-smoke'): AgentSetupWizardCheckpoint {
     markCurrentRoute: 'agent_harness mode:"mark_setup_checkpoint"',
     clearRoute: 'agent_harness mode:"clear_setup_checkpoint"',
     inspectRoute: 'agent_harness mode:"setup_checkpoint"',
+  };
+}
+
+function readySmokeHistory(): AgentSetupWizardSmokeHistory {
+  return {
+    status: 'available',
+    total: 1,
+    trend: 'first-run',
+    latestResult: 'ready-for-user-run',
+    previousResult: null,
+    resultCounts: { 'ready-for-user-run': 1 },
+    blockedCheckFrequency: [],
+    inspectLatestRoute: 'agent_artifacts show artifactId:"artifact-1" includeContent:false',
+    rerunRoute: 'agent_harness mode:"run_setup_smoke"',
+    saveRoute: 'agent_harness mode:"run_setup_smoke" fields:{...}',
   };
 }
 
@@ -86,5 +101,56 @@ describe('Agent setup wizard checkpoints', () => {
     expect(wizard.checkpoint.status).toBe('stale');
     expect(wizard.checkpoint.resumed).toBe(false);
     expect(wizard.checkpoint.summary).toContain('already ready');
+  });
+
+  test('blocks closeout on critical blocked setup rows', () => {
+    const wizard = buildAgentSetupWizard({
+      items: baseItems.map((item) => item.id === 'provider-model' ? { ...item, status: 'blocked' as const } : item),
+      smokeHistory: readySmokeHistory(),
+      closeoutCriticalStepIds: ['provider-model'],
+      setupMarkerExists: false,
+    });
+
+    expect(wizard.closeout.status).toBe('blocked');
+    expect(wizard.closeout.primaryStepId).toBe('provider-model');
+    expect(wizard.closeout.modelRoute).toContain('model_routing');
+    expect(wizard.closeout.evidence.join('\n')).toContain('critical setup blockers: Provider and model');
+  });
+
+  test('asks for setup smoke before finish when critical setup is ready', () => {
+    const wizard = buildAgentSetupWizard({
+      items: baseItems.map((item) => item.id === 'provider-model' ? { ...item, status: 'ready' as const } : item),
+      smokeHistory: emptyAgentSetupSmokeHistory(),
+      closeoutCriticalStepIds: ['runtime', 'provider-model'],
+      setupMarkerExists: false,
+    });
+
+    expect(wizard.closeout.status).toBe('needs-smoke-evidence');
+    expect(wizard.closeout.primaryStepId).toBe('install-smoke');
+    expect(wizard.closeout.requiresConfirmation).toBe(true);
+    expect(wizard.closeout.modelRoute).toContain('run_setup_smoke');
+  });
+
+  test('routes ready setup to finish and marks complete after the user marker exists', () => {
+    const readyItems = baseItems.map((item) => item.id === 'provider-model' ? { ...item, status: 'ready' as const } : item);
+    const readyToFinish = buildAgentSetupWizard({
+      items: readyItems,
+      smokeHistory: readySmokeHistory(),
+      closeoutCriticalStepIds: ['runtime', 'provider-model'],
+      setupMarkerExists: false,
+    });
+    expect(readyToFinish.closeout.status).toBe('ready-to-finish');
+    expect(readyToFinish.closeout.modelRoute).toContain('onboarding-apply-close');
+    expect(readyToFinish.closeout.requiresConfirmation).toBe(true);
+
+    const complete = buildAgentSetupWizard({
+      items: readyItems,
+      smokeHistory: readySmokeHistory(),
+      closeoutCriticalStepIds: ['runtime', 'provider-model'],
+      setupMarkerExists: true,
+    });
+    expect(complete.closeout.status).toBe('complete');
+    expect(complete.closeout.requiresConfirmation).toBe(false);
+    expect(complete.closeout.primaryStepId).toBeNull();
   });
 });

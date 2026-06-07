@@ -17,6 +17,7 @@ import { sudoExecutionPosture, type AgentHarnessSudoPosture } from './agent-harn
 import { previewHarnessText } from './agent-harness-text.ts';
 import { buildCliServicePosture, type CliServicePosture } from '../cli/service-posture.ts';
 import { connectedHostOperatorTokenFingerprint, connectedHostOperatorTokenPath, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
+import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import { agentHarnessVibeHealth, type AgentHarnessVibeHealth } from './agent-harness-vibe-health.ts';
 import { clearSetupWizardCheckpoint, readSetupWizardCheckpoint, saveSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
 import {
@@ -988,6 +989,14 @@ function setupWizardCheckpoint(context: CommandContext): AgentSetupWizardCheckpo
   }
 }
 
+function setupCompletionMarkerExists(context: CommandContext): boolean {
+  try {
+    return readOnboardingCompletionMarker(requireShellPaths(context), 'user').exists;
+  } catch {
+    return false;
+  }
+}
+
 const SETUP_WIZARD_PLAN_BLOCKER_ALIASES: Readonly<Record<string, readonly string[]>> = {
   'agent-binary': ['install-smoke', 'connected-host-readiness'],
   'connected-host-status': ['connected-host-readiness'],
@@ -1011,10 +1020,13 @@ function setupPlanItemToWizardSource(item: SetupPlanItem): AgentSetupWizardSourc
 }
 
 function buildSetupWizard(plan: readonly SetupPlanItem[], context: CommandContext): AgentSetupWizard {
+  const markerItem = plan.find((item) => item.id === 'finish-onboarding');
   return buildAgentSetupWizard({
     items: plan.map(setupPlanItemToWizardSource),
     smokeHistory: setupWizardSmokeHistory(context),
     checkpoint: setupWizardCheckpoint(context),
+    closeoutCriticalStepIds: plan.filter((item) => item.blocksAutonomy).map((item) => item.id),
+    setupMarkerExists: markerItem?.status === 'ready' || setupCompletionMarkerExists(context),
     repeatedBlockerAliases: SETUP_WIZARD_PLAN_BLOCKER_ALIASES,
   });
 }
@@ -2033,7 +2045,7 @@ function buildSetupPlan(
   const communicationChannels = capabilityById(capabilities, 'communication-channels');
   const automationReview = capabilityById(capabilities, 'automation-review');
   const tuiDelegation = capabilityById(capabilities, 'tui-delegation');
-  const setupMarkerDone = snapshot.acknowledgements.exists;
+  const setupMarkerDone = setupCompletionMarkerExists(context);
   const browserControl = browserControlPosture(context);
   const settingsImport = previewAgentWorkspaceTuiSettingsImport(context);
   const settingsImportChanges = settingsImportChangeCount(settingsImport);
@@ -2525,8 +2537,9 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
     autonomyBlockers: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
     nextSetupHandoffs: nextSetupHandoffSummaries(plan, 5),
     setupWizard,
+    setupCloseout: setupWizard.closeout,
     collectionIssues: snapshot.collectionIssues.length,
-    setupMarkerExists: snapshot.acknowledgements.exists,
+    setupMarkerExists: setupCompletionMarkerExists(context),
     setupSmokeEvidence,
     setupSmokeHistory,
     readOnly: true,
@@ -2554,6 +2567,7 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
     setupMarker: {
       scope: snapshot.acknowledgements.scope,
       exists: snapshot.acknowledgements.exists,
+      completionExists: setupCompletionMarkerExists(context),
       updatedAt: safeIso(snapshot.acknowledgements.updatedAt),
       source: snapshot.acknowledgements.source,
       mode: snapshot.acknowledgements.mode ?? null,
@@ -2586,10 +2600,12 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
         currentStepLabel: setupWizard.currentStepLabel,
         repeatedBlocker: setupWizard.repeatedBlocker,
       },
+      setupCloseout: setupWizard.closeout,
     },
     setupSmokeEvidence,
     setupSmokeHistory,
     setupWizard,
+    setupCloseout: setupWizard.closeout,
     currentRoute: snapshot.providerRouting,
     issues: snapshot.collectionIssues,
     readinessPlan: filteredPlan.map((item) => describePlanItem(item, includeParameters)),
