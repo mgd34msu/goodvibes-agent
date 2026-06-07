@@ -1519,6 +1519,121 @@ function boundedPersonalOpsResult(value: unknown, includeParameters: boolean): R
   };
 }
 
+function recordObject(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function lowerKeyEntries(record: Record<string, unknown>): readonly [string, unknown][] {
+  return Object.entries(record).map(([key, value]) => [key.toLowerCase(), value] as [string, unknown]);
+}
+
+function stringField(record: Record<string, unknown>, names: readonly string[]): string {
+  const lowered = lowerKeyEntries(record);
+  for (const name of names) {
+    const exact = lowered.find(([key]) => key === name);
+    const value = exact?.[1];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  }
+  for (const name of names) {
+    const fuzzy = lowered.find(([key]) => key.includes(name));
+    const value = fuzzy?.[1];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  }
+  return '';
+}
+
+function candidateResultItems(value: unknown, depth = 0): readonly unknown[] {
+  if (depth > 4) return [];
+  if (Array.isArray(value)) return value;
+  const object = recordObject(value);
+  if (!object) return [];
+  for (const key of ['messages', 'threads', 'emails', 'mail', 'events', 'items', 'results', 'data']) {
+    const entry = object[key];
+    if (Array.isArray(entry)) return entry;
+    const nested = candidateResultItems(entry, depth + 1);
+    if (nested.length > 0) return nested;
+  }
+  for (const key of ['structuredContent', 'structured_content', 'result', 'payload', 'output']) {
+    const nested = candidateResultItems(object[key], depth + 1);
+    if (nested.length > 0) return nested;
+  }
+  return [];
+}
+
+function reviewCardFromObject(
+  lane: PersonalOpsLane,
+  sourceRecord: PersonalOpsLiveRecord,
+  item: Record<string, unknown>,
+  index: number,
+  includeParameters: boolean,
+): Record<string, unknown> {
+  const calendar = lane.id === 'calendar';
+  const id = stringField(item, calendar ? ['id', 'eventid', 'uid'] : ['id', 'messageid', 'threadid', 'emailid']) || `${sourceRecord.id}:item-${index + 1}`;
+  const subject = stringField(item, calendar
+    ? ['summary', 'title', 'subject', 'name']
+    : ['subject', 'title', 'summary']);
+  const actor = stringField(item, calendar
+    ? ['calendar', 'organizer', 'attendee', 'location']
+    : ['from', 'sender', 'author']);
+  const time = stringField(item, calendar
+    ? ['start', 'starttime', 'time', 'when', 'date']
+    : ['date', 'receivedat', 'timestamp', 'time']);
+  const body = stringField(item, calendar
+    ? ['description', 'notes', 'body', 'snippet']
+    : ['snippet', 'preview', 'body', 'text', 'content']);
+  const label = subject || actor || `${calendar ? 'Calendar event' : 'Inbox item'} ${index + 1}`;
+  const summaryParts = [
+    actor ? `${calendar ? 'source' : 'from'} ${actor}` : '',
+    time ? `time ${time}` : '',
+    body,
+  ].filter(Boolean);
+  const summary = redactedPersonalOpsText(summaryParts.join('; ') || stringifyForPreview(item));
+  return {
+    id,
+    kind: calendar ? 'calendar-event' : 'inbox-message',
+    label: previewHarnessText(redactedPersonalOpsText(label), includeParameters ? 160 : 96),
+    summary: previewHarnessText(summary, includeParameters ? 420 : 180),
+    sourceRecordId: sourceRecord.id,
+    sourceTool: sourceRecord.qualifiedName,
+    confidence: 'normalized',
+    followUpBoundary: calendar
+      ? 'Calendar create, edit, delete, RSVP, and reschedule actions require a separate confirmed route.'
+      : 'Reply, send, label, archive, move, and delete actions require a separate confirmed route.',
+    ...(includeParameters ? { rawKeys: Object.keys(item).slice(0, 16) } : {}),
+  };
+}
+
+function personalOpsReadReviewRecords(
+  lane: PersonalOpsLane,
+  sourceRecord: PersonalOpsLiveRecord,
+  result: unknown,
+  includeParameters: boolean,
+): readonly Record<string, unknown>[] {
+  const items = candidateResultItems(result);
+  const objectCards = items
+    .map((item, index) => {
+      const object = recordObject(item);
+      if (!object) return null;
+      return reviewCardFromObject(lane, sourceRecord, object, index, includeParameters);
+    })
+    .filter((item): item is Record<string, unknown> => item !== null)
+    .slice(0, 8);
+  if (objectCards.length > 0) return objectCards;
+  const preview = boundedPersonalOpsResult(result, includeParameters).preview;
+  return [{
+    id: `${sourceRecord.id}:raw-preview`,
+    kind: lane.id === 'calendar' ? 'calendar-read-preview' : 'inbox-read-preview',
+    label: `${lane.label} read output preview`,
+    summary: previewHarnessText(String(preview), includeParameters ? 420 : 180),
+    sourceRecordId: sourceRecord.id,
+    sourceTool: sourceRecord.qualifiedName,
+    confidence: 'raw-preview',
+    followUpBoundary: 'Use this preview to summarize locally; any provider mutation requires a separate confirmed route.',
+  }];
+}
+
 function fieldInputValue(value: string, sample: unknown): unknown {
   if (typeof sample === 'number') {
     const parsed = Number(value);
@@ -2146,11 +2261,18 @@ export async function runPersonalOpsRead(context: CommandContext, args: AgentHar
 
   try {
     const result = await callTool(record.qualifiedName, fields);
+    const reviewRecords = personalOpsReadReviewRecords(lane, record, result, includeParameters);
     return {
       status: 'executed',
       record: recordSummary,
       input: fields,
       output: boundedPersonalOpsResult(result, includeParameters),
+      reviewSummary: {
+        kind: lane.id === 'calendar' ? 'calendar' : 'inbox',
+        records: reviewRecords.length,
+        source: record.qualifiedName,
+      },
+      reviewRecords,
       followUp: [
         'Summarize or draft only in the Agent transcript.',
         'Ask for explicit confirmation before any send, label, archive, delete, calendar edit, RSVP, or reschedule route.',

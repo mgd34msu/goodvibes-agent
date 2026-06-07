@@ -2842,7 +2842,16 @@ describe('agent_harness tool', () => {
               type: 'text',
               text: 'Subject: Quarterly planning\nFrom: lead@example.test\nBody: unblock proposal review. token=SECRET123 password=hunter2',
             }],
-            structuredContent: { messages: 1 },
+            structuredContent: {
+              messages: [{
+                id: 'msg-1',
+                threadId: 'thread-1',
+                subject: 'Quarterly planning',
+                from: 'lead@example.test',
+                receivedAt: '2026-06-06T14:00:00Z',
+                snippet: 'unblock proposal review token=SECRET123',
+              }],
+            },
           };
         }
         throw new Error(`Unexpected MCP tool call: ${qualifiedName}`);
@@ -3086,6 +3095,15 @@ describe('agent_harness tool', () => {
         readonly record?: { readonly qualifiedName?: string };
         readonly input?: Record<string, unknown>;
         readonly output?: { readonly preview: string; readonly truncated: boolean; readonly redaction: string };
+        readonly reviewSummary?: { readonly kind: string; readonly records: number; readonly source: string };
+        readonly reviewRecords?: readonly {
+          readonly id: string;
+          readonly kind: string;
+          readonly label: string;
+          readonly summary: string;
+          readonly sourceTool?: string;
+          readonly followUpBoundary: string;
+        }[];
         readonly followUp?: readonly string[];
       }>(fixture, {
         mode: 'run_personal_ops_read',
@@ -3104,6 +3122,19 @@ describe('agent_harness tool', () => {
       expect(executedRead.output?.preview).toContain('token=<redacted>');
       expect(executedRead.output?.preview).toContain('password=<redacted>');
       expect(executedRead.output?.preview).not.toContain('SECRET123');
+      expect(executedRead.reviewSummary).toEqual({
+        kind: 'inbox',
+        records: 1,
+        source: 'mcp:gmail-inbox:gmail.search_messages',
+      });
+      expect(executedRead.reviewRecords?.[0]?.id).toBe('msg-1');
+      expect(executedRead.reviewRecords?.[0]?.kind).toBe('inbox-message');
+      expect(executedRead.reviewRecords?.[0]?.label).toBe('Quarterly planning');
+      expect(executedRead.reviewRecords?.[0]?.summary).toContain('from lead@example.test');
+      expect(executedRead.reviewRecords?.[0]?.summary).toContain('token=<redacted>');
+      expect(executedRead.reviewRecords?.[0]?.summary).not.toContain('SECRET123');
+      expect(executedRead.reviewRecords?.[0]?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
+      expect(executedRead.reviewRecords?.[0]?.followUpBoundary).toContain('separate confirmed route');
       expect(executedRead.followUp?.join('\n')).toContain('explicit confirmation');
       expect(mcpToolCalls).toEqual([{
         qualifiedName: 'mcp:gmail-inbox:gmail.search_messages',
