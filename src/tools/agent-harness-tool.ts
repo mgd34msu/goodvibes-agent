@@ -205,7 +205,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
     backgroundProcesses: 'List mode:"background_processes"; inspect mode:"background_process"; start/wait/stop tracked long-running local commands with mode:"run_background_process". Process-style poll/log/kill/write and sessionId aliases are accepted; PTY/stdin write/sudo are surfaced honestly as unavailable or foreground-only until safe substrate support exists.',
-    executionHistory: 'List mode:"execution_history"; inspect mode:"execution_history_item"; use returned supervision and recovery routes.',
+    executionHistory: 'List mode:"execution_history" for activity cards; inspect mode:"execution_history_item"; use returned verification, supervision, and recovery routes.',
     fileRecovery: 'List mode:"file_recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'Start mode:"personal_ops_intake" for a user request; list mode:"personal_ops"; inspect mode:"personal_ops_lane"; use live records and returned routes for personal ops.',
     memoryPosture: 'List mode:"memory_posture"; inspect mode:"memory_provider"; memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',

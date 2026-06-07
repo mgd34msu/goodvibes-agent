@@ -3826,9 +3826,33 @@ describe('agent_harness tool', () => {
       const summary = await executeHarnessJson<{
         readonly summary: {
           readonly records: number;
+          readonly activityCards: number;
           readonly succeeded: number;
           readonly routeKinds: { readonly shell: number; readonly write: number };
         };
+        readonly returnedActivityCards: number;
+        readonly activityCards: readonly {
+          readonly activityCardId: string;
+          readonly title: string;
+          readonly status: string;
+          readonly outcome: string;
+          readonly recordIds: readonly string[];
+          readonly verification: {
+            readonly status: string;
+            readonly evidence: readonly { readonly executionRecordId: string; readonly outputPreview?: string }[];
+          };
+          readonly processOutput?: {
+            readonly status: string;
+            readonly evidence: readonly { readonly executionRecordId: string; readonly outputPreview?: string }[];
+            readonly liveRoutes: readonly { readonly id: string }[];
+          };
+          readonly routes: {
+            readonly fileRecovery?: string;
+            readonly inspectLatest: string;
+            readonly supervision: readonly { readonly id: string }[];
+          };
+          readonly nextAction: string;
+        }[];
         readonly records: readonly {
           readonly executionRecordId: string;
           readonly tool: string;
@@ -3836,32 +3860,65 @@ describe('agent_harness tool', () => {
           readonly commandPreview?: string;
           readonly argsPreview: string;
           readonly resultSummary?: { readonly preview?: string };
+          readonly userCard?: {
+            readonly activityCardId: string;
+            readonly title: string;
+            readonly verification: { readonly status: string };
+          };
           readonly supervisionRoutes?: readonly { readonly id: string; readonly modelRoute: string }[];
           readonly recoveryRoute?: string;
         }[];
       }>(fixture, { mode: 'execution_history', includeParameters: true });
       expect(summary.summary.records).toBe(2);
+      expect(summary.summary.activityCards).toBe(1);
+      expect(summary.returnedActivityCards).toBe(1);
       expect(summary.summary.succeeded).toBe(2);
       expect(summary.summary.routeKinds.shell).toBe(1);
       expect(summary.summary.routeKinds.write).toBe(1);
+      const card = summary.activityCards[0]!;
+      expect(card.activityCardId).toBe('turn:turn-1');
+      expect(card.title).toContain('bun test');
+      expect(card.status).toBe('succeeded');
+      expect(card.outcome).toContain('verification evidence');
+      expect(card.recordIds).toEqual(['call-edit', 'call-shell']);
+      expect(card.verification.status).toBe('passed');
+      expect(card.verification.evidence.map((entry) => entry.executionRecordId)).toEqual(['call-shell']);
+      expect(card.verification.evidence[0]?.outputPreview).toContain('84 pass');
+      expect(card.processOutput?.status).toBe('bounded-summary-attached');
+      expect(card.processOutput?.evidence[0]?.executionRecordId).toBe('call-shell');
+      expect(card.processOutput?.liveRoutes.map((route) => route.id)).toEqual(['process-monitor', 'live-tail']);
+      expect(card.routes.fileRecovery).toContain('file_recovery');
+      expect(card.routes.inspectLatest).toContain('call-shell');
+      expect(card.routes.supervision.map((route) => route.id)).toEqual(['process-monitor', 'live-tail']);
+      expect(card.nextAction).toContain('No recovery action');
       expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.commandPreview).toContain('bun test');
       expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.argsPreview).toContain('[redacted]');
       expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.resultSummary?.preview).toContain('84 pass');
+      expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.userCard?.activityCardId).toBe('record:call-shell');
+      expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.userCard?.verification.status).toBe('passed');
       expect(summary.records.find((record) => record.executionRecordId === 'call-shell')?.supervisionRoutes?.map((route) => route.id)).toEqual(expect.arrayContaining(['process-monitor', 'live-tail']));
       expect(summary.records.find((record) => record.executionRecordId === 'call-edit')?.recoveryRoute).toContain('file_recovery');
 
       const searched = await executeHarnessJson<{
+        readonly returnedActivityCards: number;
+        readonly activityCards: readonly { readonly recordIds: readonly string[]; readonly verification: { readonly status: string } }[];
         readonly records: readonly { readonly executionRecordId: string }[];
       }>(fixture, { mode: 'execution_history', query: 'bun test' });
       expect(searched.records.map((record) => record.executionRecordId)).toEqual(['call-shell']);
+      expect(searched.returnedActivityCards).toBe(1);
+      expect(searched.activityCards[0]?.recordIds).toEqual(['call-shell']);
+      expect(searched.activityCards[0]?.verification.status).toBe('passed');
 
       const inspected = await executeHarnessJson<{
         readonly executionRecordId: string;
+        readonly userCard?: { readonly activityCardId: string; readonly title: string };
         readonly policy?: { readonly effect: string; readonly values: string };
         readonly modelAccess?: { readonly toolInspector: string; readonly fileRecovery: string };
         readonly lookup?: { readonly resolvedBy?: string };
       }>(fixture, { mode: 'execution_history_item', executionRecordId: 'call-edit' });
       expect(inspected.executionRecordId).toBe('call-edit');
+      expect(inspected.userCard?.activityCardId).toBe('record:call-edit');
+      expect(inspected.userCard?.title).toContain('history-edit.txt');
       expect(inspected.lookup?.resolvedBy).toBe('id');
       expect(inspected.policy?.effect).toBe('read-only');
       expect(inspected.policy?.values).toContain('redacted args');
