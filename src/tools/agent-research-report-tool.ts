@@ -15,6 +15,7 @@ export interface AgentResearchReportToolArgs {
   readonly confidence?: unknown;
   readonly tags?: unknown;
   readonly requireCitationCoverage?: unknown;
+  readonly visualReport?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -64,6 +65,12 @@ function readList(value: unknown): readonly string[] {
 function readTags(value: unknown): readonly string[] {
   if (Array.isArray(value)) return value.map(readString).filter(Boolean);
   return readString(value).split(/[,\n]/).map((entry) => entry.trim()).filter(Boolean);
+}
+
+function previewText(value: string, limit = 240): string {
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (normalized.length <= limit) return normalized;
+  return `${normalized.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
 }
 
 function readSource(value: unknown): ResearchSource | null {
@@ -152,6 +159,111 @@ function listSection(title: string, items: readonly string[]): string {
   return [`## ${title}`, '', ...items.map((item) => `- ${item}`), ''].join('\n');
 }
 
+function markdownCell(value: string): string {
+  const text = value.replace(/\s+/g, ' ').trim();
+  return (text || '(none)').replace(/\|/g, '\\|');
+}
+
+function citationIdsInText(value: string): readonly string[] {
+  const ids = new Set<string>();
+  for (const match of value.matchAll(/\[S(\d+)\]/gi)) ids.add(`S${Number(match[1] ?? 0)}`);
+  return Array.from(ids).sort((left, right) => left.localeCompare(right, undefined, { numeric: true }));
+}
+
+function evidenceLabel(value: string): string {
+  return citationIdsInText(value).join(', ') || 'needs citation';
+}
+
+function visualReportSection(
+  args: AgentResearchReportToolArgs,
+  sources: readonly ResearchSource[],
+  coverage: CitationCoverage,
+): string {
+  const summary = readString(args.summary);
+  const findings = readList(args.findings);
+  const gaps = readList(args.gaps);
+  const recommendations = readList(args.recommendations);
+  const datedSources = sources
+    .map((source, index) => ({ id: `S${index + 1}`, source, date: source.publishedAt || source.accessedAt || '' }))
+    .filter((entry) => entry.date);
+  const sourceUse = new Set(coverage.citedSourceIds);
+  const lines = [
+    '## Visual Report Packet',
+    '',
+    '### At A Glance',
+    '',
+    `- Answer: ${summary ? previewText(summary) : '(summary not provided)'}`,
+    `- Confidence: ${readString(args.confidence) || 'unspecified'}`,
+    `- Sources: ${coverage.sourceCount}`,
+    `- Citation coverage: ${coverage.citedSourceIds.length}/${coverage.sourceCount} cited`,
+    `- Needs repair: ${coverage.repairSuggestions.join(' ') || 'none'}`,
+    '',
+    '### Evidence Matrix',
+    '',
+    '| Source | Credibility | Publisher | Evidence Note | Report Use |',
+    '| --- | --- | --- | --- | --- |',
+    ...sources.map((source, index) => {
+      const id = `S${index + 1}`;
+      return [
+        `| ${markdownCell(`${id} ${source.title}`)}`,
+        markdownCell(source.credibility),
+        markdownCell(source.publisher ?? ''),
+        markdownCell(previewText(source.note ?? '', 180)),
+        `${sourceUse.has(id) ? 'cited in body' : 'needs body citation'} |`,
+      ].join(' | ');
+    }),
+    '',
+  ];
+  if (findings.length > 0) {
+    lines.push(
+      '### Findings Board',
+      '',
+      '| Finding | Evidence |',
+      '| --- | --- |',
+      ...findings.map((finding) => `| ${markdownCell(finding)} | ${markdownCell(evidenceLabel(finding))} |`),
+      '',
+    );
+  }
+  if (datedSources.length > 0) {
+    lines.push(
+      '### Dated Sources',
+      '',
+      '| Date | Source | Use |',
+      '| --- | --- | --- |',
+      ...datedSources.map((entry) => `| ${markdownCell(entry.date)} | ${markdownCell(`${entry.id} ${entry.source.title}`)} | ${markdownCell(sourceUse.has(entry.id) ? 'cited' : 'needs citation')} |`),
+      '',
+    );
+  } else {
+    lines.push(
+      '### Dated Sources',
+      '',
+      'No dated sources were provided. Treat this as a comparison packet rather than a chronology.',
+      '',
+    );
+  }
+  if (gaps.length > 0) lines.push('### Open Questions', '', ...gaps.map((gap) => `- ${gap}`), '');
+  if (recommendations.length > 0) {
+    lines.push(
+      '### Next Actions',
+      '',
+      '| Action | Evidence |',
+      '| --- | --- |',
+      ...recommendations.map((recommendation) => `| ${markdownCell(recommendation)} | ${markdownCell(evidenceLabel(recommendation))} |`),
+      '',
+    );
+  }
+  lines.push(
+    '### Handoff Checklist',
+    '',
+    '- Review citation coverage and repair suggestions before sharing.',
+    '- Inspect the saved artifact with `agent_artifacts mode:"show" includeContent:true`.',
+    '- Archive the report with related research source artifacts through `agent_artifacts mode:"archive"`.',
+    '- Promote to Knowledge only through a separate confirmed `agent_knowledge_ingest sourceKind:"artifact"` call.',
+    '',
+  );
+  return lines.join('\n');
+}
+
 function sourceMapSection(sources: readonly ResearchSource[]): string {
   const lines = ['## Source Map', ''];
   sources.forEach((source, index) => {
@@ -222,7 +334,7 @@ function citationCoverageSection(coverage: CitationCoverage): string {
   ].join('\n');
 }
 
-function buildMarkdown(args: AgentResearchReportToolArgs, sources: readonly ResearchSource[]): string {
+function buildMarkdown(args: AgentResearchReportToolArgs, sources: readonly ResearchSource[], includeVisualReport: boolean): string {
   const title = readString(args.title);
   const question = readString(args.question);
   const summary = readString(args.summary);
@@ -252,6 +364,7 @@ function buildMarkdown(args: AgentResearchReportToolArgs, sources: readonly Rese
   if (recommendationSection) lines.push(recommendationSection);
   if (methodology) lines.push('## Method', '', methodology, '');
   lines.push(citationCoverageSection(coverage));
+  if (includeVisualReport) lines.push(visualReportSection(args, sources, coverage));
   lines.push(sourceMapSection(sources));
   return lines.join('\n').replace(/\n{4,}/g, '\n\n\n').trimEnd() + '\n';
 }
@@ -267,6 +380,43 @@ function sourceMetadata(sources: readonly ResearchSource[]): readonly Record<str
     credibility: source.credibility,
     ...(source.note ? { note: source.note } : {}),
   }));
+}
+
+function visualReportMetadata(
+  args: AgentResearchReportToolArgs,
+  sources: readonly ResearchSource[],
+  coverage: CitationCoverage,
+): Record<string, unknown> {
+  const findingCount = readList(args.findings).length;
+  const gapCount = readList(args.gaps).length;
+  const recommendationCount = readList(args.recommendations).length;
+  return {
+    format: 'markdown-visual-report-packet',
+    sections: [
+      'at-a-glance',
+      'evidence-matrix',
+      ...(findingCount > 0 ? ['findings-board'] : []),
+      'dated-sources-or-comparison',
+      'citation-coverage',
+      'source-map',
+      ...(gapCount > 0 ? ['open-questions'] : []),
+      ...(recommendationCount > 0 ? ['next-actions'] : []),
+      'handoff-checklist',
+    ],
+    sourceCount: sources.length,
+    findingCount,
+    gapCount,
+    recommendationCount,
+    datedSourceCount: sources.filter((source) => source.publishedAt || source.accessedAt).length,
+    citationCoveragePass: coverage.pass,
+    missingSourceIds: coverage.missingSourceIds,
+    unknownCitationIds: coverage.unknownCitationIds,
+    routes: {
+      inspect: 'agent_artifacts mode:"show" artifactId:"..." includeContent:true',
+      archive: 'agent_artifacts mode:"archive" artifactIds:["..."] destinationPath:"exports/research-report.zip" confirm:true explicitUserRequest:"..."',
+      promoteKnowledge: 'agent_knowledge_ingest sourceKind:"artifact" artifactId:"..." confirm:true explicitUserRequest:"..."',
+    },
+  };
 }
 
 async function saveResearchReport(
@@ -298,7 +448,8 @@ async function saveResearchReport(
       `Repair suggestions: ${coverage.repairSuggestions.join(' ') || '(none)'}`,
     ].join('\n'));
   }
-  const markdown = buildMarkdown(args, sources);
+  const includeVisualReport = readBoolean(args.visualReport);
+  const markdown = buildMarkdown(args, sources, includeVisualReport);
   if (markdown.length > MAX_REPORT_CHARS) throw new Error(`Research report is too large (${markdown.length} chars). Keep it under ${MAX_REPORT_CHARS}.`);
   return artifactStore.create({
     kind: 'document',
@@ -315,6 +466,7 @@ async function saveResearchReport(
       sourceCount: sources.length,
       sources: sourceMetadata(sources),
       citationCoverage: coverage,
+      ...(includeVisualReport ? { visualReport: visualReportMetadata(args, sources, coverage) } : {}),
       explicitUserRequest,
     },
   });
@@ -374,6 +526,7 @@ export function createAgentResearchReportTool(
           methodology: { type: 'string', description: 'How sources were selected and judged.' },
           confidence: { type: 'string', description: 'Overall confidence label.' },
           requireCitationCoverage: { type: 'boolean', description: 'Fail save unless all sources are cited in body.' },
+          visualReport: { type: 'boolean', description: 'Append a visual report packet section.' },
           tags: {
             type: 'array',
             items: { type: 'string' },
@@ -401,6 +554,7 @@ export function createAgentResearchReportTool(
           `  bytes ${descriptor.sizeBytes}`,
           `  mime ${descriptor.mimeType}`,
           `  sources ${readSources(args.sources).length}`,
+          readBoolean(args.visualReport) ? '  visualReport markdown-visual-report-packet' : '',
           coverage ? `  citationCoverage ${coverage.citedSourceIds.length}/${coverage.sourceCount} cited; uncited ${coverage.missingSourceIds.length}; unknown ${coverage.unknownCitationIds.length}` : '',
           coverage && coverage.repairSuggestions.length > 0 ? `  citationRepair ${coverage.repairSuggestions.join(' ')}` : '',
           `  sha256 ${descriptor.sha256}`,

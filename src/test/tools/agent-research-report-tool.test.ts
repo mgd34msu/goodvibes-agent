@@ -100,6 +100,73 @@ describe('agent_research_report tool', () => {
     expect(content).not.toContain('secret-token');
   });
 
+  test('adds a visual report packet when requested', async () => {
+    const store = new ResearchReportArtifactStore();
+    const tool = createAgentResearchReportTool(store);
+
+    const result = await tool.execute({
+      title: 'Deep Research Packet',
+      question: 'What should the user do next?',
+      summary: 'The next step is to save a visible, source-backed packet [S1] and archive it for review [S2].',
+      reportMarkdown: 'A visual packet makes review easier when it stays tied to the same citations [S1]. Archive handoff should stay explicit [S2].',
+      sources: [
+        {
+          title: 'Research source workflow',
+          url: 'https://example.test/research',
+          publisher: 'Example Docs',
+          publishedAt: '2026-06-01',
+          credibility: 'high',
+          note: 'Explains reviewed source queues.',
+        },
+        {
+          title: 'Artifact archive guide',
+          url: 'https://example.test/archive',
+          accessedAt: '2026-06-06',
+          credibility: 'medium',
+          note: 'Explains artifact archive handoff.',
+        },
+      ],
+      findings: ['Save a visual packet only after reviewed sources exist [S1].'],
+      gaps: ['Browser-backed execution still needs a live runner contract.'],
+      recommendations: ['Archive the saved report and related source artifacts [S2].'],
+      confidence: 'high',
+      visualReport: true,
+      requireCitationCoverage: true,
+      confirm: true,
+      explicitUserRequest: 'Save the reviewed deep research visual packet.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('visualReport markdown-visual-report-packet');
+    expect(result.output).not.toContain('The next step is to save');
+
+    const record = store.records[0];
+    expect(record?.metadata).toMatchObject({
+      visualReport: {
+        format: 'markdown-visual-report-packet',
+        sourceCount: 2,
+        findingCount: 1,
+        gapCount: 1,
+        recommendationCount: 1,
+        datedSourceCount: 2,
+        citationCoveragePass: true,
+        missingSourceIds: [],
+        unknownCitationIds: [],
+      },
+    });
+    const content = store.contents.get('artifact-1') ?? '';
+    expect(content).toContain('## Visual Report Packet');
+    expect(content).toContain('### At A Glance');
+    expect(content).toContain('### Evidence Matrix');
+    expect(content).toContain('| S1 Research source workflow | high | Example Docs | Explains reviewed source queues. | cited in body |');
+    expect(content).toContain('### Findings Board');
+    expect(content).toContain('| Save a visual packet only after reviewed sources exist [S1]. | S1 |');
+    expect(content).toContain('### Dated Sources');
+    expect(content).toContain('| 2026-06-01 | S1 Research source workflow | cited |');
+    expect(content).toContain('### Handoff Checklist');
+    expect(content).toContain('agent_knowledge_ingest sourceKind:"artifact"');
+  });
+
   test('requires confirmation and at least one reviewed source', async () => {
     const store = new ResearchReportArtifactStore();
     const tool = createAgentResearchReportTool(store);

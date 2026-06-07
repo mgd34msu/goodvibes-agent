@@ -825,7 +825,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Browser runner contract: needs setup review');
     expect(output).toContain('Runner requires: visible run controls, source capture receipts, bounded logs, report handoff.');
     expect(output).toContain('Visual report contract: waiting for reviewed sources');
-    expect(output).toContain('Report requires: answer summary, evidence table, source map, citation coverage, artifact archive.');
+    expect(output).toContain('Report requires: at-a-glance, evidence matrix, source map, citations, handoff, archive.');
     expect(output).toContain('Web and URL inspection stay read-only');
     expect(output).toContain('Tools: agent_research_runs / agent_research_sources / agent_research_report.');
     expect(output).toContain('Research in conversation');
@@ -845,6 +845,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Question *');
     expect(output).toContain('Sources *');
     expect(workspace.localEditor?.fields.some((field) => field.id === 'confidence')).toBe(true);
+    expect(workspace.localEditor?.fields.some((field) => field.id === 'visualReport' && field.value === 'yes')).toBe(true);
     expect(workspace.localEditor?.fields.some((field) => field.id === 'confirm' && field.required)).toBe(true);
   });
 

@@ -21,6 +21,7 @@ export interface AgentResearchReportWorkspaceToolArgs {
   readonly methodology?: string;
   readonly confidence?: string;
   readonly requireCitationCoverage?: boolean;
+  readonly visualReport?: boolean;
   readonly tags?: readonly string[];
   readonly confirm: true;
   readonly explicitUserRequest: string;
@@ -78,7 +79,7 @@ export function createAgentResearchReportEditor(): AgentWorkspaceLocalEditor {
     mode: 'create',
     title: 'Save Research Report',
     selectedFieldIndex: 0,
-    message: 'Save a reviewed source-grounded markdown report as an Agent artifact. Sources are required; the tool writes a citation map and does not ingest knowledge.',
+    message: 'Save a reviewed source-grounded report artifact with citation coverage and a visual report packet. Sources are required; this does not ingest knowledge.',
     fields: [
       { id: 'title', label: 'Title', value: '', required: true, multiline: false, hint: 'Short report title.' },
       { id: 'question', label: 'Question', value: '', required: true, multiline: true, hint: 'The research question this report answers.' },
@@ -90,6 +91,7 @@ export function createAgentResearchReportEditor(): AgentWorkspaceLocalEditor {
       { id: 'recommendations', label: 'Recommendations', value: '', required: false, multiline: true, hint: 'Optional next actions, one per line.' },
       { id: 'methodology', label: 'Method', value: '', required: false, multiline: true, hint: 'How sources were found, filtered, and judged.' },
       { id: 'confidence', label: 'Confidence', value: 'medium', required: false, multiline: false, hint: 'Overall confidence such as high, medium, low, or mixed.' },
+      { id: 'visualReport', label: 'Visual packet', value: 'yes', required: false, multiline: false, hint: 'Type yes to add at-a-glance, evidence matrix, findings board, dated sources, and handoff checklist sections.' },
       { id: 'requireCitationCoverage', label: 'Require citations', value: '', required: false, multiline: false, hint: 'Type yes to require every listed source to be cited as [S1], [S2], etc. in the report body.' },
       { id: 'tags', label: 'Tags', value: 'research', required: false, multiline: false, hint: 'Comma-separated optional artifact tags.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to save this report as an artifact.' },
@@ -108,6 +110,7 @@ export function buildAgentResearchReportToolArgs(
   const recommendations = splitList(readField('recommendations'));
   const methodology = readField('methodology').trim();
   const confidence = readField('confidence').trim();
+  const visualReport = isAffirmative(readField('visualReport'));
   const requireCitationCoverage = isAffirmative(readField('requireCitationCoverage'));
   const tags = splitTags(readField('tags'));
   return {
@@ -121,6 +124,7 @@ export function buildAgentResearchReportToolArgs(
     ...(recommendations.length > 0 ? { recommendations } : {}),
     ...(methodology ? { methodology } : {}),
     ...(confidence ? { confidence } : {}),
+    ...(visualReport ? { visualReport } : {}),
     ...(requireCitationCoverage ? { requireCitationCoverage } : {}),
     ...(tags.length > 0 ? { tags } : {}),
     confirm: true,
@@ -185,11 +189,12 @@ export function buildAgentResearchReportPromptSubmission(
     args.recommendations ? `recommendations: ${JSON.stringify(args.recommendations)}` : 'recommendations: none',
     args.methodology ? `methodology: ${JSON.stringify(args.methodology)}` : 'methodology: none',
     args.confidence ? `confidence: ${JSON.stringify(args.confidence)}` : 'confidence: none',
+    args.visualReport ? 'visualReport: true' : 'visualReport: false',
     args.requireCitationCoverage ? 'requireCitationCoverage: true' : 'requireCitationCoverage: false',
     args.tags ? `tags: ${JSON.stringify(args.tags)}` : 'tags: none',
     'confirm: true',
     `explicitUserRequest: ${JSON.stringify(args.explicitUserRequest)}`,
-    'Policy: save a sourced markdown artifact only; do not ingest knowledge or send external messages.',
+    'Policy: save a sourced report artifact with optional visual packet only; do not ingest knowledge or send external messages.',
   ].join('\n');
 
   return {
@@ -199,7 +204,7 @@ export function buildAgentResearchReportPromptSubmission(
     actionResult: {
       kind: 'guidance',
       title: 'Research report artifact',
-      detail: 'Submitted a confirmed request to save a reviewed source-grounded report artifact.',
+      detail: 'Submitted a confirmed request to save a reviewed source-grounded report artifact with visual packet.',
       safety: 'safe',
     },
   };

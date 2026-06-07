@@ -384,7 +384,7 @@ function reviewerReadinessBadgeLabel(status: AgentWorkspaceRuntimeSnapshot['revi
 }
 
 function researchContractColor(status: string): string {
-  if (status === 'ready-with-confirmation' || status === 'markdown-ready-visual-contract-needed') return PALETTE.good;
+  if (status === 'ready-with-confirmation' || status === 'visual-report-packet-ready') return PALETTE.good;
   if (status === 'needs-review') return PALETTE.warn;
   return PALETTE.info;
 }
@@ -513,7 +513,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Runner requires: ${runnerContract.details.join(', ')}.`, fg: PALETTE.muted },
       { text: `Research runs: ${snapshot.researchRunRunningCount} running; ${snapshot.researchRunPausedCount} paused; ${snapshot.researchRunBlockedCount} blocked; ${snapshot.researchRunPlannedCount} planned.`, fg: snapshot.researchRunRunningCount > 0 || snapshot.researchRunBlockedCount > 0 ? PALETTE.warn : snapshot.researchRunPausedCount > 0 || snapshot.researchRunPlannedCount > 0 ? PALETTE.info : PALETTE.muted },
       { text: `Source queue: ${snapshot.researchSourceCandidateCount} candidate; ${snapshot.researchSourceReviewedCount} reviewed; ${snapshot.researchSourceRejectedCount} rejected; ${snapshot.researchSourceUsedCount} used.`, fg: snapshot.researchSourceCandidateCount > 0 ? PALETTE.warn : snapshot.researchSourceReviewedCount > 0 ? PALETTE.good : PALETTE.muted },
-      { text: `Visual report contract: ${visualContract.label}; ${compactText(visualContract.next, 96)}`, fg: researchContractColor(visualContract.status), bold: visualContract.status !== 'markdown-ready-visual-contract-needed' },
+      { text: `Visual report contract: ${visualContract.label}; ${compactText(visualContract.next, 96)}`, fg: researchContractColor(visualContract.status), bold: visualContract.status !== 'visual-report-packet-ready' },
       { text: `Report requires: ${visualContract.details.join(', ')}.`, fg: PALETTE.muted },
       { text: 'Web and URL inspection stay read-only until the user confirms source ingest.', fg: PALETTE.good },
       { text: 'Tools: agent_research_runs / agent_research_sources / agent_research_report.', fg: PALETTE.good },

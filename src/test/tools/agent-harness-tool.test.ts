@@ -5584,7 +5584,7 @@ describe('agent_harness tool', () => {
           readonly currentRoute: string;
           readonly requiredSections: readonly string[];
           readonly acceptanceCriteria: readonly string[];
-          readonly routes: { readonly saveMarkdownReport: string; readonly archiveArtifacts: string };
+          readonly routes: { readonly saveVisualReport: string; readonly saveMarkdownReport: string; readonly archiveArtifacts: string };
           readonly policy: string;
         };
         readonly workflow: readonly { readonly id: string; readonly status: string; readonly route: string; readonly reportRoute?: string }[];
@@ -5608,16 +5608,20 @@ describe('agent_harness tool', () => {
       expect(workflow.browserRunnerContract.setupRoutes.join('\n')).toContain('browser-desktop-control');
       expect(workflow.browserRunnerContract.fallbackRoutes.join('\n')).toContain('web-fetch-research');
       expect(workflow.browserRunnerContract.policy).toContain('not started by this workflow plan');
-      expect(workflow.visualReportContract.status).toBe('markdown-report-ready-visual-contract-needed');
+      expect(workflow.visualReportContract.status).toBe('visual-report-packet-ready');
       expect(workflow.visualReportContract.currentRoute).toContain('agent_research_report');
-      expect(workflow.visualReportContract.requiredSections).toEqual(expect.arrayContaining(['evidence table', 'source map']));
+      expect(workflow.visualReportContract.requiredSections).toEqual(expect.arrayContaining(['evidence matrix', 'findings board', 'source map', 'handoff checklist']));
       expect(workflow.visualReportContract.acceptanceCriteria.join('\n')).toContain('citation');
+      expect(workflow.visualReportContract.acceptanceCriteria.join('\n')).toContain('visualReport:true');
+      expect(workflow.visualReportContract.routes.saveVisualReport).toContain('visualReport:true');
       expect(workflow.visualReportContract.routes.saveMarkdownReport).toContain('agent_research_report');
       expect(workflow.visualReportContract.routes.archiveArtifacts).toContain('agent_artifacts mode:"archive"');
       expect(workflow.visualReportContract.policy).toContain('read-only planning');
       expect(workflow.workflow.map((step) => step.id)).toEqual(['visible-run', 'collect-sources', 'review-sources', 'save-report', 'promote-knowledge']);
       expect(workflow.workflow.find((step) => step.id === 'save-report')?.status).toBe('ready');
+      expect(workflow.workflow.find((step) => step.id === 'save-report')?.reportRoute).toContain('visualReport:true');
       expect(workflow.workflow.find((step) => step.id === 'save-report')?.reportRoute).toContain('agent_research_report');
+      expect(workflow.routes.saveReport).toContain('visualReport:true');
       expect(workflow.routes.saveReport).toContain('requireCitationCoverage:true');
       expect(workflow.routes.completeRun).toContain(started.id);
       expect(workflow.policy).toContain('read-only workflow plan');
@@ -9806,6 +9810,7 @@ describe('agent_harness tool', () => {
       expect(saved.output).toContain('"status": "executed_model_tool"');
       expect(saved.output).toContain('"tool": "agent_research_report"');
       expect(saved.output).toContain('Saved Agent research report artifact');
+      expect(saved.output).toContain('visualReport markdown-visual-report-packet');
       expect(saved.output).not.toContain('Ollama is easiest [S1].');
       expect(saved.output).not.toContain('token=secret');
 
@@ -9818,6 +9823,13 @@ describe('agent_harness tool', () => {
         question: 'Which local model route should we try?',
         sourceCount: 1,
         tags: ['research', 'local'],
+        visualReport: {
+          format: 'markdown-visual-report-packet',
+          sourceCount: 1,
+          findingCount: 1,
+          gapCount: 1,
+          recommendationCount: 1,
+        },
       });
       expect(JSON.stringify(artifact?.metadata)).toContain('token=%3Credacted%3E');
       expect(JSON.stringify(artifact?.metadata)).not.toContain('token=secret');

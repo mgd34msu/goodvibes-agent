@@ -66,7 +66,7 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       tool: 'agent_research_report',
       action: 'save_research_report_artifact',
       confirmation: 'required',
-      note: 'run_workspace_action saves one reviewed source-grounded markdown report as a local artifact with a source map. It does not ingest Agent Knowledge or send external messages.',
+      note: 'run_workspace_action saves one reviewed source-grounded report artifact with a visual packet, source map, and citation coverage. It does not ingest Agent Knowledge or send external messages.',
     };
   }
   if (editorKind === 'research-run') {

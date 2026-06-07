@@ -277,20 +277,21 @@ function buildResearchVisualReportContract(sourceSnapshot: {
 }): AgentWorkspaceResearchContractSummary {
   const sourceReady = sourceSnapshot.reviewed + sourceSnapshot.used > 0;
   return {
-    status: sourceReady ? 'markdown-ready-visual-contract-needed' : 'waiting-for-reviewed-sources',
-    label: sourceReady ? 'markdown ready; visual renderer needed' : 'waiting for reviewed sources',
+    status: sourceReady ? 'visual-report-packet-ready' : 'waiting-for-reviewed-sources',
+    label: sourceReady ? 'visual report packet ready' : 'waiting for reviewed sources',
     next: sourceReady
-      ? 'Save a sourced markdown report now, then use the same reviewed artifacts for richer visual output.'
+      ? 'Save a sourced visual report packet now, then archive or promote the same reviewed artifact.'
       : 'Review at least one source before saving a report or visual packet.',
     route: sourceReady
-      ? 'agent_research_report title:"..." question:"..." sources:[...] requireCitationCoverage:true confirm:true explicitUserRequest:"..."'
+      ? 'agent_research_report title:"..." question:"..." sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."'
       : 'agent_harness mode:"research_queue" includeParameters:true',
     details: [
-      'answer summary',
-      'evidence table',
+      'at-a-glance',
+      'evidence matrix',
       'source map',
-      'citation coverage',
-      'artifact archive',
+      'citations',
+      'handoff',
+      'archive',
     ],
   };
 }
