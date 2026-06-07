@@ -813,6 +813,7 @@ describe('agent_harness tool', () => {
       expect(summaryJson.modeGuide?.discover).toContain('file_recovery');
       expect(summaryJson.modeGuide?.discover).toContain('personal_ops');
       expect(summaryJson.modeGuide?.discover).toContain('autonomy_intake');
+      expect(summaryJson.modeGuide?.discover).toContain('research_briefing');
       expect(summaryJson.modeGuide?.discover).toContain('research_runs');
       expect(summaryJson.modeGuide?.inspect).toContain('mode');
       expect(summaryJson.modeGuide?.inspect).toContain('execution_route');
@@ -6241,6 +6242,43 @@ describe('agent_harness tool', () => {
       expect(workflow.routes.completeRun).toContain(started.id);
       expect(workflow.policy).toContain('read-only workflow plan');
 
+      const briefing = await executeHarnessJson<{
+        readonly status: string;
+        readonly summary: {
+          readonly activeRuns: number;
+          readonly reviewedSources: number;
+          readonly candidateSources: number;
+          readonly browserReady: boolean;
+        };
+        readonly queue: readonly {
+          readonly id: string;
+          readonly kind: string;
+          readonly status: string;
+          readonly routes: Record<string, string>;
+          readonly confirmationBoundary: string;
+        }[];
+        readonly routes: { readonly search: string; readonly saveReport: string };
+        readonly policy: string;
+      }>(fixture, { mode: 'research_briefing', target: started.id, includeParameters: true });
+      expect(briefing.status).toBe('ready-to-report');
+      expect(briefing.summary.activeRuns).toBe(1);
+      expect(briefing.summary.reviewedSources).toBe(1);
+      expect(briefing.summary.candidateSources).toBe(0);
+      expect(briefing.summary.browserReady).toBe(false);
+      const runItem = briefing.queue.find((item) => item.id === `run:${started.id}`);
+      expect(runItem?.kind).toBe('run');
+      expect(runItem?.routes.checkpoint).toContain('research action:"checkpoint"');
+      expect(runItem?.confirmationBoundary).toContain('read-only');
+      const sourceItem = briefing.queue.find((item) => item.id === `source:${reviewed.id}`);
+      expect(sourceItem?.kind).toBe('source');
+      expect(sourceItem?.routes.report).toContain('visualReport:true');
+      expect(sourceItem?.routes.bundle).toContain('research action:"bundle"');
+      const browserItem = briefing.queue.find((item) => item.id === 'browser:research-runner');
+      expect(browserItem?.routes.runner).toBe('research action:"runner"');
+      expect(briefing.routes.search).toContain('research action:"search"');
+      expect(briefing.routes.saveReport).toContain('requireCitationCoverage:true');
+      expect(briefing.policy).toContain('Research briefing is read-only');
+
       const fresh = await executeHarnessJson<{
         readonly status: string;
         readonly browserRunnerContract: { readonly status: string; readonly fallbackRoutes: readonly string[] };
@@ -7782,6 +7820,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-apply-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-briefing')?.modelRoute).toBe('research action:"briefing"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-workflow-plan')?.modelRoute).toBe('research action:"plan"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-runner-readiness')?.modelRoute).toBe('research action:"runner"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'work-background-processes')?.modelRoute).toBe('execution action:"processes"');

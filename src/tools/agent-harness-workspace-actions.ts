@@ -194,6 +194,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'account-local-benchmark-evidence') return 'models action:"local" includeParameters:true';
   if (action.id === 'assistant-browser-cockpit') return 'computer action:"open_browser"';
+  if (action.id === 'research-briefing') return 'research action:"briefing"';
   if (action.id === 'research-workflow-plan') return 'research action:"plan"';
   if (action.id === 'research-runner-readiness') return 'research action:"runner"';
   if (action.id === 'research-run-queue') return 'research action:"runs"';

@@ -44,6 +44,7 @@ import { describeProjectContextFile, projectContextCatalogStatus, projectContext
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
 import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
 import { describeHarnessReleaseReadinessItem, releaseReadinessInventoryStatus, releaseReadinessSummary } from './agent-harness-release-readiness.ts';
+import { researchBriefingCatalogStatus, researchBriefingSummary } from './agent-harness-research-briefing.ts';
 import { describeResearchRun, researchRunsCatalogStatus, researchRunsSummary } from './agent-harness-research-runs.ts';
 import { researchWorkflowSummary } from './agent-harness-research-workflow.ts';
 import { describeResearchSource, researchQueueCatalogStatus, researchQueueSummary } from './agent-harness-research-queue.ts';
@@ -217,7 +218,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     memoryPosture: 'Prefer memory action:"status|provider|curator|candidate|list|search|get"; memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',
     autonomyQueue: 'Prefer autonomy action:"intake|queue|item" for ongoing work and visible autonomous work; lower-level autonomy_* modes remain available for detail. Effects stay confirmed on the owning route.',
     learningCurator: 'Prefer memory action:"curator|candidate"; writes stay on reviewed Agent-local routes.',
-    researchWorkflow: 'Prefer research action:"plan" for deep-research route planning, action:"search" for bounded public source candidates, and action:"runner" for browser-runner readiness; lower-level mode:"research_workflow" sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
+    researchWorkflow: 'Prefer research action:"briefing" for the current next-action queue, action:"plan" for deep-research route planning, action:"search" for bounded public source candidates, and action:"runner" for browser-runner readiness; lower-level mode:"research_workflow" sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
     researchRuns: 'Prefer research action:"runs|run"; lower-level mode:"research_runs" and mode:"research_run" inspect run posture; checkpoint/cancel/complete stays confirmed.',
     researchQueue: 'Prefer research action:"sources|source|bundle|reports|report_artifact"; lower-level research modes inspect source posture; capture/review/report/ingest stay confirmed.',
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, review packet wizard, reviewer readiness, uploads, exports, source checks, artifacts, and blind compare.',
@@ -1215,6 +1216,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           }));
           const autonomyQueue = autonomyQueueCatalogStatus(deps.commandContext);
           const learningCurator = learningCuratorCatalogStatus(deps.commandContext);
+          const researchBriefing = researchBriefingCatalogStatus(deps.commandContext);
           const researchRuns = researchRunsCatalogStatus(deps.commandContext);
           const researchQueue = researchQueueCatalogStatus(deps.commandContext);
           const documentOps = documentOpsCatalogStatus(deps.commandContext);
@@ -1270,6 +1272,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             memoryPosture,
             autonomyQueue,
             learningCurator,
+            researchBriefing,
             researchRuns,
             researchQueue,
             documentOps,
@@ -1530,6 +1533,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous learning candidate ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
+        if (args.mode === 'research_briefing') return output(researchBriefingSummary(deps.commandContext, args));
         if (args.mode === 'research_workflow') return output(researchWorkflowSummary(deps.commandContext, args));
         if (args.mode === 'research_runs') return output(researchRunsSummary(deps.commandContext, args));
         if (args.mode === 'research_run') {

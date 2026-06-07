@@ -56,6 +56,7 @@ describe('research adapter', () => {
     const calls: Record<string, unknown>[] = [];
     const tool = makeTool(calls);
 
+    await tool.execute({ action: 'briefing', query: 'Compare local agent products.', limit: 3 });
     await tool.execute({ action: 'plan', query: 'Compare local agent products.', includeParameters: true });
     await tool.execute({ action: 'runs', query: 'agent products', limit: 5 });
     await tool.execute({ action: 'run', runId: 'run_123' });
@@ -63,6 +64,7 @@ describe('research adapter', () => {
     await tool.execute({ action: 'source', sourceId: 'src_123' });
 
     expect(calls).toEqual([
+      { tool: 'agent_harness', mode: 'research_briefing', query: 'Compare local agent products.', limit: 3 },
       { tool: 'agent_harness', mode: 'research_workflow', query: 'Compare local agent products.', includeParameters: true },
       { tool: 'agent_harness', mode: 'research_runs', query: 'agent products', limit: 5 },
       { tool: 'agent_harness', mode: 'research_run', runId: 'run_123' },

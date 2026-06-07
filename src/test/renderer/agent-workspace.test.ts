@@ -877,10 +877,12 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Runner requires: visible run controls, source capture receipts, bounded logs, report handoff.');
     expect(output).toContain('Visual report contract: waiting for reviewed sources');
     expect(output).toContain('Report requires: at-a-glance, evidence matrix, source map, citations, handoff, archive.');
+    expect(output).toContain('Briefing: one read-only next-action queue with confirmed routes.');
     expect(output).toContain('Web and URL inspection stay read-only');
-    expect(output).toContain('Model route: research action:"plan|search|runner|runs|sources|reports|report".');
+    expect(output).toContain('Model route: research action:"briefing|plan|search|runner|runs|sources|reports|report".');
     expect(output).toContain('Research in conversation');
     expect(output).toContain('Inspect URL');
+    expect(output).toContain('Research briefing');
     expect(output).toContain('Plan workflow');
     expect(output).toContain('Browser runner readiness');
     expect(output).toContain('Research runs');

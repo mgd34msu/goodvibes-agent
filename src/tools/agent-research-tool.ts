@@ -8,6 +8,7 @@ import { createAgentResearchRunsTool } from './agent-research-runs-tool.ts';
 import { createAgentResearchSourcesTool } from './agent-research-sources-tool.ts';
 
 type AgentResearchAction =
+  | 'briefing'
   | 'plan'
   | 'runner'
   | 'runs'
@@ -118,6 +119,7 @@ function readNumber(value: unknown, fallback: number, max: number): number {
 function normalizeResearchAction(value: unknown): AgentResearchAction | null {
   const action = readString(value).toLowerCase().replace(/-/g, '_');
   if (!action) return null;
+  if (action === 'briefing' || action === 'brief' || action === 'status' || action === 'dashboard' || action === 'cockpit' || action === 'next') return 'briefing';
   if (action === 'plan' || action === 'workflow' || action === 'research') return 'plan';
   if (action === 'runner' || action === 'browser' || action === 'browser_runner' || action === 'browser_backed' || action === 'deep_research') return 'runner';
   if (action === 'runs' || action === 'list_runs' || action === 'run_list') return 'runs';
@@ -169,6 +171,16 @@ function planArgs(args: AgentResearchToolArgs): Record<string, unknown> {
     query: args.query,
     target: args.target,
     runId: args.runId || args.id,
+    includeParameters: args.includeParameters,
+  });
+}
+
+function briefingArgs(args: AgentResearchToolArgs): Record<string, unknown> {
+  return compactArgs({
+    mode: 'research_briefing',
+    query: args.query,
+    target: args.target,
+    limit: args.limit,
     includeParameters: args.includeParameters,
   });
 }
@@ -399,7 +411,7 @@ async function runPublicSearch(webSearchTool: Tool | undefined, args: AgentResea
   const query = readString(args.query) || readString(args.target);
   if (!query) return error('research action:"search" requires query or target.');
   if (!webSearchTool) {
-    return error('Bounded public web search is unavailable because web_search is not registered. Use research action:"plan" for the offline route plan.');
+    return error('Bounded public web search is unavailable because web_search is not registered. Use research action:"briefing" for the offline next-action queue or action:"plan" for the route plan.');
   }
   const webArgs = searchArgs({ ...args, query });
   const webResult = await webSearchTool.execute(webArgs);
@@ -519,6 +531,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
           action: {
             type: 'string',
             enum: [
+              'briefing',
               'plan',
               'runner',
               'runs',
@@ -608,6 +621,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
       const args = (rawArgs && typeof rawArgs === 'object' && !Array.isArray(rawArgs) ? rawArgs : {}) as AgentResearchToolArgs;
       const action = readAction(args);
 
+      if (action === 'briefing') return harnessTool.execute(briefingArgs(args));
       if (action === 'plan') return harnessTool.execute(planArgs(args));
       if (action === 'runner') return harnessTool.execute(runnerArgs(args));
       if (action === 'runs') return harnessTool.execute(runsArgs(args));

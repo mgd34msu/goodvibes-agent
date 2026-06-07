@@ -1283,10 +1283,10 @@ describe('spawn mode', () => {
     expect(payload.commonRoutes?.device).toContain('device action:"status"');
     expect(payload.commonRoutes?.models).toContain('models action:"status"');
     expect(payload.commonRoutes?.documentOps).toContain('agent_harness mode:"document_ops"');
-    expect(payload.commonRoutes?.researchWorkflow).toContain('research action:"plan"');
-    expect(payload.commonRoutes?.webResearch).toContain('multi-step: research action:"plan"');
+    expect(payload.commonRoutes?.researchWorkflow).toContain('research action:"briefing"');
+    expect(payload.commonRoutes?.webResearch).toContain('multi-step: research action:"briefing"');
     const webResearchCapability = payload.canDoNow?.find((entry) => entry.area === 'Web research') as { readonly inspect?: string } | undefined;
-    expect(webResearchCapability?.inspect).toContain('research action:"plan"');
+    expect(webResearchCapability?.inspect).toContain('research action:"briefing"');
 
     const legacy = await registry.execute('call-context-legacy', 'goodvibes_context', {
       mode: ['home', 'graph'].join(''),

@@ -103,6 +103,7 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('personal_ops', { action: 'intake' })).toBe('read');
     expect(manager.getCategory('personal_ops', { action: 'lane' })).toBe('read');
     expect(manager.getCategory('personal_ops', { action: 'read' })).toBe('write');
+    expect(manager.getCategory('research', { action: 'briefing' })).toBe('read');
     expect(manager.getCategory('research', { action: 'plan' })).toBe('read');
     expect(manager.getCategory('research', { action: 'search' })).toBe('read');
     expect(manager.getCategory('research', { action: 'runner' })).toBe('read');

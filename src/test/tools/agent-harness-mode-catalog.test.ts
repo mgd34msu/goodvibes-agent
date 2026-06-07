@@ -113,6 +113,20 @@ describe('agent_harness mode catalog', () => {
     expect(trigger.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds Research briefing by next-action wording', () => {
+    const research = listHarnessModes({ query: 'deep research next actions source review report queue', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = research.modes.map((mode) => mode.id);
+    expect(ids).toContain('research_briefing');
+    const queue = listHarnessModes({ query: 'research sources credibility bundle route', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    expect(queue.modes.map((mode) => mode.id)).toContain('research_queue');
+    expect(research.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+    expect(queue.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds memory posture by recall and external memory provider wording', () => {
     const memory = listHarnessModes({ query: 'memory recall Honcho Mem0 Supermemory', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

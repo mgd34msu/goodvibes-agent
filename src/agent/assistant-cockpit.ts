@@ -143,8 +143,8 @@ export function buildAssistantCockpitFromMetrics(metrics: AssistantCockpitMetric
         label: 'Research and write',
         state: metrics.documentGaps > 0 ? 'attention' : 'ready',
         summary: `${metrics.researchRuns} research run(s); ${metrics.documentLanes} document lane(s).`,
-        nextAction: 'Use research workflow planning, source queues, reports, documents, artifacts, and blind compare as one writing path.',
-        routes: ['research action:"plan"', 'research action:"search"', 'research action:"runner"', 'research action:"reports"', 'agent_harness mode:"document_ops"'],
+        nextAction: 'Start with the research briefing, then use source queues, reports, documents, artifacts, and blind compare as one writing path.',
+        routes: ['research action:"briefing"', 'research action:"plan"', 'research action:"search"', 'research action:"runner"', 'research action:"reports"', 'agent_harness mode:"document_ops"'],
       }),
       lane({
         id: 'background-work',

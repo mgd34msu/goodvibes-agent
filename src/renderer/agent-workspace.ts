@@ -563,15 +563,15 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
     const visualContract = snapshot.researchVisualReportContract;
     base.push(
       { text: `Research route: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}.`, fg: PALETTE.info },
-      { text: `Browser: ${snapshot.voiceMediaReadiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: `Browser runner contract: ${runnerContract.label}; ${compactText(runnerContract.next, 96)}`, fg: researchContractColor(runnerContract.status), bold: runnerContract.status !== 'ready-with-confirmation' },
+      { text: 'Model route: research action:"briefing|plan|search|runner|runs|sources|reports|report".', fg: PALETTE.good },
+      { text: `Browser runner contract: ${runnerContract.label}; ${compactText(runnerContract.next, 64)}`, fg: researchContractColor(runnerContract.status), bold: runnerContract.status !== 'ready-with-confirmation' },
       { text: `Runner requires: ${runnerContract.details.join(', ')}.`, fg: PALETTE.muted },
+      { text: 'Briefing: one read-only next-action queue with confirmed routes.', fg: PALETTE.good },
       { text: `Research runs: ${snapshot.researchRunRunningCount} running; ${snapshot.researchRunPausedCount} paused; ${snapshot.researchRunBlockedCount} blocked; ${snapshot.researchRunPlannedCount} planned.`, fg: snapshot.researchRunRunningCount > 0 || snapshot.researchRunBlockedCount > 0 ? PALETTE.warn : snapshot.researchRunPausedCount > 0 || snapshot.researchRunPlannedCount > 0 ? PALETTE.info : PALETTE.muted },
       { text: `Source queue: ${snapshot.researchSourceCandidateCount} candidate; ${snapshot.researchSourceReviewedCount} reviewed; ${snapshot.researchSourceRejectedCount} rejected; ${snapshot.researchSourceUsedCount} used.`, fg: snapshot.researchSourceCandidateCount > 0 ? PALETTE.warn : snapshot.researchSourceReviewedCount > 0 ? PALETTE.good : PALETTE.muted },
-      { text: `Visual report contract: ${visualContract.label}; ${compactText(visualContract.next, 96)}`, fg: researchContractColor(visualContract.status), bold: visualContract.status !== 'visual-report-packet-ready' },
+      { text: `Visual report contract: ${visualContract.label}; ${compactText(visualContract.next, 64)}`, fg: researchContractColor(visualContract.status), bold: visualContract.status !== 'visual-report-packet-ready' },
       { text: `Report requires: ${visualContract.details.join(', ')}.`, fg: PALETTE.muted },
       { text: 'Web and URL inspection stay read-only until the user confirms source ingest.', fg: PALETTE.good },
-      { text: 'Model route: research action:"plan|search|runner|runs|sources|reports|report".', fg: PALETTE.good },
     );
   } else if (category.id === 'personal-ops') {
     const ready = readyRoutineItems(snapshot);

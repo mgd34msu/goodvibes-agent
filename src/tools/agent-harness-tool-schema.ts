@@ -16,7 +16,7 @@ export const AGENT_HARNESS_MODES = [
   'memory_posture', 'memory_provider',
   'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
   'learning_curator', 'learning_candidate',
-  'research_workflow', 'research_runs', 'research_run',
+  'research_briefing', 'research_workflow', 'research_runs', 'research_run',
   'research_queue', 'research_source',
   'document_ops', 'document_ops_lane',
   'pairing_posture', 'pairing_route',
