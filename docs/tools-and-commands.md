@@ -44,6 +44,7 @@ High-signal TUI routes:
 | `agent_work_plan` | Keep the visible Agent-local work plan current and dispatch approved plan items to visible agents with confirmation and receipts. |
 | `agent_operator_briefing` | Read connected work, approvals, automation, schedules, and capacity posture. |
 | `schedule` | List, create, edit, run, pause, resume, and delete connected schedules through existing confirmation gates. |
+| `import_goodvibes_settings` | Preview or apply GoodVibes TUI settings import through the existing redacted import plan and confirmation gate. |
 | `agent_operator_action` | Run exact confirmed approval/automation/schedule actions. |
 | `agent_schedule_edit` | Edit one confirmed connected schedule by id. |
 | `agent_documents` | Create, revise, review, comment on, suggest changes to, list, show, attach saved artifacts to, insert saved artifacts into, and export project-scoped drafts with reviewer appendices. |
@@ -167,7 +168,7 @@ Foreground `exec` remains the default for tests, builds, and one-shot commands. 
 
 ## Settings And Keybindings
 
-Settings discovery accepts `category`, `prefix`, `query`, `includeHidden:true`, and `limit`. It is compact by default and each row includes a short `modelRoute` that distinguishes read-only settings from set/reset-capable settings; use `includeParameters:true` or `get_setting` for full descriptions/defaults. Single setting reads/writes resolve by `key`, `target`, or `query`; ambiguous matches are refused. Secret-backed setting writes store raw values through the secret manager and return redacted output. The GoodVibes TUI settings import route is `agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"`; without confirmation it returns a redacted preview, and with `confirm:true` plus `explicitUserRequest` it applies the migration. Connected-host lifecycle/listener settings are read-only in Agent.
+Settings discovery accepts `category`, `prefix`, `query`, `includeHidden:true`, and `limit`. It is compact by default and each row includes a short `modelRoute` that distinguishes read-only settings from set/reset-capable settings; use `includeParameters:true` or `get_setting` for full descriptions/defaults. Single setting reads/writes resolve by `key`, `target`, or `query`; ambiguous matches are refused. Secret-backed setting writes store raw values through the secret manager and return redacted output. The preferred GoodVibes TUI settings import route is `import_goodvibes_settings action:"preview"`; apply with `action:"apply" confirm:true explicitUserRequest:"..."`. The workspace action `agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"` remains available for visible form parity. Connected-host lifecycle/listener settings are read-only in Agent.
 
 Keybinding discovery returns fixed shortcuts plus the live resolved binding table. Fixed shortcuts and configurable bindings include direct `modelRoute` and `modelAccess` metadata so the model can distinguish supported harness routes from direct-user-only controls. `run_keybinding` only executes actions with faithful current-shell routes. Prompt-editor-only shortcuts, terminal text selection, category cycling, and reserved shortcuts stay direct user interaction.
 

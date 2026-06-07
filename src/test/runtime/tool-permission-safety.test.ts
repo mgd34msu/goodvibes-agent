@@ -62,6 +62,8 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('terminal', { background: true })).toBe('execute');
     expect(manager.getCategory('schedule', { action: 'list' })).toBe('read');
     expect(manager.getCategory('schedule', { action: 'pause' })).toBe('execute');
+    expect(manager.getCategory('import_goodvibes_settings', { action: 'preview' })).toBe('read');
+    expect(manager.getCategory('import_goodvibes_settings', { action: 'apply' })).toBe('write');
     expect(manager.getCategory('agent_review_packet_share')).toBe('delegate');
     expect(manager.getCategory('unknown_tool')).toBe('delegate');
   });
@@ -83,6 +85,8 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('process', { action: 'wait' })).toBe('execute');
     expect(manager.getCategory('schedule', { action: 'status' })).toBe('read');
     expect(manager.getCategory('schedule', { action: 'create' })).toBe('execute');
+    expect(manager.getCategory('import_goodvibes_settings')).toBe('read');
+    expect(manager.getCategory('import_goodvibes_settings', { mode: 'apply' })).toBe('write');
     expect(manager.getCategory('exec')).toBe('execute');
     expect(manager.getCategory('terminal')).toBe('execute');
     expect(manager.getCategory('agent_channel_send')).toBe('delegate');
@@ -105,6 +109,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('process', { action: 'kill' })).resolves.toBe(false);
     await expect(manager.check('schedule', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('schedule', { action: 'run' })).resolves.toBe(false);
+    await expect(manager.check('import_goodvibes_settings', { action: 'preview' })).resolves.toBe(true);
+    await expect(manager.check('import_goodvibes_settings', { action: 'apply' })).resolves.toBe(false);
     await expect(manager.check('exec', { commands: [] })).resolves.toBe(false);
     await expect(manager.check('terminal', { background: true })).resolves.toBe(false);
 
