@@ -115,6 +115,37 @@ function autonomousLike(lower: string): boolean {
   ]);
 }
 
+function browserControlLike(lower: string): boolean {
+  return hasAny(lower, [
+    'browser control',
+    'desktop control',
+    'computer use',
+    'take screenshot',
+    'take a screenshot',
+    'screenshot',
+    'screen recording',
+    'record screen',
+    'record the screen',
+    'observe screen',
+    'observe the screen',
+    'capture screen',
+    'capture the screen',
+    'use the browser',
+    'use browser',
+    'navigate browser',
+    'click in browser',
+    'click the page',
+    'fill form',
+    'fill out form',
+    'logged-in page',
+    'logged in page',
+    'move mouse',
+    'type into',
+    'control desktop',
+    'control the desktop',
+  ]);
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -335,6 +366,29 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
       policy: delegated
         ? 'Delegation must preserve the original ask and produce visible status, artifacts, recovery, and review evidence.'
         : 'Local work remains serial and visible by default; long-running commands use tracked process routes.',
+    });
+  }
+
+  if (browserControlLike(lower)) {
+    add({
+      id: 'browser-control-workflow-plan',
+      label: 'Browser, screenshot, or desktop-control workflow plan',
+      score: 97,
+      userSurface: 'Work and computer-use workspace',
+      userOutcome: 'Choose the safest browser, screenshot, or desktop-control workflow before any live UI action.',
+      why: 'The request asks for screenshot, browser navigation/control, screen observation, or desktop control.',
+      modelRoute: `computer action:"plan" query:${quote(request)} includeParameters:true`,
+      inspectRoute: 'computer action:"control" includeParameters:true',
+      userRoute: 'Agent Workspace -> Work & Approvals',
+      requiresConfirmation: hasAny(lower, ['open', 'control', 'click', 'fill', 'type', 'capture', 'screenshot', 'record', 'desktop']),
+      missingFields: ['target page/app/screen when applicable', 'exact live action to perform', 'confirmation for any live-control effect'],
+      supportingRoutes: [
+        'computer action:"plan" query:"take a screenshot" includeParameters:true',
+        'computer action:"mcp" query:"browser desktop" includeParameters:true',
+        'computer action:"setup"',
+        'computer action:"open_browser" confirm:true explicitUserRequest:"..."',
+      ],
+      policy: 'Workflow planning is read-only. Browser opens, screenshots, authenticated browsing, form entry, desktop actions, and MCP/tool invocations require the selected tool-specific confirmation boundary.',
     });
   }
 

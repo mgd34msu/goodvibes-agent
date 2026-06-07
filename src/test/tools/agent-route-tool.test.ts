@@ -82,6 +82,27 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes screenshot and browser-control tasks through the computer planner', async () => {
+    const body = await route('take a screenshot of the logged-in browser dashboard');
+
+    expect(preferredId(body)).toBe('browser-control-workflow-plan');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'computer action:"plan" query:"take a screenshot of the logged-in browser dashboard" includeParameters:true',
+      inspectRoute: 'computer action:"control" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('keeps plain browser-open requests on the Browser/PWA readiness route', async () => {
+    const body = await route('open the browser dashboard');
+
+    expect(preferredId(body)).toBe('browser-computer-capability');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'computer action:"status" includeParameters:true',
+      inspectRoute: 'computer action:"browser" includeParameters:true',
+    });
+  });
+
   test('returns catalog matches and scores only when parameters are requested', async () => {
     const compact = await route('compare models for this document');
     const compactPreferred = compact.preferred as { readonly score?: number };
