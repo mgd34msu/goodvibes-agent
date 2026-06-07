@@ -1611,7 +1611,7 @@ describe('agent_harness tool', () => {
       expect(vibeItem?.signals?.join('\n')).toContain('blocked VIBE.md files: 1');
       expect(vibeItem?.signals?.join('\n')).toContain('truncated VIBE.md files: 1');
       expect(vibeItem?.primaryHandoff?.id).toBe('inspect-vibe-status');
-      expect(vibeItem?.primaryHandoff?.modelRoute).toContain('commandName:"vibe"');
+      expect(vibeItem?.primaryHandoff?.modelRoute).toBe('vibe action:"status"');
       expect(vibeItem?.handoffs?.some((handoff) => handoff.id === 'init-project-vibe' && handoff.requiresConfirmation)).toBe(true);
       expect(vibeItem?.handoffs?.some((handoff) => handoff.id === 'import-vibe-persona' && handoff.requiresConfirmation)).toBe(true);
       expect(vibeItem?.vibeHealth?.applied).toBe(1);
@@ -1651,9 +1651,9 @@ describe('agent_harness tool', () => {
       expect(blocked?.domain).toBe('vibe');
       expect(blocked?.recordId).toBe(join(fixture.root, 'VIBE.md'));
       expect(blocked?.proposalFields?.reason).toContain('secret-looking');
-      expect(blocked?.inspectRoute).toContain('/vibe status');
-      expect(blocked?.reviewRoute).toContain('commandName:"vibe"');
-      expect(blocked?.createRoute).toContain('/vibe init');
+      expect(blocked?.inspectRoute).toBe('vibe action:"status"');
+      expect(blocked?.reviewRoute).toBe('vibe action:"status"');
+      expect(blocked?.createRoute).toContain('vibe action:"init"');
       expect(truncated?.domain).toBe('vibe');
       expect(truncated?.recordId).toBe(globalVibePath);
 
@@ -1663,9 +1663,9 @@ describe('agent_harness tool', () => {
         readonly routes?: { readonly inspect: string; readonly review: string | null; readonly create: string | null };
       }>(fixture, { mode: 'learning_candidate', candidateId: blocked?.candidateId });
       expect(detail.domain).toBe('vibe');
-      expect(detail.routes?.inspect).toContain('/vibe status');
-      expect(detail.routes?.review).toContain('commandName:"vibe"');
-      expect(detail.routes?.create).toContain('/vibe init');
+      expect(detail.routes?.inspect).toBe('vibe action:"status"');
+      expect(detail.routes?.review).toBe('vibe action:"status"');
+      expect(detail.routes?.create).toContain('vibe action:"init"');
     } finally {
       fixture.cleanup();
     }

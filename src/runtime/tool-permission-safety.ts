@@ -19,6 +19,7 @@ const READ_TOOL_NAMES = new Set([
   'registry',
   'goodvibes_context',
   'setup',
+  'vibe',
   'agent_harness',
   'agent_knowledge',
   'agent_operator_briefing',
@@ -45,6 +46,7 @@ const READ_ONLY_PROCESS_ACTIONS = new Set(['', 'list', 'status', 'poll', 'log', 
 const READ_ONLY_SCHEDULE_ACTIONS = new Set(['', 'list', 'status', 'show']);
 const READ_ONLY_SETTINGS_IMPORT_ACTIONS = new Set(['', 'preview', 'inspect', 'show', 'plan']);
 const READ_ONLY_SETUP_ACTIONS = new Set(['', 'status', 'summary', 'list', 'item', 'show', 'inspect', 'checkpoint', 'checkpoint_status']);
+const READ_ONLY_VIBE_ACTIONS = new Set(['', 'status', 'summary', 'list', 'show', 'file', 'source', 'read', 'inspect']);
 
 type MarkedPermissionManager = PermissionManagerLike & { [SAFETY_MARKER]?: true };
 
@@ -138,6 +140,14 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_SETUP_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'vibe') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase().replace(/-/g, '_')
+        : '';
+    return READ_ONLY_VIBE_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'agent_artifacts') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';

@@ -592,11 +592,11 @@ function stableVibeIdSuffix(value: string): string {
 }
 
 function vibeStatusRoute(): string {
-  return 'agent_harness mode:"run_command" command:"/vibe status" confirm:true explicitUserRequest:"Inspect VIBE.md personality status."';
+  return 'vibe action:"status"';
 }
 
 function vibeCommandInspectRoute(): string {
-  return 'agent_harness mode:"command" commandName:"vibe"';
+  return 'vibe action:"status"';
 }
 
 function vibeCandidate(
@@ -634,7 +634,7 @@ function vibeCandidate(
     inspectRoute: vibeStatusRoute(),
     modelRoute: 'agent_harness mode:"learning_curator" query:"vibe"',
     reviewRoute: vibeCommandInspectRoute(),
-    createRoute: 'agent_harness mode:"run_command" command:"/vibe init --yes" confirm:true explicitUserRequest:"Create or refresh the project VIBE.md starter."',
+    createRoute: 'vibe action:"init" scope:"project" confirm:true explicitUserRequest:"Create or refresh the project VIBE.md starter."',
   };
 }
 

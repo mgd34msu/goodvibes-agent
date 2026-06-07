@@ -66,6 +66,10 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('setup', { action: 'checkpoint' })).toBe('read');
     expect(manager.getCategory('setup', { action: 'smoke' })).toBe('write');
     expect(manager.getCategory('setup', { action: 'finish' })).toBe('write');
+    expect(manager.getCategory('vibe', { action: 'status' })).toBe('read');
+    expect(manager.getCategory('vibe', { action: 'show' })).toBe('read');
+    expect(manager.getCategory('vibe', { action: 'init' })).toBe('write');
+    expect(manager.getCategory('vibe', { action: 'import_persona' })).toBe('write');
     expect(manager.getCategory('import_goodvibes_settings', { action: 'preview' })).toBe('read');
     expect(manager.getCategory('import_goodvibes_settings', { action: 'apply' })).toBe('write');
     expect(manager.getCategory('agent_review_packet_share')).toBe('delegate');
@@ -92,6 +96,9 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('setup')).toBe('read');
     expect(manager.getCategory('setup', { mode: 'item' })).toBe('read');
     expect(manager.getCategory('setup', { mode: 'import_settings' })).toBe('write');
+    expect(manager.getCategory('vibe')).toBe('read');
+    expect(manager.getCategory('vibe', { mode: 'show' })).toBe('read');
+    expect(manager.getCategory('vibe', { mode: 'import' })).toBe('write');
     expect(manager.getCategory('import_goodvibes_settings')).toBe('read');
     expect(manager.getCategory('import_goodvibes_settings', { mode: 'apply' })).toBe('write');
     expect(manager.getCategory('exec')).toBe('execute');
@@ -118,6 +125,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('schedule', { action: 'run' })).resolves.toBe(false);
     await expect(manager.check('setup', { action: 'status' })).resolves.toBe(true);
     await expect(manager.check('setup', { action: 'token' })).resolves.toBe(false);
+    await expect(manager.check('vibe', { action: 'status' })).resolves.toBe(true);
+    await expect(manager.check('vibe', { action: 'init' })).resolves.toBe(false);
     await expect(manager.check('import_goodvibes_settings', { action: 'preview' })).resolves.toBe(true);
     await expect(manager.check('import_goodvibes_settings', { action: 'apply' })).resolves.toBe(false);
     await expect(manager.check('exec', { commands: [] })).resolves.toBe(false);
@@ -138,6 +147,7 @@ describe('Agent tool permission safety guard', () => {
     expect(fallbackPermissionCategory('process')).toBe('execute');
     expect(fallbackPermissionCategory('schedule')).toBe('delegate');
     expect(fallbackPermissionCategory('setup')).toBe('read');
+    expect(fallbackPermissionCategory('vibe')).toBe('read');
     expect(fallbackPermissionCategory('unknown_tool')).toBe('delegate');
   });
 });

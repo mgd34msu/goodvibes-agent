@@ -105,7 +105,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: `${agentHarnessModes('workspace_actions', 'workspace_action', 'run_command')} or agent_local_registry`,
+      preferredModelTool: 'vibe or agent_local_registry',
       boundary: 'VIBE.md status/show are read-only; init writes a local personality file and import-persona writes an Agent-local persona after explicit confirmation.',
     };
   }

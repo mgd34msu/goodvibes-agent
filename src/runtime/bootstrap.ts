@@ -42,6 +42,7 @@ import { registerAgentHarnessTool } from '../tools/agent-harness-tool.ts';
 import { registerAgentSetupTool } from '../tools/agent-setup-tool.ts';
 import { registerAgentSettingsImportTool } from '../tools/agent-settings-import-tool.ts';
 import { registerAgentTerminalProcessTools } from '../tools/agent-terminal-process-tools.ts';
+import { registerAgentVibeTool } from '../tools/agent-vibe-tool.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
 
 const GOODVIBES_AGENT_OPERATOR_POLICY = [
@@ -49,10 +50,10 @@ const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '- Act as one user-facing autonomous assistant. Prefer the lowest-friction safe path that completes the user outcome; do not expose internal package or host ownership unless it is needed for diagnosis, setup, or safety.',
   '- Work serially in the main conversation by default for ordinary chat, research, planning, setup, local context, and short tool work. Use visible schedules, work plans, operator actions, or delegated/remote routes for durable or long-running autonomy.',
   '- Connected-host lifecycle is not ambient. If the host is unavailable, explain the shortest user action to make the assistant reachable; do not pretend a missing host route worked.',
-  '- Read tools: `schedule action:"list"`, `setup action:"status|item|checkpoint"`, `import_goodvibes_settings action:"preview"`, and `agent_operator_briefing` for connected work/approvals/automation/schedules, `agent_knowledge` for isolated Agent Knowledge, and `agent_harness` for harness catalogs/settings/status/capability discovery. Use `agent_artifacts` for saved artifact list/preview/export/package/archive; write modes are confirmation-gated.',
+  '- Read tools: `schedule action:"list"`, `setup action:"status|item|checkpoint"`, `vibe action:"status|show"`, `import_goodvibes_settings action:"preview"`, and `agent_operator_briefing` for connected work/approvals/automation/schedules, `agent_knowledge` for isolated Agent Knowledge, and `agent_harness` for harness catalogs/settings/status/capability discovery. Use `agent_artifacts` for saved artifact list/preview/export/package/archive; write modes are confirmation-gated.',
   '- Harness access: use `agent_harness` modes `commands`/`run_command`, `workspace_actions`/`run_workspace_action`, and `settings`/`set_setting`/`reset_setting` to use the same surfaces the user can use.',
   '- State tools: `agent_work_plan` for visible local work items; `agent_local_registry` for Agent-local notes, memory, personas, skills, bundles, and routines; `agent_learning_consolidation` for confirmed duplicate cleanup phases; `agent_documents` for versioned Agent document drafts. Keep records non-secret, sourced, and reviewable.',
-  '- Confirmed tools: use `schedule`, `setup action:"save_checkpoint|clear_checkpoint|token|smoke|finish|import_settings"`, `import_goodvibes_settings`, `agent_operator_action`, `agent_artifacts` export/package/archive, `agent_documents`, `agent_review_packet_presets` save/refresh, `agent_review_packet_share`, `agent_knowledge_ingest`, `agent_learning_consolidation`, `agent_media_generate`, `agent_model_compare`, `agent_research_runs`, `agent_research_sources`, `agent_research_report`, `agent_notify`, `agent_channel_send`, `agent_autonomy_schedule`, `agent_reminder_schedule`, and `agent_schedule_edit` only for explicit user requests with confirm:true and explicitUserRequest.',
+  '- Confirmed tools: use `schedule`, `setup action:"save_checkpoint|clear_checkpoint|token|smoke|finish|import_settings"`, `vibe action:"init|import_persona"`, `import_goodvibes_settings`, `agent_operator_action`, `agent_artifacts` export/package/archive, `agent_documents`, `agent_review_packet_presets` save/refresh, `agent_review_packet_share`, `agent_knowledge_ingest`, `agent_learning_consolidation`, `agent_media_generate`, `agent_model_compare`, `agent_research_runs`, `agent_research_sources`, `agent_research_report`, `agent_notify`, `agent_channel_send`, `agent_autonomy_schedule`, `agent_reminder_schedule`, and `agent_schedule_edit` only for explicit user requests with confirm:true and explicitUserRequest.',
   '- Agent Knowledge must use only `/api/goodvibes-agent/knowledge/*` and fail closed. Do not use default knowledge or non-Agent knowledge spaces.',
   '- External delivery, media generation, reminders, settings writes, slash-command mirrors, workspace action mirrors, and destructive local changes require explicit user intent and the owning tool/command confirmation.',
   '- Autonomous work must be visible, reviewable, and cancellable. Never create silent hidden jobs; when work should continue later, create or use an explicit schedule, reminder, work-plan item, operator action, or delegated/remote task route.',
@@ -321,6 +322,7 @@ export async function bootstrapRuntime(
   const inputHistory = shell.inputHistory;
   registerAgentHarnessTool(toolRegistry, commandRegistry, commandContext);
   registerAgentSetupTool(toolRegistry, commandRegistry, commandContext);
+  registerAgentVibeTool(toolRegistry, commandContext);
   registerAgentSettingsImportTool(toolRegistry, commandContext);
   registerAgentTerminalProcessTools(toolRegistry, commandContext);
   compactRegisteredToolDefinitions(toolRegistry);

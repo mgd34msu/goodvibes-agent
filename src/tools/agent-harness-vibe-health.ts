@@ -62,7 +62,7 @@ export function agentHarnessVibeHealth(context: CommandContext): AgentHarnessVib
       globalInitPath: '',
       nextAction: 'VIBE.md discovery is unavailable because shell paths are not wired into this runtime.',
       userRoute: 'Agent Workspace -> Local Context -> Personas -> VIBE.md; /vibe status',
-      modelRoute: 'agent_harness mode:"command" commandName:"vibe"',
+      modelRoute: 'vibe action:"status"',
       signals: ['VIBE.md discovery unavailable: shell paths are not wired.'],
     };
   }
@@ -99,7 +99,7 @@ export function agentHarnessVibeHealth(context: CommandContext): AgentHarnessVib
     globalInitPath: snapshot.globalInitPath,
     nextAction,
     userRoute: 'Agent Workspace -> Local Context -> Personas -> VIBE.md; /vibe status',
-    modelRoute: 'agent_harness mode:"run_command" command:"/vibe status" confirm:true explicitUserRequest:"Inspect VIBE.md personality status."',
+    modelRoute: 'vibe action:"status"',
     signals,
   };
 }
