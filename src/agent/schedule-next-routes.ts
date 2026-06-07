@@ -1,4 +1,4 @@
-function routeArg(value: string): string {
+export function scheduleRouteArg(value: string): string {
   return JSON.stringify(value);
 }
 
@@ -8,8 +8,8 @@ function routeLine(id: string, route: string): string {
 
 export function scheduleNextRouteLines(scheduleId: string, options: { readonly deleted?: boolean } = {}): readonly string[] {
   const id = scheduleId && scheduleId !== '(unknown)' ? scheduleId : '...';
-  const query = id === '...' ? '' : ` query:${routeArg(id)}`;
-  const scheduleIdArg = `scheduleId:${routeArg(id)}`;
+  const query = id === '...' ? '' : ` query:${scheduleRouteArg(id)}`;
+  const scheduleIdArg = `scheduleId:${scheduleRouteArg(id)}`;
   const lines = [
     '  nextRoutes',
     routeLine('listSchedules', `schedule action:"list"${query}`),
@@ -30,4 +30,13 @@ export function scheduleNextRouteLines(scheduleId: string, options: { readonly d
     routeLine('deleteSchedule', `schedule action:"delete" ${scheduleIdArg} confirm:true explicitUserRequest:"..."`),
   );
   return lines;
+}
+
+export function scheduleConfirmationRouteLines(routes: Record<string, string>): readonly string[] {
+  const entries = Object.entries(routes).filter(([, route]) => route.trim() !== '');
+  if (entries.length === 0) return [];
+  return [
+    '  confirmationRoutes',
+    ...entries.map(([id, route]) => routeLine(id, route)),
+  ];
 }

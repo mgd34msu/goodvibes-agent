@@ -8,7 +8,7 @@ import {
   type RoutineScheduleReceipt,
   type RoutineScheduleReceiptSnapshot,
 } from './routine-schedule-promotion.ts';
-import { scheduleNextRouteLines } from './schedule-next-routes.ts';
+import { scheduleConfirmationRouteLines, scheduleNextRouteLines, scheduleRouteArg } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -48,6 +48,27 @@ function formatRoutineScheduleFailureKind(kind: string): string {
   return kind.replace(/[_-]+/g, ' ');
 }
 
+function routineScheduleSelector(preview: RoutineSchedulePromotionPreview): { readonly flag: string; readonly value: string } {
+  if (preview.payload.kind === 'cron') return { flag: '--cron', value: String(preview.payload.cron ?? '') };
+  if (preview.payload.kind === 'every') return { flag: '--every', value: String(preview.payload.every ?? '') };
+  return { flag: '--at', value: String(preview.payload.at ?? '') };
+}
+
+function routineScheduleConfirmCommand(preview: RoutineSchedulePromotionPreview): string {
+  const selector = routineScheduleSelector(preview);
+  const args = [
+    '/schedule promote-routine',
+    scheduleRouteArg(preview.routineId),
+    selector.flag,
+    scheduleRouteArg(selector.value),
+  ];
+  if (typeof preview.payload.timezone === 'string' && preview.payload.timezone) {
+    args.push('--timezone', scheduleRouteArg(preview.payload.timezone));
+  }
+  args.push('--yes');
+  return args.join(' ');
+}
+
 export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPreview): string {
   const schedule = preview.payload.kind === 'cron'
     ? `${preview.payload.cron}${preview.payload.timezone ? ` [${preview.payload.timezone}]` : ''}`
@@ -66,7 +87,10 @@ export function formatRoutineSchedulePreview(preview: RoutineSchedulePromotionPr
     `  delivery: ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
     '  target connected GoodVibes host/main conversation route',
     '  policy isolated Agent Knowledge only; no default knowledge/non-Agent fallback; no delegated review unless explicitly requested',
-    '  next rerun with --yes to create this connected schedule',
+    ...scheduleConfirmationRouteLines({
+      workspace: 'workspace action:"run" actionId:"schedule-promote-routine" confirm:true explicitUserRequest:"..."',
+      cli: routineScheduleConfirmCommand(preview),
+    }),
   ].join('\n');
 }
 

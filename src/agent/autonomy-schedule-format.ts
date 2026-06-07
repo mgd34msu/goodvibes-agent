@@ -4,7 +4,7 @@ import {
   type AutonomySchedulePreview,
   type AutonomyScheduleSuccess,
 } from './autonomy-schedule.ts';
-import { scheduleNextRouteLines } from './schedule-next-routes.ts';
+import { scheduleConfirmationRouteLines, scheduleNextRouteLines, scheduleRouteArg } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -21,6 +21,17 @@ function scheduleValue(preview: AutonomySchedulePreview): string {
   }
   if (preview.payload.kind === 'every') return String(preview.payload.every);
   return String(preview.payload.at);
+}
+
+function createScheduleRouteArgs(preview: AutonomySchedulePreview): string {
+  const args = [
+    `scheduleKind:${scheduleRouteArg(String(preview.payload.kind ?? ''))}`,
+    `scheduleValue:${scheduleRouteArg(scheduleValue(preview))}`,
+  ];
+  if (typeof preview.payload.timezone === 'string' && preview.payload.timezone) {
+    args.push(`timezone:${scheduleRouteArg(preview.payload.timezone)}`);
+  }
+  return args.join(' ');
 }
 
 function formatAutonomyScheduleFailureKind(kind: string): string {
@@ -46,7 +57,9 @@ export function formatAutonomySchedulePreview(preview: AutonomySchedulePreview):
     `  delivery ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
     '  target connected GoodVibes host/main conversation route',
     '  policy visible scheduled automation; isolated Agent Knowledge only; no default knowledge/non-Agent fallback; approvals required for risky effects',
-    '  next call with confirm:true to create this connected automation schedule',
+    ...scheduleConfirmationRouteLines({
+      model: `schedule action:"create" task:${scheduleRouteArg(preview.task)} successCriteria:${scheduleRouteArg(preview.successCriteria)} ${createScheduleRouteArgs(preview)} confirm:true explicitUserRequest:"..."`,
+    }),
   ].join('\n');
 }
 

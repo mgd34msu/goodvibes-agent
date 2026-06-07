@@ -128,6 +128,9 @@ describe('agent_reminder_schedule tool', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('GoodVibes schedule preview for Agent reminder');
       expect(result.error).toContain('confirmation required');
+      expect(result.error).toContain('confirmationRoutes');
+      expect(result.error).toContain('schedule action:"remind" message:"Review open approvals"');
+      expect(result.error).toContain('scheduleKind:"every" scheduleValue:"1d" confirm:true explicitUserRequest:"..."');
       expect(calls).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;

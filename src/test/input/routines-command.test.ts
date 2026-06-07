@@ -272,6 +272,9 @@ describe('/routines command', () => {
       expect(text).toContain('GoodVibes schedule preview for Agent routine');
       expect(text).toContain('schedules.create /api/automation/schedules');
       expect(text).toContain('isolated Agent Knowledge only');
+      expect(text).toContain('confirmationRoutes');
+      expect(text).toContain('workspace action:"run" actionId:"schedule-promote-routine" confirm:true explicitUserRequest:"..."');
+      expect(text).toContain('/schedule promote-routine "inbox-sweep" --cron "0 9 * * *" --timezone "America/Chicago" --yes');
       expect(calls).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;
@@ -416,6 +419,8 @@ describe('/routines command', () => {
       expect(text).toContain('GoodVibes schedule preview for Agent reminder');
       expect(text).toContain('schedules.create /api/automation/schedules');
       expect(text).toContain('isolated Agent Knowledge only');
+      expect(text).toContain('confirmationRoutes');
+      expect(text).toContain('schedule action:"remind" message:"Follow up on the report" scheduleKind:"at" scheduleValue:"2026-06-01T09:00:00-05:00" confirm:true explicitUserRequest:"..."');
       expect(calls).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;
@@ -507,6 +512,8 @@ describe('/routines command', () => {
       expect(text).toContain('changes name, schedule');
       expect(text).toContain('current source schedules.list GET /api/automation/schedules');
       expect(text).toContain('name Agent routine: Inbox Sweep -> Daily queue review');
+      expect(text).toContain('confirmationRoutes');
+      expect(text).toContain('schedule action:"edit" scheduleId:"sched-1" name:"Daily queue review" scheduleKind:"every" scheduleValue:"1d" confirm:true explicitUserRequest:"..."');
       expect(calls).toBe(1);
     } finally {
       globalThis.fetch = originalFetch;

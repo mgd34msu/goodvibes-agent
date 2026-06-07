@@ -4,7 +4,7 @@ import type {
   ScheduleEditPreview,
   ScheduleEditSuccess,
 } from './schedule-edit.ts';
-import { scheduleNextRouteLines } from './schedule-next-routes.ts';
+import { scheduleConfirmationRouteLines, scheduleNextRouteLines, scheduleRouteArg } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -31,6 +31,24 @@ function scheduleValue(schedule: unknown): string {
 
 function patchScheduleValue(preview: ScheduleEditPreview): string {
   return scheduleValue(preview.payload.schedule);
+}
+
+function scheduleEditConfirmationRoute(preview: ScheduleEditPreview): string {
+  const args = [
+    'schedule action:"edit"',
+    `scheduleId:${scheduleRouteArg(preview.scheduleId)}`,
+  ];
+  if (preview.payload.name) args.push(`name:${scheduleRouteArg(String(preview.payload.name))}`);
+  if (preview.payload.schedule) {
+    const schedule = preview.payload.schedule;
+    if (isRecord(schedule) && typeof schedule.kind === 'string') {
+      args.push(`scheduleKind:${scheduleRouteArg(schedule.kind)}`);
+      args.push(`scheduleValue:${scheduleRouteArg(scheduleValue(schedule))}`);
+    }
+  }
+  if (preview.payload.prompt) args.push('prompt:"..."');
+  args.push('confirm:true', 'explicitUserRequest:"..."');
+  return args.join(' ');
 }
 
 function formatCurrentScheduleDiff(preview: ScheduleEditPreview): readonly string[] {
@@ -76,6 +94,7 @@ export function formatScheduleEditPreview(preview: ScheduleEditPreview): string 
     `  requested by ${preview.explicitUserRequest}`,
     '',
     'Confirmation required: rerun with --yes or call the model tool with confirm:true only when the user explicitly asked for this exact schedule edit.',
+    ...scheduleConfirmationRouteLines({ model: scheduleEditConfirmationRoute(preview) }),
   ].filter((line) => line !== '').join('\n');
 }
 

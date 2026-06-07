@@ -130,6 +130,10 @@ describe('agent_autonomy_schedule tool', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('GoodVibes schedule preview for autonomous Agent work');
       expect(result.error).toContain('confirmation required');
+      expect(result.error).toContain('confirmationRoutes');
+      expect(result.error).toContain('schedule action:"create" task:"Review the ops queue and summarize blockers"');
+      expect(result.error).toContain('successCriteria:"Report blocker count and the highest priority next action."');
+      expect(result.error).toContain('scheduleKind:"every" scheduleValue:"1d" confirm:true explicitUserRequest:"..."');
       expect(calls).toBe(0);
     } finally {
       globalThis.fetch = originalFetch;

@@ -4,7 +4,7 @@ import {
   type ReminderSchedulePreview,
   type ReminderScheduleSuccess,
 } from './reminder-schedule.ts';
-import { scheduleNextRouteLines } from './schedule-next-routes.ts';
+import { scheduleConfirmationRouteLines, scheduleNextRouteLines, scheduleRouteArg } from './schedule-next-routes.ts';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -21,6 +21,17 @@ function scheduleValue(preview: ReminderSchedulePreview): string {
   }
   if (preview.payload.kind === 'every') return String(preview.payload.every);
   return String(preview.payload.at);
+}
+
+function createReminderRouteArgs(preview: ReminderSchedulePreview): string {
+  const args = [
+    `scheduleKind:${scheduleRouteArg(String(preview.payload.kind ?? ''))}`,
+    `scheduleValue:${scheduleRouteArg(scheduleValue(preview))}`,
+  ];
+  if (typeof preview.payload.timezone === 'string' && preview.payload.timezone) {
+    args.push(`timezone:${scheduleRouteArg(preview.payload.timezone)}`);
+  }
+  return args.join(' ');
 }
 
 function formatReminderScheduleFailureKind(kind: string): string {
@@ -45,7 +56,9 @@ export function formatReminderSchedulePreview(preview: ReminderSchedulePreview):
     `  delivery ${delivery?.mode ?? 'none'}${deliveryTargetCount > 0 ? ` (${deliveryTargetCount} target${deliveryTargetCount === 1 ? '' : 's'})` : ''}`,
     '  target connected GoodVibes host/main conversation route',
     '  policy reminder delivery only; isolated Agent Knowledge only; no default knowledge/non-Agent fallback',
-    '  next rerun with --yes to create this connected reminder schedule',
+    ...scheduleConfirmationRouteLines({
+      model: `schedule action:"remind" message:${scheduleRouteArg(preview.message)} ${createReminderRouteArgs(preview)} confirm:true explicitUserRequest:"..."`,
+    }),
   ].join('\n');
 }
 
