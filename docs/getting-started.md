@@ -74,7 +74,7 @@ Common model routes:
 | Slash commands | `agent_harness mode:"commands"`, `mode:"command"`, `mode:"run_command"` |
 | Settings | `agent_harness mode:"settings"`, `mode:"get_setting"`, `mode:"set_setting"`, `mode:"reset_setting"` |
 | GoodVibes settings import | `agent_harness mode:"run_workspace_action" actionId:"import-goodvibes-tui-settings"` |
-| Visible UI | `agent_harness mode:"panels"`, `mode:"ui_surfaces"`, `mode:"open_panel"`, `mode:"open_ui_surface"`; browser cockpit uses `surfaceId:"connected-browser-cockpit"` |
+| Visible UI | `agent_harness mode:"panels"`, `mode:"ui_surfaces"`, `mode:"open_panel"`, `mode:"open_ui_surface"`; browser cockpit uses `surfaceId:"connected-browser-cockpit"` and `mode:"ui_surface"` reports URL readiness, category coverage, mobile/PWA controls, and receipt gaps |
 | Keybindings | `agent_harness mode:"shortcuts"`, `mode:"keybindings"`, `mode:"keybinding"`, `mode:"run_keybinding"`, `mode:"set_keybinding"` |
 | Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |

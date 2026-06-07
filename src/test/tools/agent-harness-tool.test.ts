@@ -7521,13 +7521,70 @@ describe('agent_harness tool', () => {
       const browserCockpitJson = JSON.parse(browserCockpit.output ?? '{}') as {
         readonly id?: string;
         readonly available?: boolean;
-        readonly cockpit?: { readonly enabled?: boolean; readonly url?: string; readonly setupRoutes?: Record<string, string> };
+        readonly cockpit?: {
+          readonly enabled?: boolean;
+          readonly readiness?: string;
+          readonly url?: string;
+          readonly source?: string;
+          readonly setupRoutes?: Record<string, string>;
+          readonly workspaceCoverage?: {
+            readonly status?: string;
+            readonly categoryCount?: number;
+            readonly nativeCategoryRoutesPublished?: boolean;
+            readonly lanes?: readonly { readonly id?: string; readonly browserStatus?: string; readonly agentRoutes?: readonly string[] }[];
+            readonly categories?: readonly { readonly id?: string; readonly browserStatus?: string; readonly agentRoute?: string }[];
+          };
+          readonly mobile?: { readonly status?: string; readonly controls?: readonly { readonly id?: string; readonly status?: string }[] };
+          readonly receipts?: {
+            readonly status?: string;
+            readonly agentOnboardingCompletion?: { readonly status?: string; readonly exists?: boolean };
+            readonly browserFirstRunCompletion?: { readonly status?: string; readonly webEnabled?: boolean };
+          };
+        };
       };
       expect(browserCockpitJson.id).toBe('connected-browser-cockpit');
       expect(browserCockpitJson.available).toBe(false);
       expect(browserCockpitJson.cockpit?.enabled).toBe(false);
+      expect(browserCockpitJson.cockpit?.readiness).toBe('setup-needed');
       expect(browserCockpitJson.cockpit?.url).toBe('http://127.0.0.1:3423');
       expect(browserCockpitJson.cockpit?.setupRoutes?.inspectEndpoint).toContain('endpointId:"web"');
+      expect(browserCockpitJson.cockpit?.workspaceCoverage).toMatchObject({
+        status: 'web-setup-needed',
+        nativeCategoryRoutesPublished: false,
+      });
+      expect(browserCockpitJson.cockpit?.workspaceCoverage?.categoryCount).toBeGreaterThan(20);
+      expect(browserCockpitJson.cockpit?.workspaceCoverage?.lanes?.some((lane) => lane.id === 'setup-and-settings' && lane.browserStatus === 'blocked-by-web-setup')).toBe(true);
+      expect(browserCockpitJson.cockpit?.workspaceCoverage?.categories?.some((category) => category.id === 'home' && category.browserStatus === 'blocked-by-web-setup' && category.agentRoute?.includes('categoryId:"home"'))).toBe(true);
+      expect(browserCockpitJson.cockpit?.mobile?.status).toBe('setup-needed');
+      expect(browserCockpitJson.cockpit?.mobile?.controls?.some((control) => control.id === 'inspect-web-endpoint' && control.status === 'ready')).toBe(true);
+      expect(browserCockpitJson.cockpit?.receipts).toMatchObject({
+        status: 'needs-agent-closeout-and-browser-receipt',
+        agentOnboardingCompletion: { status: 'missing', exists: false },
+        browserFirstRunCompletion: { status: 'not-published', webEnabled: false },
+      });
+
+      fixture.configManager.setDynamic('web.enabled', true);
+      fixture.configManager.setDynamic('web.publicBaseUrl', 'https://agent.example.test');
+      const enabledBrowserCockpit = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'connected-browser-cockpit' });
+      expect(enabledBrowserCockpit.success).toBe(true);
+      const enabledBrowserCockpitJson = JSON.parse(enabledBrowserCockpit.output ?? '{}') as typeof browserCockpitJson;
+      expect(enabledBrowserCockpitJson.available).toBe(true);
+      expect(enabledBrowserCockpitJson.cockpit?.readiness).toBe('ready');
+      expect(enabledBrowserCockpitJson.cockpit?.url).toBe('https://agent.example.test');
+      expect(enabledBrowserCockpitJson.cockpit?.source).toBe('web.publicBaseUrl');
+      expect(enabledBrowserCockpitJson.cockpit?.workspaceCoverage).toMatchObject({
+        status: 'needs-browser-native-category-contracts',
+        nativeCategoryRoutesPublished: false,
+      });
+      expect(enabledBrowserCockpitJson.cockpit?.workspaceCoverage?.lanes?.some((lane) => lane.id === 'work-and-automation' && lane.browserStatus === 'needs-browser-native-contract')).toBe(true);
+      expect(enabledBrowserCockpitJson.cockpit?.workspaceCoverage?.categories?.some((category) => category.id === 'work' && category.browserStatus === 'terminal-first')).toBe(true);
+      expect(enabledBrowserCockpitJson.cockpit?.mobile?.status).toBe('openable');
+      expect(enabledBrowserCockpitJson.cockpit?.receipts?.browserFirstRunCompletion).toMatchObject({
+        status: 'not-published',
+        webEnabled: true,
+      });
+      fixture.configManager.setDynamic('web.enabled', false);
+      fixture.configManager.setDynamic('web.publicBaseUrl', '');
 
       const settingsByQuery = await fixture.tool.execute({
         mode: 'ui_surface',
