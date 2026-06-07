@@ -82,6 +82,17 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes daemon health checks to connected-host diagnostics', async () => {
+    const body = await route('check daemon health');
+
+    expect(preferredId(body)).toBe('host-runtime-diagnostics');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'host action:"status" includeParameters:true',
+      inspectRoute: 'host action:"capabilities" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
   test('routes direct reminder requests through the schedule tool', async () => {
     const body = await route('remind me tomorrow to stretch');
 

@@ -121,6 +121,13 @@ function directScheduleLike(lower: string): boolean {
   return hasAny(lower, ['pause schedule', 'resume schedule', 'run schedule', 'edit schedule', 'delete schedule', 'cancel schedule', 'enable schedule', 'disable schedule']);
 }
 
+function hostDiagnosticsLike(lower: string): boolean {
+  if (hasAny(lower, ['daemon health', 'daemon status', 'daemon doctor', 'host health', 'host status', 'host doctor', 'service health', 'service status', 'health check'])) return true;
+  const runtimeTarget = hasAny(lower, ['daemon', 'host', 'connected host', 'service', 'control plane', 'operator api', 'goodvibes runtime']);
+  const diagnosticIntent = hasAny(lower, ['health', 'status', 'doctor', 'diagnose', 'diagnostic', 'readiness', 'compat', 'compatibility']);
+  return runtimeTarget && diagnosticIntent;
+}
+
 function browserControlLike(lower: string): boolean {
   return hasAny(lower, [
     'browser control',
@@ -229,6 +236,28 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         'host action:"services" includeParameters:true',
       ],
       policy: 'Setup inspection is read-only; token repair, smoke execution, service lifecycle, and finish markers stay confirmed.',
+    });
+  }
+
+  if (hostDiagnosticsLike(lower)) {
+    add({
+      id: 'host-runtime-diagnostics',
+      label: 'Connected host diagnostics',
+      score: 97,
+      userSurface: 'Start workspace diagnostics',
+      userOutcome: 'Inspect daemon, host, service, and compatibility health through read-only connected-host diagnostics.',
+      why: 'The request asks for daemon, host, service, health, doctor, readiness, or compatibility diagnostics.',
+      modelRoute: 'host action:"status" includeParameters:true',
+      inspectRoute: 'host action:"capabilities" includeParameters:true',
+      userRoute: 'Agent Workspace -> Start',
+      requiresConfirmation: false,
+      supportingRoutes: [
+        'host action:"services" includeParameters:true',
+        'host action:"methods" includeParameters:true',
+        'setup action:"repair" target:"host" includeParameters:true',
+        'setup action:"smoke" confirm:true explicitUserRequest:"..."',
+      ],
+      policy: 'Host diagnostics are read-only. Service lifecycle, setup smoke, token repair, and operator methods remain explicit confirmed routes.',
     });
   }
 
