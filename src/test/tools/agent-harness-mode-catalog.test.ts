@@ -147,6 +147,16 @@ describe('agent_harness mode catalog', () => {
     expect(auth.modes[0]?.parameters).toEqual(expect.arrayContaining(['confirm', 'explicitUserRequest']));
   });
 
+  test('finds confirmed local model smoke by local server wording', () => {
+    const smoke = listHarnessModes({ query: 'check local servers ollama models', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly requiresConfirmation?: boolean; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const localSmoke = smoke.modes.find((mode) => mode.id === 'run_local_model_smoke');
+    expect(localSmoke?.requiresConfirmation).toBe(true);
+    expect(localSmoke?.parameters).toEqual(expect.arrayContaining(['modelRouteId', 'timeoutMs', 'confirm', 'explicitUserRequest']));
+    expect(smoke.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds project context files by AGENTS, Hermes, Claude, and Cursor wording', () => {
     const context = listHarnessModes({ query: 'AGENTS.md .hermes.md CLAUDE.md cursor rules', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

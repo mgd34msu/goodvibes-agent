@@ -32,7 +32,7 @@ const HARNESS_SETUP_POSTURE_MODES = [
   'provision_connected_host_token',
   'run_setup_smoke',
 ] as const;
-const HARNESS_MODEL_ROUTING_MODES = ['model_routing', 'model_route'] as const;
+const HARNESS_MODEL_ROUTING_MODES = ['model_routing', 'model_route', 'run_local_model_smoke'] as const;
 const HARNESS_PAIRING_POSTURE_MODES = ['pairing_posture', 'pairing_route'] as const;
 const HARNESS_DELEGATION_POSTURE_MODES = ['delegation_posture', 'delegation_route'] as const;
 const HARNESS_SECURITY_SUPPORT_MODES = ['security_posture', 'security_finding', 'support_bundles', 'support_bundle'] as const;

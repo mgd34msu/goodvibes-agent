@@ -275,7 +275,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localSignalVerified: modelRouting.availableModes + modelRouting.availableSources,
       localBehaviorVerified: modelRouting.availableModes + modelRouting.availableSources,
       externalOutcomeRequired: 0,
-      notes: `${modelRouting.modes} agent_harness modes, model_routing and model_route, and ${modelRouting.sources} provider/model source markers must stay locally inspectable while route changes stay visible user flows.`,
+      notes: `${modelRouting.modes} agent_harness modes, model_routing, model_route, run_local_model_smoke, and ${modelRouting.sources} provider/model source markers must stay locally inspectable while route changes stay visible user flows.`,
     },
     {
       area: 'Model-visible pairing posture',

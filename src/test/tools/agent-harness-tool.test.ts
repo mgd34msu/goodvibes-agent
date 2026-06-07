@@ -6906,7 +6906,7 @@ describe('agent_harness tool', () => {
       expect(ollamaRecipe?.setupPlan?.confirmationBoundary).toContain('read-only guidance');
       expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
       const localRoute = cookbook.routes.find((route) => route.modelRouteId === 'local-model-cookbook');
-      expect(localRoute?.modelRoute).toBe('agent_harness mode:"model_route" or mode:"run_command"');
+      expect(localRoute?.modelRoute).toBe('agent_harness mode:"model_route" or mode:"run_local_model_smoke"');
       expect(JSON.stringify(localRoute?.currentValue)).toContain('hardwareProfile');
 
       const inspected = await executeHarnessJson<{
@@ -6947,7 +6947,7 @@ describe('agent_harness tool', () => {
         readonly modelRoute?: string;
       }>(fixture, { mode: 'workspace_action', actionId: 'account-local-server-health' });
       expect(serverHealthAction.id).toBe('account-local-server-health');
-      expect(serverHealthAction.modelRoute).toBe('agent_harness mode:"model_routing" query:"local" includeParameters:true');
+      expect(serverHealthAction.modelRoute).toBe('agent_harness mode:"run_local_model_smoke" confirm:true');
 
       const benchmarkAction = await executeHarnessJson<{
         readonly id: string;
@@ -7060,14 +7060,14 @@ describe('agent_harness tool', () => {
       expect(endpoint?.sourceDetails).toContain('model:ollama-local:qwen2.5-coder:7b');
       expect(endpoint?.modelRoutes).toContain('ollama-local:qwen2.5-coder:7b');
       expect(endpoint?.smokeCommand).toBe('curl -fsS http://127.0.0.1:11434/v1/models');
-      expect(endpoint?.smokeRoute).toContain('run_command');
+      expect(endpoint?.smokeRoute).toContain('run_local_model_smoke');
       expect(endpoint?.refreshRoute).toContain('/refresh-models');
       expect(endpoint?.addProviderRoute).toBeNull();
       expect(endpoint?.notes.join('\n')).toContain('Provider already exists');
       expect(endpoint?.diagnostics?.successCriteria.join('\n')).toContain('confirmed smoke command exits 0');
       expect(endpoint?.diagnostics?.failureTriage.join('\n')).toContain('start the ollama server');
       expect(endpoint?.diagnostics?.afterSmoke.join('\n')).toContain('refresh route');
-      expect(endpoint?.diagnostics?.policy).toContain('does not probe the network');
+      expect(endpoint?.diagnostics?.policy).toContain('run_local_model_smoke');
       expect(cookbook.localCookbook.localServerHealth.nextActions.join('\n')).toContain('http://127.0.0.1:11434/v1/models');
       expect(cookbook.localCookbook.localServerHealth.policy).toContain('Read-only local endpoint map');
 
@@ -7077,6 +7077,7 @@ describe('agent_harness tool', () => {
         readonly baseUrl: string;
         readonly modelsUrl: string;
         readonly diagnosticStatus: string;
+        readonly smokeCommand: string;
         readonly smokeRoute: string;
         readonly diagnostics?: { readonly successCriteria: readonly string[]; readonly failureTriage: readonly string[]; readonly policy: string };
         readonly modelAccess?: { readonly cookbook: string; readonly smoke: string; readonly addProvider: string | null };
@@ -7087,15 +7088,103 @@ describe('agent_harness tool', () => {
       expect(endpointDetail.baseUrl).toBe('http://127.0.0.1:11434/v1');
       expect(endpointDetail.modelsUrl).toBe('http://127.0.0.1:11434/v1/models');
       expect(endpointDetail.diagnosticStatus).toBe('registered-route-needs-smoke');
-      expect(endpointDetail.smokeRoute).toContain('curl -fsS http://127.0.0.1:11434/v1/models');
+      expect(endpointDetail.smokeCommand).toBe('curl -fsS http://127.0.0.1:11434/v1/models');
+      expect(endpointDetail.smokeRoute).toContain('run_local_model_smoke');
       expect(endpointDetail.diagnostics?.successCriteria.join('\n')).toContain('model-list endpoint returns JSON');
       expect(endpointDetail.diagnostics?.failureTriage.join('\n')).toContain('/v1');
-      expect(endpointDetail.diagnostics?.policy).toContain('does not probe the network');
+      expect(endpointDetail.diagnostics?.policy).toContain('run_local_model_smoke');
       expect(endpointDetail.modelAccess?.cookbook).toContain('model_routing');
       expect(endpointDetail.modelAccess?.smoke).toBe(endpointDetail.smokeRoute);
       expect(endpointDetail.modelAccess?.addProvider).toBeNull();
       expect(endpointDetail.lookup?.resolvedBy).toBe('local-endpoint-id');
     } finally {
+      restoreEnvForTest(previousEndpointEnv);
+      fixture.cleanup();
+    }
+  });
+
+  test('runs confirmed local model smoke against detected endpoint candidates', async () => {
+    const previousEndpointEnv = clearEnvForTest(LOCAL_MODEL_ENDPOINT_ENV_KEYS);
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === '/v1/models') {
+          return Response.json({
+            object: 'list',
+            data: [
+              { id: 'qwen2.5-coder:7b', object: 'model' },
+              { id: 'llama3.2:3b', object: 'model' },
+            ],
+          });
+        }
+        return new Response('not found', { status: 404 });
+      },
+    });
+    process.env.OLLAMA_BASE_URL = `http://127.0.0.1:${server.port}/v1`;
+    const fixture = makeFixture();
+    try {
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_local_model_smoke',
+        modelRouteId: `local-127-0-0-1-${server.port}-v1`,
+      });
+      expect(unconfirmed.success).toBe(false);
+      expect(unconfirmed.error).toContain('requires explicitUserRequest');
+
+      const smoke = await executeHarnessJson<{
+        readonly kind: string;
+        readonly status: string;
+        readonly liveProbe: string;
+        readonly endpointCount: number;
+        readonly passedCount: number;
+        readonly failedCount: number;
+        readonly endpoints: readonly {
+          readonly kind: string;
+          readonly id: string;
+          readonly status: string;
+          readonly liveProbe: string;
+          readonly networkScope: string;
+          readonly modelsUrl: string;
+          readonly httpStatus: number;
+          readonly jsonValid: boolean;
+          readonly modelCount: number;
+          readonly sampleModelIds: readonly string[];
+          readonly success: boolean;
+          readonly refreshRoute: string;
+          readonly addProviderRoute: string | null;
+        }[];
+        readonly policy: string;
+      }>(fixture, {
+        mode: 'run_local_model_smoke',
+        modelRouteId: `local-127-0-0-1-${server.port}-v1`,
+        timeoutMs: 1000,
+        confirm: true,
+        explicitUserRequest: 'Check local model servers.',
+      });
+
+      expect(smoke.kind).toBe('local-model-smoke');
+      expect(smoke.status).toBe('ready');
+      expect(smoke.liveProbe).toBe('confirmed');
+      expect(smoke.endpointCount).toBe(1);
+      expect(smoke.passedCount).toBe(1);
+      expect(smoke.failedCount).toBe(0);
+      const endpoint = smoke.endpoints[0];
+      expect(endpoint?.kind).toBe('local-server-endpoint');
+      expect(endpoint?.status).toBe('passed');
+      expect(endpoint?.liveProbe).toBe('confirmed');
+      expect(endpoint?.networkScope).toBe('loopback');
+      expect(endpoint?.modelsUrl).toBe(`http://127.0.0.1:${server.port}/v1/models`);
+      expect(endpoint?.httpStatus).toBe(200);
+      expect(endpoint?.jsonValid).toBe(true);
+      expect(endpoint?.modelCount).toBe(2);
+      expect(endpoint?.sampleModelIds).toContain('qwen2.5-coder:7b');
+      expect(endpoint?.success).toBe(true);
+      expect(endpoint?.refreshRoute).toContain('/refresh-models');
+      expect(endpoint?.addProviderRoute).toContain('/provider add');
+      expect(smoke.policy).toContain('Confirmed read-only local model smoke');
+      expect(smoke.policy).toContain('does not add providers');
+    } finally {
+      server.stop();
       restoreEnvForTest(previousEndpointEnv);
       fixture.cleanup();
     }
@@ -7419,7 +7508,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-route-readiness')?.modelRoute).toBe('agent_harness mode:"model_routing" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-server-health')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local" includeParameters:true');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-server-health')?.modelRoute).toBe('agent_harness mode:"run_local_model_smoke" confirm:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-run-local-model-benchmark')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-benchmark-evidence')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');

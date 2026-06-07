@@ -7,7 +7,7 @@ export const AGENT_HARNESS_MODES = [
   'setup_posture', 'setup_item', 'setup_checkpoint', 'mark_setup_checkpoint', 'clear_setup_checkpoint', 'provision_connected_host_token', 'run_setup_smoke',
   'project_context', 'project_context_file', 'prompt_context',
   'agent_orchestration', 'agent_orchestration_agent',
-  'model_routing', 'model_route',
+  'model_routing', 'model_route', 'run_local_model_smoke',
   'execution_posture', 'execution_route',
   'background_processes', 'background_process', 'run_background_process',
   'execution_history', 'execution_history_item',
@@ -111,7 +111,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   modelRouteId: {
     type: 'string',
-    description: 'Model route id or model key for model_route mode.',
+    description: 'Model route, model key, or local endpoint id.',
   },
   executionRouteId: {
     type: 'string',
@@ -145,7 +145,7 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   timeoutMs: {
     type: 'number',
-    description: 'Timeout in milliseconds for background process start or wait actions.',
+    description: 'Timeout for process waits or local model smoke probes.',
   },
   pty: {
     type: 'boolean',

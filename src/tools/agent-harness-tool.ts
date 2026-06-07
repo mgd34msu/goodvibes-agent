@@ -33,7 +33,7 @@ import { describeHarnessExecutionRoute, executionPostureCatalogStatus, execution
 import { fileRecoveryCatalogStatus, fileRecoverySummary, runFileRecovery } from './agent-harness-file-recovery.ts';
 import { runLocalWorkspaceAction, runLocalWorkspaceEditorAction } from './agent-harness-local-operations.ts';
 import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
-import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary } from './agent-harness-model-routing.ts';
+import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary, runLocalModelServerSmoke } from './agent-harness-model-routing.ts';
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
@@ -208,7 +208,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     projectContext: 'List mode:"project_context"; inspect mode:"project_context_file"; context files are read-only and secret-scanned.',
     promptContext: 'Inspect mode:"prompt_context" to see current prompt composition, selected/suppressed records, token budget, and prompt receipt outcomes; drill into receiptId, turnId, or outcomeStatus without raw prompt bodies by default.',
     agentOrchestration: 'List mode:"agent_orchestration" for managed plan and closeout cards; dispatch approved plan items with agent_work_plan action:"dispatch_agents"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
-    modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
+    modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; run confirmed local server checks with mode:"run_local_model_smoke"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
     backgroundProcesses: 'List mode:"background_processes"; inspect mode:"background_process"; start/wait/stop tracked long-running local commands with mode:"run_background_process". Process-style poll/log/kill/write and sessionId aliases are accepted; processAction:"capabilities" probes SDK/daemon interactive contracts; write dispatches only when a safe ProcessManager stdin method exists and is explicitly confirmed; PTY/sudo stay typed-contract or foreground-only boundaries.',
     executionHistory: 'List mode:"execution_history" for activity cards; inspect mode:"execution_history_item"; use returned verification, supervision, and recovery routes.',
@@ -1465,6 +1465,10 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'found') return output(resolved.route);
           if (resolved.status === 'ambiguous') return error(`Ambiguous model route ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
+        }
+        if (args.mode === 'run_local_model_smoke') {
+          const confirmationError = requireConfirmedAction(args, 'Local model smoke');
+          return confirmationError ? error(confirmationError) : output(await runLocalModelServerSmoke(deps.commandContext, args));
         }
         if (args.mode === 'execution_posture') return output(executionPostureSummary(deps.commandContext, deps.toolRegistry, args));
         if (args.mode === 'execution_route') {
