@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname } from 'node:path';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
-import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryBundle, MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { CommandContext } from '../input/command-registry.ts';
@@ -15,9 +15,9 @@ import {
   type LearningConsolidationFields,
 } from './agent-harness-learning-curator.ts';
 
-type AgentLearningConsolidationMode = 'preview' | 'merge' | 'stale' | 'delete' | 'rollback' | 'receipts';
+type AgentLearningConsolidationMode = 'preview' | 'merge' | 'stale' | 'delete' | 'rollback' | 'recreate' | 'receipts';
 type AgentLearningConsolidationDomain = 'memory' | 'persona' | 'skill' | 'routine';
-type AgentLearningConsolidationWriteMode = 'merge' | 'stale' | 'delete' | 'rollback';
+type AgentLearningConsolidationWriteMode = 'merge' | 'stale' | 'delete' | 'rollback' | 'recreate';
 
 interface AgentLearningConsolidationToolArgs {
   readonly mode?: unknown;
@@ -47,9 +47,12 @@ interface LearningConsolidationReceiptFile {
   readonly receipts: readonly LearningConsolidationReceipt[];
 }
 
-const MODES: readonly AgentLearningConsolidationMode[] = ['preview', 'merge', 'stale', 'delete', 'rollback', 'receipts'];
-const WRITE_MODES = new Set<AgentLearningConsolidationMode>(['merge', 'stale', 'delete', 'rollback']);
+const MODES: readonly AgentLearningConsolidationMode[] = ['preview', 'merge', 'stale', 'delete', 'rollback', 'recreate', 'receipts'];
+const WRITE_MODES = new Set<AgentLearningConsolidationMode>(['merge', 'stale', 'delete', 'rollback', 'recreate']);
 const RECEIPT_LIMIT = 100;
+const MEMORY_CLASSES = new Set(['decision', 'constraint', 'incident', 'pattern', 'fact', 'risk', 'runbook', 'architecture', 'ownership']);
+const MEMORY_SCOPES = new Set(['session', 'project', 'team']);
+const MEMORY_REVIEW_STATES = new Set(['fresh', 'reviewed', 'stale', 'contradicted']);
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -65,6 +68,21 @@ function readLimit(value: unknown, fallback: number): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.min(RECEIPT_LIMIT, Math.trunc(parsed)));
+}
+
+function slugifyForDomain(value: string, fallback: AgentLearningConsolidationDomain): string {
+  const slug = value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return slug || fallback;
+}
+
+function nextGeneratedId(name: string, occupiedIds: Set<string>, fallback: AgentLearningConsolidationDomain): string {
+  const base = slugifyForDomain(name, fallback);
+  if (!occupiedIds.has(base)) return base;
+  for (let index = 2; index < 1000; index += 1) {
+    const candidate = `${base}-${index}`;
+    if (!occupiedIds.has(candidate)) return candidate;
+  }
+  throw new Error(`Could not allocate ${fallback} id for ${name}.`);
 }
 
 function output(value: unknown): { readonly success: true; readonly output: string } {
@@ -111,7 +129,7 @@ function parseReceipt(value: unknown): LearningConsolidationReceipt | null {
     || !createdAt
     || !isDomain(domain)
     || !candidateId
-    || !['merge', 'stale', 'delete', 'rollback'].includes(phase)
+    || !['merge', 'stale', 'delete', 'rollback', 'recreate'].includes(phase)
     || !explicitUserRequest
     || !survivorId
   ) return null;
@@ -162,6 +180,11 @@ function writeReceipt(shellPaths: ShellPathService, receipt: LearningConsolidati
 
 function receiptId(candidate: LearningCandidate, phase: AgentLearningConsolidationWriteMode): string {
   const slug = candidate.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'candidate';
+  return `lcon-${phase}-${Date.now().toString(36)}-${slug}`;
+}
+
+function receiptIdFromReceipt(receipt: LearningConsolidationReceipt, phase: AgentLearningConsolidationWriteMode): string {
+  const slug = receipt.candidateId.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48) || 'receipt';
   return `lcon-${phase}-${Date.now().toString(36)}-${slug}`;
 }
 
@@ -313,6 +336,90 @@ function stringField(snapshot: Record<string, unknown>, key: string): string | u
   return typeof value === 'string' ? value : undefined;
 }
 
+function numberField(snapshot: Record<string, unknown>, key: string): number | undefined {
+  const value = snapshot[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function booleanField(snapshot: Record<string, unknown>, key: string): boolean | undefined {
+  const value = snapshot[key];
+  return typeof value === 'boolean' ? value : undefined;
+}
+
+function requirementsFromSnapshot(snapshot: Record<string, unknown>): readonly { readonly kind: 'env' | 'command'; readonly name: string; readonly description?: string }[] {
+  const value = snapshot.requirements;
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null && !Array.isArray(entry))
+    .map((entry) => {
+      const kind = entry.kind === 'command' ? 'command' as const : 'env' as const;
+      const name = readString(entry.name);
+      const description = readString(entry.description);
+      return {
+        kind,
+        name,
+        ...(description ? { description } : {}),
+      };
+    })
+    .filter((entry) => entry.name);
+}
+
+function requirementNames(snapshot: Record<string, unknown>, kind: 'env' | 'command'): readonly string[] {
+  return requirementsFromSnapshot(snapshot)
+    .filter((requirement) => requirement.kind === kind)
+    .map((requirement) => requirement.name);
+}
+
+function localRecordSource(snapshot: Record<string, unknown>): 'user' | 'agent' | 'imported' | 'system' {
+  const source = stringField(snapshot, 'source');
+  return source === 'agent' || source === 'imported' || source === 'system' ? source : 'user';
+}
+
+function memoryScope(snapshot: Record<string, unknown>): 'session' | 'project' | 'team' {
+  const scope = stringField(snapshot, 'scope');
+  return scope && MEMORY_SCOPES.has(scope) ? scope as 'session' | 'project' | 'team' : 'project';
+}
+
+function memoryClass(snapshot: Record<string, unknown>): MemoryRecord['cls'] {
+  const cls = stringField(snapshot, 'cls');
+  return cls && MEMORY_CLASSES.has(cls) ? cls as MemoryRecord['cls'] : 'fact';
+}
+
+function memoryReviewState(snapshot: Record<string, unknown>): MemoryRecord['reviewState'] {
+  const reviewState = stringField(snapshot, 'reviewState');
+  return reviewState && MEMORY_REVIEW_STATES.has(reviewState) ? reviewState as MemoryRecord['reviewState'] : 'fresh';
+}
+
+function memoryRecordFromSnapshot(snapshot: Record<string, unknown>): MemoryRecord {
+  const id = stringField(snapshot, 'id');
+  const summary = stringField(snapshot, 'summary');
+  if (!id || !summary) throw new Error('Delete receipt memory snapshot is missing id or summary.');
+  return {
+    id,
+    scope: memoryScope(snapshot),
+    cls: memoryClass(snapshot),
+    summary,
+    detail: stringField(snapshot, 'detail'),
+    tags: arrayField(snapshot, 'tags'),
+    provenance: Array.isArray(snapshot.provenance)
+      ? snapshot.provenance.filter((entry): entry is MemoryRecord['provenance'][number] => (
+        typeof entry === 'object'
+        && entry !== null
+        && !Array.isArray(entry)
+        && ['session', 'turn', 'task', 'event', 'file'].includes(String((entry as Record<string, unknown>).kind))
+        && typeof (entry as Record<string, unknown>).ref === 'string'
+      ))
+      : [],
+    reviewState: memoryReviewState(snapshot),
+    confidence: numberField(snapshot, 'confidence') ?? 60,
+    reviewedAt: numberField(snapshot, 'reviewedAt'),
+    reviewedBy: stringField(snapshot, 'reviewedBy'),
+    staleReason: stringField(snapshot, 'staleReason'),
+    createdAt: numberField(snapshot, 'createdAt') ?? Date.now(),
+    updatedAt: numberField(snapshot, 'updatedAt') ?? Date.now(),
+  };
+}
+
 function restoreReviewState(
   shellPaths: ShellPathService,
   memoryRegistry: MemoryRegistry,
@@ -391,7 +498,133 @@ function restoreSurvivor(
   return cloneRecord(getRecord(shellPaths, memoryRegistry, receipt.domain, receipt.survivorId));
 }
 
-function receiptSummary(receipt: LearningConsolidationReceipt): Record<string, unknown> {
+function recreateArguments(receipt: LearningConsolidationReceipt, snapshot: Record<string, unknown>): Record<string, unknown> {
+  if (receipt.domain === 'memory') {
+    return {
+      action: 'create',
+      scope: memoryScope(snapshot),
+      cls: memoryClass(snapshot),
+      summary: stringField(snapshot, 'summary') ?? '',
+      detail: stringField(snapshot, 'detail') ?? '',
+      tags: arrayField(snapshot, 'tags'),
+      confidence: numberField(snapshot, 'confidence') ?? 60,
+      provenance: `recreated-from-learning-consolidation:${receipt.id}:${stringField(snapshot, 'id') ?? 'unknown'}`,
+    };
+  }
+  if (receipt.domain === 'persona') {
+    return {
+      domain: 'persona',
+      action: 'create',
+      name: stringField(snapshot, 'name') ?? '',
+      description: stringField(snapshot, 'description') ?? '',
+      body: stringField(snapshot, 'body') ?? '',
+      tags: arrayField(snapshot, 'tags'),
+      triggers: arrayField(snapshot, 'triggers'),
+      provenance: stringField(snapshot, 'provenance') ?? `recreated-from-learning-consolidation:${receipt.id}`,
+    };
+  }
+  if (receipt.domain === 'skill') {
+    return {
+      domain: 'skill',
+      action: 'create',
+      name: stringField(snapshot, 'name') ?? '',
+      description: stringField(snapshot, 'description') ?? '',
+      procedure: stringField(snapshot, 'procedure') ?? '',
+      tags: arrayField(snapshot, 'tags'),
+      triggers: arrayField(snapshot, 'triggers'),
+      requiresEnv: requirementNames(snapshot, 'env'),
+      requiresCommands: requirementNames(snapshot, 'command'),
+      enabled: booleanField(snapshot, 'enabled') === true,
+      provenance: stringField(snapshot, 'provenance') ?? `recreated-from-learning-consolidation:${receipt.id}`,
+    };
+  }
+  return {
+    domain: 'routine',
+    action: 'create',
+    name: stringField(snapshot, 'name') ?? '',
+    description: stringField(snapshot, 'description') ?? '',
+    steps: stringField(snapshot, 'steps') ?? '',
+    tags: arrayField(snapshot, 'tags'),
+    triggers: arrayField(snapshot, 'triggers'),
+    requiresEnv: requirementNames(snapshot, 'env'),
+    requiresCommands: requirementNames(snapshot, 'command'),
+    enabled: booleanField(snapshot, 'enabled') === true,
+    provenance: stringField(snapshot, 'provenance') ?? `recreated-from-learning-consolidation:${receipt.id}`,
+  };
+}
+
+function currentLocalIds(shellPaths: ShellPathService, memoryRegistry: MemoryRegistry, domain: AgentLearningConsolidationDomain): Set<string> {
+  if (domain === 'memory') return new Set(memoryRegistry.getAll().map((record) => record.id));
+  if (domain === 'persona') return new Set(AgentPersonaRegistry.fromShellPaths(shellPaths).list().map((record) => record.id));
+  if (domain === 'skill') return new Set(AgentSkillRegistry.fromShellPaths(shellPaths).list().map((record) => record.id));
+  return new Set(AgentRoutineRegistry.fromShellPaths(shellPaths).list().map((record) => record.id));
+}
+
+function currentLocalNames(shellPaths: ShellPathService, domain: AgentLearningConsolidationDomain): Set<string> {
+  if (domain === 'memory') return new Set();
+  if (domain === 'persona') return new Set(AgentPersonaRegistry.fromShellPaths(shellPaths).list().map((record) => record.name.toLowerCase()));
+  if (domain === 'skill') return new Set(AgentSkillRegistry.fromShellPaths(shellPaths).list().map((record) => record.name.toLowerCase()));
+  return new Set(AgentRoutineRegistry.fromShellPaths(shellPaths).list().map((record) => record.name.toLowerCase()));
+}
+
+function recreateGuidance(
+  shellPaths: ShellPathService,
+  memoryRegistry: MemoryRegistry,
+  receipt: LearningConsolidationReceipt,
+): Record<string, unknown> | null {
+  if (receipt.phase !== 'delete') return null;
+  const occupiedIds = currentLocalIds(shellPaths, memoryRegistry, receipt.domain);
+  const occupiedNames = currentLocalNames(shellPaths, receipt.domain);
+  const records = receipt.beforeDuplicates.map((snapshot) => {
+    const previousId = stringField(snapshot, 'id') ?? '(unknown)';
+    const name = stringField(snapshot, 'name') ?? stringField(snapshot, 'summary') ?? previousId;
+    const expectedId = receipt.domain === 'memory'
+      ? previousId
+      : nextGeneratedId(name, occupiedIds, receipt.domain);
+    const nameConflict = receipt.domain !== 'memory' && occupiedNames.has(name.toLowerCase());
+    const idConflict = occupiedIds.has(previousId);
+    const possible = receipt.domain === 'memory'
+      ? !idConflict
+      : expectedId === previousId && !nameConflict;
+    occupiedIds.add(expectedId);
+    if (receipt.domain !== 'memory') occupiedNames.add(name.toLowerCase());
+    return {
+      previousId,
+      name,
+      expectedId,
+      exactId: {
+        supported: true,
+        possible,
+        method: receipt.domain === 'memory'
+          ? 'SDK memory bundle import preserves record ids.'
+          : 'Agent-local registry ids are deterministic from name when the old generated id and name are still free.',
+        reason: possible
+          ? 'Exact-id recreation is currently available.'
+          : idConflict
+            ? `A current ${receipt.domain} record already uses ${previousId}.`
+            : nameConflict
+              ? `A current ${receipt.domain} record already uses the name ${name}.`
+              : `The next generated id would be ${expectedId}, not ${previousId}.`,
+      },
+      fallbackCreateRoute: receipt.domain === 'memory'
+        ? 'memory action:"create"'
+        : `agent_local_registry domain:"${receipt.domain}" action:"create"`,
+      createArguments: recreateArguments(receipt, snapshot),
+    };
+  });
+  return {
+    automaticRollback: false,
+    recreateRoute: `agent_learning_consolidation mode:"recreate" receiptId:"${receipt.id}" confirm:true explicitUserRequest:"..."`,
+    policy: 'Delete remains the final phase. Recreate is a separate confirmed recovery action and refuses when exact ids are not currently safe.',
+    records,
+  };
+}
+
+function receiptSummary(
+  receipt: LearningConsolidationReceipt,
+  context?: { readonly shellPaths: ShellPathService; readonly memoryRegistry: MemoryRegistry },
+): Record<string, unknown> {
+  const deleteRecovery = context ? recreateGuidance(context.shellPaths, context.memoryRegistry, receipt) : null;
   return {
     receiptId: receipt.id,
     createdAt: receipt.createdAt,
@@ -400,9 +633,13 @@ function receiptSummary(receipt: LearningConsolidationReceipt): Record<string, u
     phase: receipt.phase,
     survivorId: receipt.survivorId,
     duplicateIds: receipt.duplicateIds,
-    rollbackRoute: receipt.phase === 'delete'
-      ? null
-      : `agent_learning_consolidation mode:"rollback" receiptId:"${receipt.id}" confirm:true explicitUserRequest:"..."`,
+    rollbackRoute: receipt.phase === 'merge' || receipt.phase === 'stale'
+      ? `agent_learning_consolidation mode:"rollback" receiptId:"${receipt.id}" confirm:true explicitUserRequest:"..."`
+      : null,
+    recreateRoute: receipt.phase === 'delete'
+      ? `agent_learning_consolidation mode:"recreate" receiptId:"${receipt.id}" confirm:true explicitUserRequest:"..."`
+      : null,
+    ...(deleteRecovery ? { deleteRecovery } : {}),
   };
 }
 
@@ -555,8 +792,147 @@ function applyDelete(
     candidateId: candidate.id,
     survivorId: plan.survivorId,
     deletedDuplicateIds: plan.duplicateIds,
-    receipt: receiptSummary(receipt),
-    next: 'Deletion is intentionally last. The receipt stores the deleted record snapshots, but exact-id automatic rollback is not available after delete.',
+    receipt: receiptSummary(receipt, { shellPaths, memoryRegistry }),
+    recreateGuidance: recreateGuidance(shellPaths, memoryRegistry, receipt),
+    next: 'Deletion is intentionally last. The receipt stores deleted record snapshots and exposes a separate confirmed recreate route when exact ids are still safe.',
+  };
+}
+
+async function applyRecreate(
+  shellPaths: ShellPathService,
+  memoryRegistry: MemoryRegistry,
+  args: AgentLearningConsolidationToolArgs,
+  explicitUserRequest: string,
+): Promise<Record<string, unknown>> {
+  const deleteReceipt = findDeleteReceipt(shellPaths, args);
+  if (deleteReceipt.phase !== 'delete') {
+    throw new Error(`Recreate requires a delete receipt. Receipt ${deleteReceipt.id} is phase ${deleteReceipt.phase}.`);
+  }
+  const guidance = recreateGuidance(shellPaths, memoryRegistry, deleteReceipt) as {
+    readonly records?: readonly {
+      readonly previousId?: string;
+      readonly expectedId?: string;
+      readonly exactId?: { readonly possible?: boolean; readonly reason?: string };
+    }[];
+  } | null;
+  const records = guidance?.records ?? [];
+  const unsafe = records.filter((record) => record.exactId?.possible !== true);
+  if (unsafe.length > 0) {
+    throw new Error(`Exact-id recreate refused. ${unsafe.map((record) => `${record.previousId ?? '(unknown)'}: ${record.exactId?.reason ?? 'not currently safe'}`).join('; ')}`);
+  }
+
+  if (deleteReceipt.domain === 'memory') {
+    const memoryRecords = deleteReceipt.beforeDuplicates.map(memoryRecordFromSnapshot);
+    const conflicts = memoryRecords.filter((record) => memoryRegistry.get(record.id)).map((record) => record.id);
+    if (conflicts.length > 0) throw new Error(`Exact-id recreate refused. Current memory records already use: ${conflicts.join(', ')}.`);
+    const bundle: MemoryBundle = {
+      schemaVersion: 'v1',
+      exportedAt: Date.now(),
+      scope: 'all',
+      recordCount: memoryRecords.length,
+      linkCount: 0,
+      records: memoryRecords,
+      links: [],
+    };
+    const importResult = await memoryRegistry.importBundle(bundle);
+    const receipt: LearningConsolidationReceipt = {
+      id: receiptIdFromReceipt(deleteReceipt, 'recreate'),
+      createdAt: new Date().toISOString(),
+      domain: deleteReceipt.domain,
+      candidateId: deleteReceipt.candidateId,
+      phase: 'recreate',
+      explicitUserRequest,
+      survivorId: deleteReceipt.survivorId,
+      duplicateIds: deleteReceipt.duplicateIds,
+      beforeDuplicates: deleteReceipt.beforeDuplicates,
+    };
+    writeReceipt(shellPaths, receipt);
+    return {
+      status: 'applied',
+      phase: 'recreate',
+      recreatedFromReceiptId: deleteReceipt.id,
+      recreatedIds: memoryRecords.map((record) => record.id),
+      exactIdsPreserved: importResult.importedRecords === memoryRecords.length,
+      importResult,
+      receipt: receiptSummary(receipt, { shellPaths, memoryRegistry }),
+      next: 'Inspect recreated memory records, then re-run the learning curator before applying another consolidation phase.',
+    };
+  }
+
+  const recreated: Record<string, unknown>[] = [];
+  for (const snapshot of deleteReceipt.beforeDuplicates) {
+    const previousId = stringField(snapshot, 'id');
+    if (!previousId) throw new Error('Delete receipt snapshot is missing id.');
+    if (deleteReceipt.domain === 'persona') {
+      const registry = AgentPersonaRegistry.fromShellPaths(shellPaths);
+      const created = registry.create({
+        name: stringField(snapshot, 'name') ?? '',
+        description: stringField(snapshot, 'description') ?? '',
+        body: stringField(snapshot, 'body') ?? '',
+        tags: arrayField(snapshot, 'tags'),
+        triggers: arrayField(snapshot, 'triggers'),
+        source: localRecordSource(snapshot),
+        provenance: stringField(snapshot, 'provenance') ?? `recreated-from-learning-consolidation:${deleteReceipt.id}`,
+      });
+      if (created.id !== previousId) throw new Error(`Exact-id recreate failed for ${previousId}; created ${created.id}.`);
+      if (stringField(snapshot, 'reviewState') !== 'fresh') restoreReviewState(shellPaths, memoryRegistry, deleteReceipt.domain, created.id, snapshot);
+      recreated.push(cloneRecord(getRecord(shellPaths, memoryRegistry, deleteReceipt.domain, created.id)));
+    } else if (deleteReceipt.domain === 'skill') {
+      const registry = AgentSkillRegistry.fromShellPaths(shellPaths);
+      const created = registry.create({
+        name: stringField(snapshot, 'name') ?? '',
+        description: stringField(snapshot, 'description') ?? '',
+        procedure: stringField(snapshot, 'procedure') ?? '',
+        tags: arrayField(snapshot, 'tags'),
+        triggers: arrayField(snapshot, 'triggers'),
+        requirements: requirementsFromSnapshot(snapshot),
+        enabled: booleanField(snapshot, 'enabled') === true,
+        source: localRecordSource(snapshot),
+        provenance: stringField(snapshot, 'provenance') ?? `recreated-from-learning-consolidation:${deleteReceipt.id}`,
+      });
+      if (created.id !== previousId) throw new Error(`Exact-id recreate failed for ${previousId}; created ${created.id}.`);
+      if (stringField(snapshot, 'reviewState') !== 'fresh') restoreReviewState(shellPaths, memoryRegistry, deleteReceipt.domain, created.id, snapshot);
+      recreated.push(cloneRecord(getRecord(shellPaths, memoryRegistry, deleteReceipt.domain, created.id)));
+    } else {
+      const registry = AgentRoutineRegistry.fromShellPaths(shellPaths);
+      const created = registry.create({
+        name: stringField(snapshot, 'name') ?? '',
+        description: stringField(snapshot, 'description') ?? '',
+        steps: stringField(snapshot, 'steps') ?? '',
+        tags: arrayField(snapshot, 'tags'),
+        triggers: arrayField(snapshot, 'triggers'),
+        requirements: requirementsFromSnapshot(snapshot),
+        enabled: booleanField(snapshot, 'enabled') === true,
+        source: localRecordSource(snapshot),
+        provenance: stringField(snapshot, 'provenance') ?? `recreated-from-learning-consolidation:${deleteReceipt.id}`,
+      });
+      if (created.id !== previousId) throw new Error(`Exact-id recreate failed for ${previousId}; created ${created.id}.`);
+      if (stringField(snapshot, 'reviewState') !== 'fresh') restoreReviewState(shellPaths, memoryRegistry, deleteReceipt.domain, created.id, snapshot);
+      recreated.push(cloneRecord(getRecord(shellPaths, memoryRegistry, deleteReceipt.domain, created.id)));
+    }
+  }
+
+  const receipt: LearningConsolidationReceipt = {
+    id: receiptIdFromReceipt(deleteReceipt, 'recreate'),
+    createdAt: new Date().toISOString(),
+    domain: deleteReceipt.domain,
+    candidateId: deleteReceipt.candidateId,
+    phase: 'recreate',
+    explicitUserRequest,
+    survivorId: deleteReceipt.survivorId,
+    duplicateIds: deleteReceipt.duplicateIds,
+    beforeDuplicates: deleteReceipt.beforeDuplicates,
+  };
+  writeReceipt(shellPaths, receipt);
+  return {
+    status: 'applied',
+    phase: 'recreate',
+    recreatedFromReceiptId: deleteReceipt.id,
+    recreatedIds: recreated.map((record) => stringField(record, 'id')).filter(Boolean),
+    exactIdsPreserved: true,
+    recreatedRecords: recreated,
+    receipt: receiptSummary(receipt, { shellPaths, memoryRegistry }),
+    next: 'Inspect recreated records, then re-run the learning curator before applying another consolidation phase.',
   };
 }
 
@@ -566,8 +942,19 @@ function findReceipt(shellPaths: ShellPathService, args: AgentLearningConsolidat
   const receipts = readReceiptFile(shellPaths).receipts;
   const receipt = receiptIdArg
     ? receipts.find((entry) => entry.id === receiptIdArg)
-    : receipts.find((entry) => entry.candidateId === candidateId && entry.phase !== 'delete');
+    : receipts.find((entry) => entry.candidateId === candidateId && entry.phase !== 'delete' && entry.phase !== 'recreate');
   if (!receipt) throw new Error(receiptIdArg ? `Unknown learning consolidation receipt ${receiptIdArg}` : 'rollback requires receiptId or candidateId with a non-delete receipt.');
+  return receipt;
+}
+
+function findDeleteReceipt(shellPaths: ShellPathService, args: AgentLearningConsolidationToolArgs): LearningConsolidationReceipt {
+  const receiptIdArg = readString(args.receiptId);
+  const candidateId = readString(args.candidateId);
+  const receipts = readReceiptFile(shellPaths).receipts;
+  const receipt = receiptIdArg
+    ? receipts.find((entry) => entry.id === receiptIdArg)
+    : receipts.find((entry) => entry.candidateId === candidateId && entry.phase === 'delete');
+  if (!receipt) throw new Error(receiptIdArg ? `Unknown learning consolidation receipt ${receiptIdArg}` : 'recreate requires receiptId or candidateId with a delete receipt.');
   return receipt;
 }
 
@@ -578,7 +965,7 @@ function applyRollback(
 ): Record<string, unknown> {
   const receipt = findReceipt(shellPaths, args);
   if (receipt.phase === 'delete') {
-    throw new Error(`Receipt ${receipt.id} is from a delete phase. Automatic exact-id rollback is unavailable after delete; inspect the receipt snapshots and recreate records only if the user asks.`);
+    throw new Error(`Receipt ${receipt.id} is from a delete phase. Automatic rollback is unavailable after delete; use agent_learning_consolidation mode:"recreate" receiptId:"${receipt.id}" confirm:true explicitUserRequest:"..." to recreate deleted records only when the user asks and exact ids are still safe.`);
   }
   if (receipt.phase === 'merge') {
     return {
@@ -607,14 +994,14 @@ export function createAgentLearningConsolidationTool(shellPaths: ShellPathServic
   return {
     definition: {
       name: 'agent_learning_consolidation',
-      description: 'Preview or apply one confirmed local duplicate learning phase.',
+      description: 'Manage confirmed local duplicate learning phases.',
       parameters: {
         type: 'object',
         properties: {
           mode: {
             type: 'string',
             enum: [...MODES],
-            description: 'preview, merge, stale, delete, rollback, or receipts.',
+            description: 'preview, merge, stale, delete, rollback, recreate, or receipts.',
           },
           candidateId: {
             type: 'string',
@@ -654,12 +1041,18 @@ export function createAgentLearningConsolidationTool(shellPaths: ShellPathServic
           return output({
             status: 'receipts',
             path: receiptPath(shellPaths),
-            receipts: readReceiptFile(shellPaths).receipts.slice(0, readLimit(args.limit, 20)).map(receiptSummary),
+            receipts: readReceiptFile(shellPaths).receipts
+              .slice(0, readLimit(args.limit, 20))
+              .map((receipt) => receiptSummary(receipt, { shellPaths, memoryRegistry })),
           });
         }
         if (mode === 'rollback') {
           requireConfirmedWrite(args, mode);
           return output(applyRollback(shellPaths, memoryRegistry, args));
+        }
+        if (mode === 'recreate') {
+          const explicitUserRequest = requireConfirmedWrite(args, mode);
+          return output(await applyRecreate(shellPaths, memoryRegistry, args, explicitUserRequest));
         }
         const candidate = resolveCandidate(shellPaths, memoryRegistry, args);
         if (mode === 'preview') return output(previewCandidate(candidate));

@@ -174,10 +174,74 @@ describe('agent_learning_consolidation tool', () => {
         explicitUserRequest: 'Delete duplicate release checklist skill records.',
       });
       expect(deleted.success).toBe(true);
+      const deletedJson = JSON.parse(deleted.output ?? '{}') as {
+        readonly receipt: {
+          readonly receiptId: string;
+          readonly recreateRoute: string;
+          readonly deleteRecovery: {
+            readonly records: readonly {
+              readonly previousId: string;
+              readonly expectedId: string;
+              readonly exactId: { readonly possible: boolean };
+              readonly createArguments: Record<string, unknown>;
+            }[];
+          };
+        };
+        readonly recreateGuidance: {
+          readonly records: readonly {
+            readonly previousId: string;
+            readonly expectedId: string;
+            readonly exactId: { readonly possible: boolean };
+          }[];
+        };
+      };
+      expect(deletedJson.receipt.recreateRoute).toContain('mode:"recreate"');
+      expect(deletedJson.recreateGuidance.records[0]).toEqual(expect.objectContaining({
+        previousId: ids.duplicateId,
+        expectedId: ids.duplicateId,
+        exactId: expect.objectContaining({ possible: true }),
+      }));
+      expect(deletedJson.receipt.deleteRecovery.records[0]?.createArguments).toEqual(expect.objectContaining({
+        domain: 'skill',
+        action: 'create',
+        name: 'Release checklist!',
+      }));
       expect(AgentSkillRegistry.fromShellPaths(fixture.paths).get(ids.duplicateId)).toBeNull();
+
+      const deleteRollback = await fixture.tool.execute({
+        mode: 'rollback',
+        receiptId: deletedJson.receipt.receiptId,
+        confirm: true,
+        explicitUserRequest: 'Undo the duplicate delete.',
+      });
+      expect(deleteRollback.success).toBe(false);
+      expect(deleteRollback.error).toContain('mode:"recreate"');
+
+      const recreated = await fixture.tool.execute({
+        mode: 'recreate',
+        receiptId: deletedJson.receipt.receiptId,
+        confirm: true,
+        explicitUserRequest: 'Recreate the deleted duplicate release checklist skill record.',
+      });
+      expect(recreated.success).toBe(true);
+      const recreatedJson = JSON.parse(recreated.output ?? '{}') as {
+        readonly recreatedIds: readonly string[];
+        readonly exactIdsPreserved: boolean;
+        readonly receipt: { readonly receiptId: string; readonly phase: string };
+      };
+      expect(recreatedJson.exactIdsPreserved).toBe(true);
+      expect(recreatedJson.recreatedIds).toContain(ids.duplicateId);
+      expect(recreatedJson.receipt.receiptId).toContain('lcon-recreate');
+      expect(recreatedJson.receipt.phase).toBe('recreate');
+      duplicate = AgentSkillRegistry.fromShellPaths(fixture.paths).get(ids.duplicateId);
+      expect(duplicate?.name).toBe('Release checklist!');
+      expect(duplicate?.reviewState).toBe('stale');
+
       const receipts = await fixture.tool.execute({ mode: 'receipts' });
       expect(receipts.success).toBe(true);
       expect(receipts.output).toContain('lcon-delete');
+      expect(receipts.output).toContain('lcon-recreate');
+      expect(receipts.output).toContain('deleteRecovery');
       expect(existsSync(fixture.paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'learning', 'consolidation-receipts.json'))).toBe(true);
     } finally {
       fixture.cleanup();
