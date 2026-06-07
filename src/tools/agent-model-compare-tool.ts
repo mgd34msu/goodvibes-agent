@@ -665,7 +665,7 @@ function modelRouteHandoff(candidate: CompareCandidateResult, reveal: boolean): 
   return {
     ...(reveal ? {
       routeInspection: `agent_harness mode:"model_route" target:"${candidate.model.registryKey}"`,
-      confirmedMainRouteUpdate: `agent_harness mode:"set_setting" key:"provider.model" value:"${candidate.model.registryKey}" confirm:true explicitUserRequest:"..."`,
+      confirmedMainRouteUpdate: `settings action:"set" key:"provider.model" value:"${candidate.model.registryKey}" confirm:true explicitUserRequest:"..."`,
     } : {
       routeInspection: 'reveal the winning model before model-route inspection',
     }),
@@ -2846,7 +2846,7 @@ export function createAgentModelCompareTool(deps: AgentModelCompareToolDeps): To
             return failure('explicitUserRequest is required so route updates stay tied to a direct user request.');
           }
           if (!deps.applyModelRoute) {
-            return failure('Model route updates are unavailable in this runtime. Use agent_harness mode:"set_setting" for provider.model if available.');
+            return failure('Model route updates are unavailable in this runtime. Use settings action:"set" for provider.model if available.');
           }
           if (!deps.artifactStore?.readContent) {
             return failure('Saved judgment artifacts are unavailable because this runtime cannot read artifact content.');

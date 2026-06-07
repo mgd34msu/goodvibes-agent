@@ -23,6 +23,7 @@ const READ_TOOL_NAMES = new Set([
   'personal_ops',
   'research',
   'setup',
+  'settings',
   'vibe',
   'agent_harness',
   'agent_knowledge',
@@ -49,6 +50,7 @@ const EXECUTE_TOOL_NAMES = new Set(['exec', 'repl', 'terminal', 'process']);
 const READ_ONLY_PROCESS_ACTIONS = new Set(['', 'list', 'status', 'poll', 'log', 'output', 'capabilities', 'doctor', 'parity']);
 const READ_ONLY_SCHEDULE_ACTIONS = new Set(['', 'list', 'status', 'show']);
 const READ_ONLY_SETTINGS_IMPORT_ACTIONS = new Set(['', 'preview', 'inspect', 'show', 'plan']);
+const READ_ONLY_SETTINGS_ACTIONS = new Set(['', 'list', 'status', 'settings', 'catalog', 'search', 'find', 'browse', 'get', 'show', 'inspect', 'read', 'setting', 'get_setting', 'import', 'import_settings', 'settings_import', 'import_goodvibes', 'goodvibes_import', 'preview_import']);
 const READ_ONLY_SETUP_ACTIONS = new Set(['', 'status', 'summary', 'list', 'item', 'show', 'inspect', 'checkpoint', 'checkpoint_status']);
 const READ_ONLY_VIBE_ACTIONS = new Set(['', 'status', 'summary', 'list', 'show', 'file', 'source', 'read', 'inspect']);
 const READ_ONLY_PERSONAL_OPS_ACTIONS = new Set(['', 'briefing', 'brief', 'daily', 'daily_brief', 'morning', 'status', 'summary', 'overview', 'map', 'list', 'intake', 'request', 'route', 'plan', 'triage', 'draft', 'lane', 'inspect', 'show']);
@@ -140,6 +142,16 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.mode.trim().toLowerCase()
         : '';
     return READ_ONLY_SETTINGS_IMPORT_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'settings') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase().replace(/-/g, '_')
+        : '';
+    const confirmed = args.confirm === true || (typeof args.confirm === 'string' && ['true', 'yes', 'apply', 'run'].includes(args.confirm.trim().toLowerCase()));
+    if ((action === 'import' || action === 'import_settings' || action === 'settings_import' || action === 'import_goodvibes' || action === 'goodvibes_import') && confirmed) return 'write';
+    return READ_ONLY_SETTINGS_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'setup') {
     const action = typeof args.action === 'string'

@@ -228,7 +228,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     mediaPosture: 'Prefer device action:"voice|provider" for voice/media posture. Lower-level mode:"media_posture" and mode:"media_provider" remain available; generate with agent_media_generate and confirmation.',
     sessions: 'List mode:"sessions"; inspect mode:"session"; save/resume/export/delete stays visible confirmed flow.',
     workspace: 'List mode:"workspace" or mode:"workspace_categories"; actions via mode:"workspace_actions", mode:"workspace_action", and mode:"run_workspace_action"; includeParameters:true inlines editor schemas.',
-    settings: 'List mode:"settings" with category|prefix|query|includeHidden:true; mode:"get_setting", mode:"set_setting", and mode:"reset_setting" use key|target|query; writes require confirmation.',
+    settings: 'Prefer settings action:"list|get|set|reset|import"; list accepts category|prefix|query|includeHidden:true; lower-level settings modes remain for compatibility.',
     tools: 'List mode:"tools" with query|limit|includeParameters:true; inspect mode:"tool" with toolName|target|query.',
     modeCatalog: 'Search mode:"modes" with query|target; inspect one contract with mode:"mode" target:"...".',
     releaseEvidence: 'Operator/audit: list mode:"release_evidence"; inspect mode:"release_evidence_artifact"; includeParameters:true inlines artifact detail.',

@@ -80,6 +80,12 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('research', { action: 'report' })).toBe('write');
     expect(manager.getCategory('schedule', { action: 'list' })).toBe('read');
     expect(manager.getCategory('schedule', { action: 'pause' })).toBe('execute');
+    expect(manager.getCategory('settings', { action: 'list' })).toBe('read');
+    expect(manager.getCategory('settings', { action: 'get' })).toBe('read');
+    expect(manager.getCategory('settings', { action: 'set' })).toBe('write');
+    expect(manager.getCategory('settings', { action: 'reset' })).toBe('write');
+    expect(manager.getCategory('settings', { action: 'import' })).toBe('read');
+    expect(manager.getCategory('settings', { action: 'import', confirm: true })).toBe('write');
     expect(manager.getCategory('setup', { action: 'status' })).toBe('read');
     expect(manager.getCategory('setup', { action: 'checkpoint' })).toBe('read');
     expect(manager.getCategory('setup', { action: 'smoke' })).toBe('write');
@@ -123,6 +129,11 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('research', { mode: 'add_source' })).toBe('write');
     expect(manager.getCategory('schedule', { action: 'status' })).toBe('read');
     expect(manager.getCategory('schedule', { action: 'create' })).toBe('execute');
+    expect(manager.getCategory('settings')).toBe('read');
+    expect(manager.getCategory('settings', { mode: 'show' })).toBe('read');
+    expect(manager.getCategory('settings', { mode: 'preview_import' })).toBe('read');
+    expect(manager.getCategory('settings', { mode: 'apply_import' })).toBe('write');
+    expect(manager.getCategory('settings', { mode: 'change' })).toBe('write');
     expect(manager.getCategory('setup')).toBe('read');
     expect(manager.getCategory('setup', { mode: 'item' })).toBe('read');
     expect(manager.getCategory('setup', { mode: 'import_settings' })).toBe('write');
@@ -161,6 +172,11 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('research', { action: 'review_source' })).resolves.toBe(false);
     await expect(manager.check('schedule', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('schedule', { action: 'run' })).resolves.toBe(false);
+    await expect(manager.check('settings', { action: 'list' })).resolves.toBe(true);
+    await expect(manager.check('settings', { action: 'get' })).resolves.toBe(true);
+    await expect(manager.check('settings', { action: 'import' })).resolves.toBe(true);
+    await expect(manager.check('settings', { action: 'set' })).resolves.toBe(false);
+    await expect(manager.check('settings', { action: 'import', confirm: true })).resolves.toBe(false);
     await expect(manager.check('setup', { action: 'status' })).resolves.toBe(true);
     await expect(manager.check('setup', { action: 'token' })).resolves.toBe(false);
     await expect(manager.check('vibe', { action: 'status' })).resolves.toBe(true);
@@ -178,6 +194,7 @@ describe('Agent tool permission safety guard', () => {
   test('keeps fallback category mapping explicit for registered tool families', () => {
     expect(fallbackPermissionCategory('agent_knowledge')).toBe('read');
     expect(fallbackPermissionCategory('agent_artifacts')).toBe('write');
+    expect(fallbackPermissionCategory('settings')).toBe('read');
     expect(fallbackPermissionCategory('agent_review_packet_presets')).toBe('write');
     expect(fallbackPermissionCategory('agent_review_packet_share')).toBe('delegate');
     expect(fallbackPermissionCategory('agent_work_plan')).toBe('write');

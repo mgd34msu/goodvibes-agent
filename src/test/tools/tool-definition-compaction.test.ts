@@ -44,6 +44,7 @@ describe('compactRegisteredToolDefinitions', () => {
     registry.register(makeTool('models', 'Verbose model and provider route description that should never reach the model catalog.'));
     registry.register(makeTool('personal_ops', 'Verbose personal operations description that should never reach the model catalog.'));
     registry.register(makeTool('research', 'Verbose research workflow description that should never reach the model catalog.'));
+    registry.register(makeTool('settings', 'Verbose settings description that should never reach the model catalog.'));
     registry.register(makeTool('setup', 'Verbose setup tool description that should never reach the model catalog.'));
     registry.register(makeTool('vibe', 'Verbose VIBE.md personality description that should never reach the model catalog.'));
     registry.register(makeTool('agent_local_registry', 'Verbose local registry description that should never reach the model catalog.'));
@@ -58,6 +59,7 @@ describe('compactRegisteredToolDefinitions', () => {
     expect(descriptions.get('models')).toBe('Inspect model routes, providers, cookbook, and checks.');
     expect(descriptions.get('personal_ops')).toBe('Brief, route, inspect, and read Personal Ops.');
     expect(descriptions.get('research')).toBe('Plan, track, source, and save research.');
+    expect(descriptions.get('settings')).toBe('List, inspect, change, reset, or import settings.');
     expect(descriptions.get('setup')).toBe('Inspect and complete first-run Agent setup.');
     expect(descriptions.get('vibe')).toBe('Inspect/create/import VIBE.md personality.');
     expect(descriptions.get('agent_local_registry')).toBe('Inspect/update Agent memory, notes, skills, routines.');

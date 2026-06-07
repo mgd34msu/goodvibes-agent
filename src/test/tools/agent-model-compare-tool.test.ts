@@ -531,7 +531,7 @@ describe('agent_model_compare tool', () => {
     expect(judgment.output).toContain('Blind model comparison judgment saved');
     expect(judgment.output).toContain('winner Candidate B');
     expect(judgment.output).toContain('winner model anthropic:claude-sonnet');
-    expect(judgment.output).toContain('agent_harness mode:"set_setting" key:"provider.model" value:"anthropic:claude-sonnet"');
+    expect(judgment.output).toContain('settings action:"set" key:"provider.model" value:"anthropic:claude-sonnet"');
     expect(judgment.output).toContain('No selected model was changed.');
     expect(artifacts.inputs).toHaveLength(2);
 

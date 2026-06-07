@@ -84,7 +84,7 @@ function describeEndpoint(
         effect: 'read-only',
         modelOperation: 'Inspect endpoint binding, network-facing posture, and optional reachability only.',
         lifecycle: 'Use setup or confirmed GoodVibes daemon operator methods for service lifecycle/listener changes.',
-        settings: 'Use agent_harness mode:"settings" or mode:"get_setting" for endpoint settings; raw danger toggles stay protected.',
+        settings: 'Use settings action:"list|get" for endpoint settings; raw danger toggles stay protected.',
       },
     } : {}),
   };

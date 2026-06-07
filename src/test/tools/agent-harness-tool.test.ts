@@ -7816,7 +7816,7 @@ describe('agent_harness tool', () => {
         };
       };
       expect(settingsJson.policy?.effect).toBe('mixed');
-      expect(settingsJson.policy?.preferredModelTool).toBe('agent_harness mode:"settings", mode:"get_setting", mode:"set_setting", mode:"reset_setting"');
+      expect(settingsJson.policy?.preferredModelTool).toBe('settings action:"list"|action:"get"|action:"set"|action:"reset"|action:"import"');
       expect(settingsJson.policy?.preferredModelTool).not.toContain('settings/get_setting/set_setting/reset_setting');
       expect(settingsJson.policy?.boundary).toContain('Connected-host lifecycle/listener settings remain read-only');
     } finally {
@@ -8436,7 +8436,7 @@ describe('agent_harness tool', () => {
         || surface.modelRoute.length === 0
         || surface.modelRoute.length > 72
       ))).toEqual([]);
-      expect(catalogJson.surfaces.find((surface) => surface.id === 'model-picker')?.modelRoute).toBe('agent_harness mode:"settings" or mode:"run_command"');
+      expect(catalogJson.surfaces.find((surface) => surface.id === 'model-picker')?.modelRoute).toBe('settings action:"get|set" or agent_harness mode:"run_command"');
 
       const searchSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'search' });
       expect(searchSurfaces.success).toBe(true);
@@ -8485,8 +8485,8 @@ describe('agent_harness tool', () => {
         readonly preferredModelRoute?: string;
       };
       expect(settingsJson.id).toBe('settings');
-      expect(settingsJson.modelRoute).toBe('agent_harness mode:"settings" or mode:"open_ui_surface"');
-      expect(settingsJson.preferredModelRoute).toContain('mode:"settings", mode:"get_setting", mode:"set_setting", mode:"reset_setting"');
+      expect(settingsJson.modelRoute).toBe('settings action:"list|get|set" or agent_harness mode:"open_ui_surface"');
+      expect(settingsJson.preferredModelRoute).toContain('settings action:"list"|action:"get"|action:"set"|action:"reset"|action:"import"');
       expect(settingsJson.preferredModelRoute).not.toContain('settings/get_setting/set_setting/reset_setting');
       expectModelFacingText(settings.output);
 
@@ -11091,7 +11091,7 @@ describe('agent_harness tool', () => {
       expect(filteredPayload.settings.filter((setting) => !setting.key.startsWith('provider.'))).toEqual([]);
       expect(filteredPayload.settings.filter((setting) => (
         setting.writable !== true
-        || setting.modelRoute !== 'agent_harness mode:"set_setting" or mode:"reset_setting"'
+        || !String(setting.modelRoute).startsWith('settings set|reset key:')
       ))).toEqual([]);
 
       const byTarget = await fixture.tool.execute({
@@ -11101,7 +11101,7 @@ describe('agent_harness tool', () => {
       expect(byTarget.success).toBe(true);
       const targetSetting = JSON.parse(byTarget.output);
       expect(targetSetting.key).toBe('provider.model');
-      expect(targetSetting.modelRoute).toBe('agent_harness mode:"set_setting" or mode:"reset_setting"');
+      expect(targetSetting.modelRoute).toBe('settings set|reset key:provider.model');
       expect(targetSetting.lookup).toEqual({
         source: 'target',
         input: 'PROVIDER.MODEL',
@@ -11116,7 +11116,7 @@ describe('agent_harness tool', () => {
       expect(byQuery.success).toBe(true);
       const querySetting = JSON.parse(byQuery.output);
       expect(querySetting.key).toBe('provider.reasoningEffort');
-      expect(querySetting.modelRoute).toBe('agent_harness mode:"set_setting" or mode:"reset_setting"');
+      expect(querySetting.modelRoute).toBe('settings set|reset key:provider.reasoningEffort');
       expect(querySetting.lookup).toEqual({
         source: 'query',
         input: 'reasoning',

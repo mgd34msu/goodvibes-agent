@@ -28,6 +28,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   remote: 'Manage remote runner pools and artifacts.',
   repl: 'Evaluate bounded JS, TS, Python, SQL, or GraphQL.',
   schedule: 'List, create, edit, run, pause, resume schedules.',
+  settings: 'List, inspect, change, reset, or import settings.',
   setup: 'Inspect and complete first-run Agent setup.',
   state: 'Read/update session state and diagnostics.',
   task: 'Manage cross-session tasks and handoffs.',

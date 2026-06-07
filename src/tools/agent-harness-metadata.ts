@@ -18,6 +18,10 @@ function agentHarnessModes(...modes: readonly string[]): string {
   return `agent_harness ${modes.map((mode) => `mode:"${mode}"`).join(', ')}`;
 }
 
+function settingsActions(...actions: readonly string[]): string {
+  return `settings ${actions.map((action) => `action:"${action}"`).join('|')}`;
+}
+
 export function describeCommandPolicy(commandName: string): CommandExecutionPolicy {
   const root = commandName.replace(/^\//, '').trim().toLowerCase();
   const confirmation = 'agent_harness mode:"run_command" requires confirm:true and explicitUserRequest for every slash command invocation.';
@@ -34,7 +38,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'ui-navigation',
       confirmation,
       preferredModelTool: agentHarnessModes('workspace_actions', 'workspace_action', 'open_ui_surface'),
-      boundary: 'Setup opens the visible Agent workspace. Model-side changes should use setting modes or workspace actions.',
+      boundary: 'Setup opens the visible Agent workspace. Model-side changes should use settings or workspace actions.',
     };
   }
   if (root === 'commands' || root === 'help' || root === 'shortcuts') {
@@ -57,23 +61,23 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting'),
-      boundary: 'Model-writable settings can be changed through agent_harness. Connected-host lifecycle/listener settings remain read-only.',
+      preferredModelTool: settingsActions('list', 'get', 'set', 'reset', 'import'),
+      boundary: 'Model-writable settings can be changed through the first-class settings adapter. Connected-host lifecycle/listener settings remain read-only.',
     };
   }
   if (root === 'model' || root === 'effort') {
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting', 'open_ui_surface'),
-      boundary: 'Model and reasoning-effort changes affect the current Agent chat route. Prefer settings modes for concrete values and UI surface routing for visible pickers.',
+      preferredModelTool: `${settingsActions('get', 'set')} or ${agentHarnessModes('open_ui_surface')}`,
+      boundary: 'Model and reasoning-effort changes affect the current Agent chat route. Prefer settings for concrete values and UI surface routing for visible pickers.',
     };
   }
   if (root === 'provider' || root === 'providers') {
     return {
       effect: 'mixed',
       confirmation,
-      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting', 'open_ui_surface'),
+      preferredModelTool: `${settingsActions('get', 'set')} or ${agentHarnessModes('open_ui_surface')}`,
       boundary: 'Provider selection and custom provider files belong to Agent provider configuration. Adding, removing, or switching providers requires explicit user intent.',
     };
   }
@@ -81,7 +85,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'external-network',
       confirmation,
-      preferredModelTool: agentHarnessModes('settings', 'tools'),
+      preferredModelTool: `${settingsActions('list', 'get')} or ${agentHarnessModes('tools')}`,
       boundary: 'Model catalog refresh may call provider discovery routes and update local provider metadata. Do not run it without explicit user request.',
     };
   }
@@ -97,7 +101,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: agentHarnessModes('settings', 'get_setting', 'set_setting'),
+      preferredModelTool: settingsActions('get', 'set'),
       boundary: 'Interaction-mode changes affect the current Agent operator notification posture and should be explicit.',
     };
   }
@@ -123,7 +127,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       confirmation,
       preferredModelTool: root === 'compat'
         ? agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status')
-        : agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status', 'settings', 'tools', 'open_ui_surface'),
+        : `${agentHarnessModes('service_posture', 'service_endpoint', 'connected_host_status')} or ${settingsActions('list', 'get')} or ${agentHarnessModes('tools', 'open_ui_surface')}`,
       boundary: 'Diagnostics and review commands inspect Agent, provider, MCP, security, and connected-host readiness without taking lifecycle ownership.',
     };
   }
@@ -140,8 +144,8 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'mixed',
       confirmation,
       preferredModelTool: root === 'secrets' || root === 'secret'
-        ? agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')
-        : agentHarnessModes('workspace_actions', 'settings', 'open_ui_surface'),
+        ? settingsActions('list', 'get', 'set', 'reset')
+        : `${agentHarnessModes('workspace_actions', 'open_ui_surface')} or ${settingsActions('list', 'get', 'set')}`,
       boundary: 'Harness-owned configuration, secret, voice, subscription, and MCP commands can expose credentials or external account state. Mutations require explicit user intent and should prefer secret refs over raw values.',
     };
   }
@@ -223,7 +227,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'external-network',
       confirmation,
-      preferredModelTool: agentHarnessModes('settings', 'open_ui_surface'),
+      preferredModelTool: `${settingsActions('get', 'set')} or ${agentHarnessModes('open_ui_surface')}`,
       boundary: 'Live TTS submits a normal prompt and may call model and speech providers; stopping playback is local runtime control.',
     };
   }
@@ -399,7 +403,7 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       confirmation,
       preferredModelTool: root === 'pair'
         ? agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action')
-        : `${agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')} or ${agentHarnessModes('workspace_actions')}`,
+        : `${settingsActions('list', 'get', 'set', 'reset')} or ${agentHarnessModes('workspace_actions')}`,
       boundary: 'Provider subscription, secret, and pairing flows can expose credentials or external account state. Use only explicit user-directed flows and prefer secret refs over raw values.',
     };
   }
@@ -805,8 +809,8 @@ export function blockedConnectedHostCapabilities(): readonly Record<string, unkn
 
 export function settingsPolicySummary(): Record<string, unknown> {
   return {
-    discovery: 'Use mode:"settings" for the setting catalog and mode:"get_setting" with key, target, or query for one setting. Hidden/scriptable settings require includeHidden:true unless the exact key is supplied.',
-    mutation: 'Use mode:"set_setting" or mode:"reset_setting" with key, target, or query plus confirm:true and explicitUserRequest; ambiguous setting lookups are refused.',
+    discovery: 'Use settings action:"list" for the setting catalog and action:"get" with key, target, or query for one setting. Hidden/scriptable settings require includeHidden:true unless the exact key is supplied.',
+    mutation: 'Use settings action:"set" or action:"reset" with key, target, or query plus confirm:true and explicitUserRequest; ambiguous setting lookups are refused.',
     secretHandling: 'Raw secret values are persisted through the secret manager; config receives only a secret reference and tool output is redacted.',
     writablePolicy: 'Each setting descriptor includes writable, visibleInWorkspace, and lockReason when applicable.',
     protectedRawDangerKeys: ['danger.daemon', 'danger.httpListener'],

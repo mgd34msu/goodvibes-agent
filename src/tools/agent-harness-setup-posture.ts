@@ -2495,7 +2495,7 @@ function describeItem(
           inspectSetupItem: 'setup action:"item"',
           openOnboarding: 'agent_harness mode:"open_ui_surface" surfaceId:"onboarding" confirm:true explicitUserRequest:"..."',
           setupWorkspace: 'agent_harness mode:"workspace_action" target:"setup"',
-          settings: 'agent_harness mode:"settings"; inspect or mutate with get_setting, set_setting, or reset_setting',
+          settings: 'settings action:"list|get|set|reset"; compatibility detail remains in agent_harness settings modes',
           providerRouting: 'models action:"status"',
           providerAccounts: 'models action:"providers"',
           channels: 'agent_harness mode:"channels"',

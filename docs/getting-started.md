@@ -72,8 +72,8 @@ Common model routes:
 | Harness mode discovery | `agent_harness mode:"modes"`, `mode:"mode"` |
 | Workspace actions | `agent_harness mode:"workspace_actions"`, `mode:"workspace_action"`, `mode:"run_workspace_action"` |
 | Slash commands | `agent_harness mode:"commands"`, `mode:"command"`, `mode:"run_command"` |
-| Settings | `agent_harness mode:"settings"`, `mode:"get_setting"`, `mode:"set_setting"`, `mode:"reset_setting"` |
-| GoodVibes settings import | `import_goodvibes_settings action:"preview"`; apply with `action:"apply" confirm:true explicitUserRequest:"..."` |
+| Settings | `settings action:"list|get|set|reset|import"`; lower-level `agent_harness mode:"settings"`, `mode:"get_setting"`, `mode:"set_setting"`, `mode:"reset_setting"` remain available for compatibility/detail |
+| GoodVibes settings import | `settings action:"import"` previews by default; apply with `confirm:true explicitUserRequest:"..."`; `import_goodvibes_settings action:"preview|apply"` remains available |
 | Visible UI and devices | `device action:"status|capability|browser|control|voice|provider|open_browser|open_tts_provider|open_tts_voice"` for device/voice/browser UX; lower-level `agent_harness mode:"panels"`, `mode:"ui_surfaces"`, `mode:"open_panel"`, `mode:"open_ui_surface"` remain available for detailed visible navigation |
 | Keybindings | `agent_harness mode:"shortcuts"`, `mode:"keybindings"`, `mode:"keybinding"`, `mode:"run_keybinding"`, `mode:"set_keybinding"` |
 | Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
@@ -116,7 +116,7 @@ goodvibes-agent profiles templates export research ./research-starter.json --inc
 goodvibes-agent profiles templates import ./research-starter.json --yes
 ```
 
-Named profiles isolate Agent-local config, sessions, VIBE.md, memory, notes, personas, skills, routines, and setup state. Starter export/from-discovered flows can include the current safe VIBE.md with `--include-vibe`; blocked VIBE.md files must be repaired first. GoodVibes settings import can bring over existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings. The direct `import_goodvibes_settings` route and workspace action both preview changed counts first, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions.
+Named profiles isolate Agent-local config, sessions, VIBE.md, memory, notes, personas, skills, routines, and setup state. Starter export/from-discovered flows can include the current safe VIBE.md with `--include-vibe`; blocked VIBE.md files must be repaired first. GoodVibes settings import can bring over existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings. The direct `settings action:"import"` route, `import_goodvibes_settings` compatibility route, and workspace action all preview changed counts first, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions.
 
 ## Local Behavior
 

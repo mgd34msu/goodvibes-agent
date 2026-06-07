@@ -490,7 +490,7 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
       capabilities: ['voice surface toggle', 'push-to-talk setup posture', 'provider readiness'],
       modelRoute: 'agent_harness mode:"media_posture" query:"voice" includeParameters:true',
       setupRoutes: [
-        'agent_harness mode:"settings" query:"ui.voiceEnabled" includeParameters:true',
+        'settings action:"get" query:"ui.voiceEnabled" includeParameters:true',
         'agent_harness mode:"media_posture" query:"voice" includeParameters:true',
       ],
       evidence: {

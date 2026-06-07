@@ -163,8 +163,8 @@ export function redactHarnessSettingValue(key: string, value: unknown): unknown 
 }
 
 function settingModelRoute(setting: ConfigSetting): string {
-  if (isExternalHostOwnedSettingKey(setting.key)) return 'agent_harness mode:"get_setting" only';
-  return 'agent_harness mode:"set_setting" or mode:"reset_setting"';
+  if (isExternalHostOwnedSettingKey(setting.key)) return `settings get key:${setting.key}`;
+  return `settings set|reset key:${setting.key}`;
 }
 
 export function describeHarnessSetting(

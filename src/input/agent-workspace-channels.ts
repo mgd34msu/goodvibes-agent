@@ -420,7 +420,7 @@ function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly 
       'Enable surface',
       `Enable ${channelLabel} in the owning GoodVibes host or Agent settings only after the user chooses it.`,
       `/settings surfaces.${channelId}.enabled`,
-      `agent_harness mode:"settings" query:"surfaces.${channelId}.enabled" includeParameters:true`,
+      `settings action:"get" query:"surfaces.${channelId}.enabled" includeParameters:true`,
       'settings',
     ),
     makeStep(
@@ -436,7 +436,7 @@ function buildGuideSteps(channel: AgentWorkspaceChannelStatus | null): readonly 
       'Configure secrets',
       `Configure ${missingConfig}; secret values must stay in the secret manager or owning host.`,
       `/settings surfaces.${channelId}`,
-      `agent_harness mode:"settings" query:"surfaces.${channelId}" includeParameters:true`,
+      `settings action:"list" query:"surfaces.${channelId}" includeParameters:true`,
       'settings',
     ),
     makeStep(

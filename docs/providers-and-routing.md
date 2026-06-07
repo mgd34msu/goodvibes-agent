@@ -49,7 +49,7 @@ Search, voice, media, and multimodal providers are valid Agent features when the
 
 Outputs that should become durable knowledge must go through Agent Knowledge routes. No provider output should be inserted into default knowledge or another product segment by Agent.
 
-Setting discovery is compact by default and full with `includeParameters:true` or `get_setting`. Setting changes are available to the model through `agent_harness` only when the user explicitly asks. `models action:"status|route|local|providers|provider"` is read-only; `models action:"smoke"` is confirmation-gated. Model/provider selection, catalog refresh, pin/unpin, custom provider edits, and route setting changes stay visible picker, settings, workspace, or slash-command flows. Secret-backed provider or channel values are stored through the secret manager and displayed as redacted references.
+Setting discovery is compact by default through `settings action:"list"` and full with `includeParameters:true` or `settings action:"get"`. Setting changes use `settings action:"set|reset"` only when the user explicitly asks and provides confirmation. `models action:"status|route|local|providers|provider"` is read-only; `models action:"smoke"` is confirmation-gated. Model/provider selection, catalog refresh, pin/unpin, custom provider edits, and route setting changes stay visible picker, settings, workspace, or slash-command flows. Secret-backed provider or channel values are stored through the secret manager and displayed as redacted references.
 
 ## Related Docs
 

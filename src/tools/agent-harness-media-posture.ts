@@ -168,7 +168,7 @@ function buildVoiceInteractionWorkflows(
       modelRoute: 'agent_harness mode:"media_posture" query:"push to talk" includeParameters:true',
       userRoute: '/voice review',
       setupRoutes: [
-        'agent_harness mode:"settings" query:"ui.voiceEnabled" includeParameters:true',
+        'settings action:"get" query:"ui.voiceEnabled" includeParameters:true',
         'agent_harness mode:"media_posture" query:"stt realtime" includeParameters:true',
       ],
       evidence: {
@@ -319,7 +319,7 @@ function describeProvider(
           inspectPosture: 'agent_harness mode:"media_posture"',
           inspectProvider: 'agent_harness mode:"media_provider"',
           generateMedia: 'agent_media_generate with confirm:true and explicitUserRequest',
-          ttsSettings: 'agent_harness mode:"settings", mode:"get_setting", mode:"set_setting" for tts.provider, tts.voice, tts.llmProvider, and tts.llmModel',
+          ttsSettings: 'settings action:"list|get|set" for tts.provider, tts.voice, tts.llmProvider, and tts.llmModel',
         },
         policy: {
           effect: 'read-only',

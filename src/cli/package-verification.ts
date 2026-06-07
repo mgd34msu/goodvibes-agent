@@ -2589,6 +2589,7 @@ function verifyHarnessSettingsModelAccessPolicy(root: string): readonly string[]
   const issues: string[] = [];
   const harnessControlPath = join(root, 'src', 'agent', 'harness-control.ts');
   const harnessToolPath = join(root, 'src', 'tools', 'agent-harness-tool.ts');
+  const settingsToolPath = join(root, 'src', 'tools', 'agent-settings-tool.ts');
   const harnessMetadataPath = join(root, 'src', 'tools', 'agent-harness-metadata.ts');
 
   if (!existsSync(harnessControlPath)) {
@@ -2598,8 +2599,8 @@ function verifyHarnessSettingsModelAccessPolicy(root: string): readonly string[]
     const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
       { marker: 'function settingModelRoute', label: 'setting model route builder' },
       { marker: 'isExternalHostOwnedSettingKey(setting.key)', label: 'connected-host-owned setting read-only check' },
-      { marker: 'agent_harness mode:"get_setting" only', label: 'read-only setting model route' },
-      { marker: 'agent_harness mode:"set_setting" or mode:"reset_setting"', label: 'writable setting model route' },
+      { marker: 'settings get key:${setting.key}', label: 'read-only setting model route' },
+      { marker: 'settings set|reset key:${setting.key}', label: 'writable setting model route' },
       { marker: 'redactHarnessSettingValue', label: 'setting value redaction' },
       { marker: 'persistSecretBackedConfigValue', label: 'secret-backed setting persistence' },
       { marker: 'Cannot store raw secret value', label: 'secret manager availability guard' },
@@ -2609,6 +2610,26 @@ function verifyHarnessSettingsModelAccessPolicy(root: string): readonly string[]
     for (const { marker, label } of requiredMarkers) {
       if (!source.includes(marker)) {
         issues.push(`harness settings source must keep ${label}.`);
+      }
+    }
+  }
+
+  if (!existsSync(settingsToolPath)) {
+    issues.push('first-class settings tool source is missing: src/tools/agent-settings-tool.ts.');
+  } else {
+    const source = readFileSync(settingsToolPath, 'utf-8');
+    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      { marker: "name: 'settings'", label: 'first-class settings tool registration' },
+      { marker: "enum: ['list', 'get', 'set', 'reset', 'import']", label: 'settings adapter action enum' },
+      { marker: "mode: 'settings'", label: 'settings catalog delegation' },
+      { marker: "settingsLookupArgs('get_setting'", label: 'setting get delegation' },
+      { marker: "settingsLookupArgs('set_setting'", label: 'setting set delegation' },
+      { marker: "settingsLookupArgs('reset_setting'", label: 'setting reset delegation' },
+      { marker: "action: readBoolean(args.confirm) ? 'apply' : 'preview'", label: 'settings import preview/apply gate' },
+    ];
+    for (const { marker, label } of requiredMarkers) {
+      if (!source.includes(marker)) {
+        issues.push(`first-class settings tool must keep ${label}.`);
       }
     }
   }

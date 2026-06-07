@@ -132,7 +132,7 @@ function describeChannel(
             `/channels doctor ${channel.id}`,
             `/channels setup ${channel.id}`,
           ],
-          settingsFilter: `agent_harness mode:"settings" prefix:"surfaces.${channel.id}" includeHidden:true`,
+          settingsFilter: `settings action:"list" prefix:"surfaces.${channel.id}" includeHidden:true`,
           connectedHostBoundary: 'agent_harness mode:"connected_host_capability" query:"delivery"',
           deliveryTargetShape: 'surface[:route[:label]]',
           exampleTarget: `${channel.id}:route:Label`,

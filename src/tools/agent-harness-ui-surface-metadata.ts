@@ -11,6 +11,10 @@ function agentHarnessModes(...modes: readonly string[]): string {
   return `agent_harness ${modes.map((mode) => `mode:"${mode}"`).join(', ')}`;
 }
 
+function settingsActions(...actions: readonly string[]): string {
+  return `settings ${actions.map((action) => `action:"${action}"`).join('|')}`;
+}
+
 export interface AgentHarnessUiSurfaceArgs {
   readonly query?: unknown;
   readonly surfaceId?: unknown;
@@ -201,7 +205,7 @@ function browserCockpitMobileAffordances(enabled: boolean, includeDetails: boole
       id: 'review-web-settings',
       label: 'Review web settings',
       status: 'ready',
-      modelRoute: 'agent_harness mode:"settings" query:"web" includeHidden:true',
+      modelRoute: 'settings action:"list" query:"web" includeHidden:true',
     },
   ];
   return {
@@ -291,7 +295,7 @@ function connectedBrowserCockpitRoute(context: CommandContext, options: { readon
       inspectEndpoint: 'agent_harness mode:"service_endpoint" endpointId:"web" includeParameters:true',
       servicePosture: 'agent_harness mode:"service_posture" includeParameters:true',
       connectedHostStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
-      settings: 'agent_harness mode:"settings" query:"web" includeHidden:true',
+      settings: 'settings action:"list" query:"web" includeHidden:true',
     },
     policy: 'Opens the connected GoodVibes browser cockpit only after explicit user confirmation. Agent does not host a separate browser app or bypass connected-host setup.',
   };
@@ -406,7 +410,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'workspace',
     summary: 'Connected-host browser cockpit/PWA route.',
     command: 'connected host web route',
-    preferredModelRoute: `Use ${agentHarnessModes('service_endpoint', 'service_posture', 'connected_host_status', 'settings')} to inspect or repair web readiness; use mode:"open_ui_surface" only to visibly open the configured cockpit URL.`,
+    preferredModelRoute: `Use ${agentHarnessModes('service_endpoint', 'service_posture', 'connected_host_status')} or ${settingsActions('list', 'get')} to inspect or repair web readiness; use mode:"open_ui_surface" only to visibly open the configured cockpit URL.`,
     available: (context) => {
       try {
         return context.platform?.configManager?.get?.('web.enabled') === true;
@@ -518,7 +522,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'modal',
     summary: 'Fullscreen settings workspace for Agent config, secrets, MCP, and tools.',
     command: '/settings',
-    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')} for model operation; use mode:"open_ui_surface" only to visibly navigate.`,
+    preferredModelRoute: `Use ${settingsActions('list', 'get', 'set', 'reset', 'import')} for model operation; use mode:"open_ui_surface" only to visibly navigate.`,
     parameters: ['target', 'key', 'prefix'],
     available: (context) => typeof context.openSettingsModal === 'function',
     open: (context, args) => {
@@ -535,7 +539,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'workspace',
     summary: 'MCP server setup, trust posture, and tool inventory workspace.',
     command: '/mcp',
-    preferredModelRoute: `Use ${agentHarnessModes('workspace_actions', 'tools', 'settings')} for model operation.`,
+    preferredModelRoute: `Use ${agentHarnessModes('workspace_actions', 'tools')} or ${settingsActions('list', 'get', 'set')} for model operation.`,
     available: (context) => typeof context.openMcpWorkspace === 'function',
     open: (context) => openSimpleContextSurface(context, 'mcp-workspace', 'openMcpWorkspace'),
   },
@@ -545,7 +549,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'picker',
     summary: 'Interactive model picker for main, helper, tool, and TTS model routes.',
     command: '/model',
-    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for direct provider.model changes, or mode:"run_command" with confirmation when a concrete model id is known.`,
+    preferredModelRoute: `Use ${settingsActions('get', 'set')} for direct provider.model changes, or mode:"run_command" with confirmation when a concrete model id is known.`,
     parameters: ['target'],
     available: (context) => typeof context.openModelPicker === 'function' || typeof context.openModelPickerWithTarget === 'function',
     open: (context, args) => {
@@ -566,7 +570,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'picker',
     summary: 'Interactive provider picker for model route setup.',
     command: '/provider',
-    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for direct provider routing changes, or confirmed mode:"run_command" mirrors for concrete provider changes.`,
+    preferredModelRoute: `Use ${settingsActions('get', 'set')} for direct provider routing changes, or confirmed mode:"run_command" mirrors for concrete provider changes.`,
     parameters: ['target'],
     available: (context) => typeof context.openProviderPicker === 'function' || typeof context.openProviderModelPickerWithTarget === 'function',
     open: (context, args) => {
@@ -587,7 +591,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'picker',
     summary: 'Reasoning-effort selector for models that expose effort levels.',
     command: '/effort',
-    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for provider.reasoningEffort when a concrete level is known, or mode:"run_workspace_action" setup-reasoning-effort with confirmation.`,
+    preferredModelRoute: `Use ${settingsActions('get', 'set')} for provider.reasoningEffort when a concrete level is known, or mode:"run_workspace_action" setup-reasoning-effort with confirmation.`,
     available: (context) => typeof context.openReasoningEffortPicker === 'function',
     open: (context) => {
       const surface = findSurfaceById('reasoning-effort-picker')!;
@@ -615,7 +619,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'picker',
     summary: 'Streaming TTS provider picker from Agent settings.',
     command: '/config tts.provider',
-    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting')} for tts.provider when a concrete provider id is known; use mode:"open_ui_surface" only to visibly navigate.`,
+    preferredModelRoute: `Use ${settingsActions('get', 'set')} for tts.provider when a concrete provider id is known; use mode:"open_ui_surface" only to visibly navigate.`,
     available: (context) => typeof context.openSelection === 'function' && Boolean(context.platform.voiceProviderRegistry),
     open: (context) => {
       const surface = findSurfaceById('tts-provider-picker')!;
@@ -630,7 +634,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'picker',
     summary: 'TTS voice picker for the selected or supplied provider.',
     command: '/config tts.voice',
-    preferredModelRoute: `Use ${agentHarnessModes('settings', 'get_setting', 'set_setting', 'reset_setting')} for tts.voice when a concrete voice id is known; use mode:"open_ui_surface" only to visibly navigate.`,
+    preferredModelRoute: `Use ${settingsActions('get', 'set', 'reset')} for tts.voice when a concrete voice id is known; use mode:"open_ui_surface" only to visibly navigate.`,
     parameters: ['target'],
     available: (context) => typeof context.openSelection === 'function' && Boolean(context.platform.voiceService),
     open: async (context, args) => {
@@ -873,7 +877,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'workspace',
     summary: 'Agent workspace entry for first-run and setup review.',
     command: '/agent',
-    preferredModelRoute: `Use ${agentHarnessModes('workspace', 'workspace_actions', 'settings')} for concrete setup operation.`,
+    preferredModelRoute: `Use ${agentHarnessModes('workspace', 'workspace_actions')} or ${settingsActions('list', 'get', 'set')} for concrete setup operation.`,
     available: (context) => typeof context.openAgentWorkspace === 'function',
     open: (context) => {
       const surface = findSurfaceById('onboarding')!;
@@ -943,10 +947,10 @@ function uiSurfaceModelRoute(surface: UiSurfaceDefinition): string {
     case 'tts-provider-picker':
     case 'tts-voice-picker':
     case 'reasoning-effort-picker':
-      return 'agent_harness mode:"settings" or mode:"open_ui_surface"';
+      return 'settings action:"list|get|set" or agent_harness mode:"open_ui_surface"';
     case 'model-picker':
     case 'provider-picker':
-      return 'agent_harness mode:"settings" or mode:"run_command"';
+      return 'settings action:"get|set" or agent_harness mode:"run_command"';
     case 'session-picker':
     case 'bookmark-modal':
     case 'context-inspector':

@@ -2065,8 +2065,8 @@ function describeRoute(route: RouteCandidate, options: { readonly context: Comma
       modelAccess: {
         inspectRouting: 'models action:"status"',
         inspectRoute: 'agent_harness mode:"model_route"',
-        settingRead: 'agent_harness mode:"get_setting"',
-        settingMutation: 'agent_harness mode:"set_setting" confirm:true explicitUserRequest:"..."',
+        settingRead: 'settings action:"get"',
+        settingMutation: 'settings action:"set" confirm:true explicitUserRequest:"..."',
         openModelPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"model-picker" confirm:true explicitUserRequest:"..."',
         openProviderPicker: 'agent_harness mode:"open_ui_surface" surfaceId:"provider-picker" confirm:true explicitUserRequest:"..."',
       },
@@ -2113,7 +2113,7 @@ function describeModel(model: ModelCandidate, options: { readonly includeParamet
         selectProviderCommand: `/provider ${model.providerId}`,
         pinCommand: `/pin ${model.registryKey}`,
         unpinCommand: `/unpin ${model.registryKey}`,
-        setMainModel: `agent_harness mode:"set_setting" key:"provider.model" value:"${model.registryKey}" confirm:true explicitUserRequest:"..."`,
+        setMainModel: `settings action:"set" key:"provider.model" value:"${model.registryKey}" confirm:true explicitUserRequest:"..."`,
       },
     } : {}),
   };
