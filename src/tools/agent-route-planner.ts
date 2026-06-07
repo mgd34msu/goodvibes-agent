@@ -209,6 +209,29 @@ function processLifecycleLike(lower: string): boolean {
   ]);
 }
 
+function interactiveProcessCapabilityLike(lower: string): boolean {
+  if (hasAny(lower, [
+    'pty',
+    'interactive cli',
+    'interactive command',
+    'interactive shell',
+    'interactive terminal',
+    'terminal input',
+    'process input',
+    'process write',
+    'stdin',
+    'send input',
+    'write to process',
+    'password prompt',
+    'sudo',
+    'sudo_password',
+    'privilege escalation',
+    'claude code',
+    'codex cli',
+  ])) return true;
+  return hasAll(lower, ['terminal', 'input']);
+}
+
 function fileRecoveryLike(lower: string): boolean {
   const recoveryWord = hasAny(lower, ['undo', 'redo', 'recover', 'recovery', 'restore', 'revert', 'roll back', 'rollback']);
   if (!recoveryWord) return false;
@@ -496,6 +519,33 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         'agent_harness mode:"run_file_recovery" recoveryAction:"undo|redo" confirm:true explicitUserRequest:"..."',
       ],
       policy: 'Recovery inspection is read-only. Applying an undo or redo snapshot is a single confirmed local file mutation with before/after state tracked by FileUndoManager.',
+    });
+  }
+
+  if (interactiveProcessCapabilityLike(lower)) {
+    const interactiveEffect = hasAny(lower, ['run ', 'start ', 'launch ', 'execute ', 'write ', 'send input', 'type ', 'sudo ']);
+    add({
+      id: 'interactive-process-capability',
+      label: 'Interactive process, PTY, stdin, or sudo capability',
+      score: 100,
+      userSurface: 'Work and process supervision workspace',
+      userOutcome: 'Check whether interactive CLI, stdin, PTY, or sudo mediation is safely available before starting hidden work.',
+      why: 'The request mentions interactive terminal behavior, PTY, stdin/process input, sudo, or privilege prompts.',
+      modelRoute: 'execution action:"process_capabilities"',
+      inspectRoute: 'setup action:"item" setupItemId:"sudo-execution-posture"',
+      userRoute: 'Agent Workspace -> Work & Approvals',
+      requiresConfirmation: interactiveEffect,
+      missingFields: interactiveEffect
+        ? ['exact command or process id', 'whether foreground supervision is acceptable', 'confirmation before any start/write/credential effect']
+        : undefined,
+      supportingRoutes: [
+        'process action:"capabilities"',
+        'execution action:"processes" includeParameters:true',
+        'setup action:"item" setupItemId:"sudo-execution-posture"',
+        'terminal command:"..." background:true pty:true confirm:true explicitUserRequest:"..."',
+        'process action:"write" processId:"..." data:"..." confirm:true explicitUserRequest:"..."',
+      ],
+      policy: 'Capability inspection is read-only. PTY and sudo stay blocked unless the SDK/daemon publishes typed interactive and credential contracts; stdin writes require a discovered safe ProcessManager method plus confirmation.',
     });
   }
 

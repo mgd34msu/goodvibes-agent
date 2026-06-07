@@ -51,6 +51,7 @@ function status(): Record<string, unknown> {
       'route action:"plan" query:"change the theme setting"',
       'route action:"plan" query:"remind me tomorrow to stretch"',
       'route action:"plan" query:"run pytest in background"',
+      'route action:"plan" query:"run claude code with pty and sudo"',
       'route action:"plan" query:"undo the last file edit"',
       'route action:"plan" query:"generate an image of a product dashboard"',
       'route action:"plan" query:"take a screenshot of the browser dashboard"',

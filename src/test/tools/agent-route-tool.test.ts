@@ -126,6 +126,23 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes interactive terminal and sudo requests to process capability posture first', async () => {
+    const body = await route('run claude code with pty=true and handle sudo prompts');
+
+    expect(preferredId(body)).toBe('interactive-process-capability');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'execution action:"process_capabilities"',
+      inspectRoute: 'setup action:"item" setupItemId:"sudo-execution-posture"',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('does not confuse process documentation wording with stdin process control', async () => {
+    const body = await route('write process documentation');
+
+    expect(preferredId(body)).not.toBe('interactive-process-capability');
+  });
+
   test('keeps scheduled background work on visible autonomy intake', async () => {
     const body = await route('run a weekly source-backed research report in background');
 
