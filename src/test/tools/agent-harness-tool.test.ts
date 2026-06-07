@@ -4248,8 +4248,19 @@ describe('agent_harness tool', () => {
         readonly capabilities: {
           readonly start: string;
           readonly parity: readonly { readonly capability: string; readonly status: string; readonly modelRoute: string }[];
-          readonly substrate: { readonly localProcessManager: { readonly supports: readonly string[] }; readonly daemonOperatorContract: { readonly status: string } };
+          readonly substrate: {
+            readonly localProcessManager: {
+              readonly supports: readonly string[];
+              readonly stdinWrite: { readonly status: string; readonly missingAnyOf?: readonly string[] };
+            };
+            readonly daemonOperatorContract: {
+              readonly status: string;
+              readonly sessionInputRoutes: readonly { readonly methodId: string; readonly modelRoute: string }[];
+            };
+            readonly auditedTerms: readonly string[];
+          };
           readonly pty: { readonly status: string };
+          readonly stdinWrite: { readonly status: string; readonly modelRoute: string };
           readonly sudo: {
             readonly status: string;
             readonly setupRoute: string;
@@ -4268,8 +4279,14 @@ describe('agent_harness tool', () => {
       expect(empty.capabilities.parity.find((entry) => entry.capability === 'process(wait)')?.status).toBe('supported');
       expect(empty.capabilities.parity.find((entry) => entry.capability === 'process(write)')?.status).toBe('blocked-contract-gap');
       expect(empty.capabilities.substrate.localProcessManager.supports).toContain('spawn');
+      expect(empty.capabilities.substrate.localProcessManager.stdinWrite.status).toBe('blocked-contract-gap');
+      expect(empty.capabilities.substrate.localProcessManager.stdinWrite.missingAnyOf).toContain('writeInput');
       expect(empty.capabilities.substrate.daemonOperatorContract.status).toContain('no-published-terminal');
+      expect(empty.capabilities.substrate.daemonOperatorContract.sessionInputRoutes.map((route) => route.methodId)).toContain('sessions.inputs.list');
+      expect(empty.capabilities.substrate.auditedTerms).toContain('sessions.inputs');
       expect(empty.capabilities.pty.status).toContain('not-yet-supported');
+      expect(empty.capabilities.stdinWrite.status).toContain('not-yet-supported');
+      expect(empty.capabilities.stdinWrite.modelRoute).toContain('processAction:"write"');
       expect(empty.capabilities.sudo.status).toContain('foreground');
       expect(empty.capabilities.sudo.setupRoute).toContain('sudo-execution-posture');
       expect(empty.capabilities.sudo.credentialSignal.checked).toContain('SUDO_PASSWORD');
@@ -4394,26 +4411,36 @@ describe('agent_harness tool', () => {
       expect(pty.capability).toBe('pty');
       expect(pty.guidance).toContain('Interactive PTY');
 
-      const write = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly guidance: string; readonly processId: string | null; readonly dataReceived: boolean }>(fixture, {
+      const write = await executeHarnessJson<{ readonly status: string; readonly usage: string }>(fixture, {
         mode: 'run_background_process',
         processAction: 'status',
         processId: 'bg_missing',
         data: 'y\n',
       });
-      expect(write.status).toBe('unsupported');
-      expect(write.capability).toBe('stdinWrite');
-      expect(write.guidance).toContain('stdin write');
-      expect(write.processId).toBe('bg_missing');
-      expect(write.dataReceived).toBe(true);
+      expect(write.status).toBe('missing_lookup');
+      expect(write.usage).toContain('Unknown background process bg_missing');
 
       const writeAction = await executeHarnessJson<{ readonly status: string; readonly capability: string; readonly processId: string | null }>(fixture, {
         mode: 'run_background_process',
         processAction: 'write',
         sessionId: 'bg_missing',
+        data: 'y\n',
+        confirm: true,
+        explicitUserRequest: 'Send y to the process.',
       });
       expect(writeAction.status).toBe('unsupported');
       expect(writeAction.capability).toBe('stdinWrite');
       expect(writeAction.processId).toBe('bg_missing');
+
+      const unconfirmedWrite = await fixture.tool.execute({
+        mode: 'run_background_process',
+        processAction: 'write',
+        sessionId: 'bg_missing',
+        data: 'y\n',
+        explicitUserRequest: 'Send y to the process.',
+      });
+      expect(unconfirmedWrite.success).toBe(false);
+      expect(unconfirmedWrite.error).toContain('confirm:true');
 
       const sudo = await executeHarnessJson<{
         readonly status: string;
@@ -4460,6 +4487,78 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('uses a discovered ProcessManager stdin method only after confirmation', async () => {
+    const fixture = makeFixture();
+    const writes: Array<{ readonly processId: string; readonly data: string }> = [];
+    try {
+      const started = await executeHarnessJson<{ readonly processId: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'start',
+        command: 'sleep 5',
+        confirm: true,
+        explicitUserRequest: 'Start a process that can receive input.',
+      });
+      Object.assign(fixture.processManager, {
+        writeInput: (processId: string, data: string) => {
+          writes.push({ processId, data });
+          return { ok: true, echoed: data, secret: 'TOKEN=hidden' };
+        },
+      });
+
+      const capabilities = await executeHarnessJson<{
+        readonly capabilities: {
+          readonly parity: readonly { readonly capability: string; readonly status: string }[];
+          readonly stdinWrite: { readonly status: string; readonly guidance: string };
+          readonly substrate: { readonly localProcessManager: { readonly stdinWrite: { readonly method: string; readonly executableByHarness: boolean } } };
+        };
+      }>(fixture, { mode: 'run_background_process', processAction: 'capabilities' });
+      expect(capabilities.capabilities.parity.find((entry) => entry.capability === 'process(write)')?.status).toBe('contract-discovered');
+      expect(capabilities.capabilities.stdinWrite.status).toBe('supported-with-confirmation');
+      expect(capabilities.capabilities.stdinWrite.guidance).toContain('confirm:true');
+      expect(capabilities.capabilities.substrate.localProcessManager.stdinWrite.method).toBe('writeInput');
+      expect(capabilities.capabilities.substrate.localProcessManager.stdinWrite.executableByHarness).toBe(true);
+
+      const wrote = await executeHarnessJson<{
+        readonly status: string;
+        readonly capability: string;
+        readonly processId: string;
+        readonly bytes: number;
+        readonly result: { readonly returned: boolean; readonly preview: string; readonly inputEchoRedacted: boolean; readonly policy: string };
+        readonly policy: string;
+      }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'write',
+        processId: started.processId,
+        data: 'yes\n',
+        confirm: true,
+        explicitUserRequest: 'Send yes to the running process.',
+      });
+      expect(wrote.status).toBe('written');
+      expect(wrote.capability).toBe('stdinWrite');
+      expect(wrote.processId).toBe(started.processId);
+      expect(wrote.bytes).toBe(4);
+      expect(writes).toEqual([{ processId: started.processId, data: 'yes\n' }]);
+      expect(wrote.result.returned).toBe(true);
+      expect(wrote.result.preview).toContain('TOKEN=<redacted>');
+      expect(wrote.result.preview).toContain('<redacted-input>');
+      expect(wrote.result.preview).not.toContain('hidden');
+      expect(wrote.result.preview).not.toContain('yes');
+      expect(wrote.result.inputEchoRedacted).toBe(true);
+      expect(wrote.result.policy).toContain('bounded');
+      expect(wrote.policy).toContain('not echoed');
+
+      const stopped = await executeHarnessJson<{ readonly status: string }>(fixture, {
+        mode: 'run_background_process',
+        processAction: 'kill',
+        processId: started.processId,
+        confirm: true,
+        explicitUserRequest: 'Stop the stdin-capable test process.',
+      });
+      expect(stopped.status).toBe('stopped');
+    } finally {
+      fixture.cleanup();
+    }
+  });
   test('exposes local execution history records with supervision and recovery routes', async () => {
     const fixture = makeFixture();
     try {

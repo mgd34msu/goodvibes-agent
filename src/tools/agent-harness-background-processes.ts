@@ -1,3 +1,4 @@
+import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import type { BackgroundProcess, ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
 import { sudoExecutionPosture } from './agent-harness-sudo-posture.ts';
@@ -25,6 +26,7 @@ export interface AgentHarnessBackgroundProcessArgs {
 }
 
 type BackgroundProcessLookupSource = 'processId' | 'processSessionId' | 'sessionId' | 'session_id' | 'target' | 'query';
+type ProcessCapabilityStatus = 'supported' | 'contract-discovered' | 'blocked-contract-gap' | 'visible-only';
 
 export type BackgroundProcessResolution =
   | { readonly status: 'found'; readonly process: Record<string, unknown> }
@@ -37,6 +39,8 @@ const DEFAULT_BACKGROUND_TIMEOUT_MS = 30 * 60 * 1000;
 const MAX_BACKGROUND_TIMEOUT_MS = 8 * 60 * 60 * 1000;
 const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
 const PROCESS_PARITY_METHODS = ['terminal(background=true)', 'process(list)', 'process(poll)', 'process(wait)', 'process(log)', 'process(kill)', 'process(write)', 'pty', 'sudo'] as const;
+const STDIN_WRITE_METHOD_NAMES = ['write', 'writeInput', 'sendInput', 'writeStdin', 'sendStdin', 'stdinWrite'] as const;
+const PTY_METHOD_NAMES = ['spawnPty', 'openPty', 'createPty', 'pty'] as const;
 const SENSITIVE_TEXT_PATTERNS: readonly [RegExp, string][] = [
   [/\b([A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTHORIZATION|BEARER)[A-Z0-9_]*)=("[^"]*"|'[^']*'|[^\s]+)/gi, '$1=<redacted>'],
   [/(\b(?:token|secret|password|passwd|api[-_]?key|authorization|credential)\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s]+)/gi, '$1<redacted>'],
@@ -71,8 +75,115 @@ function readField(args: AgentHarnessBackgroundProcessArgs, id: string): string 
   return fieldMap(args.fields)[id] ?? '';
 }
 
+function readData(args: AgentHarnessBackgroundProcessArgs): string {
+  if (typeof args.data === 'string') return args.data;
+  const fromFields = readField(args, 'data');
+  return fromFields;
+}
+
 function managerFrom(context: CommandContext): ProcessManager | undefined {
   return context.workspace.processManager;
+}
+
+interface OperatorContractMethod {
+  readonly id: string;
+  readonly title?: string;
+  readonly description?: string;
+  readonly category?: string;
+  readonly access?: string;
+  readonly scopes?: readonly string[];
+  readonly http?: {
+    readonly method?: string;
+    readonly path?: string;
+  };
+}
+
+function operatorContractMethods(): readonly OperatorContractMethod[] {
+  const methods = getOperatorContract().operator?.methods;
+  return Array.isArray(methods)
+    ? methods.filter((method): method is OperatorContractMethod => Boolean(method?.id))
+    : [];
+}
+
+function operatorMethodSearchText(method: OperatorContractMethod): string {
+  return [
+    method.id,
+    method.title,
+    method.description,
+    method.category,
+    method.http?.method,
+    method.http?.path,
+    method.scopes?.join(' '),
+  ].filter(Boolean).join('\n').toLowerCase();
+}
+
+function matchingOperatorMethodRoutes(tokens: readonly string[]): readonly Record<string, unknown>[] {
+  if (tokens.length === 0) return [];
+  return operatorContractMethods()
+    .filter((method) => {
+      const text = operatorMethodSearchText(method);
+      return tokens.some((token) => text.includes(token));
+    })
+    .map((method) => ({
+      methodId: method.id,
+      label: method.title ?? method.description ?? method.id,
+      category: method.category ?? 'uncategorized',
+      effect: method.scopes?.every((scope) => scope.startsWith('read:')) ? 'read-only-network' : method.access === 'admin' ? 'confirmed-admin-connected-host-state' : 'confirmed-connected-host-state',
+      route: `${method.http?.method?.toUpperCase() ?? 'GET'} ${method.http?.path ?? '/'}`,
+      modelRoute: `agent_operator_method methodId:"${method.id}"`,
+    }))
+    .sort((left, right) => String(left.methodId).localeCompare(String(right.methodId)))
+    .slice(0, 12);
+}
+
+function managerMethodNames(manager: ProcessManager | undefined): readonly string[] {
+  if (!manager) return [];
+  const own = Object.keys(manager);
+  const prototype = Object.getPrototypeOf(manager) as Record<string, unknown> | null;
+  const protoNames = prototype ? Object.getOwnPropertyNames(prototype) : [];
+  return [...new Set([...own, ...protoNames])]
+    .filter((name) => name !== 'constructor' && typeof (manager as unknown as Record<string, unknown>)[name] === 'function')
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function firstManagerFunction(manager: ProcessManager | undefined, names: readonly string[]): ((processId: string, data: string) => unknown) | null {
+  if (!manager) return null;
+  const record = manager as unknown as Record<string, unknown>;
+  for (const name of names) {
+    const fn = record[name];
+    if (typeof fn === 'function') return fn.bind(manager) as (processId: string, data: string) => unknown;
+  }
+  return null;
+}
+
+function processSubstrateReport(context?: CommandContext): Record<string, unknown> {
+  const manager = context ? managerFrom(context) : undefined;
+  const methodNames = managerMethodNames(manager);
+  const localStdinMethod = STDIN_WRITE_METHOD_NAMES.find((name) => methodNames.includes(name)) ?? null;
+  const localPtyMethod = PTY_METHOD_NAMES.find((name) => methodNames.includes(name)) ?? null;
+  const terminalRoutes = matchingOperatorMethodRoutes(['terminal', 'pty', 'process.write', 'stdin']);
+  const sessionInputRoutes = matchingOperatorMethodRoutes(['sessions.inputs']);
+  const credentialRoutes = matchingOperatorMethodRoutes(['credential', 'sudo', 'privilege']);
+  return {
+    localProcessManager: {
+      status: manager ? 'available' : 'unavailable',
+      methodNames,
+      supports: methodNames.filter((name) => ['spawn', 'list', 'getStatus', 'getOutput', 'stop', 'handleCommand', localStdinMethod, localPtyMethod].filter(Boolean).includes(name)),
+      stdinWrite: localStdinMethod
+        ? { status: 'contract-discovered', method: localStdinMethod, executableByHarness: true }
+        : { status: 'blocked-contract-gap', missingAnyOf: STDIN_WRITE_METHOD_NAMES },
+      pty: localPtyMethod
+        ? { status: 'contract-discovered', method: localPtyMethod, executableByHarness: false }
+        : { status: 'blocked-contract-gap', missingAnyOf: PTY_METHOD_NAMES },
+    },
+    daemonOperatorContract: {
+      status: terminalRoutes.length > 0 ? 'terminal-or-pty-methods-discovered' : 'no-published-terminal-or-pty-method',
+      terminalOrPtyRoutes: terminalRoutes,
+      sessionInputRoutes,
+      credentialRoutes,
+      policy: 'Session input routes steer GoodVibes sessions; they are not equivalent to writing stdin into a tracked local process.',
+    },
+  };
 }
 
 function redactText(value: string): string {
@@ -83,6 +194,40 @@ function compactText(value: string, max: number): string {
   const redacted = redactText(value);
   if (redacted.length <= max) return redacted;
   return `${redacted.slice(Math.max(0, redacted.length - max)).trimStart()}`;
+}
+
+function safeJsonPreview(value: unknown): string {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function redactWrittenInputPreview(value: string, data: string): { readonly text: string; readonly redactedInputEcho: boolean } {
+  if (!data) return { text: value, redactedInputEcho: false };
+  const escaped = JSON.stringify(data).slice(1, -1);
+  let text = value;
+  let redactedInputEcho = false;
+  for (const candidate of [data, escaped]) {
+    if (!candidate || !text.includes(candidate)) continue;
+    text = text.split(candidate).join('<redacted-input>');
+    redactedInputEcho = true;
+  }
+  return { text, redactedInputEcho };
+}
+
+function summarizeWriteResult(value: unknown, data: string): Record<string, unknown> {
+  if (typeof value === 'undefined') return { returned: false };
+  const redacted = redactText(safeJsonPreview(value));
+  const inputRedacted = redactWrittenInputPreview(redacted, data);
+  return {
+    returned: true,
+    type: value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value,
+    preview: previewHarnessText(inputRedacted.text, 240),
+    inputEchoRedacted: inputRedacted.redactedInputEcho,
+    policy: 'Result preview is bounded, secret-redacted, and strips exact input echoes.',
+  };
 }
 
 function processStatus(entry: BackgroundProcess): 'running' | 'succeeded' | 'failed' | 'cancelled' {
@@ -191,7 +336,19 @@ function candidateProcess(entry: BackgroundProcess): Record<string, unknown> {
   };
 }
 
-function processToolParity(): readonly Record<string, unknown>[] {
+function processToolParity(context?: CommandContext): readonly Record<string, unknown>[] {
+  const substrate = processSubstrateReport(context);
+  const localProcessManager = substrate.localProcessManager as Record<string, unknown>;
+  const daemonContract = substrate.daemonOperatorContract as Record<string, unknown>;
+  const stdinWrite = localProcessManager.stdinWrite as Record<string, unknown>;
+  const pty = localProcessManager.pty as Record<string, unknown>;
+  const terminalRoutes = Array.isArray(daemonContract.terminalOrPtyRoutes) ? daemonContract.terminalOrPtyRoutes : [];
+  const writeStatus: ProcessCapabilityStatus = stdinWrite.status === 'contract-discovered'
+    ? 'contract-discovered'
+    : terminalRoutes.some((route) => String((route as Record<string, unknown>).methodId).toLowerCase().includes('write'))
+      ? 'contract-discovered'
+      : 'blocked-contract-gap';
+  const ptyStatus: ProcessCapabilityStatus = pty.status === 'contract-discovered' || terminalRoutes.length > 0 ? 'contract-discovered' : 'blocked-contract-gap';
   return [
     {
       capability: 'terminal(background=true)',
@@ -231,14 +388,18 @@ function processToolParity(): readonly Record<string, unknown>[] {
     },
     {
       capability: 'process(write)',
-      status: 'blocked-contract-gap',
-      userOutcome: 'Interactive input is not exposed because the SDK ProcessManager has no safe stdin handle.',
+      status: writeStatus,
+      userOutcome: writeStatus === 'contract-discovered'
+        ? 'Interactive input has a published contract; Agent requires confirmation and a process id before writing.'
+        : 'Interactive input is not exposed because the SDK ProcessManager has no safe stdin handle.',
       modelRoute: 'agent_harness mode:"run_background_process" processAction:"write" processId:"..." data:"..."',
     },
     {
       capability: 'pty',
-      status: 'blocked-contract-gap',
-      userOutcome: 'Interactive CLIs need a published PTY/session API before Agent can make them safe and visible.',
+      status: ptyStatus,
+      userOutcome: ptyStatus === 'contract-discovered'
+        ? 'A PTY-like contract is discoverable; Agent still requires an explicit session API before generic PTY spawn is enabled.'
+        : 'Interactive CLIs need a published PTY/session API before Agent can make them safe and visible.',
       modelRoute: 'agent_harness mode:"run_background_process" processAction:"start" pty:true command:"..."',
     },
     {
@@ -252,6 +413,10 @@ function processToolParity(): readonly Record<string, unknown>[] {
 
 function capabilities(context?: CommandContext): Record<string, unknown> {
   const sudoPosture = sudoExecutionPosture(context);
+  const substrate = processSubstrateReport(context);
+  const localProcessManager = substrate.localProcessManager as Record<string, unknown>;
+  const stdinWrite = localProcessManager.stdinWrite as Record<string, unknown>;
+  const pty = localProcessManager.pty as Record<string, unknown>;
   return {
     start: 'agent_harness mode:"run_background_process" processAction:"start" command:"..." confirm:true explicitUserRequest:"..."',
     inspect: 'agent_harness mode:"background_processes" or mode:"background_process"',
@@ -262,35 +427,28 @@ function capabilities(context?: CommandContext): Record<string, unknown> {
         poll: 'status',
         kill: 'stop',
         log: 'output',
-        write: 'unsupported until ProcessManager exposes stdin',
+        write: stdinWrite.status === 'contract-discovered' ? 'confirmed stdin write through discovered ProcessManager method' : 'unsupported until ProcessManager exposes stdin',
       },
       ids: ['processId', 'processSessionId', 'sessionId', 'session_id'],
       userOutcome: 'The harness accepts the process-tool words users expect while returning stable processId/sessionId aliases.',
     },
-    parity: processToolParity(),
+    parity: processToolParity(context),
     substrate: {
-      localProcessManager: {
-        status: 'available-when-runtime-wires-processManager',
-        supports: ['spawn', 'list', 'status', 'output', 'stop'],
-        missing: ['stdin write', 'PTY session', 'sudo prompt mediation'],
-      },
-      daemonOperatorContract: {
-        status: 'no-published-terminal-or-pty-method',
-        auditedTerms: ['terminal', 'process.write', 'pty', 'sudo'],
-        closestRoutes: [
-          'agent_harness mode:"operator_methods" query:"tasks"',
-          'agent_harness mode:"operator_methods" query:"automation"',
-          'agent_harness mode:"operator_methods" query:"sessions"',
-        ],
-      },
+      ...substrate,
+      auditedTerms: ['terminal', 'process.write', 'stdin', 'pty', 'sudo', 'sessions.inputs'],
     },
     pty: {
-      status: 'not-yet-supported-in-agent-harness',
-      guidance: 'Use foreground exec for noninteractive commands. Interactive PTY needs a published SDK/daemon session API before Agent can expose it safely.',
+      status: pty.status === 'contract-discovered' ? 'contract-discovered-but-not-generic-executable' : 'not-yet-supported-in-agent-harness',
+      guidance: pty.status === 'contract-discovered'
+        ? 'A PTY-like method is discoverable, but Agent needs a typed session contract before generic PTY spawn can be safe.'
+        : 'Use foreground exec for noninteractive commands. Interactive PTY needs a published SDK/daemon session API before Agent can expose it safely.',
     },
     stdinWrite: {
-      status: 'not-yet-supported-in-agent-harness',
-      guidance: 'ProcessManager currently tracks output and stop lifecycle; it does not expose a safe stdin write API.',
+      status: stdinWrite.status === 'contract-discovered' ? 'supported-with-confirmation' : 'not-yet-supported-in-agent-harness',
+      modelRoute: 'agent_harness mode:"run_background_process" processAction:"write" processId:"..." data:"..." confirm:true explicitUserRequest:"..."',
+      guidance: stdinWrite.status === 'contract-discovered'
+        ? 'The shared ProcessManager exposes a stdin write method. Agent requires confirm:true, explicitUserRequest, one exact process id, and non-empty data.'
+        : 'ProcessManager currently tracks output and stop lifecycle; it does not expose a safe stdin write API.',
     },
     sudo: {
       ...sudoPosture,
@@ -474,24 +632,50 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
       capability: 'pty',
     };
   }
-  if (readString(args.data) || readField(args, 'data')) {
-    return {
-      ...(capabilities(context).stdinWrite as Record<string, unknown>),
-      status: 'unsupported',
-      capability: 'stdinWrite',
-      processId: readProcessId(args) || null,
-      dataReceived: true,
-    };
-  }
 
   const action = readProcessAction(args);
   if (action === 'write') {
+    const confirmationError = requireConfirmed(args, 'Background process stdin write');
+    if (confirmationError) throw new Error(confirmationError);
+    const writeInput = firstManagerFunction(manager, STDIN_WRITE_METHOD_NAMES);
+    if (!writeInput) {
+      return {
+        ...(capabilities(context).stdinWrite as Record<string, unknown>),
+        status: 'unsupported',
+        capability: 'stdinWrite',
+        processId: readProcessId(args) || null,
+        dataReceived: readData(args).length > 0,
+      };
+    }
+    const processId = readProcessId(args);
+    if (!processId) throw new Error('Background process stdin write requires processId.');
+    const data = readData(args);
+    if (!data) throw new Error('Background process stdin write requires non-empty data.');
+    const entry = manager.getStatus(processId);
+    if (!entry) {
+      return {
+        status: 'not_found',
+        capability: 'stdinWrite',
+        processId,
+        policy: 'No tracked process matched that id; no input was written.',
+      };
+    }
+    if (entry.done) {
+      return {
+        status: 'not_running',
+        capability: 'stdinWrite',
+        processId,
+        policy: 'Input is only written to currently running tracked processes.',
+      };
+    }
+    const result = await writeInput(processId, data);
     return {
-      ...(capabilities(context).stdinWrite as Record<string, unknown>),
-      status: 'unsupported',
+      status: 'written',
       capability: 'stdinWrite',
-      processId: readProcessId(args) || null,
-      dataReceived: Boolean(readString(args.data) || readField(args, 'data')),
+      processId,
+      bytes: Buffer.byteLength(data),
+      result: summarizeWriteResult(result, data),
+      policy: 'Input was written through the shared ProcessManager stdin contract after explicit confirmation. The input data is not echoed in model-visible output.',
     };
   }
   if (action === 'capabilities' || action === 'doctor' || action === 'parity') {
