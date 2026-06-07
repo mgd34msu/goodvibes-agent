@@ -220,6 +220,7 @@ describe('research adapter', () => {
     });
     await tool.execute({
       action: 'report',
+      runId: 'run_123',
       title: 'Browser agent comparison report',
       question: 'Which local browser agents are strongest?',
       sources: [{ title: 'Odysseus README', credibility: 'high' }],
@@ -261,6 +262,7 @@ describe('research adapter', () => {
       },
       {
         tool: 'agent_research_report',
+        runId: 'run_123',
         title: 'Browser agent comparison report',
         question: 'Which local browser agents are strongest?',
         sources: [{ title: 'Odysseus README', credibility: 'high' }],

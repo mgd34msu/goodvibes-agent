@@ -3,6 +3,8 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 
 export interface AgentResearchReportToolArgs {
+  readonly runId?: unknown;
+  readonly id?: unknown;
   readonly title?: unknown;
   readonly question?: unknown;
   readonly summary?: unknown;
@@ -141,6 +143,10 @@ function failure(error: string): { readonly success: false; readonly error: stri
 
 function output(text: string): { readonly success: true; readonly output: string } {
   return { success: true, output: text };
+}
+
+function routeString(value: string): string {
+  return JSON.stringify(value);
 }
 
 function preview(args: AgentResearchReportToolArgs, sources: readonly ResearchSource[]): string {
@@ -419,6 +425,27 @@ function visualReportMetadata(
   };
 }
 
+function runIdFromArgs(args: AgentResearchReportToolArgs): string {
+  return readString(args.runId) || readString(args.id);
+}
+
+function reportNextRouteLines(descriptor: ArtifactDescriptor, args: AgentResearchReportToolArgs): readonly string[] {
+  const filename = descriptor.filename ?? `${descriptor.id}.md`;
+  const title = readString(args.title);
+  const runId = runIdFromArgs(args);
+  return [
+    `  inspect research action:"report_artifact" artifactId:${routeString(descriptor.id)}`,
+    `  artifact agent_artifacts mode:"show" artifactId:${routeString(descriptor.id)} includeContent:true`,
+    `  export agent_artifacts mode:"export" artifactId:${routeString(descriptor.id)} destinationPath:${routeString(`exports/${filename}`)} confirm:true explicitUserRequest:"..."`,
+    `  archive agent_artifacts mode:"archive" artifactIds:[${routeString(descriptor.id)}] destinationPath:"exports/research-report.zip" confirm:true explicitUserRequest:"..."`,
+    `  promoteKnowledge agent_knowledge_ingest sourceKind:"artifact" artifactId:${routeString(descriptor.id)} confirm:true explicitUserRequest:"..."`,
+    ...(runId ? [
+      `  completeRun research action:"complete" id:${routeString(runId)} reportArtifactId:${routeString(descriptor.id)} confirm:true explicitUserRequest:"..."`,
+    ] : []),
+    `  reports research action:"reports"${title ? ` query:${routeString(title)}` : ''}`,
+  ];
+}
+
 async function saveResearchReport(
   artifactStore: AgentResearchReportArtifactStore,
   args: AgentResearchReportToolArgs,
@@ -499,6 +526,8 @@ export function createAgentResearchReportTool(
       parameters: {
         type: 'object',
         properties: {
+          runId: { type: 'string', description: 'Optional visible research run id to complete after saving the artifact.' },
+          id: { type: 'string', description: 'Alias for runId when saving through the high-level research adapter.' },
           title: { type: 'string', description: 'Report title.' },
           question: { type: 'string', description: 'Research question answered by the report.' },
           summary: { type: 'string', description: 'Short executive summary.' },
@@ -558,6 +587,8 @@ export function createAgentResearchReportTool(
           coverage ? `  citationCoverage ${coverage.citedSourceIds.length}/${coverage.sourceCount} cited; uncited ${coverage.missingSourceIds.length}; unknown ${coverage.unknownCitationIds.length}` : '',
           coverage && coverage.repairSuggestions.length > 0 ? `  citationRepair ${coverage.repairSuggestions.join(' ')}` : '',
           `  sha256 ${descriptor.sha256}`,
+          '  nextRoutes',
+          ...reportNextRouteLines(descriptor, args),
           '  policy sourced markdown saved as artifact; content not printed',
           `  inspect agent_artifacts mode:"show" artifactId:"${descriptor.id}" includeContent:true`,
         ].filter(Boolean);

@@ -36,6 +36,7 @@ describe('agent_research_report tool', () => {
     const tool = createAgentResearchReportTool(store);
 
     const result = await tool.execute({
+      runId: 'local-model-options-run',
       title: 'Local Model Options',
       question: 'Which local model serving route should this user try first?',
       summary: 'Ollama is easiest; vLLM is throughput-oriented.',
@@ -64,6 +65,10 @@ describe('agent_research_report tool', () => {
     expect(result.output).toContain('artifact artifact-1');
     expect(result.output).toContain('sources 2');
     expect(result.output).toContain('citationCoverage 2/2 cited; uncited 0; unknown 0');
+    expect(result.output).toContain('nextRoutes');
+    expect(result.output).toContain('inspect research action:"report_artifact" artifactId:"artifact-1"');
+    expect(result.output).toContain('promoteKnowledge agent_knowledge_ingest sourceKind:"artifact" artifactId:"artifact-1"');
+    expect(result.output).toContain('completeRun research action:"complete" id:"local-model-options-run" reportArtifactId:"artifact-1"');
     expect(result.output).not.toContain('Ollama is easiest for first setup');
     expect(result.output).not.toContain('secret-token');
 

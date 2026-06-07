@@ -512,6 +512,7 @@ function sourceMutationArgs(args: AgentResearchToolArgs, mode: string): Record<s
 
 function reportArgs(args: AgentResearchToolArgs): Record<string, unknown> {
   return compactArgs({
+    runId: args.runId ?? args.id,
     title: args.title,
     question: args.question ?? args.query,
     summary: args.summary,
