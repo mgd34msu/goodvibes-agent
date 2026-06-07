@@ -60,6 +60,8 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('process', { action: 'log' })).toBe('read');
     expect(manager.getCategory('process', { action: 'kill' })).toBe('execute');
     expect(manager.getCategory('terminal', { background: true })).toBe('execute');
+    expect(manager.getCategory('schedule', { action: 'list' })).toBe('read');
+    expect(manager.getCategory('schedule', { action: 'pause' })).toBe('execute');
     expect(manager.getCategory('agent_review_packet_share')).toBe('delegate');
     expect(manager.getCategory('unknown_tool')).toBe('delegate');
   });
@@ -79,6 +81,8 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
     expect(manager.getCategory('process', { action: 'poll' })).toBe('read');
     expect(manager.getCategory('process', { action: 'wait' })).toBe('execute');
+    expect(manager.getCategory('schedule', { action: 'status' })).toBe('read');
+    expect(manager.getCategory('schedule', { action: 'create' })).toBe('execute');
     expect(manager.getCategory('exec')).toBe('execute');
     expect(manager.getCategory('terminal')).toBe('execute');
     expect(manager.getCategory('agent_channel_send')).toBe('delegate');
@@ -99,6 +103,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('agent_review_packet_presets', { mode: 'refresh' })).resolves.toBe(false);
     await expect(manager.check('process', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('process', { action: 'kill' })).resolves.toBe(false);
+    await expect(manager.check('schedule', { action: 'list' })).resolves.toBe(true);
+    await expect(manager.check('schedule', { action: 'run' })).resolves.toBe(false);
     await expect(manager.check('exec', { commands: [] })).resolves.toBe(false);
     await expect(manager.check('terminal', { background: true })).resolves.toBe(false);
 
@@ -115,6 +121,7 @@ describe('Agent tool permission safety guard', () => {
     expect(fallbackPermissionCategory('agent_work_plan')).toBe('write');
     expect(fallbackPermissionCategory('terminal')).toBe('execute');
     expect(fallbackPermissionCategory('process')).toBe('execute');
+    expect(fallbackPermissionCategory('schedule')).toBe('delegate');
     expect(fallbackPermissionCategory('unknown_tool')).toBe('delegate');
   });
 });

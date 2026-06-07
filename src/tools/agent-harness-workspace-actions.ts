@@ -164,12 +164,12 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
   ) return 'agent_model_compare';
   if (editorKind === 'channel-send') return 'agent_channel_send';
   if (editorKind === 'notify-send' || editorKind === 'notify-webhook-test') return 'agent_notify';
-  if (editorKind === 'reminder-schedule') return 'agent_reminder_schedule';
-  if (editorKind === 'schedule-edit') return 'agent_schedule_edit';
+  if (editorKind === 'reminder-schedule') return 'schedule action:"remind"';
+  if (editorKind === 'schedule-edit') return 'schedule action:"edit"';
+  if (editorKind === 'schedule-run') return 'schedule action:"run"';
   if (
     editorKind.startsWith('approval-')
     || editorKind.startsWith('automation-')
-    || editorKind === 'schedule-run'
   ) return 'agent_operator_action';
   if (editorKind.startsWith('workplan-') || editorKind.startsWith('plan-') || editorKind.startsWith('task-')) return 'agent_work_plan';
   return 'agent_harness mode:"run_workspace_action"';

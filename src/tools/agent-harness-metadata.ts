@@ -191,7 +191,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
     return {
       effect: 'connected-host-state',
       confirmation,
-      preferredModelTool: 'agent_autonomy_schedule or agent_reminder_schedule/operator_action',
+      preferredModelTool: 'schedule',
       boundary: 'Connected schedules require an explicit user request and do not create hidden Agent jobs or local schedulers.',
     };
   }
@@ -473,7 +473,7 @@ export function connectedHostCapabilityMap(toolRegistry: ToolRegistry): readonly
     withAvailability({
       id: 'schedule-edit',
       effect: 'confirmed-connected-host-state',
-      modelTools: ['agent_schedule_edit'],
+      modelTools: ['schedule', 'agent_schedule_edit'],
       workspaceCategories: ['automation', 'personal-ops'],
       slashCommandFamilies: ['schedule'],
       methodIds: ['automation.jobs.patch'],
@@ -529,7 +529,7 @@ export function connectedHostCapabilityMap(toolRegistry: ToolRegistry): readonly
     withAvailability({
       id: 'reminders-and-schedules',
       effect: 'confirmed-connected-host-state',
-      modelTools: ['agent_autonomy_schedule', 'agent_reminder_schedule'],
+      modelTools: ['schedule', 'agent_autonomy_schedule', 'agent_reminder_schedule'],
       workspaceCategories: ['automation', 'routines'],
       slashCommandFamilies: ['schedule', 'reminder'],
       scheduleKinds: ['at', 'every', 'cron'],
@@ -585,8 +585,8 @@ export function connectedHostRouteFamilies(): readonly Record<string, unknown>[]
     {
       id: 'connected-schedules',
       routes: ['public schedule creation, patch, run, toggle, and delete routes'],
-      modelTools: ['agent_autonomy_schedule', 'agent_reminder_schedule', 'agent_schedule_edit', 'agent_operator_action'],
-      modelRoute: 'agent_autonomy_schedule, agent_schedule_edit, or operator_action',
+      modelTools: ['schedule', 'agent_autonomy_schedule', 'agent_reminder_schedule', 'agent_schedule_edit', 'agent_operator_action'],
+      modelRoute: 'schedule action:"list|create|remind|edit|run|pause|resume|delete"',
       boundary: 'Connected schedules only; no hidden local scheduler or separate Agent job.',
     },
   ];

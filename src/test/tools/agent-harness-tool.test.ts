@@ -3042,13 +3042,13 @@ describe('agent_harness tool', () => {
       ]));
       expect(reminders?.workflows?.find((workflow) => workflow.id === 'connected-schedule-review')?.inspectRoutes?.join('\n')).toContain('schedule-list');
       const reminderCreate = reminders?.liveRecords?.find((record) => record.id === 'reminder-create');
-      expect(reminderCreate?.modelRoute).toContain('agent_reminder_schedule');
+      expect(reminderCreate?.modelRoute).toContain('schedule action:"remind"');
       expect(reminderCreate?.confirmationRequired).toBe(true);
       expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-list')?.effect).toBe('read-only');
-      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-edit')?.modelRoute).toContain('agent_schedule_edit');
-      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-pause')?.modelRoute).toContain('schedules.disable');
-      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-resume')?.modelRoute).toContain('schedules.enable');
-      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-delete')?.modelRoute).toContain('schedules.delete');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-edit')?.modelRoute).toContain('schedule action:"edit"');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-pause')?.modelRoute).toContain('schedule action:"pause"');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-resume')?.modelRoute).toContain('schedule action:"resume"');
+      expect(reminders?.liveRecords?.find((record) => record.id === 'schedule-delete')?.modelRoute).toContain('schedule action:"delete"');
       expect(delivery?.liveRecords?.some((record) => record.modelRoute.includes('mode:"channel"'))).toBe(true);
 
       const missingIntake = await executeHarnessJson<{
@@ -3092,8 +3092,7 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'reminders' });
       expect(lane.id).toBe('reminders');
       expect(lane.status).toBe('ready');
-      expect(lane.routes?.model).toContain('agent_reminder_schedule');
-      expect(lane.routes?.model).toContain('agent_autonomy_schedule');
+      expect(lane.routes?.model).toContain('schedule action:"remind|create"');
 
       const notesLane = await executeHarnessJson<{
         readonly id: string;
@@ -3228,7 +3227,7 @@ describe('agent_harness tool', () => {
       expect(savedEvent?.capability).toBe('calendar-event-review');
       expect(savedEvent?.tags).toContain('reminder-ready');
       expect(savedEvent?.freshness?.status).toBe('provider-contract-missing');
-      expect(savedEvent?.followUpRoutes?.find((route) => route.id === 'create-reminder-from-event')?.modelRoute).toContain('agent_reminder_schedule');
+      expect(savedEvent?.followUpRoutes?.find((route) => route.id === 'create-reminder-from-event')?.modelRoute).toContain('schedule action:"remind"');
       expect(savedEvent?.followUpRoutes?.find((route) => route.id === 'calendar-edit-boundary')?.requiresConfirmation).toBe(true);
     } finally {
       fixture.cleanup();
@@ -4392,24 +4391,24 @@ describe('agent_harness tool', () => {
       expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('telemetry usage input 1200 output 300');
       expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('telemetry calls llm 2 tool 5 turns 3');
       expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('delivery delivery-live-1 sent');
-      expect(autonomousScheduleRequests?.modelRoute).toBe('agent_autonomy_schedule');
+      expect(autonomousScheduleRequests?.modelRoute).toBe('schedule action:"create"');
       expect(autonomousScheduleRequests?.createRoute).toContain('successCriteria');
       expect(schedules?.status).toBe('active');
       expect(schedules?.cancellable).toBe(true);
-      expect(schedules?.cancelRoute).toContain('schedules.disable');
+      expect(schedules?.cancelRoute).toContain('schedule action:"pause"');
       expect(schedules?.liveRecords?.[0]?.id).toBe('sched-live-1');
-      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.run');
-      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('agent_schedule_edit');
-      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.disable');
-      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedules.delete');
-      expect(schedules?.liveRecords?.[0]?.cancelRoute).toContain('schedules.disable');
-      expect(schedules?.liveRecords?.[0]?.pauseRoute).toContain('schedules.disable');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedule action:"run"');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedule action:"edit"');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedule action:"pause"');
+      expect(schedules?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('schedule action:"delete"');
+      expect(schedules?.liveRecords?.[0]?.cancelRoute).toContain('schedule action:"pause"');
+      expect(schedules?.liveRecords?.[0]?.pauseRoute).toContain('schedule action:"pause"');
       expect(schedules?.liveRecords?.[0]?.availableControls).toContain('run');
       expect(schedules?.liveRecords?.[0]?.availableControls).toContain('pause');
-      expect(schedules?.liveRecords?.[0]?.controls?.find((control) => control.id === 'pause')?.modelRoute).toContain('schedules.disable');
+      expect(schedules?.liveRecords?.[0]?.controls?.find((control) => control.id === 'pause')?.modelRoute).toContain('schedule action:"pause"');
       expect(schedules?.liveRecords?.[0]?.controls?.find((control) => control.id === 'delete')?.confirmationRequired).toBe(true);
-      expect(schedules?.modelRoute).toContain('agent_schedule_edit');
-      expect(schedules?.createRoute).toContain('agent_autonomy_schedule');
+      expect(schedules?.modelRoute).toContain('schedule action:"list|edit|run|pause|resume|delete"');
+      expect(schedules?.createRoute).toContain('schedule action:"create"');
       expect(routines?.inspectRoute).toContain('schedule-receipts');
 
       const item = await executeHarnessJson<{
@@ -4469,7 +4468,7 @@ describe('agent_harness tool', () => {
       });
       expect(reminder.status).toBe('ready');
       expect(reminder.preferred.id).toBe('one-reminder-or-simple-recurring-reminder');
-      expect(reminder.preferred.modelRoute).toContain('agent_reminder_schedule');
+      expect(reminder.preferred.modelRoute).toContain('schedule action:"remind"');
       expect(reminder.preferred.modelRoute).toContain('scheduleKind:"every"');
       expect(reminder.preferred.modelRoute).toContain('scheduleValue:"2h"');
       expect(reminder.preferred.requiresConfirmation).toBe(true);
@@ -4489,7 +4488,7 @@ describe('agent_harness tool', () => {
         includeParameters: true,
       });
       expect(autonomousSchedule.preferred.id).toBe('confirmed-autonomous-schedule');
-      expect(autonomousSchedule.preferred.modelRoute).toContain('agent_autonomy_schedule');
+      expect(autonomousSchedule.preferred.modelRoute).toContain('schedule action:"create"');
       expect(autonomousSchedule.preferred.modelRoute).toContain('successCriteria');
       expect(autonomousSchedule.preferred.missingFields).toContain('scheduleValue');
       expect(autonomousSchedule.preferred.missingFields).toContain('successCriteria');
@@ -7795,7 +7794,7 @@ describe('agent_harness tool', () => {
       const scheduleEditAction = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'schedule-edit' });
       expect(scheduleEditAction.success).toBe(true);
       expect(scheduleEditAction.output).toContain('"editorKind": "schedule-edit"');
-      expect(scheduleEditAction.output).toContain('"modelRoute": "agent_schedule_edit"');
+      expect(scheduleEditAction.output).toContain('"modelRoute": "schedule action:\\"edit\\""');
       expect(scheduleEditAction.output).toContain('"id": "scheduleId"');
     } finally {
       fixture.cleanup();
@@ -9011,6 +9010,7 @@ describe('agent_harness tool', () => {
         'agent_knowledge_ingest',
         'agent_channel_send',
         'agent_notify',
+        'schedule',
         'agent_autonomy_schedule',
         'agent_reminder_schedule',
         'agent_media_generate',

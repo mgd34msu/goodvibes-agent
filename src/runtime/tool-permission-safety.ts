@@ -41,6 +41,7 @@ const WRITE_TOOL_NAMES = new Set([
 
 const EXECUTE_TOOL_NAMES = new Set(['exec', 'repl', 'terminal', 'process']);
 const READ_ONLY_PROCESS_ACTIONS = new Set(['', 'list', 'status', 'poll', 'log', 'output', 'capabilities', 'doctor', 'parity']);
+const READ_ONLY_SCHEDULE_ACTIONS = new Set(['', 'list', 'status', 'show']);
 
 type MarkedPermissionManager = PermissionManagerLike & { [SAFETY_MARKER]?: true };
 
@@ -110,6 +111,14 @@ function fallbackPermissionCategoryForArgs(toolName: string, args: Record<string
         ? args.processAction.trim().toLowerCase()
         : '';
     return READ_ONLY_PROCESS_ACTIONS.has(action) ? 'read' : 'execute';
+  }
+  if (toolName === 'schedule') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase()
+      : typeof args.mode === 'string'
+        ? args.mode.trim().toLowerCase()
+        : '';
+    return READ_ONLY_SCHEDULE_ACTIONS.has(action) ? 'read' : 'execute';
   }
   if (toolName === 'agent_artifacts') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';

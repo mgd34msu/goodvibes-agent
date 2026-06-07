@@ -216,11 +216,11 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
           ? 'The schedule route is published, but this request still needs an exact cadence before creation.'
           : 'The connected host does not publish schedules.create in the current SDK contract.',
       nextStep: scheduleReady
-        ? 'Create only through agent_autonomy_schedule with confirm:true and explicit success criteria.'
+        ? 'Create through schedule action:"create" with confirm:true and explicit success criteria.'
         : 'Ask for the exact ISO time, every interval, or cron expression before offering schedule creation.',
       capabilities: ['cron', 'at', 'every', 'wakeups', 'scheduled autonomous work'],
       requiredFields: ['task', 'successCriteria', ...scheduleMissing],
-      modelRoute: `agent_autonomy_schedule task:"${shortRequest}" successCriteria:"..." scheduleKind:"${schedule.kind ?? 'at|every|cron'}" scheduleValue:"${schedule.value ?? '...'}" confirm:true explicitUserRequest:"..."`,
+      modelRoute: `schedule action:"create" task:"${shortRequest}" successCriteria:"..." scheduleKind:"${schedule.kind ?? 'at|every|cron'}" scheduleValue:"${schedule.value ?? '...'}" confirm:true explicitUserRequest:"..."`,
       inspectRoute: 'agent_harness mode:"autonomy_queue_item" queueItemId:"connected-schedules"',
       setupRoutes: [
         'agent_harness mode:"operator_method" methodId:"schedules.create"',
@@ -321,14 +321,14 @@ function reminderRoute(request: string, schedule: ScheduleDetection): string {
   const message = previewHarnessText(request, 72).replace(/"/g, "'");
   const kind = schedule.kind ?? 'at|every|cron';
   const value = schedule.value ?? '...';
-  return `agent_reminder_schedule message:"${message}" scheduleKind:"${kind}" scheduleValue:"${value}" confirm:true explicitUserRequest:"..."`;
+  return `schedule action:"remind" message:"${message}" scheduleKind:"${kind}" scheduleValue:"${value}" confirm:true explicitUserRequest:"..."`;
 }
 
 function autonomyScheduleRoute(request: string, schedule: ScheduleDetection): string {
   const task = previewHarnessText(request, 96).replace(/"/g, "'");
   const kind = schedule.kind ?? 'at|every|cron';
   const value = schedule.value ?? '...';
-  return `agent_autonomy_schedule task:"${task}" successCriteria:"..." scheduleKind:"${kind}" scheduleValue:"${value}" confirm:true explicitUserRequest:"..."`;
+  return `schedule action:"create" task:"${task}" successCriteria:"..." scheduleKind:"${kind}" scheduleValue:"${value}" confirm:true explicitUserRequest:"..."`;
 }
 
 function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {

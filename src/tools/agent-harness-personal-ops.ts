@@ -644,7 +644,7 @@ function calendarWorkflows(methodIds: readonly string[], connectors: readonly Pe
           ? `${writeToolCount} write-like calendar tool(s) require explicit confirmation before event create, edit, delete, RSVP, or reschedule effects.`
           : 'No write-like calendar tools were classified; keep event mutation out of scope until a connector route is inspected.',
       ],
-      runBoundary: 'Conflict findings are advisory; reminders use agent_reminder_schedule and calendar edits use confirmed connector actions.',
+      runBoundary: 'Conflict findings are advisory; reminders use schedule action:"remind" and calendar edits use confirmed connector actions.',
     },
   ];
 }
@@ -707,7 +707,7 @@ function reminderWorkflows(methodIds: readonly string[], deliveryConfigured: boo
         : reminderStatus === 'attention'
           ? 'Configure or confirm a delivery target before relying on reminder delivery, or create the reminder with explicit scope.'
           : 'Update the connected GoodVibes host until schedule/reminder creation methods are available.',
-      modelRoute: 'agent_reminder_schedule',
+      modelRoute: 'schedule action:"remind"',
       inspectRoutes: [
         'agent_harness mode:"workspace_action" actionId:"schedule-reminder"',
         'agent_harness mode:"channels"',
@@ -1156,7 +1156,7 @@ function savedReviewQueueRecords(
                 id: 'create-reminder-from-event',
                 label: 'Create reminder from saved event',
                 effect: 'confirmed-effect',
-                modelRoute: 'agent_reminder_schedule title:"..." when:"..." confirm:true explicitUserRequest:"..."',
+                modelRoute: 'schedule action:"remind" message:"..." at:"..." confirm:true explicitUserRequest:"..."',
                 requiresConfirmation: true,
                 policy: 'Create one reminder only after the user reviews the saved event and confirms exact timing.',
               },
@@ -1354,7 +1354,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
         ? 'Create one connected reminder schedule with real timing and a visible delivery path.'
         : 'Create one reminder only after confirming timing and delivery scope; no configured delivery target was detected.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
-      modelRoute: 'agent_reminder_schedule title:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"remind" message:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       tags: ['reminder', 'schedule-write'],
       effect: 'confirmed-effect',
       capability: 'reminder-create',
@@ -1368,7 +1368,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
       status: hasMethod(methodIds, 'schedules.create') ? 'ready' : 'needs-setup',
       summary: 'Create one visible autonomous schedule only when task, cadence, success criteria, and user request provenance are explicit.',
       userRoute: 'Agent Workspace -> Automation -> Create schedule',
-      modelRoute: 'agent_autonomy_schedule task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       tags: ['autonomy', 'schedule-write'],
       effect: 'confirmed-effect',
       capability: 'schedule-create',
@@ -1394,7 +1394,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
       status: 'ready',
       summary: 'Preview and edit one exact connected schedule id with before/after diff context.',
       userRoute: 'Agent Workspace -> Automation -> Edit schedule',
-      modelRoute: 'agent_schedule_edit scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"edit" scheduleId:"..." confirm:true explicitUserRequest:"..."',
       tags: ['schedule', 'schedule-write'],
       effect: 'confirmed-effect',
       capability: 'schedule-control',
@@ -1410,7 +1410,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
       status: 'ready',
       summary: 'Run one exact connected schedule id now after the user confirms.',
       userRoute: 'Agent Workspace -> Automation -> Run job now',
-      modelRoute: 'agent_operator_action action:"schedules.run" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"run" scheduleId:"..." confirm:true explicitUserRequest:"..."',
       tags: ['schedule', 'schedule-write'],
       effect: 'confirmed-effect',
       capability: 'schedule-control',
@@ -1425,7 +1425,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
       status: 'ready',
       summary: 'Disable one exact connected schedule id after reviewing current state.',
       userRoute: 'Agent Workspace -> Automation -> Schedule controls',
-      modelRoute: 'agent_operator_action action:"schedules.disable" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"pause" scheduleId:"..." confirm:true explicitUserRequest:"..."',
       tags: ['schedule', 'schedule-write'],
       effect: 'confirmed-effect',
       capability: 'schedule-control',
@@ -1440,7 +1440,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
       status: 'ready',
       summary: 'Enable one exact connected schedule id after reviewing current state.',
       userRoute: 'Agent Workspace -> Automation -> Schedule controls',
-      modelRoute: 'agent_operator_action action:"schedules.enable" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"resume" scheduleId:"..." confirm:true explicitUserRequest:"..."',
       tags: ['schedule', 'schedule-write'],
       effect: 'confirmed-effect',
       capability: 'schedule-control',
@@ -1455,7 +1455,7 @@ function reminderOperationRecords(methodIds: readonly string[], deliveryConfigur
       status: 'ready',
       summary: 'Delete one exact connected schedule id only after explicit user confirmation.',
       userRoute: 'Agent Workspace -> Automation -> Schedule controls',
-      modelRoute: 'agent_operator_action action:"schedules.delete" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"delete" scheduleId:"..." confirm:true explicitUserRequest:"..."',
       tags: ['schedule', 'schedule-write'],
       effect: 'confirmed-effect',
       capability: 'schedule-control',
@@ -1616,7 +1616,7 @@ function buildLanes(
       current: `Reminder and autonomous schedule creation are available through Agent tools; ${scheduleMethods.length} schedule/reminder daemon method(s) are discoverable.`,
       next: 'Create one confirmed reminder or autonomous schedule with title, time, scope, delivery target, success criteria, and explicit user request.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
-      modelRoute: 'agent_reminder_schedule or agent_autonomy_schedule',
+      modelRoute: 'schedule action:"remind|create"',
       signals: [
         `${scheduleMethods.length} schedule/reminder daemon method(s)`,
         `${configuredTargets} configured delivery target(s)`,

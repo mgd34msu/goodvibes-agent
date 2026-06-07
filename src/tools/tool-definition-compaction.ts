@@ -22,6 +22,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   registry: 'Discover local skills, agents, tools, and templates.',
   remote: 'Manage remote runner pools and artifacts.',
   repl: 'Evaluate bounded JS, TS, Python, SQL, or GraphQL.',
+  schedule: 'List, create, edit, run, pause, resume schedules.',
   state: 'Read/update session state and diagnostics.',
   task: 'Manage cross-session tasks and handoffs.',
   team: 'Manage team definitions, roles, and lanes.',

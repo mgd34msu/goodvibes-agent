@@ -330,7 +330,7 @@ function scheduleEditRoute(job: UiAutomationSnapshot['jobs'][number]): string {
   const timezone = schedule.kind === 'cron' && schedule.timezone
     ? ` timezone:"${quoteRouteValue(schedule.timezone)}"`
     : '';
-  return `agent_schedule_edit scheduleId:"${quoteRouteValue(job.id)}" scheduleKind:"${schedule.kind}" scheduleValue:"${quoteRouteValue(value)}"${timezone} confirm:true explicitUserRequest:"..."`;
+  return `schedule action:"edit" scheduleId:"${quoteRouteValue(job.id)}" scheduleKind:"${schedule.kind}" scheduleValue:"${quoteRouteValue(value)}"${timezone} confirm:true explicitUserRequest:"..."`;
 }
 
 function taskStatusRank(status: UiTasksSnapshot['tasks'][number]['status']): number {
@@ -575,11 +575,11 @@ function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiv
       const enabled = job.enabled && job.status === 'enabled';
       const paused = job.status === 'paused' || !job.enabled;
       const toggleRoute = enabled
-        ? `agent_operator_action action:"schedules.disable" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`
-        : `agent_operator_action action:"schedules.enable" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
-      const runRoute = `agent_operator_action action:"schedules.run" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
+        ? `schedule action:"pause" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`
+        : `schedule action:"resume" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
+      const runRoute = `schedule action:"run" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
       const editRoute = scheduleEditRoute(job);
-      const deleteRoute = `agent_operator_action action:"schedules.delete" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
+      const deleteRoute = `schedule action:"delete" scheduleId:"${job.id}" confirm:true explicitUserRequest:"..."`;
       return {
         id: job.id,
         label: job.name,
@@ -1043,8 +1043,8 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         ? 'Create one visible autonomous schedule only after the user gives exact timing and success criteria.'
         : 'Update the connected GoodVibes host until schedules.create is available.',
       inspectRoute: 'agent_harness mode:"autonomy_intake" query:"..."',
-      modelRoute: 'agent_autonomy_schedule',
-      createRoute: 'agent_autonomy_schedule task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"create"',
+      createRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,
     },
     {
@@ -1065,9 +1065,9 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
           ? 'Review live schedules or reconcile routine receipts before controlling one exact schedule id.'
           : 'List schedules or reconcile routine receipts before controlling one schedule by id.',
       inspectRoute: 'agent_harness mode:"workspace_action" actionId:"schedule-list"',
-      modelRoute: 'agent_schedule_edit or agent_operator_action',
-      cancelRoute: 'agent_operator_action action:"schedules.disable" scheduleId:"..." confirm:true explicitUserRequest:"..."',
-      createRoute: 'agent_autonomy_schedule task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"list|edit|run|pause|resume|delete"',
+      cancelRoute: 'schedule action:"pause" scheduleId:"..." confirm:true explicitUserRequest:"..."',
+      createRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,
       liveRecords: scheduleRecords,
     },
@@ -1085,8 +1085,8 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
         ? 'Create one reminder only after the user gives real timing and delivery scope.'
         : 'Configure at least one delivery target before relying on reminder delivery.',
       inspectRoute: 'agent_harness mode:"personal_ops_lane" laneId:"reminders"',
-      modelRoute: 'agent_reminder_schedule',
-      createRoute: 'agent_reminder_schedule confirm:true explicitUserRequest:"..."',
+      modelRoute: 'schedule action:"remind"',
+      createRoute: 'schedule action:"remind" message:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
       methodIds: scheduleMethods,
     },
     {
