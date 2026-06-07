@@ -2865,6 +2865,13 @@ describe('agent_harness tool', () => {
             readonly reviewRecordCount?: number;
             readonly reviewLabels?: readonly string[];
             readonly sourceTool?: string;
+            readonly freshness?: {
+              readonly status: string;
+              readonly source: string;
+              readonly sourceTool?: string;
+              readonly refreshRoute?: string;
+              readonly policy: string;
+            };
             readonly followUpRoutes?: readonly {
               readonly id: string;
               readonly effect: string;
@@ -2883,11 +2890,19 @@ describe('agent_harness tool', () => {
       expect(inbox?.current).toContain('thread queue items');
       expect(inbox?.signals).toContain('1 saved inbox review artifact(s)');
       expect(inbox?.signals).toContain('2 saved inbox thread queue item(s)');
+      expect(inbox?.signals).toContain('0 refreshable saved inbox queue item(s)');
       expect(savedThread?.label).toContain('Saved thread');
       expect(savedThread?.status).toBe('ready-for-draft');
       expect(savedThread?.capability).toBe('inbox-thread-review');
       expect(savedThread?.tags).toContain('draft-ready');
       expect(savedThread?.modelRoute).toContain('agent_artifacts show artifactId:"artifact-1"');
+      expect(savedThread?.freshness).toMatchObject({
+        status: 'provider-contract-missing',
+        source: 'saved-review-artifact',
+        sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
+      });
+      expect(savedThread?.freshness?.refreshRoute).toBeUndefined();
+      expect(savedThread?.freshness?.policy).toContain('matching read-only connector route');
       expect(savedThread?.followUpRoutes?.find((route) => route.id === 'draft-local-reply')?.requiresConfirmation).toBe(false);
       expect(savedThread?.followUpRoutes?.find((route) => route.id === 'send-reviewed-reply-boundary')?.requiresConfirmation).toBe(true);
       expect(savedThread?.followUpRoutes?.find((route) => route.id === 'send-reviewed-reply-boundary')?.policy).toContain('user confirms exact recipients and body');
@@ -2903,15 +2918,18 @@ describe('agent_harness tool', () => {
       expect(savedReview?.reviewRecordCount).toBe(2);
       expect(savedReview?.reviewLabels).toEqual(['Escalation follow-up', 'Weekly planning']);
       expect(savedReview?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
+      expect(savedReview?.freshness?.status).toBe('provider-contract-missing');
 
       const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
       const savedEvent = calendar?.liveRecords?.find((record) => record.id === 'review-event:artifact-2:evt-weekly-sync');
       expect(calendar?.signals).toContain('1 saved calendar review artifact(s)');
       expect(calendar?.signals).toContain('1 saved calendar event queue item(s)');
+      expect(calendar?.signals).toContain('0 refreshable saved calendar queue item(s)');
       expect(savedEvent?.label).toContain('Saved event');
       expect(savedEvent?.status).toBe('ready-for-reminder');
       expect(savedEvent?.capability).toBe('calendar-event-review');
       expect(savedEvent?.tags).toContain('reminder-ready');
+      expect(savedEvent?.freshness?.status).toBe('provider-contract-missing');
       expect(savedEvent?.followUpRoutes?.find((route) => route.id === 'create-reminder-from-event')?.modelRoute).toContain('agent_reminder_schedule');
       expect(savedEvent?.followUpRoutes?.find((route) => route.id === 'calendar-edit-boundary')?.requiresConfirmation).toBe(true);
     } finally {
@@ -3245,6 +3263,14 @@ describe('agent_harness tool', () => {
             readonly requiredFields?: readonly string[];
             readonly sampleInput?: Record<string, unknown>;
             readonly confirmationRequired?: boolean;
+            readonly freshness?: {
+              readonly status: string;
+              readonly source: string;
+              readonly sourceTool?: string;
+              readonly refreshRoute?: string;
+              readonly requiredFields?: readonly string[];
+              readonly sampleInput?: Record<string, unknown>;
+            };
           }[];
         }[];
       }>(fixture, { mode: 'personal_ops', includeParameters: true });
@@ -3285,9 +3311,17 @@ describe('agent_harness tool', () => {
       expect(inboxSearchRecord?.requiredFields).toEqual(['query']);
       expect(inboxSearchRecord?.sampleInput?.query).toBe('is:unread newer_than:7d');
       expect(inboxSearchRecord?.confirmationRequired).toBe(false);
+      expect(inboxSearchRecord?.freshness).toMatchObject({
+        status: 'fresh-provider-route-ready',
+        source: 'connector-read',
+        sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
+        requiredFields: ['query'],
+      });
+      expect(inboxSearchRecord?.freshness?.refreshRoute).toContain('run_personal_ops_read');
       const inboxSendRecord = inbox?.liveRecords?.find((record) => record.id === 'mcp:gmail-inbox:gmail.send_reply');
       expect(inboxSendRecord?.effect).toBe('confirmed-effect');
       expect(inboxSendRecord?.confirmationRequired).toBe(true);
+      expect(inboxSendRecord?.freshness).toBeUndefined();
       expect(inboxSendRecord?.sampleInput?.body).toBe('<reviewed draft text>');
 
       expect(calendar?.status).toBe('partial');
@@ -3302,6 +3336,7 @@ describe('agent_harness tool', () => {
       expect(agendaRecord?.modelRoute).toContain('mcp schema');
       expect(agendaRecord?.requiredFields).toEqual(['end', 'start']);
       expect(agendaRecord?.sampleInput?.start).toBe('<start-iso>');
+      expect(agendaRecord?.freshness?.status).toBe('connector-attention');
 
       const inboxIntake = await executeHarnessJson<{
         readonly preferred: {
@@ -3536,6 +3571,7 @@ describe('agent_harness tool', () => {
       const lane = await executeHarnessJson<{
         readonly id: string;
         readonly status: string;
+        readonly signals: readonly string[];
         readonly connectorSignals?: readonly { readonly id: string; readonly modelRoute: string; readonly readTools?: readonly { readonly name: string }[] }[];
         readonly workflows?: readonly { readonly id: string; readonly inspectRoutes?: readonly string[]; readonly prerequisites?: readonly string[] }[];
         readonly liveRecords?: readonly {
@@ -3548,14 +3584,33 @@ describe('agent_harness tool', () => {
           readonly reviewRecordCount?: number;
           readonly reviewLabels?: readonly string[];
           readonly sourceTool?: string;
+          readonly freshness?: {
+            readonly status: string;
+            readonly source: string;
+            readonly sourceTool?: string;
+            readonly refreshRoute?: string;
+            readonly requiredFields?: readonly string[];
+            readonly sampleInput?: Record<string, unknown>;
+            readonly policy?: string;
+          };
           readonly followUpRoutes?: readonly { readonly id: string; readonly requiresConfirmation: boolean; readonly modelRoute: string }[];
         }[];
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox', includeParameters: true });
       expect(lane.id).toBe('inbox');
       expect(lane.status).toBe('partial');
+      expect(lane.signals).toContain('1 refreshable saved inbox queue item(s)');
       const savedThreadRecord = lane.liveRecords?.find((record) => record.id === 'review-thread:artifact-1:msg-1');
       expect(savedThreadRecord?.label).toContain('Saved thread');
       expect(savedThreadRecord?.capability).toBe('inbox-thread-review');
+      expect(savedThreadRecord?.freshness).toMatchObject({
+        status: 'saved-review-refreshable',
+        source: 'saved-review-artifact',
+        sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
+        requiredFields: ['query'],
+      });
+      expect(savedThreadRecord?.freshness?.refreshRoute).toContain('recordId:"mcp:gmail-inbox:gmail.search_messages"');
+      expect(savedThreadRecord?.freshness?.sampleInput?.query).toBe('is:unread newer_than:7d');
+      expect(savedThreadRecord?.followUpRoutes?.find((route) => route.id === 'refresh-saved-thread')?.requiresConfirmation).toBe(true);
       expect(savedThreadRecord?.followUpRoutes?.find((route) => route.id === 'send-reviewed-reply-boundary')?.requiresConfirmation).toBe(true);
       const savedReviewRecord = lane.liveRecords?.find((record) => record.id === 'review-artifact:artifact-1');
       expect(savedReviewRecord?.label).toContain('Saved inbox review');
@@ -3566,6 +3621,7 @@ describe('agent_harness tool', () => {
       expect(savedReviewRecord?.reviewRecordCount).toBe(1);
       expect(savedReviewRecord?.reviewLabels).toEqual(['Quarterly planning']);
       expect(savedReviewRecord?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
+      expect(savedReviewRecord?.freshness?.status).toBe('saved-review-refreshable');
       expect(lane.connectorSignals?.[0]?.modelRoute).toContain('mcp_server');
       expect(lane.connectorSignals?.[0]?.readTools?.[0]?.name).toBe('gmail.get_thread');
       expect(lane.workflows?.[0]?.inspectRoutes?.[0]).toContain('gmail-inbox');

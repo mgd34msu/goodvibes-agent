@@ -101,6 +101,7 @@ interface PersonalOpsLiveRecord {
   readonly reviewLabels?: readonly string[];
   readonly sourceTool?: string;
   readonly followUpRoutes?: readonly PersonalOpsFollowUpRoute[];
+  readonly freshness?: PersonalOpsRecordFreshness;
 }
 
 interface PersonalOpsFollowUpRoute {
@@ -109,6 +110,22 @@ interface PersonalOpsFollowUpRoute {
   readonly effect: 'read-only' | 'confirmed-effect';
   readonly modelRoute: string;
   readonly requiresConfirmation: boolean;
+  readonly policy: string;
+}
+
+interface PersonalOpsRecordFreshness {
+  readonly status:
+    | 'fresh-provider-route-ready'
+    | 'saved-review-refreshable'
+    | 'connector-attention'
+    | 'provider-contract-missing'
+    | 'source-tool-missing';
+  readonly source: 'connector-read' | 'saved-review-artifact';
+  readonly sourceTool?: string;
+  readonly lastReviewedAt?: string;
+  readonly refreshRoute?: string;
+  readonly requiredFields?: readonly string[];
+  readonly sampleInput?: Readonly<Record<string, unknown>>;
   readonly policy: string;
 }
 
@@ -771,6 +788,13 @@ function searchText(lane: PersonalOpsLane): string {
       record.userRoute,
       record.modelRoute,
       record.tags?.join('\n') ?? '',
+      record.freshness ? [
+        record.freshness.status,
+        record.freshness.source,
+        record.freshness.sourceTool ?? '',
+        record.freshness.refreshRoute ?? '',
+        record.freshness.policy,
+      ].join('\n') : '',
     ]).join('\n') ?? '',
   ].join('\n').toLowerCase();
 }
@@ -795,6 +819,7 @@ function describeLiveRecord(record: PersonalOpsLiveRecord, includeParameters: bo
     ...(includeParameters && typeof record.reviewRecordCount === 'number' ? { reviewRecordCount: record.reviewRecordCount } : {}),
     ...(includeParameters && record.reviewLabels && record.reviewLabels.length > 0 ? { reviewLabels: record.reviewLabels } : {}),
     ...(includeParameters && record.sourceTool ? { sourceTool: record.sourceTool } : {}),
+    ...(includeParameters && record.freshness ? { freshness: record.freshness } : {}),
     ...(includeParameters && record.followUpRoutes && record.followUpRoutes.length > 0 ? { followUpRoutes: record.followUpRoutes } : {}),
   };
 }
@@ -891,7 +916,27 @@ function channelRecords(snapshot: ReturnType<typeof buildAgentWorkspaceRuntimeSn
   }));
 }
 
-function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLabel: string): readonly PersonalOpsLiveRecord[] {
+function personalOpsReadRunRoute(laneId: PersonalOpsLaneId, recordId: string): string {
+  return `agent_harness mode:"run_personal_ops_read" laneId:"${laneId}" recordId:"${recordId}" fields:{...} confirm:true explicitUserRequest:"..."`;
+}
+
+function connectorReadFreshness(signal: PersonalOpsConnectorSignal, tool: PersonalOpsConnectorTool, laneId: PersonalOpsLaneId): PersonalOpsRecordFreshness | undefined {
+  if (tool.effect !== 'read-only') return undefined;
+  const recordId = tool.qualifiedName ?? `${signal.id}:${tool.name}`;
+  return {
+    status: signal.status === 'ready' ? 'fresh-provider-route-ready' : 'connector-attention',
+    source: 'connector-read',
+    ...(tool.qualifiedName ? { sourceTool: tool.qualifiedName } : {}),
+    ...(signal.status === 'ready' ? { refreshRoute: personalOpsReadRunRoute(laneId, recordId) } : {}),
+    ...(tool.requiredFields ? { requiredFields: tool.requiredFields } : {}),
+    ...(tool.sampleInput ? { sampleInput: tool.sampleInput } : {}),
+    policy: signal.status === 'ready'
+      ? 'Reads fresh provider data only through the confirmed Personal Ops read route; provider mutations stay on separate confirmed-effect routes.'
+      : 'Repair connector connection, trust, or schema freshness before reading provider data.',
+  };
+}
+
+function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLabel: string, laneId: PersonalOpsLaneId): readonly PersonalOpsLiveRecord[] {
   return signals.flatMap((signal) => {
     const summaryRecord: PersonalOpsLiveRecord = {
       id: signal.id,
@@ -908,26 +953,30 @@ function connectorRecords(signals: readonly PersonalOpsConnectorSignal[], laneLa
     const operationTools = [...(signal.readTools ?? []), ...(signal.writeTools ?? [])];
     const operationRecords: PersonalOpsLiveRecord[] = operationTools
       .slice(0, 8)
-      .map((tool) => ({
-        id: tool.qualifiedName ?? `${signal.id}:${tool.name}`,
-        label: `${laneLabel} ${tool.effect === 'read-only' ? 'read' : 'confirmed action'}: ${tool.name}`,
-        status: signal.status,
-        summary: [
-          `${tool.effect === 'read-only' ? 'Read-only' : 'Write-like'} ${tool.capability} MCP route.`,
-          tool.requiredFields && tool.requiredFields.length > 0 ? `required fields ${tool.requiredFields.join(', ')}` : 'schema fields unknown until inspected',
-          tool.description ?? '',
-        ].filter(Boolean).join(' '),
-        userRoute: 'Agent Workspace -> Tools & MCP -> Tool schema',
-        modelRoute: tool.schemaRoute ?? signal.modelRoute,
-        tags: ['connector-operation', signal.kind, tool.capability, tool.effect],
-        effect: tool.effect,
-        capability: tool.capability,
-        ...(tool.qualifiedName ? { qualifiedName: tool.qualifiedName } : {}),
-        ...(tool.requiredFields ? { requiredFields: tool.requiredFields } : {}),
-        ...(tool.optionalFields ? { optionalFields: tool.optionalFields } : {}),
-        ...(tool.sampleInput ? { sampleInput: tool.sampleInput } : {}),
-        confirmationRequired: tool.effect === 'confirmed-effect',
-      }));
+      .map((tool) => {
+        const freshness = connectorReadFreshness(signal, tool, laneId);
+        return {
+          id: tool.qualifiedName ?? `${signal.id}:${tool.name}`,
+          label: `${laneLabel} ${tool.effect === 'read-only' ? 'read' : 'confirmed action'}: ${tool.name}`,
+          status: signal.status,
+          summary: [
+            `${tool.effect === 'read-only' ? 'Read-only' : 'Write-like'} ${tool.capability} MCP route.`,
+            tool.requiredFields && tool.requiredFields.length > 0 ? `required fields ${tool.requiredFields.join(', ')}` : 'schema fields unknown until inspected',
+            tool.description ?? '',
+          ].filter(Boolean).join(' '),
+          userRoute: 'Agent Workspace -> Tools & MCP -> Tool schema',
+          modelRoute: tool.schemaRoute ?? signal.modelRoute,
+          tags: ['connector-operation', signal.kind, tool.capability, tool.effect],
+          effect: tool.effect,
+          capability: tool.capability,
+          ...(tool.qualifiedName ? { qualifiedName: tool.qualifiedName } : {}),
+          ...(tool.requiredFields ? { requiredFields: tool.requiredFields } : {}),
+          ...(tool.optionalFields ? { optionalFields: tool.optionalFields } : {}),
+          ...(tool.sampleInput ? { sampleInput: tool.sampleInput } : {}),
+          confirmationRequired: tool.effect === 'confirmed-effect',
+          ...(freshness ? { freshness } : {}),
+        };
+      });
     return [summaryRecord, ...operationRecords];
   });
 }
@@ -990,7 +1039,65 @@ function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 'calend
   }
 }
 
-function savedReviewQueueRecords(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly PersonalOpsLiveRecord[] {
+function matchingReadTool(
+  connectors: readonly PersonalOpsConnectorSignal[],
+  sourceTool: string,
+): { readonly signal: PersonalOpsConnectorSignal; readonly tool: PersonalOpsConnectorTool } | null {
+  if (!sourceTool) return null;
+  for (const signal of connectors) {
+    const tool = (signal.readTools ?? []).find((entry) => entry.qualifiedName === sourceTool || entry.name === sourceTool);
+    if (tool) return { signal, tool };
+  }
+  return null;
+}
+
+function savedReviewFreshness(options: {
+  readonly laneId: 'inbox' | 'calendar';
+  readonly createdAt: string;
+  readonly sourceTool: string;
+  readonly connectors: readonly PersonalOpsConnectorSignal[];
+}): PersonalOpsRecordFreshness {
+  const match = matchingReadTool(options.connectors, options.sourceTool);
+  if (!options.sourceTool) {
+    return {
+      status: 'source-tool-missing',
+      source: 'saved-review-artifact',
+      ...(options.createdAt ? { lastReviewedAt: options.createdAt } : {}),
+      policy: 'This saved review artifact did not preserve a connector source tool, so Agent can only reopen the redacted artifact and cannot offer a precise refresh route.',
+    };
+  }
+  if (!match) {
+    return {
+      status: 'provider-contract-missing',
+      source: 'saved-review-artifact',
+      sourceTool: options.sourceTool,
+      ...(options.createdAt ? { lastReviewedAt: options.createdAt } : {}),
+      policy: 'The saved review names a source tool, but the current runtime does not expose a matching read-only connector route. Reconnect or repair the provider before refreshing.',
+    };
+  }
+  return {
+    status: match.signal.status === 'ready' ? 'saved-review-refreshable' : 'connector-attention',
+    source: 'saved-review-artifact',
+    sourceTool: options.sourceTool,
+    ...(options.createdAt ? { lastReviewedAt: options.createdAt } : {}),
+    ...(match.signal.status === 'ready' ? { refreshRoute: personalOpsReadRunRoute(options.laneId, options.sourceTool) } : {}),
+    ...(match.tool.requiredFields ? { requiredFields: match.tool.requiredFields } : {}),
+    ...(match.tool.sampleInput ? { sampleInput: match.tool.sampleInput } : {}),
+    policy: match.signal.status === 'ready'
+      ? 'Saved review data is stale by default. Refresh requires the user to supply current connector fields and confirm the read; saved artifacts do not store raw prior input values.'
+      : 'A matching connector route exists, but it needs connection, trust, or schema freshness repair before refreshing saved review data.',
+  };
+}
+
+function refreshableSavedRecordCount(records: readonly PersonalOpsLiveRecord[]): number {
+  return records.filter((record) => record.freshness?.status === 'saved-review-refreshable').length;
+}
+
+function savedReviewQueueRecords(
+  context: CommandContext,
+  laneId: 'inbox' | 'calendar',
+  connectors: readonly PersonalOpsConnectorSignal[],
+): readonly PersonalOpsLiveRecord[] {
   return savedReviewArtifacts(context, laneId)
     .flatMap((artifact) => {
       const reviewLabels = artifactMetadataStringArray(artifact, 'reviewLabels').slice(0, 5);
@@ -999,6 +1106,7 @@ function savedReviewQueueRecords(context: CommandContext, laneId: 'inbox' | 'cal
       const createdAt = typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt)
         ? new Date(artifact.createdAt).toISOString()
         : '';
+      const freshness = savedReviewFreshness({ laneId, createdAt, sourceTool, connectors });
       return reviewLabels.map((label, index): PersonalOpsLiveRecord => {
         const recordId = reviewRecordIds[index] || label || `${index + 1}`;
         const artifactRoute = `agent_artifacts show artifactId:"${artifact.id}" includeContent:true`;
@@ -1032,8 +1140,17 @@ function savedReviewQueueRecords(context: CommandContext, laneId: 'inbox' | 'cal
           reviewRecordCount: 1,
           reviewLabels: [label],
           ...(sourceTool ? { sourceTool } : {}),
+          freshness,
           followUpRoutes: calendar
             ? [
+              ...(freshness.refreshRoute ? [{
+                id: 'refresh-saved-event',
+                label: 'Refresh saved event from provider',
+                effect: 'read-only' as const,
+                modelRoute: freshness.refreshRoute,
+                requiresConfirmation: true,
+                policy: 'Refresh reads current provider data only after the user supplies required fields and confirms the bounded read.',
+              }] : []),
               {
                 id: 'create-reminder-from-event',
                 label: 'Create reminder from saved event',
@@ -1052,6 +1169,14 @@ function savedReviewQueueRecords(context: CommandContext, laneId: 'inbox' | 'cal
               },
             ]
             : [
+              ...(freshness.refreshRoute ? [{
+                id: 'refresh-saved-thread',
+                label: 'Refresh saved thread from provider',
+                effect: 'read-only' as const,
+                modelRoute: freshness.refreshRoute,
+                requiresConfirmation: true,
+                policy: 'Refresh reads current provider data only after the user supplies required fields and confirms the bounded read.',
+              }] : []),
               {
                 id: 'draft-local-reply',
                 label: 'Draft local reply from saved thread',
@@ -1075,7 +1200,11 @@ function savedReviewQueueRecords(context: CommandContext, laneId: 'inbox' | 'cal
     .slice(0, 10);
 }
 
-function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly PersonalOpsLiveRecord[] {
+function savedReviewArtifactRecords(
+  context: CommandContext,
+  laneId: 'inbox' | 'calendar',
+  connectors: readonly PersonalOpsConnectorSignal[],
+): readonly PersonalOpsLiveRecord[] {
   return savedReviewArtifacts(context, laneId).map((artifact) => {
     const reviewRecordCount = artifactMetadataNumber(artifact, 'reviewRecordCount') ?? 0;
     const reviewLabels = artifactMetadataStringArray(artifact, 'reviewLabels').slice(0, 5);
@@ -1083,6 +1212,7 @@ function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | '
     const createdAt = typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt)
       ? new Date(artifact.createdAt).toISOString()
       : '';
+    const freshness = savedReviewFreshness({ laneId, createdAt, sourceTool, connectors });
     const countText = reviewRecordCount > 0
       ? `${reviewRecordCount} normalized review card${reviewRecordCount === 1 ? '' : 's'}`
       : 'normalized review cards';
@@ -1107,6 +1237,7 @@ function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | '
       reviewRecordCount,
       ...(reviewLabels.length > 0 ? { reviewLabels } : {}),
       ...(sourceTool ? { sourceTool } : {}),
+      freshness,
     };
   });
 }
@@ -1348,10 +1479,12 @@ function buildLanes(
   const schemasByQualifiedName = options.schemasByQualifiedName ?? new Map<string, McpToolSchema>();
   const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail'], { lane: 'inbox', toolsByServer: toolsByName, schemasByQualifiedName });
   const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda'], { lane: 'calendar', toolsByServer: toolsByName, schemasByQualifiedName });
-  const inboxArtifactRecords = savedReviewArtifactRecords(context, 'inbox');
-  const calendarArtifactRecords = savedReviewArtifactRecords(context, 'calendar');
-  const inboxReviewQueueRecords = savedReviewQueueRecords(context, 'inbox');
-  const calendarReviewQueueRecords = savedReviewQueueRecords(context, 'calendar');
+  const inboxArtifactRecords = savedReviewArtifactRecords(context, 'inbox', emailConnectors);
+  const calendarArtifactRecords = savedReviewArtifactRecords(context, 'calendar', calendarConnectors);
+  const inboxReviewQueueRecords = savedReviewQueueRecords(context, 'inbox', emailConnectors);
+  const calendarReviewQueueRecords = savedReviewQueueRecords(context, 'calendar', calendarConnectors);
+  const refreshableInboxQueueRecords = refreshableSavedRecordCount(inboxReviewQueueRecords);
+  const refreshableCalendarQueueRecords = refreshableSavedRecordCount(calendarReviewQueueRecords);
   const taskMethods = methodIdsMatching(['task', 'work-plan', 'workplan']);
   const scheduleMethods = methodIdsMatching(['schedule', 'reminder']);
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
@@ -1390,6 +1523,7 @@ function buildLanes(
         `${emailConnectors.length} email-like MCP connector(s)`,
         `${inboxArtifactRecords.length} saved inbox review artifact(s)`,
         `${inboxReviewQueueRecords.length} saved inbox thread queue item(s)`,
+        `${refreshableInboxQueueRecords} refreshable saved inbox queue item(s)`,
         `${readyChannels}/${snapshot.channels.length} channel(s) ready for delivery`,
       ],
       methodIds: emailMethods,
@@ -1398,7 +1532,7 @@ function buildLanes(
       liveRecords: [
         ...inboxReviewQueueRecords,
         ...inboxArtifactRecords,
-        ...connectorRecords(emailConnectors, 'Inbox'),
+        ...connectorRecords(emailConnectors, 'Inbox', 'inbox'),
       ],
     },
     {
@@ -1427,6 +1561,7 @@ function buildLanes(
         `${calendarConnectors.length} calendar-like MCP connector(s)`,
         `${calendarArtifactRecords.length} saved calendar review artifact(s)`,
         `${calendarReviewQueueRecords.length} saved calendar event queue item(s)`,
+        `${refreshableCalendarQueueRecords} refreshable saved calendar queue item(s)`,
         `${scheduleMethods.length} schedule/reminder method(s) available for follow-up`,
       ],
       methodIds: calendarMethods,
@@ -1435,7 +1570,7 @@ function buildLanes(
       liveRecords: [
         ...calendarReviewQueueRecords,
         ...calendarArtifactRecords,
-        ...connectorRecords(calendarConnectors, 'Calendar'),
+        ...connectorRecords(calendarConnectors, 'Calendar', 'calendar'),
       ],
     },
     {
@@ -1986,7 +2121,7 @@ function missingRequiredInputFields(record: PersonalOpsLiveRecord, fields: Reado
 }
 
 function executionRouteForRecord(record: PersonalOpsLiveRecord, laneId: PersonalOpsLaneId): string {
-  return `agent_harness mode:"run_personal_ops_read" laneId:"${laneId}" recordId:"${record.id}" fields:{...} confirm:true explicitUserRequest:"..."`;
+  return personalOpsReadRunRoute(laneId, record.id);
 }
 
 function summarizeRunRecord(record: PersonalOpsLiveRecord, lane: PersonalOpsLane, includeParameters: boolean): Record<string, unknown> {
