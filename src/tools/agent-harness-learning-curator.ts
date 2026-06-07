@@ -137,6 +137,22 @@ interface LearningConsolidationBatchPlan {
   readonly policy: string;
 }
 
+interface LearningPromptPlan {
+  readonly status: 'ready' | 'attention' | 'empty';
+  readonly promptActiveCount: number;
+  readonly suppressedCount: number;
+  readonly proposalCount: number;
+  readonly consolidationCount: number;
+  readonly promptActiveRecords: readonly Record<string, unknown>[];
+  readonly reviewFirst: readonly Record<string, unknown>[];
+  readonly proposalQueue: readonly Record<string, unknown>[];
+  readonly consolidationQueue: readonly Record<string, unknown>[];
+  readonly suppressed: Record<string, number>;
+  readonly orderingRules: readonly string[];
+  readonly routes: Record<string, string>;
+  readonly policy: string;
+}
+
 export type LearningCandidateResolution =
   | { readonly status: 'found'; readonly candidate: Record<string, unknown> }
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
@@ -1286,6 +1302,140 @@ function nextActions(candidates: readonly LearningCandidate[]): readonly string[
     .map((candidate) => `${candidate.label}: ${candidate.next}`);
 }
 
+function promptPlanCandidate(candidate: LearningCandidate, includeParameters: boolean): Record<string, unknown> {
+  return {
+    candidateId: candidate.id,
+    label: candidate.label,
+    domain: candidate.domain,
+    status: candidate.status,
+    priority: candidate.priority,
+    scores: candidate.scores,
+    reason: previewHarnessText(candidate.reason, includeParameters ? 160 : 96),
+    next: previewHarnessText(candidate.next, includeParameters ? 160 : 96),
+    inspectRoute: candidate.inspectRoute,
+    ...(candidate.reviewRoute ? { reviewRoute: candidate.reviewRoute } : {}),
+    ...(candidate.createRoute ? { createRoute: candidate.createRoute } : {}),
+    ...(candidate.updateRoute ? { updateRoute: candidate.updateRoute } : {}),
+  };
+}
+
+function promptRecordPriority(item: AgentWorkspaceLocalLibraryItem): number {
+  const scores = scoresForItem(item);
+  return clampScore((scores.usefulness * 0.35) + (scores.freshness * 0.25) + (scores.sourceQuality * 0.30) - (scores.risk * 0.25));
+}
+
+function isPromptEligibleRecord(domain: LocalLearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem): boolean {
+  if (!isReviewed(item)) return false;
+  if (domain === 'memory') return (item.confidence ?? 100) >= 70;
+  if (domain === 'persona') return item.active === true;
+  if (domain === 'skill' || domain === 'skill_bundle' || domain === 'routine') {
+    return item.enabled === true && missingRequirementCount(item) === 0;
+  }
+  return false;
+}
+
+function promptRecordEntry(domain: LocalLearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: `${domain}:${item.id}`,
+    label: item.name,
+    domain,
+    recordId: item.id,
+    priority: promptRecordPriority(item),
+    scores: scoresForItem(item),
+    reason: domain === 'memory'
+      ? 'Reviewed high-confidence memory is eligible for prompt recall.'
+      : domain === 'persona'
+        ? 'Reviewed active persona is eligible for prompt personality context.'
+        : 'Reviewed, enabled, setup-ready behavior is eligible for prompt context.',
+    inspectRoute: localRegistryRoute(domain, 'get', item.id),
+    ...(includeParameters ? {
+      reviewState: item.reviewState,
+      confidence: item.confidence ?? null,
+      enabled: item.enabled ?? null,
+      active: item.active ?? null,
+      missingRequirementCount: missingRequirementCount(item),
+      tags: item.tags,
+    } : {}),
+  };
+}
+
+function promptEligibleRecords(context: CommandContext, includeParameters: boolean): readonly Record<string, unknown>[] {
+  const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
+  const records = [
+    ...snapshot.localMemories
+      .filter((item) => isPromptEligibleRecord('memory', item))
+      .map((item) => promptRecordEntry('memory', item, includeParameters)),
+    ...snapshot.localPersonas
+      .filter((item) => isPromptEligibleRecord('persona', item))
+      .map((item) => promptRecordEntry('persona', item, includeParameters)),
+    ...snapshot.localSkills
+      .filter((item) => isPromptEligibleRecord('skill', item))
+      .map((item) => promptRecordEntry('skill', item, includeParameters)),
+    ...snapshot.localSkillBundles
+      .filter((item) => isPromptEligibleRecord('skill_bundle', item))
+      .map((item) => promptRecordEntry('skill_bundle', item, includeParameters)),
+    ...snapshot.localRoutines
+      .filter((item) => isPromptEligibleRecord('routine', item))
+      .map((item) => promptRecordEntry('routine', item, includeParameters)),
+  ];
+  return records.sort((left, right) => {
+    const leftPriority = typeof left.priority === 'number' ? left.priority : 0;
+    const rightPriority = typeof right.priority === 'number' ? right.priority : 0;
+    if (rightPriority !== leftPriority) return rightPriority - leftPriority;
+    return String(left.label ?? '').localeCompare(String(right.label ?? ''));
+  });
+}
+
+function learningPromptPlan(context: CommandContext, candidates: readonly LearningCandidate[], includeParameters: boolean): LearningPromptPlan {
+  const promptActiveRecords = promptEligibleRecords(context, includeParameters);
+  const reviewFirstCandidates = candidates.filter((candidate) => (
+    candidate.status === 'needs-review'
+    || candidate.status === 'low-confidence'
+    || candidate.status === 'needs-setup'
+    || candidate.status === 'needs-consolidation'
+  ));
+  const proposalCandidates = candidates.filter((candidate) => candidate.status === 'proposal-ready' || candidate.status === 'ready-to-promote');
+  const consolidationCandidates = candidates.filter((candidate) => candidate.status === 'needs-consolidation');
+  const suppressed = {
+    needsReview: candidates.filter((candidate) => candidate.status === 'needs-review').length,
+    needsSetup: candidates.filter((candidate) => candidate.status === 'needs-setup').length,
+    lowConfidence: candidates.filter((candidate) => candidate.status === 'low-confidence').length,
+    personalityIssues: candidates.filter((candidate) => candidate.domain === 'vibe').length,
+    needsConsolidation: consolidationCandidates.length,
+  };
+  const suppressedCount = Object.values(suppressed).reduce((total, count) => total + count, 0);
+  const status = promptActiveRecords.length === 0 && candidates.length === 0
+    ? 'empty'
+    : suppressedCount > 0 || proposalCandidates.length > 0
+      ? 'attention'
+      : 'ready';
+  return {
+    status,
+    promptActiveCount: promptActiveRecords.length,
+    suppressedCount,
+    proposalCount: proposalCandidates.length,
+    consolidationCount: consolidationCandidates.length,
+    promptActiveRecords: promptActiveRecords.slice(0, includeParameters ? 12 : 5),
+    reviewFirst: reviewFirstCandidates.slice(0, includeParameters ? 10 : 5).map((candidate) => promptPlanCandidate(candidate, includeParameters)),
+    proposalQueue: proposalCandidates.slice(0, includeParameters ? 10 : 5).map((candidate) => promptPlanCandidate(candidate, includeParameters)),
+    consolidationQueue: consolidationCandidates.slice(0, includeParameters ? 8 : 3).map((candidate) => promptPlanCandidate(candidate, includeParameters)),
+    suppressed,
+    orderingRules: [
+      'Prompt context stays limited to reviewed high-confidence memory and reviewed setup-ready enabled behavior.',
+      'Usefulness, freshness, source-quality, and risk scores drive review priority before durable context expands.',
+      'Low-confidence, stale, setup-blocked, unreviewed, blocked VIBE.md, and duplicate records stay suppressed until reviewed or repaired.',
+      'Proposals from notes, completed work, completed research, and saved sessions require explicit create or promotion routes before they can guide the assistant.',
+    ],
+    routes: {
+      memoryPosture: 'agent_harness mode:"memory_posture"',
+      curator: 'agent_harness mode:"learning_curator" includeParameters:true',
+      candidate: 'agent_harness mode:"learning_candidate" candidateId:"<candidateId>"',
+      consolidation: 'agent_learning_consolidation mode=preview candidateId:"<candidateId>"',
+    },
+    policy: 'This prompt plan is read-only. It explains what can guide the assistant now, what remains suppressed, and which reviewed route should run before any durable memory, skill, routine, persona, or consolidation change.',
+  };
+}
+
 export function learningCuratorCatalogStatus(context: CommandContext): Record<string, unknown> {
   const candidates = buildLearningCandidates(context);
   return {
@@ -1321,6 +1471,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
       readyToPromote: all.filter((candidate) => candidate.status === 'ready-to-promote').length,
       ready: all.filter((candidate) => candidate.status === 'ready').length,
     },
+    promptPlan: learningPromptPlan(context, all, includeParameters),
     candidates: filtered.slice(0, limit).map((candidate) => describeCandidate(candidate, includeParameters)),
     ...(consolidationBatch ? { consolidationBatch } : {}),
     returned: Math.min(filtered.length, limit),

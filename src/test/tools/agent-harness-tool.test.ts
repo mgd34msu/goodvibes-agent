@@ -5207,6 +5207,14 @@ describe('agent_harness tool', () => {
         source: 'agent',
       });
       personaRegistry.setActive(persona.id);
+      const reviewedPersona = personaRegistry.create({
+        name: 'Reviewed release operator persona',
+        description: 'Reviewed release behavior.',
+        body: 'Keep release closeout concise and evidence-backed.',
+        source: 'agent',
+      });
+      personaRegistry.markReviewed(reviewedPersona.id);
+      personaRegistry.setActive(reviewedPersona.id);
       const skillRegistry = AgentSkillRegistry.fromShellPaths(fixture.paths);
       skillRegistry.create({
         name: 'Missing command skill',
@@ -5262,6 +5270,21 @@ describe('agent_harness tool', () => {
           }[];
           readonly policy: string;
         };
+        readonly promptPlan: {
+          readonly status: string;
+          readonly promptActiveCount: number;
+          readonly suppressedCount: number;
+          readonly proposalCount: number;
+          readonly consolidationCount: number;
+          readonly promptActiveRecords: readonly { readonly id: string; readonly domain: string; readonly priority: number; readonly inspectRoute: string }[];
+          readonly reviewFirst: readonly { readonly candidateId: string; readonly status: string; readonly scores: { readonly risk: number }; readonly reviewRoute?: string }[];
+          readonly proposalQueue: readonly { readonly candidateId: string; readonly status: string; readonly createRoute?: string }[];
+          readonly consolidationQueue: readonly { readonly candidateId: string; readonly status: string; readonly updateRoute?: string }[];
+          readonly suppressed: { readonly needsReview: number; readonly needsSetup: number; readonly lowConfidence: number; readonly personalityIssues: number; readonly needsConsolidation: number };
+          readonly orderingRules: readonly string[];
+          readonly routes: { readonly memoryPosture: string; readonly curator: string; readonly candidate: string; readonly consolidation: string };
+          readonly policy: string;
+        };
         readonly candidates: readonly {
           readonly candidateId: string;
           readonly label: string;
@@ -5290,6 +5313,20 @@ describe('agent_harness tool', () => {
       expect(curator.summary.proposedBehavior).toBeGreaterThan(5);
       expect(curator.summary.needsConsolidation).toBeGreaterThan(0);
       expect(curator.policy).toContain('duplicate consolidation');
+      expect(curator.promptPlan.status).toBe('attention');
+      expect(curator.promptPlan.promptActiveCount).toBeGreaterThan(0);
+      expect(curator.promptPlan.suppressedCount).toBeGreaterThan(0);
+      expect(curator.promptPlan.proposalCount).toBeGreaterThan(0);
+      expect(curator.promptPlan.consolidationCount).toBeGreaterThan(0);
+      expect(curator.promptPlan.promptActiveRecords.some((record) => record.domain === 'persona')).toBe(true);
+      expect(curator.promptPlan.reviewFirst.some((candidate) => candidate.status === 'low-confidence' && candidate.scores.risk > 0)).toBe(true);
+      expect(curator.promptPlan.proposalQueue.some((candidate) => candidate.candidateId.includes('note-proposal') && candidate.createRoute !== undefined)).toBe(true);
+      expect(curator.promptPlan.consolidationQueue.some((candidate) => candidate.candidateId.includes('consolidation:skill'))).toBe(true);
+      expect(curator.promptPlan.suppressed.lowConfidence).toBeGreaterThan(0);
+      expect(curator.promptPlan.orderingRules.join('\n')).toContain('risk');
+      expect(curator.promptPlan.routes.memoryPosture).toContain('memory_posture');
+      expect(curator.promptPlan.routes.candidate).toContain('learning_candidate');
+      expect(curator.promptPlan.policy).toContain('read-only');
       expect(curator.consolidationBatch?.status).toBe('ready');
       expect(curator.consolidationBatch?.candidates).toBeGreaterThan(0);
       expect(curator.consolidationBatch?.duplicateRecords).toBeGreaterThan(0);
@@ -5392,6 +5429,13 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'memory-learning-curator' });
       expect(action.id).toBe('memory-learning-curator');
       expect(action.modelRoute).toBe('agent_harness mode:"learning_curator"');
+
+      const promptPlanAction = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'memory-prompt-plan' });
+      expect(promptPlanAction.id).toBe('memory-prompt-plan');
+      expect(promptPlanAction.modelRoute).toBe('agent_harness mode:"learning_curator" includeParameters:true');
 
       const projectContextAction = await executeHarnessJson<{
         readonly id: string;

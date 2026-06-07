@@ -212,6 +212,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
     || action.id === 'schedule-autonomy-queue'
   ) return 'agent_harness mode:"autonomy_queue"';
   if (action.id === 'memory-learning-curator') return 'agent_harness mode:"learning_curator"';
+  if (action.id === 'memory-prompt-plan') return 'agent_harness mode:"learning_curator" includeParameters:true';
   if (action.id === 'memory-posture') return 'agent_harness mode:"memory_posture"';
   if (action.command) return commandRouteHint(action.command);
   if (action.editorKind) return editorRouteHint(action.editorKind);
