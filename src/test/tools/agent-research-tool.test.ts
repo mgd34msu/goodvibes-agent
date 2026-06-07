@@ -61,6 +61,19 @@ describe('research adapter', () => {
     ]);
   });
 
+  test('routes browser-backed runner readiness to the detailed research workflow contract', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const tool = makeTool(calls);
+
+    await tool.execute({ action: 'runner' });
+    await tool.execute({ action: 'browser', query: 'authenticated market research', includeParameters: false });
+
+    expect(calls).toEqual([
+      { tool: 'agent_harness', mode: 'research_workflow', query: 'browser-backed research runner', includeParameters: true },
+      { tool: 'agent_harness', mode: 'research_workflow', query: 'authenticated market research', includeParameters: false },
+    ]);
+  });
+
   test('routes source bundle and confirmed writes to existing research tools', async () => {
     const calls: Record<string, unknown>[] = [];
     const tool = makeTool(calls);

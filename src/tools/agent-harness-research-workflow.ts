@@ -144,7 +144,8 @@ function browserRunnerContract(browser: ReturnType<typeof browserControlPosture>
       'No credential or page-content leakage outside bounded redacted source summaries.',
     ],
     setupRoutes: [
-      'execution action:"status" query:"browser research" includeParameters:true',
+      'computer action:"control" includeParameters:true',
+      'computer action:"setup" includeParameters:true',
       browser.setupRoute,
       ...browser.fallbackRoutes,
     ],

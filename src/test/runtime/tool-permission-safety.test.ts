@@ -103,6 +103,7 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('personal_ops', { action: 'lane' })).toBe('read');
     expect(manager.getCategory('personal_ops', { action: 'read' })).toBe('write');
     expect(manager.getCategory('research', { action: 'plan' })).toBe('read');
+    expect(manager.getCategory('research', { action: 'runner' })).toBe('read');
     expect(manager.getCategory('research', { action: 'bundle' })).toBe('read');
     expect(manager.getCategory('research', { action: 'create_run' })).toBe('write');
     expect(manager.getCategory('research', { action: 'report' })).toBe('write');
@@ -242,6 +243,7 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('personal_ops', { action: 'briefing' })).resolves.toBe(true);
     await expect(manager.check('personal_ops', { action: 'read' })).resolves.toBe(false);
     await expect(manager.check('research', { action: 'sources' })).resolves.toBe(true);
+    await expect(manager.check('research', { action: 'browser' })).resolves.toBe(true);
     await expect(manager.check('research', { action: 'review_source' })).resolves.toBe(false);
     await expect(manager.check('schedule', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('schedule', { action: 'run' })).resolves.toBe(false);

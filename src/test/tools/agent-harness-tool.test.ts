@@ -7717,6 +7717,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-compare')?.modelRoute).toBe('agent_model_compare');
       expect(allActionPayload.actions.find((entry) => entry.id === 'knowledge-ingest-url')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-workflow-plan')?.modelRoute).toBe('research action:"plan"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-runner-readiness')?.modelRoute).toBe('research action:"runner"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'work-background-processes')?.modelRoute).toBe('execution action:"processes"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'work-process-capabilities')?.modelRoute).toBe('process action:"capabilities"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-run-queue')?.modelRoute).toBe('research action:"runs"');

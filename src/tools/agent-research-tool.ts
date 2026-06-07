@@ -8,6 +8,7 @@ import { createAgentResearchSourcesTool } from './agent-research-sources-tool.ts
 
 type AgentResearchAction =
   | 'plan'
+  | 'runner'
   | 'runs'
   | 'run'
   | 'sources'
@@ -96,6 +97,7 @@ function normalizeResearchAction(value: unknown): AgentResearchAction | null {
   const action = readString(value).toLowerCase().replace(/-/g, '_');
   if (!action) return null;
   if (action === 'plan' || action === 'workflow' || action === 'research') return 'plan';
+  if (action === 'runner' || action === 'browser' || action === 'browser_runner' || action === 'browser_backed' || action === 'deep_research') return 'runner';
   if (action === 'runs' || action === 'list_runs' || action === 'run_list') return 'runs';
   if (action === 'run' || action === 'show_run' || action === 'inspect_run') return 'run';
   if (action === 'sources' || action === 'queue' || action === 'source_queue') return 'sources';
@@ -152,6 +154,15 @@ function runsArgs(args: AgentResearchToolArgs): Record<string, unknown> {
     query: args.query,
     limit: args.limit,
     includeParameters: args.includeParameters,
+  });
+}
+
+function runnerArgs(args: AgentResearchToolArgs): Record<string, unknown> {
+  return compactArgs({
+    mode: 'research_workflow',
+    query: args.query ?? args.target ?? 'browser-backed research runner',
+    runId: args.runId || args.id,
+    includeParameters: args.includeParameters ?? true,
   });
 }
 
@@ -314,6 +325,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
             type: 'string',
             enum: [
               'plan',
+              'runner',
               'runs',
               'run',
               'sources',
@@ -389,6 +401,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
       const action = readAction(args);
 
       if (action === 'plan') return harnessTool.execute(planArgs(args));
+      if (action === 'runner') return harnessTool.execute(runnerArgs(args));
       if (action === 'runs') return harnessTool.execute(runsArgs(args));
       if (action === 'run') return harnessTool.execute(runArgs(args));
       if (action === 'sources') return harnessTool.execute(sourcesArgs(args));
