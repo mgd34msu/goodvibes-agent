@@ -8,6 +8,7 @@ Product-facing release notes for GoodVibes Agent.
 - Added tool execution and permission safety guards so registered model tools return structured failures instead of aborting turns.
 - Added `route action:"plan|status"` and `agent_harness mode:"route_decision"` for read-only user-task route planning across visible Agent surfaces.
 - Added `setup action:"repair"` and `agent_harness mode:"setup_repair"` for read-only setup repair decisions that choose token repair, host status, services.status receipt, user-run bootstrap, or no lifecycle action without executing effects.
+- Added `execution action:"capabilities|process_capabilities"` so process parity, PTY, stdin, and sudo posture reports are reachable from the first-class execution tool.
 - Added `security action:"explain"` and `agent_harness mode:"policy_explain"` for read-only allowed/denied/confirmation-required policy explanations.
 - Added registered-tool smoke coverage for the Agent-guarded platform tool roster.
 

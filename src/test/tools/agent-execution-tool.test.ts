@@ -75,7 +75,7 @@ describe('execution adapter', () => {
 
     expect(calls).toEqual([
       { mode: 'background_processes', includeParameters: true },
-      { mode: 'background_processes' },
+      { mode: 'run_background_process', processAction: 'capabilities' },
       { mode: 'background_process', processId: 'proc-1' },
       { mode: 'background_process', processId: 'sess-1', includeParameters: true },
       { mode: 'background_process', processId: 'bg_123' },

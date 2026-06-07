@@ -9,6 +9,7 @@ type AgentExecutionAction =
   | 'history'
   | 'record'
   | 'processes'
+  | 'process_capabilities'
   | 'process'
   | 'recovery';
 
@@ -52,7 +53,8 @@ function normalizeExecutionAction(value: unknown): AgentExecutionAction | null {
   if (action === 'route' || action === 'show_route' || action === 'inspect_route' || action === 'execution_route') return 'route';
   if (action === 'history' || action === 'activity' || action === 'records' || action === 'execution_history') return 'history';
   if (action === 'record' || action === 'item' || action === 'show' || action === 'inspect' || action === 'execution_history_item') return 'record';
-  if (action === 'processes' || action === 'background' || action === 'backgrounds' || action === 'background_processes' || action === 'capabilities' || action === 'process_capabilities') return 'processes';
+  if (action === 'processes' || action === 'background' || action === 'backgrounds' || action === 'background_processes') return 'processes';
+  if (action === 'capabilities' || action === 'doctor' || action === 'parity' || action === 'process_capabilities' || action === 'process_doctor' || action === 'process_parity') return 'process_capabilities';
   if (action === 'process' || action === 'background_process') return 'process';
   if (action === 'recovery' || action === 'file_recovery' || action === 'undo_redo') return 'recovery';
   return null;
@@ -139,6 +141,13 @@ function processesArgs(args: AgentExecutionToolArgs): Record<string, unknown> {
   });
 }
 
+function processCapabilitiesArgs(): Record<string, unknown> {
+  return {
+    mode: 'run_background_process',
+    processAction: 'capabilities',
+  };
+}
+
 function processArgs(args: AgentExecutionToolArgs): Record<string, unknown> {
   return compactArgs({
     mode: 'background_process',
@@ -170,7 +179,7 @@ export function createAgentExecutionTool(deps: AgentExecutionToolDeps): Tool {
         properties: {
           action: {
             type: 'string',
-            enum: ['status', 'route', 'history', 'record', 'processes', 'process', 'recovery'],
+            enum: ['status', 'route', 'history', 'record', 'processes', 'process_capabilities', 'process', 'recovery', 'capabilities', 'doctor', 'parity'],
             description: 'Read-only execution posture, route, history, process, or recovery view.',
           },
           mode: { type: 'string', description: 'Alias for action.' },
@@ -203,6 +212,7 @@ export function createAgentExecutionTool(deps: AgentExecutionToolDeps): Tool {
       if (action === 'history') return harnessTool.execute(historyArgs(args));
       if (action === 'record') return harnessTool.execute(recordArgs(args));
       if (action === 'processes') return harnessTool.execute(processesArgs(args));
+      if (action === 'process_capabilities') return harnessTool.execute(processCapabilitiesArgs());
       if (action === 'process') return harnessTool.execute(processArgs(args));
       if (action === 'recovery') return harnessTool.execute(recoveryArgs(args));
 
