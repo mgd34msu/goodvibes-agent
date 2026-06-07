@@ -1,12 +1,14 @@
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import type { ShellPathService } from '@/runtime/index.ts';
 import {
   buildAgentChannelDeliveryPreview,
   deliverAgentChannelMessage,
   formatAgentChannelDeliveryPreview,
   formatAgentChannelDeliveryResult,
 } from '../agent/channel-delivery.ts';
+import { recordAgentChannelDeliveryReceipt } from '../agent/channel-delivery-receipts.ts';
 
 export interface AgentChannelSendToolArgs {
   readonly message?: unknown;
@@ -17,6 +19,10 @@ export interface AgentChannelSendToolArgs {
   readonly link?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
+}
+
+export interface AgentChannelSendToolOptions {
+  readonly shellPaths?: Pick<ShellPathService, 'resolveUserPath'>;
 }
 
 function readString(value: unknown): string | undefined {
@@ -37,6 +43,7 @@ function output(text: string): { readonly success: true; readonly output: string
 
 export function createAgentChannelSendTool(
   channelDeliveryRouter: Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>,
+  options: AgentChannelSendToolOptions = {},
 ): Tool {
   return {
     definition: {
@@ -111,7 +118,21 @@ export function createAgentChannelSendTool(
         ].join('\n'));
       }
       try {
-        return output(formatAgentChannelDeliveryResult(await deliverAgentChannelMessage(channelDeliveryRouter, input)));
+        const result = await deliverAgentChannelMessage(channelDeliveryRouter, input);
+        const lines = [formatAgentChannelDeliveryResult(result)];
+        if (options.shellPaths) {
+          try {
+            const receipt = recordAgentChannelDeliveryReceipt(options.shellPaths, {
+              source: 'model-tool',
+              deliveryInput: input,
+              result,
+            });
+            lines.push(`  receipt ${receipt.id}`);
+          } catch (receiptError) {
+            lines.push(`  receipt unavailable ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+          }
+        }
+        return output(lines.join('\n'));
       } catch (error) {
         return failure(error instanceof Error ? error.message : String(error));
       }
@@ -122,6 +143,7 @@ export function createAgentChannelSendTool(
 export function registerAgentChannelSendTool(
   registry: ToolRegistry,
   channelDeliveryRouter: Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>,
+  options: AgentChannelSendToolOptions = {},
 ): void {
-  registry.register(createAgentChannelSendTool(channelDeliveryRouter));
+  registry.register(createAgentChannelSendTool(channelDeliveryRouter, options));
 }

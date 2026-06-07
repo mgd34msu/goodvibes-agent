@@ -3,6 +3,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/channels';
+import { createShellPathService } from '@/runtime/index.ts';
+import { readAgentChannelDeliveryReceipts } from '../../agent/channel-delivery-receipts.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerChannelsRuntimeCommands } from '../../input/commands/channels-runtime.ts';
 
@@ -11,6 +13,8 @@ function channelContext(
   homeDirectory?: string,
   deliveryRequests?: ChannelDeliveryRequest[],
 ): { readonly context: CommandContext; readonly printed: string[] } {
+  const home = homeDirectory ?? mkdtempSync(join(tmpdir(), 'goodvibes-agent-channels-home-'));
+  const shellPaths = createShellPathService({ workingDirectory: home, homeDirectory: home });
   const values: Record<string, unknown> = {
     'controlPlane.host': '127.0.0.1',
     'controlPlane.port': 3421,
@@ -40,9 +44,7 @@ function channelContext(
       } : {}),
     },
     workspace: {
-      shellPaths: {
-        homeDirectory: homeDirectory ?? mkdtempSync(join(tmpdir(), 'goodvibes-agent-channels-home-')),
-      },
+      shellPaths,
     },
   } as unknown as CommandContext;
   return { context, printed };
@@ -281,5 +283,38 @@ describe('/channels command', () => {
     expect(deliveryRequests[0]?.title).toBe('Approvals');
     expect(printed.join('\n')).toContain('Agent channel delivery sent');
     expect(printed.join('\n')).toContain('delivery-response-1');
+    expect(printed.join('\n')).toContain('receipt channel-delivery-');
+
+    printed.length = 0;
+    await runChannels(['deliveries'], context);
+
+    const output = printed.join('\n');
+    expect(output).toContain('Channel Delivery Receipts');
+    expect(output).toContain('total 1');
+    expect(output).toContain('target=slack (route ops, label Ops)');
+    expect(output).toContain('response=delivery-response-1');
+    expect(output).not.toContain('xoxb-redacted-test-token');
+  });
+
+  test('delivery receipt history redacts webhook target values', async () => {
+    const deliveryRequests: ChannelDeliveryRequest[] = [];
+    const { context, printed } = channelContext({}, undefined, deliveryRequests);
+
+    await runChannels([
+      'send',
+      '--webhook',
+      'https://hooks.example.test/services/T000/B000/redacted-token',
+      '--message',
+      'Posting api_key=secret-value',
+      '--yes',
+    ], context);
+
+    const snapshot = readAgentChannelDeliveryReceipts(context.workspace.shellPaths);
+    expect(snapshot.receipts).toHaveLength(1);
+    expect(snapshot.receipts[0]?.target.display).toBe('webhook https://hooks.example.test/...');
+    expect(snapshot.receipts[0]?.messagePreview).toContain('api_key=[redacted]');
+    expect(JSON.stringify(snapshot)).not.toContain('redacted-token');
+    expect(JSON.stringify(snapshot)).not.toContain('secret-value');
+    expect(printed.join('\n')).toContain('receipt channel-delivery-');
   });
 });

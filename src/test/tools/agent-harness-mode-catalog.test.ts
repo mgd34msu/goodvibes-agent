@@ -142,6 +142,15 @@ describe('agent_harness mode catalog', () => {
     expect(context.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds channel delivery receipts by outcome wording', () => {
+    const deliveries = listHarnessModes({ query: 'channel delivery receipts sent outcomes', limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly summary: string }[];
+    };
+    const ids = deliveries.modes.map((mode) => mode.id);
+    expect(ids).toContain('channel_deliveries');
+    expect(deliveries.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds visible Agent orchestration by subagent and batch-spawn wording', () => {
     const orchestration = listHarnessModes({ query: 'subagent batch-spawn multi-agent cancellable agents', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

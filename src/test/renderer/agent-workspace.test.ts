@@ -1724,6 +1724,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Setup guide: 5/8 Choose target; Telegram.');
     expect(output).toContain('Next: Choose target - /channels show telegram');
     expect(output).toContain('Guide checks setup schema, accounts, allowlist policy, live status, and explicit test sends.');
+    expect(output).toContain('Delivery receipts: /channels deliveries');
     expect(output).toContain('Pair companion');
     expect(output).toContain('/pair');
     expect(output).toContain('Channel setup guide');
@@ -1738,6 +1739,8 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('/channels policies');
     expect(output).toContain('Live channel status');
     expect(output).toContain('/channels status');
+    expect(output).toContain('Delivery receipts');
+    expect(output).toContain('/channels deliveries');
     expect(output).toContain('Show channel detail');
     expect(output).toContain('edit channel-show');
     expect(output).toContain('Run channel doctor');

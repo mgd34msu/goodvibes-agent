@@ -1,6 +1,11 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/channels';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { createShellPathService } from '@/runtime/index.ts';
+import { readAgentChannelDeliveryReceipts } from '../../agent/channel-delivery-receipts.ts';
 import {
   createAgentChannelSendTool,
   registerAgentChannelSendTool,
@@ -67,6 +72,31 @@ describe('agent_channel_send tool', () => {
     expect(requests).toHaveLength(1);
     expect(requests[0]?.target).toMatchObject({ kind: 'surface', surfaceKind: 'slack', routeId: 'ops', label: 'Ops' });
     expect(requests[0]?.body).toBe('Review the approvals');
+  });
+
+  test('records a redacted receipt when shell paths are available', async () => {
+    const requests: ChannelDeliveryRequest[] = [];
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-channel-tool-receipts-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const tool = createAgentChannelSendTool(fakeRouter(requests), { shellPaths });
+
+    const result = await tool.execute({
+      message: 'Review token=super-secret-value before posting',
+      title: 'Webhook Delivery',
+      webhook: 'https://hooks.example.test/services/T000/B000/secret-token',
+      confirm: true,
+      explicitUserRequest: 'Send this webhook message.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('receipt channel-delivery-');
+    const snapshot = readAgentChannelDeliveryReceipts(shellPaths);
+    expect(snapshot.receipts).toHaveLength(1);
+    expect(snapshot.receipts[0]?.target.display).toBe('webhook https://hooks.example.test/...');
+    expect(snapshot.receipts[0]?.target.addressDigest).toBeTruthy();
+    expect(snapshot.receipts[0]?.messagePreview).toContain('token=[redacted]');
+    expect(JSON.stringify(snapshot)).not.toContain('secret-token');
+    expect(JSON.stringify(snapshot)).not.toContain('super-secret-value');
   });
 
   test('rejects ambiguous targets without sending', async () => {

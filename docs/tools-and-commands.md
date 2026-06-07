@@ -26,7 +26,7 @@ High-signal TUI routes:
 | `/vibe`, `/memory`, `/notes`, `/personas`, `/skills`, `/routines` | Manage VIBE.md personality and Agent-local behavior libraries. |
 | `/plan`, `/workplan` | Planning and durable visible work tracking. |
 | `/approval`, `/automation`, `/schedule` | Read posture and run exact confirmed operator actions. |
-| `/channels`, `/notify`, `/qrcode` | Pair companions, inspect channel readiness, and send confirmed messages. |
+| `/channels`, `/notify`, `/qrcode` | Pair companions, inspect channel readiness, review delivery receipts, and send confirmed messages. |
 | `/media`, `/voice`, `/tts` | Inspect media/voice readiness, generate media, and run spoken turns. |
 | `/mcp`, `/secrets`, `/settings`, `/config` | Inspect or update Agent-local configuration. |
 | `/delegate` | Hand explicit build/fix/review work to GoodVibes TUI with a confirmed handoff brief. |
@@ -52,7 +52,7 @@ High-signal TUI routes:
 | `agent_research_runs` | Create, checkpoint, pause, resume, cancel, complete, fail, list, and show log tails for project-local visible research run records. |
 | `agent_research_sources` | Capture, review, reject, mark used, list, and bundle project-local research source queue records. |
 | `agent_research_report` | Save one confirmed sourced markdown research report artifact with source map, citation coverage metadata, and repair hints. |
-| `agent_channel_send` | Send one confirmed channel message. |
+| `agent_channel_send` | Send one confirmed channel message and return a receipt id when receipt storage is available. |
 | `agent_notify` | Send one confirmed notification through configured webhook targets. |
 | `agent_autonomy_schedule` | Create one confirmed visible autonomous Agent schedule. |
 | `agent_reminder_schedule` | Create one confirmed connected reminder/schedule. |
@@ -75,7 +75,7 @@ Discovery modes:
 | `shortcuts`, `keybindings` | Fixed shortcuts and configurable keybindings with direct route/access metadata. |
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
-| `channels`, `notifications` | Channel readiness, ordered channel setup guide state, and redacted notification targets. |
+| `channels`, `channel_deliveries`, `notifications` | Channel readiness, ordered channel setup guide state, redacted confirmed-send receipts, and redacted notification targets. |
 | `project_context` | Secret-scanned `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, `HERMES_HOME/SOUL.md`, `.cursorrules`, and `.cursor/rules/*.mdc` files, including target-aware subdirectory context. |
 | `agent_orchestration` | Live visible Agent records, serial-by-default policy, spawn/batch-spawn decision cards, templates, and first-class `agent` routes for list/inspect/message/wait/cancel. |
 | `provider_accounts`, `model_routing`, `execution_posture`, `background_processes`, `background_process`, `run_background_process`, `execution_history`, `file_recovery` | Provider auth, provider/model route posture, readiness scores, hardware-scored local model cookbook with setup plans, confirmed benchmark action/history, local-vs-delegated execution routing, tracked local background process lifecycle, redacted execution records, and file edit recovery. |
@@ -247,7 +247,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/bookmarks` | List bookmarked transcript blocks. |
 | `/brief` | Show a concise Agent operator briefing and next actions. |
 | `/bundle` | Export, inspect, or import redacted Agent support bundles from the TUI. |
-| `/channels` | Inspect channel readiness or send one explicitly confirmed delivery message. |
+| `/channels` | Inspect channel readiness, delivery receipts, or send one explicitly confirmed delivery message. |
 | `/clear` | Clear the conversation display while keeping LLM context. |
 | `/collapse` | Collapse rendered blocks by type. |
 | `/commands` | Browse all commands in a scrollable list. |

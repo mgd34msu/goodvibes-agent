@@ -255,7 +255,7 @@ export async function initializeBootstrapCore(
   registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
   registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
-  registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter);
+  registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter, { shellPaths: services.shellPaths });
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLearningConsolidationTool(toolRegistry, services.shellPaths, services.memoryRegistry);
   registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);

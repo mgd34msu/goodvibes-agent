@@ -482,6 +482,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'channel-accounts', label: 'Channel accounts', detail: 'Inspect connected channel accounts without printing secret values or sending messages.', command: '/channels accounts', kind: 'command', safety: 'read-only' },
       { id: 'channel-policies', label: 'Channel policies', detail: 'Inspect channel delivery policy posture without changing routing.', command: '/channels policies', kind: 'command', safety: 'read-only' },
       { id: 'channel-status', label: 'Live channel status', detail: 'Inspect channel runtime status from the connected host without mutating state.', command: '/channels status', kind: 'command', safety: 'read-only' },
+      { id: 'channel-deliveries', label: 'Delivery receipts', detail: 'Inspect recent confirmed channel sends with message bodies and secret-bearing target values redacted.', command: '/channels deliveries', kind: 'command', safety: 'read-only' },
       { id: 'channel-show', label: 'Show channel detail', detail: 'Open a channel-id form for read-only readiness details.', editorKind: 'channel-show', kind: 'editor', safety: 'read-only' },
       { id: 'channel-doctor', label: 'Run channel doctor', detail: 'Open a channel-id form for read-only route diagnostics.', editorKind: 'channel-doctor', kind: 'editor', safety: 'read-only' },
       { id: 'channel-setup', label: 'Setup guidance', detail: 'Open a channel-id form for read-only setup guidance.', editorKind: 'channel-setup', kind: 'editor', safety: 'read-only' },

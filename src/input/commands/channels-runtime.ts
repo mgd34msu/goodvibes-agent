@@ -10,6 +10,11 @@ import {
   formatAgentChannelDeliveryPreview,
   formatAgentChannelDeliveryResult,
 } from '../../agent/channel-delivery.ts';
+import {
+  formatAgentChannelDeliveryReceiptLine,
+  readAgentChannelDeliveryReceipts,
+  recordAgentChannelDeliveryReceipt,
+} from '../../agent/channel-delivery-receipts.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 
 type ChannelFilter = 'all' | 'ready' | 'attention';
@@ -69,6 +74,13 @@ function readBoolean(record: JsonRecord, key: string, fallback = false): boolean
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function readLimitValue(value: string | undefined, fallback: number): number {
+  if (!value) return fallback;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(100, Math.trunc(parsed)));
+}
+
 function readRecordArray(record: JsonRecord, key: string): readonly JsonRecord[] {
   const value = record[key];
   return Array.isArray(value) ? value.filter(isRecord) : [];
@@ -124,6 +136,31 @@ function parseChannelSendArgs(args: readonly string[]): ChannelSendArgs {
     yes: parsed.yes,
     errors,
   };
+}
+
+function formatChannelDeliveryReceipts(context: CommandContext, limitArg?: string): string {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths) {
+    return [
+      'Channel Delivery Receipts',
+      '  status unavailable',
+      '  reason Agent shell paths are unavailable in this runtime.',
+    ].join('\n');
+  }
+  const limit = readLimitValue(limitArg, 10);
+  const snapshot = readAgentChannelDeliveryReceipts(shellPaths);
+  const receipts = snapshot.receipts.slice(0, limit);
+  return [
+    'Channel Delivery Receipts',
+    `  path ${snapshot.path}`,
+    `  total ${snapshot.receipts.length}`,
+    `  returned ${receipts.length}`,
+    `  status ${snapshot.parseError ? 'attention' : snapshot.exists ? 'ready' : 'empty'}`,
+    ...(snapshot.parseError ? [`  parse error ${snapshot.parseError}`] : []),
+    '  policy confirmed sends only; message bodies and secret-bearing target values are bounded or redacted',
+    ...receipts.map((receipt) => `  ${formatAgentChannelDeliveryReceiptLine(receipt)}`),
+    ...(receipts.length === 0 ? ['  no channel deliveries recorded yet'] : []),
+  ].join('\n');
 }
 
 function resolveChannelConnectedHostConnection(context: CommandContext): ChannelConnectedHostConnection {
@@ -450,8 +487,8 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
     name: 'channels',
     aliases: ['channel'],
     description: 'Inspect Agent channel readiness or send an explicitly confirmed delivery message',
-    usage: '[list|readiness|ready|attention|guide [id]|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
-    argsHint: 'list|readiness|ready|attention|guide|show|send|accounts|policies|status|doctor|setup',
+    usage: '[list|readiness|ready|attention|guide [id]|show <id>|deliveries [limit]|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
+    argsHint: 'list|readiness|ready|attention|guide|show|deliveries|send|accounts|policies|status|doctor|setup',
     async handler(args, ctx) {
       const channels = buildAgentWorkspaceChannels(ctx);
       const subcommand = (args[0] ?? 'readiness').trim().toLowerCase();
@@ -492,6 +529,11 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
+      if (subcommand === 'deliveries' || subcommand === 'receipts') {
+        ctx.print(formatChannelDeliveryReceipts(ctx, args[1]));
+        return;
+      }
+
       if (subcommand === 'send') {
         const router = ctx.platform.channelDeliveryRouter;
         if (!router) {
@@ -516,7 +558,21 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
           return;
         }
         try {
-          ctx.print(formatAgentChannelDeliveryResult(await deliverAgentChannelMessage(router, parsed)));
+          const result = await deliverAgentChannelMessage(router, parsed);
+          const lines = [formatAgentChannelDeliveryResult(result)];
+          if (ctx.workspace?.shellPaths) {
+            try {
+              const receipt = recordAgentChannelDeliveryReceipt(ctx.workspace.shellPaths, {
+                source: 'command',
+                deliveryInput: parsed,
+                result,
+              });
+              lines.push(`  receipt ${receipt.id}`);
+            } catch (receiptError) {
+              lines.push(`  receipt unavailable ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+            }
+          }
+          ctx.print(lines.join('\n'));
         } catch (error) {
           ctx.print(`[channels] Send failed ${error instanceof Error ? error.message : String(error)}`);
         }
@@ -553,7 +609,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      ctx.print('Usage: /channels [list|readiness|ready|attention|guide [id]|show <id>|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]');
+      ctx.print('Usage: /channels [list|readiness|ready|attention|guide [id]|show <id>|deliveries [limit]|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]');
     },
   });
 }

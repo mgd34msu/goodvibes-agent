@@ -33,6 +33,7 @@ import { createAgentReviewPacketShareTool } from '../../tools/agent-review-packe
 import { createAgentResearchRunsTool } from '../../tools/agent-research-runs-tool.ts';
 import { createAgentResearchSourcesTool } from '../../tools/agent-research-sources-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
+import { recordAgentChannelDeliveryReceipt } from '../../agent/channel-delivery-receipts.ts';
 import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
@@ -4660,6 +4661,39 @@ describe('agent_harness tool', () => {
       expect(channelGuide.guide.steps.find((step) => step.id === 'send-explicit-test')?.status).toBe('pending');
       expect(channelGuide.guide.policy).toContain('Read-only channel setup guide');
       expect(JSON.stringify(channelGuide)).not.toContain('telegram-secret-token');
+
+      recordAgentChannelDeliveryReceipt(fixture.paths, {
+        source: 'model-tool',
+        deliveryInput: {
+          message: 'Confirm api_key=super-secret-value',
+          webhook: 'https://hooks.example.test/services/T000/B000/secret-token',
+        },
+        result: {
+          message: 'Confirm api_key=super-secret-value',
+          title: 'Delivery Check',
+          target: { kind: 'webhook', address: 'https://hooks.example.test/services/T000/B000/secret-token' },
+          strategyCount: 1,
+          responseId: 'response-1',
+        },
+      });
+      const deliveries = await executeHarnessJson<{
+        readonly mode: string;
+        readonly total: number;
+        readonly receipts: readonly {
+          readonly receiptId: string;
+          readonly target: { readonly display: string; readonly addressDigest?: string };
+          readonly messagePreview: string;
+          readonly responseId: string | null;
+        }[];
+      }>(fixture, { mode: 'channel_deliveries' });
+      expect(deliveries.mode).toBe('channel_deliveries');
+      expect(deliveries.total).toBe(1);
+      expect(deliveries.receipts[0]?.target.display).toBe('webhook https://hooks.example.test/...');
+      expect(deliveries.receipts[0]?.target.addressDigest).toBeTruthy();
+      expect(deliveries.receipts[0]?.messagePreview).toContain('api_key=[redacted]');
+      expect(deliveries.receipts[0]?.responseId).toBe('response-1');
+      expect(JSON.stringify(deliveries)).not.toContain('secret-token');
+      expect(JSON.stringify(deliveries)).not.toContain('super-secret-value');
 
       const notifications = await executeHarnessJson<{
         readonly targets: readonly Record<string, unknown>[];

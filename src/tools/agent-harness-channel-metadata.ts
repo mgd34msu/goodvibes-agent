@@ -1,5 +1,6 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import type { AgentWorkspaceChannelStatus } from '../input/agent-workspace-channels.ts';
+import { readAgentChannelDeliveryReceipts } from '../agent/channel-delivery-receipts.ts';
 import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } from '../input/agent-workspace-channels.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -79,6 +80,10 @@ function channelSetupGuideModelRoute(channelId?: string): string {
     : 'agent_harness mode:"channel_setup_guide"';
 }
 
+function channelDeliveriesModelRoute(): string {
+  return 'agent_harness mode:"channel_deliveries"';
+}
+
 function describeChannel(
   channel: AgentWorkspaceChannelStatus,
   options: { readonly includeParameters?: boolean; readonly lookup?: Record<string, unknown> } = {},
@@ -138,7 +143,7 @@ export function channelReadinessCatalogStatus(context: CommandContext): Record<s
   const channels = buildAgentWorkspaceChannels(context);
   const guide = buildAgentWorkspaceChannelSetupGuide(channels);
   return {
-    modes: ['channels', 'channel', 'channel_setup_guide'],
+    modes: ['channels', 'channel', 'channel_setup_guide', 'channel_deliveries'],
     channels: channels.length,
     enabled: channels.filter((channel) => channel.enabled).length,
     ready: channels.filter((channel) => channel.ready).length,
@@ -152,6 +157,7 @@ export function channelReadinessCatalogStatus(context: CommandContext): Record<s
     },
     readOnly: true,
     deliveryTool: 'agent_channel_send',
+    deliveryReceipts: channelDeliveriesModelRoute(),
   };
 }
 
@@ -174,6 +180,7 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
       status: buildAgentWorkspaceChannelSetupGuide(channels).status,
       modelRoute: channelSetupGuideModelRoute(),
     },
+    deliveryReceipts: channelDeliveriesModelRoute(),
     policy: 'Read-only channel readiness catalog. It returns key names, setup state, delivery posture, and model routes without printing secrets or sending messages.',
   };
 }
@@ -275,5 +282,51 @@ export function describeHarnessChannelSetupGuide(context: CommandContext, args: 
   return {
     status: 'missing_lookup',
     usage: `Unknown channel setup guide target ${lookup.input}. Use mode:"channels" to inspect available channel ids.`,
+  };
+}
+
+export function describeHarnessChannelDeliveries(context: CommandContext, args: AgentHarnessChannelArgs): Record<string, unknown> {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths) {
+    return {
+      mode: 'channel_deliveries',
+      status: 'unavailable',
+      receipts: [],
+      policy: 'Read-only delivery receipts require Agent shell path context. Sends still require explicit confirmation.',
+      nextActions: ['Open a normal Agent workspace before relying on channel delivery receipts.'],
+    };
+  }
+  const limit = readLimit(args.limit, 20);
+  const snapshot = readAgentChannelDeliveryReceipts(shellPaths);
+  const receipts = snapshot.receipts.slice(0, limit).map((receipt) => ({
+    receiptId: receipt.id,
+    createdAt: receipt.createdAt,
+    source: receipt.source,
+    status: receipt.status,
+    target: receipt.target,
+    title: receipt.title,
+    messageLength: receipt.messageLength,
+    messageDigest: receipt.messageDigest,
+    messagePreview: receipt.messagePreview,
+    strategyCount: receipt.strategyCount,
+    responseId: receipt.responseId ?? null,
+    userRoute: receipt.userRoute,
+    modelRoute: receipt.modelRoute,
+    authorization: receipt.authorization,
+  }));
+  return {
+    mode: 'channel_deliveries',
+    status: snapshot.parseError ? 'attention' : snapshot.exists ? 'ready' : 'empty',
+    path: snapshot.path,
+    total: snapshot.receipts.length,
+    returned: receipts.length,
+    receipts,
+    routes: {
+      command: '/channels deliveries',
+      sendTool: 'agent_channel_send',
+      channels: 'agent_harness mode:"channels"',
+    },
+    ...(snapshot.parseError ? { parseError: snapshot.parseError } : {}),
+    policy: 'Read-only confirmed delivery history. Receipt targets redact webhook/link addresses, message bodies are bounded/redacted, and new sends still require explicit user confirmation.',
   };
 }
