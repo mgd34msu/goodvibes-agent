@@ -164,6 +164,18 @@ describe('agent_harness mode catalog', () => {
     expect(triage.modes.filter((mode) => mode.summary.length > 96)).toEqual([]);
   });
 
+  test('finds browser cockpit and PWA surface wording', () => {
+    const web = listHarnessModes({ query: 'web dashboard pwa browser cockpit', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly requiresConfirmation?: boolean; readonly summary: string }[];
+    };
+    const ids = web.modes.map((mode) => mode.id);
+    expect(ids).toContain('ui_surfaces');
+    expect(ids).toContain('ui_surface');
+    expect(ids).toContain('open_ui_surface');
+    expect(web.modes.find((mode) => mode.id === 'open_ui_surface')?.requiresConfirmation).toBe(true);
+    expect(web.modes.filter((mode) => mode.summary.length > 96)).toEqual([]);
+  });
+
   test('finds visible Agent orchestration by subagent and batch-spawn wording', () => {
     const orchestration = listHarnessModes({ query: 'subagent batch-spawn multi-agent cancellable agents', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

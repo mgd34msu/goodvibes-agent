@@ -5865,6 +5865,7 @@ describe('agent_harness tool', () => {
         || entry.modelRoute.length > 72
       ))).toEqual([]);
       expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-intake')?.modelRoute).toBe('agent_harness mode:"personal_ops_intake"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('agent_harness mode:"autonomy_queue"');
@@ -5893,6 +5894,11 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-artifact-file')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-artifact-package')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-promote-artifact')?.modelRoute).toBe('agent_knowledge_ingest');
+
+      const browserAction = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'assistant-browser-cockpit' });
+      expect(browserAction.success).toBe(true);
+      expect(browserAction.output).toContain('"surfaceId": "connected-browser-cockpit"');
+      expect(browserAction.output).toContain('service_endpoint');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-promote-knowledge')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
@@ -6659,6 +6665,11 @@ describe('agent_harness tool', () => {
       expect(operatorSurfaces.output).toContain('"id": "knowledge-panel"');
       expect(operatorSurfaces.output).toContain('"id": "subscription-panel"');
 
+      const browserSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'browser cockpit pwa' });
+      expect(browserSurfaces.success).toBe(true);
+      expect(browserSurfaces.output).toContain('"id": "connected-browser-cockpit"');
+      expect(browserSurfaces.output).toContain('"available": false');
+
       const activitySurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'activity' });
       expect(activitySurfaces.success).toBe(true);
       expect(activitySurfaces.output).toContain('"id": "process-monitor"');
@@ -6681,6 +6692,19 @@ describe('agent_harness tool', () => {
       expect(settingsJson.preferredModelRoute).toContain('mode:"settings", mode:"get_setting", mode:"set_setting", mode:"reset_setting"');
       expect(settingsJson.preferredModelRoute).not.toContain('settings/get_setting/set_setting/reset_setting');
       expectModelFacingText(settings.output);
+
+      const browserCockpit = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'connected-browser-cockpit' });
+      expect(browserCockpit.success).toBe(true);
+      const browserCockpitJson = JSON.parse(browserCockpit.output ?? '{}') as {
+        readonly id?: string;
+        readonly available?: boolean;
+        readonly cockpit?: { readonly enabled?: boolean; readonly url?: string; readonly setupRoutes?: Record<string, string> };
+      };
+      expect(browserCockpitJson.id).toBe('connected-browser-cockpit');
+      expect(browserCockpitJson.available).toBe(false);
+      expect(browserCockpitJson.cockpit?.enabled).toBe(false);
+      expect(browserCockpitJson.cockpit?.url).toBe('http://127.0.0.1:3423');
+      expect(browserCockpitJson.cockpit?.setupRoutes?.inspectEndpoint).toContain('endpointId:"web"');
 
       const settingsByQuery = await fixture.tool.execute({
         mode: 'ui_surface',
@@ -6736,6 +6760,17 @@ describe('agent_harness tool', () => {
         explicitUserRequest: 'Open the Knowledge workspace.',
       });
       expect(openedWorkspace.success).toBe(true);
+      expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'knowledge' });
+
+      const disabledBrowserCockpit = await fixture.tool.execute({
+        mode: 'open_ui_surface',
+        surfaceId: 'connected-browser-cockpit',
+        confirm: true,
+        explicitUserRequest: 'Open the connected browser cockpit.',
+      });
+      expect(disabledBrowserCockpit.success).toBe(true);
+      expect(disabledBrowserCockpit.output).toContain('"status": "setup_needed"');
+      expect(disabledBrowserCockpit.output).toContain('service_endpoint');
       expect(fixture.openedSurfaces.at(-1)).toEqual({ id: 'agent-workspace', detail: 'knowledge' });
 
       const openedPanelPicker = await fixture.tool.execute({

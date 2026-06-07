@@ -252,11 +252,11 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     bestInClassRequirement: 'The browser surface is not a secondary admin panel; it is a full user-grade assistant cockpit.',
     goodVibesStatus: 'partial',
     owners: ['connected-host', 'agent'],
-    goodVibesNow: 'GoodVibes host has web/control-plane foundations, while Agent remains terminal-first and treats browser hosting as external.',
+    goodVibesNow: 'GoodVibes host has web/control-plane foundations, and Agent now exposes the configured connected-host browser cockpit/PWA as a first-class visible UI surface plus Home workspace action. The route resolves `web.publicBaseUrl` or the web endpoint binding, requires explicit user confirmation before opening an external browser, and returns service/web setup routes when disabled instead of pretending a separate Agent web app exists. Agent remains terminal-first and the connected browser surface still needs deeper Agent workspace category coverage.',
     nextMoves: [
       'Expose Agent workspace categories through the connected browser surface.',
       'Add mobile-friendly chat, setup, automations, approvals, memory, and channel setup from the same contracts.',
-      'Make local browser opening part of first-run success when terminal UX is not enough.',
+      'Fold browser-cockpit readiness into first-run finish state once connected-host web receipts prove the route is ready.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'Gateway serves Control UI and WebChat, plus companion apps.' },

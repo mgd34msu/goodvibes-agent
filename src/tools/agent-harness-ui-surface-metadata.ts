@@ -1,5 +1,7 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import { resolveRuntimeEndpointBinding } from '../cli/endpoints.ts';
 import { openTtsProviderPicker, openTtsVoicePicker } from '../input/tts-settings-actions.ts';
+import { openExternalUrl } from '@pellux/goodvibes-sdk/platform/utils';
 
 type UiSurfaceKind = 'overlay' | 'modal' | 'workspace' | 'picker';
 
@@ -75,6 +77,36 @@ function opened(surface: UiSurfaceDefinition, extra: Record<string, unknown> = {
     kind: surface.kind,
     ...extra,
     note: 'UI routing was handed to the current Agent operator surface.',
+  };
+}
+
+function browserConnectHost(host: string): string {
+  if (host === '0.0.0.0' || host === '::') return '127.0.0.1';
+  if (host.includes(':') && !host.startsWith('[')) return `[${host}]`;
+  return host || '127.0.0.1';
+}
+
+function connectedBrowserCockpitRoute(context: CommandContext): Record<string, unknown> {
+  const enabled = context.platform.configManager.get('web.enabled') === true;
+  const binding = resolveRuntimeEndpointBinding(context.platform.configManager, 'web');
+  const publicBaseUrl = String(context.platform.configManager.get('web.publicBaseUrl') ?? '').trim();
+  const url = publicBaseUrl || `http://${browserConnectHost(binding.host)}:${binding.port}`;
+  return {
+    enabled,
+    url,
+    source: publicBaseUrl ? 'web.publicBaseUrl' : 'web endpoint binding',
+    endpoint: {
+      id: 'web',
+      binding,
+      settings: ['web.enabled', 'web.hostMode', 'web.host', 'web.port', 'web.publicBaseUrl'],
+    },
+    setupRoutes: {
+      inspectEndpoint: 'agent_harness mode:"service_endpoint" endpointId:"web" includeParameters:true',
+      servicePosture: 'agent_harness mode:"service_posture" includeParameters:true',
+      connectedHostStatus: 'agent_harness mode:"connected_host_status" includeParameters:true',
+      settings: 'agent_harness mode:"settings" query:"web" includeHidden:true',
+    },
+    policy: 'Opens the connected GoodVibes browser cockpit only after explicit user confirmation. Agent does not host a separate browser app or bypass connected-host setup.',
   };
 }
 
@@ -179,6 +211,41 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
       const categoryId = workspaceCategory(args);
       context.openAgentWorkspace(categoryId);
       return opened(surface, { categoryId: categoryId ?? 'default' });
+    },
+  },
+  {
+    id: 'connected-browser-cockpit',
+    label: 'Connected Browser Cockpit',
+    kind: 'workspace',
+    summary: 'Connected-host browser cockpit/PWA route.',
+    command: 'connected host web route',
+    preferredModelRoute: `Use ${agentHarnessModes('service_endpoint', 'service_posture', 'connected_host_status', 'settings')} to inspect or repair web readiness; use mode:"open_ui_surface" only to visibly open the configured cockpit URL.`,
+    available: (context) => context.platform.configManager.get('web.enabled') === true,
+    open: async (context) => {
+      const surface = findSurfaceById('connected-browser-cockpit')!;
+      const route = connectedBrowserCockpitRoute(context);
+      if (route.enabled !== true) {
+        return {
+          status: 'setup_needed',
+          surface: surface.id,
+          kind: surface.kind,
+          route,
+          note: 'The connected-host web endpoint is disabled. Inspect service posture or web settings before opening a browser cockpit.',
+        };
+      }
+      const url = typeof route.url === 'string' ? route.url : '';
+      const browserOpened = url ? await openExternalUrl(url) : false;
+      return browserOpened
+        ? opened(surface, { url, route, browserOpened })
+        : {
+          status: 'open_failed',
+          surface: surface.id,
+          kind: surface.kind,
+          url,
+          route,
+          browserOpened,
+          note: 'The configured browser cockpit URL was resolved, but the external browser opener did not report success.',
+        };
     },
   },
   {
@@ -630,7 +697,7 @@ function findSurfaceById(surfaceId: string): UiSurfaceDefinition | undefined {
 
 function surfaceMatches(surface: Record<string, unknown>, query: string): boolean {
   if (!query) return true;
-  return [
+  const haystack = [
     surface.id,
     surface.label,
     surface.kind,
@@ -638,7 +705,11 @@ function surfaceMatches(surface: Record<string, unknown>, query: string): boolea
     surface.command,
     surface.modelRoute,
     surface.preferredModelRoute,
-  ].map((value) => String(value ?? '')).join('\n').toLowerCase().includes(query.toLowerCase());
+  ].map((value) => String(value ?? '')).join('\n').toLowerCase();
+  const normalized = query.toLowerCase().trim();
+  if (haystack.includes(normalized)) return true;
+  const tokens = normalized.split(/[^a-z0-9]+/).filter((token) => token.length > 0);
+  return tokens.length > 0 && tokens.every((token) => haystack.includes(token));
 }
 
 function surfaceLookupFromArgs(args: AgentHarnessUiSurfaceArgs): { readonly source: UiSurfaceLookup['source']; readonly input: string } | null {
@@ -664,6 +735,8 @@ function surfaceCandidate(surface: UiSurfaceDefinition): Record<string, unknown>
 
 function uiSurfaceModelRoute(surface: UiSurfaceDefinition): string {
   switch (surface.id) {
+    case 'connected-browser-cockpit':
+      return 'agent_harness mode:"service_endpoint" or mode:"open_ui_surface"';
     case 'agent-workspace':
     case 'panel-picker':
     case 'security-panel':
@@ -738,6 +811,7 @@ function describeSurface(
     ...(options.lookup ? { lookup: options.lookup } : {}),
     modelRoute: uiSurfaceModelRoute(surface),
     available: surface.available(context),
+    ...(surface.id === 'connected-browser-cockpit' ? { cockpit: connectedBrowserCockpitRoute(context) } : {}),
     ...(options.includeParameters ? {
       preferredModelRoute: surface.preferredModelRoute,
       parameters: surface.parameters ?? [],

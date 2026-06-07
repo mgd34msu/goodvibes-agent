@@ -136,7 +136,7 @@ Registered model tool definitions are compact by default. Tool descriptions use 
 
 `panels` returns compact built-in panel rows with workspace route metadata and a short `modelRoute` for visible navigation or matching workspace operation. `panel` inspection adds policy detail and current open/focus state.
 
-`ui_surfaces` returns compact modal, picker, overlay, and workspace rows with a short `modelRoute`. `ui_surface` inspection and `includeParameters:true` add the longer `preferredModelRoute` and confirmation policy.
+`ui_surfaces` returns compact modal, picker, overlay, and workspace rows with a short `modelRoute`. `ui_surface` inspection and `includeParameters:true` add the longer `preferredModelRoute` and confirmation policy. The connected browser cockpit/PWA is `surfaceId:"connected-browser-cockpit"`; it resolves the configured connected-host web URL, opens only through confirmed `open_ui_surface`, and returns service/web setup routes when disabled.
 
 Execution routes:
 
