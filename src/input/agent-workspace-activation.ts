@@ -1,7 +1,7 @@
 import { createLearnedBehaviorEditor, createLocalEditor, createProfileEditor } from './agent-workspace-editors.ts';
 import { createAgentArtifactBrowserEditor, createAgentArtifactExportEditor, createAgentArtifactPackageEditor, createAgentArtifactPromoteKnowledgeEditor, createAgentArtifactShowEditor } from './agent-workspace-artifact-browser-editor.ts';
 import { createAgentDocumentAcceptSuggestionEditor, createAgentDocumentAttachArtifactEditor, createAgentDocumentBrowseEditor, createAgentDocumentCommentEditor, createAgentDocumentCreateEditor, createAgentDocumentExportEditor, createAgentDocumentInsertArtifactEditor, createAgentDocumentRejectSuggestionEditor, createAgentDocumentResolveCommentEditor, createAgentDocumentReviewEditor, createAgentDocumentShowEditor, createAgentDocumentSuggestEditor, createAgentDocumentUpdateEditor } from './agent-workspace-document-editor.ts';
-import { createAgentDocumentReviewerReadinessEditor, createAgentDocumentReviewPacketPresetEditor, createAgentDocumentReviewPacketPresetRefreshEditor, createAgentDocumentReviewPacketWizardEditor } from './agent-workspace-document-ops-editor.ts';
+import { createAgentDocumentReviewerReadinessEditor, createAgentDocumentReviewPacketPresetEditor, createAgentDocumentReviewPacketPresetRefreshEditor, createAgentDocumentReviewPacketShareEditor, createAgentDocumentReviewPacketWizardEditor } from './agent-workspace-document-ops-editor.ts';
 import { createAgentWorkspaceBasicCommandEditor, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { createAgentKnowledgeQueryEditor } from './agent-workspace-knowledge-query-editor.ts';
 import { createAgentLocalModelBenchmarkEditor, createAgentModelCompareAnalyticsEditor, createAgentModelCompareApplyEditor, createAgentModelCompareEditor, createAgentModelCompareExportEditor, createAgentModelCompareHandoffDiffEditor, createAgentModelCompareJudgmentEditor, createAgentModelCompareReviewEditor, createAgentModelCompareRouteDecisionEditor } from './agent-workspace-model-compare-editor.ts';
@@ -222,6 +222,7 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'document-review-packet-wizard') return createAgentDocumentReviewPacketWizardEditor();
   if (editorKind === 'document-review-packet-preset') return createAgentDocumentReviewPacketPresetEditor(options.reviewPacketDefaults ?? null);
   if (editorKind === 'document-review-packet-preset-refresh') return createAgentDocumentReviewPacketPresetRefreshEditor();
+  if (editorKind === 'document-review-packet-share') return createAgentDocumentReviewPacketShareEditor(options.reviewPacketDefaults ?? null);
   if (editorKind === 'model-compare') return createAgentModelCompareEditor();
   if (editorKind === 'local-model-benchmark') return createAgentLocalModelBenchmarkEditor();
   if (editorKind === 'model-compare-review') return createAgentModelCompareReviewEditor();

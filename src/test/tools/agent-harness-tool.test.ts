@@ -4,6 +4,7 @@ import { createServer, type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
+import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/channels';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { ProcessManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore, type MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
@@ -28,6 +29,7 @@ import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
 import { createAgentReviewPacketPresetsTool } from '../../tools/agent-review-packet-presets-tool.ts';
+import { createAgentReviewPacketShareTool } from '../../tools/agent-review-packet-share-tool.ts';
 import { createAgentResearchRunsTool } from '../../tools/agent-research-runs-tool.ts';
 import { createAgentResearchSourcesTool } from '../../tools/agent-research-sources-tool.ts';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
@@ -581,6 +583,16 @@ function registerStubTool(toolRegistry: ToolRegistry, name: string): void {
     execute: async () => ({ success: true, output: `${name} executed` }),
   };
   toolRegistry.register(tool);
+}
+
+function fakeChannelDeliveryRouter(requests: ChannelDeliveryRequest[]) {
+  return {
+    listStrategies: () => [{ id: 'fake-channel', canHandle: () => true, deliver: async () => ({}) }],
+    deliver: async (request: ChannelDeliveryRequest) => {
+      requests.push(request);
+      return 'harness-channel-response-1';
+    },
+  };
 }
 
 function readAuthorizationHeader(headers: HeadersInit | undefined): string | null {
@@ -4320,6 +4332,7 @@ describe('agent_harness tool', () => {
       expect(reviewPacketWizard?.status).toBe('attention');
       expect(reviewPacketWizard?.current).toContain('Draft review');
       expect(reviewPacketWizard?.actionIds).toContain('document-review-packet-wizard');
+      expect(reviewPacketWizard?.actionIds).toContain('document-share-review-packet');
       expect(reviewPacketWizard?.actionIds).toContain('document-export-draft');
       expect(reviewPacketWizard?.reviewPacketWizard?.currentStepLabel).toBe('Draft review');
       expect(reviewPacketWizard?.reviewPacketWizard?.steps.map((step) => step.id)).toContain('route-decision');
@@ -5086,6 +5099,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-save-review-packet-preset')?.modelRoute).toBe('agent_review_packet_presets');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-refresh-review-packet-preset')?.modelRoute).toBe('agent_review_packet_presets');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'document-share-review-packet')?.modelRoute).toBe('agent_review_packet_share');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-export-file')?.modelRoute).toBe('agent_artifacts');
@@ -7481,6 +7495,81 @@ describe('agent_harness tool', () => {
         documentExportArtifactId: newerDocExport.id,
         refreshOfArtifactId: savedPresetId ?? '',
       });
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('runs review packet share workspace editor through agent_review_packet_share', async () => {
+    const artifacts = createHarnessArtifactStore();
+    const channelRequests: ChannelDeliveryRequest[] = [];
+    const archive = await artifacts.store.create({
+      kind: 'archive',
+      mimeType: 'application/zip',
+      filename: 'launch-handoff-archive.zip',
+      text: 'zip-bytes-never-printed',
+      metadata: {
+        purpose: 'agent-model-compare-handoff-archive',
+        archiveId: 'hndarc_launch',
+        handoffArtifactId: 'artifact-handoff',
+        handoffId: 'hnd_launch',
+        sourceArtifactId: 'artifact-judgment',
+        sourceKind: 'judgment',
+        relatedArtifactIds: ['artifact-doc'],
+        routeDecisionArtifactIds: ['artifact-route'],
+        includedArtifactIds: ['artifact-handoff', 'artifact-judgment', 'artifact-doc', 'artifact-route'],
+        comparisonId: 'cmp_launch',
+        artifactCount: 4,
+        archiveBytes: 4096,
+        revealIncludedInHandoff: true,
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      fixture.toolRegistry.register(createAgentReviewPacketShareTool(
+        artifacts.store,
+        fakeChannelDeliveryRouter(channelRequests),
+      ));
+
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-share-review-packet',
+        confirm: true,
+        explicitUserRequest: 'Share the current review packet.',
+        fields: {
+          channel: 'slack:review:Review',
+          confirm: 'no',
+        },
+      });
+      expect(unconfirmed.success).toBe(true);
+      expect(unconfirmed.output).toContain('"status": "not_confirmed"');
+      expect(unconfirmed.output).toContain(archive.id);
+      expect(channelRequests).toEqual([]);
+
+      const shared = await fixture.tool.execute({
+        mode: 'run_workspace_action',
+        actionId: 'document-share-review-packet',
+        confirm: true,
+        explicitUserRequest: 'Share the current review packet with the review channel.',
+        fields: {
+          archiveArtifactId: archive.id,
+          title: 'Launch packet',
+          message: 'Please review the final packet.',
+          channel: 'slack:review:Review',
+          confirm: 'yes',
+        },
+      });
+      expect(shared.success).toBe(true);
+      expect(shared.output).toContain('"status": "executed_model_tool"');
+      expect(shared.output).toContain('"tool": "agent_review_packet_share"');
+      expect(shared.output).toContain('Agent review packet shared');
+      expect(shared.output).not.toContain('zip-bytes-never-printed');
+      const sharedPayload = JSON.parse(shared.output ?? '{}') as { readonly output?: string | null };
+      expect(sharedPayload.output).toContain('agent_artifacts mode:"export" artifactId:"artifact-1"');
+      expect(channelRequests).toHaveLength(1);
+      expect(channelRequests[0]?.body).toContain('Please review the final packet.');
+      expect(channelRequests[0]?.body).toContain('Archive: artifact-1');
+      expect(channelRequests[0]?.body).toContain('Included artifacts: 4');
     } finally {
       fixture.cleanup();
     }

@@ -36,6 +36,18 @@ export interface AgentDocumentReviewPacketPresetRefreshToolArgs {
   readonly explicitUserRequest: string;
 }
 
+export interface AgentDocumentReviewPacketShareToolArgs {
+  readonly archiveArtifactId: string;
+  readonly title?: string;
+  readonly message?: string;
+  readonly channel?: string;
+  readonly route?: string;
+  readonly webhook?: string;
+  readonly link?: string;
+  readonly confirm: boolean;
+  readonly explicitUserRequest: string;
+}
+
 export function createAgentDocumentReviewerReadinessEditor(): AgentWorkspaceLocalEditor {
   return {
     kind: 'document-reviewer-readiness',
@@ -105,6 +117,28 @@ export function createAgentDocumentReviewPacketPresetRefreshEditor(): AgentWorks
       { id: 'name', label: 'New preset name', value: '', required: false, multiline: false, hint: 'Optional. Defaults to the old preset name plus "refreshed".' },
       { id: 'summary', label: 'New summary', value: '', required: false, multiline: false, hint: 'Optional. Defaults to the old summary with stale ids replaced when possible.' },
       { id: 'confirm', label: 'Confirm refresh', value: 'no', required: true, multiline: false, hint: 'Type yes only after the user explicitly asks to refresh this packet preset.' },
+    ],
+  };
+}
+
+export function createAgentDocumentReviewPacketShareEditor(
+  defaults: AgentWorkspaceReviewPacketDefaults | null = null,
+): AgentWorkspaceLocalEditor {
+  return {
+    kind: 'document-review-packet-share',
+    mode: 'create',
+    title: 'Share Review Packet',
+    selectedFieldIndex: 0,
+    message: 'Share one saved reviewer handoff ZIP archive reference through a configured channel target. The tool validates the archive, includes packet evidence ids, and does not send ZIP bytes.',
+    fields: [
+      { id: 'archiveArtifactId', label: 'Archive artifact id', value: defaults?.handoffArchiveArtifactId ?? '', required: true, multiline: false, hint: defaults?.handoffArchiveArtifactId ? `Default from latest packet archive. Packet default: ${defaults.summary}.` : 'Saved reviewer handoff ZIP artifact id from the final archive step.' },
+      { id: 'title', label: 'Title', value: 'GoodVibes Agent review packet', required: false, multiline: false, hint: 'Optional delivery title.' },
+      { id: 'message', label: 'Message', value: '', required: false, multiline: true, hint: 'Optional note. The tool appends archive evidence, counts, ids, and export route automatically.' },
+      { id: 'channel', label: 'Channel target', value: '', required: false, multiline: false, hint: 'Optional surface[:route[:label]], such as slack:ops:Ops. Fill exactly one target field.' },
+      { id: 'route', label: 'Route target', value: '', required: false, multiline: false, hint: 'Optional route id or route:label. Fill exactly one target field.' },
+      { id: 'webhook', label: 'Webhook URL', value: '', required: false, multiline: false, hint: 'Optional http(s) webhook target. Fill exactly one target field.' },
+      { id: 'link', label: 'Link target', value: '', required: false, multiline: false, hint: 'Optional link delivery target. Fill exactly one target field.' },
+      { id: 'confirm', label: 'Confirm share', value: 'no', required: true, multiline: false, hint: 'Type yes only after the user explicitly asks to share this review packet.' },
     ],
   };
 }
@@ -197,6 +231,29 @@ export function buildAgentDocumentReviewPacketPresetRefreshToolArgs(
     artifactId: readField('artifactId').trim(),
     ...(name ? { name } : {}),
     ...(summary ? { summary } : {}),
+    confirm: isAffirmative(readField('confirm')),
+    explicitUserRequest,
+  };
+}
+
+export function buildAgentDocumentReviewPacketShareToolArgs(
+  readField: AgentWorkspaceFieldReader,
+  explicitUserRequest: string,
+): AgentDocumentReviewPacketShareToolArgs {
+  const title = optionalField(readField, 'title');
+  const message = optionalField(readField, 'message');
+  const channel = optionalField(readField, 'channel');
+  const route = optionalField(readField, 'route');
+  const webhook = optionalField(readField, 'webhook');
+  const link = optionalField(readField, 'link');
+  return {
+    archiveArtifactId: readField('archiveArtifactId').trim(),
+    ...(title ? { title } : {}),
+    ...(message ? { message } : {}),
+    ...(channel ? { channel } : {}),
+    ...(route ? { route } : {}),
+    ...(webhook ? { webhook } : {}),
+    ...(link ? { link } : {}),
     confirm: isAffirmative(readField('confirm')),
     explicitUserRequest,
   };
@@ -354,6 +411,59 @@ export function buildAgentDocumentReviewPacketPresetRefreshPromptSubmission(
       kind: 'guidance',
       title: 'Refresh review packet preset',
       detail: 'Submitted a confirmed preset-refresh request that saves a new local artifact from freshness recommendations.',
+      safety: 'safe',
+    },
+  };
+}
+
+export function buildAgentDocumentReviewPacketSharePromptSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  promptDispatchAvailable: boolean,
+): {
+  readonly kind: 'editor';
+  readonly editor: AgentWorkspaceLocalEditor;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} | {
+  readonly kind: 'prompt';
+  readonly prompt: string;
+  readonly status: string;
+  readonly actionResult: AgentWorkspaceActionResult;
+} {
+  if (!promptDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: {
+        ...editor,
+        message: 'Prompt dispatch is unavailable in this runtime. Use agent_harness mode:"run_workspace_action" with this editor schema.',
+      },
+      status: 'Prompt dispatch unavailable.',
+      actionResult: {
+        kind: 'error',
+        title: 'Prompt dispatch unavailable',
+        detail: 'This runtime cannot submit the review packet share from the workspace form.',
+        safety: 'safe',
+      },
+    };
+  }
+
+  const toolArgs = buildAgentDocumentReviewPacketShareToolArgs(
+    readField,
+    'Share this Document Ops review packet archive from the workspace form.',
+  );
+  return {
+    kind: 'prompt',
+    prompt: [
+      'Share a saved Document Ops reviewer packet archive with the `agent_review_packet_share` tool.',
+      `Use these share fields: ${JSON.stringify(toolArgs, null, 2)}.`,
+      'Only call the tool with confirm:true when the user explicitly asked GoodVibes Agent to share this packet. The tool validates the saved handoff archive, sends a plain-text archive reference through the configured target, and must not print or attach ZIP bytes.',
+    ].join('\n'),
+    status: 'Submitting review packet share.',
+    actionResult: {
+      kind: 'guidance',
+      title: 'Share review packet',
+      detail: 'Submitted a confirmed reviewer packet share request that sends a channel reference to the saved handoff archive.',
       safety: 'safe',
     },
   };

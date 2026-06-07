@@ -520,9 +520,10 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Review packet timeline');
     expect(output).toContain('Review packet wizard');
     expect(output).toContain('Refresh packet preset');
+    expect(output).toContain('Share review packet');
     expect(output).toContain('Review readiness preflight');
     expect(output).toContain('Export document artifact');
-    expect(output).toContain('Export saved artifact');
+    expect(workspace.actions.some((action) => action.id === 'document-export-artifact-file')).toBe(true);
     expect(workspace.actions.some((action) => action.id === 'document-export-artifact-package')).toBe(true);
     expect(output).toContain('review/side-by-side/judgment');
     expect(output).toContain('analytics/synthesis');

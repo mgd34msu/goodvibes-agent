@@ -49,6 +49,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent_notify: 'Send one confirmed plain-text notification.',
   agent_media_generate: 'Generate one confirmed image or video artifact.',
   agent_review_packet_presets: 'Save/list/refresh Document Ops packet presets.',
+  agent_review_packet_share: 'Share confirmed review packet archive reference.',
   agent_model_compare: 'Blind compare prompts/artifacts, review, route receipts, handoff, diff.',
 };
 

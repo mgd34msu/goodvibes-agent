@@ -436,7 +436,7 @@ function describeReviewPacketWizard(wizard: AgentWorkspaceReviewPacketWizard, in
     steps: wizard.steps
       .slice(0, includeParameters ? wizard.steps.length : 4)
       .map((step) => describeReviewPacketWizardStep(step, includeParameters)),
-    policy: 'The review packet wizard is read-only. It guides the user through existing document, comparison, handoff, route-decision, and archive routes; every write still requires the owning confirmed action.',
+    policy: 'The review packet wizard is read-only. It guides the user through existing document, comparison, handoff, route-decision, archive, and share routes; every write or external delivery still requires the owning confirmed action.',
   };
 }
 
@@ -770,6 +770,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       ],
       actionIds: existingActions([
         'document-review-packet-wizard',
+        'document-share-review-packet',
         'document-record-route-decision',
         ...snapshot.reviewPacketWizard.steps.map((step) => step.actionId),
       ], available),

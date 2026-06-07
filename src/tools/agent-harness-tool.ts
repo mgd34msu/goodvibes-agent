@@ -2,7 +2,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
 import { buildAgentArtifactBrowserToolArgs, buildAgentArtifactExportToolArgs, buildAgentArtifactPackageToolArgs, buildAgentArtifactPromoteKnowledgeToolArgs, buildAgentArtifactShowToolArgs } from '../input/agent-workspace-artifact-browser-editor.ts';
-import { buildAgentDocumentReviewerReadinessToolArgs, buildAgentDocumentReviewPacketPresetRefreshToolArgs, buildAgentDocumentReviewPacketPresetToolArgs, buildAgentDocumentReviewPacketWizardToolArgs } from '../input/agent-workspace-document-ops-editor.ts';
+import { buildAgentDocumentReviewerReadinessToolArgs, buildAgentDocumentReviewPacketPresetRefreshToolArgs, buildAgentDocumentReviewPacketPresetToolArgs, buildAgentDocumentReviewPacketShareToolArgs, buildAgentDocumentReviewPacketWizardToolArgs } from '../input/agent-workspace-document-ops-editor.ts';
 import { buildAgentDocumentToolArgs } from '../input/agent-workspace-document-editor.ts';
 import { buildAgentWorkspaceCommandEditorSubmission, isAgentWorkspaceCommandEditorKind } from '../input/agent-workspace-command-editor.ts';
 import { buildAgentModelCompareAnalyticsToolArgs, buildAgentModelCompareApplyToolArgs, buildAgentModelCompareExportToolArgs, buildAgentModelCompareHandoffDiffToolArgs, buildAgentModelCompareJudgmentToolArgs, buildAgentModelCompareReviewToolArgs, buildAgentModelCompareRouteDecisionToolArgs, buildAgentModelCompareToolArgs } from '../input/agent-workspace-model-compare-editor.ts';
@@ -720,6 +720,37 @@ async function runWorkspaceEditorAction(
       status: result.success ? 'executed_model_tool' : 'model_tool_failed',
       action: action.id,
       tool: 'agent_review_packet_presets',
+      output: result.output ?? null,
+      error: result.error ?? null,
+      modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+    });
+  }
+  if (editor.kind === 'document-review-packet-share') {
+    const confirmationError = requireConfirmedAction(args, 'Workspace review packet share');
+    if (confirmationError) return error(confirmationError);
+    const formConfirmation = fieldReader(editor, fields)('confirm').trim().toLowerCase();
+    if (formConfirmation !== 'yes' && formConfirmation !== 'true') {
+      return output({
+        status: 'not_confirmed',
+        action: action.id,
+        editor: describeWorkspaceEditor(editor),
+        modelExecution: describeWorkspaceEditorModelExecution(editor.kind),
+        note: 'Type yes in the editor confirmation field before sharing a review packet archive reference.',
+      });
+    }
+    const shareArgs = buildAgentDocumentReviewPacketShareToolArgs(
+      fieldReader(editor, fields),
+      readString(args.explicitUserRequest) || 'Share the Document Ops review packet archive from an Agent workspace action.',
+    );
+    const result = await deps.toolRegistry.execute(
+      'agent-harness-workspace-review-packet-share',
+      'agent_review_packet_share',
+      shareArgs as unknown as Record<string, unknown>,
+    );
+    return output({
+      status: result.success ? 'executed_model_tool' : 'model_tool_failed',
+      action: action.id,
+      tool: 'agent_review_packet_share',
       output: result.output ?? null,
       error: result.error ?? null,
       modelExecution: describeWorkspaceEditorModelExecution(editor.kind),

@@ -1,7 +1,7 @@
 import type { AgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
 import { buildAgentArtifactBrowserPromptSubmission, buildAgentArtifactExportPromptSubmission, buildAgentArtifactPackagePromptSubmission, buildAgentArtifactPromoteKnowledgePromptSubmission } from './agent-workspace-artifact-browser-editor.ts';
 import { buildAgentWorkspaceBasicCommandEditorSubmission, isAgentWorkspaceBasicCommandEditorKind } from './agent-workspace-basic-command-editors.ts';
-import { buildAgentDocumentReviewerReadinessPromptSubmission, buildAgentDocumentReviewPacketPresetPromptSubmission, buildAgentDocumentReviewPacketPresetRefreshPromptSubmission, buildAgentDocumentReviewPacketWizardPromptSubmission } from './agent-workspace-document-ops-editor.ts';
+import { buildAgentDocumentReviewerReadinessPromptSubmission, buildAgentDocumentReviewPacketPresetPromptSubmission, buildAgentDocumentReviewPacketPresetRefreshPromptSubmission, buildAgentDocumentReviewPacketSharePromptSubmission, buildAgentDocumentReviewPacketWizardPromptSubmission } from './agent-workspace-document-ops-editor.ts';
 import { buildAgentDocumentPromptSubmission } from './agent-workspace-document-editor.ts';
 import { buildAgentKnowledgeUrlEditorSubmission } from './agent-workspace-knowledge-url-editor.ts';
 import { buildAgentKnowledgeQueryEditorSubmission } from './agent-workspace-knowledge-query-editor.ts';
@@ -48,6 +48,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'document-review-packet-wizard'
   | 'document-review-packet-preset'
   | 'document-review-packet-preset-refresh'
+  | 'document-review-packet-share'
   | 'model-compare-review'
   | 'model-compare-handoff-diff'
   | 'model-compare-judge'
@@ -151,6 +152,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'document-review-packet-wizard'
     || kind === 'document-review-packet-preset'
     || kind === 'document-review-packet-preset-refresh'
+    || kind === 'document-review-packet-share'
     || kind === 'model-compare-review'
     || kind === 'model-compare-handoff-diff'
     || kind === 'model-compare-judge'
@@ -225,6 +227,9 @@ export function buildAgentWorkspaceCommandEditorSubmission(
   }
   if (editor.kind === 'document-review-packet-preset-refresh') {
     return buildAgentDocumentReviewPacketPresetRefreshPromptSubmission(editor, readField, promptDispatchAvailable);
+  }
+  if (editor.kind === 'document-review-packet-share') {
+    return buildAgentDocumentReviewPacketSharePromptSubmission(editor, readField, promptDispatchAvailable);
   }
   if (editor.kind === 'model-compare' || editor.kind === 'local-model-benchmark') {
     return buildAgentModelComparePromptSubmission(editor, readField, promptDispatchAvailable);

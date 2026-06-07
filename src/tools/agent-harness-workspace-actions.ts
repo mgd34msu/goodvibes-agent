@@ -138,6 +138,7 @@ function editorRouteHint(editorKind: AgentWorkspaceEditorKind): string {
     editorKind === 'document-review-packet-preset'
     || editorKind === 'document-review-packet-preset-refresh'
   ) return 'agent_review_packet_presets';
+  if (editorKind === 'document-review-packet-share') return 'agent_review_packet_share';
   if (editorKind.startsWith('document-')) return 'agent_documents';
   if (
     editorKind === 'artifact-browser'

@@ -191,6 +191,7 @@ export type AgentWorkspaceEditorKind =
   | 'channel-doctor'
   | 'channel-setup'
   | 'channel-send'
+  | 'document-review-packet-share'
   | 'session-save'
   | 'session-load'
   | 'session-rename'

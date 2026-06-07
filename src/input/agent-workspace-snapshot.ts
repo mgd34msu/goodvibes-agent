@@ -931,7 +931,7 @@ function buildReviewPacketWizard(
       ? `${current.label}: ${current.detail}`
       : 'Review packet wizard is complete; inspect the final archive and saved packet evidence.',
     finalReview: archiveReady
-      ? `Inspect final archive ${defaults.handoffArchiveArtifactId} and related evidence before sending or storing the packet.`
+      ? `Inspect final archive ${defaults.handoffArchiveArtifactId}, then use Documents & Compare -> Share review packet only after the user confirms the delivery target.`
       : 'Final evidence review stays pending until a reviewer handoff ZIP archive exists.',
     steps,
   };

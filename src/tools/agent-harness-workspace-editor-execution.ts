@@ -191,6 +191,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action saves one new local preset artifact from an existing preset freshness recommendation. It keeps the source preset intact and does not mutate document drafts, model routing, reviewer handoffs, or handoff archives.',
     };
   }
+  if (editorKind === 'document-review-packet-share') {
+    return {
+      route: 'agent_review_packet_share',
+      tool: 'agent_review_packet_share',
+      action: 'share_review_packet_archive_reference',
+      confirmation: 'required',
+      note: 'run_workspace_action validates one saved reviewer handoff archive and sends a plain-text archive reference through a configured channel target. It does not print or attach ZIP bytes; exact bytes stay behind artifact export routes.',
+    };
+  }
   if (editorKind === 'model-compare' || editorKind === 'local-model-benchmark') {
     return {
       route: 'agent_model_compare',

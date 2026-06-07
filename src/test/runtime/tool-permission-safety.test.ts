@@ -56,6 +56,7 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'show' })).toBe('read');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'save' })).toBe('write');
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
+    expect(manager.getCategory('agent_review_packet_share')).toBe('delegate');
     expect(manager.getCategory('unknown_tool')).toBe('delegate');
   });
 
@@ -74,6 +75,7 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('agent_review_packet_presets', { mode: 'refresh' })).toBe('write');
     expect(manager.getCategory('exec')).toBe('execute');
     expect(manager.getCategory('agent_channel_send')).toBe('delegate');
+    expect(manager.getCategory('agent_review_packet_share')).toBe('delegate');
   });
 
   test('allows read-only fallback tools and denies side-effecting fallback tools without throwing', async () => {
@@ -99,6 +101,7 @@ describe('Agent tool permission safety guard', () => {
     expect(fallbackPermissionCategory('agent_knowledge')).toBe('read');
     expect(fallbackPermissionCategory('agent_artifacts')).toBe('write');
     expect(fallbackPermissionCategory('agent_review_packet_presets')).toBe('write');
+    expect(fallbackPermissionCategory('agent_review_packet_share')).toBe('delegate');
     expect(fallbackPermissionCategory('agent_work_plan')).toBe('write');
     expect(fallbackPermissionCategory('unknown_tool')).toBe('delegate');
   });
