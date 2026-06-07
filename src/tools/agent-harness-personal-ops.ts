@@ -1,4 +1,5 @@
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
+import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
@@ -21,6 +22,10 @@ interface AgentHarnessPersonalOpsArgs {
   readonly query?: unknown;
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
+  readonly recordId?: unknown;
+  readonly fields?: unknown;
+  readonly confirm?: unknown;
+  readonly explicitUserRequest?: unknown;
 }
 
 interface OperatorContractMethod {
@@ -165,6 +170,11 @@ export type PersonalOpsLaneResolution =
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
   | { readonly status: 'missing_lookup'; readonly usage: string };
 
+export type PersonalOpsReadRunResult =
+  | { readonly status: 'missing_lookup'; readonly usage: string; readonly examples: readonly string[] }
+  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
+  | Record<string, unknown>;
+
 const LANE_IDS: readonly PersonalOpsLaneId[] = ['inbox', 'calendar', 'notes', 'tasks', 'reminders', 'routines', 'delivery'];
 
 function readString(value: unknown): string {
@@ -242,6 +252,12 @@ function mcpSchemaReader(context: CommandContext): ((qualifiedName: string) => P
   const api = context.clients?.mcpApi ?? context.extensions?.mcpRegistry;
   if (!api || typeof (api as { readonly getToolSchema?: unknown }).getToolSchema !== 'function') return null;
   return (qualifiedName) => (api as { getToolSchema: (qualifiedName: string) => Promise<McpToolSchema | null> }).getToolSchema(qualifiedName);
+}
+
+function mcpToolCaller(context: CommandContext): ((qualifiedName: string, input: Readonly<Record<string, unknown>>) => Promise<unknown>) | null {
+  const api = context.clients?.mcpApi ?? context.extensions?.mcpRegistry;
+  if (!api || typeof (api as { readonly callTool?: unknown }).callTool !== 'function') return null;
+  return (qualifiedName, input) => (api as { callTool: (qualifiedName: string, input: Readonly<Record<string, unknown>>) => Promise<unknown> }).callTool(qualifiedName, input);
 }
 
 function qualifiedToolName(tool: McpToolRecord): string {
@@ -1301,6 +1317,19 @@ function liveRecordById(lane: PersonalOpsLane, recordId: string): PersonalOpsLiv
   return lane.liveRecords?.find((record) => record.id === recordId) ?? null;
 }
 
+function liveRecordSearchText(record: PersonalOpsLiveRecord): string {
+  return [
+    record.id,
+    record.label,
+    record.status,
+    record.summary,
+    record.modelRoute,
+    record.qualifiedName ?? '',
+    record.capability ?? '',
+    record.tags?.join('\n') ?? '',
+  ].join('\n').toLowerCase();
+}
+
 function workflowMissingFields(lane: PersonalOpsLane, workflow: PersonalOpsWorkflow, operation?: PersonalOpsConnectorTool): readonly string[] | undefined {
   if (workflow.status === 'needs-setup') return [`configured ${lane.id === 'inbox' ? 'email' : lane.id} connector or daemon method`];
   if (workflow.status === 'attention') return ['connector trust/schema freshness'];
@@ -1459,6 +1488,114 @@ function recordOperationSummary(record: PersonalOpsLiveRecord | null, includePar
     ...(includeParameters && record.sampleInput ? { sampleInput: record.sampleInput } : {}),
     confirmationRequired: record.confirmationRequired === true,
   };
+}
+
+function redactedPersonalOpsText(value: string): string {
+  return value
+    .replace(/(Authorization:\s*Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1<redacted>')
+    .replace(/\b([A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTHORIZATION|BEARER)[A-Z0-9_]*)\s*[:=]\s*("[^"]*"|'[^']*'|[^\s,;}]+)/gi, '$1=<redacted>')
+    .replace(/(\b(?:api[-_]?key|token|secret|password|passwd|authorization|credential)\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,;}]+)/gi, '$1<redacted>')
+    .replace(/\b(xox[baprs]-[A-Za-z0-9-]{8,})\b/g, '<redacted-token>');
+}
+
+function stringifyForPreview(value: unknown): string {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return String(value);
+  }
+}
+
+function boundedPersonalOpsResult(value: unknown, includeParameters: boolean): Record<string, unknown> {
+  const text = redactedPersonalOpsText(stringifyForPreview(value));
+  const max = includeParameters ? 6000 : 1600;
+  return {
+    format: typeof value,
+    characters: text.length,
+    truncated: text.length > max,
+    preview: text.length <= max ? text : `${text.slice(0, max).trimEnd()}...`,
+    redaction: 'Secret-looking tokens, API keys, credentials, passwords, and bearer values are redacted before model display.',
+  };
+}
+
+function fieldInputValue(value: string, sample: unknown): unknown {
+  if (typeof sample === 'number') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  }
+  if (typeof sample === 'boolean') return /^(1|true|yes|y)$/i.test(value.trim());
+  if (Array.isArray(sample)) return value.split(',').map((entry) => entry.trim()).filter(Boolean);
+  return value;
+}
+
+function readInputFields(value: unknown, sampleInput?: Readonly<Record<string, unknown>>): Readonly<Record<string, unknown>> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const fields: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (entry === undefined || entry === null) continue;
+    const text = typeof entry === 'string' ? entry.trim() : String(entry).trim();
+    if (!text) continue;
+    fields[key] = fieldInputValue(text, sampleInput?.[key]);
+  }
+  return fields;
+}
+
+function missingRequiredInputFields(record: PersonalOpsLiveRecord, fields: Readonly<Record<string, unknown>>): readonly string[] {
+  return (record.requiredFields ?? []).filter((field) => !(field in fields) || fields[field] === '');
+}
+
+function executionRouteForRecord(record: PersonalOpsLiveRecord, laneId: PersonalOpsLaneId): string {
+  return `agent_harness mode:"run_personal_ops_read" laneId:"${laneId}" recordId:"${record.id}" fields:{...} confirm:true explicitUserRequest:"..."`;
+}
+
+function summarizeRunRecord(record: PersonalOpsLiveRecord, lane: PersonalOpsLane, includeParameters: boolean): Record<string, unknown> {
+  return {
+    laneId: lane.id,
+    recordId: record.id,
+    label: record.label,
+    status: record.status,
+    effect: record.effect ?? 'read-only',
+    capability: record.capability,
+    modelRoute: record.modelRoute,
+    ...(record.qualifiedName ? { qualifiedName: record.qualifiedName } : {}),
+    ...(includeParameters && record.requiredFields ? { requiredFields: record.requiredFields } : {}),
+    ...(includeParameters && record.optionalFields ? { optionalFields: record.optionalFields.slice(0, 12) } : {}),
+    ...(includeParameters && record.sampleInput ? { sampleInput: record.sampleInput } : {}),
+  };
+}
+
+function resolveRunRecord(
+  lanes: readonly PersonalOpsLane[],
+  options: { readonly laneId: string; readonly recordId: string; readonly target: string; readonly query: string },
+): { readonly lane: PersonalOpsLane; readonly record: PersonalOpsLiveRecord } | null | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] } {
+  const scopedLanes = options.laneId ? lanes.filter((lane) => lane.id === options.laneId) : lanes;
+  const lookup = options.recordId || options.target || options.query;
+  if (!lookup) return null;
+  const normalized = lookup.toLowerCase();
+  const exact = scopedLanes.flatMap((lane) => (lane.liveRecords ?? [])
+    .filter((record) => record.id === lookup || record.qualifiedName === lookup)
+    .map((record) => ({ lane, record })));
+  if (exact.length === 1) return exact[0]!;
+  if (exact.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup,
+      candidates: exact.map(({ lane, record }) => summarizeRunRecord(record, lane, false)),
+    };
+  }
+  const matches = scopedLanes.flatMap((lane) => (lane.liveRecords ?? [])
+    .filter((record) => liveRecordSearchText(record).includes(normalized))
+    .map((record) => ({ lane, record })));
+  if (matches.length === 1) return matches[0]!;
+  if (matches.length > 1) {
+    return {
+      status: 'ambiguous',
+      input: lookup,
+      candidates: matches.slice(0, 8).map(({ lane, record }) => summarizeRunRecord(record, lane, false)),
+    };
+  }
+  return null;
 }
 
 function toolPreferenceScore(tool: PersonalOpsConnectorTool, preferredTokens: readonly string[]): number {
@@ -1850,7 +1987,7 @@ export function personalOpsCatalogStatus(context: CommandContext): Record<string
     return acc;
   }, { ready: 0, partial: 0, 'needs-setup': 0, gap: 0 });
   return {
-    modes: ['personal_ops', 'personal_ops_lane', 'personal_ops_intake'],
+    modes: ['personal_ops', 'personal_ops_lane', 'personal_ops_intake', 'run_personal_ops_read'],
     lanes: lanes.length,
     ...counts,
     workflows: workflows.length,
@@ -1918,6 +2055,117 @@ export async function personalOpsIntakeSummary(context: CommandContext, args: Ag
     laneRoute: `agent_harness mode:"personal_ops_lane" laneId:"${preferred.laneId}"`,
     policy: 'Personal Ops intake is read-only. It chooses the safest visible lane and route; live personal-data reads must use reviewed connector or daemon routes, and every send, edit, schedule, or external effect still requires explicit confirmation.',
   };
+}
+
+export async function runPersonalOpsRead(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Promise<PersonalOpsReadRunResult> {
+  const includeParameters = args.includeParameters === true;
+  const tools = await mcpToolRecords(context);
+  const lanes = buildLanes(context, {
+    toolsByServer: toolsByServer(tools),
+    schemasByQualifiedName: await mcpToolSchemas(context, tools),
+  });
+  const resolved = resolveRunRecord(lanes, {
+    laneId: readString(args.laneId),
+    recordId: readString(args.recordId),
+    target: readString(args.target),
+    query: readString(args.query),
+  });
+  if (!resolved) {
+    return {
+      status: 'missing_lookup',
+      usage: 'run_personal_ops_read requires laneId plus recordId, target, or query for one read-only inbox/calendar connector operation.',
+      examples: [
+        'agent_harness mode:"personal_ops_intake" query:"Triage my unread email." includeParameters:true',
+        'agent_harness mode:"run_personal_ops_read" laneId:"inbox" recordId:"mcp:gmail-inbox:gmail.search_messages" fields:{"query":"is:unread newer_than:7d"} confirm:true explicitUserRequest:"Triage my unread inbox."',
+      ],
+    };
+  }
+  if (!('lane' in resolved)) return resolved;
+
+  const { lane, record } = resolved;
+  const runRoute = executionRouteForRecord(record, lane.id);
+  const fields = readInputFields(args.fields, record.sampleInput);
+  const recordSummary = summarizeRunRecord(record, lane, includeParameters);
+
+  if (record.status !== 'ready') {
+    return {
+      status: 'blocked',
+      reason: 'connector_not_ready',
+      record: recordSummary,
+      next: 'Repair connector trust, connection, or schema freshness before reading live personal data.',
+      inspectRoutes: [record.modelRoute, `agent_harness mode:"personal_ops_lane" laneId:"${lane.id}"`],
+      policy: 'Personal Ops never reads personal provider data from attention or setup-needed connectors.',
+    };
+  }
+  if (record.effect !== 'read-only') {
+    return {
+      status: 'blocked',
+      reason: 'not_read_only',
+      record: recordSummary,
+      next: 'Use the returned confirmed-effect route only after the user reviews the intended provider mutation.',
+      policy: 'run_personal_ops_read refuses send, edit, label, archive, delete, move, create, RSVP, and reschedule operations.',
+    };
+  }
+  if (!record.qualifiedName) {
+    return {
+      status: 'blocked',
+      reason: 'missing_qualified_tool',
+      record: recordSummary,
+      next: 'Inspect the connector schema or lane operation records until a qualified MCP tool name is available.',
+    };
+  }
+  const missingFields = missingRequiredInputFields(record, fields);
+  if (missingFields.length > 0) {
+    return {
+      status: 'missing_fields',
+      record: recordSummary,
+      missingFields,
+      sampleInput: record.sampleInput ?? {},
+      runRoute,
+      policy: 'Required fields must be supplied by the user or an explicit intake plan; placeholder sample values are never executed silently.',
+    };
+  }
+  if (!readString(args.explicitUserRequest) || args.confirm !== true) {
+    return {
+      status: 'needs_confirmation',
+      record: recordSummary,
+      inputPreview: fields,
+      runRoute,
+      policy: 'Reading live personal inbox/calendar data requires confirm:true and explicitUserRequest. Write-like provider effects are not supported by this route.',
+    };
+  }
+  const callTool = mcpToolCaller(context);
+  if (!callTool) {
+    return {
+      status: 'unavailable',
+      reason: 'mcp_call_tool_unavailable',
+      record: recordSummary,
+      next: 'Use MCP tool discovery and connector setup until the runtime publishes callTool for this Agent session.',
+    };
+  }
+
+  try {
+    const result = await callTool(record.qualifiedName, fields);
+    return {
+      status: 'executed',
+      record: recordSummary,
+      input: fields,
+      output: boundedPersonalOpsResult(result, includeParameters),
+      followUp: [
+        'Summarize or draft only in the Agent transcript.',
+        'Ask for explicit confirmation before any send, label, archive, delete, calendar edit, RSVP, or reschedule route.',
+      ],
+      policy: 'This route executed one selected read-only MCP connector tool and returned bounded, redacted output for review.',
+    };
+  } catch (error) {
+    return {
+      status: 'failed',
+      record: recordSummary,
+      input: fields,
+      error: previewHarnessText(redactedPersonalOpsText(summarizeError(error)), 320),
+      policy: 'Connector failures are reported as reviewable errors; no fallback personal data is fabricated.',
+    };
+  }
 }
 
 export async function describePersonalOpsLane(context: CommandContext, args: AgentHarnessPersonalOpsArgs): Promise<PersonalOpsLaneResolution> {

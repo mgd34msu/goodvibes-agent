@@ -2695,7 +2695,9 @@ describe('agent_harness tool', () => {
         getToolSchema?: (qualifiedName: string) => Promise<{
           readonly inputSchema?: unknown;
         } | null>;
+        callTool?: (qualifiedName: string, input: Readonly<Record<string, unknown>>) => Promise<unknown>;
       };
+      const mcpToolCalls: Array<{ readonly qualifiedName: string; readonly input: Readonly<Record<string, unknown>> }> = [];
       mcpApi.listServerSecurity = () => [
         {
           name: 'filesystem',
@@ -2831,6 +2833,19 @@ describe('agent_harness tool', () => {
           };
         }
         return null;
+      };
+      mcpApi.callTool = async (qualifiedName, input) => {
+        mcpToolCalls.push({ qualifiedName, input });
+        if (qualifiedName === 'mcp:gmail-inbox:gmail.search_messages') {
+          return {
+            content: [{
+              type: 'text',
+              text: 'Subject: Quarterly planning\nFrom: lead@example.test\nBody: unblock proposal review. token=SECRET123 password=hunter2',
+            }],
+            structuredContent: { messages: 1 },
+          };
+        }
+        throw new Error(`Unexpected MCP tool call: ${qualifiedName}`);
       };
 
       const ops = await executeHarnessJson<{
@@ -3033,6 +3048,84 @@ describe('agent_harness tool', () => {
       expect(calendarIntake.preferred.executionPlan?.[0]?.routeKind).toBe('setup');
       expect(calendarIntake.preferred.executionPlan?.[0]?.policy).toContain('schema freshness');
       expect(calendarIntake.preferred.nextSteps.join('\n')).toContain('Repair connector trust');
+
+      const missingRead = await executeHarnessJson<{
+        readonly status: string;
+        readonly missingFields?: readonly string[];
+        readonly sampleInput?: Record<string, unknown>;
+        readonly runRoute?: string;
+      }>(fixture, {
+        mode: 'run_personal_ops_read',
+        laneId: 'inbox',
+        recordId: 'mcp:gmail-inbox:gmail.search_messages',
+        includeParameters: true,
+      });
+      expect(missingRead.status).toBe('missing_fields');
+      expect(missingRead.missingFields).toEqual(['query']);
+      expect(missingRead.sampleInput?.query).toBe('is:unread newer_than:7d');
+      expect(missingRead.runRoute).toContain('run_personal_ops_read');
+      expect(mcpToolCalls).toHaveLength(0);
+
+      const unconfirmedRead = await executeHarnessJson<{
+        readonly status: string;
+        readonly inputPreview?: Record<string, unknown>;
+        readonly policy?: string;
+      }>(fixture, {
+        mode: 'run_personal_ops_read',
+        laneId: 'inbox',
+        recordId: 'mcp:gmail-inbox:gmail.search_messages',
+        fields: { query: 'is:unread newer_than:7d' },
+      });
+      expect(unconfirmedRead.status).toBe('needs_confirmation');
+      expect(unconfirmedRead.inputPreview?.query).toBe('is:unread newer_than:7d');
+      expect(unconfirmedRead.policy).toContain('live personal inbox/calendar data');
+      expect(mcpToolCalls).toHaveLength(0);
+
+      const executedRead = await executeHarnessJson<{
+        readonly status: string;
+        readonly record?: { readonly qualifiedName?: string };
+        readonly input?: Record<string, unknown>;
+        readonly output?: { readonly preview: string; readonly truncated: boolean; readonly redaction: string };
+        readonly followUp?: readonly string[];
+      }>(fixture, {
+        mode: 'run_personal_ops_read',
+        laneId: 'inbox',
+        recordId: 'mcp:gmail-inbox:gmail.search_messages',
+        fields: { query: 'is:unread newer_than:7d', limit: '2', unreadOnly: 'true' },
+        confirm: true,
+        explicitUserRequest: 'Triage my unread inbox.',
+        includeParameters: true,
+      });
+      expect(executedRead.status).toBe('executed');
+      expect(executedRead.record?.qualifiedName).toBe('mcp:gmail-inbox:gmail.search_messages');
+      expect(executedRead.input?.limit).toBe(2);
+      expect(executedRead.input?.unreadOnly).toBe(true);
+      expect(executedRead.output?.preview).toContain('Quarterly planning');
+      expect(executedRead.output?.preview).toContain('token=<redacted>');
+      expect(executedRead.output?.preview).toContain('password=<redacted>');
+      expect(executedRead.output?.preview).not.toContain('SECRET123');
+      expect(executedRead.followUp?.join('\n')).toContain('explicit confirmation');
+      expect(mcpToolCalls).toEqual([{
+        qualifiedName: 'mcp:gmail-inbox:gmail.search_messages',
+        input: { query: 'is:unread newer_than:7d', limit: 2, unreadOnly: true },
+      }]);
+
+      const blockedWrite = await executeHarnessJson<{
+        readonly status: string;
+        readonly reason?: string;
+        readonly policy?: string;
+      }>(fixture, {
+        mode: 'run_personal_ops_read',
+        laneId: 'inbox',
+        recordId: 'mcp:gmail-inbox:gmail.send_reply',
+        fields: { threadId: 'thread-1', body: 'Reviewed reply.' },
+        confirm: true,
+        explicitUserRequest: 'Send the reviewed reply.',
+      });
+      expect(blockedWrite.status).toBe('blocked');
+      expect(blockedWrite.reason).toBe('not_read_only');
+      expect(blockedWrite.policy).toContain('refuses send');
+      expect(mcpToolCalls).toHaveLength(1);
 
       const lane = await executeHarnessJson<{
         readonly id: string;
