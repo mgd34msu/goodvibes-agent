@@ -2595,6 +2595,7 @@ describe('agent_harness tool', () => {
         laneId: 'inbox',
         sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
         reviewRecordCount: 2,
+        reviewLabels: ['Escalation follow-up', 'Weekly planning'],
         fullRawConnectorOutputStored: false,
       },
     });
@@ -2617,6 +2618,7 @@ describe('agent_harness tool', () => {
             readonly capability?: string;
             readonly artifactId?: string;
             readonly reviewRecordCount?: number;
+            readonly reviewLabels?: readonly string[];
             readonly sourceTool?: string;
           }[];
         }[];
@@ -2630,12 +2632,14 @@ describe('agent_harness tool', () => {
       expect(savedReview?.label).toContain('Saved inbox review');
       expect(savedReview?.status).toBe('ready');
       expect(savedReview?.summary).toContain('2 normalized review cards');
+      expect(savedReview?.summary).toContain('Escalation follow-up');
       expect(savedReview?.modelRoute).toContain('agent_artifacts show artifactId:"artifact-1"');
       expect(savedReview?.tags).toContain('saved-review');
       expect(savedReview?.effect).toBe('read-only');
       expect(savedReview?.capability).toBe('inbox-review-artifact');
       expect(savedReview?.artifactId).toBe('artifact-1');
       expect(savedReview?.reviewRecordCount).toBe(2);
+      expect(savedReview?.reviewLabels).toEqual(['Escalation follow-up', 'Weekly planning']);
       expect(savedReview?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
     } finally {
       fixture.cleanup();
@@ -3225,6 +3229,9 @@ describe('agent_harness tool', () => {
         sourceRecordId: 'mcp:gmail-inbox:gmail.search_messages',
         sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
         reviewRecordCount: 1,
+        reviewLabels: ['Quarterly planning'],
+        reviewKinds: ['inbox-message'],
+        reviewRecordIds: ['msg-1'],
         fullRawConnectorOutputStored: false,
       });
       const savedArtifact = await artifactStore.store.readContent('artifact-1');
@@ -3266,6 +3273,7 @@ describe('agent_harness tool', () => {
           readonly capability?: string;
           readonly artifactId?: string;
           readonly reviewRecordCount?: number;
+          readonly reviewLabels?: readonly string[];
           readonly sourceTool?: string;
         }[];
       }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox' });
@@ -3278,6 +3286,7 @@ describe('agent_harness tool', () => {
       expect(savedReviewRecord?.capability).toBe('inbox-review-artifact');
       expect(savedReviewRecord?.artifactId).toBe('artifact-1');
       expect(savedReviewRecord?.reviewRecordCount).toBe(1);
+      expect(savedReviewRecord?.reviewLabels).toEqual(['Quarterly planning']);
       expect(savedReviewRecord?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
       expect(lane.connectorSignals?.[0]?.modelRoute).toContain('mcp_server');
       expect(lane.connectorSignals?.[0]?.readTools?.[0]?.name).toBe('gmail.get_thread');

@@ -98,6 +98,7 @@ interface PersonalOpsLiveRecord {
   readonly confirmationRequired?: boolean;
   readonly artifactId?: string;
   readonly reviewRecordCount?: number;
+  readonly reviewLabels?: readonly string[];
   readonly sourceTool?: string;
 }
 
@@ -782,6 +783,7 @@ function describeLiveRecord(record: PersonalOpsLiveRecord, includeParameters: bo
     ...(includeParameters && typeof record.confirmationRequired === 'boolean' ? { confirmationRequired: record.confirmationRequired } : {}),
     ...(includeParameters && record.artifactId ? { artifactId: record.artifactId } : {}),
     ...(includeParameters && typeof record.reviewRecordCount === 'number' ? { reviewRecordCount: record.reviewRecordCount } : {}),
+    ...(includeParameters && record.reviewLabels && record.reviewLabels.length > 0 ? { reviewLabels: record.reviewLabels } : {}),
     ...(includeParameters && record.sourceTool ? { sourceTool: record.sourceTool } : {}),
   };
 }
@@ -940,6 +942,17 @@ function artifactMetadataNumber(artifact: ArtifactDescriptor, key: string): numb
   return null;
 }
 
+function artifactMetadataStringArray(artifact: ArtifactDescriptor, key: string): readonly string[] {
+  const value = artifactMetadata(artifact)[key];
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+      .map((entry) => previewHarnessText(redactedPersonalOpsText(entry.trim()), 120));
+  }
+  if (typeof value === 'string' && value.trim()) return [previewHarnessText(redactedPersonalOpsText(value.trim()), 120)];
+  return [];
+}
+
 function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly ArtifactDescriptor[] {
   const store = context.platform.artifactStore;
   if (!store?.list) return [];
@@ -961,6 +974,7 @@ function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 'calend
 function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly PersonalOpsLiveRecord[] {
   return savedReviewArtifacts(context, laneId).map((artifact) => {
     const reviewRecordCount = artifactMetadataNumber(artifact, 'reviewRecordCount') ?? 0;
+    const reviewLabels = artifactMetadataStringArray(artifact, 'reviewLabels').slice(0, 5);
     const sourceTool = artifactMetadataString(artifact, 'sourceTool') || artifactMetadataString(artifact, 'sourceRecordId');
     const createdAt = typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt)
       ? new Date(artifact.createdAt).toISOString()
@@ -974,6 +988,7 @@ function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | '
       status: 'ready',
       summary: [
         `${countText} saved for later review.`,
+        reviewLabels.length > 0 ? `Items ${reviewLabels.slice(0, 3).join('; ')}.` : '',
         sourceTool ? `Source ${sourceTool}.` : '',
         createdAt ? `Saved ${createdAt}.` : '',
         'Use the artifact route to reopen redacted cards before summary, draft, or promotion work.',
@@ -986,6 +1001,7 @@ function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | '
       confirmationRequired: false,
       artifactId: artifact.id,
       reviewRecordCount,
+      ...(reviewLabels.length > 0 ? { reviewLabels } : {}),
       ...(sourceTool ? { sourceTool } : {}),
     };
   });
@@ -1425,6 +1441,7 @@ function liveRecordSearchText(record: PersonalOpsLiveRecord): string {
     record.qualifiedName ?? '',
     record.capability ?? '',
     record.artifactId ?? '',
+    record.reviewLabels?.join('\n') ?? '',
     record.sourceTool ?? '',
     record.tags?.join('\n') ?? '',
   ].join('\n').toLowerCase();
@@ -1734,6 +1751,19 @@ function personalOpsReadReviewRecords(
   }];
 }
 
+function reviewRecordFieldValues(records: readonly Record<string, unknown>[], names: readonly string[], limit: number): readonly string[] {
+  const values: string[] = [];
+  const seen = new Set<string>();
+  for (const record of records) {
+    const value = previewHarnessText(redactedPersonalOpsText(stringField(record, names)), 120);
+    if (!value || seen.has(value.toLowerCase())) continue;
+    seen.add(value.toLowerCase());
+    values.push(value);
+    if (values.length >= limit) break;
+  }
+  return values;
+}
+
 async function savePersonalOpsReviewArtifact(options: {
   readonly context: CommandContext;
   readonly lane: PersonalOpsLane;
@@ -1755,6 +1785,9 @@ async function savePersonalOpsReviewArtifact(options: {
   const safeTitle = previewHarnessText(options.title || `${options.lane.label} review cards`, 96)
     .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '') || 'personal-ops-review';
+  const reviewLabels = reviewRecordFieldValues(options.reviewRecords, ['label', 'subject', 'title', 'summary'], 5);
+  const reviewKinds = reviewRecordFieldValues(options.reviewRecords, ['kind'], 5);
+  const reviewRecordIds = reviewRecordFieldValues(options.reviewRecords, ['id'], 8);
   const payload = {
     version: 1,
     createdAt,
@@ -1780,6 +1813,9 @@ async function savePersonalOpsReviewArtifact(options: {
       sourceRecordId: options.sourceRecord.id,
       sourceTool: options.sourceRecord.qualifiedName ?? '',
       reviewRecordCount: options.reviewRecords.length,
+      reviewLabels,
+      reviewKinds,
+      reviewRecordIds,
       fullRawConnectorOutputStored: false,
     },
   });
