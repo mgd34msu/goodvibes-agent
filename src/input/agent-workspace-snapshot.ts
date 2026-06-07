@@ -4,6 +4,7 @@ import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifact
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from './command-registry.ts';
 import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
+import { AgentDocumentRegistry, type AgentDocumentRecord } from '../agent/document-registry.ts';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { formatAgentRecordOrigin } from '../agent/record-labels.ts';
 import { AgentRoutineRegistry, evaluateAgentRoutineReadiness, type AgentRoutineRecord } from '../agent/routine-registry.ts';
@@ -31,6 +32,7 @@ import type {
   AgentWorkspaceLocalLibraryItem,
   AgentWorkspaceRecentReviewerHandoffArtifact,
   AgentWorkspaceResearchRunSummary,
+  AgentWorkspaceReviewerReadinessBadge,
   AgentWorkspaceRoutineScheduleReceiptSummary,
   AgentWorkspaceRuntimeProfileItem,
   AgentWorkspaceRuntimeSnapshot,
@@ -206,6 +208,20 @@ function isReviewerHandoffArtifact(artifact: ArtifactDescriptor): boolean {
   return (artifact.filename ?? '').startsWith('blind-model-comparison-handoff-');
 }
 
+function isModelCompareArtifact(artifact: ArtifactDescriptor): boolean {
+  const purpose = readArtifactMetadataString(artifact.metadata, 'purpose');
+  if (purpose === 'agent-model-compare') return true;
+  if (purpose.length > 0) return false;
+  return (artifact.filename ?? '').startsWith('blind-model-comparison-cmp_');
+}
+
+function isModelCompareJudgmentArtifact(artifact: ArtifactDescriptor): boolean {
+  const purpose = readArtifactMetadataString(artifact.metadata, 'purpose');
+  if (purpose === 'agent-model-compare-judgment') return true;
+  if (purpose.length > 0) return false;
+  return (artifact.filename ?? '').startsWith('blind-model-comparison-judgment-');
+}
+
 function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWorkspaceRecentReviewerHandoffArtifact {
   const metadata = artifact.metadata;
   return {
@@ -217,6 +233,82 @@ function summarizeReviewerHandoffArtifact(artifact: ArtifactDescriptor): AgentWo
     sourceArtifactId: readArtifactMetadataString(metadata, 'sourceArtifactId') || '(missing source)',
     sourceKind: readArtifactMetadataString(metadata, 'sourceKind') || 'unknown',
     relatedArtifactCount: readArtifactMetadataStringList(metadata, 'relatedArtifactIds').length,
+  };
+}
+
+function readDocumentDrafts(context: CommandContext): readonly AgentDocumentRecord[] {
+  try {
+    const shellPaths = context.workspace?.shellPaths;
+    if (!shellPaths) return [];
+    return AgentDocumentRegistry.fromShellPaths(shellPaths).list();
+  } catch {
+    return [];
+  }
+}
+
+function reviewerReadinessBadge(
+  documents: readonly AgentDocumentRecord[],
+  artifacts: readonly ArtifactDescriptor[],
+  artifactListAvailable: boolean,
+): AgentWorkspaceReviewerReadinessBadge {
+  const reviewDocuments = documents.filter((document) => document.status !== 'archived');
+  const openComments = reviewDocuments.reduce((total, document) => total + document.comments.filter((comment) => comment.status === 'open').length, 0);
+  const proposedSuggestions = reviewDocuments.reduce((total, document) => total + document.suggestions.filter((suggestion) => suggestion.status === 'proposed').length, 0);
+  const documentsMissingSourceArtifacts = reviewDocuments.filter((document) => document.attachments.length === 0 && !document.lastArtifactId).length;
+  const comparisons = artifacts.filter(isModelCompareArtifact);
+  const judgments = artifacts.filter(isModelCompareJudgmentArtifact);
+  const handoffs = artifacts.filter(isReviewerHandoffArtifact);
+  const revealedJudgments = judgments.filter((artifact) => (
+    artifact.metadata.revealIncludedInJudgment === true
+    && readArtifactMetadataString(artifact.metadata, 'winnerModel').length > 0
+  ));
+  const hiddenJudgments = judgments.filter((artifact) => (
+    artifact.metadata.revealIncludedInJudgment !== true
+    || readArtifactMetadataString(artifact.metadata, 'winnerModel').length === 0
+  ));
+  const revealedComparisonIds = new Set(revealedJudgments.map((artifact) => readArtifactMetadataString(artifact.metadata, 'comparisonId')).filter(Boolean));
+  const unrevealedComparisons = comparisons.filter((artifact) => {
+    const comparisonId = readArtifactMetadataString(artifact.metadata, 'comparisonId');
+    return artifact.metadata.revealIncludedInTranscript !== true && (!comparisonId || !revealedComparisonIds.has(comparisonId));
+  });
+  const comparisonSourceMissing = comparisons.filter((artifact) => (
+    !readArtifactMetadataString(artifact.metadata, 'sourceArtifactId')
+    && !readArtifactMetadataString(artifact.metadata, 'documentId')
+  )).length;
+  const missingSourceArtifacts = documentsMissingSourceArtifacts + comparisonSourceMissing;
+  const handoffsMissingRelatedArtifacts = handoffs.filter((artifact) => readArtifactMetadataStringList(artifact.metadata, 'relatedArtifactIds').length === 0).length;
+  const issueCount = openComments
+    + proposedSuggestions
+    + missingSourceArtifacts
+    + unrevealedComparisons.length
+    + hiddenJudgments.length
+    + revealedJudgments.length
+    + handoffsMissingRelatedArtifacts;
+  const next = !artifactListAvailable
+    ? 'Artifact listing is unavailable; run Review readiness preflight before export, archive, or route update.'
+    : openComments + proposedSuggestions > 0
+      ? 'Resolve open comments or accept/reject proposed suggestions before exporting reviewer packets.'
+      : missingSourceArtifacts > 0
+        ? 'Attach source artifacts or related evidence before export, handoff, or archive.'
+        : unrevealedComparisons.length + hiddenJudgments.length > 0
+          ? 'Reveal comparison/judgment identity before applying a model route or final reviewer handoff.'
+          : revealedJudgments.length > 0
+            ? 'Apply the revealed winner or explicitly leave routing unchanged before archiving.'
+            : handoffsMissingRelatedArtifacts > 0
+              ? 'Recreate reviewer handoffs with related evidence before ZIP archive.'
+              : 'Reviewer readiness preflight is clear for export, handoff archive, or route update.';
+  return {
+    status: !artifactListAvailable ? 'needs-setup' : issueCount > 0 ? 'attention' : 'ready',
+    summary: `${issueCount} issue(s): ${openComments} comment(s), ${proposedSuggestions} suggestion(s), ${missingSourceArtifacts} source/evidence gap(s), ${unrevealedComparisons.length + hiddenJudgments.length} hidden comparison item(s), ${revealedJudgments.length} route decision(s), ${handoffsMissingRelatedArtifacts} handoff evidence gap(s).`,
+    next,
+    issueCount,
+    openComments,
+    proposedSuggestions,
+    missingSourceArtifacts,
+    unrevealedComparisons: unrevealedComparisons.length,
+    hiddenJudgments: hiddenJudgments.length,
+    revealedJudgments: revealedJudgments.length,
+    handoffsMissingRelatedArtifacts,
   };
 }
 
@@ -426,10 +518,20 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, planned: 0, running: 0, paused: 0, blocked: 0, terminal: 0, items: [] };
     }
   })();
+  const artifactListSnapshot = (() => {
+    try {
+      const list = context.platform?.artifactStore?.list;
+      return {
+        available: Boolean(list),
+        items: [...(list?.(100) ?? [])],
+      };
+    } catch {
+      return { available: false, items: [] };
+    }
+  })();
   const recentReviewerHandoffs = (() => {
     try {
-      const artifacts = [...(context.platform?.artifactStore?.list?.(50) ?? [])];
-      const handoffs = artifacts
+      const handoffs = artifactListSnapshot.items
         .filter(isReviewerHandoffArtifact)
         .sort((left, right) => right.createdAt - left.createdAt);
       return {
@@ -440,6 +542,11 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, items: [] };
     }
   })();
+  const reviewerBadge = reviewerReadinessBadge(
+    readDocumentDrafts(context),
+    artifactListSnapshot.items,
+    artifactListSnapshot.available,
+  );
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
   const profileBaseHome = inferRuntimeProfileBaseHome(context.workspace?.shellPaths?.homeDirectory ?? '');
   const runtimeProfiles = (() => {
@@ -696,6 +803,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     researchRuns: researchRunSnapshot.items,
     recentReviewerHandoffArtifactCount: recentReviewerHandoffs.count,
     recentReviewerHandoffArtifacts: recentReviewerHandoffs.items,
+    reviewerReadinessBadge: reviewerBadge,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

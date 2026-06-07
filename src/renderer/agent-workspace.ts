@@ -314,6 +314,53 @@ function reviewerHandoffArtifactLine(snapshot: AgentWorkspaceRuntimeSnapshot): C
   };
 }
 
+function reviewerReadinessBadgeColor(status: AgentWorkspaceRuntimeSnapshot['reviewerReadinessBadge']['status']): string {
+  if (status === 'ready') return PALETTE.good;
+  if (status === 'attention') return PALETTE.warn;
+  return PALETTE.warn;
+}
+
+function reviewerReadinessBadgeLabel(status: AgentWorkspaceRuntimeSnapshot['reviewerReadinessBadge']['status']): string {
+  if (status === 'ready') return 'ready';
+  if (status === 'attention') return 'attention';
+  return 'setup needed';
+}
+
+function reviewerReadinessContextLines(editor: AgentWorkspaceLocalEditor, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
+  if (!snapshot) return [];
+  if (
+    editor.kind !== 'document-export'
+    && editor.kind !== 'model-compare-export'
+    && editor.kind !== 'model-compare-apply'
+  ) {
+    return [];
+  }
+  const badge = snapshot.reviewerReadinessBadge;
+  const reportKind = editor.kind === 'model-compare-export'
+    ? editor.fields.find((field) => field.id === 'reportKind')?.value.trim().toLowerCase()
+    : '';
+  const scope = editor.kind === 'document-export'
+    ? 'Document export'
+    : editor.kind === 'model-compare-apply'
+      ? 'Route apply'
+      : reportKind === 'archive' || reportKind === 'handoffarchive'
+        ? 'Handoff archive'
+        : reportKind === 'handoff'
+          ? 'Reviewer handoff'
+          : 'Compare export';
+  return [
+    {
+      text: `${scope} readiness: ${reviewerReadinessBadgeLabel(badge.status)} - ${badge.summary}`,
+      fg: reviewerReadinessBadgeColor(badge.status),
+      bold: badge.status !== 'ready',
+    },
+    {
+      text: `Preflight next: ${compactText(badge.next, 110)}`,
+      fg: badge.status === 'ready' ? PALETTE.good : PALETTE.info,
+    },
+  ];
+}
+
 function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCategory, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {
   if (!snapshot) return [{ text: 'Runtime context is not loaded yet.', fg: PALETTE.warn }];
   const base: ContextLine[] = [];
@@ -570,6 +617,7 @@ function editorContextLines(editor: AgentWorkspaceLocalEditor, snapshot: AgentWo
       { text: compactText(selected.hint), fg: PALETTE.muted },
     );
   }
+  lines.push(...reviewerReadinessContextLines(editor, snapshot));
   if (editor.kind === 'model-compare-handoff-diff') {
     const left = editor.fields.find((field) => field.id === 'leftArtifactId')?.value.trim();
     const right = editor.fields.find((field) => field.id === 'rightArtifactId')?.value.trim();

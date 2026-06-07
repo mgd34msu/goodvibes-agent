@@ -363,6 +363,20 @@ export interface AgentWorkspaceRecentReviewerHandoffArtifact {
   readonly relatedArtifactCount: number;
 }
 
+export interface AgentWorkspaceReviewerReadinessBadge {
+  readonly status: 'ready' | 'attention' | 'needs-setup';
+  readonly summary: string;
+  readonly next: string;
+  readonly issueCount: number;
+  readonly openComments: number;
+  readonly proposedSuggestions: number;
+  readonly missingSourceArtifacts: number;
+  readonly unrevealedComparisons: number;
+  readonly hiddenJudgments: number;
+  readonly revealedJudgments: number;
+  readonly handoffsMissingRelatedArtifacts: number;
+}
+
 export interface AgentWorkspaceRuntimeProfileItem {
   readonly id: string;
   readonly homeDirectory: string;
@@ -490,6 +504,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly researchRuns: readonly AgentWorkspaceResearchRunSummary[];
   readonly recentReviewerHandoffArtifactCount: number;
   readonly recentReviewerHandoffArtifacts: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
+  readonly reviewerReadinessBadge: AgentWorkspaceReviewerReadinessBadge;
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];

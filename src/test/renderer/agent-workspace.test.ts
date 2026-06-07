@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
+import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
@@ -200,6 +201,7 @@ function reviewerHandoffArtifact(input: {
 
 function liveCommandContext(options: {
   readonly includePersonalOpsNote?: boolean;
+  readonly includeReviewerIssue?: boolean;
   readonly reviewerHandoffs?: readonly ArtifactDescriptor[];
 } = {}): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
@@ -263,6 +265,15 @@ function liveCommandContext(options: {
       source: 'agent',
       provenance: 'test',
     });
+  }
+  if (options.includeReviewerIssue === true) {
+    const documents = AgentDocumentRegistry.fromShellPaths(shellPaths);
+    const draft = documents.create({
+      title: 'Reviewer packet',
+      body: 'Draft packet body.',
+      tags: ['review'],
+    });
+    documents.addComment(draft.id, { body: 'Resolve this before export.' });
   }
   return {
     executeCommand: async () => true,
@@ -547,6 +558,43 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Recent choices: artifact-newer');
     expect(output).toContain('artifact-older (judgment; related 1).');
     expect(output).toContain('Older handoff hnd_older');
+  });
+
+  test('shows reviewer-readiness badges at export archive and route-apply points', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({
+      includeReviewerIssue: true,
+      reviewerHandoffs: [],
+    }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'documents');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-draft');
+    workspace.activateSelected();
+    let output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Document export readiness: attention');
+    expect(output).toContain('1 comment(s)');
+    expect(output).toContain('source/evidence gap(s)');
+    expect(output).toContain('Preflight next: Resolve open comments');
+    workspace.cancelLocalEditor();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-compare');
+    workspace.activateSelected();
+    if (workspace.localEditor) {
+      workspace.localEditor = {
+        ...workspace.localEditor,
+        fields: workspace.localEditor.fields.map((field) => field.id === 'reportKind' ? { ...field, value: 'archive' } : field),
+      };
+    }
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Handoff archive readiness: attention');
+    expect(output).toContain('Preflight next: Resolve open comments');
+    workspace.cancelLocalEditor();
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-apply-compare');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Route apply readiness: attention');
+    expect(output).toContain('Preflight next: Resolve open comments');
   });
 
   test('renders Research with source report artifacts and a confirmed save form', () => {
