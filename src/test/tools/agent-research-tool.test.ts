@@ -4,7 +4,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { CommandContext, CommandRegistry } from '../../input/command-registry.ts';
 import { createAgentResearchTool, registerAgentResearchTool } from '../../tools/agent-research-tool.ts';
 
-function fakeTool(name: string, calls: Record<string, unknown>[]): Tool {
+function fakeTool(name: string, calls: Record<string, unknown>[], output?: unknown): Tool {
   return {
     definition: {
       name,
@@ -13,7 +13,7 @@ function fakeTool(name: string, calls: Record<string, unknown>[]): Tool {
     },
     execute: async (args: Record<string, unknown>) => {
       calls.push({ tool: name, ...args });
-      return { success: true, output: JSON.stringify({ name, args }) };
+      return { success: true, output: JSON.stringify(output ?? { name, args }) };
     },
   };
 }
@@ -28,6 +28,26 @@ function makeTool(calls: Record<string, unknown>[] = []): Tool {
     sourcesTool: fakeTool('agent_research_sources', calls),
     reportTool: fakeTool('agent_research_report', calls),
     artifactTool: fakeTool('agent_artifacts', calls),
+    webSearchTool: fakeTool('web_search', calls, {
+      providerId: 'duckduckgo',
+      providerLabel: 'DuckDuckGo',
+      query: 'browser agents',
+      verbosity: 'evidence',
+      results: [
+        {
+          rank: 1,
+          url: 'https://example.test/report?api_key=secret',
+          title: 'Browser Agent Report',
+          snippet: 'A source about browser agents.',
+          domain: 'example.test',
+          type: 'organic',
+          providerId: 'duckduckgo',
+          metadata: {},
+          evidence: [{ url: 'https://example.test/report', extract: 'readable', content: 'Evidence body about browser agents.', tokensUsed: 8, metadata: {} }],
+        },
+      ],
+      metadata: {},
+    }),
   });
 }
 
@@ -88,6 +108,35 @@ describe('research adapter', () => {
       { tool: 'agent_artifacts', mode: 'show', artifactId: 'artifact_123', includeContent: true, previewBytes: 4096 },
       { tool: 'agent_artifacts', mode: 'show', artifactId: 'artifact_456', includeContent: false },
     ]);
+  });
+
+  test('runs bounded public search and returns source capture routes without mutating the source queue', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const tool = makeTool(calls);
+
+    const result = await tool.execute({ action: 'search', query: 'browser agents', maxResults: 2, evidenceTopN: 1 });
+    const packet = JSON.parse(result.output as string) as {
+      readonly status: string;
+      readonly sourceCandidateCount: number;
+      readonly sourceCandidates: readonly {
+        readonly title: string;
+        readonly url: string;
+        readonly captureArgs: { readonly action: string; readonly confirm: boolean; readonly explicitUserRequest: string };
+        readonly captureRoute: string;
+      }[];
+    };
+
+    expect(calls).toEqual([
+      { tool: 'web_search', query: 'browser agents', maxResults: 2, verbosity: 'evidence', safeSearch: 'moderate', includeEvidence: true, evidenceTopN: 1, evidenceExtract: 'readable' },
+    ]);
+    expect(packet.status).toBe('source-candidates-ready');
+    expect(packet.sourceCandidateCount).toBe(1);
+    expect(packet.sourceCandidates[0]?.title).toBe('Browser Agent Report');
+    expect(packet.sourceCandidates[0]?.url).toBe('https://example.test/report?api_key=%3Credacted%3E');
+    expect(packet.sourceCandidates[0]?.captureArgs.action).toBe('add_source');
+    expect(packet.sourceCandidates[0]?.captureArgs.confirm).toBe(true);
+    expect(packet.sourceCandidates[0]?.captureArgs.explicitUserRequest).toBe('...');
+    expect(packet.sourceCandidates[0]?.captureRoute).toContain('research action:"add_source"');
   });
 
   test('routes source bundle and confirmed writes to existing research tools', async () => {

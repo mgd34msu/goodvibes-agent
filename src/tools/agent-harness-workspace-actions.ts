@@ -197,6 +197,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'research-workflow-plan') return 'research action:"plan"';
   if (action.id === 'research-runner-readiness') return 'research action:"runner"';
   if (action.id === 'research-run-queue') return 'research action:"runs"';
+  if (action.id === 'research-public-search') return 'research action:"search"';
   if (action.id === 'research-source-queue') return 'research action:"sources"';
   if (action.id === 'research-report-artifacts') return 'research action:"reports"';
   if (action.id === 'work-background-processes') return 'execution action:"processes"';

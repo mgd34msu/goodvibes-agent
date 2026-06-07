@@ -15,6 +15,7 @@ type AgentResearchAction =
   | 'sources'
   | 'source'
   | 'bundle'
+  | 'search'
   | 'reports'
   | 'report_artifact'
   | 'create_run'
@@ -42,6 +43,13 @@ interface AgentResearchToolArgs {
   readonly artifactId?: unknown;
   readonly query?: unknown;
   readonly target?: unknown;
+  readonly providerId?: unknown;
+  readonly maxResults?: unknown;
+  readonly region?: unknown;
+  readonly safeSearch?: unknown;
+  readonly timeRange?: unknown;
+  readonly evidenceTopN?: unknown;
+  readonly evidenceExtract?: unknown;
   readonly title?: unknown;
   readonly question?: unknown;
   readonly goal?: unknown;
@@ -90,6 +98,7 @@ interface AgentResearchToolDeps {
   readonly sourcesTool?: Tool;
   readonly reportTool?: Tool;
   readonly artifactTool?: Tool;
+  readonly webSearchTool?: Tool;
 }
 
 function error(message: string): { readonly success: false; readonly error: string } {
@@ -98,6 +107,12 @@ function error(message: string): { readonly success: false; readonly error: stri
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function readNumber(value: unknown, fallback: number, max: number): number {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(max, Math.trunc(parsed)));
 }
 
 function normalizeResearchAction(value: unknown): AgentResearchAction | null {
@@ -110,6 +125,7 @@ function normalizeResearchAction(value: unknown): AgentResearchAction | null {
   if (action === 'sources' || action === 'queue' || action === 'source_queue') return 'sources';
   if (action === 'source' || action === 'show_source' || action === 'inspect_source') return 'source';
   if (action === 'bundle' || action === 'bundle_sources' || action === 'source_bundle') return 'bundle';
+  if (action === 'search' || action === 'public_search' || action === 'collect' || action === 'collect_sources' || action === 'source_candidates') return 'search';
   if (action === 'reports' || action === 'list_reports' || action === 'report_list' || action === 'visual_reports') return 'reports';
   if (action === 'report_artifact' || action === 'show_report' || action === 'inspect_report' || action === 'show_visual_report' || action === 'visual_report_artifact') return 'report_artifact';
   if (action === 'create_run' || action === 'new_run') return 'create_run';
@@ -250,6 +266,22 @@ function bundleArgs(args: AgentResearchToolArgs): Record<string, unknown> {
   });
 }
 
+function searchArgs(args: AgentResearchToolArgs): Record<string, unknown> {
+  const safeSearch = readString(args.safeSearch).toLowerCase() === 'strict' ? 'strict' : 'moderate';
+  return compactArgs({
+    query: args.query ?? args.target,
+    providerId: args.providerId,
+    maxResults: readNumber(args.maxResults, readNumber(args.limit, 5, 10), 10),
+    verbosity: 'evidence',
+    region: args.region,
+    safeSearch,
+    timeRange: args.timeRange,
+    includeEvidence: true,
+    evidenceTopN: readNumber(args.evidenceTopN, 3, 3),
+    evidenceExtract: args.evidenceExtract ?? 'readable',
+  });
+}
+
 function reportsArgs(args: AgentResearchToolArgs): Record<string, unknown> {
   return compactArgs({
     mode: 'list',
@@ -266,6 +298,137 @@ function reportArtifactArgs(args: AgentResearchToolArgs): Record<string, unknown
     includeContent: args.includeContent ?? true,
     previewBytes: args.previewBytes,
   });
+}
+
+function previewText(value: unknown, limit: number): string {
+  const text = typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
+  if (text.length <= limit) return text;
+  return `${text.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
+}
+
+function quote(value: string): string {
+  return JSON.stringify(value);
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+function readRecordArray(value: unknown): readonly Record<string, unknown>[] {
+  return Array.isArray(value) ? value.map(readRecord).filter((entry): entry is Record<string, unknown> => Boolean(entry)) : [];
+}
+
+function hostname(value: string): string {
+  try {
+    return new URL(value).hostname.replace(/^www\./i, '');
+  } catch {
+    return '';
+  }
+}
+
+function sanitizeUrlForRoute(value: string): string {
+  try {
+    const url = new URL(value);
+    for (const key of [...url.searchParams.keys()]) {
+      if (/token|secret|password|authorization|credential|api[-_]?key/i.test(key)) url.searchParams.set(key, '<redacted>');
+    }
+    return url.toString();
+  } catch {
+    return value.replace(/([?&\s](?:token|secret|password|authorization|credential|api[-_]?key)=)[^\s&]+/gi, '$1<redacted>');
+  }
+}
+
+function candidateFromSearchResult(question: string, result: Record<string, unknown>, index: number): Record<string, unknown> {
+  const rawUrl = readString(result.url);
+  const url = sanitizeUrlForRoute(rawUrl);
+  const title = previewText(result.title, 120) || hostname(rawUrl) || `Search result ${index + 1}`;
+  const publisher = previewText(result.domain, 80) || hostname(rawUrl);
+  const evidenceRecords = readRecordArray(result.evidence);
+  const evidenceText = previewText(
+    evidenceRecords.map((entry) => readString(entry.content)).filter(Boolean).join('\n\n') || result.snippet,
+    420,
+  );
+  const summary = previewText(result.snippet, 260) || previewText(evidenceText, 260) || `Public web result for ${question}.`;
+  const captureArgs = compactArgs({
+    action: 'add_source',
+    question,
+    title,
+    url,
+    publisher,
+    summary,
+    evidence: evidenceText,
+    credibility: 'unreviewed',
+    tags: ['research', 'web-search'],
+    confirm: true,
+    explicitUserRequest: '...',
+  });
+  return {
+    rank: typeof result.rank === 'number' ? result.rank : index + 1,
+    title,
+    url,
+    ...(publisher ? { publisher } : {}),
+    summary,
+    ...(evidenceText ? { evidencePreview: evidenceText } : {}),
+    captureArgs,
+    captureRoute: [
+      'research action:"add_source"',
+      `question:${quote(question)}`,
+      `title:${quote(title)}`,
+      ...(url ? [`url:${quote(url)}`] : []),
+      ...(publisher ? [`publisher:${quote(publisher)}`] : []),
+      `summary:${quote(summary)}`,
+      ...(evidenceText ? [`evidence:${quote(evidenceText)}`] : []),
+      'credibility:"unreviewed"',
+      'tags:["research","web-search"]',
+      'confirm:true',
+      'explicitUserRequest:"..."',
+    ].join(' '),
+  };
+}
+
+function parseSearchPayload(outputValue: unknown): Record<string, unknown> | null {
+  if (typeof outputValue !== 'string') return readRecord(outputValue);
+  try {
+    return readRecord(JSON.parse(outputValue));
+  } catch {
+    return null;
+  }
+}
+
+async function runPublicSearch(webSearchTool: Tool | undefined, args: AgentResearchToolArgs): Promise<{ readonly success: true; readonly output: string } | { readonly success: false; readonly error: string }> {
+  const query = readString(args.query) || readString(args.target);
+  if (!query) return error('research action:"search" requires query or target.');
+  if (!webSearchTool) {
+    return error('Bounded public web search is unavailable because web_search is not registered. Use research action:"plan" for the offline route plan.');
+  }
+  const webArgs = searchArgs({ ...args, query });
+  const webResult = await webSearchTool.execute(webArgs);
+  if (!webResult.success) return { success: false, error: readString(webResult.error) || 'web_search failed.' };
+  const payload = parseSearchPayload(webResult.output);
+  const results = readRecordArray(payload?.results);
+  const sourceCandidates = results
+    .filter((result) => readString(result.url))
+    .map((result, index) => candidateFromSearchResult(query, result, index));
+  return {
+    success: true,
+    output: JSON.stringify({
+      status: sourceCandidates.length > 0 ? 'source-candidates-ready' : 'no-source-candidates',
+      query,
+      providerId: readString(payload?.providerId),
+      providerLabel: readString(payload?.providerLabel),
+      resultCount: results.length,
+      sourceCandidateCount: sourceCandidates.length,
+      sourceCandidates,
+      nextRoutes: {
+        createRun: `research action:"create_run" question:${quote(query)} plan:["Search bounded public web sources","Capture candidate sources","Review credibility","Save sourced report"] confirm:true explicitUserRequest:"..."`,
+        sourceQueue: `research action:"sources" query:${quote(query)}`,
+        reviewedBundle: `research action:"bundle" query:${quote(query)} includeReportLines:true`,
+        saveReport: `research action:"report" question:${quote(query)} sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."`,
+      },
+      searchArgs: webArgs,
+      policy: 'This route performs bounded read-only public web search only. It does not create a run, save sources, write a report, ingest Knowledge, or send messages. Use each candidate captureRoute only after explicit user confirmation.',
+    }, null, 2),
+  };
 }
 
 function addSourceArgs(args: AgentResearchToolArgs): Record<string, unknown> {
@@ -343,6 +506,8 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
   const artifactTool = deps.artifactTool
     ?? deps.toolRegistry.list().find((entry) => entry.definition.name === 'agent_artifacts')
     ?? createAgentArtifactsTool(deps.commandContext.platform?.artifactStore);
+  const webSearchTool = deps.webSearchTool
+    ?? deps.toolRegistry.list().find((entry) => entry.definition.name === 'web_search');
 
   return {
     definition: {
@@ -361,6 +526,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
               'sources',
               'source',
               'bundle',
+              'search',
               'reports',
               'report_artifact',
               'create_run',
@@ -388,6 +554,13 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
           artifactId: { type: 'string', description: 'Research report artifact id.' },
           query: { type: 'string', description: 'Research request or queue search.' },
           target: { type: 'string', description: 'Lookup target alias.' },
+          providerId: { type: 'string', description: 'Optional web_search provider id for action:"search".' },
+          maxResults: { type: 'number', maximum: 10, description: 'Maximum public search results for action:"search".' },
+          region: { type: 'string', description: 'Provider-specific region for action:"search".' },
+          safeSearch: { type: 'string', enum: ['strict', 'moderate'], description: 'Safe-search setting for action:"search".' },
+          timeRange: { type: 'string', enum: ['any', 'day', 'week', 'month', 'year'], description: 'Optional search time range.' },
+          evidenceTopN: { type: 'number', maximum: 3, description: 'Maximum evidence fetches for action:"search".' },
+          evidenceExtract: { type: 'string', enum: ['text', 'markdown', 'readable', 'code_blocks', 'links', 'metadata', 'tables'], description: 'Bounded evidence extraction mode.' },
           title: { type: 'string', description: 'Run, source, or report title.' },
           question: { type: 'string', description: 'Research question.' },
           goal: { type: 'string', description: 'Visible outcome for a new run.' },
@@ -442,6 +615,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
       if (action === 'sources') return harnessTool.execute(sourcesArgs(args));
       if (action === 'source') return harnessTool.execute(sourceArgs(args));
       if (action === 'bundle') return sourcesTool.execute(bundleArgs(args));
+      if (action === 'search') return runPublicSearch(webSearchTool, args);
       if (action === 'reports') return artifactTool.execute(reportsArgs(args));
       if (action === 'report_artifact') return artifactTool.execute(reportArtifactArgs(args));
       if (action === 'create_run') return runsTool.execute(createRunArgs(args));
