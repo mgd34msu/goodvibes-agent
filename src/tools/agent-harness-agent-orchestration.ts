@@ -12,6 +12,13 @@ interface AgentHarnessAgentOrchestrationArgs {
 
 type AgentLookupSource = 'agentId' | 'target' | 'query';
 type AgentRecordView = Record<string, unknown>;
+type ManagedPlanStatus = 'ready' | 'active' | 'attention' | 'needs-setup';
+
+interface RemoteRuntimeSnapshot {
+  readonly pools: readonly Record<string, unknown>[];
+  readonly contracts: readonly Record<string, unknown>[];
+  readonly artifacts: readonly Record<string, unknown>[];
+}
 
 export type AgentOrchestrationResolution =
   | { readonly status: 'found'; readonly agent: Record<string, unknown> }
@@ -75,8 +82,44 @@ function exportAgents(context: CommandContext): readonly AgentRecordView[] | nul
   }
 }
 
+function remoteContracts(context: CommandContext): readonly Record<string, unknown>[] {
+  try {
+    return context.ops.remoteRuntime?.listContracts().map((record) => record as unknown as Record<string, unknown>) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function remotePools(context: CommandContext): readonly Record<string, unknown>[] {
+  try {
+    return context.ops.remoteRuntime?.listPools().map((record) => record as unknown as Record<string, unknown>) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function remoteArtifacts(context: CommandContext): readonly Record<string, unknown>[] {
+  try {
+    return context.ops.remoteRuntime?.listArtifacts().map((record) => record as unknown as Record<string, unknown>) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function remoteRuntimeSnapshot(context: CommandContext): RemoteRuntimeSnapshot {
+  return {
+    pools: remotePools(context),
+    contracts: remoteContracts(context),
+    artifacts: remoteArtifacts(context),
+  };
+}
+
 function agentToolRegistered(toolRegistry: ToolRegistry): boolean {
   return toolRegistry.getToolDefinitions().some((tool) => tool.name === 'agent');
+}
+
+function remoteToolRegistered(toolRegistry: ToolRegistry): boolean {
+  return toolRegistry.getToolDefinitions().some((tool) => tool.name === 'remote');
 }
 
 function agentId(record: AgentRecordView): string {
@@ -121,7 +164,238 @@ function routeForAgent(mode: string, id: string): string {
   return `agent { mode: "${mode}", agentId: "${id}" }`;
 }
 
-function describeAgent(record: AgentRecordView, includeParameters: boolean): Record<string, unknown> {
+function remoteRunnerId(record: Record<string, unknown>): string {
+  return readString(record.runnerId);
+}
+
+function transportState(contract: Record<string, unknown>): string {
+  const transport = contract.transport;
+  return transport && typeof transport === 'object' ? readString((transport as Record<string, unknown>).state) || 'unknown' : 'unknown';
+}
+
+function capabilityCeiling(contract: Record<string, unknown>): Record<string, unknown> {
+  const ceiling = contract.capabilityCeiling;
+  return ceiling && typeof ceiling === 'object' ? ceiling as Record<string, unknown> : {};
+}
+
+function stringArray(value: unknown): readonly string[] {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0) : [];
+}
+
+function contractSummary(contract: Record<string, unknown>, includeParameters: boolean): Record<string, unknown> {
+  const ceiling = capabilityCeiling(contract);
+  return {
+    id: readString(contract.id),
+    runnerId: remoteRunnerId(contract),
+    poolId: readString(contract.poolId) || null,
+    label: previewHarnessText(readString(contract.label) || remoteRunnerId(contract), includeParameters ? 120 : 72),
+    sourceTransport: readString(contract.sourceTransport) || 'unknown',
+    trustClass: readString(contract.trustClass) || 'unknown',
+    template: readString(contract.template) || 'general',
+    transportState: transportState(contract),
+    allowedTools: stringArray(ceiling.allowedTools).slice(0, includeParameters ? 20 : 8),
+    capabilityCeilingTools: stringArray(ceiling.capabilityCeilingTools).slice(0, includeParameters ? 20 : 8),
+    executionProtocol: readString(ceiling.executionProtocol) || 'unknown',
+    reviewMode: readString(ceiling.reviewMode) || 'unknown',
+    communicationLane: readString(ceiling.communicationLane) || 'unknown',
+    orchestrationDepth: typeof ceiling.orchestrationDepth === 'number' ? ceiling.orchestrationDepth : null,
+    requiredEvidence: stringArray(ceiling.requiredEvidence).slice(0, includeParameters ? 12 : 5),
+    successCriteria: stringArray(ceiling.successCriteria).slice(0, includeParameters ? 12 : 5),
+    writeScope: stringArray(ceiling.writeScope).slice(0, includeParameters ? 12 : 5),
+  };
+}
+
+function artifactSummary(artifact: Record<string, unknown>, includeParameters: boolean): Record<string, unknown> {
+  const task = artifact.task && typeof artifact.task === 'object' ? artifact.task as Record<string, unknown> : {};
+  const evidence = artifact.evidence && typeof artifact.evidence === 'object' ? artifact.evidence as Record<string, unknown> : {};
+  return {
+    id: readString(artifact.id),
+    runnerId: remoteRunnerId(artifact),
+    status: readString(task.status) || 'unknown',
+    task: previewHarnessText(readString(task.task), includeParameters ? 160 : 72),
+    summary: previewHarnessText(readString(task.summary), includeParameters ? 220 : 96),
+    toolCallCount: typeof evidence.toolCallCount === 'number' ? evidence.toolCallCount : 0,
+    messageCount: typeof evidence.messageCount === 'number' ? evidence.messageCount : 0,
+    errorCount: typeof evidence.errorCount === 'number' ? evidence.errorCount : 0,
+    hasKnowledgeInjections: Boolean(evidence.hasKnowledgeInjections),
+    modelRoute: `remote { mode: "review", artifactId: "${readString(artifact.id)}" }`,
+  };
+}
+
+function agentRoutes(id: string): Record<string, string> {
+  return {
+    inspect: routeForAgent('get', id),
+    status: routeForAgent('status', id),
+    budget: routeForAgent('budget', id),
+    plan: routeForAgent('plan', id),
+    wait: routeForAgent('wait', id),
+    message: routeForAgent('message', id),
+    cancel: routeForAgent('cancel', id),
+  };
+}
+
+function contractByRunnerId(contracts: readonly Record<string, unknown>[]): Map<string, Record<string, unknown>> {
+  const entries: Array<readonly [string, Record<string, unknown>]> = [];
+  for (const contract of contracts) {
+    const id = remoteRunnerId(contract);
+    if (id) entries.push([id, contract]);
+  }
+  return new Map(entries);
+}
+
+function artifactsByRunnerId(artifacts: readonly Record<string, unknown>[]): Map<string, readonly Record<string, unknown>[]> {
+  const grouped = new Map<string, Record<string, unknown>[]>();
+  for (const artifact of artifacts) {
+    const id = remoteRunnerId(artifact);
+    if (!id) continue;
+    const entries = grouped.get(id) ?? [];
+    entries.push(artifact);
+    grouped.set(id, entries);
+  }
+  return grouped;
+}
+
+function managedPlanItem(
+  record: AgentRecordView,
+  contract: Record<string, unknown> | undefined,
+  artifacts: readonly Record<string, unknown>[],
+  includeParameters: boolean,
+): Record<string, unknown> {
+  const id = agentId(record);
+  const status = agentStatus(record);
+  const task = readString(record.task);
+  const progress = readString(record.progress);
+  const hasRemoteContract = Boolean(contract);
+  const running = ['pending', 'running'].includes(status);
+  const failed = status === 'failed';
+  return {
+    planItemId: `agent:${id}`,
+    agentId: id,
+    lane: hasRemoteContract ? 'remote-runner' : 'visible-agent',
+    milestoneId: running ? 'visible-agent-work' : 'review-and-closeout',
+    status,
+    title: previewHarnessText(task || id, includeParameters ? 160 : 72),
+    progress: progress ? previewHarnessText(progress, includeParameters ? 180 : 72) : null,
+    template: readString(record.template) || 'general',
+    toolCallCount: typeof record.toolCallCount === 'number' ? record.toolCallCount : 0,
+    routes: agentRoutes(id),
+    remoteContract: contract ? contractSummary(contract, includeParameters) : null,
+    artifactTrail: artifacts.slice(0, includeParameters ? 8 : 3).map((artifact) => artifactSummary(artifact, includeParameters)),
+    reviewGate: {
+      status: artifacts.length > 0 ? 'artifact-ready' : running ? 'pending-work' : 'needs-artifact-evidence',
+      requiredEvidence: contract ? stringArray(capabilityCeiling(contract).requiredEvidence).slice(0, includeParameters ? 12 : 5) : [],
+      modelRoutes: [
+        routeForAgent('get', id),
+        ...(artifacts.length > 0 ? [`remote { mode: "review", artifactId: "${readString(artifacts[0]?.id)}" }`] : []),
+      ],
+    },
+    nextAction: failed
+      ? 'Inspect the failed agent, then decide whether to message, retry through a new visible task, or cancel related work.'
+      : running
+        ? 'Use wait/status for progress, message for guidance, or cancel if the work no longer helps the user.'
+        : artifacts.length > 0
+          ? 'Review the artifact trail before closing the plan.'
+          : 'Capture or attach outcome evidence before treating this work as complete.',
+  };
+}
+
+function managedPlanStatus(records: readonly AgentRecordView[], agentToolAvailable: boolean): ManagedPlanStatus {
+  if (records.some((record) => agentStatus(record) === 'failed')) return 'attention';
+  if (records.some((record) => ['pending', 'running'].includes(agentStatus(record)))) return 'active';
+  if (records.length > 0 || agentToolAvailable) return 'ready';
+  return 'needs-setup';
+}
+
+function managedExecutionPlan(
+  records: readonly AgentRecordView[],
+  context: CommandContext,
+  toolRegistry: ToolRegistry,
+  remoteSnapshot: RemoteRuntimeSnapshot,
+  includeParameters: boolean,
+): Record<string, unknown> {
+  const agentToolAvailable = agentToolRegistered(toolRegistry);
+  const remoteToolAvailable = remoteToolRegistered(toolRegistry);
+  const { pools, contracts, artifacts } = remoteSnapshot;
+  const contractsByRunner = contractByRunnerId(contracts);
+  const artifactsByRunner = artifactsByRunnerId(artifacts);
+  const items = records.map((record) => managedPlanItem(record, contractsByRunner.get(agentId(record)), artifactsByRunner.get(agentId(record)) ?? [], includeParameters));
+  const status = managedPlanStatus(records, agentToolAvailable);
+  const running = records.filter((record) => ['pending', 'running'].includes(agentStatus(record))).length;
+  const failed = records.filter((record) => agentStatus(record) === 'failed').length;
+  const completed = records.filter((record) => agentStatus(record) === 'completed').length;
+  const remoteStatus = contracts.length > 0 || artifacts.length > 0 ? 'ready' : context.ops.remoteRuntime ? 'ready' : 'needs-setup';
+  return {
+    planId: 'visible-managed-execution',
+    status,
+    summary: `${records.length} visible agent${records.length === 1 ? '' : 's'}, ${running} active, ${failed} attention, ${artifacts.length} remote artifact${artifacts.length === 1 ? '' : 's'}.`,
+    milestones: [
+      {
+        id: 'intake-and-lane-selection',
+        label: 'Intake and lane selection',
+        status: 'ready',
+        purpose: 'Choose serial chat, one visible agent, batch agents, delegated review, or remote inspection based on user outcome.',
+        routes: ['agent_harness mode:"delegation_posture"', 'agent_harness mode:"execution_posture"', 'agent_harness mode:"agent_orchestration"'],
+      },
+      {
+        id: 'visible-agent-work',
+        label: 'Visible agent work',
+        status: running > 0 ? 'active' : failed > 0 ? 'attention' : agentToolAvailable ? 'ready' : 'needs-setup',
+        count: records.length,
+        active: running,
+        completed,
+        failed,
+        cancellableRoutes: records.filter((record) => ['pending', 'running'].includes(agentStatus(record))).map((record) => routeForAgent('cancel', agentId(record))).slice(0, 12),
+      },
+      {
+        id: 'remote-runner-evidence',
+        label: 'Remote runner evidence',
+        status: remoteStatus,
+        pools: pools.length,
+        contracts: contracts.length,
+        artifacts: artifacts.length,
+        routes: {
+          pools: remoteToolAvailable ? 'remote { mode: "pools", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
+          contracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
+          artifacts: remoteToolAvailable ? 'remote { mode: "artifacts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
+        },
+      },
+      {
+        id: 'review-and-closeout',
+        label: 'Review and closeout',
+        status: failed > 0 ? 'attention' : running > 0 ? 'active' : records.length > 0 ? 'ready' : 'needs-setup',
+        requiredEvidence: ['changed files or artifact', 'test or verification output', 'agent status', 'recovery route when writes happened'],
+        routes: ['agent_harness mode:"execution_history"', 'agent_harness mode:"file_recovery"', 'agent_harness mode:"delegation_posture"'],
+      },
+    ],
+    workItems: items,
+    remoteEvidence: {
+      status: remoteStatus,
+      pools: pools.slice(0, includeParameters ? 8 : 3).map((pool) => ({
+        id: readString(pool.id),
+        label: readString(pool.label) || readString(pool.id),
+        runnerIds: stringArray(pool.runnerIds).slice(0, includeParameters ? 12 : 5),
+      })),
+      contracts: contracts.slice(0, includeParameters ? 8 : 3).map((contract) => contractSummary(contract, includeParameters)),
+      artifacts: artifacts.slice(0, includeParameters ? 8 : 3).map((artifact) => artifactSummary(artifact, includeParameters)),
+      policy: 'Remote runner evidence is read-only here; creating pools, assigning runners, importing artifacts, or spawning agents stays on confirmed first-class routes.',
+    },
+    modelAccess: {
+      spawn: 'agent { mode: "spawn" }',
+      batchSpawn: 'agent { mode: "batch-spawn" }',
+      listAgents: 'agent { mode: "list" }',
+      remoteContracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
+      remoteArtifacts: remoteToolAvailable ? 'remote { mode: "artifacts", view: "summary" }' : 'agent_harness mode:"delegation_route" delegationRouteId:"remote-runner-inspection"',
+    },
+    policy: 'Managed execution plans are read-only summaries. Parallel work must remain visible, cancellable, attached to evidence, and justified by user outcome.',
+  };
+}
+
+function describeAgent(
+  record: AgentRecordView,
+  includeParameters: boolean,
+  contract?: Record<string, unknown>,
+  artifacts: readonly Record<string, unknown>[] = [],
+): Record<string, unknown> {
   const id = agentId(record);
   const task = readString(record.task);
   const progress = readString(record.progress);
@@ -135,15 +409,8 @@ function describeAgent(record: AgentRecordView, includeParameters: boolean): Rec
     toolCallCount: typeof record.toolCallCount === 'number' ? record.toolCallCount : 0,
     modelRoute: 'agent { mode: "get" }',
     userRoute: 'Agent Workspace -> Work -> Autonomy queue',
-    routes: {
-      inspect: routeForAgent('get', id),
-      status: routeForAgent('status', id),
-      budget: routeForAgent('budget', id),
-      plan: routeForAgent('plan', id),
-      wait: routeForAgent('wait', id),
-      message: routeForAgent('message', id),
-      cancel: routeForAgent('cancel', id),
-    },
+    routes: agentRoutes(id),
+    managedPlanCard: managedPlanItem(record, contract, artifacts, includeParameters),
     ...(readString(record.model) ? { model: readString(record.model) } : {}),
     ...(readString(record.provider) ? { provider: readString(record.provider) } : {}),
     ...(includeParameters ? {
@@ -184,6 +451,15 @@ function decisionCards(agentToolAvailable: boolean): readonly Record<string, unk
       requiredFields: ['tasks[]', 'authoritativeTask for the original user ask when applicable'],
       modelRoute: 'agent { mode: "batch-spawn" }',
       inspectRoute: 'agent_harness mode:"agent_orchestration"',
+    },
+    {
+      id: 'managed-multi-runner-plan',
+      label: 'Use a managed multi-runner plan',
+      status: agentToolAvailable ? 'ready' : 'unavailable',
+      chooseWhen: ['A large task already has approval for parallel work and needs milestones, evidence, and cancellation routes.'],
+      requiredFields: ['original user ask', 'lane reason', 'success criteria', 'per-runner evidence', 'cancel/recovery route'],
+      modelRoute: 'agent_harness mode:"agent_orchestration"',
+      policy: 'Read-only plan surface first; actual spawn, message, wait, cancel, or remote mutation stays on confirmed first-class routes.',
     },
     {
       id: 'inspect-or-control-visible-agent',
@@ -237,6 +513,9 @@ export function agentOrchestrationSummary(context: CommandContext, toolRegistry:
   const filtered = records
     .filter((record) => !query || agentSearchText(record).includes(query))
     .slice(0, readLimit(args.limit, 100));
+  const remoteSnapshot = remoteRuntimeSnapshot(context);
+  const contracts = contractByRunnerId(remoteSnapshot.contracts);
+  const artifacts = artifactsByRunnerId(remoteSnapshot.artifacts);
   return {
     status: counts.running > 0 || counts.pending > 0 ? 'attention' : toolRegistered ? 'ready' : 'needs-setup',
     summary: {
@@ -249,8 +528,10 @@ export function agentOrchestrationSummary(context: CommandContext, toolRegistry:
       cancellable: records.filter((record) => ['pending', 'running'].includes(agentStatus(record))).length,
       toolRegistered,
       serialDefault: true,
+      managedPlanStatus: managedPlanStatus(records, toolRegistered),
     },
-    agents: filtered.map((record) => describeAgent(record, includeParameters)),
+    managedExecutionPlan: managedExecutionPlan(records, context, toolRegistry, remoteSnapshot, includeParameters),
+    agents: filtered.map((record) => describeAgent(record, includeParameters, contracts.get(agentId(record)), artifacts.get(agentId(record)) ?? [])),
     returned: filtered.length,
     total: records.length,
     decisionCards: decisionCards(toolRegistered),
@@ -285,15 +566,21 @@ export function describeAgentOrchestrationAgent(context: CommandContext, args: A
     };
   }
   const exact = records.find((record) => agentId(record) === lookup.input);
-  if (exact) return { status: 'found', agent: describeAgent(exact, args.includeParameters !== false) };
+  const remoteSnapshot = remoteRuntimeSnapshot(context);
+  const contracts = contractByRunnerId(remoteSnapshot.contracts);
+  const artifacts = artifactsByRunnerId(remoteSnapshot.artifacts);
+  if (exact) return { status: 'found', agent: describeAgent(exact, args.includeParameters !== false, contracts.get(agentId(exact)), artifacts.get(agentId(exact)) ?? []) };
   const normalized = lookup.input.toLowerCase();
   const matches = records.filter((record) => agentSearchText(record).includes(normalized));
-  if (matches.length === 1) return { status: 'found', agent: describeAgent(matches[0]!, args.includeParameters !== false) };
+  if (matches.length === 1) {
+    const record = matches[0]!;
+    return { status: 'found', agent: describeAgent(record, args.includeParameters !== false, contracts.get(agentId(record)), artifacts.get(agentId(record)) ?? []) };
+  }
   if (matches.length > 1) {
     return {
       status: 'ambiguous',
       input: lookup.input,
-      candidates: matches.slice(0, 8).map((record) => describeAgent(record, false)),
+      candidates: matches.slice(0, 8).map((record) => describeAgent(record, false, contracts.get(agentId(record)), artifacts.get(agentId(record)) ?? [])),
     };
   }
   return {

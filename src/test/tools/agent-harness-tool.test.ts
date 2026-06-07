@@ -1668,10 +1668,82 @@ describe('agent_harness tool', () => {
           toolCallCount: 1,
         },
       ];
-      (fixture.context.ops as unknown as Record<string, unknown>).agentManager = {
-        exportState: () => agents,
+      const remoteContract = {
+        id: 'runner:agent-alpha',
+        runnerId: 'agent-alpha',
+        poolId: 'ops',
+        label: 'Remote auth engineer',
+        sourceTransport: 'acp',
+        trustClass: 'self-hosted-acp',
+        template: 'engineer',
+        capabilityCeiling: {
+          allowedTools: ['read', 'find'],
+          capabilityCeilingTools: ['read', 'find'],
+          executionProtocol: 'gather-plan-apply',
+          reviewMode: 'wrfc',
+          communicationLane: 'parent-only',
+          orchestrationDepth: 1,
+          successCriteria: ['auth risks mapped'],
+          requiredEvidence: ['diff', 'tests'],
+          writeScope: ['src/auth/**'],
+        },
+        createdAt: now - 6_000,
+        lastUpdatedAt: now - 2_000,
+        transport: {
+          state: 'connected',
+          connectedAt: now - 6_000,
+          messageCount: 4,
+          errorCount: 0,
+        },
       };
+      const remoteArtifact = {
+        id: 'artifact-agent-beta',
+        runnerId: 'agent-beta',
+        createdAt: now - 800,
+        runnerContract: {
+          ...remoteContract,
+          id: 'runner:agent-beta',
+          runnerId: 'agent-beta',
+          label: 'Browser setup researcher',
+          template: 'researcher',
+        },
+        task: {
+          task: 'Cancelled browser setup investigation.',
+          status: 'cancelled',
+          startedAt: now - 10_000,
+          completedAt: now - 1_000,
+          summary: 'Operator cancelled the browser setup investigation before follow-up work.',
+        },
+        evidence: {
+          toolCallCount: 1,
+          messageCount: 2,
+          errorCount: 0,
+          transportState: 'connected',
+          hasKnowledgeInjections: false,
+        },
+        knowledgeInjections: [],
+      };
+      Object.assign(fixture.context.ops as unknown as Record<string, unknown>, {
+        agentManager: {
+          exportState: () => agents,
+        },
+        remoteRuntime: {
+          listContracts: () => [remoteContract],
+          listPools: () => [{
+            id: 'ops',
+            label: 'Ops Pool',
+            trustClass: 'self-hosted-acp',
+            preferredTemplate: 'engineer',
+            maxRunners: 2,
+            runnerIds: ['agent-alpha'],
+            createdAt: now - 6_000,
+            lastUpdatedAt: now - 2_000,
+          }],
+          listArtifacts: () => [remoteArtifact],
+        },
+      });
       registerStubTool(fixture.toolRegistry, 'agent');
+      registerStubTool(fixture.toolRegistry, 'remote');
 
       const summary = await executeHarnessJson<{
         readonly assistant?: { readonly lanes: readonly { readonly id: string; readonly state: string; readonly routes: readonly string[] }[] };
@@ -1699,11 +1771,59 @@ describe('agent_harness tool', () => {
           readonly cancellable: number;
           readonly toolRegistered: boolean;
           readonly serialDefault: boolean;
+          readonly managedPlanStatus: string;
+        };
+        readonly managedExecutionPlan: {
+          readonly status: string;
+          readonly summary: string;
+          readonly milestones: readonly {
+            readonly id: string;
+            readonly status: string;
+            readonly cancellableRoutes?: readonly string[];
+            readonly contracts?: number;
+            readonly artifacts?: number;
+            readonly routes?: { readonly contracts?: string; readonly artifacts?: string };
+          }[];
+          readonly workItems: readonly {
+            readonly planItemId: string;
+            readonly lane: string;
+            readonly milestoneId: string;
+            readonly status: string;
+            readonly remoteContract?: {
+              readonly runnerId: string;
+              readonly transportState: string;
+              readonly allowedTools: readonly string[];
+              readonly capabilityCeilingTools: readonly string[];
+              readonly orchestrationDepth: number | null;
+              readonly requiredEvidence: readonly string[];
+            } | null;
+            readonly artifactTrail: readonly {
+              readonly id: string;
+              readonly runnerId: string;
+              readonly modelRoute: string;
+            }[];
+            readonly reviewGate: {
+              readonly status: string;
+              readonly requiredEvidence: readonly string[];
+              readonly modelRoutes: readonly string[];
+            };
+            readonly nextAction: string;
+          }[];
+          readonly remoteEvidence: {
+            readonly status: string;
+            readonly pools: readonly { readonly id: string; readonly runnerIds: readonly string[] }[];
+            readonly contracts: readonly { readonly runnerId: string; readonly reviewMode: string }[];
+            readonly artifacts: readonly { readonly id: string; readonly runnerId: string }[];
+            readonly policy: string;
+          };
+          readonly modelAccess: { readonly remoteContracts: string; readonly remoteArtifacts: string };
+          readonly policy: string;
         };
         readonly agents: readonly {
           readonly agentId: string;
           readonly status: string;
           readonly routes: { readonly cancel: string; readonly message: string };
+          readonly managedPlanCard?: { readonly lane: string; readonly reviewGate: { readonly status: string } };
           readonly context?: string | null;
         }[];
         readonly decisionCards: readonly { readonly id: string; readonly status: string }[];
@@ -1716,14 +1836,55 @@ describe('agent_harness tool', () => {
         cancellable: 1,
         toolRegistered: true,
         serialDefault: true,
+        managedPlanStatus: 'active',
       });
+      expect(posture.managedExecutionPlan.status).toBe('active');
+      expect(posture.managedExecutionPlan.summary).toContain('2 visible agents');
+      expect(posture.managedExecutionPlan.policy).toContain('read-only');
+      const agentWorkMilestone = posture.managedExecutionPlan.milestones.find((milestone) => milestone.id === 'visible-agent-work');
+      expect(agentWorkMilestone?.status).toBe('active');
+      expect(agentWorkMilestone?.cancellableRoutes?.join('\n')).toContain('agent-alpha');
+      const remoteMilestone = posture.managedExecutionPlan.milestones.find((milestone) => milestone.id === 'remote-runner-evidence');
+      expect(remoteMilestone?.status).toBe('ready');
+      expect(remoteMilestone?.contracts).toBe(1);
+      expect(remoteMilestone?.artifacts).toBe(1);
+      expect(remoteMilestone?.routes?.contracts).toBe('remote { mode: "contracts", view: "summary" }');
+      expect(posture.managedExecutionPlan.remoteEvidence.status).toBe('ready');
+      expect(posture.managedExecutionPlan.remoteEvidence.pools[0]?.runnerIds).toEqual(['agent-alpha']);
+      expect(posture.managedExecutionPlan.remoteEvidence.contracts[0]?.runnerId).toBe('agent-alpha');
+      expect(posture.managedExecutionPlan.remoteEvidence.contracts[0]?.reviewMode).toBe('wrfc');
+      expect(posture.managedExecutionPlan.remoteEvidence.artifacts[0]?.id).toBe('artifact-agent-beta');
+      expect(posture.managedExecutionPlan.remoteEvidence.policy).toContain('read-only');
+      expect(posture.managedExecutionPlan.modelAccess.remoteContracts).toContain('remote');
+      const alphaPlanItem = posture.managedExecutionPlan.workItems.find((item) => item.planItemId === 'agent:agent-alpha');
+      expect(alphaPlanItem?.lane).toBe('remote-runner');
+      expect(alphaPlanItem?.milestoneId).toBe('visible-agent-work');
+      expect(alphaPlanItem?.remoteContract?.runnerId).toBe('agent-alpha');
+      expect(alphaPlanItem?.remoteContract?.transportState).toBe('connected');
+      expect(alphaPlanItem?.remoteContract?.allowedTools).toContain('read');
+      expect(alphaPlanItem?.remoteContract?.capabilityCeilingTools).toContain('find');
+      expect(alphaPlanItem?.remoteContract?.orchestrationDepth).toBe(1);
+      expect(alphaPlanItem?.remoteContract?.requiredEvidence).toContain('tests');
+      expect(alphaPlanItem?.reviewGate.status).toBe('pending-work');
+      expect(alphaPlanItem?.reviewGate.requiredEvidence).toContain('diff');
+      expect(alphaPlanItem?.nextAction).toContain('wait/status');
+      const betaPlanItem = posture.managedExecutionPlan.workItems.find((item) => item.planItemId === 'agent:agent-beta');
+      expect(betaPlanItem?.lane).toBe('visible-agent');
+      expect(betaPlanItem?.milestoneId).toBe('review-and-closeout');
+      expect(betaPlanItem?.artifactTrail[0]?.id).toBe('artifact-agent-beta');
+      expect(betaPlanItem?.artifactTrail[0]?.modelRoute).toContain('remote { mode: "review"');
+      expect(betaPlanItem?.reviewGate.status).toBe('artifact-ready');
+      expect(betaPlanItem?.reviewGate.modelRoutes.join('\n')).toContain('artifact-agent-beta');
       expect(posture.modelAccess.spawn).toBe('agent { mode: "spawn" }');
       expect(posture.modelAccess.batchSpawn).toBe('agent { mode: "batch-spawn" }');
       expect(posture.modelAccess.harness).toBe('agent_harness mode:"agent_orchestration"');
       expect(posture.decisionCards.find((card) => card.id === 'visible-batch-spawn')?.status).toBe('ready');
+      expect(posture.decisionCards.find((card) => card.id === 'managed-multi-runner-plan')?.status).toBe('ready');
       expect(posture.decisionCards.find((card) => card.id === 'hidden-fanout-blocked')?.status).toBe('blocked');
       expect(posture.agents[0]?.routes.cancel).toBe('agent { mode: "cancel", agentId: "agent-alpha" }');
       expect(posture.agents[0]?.routes.message).toBe('agent { mode: "message", agentId: "agent-alpha" }');
+      expect(posture.agents[0]?.managedPlanCard?.lane).toBe('remote-runner');
+      expect(posture.agents[0]?.managedPlanCard?.reviewGate.status).toBe('pending-work');
       expect(posture.agents[0]?.context).toContain('project context');
       expect(posture.policy).toContain('hidden fanout is blocked');
 
@@ -1734,6 +1895,10 @@ describe('agent_harness tool', () => {
         readonly routes: { readonly inspect: string; readonly wait: string };
         readonly tools: readonly string[];
         readonly usage: { readonly inputTokens: number };
+        readonly managedPlanCard?: {
+          readonly lane: string;
+          readonly remoteContract?: { readonly runnerId: string; readonly transportState: string } | null;
+        };
       }>(fixture, { mode: 'agent_orchestration_agent', agentId: 'agent-alpha' });
       expect(detail.agentId).toBe('agent-alpha');
       expect(detail.status).toBe('running');
@@ -1742,6 +1907,9 @@ describe('agent_harness tool', () => {
       expect(detail.routes.wait).toBe('agent { mode: "wait", agentId: "agent-alpha" }');
       expect(detail.tools).toEqual(['read', 'find']);
       expect(detail.usage.inputTokens).toBe(120);
+      expect(detail.managedPlanCard?.lane).toBe('remote-runner');
+      expect(detail.managedPlanCard?.remoteContract?.runnerId).toBe('agent-alpha');
+      expect(detail.managedPlanCard?.remoteContract?.transportState).toBe('connected');
 
       const filtered = await executeHarnessJson<{
         readonly returned: number;
