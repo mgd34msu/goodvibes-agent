@@ -896,11 +896,23 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Choose main model');
     expect(output).toContain('model picker');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-route-readiness');
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Inspect route readiness');
+    expect(output).toContain('Route readiness: scores');
+    expect(output).toContain('safe route keys');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-local-model-cookbook');
     output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Local model cookbook');
     expect(output).toContain('Ollama first');
     expect(output).toContain('vLLM for GPU throughput');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-local-benchmark-evidence');
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Review benchmark evidence');
+    expect(output).toContain('saved judgments');
+    expect(output).toContain('apply routes separately');
   });
 
   test('renders support bundle actions in the host workspace when selected', () => {

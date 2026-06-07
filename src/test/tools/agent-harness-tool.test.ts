@@ -6500,6 +6500,13 @@ describe('agent_harness tool', () => {
       expect(action.id).toBe('account-local-model-cookbook');
       expect(action.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
 
+      const readinessAction = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'account-route-readiness' });
+      expect(readinessAction.id).toBe('account-route-readiness');
+      expect(readinessAction.modelRoute).toBe('agent_harness mode:"model_routing" includeParameters:true');
+
       const benchmarkAction = await executeHarnessJson<{
         readonly id: string;
         readonly modelRoute?: string;
@@ -6511,6 +6518,13 @@ describe('agent_harness tool', () => {
       expect(benchmarkAction.editor?.kind).toBe('local-model-benchmark');
       expect(benchmarkAction.editor?.fields.find((field) => field.id === 'benchmarkKind')?.default).toBe('local-model-route');
       expect(benchmarkAction.modelExecution?.action).toBe('run_local_model_benchmark');
+
+      const evidenceAction = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'account-local-benchmark-evidence' });
+      expect(evidenceAction.id).toBe('account-local-benchmark-evidence');
+      expect(evidenceAction.modelRoute).toBe('agent_harness mode:"model_routing" query:"local" includeParameters:true');
     } finally {
       fixture.cleanup();
     }
@@ -6831,8 +6845,10 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('agent_harness mode:"pairing_posture"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'browser-cockpit-readiness')?.modelRoute).toBe('agent_harness mode:"ui_surface"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('agent_harness mode:"open_ui_surface"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-route-readiness')?.modelRoute).toBe('agent_harness mode:"model_routing" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'account-run-local-model-benchmark')?.modelRoute).toBe('agent_model_compare');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-benchmark-evidence')?.modelRoute).toBe('agent_harness mode:"model_routing" query:"local" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-comment-draft')?.modelRoute).toBe('agent_documents');

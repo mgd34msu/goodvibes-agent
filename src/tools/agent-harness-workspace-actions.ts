@@ -188,8 +188,10 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
     if (action.setupCheckpointOperation === 'clear') return 'agent_harness mode:"clear_setup_checkpoint" confirm:true explicitUserRequest:"..."';
     return 'agent_harness mode:"setup_checkpoint"';
   }
+  if (action.id === 'account-route-readiness') return 'agent_harness mode:"model_routing" includeParameters:true';
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
+  if (action.id === 'account-local-benchmark-evidence') return 'agent_harness mode:"model_routing" query:"local" includeParameters:true';
   if (action.id === 'assistant-browser-cockpit') return 'agent_harness mode:"open_ui_surface"';
   if (action.id === 'research-workflow-plan') return 'agent_harness mode:"research_workflow"';
   if (action.id === 'research-run-queue') return 'agent_harness mode:"research_runs"';
@@ -273,7 +275,7 @@ export function describeWorkspaceAction(
     detail: action.detail,
     kind: action.kind,
     safety: action.safety,
-    modelRoute: previewText(workspaceActionRouteHint(action)),
+    modelRoute: previewText(workspaceActionRouteHint(action), 72),
     ...(action.command ? { command: action.command } : {}),
     ...(action.targetCategoryId ? { targetCategoryId: action.targetCategoryId } : {}),
     ...(action.editorKind ? { editorKind: action.editorKind } : {}),
@@ -335,7 +337,7 @@ function describeWorkspaceActionSummary(
     summary: previewText(action.detail),
     kind: action.kind,
     safety: action.safety,
-    modelRoute: previewText(workspaceActionRouteHint(action)),
+    modelRoute: previewText(workspaceActionRouteHint(action), 72),
     ...(action.command ? { command: action.command } : {}),
     ...(action.targetCategoryId ? { targetCategoryId: action.targetCategoryId } : {}),
     ...(action.editorKind ? { editorKind: action.editorKind } : {}),

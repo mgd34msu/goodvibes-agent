@@ -441,7 +441,9 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Subscriptions: ${snapshot.activeSubscriptionCount} active; ${snapshot.pendingSubscriptionCount} pending; ${snapshot.availableSubscriptionProviderCount} available.`, fg: snapshot.activeSubscriptionCount > 0 ? PALETTE.good : snapshot.pendingSubscriptionCount > 0 ? PALETTE.warn : PALETTE.muted },
       { text: `Embedding: ${snapshot.embeddingProvider}; reasoning ${snapshot.reasoningEffort}.`, fg: PALETTE.info },
       { text: `Helper: ${snapshot.helperEnabled ? 'enabled' : 'disabled'}; Tool LLM: ${snapshot.toolLlmEnabled ? 'enabled' : 'disabled'}.`, fg: snapshot.helperEnabled || snapshot.toolLlmEnabled ? PALETTE.good : PALETTE.muted },
+      { text: 'Route readiness: scores, missing signals, pinned state, and safe route keys via model_routing.', fg: PALETTE.good },
       { text: 'Local cookbook: Ollama first, llama.cpp offline, vLLM for GPU throughput.', fg: PALETTE.good },
+      { text: 'Benchmark evidence: run local compare, review saved judgments, then apply routes separately.', fg: PALETTE.info },
       { text: `Cache: ${snapshot.cacheEnabled ? snapshot.cacheStableTtl : 'off'}; monitor ${snapshot.cacheMonitorHitRate ? snapshot.cacheHitRateWarningThreshold : 'off'}; failure hints ${snapshot.providerFailureHints ? 'on' : 'off'}.`, fg: snapshot.cacheEnabled ? PALETTE.info : PALETTE.muted },
     );
   } else if (category.id === 'assistant-behavior') {
