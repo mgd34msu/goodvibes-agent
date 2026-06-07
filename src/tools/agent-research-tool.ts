@@ -1,6 +1,7 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
+import { AgentResearchRunRegistry, type AgentResearchRunRecord } from '../agent/research-run-registry.ts';
 import { createAgentArtifactsTool } from './agent-artifacts-tool.ts';
 import { createAgentHarnessTool } from './agent-harness-tool.ts';
 import { createAgentResearchReportTool } from './agent-research-report-tool.ts';
@@ -407,8 +408,23 @@ function parseSearchPayload(outputValue: unknown): Record<string, unknown> | nul
   }
 }
 
-async function runPublicSearch(webSearchTool: Tool | undefined, args: AgentResearchToolArgs): Promise<{ readonly success: true; readonly output: string } | { readonly success: false; readonly error: string }> {
-  const query = readString(args.query) || readString(args.target);
+function resolveSearchRun(args: AgentResearchToolArgs, shellPaths: CommandContext['workspace']['shellPaths'] | undefined): AgentResearchRunRecord | null {
+  if (!shellPaths) return null;
+  const lookup = readString(args.runId) || readString(args.id);
+  if (!lookup) return null;
+  return AgentResearchRunRegistry.fromShellPaths(shellPaths).get(lookup);
+}
+
+async function runPublicSearch(
+  webSearchTool: Tool | undefined,
+  args: AgentResearchToolArgs,
+  shellPaths: CommandContext['workspace']['shellPaths'] | undefined,
+): Promise<{ readonly success: true; readonly output: string } | { readonly success: false; readonly error: string }> {
+  const run = resolveSearchRun(args, shellPaths);
+  const query = readString(args.query) || readString(args.question) || run?.question || readString(args.target);
+  if ((readString(args.runId) || readString(args.id)) && !run && !readString(args.query) && !readString(args.question)) {
+    return error(`Unknown research run ${readString(args.runId) || readString(args.id)}. Use research action:"runs" to inspect run ids.`);
+  }
   if (!query) return error('research action:"search" requires query or target.');
   if (!webSearchTool) {
     return error('Bounded public web search is unavailable because web_search is not registered. Use research action:"briefing" for the offline next-action queue or action:"plan" for the route plan.');
@@ -432,13 +448,21 @@ async function runPublicSearch(webSearchTool: Tool | undefined, args: AgentResea
       sourceCandidateCount: sourceCandidates.length,
       sourceCandidates,
       nextRoutes: {
-        createRun: `research action:"create_run" question:${quote(query)} plan:["Search bounded public web sources","Capture candidate sources","Review credibility","Save sourced report"] confirm:true explicitUserRequest:"..."`,
+        ...(run ? {
+          run: `research action:"run" runId:${quote(run.id)}`,
+          briefing: `research action:"briefing" target:${quote(run.id)}`,
+          startRun: `research action:"start_run" id:${quote(run.id)} confirm:true explicitUserRequest:"..."`,
+          checkpointAfterCapture: `research action:"checkpoint" id:${quote(run.id)} phase:"reading" progress:${Math.max(run.progress, 25)} note:"Captured candidate sources for review." sourceIds:["..."] confirm:true explicitUserRequest:"..."`,
+        } : {
+          createRun: `research action:"create_run" question:${quote(query)} plan:["Search bounded public web sources","Capture candidate sources","Review credibility","Save sourced report"] confirm:true explicitUserRequest:"..."`,
+        }),
         sourceQueue: `research action:"sources" query:${quote(query)}`,
         reviewedBundle: `research action:"bundle" query:${quote(query)} includeReportLines:true`,
         saveReport: `research action:"report" question:${quote(query)} sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."`,
       },
+      ...(run ? { run: { id: run.id, title: run.title, status: run.status, phase: run.phase, progress: run.progress } } : {}),
       searchArgs: webArgs,
-      policy: 'This route performs bounded read-only public web search only. It does not create a run, save sources, write a report, ingest Knowledge, or send messages. Use each candidate captureRoute only after explicit user confirmation.',
+      policy: 'This route performs bounded read-only public web search only. It does not create or start a run, save sources, checkpoint progress, write a report, ingest Knowledge, or send messages. Use each returned route only after explicit user confirmation.',
     }, null, 2),
   };
 }
@@ -629,7 +653,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
       if (action === 'sources') return harnessTool.execute(sourcesArgs(args));
       if (action === 'source') return harnessTool.execute(sourceArgs(args));
       if (action === 'bundle') return sourcesTool.execute(bundleArgs(args));
-      if (action === 'search') return runPublicSearch(webSearchTool, args);
+      if (action === 'search') return runPublicSearch(webSearchTool, args, shellPaths);
       if (action === 'reports') return artifactTool.execute(reportsArgs(args));
       if (action === 'report_artifact') return artifactTool.execute(reportArtifactArgs(args));
       if (action === 'create_run') return runsTool.execute(createRunArgs(args));

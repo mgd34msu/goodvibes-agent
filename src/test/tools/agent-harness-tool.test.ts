@@ -6267,6 +6267,7 @@ describe('agent_harness tool', () => {
       expect(briefing.summary.browserReady).toBe(false);
       const runItem = briefing.queue.find((item) => item.id === `run:${started.id}`);
       expect(runItem?.kind).toBe('run');
+      expect(runItem?.routes.search).toContain(`runId:"${started.id}"`);
       expect(runItem?.routes.checkpoint).toContain('research action:"checkpoint"');
       expect(runItem?.confirmationBoundary).toContain('read-only');
       const sourceItem = briefing.queue.find((item) => item.id === `source:${reviewed.id}`);

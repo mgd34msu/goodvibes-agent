@@ -151,6 +151,7 @@ function runItem(run: AgentResearchRunRecord, includeParameters: boolean): Resea
   const routes: Record<string, string> = {
     inspect: `research action:"run" runId:${routeString(run.id)}`,
     workflow: `research action:"plan" runId:${routeString(run.id)}`,
+    search: `research action:"search" runId:${routeString(run.id)} maxResults:5`,
     sources: `research action:"sources" query:${routeString(run.question)}`,
     report: `research action:"report" question:${routeString(run.question)} sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."`,
   };

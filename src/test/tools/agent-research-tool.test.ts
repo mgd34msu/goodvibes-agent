@@ -1,7 +1,11 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { CommandContext, CommandRegistry } from '../../input/command-registry.ts';
+import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { createAgentResearchTool, registerAgentResearchTool } from '../../tools/agent-research-tool.ts';
 
 function fakeTool(name: string, calls: Record<string, unknown>[], output?: unknown): Tool {
@@ -18,10 +22,10 @@ function fakeTool(name: string, calls: Record<string, unknown>[], output?: unkno
   };
 }
 
-function makeTool(calls: Record<string, unknown>[] = []): Tool {
+function makeTool(calls: Record<string, unknown>[] = [], commandContext: CommandContext = { workspace: {}, platform: {} } as CommandContext): Tool {
   return createAgentResearchTool({
     commandRegistry: {} as CommandRegistry,
-    commandContext: { workspace: {}, platform: {} } as CommandContext,
+    commandContext,
     toolRegistry: new ToolRegistry(),
     harnessTool: fakeTool('agent_harness', calls),
     runsTool: fakeTool('agent_research_runs', calls),
@@ -139,6 +143,48 @@ describe('research adapter', () => {
     expect(packet.sourceCandidates[0]?.captureArgs.confirm).toBe(true);
     expect(packet.sourceCandidates[0]?.captureArgs.explicitUserRequest).toBe('...');
     expect(packet.sourceCandidates[0]?.captureRoute).toContain('research action:"add_source"');
+  });
+
+  test('uses a visible run id as the public search question and returns run follow-up routes', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-adapter-'));
+    const shellPaths = {
+      resolveProjectPath: (...parts: string[]) => join(root, '.goodvibes', ...parts),
+    };
+    try {
+      const run = AgentResearchRunRegistry.fromShellPaths(shellPaths).create({
+        title: 'Browser agents',
+        question: 'Which browser agents have the best user experience?',
+        plan: ['Search public sources', 'Capture candidates', 'Review credibility'],
+      });
+      const calls: Record<string, unknown>[] = [];
+      const tool = makeTool(calls, { workspace: { shellPaths }, platform: {} } as CommandContext);
+
+      const result = await tool.execute({ action: 'search', runId: run.id, maxResults: 2, evidenceTopN: 1 });
+      const packet = JSON.parse(result.output as string) as {
+        readonly query: string;
+        readonly run?: { readonly id: string };
+        readonly nextRoutes: {
+          readonly createRun?: string;
+          readonly run?: string;
+          readonly briefing?: string;
+          readonly checkpointAfterCapture?: string;
+        };
+        readonly policy: string;
+      };
+
+      expect(calls).toEqual([
+        { tool: 'web_search', query: 'Which browser agents have the best user experience?', maxResults: 2, verbosity: 'evidence', safeSearch: 'moderate', includeEvidence: true, evidenceTopN: 1, evidenceExtract: 'readable' },
+      ]);
+      expect(packet.query).toBe('Which browser agents have the best user experience?');
+      expect(packet.run?.id).toBe(run.id);
+      expect(packet.nextRoutes.createRun).toBeUndefined();
+      expect(packet.nextRoutes.run).toContain(`runId:"${run.id}"`);
+      expect(packet.nextRoutes.briefing).toContain(`target:"${run.id}"`);
+      expect(packet.nextRoutes.checkpointAfterCapture).toContain(`id:"${run.id}"`);
+      expect(packet.policy).toContain('does not create or start a run');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 
   test('routes source bundle and confirmed writes to existing research tools', async () => {
