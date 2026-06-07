@@ -219,7 +219,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     learningCurator: 'Prefer memory action:"curator|candidate"; writes stay on reviewed Agent-local routes.',
     researchWorkflow: 'Prefer research action:"plan" for deep-research route planning and action:"runner" for browser-runner readiness; lower-level mode:"research_workflow" sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
     researchRuns: 'Prefer research action:"runs|run"; lower-level mode:"research_runs" and mode:"research_run" inspect run posture; checkpoint/cancel/complete stays confirmed.',
-    researchQueue: 'Prefer research action:"sources|source|bundle"; lower-level mode:"research_queue" and mode:"research_source" inspect source posture; capture/review/report/ingest stay confirmed.',
+    researchQueue: 'Prefer research action:"sources|source|bundle|reports|report_artifact"; lower-level research modes inspect source posture; capture/review/report/ingest stay confirmed.',
     documentOps: 'List mode:"document_ops"; inspect mode:"document_ops_lane"; browse saved artifacts with agent_artifacts; use returned routes for documents, review packet wizard, reviewer readiness, uploads, exports, source checks, artifacts, and blind compare.',
     pairingPosture: 'Prefer device action:"status|capability" for device maps. Lower-level mode:"pairing_posture" and mode:"pairing_route" remain available; raw token/QR and pairing effects stay visible user flows.',
     delegationPosture: 'Prefer delegation action:"status|routes|route"; delegated submission stays confirmed visible flow.',

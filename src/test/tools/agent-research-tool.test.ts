@@ -27,6 +27,7 @@ function makeTool(calls: Record<string, unknown>[] = []): Tool {
     runsTool: fakeTool('agent_research_runs', calls),
     sourcesTool: fakeTool('agent_research_sources', calls),
     reportTool: fakeTool('agent_research_report', calls),
+    artifactTool: fakeTool('agent_artifacts', calls),
   });
 }
 
@@ -71,6 +72,21 @@ describe('research adapter', () => {
     expect(calls).toEqual([
       { tool: 'agent_harness', mode: 'research_workflow', query: 'browser-backed research runner', includeParameters: true },
       { tool: 'agent_harness', mode: 'research_workflow', query: 'authenticated market research', includeParameters: false },
+    ]);
+  });
+
+  test('routes saved research report artifact reads to the artifact browser', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const tool = makeTool(calls);
+
+    await tool.execute({ action: 'reports', query: 'browser agents', limit: 3 });
+    await tool.execute({ action: 'report_artifact', artifactId: 'artifact_123', previewBytes: 4096 });
+    await tool.execute({ action: 'show_report', reportArtifactId: 'artifact_456', includeContent: false });
+
+    expect(calls).toEqual([
+      { tool: 'agent_artifacts', mode: 'list', purpose: 'agent-research-report', query: 'browser agents', limit: 3 },
+      { tool: 'agent_artifacts', mode: 'show', artifactId: 'artifact_123', includeContent: true, previewBytes: 4096 },
+      { tool: 'agent_artifacts', mode: 'show', artifactId: 'artifact_456', includeContent: false },
     ]);
   });
 

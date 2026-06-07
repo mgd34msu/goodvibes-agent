@@ -1,6 +1,7 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
+import { createAgentArtifactsTool } from './agent-artifacts-tool.ts';
 import { createAgentHarnessTool } from './agent-harness-tool.ts';
 import { createAgentResearchReportTool } from './agent-research-report-tool.ts';
 import { createAgentResearchRunsTool } from './agent-research-runs-tool.ts';
@@ -14,6 +15,8 @@ type AgentResearchAction =
   | 'sources'
   | 'source'
   | 'bundle'
+  | 'reports'
+  | 'report_artifact'
   | 'create_run'
   | 'start_run'
   | 'checkpoint'
@@ -36,6 +39,7 @@ interface AgentResearchToolArgs {
   readonly id?: unknown;
   readonly runId?: unknown;
   readonly sourceId?: unknown;
+  readonly artifactId?: unknown;
   readonly query?: unknown;
   readonly target?: unknown;
   readonly title?: unknown;
@@ -70,6 +74,8 @@ interface AgentResearchToolArgs {
   readonly visualReport?: unknown;
   readonly includeReportLines?: unknown;
   readonly includeParameters?: unknown;
+  readonly includeContent?: unknown;
+  readonly previewBytes?: unknown;
   readonly limit?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
@@ -83,6 +89,7 @@ interface AgentResearchToolDeps {
   readonly runsTool?: Tool;
   readonly sourcesTool?: Tool;
   readonly reportTool?: Tool;
+  readonly artifactTool?: Tool;
 }
 
 function error(message: string): { readonly success: false; readonly error: string } {
@@ -103,6 +110,8 @@ function normalizeResearchAction(value: unknown): AgentResearchAction | null {
   if (action === 'sources' || action === 'queue' || action === 'source_queue') return 'sources';
   if (action === 'source' || action === 'show_source' || action === 'inspect_source') return 'source';
   if (action === 'bundle' || action === 'bundle_sources' || action === 'source_bundle') return 'bundle';
+  if (action === 'reports' || action === 'list_reports' || action === 'report_list' || action === 'visual_reports') return 'reports';
+  if (action === 'report_artifact' || action === 'show_report' || action === 'inspect_report' || action === 'show_visual_report' || action === 'visual_report_artifact') return 'report_artifact';
   if (action === 'create_run' || action === 'new_run') return 'create_run';
   if (action === 'start' || action === 'start_run' || action === 'begin_run' || action === 'run_start') return 'start_run';
   if (action === 'checkpoint' || action === 'checkpoint_run') return 'checkpoint';
@@ -135,7 +144,7 @@ function compactArgs(entries: Record<string, unknown>): Record<string, unknown> 
 }
 
 function lookupId(args: AgentResearchToolArgs): string {
-  return readString(args.id) || readString(args.runId) || readString(args.sourceId);
+  return readString(args.id) || readString(args.runId) || readString(args.sourceId) || readString(args.artifactId) || readString(args.reportArtifactId);
 }
 
 function planArgs(args: AgentResearchToolArgs): Record<string, unknown> {
@@ -241,6 +250,24 @@ function bundleArgs(args: AgentResearchToolArgs): Record<string, unknown> {
   });
 }
 
+function reportsArgs(args: AgentResearchToolArgs): Record<string, unknown> {
+  return compactArgs({
+    mode: 'list',
+    purpose: 'agent-research-report',
+    query: args.query ?? args.target,
+    limit: args.limit,
+  });
+}
+
+function reportArtifactArgs(args: AgentResearchToolArgs): Record<string, unknown> {
+  return compactArgs({
+    mode: 'show',
+    artifactId: lookupId(args),
+    includeContent: args.includeContent ?? true,
+    previewBytes: args.previewBytes,
+  });
+}
+
 function addSourceArgs(args: AgentResearchToolArgs): Record<string, unknown> {
   return compactArgs({
     mode: 'add',
@@ -313,6 +340,9 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
   const runsTool = deps.runsTool ?? createAgentResearchRunsTool(shellPaths);
   const sourcesTool = deps.sourcesTool ?? createAgentResearchSourcesTool(shellPaths);
   const reportTool = deps.reportTool ?? createAgentResearchReportTool(deps.commandContext.platform?.artifactStore);
+  const artifactTool = deps.artifactTool
+    ?? deps.toolRegistry.list().find((entry) => entry.definition.name === 'agent_artifacts')
+    ?? createAgentArtifactsTool(deps.commandContext.platform?.artifactStore);
 
   return {
     definition: {
@@ -331,6 +361,8 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
               'sources',
               'source',
               'bundle',
+              'reports',
+              'report_artifact',
               'create_run',
               'start_run',
               'checkpoint',
@@ -353,6 +385,7 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
           id: { type: 'string', description: 'Run or source id alias.' },
           runId: { type: 'string', description: 'Research run id.' },
           sourceId: { type: 'string', description: 'Research source id.' },
+          artifactId: { type: 'string', description: 'Research report artifact id.' },
           query: { type: 'string', description: 'Research request or queue search.' },
           target: { type: 'string', description: 'Lookup target alias.' },
           title: { type: 'string', description: 'Run, source, or report title.' },
@@ -387,6 +420,8 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
           visualReport: { type: 'boolean', description: 'Append visual packet sections.' },
           includeReportLines: { type: 'boolean', description: 'Include report source lines.' },
           includeParameters: { type: 'boolean', description: 'Include bounded route details.' },
+          includeContent: { type: 'boolean', description: 'Preview saved report artifact content.' },
+          previewBytes: { type: 'number', description: 'Maximum saved report preview bytes.' },
           limit: { type: 'number', description: 'Maximum rows.' },
           confirm: { type: 'boolean', description: 'Required true for writes.' },
           explicitUserRequest: { type: 'string', description: 'User request authorizing writes.' },
@@ -407,6 +442,8 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
       if (action === 'sources') return harnessTool.execute(sourcesArgs(args));
       if (action === 'source') return harnessTool.execute(sourceArgs(args));
       if (action === 'bundle') return sourcesTool.execute(bundleArgs(args));
+      if (action === 'reports') return artifactTool.execute(reportsArgs(args));
+      if (action === 'report_artifact') return artifactTool.execute(reportArtifactArgs(args));
       if (action === 'create_run') return runsTool.execute(createRunArgs(args));
       if (action === 'start_run') return runsTool.execute(runMutationArgs(args, 'start'));
       if (action === 'checkpoint') return runsTool.execute(runMutationArgs(args, 'checkpoint'));

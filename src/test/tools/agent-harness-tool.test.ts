@@ -7724,6 +7724,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-start-run')?.modelRoute).toBe('research action:"create_run"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-source-queue')?.modelRoute).toBe('research action:"sources"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-add-source')?.modelRoute).toBe('research action:"add_source"');
+      expect(allActionPayload.actions.find((entry) => entry.id === 'research-report-artifacts')?.modelRoute).toBe('research action:"reports"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'research-save-report')?.modelRoute).toBe('research action:"report"');
 
       const listedWithEditors = await fixture.tool.execute({ mode: 'workspace_actions', query: 'memory create', includeParameters: true });

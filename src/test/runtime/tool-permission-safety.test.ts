@@ -105,6 +105,8 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('research', { action: 'plan' })).toBe('read');
     expect(manager.getCategory('research', { action: 'runner' })).toBe('read');
     expect(manager.getCategory('research', { action: 'bundle' })).toBe('read');
+    expect(manager.getCategory('research', { action: 'reports' })).toBe('read');
+    expect(manager.getCategory('research', { action: 'report_artifact' })).toBe('read');
     expect(manager.getCategory('research', { action: 'create_run' })).toBe('write');
     expect(manager.getCategory('research', { action: 'report' })).toBe('write');
     expect(manager.getCategory('schedule', { action: 'list' })).toBe('read');
@@ -244,6 +246,8 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('personal_ops', { action: 'read' })).resolves.toBe(false);
     await expect(manager.check('research', { action: 'sources' })).resolves.toBe(true);
     await expect(manager.check('research', { action: 'browser' })).resolves.toBe(true);
+    await expect(manager.check('research', { action: 'reports' })).resolves.toBe(true);
+    await expect(manager.check('research', { action: 'show_report' })).resolves.toBe(true);
     await expect(manager.check('research', { action: 'review_source' })).resolves.toBe(false);
     await expect(manager.check('schedule', { action: 'list' })).resolves.toBe(true);
     await expect(manager.check('schedule', { action: 'run' })).resolves.toBe(false);
