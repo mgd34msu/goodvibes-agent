@@ -157,6 +157,15 @@ describe('agent_harness mode catalog', () => {
     expect(context.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
+  test('finds prompt context by selected memory and token budget wording', () => {
+    const context = listHarnessModes({ query: 'prompt context selected memory token budget', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const promptContext = context.modes.find((mode) => mode.id === 'prompt_context');
+    expect(promptContext?.parameters).toEqual(expect.arrayContaining(['includeParameters']));
+    expect(context.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+  });
+
   test('finds channel delivery receipts by outcome wording', () => {
     const deliveries = listHarnessModes({ query: 'channel delivery receipts sent outcomes', limit: 10 }) as {
       readonly modes: readonly { readonly id: string; readonly summary: string }[];

@@ -39,6 +39,7 @@ import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummar
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
 import { describePersonalOpsLane, personalOpsBriefingSummary, personalOpsCatalogStatus, personalOpsIntakeSummary, personalOpsSummary, runPersonalOpsRead } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
+import { promptContextCatalogStatus, promptContextSummary } from './agent-harness-prompt-context.ts';
 import { describeProjectContextFile, projectContextCatalogStatus, projectContextSummary } from './agent-harness-project-context.ts';
 import { describeHarnessProviderAccount, providerAccountCatalogStatus, providerAccountSummary } from './agent-harness-provider-account-metadata.ts';
 import { describeHarnessReleaseEvidenceArtifact, releaseEvidenceBundleStatus, releaseEvidenceSummary } from './agent-harness-release-evidence.ts';
@@ -202,6 +203,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     mcpServers: 'List mode:"mcp_servers"; inspect mode:"mcp_server"; trust/server changes stay confirmed workspace/command flows.',
     setupPosture: 'List mode:"setup_posture"; inspect mode:"setup_item"; resume setup with mode:"setup_checkpoint"; provision auth with mode:"provision_connected_host_token"; run smoke with mode:"run_setup_smoke".',
     projectContext: 'List mode:"project_context"; inspect mode:"project_context_file"; context files are read-only and secret-scanned.',
+    promptContext: 'Inspect mode:"prompt_context" to see current prompt composition order, selected records, suppressed context, and approximate token budget without dumping full prompt bodies by default.',
     agentOrchestration: 'List mode:"agent_orchestration" for managed plan and closeout cards; dispatch approved plan items with agent_work_plan action:"dispatch_agents"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
     modelRouting: 'List mode:"model_routing"; query local for hardware-scored cookbook; inspect mode:"model_route"; changes stay visible.',
     executionPosture: 'List mode:"execution_posture"; inspect mode:"execution_route"; use local read/edit/exec when the current workspace is sufficient, delegation for isolation/parallel/remote.',
@@ -1191,6 +1193,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             error: formatHarnessError(err),
           }));
           const projectContext = projectContextCatalogStatus(deps.commandContext);
+          const promptContext = promptContextCatalogStatus(deps.commandContext);
           const agentOrchestration = agentOrchestrationCatalogStatus(deps.commandContext, deps.toolRegistry);
           const modelRouting = await modelRoutingCatalogStatus(deps.commandContext).catch((err) => ({
             modes: ['model_routing', 'model_route'],
@@ -1253,6 +1256,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             mcpServers,
             setupPosture,
             projectContext,
+            promptContext,
             agentOrchestration,
             modelRouting,
             executionPosture,
@@ -1428,6 +1432,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'ambiguous') return error(`Ambiguous project context file ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
         }
+        if (args.mode === 'prompt_context') return output(promptContextSummary(deps.commandContext, args));
         if (args.mode === 'agent_orchestration') return output(agentOrchestrationSummary(deps.commandContext, deps.toolRegistry, args));
         if (args.mode === 'agent_orchestration_agent') {
           const resolved = describeAgentOrchestrationAgent(deps.commandContext, args);

@@ -1107,7 +1107,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Create/import memory, personas, skills, routines, notes, and Knowledge.');
     expect(output).toContain('VIBE.md: 1 applied; 0 blocked; 0 truncated.');
     expect(output).toContain('Project context: 1 loaded; 1 blocked; 0 truncated.');
-    expect(output).toContain('Context routes: /vibe status, project_context, and project_context_file.');
+    expect(output).toContain('Context routes: prompt_context, /vibe status, project_context, and project_context_file.');
     expect(output).toContain('Inspect VIBE.md');
     expect(output).toContain('/vibe status');
     expect(output).toContain('Inspect project context');
@@ -1146,10 +1146,12 @@ describe('renderAgentWorkspace', () => {
     expectSetupAction('context-vibe-status', 'Inspect VIBE.md', '/vibe status');
     expectSetupAction('context-project-files', 'Inspect project context', 'project_context');
     expectSetupAction('context-project-file', 'Inspect one context file', 'project_context_file');
+    expectSetupAction('context-prompt-context', 'Prompt context', 'prompt_context');
     expectSetupAction('context-create-skill', 'Create skill', 'edit skill');
     expectSetupAction('context-create-routine', 'Create routine', 'edit routine');
     expectSetupAction('context-knowledge-url', 'Ingest URL', 'edit knowledge-url');
     expectSetupAction('context-knowledge-file', 'Ingest file', 'edit knowledge-file');
+    expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context routes: prompt_context');
   });
 
   test('renders local persona posture in the memory workspace', () => {

@@ -201,6 +201,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   if (action.id === 'work-process-capabilities') return 'agent_harness mode:"background_processes"';
   if (action.id === 'context-project-files') return 'agent_harness mode:"project_context"';
   if (action.id === 'context-project-file') return 'agent_harness mode:"project_context_file"';
+  if (action.id === 'context-prompt-context') return 'agent_harness mode:"prompt_context" includeParameters:true';
   if (action.id === 'voice-workflow-posture') return 'agent_harness mode:"media_posture"';
   if (action.id === 'device-capability-map') return 'agent_harness mode:"pairing_posture"';
   if (action.id === 'browser-cockpit-readiness') return 'agent_harness mode:"ui_surface"';

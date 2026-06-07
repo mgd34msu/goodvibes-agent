@@ -1753,6 +1753,141 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('exposes current prompt context composition and budget without mutating records', async () => {
+    const fixture = makeFixture();
+    try {
+      attachMemoryApi(fixture, [
+        makeMemoryRecord(),
+        makeMemoryRecord({ id: 'mem-low-confidence', confidence: 55, summary: 'Low confidence memory' }),
+        makeMemoryRecord({ id: 'mem-unreviewed', reviewState: 'fresh', confidence: 91, summary: 'Unreviewed memory' }),
+      ]);
+      writeFileSync(join(fixture.root, 'VIBE.md'), 'Keep the assistant concise and user-first.');
+      writeFileSync(join(fixture.root, 'AGENTS.md'), 'Prefer visible prompt context inspection before relying on hidden assumptions.');
+
+      const personaRegistry = AgentPersonaRegistry.fromShellPaths(fixture.paths);
+      const persona = personaRegistry.create({
+        name: 'Reviewed prompt inspector',
+        description: 'Reviewed prompt behavior.',
+        body: 'Explain applied context before acting when context is ambiguous.',
+        source: 'agent',
+      });
+      personaRegistry.markReviewed(persona.id);
+      personaRegistry.setActive(persona.id);
+
+      const skillRegistry = AgentSkillRegistry.fromShellPaths(fixture.paths);
+      const readySkill = skillRegistry.create({
+        name: 'Prompt evidence skill',
+        description: 'Summarize active prompt evidence.',
+        procedure: 'List selected context records, then ask for confirmation before changes.',
+        enabled: true,
+        source: 'agent',
+      });
+      skillRegistry.markReviewed(readySkill.id);
+      skillRegistry.create({
+        name: 'Blocked prompt skill',
+        description: 'Needs unavailable setup.',
+        procedure: 'Use an unavailable command.',
+        requirements: [{ kind: 'command', name: 'definitely-missing-goodvibes-agent-test-command' }],
+        enabled: true,
+        source: 'agent',
+      });
+
+      const routineRegistry = AgentRoutineRegistry.fromShellPaths(fixture.paths);
+      const readyRoutine = routineRegistry.create({
+        name: 'Prompt closeout routine',
+        description: 'Close out prompt context reviews.',
+        steps: 'Summarize applied context, suppressed context, and next review route.',
+        enabled: true,
+        source: 'agent',
+      });
+      routineRegistry.markReviewed(readyRoutine.id);
+      routineRegistry.create({
+        name: 'Blocked prompt routine',
+        description: 'Needs unavailable setup.',
+        steps: 'Run unavailable setup before use.',
+        requirements: [{ kind: 'command', name: 'definitely-missing-goodvibes-agent-test-command' }],
+        enabled: true,
+        source: 'agent',
+      });
+
+      const summary = await executeHarnessJson<{
+        readonly promptContext?: {
+          readonly status: string;
+          readonly activeRecords: number;
+          readonly suppressedRecords: number;
+          readonly approxPromptTokens: number;
+          readonly modelRoute: string;
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.promptContext?.status).toBe('attention');
+      expect(summary.promptContext?.activeRecords).toBeGreaterThan(4);
+      expect(summary.promptContext?.suppressedRecords).toBeGreaterThan(1);
+      expect(summary.promptContext?.approxPromptTokens).toBeGreaterThan(0);
+      expect(summary.promptContext?.modelRoute).toContain('prompt_context');
+
+      const promptContext = await executeHarnessJson<{
+        readonly status: string;
+        readonly order: readonly string[];
+        readonly activeRecords: number;
+        readonly suppressedRecords: number;
+        readonly approxPromptTokens: number;
+        readonly budget: { readonly approxPromptTokens: number; readonly percentOfWindow: number | null };
+        readonly segments: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly activeCount: number;
+          readonly suppressedCount: number;
+          readonly approxTokens: number;
+          readonly selected?: readonly { readonly id?: string; readonly path?: string; readonly name?: string; readonly source?: string; readonly inspectRoute?: string }[];
+          readonly suppressed?: readonly { readonly id?: string; readonly reason?: string; readonly reviewState?: string; readonly missingRequirements?: number }[];
+          readonly preview?: string;
+        }[];
+        readonly routes: { readonly promptPlan: string; readonly memoryPosture: string; readonly learningCurator: string };
+        readonly policy: string;
+      }>(fixture, { mode: 'prompt_context', includeParameters: true });
+
+      expect(promptContext.status).toBe('attention');
+      expect(promptContext.order).toEqual(expect.arrayContaining(['vibe', 'project_context', 'memory', 'routines', 'skills', 'persona']));
+      expect(promptContext.activeRecords).toBe(summary.promptContext?.activeRecords);
+      expect(promptContext.suppressedRecords).toBe(summary.promptContext?.suppressedRecords);
+      expect(promptContext.approxPromptTokens).toBe(promptContext.budget.approxPromptTokens);
+      expect(promptContext.budget.percentOfWindow).not.toBeNull();
+
+      const memory = promptContext.segments.find((segment) => segment.id === 'memory');
+      expect(memory?.selected?.some((record) => record.id === 'mem-briefing')).toBe(true);
+      expect(memory?.suppressed?.some((record) => record.id === 'mem-low-confidence' && record.reason?.includes('confidence'))).toBe(true);
+      expect(memory?.suppressed?.some((record) => record.id === 'mem-unreviewed' && record.reason === 'not reviewed')).toBe(true);
+      expect(memory?.preview).toContain('Reviewed GoodVibes Agent Memory');
+
+      const vibe = promptContext.segments.find((segment) => segment.id === 'vibe');
+      expect(vibe?.selected?.[0]?.path).toBe(join(fixture.root, 'VIBE.md'));
+      const project = promptContext.segments.find((segment) => segment.id === 'project_context');
+      expect(project?.selected?.some((record) => record.source === 'AGENTS.md')).toBe(true);
+      const skills = promptContext.segments.find((segment) => segment.id === 'skills');
+      expect(skills?.selected?.some((record) => record.id === readySkill.id)).toBe(true);
+      expect(skills?.suppressedCount).toBeGreaterThan(0);
+      const routines = promptContext.segments.find((segment) => segment.id === 'routines');
+      expect(routines?.selected?.some((record) => record.id === readyRoutine.id)).toBe(true);
+      expect(routines?.suppressed?.some((record) => record.missingRequirements !== undefined || record.reviewState === 'fresh')).toBe(true);
+      const personaSegment = promptContext.segments.find((segment) => segment.id === 'persona');
+      expect(personaSegment?.selected?.[0]?.name).toBe('Reviewed prompt inspector');
+
+      expect(promptContext.routes.promptPlan).toContain('learning_curator');
+      expect(promptContext.routes.memoryPosture).toContain('memory_posture');
+      expect(promptContext.routes.learningCurator).toContain('learning_curator');
+      expect(promptContext.policy).toContain('Read-only');
+
+      const action = await executeHarnessJson<{
+        readonly id: string;
+        readonly modelRoute?: string;
+      }>(fixture, { mode: 'workspace_action', actionId: 'context-prompt-context' });
+      expect(action.id).toBe('context-prompt-context');
+      expect(action.modelRoute).toBe('agent_harness mode:"prompt_context" includeParameters:true');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes visible Agent orchestration without spawning hidden work', async () => {
     const fixture = makeFixture();
     try {

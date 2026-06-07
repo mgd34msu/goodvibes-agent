@@ -147,6 +147,7 @@ const ALLOWED_ONBOARDING_READONLY_GUIDANCE = new Set([
   'account-local-benchmark-evidence',
   'context-project-files',
   'context-project-file',
+  'context-prompt-context',
 ]);
 
 const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set([
