@@ -4218,7 +4218,7 @@ describe('agent_harness tool', () => {
       const summary = await executeHarnessJson<{
         readonly documentOps?: { readonly lanes: number; readonly ready: number; readonly attention: number; readonly partial: number; readonly gap: number };
       }>(fixture, { mode: 'summary' });
-      expect(summary.documentOps?.lanes).toBe(9);
+      expect(summary.documentOps?.lanes).toBe(10);
       expect(summary.documentOps?.ready).toBeGreaterThanOrEqual(2);
       expect(summary.documentOps?.attention).toBeGreaterThanOrEqual(1);
       expect(summary.documentOps?.partial).toBeGreaterThanOrEqual(1);
@@ -4248,6 +4248,16 @@ describe('agent_harness tool', () => {
           readonly id: string;
           readonly status: string;
           readonly current: string;
+          readonly reviewPacketWizard?: {
+            readonly status: string;
+            readonly currentStepLabel?: string | null;
+            readonly steps: readonly {
+              readonly id: string;
+              readonly status: string;
+              readonly modelRoute: string;
+              readonly backtrackRoute?: string;
+            }[];
+          };
           readonly reviewerReadiness?: {
             readonly status: string;
             readonly checks: readonly {
@@ -4272,6 +4282,7 @@ describe('agent_harness tool', () => {
       const exports = ops.lanes.find((lane) => lane.id === 'exports');
       const reviewerReadiness = ops.lanes.find((lane) => lane.id === 'reviewer_readiness');
       const reviewPacketTimeline = ops.lanes.find((lane) => lane.id === 'review_packet_timeline');
+      const reviewPacketWizard = ops.lanes.find((lane) => lane.id === 'review_packet_wizard');
       const sourceLibrary = ops.lanes.find((lane) => lane.id === 'source_library');
       const artifactBrowser = ops.lanes.find((lane) => lane.id === 'artifact_browser');
       const modelCompare = ops.lanes.find((lane) => lane.id === 'model_compare');
@@ -4305,6 +4316,12 @@ describe('agent_harness tool', () => {
       expect(reviewPacketTimeline?.current).toContain('packet event');
       expect(reviewPacketTimeline?.actionIds).toContain('document-review-packet-timeline');
       expect(reviewPacketTimeline?.actionIds).toContain('document-review-compare');
+      expect(reviewPacketWizard?.status).toBe('attention');
+      expect(reviewPacketWizard?.current).toContain('Draft review');
+      expect(reviewPacketWizard?.actionIds).toContain('document-review-packet-wizard');
+      expect(reviewPacketWizard?.actionIds).toContain('document-export-draft');
+      expect(reviewPacketWizard?.reviewPacketWizard?.currentStepLabel).toBe('Draft review');
+      expect(reviewPacketWizard?.reviewPacketWizard?.steps.map((step) => step.id)).toContain('route-decision');
       expect(ops.reviewerReadiness?.status).toBe('attention');
       expect(ops.reviewerReadiness?.summary.openComments).toBe(1);
       expect(ops.reviewerReadiness?.summary.proposedSuggestions).toBe(1);
@@ -4390,6 +4407,26 @@ describe('agent_harness tool', () => {
       expect(timelineLane.signals.join('\n')).toContain('agent_model_compare');
       expect(timelineLane.routes?.model).toBe('agent_harness mode:"document_ops_lane" laneId:"review_packet_timeline"');
 
+      const wizardLane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly current: string;
+        readonly next: string;
+        readonly reviewPacketWizard?: {
+          readonly progress: string;
+          readonly currentStepLabel?: string | null;
+          readonly steps: readonly { readonly id: string; readonly modelRoute: string; readonly backtrackRoute?: string }[];
+        };
+        readonly routes?: { readonly model: string };
+      }>(fixture, { mode: 'document_ops_lane', laneId: 'review_packet_wizard' });
+      expect(wizardLane.id).toBe('review_packet_wizard');
+      expect(wizardLane.status).toBe('attention');
+      expect(wizardLane.current).toContain('Draft review');
+      expect(wizardLane.reviewPacketWizard?.progress).toBe('1/6');
+      expect(wizardLane.reviewPacketWizard?.currentStepLabel).toBe('Draft review');
+      expect(wizardLane.reviewPacketWizard?.steps.find((step) => step.id === 'route-decision')?.modelRoute).toContain('agent_model_compare apply');
+      expect(wizardLane.routes?.model).toBe('agent_harness mode:"document_ops_lane" laneId:"review_packet_wizard"');
+
       const readinessAction = await executeHarnessJson<{
         readonly status: string;
         readonly action: string;
@@ -4405,6 +4442,22 @@ describe('agent_harness tool', () => {
       expect(readinessAction.tool).toBe('agent_harness');
       expect(readinessAction.output?.id).toBe('reviewer_readiness');
       expect(readinessAction.output?.reviewerReadiness?.status).toBe('attention');
+
+      const wizardAction = await executeHarnessJson<{
+        readonly status: string;
+        readonly action: string;
+        readonly tool: string;
+        readonly output?: { readonly id?: string; readonly reviewPacketWizard?: { readonly currentStepLabel?: string | null } };
+      }>(fixture, {
+        mode: 'run_workspace_action',
+        actionId: 'document-review-packet-wizard',
+        fields: { includeRoutes: 'yes' },
+      });
+      expect(wizardAction.status).toBe('executed_harness_lane');
+      expect(wizardAction.action).toBe('document-review-packet-wizard');
+      expect(wizardAction.tool).toBe('agent_harness');
+      expect(wizardAction.output?.id).toBe('review_packet_wizard');
+      expect(wizardAction.output?.reviewPacketWizard?.currentStepLabel).toBe('Draft review');
     } finally {
       fixture.cleanup();
     }

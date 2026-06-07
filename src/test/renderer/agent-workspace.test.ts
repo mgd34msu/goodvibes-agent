@@ -504,8 +504,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Document route: openai-subscriber / GPT-5.5');
     expect(output).toContain('Files: attach, paste, source ingest, export-to-file/package/ZIP');
     expect(output).toContain('Review packet timeline: artifact history unavailable; no document-local events yet.');
+    expect(output).toContain('Packet wizard: 0/6 done; current Draft review.');
     expect(output).toContain('Versioned drafts, review comments, AI suggestion review');
-    expect(output).toContain('compare artifact reuse');
+    expect(output).toContain('Compare: reuse');
     expect(output).toContain('Browse document drafts');
     expect(output).toContain('Show document draft');
     expect(output).toContain('Create document draft');
@@ -517,14 +518,15 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Reject suggestion');
     expect(output).toContain('Insert artifact in draft');
     expect(output).toContain('Review packet timeline');
+    expect(output).toContain('Review packet wizard');
     expect(output).toContain('Review readiness preflight');
     expect(output).toContain('Export document artifact');
     expect(output).toContain('Export saved artifact');
     expect(output).toContain('Export artifact package');
     expect(output).toContain('review/side-by-side/judgment');
     expect(output).toContain('analytics/synthesis');
-    expect(output).toContain('handoff diff section jumps');
-    expect(output).toContain('export/handoff/archive');
+    expect(output).toContain('handoff diff');
+    expect(output).toContain('export/archive');
     expect(output).toContain('agent_harness mode:"document_ops"');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-reviewer-readiness');
@@ -636,7 +638,17 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Packet compare: Blind compare hidden: cmp_launch');
     expect(output).toContain('Packet next:');
     expect(output).toContain('related artifact(s)');
+    expect(output).toContain('Packet wizard:');
+    expect(output).toContain('current Draft review');
     expect(output).toContain('Packet defaults: document reviewer-packet');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-review-packet-wizard');
+    workspace.activateSelected();
+    output = text(renderAgentWorkspace(workspace, 150, 56));
+    expect(output).toContain('Review Packet Wizard');
+    expect(output).toContain('Walk the current reviewer packet');
+    expect(output).toContain('Focus');
+    workspace.cancelLocalEditor();
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'document-export-draft');
     workspace.activateSelected();

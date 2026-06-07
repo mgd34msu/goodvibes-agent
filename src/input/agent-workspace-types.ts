@@ -85,6 +85,7 @@ export type AgentWorkspaceEditorKind =
   | 'document-attach-artifact'
   | 'document-export'
   | 'document-reviewer-readiness'
+  | 'document-review-packet-wizard'
   | 'memory-search'
   | 'memory-get'
   | 'memory-explain'
@@ -415,8 +416,34 @@ export interface AgentWorkspaceReviewPacketDefaults {
   readonly judgmentArtifactId: string | null;
   readonly revealedJudgmentArtifactId: string | null;
   readonly handoffArtifactId: string | null;
+  readonly handoffArchiveArtifactId: string | null;
   readonly relatedArtifactIds: readonly string[];
   readonly summary: string;
+}
+
+export type AgentWorkspaceReviewPacketWizardStepStatus = 'done' | 'current' | 'pending' | 'blocked';
+
+export interface AgentWorkspaceReviewPacketWizardStep {
+  readonly id: string;
+  readonly label: string;
+  readonly status: AgentWorkspaceReviewPacketWizardStepStatus;
+  readonly detail: string;
+  readonly userRoute: string;
+  readonly modelRoute: string;
+  readonly actionId: string;
+  readonly backtrackRoute: string | null;
+}
+
+export interface AgentWorkspaceReviewPacketWizard {
+  readonly available: boolean;
+  readonly status: 'complete' | 'active' | 'blocked' | 'empty';
+  readonly completedSteps: number;
+  readonly totalSteps: number;
+  readonly currentStepId: string | null;
+  readonly currentStepLabel: string | null;
+  readonly next: string;
+  readonly finalReview: string;
+  readonly steps: readonly AgentWorkspaceReviewPacketWizardStep[];
 }
 
 export interface AgentWorkspaceRuntimeProfileItem {
@@ -549,6 +576,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly reviewerReadinessBadge: AgentWorkspaceReviewerReadinessBadge;
   readonly reviewPacketTimeline: AgentWorkspaceReviewPacketTimeline;
   readonly reviewPacketDefaults: AgentWorkspaceReviewPacketDefaults;
+  readonly reviewPacketWizard: AgentWorkspaceReviewPacketWizard;
   readonly localRoutineCount: number;
   readonly enabledRoutineCount: number;
   readonly localRoutines: readonly AgentWorkspaceLocalLibraryItem[];

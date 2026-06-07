@@ -164,6 +164,15 @@ export function describeWorkspaceEditorModelExecution(editorKind: AgentWorkspace
       note: 'run_workspace_action inspects the Document Ops reviewer-readiness lane before export, handoff archive, or model-route apply. It is read-only and returns exact repair routes.',
     };
   }
+  if (editorKind === 'document-review-packet-wizard') {
+    return {
+      route: 'agent_harness',
+      tool: 'agent_harness',
+      action: 'inspect_review_packet_wizard',
+      confirmation: 'not-required',
+      note: 'run_workspace_action inspects the Document Ops review packet wizard. It is read-only and returns progress, current step, backtrack routes, route-decision posture, and final evidence review guidance.',
+    };
+  }
   if (editorKind === 'model-compare' || editorKind === 'local-model-benchmark') {
     return {
       route: 'agent_model_compare',

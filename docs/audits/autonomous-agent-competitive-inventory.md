@@ -51,5 +51,5 @@ The source of truth for the structured inventory is `src/agent/competitive-featu
 - Keep learning consolidation explicit: preview duplicate groups, merge survivor fields, stage stale duplicates, delete only after stale, and rollback merge/stale phases through durable receipts.
 - Turn research from the current visible run ledger, route planner, and browser-readiness posture into a browser-backed live report workflow with artifacts, cancellation, richer visual reports, and explicit knowledge ingest.
 - Keep VIBE.md profile starter portability and project context inspection visible in profile authoring docs and release evidence as profile workflows evolve.
-- Extend Document Ops beyond parity by turning packet defaults into a multi-step guided reviewer packet wizard with progress, backtracking, route-decision completion state, final evidence review, and saved reviewer packet presets for recurring evidence sets.
+- Extend Document Ops beyond parity by persisting route-decision receipts for the guided packet wizard and adding saved reviewer packet presets for recurring evidence sets.
 - Make browser, mobile, voice, and device control setup discoverable and repairable from the same assistant cockpit.

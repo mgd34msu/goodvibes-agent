@@ -35,6 +35,9 @@ import type {
   AgentWorkspaceReviewPacketDefaults,
   AgentWorkspaceReviewPacketTimeline,
   AgentWorkspaceReviewPacketTimelineEvent,
+  AgentWorkspaceReviewPacketWizard,
+  AgentWorkspaceReviewPacketWizardStep,
+  AgentWorkspaceReviewPacketWizardStepStatus,
   AgentWorkspaceReviewerReadinessBadge,
   AgentWorkspaceRoutineScheduleReceiptSummary,
   AgentWorkspaceRuntimeProfileItem,
@@ -492,6 +495,7 @@ function buildReviewPacketDefaults(
     ))
     .sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
   const latestHandoff = artifacts.filter(isReviewerHandoffArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
+  const latestHandoffArchive = artifacts.filter(isReviewerHandoffArchiveArtifact).sort((left, right) => right.createdAt - left.createdAt)[0] ?? null;
   const relatedArtifactIds = uniqueStrings([
     latestDocumentExport?.id,
     latestDocument?.lastArtifactId,
@@ -515,8 +519,191 @@ function buildReviewPacketDefaults(
     judgmentArtifactId: latestJudgment?.id ?? null,
     revealedJudgmentArtifactId: latestRevealedJudgment?.id ?? null,
     handoffArtifactId,
+    handoffArchiveArtifactId: latestHandoffArchive?.id ?? null,
     relatedArtifactIds,
     summary,
+  };
+}
+
+function packetStepStatus(done: boolean, priorDone: boolean): AgentWorkspaceReviewPacketWizardStepStatus {
+  if (done) return 'done';
+  return priorDone ? 'current' : 'blocked';
+}
+
+function buildReviewPacketWizardStep(input: {
+  readonly id: string;
+  readonly label: string;
+  readonly status: AgentWorkspaceReviewPacketWizardStepStatus;
+  readonly detail: string;
+  readonly userRoute: string;
+  readonly modelRoute: string;
+  readonly actionId: string;
+  readonly backtrackRoute?: string | null;
+}): AgentWorkspaceReviewPacketWizardStep {
+  return {
+    id: input.id,
+    label: input.label,
+    status: input.status,
+    detail: input.detail,
+    userRoute: input.userRoute,
+    modelRoute: input.modelRoute,
+    actionId: input.actionId,
+    backtrackRoute: input.backtrackRoute ?? (input.status === 'done' ? input.modelRoute : null),
+  };
+}
+
+function buildReviewPacketWizard(
+  documents: readonly AgentDocumentRecord[],
+  artifactListAvailable: boolean,
+  defaults: AgentWorkspaceReviewPacketDefaults,
+): AgentWorkspaceReviewPacketWizard {
+  const latestDocument = [...documents]
+    .filter((document) => document.status !== 'archived')
+    .sort((left, right) => isoToEpoch(right.updatedAt) - isoToEpoch(left.updatedAt) || left.id.localeCompare(right.id))[0] ?? null;
+  const openComments = latestDocument?.comments.filter((comment) => comment.status === 'open').length ?? 0;
+  const proposedSuggestions = latestDocument?.suggestions.filter((suggestion) => suggestion.status === 'proposed').length ?? 0;
+  const documentReviewed = Boolean(latestDocument && openComments === 0 && proposedSuggestions === 0);
+  const documentExported = Boolean(defaults.documentExportArtifactId || latestDocument?.lastArtifactId);
+  const judgmentReady = Boolean(defaults.revealedJudgmentArtifactId);
+  const handoffReady = Boolean(defaults.handoffArtifactId && defaults.relatedArtifactIds.length > 0);
+  const archiveReady = Boolean(defaults.handoffArchiveArtifactId);
+  const routeDecisionDone = archiveReady;
+  const documentRoute = latestDocument
+    ? `agent_documents show documentId:"${latestDocument.id}" includeVersions:true`
+    : 'agent_documents list';
+  const steps: AgentWorkspaceReviewPacketWizardStep[] = [];
+  steps.push(buildReviewPacketWizardStep({
+    id: 'draft-review',
+    label: 'Draft review',
+    status: documentReviewed ? 'done' : 'current',
+    detail: latestDocument
+      ? documentReviewed
+        ? `${latestDocument.title} has no open comments or proposed suggestions.`
+        : `${latestDocument.title} has ${openComments} open comment(s) and ${proposedSuggestions} proposed suggestion(s) to resolve before export.`
+      : 'Create or select a document draft before building a reviewer packet.',
+    userRoute: latestDocument ? 'Documents & Compare -> Show document draft' : 'Documents & Compare -> Create document draft',
+    modelRoute: latestDocument
+      ? documentRoute
+      : 'agent_harness mode:"workspace_action" actionId:"document-create-draft"',
+    actionId: latestDocument ? 'document-show-draft' : 'document-create-draft',
+  }));
+  steps.push(buildReviewPacketWizardStep({
+    id: 'document-export',
+    label: 'Document export',
+    status: packetStepStatus(documentExported, documentReviewed),
+    detail: documentExported
+      ? `Document evidence is exported as ${defaults.documentExportArtifactId ?? latestDocument?.lastArtifactId}.`
+      : documentReviewed
+        ? 'Export the reviewed draft as a saved artifact for comparison and handoff evidence.'
+        : 'Resolve draft review items before exporting reviewer evidence.',
+    userRoute: 'Documents & Compare -> Export document artifact',
+    modelRoute: latestDocument
+      ? `agent_documents export documentId:"${latestDocument.id}" confirm:true explicitUserRequest:"..."`
+      : 'agent_harness mode:"workspace_action" actionId:"document-export-draft"',
+    actionId: 'document-export-draft',
+    backtrackRoute: defaults.documentExportArtifactId
+      ? `agent_artifacts show artifactId:"${defaults.documentExportArtifactId}"`
+      : null,
+  }));
+  steps.push(buildReviewPacketWizardStep({
+    id: 'compare-judgment',
+    label: 'Compare judgment',
+    status: packetStepStatus(judgmentReady, documentExported),
+    detail: judgmentReady
+      ? `Revealed judgment ${defaults.revealedJudgmentArtifactId} is ready for route review.`
+      : defaults.judgmentArtifactId
+        ? `Judgment ${defaults.judgmentArtifactId} exists, but winner identity is not revealed for route decisions.`
+        : defaults.comparisonArtifactId
+          ? `Comparison ${defaults.comparisonArtifactId} is available; save or reveal a judgment before handoff.`
+          : documentExported
+            ? 'Run a blind comparison from the exported document evidence, then save a revealed judgment.'
+            : 'Export document evidence before comparing models.',
+    userRoute: defaults.comparisonArtifactId ? 'Documents & Compare -> Review saved compare' : 'Documents & Compare -> Run blind compare',
+    modelRoute: defaults.revealedJudgmentArtifactId
+      ? `agent_model_compare review artifactId:"${defaults.revealedJudgmentArtifactId}" reveal:true`
+      : defaults.judgmentArtifactId
+        ? `agent_model_compare review artifactId:"${defaults.judgmentArtifactId}"`
+        : defaults.comparisonArtifactId
+          ? `agent_model_compare review artifactId:"${defaults.comparisonArtifactId}"`
+          : 'agent_harness mode:"workspace_action" actionId:"document-run-compare"',
+    actionId: defaults.comparisonArtifactId ? 'document-review-compare' : 'document-run-compare',
+  }));
+  steps.push(buildReviewPacketWizardStep({
+    id: 'reviewer-handoff',
+    label: 'Reviewer handoff',
+    status: packetStepStatus(handoffReady, judgmentReady),
+    detail: handoffReady
+      ? `Reviewer handoff ${defaults.handoffArtifactId} includes ${defaults.relatedArtifactIds.length} related evidence artifact(s).`
+      : judgmentReady
+        ? 'Create a reviewer handoff from the revealed judgment and related document/export evidence.'
+        : 'Save a revealed comparison judgment before creating reviewer handoff evidence.',
+    userRoute: 'Documents & Compare -> Export compare report',
+    modelRoute: defaults.revealedJudgmentArtifactId
+      ? `agent_model_compare handoff artifactId:"${defaults.revealedJudgmentArtifactId}" relatedArtifactIds:${JSON.stringify(defaults.relatedArtifactIds)} confirm:true explicitUserRequest:"..."`
+      : 'agent_harness mode:"workspace_action" actionId:"document-export-compare"',
+    actionId: 'document-export-compare',
+    backtrackRoute: defaults.handoffArtifactId
+      ? `agent_artifacts show artifactId:"${defaults.handoffArtifactId}"`
+      : null,
+  }));
+  steps.push(buildReviewPacketWizardStep({
+    id: 'route-decision',
+    label: 'Route decision',
+    status: routeDecisionDone ? 'done' : handoffReady ? 'current' : judgmentReady ? 'pending' : 'blocked',
+    detail: routeDecisionDone
+      ? 'Final packet evidence exists; route-decision review has been carried to archive/final review.'
+      : handoffReady
+        ? 'Apply the revealed winner or explicitly leave the current model unchanged before final archive review.'
+        : judgmentReady
+          ? 'Create reviewer handoff evidence before applying or leaving the revealed winning route.'
+          : 'A revealed judgment is required before deciding whether to update the selected model route.',
+    userRoute: 'Documents & Compare -> Apply compare winner',
+    modelRoute: defaults.revealedJudgmentArtifactId
+      ? `agent_model_compare apply artifactId:"${defaults.revealedJudgmentArtifactId}" confirm:true explicitUserRequest:"..."`
+      : 'agent_harness mode:"workspace_action" actionId:"document-apply-compare"',
+    actionId: 'document-apply-compare',
+  }));
+  steps.push(buildReviewPacketWizardStep({
+    id: 'final-archive-review',
+    label: 'Final archive review',
+    status: archiveReady ? 'done' : handoffReady && routeDecisionDone ? 'current' : handoffReady ? 'pending' : 'blocked',
+    detail: archiveReady
+      ? `Reviewer packet archive ${defaults.handoffArchiveArtifactId} is ready for final evidence review.`
+      : handoffReady
+        ? 'Archive the reviewer handoff as one ZIP artifact after route-decision review.'
+        : 'Create a reviewer handoff with related evidence before archiving the packet.',
+    userRoute: 'Documents & Compare -> Export compare report',
+    modelRoute: defaults.handoffArtifactId
+      ? `agent_model_compare handoffArchive artifactId:"${defaults.handoffArtifactId}" confirm:true explicitUserRequest:"..."`
+      : 'agent_harness mode:"workspace_action" actionId:"document-export-compare"',
+    actionId: 'document-export-compare',
+    backtrackRoute: defaults.handoffArchiveArtifactId
+      ? `agent_artifacts show artifactId:"${defaults.handoffArchiveArtifactId}"`
+      : null,
+  }));
+  const completedSteps = steps.filter((step) => step.status === 'done').length;
+  const current = steps.find((step) => step.status === 'current') ?? steps.find((step) => step.status === 'pending') ?? null;
+  const status = !artifactListAvailable && steps.length > 0
+    ? 'blocked'
+    : completedSteps === steps.length
+      ? 'complete'
+      : latestDocument
+        ? 'active'
+        : 'empty';
+  return {
+    available: artifactListAvailable,
+    status,
+    completedSteps,
+    totalSteps: steps.length,
+    currentStepId: current?.id ?? null,
+    currentStepLabel: current?.label ?? null,
+    next: current
+      ? `${current.label}: ${current.detail}`
+      : 'Review packet wizard is complete; inspect the final archive and saved packet evidence.',
+    finalReview: archiveReady
+      ? `Inspect final archive ${defaults.handoffArchiveArtifactId} and related evidence before sending or storing the packet.`
+      : 'Final evidence review stays pending until a reviewer handoff ZIP archive exists.',
+    steps,
   };
 }
 
@@ -831,6 +1018,11 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     documentDrafts,
     artifactListSnapshot.items,
   );
+  const reviewPacketWizard = buildReviewPacketWizard(
+    documentDrafts,
+    artifactListSnapshot.available,
+    reviewPacketDefaults,
+  );
   const discoveredBehavior = summarizeAgentBehaviorDiscovery(context.workspace?.shellPaths);
   const profileBaseHome = inferRuntimeProfileBaseHome(context.workspace?.shellPaths?.homeDirectory ?? '');
   const runtimeProfiles = (() => {
@@ -1090,6 +1282,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     reviewerReadinessBadge: reviewerBadge,
     reviewPacketTimeline,
     reviewPacketDefaults,
+    reviewPacketWizard,
     localRoutineCount: routineSnapshot.count,
     enabledRoutineCount: routineSnapshot.enabled,
     localRoutines: routineSnapshot.items,

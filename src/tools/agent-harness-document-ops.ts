@@ -2,6 +2,7 @@ import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifact
 import type { CommandContext } from '../input/command-registry.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../input/agent-workspace-categories.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
+import type { AgentWorkspaceReviewPacketWizard, AgentWorkspaceReviewPacketWizardStep } from '../input/agent-workspace-types.ts';
 import { AgentDocumentRegistry, type AgentDocumentRecord } from '../agent/document-registry.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -11,6 +12,7 @@ export type DocumentOpsLaneId =
   | 'exports'
   | 'reviewer_readiness'
   | 'review_packet_timeline'
+  | 'review_packet_wizard'
   | 'source_library'
   | 'media_artifacts'
   | 'artifact_browser'
@@ -39,6 +41,7 @@ interface DocumentOpsLane {
   readonly signals: readonly string[];
   readonly actionIds: readonly string[];
   readonly reviewerReadiness?: ReviewerReadinessChecklist;
+  readonly reviewPacketWizard?: AgentWorkspaceReviewPacketWizard;
 }
 
 interface ReviewerReadinessChecklist {
@@ -80,6 +83,7 @@ const LANE_IDS: readonly DocumentOpsLaneId[] = [
   'exports',
   'reviewer_readiness',
   'review_packet_timeline',
+  'review_packet_wizard',
   'source_library',
   'media_artifacts',
   'artifact_browser',
@@ -341,6 +345,20 @@ function searchText(lane: DocumentOpsLane): string {
     lane.modelRoute,
     lane.signals.join('\n'),
     lane.actionIds.join('\n'),
+    lane.reviewPacketWizard ? [
+      lane.reviewPacketWizard.status,
+      lane.reviewPacketWizard.next,
+      lane.reviewPacketWizard.finalReview,
+      lane.reviewPacketWizard.steps.map((step) => [
+        step.id,
+        step.label,
+        step.status,
+        step.detail,
+        step.userRoute,
+        step.modelRoute,
+        step.backtrackRoute ?? '',
+      ].join(' ')).join('\n'),
+    ].join('\n') : '',
     lane.reviewerReadiness ? [
       lane.reviewerReadiness.status,
       lane.reviewerReadiness.next,
@@ -381,6 +399,36 @@ function describeReviewerReadiness(checklist: ReviewerReadinessChecklist, includ
   };
 }
 
+function describeReviewPacketWizardStep(step: AgentWorkspaceReviewPacketWizardStep, includeParameters: boolean): Record<string, unknown> {
+  return {
+    id: step.id,
+    label: step.label,
+    status: step.status,
+    detail: previewHarnessText(step.detail, includeParameters ? 180 : 96),
+    userRoute: previewHarnessText(step.userRoute, includeParameters ? 180 : 96),
+    modelRoute: previewHarnessText(step.modelRoute, includeParameters ? 220 : 120),
+    actionId: step.actionId,
+    ...(step.backtrackRoute ? { backtrackRoute: previewHarnessText(step.backtrackRoute, includeParameters ? 220 : 120) } : {}),
+  };
+}
+
+function describeReviewPacketWizard(wizard: AgentWorkspaceReviewPacketWizard, includeParameters: boolean): Record<string, unknown> {
+  return {
+    status: wizard.status,
+    progress: `${wizard.completedSteps}/${wizard.totalSteps}`,
+    completedSteps: wizard.completedSteps,
+    totalSteps: wizard.totalSteps,
+    currentStepId: wizard.currentStepId,
+    currentStepLabel: wizard.currentStepLabel,
+    next: previewHarnessText(wizard.next, includeParameters ? 240 : 120),
+    finalReview: previewHarnessText(wizard.finalReview, includeParameters ? 220 : 120),
+    steps: wizard.steps
+      .slice(0, includeParameters ? wizard.steps.length : 4)
+      .map((step) => describeReviewPacketWizardStep(step, includeParameters)),
+    policy: 'The review packet wizard is read-only. It guides the user through existing document, comparison, handoff, route-decision, and archive routes; every write still requires the owning confirmed action.',
+  };
+}
+
 function describeLane(lane: DocumentOpsLane, includeParameters: boolean): Record<string, unknown> {
   return {
     id: lane.id,
@@ -393,6 +441,7 @@ function describeLane(lane: DocumentOpsLane, includeParameters: boolean): Record
     modelRoute: previewHarnessText(lane.modelRoute, 96),
     signals: lane.signals,
     ...(lane.reviewerReadiness ? { reviewerReadiness: describeReviewerReadiness(lane.reviewerReadiness, includeParameters) } : {}),
+    ...(lane.reviewPacketWizard ? { reviewPacketWizard: describeReviewPacketWizard(lane.reviewPacketWizard, includeParameters) } : {}),
     ...(includeParameters ? {
       routes: {
         user: lane.userRoute,
@@ -421,6 +470,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-insert-artifact',
     'document-attach-artifact',
     'document-review-packet-timeline',
+    'document-review-packet-wizard',
     'document-reviewer-readiness',
     'document-export-draft',
     'document-draft-chat',
@@ -677,6 +727,36 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       ],
     },
     {
+      id: 'review_packet_wizard',
+      label: 'Review Packet Wizard',
+      status: snapshot.reviewPacketWizard.status === 'complete'
+        ? 'ready'
+        : snapshot.reviewPacketWizard.status === 'blocked'
+          ? 'needs-setup'
+          : snapshot.reviewPacketWizard.status === 'empty'
+            ? 'partial'
+            : 'attention',
+      outcome: 'Carry one reviewer packet through draft review, document export, comparison judgment, reviewer handoff, route decision, and final archive review without re-entering ids.',
+      current: snapshot.reviewPacketWizard.currentStepLabel
+        ? `${snapshot.reviewPacketWizard.completedSteps}/${snapshot.reviewPacketWizard.totalSteps} step(s) complete; current ${snapshot.reviewPacketWizard.currentStepLabel}.`
+        : `${snapshot.reviewPacketWizard.completedSteps}/${snapshot.reviewPacketWizard.totalSteps} step(s) complete.`,
+      next: snapshot.reviewPacketWizard.next,
+      userRoute: 'Agent Workspace -> Documents & Compare -> Review packet wizard',
+      modelRoute: 'agent_harness mode:"document_ops_lane" laneId:"review_packet_wizard"',
+      signals: [
+        `Wizard status ${snapshot.reviewPacketWizard.status}`,
+        `Wizard progress ${snapshot.reviewPacketWizard.completedSteps}/${snapshot.reviewPacketWizard.totalSteps}`,
+        `Current step ${snapshot.reviewPacketWizard.currentStepLabel ?? 'none'}`,
+        `Final review ${snapshot.reviewPacketWizard.finalReview}`,
+        ...snapshot.reviewPacketWizard.steps.map((step) => `${step.status}: ${step.label} -> ${step.modelRoute}`),
+      ],
+      actionIds: existingActions([
+        'document-review-packet-wizard',
+        ...snapshot.reviewPacketWizard.steps.map((step) => step.actionId),
+      ], available),
+      reviewPacketWizard: snapshot.reviewPacketWizard,
+    },
+    {
       id: 'source_library',
       label: 'Sources',
       status: sourceActions.length >= 2 ? 'ready' : sourceActions.length > 0 ? 'partial' : 'gap',
@@ -796,7 +876,7 @@ export function documentOpsSummary(context: CommandContext, args: AgentHarnessDo
     returned: lanes.length,
     total: lanes.length,
     ...(reviewerReadiness ? { reviewerReadiness: describeReviewerReadiness(reviewerReadiness, includeParameters) } : {}),
-    policy: 'Document Ops unifies versioned document drafts, chronological review packet timelines, reviewer-readiness checks, review comments, AI suggestion review, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison.',
+    policy: 'Document Ops unifies versioned document drafts, chronological review packet timelines, guided review packet wizard progress, reviewer-readiness checks, review comments, AI suggestion review, uploads, exports, sources, media artifacts, artifact browsing, artifact-to-Knowledge promotion, and model comparison.',
     nextActions: nextActions(lanes),
   };
 }
