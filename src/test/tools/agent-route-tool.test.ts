@@ -154,6 +154,17 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes image generation through confirmed media artifacts', async () => {
+    const body = await route('generate an image of a clean product dashboard');
+
+    expect(preferredId(body)).toBe('media-generation-artifact');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'device action:"provider" target:"media" includeParameters:true',
+      inspectRoute: 'agent_harness mode:"media_posture" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
   test('keeps plain browser-open requests on the Browser/PWA readiness route', async () => {
     const body = await route('open the browser dashboard');
 
