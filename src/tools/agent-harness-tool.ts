@@ -28,6 +28,7 @@ import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarness
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
 import { backgroundProcessCatalogStatus, backgroundProcessSummary, describeBackgroundProcess, runBackgroundProcessAction } from './agent-harness-background-processes.ts';
 import { describeDocumentOpsLane, documentOpsCatalogStatus, documentOpsSummary } from './agent-harness-document-ops.ts';
+import { browserControlRouteSummary } from './agent-harness-browser-control.ts';
 import { describeExecutionHistoryItem, executionHistoryCatalogStatus, executionHistorySummary } from './agent-harness-execution-history.ts';
 import { describeHarnessExecutionRoute, executionPostureCatalogStatus, executionPostureSummary } from './agent-harness-execution-posture.ts';
 import { fileRecoveryCatalogStatus, fileRecoverySummary, runFileRecovery } from './agent-harness-file-recovery.ts';
@@ -215,8 +216,8 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     promptContext: 'Prefer context action:"prompt|receipts|receipt" for prompt composition, selected/suppressed records, token budget, and prompt receipt outcomes.',
     agentOrchestration: 'List mode:"agent_orchestration" for managed plan and closeout cards; dispatch approved plan items with agent_work_plan action:"dispatch_agents"; inspect mode:"agent_orchestration_agent"; spawn/message/wait/cancel stay on first-class agent.',
     modelRouting: 'Prefer models action:"status|local|route|smoke" for model choice, local cookbook, route inspection, and confirmed local server checks. Lower-level mode:"model_routing", mode:"model_route", and mode:"run_local_model_smoke" remain available; changes stay visible.',
-    executionPosture: 'Prefer execution action:"status|route"; use local read/edit/exec when current workspace is sufficient, delegation for isolation/parallel/remote.',
-    backgroundProcesses: 'Use execution action:"processes|process" to inspect tracked local commands, terminal background:true to start visible tracked commands, and process action:list|poll|log|wait|kill|write to manage them. Lower-level background_* modes remain for compatibility. process action:"capabilities" probes SDK/daemon interactive contracts; write dispatches only when a safe ProcessManager stdin method exists and is explicitly confirmed; PTY/sudo stay typed-contract or foreground-only boundaries.',
+    executionPosture: 'Prefer execution action:"status|route"; use computer action:"plan" for browser, screenshot, or desktop-control route planning; use local read/edit/exec when current workspace is sufficient, delegation for isolation/parallel/remote.',
+    backgroundProcesses: 'Use execution action:"processes|process|capabilities" to inspect tracked local commands and process parity, terminal background:true to start visible tracked commands, and process action:list|poll|log|wait|kill|write to manage them. Lower-level background_* modes remain for compatibility. process action:"capabilities" probes SDK/daemon interactive contracts; write dispatches only when a safe ProcessManager stdin method exists and is explicitly confirmed; PTY/sudo stay typed-contract or foreground-only boundaries.',
     executionHistory: 'Prefer execution action:"history|record" for activity cards and records; use returned verification, supervision, and recovery routes.',
     fileRecovery: 'Prefer execution action:"recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'Prefer personal_ops action:"briefing|status|queue|intake|lane|read"; lower-level modes personal_ops_briefing/personal_ops/personal_ops_queue/personal_ops_intake/personal_ops_lane/run_personal_ops_read remain available for harness inspection.',
@@ -1481,6 +1482,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return confirmationError ? error(confirmationError) : output(await runLocalModelServerSmoke(deps.commandContext, args));
         }
         if (args.mode === 'execution_posture') return output(executionPostureSummary(deps.commandContext, deps.toolRegistry, args));
+        if (args.mode === 'browser_control_route') return output(browserControlRouteSummary(deps.commandContext, deps.toolRegistry, args));
         if (args.mode === 'execution_route') {
           const resolved = describeHarnessExecutionRoute(deps.commandContext, deps.toolRegistry, args);
           if (resolved.status === 'found') return output(resolved.route);

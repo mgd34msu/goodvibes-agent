@@ -8,7 +8,7 @@ export const AGENT_HARNESS_MODES = [
   'project_context', 'project_context_file', 'prompt_context',
   'agent_orchestration', 'agent_orchestration_agent',
   'model_routing', 'model_route', 'run_local_model_smoke',
-  'execution_posture', 'execution_route',
+  'execution_posture', 'execution_route', 'browser_control_route',
   'background_processes', 'background_process', 'run_background_process',
   'execution_history', 'execution_history_item',
   'file_recovery', 'run_file_recovery',

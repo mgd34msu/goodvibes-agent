@@ -2,6 +2,13 @@ import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
 
 type BrowserControlStatus = 'ready' | 'attention' | 'setup-needed';
+type BrowserControlDecisionStatus = 'ready-to-inspect-tool' | 'review-connector-first' | 'setup-needed';
+
+export interface BrowserControlRouteArgs {
+  readonly target?: unknown;
+  readonly query?: unknown;
+  readonly includeParameters?: unknown;
+}
 
 interface BrowserControlMcpServer {
   readonly name: string;
@@ -24,6 +31,16 @@ interface BrowserControlWorkflow {
   readonly safety: string;
 }
 
+interface BrowserControlDecision {
+  readonly id: string;
+  readonly status: BrowserControlDecisionStatus;
+  readonly modelRoute: string;
+  readonly userRoute: string;
+  readonly nextStep: string;
+  readonly reason: string;
+  readonly safety: string;
+}
+
 export interface BrowserControlPosture {
   readonly status: BrowserControlStatus;
   readonly configured: boolean;
@@ -42,6 +59,15 @@ export interface BrowserControlPosture {
 type McpServerRecord = ReturnType<NonNullable<NonNullable<CommandContext['clients']>['mcpApi']>['listServerSecurity']>[number];
 
 const BROWSER_CONTROL_TERMS = ['browser', 'desktop', 'computer use', 'screenshot', 'screen recording'];
+const POSTURE_ONLY_TOOL_NAMES = new Set(['agent_harness', 'computer', 'device', 'execution', 'route', 'workspace']);
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function quoteRouteValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
 
 function includesBrowserControlTerm(value: string): boolean {
   const normalized = value.toLowerCase();
@@ -134,6 +160,7 @@ function browserControlWorkflows(
 export function browserControlPosture(context: CommandContext, toolRegistry?: ToolRegistry): BrowserControlPosture {
   const registry = toolRegistry ?? context.extensions?.toolRegistry;
   const toolMatches = safeToolDefinitions(registry)
+    .filter((tool) => !POSTURE_ONLY_TOOL_NAMES.has(tool.name))
     .filter((tool) => includesBrowserControlTerm(`${tool.name}\n${tool.description}`))
     .map((tool) => tool.name)
     .sort((left, right) => left.localeCompare(right));
@@ -173,5 +200,139 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
     setupRoute,
     recommendedRoute,
     policy: 'Browser and desktop control stays explicit: no live UI control is assumed unless a trusted tool or fresh constrained MCP server is configured.',
+  };
+}
+
+function workflowSearchText(workflow: BrowserControlWorkflow): string {
+  return [
+    workflow.id,
+    workflow.label,
+    workflow.summary,
+    workflow.next,
+    workflow.safety,
+  ].join('\n').toLowerCase();
+}
+
+function selectBrowserControlWorkflow(posture: BrowserControlPosture, input: string): BrowserControlWorkflow {
+  const normalized = input.toLowerCase();
+  if (!normalized) return posture.workflows[0]!;
+  const tokens = normalized.split(/[^a-z0-9]+/).filter(Boolean);
+  const scored = posture.workflows
+    .map((workflow, index) => {
+      let score = 0;
+      const text = workflowSearchText(workflow);
+      if (workflow.id.includes(normalized) || workflow.label.toLowerCase().includes(normalized)) score += 1_000;
+      for (const token of tokens) {
+        if (workflow.id.includes(token)) score += 250;
+        if (workflow.label.toLowerCase().includes(token)) score += 200;
+        if (text.includes(token)) score += 40;
+      }
+      if (workflow.id === 'browser-navigation' && /browse|browser|navigate|url|page|click|form|login|web/.test(normalized)) score += 450;
+      if (workflow.id === 'screenshot-observation' && /screenshot|screen|observe|record|capture|visual|see/.test(normalized)) score += 450;
+      if (workflow.id === 'desktop-control' && /desktop|computer|app|window|keyboard|mouse|type|os/.test(normalized)) score += 450;
+      return { workflow, score, index };
+    })
+    .sort((left, right) => right.score - left.score || left.index - right.index);
+  return scored[0]?.workflow ?? posture.workflows[0]!;
+}
+
+function toolCandidateRoutes(toolMatches: readonly string[]): readonly Record<string, unknown>[] {
+  return toolMatches.slice(0, 8).map((toolName) => ({
+    toolName,
+    inspectRoute: `agent_harness mode:"tool" toolName:"${quoteRouteValue(toolName)}" includeParameters:true`,
+    modelRoute: `${toolName} ...`,
+    safety: 'Inspect the tool schema and policy before invoking a live browser, screenshot, or desktop-control action.',
+  }));
+}
+
+function mcpCandidateRoutes(mcpServers: readonly BrowserControlMcpServer[]): readonly Record<string, unknown>[] {
+  return mcpServers.slice(0, 8).map((server) => ({
+    serverName: server.name,
+    readiness: server.readiness,
+    connected: server.connected,
+    trustMode: server.trustMode,
+    schemaFreshness: server.schemaFreshness,
+    inspectRoute: server.modelRoute,
+    safety: 'Review trust and schema freshness before using MCP browser or desktop-control tools.',
+  }));
+}
+
+function browserControlDecision(
+  posture: BrowserControlPosture,
+  workflow: BrowserControlWorkflow,
+  toolRoutes: readonly Record<string, unknown>[],
+  mcpRoutes: readonly Record<string, unknown>[],
+): BrowserControlDecision {
+  const firstToolRoute = readString(toolRoutes[0]?.inspectRoute);
+  const firstReadyMcpRoute = readString(mcpRoutes.find((route) => route.readiness === 'ready')?.inspectRoute);
+  const firstReviewMcpRoute = readString(mcpRoutes[0]?.inspectRoute);
+  if (posture.configured) {
+    return {
+      id: 'inspect-configured-browser-control',
+      status: 'ready-to-inspect-tool',
+      modelRoute: firstToolRoute || firstReadyMcpRoute || posture.executionRoute,
+      userRoute: 'Agent Workspace -> Work & Approvals or Tools & MCP',
+      nextStep: `Inspect the configured ${workflow.label.toLowerCase()} tool/server, then invoke the narrowest live-control tool only if the user request still needs it.`,
+      reason: 'A browser/desktop control tool or fresh trusted MCP server is configured.',
+      safety: workflow.safety,
+    };
+  }
+  if (posture.needsReview) {
+    return {
+      id: 'review-browser-control-connector',
+      status: 'review-connector-first',
+      modelRoute: firstReviewMcpRoute || 'computer action:"mcp" query:"browser desktop" includeParameters:true',
+      userRoute: 'Agent Workspace -> Tools & MCP',
+      nextStep: 'Review connector trust, connectivity, and schema freshness before treating browser or desktop control as available.',
+      reason: 'A browser/desktop connector exists but needs trust, connectivity, or schema review.',
+      safety: 'Do not use stale or untrusted browser/desktop connectors for screenshots, authenticated pages, or desktop actions.',
+    };
+  }
+  return {
+    id: 'setup-browser-control',
+    status: 'setup-needed',
+    modelRoute: posture.setupRoute,
+    userRoute: 'Agent Workspace -> Setup',
+    nextStep: 'Configure a trusted browser/desktop tool or MCP server, or use the public web/fetch fallback when live UI state is not required.',
+    reason: 'No trusted browser/desktop control tool or fresh MCP server is configured.',
+    safety: 'This planner does not open, observe, or control the browser or desktop.',
+  };
+}
+
+export function browserControlRouteSummary(
+  context: CommandContext,
+  toolRegistry: ToolRegistry,
+  args: BrowserControlRouteArgs,
+): Record<string, unknown> {
+  const input = readString(args.query) || readString(args.target);
+  const includeParameters = args.includeParameters === true;
+  const posture = browserControlPosture(context, toolRegistry);
+  const workflow = selectBrowserControlWorkflow(posture, input);
+  const toolRoutes = toolCandidateRoutes(posture.toolMatches);
+  const mcpRoutes = mcpCandidateRoutes(posture.mcpServers);
+  const decision = browserControlDecision(posture, workflow, toolRoutes, mcpRoutes);
+  return {
+    mode: 'browser_control_route',
+    request: input || null,
+    status: posture.status,
+    configured: posture.configured,
+    needsReview: posture.needsReview,
+    workflow,
+    decision,
+    toolCandidates: toolRoutes,
+    mcpCandidates: mcpRoutes,
+    fallbackRoutes: posture.fallbackRoutes,
+    routes: {
+      controlPosture: 'computer action:"control" includeParameters:true',
+      setup: posture.setupRoute,
+      mcpReview: 'computer action:"mcp" query:"browser desktop" includeParameters:true',
+      publicWebFallback: posture.fallbackRoutes[0] ?? 'execution action:"route" id:"web-fetch-research"',
+    },
+    ...(includeParameters ? { posture } : {}),
+    policy: {
+      effect: 'read-only-route-plan',
+      boundary: 'This route selects the safest browser/desktop control workflow only. It never opens a browser, captures a screenshot, controls the desktop, or invokes a browser/MCP tool by itself.',
+      confirmation: 'Live browser, screenshot, authenticated browsing, account-changing, purchase, send, or destructive desktop actions require the selected tool-specific confirmation boundary and explicit user request.',
+    },
   };
 }

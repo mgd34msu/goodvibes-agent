@@ -5,6 +5,7 @@ import { createAgentHarnessTool } from './agent-harness-tool.ts';
 
 type AgentComputerAction =
   | 'status'
+  | 'plan'
   | 'control'
   | 'browser'
   | 'open_browser'
@@ -40,7 +41,8 @@ function normalizeComputerAction(value: unknown): AgentComputerAction | null {
   const action = readString(value).toLowerCase().replace(/-/g, '_');
   if (!action) return null;
   if (action === 'status' || action === 'summary' || action === 'overview' || action === 'computer' || action === 'computer_use') return 'status';
-  if (action === 'control' || action === 'route' || action === 'browser_control' || action === 'desktop' || action === 'desktop_control' || action === 'screenshot' || action === 'screen' || action === 'screen_recording' || action === 'observe') return 'control';
+  if (action === 'plan' || action === 'route' || action === 'control_plan' || action === 'browser_plan' || action === 'desktop_plan' || action === 'screenshot' || action === 'screen' || action === 'screen_recording' || action === 'observe') return 'plan';
+  if (action === 'control' || action === 'browser_control' || action === 'desktop' || action === 'desktop_control') return 'control';
   if (action === 'browser' || action === 'pwa' || action === 'cockpit' || action === 'browser_cockpit' || action === 'web') return 'browser';
   if (action === 'open' || action === 'open_browser' || action === 'open_pwa' || action === 'open_cockpit' || action === 'open_browser_cockpit') return 'open_browser';
   if (action === 'setup' || action === 'configure' || action === 'browser_desktop_control') return 'setup';
@@ -62,6 +64,17 @@ function controlArgs(args: AgentComputerToolArgs): Record<string, unknown> {
     mode: 'execution_route',
     executionRouteId: 'browser-or-desktop-control',
     includeParameters: args.includeParameters ?? true,
+  });
+}
+
+function planArgs(args: AgentComputerToolArgs): Record<string, unknown> {
+  const rawAction = readString(args.action) || readString(args.mode);
+  const normalizedAction = rawAction.toLowerCase().replace(/-/g, '_');
+  const actionAsQuery = ['screenshot', 'screen', 'screen_recording', 'observe'].includes(normalizedAction) ? rawAction : undefined;
+  return compactArgs({
+    mode: 'browser_control_route',
+    query: args.query ?? args.target ?? actionAsQuery,
+    includeParameters: args.includeParameters,
   });
 }
 
@@ -114,7 +127,7 @@ export function createAgentComputerTool(deps: AgentComputerToolDeps): Tool {
         properties: {
           action: {
             type: 'string',
-            enum: ['status', 'control', 'browser', 'open_browser', 'setup', 'mcp'],
+            enum: ['status', 'plan', 'control', 'browser', 'open_browser', 'setup', 'mcp'],
             description: 'Computer, browser/PWA, setup, MCP, or confirmed open route.',
           },
           mode: { type: 'string', description: 'Alias for action.' },
@@ -135,6 +148,7 @@ export function createAgentComputerTool(deps: AgentComputerToolDeps): Tool {
       if (!action) return error('Unknown computer action. Use action:"status" for browser/desktop control posture.');
 
       if (action === 'status' || action === 'control') return harnessTool.execute(controlArgs(args));
+      if (action === 'plan') return harnessTool.execute(planArgs(args));
       if (action === 'browser') return harnessTool.execute(browserArgs(args));
       if (action === 'open_browser') return harnessTool.execute(openBrowserArgs(args));
       if (action === 'setup') return harnessTool.execute(setupArgs(args));

@@ -97,6 +97,13 @@ describe('agent_harness mode catalog', () => {
       'processSessionId',
       'data',
     ]));
+
+    const browserPlan = listHarnessModes({ query: 'take screenshot browser desktop control plan', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const browserPlanMode = browserPlan.modes.find((mode) => mode.id === 'browser_control_route');
+    expect(browserPlanMode?.parameters).toEqual(expect.arrayContaining(['query', 'target', 'includeParameters']));
+    expect(browserPlan.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
   test('finds Personal Ops by natural user task wording', () => {

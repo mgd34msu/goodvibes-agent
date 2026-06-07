@@ -309,7 +309,7 @@ export function executionPostureCatalogStatus(context: CommandContext, toolRegis
   const routes = routeDefinitions();
   const statuses = routes.map((route) => routeAvailability(route, context, toolRegistry));
   return {
-    modes: ['execution_posture', 'execution_route'],
+    modes: ['execution_posture', 'execution_route', 'browser_control_route'],
     routes: routes.length,
     readyRoutes: statuses.filter((status) => status === 'ready').length,
     setupNeededRoutes: statuses.filter((status) => status === 'setup-needed').length,

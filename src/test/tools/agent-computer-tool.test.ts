@@ -33,6 +33,8 @@ describe('computer adapter', () => {
     const tool = makeTool(calls);
 
     await tool.execute({});
+    await tool.execute({ action: 'plan', query: 'take a screenshot of the dashboard', includeParameters: true });
+    await tool.execute({ action: 'screenshot' });
     await tool.execute({ action: 'desktop', includeParameters: false });
     await tool.execute({ action: 'browser' });
     await tool.execute({ action: 'setup' });
@@ -40,6 +42,8 @@ describe('computer adapter', () => {
 
     expect(calls).toEqual([
       { mode: 'execution_route', executionRouteId: 'browser-or-desktop-control', includeParameters: true },
+      { mode: 'browser_control_route', query: 'take a screenshot of the dashboard', includeParameters: true },
+      { mode: 'browser_control_route', query: 'screenshot' },
       { mode: 'execution_route', executionRouteId: 'browser-or-desktop-control', includeParameters: false },
       { mode: 'ui_surface', surfaceId: 'connected-browser-cockpit', includeParameters: true },
       { mode: 'setup_item', setupItemId: 'browser-desktop-control', includeParameters: true },

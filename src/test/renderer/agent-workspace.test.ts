@@ -1668,7 +1668,7 @@ describe('renderAgentWorkspace', () => {
       expect(output).toContain('Voice: 0/2 ready; TTS elevenlabs; voice voice-operator.');
       expect(output).toContain('Media: 1/2 ready; generation 1.');
       expect(output).toContain('Browser: public-url; public URL https://agent.example.test.');
-      expect(output).toContain('Model route: device action:"voice|status"; computer action:"browser|open_browser".');
+      expect(output).toContain('Model route: device action:"voice|status"; computer action:"plan|browser|open_browser".');
       expect(output).toContain('Device map: pairing, mobile/PWA, notifications, browser/desktop, camera/location via');
       expect(output).toContain('device.');
       expect(output).toContain('Voice workflows');
