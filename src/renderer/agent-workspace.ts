@@ -443,6 +443,7 @@ function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspaceCatego
       { text: `Helper: ${snapshot.helperEnabled ? 'enabled' : 'disabled'}; Tool LLM: ${snapshot.toolLlmEnabled ? 'enabled' : 'disabled'}.`, fg: snapshot.helperEnabled || snapshot.toolLlmEnabled ? PALETTE.good : PALETTE.muted },
       { text: 'Route readiness: scores, missing signals, pinned state, and safe route keys via model_routing.', fg: PALETTE.good },
       { text: 'Local cookbook: Ollama first, llama.cpp offline, vLLM for GPU throughput.', fg: PALETTE.good },
+      { text: 'Local servers: endpoint map, model-list smoke checks, and refresh routes before benchmarks.', fg: PALETTE.good },
       { text: 'Benchmark evidence: run local compare, review saved judgments, then apply routes separately.', fg: PALETTE.info },
       { text: `Cache: ${snapshot.cacheEnabled ? snapshot.cacheStableTtl : 'off'}; monitor ${snapshot.cacheMonitorHitRate ? snapshot.cacheHitRateWarningThreshold : 'off'}; failure hints ${snapshot.providerFailureHints ? 'on' : 'off'}.`, fg: snapshot.cacheEnabled ? PALETTE.info : PALETTE.muted },
     );

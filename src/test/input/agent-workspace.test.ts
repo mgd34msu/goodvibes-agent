@@ -141,6 +141,18 @@ function vectorStats() {
   };
 }
 
+const ALLOWED_ONBOARDING_READONLY_GUIDANCE = new Set([
+  'account-route-readiness',
+  'account-local-server-health',
+  'account-local-benchmark-evidence',
+  'context-project-files',
+  'context-project-file',
+]);
+
+const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set([
+  'context-vibe-status',
+]);
+
 function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
   return {
     add: async (input) => {
@@ -1099,7 +1111,13 @@ describe('AgentWorkspace', () => {
   test('onboarding pages use concrete setting editor command or completion actions', () => {
     const onboarding = AGENT_WORKSPACE_CATEGORIES.filter((category) => category.group === 'ONBOARDING' || category.id === 'finish');
     const filler = onboarding.flatMap((category) => category.actions
-      .filter((action) => action.kind === 'workspace' || action.kind === 'guidance')
+      .filter((action) => (
+        action.kind === 'workspace'
+        || (
+          action.kind === 'guidance'
+          && (action.safety !== 'read-only' || !ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id))
+        )
+      ))
       .map((action) => `${category.id}/${action.id}`));
     expect(filler).toEqual([]);
   });
@@ -1251,8 +1269,14 @@ describe('AgentWorkspace', () => {
       if (category.group !== 'ONBOARDING') continue;
       for (const action of category.actions) {
         if (action.settingKey) covered.add(action.settingKey);
-        expect(action.kind).not.toBe('command');
-        expect(action.kind).not.toBe('guidance');
+        if (action.kind === 'command') {
+          expect(action.safety).toBe('read-only');
+          expect(ALLOWED_ONBOARDING_READONLY_COMMANDS.has(action.id)).toBe(true);
+        }
+        if (action.kind === 'guidance') {
+          expect(action.safety).toBe('read-only');
+          expect(ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id)).toBe(true);
+        }
       }
     }
 

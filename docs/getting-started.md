@@ -80,7 +80,7 @@ Common model routes:
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |
 | Research runs, sources, and reports | `agent_harness mode:"research_workflow"`, `mode:"research_runs"`, `mode:"research_run"`, `mode:"research_queue"`, `agent_research_runs`, `agent_research_sources`, `agent_research_report` |
 | Personal operations | `agent_harness mode:"personal_ops_intake"`, `mode:"personal_ops"`, `mode:"personal_ops_lane"`, `mode:"run_personal_ops_read"` |
-| Local model choice | `agent_harness mode:"model_routing" query:"local"`, `mode:"model_routing" includeParameters:true`, `mode:"model_route" modelRouteId:"local-model-cookbook"` |
+| Local model choice | `agent_harness mode:"model_routing" query:"local"`, `mode:"model_routing" includeParameters:true`, `mode:"model_route" modelRouteId:"local-model-cookbook"`; the local cookbook includes endpoint candidates, model-list smoke commands, and the `account-local-server-health` workspace action route |
 | Local background processes | `agent_harness mode:"background_processes"`, `mode:"background_process"`, `mode:"run_background_process"` |
 | Documents, artifacts, compare | `agent_harness mode:"document_ops"`, `mode:"document_ops_lane"`, `agent_documents`, `agent_review_packet_presets`, `agent_review_packet_share`, `agent_artifacts`, `agent_model_compare` |
 | VIBE.md, project context, and local memory/notes/personas/skills/routines | `/vibe`, `agent_harness mode:"project_context"`, `mode:"project_context_file"`, `agent_local_registry`, `agent_learning_consolidation`, or confirmed workspace actions |

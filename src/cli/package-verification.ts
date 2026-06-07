@@ -2424,6 +2424,11 @@ function verifyHarnessModeRouteReferences(root: string): readonly string[] {
     const relativePath = relativeSourcePath(root, path);
     for (const match of source.matchAll(/mode:\\?["']([a-z_]+)\\?["']/g)) {
       const mode = match[1] ?? '';
+      const lineStart = source.lastIndexOf('\n', match.index ?? 0) + 1;
+      const lineEndIndex = source.indexOf('\n', match.index ?? 0);
+      const lineEnd = lineEndIndex === -1 ? source.length : lineEndIndex;
+      const line = source.slice(lineStart, lineEnd);
+      if (line.includes('agent_artifacts mode:')) continue;
       if (!AGENT_HARNESS_MODE_SET.has(mode)) {
         issues.push(`harness catalog ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} references unknown agent_harness mode:"${mode}".`);
       }
@@ -2663,8 +2668,12 @@ function verifyHarnessVisibleSurfaceModelAccessPolicy(root: string): readonly st
     issues.push('harness workspace actions source is missing: src/tools/agent-harness-workspace-actions.ts.');
   } else {
     const source = readFileSync(workspaceActionsPath, 'utf-8');
-    const modelRouteMarker = 'modelRoute: previewText(workspaceActionRouteHint(action))';
-    if (markerCount(source, modelRouteMarker) < 2) {
+    const modelRouteMarkers = [
+      'modelRoute: previewText(workspaceActionRouteHint(action))',
+      'modelRoute: previewText(workspaceActionRouteHint(action),',
+    ];
+    const modelRouteMarkerCount = modelRouteMarkers.reduce((count, marker) => count + markerCount(source, marker), 0);
+    if (modelRouteMarkerCount < 2) {
       issues.push('harness workspace actions must expose modelRoute on both compact and detailed action descriptions.');
     }
     const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [

@@ -260,9 +260,19 @@ function browserCockpitReceipts(context: CommandContext, enabled: boolean, inclu
 }
 
 function connectedBrowserCockpitRoute(context: CommandContext, options: { readonly includeWorkspaceCoverage?: boolean } = {}): Record<string, unknown> {
-  const enabled = context.platform.configManager.get('web.enabled') === true;
-  const binding = resolveRuntimeEndpointBinding(context.platform.configManager, 'web');
-  const publicBaseUrl = String(context.platform.configManager.get('web.publicBaseUrl') ?? '').trim();
+  const configManager = context.platform?.configManager;
+  let enabled = false;
+  let binding = { hostMode: 'local', configuredHost: '127.0.0.1', host: '127.0.0.1', port: 3423 };
+  let publicBaseUrl = '';
+  if (configManager) {
+    try {
+      enabled = configManager.get('web.enabled') === true;
+      binding = resolveRuntimeEndpointBinding(configManager, 'web');
+      publicBaseUrl = String(configManager.get('web.publicBaseUrl') ?? '').trim();
+    } catch {
+      enabled = false;
+    }
+  }
   const url = publicBaseUrl || `http://${browserConnectHost(binding.host)}:${binding.port}`;
   return {
     enabled,
@@ -397,7 +407,13 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     summary: 'Connected-host browser cockpit/PWA route.',
     command: 'connected host web route',
     preferredModelRoute: `Use ${agentHarnessModes('service_endpoint', 'service_posture', 'connected_host_status', 'settings')} to inspect or repair web readiness; use mode:"open_ui_surface" only to visibly open the configured cockpit URL.`,
-    available: (context) => context.platform.configManager.get('web.enabled') === true,
+    available: (context) => {
+      try {
+        return context.platform?.configManager?.get?.('web.enabled') === true;
+      } catch {
+        return false;
+      }
+    },
     open: async (context) => {
       const surface = findSurfaceById('connected-browser-cockpit')!;
       const route = connectedBrowserCockpitRoute(context);

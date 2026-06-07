@@ -908,6 +908,12 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Ollama first');
     expect(output).toContain('vLLM for GPU throughput');
 
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-local-server-health');
+    output = text(renderAgentWorkspace(workspace, 132, 44));
+    expect(output).toContain('Check local servers');
+    expect(output).toContain('model-list smoke checks');
+    expect(output).toContain('refresh routes');
+
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-local-benchmark-evidence');
     output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Review benchmark evidence');

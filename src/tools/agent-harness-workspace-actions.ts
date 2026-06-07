@@ -190,6 +190,7 @@ function workspaceActionRouteHint(action: AgentWorkspaceAction): string {
   }
   if (action.id === 'account-route-readiness') return 'agent_harness mode:"model_routing" includeParameters:true';
   if (action.id === 'account-local-model-cookbook') return 'agent_harness mode:"model_routing" query:"local"';
+  if (action.id === 'account-local-server-health') return 'agent_harness mode:"model_routing" query:"local" includeParameters:true';
   if (action.id === 'account-run-local-model-benchmark') return 'agent_model_compare';
   if (action.id === 'account-local-benchmark-evidence') return 'agent_harness mode:"model_routing" query:"local" includeParameters:true';
   if (action.id === 'assistant-browser-cockpit') return 'agent_harness mode:"open_ui_surface"';
