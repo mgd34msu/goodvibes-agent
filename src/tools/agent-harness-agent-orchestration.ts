@@ -1,5 +1,6 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
+import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 interface AgentHarnessAgentOrchestrationArgs {
@@ -255,10 +256,97 @@ function artifactsByRunnerId(artifacts: readonly Record<string, unknown>[]): Map
   return grouped;
 }
 
+function workPlanItems(context: CommandContext): readonly WorkPlanItem[] {
+  try {
+    return context.workspace.workPlanStore?.listItems() ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function workPlanItemsByAgentId(items: readonly WorkPlanItem[]): Map<string, readonly WorkPlanItem[]> {
+  const grouped = new Map<string, WorkPlanItem[]>();
+  for (const item of items) {
+    const id = item.linked?.agentId;
+    if (!id) continue;
+    const entries = grouped.get(id) ?? [];
+    entries.push(item);
+    grouped.set(id, entries);
+  }
+  return grouped;
+}
+
+function dispatchReceiptLines(item: WorkPlanItem): readonly string[] {
+  return readString(item.notes)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.includes('Agent dispatch receipt'));
+}
+
+function workPlanCloseoutItem(item: WorkPlanItem, includeParameters: boolean): Record<string, unknown> {
+  const receipts = dispatchReceiptLines(item);
+  return {
+    itemId: item.id,
+    title: previewHarnessText(item.title, includeParameters ? 160 : 72),
+    status: item.status,
+    owner: item.owner ?? null,
+    source: item.source ?? null,
+    dispatchReceiptCount: receipts.length,
+    latestDispatchReceipt: receipts.at(-1) ? previewHarnessText(receipts.at(-1)!, includeParameters ? 260 : 120) : null,
+    routes: {
+      inspect: `agent_work_plan action:"get" id:"${item.id}"`,
+      markDone: `agent_work_plan action:"set_status" id:"${item.id}" status:"done"`,
+      markBlocked: `agent_work_plan action:"set_status" id:"${item.id}" status:"blocked"`,
+    },
+  };
+}
+
+function closeoutReviewRoutes(id: string, items: readonly WorkPlanItem[], artifacts: readonly Record<string, unknown>[]): readonly string[] {
+  return [
+    routeForAgent('get', id),
+    ...items.map((item) => `agent_work_plan action:"get" id:"${item.id}"`),
+    ...artifacts.map((artifact) => `remote { mode: "review", artifactId: "${readString(artifact.id)}" }`),
+  ];
+}
+
+function closeoutStatus(status: string, items: readonly WorkPlanItem[], artifacts: readonly Record<string, unknown>[]): string {
+  if (['pending', 'running'].includes(status)) return 'pending-work';
+  if (status === 'failed') return 'attention';
+  if (items.some((item) => item.status === 'blocked' || item.status === 'failed')) return 'attention';
+  if (artifacts.length > 0) return 'evidence-ready';
+  if (items.length > 0) return 'needs-artifact-evidence';
+  return 'unlinked';
+}
+
+function closeoutCard(
+  id: string,
+  status: string,
+  items: readonly WorkPlanItem[],
+  artifacts: readonly Record<string, unknown>[],
+  includeParameters: boolean,
+): Record<string, unknown> {
+  return {
+    status: closeoutStatus(status, items, artifacts),
+    workPlanItemCount: items.length,
+    dispatchReceiptCount: items.reduce((count, item) => count + dispatchReceiptLines(item).length, 0),
+    remoteArtifactCount: artifacts.length,
+    autoAttachReason: artifacts.length > 0 ? 'remote artifact runnerId matched the visible agent id' : null,
+    workPlanItems: items.slice(0, includeParameters ? 8 : 3).map((item) => workPlanCloseoutItem(item, includeParameters)),
+    autoAttachedRemoteArtifacts: artifacts.slice(0, includeParameters ? 8 : 3).map((artifact) => artifactSummary(artifact, includeParameters)),
+    reviewRoutes: closeoutReviewRoutes(id, items, artifacts).slice(0, includeParameters ? 20 : 8),
+    updateRoutes: items.slice(0, includeParameters ? 8 : 3).flatMap((item) => [
+      `agent_work_plan action:"set_status" id:"${item.id}" status:"done"`,
+      `agent_work_plan action:"set_status" id:"${item.id}" status:"blocked"`,
+    ]),
+    policy: 'Closeout is read-only here; status changes stay on agent_work_plan and artifact review stays on first-class routes.',
+  };
+}
+
 function managedPlanItem(
   record: AgentRecordView,
   contract: Record<string, unknown> | undefined,
   artifacts: readonly Record<string, unknown>[],
+  linkedWorkItems: readonly WorkPlanItem[],
   includeParameters: boolean,
 ): Record<string, unknown> {
   const id = agentId(record);
@@ -279,15 +367,14 @@ function managedPlanItem(
     template: readString(record.template) || 'general',
     toolCallCount: typeof record.toolCallCount === 'number' ? record.toolCallCount : 0,
     routes: agentRoutes(id),
+    workPlanLinks: linkedWorkItems.slice(0, includeParameters ? 8 : 3).map((item) => workPlanCloseoutItem(item, includeParameters)),
     remoteContract: contract ? contractSummary(contract, includeParameters) : null,
     artifactTrail: artifacts.slice(0, includeParameters ? 8 : 3).map((artifact) => artifactSummary(artifact, includeParameters)),
+    closeout: closeoutCard(id, status, linkedWorkItems, artifacts, includeParameters),
     reviewGate: {
-      status: artifacts.length > 0 ? 'artifact-ready' : running ? 'pending-work' : 'needs-artifact-evidence',
+      status: artifacts.length > 0 ? 'artifact-ready' : running ? 'pending-work' : linkedWorkItems.length > 0 ? 'needs-artifact-evidence' : 'needs-link',
       requiredEvidence: contract ? stringArray(capabilityCeiling(contract).requiredEvidence).slice(0, includeParameters ? 12 : 5) : [],
-      modelRoutes: [
-        routeForAgent('get', id),
-        ...(artifacts.length > 0 ? [`remote { mode: "review", artifactId: "${readString(artifacts[0]?.id)}" }`] : []),
-      ],
+      modelRoutes: closeoutReviewRoutes(id, linkedWorkItems, artifacts).slice(0, includeParameters ? 20 : 8),
     },
     nextAction: failed
       ? 'Inspect the failed agent, then decide whether to message, retry through a new visible task, or cancel related work.'
@@ -318,16 +405,25 @@ function managedExecutionPlan(
   const { pools, contracts, artifacts } = remoteSnapshot;
   const contractsByRunner = contractByRunnerId(contracts);
   const artifactsByRunner = artifactsByRunnerId(artifacts);
-  const items = records.map((record) => managedPlanItem(record, contractsByRunner.get(agentId(record)), artifactsByRunner.get(agentId(record)) ?? [], includeParameters));
+  const workPlanByAgent = workPlanItemsByAgentId(workPlanItems(context));
+  const items = records.map((record) => {
+    const id = agentId(record);
+    return managedPlanItem(record, contractsByRunner.get(id), artifactsByRunner.get(id) ?? [], workPlanByAgent.get(id) ?? [], includeParameters);
+  });
   const status = managedPlanStatus(records, agentToolAvailable);
   const running = records.filter((record) => ['pending', 'running'].includes(agentStatus(record))).length;
   const failed = records.filter((record) => agentStatus(record) === 'failed').length;
   const completed = records.filter((record) => agentStatus(record) === 'completed').length;
   const remoteStatus = contracts.length > 0 || artifacts.length > 0 ? 'ready' : context.ops.remoteRuntime ? 'ready' : 'needs-setup';
+  const linkedWorkPlanItemCount = Array.from(workPlanByAgent.values()).reduce((count, entries) => count + entries.length, 0);
+  const dispatchReceiptCount = Array.from(workPlanByAgent.values()).reduce(
+    (count, entries) => count + entries.reduce((entryCount, item) => entryCount + dispatchReceiptLines(item).length, 0),
+    0,
+  );
   return {
     planId: 'visible-managed-execution',
     status,
-    summary: `${records.length} visible agent${records.length === 1 ? '' : 's'}, ${running} active, ${failed} attention, ${artifacts.length} remote artifact${artifacts.length === 1 ? '' : 's'}.`,
+    summary: `${records.length} visible agent${records.length === 1 ? '' : 's'}, ${running} active, ${failed} attention, ${artifacts.length} remote artifact${artifacts.length === 1 ? '' : 's'}, ${dispatchReceiptCount} dispatch receipt${dispatchReceiptCount === 1 ? '' : 's'}.`,
     milestones: [
       {
         id: 'intake-and-lane-selection',
@@ -363,8 +459,11 @@ function managedExecutionPlan(
         id: 'review-and-closeout',
         label: 'Review and closeout',
         status: failed > 0 ? 'attention' : running > 0 ? 'active' : records.length > 0 ? 'ready' : 'needs-setup',
+        linkedWorkPlanItems: linkedWorkPlanItemCount,
+        dispatchReceipts: dispatchReceiptCount,
+        autoAttachedRemoteArtifacts: artifacts.length,
         requiredEvidence: ['changed files or artifact', 'test or verification output', 'agent status', 'recovery route when writes happened'],
-        routes: ['agent_harness mode:"execution_history"', 'agent_harness mode:"file_recovery"', 'agent_harness mode:"delegation_posture"'],
+        routes: ['agent_harness mode:"agent_orchestration"', 'agent_harness mode:"execution_history"', 'agent_harness mode:"file_recovery"', 'agent_harness mode:"delegation_posture"', 'agent_work_plan action:"list"'],
       },
     ],
     workItems: items,
@@ -395,6 +494,7 @@ function describeAgent(
   includeParameters: boolean,
   contract?: Record<string, unknown>,
   artifacts: readonly Record<string, unknown>[] = [],
+  linkedWorkItems: readonly WorkPlanItem[] = [],
 ): Record<string, unknown> {
   const id = agentId(record);
   const task = readString(record.task);
@@ -410,7 +510,7 @@ function describeAgent(
     modelRoute: 'agent { mode: "get" }',
     userRoute: 'Agent Workspace -> Work -> Autonomy queue',
     routes: agentRoutes(id),
-    managedPlanCard: managedPlanItem(record, contract, artifacts, includeParameters),
+    managedPlanCard: managedPlanItem(record, contract, artifacts, linkedWorkItems, includeParameters),
     ...(readString(record.model) ? { model: readString(record.model) } : {}),
     ...(readString(record.provider) ? { provider: readString(record.provider) } : {}),
     ...(includeParameters ? {
@@ -517,6 +617,7 @@ export function agentOrchestrationSummary(context: CommandContext, toolRegistry:
   const remoteSnapshot = remoteRuntimeSnapshot(context);
   const contracts = contractByRunnerId(remoteSnapshot.contracts);
   const artifacts = artifactsByRunnerId(remoteSnapshot.artifacts);
+  const workPlanByAgent = workPlanItemsByAgentId(workPlanItems(context));
   return {
     status: counts.running > 0 || counts.pending > 0 ? 'attention' : toolRegistered ? 'ready' : 'needs-setup',
     summary: {
@@ -532,7 +633,10 @@ export function agentOrchestrationSummary(context: CommandContext, toolRegistry:
       managedPlanStatus: managedPlanStatus(records, toolRegistered),
     },
     managedExecutionPlan: managedExecutionPlan(records, context, toolRegistry, remoteSnapshot, includeParameters),
-    agents: filtered.map((record) => describeAgent(record, includeParameters, contracts.get(agentId(record)), artifacts.get(agentId(record)) ?? [])),
+    agents: filtered.map((record) => {
+      const id = agentId(record);
+      return describeAgent(record, includeParameters, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []);
+    }),
     returned: filtered.length,
     total: records.length,
     decisionCards: decisionCards(toolRegistered),
@@ -570,18 +674,26 @@ export function describeAgentOrchestrationAgent(context: CommandContext, args: A
   const remoteSnapshot = remoteRuntimeSnapshot(context);
   const contracts = contractByRunnerId(remoteSnapshot.contracts);
   const artifacts = artifactsByRunnerId(remoteSnapshot.artifacts);
-  if (exact) return { status: 'found', agent: describeAgent(exact, args.includeParameters !== false, contracts.get(agentId(exact)), artifacts.get(agentId(exact)) ?? []) };
+  const workPlanByAgent = workPlanItemsByAgentId(workPlanItems(context));
+  if (exact) {
+    const id = agentId(exact);
+    return { status: 'found', agent: describeAgent(exact, args.includeParameters !== false, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []) };
+  }
   const normalized = lookup.input.toLowerCase();
   const matches = records.filter((record) => agentSearchText(record).includes(normalized));
   if (matches.length === 1) {
     const record = matches[0]!;
-    return { status: 'found', agent: describeAgent(record, args.includeParameters !== false, contracts.get(agentId(record)), artifacts.get(agentId(record)) ?? []) };
+    const id = agentId(record);
+    return { status: 'found', agent: describeAgent(record, args.includeParameters !== false, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []) };
   }
   if (matches.length > 1) {
     return {
       status: 'ambiguous',
       input: lookup.input,
-      candidates: matches.slice(0, 8).map((record) => describeAgent(record, false, contracts.get(agentId(record)), artifacts.get(agentId(record)) ?? [])),
+      candidates: matches.slice(0, 8).map((record) => {
+        const id = agentId(record);
+        return describeAgent(record, false, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []);
+      }),
     };
   }
   return {

@@ -1723,6 +1723,20 @@ describe('agent_harness tool', () => {
         },
         knowledgeInjections: [],
       };
+      const alphaWorkPlan = fixture.context.workspace.workPlanStore!.addItem('Investigate auth flow and report user-facing risks', {
+        status: 'in_progress',
+        owner: 'agent',
+        source: 'agent_work_plan',
+        notes: 'Agent dispatch receipt 2026-06-06T00:00:00.000Z; agent agent-alpha; route agent { mode: "spawn" }; cohort auth-work; request investigate auth risks',
+        linked: { agentId: 'agent-alpha' },
+      });
+      const betaWorkPlan = fixture.context.workspace.workPlanStore!.addItem('Cancelled browser setup investigation', {
+        status: 'done',
+        owner: 'agent',
+        source: 'agent_work_plan',
+        notes: 'Agent dispatch receipt 2026-06-06T00:00:01.000Z; agent agent-beta; route agent { mode: "batch-spawn" }; cohort browser-work; request check browser setup',
+        linked: { agentId: 'agent-beta' },
+      });
       Object.assign(fixture.context.ops as unknown as Record<string, unknown>, {
         agentManager: {
           exportState: () => agents,
@@ -1782,6 +1796,9 @@ describe('agent_harness tool', () => {
             readonly cancellableRoutes?: readonly string[];
             readonly contracts?: number;
             readonly artifacts?: number;
+            readonly linkedWorkPlanItems?: number;
+            readonly dispatchReceipts?: number;
+            readonly autoAttachedRemoteArtifacts?: number;
             readonly routes?: { readonly contracts?: string; readonly artifacts?: string };
           }[];
           readonly workItems: readonly {
@@ -1802,6 +1819,24 @@ describe('agent_harness tool', () => {
               readonly runnerId: string;
               readonly modelRoute: string;
             }[];
+            readonly workPlanLinks: readonly {
+              readonly itemId: string;
+              readonly dispatchReceiptCount: number;
+              readonly latestDispatchReceipt: string | null;
+              readonly routes: { readonly inspect: string; readonly markDone: string };
+            }[];
+            readonly closeout: {
+              readonly status: string;
+              readonly workPlanItemCount: number;
+              readonly dispatchReceiptCount: number;
+              readonly remoteArtifactCount: number;
+              readonly autoAttachReason: string | null;
+              readonly workPlanItems: readonly { readonly itemId: string; readonly dispatchReceiptCount: number }[];
+              readonly autoAttachedRemoteArtifacts: readonly { readonly id: string; readonly modelRoute: string }[];
+              readonly reviewRoutes: readonly string[];
+              readonly updateRoutes: readonly string[];
+              readonly policy: string;
+            };
             readonly reviewGate: {
               readonly status: string;
               readonly requiredEvidence: readonly string[];
@@ -1840,6 +1875,7 @@ describe('agent_harness tool', () => {
       });
       expect(posture.managedExecutionPlan.status).toBe('active');
       expect(posture.managedExecutionPlan.summary).toContain('2 visible agents');
+      expect(posture.managedExecutionPlan.summary).toContain('2 dispatch receipts');
       expect(posture.managedExecutionPlan.policy).toContain('read-only');
       const agentWorkMilestone = posture.managedExecutionPlan.milestones.find((milestone) => milestone.id === 'visible-agent-work');
       expect(agentWorkMilestone?.status).toBe('active');
@@ -1849,6 +1885,11 @@ describe('agent_harness tool', () => {
       expect(remoteMilestone?.contracts).toBe(1);
       expect(remoteMilestone?.artifacts).toBe(1);
       expect(remoteMilestone?.routes?.contracts).toBe('remote { mode: "contracts", view: "summary" }');
+      const closeoutMilestone = posture.managedExecutionPlan.milestones.find((milestone) => milestone.id === 'review-and-closeout');
+      expect(closeoutMilestone?.linkedWorkPlanItems).toBe(2);
+      expect(closeoutMilestone?.dispatchReceipts).toBe(2);
+      expect(closeoutMilestone?.autoAttachedRemoteArtifacts).toBe(1);
+      expect(closeoutMilestone?.routes as unknown as readonly string[]).toContain('agent_work_plan action:"list"');
       expect(posture.managedExecutionPlan.remoteEvidence.status).toBe('ready');
       expect(posture.managedExecutionPlan.remoteEvidence.pools[0]?.runnerIds).toEqual(['agent-alpha']);
       expect(posture.managedExecutionPlan.remoteEvidence.contracts[0]?.runnerId).toBe('agent-alpha');
@@ -1865,6 +1906,14 @@ describe('agent_harness tool', () => {
       expect(alphaPlanItem?.remoteContract?.capabilityCeilingTools).toContain('find');
       expect(alphaPlanItem?.remoteContract?.orchestrationDepth).toBe(1);
       expect(alphaPlanItem?.remoteContract?.requiredEvidence).toContain('tests');
+      expect(alphaPlanItem?.workPlanLinks[0]?.itemId).toBe(alphaWorkPlan.id);
+      expect(alphaPlanItem?.workPlanLinks[0]?.dispatchReceiptCount).toBe(1);
+      expect(alphaPlanItem?.workPlanLinks[0]?.latestDispatchReceipt).toContain('agent-alpha');
+      expect(alphaPlanItem?.workPlanLinks[0]?.routes.inspect).toContain(alphaWorkPlan.id);
+      expect(alphaPlanItem?.closeout.status).toBe('pending-work');
+      expect(alphaPlanItem?.closeout.workPlanItemCount).toBe(1);
+      expect(alphaPlanItem?.closeout.dispatchReceiptCount).toBe(1);
+      expect(alphaPlanItem?.closeout.reviewRoutes.join('\n')).toContain(alphaWorkPlan.id);
       expect(alphaPlanItem?.reviewGate.status).toBe('pending-work');
       expect(alphaPlanItem?.reviewGate.requiredEvidence).toContain('diff');
       expect(alphaPlanItem?.nextAction).toContain('wait/status');
@@ -1873,6 +1922,17 @@ describe('agent_harness tool', () => {
       expect(betaPlanItem?.milestoneId).toBe('review-and-closeout');
       expect(betaPlanItem?.artifactTrail[0]?.id).toBe('artifact-agent-beta');
       expect(betaPlanItem?.artifactTrail[0]?.modelRoute).toContain('remote { mode: "review"');
+      expect(betaPlanItem?.workPlanLinks[0]?.itemId).toBe(betaWorkPlan.id);
+      expect(betaPlanItem?.closeout.status).toBe('evidence-ready');
+      expect(betaPlanItem?.closeout.dispatchReceiptCount).toBe(1);
+      expect(betaPlanItem?.closeout.remoteArtifactCount).toBe(1);
+      expect(betaPlanItem?.closeout.autoAttachReason).toContain('runnerId');
+      expect(betaPlanItem?.closeout.autoAttachedRemoteArtifacts[0]?.id).toBe('artifact-agent-beta');
+      expect(betaPlanItem?.closeout.autoAttachedRemoteArtifacts[0]?.modelRoute).toContain('remote { mode: "review"');
+      expect(betaPlanItem?.closeout.reviewRoutes.join('\n')).toContain('artifact-agent-beta');
+      expect(betaPlanItem?.closeout.reviewRoutes.join('\n')).toContain(betaWorkPlan.id);
+      expect(betaPlanItem?.closeout.updateRoutes.join('\n')).toContain('status:"done"');
+      expect(betaPlanItem?.closeout.policy).toContain('read-only');
       expect(betaPlanItem?.reviewGate.status).toBe('artifact-ready');
       expect(betaPlanItem?.reviewGate.modelRoutes.join('\n')).toContain('artifact-agent-beta');
       expect(posture.modelAccess.spawn).toBe('agent { mode: "spawn" }');
@@ -1899,6 +1959,8 @@ describe('agent_harness tool', () => {
         readonly managedPlanCard?: {
           readonly lane: string;
           readonly remoteContract?: { readonly runnerId: string; readonly transportState: string } | null;
+          readonly workPlanLinks: readonly { readonly itemId: string; readonly latestDispatchReceipt: string | null }[];
+          readonly closeout: { readonly dispatchReceiptCount: number; readonly reviewRoutes: readonly string[] };
         };
       }>(fixture, { mode: 'agent_orchestration_agent', agentId: 'agent-alpha' });
       expect(detail.agentId).toBe('agent-alpha');
@@ -1911,6 +1973,10 @@ describe('agent_harness tool', () => {
       expect(detail.managedPlanCard?.lane).toBe('remote-runner');
       expect(detail.managedPlanCard?.remoteContract?.runnerId).toBe('agent-alpha');
       expect(detail.managedPlanCard?.remoteContract?.transportState).toBe('connected');
+      expect(detail.managedPlanCard?.workPlanLinks[0]?.itemId).toBe(alphaWorkPlan.id);
+      expect(detail.managedPlanCard?.workPlanLinks[0]?.latestDispatchReceipt).toContain('agent-alpha');
+      expect(detail.managedPlanCard?.closeout.dispatchReceiptCount).toBe(1);
+      expect(detail.managedPlanCard?.closeout.reviewRoutes.join('\n')).toContain(alphaWorkPlan.id);
 
       const filtered = await executeHarnessJson<{
         readonly returned: number;
