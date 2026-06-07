@@ -74,6 +74,8 @@ describe('agent_research_runs tool', () => {
       expect(shown.success).toBe(true);
       expect(shown.output).toContain('Routes');
       expect(shown.output).toContain('checkpoint research action:"checkpoint"');
+      expect(shown.output).toContain('Next routes');
+      expect(shown.output).toContain('search research action:"search" runId:"deep-research-run"');
 
       const started = await tool.execute({
         mode: 'start',
@@ -84,6 +86,10 @@ describe('agent_research_runs tool', () => {
       });
       expect(started.success).toBe(true);
       expect(started.output).toContain('Started Agent research run');
+      expect(started.output).toContain('nextRoutes');
+      expect(started.output).toContain('search research action:"search" runId:"deep-research-run"');
+      expect(started.output).toContain('bundle research action:"bundle"');
+      expect(started.output).toContain('report research action:"report" question:"What is missing?"');
 
       const checkpointed = await tool.execute({
         mode: 'checkpoint',
@@ -98,6 +104,7 @@ describe('agent_research_runs tool', () => {
       });
       expect(checkpointed.success).toBe(true);
       expect(checkpointed.output).toContain('Checkpointed Agent research run');
+      expect(checkpointed.output).toContain('complete research action:"complete" id:"deep-research-run"');
 
       const listedWithTail = await tool.execute({ mode: 'list', includeLogTail: true });
       expect(listedWithTail.success).toBe(true);
@@ -137,6 +144,8 @@ describe('agent_research_runs tool', () => {
       });
       expect(completed.success).toBe(true);
       expect(completed.output).toContain('Completed Agent research run');
+      expect(completed.output).toContain('reportArtifact research action:"report_artifact" artifactId:"artifact-2"');
+      expect(completed.output).toContain('promoteKnowledge agent_knowledge_ingest sourceKind:"artifact" artifactId:"artifact-2"');
 
       const unconfirmedDelete = await tool.execute({
         mode: 'delete',
@@ -154,6 +163,7 @@ describe('agent_research_runs tool', () => {
       });
       expect(deleted.success).toBe(true);
       expect(deleted.output).toContain('Deleted Agent research run');
+      expect(deleted.output).toContain('recreate research action:"create_run" title:"Deep research run"');
 
       const registry = new ToolRegistry();
       registerAgentResearchRunsTool(registry, fixture.paths);

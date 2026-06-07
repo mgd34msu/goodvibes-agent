@@ -14,10 +14,6 @@ These are the package-facing docs for the GoodVibes Agent `1.0.x` release line.
 - [Voice and Live TTS](voice-and-live-tts.md)
 - [Project Planning](project-planning.md)
 - [Release And Publishing](release-and-publishing.md)
-- [Autonomous Agent Competitive Inventory](audits/autonomous-agent-competitive-inventory.md)
-- [GoodVibes Platform Capability Audit](audits/goodvibes-platform-capabilities.md)
-- [GoodVibes TUI And Daemon Handoff](audits/goodvibes-tui-handoff.md)
-- [GoodVibes SDK Handoff](audits/goodvibes-sdk-handoff.md)
 
 ## Baseline
 

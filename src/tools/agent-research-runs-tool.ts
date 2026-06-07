@@ -167,6 +167,65 @@ function logTailSection(run: AgentResearchRunRecord): readonly string[] {
   ];
 }
 
+function routeString(value: string): string {
+  return JSON.stringify(value);
+}
+
+function runNextRouteLines(run: AgentResearchRunRecord): readonly string[] {
+  const lines = [
+    `  inspect research action:"run" runId:${routeString(run.id)}`,
+    `  briefing research action:"briefing" target:${routeString(run.id)}`,
+    `  workflow research action:"plan" runId:${routeString(run.id)}`,
+  ];
+  if (run.status === 'planned') {
+    lines.push(
+      `  start research action:"start_run" id:${routeString(run.id)} confirm:true explicitUserRequest:"..."`,
+      `  search research action:"search" runId:${routeString(run.id)} maxResults:5`,
+      `  checkpoint research action:"checkpoint" id:${routeString(run.id)} phase:"searching" progress:10 note:"Started source collection." confirm:true explicitUserRequest:"..."`,
+    );
+  } else if (run.status === 'running') {
+    lines.push(
+      `  search research action:"search" runId:${routeString(run.id)} maxResults:5`,
+      `  sources research action:"sources" query:${routeString(run.question)} includeReportLines:true`,
+      `  checkpoint research action:"checkpoint" id:${routeString(run.id)} phase:"reading" progress:${Math.max(run.progress, 25)} note:"Captured and reviewed source candidates." sourceIds:["..."] confirm:true explicitUserRequest:"..."`,
+      `  bundle research action:"bundle" query:${routeString(run.question)} includeReportLines:true`,
+      `  report research action:"report" question:${routeString(run.question)} sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."`,
+      `  pause research action:"pause" id:${routeString(run.id)} confirm:true explicitUserRequest:"..."`,
+      `  cancel research action:"cancel" id:${routeString(run.id)} note:"..." confirm:true explicitUserRequest:"..."`,
+      `  complete research action:"complete" id:${routeString(run.id)} reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,
+    );
+  } else if (run.status === 'paused' || run.status === 'blocked') {
+    lines.push(
+      `  resume research action:"resume" id:${routeString(run.id)} confirm:true explicitUserRequest:"..."`,
+      `  checkpoint research action:"checkpoint" id:${routeString(run.id)} status:"running" phase:${routeString(run.phase)} progress:${run.progress} note:"Resumed with updated next steps." confirm:true explicitUserRequest:"..."`,
+      `  cancel research action:"cancel" id:${routeString(run.id)} note:"..." confirm:true explicitUserRequest:"..."`,
+    );
+  } else if (run.status === 'completed') {
+    lines.push(
+      `  reports research action:"reports" query:${routeString(run.title)} includeContent:false`,
+      ...(run.reportArtifactId ? [
+        `  reportArtifact research action:"report_artifact" artifactId:${routeString(run.reportArtifactId)}`,
+        `  promoteKnowledge agent_knowledge_ingest sourceKind:"artifact" artifactId:${routeString(run.reportArtifactId)} confirm:true explicitUserRequest:"..."`,
+      ] : [
+        `  attachReport research action:"complete" id:${routeString(run.id)} reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,
+      ]),
+    );
+  } else {
+    lines.push(
+      `  list research action:"runs" status:${routeString(run.status)}`,
+      `  followup research action:"create_run" question:${routeString(run.question)} plan:["Follow up on the stopped research run."] confirm:true explicitUserRequest:"..."`,
+    );
+  }
+  return lines;
+}
+
+function deletedRunRouteLines(run: AgentResearchRunRecord): readonly string[] {
+  return [
+    `  list research action:"runs"`,
+    `  recreate research action:"create_run" title:${routeString(run.title)} question:${routeString(run.question)} plan:["Follow up on the stopped research run."] confirm:true explicitUserRequest:"..."`,
+  ];
+}
+
 function formatRunDetail(run: AgentResearchRunRecord): string {
   const lines = [
     `Research run ${run.id}`,
@@ -211,12 +270,16 @@ function formatRunDetail(run: AgentResearchRunRecord): string {
     `complete research action:"complete" id:"${run.id}" reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,
     'report research action:"report" confirm:true explicitUserRequest:"..."',
     '',
+    'Next routes',
+    ...runNextRouteLines(run),
+    '',
     'Policy: research run records are local visible state only; web research, report artifacts, Knowledge ingest, and external sends stay on separate explicit routes.',
   ];
   return lines.join('\n');
 }
 
 function formatMutationResult(action: string, run: AgentResearchRunRecord): string {
+  const nextRoutes = action.startsWith('Deleted') ? deletedRunRouteLines(run) : runNextRouteLines(run);
   return [
     action,
     `  id ${run.id}`,
@@ -226,6 +289,8 @@ function formatMutationResult(action: string, run: AgentResearchRunRecord): stri
     `  sources ${run.sourceIds.length}`,
     `  title ${run.title}`,
     `  runLine ${researchRunReportLine(run)}`,
+    '  nextRoutes',
+    ...nextRoutes,
     '  policy local visible run state only; no web search, Knowledge ingest, artifact save, or external message was sent',
   ].join('\n');
 }
