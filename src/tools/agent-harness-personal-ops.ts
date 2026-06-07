@@ -100,6 +100,16 @@ interface PersonalOpsLiveRecord {
   readonly reviewRecordCount?: number;
   readonly reviewLabels?: readonly string[];
   readonly sourceTool?: string;
+  readonly followUpRoutes?: readonly PersonalOpsFollowUpRoute[];
+}
+
+interface PersonalOpsFollowUpRoute {
+  readonly id: string;
+  readonly label: string;
+  readonly effect: 'read-only' | 'confirmed-effect';
+  readonly modelRoute: string;
+  readonly requiresConfirmation: boolean;
+  readonly policy: string;
 }
 
 interface PersonalOpsWorkflow {
@@ -785,6 +795,7 @@ function describeLiveRecord(record: PersonalOpsLiveRecord, includeParameters: bo
     ...(includeParameters && typeof record.reviewRecordCount === 'number' ? { reviewRecordCount: record.reviewRecordCount } : {}),
     ...(includeParameters && record.reviewLabels && record.reviewLabels.length > 0 ? { reviewLabels: record.reviewLabels } : {}),
     ...(includeParameters && record.sourceTool ? { sourceTool: record.sourceTool } : {}),
+    ...(includeParameters && record.followUpRoutes && record.followUpRoutes.length > 0 ? { followUpRoutes: record.followUpRoutes } : {}),
   };
 }
 
@@ -953,6 +964,14 @@ function artifactMetadataStringArray(artifact: ArtifactDescriptor, key: string):
   return [];
 }
 
+function safeRecordIdPart(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80) || 'item';
+}
+
 function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly ArtifactDescriptor[] {
   const store = context.platform.artifactStore;
   if (!store?.list) return [];
@@ -969,6 +988,91 @@ function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 'calend
   } catch {
     return [];
   }
+}
+
+function savedReviewQueueRecords(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly PersonalOpsLiveRecord[] {
+  return savedReviewArtifacts(context, laneId)
+    .flatMap((artifact) => {
+      const reviewLabels = artifactMetadataStringArray(artifact, 'reviewLabels').slice(0, 5);
+      const reviewRecordIds = artifactMetadataStringArray(artifact, 'reviewRecordIds').slice(0, reviewLabels.length);
+      const sourceTool = artifactMetadataString(artifact, 'sourceTool') || artifactMetadataString(artifact, 'sourceRecordId');
+      const createdAt = typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt)
+        ? new Date(artifact.createdAt).toISOString()
+        : '';
+      return reviewLabels.map((label, index): PersonalOpsLiveRecord => {
+        const recordId = reviewRecordIds[index] || label || `${index + 1}`;
+        const artifactRoute = `agent_artifacts show artifactId:"${artifact.id}" includeContent:true`;
+        const calendar = laneId === 'calendar';
+        return {
+          id: `${calendar ? 'review-event' : 'review-thread'}:${artifact.id}:${safeRecordIdPart(recordId)}`,
+          label: `${calendar ? 'Saved event' : 'Saved thread'}: ${label}`,
+          status: calendar ? 'ready-for-reminder' : 'ready-for-draft',
+          summary: [
+            `Derived from saved redacted ${calendar ? 'calendar' : 'inbox'} review artifact ${artifact.id}.`,
+            sourceTool ? `Source ${sourceTool}.` : '',
+            createdAt ? `Saved ${createdAt}.` : '',
+            calendar
+              ? 'Inspect the artifact before creating reminders or proposing calendar edits.'
+              : 'Inspect the artifact before drafting; sending remains a separate confirmed connector action.',
+          ].filter(Boolean).join(' '),
+          userRoute: calendar
+            ? 'Agent Workspace -> Personal Ops -> Calendar review queue'
+            : 'Agent Workspace -> Personal Ops -> Inbox review queue',
+          modelRoute: artifactRoute,
+          tags: [
+            'saved-review',
+            'artifact',
+            calendar ? 'calendar-event' : 'inbox-thread',
+            calendar ? 'reminder-ready' : 'draft-ready',
+          ],
+          effect: 'read-only',
+          capability: calendar ? 'calendar-event-review' : 'inbox-thread-review',
+          confirmationRequired: false,
+          artifactId: artifact.id,
+          reviewRecordCount: 1,
+          reviewLabels: [label],
+          ...(sourceTool ? { sourceTool } : {}),
+          followUpRoutes: calendar
+            ? [
+              {
+                id: 'create-reminder-from-event',
+                label: 'Create reminder from saved event',
+                effect: 'confirmed-effect',
+                modelRoute: 'agent_reminder_schedule title:"..." when:"..." confirm:true explicitUserRequest:"..."',
+                requiresConfirmation: true,
+                policy: 'Create one reminder only after the user reviews the saved event and confirms exact timing.',
+              },
+              {
+                id: 'calendar-edit-boundary',
+                label: 'Inspect calendar edit route',
+                effect: 'confirmed-effect',
+                modelRoute: 'agent_harness mode:"personal_ops_intake" query:"edit saved calendar event" includeParameters:true',
+                requiresConfirmation: true,
+                policy: 'Calendar edits, RSVP, reschedule, and deletes require a separate inspected connector route and explicit confirmation.',
+              },
+            ]
+            : [
+              {
+                id: 'draft-local-reply',
+                label: 'Draft local reply from saved thread',
+                effect: 'read-only',
+                modelRoute: artifactRoute,
+                requiresConfirmation: false,
+                policy: 'Drafting stays local in the Agent transcript and does not send, label, archive, move, or delete provider records.',
+              },
+              {
+                id: 'send-reviewed-reply-boundary',
+                label: 'Inspect send route for reviewed reply',
+                effect: 'confirmed-effect',
+                modelRoute: 'agent_harness mode:"personal_ops_intake" query:"send reviewed reply from saved inbox review" includeParameters:true',
+                requiresConfirmation: true,
+                policy: 'Send only after a write-like inbox connector route is inspected and the user confirms exact recipients and body.',
+              },
+            ],
+        };
+      });
+    })
+    .slice(0, 10);
 }
 
 function savedReviewArtifactRecords(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly PersonalOpsLiveRecord[] {
@@ -1246,6 +1350,8 @@ function buildLanes(
   const calendarConnectors = connectorSignalsMatching(context, ['calendar', 'caldav', 'agenda'], { lane: 'calendar', toolsByServer: toolsByName, schemasByQualifiedName });
   const inboxArtifactRecords = savedReviewArtifactRecords(context, 'inbox');
   const calendarArtifactRecords = savedReviewArtifactRecords(context, 'calendar');
+  const inboxReviewQueueRecords = savedReviewQueueRecords(context, 'inbox');
+  const calendarReviewQueueRecords = savedReviewQueueRecords(context, 'calendar');
   const taskMethods = methodIdsMatching(['task', 'work-plan', 'workplan']);
   const scheduleMethods = methodIdsMatching(['schedule', 'reminder']);
   const readyChannels = snapshot.channels.filter((channel) => channel.ready).length;
@@ -1268,14 +1374,14 @@ function buildLanes(
         : emailConnectors.length > 0
           ? 'A configured MCP connector looks email-capable; Personal Ops workflow cards now guide inbox triage, schema-derived operation records, and draft boundaries around its exact tools.'
           : inboxArtifactRecords.length > 0
-            ? 'Saved inbox review artifacts are available for recap or promotion; no fresh email connector is currently ready.'
+            ? 'Saved inbox review artifacts and thread queue items are available for recap, local draft review, or promotion; no fresh email connector is currently ready.'
         : 'No email/IMAP/SMTP methods are present in the current GoodVibes SDK operator contract.',
       next: emailMethods.length > 0
         ? 'Use the inbox workflow cards to inspect exact methods, read selected threads, summarize priorities, and keep send as a separate confirmation.'
         : emailConnectors.length > 0
           ? 'Use the inbox workflow cards and operation records to inspect matching MCP connector schemas, then route triage only through reviewed connector actions.'
           : inboxArtifactRecords.length > 0
-            ? 'Open saved review artifacts for local recap or promotion, then repair an email connector before reading fresh inbox data.'
+            ? 'Use saved thread queue records for local draft review or recap, then repair an email connector before reading fresh inbox data or sending.'
         : 'Install or build an email connector/MCP/plugin, then expose triage and draft-reply actions here.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
       modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'agent_harness mode:"operator_methods" query:"email"',
@@ -1283,12 +1389,14 @@ function buildLanes(
         `${emailMethods.length} email-like daemon method(s)`,
         `${emailConnectors.length} email-like MCP connector(s)`,
         `${inboxArtifactRecords.length} saved inbox review artifact(s)`,
+        `${inboxReviewQueueRecords.length} saved inbox thread queue item(s)`,
         `${readyChannels}/${snapshot.channels.length} channel(s) ready for delivery`,
       ],
       methodIds: emailMethods,
       connectorSignals: emailConnectors,
       workflows: inboxWorkflows(emailMethods, emailConnectors),
       liveRecords: [
+        ...inboxReviewQueueRecords,
         ...inboxArtifactRecords,
         ...connectorRecords(emailConnectors, 'Inbox'),
       ],
@@ -1303,14 +1411,14 @@ function buildLanes(
         : calendarConnectors.length > 0
           ? 'A configured MCP connector looks calendar-capable; Personal Ops workflow cards now guide agenda briefing, schema-derived operation records, and conflict-scan boundaries around its exact tools.'
           : calendarArtifactRecords.length > 0
-            ? 'Saved calendar review artifacts are available for recap or promotion; no fresh calendar connector is currently ready.'
+            ? 'Saved calendar review artifacts and event queue items are available for agenda recap, reminder creation, or follow-up planning; no fresh calendar connector is currently ready.'
         : 'No calendar/CalDAV/agenda methods are present in the current GoodVibes SDK operator contract.',
       next: calendarMethods.length > 0
         ? 'Use the calendar workflow cards to inspect exact methods, fetch a bounded agenda window, and propose reminders or follow-ups.'
         : calendarConnectors.length > 0
           ? 'Use the calendar workflow cards and operation records to inspect matching MCP connector schemas, then route agenda work only through reviewed connector actions.'
           : calendarArtifactRecords.length > 0
-            ? 'Open saved review artifacts for local recap or promotion, then repair a calendar connector before reading fresh agenda data.'
+            ? 'Use saved event queue records for recap or reminder creation, then repair a calendar connector before reading fresh agenda data or editing events.'
         : 'Add a CalDAV/calendar connector and route agenda briefing, conflicts, and reminders through this lane.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
       modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'agent_harness mode:"operator_methods" query:"calendar"',
@@ -1318,12 +1426,14 @@ function buildLanes(
         `${calendarMethods.length} calendar-like daemon method(s)`,
         `${calendarConnectors.length} calendar-like MCP connector(s)`,
         `${calendarArtifactRecords.length} saved calendar review artifact(s)`,
+        `${calendarReviewQueueRecords.length} saved calendar event queue item(s)`,
         `${scheduleMethods.length} schedule/reminder method(s) available for follow-up`,
       ],
       methodIds: calendarMethods,
       connectorSignals: calendarConnectors,
       workflows: calendarWorkflows(calendarMethods, calendarConnectors),
       liveRecords: [
+        ...calendarReviewQueueRecords,
         ...calendarArtifactRecords,
         ...connectorRecords(calendarConnectors, 'Calendar'),
       ],
@@ -1443,6 +1553,7 @@ function liveRecordSearchText(record: PersonalOpsLiveRecord): string {
     record.artifactId ?? '',
     record.reviewLabels?.join('\n') ?? '',
     record.sourceTool ?? '',
+    record.followUpRoutes?.map((route) => `${route.id} ${route.label} ${route.effect} ${route.modelRoute} ${route.policy}`).join('\n') ?? '',
     record.tags?.join('\n') ?? '',
   ].join('\n').toLowerCase();
 }

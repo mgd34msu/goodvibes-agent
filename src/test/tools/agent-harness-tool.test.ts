@@ -2672,7 +2672,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('surfaces saved Personal Ops review artifacts as durable inbox lane records', async () => {
+  test('surfaces saved Personal Ops review artifacts as durable lane queue records', async () => {
     const artifacts = createHarnessArtifactStore();
     await artifacts.store.create({
       kind: 'data',
@@ -2687,6 +2687,24 @@ describe('agent_harness tool', () => {
         sourceTool: 'mcp:gmail-inbox:gmail.search_messages',
         reviewRecordCount: 2,
         reviewLabels: ['Escalation follow-up', 'Weekly planning'],
+        reviewRecordIds: ['msg-escalation', 'msg-planning'],
+        fullRawConnectorOutputStored: false,
+      },
+    });
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'saved-calendar-review.json',
+      text: '{"reviewRecords":[]}\n',
+      acquisitionMode: 'inline-data',
+      fetchMode: 'not-applicable',
+      metadata: {
+        purpose: 'personal-ops-review-cards',
+        laneId: 'calendar',
+        sourceTool: 'mcp:calendar:calendar.list_events',
+        reviewRecordCount: 1,
+        reviewLabels: ['Weekly sync'],
+        reviewRecordIds: ['evt-weekly-sync'],
         fullRawConnectorOutputStored: false,
       },
     });
@@ -2711,15 +2729,32 @@ describe('agent_harness tool', () => {
             readonly reviewRecordCount?: number;
             readonly reviewLabels?: readonly string[];
             readonly sourceTool?: string;
+            readonly followUpRoutes?: readonly {
+              readonly id: string;
+              readonly effect: string;
+              readonly modelRoute: string;
+              readonly requiresConfirmation: boolean;
+              readonly policy: string;
+            }[];
           }[];
         }[];
       }>(fixture, { mode: 'personal_ops', includeParameters: true });
 
       const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
       const savedReview = inbox?.liveRecords?.find((record) => record.id === 'review-artifact:artifact-1');
+      const savedThread = inbox?.liveRecords?.find((record) => record.id === 'review-thread:artifact-1:msg-escalation');
       expect(inbox?.status).toBe('partial');
-      expect(inbox?.current).toContain('Saved inbox review artifacts');
+      expect(inbox?.current).toContain('thread queue items');
       expect(inbox?.signals).toContain('1 saved inbox review artifact(s)');
+      expect(inbox?.signals).toContain('2 saved inbox thread queue item(s)');
+      expect(savedThread?.label).toContain('Saved thread');
+      expect(savedThread?.status).toBe('ready-for-draft');
+      expect(savedThread?.capability).toBe('inbox-thread-review');
+      expect(savedThread?.tags).toContain('draft-ready');
+      expect(savedThread?.modelRoute).toContain('agent_artifacts show artifactId:"artifact-1"');
+      expect(savedThread?.followUpRoutes?.find((route) => route.id === 'draft-local-reply')?.requiresConfirmation).toBe(false);
+      expect(savedThread?.followUpRoutes?.find((route) => route.id === 'send-reviewed-reply-boundary')?.requiresConfirmation).toBe(true);
+      expect(savedThread?.followUpRoutes?.find((route) => route.id === 'send-reviewed-reply-boundary')?.policy).toContain('user confirms exact recipients and body');
       expect(savedReview?.label).toContain('Saved inbox review');
       expect(savedReview?.status).toBe('ready');
       expect(savedReview?.summary).toContain('2 normalized review cards');
@@ -2732,6 +2767,17 @@ describe('agent_harness tool', () => {
       expect(savedReview?.reviewRecordCount).toBe(2);
       expect(savedReview?.reviewLabels).toEqual(['Escalation follow-up', 'Weekly planning']);
       expect(savedReview?.sourceTool).toBe('mcp:gmail-inbox:gmail.search_messages');
+
+      const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
+      const savedEvent = calendar?.liveRecords?.find((record) => record.id === 'review-event:artifact-2:evt-weekly-sync');
+      expect(calendar?.signals).toContain('1 saved calendar review artifact(s)');
+      expect(calendar?.signals).toContain('1 saved calendar event queue item(s)');
+      expect(savedEvent?.label).toContain('Saved event');
+      expect(savedEvent?.status).toBe('ready-for-reminder');
+      expect(savedEvent?.capability).toBe('calendar-event-review');
+      expect(savedEvent?.tags).toContain('reminder-ready');
+      expect(savedEvent?.followUpRoutes?.find((route) => route.id === 'create-reminder-from-event')?.modelRoute).toContain('agent_reminder_schedule');
+      expect(savedEvent?.followUpRoutes?.find((route) => route.id === 'calendar-edit-boundary')?.requiresConfirmation).toBe(true);
     } finally {
       fixture.cleanup();
     }
@@ -3366,10 +3412,15 @@ describe('agent_harness tool', () => {
           readonly reviewRecordCount?: number;
           readonly reviewLabels?: readonly string[];
           readonly sourceTool?: string;
+          readonly followUpRoutes?: readonly { readonly id: string; readonly requiresConfirmation: boolean; readonly modelRoute: string }[];
         }[];
-      }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox' });
+      }>(fixture, { mode: 'personal_ops_lane', laneId: 'inbox', includeParameters: true });
       expect(lane.id).toBe('inbox');
       expect(lane.status).toBe('partial');
+      const savedThreadRecord = lane.liveRecords?.find((record) => record.id === 'review-thread:artifact-1:msg-1');
+      expect(savedThreadRecord?.label).toContain('Saved thread');
+      expect(savedThreadRecord?.capability).toBe('inbox-thread-review');
+      expect(savedThreadRecord?.followUpRoutes?.find((route) => route.id === 'send-reviewed-reply-boundary')?.requiresConfirmation).toBe(true);
       const savedReviewRecord = lane.liveRecords?.find((record) => record.id === 'review-artifact:artifact-1');
       expect(savedReviewRecord?.label).toContain('Saved inbox review');
       expect(savedReviewRecord?.modelRoute).toContain('artifact-1');
