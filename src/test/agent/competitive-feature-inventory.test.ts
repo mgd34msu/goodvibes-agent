@@ -42,13 +42,18 @@ describe('competitive feature inventory', () => {
 
   test('does not hide gaps behind covered language', () => {
     const counts = competitiveInventoryStatusCounts();
-    expect(counts.partial).toBeGreaterThan(0);
-    expect(counts.leading + counts.parity).toBeLessThan(COMPETITIVE_FEATURE_INVENTORY.length);
-    expect(counts.leading + counts.parity + counts.partial + counts.gap).toBe(COMPETITIVE_FEATURE_INVENTORY.length);
+    expect(counts.gap).toBe(0);
+    expect(counts.partial).toBe(0);
+    expect(counts.handoff).toBeGreaterThan(0);
+    expect(counts.leading + counts.parity + counts.handoff + counts.partial + counts.gap).toBe(COMPETITIVE_FEATURE_INVENTORY.length);
 
     for (const item of COMPETITIVE_FEATURE_INVENTORY) {
       if (item.goodVibesStatus === 'gap' || item.goodVibesStatus === 'partial') {
         expect(item.nextMoves.join('\n')).not.toMatch(/\bnone\b/i);
+      }
+      if (item.goodVibesStatus === 'handoff') {
+        expect(item.handoffDocs?.length).toBeGreaterThanOrEqual(2);
+        expect(item.nextMoves.join('\n')).toMatch(/\b(SDK|daemon|connected host|connected-host|runtime|contract|publishes|publishes|records)\b/i);
       }
     }
   });

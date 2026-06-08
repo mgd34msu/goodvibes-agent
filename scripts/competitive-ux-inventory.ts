@@ -19,11 +19,10 @@ if (args.includes('--json')) {
 console.log('# Competitive UX Inventory');
 console.log('');
 console.log(`Items: ${COMPETITIVE_FEATURE_INVENTORY.length}`);
-console.log(`Leading: ${counts.leading}  Parity: ${counts.parity}  Partial: ${counts.partial}  Gap: ${counts.gap}`);
+console.log(`Leading: ${counts.leading}  Parity: ${counts.parity}  Handoff: ${counts.handoff}  Partial: ${counts.partial}  Gap: ${counts.gap}`);
 console.log('');
 console.log('| Feature | Status | Target | User Outcome |');
 console.log('|---|---|---|---|');
 for (const item of COMPETITIVE_FEATURE_INVENTORY) {
   console.log(`| ${item.id} | ${item.goodVibesStatus} | ${item.targetStandard} | ${item.userOutcome} |`);
 }
-

@@ -62,7 +62,14 @@ The limiting factor is not raw platform capability. The limiting factor is wheth
 - `agent_harness mode:"agent_orchestration"` and `mode:"agent_orchestration_agent"` now expose live visible Agent subagents, serial-by-default policy, managed multi-agent plan milestones, per-agent plan cards, linked work-plan receipts, closeout routes, remote-runner contract/artifact evidence, auto-attached remote artifact review routes, spawn/batch-spawn decision cards, templates, and exact first-class `agent` inspect/status/budget/plan/wait/message/cancel routes without creating hidden work; approved work-plan items dispatch through confirmed `agent_work_plan action:"dispatch_agents"` and save linked-agent receipts.
 - Setup closeout now derives a single user-facing decision from critical setup blockers, durable redacted setup smoke artifacts, and the user onboarding completion marker: `setupWizard.closeout` and top-level `setupCloseout` return blocked, needs-smoke-evidence, ready-to-finish, or complete, while confirmed `setup action:"finish"` writes the same user marker as the visible Finish workspace action.
 
-## Remaining Product Gaps
+## External Handoff Work
+
+GoodVibes Agent's current competitive inventory separates true Agent-owned
+gaps from source-owned package work. Agent-owned UX now has no `partial` or
+`gap` inventory rows; the remaining depth below belongs in
+`docs/audits/goodvibes-tui-handoff.md` and
+`docs/audits/goodvibes-sdk-handoff.md`, then Agent can consume the published
+records without moving runtime implementations into this package.
 
 - Fresh provider-backed thread/event queues and confirmed send/edit/RSVP/archive execution in Personal Ops once connector or daemon records expose durable provider ids; Agent-owned daily briefing, request intake, notes, routines, schedule receipts, delivery channels, email/calendar-capable MCP connector setup routes, expanded connector read/write tool classification, schema-derived operation records with required fields/sample inputs/confirmation flags/fresh-read routes, inbox triage/draft plus calendar agenda/conflict workflow cards, ordered execution plans, confirmed read-only MCP execution with normalized review cards and next-route packets, optional durable redacted review-card artifacts, saved redacted thread/event queue records with freshness and refresh posture, and task/reminder operation cards for visible work plans, connected-host tasks, confirmed reminders, autonomous schedules, and connected schedule controls already surface in live lane records.
 - True live host output chunk streams beyond the current bounded task output route/preview descriptors when the connected host exposes them.

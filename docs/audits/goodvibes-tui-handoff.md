@@ -57,6 +57,61 @@ The missing work is not another Agent UI. It is making those routes turn from
 honest readiness/setup guidance into durable daemon-backed execution where the
 host can prove readiness, progress, cancellation, receipts, and recovery.
 
+## Agent Release Handoff Matrix
+
+GoodVibes Agent now marks these competitive items as `handoff`: Agent-owned UX,
+route planning, confirmation, redaction, and recovery posture are present in
+this repo; the remaining release depth belongs to `goodvibes-tui` and the
+daemon runtime.
+
+| Agent inventory item | TUI/daemon work required | Agent consumption route |
+|---|---|---|
+| `first-run-and-always-on-setup` | Durable service/auth/smoke receipt records with ids, timestamps, stale-state signals, and setup-step correlation. | `setup action:"status|repair|smoke|finish"` |
+| `models-and-local-model-cookbook` | Local serving health records for provider endpoints, model inventory, latency, degradation, setup-needed state, and last smoke evidence. | `models action:"status|route|local|smoke"` |
+| `email-calendar-notes-and-tasks` | Fresh provider-backed inbox, calendar, task, reminder, and note records with durable provider ids plus confirmed effect receipts. | `personal_ops action:"briefing|queue|intake|lane|read"` |
+| `closed-learning-loop` | External memory provider setup/status/read/write/sync records and redacted sync receipts from the daemon where runtime mediation is needed. | `memory action:"provider|status"` |
+| `autonomous-schedules-and-background-work` | Live output chunk streams, durable watcher run history, provider source records, redacted event descriptors, and queue correlation. | `autonomy action:"intake|queue|item"` |
+| `computer-use-browser-and-shell` | Typed PTY sessions, live output records, safe sudo mediation, and browser/desktop command execution receipts. | `execution action:"process_capabilities|processes|history"` and `computer action:"plan|control"` |
+| `multi-agent-and-remote-execution` | Remote runner capture/export receipts, workspace/worktree isolation evidence, changed-file summaries, and recovery/cancel records. | `agent_orchestration`, `agent_work_plan`, `delegation action:"routes"` |
+| `deep-research-and-knowledge-reports` | Browser-backed research executor, source capture events, bounded logs, report handoff receipts, and visual report browser rendering. | `research action:"runner|runs|sources|reports"` |
+| `mobile-voice-and-device-nodes` | Companion command records, permission repair, push-to-talk receipts, wake/speak readiness, camera/screen/notification/location route certification. | `device action:"status|capability|voice"` |
+| `web-dashboard-and-pwa` | Browser-native Agent workspace category routes, mobile controls, PWA open/completion receipts, and first-run browser readiness receipts. | `computer action:"browser|open_browser"` and `workspace action:"surface"` |
+
+These requirements should be implemented in `goodvibes-tui`/daemon and then
+published through the SDK contract. Agent should only consume the published
+records; it should not copy runtime implementations into this package.
+
+## Priority 0: Durable Setup Receipt Records
+
+Agent already has setup checkpoints, smoke evidence artifacts, service repair
+decisions, and finish markers. The daemon should publish durable receipt records
+so Agent can auto-advance individual setup steps from source-owned proof instead
+of inferring readiness from one live probe.
+
+Publish records for:
+
+- service status/install/start/restart outcomes;
+- operator token/auth pairing status and repair outcomes;
+- setup smoke execution, first assistant turn proof, and failure blockers;
+- browser/PWA cockpit open readiness when it participates in setup closeout.
+
+Required fields:
+
+- `receiptId`, `kind`, `subjectId`, `correlationId`, `status`;
+- `createdAt`, `startedAt`, `completedAt`, `lastCheckedAt`;
+- `setupStepId`, `sourcePackage`, `sourceRoute`, `redaction`;
+- `summary`, `blockers`, `nextRoute`, `recoveryRoute`.
+
+Acceptance tests:
+
+- Re-running setup status returns the same latest receipt ids until source state
+  changes.
+- Failed receipts preserve blocker detail without raw tokens, command output, or
+  secrets.
+- A ready service/auth/smoke receipt can be correlated to one setup wizard step.
+- Browser/PWA readiness receipts are explicit and never inferred from a URL
+  string alone.
+
 ## Priority 1: Deep Research Live Runner
 
 Agent already has a visible local research run ledger, source queue, reviewed
