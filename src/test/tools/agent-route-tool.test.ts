@@ -225,13 +225,36 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes voice workflow requests through voice posture', async () => {
+    const body = await route('set up push-to-talk and voice memo transcription');
+
+    expect(preferredId(body)).toBe('voice-workflow-posture');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'device action:"voice" query:"set up push-to-talk and voice memo transcription" includeParameters:true',
+      inspectRoute: 'device action:"voice" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('routes TTS provider setup through provider posture', async () => {
+    const body = await route('choose a TTS provider for spoken responses');
+
+    expect(preferredId(body)).toBe('tts-provider-posture');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'device action:"provider" target:"tts" includeParameters:true',
+      inspectRoute: 'device action:"voice" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
   test('keeps plain browser-open requests on the Browser/PWA readiness route', async () => {
     const body = await route('open the browser dashboard');
 
-    expect(preferredId(body)).toBe('browser-computer-capability');
+    expect(preferredId(body)).toBe('browser-cockpit-readiness');
     expect(body.preferred).toMatchObject({
-      modelRoute: 'computer action:"status" includeParameters:true',
-      inspectRoute: 'computer action:"browser" includeParameters:true',
+      modelRoute: 'computer action:"browser" includeParameters:true',
+      inspectRoute: 'workspace action:"surface" surfaceId:"connected-browser-cockpit" includeParameters:true',
+      requiresConfirmation: true,
     });
   });
 
