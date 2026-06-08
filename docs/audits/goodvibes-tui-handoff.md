@@ -1,6 +1,6 @@
 # GoodVibes TUI And Daemon Handoff
 
-Date: 2026-06-07
+Date: 2026-06-08
 
 This handoff is for the agent working in `github.com/mgd34msu/goodvibes-tui`.
 GoodVibes Agent will own the autonomous-assistant UX. GoodVibes TUI and the
@@ -32,6 +32,30 @@ GoodVibes Agent keeps:
 
 Do not move Agent's product-specific route planning back into TUI. Publish clean
 daemon contracts and evidence, then Agent will consume them.
+
+## Current Agent Consumption Points
+
+Agent already exposes user-first routes for the capabilities below. The TUI and
+daemon work should publish durable records, receipts, and event streams behind
+these routes instead of adding new user-facing topology:
+
+- setup/host health: `setup action:"status|repair"` and
+  `host action:"status|services|methods"`;
+- Personal Ops: `personal_ops action:"briefing|status|queue|intake|lane|read"`;
+- channels: `channels action:"status|channel|setup|triage|deliveries"` and
+  confirmed `agent_channel_send`;
+- research: `research action:"briefing|plan|runner|runs|sources|reports"`;
+- browser/PWA: `computer action:"browser|open_browser"` and
+  `workspace action:"surface" surfaceId:"connected-browser-cockpit"`;
+- computer/process: `computer action:"plan|control|setup|mcp"` and
+  `execution action:"processes|process_capabilities|process|history|recovery"`;
+- mobile/voice/device: `device action:"status|capability|voice|provider"`;
+- local models: `models action:"status|route|local|providers|provider|smoke"`;
+- external memory posture: `memory action:"provider|status"`.
+
+The missing work is not another Agent UI. It is making those routes turn from
+honest readiness/setup guidance into durable daemon-backed execution where the
+host can prove readiness, progress, cancellation, receipts, and recovery.
 
 ## Priority 1: Deep Research Live Runner
 
@@ -108,9 +132,13 @@ Acceptance tests:
 
 ## Priority 3: Personal Ops Provider Queues And Effects
 
-Agent can now plan Personal Ops workflows and execute one confirmed read-only
-connector operation with redacted review cards. The missing daemon work is
-fresh, durable provider-backed records and confirmed effects.
+Agent can now route daily/calendar briefings to
+`personal_ops action:"briefing"`, saved review queues to
+`action:"queue"`, fresh inbox/calendar reads to `action:"intake"` with
+confirmation boundaries, connector setup posture to `action:"lane"`, and one
+confirmed read-only connector operation to `action:"read"` with redacted review
+cards. The missing daemon work is fresh, durable provider-backed records and
+confirmed effects.
 
 Publish durable provider records for:
 
@@ -220,8 +248,11 @@ Acceptance tests:
 ## Priority 8: Mobile, Voice, Device, And Delivery Receipts
 
 Agent currently exposes honest readiness maps for companion devices, voice
-workflows, and channels. Publish concrete records only where the host can back
-them.
+workflows, and channels. It routes channel setup to
+`channels action:"setup"`, triage/retries/errors to `action:"triage"`,
+delivery history to `action:"deliveries"`, and sends to target readiness before
+confirmed `agent_channel_send`. Publish concrete records only where the host can
+back them.
 
 Needed daemon records:
 

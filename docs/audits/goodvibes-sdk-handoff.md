@@ -1,6 +1,6 @@
 # GoodVibes SDK Handoff
 
-Date: 2026-06-07
+Date: 2026-06-08
 
 This handoff is for the agent working in `github.com/mgd34msu/goodvibes-sdk`.
 GoodVibes Agent needs typed SDK contracts for daemon features that are currently
@@ -21,6 +21,33 @@ Good SDK work for this effort has three properties:
 - Browser/mobile/worker clients can consume the same contract safely.
 - Every effect or long-running action has receipt, event, redaction, and
   recovery semantics.
+
+## Current Agent Consumer Routes
+
+Agent already has first-class tool routes that should consume typed SDK
+contracts as they become available:
+
+- `personal_ops action:"briefing|status|queue|intake|lane|read"` for daily
+  briefings, saved review queues, fresh provider-read planning, connector setup
+  posture, and one confirmed read-only inbox/calendar operation;
+- `channels action:"status|channel|setup|triage|deliveries"` plus
+  `agent_channel_send` for readiness, setup, triage, delivery history, and
+  confirmed sends;
+- `research action:"briefing|plan|runner|runs|run|sources|source|bundle|reports|report_artifact"`
+  plus confirmed research run/source/report mutations;
+- `computer action:"browser|open_browser|plan|control|setup|mcp"` for
+  browser/PWA readiness and browser/screenshot/desktop-control posture;
+- `execution action:"processes|process_capabilities|process|history|recovery"`
+  plus `terminal` and `process` adapters for process UX;
+- `device action:"status|capability|voice|provider|open_tts_provider|open_tts_voice"`
+  for mobile/device/voice/TTS posture;
+- `models action:"status|route|local|providers|provider|smoke"` for provider
+  and local model health;
+- `memory action:"provider|status"` for external memory-provider posture.
+
+The SDK should make these routes type-safe and portable. Avoid adding alternate
+string-only helper paths that would force Agent to keep dynamic probes or route
+string parsing.
 
 ## Priority 1: Operator Contract Expansion
 
@@ -119,6 +146,8 @@ Acceptance criteria:
   private message bodies by default.
 - Write/effect receipts contain provider outcome ids and inspect routes.
 - Tests prove read routes and effect routes are classified distinctly.
+- Types map cleanly to Agent's current `briefing`, `queue`, `intake`, `lane`,
+  and confirmed `read` route split without requiring Agent-specific casts.
 
 ## Priority 5: Process, PTY, Sudo, And Live Output Types
 
