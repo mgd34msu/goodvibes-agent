@@ -1664,7 +1664,7 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         supportingRoutes: [
           'security action:"status" includeParameters:true',
           'agent_harness mode:"security_finding" findingId:"..." includeParameters:true',
-          'support_bundles action:"status" includeParameters:true',
+          'support action:"status" includeParameters:true',
         ],
         policy: 'Finding inspection returns redacted evidence only. Secret rotation, trust changes, MCP enablement, or file edits stay on explicit confirmed repair routes.',
       });
