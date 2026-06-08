@@ -266,6 +266,36 @@ function fileRecoveryLike(lower: string): boolean {
   return hasAny(lower, ['file', 'edit', 'write', 'patch', 'diff', 'change', 'snapshot', 'workspace']);
 }
 
+function researchRunnerLike(lower: string): boolean {
+  if (hasAny(lower, [
+    'browser-backed research',
+    'browser backed research',
+    'browser-backed runner',
+    'browser backed runner',
+    'browser research runner',
+    'research runner',
+    'deep research runner',
+    'live research runner',
+  ])) return true;
+  return lower.includes('runner readiness') && hasAny(lower, ['research', 'browser']);
+}
+
+function visualResearchReportLike(lower: string): boolean {
+  return hasAny(lower, [
+    'visual report',
+    'visual-report',
+    'visual research report',
+    'research report packet',
+    'visual report packet',
+    'report packet',
+    'browser report rendering',
+    'browser/pwa report',
+    'render visual report',
+    'render the visual report',
+    'render research report',
+  ]);
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -487,7 +517,62 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
-  if (hasAny(lower, ['research', 'deep research', 'investigate', 'sources', 'citations', 'citation', 'source-backed', 'market map', 'literature', 'report']) && !scheduleLike(lower)) {
+  if ((researchRunnerLike(lower) || visualResearchReportLike(lower) || hasAny(lower, ['research', 'deep research', 'investigate', 'sources', 'citations', 'citation', 'source-backed', 'market map', 'literature', 'report'])) && !scheduleLike(lower)) {
+    if (researchRunnerLike(lower)) {
+      const runnerEffect = hasAny(lower, ['start ', 'start the', 'launch ', 'execute ', 'run ', 'run a ', 'run the ', 'open ']);
+      add({
+        id: 'research-browser-runner-readiness',
+        label: 'Browser-backed research runner readiness',
+        score: 96,
+        userSurface: 'Research workspace',
+        userOutcome: 'Check browser-backed research readiness and fallback routes before pretending live browser research can run.',
+        why: 'The request mentions a browser-backed research runner or runner readiness.',
+        modelRoute: `research action:"runner" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'research action:"runner" includeParameters:true',
+        userRoute: 'Agent Workspace -> Research -> Browser runner readiness',
+        requiresConfirmation: runnerEffect,
+        missingFields: runnerEffect
+          ? ['visible research run id or research question', 'published browser-runner ready state', 'confirmation before any live browser execution']
+          : undefined,
+        supportingRoutes: [
+          `research action:"plan" query:${quote(request)} includeParameters:true`,
+          'research action:"runs" includeParameters:true',
+          'computer action:"browser" includeParameters:true',
+          'computer action:"setup" query:"browser research runner" includeParameters:true',
+        ],
+        policy: 'Browser-runner readiness is read-only. Live browser-backed execution remains unavailable until the runner contract reports ready and the user confirms a scoped visible run.',
+      });
+    }
+
+    if (visualResearchReportLike(lower)) {
+      const renderEffect = hasAny(lower, ['render', 'open ', 'show ', 'save', 'export', 'share', 'publish']);
+      add({
+        id: 'research-visual-report-workflow',
+        label: 'Visual research report workflow',
+        score: 95,
+        userSurface: 'Research workspace',
+        userOutcome: 'Route visual report requests through reviewed source/report artifacts and expose browser-rendering gaps honestly.',
+        why: 'The request mentions visual report packets, report rendering, or a browser/PWA research report view.',
+        modelRoute: `research action:"plan" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'research action:"reports" query:"visual report" includeParameters:true',
+        userRoute: 'Agent Workspace -> Research -> Report artifacts',
+        requiresConfirmation: renderEffect,
+        missingFields: [
+          'reviewed source bundle or saved report artifact id',
+          ...(hasAny(lower, ['browser', 'pwa', 'render']) ? ['published browser/PWA report-rendering route before live browser rendering is considered ready'] : []),
+          ...(renderEffect ? ['confirmation before report save, export, share, publish, or visible browser handoff'] : []),
+        ],
+        supportingRoutes: [
+          'research action:"reports" query:"visual report"',
+          `research action:"plan" query:${quote(request)} includeParameters:true`,
+          'research action:"report" question:"..." sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."',
+          'agent_artifacts action:"show" artifactId:"..." includeContent:true',
+          'workspace action:"action" actionId:"research-report-artifacts" includeParameters:true',
+        ],
+        policy: 'Visual report planning is read-only. Markdown visual-report packets can be saved after confirmation; browser/PWA rendering is not claimed until a connected-host route publishes concrete readiness evidence.',
+      });
+    }
+
     add({
       id: 'deep-research-workflow',
       label: 'Visible research workflow',

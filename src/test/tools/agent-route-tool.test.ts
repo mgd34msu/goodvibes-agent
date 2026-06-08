@@ -72,6 +72,28 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes browser-backed research runner wording to runner readiness', async () => {
+    const body = await route('check browser-backed research runner readiness');
+
+    expect(preferredId(body)).toBe('research-browser-runner-readiness');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'research action:"runner" query:"check browser-backed research runner readiness" includeParameters:true',
+      inspectRoute: 'research action:"runner" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes visual research report rendering to the report workflow contract', async () => {
+    const body = await route('render the visual research report in the browser');
+
+    expect(preferredId(body)).toBe('research-visual-report-workflow');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'research action:"plan" query:"render the visual research report in the browser" includeParameters:true',
+      inspectRoute: 'research action:"reports" query:"visual report" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
   test('routes parallel coding work to delegated build posture', async () => {
     const body = await route('fix the failing tests in parallel');
 
