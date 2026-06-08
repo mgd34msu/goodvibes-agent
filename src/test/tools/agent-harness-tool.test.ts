@@ -4733,6 +4733,8 @@ describe('agent_harness tool', () => {
         readonly triggerWorkflowSummary: {
           readonly ready: number;
           readonly attention: number;
+          readonly watcherEvidenceContractStatus: string | null;
+          readonly watcherEvidenceMissing: readonly string[];
         };
         readonly triggerWorkflows: readonly {
           readonly id: string;
@@ -4745,8 +4747,33 @@ describe('agent_harness tool', () => {
             readonly evidenceFields: readonly string[];
             readonly verificationRoute: string;
           };
+          readonly evidenceContract?: {
+            readonly status: string;
+            readonly owner: string;
+            readonly contractChecklist: readonly {
+              readonly id: string;
+              readonly status: string;
+            }[];
+            readonly receiptContract: {
+              readonly appliesTo: readonly string[];
+              readonly requiredFields: readonly string[];
+            };
+            readonly providerSourceContract: {
+              readonly supportedSourceKinds: readonly string[];
+              readonly requiredFields: readonly string[];
+              readonly policy: string;
+            };
+          };
           readonly policy: string;
         }[];
+        readonly watcherEvidenceContract: {
+          readonly status: string;
+          readonly owner: string;
+          readonly contractChecklist: readonly {
+            readonly id: string;
+            readonly status: string;
+          }[];
+        };
       }>(fixture, {
         mode: 'autonomy_intake',
         query: 'When a webhook arrives from billing, run a triage brief.',
@@ -4761,6 +4788,11 @@ describe('agent_harness tool', () => {
       expect(trigger.preferred.triggerWorkflowId).toBe('incoming-webhook-or-watcher');
       expect(trigger.triggerWorkflowSummary.ready).toBeGreaterThanOrEqual(2);
       expect(trigger.triggerWorkflowSummary.attention).toBeGreaterThanOrEqual(1);
+      expect(trigger.triggerWorkflowSummary.watcherEvidenceContractStatus).toBe('contract-needed');
+      expect(trigger.triggerWorkflowSummary.watcherEvidenceMissing).toContain('durable-run-history-records');
+      expect(trigger.triggerWorkflowSummary.watcherEvidenceMissing).toContain('provider-source-records');
+      expect(trigger.watcherEvidenceContract.status).toBe('contract-needed');
+      expect(trigger.watcherEvidenceContract.owner).toBe('goodvibes-sdk-or-daemon');
       const watcher = trigger.triggerWorkflows.find((workflow) => workflow.id === 'incoming-webhook-or-watcher');
       expect(watcher?.status).toBe('ready');
       expect(watcher?.evidence.watcherCreatePublished).toBe(true);
@@ -4769,9 +4801,31 @@ describe('agent_harness tool', () => {
       expect(watcher?.outcome?.successCriteria.join('\n')).toContain('watchers.create receipt');
       expect(watcher?.outcome?.evidenceFields).toContain('lastError');
       expect(watcher?.outcome?.verificationRoute).toContain('watchers.list');
+      const watcherContract = watcher?.evidenceContract;
+      expect(watcherContract?.status).toBe('contract-needed');
+      expect(watcherContract?.owner).toBe('goodvibes-sdk-or-daemon');
+      expect(watcherContract?.contractChecklist.find((check) => check.id === 'watcher-list-route')?.status).toBe('published-route');
+      expect(watcherContract?.contractChecklist.find((check) => check.id === 'durable-run-history-records')?.status).toBe('missing');
+      expect(watcherContract?.contractChecklist.find((check) => check.id === 'provider-source-records')?.status).toBe('missing');
+      expect(watcherContract?.contractChecklist.find((check) => check.id === 'redacted-event-payloads')?.status).toBe('missing');
+      expect(watcherContract?.contractChecklist.find((check) => check.id === 'queue-correlation-records')?.status).toBe('missing');
+      expect(watcherContract?.receiptContract.appliesTo).toContain('watchers.create');
+      expect(watcherContract?.receiptContract.requiredFields).toContain('runId');
+      expect(watcherContract?.receiptContract.requiredFields).toContain('sourceId');
+      expect(watcherContract?.receiptContract.requiredFields).toContain('sourceScope');
+      expect(watcherContract?.receiptContract.requiredFields).toContain('lastCheckpoint');
+      expect(watcherContract?.receiptContract.requiredFields).toContain('lastError');
+      expect(watcherContract?.receiptContract.requiredFields).toContain('recoveryRoute');
+      expect(watcherContract?.providerSourceContract.supportedSourceKinds).toContain('gmail');
+      expect(watcherContract?.providerSourceContract.requiredFields).toContain('scope');
+      expect(watcherContract?.providerSourceContract.requiredFields).toContain('filter');
+      expect(watcherContract?.providerSourceContract.requiredFields).toContain('nextRoute');
+      expect(watcherContract?.providerSourceContract.requiredFields).toContain('lastError');
+      expect(watcherContract?.providerSourceContract.policy).toContain('never polls personal providers silently');
       expect(watcher?.policy).toContain('Incoming triggers are admin connected-host mutations');
       const gmail = trigger.triggerWorkflows.find((workflow) => workflow.id === 'gmail-or-email-trigger');
       expect(gmail?.status).toBe('attention');
+      expect(gmail?.evidenceContract?.providerSourceContract.supportedSourceKinds).toContain('gmail');
       expect(gmail?.policy).toContain('does not poll or read mail silently');
     } finally {
       fixture.cleanup();

@@ -30,6 +30,52 @@ interface AutonomyRouteCandidate {
   readonly policy?: string;
 }
 
+type WatcherEvidenceContractStatus = 'contract-needed' | 'ready';
+type WatcherEvidenceCheckStatus = 'published-route' | 'missing';
+
+interface WatcherEvidenceContractRoute {
+  readonly id: string;
+  readonly label: string;
+  readonly modelRoute: string;
+  readonly effect: 'read-only' | 'confirmed';
+  readonly why: string;
+}
+
+interface WatcherEvidenceContractCheck {
+  readonly id: string;
+  readonly label: string;
+  readonly status: WatcherEvidenceCheckStatus;
+  readonly requiredFor: string;
+  readonly owner: 'goodvibes-sdk-or-daemon';
+  readonly inspectRoute: string;
+}
+
+interface WatcherEvidenceReceiptContract {
+  readonly status: 'missing';
+  readonly appliesTo: readonly string[];
+  readonly requiredFields: readonly string[];
+  readonly nextWhenPublished: string;
+}
+
+interface WatcherProviderSourceContract {
+  readonly status: 'missing';
+  readonly supportedSourceKinds: readonly string[];
+  readonly requiredFields: readonly string[];
+  readonly policy: string;
+}
+
+interface WatcherEvidenceContract {
+  readonly status: WatcherEvidenceContractStatus;
+  readonly userOutcome: string;
+  readonly currentState: string;
+  readonly owner: 'goodvibes-sdk-or-daemon';
+  readonly nextRoutes: readonly WatcherEvidenceContractRoute[];
+  readonly contractChecklist: readonly WatcherEvidenceContractCheck[];
+  readonly receiptContract: WatcherEvidenceReceiptContract;
+  readonly providerSourceContract: WatcherProviderSourceContract;
+  readonly policy: string;
+}
+
 type TriggerWorkflowStatus = 'ready' | 'attention' | 'setup-needed' | 'not-published';
 
 interface TriggerWorkflow {
@@ -51,8 +97,44 @@ interface TriggerWorkflow {
     readonly evidenceFields: readonly string[];
     readonly verificationRoute: string;
   };
+  readonly evidenceContract?: WatcherEvidenceContract;
   readonly policy: string;
 }
+
+const WATCHER_EVIDENCE_RECEIPT_FIELDS = [
+  'receiptId',
+  'watcherId',
+  'runId',
+  'sourceId',
+  'sourceKind',
+  'sourceScope',
+  'operation',
+  'status',
+  'createdAt',
+  'startedAt',
+  'completedAt',
+  'redaction',
+  'lastCheckpoint',
+  'lastError',
+  'nextRoute',
+  'recoveryRoute',
+] as const;
+
+const WATCHER_PROVIDER_SOURCE_FIELDS = [
+  'sourceId',
+  'sourceKind',
+  'providerId',
+  'providerKind',
+  'scope',
+  'filter',
+  'enabled',
+  'lastSeenAt',
+  'lastCheckpoint',
+  'lastError',
+  'redaction',
+  'permissionSummary',
+  'nextRoute',
+] as const;
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -73,12 +155,17 @@ function operatorMethodIds(): ReadonlySet<string> {
 }
 
 function triggerWorkflowSummary(workflows: readonly TriggerWorkflow[]): Record<string, unknown> {
+  const watcherContract = workflows.find((workflow) => workflow.evidenceContract)?.evidenceContract;
   return {
     total: workflows.length,
     ready: workflows.filter((workflow) => workflow.status === 'ready').length,
     attention: workflows.filter((workflow) => workflow.status === 'attention').length,
     setupNeeded: workflows.filter((workflow) => workflow.status === 'setup-needed').length,
     notPublished: workflows.filter((workflow) => workflow.status === 'not-published').length,
+    watcherEvidenceContractStatus: watcherContract?.status ?? null,
+    watcherEvidenceMissing: watcherContract?.contractChecklist
+      .filter((check) => check.status === 'missing')
+      .map((check) => check.id) ?? [],
     primaryNextStep: workflows.find((workflow) => workflow.status !== 'ready')?.nextStep
       ?? 'Trigger routes are published; require explicit source, scope, task, success criteria, and confirmation before creating anything.',
   };
@@ -92,6 +179,144 @@ function describeTriggerWorkflow(workflow: TriggerWorkflow, includeParameters: b
     status: workflow.status,
     summary: previewHarnessText(workflow.summary),
     modelRoute: workflow.modelRoute,
+  };
+}
+
+function watcherEvidenceContract(methodIds: ReadonlySet<string>): WatcherEvidenceContract {
+  const watcherCreatePublished = methodIds.has('watchers.create');
+  const watcherListPublished = methodIds.has('watchers.list');
+  const watcherRunPublished = methodIds.has('watchers.run');
+  const watcherStartStopPublished = methodIds.has('watchers.start') && methodIds.has('watchers.stop');
+  return {
+    status: 'contract-needed',
+    userOutcome: 'Show durable watcher run history and provider-source records in the autonomy queue without hiding trigger ownership.',
+    currentState: watcherListPublished
+      ? 'Watcher create/list routes are published, but durable run-history and provider-source records are not published as Agent-readable records yet.'
+      : 'Watcher visibility, run-history, and provider-source records are not fully published by the current connected-host contract.',
+    owner: 'goodvibes-sdk-or-daemon',
+    nextRoutes: [
+      {
+        id: 'inspect-watcher-methods',
+        label: 'Inspect watcher methods',
+        modelRoute: 'host action:"methods" query:"watchers"',
+        effect: 'read-only',
+        why: 'Shows which watcher setup and run-control routes the connected host publishes.',
+      },
+      {
+        id: 'inspect-watcher-list',
+        label: 'Inspect watcher list contract',
+        modelRoute: 'host action:"method" methodId:"watchers.list"',
+        effect: 'read-only',
+        why: 'Checks the source-owned watcher visibility route before Agent claims durable trigger state.',
+      },
+      {
+        id: 'inspect-autonomy-queue',
+        label: 'Inspect autonomy queue',
+        modelRoute: 'autonomy action:"queue"',
+        effect: 'read-only',
+        why: 'Shows the current Agent-visible runs, schedules, tasks, approvals, and watcher-adjacent records.',
+      },
+      {
+        id: 'inspect-personal-ops-source',
+        label: 'Inspect Personal Ops source readiness',
+        modelRoute: 'personal_ops action:"lane" laneId:"inbox"',
+        effect: 'read-only',
+        why: 'Checks email/Gmail connector readiness before any provider-backed watcher source is used.',
+      },
+    ],
+    contractChecklist: [
+      {
+        id: 'watcher-create-route',
+        label: 'Watcher creation route',
+        status: watcherCreatePublished ? 'published-route' : 'missing',
+        requiredFor: 'Create a visible source-scoped watcher after explicit user confirmation.',
+        owner: 'goodvibes-sdk-or-daemon',
+        inspectRoute: 'host action:"method" methodId:"watchers.create"',
+      },
+      {
+        id: 'watcher-list-route',
+        label: 'Watcher visibility route',
+        status: watcherListPublished ? 'published-route' : 'missing',
+        requiredFor: 'Verify a watcher remains visible, scoped, and enabled after creation or control changes.',
+        owner: 'goodvibes-sdk-or-daemon',
+        inspectRoute: 'host action:"method" methodId:"watchers.list"',
+      },
+      {
+        id: 'watcher-run-control-routes',
+        label: 'Watcher run/control routes',
+        status: watcherRunPublished && watcherStartStopPublished ? 'published-route' : 'missing',
+        requiredFor: 'Expose explicit run, start, stop, and retry controls without guessing lifecycle state.',
+        owner: 'goodvibes-sdk-or-daemon',
+        inspectRoute: 'host action:"methods" query:"watchers.run watchers.start watchers.stop"',
+      },
+      {
+        id: 'durable-run-history-records',
+        label: 'Durable watcher run history records',
+        status: 'missing',
+        requiredFor: 'Show past watcher runs, checkpoints, errors, and next recovery routes in the autonomy queue.',
+        owner: 'goodvibes-sdk-or-daemon',
+        inspectRoute: 'autonomy action:"queue"',
+      },
+      {
+        id: 'provider-source-records',
+        label: 'Provider-source records',
+        status: 'missing',
+        requiredFor: 'Show source-scoped Gmail/email/webhook/file records without polling or exposing raw provider payloads.',
+        owner: 'goodvibes-sdk-or-daemon',
+        inspectRoute: 'personal_ops action:"lane" laneId:"inbox"',
+      },
+      {
+        id: 'redacted-event-payloads',
+        label: 'Redacted event payload descriptors',
+        status: 'missing',
+        requiredFor: 'Show what triggered a watcher without leaking raw provider payloads, tokens, or personal message bodies.',
+        owner: 'goodvibes-sdk-or-daemon',
+        inspectRoute: 'autonomy action:"queue"',
+      },
+      {
+        id: 'queue-correlation-records',
+        label: 'Queue correlation records',
+        status: 'missing',
+        requiredFor: 'Link watcher source events, watcher runs, task records, recovery routes, and user-visible queue cards.',
+        owner: 'goodvibes-sdk-or-daemon',
+        inspectRoute: 'autonomy action:"queue"',
+      },
+    ],
+    receiptContract: {
+      status: 'missing',
+      appliesTo: [
+        'watchers.create',
+        'watchers.patch',
+        'watchers.run',
+        'watchers.start',
+        'watchers.stop',
+        'watchers.delete',
+        'watcher-run-history',
+        'provider-source-record',
+      ],
+      requiredFields: WATCHER_EVIDENCE_RECEIPT_FIELDS,
+      nextWhenPublished: 'autonomy action:"queue" and autonomy action:"item" should expose watcher run/source receipts with exact recovery and replay routes.',
+    },
+    providerSourceContract: {
+      status: 'missing',
+      supportedSourceKinds: ['webhook', 'github-webhook', 'file-watcher', 'gmail', 'email', 'calendar'],
+      requiredFields: WATCHER_PROVIDER_SOURCE_FIELDS,
+      policy: 'Provider-source records must be scoped, permission-aware, redacted, and source-owned; Agent only consumes published records and never polls personal providers silently.',
+    },
+    policy: 'This contract is read-only guidance. Watcher creation/control remains on confirmed connected-host operator routes; durable run/source storage remains owned by the SDK/daemon.',
+  };
+}
+
+function compactWatcherEvidenceContract(contract: WatcherEvidenceContract): Record<string, unknown> {
+  return {
+    status: contract.status,
+    userOutcome: contract.userOutcome,
+    owner: contract.owner,
+    missing: contract.contractChecklist.filter((check) => check.status === 'missing').map((check) => check.id),
+    publishedRoutes: contract.contractChecklist.filter((check) => check.status === 'published-route').map((check) => check.id),
+    requiredReceiptFields: contract.receiptContract.requiredFields,
+    providerSourceKinds: contract.providerSourceContract.supportedSourceKinds,
+    inspectRoute: 'host action:"methods" query:"watchers"',
   };
 }
 
@@ -199,6 +424,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
   const watcherRunPublished = methodIds.has('watchers.run');
   const watcherStartStopPublished = methodIds.has('watchers.start') && methodIds.has('watchers.stop');
   const controlEventsPublished = methodIds.has('control.events.stream') || methodIds.has('control.events.catalog');
+  const watcherContract = watcherEvidenceContract(methodIds);
   const scheduleMissing = schedule.missing.length > 0 ? schedule.missing : schedule.kind ? [] : ['scheduleKind', 'scheduleValue'];
   const scheduleReady = schedulesCreatePublished && schedule.kind !== undefined && scheduleMissing.length === 0;
   const watcherReady = watcherCreatePublished && watcherListPublished;
@@ -264,6 +490,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
         watcherStartStopPublished,
       },
       outcome: watcherTriggerOutcome(),
+      evidenceContract: watcherContract,
       policy: 'Incoming triggers are admin connected-host mutations. They require a trusted source boundary, explicit run scope, and user confirmation before creation.',
     },
     {
@@ -288,6 +515,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
         watcherListPublished,
         personalOpsRoutePublished: true,
       },
+      evidenceContract: watcherContract,
       policy: 'Agent does not poll or read mail silently. Email-triggered work needs connector setup, scoped query/source details, and confirmation.',
     },
     {
@@ -523,6 +751,7 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
 
 export function autonomyIntakeSummary(_context: CommandContext, args: AgentHarnessAutonomyIntakeArgs): Record<string, unknown> {
   const request = readString(args.query) || readString(args.target);
+  const watcherContract = watcherEvidenceContract(operatorMethodIds());
   if (!request) {
     const workflows = buildTriggerWorkflows('', { missing: [], notes: [] });
     return {
@@ -535,6 +764,7 @@ export function autonomyIntakeSummary(_context: CommandContext, args: AgentHarne
       ],
       queueRoute: 'autonomy action:"queue"',
       triggerWorkflowSummary: triggerWorkflowSummary(workflows),
+      watcherEvidenceContract: compactWatcherEvidenceContract(watcherContract),
     };
   }
   const schedule = detectSchedule(request);
@@ -548,6 +778,7 @@ export function autonomyIntakeSummary(_context: CommandContext, args: AgentHarne
     candidates: candidates.slice(0, args.includeParameters === true ? 8 : 4),
     triggerWorkflowSummary: triggerWorkflowSummary(workflows),
     triggerWorkflows: workflows.map((workflow) => describeTriggerWorkflow(workflow, args.includeParameters === true)),
+    watcherEvidenceContract: args.includeParameters === true ? watcherContract : compactWatcherEvidenceContract(watcherContract),
     queueRoute: 'autonomy action:"queue"',
     policy: 'Autonomy intake is read-only. It selects visible routes and missing fields; creation, approval, run control, delegation, and delivery still require the returned confirmed route plus explicit user request.',
   };
