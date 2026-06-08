@@ -471,7 +471,7 @@ export function previewAgentWorkspaceTuiSettingsImport(context: CommandContext |
     policy: {
       effect: 'read-only',
       confirmation: 'required-for-apply',
-      boundary: 'Preview does not mutate state. Apply copies only Agent-owned settings and provider subscriptions from GoodVibes TUI state.',
+      boundary: 'Preview does not mutate state. Apply imports only Agent-owned settings and provider subscriptions from published GoodVibes platform sources.',
     },
   };
 }
@@ -481,7 +481,7 @@ export async function importAgentWorkspaceTuiSettings(context: CommandContext | 
   const configManager = context?.platform?.configManager;
   if (!context || !shellPaths || !configManager) {
     return {
-      status: 'GoodVibes TUI settings import is unavailable in this runtime.',
+      status: 'GoodVibes settings import is unavailable in this runtime.',
       runtimeSnapshot: null,
       result: {
         kind: 'error',
@@ -503,9 +503,9 @@ export async function importAgentWorkspaceTuiSettings(context: CommandContext | 
   if (values.length === 0 && subscriptionImports === 0 && subscriptionUnchanged === 0 && subscriptions.skipped.length === 0) {
     const detail = parseErrors.length > 0
       ? `No importable settings or subscriptions found. ${parseErrors.join('; ')}`
-      : 'No GoodVibes TUI settings or subscription store with importable Agent-owned state was found.';
+      : 'No GoodVibes settings or subscription store with importable Agent-owned state was found.';
     return {
-      status: 'No GoodVibes TUI settings imported.',
+      status: 'No GoodVibes settings imported.',
       runtimeSnapshot: null,
       result: {
         kind: parseErrors.length > 0 ? 'error' : 'guidance',
@@ -538,11 +538,11 @@ export async function importAgentWorkspaceTuiSettings(context: CommandContext | 
   const unchangedCount = unchanged.length + subscriptionUnchanged;
 
   return {
-    status: changedCount > 0 ? `Imported ${changedCount} GoodVibes TUI item(s).` : 'No GoodVibes TUI settings changed.',
+    status: changedCount > 0 ? `Imported ${changedCount} GoodVibes settings item(s).` : 'No GoodVibes settings changed.',
     runtimeSnapshot: context ? buildAgentWorkspaceRuntimeSnapshot(context) : null,
     result: {
       kind: skipped.length > 0 && changedCount === 0 ? 'error' : changedCount > 0 ? 'refreshed' : 'guidance',
-      title: changedCount > 0 ? 'GoodVibes TUI settings imported' : 'No settings changed',
+      title: changedCount > 0 ? 'GoodVibes settings imported' : 'No settings changed',
       detail: [
         imported.length > 0 ? `Imported: ${imported.slice(0, 10).join(', ')}${imported.length > 10 ? `, +${imported.length - 10} more` : ''}.` : '',
         subscriptions.importedActive.length > 0 ? `Imported active subscription(s): ${subscriptions.importedActive.join(', ')}.` : '',

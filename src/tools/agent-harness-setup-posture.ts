@@ -1677,7 +1677,7 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           effect: 'read-only',
           userRoute: item.userRoute,
           modelRoute: 'import_goodvibes_settings action:"preview"',
-          nextStep: 'Show importable setting and subscription counts before any migration.',
+          nextStep: 'Show importable setting and subscription counts before any import.',
           safety: 'Read-only preview; raw provider secrets are not returned.',
         }),
         setupHandoff({
@@ -1686,9 +1686,9 @@ function setupHandoffsForItem(item: SetupPlanItem): readonly SetupHandoffCard[] 
           kind: 'workspace-action',
           effect: 'confirmed-effect',
           userRoute: item.userRoute,
-          modelRoute: 'setup action:"import_settings" confirm:true explicitUserRequest:"Import reviewed GoodVibes TUI settings into Agent-owned state."',
+          modelRoute: 'setup action:"import_settings" confirm:true explicitUserRequest:"Import reviewed shared GoodVibes settings into Agent-owned state."',
           nextStep: 'Apply only after the user has reviewed the preview and wants Agent to import the values.',
-          safety: 'Confirmed Agent-owned settings migration; does not mutate the source GoodVibes TUI settings.',
+          safety: 'Confirmed Agent-owned settings import; does not mutate source GoodVibes platform stores.',
           requiresConfirmation: true,
         }),
       ];
@@ -2115,10 +2115,10 @@ function buildSetupPlan(
       status: settingsImport?.summary.parseErrors ? 'check' : settingsImportChanges > 0 ? 'recommended' : 'optional',
       priority: 15,
       blocksAutonomy: false,
-      reason: 'Existing GoodVibes TUI settings can seed Agent provider, subscription, behavior, permission, UI, TTS, channel, helper, tool, release, and automation state.',
+      reason: 'Existing shared GoodVibes settings can seed Agent provider, subscription, behavior, permission, UI, TTS, channel, helper, tool, release, and automation state.',
       nextAction: settingsImportChanges > 0
-        ? 'Preview the import, explain the changed setting and subscription counts, then apply only after the user confirms migration.'
-        : 'Use this when migrating from GoodVibes TUI; the preview shows whether anything importable is present.',
+        ? 'Preview the import, explain the changed setting and subscription counts, then apply only after the user confirms the import.'
+        : 'Use this when reusing settings from GoodVibes TUI or another published GoodVibes platform store; the preview shows whether anything importable is present.',
       userRoute: 'Agent Workspace -> Start -> Import GoodVibes settings',
       modelRoute: 'import_goodvibes_settings action:"preview"',
       signals: settingsImportSignals(settingsImport),

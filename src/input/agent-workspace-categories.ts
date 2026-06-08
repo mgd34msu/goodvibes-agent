@@ -40,7 +40,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Import preferences, sign in, and choose the main model.',
     detail: 'Start here on a fresh install. Every row either saves state, opens the shared model picker, or opens a confirmed in-modal form.',
     actions: [
-      { id: 'import-goodvibes-tui-settings', label: 'Import GoodVibes settings', detail: 'Copy existing display, provider, subscription, behavior, permission, TTS, channel, helper, tool, release, and automation values into Agent-owned state.', kind: 'settings-import', safety: 'safe' },
+      { id: 'import-goodvibes-tui-settings', label: 'Import GoodVibes settings', detail: 'Import compatible shared GoodVibes display, provider, subscription, behavior, permission, TTS, channel, helper, tool, release, and automation values into Agent-owned state.', kind: 'settings-import', safety: 'safe' },
       { id: 'setup-checkpoint-show', label: 'Show setup checkpoint', detail: 'Inspect the saved setup wizard resume point without writing setup state.', setupCheckpointOperation: 'show', kind: 'setup-checkpoint', safety: 'read-only' },
       { id: 'setup-checkpoint-mark-current', label: 'Save setup checkpoint', detail: 'Save the current setup wizard step as the Agent-owned resume point for the next launch.', setupCheckpointOperation: 'mark-current', kind: 'setup-checkpoint', safety: 'safe' },
       { id: 'setup-checkpoint-clear', label: 'Clear setup checkpoint', detail: 'Clear the saved setup wizard resume point after setup is complete or no longer useful.', setupCheckpointOperation: 'clear', kind: 'setup-checkpoint', safety: 'safe' },

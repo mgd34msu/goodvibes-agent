@@ -774,23 +774,23 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
-  if (hasAll(lower, ['goodvibes', 'settings']) || hasAny(lower, ['import settings', 'tui settings', 'copy settings', 'settings import'])) {
+  if (hasAll(lower, ['goodvibes', 'settings']) || hasAny(lower, ['import settings', 'tui settings', 'shared settings', 'copy settings', 'settings import'])) {
     add({
       id: 'goodvibes-settings-import',
       label: 'Preview or import GoodVibes settings',
       score: 100,
       userSurface: 'Start workspace settings import',
-      userOutcome: 'Carry useful GoodVibes TUI settings into Agent without copying unrelated host state.',
+      userOutcome: 'Import compatible shared GoodVibes settings and subscription state into Agent-owned settings while capability implementations remain in their owning packages.',
       why: 'The request asks to import or inspect existing GoodVibes settings.',
       modelRoute: 'settings action:"import"',
       inspectRoute: 'import_goodvibes_settings action:"preview"',
-      userRoute: 'Agent Workspace -> Start -> Import GoodVibes TUI settings',
+      userRoute: 'Agent Workspace -> Start -> Import GoodVibes settings',
       requiresConfirmation: true,
       supportingRoutes: [
         'settings action:"import" confirm:true explicitUserRequest:"..."',
         'workspace action:"run" actionId:"import-goodvibes-tui-settings" confirm:true explicitUserRequest:"..."',
       ],
-      policy: 'Import previews are read-only; apply copies only Agent-owned settings and subscription state after confirmation.',
+      policy: 'Import previews are read-only; apply imports only Agent-owned settings and subscription state after confirmation without mutating source package stores.',
     });
   }
 
@@ -990,7 +990,7 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
           'agent_harness mode:"mcp_servers" query:"memory provider"',
           'settings action:"list" query:"memory" includeHidden:true',
         ],
-        policy: 'External memory posture is read-only. Agent-local memory remains the active path until GoodVibes publishes provider setup/status/read/write/sync contracts with secret-safe receipts.',
+        policy: 'External memory posture is read-only. Agent-local memory remains the active path until SDK/daemon provider setup/status/read/write/sync contracts with secret-safe receipts are published for Agent to consume.',
       });
     }
 

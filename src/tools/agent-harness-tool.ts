@@ -1094,7 +1094,7 @@ async function runWorkspaceAction(
         effect: 'state',
         confirmation: 'confirmed',
         explicitUserRequest,
-        boundary: 'Applied only Agent-owned settings and subscription state from GoodVibes TUI sources.',
+        boundary: 'Applied only Agent-owned settings and subscription state from published GoodVibes platform sources; source package stores were not mutated.',
       },
     });
   }

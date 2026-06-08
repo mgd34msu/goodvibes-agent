@@ -38,9 +38,36 @@ interface MemoryExternalProviderSetupGuide {
   readonly currentState: string;
   readonly safeFirstStep: string;
   readonly inspectRoutes: readonly string[];
+  readonly nextRoutes: readonly MemoryExternalProviderRoute[];
+  readonly contractChecklist: readonly MemoryExternalProviderContractCheck[];
+  readonly receiptContract: MemoryExternalProviderReceiptContract;
   readonly requiredHostContracts: readonly string[];
   readonly credentialPolicy: string;
   readonly confirmationPolicy: string;
+}
+
+interface MemoryExternalProviderRoute {
+  readonly id: string;
+  readonly label: string;
+  readonly modelRoute: string;
+  readonly effect: 'read-only' | 'confirmed';
+  readonly why: string;
+}
+
+interface MemoryExternalProviderContractCheck {
+  readonly id: string;
+  readonly label: string;
+  readonly status: 'missing';
+  readonly requiredFor: string;
+  readonly owner: 'goodvibes-sdk-or-daemon';
+  readonly inspectRoute: string;
+}
+
+interface MemoryExternalProviderReceiptContract {
+  readonly status: 'missing';
+  readonly appliesTo: readonly string[];
+  readonly requiredFields: readonly string[];
+  readonly nextWhenPublished: string;
 }
 
 export type MemoryProviderResolution =
@@ -67,6 +94,18 @@ const EXTERNAL_MEMORY_REQUIRED_CONTRACTS = [
   'Forget/delete/disable route or an explicit not-supported contract.',
   'Sync/export/import receipts with timestamps and failure reasons.',
   'Prompt-injection eligibility policy for what may enter the Agent prompt.',
+] as const;
+
+const EXTERNAL_MEMORY_RECEIPT_FIELDS = [
+  'receiptId',
+  'providerId',
+  'operation',
+  'status',
+  'createdAt',
+  'sourceCount',
+  'redaction',
+  'failureReason',
+  'nextRoute',
 ] as const;
 
 function readString(value: unknown): string {
@@ -142,10 +181,106 @@ function describeEmbeddingProvider(
   };
 }
 
+function externalProviderNextRoutes(provider: typeof EXTERNAL_MEMORY_PROVIDERS[number]): readonly MemoryExternalProviderRoute[] {
+  return [
+    {
+      id: 'inspect-provider-contract',
+      label: 'Inspect provider contract',
+      modelRoute: `memory action:"provider" providerId:"${provider.id}" includeParameters:true`,
+      effect: 'read-only',
+      why: 'Shows the current SDK/daemon contract checklist, missing receipt fields, credential boundary, and local fallback.',
+    },
+    {
+      id: 'inspect-host-capability',
+      label: 'Inspect host capability',
+      modelRoute: `host action:"capability" query:"${provider.id} memory provider"`,
+      effect: 'read-only',
+      why: 'Checks whether the connected GoodVibes host publishes a provider capability record for Agent to consume.',
+    },
+    {
+      id: 'inspect-mcp-server',
+      label: 'Inspect MCP server',
+      modelRoute: `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
+      effect: 'read-only',
+      why: 'Finds a matching MCP connector without reading secrets or invoking provider writes.',
+    },
+    {
+      id: 'inspect-memory-settings',
+      label: 'Inspect memory settings',
+      modelRoute: 'settings action:"list" query:"memory" includeHidden:true',
+      effect: 'read-only',
+      why: 'Shows safe setting keys and secret-ref posture before any memory-provider configuration change.',
+    },
+  ];
+}
+
+function externalProviderContractChecklist(provider: typeof EXTERNAL_MEMORY_PROVIDERS[number]): readonly MemoryExternalProviderContractCheck[] {
+  const providerQuery = `${provider.id} memory provider`;
+  return [
+    {
+      id: 'status-record',
+      label: 'Provider status/readiness record',
+      status: 'missing',
+      requiredFor: 'Show whether the provider is configured, reachable, and safe to use.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: `host action:"capability" query:"${providerQuery}"`,
+    },
+    {
+      id: 'credential-reference',
+      label: 'Credential reference without raw secret values',
+      status: 'missing',
+      requiredFor: 'Let the user repair auth without exposing API keys or memory payloads.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: 'settings action:"list" query:"memory" includeHidden:true',
+    },
+    {
+      id: 'bounded-read-search',
+      label: 'Bounded read/search route',
+      status: 'missing',
+      requiredFor: 'Review external memories with redaction, provenance, and source limits before prompt use.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
+    },
+    {
+      id: 'confirmed-write-upsert',
+      label: 'Confirmed write/upsert/import route',
+      status: 'missing',
+      requiredFor: 'Write external memories only after explicit user request and confirmation.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: `host action:"capability" query:"${providerQuery}"`,
+    },
+    {
+      id: 'sync-receipts',
+      label: 'Sync/import/export receipts',
+      status: 'missing',
+      requiredFor: 'Prove what crossed the provider boundary, when it happened, and what failed.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: `memory action:"provider" providerId:"${provider.id}" includeParameters:true`,
+    },
+    {
+      id: 'prompt-eligibility-policy',
+      label: 'Prompt eligibility policy',
+      status: 'missing',
+      requiredFor: 'Prevent external provider records from silently entering the Agent prompt.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: 'context action:"prompt" includeParameters:true',
+    },
+  ];
+}
+
+function externalProviderReceiptContract(providerId = '<provider-id>'): MemoryExternalProviderReceiptContract {
+  return {
+    status: 'missing',
+    appliesTo: ['status', 'read', 'write', 'upsert', 'import', 'export', 'sync', 'forget'],
+    requiredFields: EXTERNAL_MEMORY_RECEIPT_FIELDS,
+    nextWhenPublished: `memory action:"provider" providerId:"${providerId}" includeParameters:true should expose latest receipts and exact follow-up routes.`,
+  };
+}
+
 function externalProviderSetupGuide(provider: typeof EXTERNAL_MEMORY_PROVIDERS[number]): MemoryExternalProviderSetupGuide {
   return {
     status: 'contract-needed',
-    userOutcome: `Use ${provider.label} as an external memory backend only after GoodVibes publishes provider setup, status, read, write, and receipt contracts.`,
+    userOutcome: `Use ${provider.label} as an external memory backend only after the SDK/daemon publishes provider setup, status, read, write, and receipt contracts for Agent to consume.`,
     currentState: `No concrete ${provider.label} provider record is published by the current SDK/daemon contract.`,
     safeFirstStep: `Inspect connected-host and MCP setup for ${provider.label}; keep Agent-local memory as the active path until a ready provider record exists.`,
     inspectRoutes: [
@@ -154,6 +289,9 @@ function externalProviderSetupGuide(provider: typeof EXTERNAL_MEMORY_PROVIDERS[n
       `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
       'settings action:"list" query:"memory" includeHidden:true',
     ],
+    nextRoutes: externalProviderNextRoutes(provider),
+    contractChecklist: externalProviderContractChecklist(provider),
+    receiptContract: externalProviderReceiptContract(provider.id),
     requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
     credentialPolicy: 'Provider credentials must use secret refs or connected-host auth state; raw API keys, tokens, and user memory payloads are never returned by posture inspection.',
     confirmationPolicy: 'External memory writes, sync, import, export, forget/delete, and prompt-eligibility changes require explicit user request, confirmation, and durable receipts.',
@@ -193,6 +331,11 @@ function providerSearchText(provider: MemoryPostureProvider): string {
       provider.setupGuide.currentState,
       provider.setupGuide.safeFirstStep,
       provider.setupGuide.inspectRoutes.join('\n'),
+      provider.setupGuide.nextRoutes.map((route) => `${route.id} ${route.label} ${route.modelRoute} ${route.effect} ${route.why}`).join('\n'),
+      provider.setupGuide.contractChecklist.map((check) => `${check.id} ${check.label} ${check.status} ${check.requiredFor} ${check.inspectRoute}`).join('\n'),
+      provider.setupGuide.receiptContract.appliesTo.join('\n'),
+      provider.setupGuide.receiptContract.requiredFields.join('\n'),
+      provider.setupGuide.receiptContract.nextWhenPublished,
       provider.setupGuide.requiredHostContracts.join('\n'),
       provider.setupGuide.credentialPolicy,
       provider.setupGuide.confirmationPolicy,
@@ -252,7 +395,7 @@ function nextActions(
   if (snapshot.localMemoryReviewQueueCount > 0) actions.push('Use learning_curator or memory review routes to clear the memory review queue.');
   if (vectorStatusValue === 'attention') actions.push('Run memory vector doctor, then rebuild the vector index if the reported issue is fixed.');
   if (doctor?.embeddings.warnings.length) actions.push('Inspect the active embedding provider warning before semantic recall or rebuild work.');
-  actions.push('Inspect memory action:"provider" for one external backend to see the exact setup contracts GoodVibes must publish before use.');
+  actions.push('Inspect memory action:"provider" for one external backend to see the exact SDK/daemon setup contracts Agent can consume before use.');
   return actions.slice(0, 6);
 }
 
@@ -345,7 +488,25 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
       setupGuideStatus: 'contract-needed',
       checkedProviders: EXTERNAL_MEMORY_PROVIDERS.map((provider) => provider.id),
       requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
-      next: 'Use Agent-local memory now. Inspect one external provider for the required setup/status/read/write/receipt contracts GoodVibes must publish before use.',
+      contractChecklist: externalProviderContractChecklist({ id: '<provider-id>', label: 'External memory provider' }),
+      receiptContract: externalProviderReceiptContract(),
+      nextRoutes: [
+        {
+          id: 'inspect-one-provider',
+          label: 'Inspect one provider contract',
+          modelRoute: 'memory action:"provider" providerId:"<id>" includeParameters:true',
+          effect: 'read-only',
+          why: 'Shows provider-specific missing SDK/daemon contracts, receipt requirements, credential policy, and next routes.',
+        },
+        {
+          id: 'inspect-host-memory-capability',
+          label: 'Inspect host memory capability',
+          modelRoute: 'host action:"capability" query:"memory provider"',
+          effect: 'read-only',
+          why: 'Checks whether the connected host exposes a provider-backed memory capability.',
+        },
+      ],
+      next: 'Use Agent-local memory now. Inspect one external provider for the required SDK/daemon setup/status/read/write/receipt contracts Agent can consume before provider use.',
       inspectRoute: 'host action:"capability" query:"memory provider"',
       providerLookup: 'memory action:"provider" providerId:"<id>" includeParameters:true',
     },

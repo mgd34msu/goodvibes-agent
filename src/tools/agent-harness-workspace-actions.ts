@@ -299,7 +299,7 @@ export function describeWorkspaceAction(
         dispatcher: 'run_workspace_action',
         confirmation: 'required',
         preview: 'available-without-confirmation',
-        note: 'Copies only Agent-owned GoodVibes TUI settings and provider subscription state after explicit user confirmation.',
+        note: 'Imports only Agent-owned shared GoodVibes settings and provider subscription state after explicit user confirmation.',
       },
     } : {}),
     ...(action.kind === 'setup-checkpoint' ? {

@@ -45,7 +45,7 @@ export function createAgentSettingsImportTool(commandContext: CommandContext): T
   return {
     definition: {
       name: 'import_goodvibes_settings',
-      description: 'Preview or apply GoodVibes TUI settings import.',
+      description: 'Preview or apply shared GoodVibes settings import.',
       parameters: {
         type: 'object',
         properties: {
@@ -92,7 +92,7 @@ export function createAgentSettingsImportTool(commandContext: CommandContext): T
           effect: 'state',
           confirmation: 'confirmed',
           explicitUserRequest,
-          boundary: 'Applied only Agent-owned settings and subscription state from GoodVibes TUI sources.',
+          boundary: 'Applied only Agent-owned settings and subscription state from published GoodVibes platform sources; source package stores were not mutated.',
         },
       });
     },

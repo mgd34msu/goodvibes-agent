@@ -1220,7 +1220,7 @@ describe('AgentWorkspace', () => {
       provider: 'anthropic',
       verifier: 'pending-verifier',
     }));
-    expect(workspace.lastActionResult?.title).toBe('GoodVibes TUI settings imported');
+    expect(workspace.lastActionResult?.title).toBe('GoodVibes settings imported');
     expect(workspace.lastActionResult?.detail).toContain('Imported active subscription(s): openai.');
     expect(workspace.lastActionResult?.detail).toContain('Imported pending subscription(s): anthropic.');
   });

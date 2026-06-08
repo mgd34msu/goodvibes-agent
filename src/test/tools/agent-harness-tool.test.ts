@@ -3373,6 +3373,9 @@ describe('agent_harness tool', () => {
           readonly setupGuideStatus?: string;
           readonly checkedProviders: readonly string[];
           readonly requiredHostContracts?: readonly string[];
+          readonly contractChecklist?: readonly { readonly id: string; readonly status: string; readonly inspectRoute: string }[];
+          readonly receiptContract?: { readonly status: string; readonly requiredFields: readonly string[] };
+          readonly nextRoutes?: readonly { readonly id: string; readonly modelRoute: string; readonly effect: string }[];
           readonly providerLookup?: string;
         };
         readonly nextActions: readonly string[];
@@ -3395,6 +3398,11 @@ describe('agent_harness tool', () => {
       expect(posture.externalMemory.setupGuideStatus).toBe('contract-needed');
       expect(posture.externalMemory.checkedProviders).toContain('supermemory');
       expect(posture.externalMemory.requiredHostContracts?.join('\n')).toContain('Credential reference');
+      expect(posture.externalMemory.contractChecklist?.map((entry) => entry.id)).toContain('sync-receipts');
+      expect(posture.externalMemory.contractChecklist?.find((entry) => entry.id === 'status-record')?.inspectRoute).toContain('host action:"capability"');
+      expect(posture.externalMemory.receiptContract?.requiredFields).toContain('receiptId');
+      expect(posture.externalMemory.receiptContract?.requiredFields).toContain('nextRoute');
+      expect(posture.externalMemory.nextRoutes?.find((route) => route.id === 'inspect-one-provider')?.modelRoute).toContain('memory action:"provider"');
       expect(posture.externalMemory.providerLookup).toContain('memory action:"provider"');
       expect(posture.nextActions.join('\n')).toContain('memory action:"provider"');
       expect(posture.policy).toContain('read-only');
@@ -3422,6 +3430,9 @@ describe('agent_harness tool', () => {
           readonly userOutcome: string;
           readonly safeFirstStep: string;
           readonly inspectRoutes: readonly string[];
+          readonly nextRoutes: readonly { readonly id: string; readonly modelRoute: string; readonly effect: string }[];
+          readonly contractChecklist: readonly { readonly id: string; readonly status: string; readonly requiredFor: string }[];
+          readonly receiptContract: { readonly status: string; readonly appliesTo: readonly string[]; readonly requiredFields: readonly string[] };
           readonly requiredHostContracts: readonly string[];
           readonly credentialPolicy: string;
           readonly confirmationPolicy: string;
@@ -3437,6 +3448,10 @@ describe('agent_harness tool', () => {
       expect(external.setupGuide?.userOutcome).toContain('Supermemory');
       expect(external.setupGuide?.safeFirstStep).toContain('Agent-local memory');
       expect(external.setupGuide?.inspectRoutes.join('\n')).toContain('host action:"capability"');
+      expect(external.setupGuide?.nextRoutes.find((route) => route.id === 'inspect-host-capability')?.effect).toBe('read-only');
+      expect(external.setupGuide?.contractChecklist.find((entry) => entry.id === 'confirmed-write-upsert')?.requiredFor).toContain('explicit user request');
+      expect(external.setupGuide?.receiptContract.appliesTo).toContain('sync');
+      expect(external.setupGuide?.receiptContract.requiredFields).toContain('failureReason');
       expect(external.setupGuide?.requiredHostContracts.join('\n')).toContain('Prompt-injection eligibility policy');
       expect(external.setupGuide?.credentialPolicy).toContain('raw API keys');
       expect(external.setupGuide?.confirmationPolicy).toContain('durable receipts');
@@ -9980,7 +9995,7 @@ describe('agent_harness tool', () => {
         explicitUserRequest: 'Import my existing GoodVibes settings into Agent.',
       });
       expect(applied.success).toBe(true);
-      expect(applied.output).toContain('GoodVibes TUI settings imported');
+      expect(applied.output).toContain('GoodVibes settings imported');
       expect(applied.output).not.toContain('xoxb-import-secret');
       expect(fixture.configManager.get('behavior.saveHistory')).toBe(nextSaveHistory);
       expect(fixture.configManager.get('surfaces.slack.botToken')).toBe(

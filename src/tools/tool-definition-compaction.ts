@@ -23,7 +23,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   goodvibes_context: 'Inspect current GoodVibes runtime and host harness.',
   goodvibes_settings: 'Inspect/update GoodVibes settings on explicit request.',
   host: 'Inspect GoodVibes host status, services, and methods.',
-  import_goodvibes_settings: 'Preview/apply GoodVibes TUI settings import.',
+  import_goodvibes_settings: 'Preview/apply shared GoodVibes settings import.',
   inspect: 'Inspect project structure, APIs, routes, and deps.',
   mcp: 'Inspect MCP servers, tools, schemas, and trust state.',
   memory: 'Inspect memory posture, providers, curator, records.',

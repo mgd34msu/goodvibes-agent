@@ -105,7 +105,7 @@ describe('import_goodvibes_settings adapter', () => {
         explicitUserRequest: 'Import my existing GoodVibes settings into Agent.',
       });
       expect(applied.success).toBe(true);
-      expect(applied.output).toContain('GoodVibes TUI settings imported');
+      expect(applied.output).toContain('GoodVibes settings imported');
       expect(applied.output).not.toContain('xoxb-import-secret');
       expect(fixture.configManager.get('behavior.saveHistory')).toBe(nextSaveHistory);
       expect(fixture.configManager.get('surfaces.slack.botToken')).toBe(
