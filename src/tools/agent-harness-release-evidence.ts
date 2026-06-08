@@ -275,6 +275,7 @@ function summarizeLoadedArtifact(
     modelAccess: {
       listArtifacts: 'audit action:"evidence"',
       inspectArtifact: `audit action:"artifact" artifactId:"${loaded.artifact.id}"`,
+      lowerLevelArtifact: `agent_harness mode:"release_evidence_artifact" artifactId:"${loaded.artifact.id}" includeParameters:true`,
       includeContent: 'Pass includeParameters:true only when release audit requires artifact content.',
     },
     ...(options.includeSource
@@ -325,8 +326,9 @@ export function releaseEvidenceSummary(args: ReleaseEvidenceArgs): Record<string
     modelAccess: {
       listArtifacts: 'audit action:"evidence"',
       inspectArtifact: 'audit action:"artifact" with artifactId, target, or query',
+      lowerLevelArtifact: 'agent_harness mode:"release_evidence_artifact" artifactId:"..." includeParameters:true',
     },
-    artifactLookup: 'Use audit action:"artifact" with artifactId, target, or query to inspect one release evidence artifact; lower-level mode:"release_evidence_artifact" remains available.',
+    artifactLookup: 'Use audit action:"artifact" with artifactId, target, or query to inspect one release evidence artifact; lower-level agent_harness mode:"release_evidence_artifact" remains available.',
   };
 }
 

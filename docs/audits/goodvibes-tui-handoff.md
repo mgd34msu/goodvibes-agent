@@ -3,7 +3,8 @@
 Date: 2026-06-08
 
 This handoff is for the agent working in `github.com/mgd34msu/goodvibes-tui`.
-GoodVibes Agent will own the autonomous-assistant UX. GoodVibes TUI and the
+GoodVibes Agent will own the autonomous-assistant UX. GoodVibes TUI owns the
+TUI product and the daemon/connected-host process that runs beside Agent. The
 daemon should publish the runtime substrate that lets Agent honestly turn its
 current route plans into visible, cancellable, resumable work.
 
@@ -12,7 +13,7 @@ current route plans into visible, cancellable, resumable work.
 The user should experience one assistant. Package boundaries should not leak
 into normal use.
 
-GoodVibes TUI keeps:
+GoodVibes TUI and the daemon keep:
 
 - the existing terminal renderer and coding/operations harness;
 - the daemon/API host;
@@ -30,8 +31,11 @@ GoodVibes Agent keeps:
 - confirmation, redaction, recovery, and visible queue semantics for the
   autonomous assistant.
 
-Do not move Agent's product-specific route planning back into TUI. Publish clean
-daemon contracts and evidence, then Agent will consume them.
+Do not move Agent's product-specific route planning back into TUI. Do not ask
+Agent to import daemon/TUI implementation. Publish clean daemon contracts,
+read-model feeds, events, and evidence over the running connected-host process;
+Agent will import SDK surfaces and contact the daemon through those published
+runtime paths.
 
 ## Current Agent Consumption Points
 
@@ -226,16 +230,20 @@ Acceptance tests:
 - Completed tasks include artifact ids and changed-file summaries.
 - Cancelled/failed tasks preserve logs and recovery routes.
 
-## Priority 7: Local Model Serving Health
+## Priority 7: Live Provider And Local Model Serving Health
 
 Agent already has a local model cookbook, endpoint inspection, smoke routes, and
-benchmark evidence. The daemon should deepen live provider health.
+benchmark evidence. The SDK already has provider-health state types. The daemon
+should publish live provider-health and local serving records from the running
+host so Agent can consume them without importing daemon implementation.
 
 Publish provider/local server records for Ollama, llama.cpp, vLLM, LM Studio,
 and OpenAI-compatible endpoints:
 
+- provider id, configured/active state, status, average/min/max latency, last
+  success/error, rate-limit posture, and last health-check timestamp;
 - process/service posture, endpoint URL, model inventory, context limits,
-  health, latency, last smoke result, install/start/stop routes where supported;
+  local health, last smoke result, install/start/stop routes where supported;
 - hardware fit hints and recommended model recipes when available;
 - benchmark receipt linkage.
 
@@ -243,6 +251,8 @@ Acceptance tests:
 
 - A disconnected local endpoint returns actionable setup state.
 - A connected endpoint returns model inventory and last smoke evidence.
+- Provider health changes are visible through a stable operator/read-model/event
+  path without requiring Agent to import daemon/TUI implementation.
 - Start/stop actions are inspect-first and confirmation-gated.
 
 ## Priority 8: Mobile, Voice, Device, And Delivery Receipts

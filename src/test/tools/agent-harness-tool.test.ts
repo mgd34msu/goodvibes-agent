@@ -7887,6 +7887,24 @@ describe('agent_harness tool', () => {
             readonly confidence: string;
             readonly dimensions: readonly { readonly id: string; readonly score: number }[];
             readonly missingSignals: readonly string[];
+            readonly providerHealth: {
+              readonly status: string;
+              readonly sdkContract: {
+                readonly providerHealthTypes: string;
+                readonly importSurface: string;
+              };
+              readonly daemonPublication: {
+                readonly status: string;
+                readonly requiredPath: string;
+              };
+              readonly agentConsumption: {
+                readonly status: string;
+                readonly readModelPath: string | null;
+              };
+              readonly healthStatus?: string;
+              readonly avgLatencyMs?: number;
+              readonly missingSignals: readonly string[];
+            };
             readonly nextStep: string;
           };
         }[];
@@ -7909,6 +7927,14 @@ describe('agent_harness tool', () => {
       expect(cloud?.readiness?.dimensions.find((dimension) => dimension.id === 'tool-support')?.score).toBe(100);
       expect(cloud?.readiness?.dimensions.find((dimension) => dimension.id === 'vision')?.score).toBe(100);
       expect(cloud?.readiness?.missingSignals.join('\n')).toContain('No live latency benchmark');
+      expect(cloud?.readiness?.providerHealth.status).toBe('not-reachable-in-command-context');
+      expect(cloud?.readiness?.providerHealth.sdkContract.providerHealthTypes).toBe('available');
+      expect(cloud?.readiness?.providerHealth.sdkContract.importSurface).toBe('@pellux/goodvibes-sdk/platform/runtime/ui');
+      expect(cloud?.readiness?.providerHealth.daemonPublication.status).toBe('not-published');
+      expect(cloud?.readiness?.providerHealth.daemonPublication.requiredPath).toBe('context.platform.readModels.providerHealth');
+      expect(cloud?.readiness?.providerHealth.agentConsumption.status).toBe('waiting-for-published-feed');
+      expect(cloud?.readiness?.providerHealth.missingSignals.join('\n')).toContain('SDK provider-health types are available');
+      expect(cloud?.readiness?.nextStep).toContain('provider-health publication');
 
       const local = routing.models.find((model) => model.modelRouteId === 'ollama:qwen2.5-coder:7b');
       expect(local?.readiness?.dimensions.find((dimension) => dimension.id === 'privacy')?.score).toBe(100);
@@ -7920,12 +7946,65 @@ describe('agent_harness tool', () => {
           readonly confidence: string;
           readonly dimensions: readonly { readonly id: string }[];
           readonly missingSignals: readonly string[];
+          readonly providerHealth: {
+            readonly status: string;
+            readonly agentConsumption: { readonly status: string };
+            readonly missingSignals: readonly string[];
+          };
         };
       }>(fixture, { mode: 'model_route', modelRouteId: 'ollama:qwen2.5-coder:7b' });
       expect(inspected.modelRouteId).toBe('ollama:qwen2.5-coder:7b');
       expect(inspected.readiness?.confidence).toBe('estimated');
       expect(inspected.readiness?.dimensions.map((dimension) => dimension.id)).toContain('cost');
       expect(inspected.readiness?.missingSignals.join('\n')).toContain('No live latency benchmark');
+      expect(inspected.readiness?.providerHealth.status).toBe('not-reachable-in-command-context');
+      expect(inspected.readiness?.providerHealth.agentConsumption.status).toBe('waiting-for-published-feed');
+
+      (fixture.context.platform as unknown as Record<string, unknown>).readModels = {
+        providerHealth: {
+          getSnapshot: () => ({
+            providers: new Map([[
+              'openai',
+              {
+                status: 'healthy',
+                isConfigured: true,
+                isActive: true,
+                stats: {
+                  avgLatencyMs: 321,
+                  minLatencyMs: 200,
+                  maxLatencyMs: 650,
+                  lastSuccessAt: Date.UTC(2026, 0, 2, 3, 4, 5),
+                },
+              },
+            ]]),
+          }),
+        },
+      };
+      const healthBacked = await executeHarnessJson<{
+        readonly modelRouteId: string;
+        readonly readiness?: {
+          readonly confidence: string;
+          readonly dimensions: readonly { readonly id: string; readonly score: number; readonly summary: string }[];
+          readonly missingSignals: readonly string[];
+          readonly providerHealth: {
+            readonly status: string;
+            readonly healthStatus?: string;
+            readonly avgLatencyMs?: number;
+            readonly agentConsumption: { readonly status: string; readonly readModelPath: string | null };
+            readonly daemonPublication: { readonly status: string };
+          };
+        };
+      }>(fixture, { mode: 'model_route', modelRouteId: 'openai:gpt-4.1' });
+      expect(healthBacked.modelRouteId).toBe('openai:gpt-4.1');
+      expect(healthBacked.readiness?.confidence).toBe('provider-health-backed');
+      expect(healthBacked.readiness?.missingSignals.join('\n')).not.toContain('No live latency benchmark');
+      expect(healthBacked.readiness?.providerHealth.status).toBe('record-found');
+      expect(healthBacked.readiness?.providerHealth.healthStatus).toBe('healthy');
+      expect(healthBacked.readiness?.providerHealth.avgLatencyMs).toBe(321);
+      expect(healthBacked.readiness?.providerHealth.agentConsumption.status).toBe('consumed');
+      expect(healthBacked.readiness?.providerHealth.agentConsumption.readModelPath).toBe('context.platform.readModels.providerHealth');
+      expect(healthBacked.readiness?.providerHealth.daemonPublication.status).toBe('published-read-model');
+      expect(healthBacked.readiness?.dimensions.find((dimension) => dimension.id === 'latency')?.summary).toContain('Live provider-health latency');
     } finally {
       fixture.cleanup();
     }

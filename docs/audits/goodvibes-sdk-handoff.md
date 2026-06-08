@@ -3,10 +3,12 @@
 Date: 2026-06-08
 
 This handoff is for the agent working in `github.com/mgd34msu/goodvibes-sdk`.
-GoodVibes Agent needs typed SDK contracts for daemon features that are currently
-visible as honest gaps or dynamic probes. The SDK should make those features
+GoodVibes Agent imports the SDK. It does not import the daemon. Agent needs
+typed SDK contracts and client helpers for daemon features that are currently
+visible as honest gaps or dynamic probes. The SDK should make those contracts
 stable, documented, testable, and consumable from Bun, browser, web, React
-Native, Expo, and worker surfaces where appropriate.
+Native, Expo, and worker surfaces where appropriate, while the running daemon
+publishes the actual runtime data over those contracts.
 
 ## Product Boundary
 
@@ -21,6 +23,8 @@ Good SDK work for this effort has three properties:
 - Browser/mobile/worker clients can consume the same contract safely.
 - Every effect or long-running action has receipt, event, redaction, and
   recovery semantics.
+- SDK types and clients describe how to contact the running daemon; they do not
+  pull daemon/TUI implementation code into Agent.
 
 ## Current Agent Consumer Routes
 
@@ -186,10 +190,12 @@ Acceptance criteria:
 - A remote runner can be correlated to artifacts and worktree evidence.
 - Failure/cancel states preserve recovery routes and bounded logs.
 
-## Priority 7: Local Model Health Types
+## Priority 7: Provider And Local Model Health Types
 
 Needed types:
 
+- provider health record, status, configured/active state, call statistics,
+  latency statistics, last success/error, rate-limit posture, and update event;
 - local provider/server endpoint;
 - model inventory item;
 - health/smoke/benchmark receipt;

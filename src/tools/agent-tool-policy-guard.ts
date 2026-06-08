@@ -10,69 +10,19 @@ import {
 import { wrapFindToolForAgentPolicy } from './agent-find-policy.ts';
 import { wrapReadToolForAgentPolicy } from './agent-read-policy.ts';
 import { wrapWebSearchToolForAgentPolicy } from './agent-web-search-policy.ts';
-
-type AgentToolArgs = {
-  readonly mode?: unknown;
-  readonly [key: string]: unknown;
-};
-
-type ExecCommandArgs = {
-  readonly cmd?: unknown;
-  readonly background?: unknown;
-  readonly until?: unknown;
-  readonly [key: string]: unknown;
-};
-
-type ExecToolArgs = {
-  readonly commands?: unknown;
-  readonly parallel?: unknown;
-  readonly file_ops?: unknown;
-  readonly [key: string]: unknown;
-};
-
-type ModeToolArgs = {
-  readonly mode?: unknown;
-  readonly createIfMissing?: unknown;
-  readonly [key: string]: unknown;
-};
-
-type FetchToolArgs = {
-  readonly urls?: unknown;
-  readonly parallel?: unknown;
-  readonly sanitize_mode?: unknown;
-  readonly trusted_hosts?: unknown;
-  readonly [key: string]: unknown;
-};
-
-type StateToolArgs = {
-  readonly mode?: unknown;
-  readonly memoryAction?: unknown;
-  readonly hookAction?: unknown;
-  readonly modeAction?: unknown;
-  readonly analyticsAction?: unknown;
-  readonly values?: unknown;
-  readonly clearKeys?: unknown;
-  readonly memoryValue?: unknown;
-  readonly hookDefinition?: unknown;
-  readonly modeName?: unknown;
-  readonly analyticsTool?: unknown;
-  readonly analyticsArgs?: unknown;
-  readonly analyticsResult?: unknown;
-  readonly analyticsDuration?: unknown;
-  readonly analyticsTokens?: unknown;
-  readonly analyticsFormat?: unknown;
-  readonly [key: string]: unknown;
-};
-
-type InspectToolArgs = {
-  readonly mode?: unknown;
-  readonly dryRun?: unknown;
-  readonly [key: string]: unknown;
-};
-
-type AgentToolPolicyGuardOptions = {
-  readonly getLastUserMessage?: () => string | null;
-};
+import type {
+  AgentToolArgs,
+  AgentToolPolicyGuardOptions,
+  AgentToolPolicyInvocationExplanation,
+  ExecCommandArgs,
+  ExecToolArgs,
+  FetchToolArgs,
+  InspectToolArgs,
+  ModeRestrictedToolPolicy,
+  ModeToolArgs,
+  StateToolArgs,
+} from './agent-tool-policy-guard-types.ts';
+export type { AgentToolPolicyInvocationExplanation } from './agent-tool-policy-guard-types.ts';
 
 const BLOCKED_MAIN_CONVERSATION_TOOL_NAMES = [] as const;
 const AGENT_EXEC_BACKGROUND_COMMAND = /^\s*bg_(?:list|status|output|stop)\b/;
@@ -466,14 +416,6 @@ export function normalizeInspectToolInvocationForAgentPolicy(args: InspectToolAr
   return { ...args, dryRun: true };
 }
 
-type ModeRestrictedToolPolicy = {
-  readonly allowedModes: readonly string[];
-  readonly modeSet: ReadonlySet<string>;
-  readonly description: string;
-  readonly denial: string;
-  readonly removedProperties?: readonly string[];
-};
-
 export function wrapModeRestrictedToolForAgentPolicy(tool: Tool, policy: ModeRestrictedToolPolicy): void {
   narrowModeToolDefinitionForAgentPolicy(tool, policy.allowedModes, policy.description);
   if (policy.removedProperties) removeToolDefinitionProperties(tool, policy.removedProperties);
@@ -511,13 +453,6 @@ export function validateModeRestrictedToolInvocationForAgentPolicy(
 export function validateChannelToolInvocationForAgentPolicy(args: ModeToolArgs): string | null {
   if (args.mode === 'resolve_target' && args.createIfMissing === true) return CHANNEL_ACTION_DENIAL;
   return null;
-}
-
-export interface AgentToolPolicyInvocationExplanation {
-  readonly status: 'allowed' | 'denied';
-  readonly layer: 'agent_tool_policy';
-  readonly reason: string;
-  readonly allowedModes?: readonly string[];
 }
 
 function allowedByAgentPolicy(reason: string, allowedModes?: readonly string[]): AgentToolPolicyInvocationExplanation {

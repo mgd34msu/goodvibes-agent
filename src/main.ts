@@ -44,6 +44,7 @@ import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
 import { createAgentWorkspaceFullscreenComposite, createFullscreenCompositeFromLines } from './shell/agent-workspace-fullscreen.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
+import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext, formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
@@ -128,19 +129,12 @@ async function main() {
   }
 
   const panelManager = ctx.services.panelManager;
-  const buildSessionContinuityHints = () => {
-    const sessionSnapshot = uiServices.readModels.session.getSnapshot();
-    const tasksSnapshot = uiServices.readModels.tasks.getSnapshot();
-    const remoteSnapshot = uiServices.readModels.remote.getSnapshot();
-    return {
-      pendingApprovals: sessionSnapshot.pendingApproval ? 1 : 0,
-      activeTasks: tasksSnapshot.tasks.filter((task) => task.status === 'running' || task.status === 'queued').length,
-      blockedTasks: tasksSnapshot.tasks.filter((task) => task.status === 'blocked').length,
-      remoteContracts: remoteSnapshot.contracts.length,
-      remoteRunners: remoteSnapshot.contracts.slice(0, 4).map((contract) => contract.runnerId),
-      openPanels: panelManager.getAllOpen().map((panel) => panel.id),
-    };
-  };
+  const buildSessionContinuityHints = () => buildShellSessionContinuityHints(
+    uiServices.readModels.session.getSnapshot(),
+    uiServices.readModels.tasks.getSnapshot(),
+    uiServices.readModels.remote.getSnapshot(),
+    panelManager.getAllOpen(),
+  );
   const buildCurrentSessionSnapshot = (): SessionSnapshot => {
     const messages = conversation.getMessageSnapshot();
     const persisted = buildPersistedSessionContext(messages, conversation.getTitleSource(), buildSessionContinuityHints());

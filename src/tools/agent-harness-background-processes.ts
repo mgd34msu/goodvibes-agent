@@ -3,35 +3,16 @@ import type { BackgroundProcess, ProcessManager } from '@pellux/goodvibes-sdk/pl
 import type { CommandContext } from '../input/command-registry.ts';
 import { sudoExecutionPosture } from './agent-harness-sudo-posture.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
-
-export interface AgentHarnessBackgroundProcessArgs {
-  readonly processId?: unknown;
-  readonly processSessionId?: unknown;
-  readonly sessionId?: unknown;
-  readonly session_id?: unknown;
-  readonly action?: unknown;
-  readonly processAction?: unknown;
-  readonly command?: unknown;
-  readonly target?: unknown;
-  readonly query?: unknown;
-  readonly cwd?: unknown;
-  readonly timeoutMs?: unknown;
-  readonly pty?: unknown;
-  readonly data?: unknown;
-  readonly fields?: unknown;
-  readonly includeParameters?: unknown;
-  readonly limit?: unknown;
-  readonly confirm?: unknown;
-  readonly explicitUserRequest?: unknown;
-}
-
-type BackgroundProcessLookupSource = 'processId' | 'processSessionId' | 'sessionId' | 'session_id' | 'target' | 'query';
-type ProcessCapabilityStatus = 'supported' | 'contract-discovered' | 'blocked-contract-gap' | 'visible-only';
-
-export type BackgroundProcessResolution =
-  | { readonly status: 'found'; readonly process: Record<string, unknown> }
-  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
-  | { readonly status: 'missing_lookup'; readonly usage: string };
+import type {
+  AgentHarnessBackgroundProcessArgs,
+  BackgroundProcessLookupSource,
+  BackgroundProcessResolution,
+  ProcessCapabilityStatus,
+} from './agent-harness-background-processes-types.ts';
+export type {
+  AgentHarnessBackgroundProcessArgs,
+  BackgroundProcessResolution,
+} from './agent-harness-background-processes-types.ts';
 
 const MAX_LOG_PREVIEW_CHARS = 4_000;
 const MAX_COMPACT_LOG_PREVIEW_CHARS = 600;

@@ -1,11 +1,9 @@
 import type { KnowledgeMapResult, KnowledgeService } from '@pellux/goodvibes-sdk/platform/knowledge';
-import type { BrowserKnowledgeKind, BrowserKnowledgeSourceKind } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { CommandContext, SlashCommand } from '../command-registry.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
+import { toBrowserKinds, toBrowserSourceKinds } from './knowledge-browser-flags.ts';
 
 const KNOWLEDGE_REVIEW_ACTIONS = ['accept', 'reject', 'resolve', 'reopen', 'edit', 'forget'] as const;
-const BROWSER_KINDS = ['chrome', 'chromium', 'brave', 'edge', 'vivaldi', 'arc', 'opera', 'firefox', 'zen', 'librewolf', 'waterfox', 'floorp', 'safari', 'orion', 'epiphany'] as const satisfies readonly BrowserKnowledgeKind[];
-const BROWSER_SOURCE_KINDS = ['history', 'bookmark'] as const satisfies readonly BrowserKnowledgeSourceKind[];
 
 type KnowledgeReviewAction = typeof KNOWLEDGE_REVIEW_ACTIONS[number];
 type KnowledgeAskInput = Parameters<KnowledgeService['ask']>[0];
@@ -76,14 +74,6 @@ function readFirstStringListFlag(args: string[], names: readonly string[]): stri
     if (values.length > 0) return values;
   }
   return [];
-}
-
-function toBrowserKinds(values: readonly string[]): readonly BrowserKnowledgeKind[] {
-  return values.filter((value): value is BrowserKnowledgeKind => BROWSER_KINDS.includes(value as BrowserKnowledgeKind));
-}
-
-function toBrowserSourceKinds(values: readonly string[]): readonly BrowserKnowledgeSourceKind[] {
-  return values.filter((value): value is BrowserKnowledgeSourceKind => BROWSER_SOURCE_KINDS.includes(value as BrowserKnowledgeSourceKind));
 }
 
 function readSinceMsFlag(args: string[]): number | undefined {
