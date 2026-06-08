@@ -5,6 +5,7 @@ const DEFAULT_TOOL_DESCRIPTION_LIMIT = 56;
 
 const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   agent: 'Inspect explicit subagent tasks.',
+  audit: 'Inspect release readiness and evidence.',
   analyze: 'Analyze code impact, symbols, and project risk.',
   autonomy: 'Route ongoing work and inspect visible autonomy.',
   channel: 'Inspect or operate configured channel surfaces.',
@@ -38,8 +39,10 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   route: 'Choose the best visible route for a user task.',
   schedule: 'List, create, edit, run, pause, resume schedules.',
   security: 'Read security posture, findings, and policy decisions.',
+  sessions: 'Search and inspect saved sessions/bookmarks.',
   settings: 'List, inspect, change, reset, or import settings.',
   setup: 'Inspect and complete first-run Agent setup.',
+  support: 'Inspect support bundle routes and redacted bundles.',
   state: 'Read/update session state and diagnostics.',
   task: 'Manage cross-session tasks and handoffs.',
   team: 'Manage team definitions, roles, and lanes.',

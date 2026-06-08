@@ -995,8 +995,8 @@ function sessionCompletionCandidate(manager: SessionManagerLike, session: Sessio
       tags: `learned,saved-session,${target}`,
       enable: 'yes',
     },
-    inspectRoute: `agent_harness mode:"session" sessionId:"${session.name}"`,
-    modelRoute: 'agent_harness mode:"session"',
+    inspectRoute: `sessions action:"get" sessionId:"${session.name}"`,
+    modelRoute: 'sessions action:"get"',
     createRoute: target === 'memory'
       ? 'agent_harness mode:"run_workspace_action" actionId:"memory-create" confirm:true explicitUserRequest:"..."'
       : 'agent_harness mode:"run_workspace_action" actionId:"learned-behavior" confirm:true explicitUserRequest:"..."',

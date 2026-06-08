@@ -104,8 +104,8 @@ function itemSearchText(item: Record<string, unknown>): string {
 }
 
 function releaseReadinessModelRoute(item?: Record<string, unknown>): string {
-  if (item) return 'agent_harness mode:"release_readiness_item"';
-  return 'agent_harness mode:"release_readiness" or mode:"release_readiness_item"';
+  if (item) return 'audit action:"item"';
+  return 'audit action:"readiness" or action:"item"';
 }
 
 function releaseReadinessPolicy(): Record<string, unknown> {
@@ -153,8 +153,8 @@ function summarizeItem(item: Record<string, unknown>, options: { readonly includ
     ...(options.includeQuality ? {
       policy: releaseReadinessPolicy(),
       modelAccess: {
-        listItems: 'agent_harness mode:"release_readiness"',
-        inspectItem: `agent_harness mode:"release_readiness_item" itemId:"${readString(item.id)}"`,
+        listItems: 'audit action:"readiness"',
+        inspectItem: `audit action:"item" itemId:"${readString(item.id)}"`,
       },
     } : {}),
   };
@@ -230,8 +230,8 @@ export function releaseReadinessSummary(args: ReleaseReadinessArgs): Record<stri
     policy: loaded.root.policy,
     operatorAuditPolicy: releaseReadinessPolicy(),
     modelAccess: {
-      listItems: 'agent_harness mode:"release_readiness"',
-      inspectItem: 'agent_harness mode:"release_readiness_item" with itemId, target, or query',
+      listItems: 'audit action:"readiness"',
+      inspectItem: 'audit action:"item" with itemId, target, or query',
     },
     totals: {
       items: items.length,
@@ -245,7 +245,7 @@ export function releaseReadinessSummary(args: ReleaseReadinessArgs): Record<stri
     },
     sources: includeQuality ? sources : sources.map(summarizeSource),
     items: filtered.slice(0, limit).map((item) => summarizeItem(item, { includeQuality })),
-    itemLookup: 'Use mode:"release_readiness_item" with itemId, target, or query to inspect one readiness item.',
+    itemLookup: 'Use audit action:"item" with itemId, target, or query to inspect one readiness item; lower-level mode:"release_readiness_item" remains available.',
   };
 }
 

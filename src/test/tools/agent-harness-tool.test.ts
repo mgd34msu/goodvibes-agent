@@ -6053,7 +6053,7 @@ describe('agent_harness tool', () => {
       expect(researchCandidate?.proposalTarget).toBe('skill');
       expect(researchCandidate?.proposalFields?.notes).toContain('artifact-research-1');
       expect(sessionCandidate?.domain).toBe('session');
-      expect(sessionCandidate?.inspectRoute).toContain('mode:"session"');
+      expect(sessionCandidate?.inspectRoute).toContain('sessions action:"get"');
       expect(sessionCandidate?.createRoute).toContain('learned-behavior');
       expect(sessionCandidate?.proposalTarget).toBe('skill');
       expect(sessionCandidate?.proposalFields?.notes).toContain('typecheck');
@@ -8329,10 +8329,8 @@ describe('agent_harness tool', () => {
       expect(summaryJson.releaseReadiness?.status).toBe('available');
       expect(summaryJson.releaseReadiness?.path).toBe('release/release-readiness.json');
       expect(summaryJson.releaseReadiness?.items).toBeGreaterThan(0);
-      expect(summaryJson.modelAccess?.releaseEvidence).toContain('mode:"release_evidence"');
-      expect(summaryJson.modelAccess?.releaseEvidence).toContain('mode:"release_evidence_artifact"');
-      expect(summaryJson.modelAccess?.releaseReadiness).toContain('mode:"release_readiness"');
-      expect(summaryJson.modelAccess?.releaseReadiness).toContain('mode:"release_readiness_item"');
+      expect(summaryJson.modelAccess?.releaseEvidence).toContain('audit action:"evidence|artifact"');
+      expect(summaryJson.modelAccess?.releaseReadiness).toContain('audit action:"readiness|item"');
 
       const evidence = await fixture.tool.execute({
         mode: 'release_evidence',

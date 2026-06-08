@@ -1705,13 +1705,14 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
       userSurface: 'Safety and recovery workspace',
       userOutcome: 'Inspect available redacted support, diagnostic, trust, auth, or forensic bundles before exporting or importing anything.',
       why: 'The request mentions support bundles, diagnostic bundles, forensic bundles, or support packets.',
-      modelRoute: `agent_harness mode:"support_bundles" query:${quote(request)} includeParameters:true`,
-      inspectRoute: 'agent_harness mode:"support_bundles" includeParameters:true',
+      modelRoute: `support action:"status" query:${quote(request)} includeParameters:true`,
+      inspectRoute: 'support action:"status" includeParameters:true',
       userRoute: 'Agent Workspace -> Safety & Recovery -> Support bundles',
       requiresConfirmation: bundleEffect,
       missingFields: bundleEffect ? ['bundle type or path', 'export/import/share destination when applicable', 'confirmation before bundle export, import, or external sharing'] : undefined,
       supportingRoutes: [
-        'agent_harness mode:"support_bundle" bundlePath:"..." includeParameters:true',
+        'support action:"bundle" bundlePath:"..." includeParameters:true',
+        'agent_harness mode:"support_bundles" includeParameters:true',
         'workspace action:"actions" query:"support bundle" includeParameters:true',
         'agent_harness mode:"run_workspace_action" actionId:"..." confirm:true explicitUserRequest:"..."',
       ],
@@ -1728,14 +1729,15 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
       userSurface: 'Conversation workspace',
       userOutcome: 'Find, inspect, resume, export, or manage saved Agent sessions and bookmarks from the conversation workspace.',
       why: 'The request mentions saved sessions, session search, transcript export, bookmarks, restore, or conversation continuity.',
-      modelRoute: `agent_harness mode:"sessions" query:${quote(request)} includeParameters:true`,
-      inspectRoute: 'agent_harness mode:"sessions" includeParameters:true',
+      modelRoute: `sessions action:"list" query:${quote(request)} includeParameters:true`,
+      inspectRoute: 'sessions action:"list" includeParameters:true',
       userRoute: 'Agent Workspace -> Conversation -> Saved sessions',
       requiresConfirmation: mutation,
       missingFields: mutation ? ['session id, title, or search target', 'exact lifecycle action', 'confirmation before save/load/resume/rename/fork/export/delete/bookmark changes'] : undefined,
       supportingRoutes: [
-        'agent_harness mode:"sessions" query:"..." includeParameters:true',
-        'agent_harness mode:"session" sessionId:"..." includeParameters:true',
+        'sessions action:"list" query:"..." includeParameters:true',
+        'sessions action:"get" sessionId:"..." includeParameters:true',
+        'agent_harness mode:"sessions" includeParameters:true',
         'workspace action:"actions" categoryId:"conversation" query:"session" includeParameters:true',
         'agent_harness mode:"run_workspace_action" actionId:"session-save|session-load|session-export-saved|session-delete" confirm:true explicitUserRequest:"..."',
       ],
@@ -1755,21 +1757,23 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         : 'Inspect the release-quality inventory, gates, and readiness dimensions before claiming a product capability is covered.',
       why: 'The request mentions release evidence, readiness inventory, release gates, verification ledger, or operator audit artifacts.',
       modelRoute: evidence
-        ? `agent_harness mode:"release_evidence" query:${quote(request)} includeParameters:true`
-        : `agent_harness mode:"release_readiness" query:${quote(request)} includeParameters:true`,
+        ? `audit action:"evidence" query:${quote(request)} includeParameters:true`
+        : `audit action:"readiness" query:${quote(request)} includeParameters:true`,
       inspectRoute: evidence
-        ? 'agent_harness mode:"release_evidence" includeParameters:true'
-        : 'agent_harness mode:"release_readiness" includeParameters:true',
+        ? 'audit action:"evidence" includeParameters:true'
+        : 'audit action:"readiness" includeParameters:true',
       userRoute: 'Agent Workspace -> Operator Audit',
       requiresConfirmation: false,
       supportingRoutes: evidence
         ? [
-          'agent_harness mode:"release_evidence_artifact" artifactId:"..." includeParameters:true',
-          'agent_harness mode:"release_readiness" includeParameters:true',
+          'audit action:"artifact" artifactId:"..." includeParameters:true',
+          'audit action:"readiness" includeParameters:true',
+          'agent_harness mode:"release_evidence" includeParameters:true',
         ]
         : [
-          'agent_harness mode:"release_readiness_item" itemId:"..." includeParameters:true',
-          'agent_harness mode:"release_evidence" includeParameters:true',
+          'audit action:"item" itemId:"..." includeParameters:true',
+          'audit action:"evidence" includeParameters:true',
+          'agent_harness mode:"release_readiness" includeParameters:true',
         ],
       policy: 'Release evidence and readiness inventory inspection are read-only. They expose packaged audit facts and bounded artifact content, not product mutations.',
     });

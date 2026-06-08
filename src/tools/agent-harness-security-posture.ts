@@ -159,11 +159,11 @@ function describeFindingCandidate(finding: SecurityFinding): Record<string, unkn
 }
 
 function securityFindingModelRoute(): string {
-  return 'agent_harness mode:"security_finding" or mode:"run_command"';
+  return 'security action:"finding" or workspace action:"run_command"';
 }
 
 function supportBundleModelRoute(): string {
-  return 'agent_harness mode:"support_bundle" or mode:"run_workspace_action"';
+  return 'support action:"bundle" or workspace action:"run"';
 }
 
 function describeFinding(finding: SecurityFinding, includeParameters: boolean, lookup?: Record<string, unknown>): Record<string, unknown> {

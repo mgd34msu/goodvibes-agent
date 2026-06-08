@@ -301,8 +301,8 @@ describe('route adapter', () => {
 
     expect(preferredId(body)).toBe('support-bundle-route');
     expect(body.preferred).toMatchObject({
-      modelRoute: 'agent_harness mode:"support_bundles" query:"export a support bundle for diagnostics" includeParameters:true',
-      inspectRoute: 'agent_harness mode:"support_bundles" includeParameters:true',
+      modelRoute: 'support action:"status" query:"export a support bundle for diagnostics" includeParameters:true',
+      inspectRoute: 'support action:"status" includeParameters:true',
       requiresConfirmation: true,
     });
   });
@@ -312,8 +312,8 @@ describe('route adapter', () => {
 
     expect(preferredId(body)).toBe('saved-session-route');
     expect(body.preferred).toMatchObject({
-      modelRoute: 'agent_harness mode:"sessions" query:"search saved sessions for the onboarding thread" includeParameters:true',
-      inspectRoute: 'agent_harness mode:"sessions" includeParameters:true',
+      modelRoute: 'sessions action:"list" query:"search saved sessions for the onboarding thread" includeParameters:true',
+      inspectRoute: 'sessions action:"list" includeParameters:true',
       requiresConfirmation: false,
     });
   });
@@ -323,8 +323,8 @@ describe('route adapter', () => {
 
     expect(preferredId(body)).toBe('release-readiness-route');
     expect(body.preferred).toMatchObject({
-      modelRoute: 'agent_harness mode:"release_readiness" query:"show release readiness inventory" includeParameters:true',
-      inspectRoute: 'agent_harness mode:"release_readiness" includeParameters:true',
+      modelRoute: 'audit action:"readiness" query:"show release readiness inventory" includeParameters:true',
+      inspectRoute: 'audit action:"readiness" includeParameters:true',
       requiresConfirmation: false,
     });
   });
@@ -334,8 +334,8 @@ describe('route adapter', () => {
 
     expect(preferredId(body)).toBe('release-evidence-route');
     expect(body.preferred).toMatchObject({
-      modelRoute: 'agent_harness mode:"release_evidence" query:"inspect release evidence artifact live verification" includeParameters:true',
-      inspectRoute: 'agent_harness mode:"release_evidence" includeParameters:true',
+      modelRoute: 'audit action:"evidence" query:"inspect release evidence artifact live verification" includeParameters:true',
+      inspectRoute: 'audit action:"evidence" includeParameters:true',
       requiresConfirmation: false,
     });
   });

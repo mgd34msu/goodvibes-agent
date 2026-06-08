@@ -122,8 +122,8 @@ function artifactSearchText(artifact: ReleaseEvidenceArtifact): string {
 }
 
 function releaseEvidenceModelRoute(artifact?: ReleaseEvidenceArtifact): string {
-  if (artifact) return 'agent_harness mode:"release_evidence_artifact"';
-  return 'agent_harness mode:"release_evidence" or mode:"release_evidence_artifact"';
+  if (artifact) return 'audit action:"artifact"';
+  return 'audit action:"evidence" or action:"artifact"';
 }
 
 function releaseEvidencePolicy(): Record<string, unknown> {
@@ -273,8 +273,8 @@ function summarizeLoadedArtifact(
     summary,
     policy: releaseEvidencePolicy(),
     modelAccess: {
-      listArtifacts: 'agent_harness mode:"release_evidence"',
-      inspectArtifact: `agent_harness mode:"release_evidence_artifact" artifactId:"${loaded.artifact.id}"`,
+      listArtifacts: 'audit action:"evidence"',
+      inspectArtifact: `audit action:"artifact" artifactId:"${loaded.artifact.id}"`,
       includeContent: 'Pass includeParameters:true only when release audit requires artifact content.',
     },
     ...(options.includeSource
@@ -323,10 +323,10 @@ export function releaseEvidenceSummary(args: ReleaseEvidenceArgs): Record<string
     artifactsList: loaded.map((artifact) => summarizeLoadedArtifact(artifact, { includeSource: args.includeParameters === true })),
     policy: releaseEvidencePolicy(),
     modelAccess: {
-      listArtifacts: 'agent_harness mode:"release_evidence"',
-      inspectArtifact: 'agent_harness mode:"release_evidence_artifact" with artifactId, target, or query',
+      listArtifacts: 'audit action:"evidence"',
+      inspectArtifact: 'audit action:"artifact" with artifactId, target, or query',
     },
-    artifactLookup: 'Use mode:"release_evidence_artifact" with artifactId, target, or query to inspect one release evidence artifact.',
+    artifactLookup: 'Use audit action:"artifact" with artifactId, target, or query to inspect one release evidence artifact; lower-level mode:"release_evidence_artifact" remains available.',
   };
 }
 

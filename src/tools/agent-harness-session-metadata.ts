@@ -95,7 +95,7 @@ function describeSessionCandidate(session: SessionInfoLike, currentSessionId: st
 }
 
 function sessionModelRoute(): string {
-  return 'agent_harness mode:"session" or mode:"run_command"';
+  return 'sessions action:"get" or workspace action:"run_command"';
 }
 
 function bookmarkModelRoute(): string {
@@ -132,8 +132,8 @@ function describeSession(
     ...(options.includeParameters ? {
       filePath: session.filePath,
       modelRoutes: {
-        inspectSessions: 'agent_harness mode:"sessions"',
-        inspectSession: 'agent_harness mode:"session"',
+        inspectSessions: 'sessions action:"list"',
+        inspectSession: 'sessions action:"get"',
         resumeSession: '/session resume <session-id-or-name>',
         saveSession: '/session save [name]',
         exportSession: '/session export <session-id> markdown',
