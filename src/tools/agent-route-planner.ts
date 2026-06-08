@@ -165,6 +165,34 @@ function browserControlLike(lower: string): boolean {
   ]);
 }
 
+const EXTERNAL_MEMORY_PROVIDER_IDS = [
+  'honcho',
+  'openviking',
+  'mem0',
+  'hindsight',
+  'holographic',
+  'retaindb',
+  'byterover',
+  'supermemory',
+] as const;
+
+function externalMemoryProviderId(lower: string): string | null {
+  return EXTERNAL_MEMORY_PROVIDER_IDS.find((provider) => lower.includes(provider)) ?? null;
+}
+
+function externalMemoryProviderLike(lower: string): boolean {
+  if (externalMemoryProviderId(lower)) return true;
+  return hasAny(lower, [
+    'external memory',
+    'memory provider',
+    'memory backend',
+    'cross-session memory',
+    'memory sync',
+    'memory import',
+    'memory export',
+  ]);
+}
+
 function processLifecycleLike(lower: string): boolean {
   if (lower.includes('background') && hasAny(lower, [
     'build',
@@ -379,7 +407,41 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
-  if (hasAny(lower, ['memory', 'remember', 'forget', 'recall', 'skill', 'routine', 'learn', 'learning', 'honcho', 'mem0', 'supermemory'])) {
+  if (hasAny(lower, ['memory', 'remember', 'forget', 'recall', 'skill', 'routine', 'learn', 'learning']) || externalMemoryProviderLike(lower)) {
+    const providerId = externalMemoryProviderId(lower);
+    if (externalMemoryProviderLike(lower)) {
+      const externalEffect = hasAny(lower, ['connect', 'set up', 'setup', 'configure', 'enable', 'sync', 'import', 'export', 'write', 'upsert', 'delete', 'forget']);
+      add({
+        id: 'external-memory-provider-posture',
+        label: 'External memory provider setup posture',
+        score: 92,
+        userSurface: 'Local Context workspace',
+        userOutcome: 'Inspect provider readiness and required daemon/SDK contracts before promising external cross-session memory.',
+        why: 'The request mentions an external memory provider, backend, sync, import/export, or a named provider such as Honcho, Mem0, or Supermemory.',
+        modelRoute: providerId
+          ? `memory action:"provider" providerId:"${providerId}" includeParameters:true`
+          : 'memory action:"status" query:"external memory provider" includeParameters:true',
+        inspectRoute: providerId
+          ? `host action:"capability" query:"${providerId} memory provider"`
+          : 'memory action:"status" query:"external memory provider" includeParameters:true',
+        userRoute: 'Agent Workspace -> Local Context',
+        requiresConfirmation: externalEffect,
+        missingFields: [
+          ...(providerId ? [] : ['provider id or backend name']),
+          'published setup/status/read/write/receipt contract before external memory is considered ready',
+          ...(externalEffect ? ['confirmation for any provider write, sync, import, export, or credential effect'] : []),
+        ],
+        supportingRoutes: [
+          'memory action:"status" query:"external memory provider" includeParameters:true',
+          'memory action:"provider" providerId:"honcho|mem0|supermemory" includeParameters:true',
+          'host action:"capability" query:"memory provider"',
+          'agent_harness mode:"mcp_servers" query:"memory provider"',
+          'settings action:"list" query:"memory" includeHidden:true',
+        ],
+        policy: 'External memory posture is read-only. Agent-local memory remains the active path until GoodVibes publishes provider setup/status/read/write/sync contracts with secret-safe receipts.',
+      });
+    }
+
     add({
       id: 'memory-learning',
       label: 'Memory, routines, skills, and learning review',

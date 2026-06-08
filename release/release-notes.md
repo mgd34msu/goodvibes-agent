@@ -9,6 +9,7 @@
 - Direct reminders, schedules, cron, and schedule lifecycle requests now route to `schedule action:"list"` first, while broader ongoing work remains on autonomy intake.
 - Plain command-shaped background work now routes to `execution action:"processes"` and the first-class `terminal`/`process` UX, while scheduled or watcher-like background work stays on autonomy intake.
 - Interactive terminal, PTY, stdin, and sudo requests now route to `execution action:"process_capabilities"` first so users see current support, setup posture, and confirmation boundaries before any hidden process start or credential effect.
+- External memory-provider, backend, cross-session sync, import/export, and named-provider requests now route to `memory action:"provider"` or the external provider checklist before Agent promises provider writes, sync, credentials, or import/export effects.
 - Plain file undo/redo/recovery requests now route to `execution action:"recovery"` so users inspect available snapshots before confirming a local file mutation.
 - Media generation requests now route to provider readiness and confirmed `agent_media_generate` saved-artifact output instead of inline bytes or silent Knowledge promotion.
 - Added first-class setup repair decisions: `setup action:"repair"` and lower-level `agent_harness mode:"setup_repair"` choose the next safe token repair, connected-host status, services.status receipt, user-run bootstrap, or no lifecycle action without executing lifecycle, token, import, or UI effects.

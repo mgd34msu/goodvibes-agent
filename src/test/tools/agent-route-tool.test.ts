@@ -115,6 +115,27 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes named external memory providers to provider posture', async () => {
+    const body = await route('connect Supermemory as an external memory provider');
+
+    expect(preferredId(body)).toBe('external-memory-provider-posture');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'memory action:"provider" providerId:"supermemory" includeParameters:true',
+      inspectRoute: 'host action:"capability" query:"supermemory memory provider"',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('routes generic external memory setup to the memory provider contract checklist', async () => {
+    const body = await route('set up cross-session memory sync');
+
+    expect(preferredId(body)).toBe('external-memory-provider-posture');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'memory action:"status" query:"external memory provider" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
   test('routes command-shaped background work to local process controls', async () => {
     const body = await route('run pytest -v tests/ in background');
 
