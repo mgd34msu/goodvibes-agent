@@ -257,6 +257,45 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes permission posture questions to security status', async () => {
+    const body = await route('show current permissions and approval mode');
+
+    expect(preferredId(body)).toBe('security-permission-status');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'security action:"status" query:"show current permissions and approval mode" includeParameters:true',
+      inspectRoute: 'security action:"status" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes blocked-action questions to read-only policy explanation', async () => {
+    const body = await route('why was that terminal command blocked');
+
+    expect(preferredId(body)).toBe('security-policy-explanation');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'security action:"explain" target:"terminal" toolArgs:{...} includeParameters:true',
+      inspectRoute: 'security action:"status" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes security finding requests to finding inspection', async () => {
+    const body = await route('inspect the leaked secret security finding');
+
+    expect(preferredId(body)).toBe('security-finding-inspection');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'security action:"finding" target:"inspect the leaked secret security finding" includeParameters:true',
+      inspectRoute: 'security action:"status" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('does not treat generic market risk research as a security policy question', async () => {
+    const body = await route('research market risk with citations');
+
+    expect(preferredId(body)).toBe('deep-research-workflow');
+  });
+
   test('routes named external memory providers to provider posture', async () => {
     const body = await route('connect Supermemory as an external memory provider');
 

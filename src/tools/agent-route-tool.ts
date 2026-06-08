@@ -53,6 +53,8 @@ function status(): Record<string, unknown> {
       'route action:"plan" query:"run pytest in background"',
       'route action:"plan" query:"run claude code with pty and sudo"',
       'route action:"plan" query:"undo the last file edit"',
+      'route action:"plan" query:"show current permissions"',
+      'route action:"plan" query:"why was that tool call blocked"',
       'route action:"plan" query:"generate an image of a product dashboard"',
       'route action:"plan" query:"take a screenshot of the browser dashboard"',
       'route action:"plan" query:"triage my inbox and draft replies"',

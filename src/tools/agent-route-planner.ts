@@ -538,6 +538,116 @@ function modelRouteReadinessLike(lower: string): boolean {
   ]);
 }
 
+function securityPermissionLike(lower: string): boolean {
+  return hasAny(lower, [
+    'security',
+    'permission',
+    'permissions',
+    'policy',
+    'policies',
+    'approval',
+    'approvals',
+    'approve',
+    'approved',
+    'deny',
+    'denied',
+    'blocked',
+    'allowed',
+    'confirmation',
+    'requires confirmation',
+    'guardrail',
+    'safety',
+    'risky action',
+    'unsafe action',
+  ]);
+}
+
+function securityStatusLike(lower: string): boolean {
+  if (hasAny(lower, [
+    'security status',
+    'security posture',
+    'permission status',
+    'permissions status',
+    'current permissions',
+    'active permissions',
+    'permission mode',
+    'approval mode',
+    'approval settings',
+    'tool permissions',
+    'security dashboard',
+    'safety status',
+    'current policy',
+    'policy status',
+    'policy settings',
+  ])) return true;
+  return hasAny(lower, ['show', 'list', 'what are', 'what is', 'which']) && hasAny(lower, ['permissions', 'approvals', 'policy', 'allowed tools']);
+}
+
+function securityFindingLike(lower: string): boolean {
+  const finding = hasAny(lower, [
+    'finding',
+    'findings',
+    'incident',
+    'security issue',
+    'vulnerability',
+    'leaked secret',
+    'secret leak',
+    'exposed token',
+    'exposed secret',
+    'mcp trust',
+    'quarantine',
+  ]);
+  if (!finding) return false;
+  return hasAny(lower, ['security', 'policy', 'permission', 'mcp', 'secret', 'token', 'incident', 'vulnerability', 'finding']);
+}
+
+function securityPolicyExplainLike(lower: string): boolean {
+  if (hasAny(lower, [
+    'why denied',
+    'why was denied',
+    'why blocked',
+    'why was blocked',
+    'why allowed',
+    'why did you block',
+    'why would',
+    'why does',
+    'explain policy',
+    'explain permission',
+    'explain approval',
+    'explain confirmation',
+    'need confirmation',
+    'needs confirmation',
+    'requires confirmation',
+    'would be blocked',
+    'will be blocked',
+    'risky action',
+    'unsafe action',
+    'can you run',
+    'can you use',
+    'am i allowed',
+  ])) return true;
+  return hasAny(lower, ['blocked', 'denied', 'allowed', 'approval', 'confirmation']) && hasAny(lower, ['tool', 'action', 'route', 'command', 'call', 'execute', 'run', 'write', 'send', 'setting']);
+}
+
+function securityPolicyToolTarget(lower: string): string | null {
+  if (lower.includes('agent_harness')) return 'agent_harness';
+  if (lower.includes('settings action') || lower.includes('setting')) return 'settings';
+  if (lower.includes('terminal')) return 'terminal';
+  if (lower.includes('process')) return 'process';
+  if (lower.includes('exec')) return 'exec';
+  if (lower.includes('channel')) return 'channels';
+  if (lower.includes('schedule')) return 'schedule';
+  if (lower.includes('personal_ops') || lower.includes('personal ops')) return 'personal_ops';
+  if (lower.includes('model')) return 'models';
+  if (lower.includes('memory')) return 'memory';
+  if (lower.includes('computer') || lower.includes('browser') || lower.includes('screenshot')) return 'computer';
+  if (lower.includes('device') || lower.includes('voice') || lower.includes('tts')) return 'device';
+  if (lower.includes('workspace')) return 'workspace';
+  if (lower.includes('host') || lower.includes('daemon')) return 'host';
+  if (lower.includes('command')) return 'terminal';
+  return null;
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -1443,24 +1553,73 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
-  if (hasAny(lower, ['security', 'permission', 'policy', 'why denied', 'why allowed', 'confirmation', 'requires confirmation', 'approval'])) {
-    add({
-      id: 'security-policy-explanation',
-      label: 'Security posture or policy explanation',
-      score: 90,
-      userSurface: 'Safety and recovery workspace',
-      userOutcome: 'Explain a safety decision before performing risky work.',
-      why: 'The request asks about permissions, policy, approval, security posture, or why a tool is allowed or denied.',
-      modelRoute: 'security action:"explain" toolName:"..." toolArgs:{...}',
-      inspectRoute: 'security action:"status" includeParameters:true',
-      userRoute: 'Agent Workspace -> Safety',
-      requiresConfirmation: false,
-      supportingRoutes: [
-        'security action:"finding" findingId:"..."',
-        'agent_harness mode:"policy_explain" toolName:"..." toolArgs:{...}',
-      ],
-      policy: 'Policy explanations are read-only and never execute the target tool.',
-    });
+  if (securityPermissionLike(lower)) {
+    if (securityStatusLike(lower)) {
+      add({
+        id: 'security-permission-status',
+        label: 'Security and permission posture',
+        score: 98,
+        userSurface: 'Safety and recovery workspace',
+        userOutcome: 'Show the current permission, approval, trust, and security posture before changing policy or attempting risky work.',
+        why: 'The request asks what permissions, approvals, policies, or safety status are active.',
+        modelRoute: `security action:"status" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'security action:"status" includeParameters:true',
+        userRoute: 'Agent Workspace -> Safety & Recovery',
+        requiresConfirmation: false,
+        supportingRoutes: [
+          'workspace action:"actions" categoryId:"tools-permissions"',
+          'settings action:"list" query:"permissions approval policy" includeParameters:true',
+          'security action:"finding" findingId:"..." includeParameters:true',
+        ],
+        policy: 'Security posture inspection is read-only. Permission changes, approval changes, and risky target actions remain separate confirmed routes.',
+      });
+    }
+
+    if (securityFindingLike(lower)) {
+      add({
+        id: 'security-finding-inspection',
+        label: 'Security finding inspection',
+        score: 97,
+        userSurface: 'Safety and recovery workspace',
+        userOutcome: 'Inspect the exact security finding, trust issue, incident, or leaked-secret record before repair work.',
+        why: 'The request asks to inspect a security finding, incident, vulnerability, trust warning, or secret-leak issue.',
+        modelRoute: `security action:"finding" target:${quote(request)} includeParameters:true`,
+        inspectRoute: 'security action:"status" includeParameters:true',
+        userRoute: 'Agent Workspace -> Safety & Recovery',
+        requiresConfirmation: false,
+        supportingRoutes: [
+          'security action:"status" includeParameters:true',
+          'agent_harness mode:"security_finding" findingId:"..." includeParameters:true',
+          'support_bundles action:"status" includeParameters:true',
+        ],
+        policy: 'Finding inspection returns redacted evidence only. Secret rotation, trust changes, MCP enablement, or file edits stay on explicit confirmed repair routes.',
+      });
+    }
+
+    if (securityPolicyExplainLike(lower) || (!securityStatusLike(lower) && !securityFindingLike(lower))) {
+      const explainTarget = securityPolicyToolTarget(lower);
+      add({
+        id: 'security-policy-explanation',
+        label: 'Security policy explanation',
+        score: securityPolicyExplainLike(lower) ? 100 : 90,
+        userSurface: 'Safety and recovery workspace',
+        userOutcome: 'Explain whether one model action is allowed, blocked, or waiting on confirmation before performing it.',
+        why: 'The request asks about a tool, route, command, approval, confirmation, or why an action is allowed, denied, or blocked.',
+        modelRoute: explainTarget
+          ? `security action:"explain" target:${quote(explainTarget)} toolArgs:{...} includeParameters:true`
+          : 'security action:"explain" toolName:"..." toolArgs:{...} includeParameters:true',
+        inspectRoute: 'security action:"status" includeParameters:true',
+        userRoute: 'Agent Workspace -> Safety & Recovery',
+        requiresConfirmation: false,
+        missingFields: explainTarget ? ['arguments or action details to explain'] : ['tool name or route id', 'arguments or action details to explain'],
+        supportingRoutes: [
+          'security action:"status" includeParameters:true',
+          'security action:"finding" findingId:"..." includeParameters:true',
+          'agent_harness mode:"policy_explain" toolName:"..." toolArgs:{...}',
+        ],
+        policy: 'Policy explanations are read-only and never execute the target tool. Final execution still uses the live route guard, permission prompt, and typed confirmation gate.',
+      });
+    }
   }
 
   if (hasAny(lower, ['daemon method', 'operator method', 'host capability', 'service endpoint', 'control plane', 'api route'])) {
