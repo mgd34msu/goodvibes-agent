@@ -6,6 +6,8 @@ import { createAgentHarnessTool } from './agent-harness-tool.ts';
 type AgentMemoryAction =
   | 'status'
   | 'provider'
+  | 'refinement'
+  | 'run_refinement'
   | 'curator'
   | 'candidate'
   | 'list'
@@ -24,6 +26,9 @@ interface AgentMemoryToolArgs {
   readonly recordId?: unknown;
   readonly providerId?: unknown;
   readonly candidateId?: unknown;
+  readonly knowledgeSpaceId?: unknown;
+  readonly sourceIds?: unknown;
+  readonly gapIds?: unknown;
   readonly target?: unknown;
   readonly query?: unknown;
   readonly includeParameters?: unknown;
@@ -36,6 +41,8 @@ interface AgentMemoryToolArgs {
   readonly confidence?: unknown;
   readonly tags?: unknown;
   readonly reason?: unknown;
+  readonly maxRunMs?: unknown;
+  readonly force?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
 }
@@ -61,6 +68,8 @@ function normalizeMemoryAction(value: unknown): AgentMemoryAction | null {
   if (!action) return null;
   if (action === 'status' || action === 'summary' || action === 'posture' || action === 'memory_posture' || action === 'recall' || action === 'providers') return 'status';
   if (action === 'provider' || action === 'memory_provider' || action === 'embedding' || action === 'external' || action === 'external_provider') return 'provider';
+  if (action === 'refinement' || action === 'refinement_tasks' || action === 'semantic_refinement' || action === 'self_improvement' || action === 'semantic_self_improvement' || action === 'learning_loop') return 'refinement';
+  if (action === 'run_refinement' || action === 'refine' || action === 'run_semantic_refinement' || action === 'run_self_improvement' || action === 'self_improve') return 'run_refinement';
   if (action === 'curator' || action === 'learning' || action === 'learning_curator' || action === 'queue' || action === 'review_queue' || action === 'plan') return 'curator';
   if (action === 'candidate' || action === 'learning_candidate' || action === 'card' || action === 'inspect_candidate') return 'candidate';
   if (action === 'list' || action === 'records' || action === 'memories') return 'list';
@@ -131,7 +140,7 @@ export function createAgentMemoryTool(deps: AgentMemoryToolDeps): Tool {
         properties: {
           action: {
             type: 'string',
-            enum: ['status', 'provider', 'curator', 'candidate', 'list', 'search', 'get', 'create', 'update', 'review', 'stale', 'delete'],
+            enum: ['status', 'provider', 'refinement', 'run_refinement', 'curator', 'candidate', 'list', 'search', 'get', 'create', 'update', 'review', 'stale', 'delete'],
             description: 'Read memory posture/providers/curator or operate records.',
           },
           mode: { type: 'string', description: 'Alias for action.' },
@@ -139,6 +148,9 @@ export function createAgentMemoryTool(deps: AgentMemoryToolDeps): Tool {
           recordId: { type: 'string', description: 'Alias for id.' },
           providerId: { type: 'string', description: 'Embedding or external-memory provider id.' },
           candidateId: { type: 'string', description: 'Learning curator candidate id.' },
+          knowledgeSpaceId: { type: 'string', description: 'Agent Knowledge space id for semantic refinement.' },
+          sourceIds: { type: 'array', items: { type: 'string' }, description: 'Agent Knowledge source ids for scoped semantic refinement.' },
+          gapIds: { type: 'array', items: { type: 'string' }, description: 'Agent Knowledge semantic gap ids for scoped refinement.' },
           target: { type: 'string', description: 'Lookup target or search text.' },
           query: { type: 'string', description: 'Search text.' },
           includeParameters: { type: 'boolean', description: 'Include provider setup contracts or candidate details.' },
@@ -151,6 +163,8 @@ export function createAgentMemoryTool(deps: AgentMemoryToolDeps): Tool {
           confidence: { type: 'number', description: 'Review confidence, 0-100.' },
           tags: { type: 'array', items: { type: 'string' }, description: 'Memory tags.' },
           reason: { type: 'string', description: 'Reason for stale/delete decisions.' },
+          maxRunMs: { type: 'number', description: 'Maximum semantic refinement run budget in milliseconds.' },
+          force: { type: 'boolean', description: 'Force semantic refinement reprocessing where supported.' },
           confirm: { type: 'boolean', description: 'Required for deletion and other confirmed memory effects.' },
           explicitUserRequest: { type: 'string', description: 'User request authorizing confirmed memory effects.' },
         },
@@ -178,6 +192,31 @@ export function createAgentMemoryTool(deps: AgentMemoryToolDeps): Tool {
           target: args.providerId || args.id ? undefined : args.target,
           query: args.providerId || args.id ? undefined : args.query,
           includeParameters: args.includeParameters,
+        }));
+      }
+      if (action === 'refinement') {
+        return harnessTool.execute(compactArgs({
+          mode: 'memory_refinement',
+          target: args.target,
+          query: args.query,
+          knowledgeSpaceId: args.knowledgeSpaceId,
+          sourceIds: args.sourceIds,
+          gapIds: args.gapIds,
+          limit: args.limit,
+          includeParameters: args.includeParameters,
+        }));
+      }
+      if (action === 'run_refinement') {
+        return harnessTool.execute(compactArgs({
+          mode: 'run_memory_refinement',
+          knowledgeSpaceId: args.knowledgeSpaceId,
+          sourceIds: args.sourceIds,
+          gapIds: args.gapIds,
+          limit: args.limit,
+          maxRunMs: args.maxRunMs,
+          force: args.force,
+          confirm: args.confirm,
+          explicitUserRequest: args.explicitUserRequest,
         }));
       }
       if (action === 'curator') {

@@ -1491,6 +1491,191 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('auto-advances setup wizard rows from durable setup receipt artifacts', async () => {
+    const artifacts = createHarnessArtifactStore();
+    await artifacts.store.create({
+      text: '{}',
+      filename: 'setup-service-ready.json',
+      mimeType: 'application/json',
+      metadata: {
+        purpose: 'connected-host-setup-receipt',
+        methodId: 'services.status',
+        receiptId: 'svc-ready',
+        receiptStatus: 'ready',
+        recordedAt: '1970-01-01T00:00:03.000Z',
+        summary: 'services.status reported healthy.',
+      },
+    });
+    await artifacts.store.create({
+      text: '{}',
+      filename: 'setup-auth-ready.json',
+      mimeType: 'application/json',
+      metadata: {
+        purpose: 'connected-host-setup-receipt',
+        setupStepId: 'connected-host-auth',
+        receiptId: 'auth-ready',
+        receiptStatus: 'authenticated',
+        recordedAt: '1970-01-01T00:00:04.000Z',
+        summary: 'Connected-host operator auth was validated.',
+      },
+    });
+    await artifacts.store.create({
+      text: '{}',
+      filename: 'setup-smoke-ready.json',
+      mimeType: 'application/json',
+      metadata: {
+        purpose: 'agent-setup-receipt',
+        setupStepId: 'install-smoke',
+        receiptId: 'smoke-ready',
+        receiptStatus: 'ready',
+        recordedAt: '1970-01-01T00:00:05.000Z',
+        summary: 'Setup smoke completed with first assistant turn.',
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      const posture = await executeHarnessJson<{
+        readonly setupWizard: {
+          readonly steps: readonly { readonly id: string; readonly status: string; readonly detail: string }[];
+          readonly stepHistory: readonly {
+            readonly kind: string;
+            readonly receiptId: string;
+            readonly receiptStatus?: string;
+            readonly satisfiesReceipt?: boolean;
+          }[];
+          readonly receiptGaps: readonly { readonly stepId: string }[];
+          readonly closeout: {
+            readonly evidence: readonly string[];
+          };
+        };
+      }>(fixture, { mode: 'setup_posture', includeParameters: true });
+
+      const steps = new Map(posture.setupWizard.steps.map((step) => [step.id, step]));
+      expect(steps.get('connected-host-readiness')?.status).toBe('done');
+      expect(steps.get('connected-host-readiness')?.detail).toContain('Durable receipt svc-ready');
+      expect(steps.get('connected-host-auth')?.status).toBe('done');
+      expect(steps.get('install-smoke')?.status).toBe('done');
+      expect(posture.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt')).toHaveLength(3);
+      expect(posture.setupWizard.stepHistory.every((entry) => entry.satisfiesReceipt === true)).toBe(true);
+      expect(posture.setupWizard.receiptGaps).toEqual([]);
+      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('auto-advances setup wizard rows from live setup receipt read models', async () => {
+    const fixture = makeFixture();
+    try {
+      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      readModels.setup = {
+        getSnapshot: () => ({
+          setupReceipts: {
+            service: {
+              methodId: 'services.status',
+              receiptId: 'live-svc-ready',
+              receiptStatus: 'ready',
+              recordedAt: '1970-01-01T00:00:03.000Z',
+              summary: 'services.status reported healthy from live daemon setup receipts.',
+            },
+            auth: {
+              setupStepId: 'connected-host-auth',
+              receiptId: 'live-auth-ready',
+              status: 'authenticated',
+              recordedAt: '1970-01-01T00:00:04.000Z',
+              summary: 'Connected-host operator auth token=hidden-live-secret was validated.',
+              inspectRoute: 'setup action:"item" setupItemId:"connected-host-auth" includeParameters:true',
+            },
+            smoke: {
+              setupStepId: 'install-smoke',
+              receiptId: 'live-smoke-ready',
+              outcome: 'ready',
+              recordedAt: '1970-01-01T00:00:05.000Z',
+              summary: 'Setup smoke completed through live setup receipt stream.',
+            },
+          },
+        }),
+      };
+      readModels.setupReceiptEventStream = {
+        listEvents: () => ({
+          cursor: 'setup-cursor-0006',
+          events: [{
+            setupStepId: 'install-smoke',
+            receiptId: 'live-smoke-event-ready',
+            receiptStatus: 'ready',
+            recordedAt: '1970-01-01T00:00:06.000Z',
+            summary: 'Setup smoke event stream certified first-run output with token=event-stream-secret.',
+            schemaVersion: 'goodvibes.setup.receipt.v1',
+            schemaStatus: 'certified',
+            methodId: 'setup.smoke',
+            repairRoute: 'setup action:"smoke" setupItemId:"install-smoke" confirm:true explicitUserRequest:"..."',
+            actionRoute: 'setup action:"finish" confirm:true explicitUserRequest:"..."',
+            publicationGuarantee: 'The GoodVibes daemon publishes ordered setup receipt events before closeout; token=publication-secret.',
+            publisher: 'goodvibes-daemon',
+            eventSequence: 6,
+            inspectRoute: 'setup action:"item" setupItemId:"install-smoke" includeParameters:true',
+          }],
+        }),
+      };
+
+      const posture = await executeHarnessJson<{
+        readonly setupWizard: {
+          readonly steps: readonly { readonly id: string; readonly status: string; readonly detail: string }[];
+          readonly stepHistory: readonly {
+            readonly kind: string;
+            readonly receiptId: string;
+            readonly source?: string;
+            readonly summary: string;
+            readonly receiptStatus?: string;
+            readonly satisfiesReceipt?: boolean;
+            readonly schemaStatus?: string;
+            readonly schemaVersion?: string;
+            readonly provenance?: readonly string[];
+            readonly publicationGuarantee?: string;
+            readonly eventCursor?: string;
+            readonly eventSequence?: number;
+            readonly publisher?: string;
+          }[];
+          readonly receiptGaps: readonly { readonly stepId: string }[];
+          readonly closeout: {
+            readonly evidence: readonly string[];
+          };
+        };
+      }>(fixture, { mode: 'setup_posture', includeParameters: true });
+
+      const steps = new Map(posture.setupWizard.steps.map((step) => [step.id, step]));
+      expect(steps.get('connected-host-readiness')?.status).toBe('done');
+      expect(steps.get('connected-host-readiness')?.detail).toContain('live-svc-ready');
+      expect(steps.get('connected-host-auth')?.status).toBe('done');
+      expect(steps.get('connected-host-auth')?.detail).not.toContain('hidden-live-secret');
+      expect(steps.get('install-smoke')?.status).toBe('done');
+      const durableHistory = posture.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt');
+      expect(durableHistory).toHaveLength(4);
+      expect(durableHistory.filter((entry) => entry.receiptId !== 'live-smoke-event-ready').every((entry) => entry.source === 'context.platform.readModels.setup')).toBe(true);
+      expect(durableHistory.find((entry) => entry.receiptId === 'live-auth-ready')?.summary).toContain('token=<redacted>');
+      const eventReceipt = durableHistory.find((entry) => entry.receiptId === 'live-smoke-event-ready');
+      expect(eventReceipt?.source).toBe('context.platform.readModels.setupReceiptEventStream');
+      expect(eventReceipt?.schemaStatus).toBe('certified');
+      expect(eventReceipt?.schemaVersion).toBe('goodvibes.setup.receipt.v1');
+      expect(eventReceipt?.eventCursor).toBe('setup-cursor-0006');
+      expect(eventReceipt?.eventSequence).toBe(6);
+      expect(eventReceipt?.publisher).toBe('goodvibes-daemon');
+      expect(eventReceipt?.summary).toContain('token=<redacted>');
+      expect(eventReceipt?.summary).not.toContain('event-stream-secret');
+      expect(eventReceipt?.publicationGuarantee).toContain('token=<redacted>');
+      expect(eventReceipt?.publicationGuarantee).not.toContain('publication-secret');
+      expect(eventReceipt?.provenance?.join('\n')).toContain('method setup.smoke');
+      expect(eventReceipt?.provenance?.join('\n')).toContain('repair setup action:"smoke"');
+      expect(durableHistory.every((entry) => entry.satisfiesReceipt === true)).toBe(true);
+      expect(posture.setupWizard.receiptGaps).toEqual([]);
+      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
+      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('certified setup receipts: 1/4');
+      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('setup receipt event streams: 1');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('persists setup wizard checkpoints through confirmed harness and workspace routes', async () => {
     const fixture = makeFixture();
     try {
@@ -2073,7 +2258,8 @@ describe('agent_harness tool', () => {
   });
 
   test('exposes visible Agent orchestration without spawning hidden work', async () => {
-    const fixture = makeFixture();
+    const artifacts = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
       const now = Date.now();
       const agents = [
@@ -2158,6 +2344,72 @@ describe('agent_harness tool', () => {
         },
         knowledgeInjections: [],
       };
+      const durableAlphaReceipt = await artifacts.store.create({
+        kind: 'data',
+        mimeType: 'application/json',
+        filename: 'remote-alpha-closeout-receipt.json',
+        text: JSON.stringify({
+          receipt: 'Remote auth evidence exported with metadata-only redaction.',
+        }),
+        metadata: {
+          purpose: 'connected-host-remote-runner-closeout-receipt',
+          runnerId: 'agent-alpha',
+          status: 'succeeded',
+          task: 'Investigate auth flow and report user-facing risks.',
+          summary: 'Connected host exported remote auth evidence for closeout review.',
+          toolCallCount: 3,
+          messageCount: 5,
+          errorCount: 0,
+          sourceArtifactId: 'remote-alpha-export',
+          redaction: 'metadata-only',
+        },
+      });
+      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      Object.assign(readModels, {
+        remoteRuntime: {
+          captureOutcomes: {
+            getSnapshot: () => ({
+              records: [{
+                id: 'capture-alpha-live',
+                runnerId: 'agent-alpha',
+                kind: 'capture',
+                status: 'succeeded',
+                task: 'Investigate auth flow and report user-facing risks.',
+                summary: 'Captured remote test output with token=REMOTESECRET and exported bounded logs.',
+                captureId: 'capture-alpha-1',
+                exportId: 'export-alpha-1',
+                artifactId: 'remote-alpha-live-artifact',
+                completedAt: now - 500,
+                schemaStatus: 'certified',
+                schemaVersion: 'goodvibes.remote-runtime.outcome.v1',
+                publicationGuarantee: 'daemon publishes remote capture and closeout outcomes token=remote-outcome-secret',
+                publisher: 'goodvibes-daemon',
+                provenance: ['method remoteRuntime.captureOutcomes.list', 'sourceTool remote-runtime'],
+                cursor: 'remote-cursor-1',
+                receiptId: 'remote-alpha-live-receipt',
+              }],
+            }),
+          },
+          workspaceIsolation: new Map([
+            ['agent-alpha', {
+              workspaceId: 'workspace-alpha',
+              runnerId: 'agent-alpha',
+              status: 'ready',
+              isolationKind: 'worktree',
+              label: 'Auth isolated worktree',
+              worktreePath: `/tmp/token=PATHSECRET/auth-worktree`,
+              branch: 'agent/auth-risk-review',
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.remote-runtime.workspace.v1',
+              publicationGuarantee: 'daemon publishes remote workspace isolation secret=remote-workspace-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method remoteRuntime.workspaceIsolation.list', 'sourceTool remote-runtime'],
+              cursor: 'remote-workspace-cursor-1',
+              receiptId: 'workspace-alpha-receipt',
+            }],
+          ]),
+        },
+      });
       const alphaWorkPlan = fixture.context.workspace.workPlanStore!.addItem('Investigate auth flow and report user-facing risks', {
         status: 'in_progress',
         owner: 'agent',
@@ -2231,9 +2483,12 @@ describe('agent_harness tool', () => {
             readonly cancellableRoutes?: readonly string[];
             readonly contracts?: number;
             readonly artifacts?: number;
+            readonly readModelOutcomes?: number;
+            readonly workspaceEvidence?: number;
             readonly linkedWorkPlanItems?: number;
             readonly dispatchReceipts?: number;
             readonly autoAttachedRemoteArtifacts?: number;
+            readonly liveRemoteOutcomes?: number;
             readonly routes?: { readonly contracts?: string; readonly artifacts?: string };
           }[];
           readonly workItems: readonly {
@@ -2254,6 +2509,23 @@ describe('agent_harness tool', () => {
               readonly runnerId: string;
               readonly modelRoute: string;
             }[];
+            readonly liveOutcomeTrail: readonly {
+              readonly id: string;
+              readonly runnerId: string;
+              readonly status: string;
+              readonly summary: string | null;
+              readonly sourcePath: string;
+              readonly modelRoute: string;
+              readonly certification: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly receiptId?: string; readonly missingSignals: readonly string[] };
+            }[];
+            readonly workspaceEvidence: readonly {
+              readonly id: string;
+              readonly runnerId: string;
+              readonly status: string;
+              readonly worktreeRef: string | null;
+              readonly sourcePath: string;
+              readonly certification: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly receiptId?: string; readonly missingSignals: readonly string[] };
+            }[];
             readonly workPlanLinks: readonly {
               readonly itemId: string;
               readonly dispatchReceiptCount: number;
@@ -2265,9 +2537,14 @@ describe('agent_harness tool', () => {
               readonly workPlanItemCount: number;
               readonly dispatchReceiptCount: number;
               readonly remoteArtifactCount: number;
+              readonly remoteReceiptCount: number;
+              readonly remoteOutcomeCount: number;
+              readonly workspaceEvidenceCount: number;
               readonly autoAttachReason: string | null;
               readonly workPlanItems: readonly { readonly itemId: string; readonly dispatchReceiptCount: number }[];
-              readonly autoAttachedRemoteArtifacts: readonly { readonly id: string; readonly modelRoute: string }[];
+              readonly autoAttachedRemoteArtifacts: readonly { readonly id: string; readonly modelRoute: string; readonly receipt?: boolean; readonly redaction?: string }[];
+              readonly liveRemoteOutcomes: readonly { readonly id: string; readonly summary: string | null; readonly certification?: { readonly schemaStatus: string; readonly missingSignals: readonly string[] } }[];
+              readonly workspaceEvidence: readonly { readonly id: string; readonly worktreeRef: string | null; readonly certification?: { readonly schemaStatus: string; readonly missingSignals: readonly string[] } }[];
               readonly reviewRoutes: readonly string[];
               readonly updateRoutes: readonly string[];
               readonly policy: string;
@@ -2283,7 +2560,20 @@ describe('agent_harness tool', () => {
             readonly status: string;
             readonly pools: readonly { readonly id: string; readonly runnerIds: readonly string[] }[];
             readonly contracts: readonly { readonly runnerId: string; readonly reviewMode: string }[];
-            readonly artifacts: readonly { readonly id: string; readonly runnerId: string }[];
+            readonly artifacts: readonly { readonly id: string; readonly runnerId: string; readonly receipt?: boolean; readonly redaction?: string }[];
+            readonly liveOutcomes: readonly {
+              readonly id: string;
+              readonly summary: string | null;
+              readonly sourcePath: string;
+              readonly certification: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly receiptId?: string; readonly missingSignals: readonly string[] };
+            }[];
+            readonly workspaceEvidence: readonly {
+              readonly id: string;
+              readonly worktreeRef: string | null;
+              readonly sourcePath: string;
+              readonly certification: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly receiptId?: string; readonly missingSignals: readonly string[] };
+            }[];
+            readonly sourceCounts: Record<string, number>;
             readonly policy: string;
           };
           readonly modelAccess: { readonly remoteContracts: string; readonly remoteArtifacts: string };
@@ -2318,23 +2608,55 @@ describe('agent_harness tool', () => {
       const remoteMilestone = posture.managedExecutionPlan.milestones.find((milestone) => milestone.id === 'remote-runner-evidence');
       expect(remoteMilestone?.status).toBe('ready');
       expect(remoteMilestone?.contracts).toBe(1);
-      expect(remoteMilestone?.artifacts).toBe(1);
+      expect(remoteMilestone?.artifacts).toBe(2);
+      expect(remoteMilestone?.readModelOutcomes).toBe(1);
+      expect(remoteMilestone?.workspaceEvidence).toBe(1);
       expect(remoteMilestone?.routes?.contracts).toBe('remote { mode: "contracts", view: "summary" }');
       const closeoutMilestone = posture.managedExecutionPlan.milestones.find((milestone) => milestone.id === 'review-and-closeout');
       expect(closeoutMilestone?.linkedWorkPlanItems).toBe(2);
       expect(closeoutMilestone?.dispatchReceipts).toBe(2);
-      expect(closeoutMilestone?.autoAttachedRemoteArtifacts).toBe(1);
+      expect(closeoutMilestone?.autoAttachedRemoteArtifacts).toBe(2);
+      expect(closeoutMilestone?.liveRemoteOutcomes).toBe(1);
+      expect(closeoutMilestone?.workspaceEvidence).toBe(1);
       expect(closeoutMilestone?.routes as unknown as readonly string[]).toContain('agent_work_plan action:"list"');
       expect(posture.managedExecutionPlan.remoteEvidence.status).toBe('ready');
       expect(posture.managedExecutionPlan.remoteEvidence.pools[0]?.runnerIds).toEqual(['agent-alpha']);
       expect(posture.managedExecutionPlan.remoteEvidence.contracts[0]?.runnerId).toBe('agent-alpha');
       expect(posture.managedExecutionPlan.remoteEvidence.contracts[0]?.reviewMode).toBe('wrfc');
       expect(posture.managedExecutionPlan.remoteEvidence.artifacts[0]?.id).toBe('artifact-agent-beta');
+      expect(posture.managedExecutionPlan.remoteEvidence.artifacts.find((artifact) => artifact.id === durableAlphaReceipt.id)).toMatchObject({
+        runnerId: 'agent-alpha',
+        receipt: true,
+        redaction: 'metadata-only',
+      });
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.id).toBe('capture-alpha-live');
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.summary).toContain('token=<redacted>');
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.summary).not.toContain('REMOTESECRET');
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.sourcePath).toContain('context.platform.readModels.remoteRuntime.captureOutcomes');
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.certification.schemaStatus).toBe('certified');
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.certification.publicationGuarantee).toContain('token=<redacted>');
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.certification.receiptId).toBe('remote-alpha-live-receipt');
+      expect(posture.managedExecutionPlan.remoteEvidence.liveOutcomes[0]?.certification.missingSignals).toEqual([]);
+      expect(posture.managedExecutionPlan.remoteEvidence.workspaceEvidence[0]?.id).toBe('workspace-alpha');
+      expect(posture.managedExecutionPlan.remoteEvidence.workspaceEvidence[0]?.worktreeRef).toContain('auth-worktree');
+      expect(posture.managedExecutionPlan.remoteEvidence.workspaceEvidence[0]?.worktreeRef).not.toContain('PATHSECRET');
+      expect(posture.managedExecutionPlan.remoteEvidence.workspaceEvidence[0]?.certification.schemaStatus).toBe('certified');
+      expect(posture.managedExecutionPlan.remoteEvidence.workspaceEvidence[0]?.certification.publicationGuarantee).toContain('secret=<redacted>');
+      expect(posture.managedExecutionPlan.remoteEvidence.workspaceEvidence[0]?.certification.receiptId).toBe('workspace-alpha-receipt');
+      expect(posture.managedExecutionPlan.remoteEvidence.workspaceEvidence[0]?.certification.missingSignals).toEqual([]);
+      expect(posture.managedExecutionPlan.remoteEvidence.sourceCounts['context.platform.readModels.remoteRuntime.captureOutcomes.getSnapshot().records[0]']).toBe(1);
       expect(posture.managedExecutionPlan.remoteEvidence.policy).toContain('read-only');
       expect(posture.managedExecutionPlan.modelAccess.remoteContracts).toContain('remote');
       const alphaPlanItem = posture.managedExecutionPlan.workItems.find((item) => item.planItemId === 'agent:agent-alpha');
       expect(alphaPlanItem?.lane).toBe('remote-runner');
       expect(alphaPlanItem?.milestoneId).toBe('visible-agent-work');
+      expect(alphaPlanItem?.artifactTrail[0]?.id).toBe(durableAlphaReceipt.id);
+      expect(alphaPlanItem?.artifactTrail[0]?.modelRoute).toContain('agent_artifacts show');
+      expect(alphaPlanItem?.liveOutcomeTrail[0]?.id).toBe('capture-alpha-live');
+      expect(alphaPlanItem?.liveOutcomeTrail[0]?.summary).toContain('token=<redacted>');
+      expect(alphaPlanItem?.liveOutcomeTrail[0]?.certification.missingSignals).toEqual([]);
+      expect(alphaPlanItem?.workspaceEvidence[0]?.id).toBe('workspace-alpha');
+      expect(alphaPlanItem?.workspaceEvidence[0]?.certification.missingSignals).toEqual([]);
       expect(alphaPlanItem?.remoteContract?.runnerId).toBe('agent-alpha');
       expect(alphaPlanItem?.remoteContract?.transportState).toBe('connected');
       expect(alphaPlanItem?.remoteContract?.allowedTools).toContain('read');
@@ -2348,9 +2670,24 @@ describe('agent_harness tool', () => {
       expect(alphaPlanItem?.closeout.status).toBe('pending-work');
       expect(alphaPlanItem?.closeout.workPlanItemCount).toBe(1);
       expect(alphaPlanItem?.closeout.dispatchReceiptCount).toBe(1);
+      expect(alphaPlanItem?.closeout.remoteArtifactCount).toBe(1);
+      expect(alphaPlanItem?.closeout.remoteReceiptCount).toBe(1);
+      expect(alphaPlanItem?.closeout.remoteOutcomeCount).toBe(1);
+      expect(alphaPlanItem?.closeout.workspaceEvidenceCount).toBe(1);
+      expect(alphaPlanItem?.closeout.autoAttachedRemoteArtifacts[0]?.id).toBe(durableAlphaReceipt.id);
+      expect(alphaPlanItem?.closeout.autoAttachedRemoteArtifacts[0]?.modelRoute).toContain('agent_artifacts show');
+      expect(alphaPlanItem?.closeout.autoAttachedRemoteArtifacts[0]?.redaction).toBe('metadata-only');
+      expect(alphaPlanItem?.closeout.liveRemoteOutcomes[0]?.id).toBe('capture-alpha-live');
+      expect(alphaPlanItem?.closeout.liveRemoteOutcomes[0]?.certification?.schemaStatus).toBe('certified');
+      expect(alphaPlanItem?.closeout.workspaceEvidence[0]?.id).toBe('workspace-alpha');
+      expect(alphaPlanItem?.closeout.workspaceEvidence[0]?.certification?.schemaStatus).toBe('certified');
       expect(alphaPlanItem?.closeout.reviewRoutes.join('\n')).toContain(alphaWorkPlan.id);
+      expect(alphaPlanItem?.closeout.reviewRoutes.join('\n')).toContain(`agent_artifacts show artifactId:"${durableAlphaReceipt.id}"`);
+      expect(alphaPlanItem?.closeout.reviewRoutes.join('\n')).toContain('agent_orchestration_agent');
       expect(alphaPlanItem?.reviewGate.status).toBe('pending-work');
       expect(alphaPlanItem?.reviewGate.requiredEvidence).toContain('diff');
+      expect(alphaPlanItem?.reviewGate.requiredEvidence).toContain('workspace/worktree isolation evidence');
+      expect(alphaPlanItem?.reviewGate.requiredEvidence).toContain('live remote capture/export outcome evidence');
       expect(alphaPlanItem?.nextAction).toContain('wait/status');
       const betaPlanItem = posture.managedExecutionPlan.workItems.find((item) => item.planItemId === 'agent:agent-beta');
       expect(betaPlanItem?.lane).toBe('visible-agent');
@@ -2394,8 +2731,10 @@ describe('agent_harness tool', () => {
         readonly managedPlanCard?: {
           readonly lane: string;
           readonly remoteContract?: { readonly runnerId: string; readonly transportState: string } | null;
+          readonly liveOutcomeTrail: readonly { readonly id: string; readonly summary: string | null; readonly certification?: { readonly missingSignals: readonly string[] } }[];
+          readonly workspaceEvidence: readonly { readonly id: string; readonly worktreeRef: string | null; readonly certification?: { readonly missingSignals: readonly string[] } }[];
           readonly workPlanLinks: readonly { readonly itemId: string; readonly latestDispatchReceipt: string | null }[];
-          readonly closeout: { readonly dispatchReceiptCount: number; readonly reviewRoutes: readonly string[] };
+          readonly closeout: { readonly dispatchReceiptCount: number; readonly remoteReceiptCount: number; readonly remoteOutcomeCount: number; readonly workspaceEvidenceCount: number; readonly reviewRoutes: readonly string[] };
         };
       }>(fixture, { mode: 'agent_orchestration_agent', agentId: 'agent-alpha' });
       expect(detail.agentId).toBe('agent-alpha');
@@ -2408,10 +2747,20 @@ describe('agent_harness tool', () => {
       expect(detail.managedPlanCard?.lane).toBe('remote-runner');
       expect(detail.managedPlanCard?.remoteContract?.runnerId).toBe('agent-alpha');
       expect(detail.managedPlanCard?.remoteContract?.transportState).toBe('connected');
+      expect(detail.managedPlanCard?.liveOutcomeTrail[0]?.id).toBe('capture-alpha-live');
+      expect(detail.managedPlanCard?.liveOutcomeTrail[0]?.certification?.missingSignals).toEqual([]);
+      expect(detail.managedPlanCard?.workspaceEvidence[0]?.id).toBe('workspace-alpha');
+      expect(detail.managedPlanCard?.workspaceEvidence[0]?.certification?.missingSignals).toEqual([]);
       expect(detail.managedPlanCard?.workPlanLinks[0]?.itemId).toBe(alphaWorkPlan.id);
       expect(detail.managedPlanCard?.workPlanLinks[0]?.latestDispatchReceipt).toContain('agent-alpha');
       expect(detail.managedPlanCard?.closeout.dispatchReceiptCount).toBe(1);
+      expect(detail.managedPlanCard?.closeout.remoteReceiptCount).toBe(1);
+      expect(detail.managedPlanCard?.closeout.remoteOutcomeCount).toBe(1);
+      expect(detail.managedPlanCard?.closeout.workspaceEvidenceCount).toBe(1);
       expect(detail.managedPlanCard?.closeout.reviewRoutes.join('\n')).toContain(alphaWorkPlan.id);
+      expect(detail.managedPlanCard?.closeout.reviewRoutes.join('\n')).toContain(`agent_artifacts show artifactId:"${durableAlphaReceipt.id}"`);
+      expect(JSON.stringify({ posture, detail })).not.toContain('remote-outcome-secret');
+      expect(JSON.stringify({ posture, detail })).not.toContain('remote-workspace-secret');
 
       const filtered = await executeHarnessJson<{
         readonly returned: number;
@@ -3324,6 +3673,634 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('surfaces daemon-published Personal Ops inbox and calendar read-model records as current queues', async () => {
+    const fixture = makeFixture();
+    try {
+      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      readModels.personalOps = {
+        inboxThreads: {
+          getSnapshot: () => ({
+            threads: [{
+              providerId: 'gmail',
+              threadId: 'thread-secure-1',
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.personal-ops.inbox-thread.v1',
+              publicationGuarantee: 'daemon publishes thread snapshots after Gmail history sync token=gmail-pub-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method gmail.threads.list', 'sourceTool personalOps.inboxThreads'],
+              effectReceiptIds: ['gmail-reply-receipt-1', 'gmail-archive-receipt-1'],
+              subject: 'Quarterly budget follow-up',
+              status: 'unread',
+              from: 'lead@example.test',
+              labels: ['inbox', 'finance'],
+              receivedAt: '2026-06-07T10:00:00Z',
+              snippet: 'token=SECRET123 password=hunter2 Please review the budget.',
+              readRoute: 'personal_ops_provider action:"read_thread" threadId:"thread-secure-1"',
+              replyRoute: 'personal_ops_provider action:"reply_thread" threadId:"thread-secure-1" confirm:true',
+              archiveRoute: 'personal_ops_provider action:"archive_thread" threadId:"thread-secure-1" confirm:true',
+            }],
+          }),
+        },
+        calendarEvents: {
+          getSnapshot: () => ({
+            events: [{
+              providerId: 'caldav',
+              eventId: 'evt-board-review',
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.personal-ops.calendar-event.v1',
+              publicationGuarantee: 'daemon publishes event snapshots after CalDAV sync credential=caldav-pub-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method calendar.events.list', 'sourceTool personalOps.calendarEvents'],
+              effectReceiptIds: ['caldav-edit-receipt-1', 'caldav-rsvp-receipt-1'],
+              calendarId: 'primary',
+              title: 'Board review',
+              start: '2026-06-08T15:00:00Z',
+              conflicts: [{ eventId: 'evt-overlap' }],
+              preview: 'credential=calendar-secret Prep packet is ready.',
+              editRoute: 'personal_ops_provider action:"edit_event" eventId:"evt-board-review" confirm:true',
+              rsvpRoute: 'personal_ops_provider action:"rsvp_event" eventId:"evt-board-review" confirm:true',
+            }],
+          }),
+        },
+      };
+
+      const ops = await executeHarnessJson<{
+        readonly lanes: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly current: string;
+          readonly next: string;
+          readonly signals: readonly string[];
+          readonly liveRecords?: readonly {
+            readonly id: string;
+            readonly label: string;
+            readonly status: string;
+            readonly summary: string;
+            readonly modelRoute: string;
+            readonly tags?: readonly string[];
+            readonly effect?: string;
+            readonly capability?: string;
+            readonly confirmationRequired?: boolean;
+            readonly sourceTool?: string;
+            readonly certification?: {
+              readonly schemaStatus: string;
+              readonly schemaVersion?: string;
+              readonly publicationGuarantee?: string;
+              readonly publisher?: string;
+              readonly provenance?: readonly string[];
+              readonly receiptIds?: readonly string[];
+              readonly missingSignals: readonly string[];
+              readonly policy: string;
+            };
+            readonly freshness?: {
+              readonly status: string;
+              readonly source: string;
+              readonly sourceTool?: string;
+              readonly refreshRoute?: string;
+              readonly sampleInput?: Record<string, unknown>;
+            };
+            readonly followUpRoutes?: readonly {
+              readonly id: string;
+              readonly effect: string;
+              readonly modelRoute: string;
+              readonly requiresConfirmation: boolean;
+              readonly policy: string;
+            }[];
+          }[];
+        }[];
+      }>(fixture, { mode: 'personal_ops', includeParameters: true });
+
+      const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
+      const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
+      expect(inbox?.status).toBe('ready');
+      expect(inbox?.current).toContain('Fresh provider-backed inbox thread records');
+      expect(inbox?.next).toContain('published confirmed follow-up routes');
+      expect(inbox?.signals).toContain('1 fresh provider-backed inbox thread record(s)');
+      const thread = inbox?.liveRecords?.find((record) => record.capability === 'inbox-provider-thread');
+      expect(thread?.label).toContain('Fresh thread');
+      expect(thread?.effect).toBe('read-only');
+      expect(thread?.confirmationRequired).toBe(false);
+      expect(thread?.sourceTool).toBe('context.platform.readModels.personalOps.inboxThreads');
+      expect(thread?.certification?.schemaStatus).toBe('certified');
+      expect(thread?.certification?.schemaVersion).toBe('goodvibes.personal-ops.inbox-thread.v1');
+      expect(thread?.certification?.publicationGuarantee).toContain('token=<redacted>');
+      expect(thread?.certification?.publicationGuarantee).not.toContain('gmail-pub-secret');
+      expect(thread?.certification?.publisher).toBe('goodvibes-daemon');
+      expect(thread?.certification?.provenance?.join('\n')).toContain('gmail.threads.list');
+      expect(thread?.certification?.receiptIds).toEqual(['gmail-reply-receipt-1', 'gmail-archive-receipt-1']);
+      expect(thread?.certification?.missingSignals).toEqual([]);
+      expect(thread?.modelRoute).toContain('read_thread');
+      expect(thread?.summary).toContain('token=<redacted>');
+      expect(thread?.summary).not.toContain('SECRET123');
+      expect(thread?.summary).not.toContain('hunter2');
+      expect(thread?.tags).toContain('provider-backed');
+      expect(thread?.freshness).toMatchObject({
+        status: 'fresh-provider-route-ready',
+        source: 'daemon-read-model',
+        sourceTool: 'context.platform.readModels.personalOps.inboxThreads',
+        sampleInput: { threadId: 'thread-secure-1' },
+      });
+      expect(thread?.freshness?.refreshRoute).toContain('read_thread');
+      expect(thread?.followUpRoutes?.find((route) => route.id === 'inspect-provider-thread')?.requiresConfirmation).toBe(false);
+      expect(thread?.followUpRoutes?.find((route) => route.id === 'reply-provider-thread')?.requiresConfirmation).toBe(true);
+      expect(thread?.followUpRoutes?.find((route) => route.id === 'archive-provider-thread')?.policy).toContain('requires an explicit user request');
+
+      expect(calendar?.status).toBe('ready');
+      expect(calendar?.current).toContain('Fresh provider-backed calendar event records');
+      expect(calendar?.signals).toContain('1 fresh provider-backed calendar event record(s)');
+      const event = calendar?.liveRecords?.find((record) => record.capability === 'calendar-provider-event');
+      expect(event?.label).toContain('Fresh event');
+      expect(event?.status).toBe('conflict');
+      expect(event?.certification?.schemaStatus).toBe('certified');
+      expect(event?.certification?.publicationGuarantee).toContain('credential=<redacted>');
+      expect(event?.certification?.publicationGuarantee).not.toContain('caldav-pub-secret');
+      expect(event?.certification?.receiptIds).toEqual(['caldav-edit-receipt-1', 'caldav-rsvp-receipt-1']);
+      expect(event?.certification?.missingSignals).toEqual([]);
+      expect(event?.summary).toContain('1 conflict signal');
+      expect(event?.summary).toContain('credential=<redacted>');
+      expect(event?.summary).not.toContain('calendar-secret');
+      expect(event?.modelRoute).toContain('laneId:"calendar"');
+      expect(event?.freshness).toMatchObject({
+        status: 'fresh-provider-record-current',
+        source: 'daemon-read-model',
+        sourceTool: 'context.platform.readModels.personalOps.calendarEvents',
+        sampleInput: { eventId: 'evt-board-review', calendarId: 'primary' },
+      });
+      expect(event?.freshness?.refreshRoute).toBeUndefined();
+      expect(event?.followUpRoutes?.find((route) => route.id === 'inspect-provider-event')?.requiresConfirmation).toBe(false);
+      expect(event?.followUpRoutes?.find((route) => route.id === 'edit-provider-event')?.requiresConfirmation).toBe(true);
+      expect(event?.followUpRoutes?.find((route) => route.id === 'rsvp-provider-event')?.requiresConfirmation).toBe(true);
+
+      const queue = await executeHarnessJson<{
+        readonly status: string;
+        readonly summary: { readonly inbox: number; readonly calendar: number; readonly freshProviderReads: number; readonly confirmedFollowUps: number };
+        readonly queue: readonly {
+          readonly laneId: string;
+          readonly type: string;
+          readonly capability?: string;
+          readonly certification?: { readonly schemaStatus: string; readonly missingSignals: readonly string[] };
+          readonly freshness?: { readonly status: string; readonly source: string; readonly refreshRoute?: string };
+          readonly followUpRoutes?: readonly { readonly id: string; readonly requiresConfirmation: boolean }[];
+        }[];
+        readonly nextActions: readonly string[];
+      }>(fixture, { mode: 'personal_ops_queue', includeParameters: true });
+      expect(queue.status).toBe('ready');
+      expect(queue.summary.inbox).toBe(1);
+      expect(queue.summary.calendar).toBe(1);
+      expect(queue.summary.freshProviderReads).toBe(2);
+      expect(queue.summary.confirmedFollowUps).toBeGreaterThanOrEqual(4);
+      expect(queue.queue.find((record) => record.capability === 'inbox-provider-thread')?.type).toBe('fresh-provider-read');
+      expect(queue.queue.find((record) => record.capability === 'calendar-provider-event')?.type).toBe('fresh-provider-record');
+      expect(queue.queue.find((record) => record.capability === 'inbox-provider-thread')?.certification?.schemaStatus).toBe('certified');
+      expect(queue.queue.find((record) => record.capability === 'calendar-provider-event')?.certification?.missingSignals).toEqual([]);
+      expect(queue.nextActions.join('\n')).toContain('Inspect one current provider-backed queue record');
+
+      const briefing = await executeHarnessJson<{
+        readonly steps: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly next: string;
+          readonly sourceCounts: { readonly freshProviderReads?: number };
+        }[];
+        readonly missingContracts?: readonly string[];
+      }>(fixture, { mode: 'personal_ops_briefing', includeParameters: true });
+      const inboxBrief = briefing.steps.find((step) => step.id === 'inbox');
+      const calendarBrief = briefing.steps.find((step) => step.id === 'calendar');
+      expect(inboxBrief?.status).toBe('ready');
+      expect(calendarBrief?.status).toBe('ready');
+      expect(inboxBrief?.sourceCounts.freshProviderReads).toBe(1);
+      expect(calendarBrief?.sourceCounts.freshProviderReads).toBe(1);
+      expect(inboxBrief?.next).toContain('Inspect one current provider-backed record');
+      expect(briefing.missingContracts ?? []).toEqual([]);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('surfaces daemon-published Personal Ops task and reminder records as current provider queues', async () => {
+    const fixture = makeFixture();
+    try {
+      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      readModels.personalOps = {
+        tasks: {
+          getSnapshot: () => ({
+            tasks: [{
+              providerId: 'todoist',
+              taskId: 'task-budget-review',
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.personal-ops.task.v1',
+              publicationGuarantee: 'daemon publishes task snapshots after provider sync token=task-pub-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method tasks.list', 'sourceTool personalOps.tasks'],
+              effectReceiptIds: ['todoist-update-receipt-1', 'todoist-complete-receipt-1'],
+              title: 'Review budget task',
+              status: 'active',
+              project: 'Finance',
+              dueAt: '2026-06-09T14:00:00Z',
+              priority: 'high',
+              assignee: 'owner@example.test',
+              labels: ['finance', 'review'],
+              preview: 'token=TASKSECRET Check the latest budget.',
+              readRoute: 'personal_ops_provider action:"read_task" taskId:"task-budget-review"',
+              updateRoute: 'personal_ops_provider action:"update_task" taskId:"task-budget-review" confirm:true',
+              completeRoute: 'personal_ops_provider action:"complete_task" taskId:"task-budget-review" confirm:true',
+            }],
+          }),
+        },
+        reminders: {
+          getSnapshot: () => ({
+            reminders: [{
+              providerId: 'caldav',
+              reminderId: 'reminder-report',
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.personal-ops.reminder.v1',
+              publicationGuarantee: 'daemon publishes reminder snapshots after schedule sync password=reminder-pub-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method reminders.list', 'sourceTool personalOps.reminders'],
+              effectReceiptIds: ['reminder-edit-receipt-1', 'reminder-snooze-receipt-1', 'reminder-delete-receipt-1'],
+              title: 'Send report reminder',
+              status: 'scheduled',
+              remindAt: '2026-06-10T09:00:00Z',
+              cadence: 'once',
+              deliveryTarget: 'email',
+              preview: 'password=REMINDERSECRET Draft is ready.',
+              editRoute: 'personal_ops_provider action:"edit_reminder" reminderId:"reminder-report" confirm:true',
+              snoozeRoute: 'personal_ops_provider action:"snooze_reminder" reminderId:"reminder-report" confirm:true',
+              deleteRoute: 'personal_ops_provider action:"delete_reminder" reminderId:"reminder-report" confirm:true',
+            }],
+          }),
+        },
+      };
+
+      const tasksLane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly current: string;
+        readonly next: string;
+        readonly signals: readonly string[];
+        readonly liveRecords?: readonly {
+          readonly id: string;
+          readonly label: string;
+          readonly status: string;
+          readonly summary: string;
+          readonly modelRoute: string;
+          readonly tags?: readonly string[];
+          readonly effect?: string;
+          readonly capability?: string;
+          readonly confirmationRequired?: boolean;
+          readonly sourceTool?: string;
+          readonly certification?: {
+            readonly schemaStatus: string;
+            readonly schemaVersion?: string;
+            readonly publicationGuarantee?: string;
+            readonly publisher?: string;
+            readonly provenance?: readonly string[];
+            readonly receiptIds?: readonly string[];
+            readonly missingSignals: readonly string[];
+          };
+          readonly freshness?: {
+            readonly status: string;
+            readonly source: string;
+            readonly sourceTool?: string;
+            readonly refreshRoute?: string;
+            readonly sampleInput?: Record<string, unknown>;
+          };
+          readonly followUpRoutes?: readonly { readonly id: string; readonly requiresConfirmation: boolean; readonly modelRoute: string; readonly policy: string }[];
+        }[];
+      }>(fixture, { mode: 'personal_ops_lane', laneId: 'tasks', includeParameters: true });
+      expect(tasksLane.status).toBe('ready');
+      expect(tasksLane.current).toContain('Fresh provider-backed task records');
+      expect(tasksLane.next).toContain('published confirmed follow-up route');
+      expect(tasksLane.signals).toContain('1 fresh provider-backed task record(s)');
+      const taskRecord = tasksLane.liveRecords?.find((record) => record.capability === 'task-provider-record');
+      expect(taskRecord?.label).toContain('Fresh task');
+      expect(taskRecord?.effect).toBe('read-only');
+      expect(taskRecord?.confirmationRequired).toBe(false);
+      expect(taskRecord?.sourceTool).toBe('context.platform.readModels.personalOps.tasks');
+      expect(taskRecord?.certification?.schemaStatus).toBe('certified');
+      expect(taskRecord?.certification?.schemaVersion).toBe('goodvibes.personal-ops.task.v1');
+      expect(taskRecord?.certification?.publicationGuarantee).toContain('token=<redacted>');
+      expect(taskRecord?.certification?.publicationGuarantee).not.toContain('task-pub-secret');
+      expect(taskRecord?.certification?.publisher).toBe('goodvibes-daemon');
+      expect(taskRecord?.certification?.provenance?.join('\n')).toContain('tasks.list');
+      expect(taskRecord?.certification?.receiptIds).toEqual(['todoist-update-receipt-1', 'todoist-complete-receipt-1']);
+      expect(taskRecord?.certification?.missingSignals).toEqual([]);
+      expect(taskRecord?.modelRoute).toContain('read_task');
+      expect(taskRecord?.summary).toContain('token=<redacted>');
+      expect(taskRecord?.summary).not.toContain('TASKSECRET');
+      expect(taskRecord?.tags).toContain('provider-backed');
+      expect(taskRecord?.freshness).toMatchObject({
+        status: 'fresh-provider-route-ready',
+        source: 'daemon-read-model',
+        sourceTool: 'context.platform.readModels.personalOps.tasks',
+        sampleInput: { taskId: 'task-budget-review' },
+      });
+      expect(taskRecord?.freshness?.refreshRoute).toContain('read_task');
+      expect(taskRecord?.followUpRoutes?.find((route) => route.id === 'update-provider-task')?.requiresConfirmation).toBe(true);
+      expect(taskRecord?.followUpRoutes?.find((route) => route.id === 'complete-provider-task')?.policy).toContain('requires explicit confirmation');
+      expect(tasksLane.liveRecords?.find((record) => record.id === 'workplan-list')).toBeDefined();
+
+      const remindersLane = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly current: string;
+        readonly next: string;
+        readonly signals: readonly string[];
+        readonly liveRecords?: readonly {
+          readonly id: string;
+          readonly label: string;
+          readonly summary: string;
+          readonly modelRoute: string;
+          readonly tags?: readonly string[];
+          readonly effect?: string;
+          readonly capability?: string;
+          readonly confirmationRequired?: boolean;
+          readonly sourceTool?: string;
+          readonly certification?: {
+            readonly schemaStatus: string;
+            readonly schemaVersion?: string;
+            readonly publicationGuarantee?: string;
+            readonly publisher?: string;
+            readonly provenance?: readonly string[];
+            readonly receiptIds?: readonly string[];
+            readonly missingSignals: readonly string[];
+          };
+          readonly freshness?: { readonly status: string; readonly source: string; readonly sourceTool?: string; readonly refreshRoute?: string; readonly sampleInput?: Record<string, unknown> };
+          readonly followUpRoutes?: readonly { readonly id: string; readonly requiresConfirmation: boolean; readonly modelRoute: string; readonly policy: string }[];
+        }[];
+      }>(fixture, { mode: 'personal_ops_lane', laneId: 'reminders', includeParameters: true });
+      expect(remindersLane.status).toBe('ready');
+      expect(remindersLane.current).toContain('Fresh provider-backed reminder records');
+      expect(remindersLane.next).toContain('published confirmed follow-up route');
+      expect(remindersLane.signals).toContain('1 fresh provider-backed reminder record(s)');
+      const reminderRecord = remindersLane.liveRecords?.find((record) => record.capability === 'reminder-provider-record');
+      expect(reminderRecord?.label).toContain('Fresh reminder');
+      expect(reminderRecord?.effect).toBe('read-only');
+      expect(reminderRecord?.confirmationRequired).toBe(false);
+      expect(reminderRecord?.sourceTool).toBe('context.platform.readModels.personalOps.reminders');
+      expect(reminderRecord?.certification?.schemaStatus).toBe('certified');
+      expect(reminderRecord?.certification?.schemaVersion).toBe('goodvibes.personal-ops.reminder.v1');
+      expect(reminderRecord?.certification?.publicationGuarantee).toContain('password=<redacted>');
+      expect(reminderRecord?.certification?.publicationGuarantee).not.toContain('reminder-pub-secret');
+      expect(reminderRecord?.certification?.publisher).toBe('goodvibes-daemon');
+      expect(reminderRecord?.certification?.provenance?.join('\n')).toContain('reminders.list');
+      expect(reminderRecord?.certification?.receiptIds).toEqual(['reminder-edit-receipt-1', 'reminder-snooze-receipt-1', 'reminder-delete-receipt-1']);
+      expect(reminderRecord?.certification?.missingSignals).toEqual([]);
+      expect(reminderRecord?.modelRoute).toContain('laneId:"reminders"');
+      expect(reminderRecord?.summary).toContain('password=<redacted>');
+      expect(reminderRecord?.summary).not.toContain('REMINDERSECRET');
+      expect(reminderRecord?.freshness).toMatchObject({
+        status: 'fresh-provider-record-current',
+        source: 'daemon-read-model',
+        sourceTool: 'context.platform.readModels.personalOps.reminders',
+        sampleInput: { reminderId: 'reminder-report' },
+      });
+      expect(reminderRecord?.freshness?.refreshRoute).toBeUndefined();
+      expect(reminderRecord?.followUpRoutes?.find((route) => route.id === 'edit-provider-reminder')?.requiresConfirmation).toBe(true);
+      expect(reminderRecord?.followUpRoutes?.find((route) => route.id === 'snooze-provider-reminder')?.modelRoute).toContain('snooze_reminder');
+      expect(reminderRecord?.followUpRoutes?.find((route) => route.id === 'delete-provider-reminder')?.policy).toContain('explicit confirmation');
+      expect(remindersLane.liveRecords?.find((record) => record.id === 'reminder-create')).toBeDefined();
+
+      const briefing = await executeHarnessJson<{
+        readonly steps: readonly { readonly id: string; readonly status: string; readonly evidence: readonly string[]; readonly sourceCounts: { readonly freshProviderReads?: number } }[];
+      }>(fixture, { mode: 'personal_ops_briefing', includeParameters: true });
+      const taskBrief = briefing.steps.find((step) => step.id === 'tasks');
+      const reminderBrief = briefing.steps.find((step) => step.id === 'reminders');
+      expect(taskBrief?.status).toBe('ready');
+      expect(reminderBrief?.status).toBe('ready');
+      expect(taskBrief?.evidence.join('\n')).toContain('1 fresh provider-backed task record(s)');
+      expect(reminderBrief?.evidence.join('\n')).toContain('1 fresh provider-backed reminder record(s)');
+      expect(taskBrief?.sourceCounts.freshProviderReads).toBe(1);
+      expect(reminderBrief?.sourceCounts.freshProviderReads).toBe(1);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('surfaces Personal Ops provider-effect receipts as read-only lane evidence', async () => {
+    const artifacts = createHarnessArtifactStore();
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'gmail-send-receipt.json',
+      text: '{"status":"succeeded"}\n',
+      acquisitionMode: 'inline-data',
+      fetchMode: 'not-applicable',
+      metadata: {
+        purpose: 'personal-ops-provider-effect-receipt',
+        laneId: 'inbox',
+        providerId: 'gmail',
+        operation: 'send-reply',
+        status: 'succeeded',
+        schemaStatus: 'certified',
+        schemaVersion: 'goodvibes.personal-ops.effect-receipt.v1',
+        publicationGuarantee: 'daemon stores provider-effect receipts after confirmed calls token=gmail-receipt-secret',
+        publisher: 'goodvibes-daemon',
+        provenance: ['method gmail.send_reply', 'sourceTool mcp:gmail:gmail.send_reply'],
+        receiptId: 'gmail-send-1',
+        threadId: 'thread-secret-token-123',
+        sourceTool: 'mcp:gmail:gmail.send_reply',
+        createdAt: '2026-06-08T13:00:00.000Z',
+        redaction: 'metadata-only',
+        nextRoute: 'personal_ops action:"lane" laneId:"inbox" includeParameters:true',
+      },
+    });
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'calendar-rsvp-receipt.json',
+      text: '{"status":"failed"}\n',
+      acquisitionMode: 'inline-data',
+      fetchMode: 'not-applicable',
+      metadata: {
+        purpose: 'connected-host-personal-ops-effect-receipt',
+        laneId: 'calendar',
+        providerId: 'caldav',
+        operation: 'rsvp',
+        status: 'failed',
+        schemaStatus: 'certified',
+        schemaVersion: 'goodvibes.personal-ops.effect-receipt.v1',
+        publicationGuarantee: 'daemon stores provider-effect receipts after confirmed calls credential=caldav-receipt-secret',
+        publisher: 'goodvibes-daemon',
+        provenance: ['method calendar.rsvp', 'sourceTool mcp:calendar:calendar.rsvp'],
+        receiptId: 'caldav-rsvp-1',
+        eventId: 'evt-board-review',
+        sourceTool: 'mcp:calendar:calendar.rsvp',
+        failureReason: 'Provider rejected stale event tag',
+        createdAt: '2026-06-08T13:05:00.000Z',
+      },
+    });
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'task-complete-receipt.json',
+      text: '{"status":"succeeded"}\n',
+      acquisitionMode: 'inline-data',
+      fetchMode: 'not-applicable',
+      metadata: {
+        purpose: 'personal-ops-provider-effect-receipt',
+        laneId: 'tasks',
+        providerId: 'todoist',
+        operation: 'complete',
+        status: 'succeeded',
+        schemaStatus: 'certified',
+        schemaVersion: 'goodvibes.personal-ops.effect-receipt.v1',
+        publicationGuarantee: 'daemon stores task receipts after confirmed calls secret=task-receipt-secret',
+        publisher: 'goodvibes-daemon',
+        provenance: ['method tasks.complete', 'sourceTool mcp:tasks:tasks.complete'],
+        receiptId: 'todoist-complete-1',
+        taskId: 'task-budget-review',
+        sourceTool: 'mcp:tasks:tasks.complete',
+        createdAt: '2026-06-08T13:08:00.000Z',
+      },
+    });
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'reminder-snooze-receipt.json',
+      text: '{"status":"succeeded"}\n',
+      acquisitionMode: 'inline-data',
+      fetchMode: 'not-applicable',
+      metadata: {
+        purpose: 'connected-host-personal-ops-effect-receipt',
+        laneId: 'reminders',
+        providerId: 'caldav',
+        operation: 'snooze',
+        status: 'succeeded',
+        schemaStatus: 'certified',
+        schemaVersion: 'goodvibes.personal-ops.effect-receipt.v1',
+        publicationGuarantee: 'daemon stores reminder receipts after confirmed calls password=reminder-receipt-secret',
+        publisher: 'goodvibes-daemon',
+        provenance: ['method reminders.snooze', 'sourceTool mcp:reminders:reminders.snooze'],
+        receiptId: 'reminder-snooze-1',
+        reminderId: 'reminder-report',
+        sourceTool: 'mcp:reminders:reminders.snooze',
+        createdAt: '2026-06-08T13:09:00.000Z',
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      const ops = await executeHarnessJson<{
+        readonly lanes: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly current: string;
+          readonly next: string;
+          readonly signals: readonly string[];
+          readonly liveRecords?: readonly {
+            readonly id: string;
+            readonly label: string;
+            readonly status: string;
+            readonly summary: string;
+            readonly modelRoute: string;
+            readonly tags?: readonly string[];
+            readonly effect?: string;
+            readonly capability?: string;
+            readonly artifactId?: string;
+            readonly sourceTool?: string;
+            readonly confirmationRequired?: boolean;
+            readonly certification?: {
+              readonly schemaStatus: string;
+              readonly schemaVersion?: string;
+              readonly publicationGuarantee?: string;
+              readonly publisher?: string;
+              readonly provenance?: readonly string[];
+              readonly receiptId?: string;
+              readonly missingSignals: readonly string[];
+            };
+            readonly followUpRoutes?: readonly {
+              readonly id: string;
+              readonly effect: string;
+              readonly modelRoute: string;
+              readonly requiresConfirmation: boolean;
+              readonly policy: string;
+            }[];
+          }[];
+        }[];
+      }>(fixture, { mode: 'personal_ops', includeParameters: true });
+
+      const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
+      const inboxReceipt = inbox?.liveRecords?.find((record) => record.id === 'provider-effect-receipt:artifact-1');
+      expect(inbox?.status).toBe('partial');
+      expect(inbox?.current).toContain('provider-effect receipts');
+      expect(inbox?.signals).toContain('1 saved inbox provider-effect receipt(s)');
+      expect(inboxReceipt?.label).toContain('Inbox effect receipt');
+      expect(inboxReceipt?.status).toBe('succeeded');
+      expect(inboxReceipt?.summary).toContain('send-reply succeeded');
+      expect(inboxReceipt?.summary).toContain('Provider gmail');
+      expect(inboxReceipt?.summary).toContain('Subject thread-secret-token-123');
+      expect(inboxReceipt?.summary).toContain('Redaction metadata-only');
+      expect(inboxReceipt?.modelRoute).toBe('agent_artifacts show artifactId:"artifact-1" includeContent:false');
+      expect(inboxReceipt?.tags).toContain('provider-effect-receipt');
+      expect(inboxReceipt?.tags).toContain('send-reply');
+      expect(inboxReceipt?.effect).toBe('read-only');
+      expect(inboxReceipt?.capability).toBe('inbox-effect-receipt');
+      expect(inboxReceipt?.artifactId).toBe('artifact-1');
+      expect(inboxReceipt?.sourceTool).toBe('mcp:gmail:gmail.send_reply');
+      expect(inboxReceipt?.confirmationRequired).toBe(false);
+      expect(inboxReceipt?.certification?.schemaStatus).toBe('certified');
+      expect(inboxReceipt?.certification?.publicationGuarantee).toContain('token=<redacted>');
+      expect(inboxReceipt?.certification?.publicationGuarantee).not.toContain('gmail-receipt-secret');
+      expect(inboxReceipt?.certification?.receiptId).toBe('gmail-send-1');
+      expect(inboxReceipt?.certification?.missingSignals).toEqual([]);
+      expect(inboxReceipt?.followUpRoutes?.find((route) => route.id === 'inspect-effect-receipt')?.requiresConfirmation).toBe(false);
+      expect(inboxReceipt?.followUpRoutes?.find((route) => route.id === 'continue-provider-lane')?.modelRoute).toContain('laneId:"inbox"');
+
+      const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
+      const calendarReceipt = calendar?.liveRecords?.find((record) => record.id === 'provider-effect-receipt:artifact-2');
+      expect(calendar?.status).toBe('partial');
+      expect(calendar?.current).toContain('provider-effect receipts');
+      expect(calendar?.signals).toContain('1 saved calendar provider-effect receipt(s)');
+      expect(calendarReceipt?.label).toContain('Calendar effect receipt');
+      expect(calendarReceipt?.status).toBe('failed');
+      expect(calendarReceipt?.summary).toContain('rsvp failed');
+      expect(calendarReceipt?.summary).toContain('Provider caldav');
+      expect(calendarReceipt?.summary).toContain('Subject evt-board-review');
+      expect(calendarReceipt?.summary).toContain('Failure Provider rejected stale event tag');
+      expect(calendarReceipt?.modelRoute).toBe('agent_artifacts show artifactId:"artifact-2" includeContent:false');
+      expect(calendarReceipt?.tags).toContain('calendar-effect');
+      expect(calendarReceipt?.tags).toContain('rsvp');
+      expect(calendarReceipt?.effect).toBe('read-only');
+      expect(calendarReceipt?.capability).toBe('calendar-effect-receipt');
+      expect(calendarReceipt?.artifactId).toBe('artifact-2');
+      expect(calendarReceipt?.sourceTool).toBe('mcp:calendar:calendar.rsvp');
+      expect(calendarReceipt?.certification?.schemaStatus).toBe('certified');
+      expect(calendarReceipt?.certification?.publicationGuarantee).toContain('credential=<redacted>');
+      expect(calendarReceipt?.certification?.publicationGuarantee).not.toContain('caldav-receipt-secret');
+      expect(calendarReceipt?.certification?.receiptId).toBe('caldav-rsvp-1');
+      expect(calendarReceipt?.certification?.missingSignals).toEqual([]);
+      expect(calendarReceipt?.followUpRoutes?.find((route) => route.id === 'continue-provider-lane')?.modelRoute).toContain('laneId:"calendar"');
+
+      const tasks = ops.lanes.find((lane) => lane.id === 'tasks');
+      const taskReceipt = tasks?.liveRecords?.find((record) => record.id === 'provider-effect-receipt:artifact-3');
+      expect(tasks?.signals).toContain('1 saved task provider-effect receipt(s)');
+      expect(taskReceipt?.label).toContain('Task effect receipt');
+      expect(taskReceipt?.summary).toContain('complete succeeded');
+      expect(taskReceipt?.capability).toBe('task-effect-receipt');
+      expect(taskReceipt?.tags).toContain('tasks-effect');
+      expect(taskReceipt?.sourceTool).toBe('mcp:tasks:tasks.complete');
+      expect(taskReceipt?.certification?.schemaStatus).toBe('certified');
+      expect(taskReceipt?.certification?.publicationGuarantee).toContain('secret=<redacted>');
+      expect(taskReceipt?.certification?.receiptId).toBe('todoist-complete-1');
+      expect(taskReceipt?.certification?.missingSignals).toEqual([]);
+
+      const reminders = ops.lanes.find((lane) => lane.id === 'reminders');
+      const reminderReceipt = reminders?.liveRecords?.find((record) => record.id === 'provider-effect-receipt:artifact-4');
+      expect(reminders?.signals).toContain('1 saved reminder provider-effect receipt(s)');
+      expect(reminderReceipt?.label).toContain('Reminder effect receipt');
+      expect(reminderReceipt?.summary).toContain('snooze succeeded');
+      expect(reminderReceipt?.capability).toBe('reminder-effect-receipt');
+      expect(reminderReceipt?.tags).toContain('reminders-effect');
+      expect(reminderReceipt?.sourceTool).toBe('mcp:reminders:reminders.snooze');
+      expect(reminderReceipt?.certification?.schemaStatus).toBe('certified');
+      expect(reminderReceipt?.certification?.publicationGuarantee).toContain('password=<redacted>');
+      expect(reminderReceipt?.certification?.receiptId).toBe('reminder-snooze-1');
+      expect(reminderReceipt?.certification?.missingSignals).toEqual([]);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('surfaces Agent memory, vector recall, and external memory-provider posture', async () => {
     const fixture = makeFixture();
     try {
@@ -3460,6 +4437,476 @@ describe('agent_harness tool', () => {
         readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];
       }>(fixture, { mode: 'workspace_actions', query: 'memory posture' });
       expect(actions.actions.find((entry) => entry.id === 'memory-posture')?.modelRoute).toBe('memory action:"status"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('surfaces supervised semantic memory refinement tasks and confirmed bounded runs', async () => {
+    const fixture = makeFixture();
+    try {
+      const now = Date.now();
+      const refinementTasks = [{
+        id: 'kref-gap-1',
+        spaceId: 'agent',
+        subjectKind: 'node',
+        subjectId: 'node-1',
+        subjectTitle: 'Agent memory export',
+        subjectType: 'memory',
+        gapId: 'sem-gap-1',
+        state: 'blocked',
+        priority: 'high',
+        trigger: 'manual',
+        budget: { maxSearches: 5 },
+        attemptCount: 1,
+        blockedReason: 'No semantic gap repairer is configured.',
+        acceptedSourceIds: ['src-1'],
+        ingestedSourceIds: ['src-2'],
+        promotedFactCount: 1,
+        sourceAssessments: [{
+          url: 'https://example.test/source',
+          title: 'Source',
+          accepted: true,
+          confidence: 91,
+          reasons: ['domain matched', 'fresh source'],
+        }],
+        trace: [
+          { at: now - 1_000, state: 'detected', message: 'Gap was detected.' },
+          { at: now, state: 'blocked', message: 'No semantic gap repairer is configured.' },
+        ],
+        metadata: { gapTitle: 'Which source proves memory sync?' },
+        createdAt: now - 2_000,
+        updatedAt: now,
+      }];
+      const runRequests: Record<string, unknown>[] = [];
+      (fixture.context.extensions as unknown as { agentKnowledgeService: unknown }).agentKnowledgeService = {
+        listRefinementTasks: () => refinementTasks,
+        getRefinementTask: (id: string) => refinementTasks.find((task) => task.id === id) ?? null,
+        listJobs: () => [{
+          id: 'knowledge-semantic-self-improvement',
+          kind: 'semantic-self-improvement',
+          title: 'Semantic Self-Improvement',
+          description: 'Classify and repair semantic Knowledge gaps.',
+          defaultMode: 'background',
+          metadata: { category: 'semantic' },
+        }],
+        listJobRuns: () => [{
+          id: 'job-run-1',
+          jobId: 'knowledge-semantic-self-improvement',
+          status: 'completed',
+          mode: 'inline',
+          requestedAt: now - 500,
+          completedAt: now - 100,
+          result: { processedGaps: 1 },
+          metadata: {},
+          createdAt: now - 500,
+          updatedAt: now - 100,
+        }],
+        runRefinement: async (input: Record<string, unknown>) => {
+          runRequests.push(input);
+          return {
+            scannedGaps: 1,
+            candidateGaps: 1,
+            processedGaps: 1,
+            createdGaps: 0,
+            repairableGaps: 1,
+            suppressedGaps: 0,
+            skippedGaps: 0,
+            searched: 1,
+            ingestedSources: 1,
+            linkedRepairs: 1,
+            blockedGaps: 0,
+            closedGaps: 1,
+            queuedTasks: 1,
+            requestedLimit: input.limit,
+            effectiveLimit: 1,
+            truncated: false,
+            budgetExhausted: false,
+            taskIds: ['kref-gap-1'],
+            ingestedSourceIds: ['src-2'],
+            acceptedSourceIds: ['src-1'],
+            promotedFactCount: 1,
+            errors: [],
+          };
+        },
+      };
+
+      const summary = await executeHarnessJson<{
+        readonly memoryRefinement?: {
+          readonly status?: string;
+          readonly taskCounts?: { readonly attention?: number };
+          readonly semanticJobPublished?: boolean;
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.memoryRefinement?.status).toBe('attention');
+      expect(summary.memoryRefinement?.taskCounts?.attention).toBe(1);
+      expect(summary.memoryRefinement?.semanticJobPublished).toBe(true);
+
+      const refinement = await executeHarnessJson<{
+        readonly status: string;
+        readonly taskCounts: { readonly attention: number; readonly blocked: number };
+        readonly tasks: readonly {
+          readonly taskId: string;
+          readonly state: string;
+          readonly acceptedSourceIds?: readonly string[];
+          readonly ingestedSourceIds?: readonly string[];
+          readonly inspectRoute: string;
+          readonly rerunRoute: string;
+        }[];
+        readonly semanticSelfImprovementJob: { readonly id: string; readonly latestRun?: { readonly status: string } };
+        readonly policy: string;
+      }>(fixture, { mode: 'memory_refinement', includeParameters: true });
+      expect(refinement.status).toBe('attention');
+      expect(refinement.taskCounts.attention).toBe(1);
+      expect(refinement.taskCounts.blocked).toBe(1);
+      expect(refinement.tasks[0]?.taskId).toBe('kref-gap-1');
+      expect(refinement.tasks[0]?.acceptedSourceIds).toEqual(['src-1']);
+      expect(refinement.tasks[0]?.ingestedSourceIds).toEqual(['src-2']);
+      expect(refinement.tasks[0]?.inspectRoute).toContain('memory action:"refinement"');
+      expect(refinement.tasks[0]?.rerunRoute).toContain('memory action:"run_refinement"');
+      expect(refinement.semanticSelfImprovementJob.id).toBe('knowledge-semantic-self-improvement');
+      expect(refinement.semanticSelfImprovementJob.latestRun?.status).toBe('completed');
+      expect(refinement.policy).toContain('Read-only');
+
+      const run = await executeHarnessJson<{
+        readonly status: string;
+        readonly result: { readonly closedGaps: number; readonly acceptedSourceIds: readonly string[]; readonly ingestedSourceIds: readonly string[] };
+        readonly nextRoutes: { readonly tasks: readonly string[] };
+        readonly policy: string;
+      }>(fixture, {
+        mode: 'run_memory_refinement',
+        knowledgeSpaceId: 'agent',
+        gapIds: ['sem-gap-1'],
+        sourceIds: ['src-1'],
+        limit: 2,
+        maxRunMs: 5_000,
+        force: true,
+        confirm: true,
+        explicitUserRequest: 'Run a scoped semantic refinement.',
+      });
+      expect(run.status).toBe('completed');
+      expect(run.result.closedGaps).toBe(1);
+      expect(run.result.acceptedSourceIds).toEqual(['src-1']);
+      expect(run.result.ingestedSourceIds).toEqual(['src-2']);
+      expect(run.nextRoutes.tasks[0]).toContain('memory action:"refinement"');
+      expect(run.policy).toContain('KnowledgeService.runRefinement');
+      expect(runRequests[0]).toEqual({
+        knowledgeSpaceId: 'agent',
+        sourceIds: ['src-1'],
+        gapIds: ['sem-gap-1'],
+        limit: 2,
+        maxRunMs: 5_000,
+        force: true,
+      });
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('surfaces durable external memory provider receipts without claiming live provider records', async () => {
+    const artifacts = createHarnessArtifactStore();
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'supermemory-sync-receipt.json',
+      text: JSON.stringify({ providerId: 'supermemory', operation: 'sync', status: 'succeeded' }),
+      metadata: {
+        purpose: 'agent-memory-provider-receipt',
+        providerId: 'supermemory',
+        operation: 'sync',
+        status: 'succeeded',
+        createdAt: '2026-06-08T12:00:00.000Z',
+        sourceCount: 12,
+        redaction: 'summaries-only',
+        nextRoute: 'memory action:"provider" providerId:"supermemory" includeParameters:true',
+        correlationId: 'memory-sync-1',
+        schemaStatus: 'certified',
+        schemaVersion: 'goodvibes.external-memory.receipt.v1',
+        publicationGuarantee: 'daemon stores confirmed external memory receipts token=memory-receipt-secret',
+        publisher: 'goodvibes-daemon',
+        provenance: ['method memory.providers.sync', 'sourceTool memory_provider.sync'],
+        receiptId: 'supermemory-sync-1',
+        receiptStatus: 'succeeded',
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
+    try {
+      attachMemoryApi(fixture);
+      const summary = await executeHarnessJson<{
+        readonly memoryPosture?: {
+          readonly externalProviderRecordsPublished?: boolean;
+          readonly externalProviderReceiptEvidenceFound?: boolean;
+          readonly externalProviderReceiptEvidenceCount?: number;
+          readonly externalProviderSetupGuideStatus?: string;
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.memoryPosture?.externalProviderRecordsPublished).toBe(false);
+      expect(summary.memoryPosture?.externalProviderReceiptEvidenceFound).toBe(true);
+      expect(summary.memoryPosture?.externalProviderReceiptEvidenceCount).toBe(1);
+      expect(summary.memoryPosture?.externalProviderSetupGuideStatus).toBe('receipt-evidence-found');
+
+      const posture = await executeHarnessJson<{
+        readonly providers: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly latestReceipt?: { readonly artifactId: string; readonly operation: string; readonly status: string; readonly sourceCount: number | null };
+        }[];
+        readonly externalMemory: {
+          readonly status: string;
+          readonly providerRecordsPublished: boolean;
+          readonly receiptEvidenceFound: boolean;
+          readonly receiptEvidenceCount: number;
+          readonly setupGuideStatus: string;
+          readonly latestReceipts: readonly {
+            readonly artifactId: string;
+            readonly providerId: string;
+            readonly operation: string;
+            readonly inspectRoute: string;
+            readonly certification?: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly receiptId?: string; readonly missingSignals: readonly string[] };
+          }[];
+          readonly contractChecklist: readonly { readonly id: string; readonly status: string }[];
+          readonly receiptContract: { readonly status: string; readonly requiredFields: readonly string[] };
+          readonly next: string;
+        };
+      }>(fixture, { mode: 'memory_posture', includeParameters: true, limit: 20 });
+      expect(posture.externalMemory.status).toBe('receipt-evidence-found');
+      expect(posture.externalMemory.providerRecordsPublished).toBe(false);
+      expect(posture.externalMemory.receiptEvidenceFound).toBe(true);
+      expect(posture.externalMemory.receiptEvidenceCount).toBe(1);
+      expect(posture.externalMemory.setupGuideStatus).toBe('receipt-evidence-found');
+      expect(posture.externalMemory.latestReceipts[0]).toMatchObject({
+        artifactId: 'artifact-1',
+        providerId: 'supermemory',
+        operation: 'sync',
+      });
+      expect(posture.externalMemory.latestReceipts[0]?.certification?.schemaStatus).toBe('certified');
+      expect(posture.externalMemory.latestReceipts[0]?.certification?.publicationGuarantee).toContain('token=<redacted>');
+      expect(posture.externalMemory.latestReceipts[0]?.certification?.receiptId).toBe('supermemory-sync-1');
+      expect(posture.externalMemory.latestReceipts[0]?.certification?.missingSignals).toEqual([]);
+      expect(posture.externalMemory.latestReceipts[0]?.inspectRoute).toContain('agent_artifacts show artifactId:"artifact-1"');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'sync-receipts')?.status).toBe('artifact-evidence-found');
+      expect(posture.externalMemory.receiptContract.status).toBe('artifact-evidence-found');
+      expect(posture.externalMemory.receiptContract.requiredFields).toContain('nextRoute');
+      expect(posture.externalMemory.next).toContain('keep Agent-local memory');
+      const supermemory = posture.providers.find((provider) => provider.id === 'supermemory');
+      expect(supermemory?.status).toBe('receipt-evidence-found');
+      expect(supermemory?.latestReceipt).toMatchObject({
+        artifactId: 'artifact-1',
+        operation: 'sync',
+        status: 'succeeded',
+        sourceCount: 12,
+      });
+
+      const provider = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly configured?: boolean;
+        readonly latestReceipt?: {
+          readonly artifactId: string;
+          readonly operation: string;
+          readonly status: string;
+          readonly redaction: string | null;
+          readonly nextRoute: string;
+          readonly certification?: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly receiptId?: string; readonly missingSignals: readonly string[] };
+        };
+        readonly setupGuide?: {
+          readonly status: string;
+          readonly currentState: string;
+          readonly safeFirstStep: string;
+          readonly latestReceipt?: { readonly artifactId: string; readonly correlationId: string | null };
+          readonly receiptHistory?: readonly { readonly artifactId: string }[];
+          readonly contractChecklist: readonly { readonly id: string; readonly status: string; readonly inspectRoute: string }[];
+          readonly receiptContract: { readonly status: string };
+        };
+      }>(fixture, { mode: 'memory_provider', providerId: 'supermemory' });
+      expect(provider.id).toBe('supermemory');
+      expect(provider.status).toBe('receipt-evidence-found');
+      expect(provider.configured).toBe(true);
+      expect(provider.latestReceipt).toMatchObject({
+        artifactId: 'artifact-1',
+        operation: 'sync',
+        status: 'succeeded',
+        redaction: 'summaries-only',
+      });
+      expect(provider.latestReceipt?.nextRoute).toContain('memory action:"provider"');
+      expect(provider.latestReceipt?.certification?.schemaStatus).toBe('certified');
+      expect(provider.latestReceipt?.certification?.publicationGuarantee).toContain('token=<redacted>');
+      expect(provider.latestReceipt?.certification?.receiptId).toBe('supermemory-sync-1');
+      expect(provider.latestReceipt?.certification?.missingSignals).toEqual([]);
+      expect(provider.setupGuide?.status).toBe('receipt-evidence-found');
+      expect(provider.setupGuide?.currentState).toContain('artifact-1');
+      expect(provider.setupGuide?.safeFirstStep).toContain('Agent-local memory');
+      expect(provider.setupGuide?.latestReceipt).toMatchObject({
+        artifactId: 'artifact-1',
+        correlationId: 'memory-sync-1',
+      });
+      expect(provider.setupGuide?.receiptHistory?.[0]?.artifactId).toBe('artifact-1');
+      expect(provider.setupGuide?.contractChecklist.find((entry) => entry.id === 'sync-receipts')?.status).toBe('artifact-evidence-found');
+      expect(provider.setupGuide?.contractChecklist.find((entry) => entry.id === 'sync-receipts')?.inspectRoute).toContain('artifact-1');
+      expect(provider.setupGuide?.receiptContract.status).toBe('artifact-evidence-found');
+      expect(JSON.stringify(provider)).not.toContain('memory-receipt-secret');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('consumes live external memory provider read models when published by the host', async () => {
+    const fixture = makeFixture();
+    try {
+      attachMemoryApi(fixture);
+      const readModels = (fixture.context.platform as unknown as { readModels: Record<string, unknown> }).readModels;
+      readModels.memory = {
+        externalProviders: {
+          getSnapshot: () => ({
+            providers: {
+              supermemory: {
+                label: 'Supermemory',
+                status: 'ready',
+                configured: true,
+                reachable: true,
+                credentialRef: 'secret://supermemory-token',
+                capabilities: {
+                  read: true,
+                  write: true,
+                  sync: true,
+                  forget: false,
+                },
+                promptPolicy: { eligible: false },
+                routes: {
+                  inspect: 'memory action:"provider" providerId:"supermemory" includeParameters:true',
+                  read: 'memory_provider action:"read" providerId:"supermemory" query:"..."',
+                  write: 'memory_provider action:"write" providerId:"supermemory" confirm:true explicitUserRequest:"..."',
+                  sync: 'memory_provider action:"sync" providerId:"supermemory" confirm:true explicitUserRequest:"..."',
+                  receipts: 'memory_provider action:"receipts" providerId:"supermemory"',
+                },
+                receiptIds: ['live-memory-receipt-1'],
+                receiptStreamStatus: 'published',
+                schemaStatus: 'certified',
+                schemaVersion: 'goodvibes.external-memory.provider.v1',
+                publicationGuarantee: 'daemon publishes external memory provider state token=memory-pub-secret',
+                publisher: 'goodvibes-daemon',
+                provenance: ['method memory.providers.list', 'sourceTool memory.externalProviders'],
+                sourceCount: 12,
+                recordCount: 45,
+                redactionPolicy: 'summaries-only',
+                updatedAt: '2026-06-08T12:00:00.000Z',
+              },
+            },
+          }),
+        },
+      };
+
+      const summary = await executeHarnessJson<{
+        readonly memoryPosture?: {
+          readonly externalProviderRecordsPublished?: boolean;
+          readonly externalProviderLiveRecordCount?: number;
+          readonly externalProviderSetupGuideStatus?: string;
+        };
+      }>(fixture, { mode: 'summary' });
+      expect(summary.memoryPosture?.externalProviderRecordsPublished).toBe(true);
+      expect(summary.memoryPosture?.externalProviderLiveRecordCount).toBe(1);
+      expect(summary.memoryPosture?.externalProviderSetupGuideStatus).toBe('ready');
+
+      const posture = await executeHarnessJson<{
+        readonly providers: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly configured?: boolean;
+          readonly liveRecord?: {
+            readonly source: string;
+            readonly credentialState: string | null;
+            readonly readReady: boolean | null;
+            readonly certification?: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly receiptId?: string; readonly missingSignals: readonly string[] };
+          };
+          readonly setupGuide?: {
+            readonly status: string;
+            readonly contractChecklist: readonly { readonly id: string; readonly status: string; readonly inspectRoute: string }[];
+            readonly receiptContract: { readonly status: string };
+            readonly nextRoutes: readonly { readonly id: string; readonly effect: string; readonly modelRoute: string }[];
+          };
+        }[];
+        readonly externalMemory: {
+          readonly status: string;
+          readonly providerRecordsPublished: boolean;
+          readonly liveProviderRecordCount: number;
+          readonly latestLiveProviderRecords: readonly {
+            readonly providerId: string;
+            readonly source: string;
+            readonly credentialState: string | null;
+            readonly certification?: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly missingSignals: readonly string[] };
+          }[];
+          readonly setupGuideStatus: string;
+          readonly checkedProviders: readonly string[];
+          readonly contractChecklist: readonly { readonly id: string; readonly status: string }[];
+          readonly receiptContract: { readonly status: string };
+          readonly next: string;
+        };
+      }>(fixture, { mode: 'memory_posture', includeParameters: true, limit: 20 });
+      expect(posture.externalMemory.status).toBe('available');
+      expect(posture.externalMemory.providerRecordsPublished).toBe(true);
+      expect(posture.externalMemory.liveProviderRecordCount).toBe(1);
+      expect(posture.externalMemory.latestLiveProviderRecords[0]).toMatchObject({
+        providerId: 'supermemory',
+        source: 'context.platform.readModels.memory.externalProviders',
+        credentialState: 'configured-secret-ref',
+      });
+      expect(posture.externalMemory.latestLiveProviderRecords[0]?.certification?.schemaStatus).toBe('certified');
+      expect(posture.externalMemory.latestLiveProviderRecords[0]?.certification?.publicationGuarantee).toContain('token=<redacted>');
+      expect(posture.externalMemory.latestLiveProviderRecords[0]?.certification?.missingSignals).toEqual([]);
+      expect(posture.externalMemory.setupGuideStatus).toBe('ready');
+      expect(posture.externalMemory.checkedProviders).toContain('supermemory');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'certified-provider-contract')?.status).toBe('published');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'status-record')?.status).toBe('published');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'bounded-read-search')?.status).toBe('published');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'confirmed-write-upsert')?.status).toBe('published');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'forget-contract')?.status).toBe('published');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'sync-receipts')?.status).toBe('published');
+      expect(posture.externalMemory.contractChecklist.find((entry) => entry.id === 'prompt-eligibility-policy')?.status).toBe('published');
+      expect(posture.externalMemory.receiptContract.status).toBe('published');
+      expect(posture.externalMemory.next).toContain('live provider record');
+
+      const supermemory = posture.providers.find((provider) => provider.id === 'supermemory');
+      expect(supermemory?.status).toBe('available');
+      expect(supermemory?.configured).toBe(true);
+      expect(supermemory?.liveRecord).toMatchObject({
+        source: 'context.platform.readModels.memory.externalProviders',
+        credentialState: 'configured-secret-ref',
+        readReady: true,
+      });
+      expect(supermemory?.liveRecord?.certification?.schemaStatus).toBe('certified');
+      expect(supermemory?.liveRecord?.certification?.receiptId).toBe('live-memory-receipt-1');
+      expect(supermemory?.liveRecord?.certification?.missingSignals).toEqual([]);
+      expect(supermemory?.setupGuide?.status).toBe('ready');
+      expect(supermemory?.setupGuide?.contractChecklist.find((entry) => entry.id === 'credential-reference')?.status).toBe('published');
+      expect(supermemory?.setupGuide?.contractChecklist.find((entry) => entry.id === 'sync-receipts')?.inspectRoute).toContain('memory_provider action:"receipts"');
+      expect(supermemory?.setupGuide?.receiptContract.status).toBe('published');
+      expect(supermemory?.setupGuide?.nextRoutes.find((route) => route.id === 'read-provider-memory')?.effect).toBe('read-only');
+      expect(supermemory?.setupGuide?.nextRoutes.find((route) => route.id === 'write-provider-memory')?.effect).toBe('confirmed');
+      expect(supermemory?.setupGuide?.nextRoutes.find((route) => route.id === 'sync-provider-memory')?.modelRoute).toContain('confirm:true');
+
+      const provider = await executeHarnessJson<{
+        readonly id: string;
+        readonly status: string;
+        readonly liveRecord?: {
+          readonly receiptIds: readonly string[];
+          readonly recordCount: number | null;
+          readonly redaction: string | null;
+          readonly certification?: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly missingSignals: readonly string[] };
+        };
+        readonly setupGuide?: { readonly currentState: string; readonly safeFirstStep: string };
+      }>(fixture, { mode: 'memory_provider', providerId: 'supermemory' });
+      expect(provider.id).toBe('supermemory');
+      expect(provider.status).toBe('available');
+      expect(provider.liveRecord?.receiptIds).toContain('live-memory-receipt-1');
+      expect(provider.liveRecord?.recordCount).toBe(45);
+      expect(provider.liveRecord?.redaction).toBe('summaries-only');
+      expect(provider.liveRecord?.certification?.schemaStatus).toBe('certified');
+      expect(provider.liveRecord?.certification?.publicationGuarantee).toContain('token=<redacted>');
+      expect(provider.liveRecord?.certification?.missingSignals).toEqual([]);
+      expect(provider.setupGuide?.currentState).toContain('Live Supermemory provider record');
+      expect(provider.setupGuide?.safeFirstStep).toContain('published bounded read route');
+      expect(JSON.stringify(provider)).not.toContain('secret://supermemory-token');
+      expect(JSON.stringify(provider)).not.toContain('memory-pub-secret');
     } finally {
       fixture.cleanup();
     }
@@ -4214,9 +5661,30 @@ describe('agent_harness tool', () => {
   });
 
   test('exposes a visible autonomy queue with owners and cancel routes', async () => {
-    const fixture = makeFixture();
+    const artifacts = createHarnessArtifactStore();
+    const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
       const now = 1_700_000_100_000;
+      const watcherReceipt = await artifacts.store.create({
+        kind: 'data',
+        mimeType: 'application/json',
+        filename: 'watcher-run-receipt.json',
+        text: JSON.stringify({ receipt: 'Gmail watcher event was captured with metadata-only redaction.' }),
+        metadata: {
+          purpose: 'connected-host-watcher-run-receipt',
+          operation: 'gmail-message-trigger',
+          status: 'succeeded',
+          watcherId: 'watcher-gmail-inbox',
+          runId: 'auto-run-receipt-1',
+          providerId: 'gmail',
+          triggerKind: 'gmail-message',
+          correlationId: 'corr-watcher-1',
+          redaction: 'metadata-only',
+          payloadRedacted: true,
+          sourceTool: 'mcp:gmail.watch',
+          recordedAt: '2023-11-14T22:15:00.000Z',
+        },
+      });
       const researchRunRegistry = AgentResearchRunRegistry.fromShellPaths(fixture.paths);
       const run = researchRunRegistry.create({
         title: 'Market map research',
@@ -4405,6 +5873,53 @@ describe('agent_harness tool', () => {
           }),
           subscribe: () => () => {},
         },
+        watchers: {
+          runHistory: {
+            getSnapshot: () => ({
+              records: [{
+                id: 'watcher-run-live-1',
+                runId: 'watcher-run-live-1',
+                watcherId: 'watcher-gmail-inbox',
+                sourceId: 'gmail-source-live',
+                providerId: 'gmail',
+                triggerKind: 'gmail-message',
+                status: 'running',
+                correlationId: 'corr-watcher-live',
+                lastCheckpoint: 'history-id-123',
+                outputChunks: [
+                  'Gmail watcher captured metadata token=watcher-secret-token',
+                  { summary: 'Queued visible automation run for new support thread.' },
+                ],
+                outputRoute: 'watchers action:"output" runId:"watcher-run-live-1"',
+                inspectRoute: 'watchers action:"show-run" runId:"watcher-run-live-1"',
+                cancelRoute: 'watchers action:"cancel-run" runId:"watcher-run-live-1" confirm:true explicitUserRequest:"..."',
+                retryRoute: 'watchers action:"retry-run" runId:"watcher-run-live-1" confirm:true explicitUserRequest:"..."',
+                updatedAt: now - 12_000,
+              }],
+            }),
+          },
+        },
+        gmail: {
+          sources: {
+            getSnapshot: () => ({
+              sources: [{
+                id: 'gmail-source-live',
+                sourceId: 'gmail-source-live',
+                watcherId: 'watcher-gmail-inbox',
+                providerId: 'gmail',
+                sourceKind: 'gmail',
+                enabled: true,
+                scope: 'inbox.metadata',
+                filter: 'label:urgent token=source-secret-token',
+                lastCheckpoint: 'history-id-123',
+                lastEventPreview: 'New urgent message token=source-secret-token',
+                inspectRoute: 'gmail_source action:"show" sourceId:"gmail-source-live"',
+                refreshRoute: 'gmail_source action:"refresh" sourceId:"gmail-source-live"',
+                updatedAt: now - 11_000,
+              }],
+            }),
+          },
+        },
         controlPlane: {
           getSnapshot: () => ({
             connectionState: 'connected',
@@ -4469,6 +5984,7 @@ describe('agent_harness tool', () => {
           readonly status: string;
           readonly owner: string;
           readonly cancellable: boolean;
+          readonly current: string;
           readonly modelRoute: string;
           readonly inspectRoute: string;
           readonly cancelRoute?: string;
@@ -4476,6 +5992,8 @@ describe('agent_harness tool', () => {
             readonly id: string;
             readonly label: string;
             readonly status: string;
+            readonly phase?: string;
+            readonly summary: string;
             readonly progress?: number;
             readonly inspectRoute: string;
             readonly cancelRoute?: string;
@@ -4577,6 +6095,8 @@ describe('agent_harness tool', () => {
       expect(approvals?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('approvals.approve');
       expect(approvals?.liveRecords?.[0]?.nextSteps?.join('\n')).toContain('approvals.deny');
       expect(automation?.status).toBe('active');
+      expect(automation?.current).toContain('2 live watcher run/source record');
+      expect(automation?.current).toContain('1 durable watcher/run receipt');
       expect(automation?.liveRecords?.[0]?.id).toBe('auto-run-1');
       expect(automation?.liveRecords?.[0]?.cancelRoute).toContain('automation.runs.cancel');
       expect(automation?.liveRecords?.[0]?.availableControls).toContain('cancel');
@@ -4585,6 +6105,46 @@ describe('agent_harness tool', () => {
       expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('telemetry usage input 1200 output 300');
       expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('telemetry calls llm 2 tool 5 turns 3');
       expect(automation?.liveRecords?.[0]?.diagnostics?.join('\n')).toContain('delivery delivery-live-1 sent');
+      const liveWatcherRun = automation?.liveRecords?.find((record) => record.id.includes('watcher-run-live-1'));
+      expect(liveWatcherRun?.status).toBe('running');
+      expect(liveWatcherRun?.phase).toBe('gmail-message');
+      expect(liveWatcherRun?.inspectRoute).toContain('watchers action:"show-run"');
+      expect(liveWatcherRun?.cancelRoute).toContain('watchers action:"cancel-run"');
+      expect(liveWatcherRun?.availableControls).toContain('output');
+      expect(liveWatcherRun?.availableControls).toContain('cancel');
+      expect(liveWatcherRun?.controls?.find((control) => control.id === 'cancel')?.confirmationRequired).toBe(true);
+      expect(liveWatcherRun?.controls?.find((control) => control.id === 'retry')?.state).toBe('unavailable');
+      expect(liveWatcherRun?.output?.source).toBe('host-output-chunk');
+      expect(liveWatcherRun?.output?.route).toContain('watchers action:"output"');
+      expect(liveWatcherRun?.output?.preview).toContain('token=<redacted>');
+      expect(liveWatcherRun?.output?.preview).not.toContain('watcher-secret-token');
+      expect(liveWatcherRun?.sourceIds).toContain('watcher-gmail-inbox');
+      expect(liveWatcherRun?.sourceIds).toContain('watcher-run-live-1');
+      expect(liveWatcherRun?.diagnostics?.join('\n')).toContain('context.platform.readModels.watchers.runHistory');
+      expect(liveWatcherRun?.diagnostics?.join('\n')).toContain('cancel route published');
+      const liveSource = automation?.liveRecords?.find((record) => record.id.includes('watcher-source') && record.sourceIds?.includes('gmail-source-live'));
+      expect(liveSource?.status).toBe('ready');
+      expect(liveSource?.phase).toBe('gmail');
+      expect(liveSource?.inspectRoute).toContain('gmail_source action:"show"');
+      expect(liveSource?.availableControls).toEqual(['inspect', 'refresh']);
+      expect(liveSource?.controls?.every((control) => control.effect === 'read-only')).toBe(true);
+      expect(liveSource?.diagnostics?.join('\n')).toContain('filter label:urgent token=<redacted>');
+      expect(liveSource?.diagnostics?.join('\n')).not.toContain('source-secret-token');
+      expect(liveSource?.output?.source).toBe('provider-source-preview');
+      expect(liveSource?.output?.preview).toContain('token=<redacted>');
+      expect(liveSource?.output?.preview).not.toContain('source-secret-token');
+      expect(liveSource?.diagnostics?.join('\n')).toContain('context.platform.readModels.gmail.sources');
+      const watcherRecord = automation?.liveRecords?.find((record) => record.id === `watcher-receipt:${watcherReceipt.id}`);
+      expect(watcherRecord?.status).toBe('succeeded');
+      expect(watcherRecord?.phase).toBe('gmail-message');
+      expect(watcherRecord?.summary).toContain('Redaction metadata-only');
+      expect(watcherRecord?.summary).toContain('Payload redacted');
+      expect(watcherRecord?.inspectRoute).toBe(`agent_artifacts show artifactId:"${watcherReceipt.id}" includeContent:false`);
+      expect(watcherRecord?.availableControls).toEqual(['inspect', 'queue']);
+      expect(watcherRecord?.controls?.every((control) => control.effect === 'read-only')).toBe(true);
+      expect(watcherRecord?.sourceIds).toContain('watcher-gmail-inbox');
+      expect(watcherRecord?.sourceIds).toContain('auto-run-receipt-1');
+      expect(watcherRecord?.diagnostics?.join('\n')).toContain('purpose connected-host-watcher-run-receipt');
       expect(autonomousScheduleRequests?.modelRoute).toBe('schedule action:"create"');
       expect(autonomousScheduleRequests?.createRoute).toContain('successCriteria');
       expect(schedules?.status).toBe('active');
@@ -4608,12 +6168,13 @@ describe('agent_harness tool', () => {
       const item = await executeHarnessJson<{
         readonly queueItemId: string;
         readonly routes?: { readonly inspect: string; readonly cancel: string | null };
-        readonly liveRecords?: readonly { readonly id: string; readonly cancelRoute?: string }[];
+        readonly liveRecords?: readonly { readonly id: string; readonly cancelRoute?: string; readonly inspectRoute: string }[];
       }>(fixture, { mode: 'autonomy_queue_item', queueItemId: 'automation-runs' });
       expect(item.queueItemId).toBe('automation-runs');
       expect(item.routes?.cancel).toContain('automation-run-cancel');
       expect(item.liveRecords?.[0]?.id).toBe('auto-run-1');
       expect(item.liveRecords?.[0]?.cancelRoute).toContain('automation.runs.cancel');
+      expect(item.liveRecords?.find((record) => record.id === `watcher-receipt:${watcherReceipt.id}`)?.inspectRoute).toContain('agent_artifacts show');
 
       const researchItem = await executeHarnessJson<{
         readonly queueItemId: string;
@@ -5118,6 +6679,185 @@ describe('agent_harness tool', () => {
       expect(inspectedDelegation.useInsteadWhen).toContain('Use local read/edit/exec');
       expect(inspectedDelegation.delegationDecisionCards?.find((card) => card.lane === 'tui-shared-session')?.requiredFields.join('\n')).toContain('delegation reason');
       expect(inspectedDelegation.delegationDecisionCards?.find((card) => card.lane === 'hidden-fanout-blocked')?.confirmationBoundary).toContain('never confirmed');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('consumes certified daemon interactive runtime records for process PTY sudo and browser control posture', async () => {
+    const fixture = makeFixture();
+    try {
+      for (const name of ['read', 'edit', 'exec']) registerStubTool(fixture.toolRegistry, name);
+      const readModels = (fixture.context.platform as unknown as { readModels: Record<string, unknown> }).readModels;
+      readModels.execution = {
+        interactiveRuntime: {
+          getSnapshot: () => ({
+            processes: [{
+              kind: 'process-output',
+              id: 'runtime-process-1',
+              processId: 'host-proc-1',
+              pid: 4321,
+              status: 'running',
+              command: 'npm run dev --token=host-secret',
+              outputChunks: [{
+                chunkId: 'chunk-1',
+                stream: 'stdout',
+                text: 'server ready token=chunk-secret',
+                bytes: 31,
+                truncated: false,
+                createdAt: '2026-06-08T12:00:00.000Z',
+              }],
+              routes: {
+                inspect: 'execution action:"process" processId:"host-proc-1" includeParameters:true',
+                log: 'process action:"log" processId:"host-proc-1"',
+                write: 'process action:"write" processId:"host-proc-1" data:"..." confirm:true explicitUserRequest:"..."',
+                kill: 'process action:"kill" processId:"host-proc-1" confirm:true explicitUserRequest:"..."',
+              },
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.execution.process.v1',
+              publicationGuarantee: 'daemon publishes live process chunks token=process-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method processes.list', 'sourceTool execution.processRuntime'],
+              updatedAt: '2026-06-08T12:00:00.000Z',
+            }],
+            ptySessions: [{
+              kind: 'pty-session',
+              id: 'pty-session-1',
+              sessionId: 'pty-session-1',
+              status: 'ready',
+              command: 'python',
+              outputChunks: [{ chunkId: 'pty-chunk-1', stream: 'stdout', text: '>>>', truncated: false }],
+              routes: {
+                inspect: 'agent_operator_method methodId:"terminal.sessions.get" sessionId:"pty-session-1"',
+                input: 'agent_operator_method methodId:"terminal.sessions.input" sessionId:"pty-session-1" confirm:true explicitUserRequest:"..."',
+                output: 'agent_operator_method methodId:"terminal.sessions.output" sessionId:"pty-session-1"',
+                close: 'agent_operator_method methodId:"terminal.sessions.close" sessionId:"pty-session-1" confirm:true explicitUserRequest:"..."',
+              },
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.execution.pty-session.v1',
+              publicationGuarantee: 'daemon publishes typed PTY sessions secret=pty-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method terminal.sessions.list', 'sourceTool terminal.sessions'],
+              updatedAt: '2026-06-08T12:00:01.000Z',
+            }],
+            sudoMediation: [{
+              kind: 'sudo-mediation',
+              id: 'sudo-contract-1',
+              status: 'ready',
+              rawSecretReturned: false,
+              routes: {
+                inspect: 'agent_operator_method methodId:"credentials.sudo.status"',
+                credential: 'agent_operator_method methodId:"credentials.sudo.prompt" confirm:true explicitUserRequest:"..."',
+              },
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.execution.sudo-mediation.v1',
+              publicationGuarantee: 'daemon mediates sudo prompts password=sudo-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method credentials.sudo.status', 'sourceTool credential-mediation'],
+              updatedAt: '2026-06-08T12:00:02.000Z',
+            }],
+          }),
+        },
+      };
+      readModels.computer = {
+        browserDesktopReceipts: {
+          getSnapshot: () => ({
+            receipts: [{
+              kind: 'browser-desktop-receipt',
+              id: 'browser-receipt-1',
+              receiptId: 'browser-command-1',
+              action: 'screenshot',
+              surface: 'browser',
+              status: 'succeeded',
+              summary: 'Captured browser page secret=browser-secret',
+              routes: {
+                inspect: 'computer action:"control" includeParameters:true',
+                execute: 'agent_operator_method methodId:"browser.control.execute" confirm:true explicitUserRequest:"..."',
+                receipt: 'agent_operator_method methodId:"browser.control.receipts"',
+              },
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.computer.browser-control-receipt.v1',
+              publicationGuarantee: 'daemon publishes browser control receipts token=browser-token',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method browser.control.receipts', 'sourceTool browser.control'],
+              updatedAt: '2026-06-08T12:00:03.000Z',
+            }],
+          }),
+        },
+      };
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly browserControl: string;
+          readonly browserControlSetup: {
+            readonly status: string;
+            readonly recommendedRoute: string;
+            readonly certifiedRuntimeRecords: readonly {
+              readonly receiptId?: string;
+              readonly certification: { readonly schemaStatus: string; readonly publicationGuarantee?: string; readonly missingSignals: readonly string[] };
+            }[];
+          };
+          readonly interactiveRuntime: {
+            readonly status: string;
+            readonly certifiedRecordCount: number;
+            readonly liveProcessOutput: { readonly status: string; readonly latest?: { readonly outputChunks?: readonly { readonly text: string }[]; readonly certification: { readonly missingSignals: readonly string[] } } };
+            readonly ptySessions: { readonly status: string };
+            readonly sudoMediation: { readonly status: string };
+            readonly browserDesktopControl: { readonly status: string };
+          };
+        };
+        readonly routes: readonly { readonly executionRouteId: string; readonly availability: string }[];
+        readonly decisionRules: readonly string[];
+      }>(fixture, { mode: 'execution_posture', includeParameters: true });
+      expect(posture.summary.interactiveRuntime.status).toBe('certified-live-runtime');
+      expect(posture.summary.interactiveRuntime.certifiedRecordCount).toBe(4);
+      expect(posture.summary.interactiveRuntime.liveProcessOutput.status).toBe('certified');
+      expect(posture.summary.interactiveRuntime.liveProcessOutput.latest?.outputChunks?.[0]?.text).toContain('token=<redacted>');
+      expect(posture.summary.interactiveRuntime.liveProcessOutput.latest?.certification.missingSignals).toEqual([]);
+      expect(posture.summary.interactiveRuntime.ptySessions.status).toBe('certified');
+      expect(posture.summary.interactiveRuntime.sudoMediation.status).toBe('certified');
+      expect(posture.summary.interactiveRuntime.browserDesktopControl.status).toBe('certified');
+      expect(posture.summary.browserControl).toBe('ready');
+      expect(posture.summary.browserControlSetup.recommendedRoute).toContain('browser.control.execute');
+      expect(posture.summary.browserControlSetup.certifiedRuntimeRecords[0]?.receiptId).toBe('browser-command-1');
+      expect(posture.summary.browserControlSetup.certifiedRuntimeRecords[0]?.certification.schemaStatus).toBe('certified');
+      expect(posture.summary.browserControlSetup.certifiedRuntimeRecords[0]?.certification.publicationGuarantee).toContain('token=<redacted>');
+      expect(posture.summary.browserControlSetup.certifiedRuntimeRecords[0]?.certification.missingSignals).toEqual([]);
+      expect(posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control')?.availability).toBe('ready');
+      expect(posture.decisionRules.join('\n')).toContain('certified SDK/daemon runtime records');
+
+      const plan = await executeHarnessJson<{
+        readonly status: string;
+        readonly decision: { readonly status: string; readonly modelRoute: string };
+        readonly posture: { readonly certifiedRuntimeRecords: readonly { readonly id: string }[] };
+      }>(fixture, { mode: 'browser_control_route', query: 'take a browser screenshot', includeParameters: true });
+      expect(plan.status).toBe('ready');
+      expect(plan.decision.status).toBe('ready-to-inspect-tool');
+      expect(plan.decision.modelRoute).toContain('browser.control.execute');
+      expect(plan.posture.certifiedRuntimeRecords[0]?.id).toBe('browser-receipt-1');
+
+      const capabilities = await executeHarnessJson<{
+        readonly capabilities: {
+          readonly parity: readonly { readonly capability: string; readonly status: string }[];
+          readonly interactiveRuntime: { readonly status: string; readonly certifiedRecordCount: number };
+        };
+      }>(fixture, { mode: 'run_background_process', processAction: 'capabilities' });
+      expect(capabilities.capabilities.interactiveRuntime.status).toBe('certified-live-runtime');
+      expect(capabilities.capabilities.interactiveRuntime.certifiedRecordCount).toBe(4);
+      expect(capabilities.capabilities.parity.find((entry) => entry.capability === 'process(write)')?.status).toBe('contract-discovered');
+      expect(capabilities.capabilities.parity.find((entry) => entry.capability === 'pty')?.status).toBe('contract-discovered');
+      expect(capabilities.capabilities.parity.find((entry) => entry.capability === 'sudo')?.status).toBe('contract-discovered');
+
+      const setupItem = await executeHarnessJson<{
+        readonly status: string;
+        readonly signals?: readonly string[];
+      }>(fixture, { mode: 'setup_item', setupItemId: 'browser-desktop-control' });
+      expect(setupItem.status).toBe('ready');
+      expect(setupItem.signals?.join('\n')).toContain('certified runtime receipts');
+      expect(JSON.stringify({ posture, plan, capabilities, setupItem })).not.toContain('host-secret');
+      expect(JSON.stringify({ posture, plan, capabilities, setupItem })).not.toContain('chunk-secret');
+      expect(JSON.stringify({ posture, plan, capabilities, setupItem })).not.toContain('sudo-secret');
+      expect(JSON.stringify({ posture, plan, capabilities, setupItem })).not.toContain('browser-token');
     } finally {
       fixture.cleanup();
     }
@@ -6533,6 +8273,177 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('consumes certified live research runner and visual report read models', async () => {
+    const fixture = makeFixture();
+    try {
+      const runRegistry = AgentResearchRunRegistry.fromShellPaths(fixture.paths);
+      const sourceRegistry = AgentResearchSourceRegistry.fromShellPaths(fixture.paths);
+      const run = runRegistry.create({
+        title: 'Live browser research',
+        question: 'Which browser-backed research evidence should count for release?',
+        goal: 'Verify live runner and visual report read models.',
+        plan: ['Collect source receipts', 'Review citations', 'Inspect rendered report'],
+        nextSteps: ['Inspect certified runner record'],
+      });
+      const started = runRegistry.start(run.id, 'Waiting for daemon browser runner evidence.');
+      const candidate = sourceRegistry.create({
+        question: started.question,
+        title: 'Live research source',
+        url: 'https://example.test/live-research',
+        publisher: 'Example Research',
+        summary: 'Live browser-backed research receipt evidence.',
+        tags: ['research', 'browser'],
+        provenance: 'test-live-research-runner',
+      });
+      sourceRegistry.review(candidate.id, {
+        credibility: 'high',
+        score: 91,
+        note: 'Useful certified source receipt.',
+      });
+
+      const platform = fixture.context.platform as unknown as { readModels: Record<string, unknown> };
+      platform.readModels.research = {
+        browserRuns: {
+          getSnapshot: () => ({
+            records: [{
+              id: 'live-runner-1',
+              runId: started.id,
+              status: 'running',
+              phase: 'reading',
+              progress: 67,
+              question: started.question,
+              currentUrl: 'https://research.example.test/page?token=runner-url-secret',
+              sourceReceiptIds: ['source-receipt-1'],
+              reportDraftId: 'draft-report-1',
+              logTail: ['Captured page token=runner-log-secret', 'Saved one source receipt.'],
+              routes: {
+                inspect: `research action:"runner" runId:"${started.id}" includeParameters:true`,
+                checkpoint: `research action:"checkpoint" id:"${started.id}" confirm:true explicitUserRequest:"..."`,
+                pause: `research action:"pause" id:"${started.id}" confirm:true explicitUserRequest:"..."`,
+                resume: `research action:"resume" id:"${started.id}" confirm:true explicitUserRequest:"..."`,
+                cancel: `research action:"cancel" id:"${started.id}" confirm:true explicitUserRequest:"..."`,
+              },
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.research.browser-run.v1',
+              publicationGuarantee: 'daemon publishes browser research source receipts token=runner-publication-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method research.browserRuns.list', 'sourceTool browser-runner'],
+              cursor: 'research-runner-cursor-1',
+              receiptId: 'research-runner-receipt-1',
+              redaction: 'bounded-page-summary-only',
+            }],
+          }),
+        },
+        visualReports: {
+          getSnapshot: () => ({
+            records: [{
+              id: 'visual-report-render-1',
+              reportArtifactId: 'artifact-report-1',
+              status: 'rendered',
+              modelRoute: 'research action:"report_artifact" artifactId:"artifact-report-1"',
+              renderRoute: 'computer action:"open_browser" surfaceId:"research-report-artifact-report-1" confirm:true explicitUserRequest:"..."',
+              renderUrl: 'https://research.example.test/reports/artifact-report-1?secret=render-url-secret',
+              sections: ['at-a-glance summary', 'evidence matrix', 'findings board', 'source map', 'handoff checklist'],
+              sourceMapCount: 1,
+              citationCoverage: '1/1 material claims covered token=render-coverage-secret',
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.research.visual-report.v1',
+              publicationGuarantee: 'daemon publishes visual report render receipts secret=render-publication-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method research.visualReports.list', 'sourceTool report-renderer'],
+              cursor: 'visual-report-cursor-1',
+              receiptId: 'visual-report-receipt-1',
+            }],
+          }),
+        },
+      };
+
+      const workflow = await executeHarnessJson<{
+        readonly browserBackedResearch: {
+          readonly status: string;
+          readonly configured: boolean;
+          readonly liveRunnerRecords: readonly {
+            readonly currentUrl: string;
+            readonly logTail: readonly string[];
+            readonly certification: { readonly missingSignals: readonly string[]; readonly publicationGuarantee?: string };
+          }[];
+        };
+        readonly browserRunnerContract: {
+          readonly status: string;
+          readonly certifiedLiveRecords: readonly {
+            readonly sourceReceiptIds: readonly string[];
+            readonly certification: { readonly missingSignals: readonly string[]; readonly receiptId?: string };
+          }[];
+        };
+        readonly visualReportContract: {
+          readonly status: string;
+          readonly currentRoute: string;
+          readonly routes: { readonly openRenderedReport?: string };
+          readonly certifiedRendererRecords: readonly {
+            readonly sections: readonly string[];
+            readonly renderUrl: string;
+            readonly certification: { readonly missingSignals: readonly string[]; readonly publicationGuarantee?: string };
+          }[];
+        };
+        readonly workflow: readonly { readonly id: string; readonly status: string; readonly route: string }[];
+        readonly routes: { readonly liveRunner?: string; readonly liveVisualReport?: string };
+      }>(fixture, { mode: 'research_workflow', runId: started.id, includeParameters: true });
+
+      expect(workflow.browserBackedResearch.status).toBe('certified-live-runner');
+      expect(workflow.browserBackedResearch.configured).toBe(true);
+      expect(workflow.browserBackedResearch.liveRunnerRecords[0]?.currentUrl).toContain('token=%3Credacted%3E');
+      expect(workflow.browserBackedResearch.liveRunnerRecords[0]?.logTail.join('\n')).toContain('token=<redacted>');
+      expect(workflow.browserBackedResearch.liveRunnerRecords[0]?.certification.publicationGuarantee).toContain('token=<redacted>');
+      expect(workflow.browserBackedResearch.liveRunnerRecords[0]?.certification.missingSignals).toEqual([]);
+      expect(workflow.browserRunnerContract.status).toBe('certified-live-runner');
+      expect(workflow.browserRunnerContract.certifiedLiveRecords[0]?.sourceReceiptIds).toContain('source-receipt-1');
+      expect(workflow.browserRunnerContract.certifiedLiveRecords[0]?.certification.receiptId).toBe('research-runner-receipt-1');
+      expect(workflow.browserRunnerContract.certifiedLiveRecords[0]?.certification.missingSignals).toEqual([]);
+      expect(workflow.visualReportContract.status).toBe('certified-live-renderer');
+      expect(workflow.visualReportContract.currentRoute).toContain('report_artifact');
+      expect(workflow.visualReportContract.routes.openRenderedReport).toContain('computer action:"open_browser"');
+      expect(workflow.visualReportContract.certifiedRendererRecords[0]?.sections).toEqual(expect.arrayContaining(['evidence matrix', 'source map']));
+      expect(workflow.visualReportContract.certifiedRendererRecords[0]?.renderUrl).toContain('secret=%3Credacted%3E');
+      expect(workflow.visualReportContract.certifiedRendererRecords[0]?.certification.publicationGuarantee).toContain('secret=<redacted>');
+      expect(workflow.visualReportContract.certifiedRendererRecords[0]?.certification.missingSignals).toEqual([]);
+      expect(workflow.workflow.find((step) => step.id === 'collect-sources')?.status).toBe('ready');
+      expect(workflow.workflow.find((step) => step.id === 'collect-sources')?.route).toContain('research action:"runner"');
+      expect(workflow.workflow.find((step) => step.id === 'save-report')?.route).toContain('report_artifact');
+      expect(workflow.routes.liveRunner).toContain('research action:"runner"');
+      expect(workflow.routes.liveVisualReport).toContain('report_artifact');
+
+      const briefing = await executeHarnessJson<{
+        readonly summary: { readonly browserReady: boolean; readonly liveBrowserRuns: number; readonly liveVisualReports: number };
+        readonly queue: readonly { readonly id: string; readonly status: string; readonly routes: Record<string, string>; readonly detail?: Record<string, unknown> }[];
+      }>(fixture, { mode: 'research_briefing', target: started.id, includeParameters: true });
+      expect(briefing.summary.browserReady).toBe(true);
+      expect(briefing.summary.liveBrowserRuns).toBe(1);
+      expect(briefing.summary.liveVisualReports).toBe(1);
+      const browserItem = briefing.queue.find((item) => item.id === 'browser:research-runner');
+      expect(browserItem?.status).toBe('certified-live-runner');
+      expect(browserItem?.routes.visualReport).toContain('report_artifact');
+
+      const runs = await executeHarnessJson<{
+        readonly runnerPosture: {
+          readonly browserBackedResearch: { readonly status: string; readonly certifiedLiveRecords: readonly unknown[] };
+          readonly visualReportRendering: { readonly status: string; readonly certifiedLiveRecords: readonly unknown[] };
+        };
+      }>(fixture, { mode: 'research_runs', includeParameters: true });
+      expect(runs.runnerPosture.browserBackedResearch.status).toBe('certified-live-runner');
+      expect(runs.runnerPosture.browserBackedResearch.certifiedLiveRecords).toHaveLength(1);
+      expect(runs.runnerPosture.visualReportRendering.status).toBe('certified-live-renderer');
+      expect(runs.runnerPosture.visualReportRendering.certifiedLiveRecords).toHaveLength(1);
+      expect(JSON.stringify({ workflow, briefing, runs })).not.toContain('runner-url-secret');
+      expect(JSON.stringify({ workflow, briefing, runs })).not.toContain('runner-log-secret');
+      expect(JSON.stringify({ workflow, briefing, runs })).not.toContain('runner-publication-secret');
+      expect(JSON.stringify({ workflow, briefing, runs })).not.toContain('render-url-secret');
+      expect(JSON.stringify({ workflow, briefing, runs })).not.toContain('render-coverage-secret');
+      expect(JSON.stringify({ workflow, briefing, runs })).not.toContain('render-publication-secret');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes Document Ops readiness with an honest blind comparison runner', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });
@@ -7279,6 +9190,131 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('consumes certified companion device capability records for sensors and wake word', async () => {
+    const fixture = makeFixture();
+    try {
+      const platform = fixture.context.platform as unknown as { readModels: Record<string, unknown> };
+      platform.readModels.device = {
+        capabilities: {
+          getSnapshot: () => ({
+            records: [
+              {
+                id: 'device-sensors-live-1',
+                capabilityId: 'camera-location-sensors',
+                label: 'Phone camera screen and location',
+                domain: 'device',
+                status: 'ready',
+                summary: 'Foreground camera, screen, location, and device commands are available token=sensor-summary-secret',
+                capabilities: ['camera', 'screen capture', 'location', 'local device command'],
+                permissionScope: 'foreground-camera-location-screen',
+                routes: {
+                  inspect: 'device action:"capability" capabilityId:"camera-location-sensors" includeParameters:true',
+                  capture: 'device action:"capability" capabilityId:"camera-location-sensors" confirm:true explicitUserRequest:"..."',
+                  repairPermission: 'device action:"capability" capabilityId:"camera-location-sensors" repairPermission:true confirm:true explicitUserRequest:"..."',
+                },
+                schemaStatus: 'certified',
+                schemaVersion: 'goodvibes.device.capability.v1',
+                publicationGuarantee: 'daemon publishes permission-scoped sensor receipts secret=sensor-publication-secret',
+                publisher: 'goodvibes-daemon',
+                provenance: ['method device.capabilities.list', 'sourceTool companion-daemon'],
+                cursor: 'device-sensor-cursor-1',
+                receiptId: 'device-sensor-receipt-1',
+              },
+              {
+                id: 'wake-word-live-1',
+                capabilityId: 'wake-and-speak',
+                label: 'Wake word route',
+                domain: 'voice',
+                status: 'ready',
+                summary: 'Foreground wake-word route with visible microphone controls token=wake-summary-secret',
+                capabilities: ['wake word', 'always listening', 'microphone permission repair'],
+                permissionScope: 'foreground-microphone-wake-word',
+                routes: {
+                  inspect: 'device action:"voice" query:"wake word" includeParameters:true',
+                  open: 'device action:"voice" query:"wake word" confirm:true explicitUserRequest:"..."',
+                  repairPermission: 'device action:"voice" query:"wake word permission" confirm:true explicitUserRequest:"..."',
+                },
+                schemaStatus: 'certified',
+                schemaVersion: 'goodvibes.device.voice-workflow.v1',
+                publicationGuarantee: 'daemon publishes wake-word permission receipts token=wake-publication-secret',
+                publisher: 'goodvibes-daemon',
+                provenance: ['method voice.workflows.list', 'sourceTool companion-daemon'],
+                cursor: 'wake-word-cursor-1',
+                receiptId: 'wake-word-receipt-1',
+              },
+            ],
+          }),
+        },
+      };
+
+      const posture = await executeHarnessJson<{
+        readonly summary: {
+          readonly deviceCapabilities: {
+            readonly ready: number;
+            readonly notPublished: number;
+          };
+        };
+        readonly deviceCapabilities: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly summary: string;
+          readonly modelRoute: string;
+          readonly evidence?: {
+            readonly certifiedLiveRecords?: readonly {
+              readonly summary?: string;
+              readonly certification: { readonly missingSignals: readonly string[]; readonly publicationGuarantee?: string; readonly receiptId?: string };
+            }[];
+          };
+        }[];
+      }>(fixture, { mode: 'pairing_posture', query: 'device', includeParameters: true });
+
+      expect(posture.summary.deviceCapabilities.notPublished).toBe(0);
+      const sensors = posture.deviceCapabilities.find((capability) => capability.id === 'camera-location-sensors');
+      expect(sensors?.status).toBe('ready');
+      expect(sensors?.summary).toContain('certified');
+      expect(sensors?.modelRoute).toContain('camera-location-sensors');
+      expect(sensors?.evidence?.certifiedLiveRecords?.[0]?.summary).toContain('token=<redacted>');
+      expect(sensors?.evidence?.certifiedLiveRecords?.[0]?.certification.publicationGuarantee).toContain('secret=<redacted>');
+      expect(sensors?.evidence?.certifiedLiveRecords?.[0]?.certification.receiptId).toBe('device-sensor-receipt-1');
+      expect(sensors?.evidence?.certifiedLiveRecords?.[0]?.certification.missingSignals).toEqual([]);
+
+      const route = await executeHarnessJson<{
+        readonly deviceCapabilityMap: {
+          readonly capabilities: readonly {
+            readonly id: string;
+            readonly status: string;
+            readonly evidence?: { readonly certifiedLiveRecords?: readonly unknown[] };
+          }[];
+        };
+      }>(fixture, { mode: 'pairing_route', query: 'camera location' });
+      expect(route.deviceCapabilityMap.capabilities.find((capability) => capability.id === 'camera-location-sensors')?.status).toBe('ready');
+      expect(route.deviceCapabilityMap.capabilities.find((capability) => capability.id === 'camera-location-sensors')?.evidence?.certifiedLiveRecords).toHaveLength(1);
+
+      const wake = await executeHarnessJson<{
+        readonly summary: { readonly voiceWorkflows: { readonly ready: number; readonly notPublished: number } };
+        readonly voiceWorkflows: readonly {
+          readonly id: string;
+          readonly status: string;
+          readonly modelRoute: string;
+          readonly evidence: { readonly certifiedLiveRecords?: readonly { readonly summary?: string; readonly certification: { readonly publicationGuarantee?: string; readonly missingSignals: readonly string[] } }[] };
+        }[];
+      }>(fixture, { mode: 'media_posture', query: 'wake word', includeParameters: true });
+      expect(wake.summary.voiceWorkflows.notPublished).toBe(0);
+      expect(wake.voiceWorkflows.map((workflow) => workflow.id)).toEqual(['wake-and-speak']);
+      expect(wake.voiceWorkflows[0]?.status).toBe('ready');
+      expect(wake.voiceWorkflows[0]?.modelRoute).toContain('wake word');
+      expect(wake.voiceWorkflows[0]?.evidence.certifiedLiveRecords?.[0]?.summary).toContain('token=<redacted>');
+      expect(wake.voiceWorkflows[0]?.evidence.certifiedLiveRecords?.[0]?.certification.publicationGuarantee).toContain('token=<redacted>');
+      expect(wake.voiceWorkflows[0]?.evidence.certifiedLiveRecords?.[0]?.certification.missingSignals).toEqual([]);
+      expect(JSON.stringify({ posture, route, wake })).not.toContain('sensor-summary-secret');
+      expect(JSON.stringify({ posture, route, wake })).not.toContain('sensor-publication-secret');
+      expect(JSON.stringify({ posture, route, wake })).not.toContain('wake-summary-secret');
+      expect(JSON.stringify({ posture, route, wake })).not.toContain('wake-publication-secret');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes a local model cookbook through model routing and workspace actions', async () => {
     const previousEndpointEnv = clearEnvForTest(LOCAL_MODEL_ENDPOINT_ENV_KEYS);
     const fixture = makeFixture();
@@ -7494,6 +9530,42 @@ describe('agent_harness tool', () => {
         baseURL: 'http://127.0.0.1:11434/v1',
         models: ['qwen2.5-coder:7b'],
       }];
+      (fixture.context.platform as unknown as { readModels: Record<string, unknown> }).readModels = {
+        ...((fixture.context.platform as unknown as { readModels?: Record<string, unknown> }).readModels ?? {}),
+        models: {
+          servingDiagnostics: {
+            getSnapshot: () => ({
+              servers: {
+                ollama: {
+                  providerId: 'ollama-local',
+                  baseUrl: 'http://127.0.0.1:11434/v1',
+                  stack: 'ollama',
+                  status: 'ready',
+                  schemaStatus: 'certified',
+                  schemaVersion: 'goodvibes.local-serving.v1',
+                  sourceTool: 'models.local.servingDiagnostics',
+                  provenance: ['daemon:local-serving', 'method:models.local.servingDiagnostics'],
+                  publicationGuarantee: 'daemon publishes local serving diagnostics after start/repair receipts token=serving-secret',
+                  publisher: 'goodvibes-daemon',
+                  serverVersion: 'ollama 0.3.2',
+                  loadedModels: ['qwen2.5-coder:7b'],
+                  contextWindowTokens: 8192,
+                  toolSupport: true,
+                  resourcePressure: 'low',
+                  memoryUsagePercent: 42,
+                  startReceiptId: 'ollama-start-receipt',
+                  repairReceiptId: 'ollama-repair-receipt',
+                  receiptStatus: 'ready',
+                  startRoute: 'agent_operator_method methodId:"models.local.start" confirm:true explicitUserRequest:"Start the published Ollama server."',
+                  repairRoute: 'agent_operator_method methodId:"models.local.repair" confirm:true explicitUserRequest:"Repair the published Ollama server."',
+                  lastCheckedAt: '2026-06-07T10:00:00.000Z',
+                  summary: 'Ollama token=raw-secret is ready with one loaded model.',
+                },
+              },
+            }),
+          },
+        },
+      };
 
       const cookbook = await executeHarnessJson<{
         readonly localCookbook: {
@@ -7524,6 +9596,32 @@ describe('agent_harness tool', () => {
               readonly refreshRoute: string;
               readonly addProviderRoute: string | null;
               readonly notes: readonly string[];
+              readonly servingDiagnostics?: {
+                readonly status: string;
+                readonly source: string;
+                readonly summary: string;
+                readonly schemaStatus?: string;
+                readonly schemaVersion?: string;
+                readonly provenance?: readonly string[];
+                readonly publicationGuarantee?: string;
+                readonly publisher?: string;
+                readonly serverVersion?: string;
+                readonly loadedModelCount?: number;
+                readonly loadedModels: readonly string[];
+                readonly contextWindowTokens?: number;
+                readonly toolSupport?: boolean;
+                readonly resourcePressure: string;
+                readonly resourceSummary?: string;
+                readonly lastCheckedAt?: string | null;
+                readonly startReceiptId?: string;
+                readonly repairReceiptId?: string;
+                readonly receiptStatus?: string;
+                readonly startRoute?: string;
+                readonly repairRoute?: string;
+                readonly inspectRoute: string;
+                readonly missingSignals: readonly string[];
+                readonly policy: string;
+              };
               readonly diagnostics?: {
                 readonly successCriteria: readonly string[];
                 readonly failureTriage: readonly string[];
@@ -7531,6 +9629,14 @@ describe('agent_harness tool', () => {
                 readonly policy: string;
               };
             }[];
+            readonly daemonDiagnostics: {
+              readonly status: string;
+              readonly sourcePaths: readonly string[];
+              readonly recordCount: number;
+              readonly matchedEndpointCount: number;
+              readonly missingSignals: readonly string[];
+              readonly policy: string;
+            };
             readonly nextActions: readonly string[];
             readonly policy: string;
           };
@@ -7561,12 +9667,43 @@ describe('agent_harness tool', () => {
       expect(endpoint?.refreshRoute).toContain('/refresh-models');
       expect(endpoint?.addProviderRoute).toBeNull();
       expect(endpoint?.notes.join('\n')).toContain('Provider already exists');
+      expect(endpoint?.servingDiagnostics?.status).toBe('ready');
+      expect(endpoint?.servingDiagnostics?.source).toBe('context.platform.readModels.models.servingDiagnostics');
+      expect(endpoint?.servingDiagnostics?.schemaStatus).toBe('certified');
+      expect(endpoint?.servingDiagnostics?.schemaVersion).toBe('goodvibes.local-serving.v1');
+      expect(endpoint?.servingDiagnostics?.provenance?.join('\n')).toContain('models.local.servingDiagnostics');
+      expect(endpoint?.servingDiagnostics?.publicationGuarantee).toContain('token=<redacted>');
+      expect(endpoint?.servingDiagnostics?.publicationGuarantee).not.toContain('serving-secret');
+      expect(endpoint?.servingDiagnostics?.publisher).toBe('goodvibes-daemon');
+      expect(endpoint?.servingDiagnostics?.serverVersion).toBe('ollama 0.3.2');
+      expect(endpoint?.servingDiagnostics?.loadedModelCount).toBe(1);
+      expect(endpoint?.servingDiagnostics?.loadedModels).toEqual(['qwen2.5-coder:7b']);
+      expect(endpoint?.servingDiagnostics?.contextWindowTokens).toBe(8192);
+      expect(endpoint?.servingDiagnostics?.toolSupport).toBe(true);
+      expect(endpoint?.servingDiagnostics?.resourcePressure).toBe('low');
+      expect(endpoint?.servingDiagnostics?.resourceSummary).toContain('memory 42%');
+      expect(endpoint?.servingDiagnostics?.startReceiptId).toBe('ollama-start-receipt');
+      expect(endpoint?.servingDiagnostics?.repairReceiptId).toBe('ollama-repair-receipt');
+      expect(endpoint?.servingDiagnostics?.receiptStatus).toBe('ready');
+      expect(endpoint?.servingDiagnostics?.startRoute).toContain('agent_operator_method methodId:"models.local.start"');
+      expect(endpoint?.servingDiagnostics?.repairRoute).toContain('agent_operator_method methodId:"models.local.repair"');
+      expect(endpoint?.servingDiagnostics?.lastCheckedAt).toBe('2026-06-07T10:00:00.000Z');
+      expect(endpoint?.servingDiagnostics?.summary).toContain('token=<redacted>');
+      expect(endpoint?.servingDiagnostics?.summary).not.toContain('raw-secret');
+      expect(endpoint?.servingDiagnostics?.missingSignals).toEqual([]);
+      expect(endpoint?.servingDiagnostics?.policy).toContain('exact confirmed routes');
       expect(endpoint?.diagnostics?.successCriteria.join('\n')).toContain('confirmed smoke command exits 0');
       expect(endpoint?.diagnostics?.failureTriage.join('\n')).toContain('start the ollama server');
       expect(endpoint?.diagnostics?.afterSmoke.join('\n')).toContain('refresh route');
       expect(endpoint?.diagnostics?.policy).toContain('models action:"smoke"');
+      expect(cookbook.localCookbook.localServerHealth.daemonDiagnostics.status).toBe('published-read-model');
+      expect(cookbook.localCookbook.localServerHealth.daemonDiagnostics.sourcePaths).toContain('context.platform.readModels.models.servingDiagnostics');
+      expect(cookbook.localCookbook.localServerHealth.daemonDiagnostics.recordCount).toBe(1);
+      expect(cookbook.localCookbook.localServerHealth.daemonDiagnostics.matchedEndpointCount).toBe(1);
+      expect(cookbook.localCookbook.localServerHealth.daemonDiagnostics.missingSignals).toEqual([]);
+      expect(cookbook.localCookbook.localServerHealth.nextActions.join('\n')).toContain('Review published local serving diagnostics');
       expect(cookbook.localCookbook.localServerHealth.nextActions.join('\n')).toContain('http://127.0.0.1:11434/v1/models');
-      expect(cookbook.localCookbook.localServerHealth.policy).toContain('Read-only local endpoint map');
+      expect(cookbook.localCookbook.localServerHealth.policy).toContain('daemon-published serving diagnostics');
 
       const endpointDetail = await executeHarnessJson<{
         readonly kind: string;
@@ -7576,6 +9713,15 @@ describe('agent_harness tool', () => {
         readonly diagnosticStatus: string;
         readonly smokeCommand: string;
         readonly smokeRoute: string;
+        readonly servingDiagnostics?: {
+          readonly status: string;
+          readonly schemaStatus?: string;
+          readonly startRoute?: string;
+          readonly repairRoute?: string;
+          readonly serverVersion?: string;
+          readonly loadedModels: readonly string[];
+          readonly summary: string;
+        };
         readonly diagnostics?: { readonly successCriteria: readonly string[]; readonly failureTriage: readonly string[]; readonly policy: string };
         readonly modelAccess?: { readonly cookbook: string; readonly smoke: string; readonly addProvider: string | null };
         readonly lookup?: { readonly resolvedBy: string };
@@ -7587,6 +9733,13 @@ describe('agent_harness tool', () => {
       expect(endpointDetail.diagnosticStatus).toBe('registered-route-needs-smoke');
       expect(endpointDetail.smokeCommand).toBe('curl -fsS http://127.0.0.1:11434/v1/models');
       expect(endpointDetail.smokeRoute).toContain('models action:"smoke"');
+      expect(endpointDetail.servingDiagnostics?.status).toBe('ready');
+      expect(endpointDetail.servingDiagnostics?.schemaStatus).toBe('certified');
+      expect(endpointDetail.servingDiagnostics?.startRoute).toContain('models.local.start');
+      expect(endpointDetail.servingDiagnostics?.repairRoute).toContain('models.local.repair');
+      expect(endpointDetail.servingDiagnostics?.serverVersion).toBe('ollama 0.3.2');
+      expect(endpointDetail.servingDiagnostics?.loadedModels).toEqual(['qwen2.5-coder:7b']);
+      expect(endpointDetail.servingDiagnostics?.summary).not.toContain('raw-secret');
       expect(endpointDetail.diagnostics?.successCriteria.join('\n')).toContain('model-list endpoint returns JSON');
       expect(endpointDetail.diagnostics?.failureTriage.join('\n')).toContain('/v1');
       expect(endpointDetail.diagnostics?.policy).toContain('models action:"smoke"');
@@ -7701,6 +9854,26 @@ describe('agent_harness tool', () => {
         promptPreview: 'local model benchmark: Ollama',
         candidateCount: 2,
         completedCandidates: 2,
+        candidateLatencyEvidence: [
+          {
+            blindId: 'A',
+            status: 'completed',
+            latencyMs: 642,
+            registryKey: 'ollama:qwen2.5-coder:7b',
+            providerId: 'ollama',
+            modelId: 'qwen2.5-coder:7b',
+            displayName: 'Qwen local',
+          },
+          {
+            blindId: 'B',
+            status: 'completed',
+            latencyMs: 1280,
+            registryKey: 'openai:gpt-4.1',
+            providerId: 'openai',
+            modelId: 'gpt-4.1',
+            displayName: 'GPT 4.1',
+          },
+        ],
       },
     });
     await artifacts.store.create({
@@ -7747,6 +9920,7 @@ describe('agent_harness tool', () => {
               readonly comparisonCount: number;
               readonly revealedJudgmentCount: number;
               readonly winnerStacks: readonly string[];
+              readonly routeLatencies?: readonly { readonly registryKey: string; readonly latencyMs: number; readonly artifactId: string }[];
               readonly winnerModels: readonly { readonly registryKey: string; readonly stack?: string | null; readonly applyRoute: string }[];
             };
             readonly artifacts: readonly {
@@ -7794,6 +9968,10 @@ describe('agent_harness tool', () => {
       });
       expect(cookbook.localCookbook.benchmarkHistory?.evidence?.winnerStacks).toContain('ollama');
       expect(cookbook.localCookbook.benchmarkHistory?.evidence?.winnerModels[0]?.registryKey).toBe('ollama:qwen2.5-coder:7b');
+      expect(cookbook.localCookbook.benchmarkHistory?.evidence?.routeLatencies?.find((entry) => entry.registryKey === 'ollama:qwen2.5-coder:7b')).toMatchObject({
+        latencyMs: 642,
+        artifactId: 'artifact-1',
+      });
       expect(cookbook.localCookbook.benchmarkHistory?.nextAction).toContain('revealed saved judgment');
       expect(cookbook.localCookbook.benchmarkHistory?.analyticsRoute).toContain('agent_model_compare analytics');
       expect(cookbook.localCookbook.benchmarkHistory?.analyticsRoute).toContain('benchmarkKind:"local-model-route"');
@@ -7823,7 +10001,42 @@ describe('agent_harness tool', () => {
   });
 
   test('scores model route readiness from provider metadata without hiding missing benchmarks', async () => {
-    const fixture = makeFixture();
+    const artifacts = createHarnessArtifactStore();
+    await artifacts.store.create({
+      kind: 'data',
+      mimeType: 'application/json',
+      filename: 'blind-model-comparison-cmp_latency.json',
+      text: '{}',
+      metadata: {
+        purpose: 'agent-model-compare',
+        benchmarkKind: 'local-model-route',
+        comparisonId: 'cmp_latency',
+        promptPreview: 'local model benchmark: Ollama route latency',
+        candidateCount: 2,
+        completedCandidates: 2,
+        candidateLatencyEvidence: [
+          {
+            blindId: 'A',
+            status: 'completed',
+            latencyMs: 642,
+            registryKey: 'ollama:qwen2.5-coder:7b',
+            providerId: 'ollama',
+            modelId: 'qwen2.5-coder:7b',
+            displayName: 'Qwen local',
+          },
+          {
+            blindId: 'B',
+            status: 'completed',
+            latencyMs: 1220,
+            registryKey: 'openai:gpt-4.1',
+            providerId: 'openai',
+            modelId: 'gpt-4.1',
+            displayName: 'GPT 4.1',
+          },
+        ],
+      },
+    });
+    const fixture = makeFixture({ artifactStore: artifacts.store });
     try {
       const cloudModel = {
         registryKey: 'openai:gpt-4.1',
@@ -7879,13 +10092,14 @@ describe('agent_harness tool', () => {
           readonly modelRouteId: string;
           readonly tier?: string | null;
           readonly benchmarkCompositeScore?: number | null;
+          readonly localBenchmarkLatency?: { readonly latencyMs: number; readonly artifactId: string } | null;
           readonly readinessScore?: number;
           readonly readinessLevel?: string;
           readonly readiness?: {
             readonly score: number;
             readonly level: string;
             readonly confidence: string;
-            readonly dimensions: readonly { readonly id: string; readonly score: number }[];
+            readonly dimensions: readonly { readonly id: string; readonly score: number; readonly summary?: string }[];
             readonly missingSignals: readonly string[];
             readonly providerHealth: {
               readonly status: string;
@@ -7922,11 +10136,16 @@ describe('agent_harness tool', () => {
       const cloud = routing.models.find((model) => model.modelRouteId === 'openai:gpt-4.1');
       expect(cloud?.tier).toBe('premium');
       expect(cloud?.benchmarkCompositeScore).toBe(0.82);
+      expect(cloud?.localBenchmarkLatency).toMatchObject({
+        latencyMs: 1220,
+        artifactId: 'artifact-1',
+      });
       expect(cloud?.readinessScore).toBeGreaterThan(0);
       expect(cloud?.readinessLevel).toBeTruthy();
       expect(cloud?.readiness?.dimensions.find((dimension) => dimension.id === 'tool-support')?.score).toBe(100);
       expect(cloud?.readiness?.dimensions.find((dimension) => dimension.id === 'vision')?.score).toBe(100);
-      expect(cloud?.readiness?.missingSignals.join('\n')).toContain('No live latency benchmark');
+      expect(cloud?.readiness?.dimensions.find((dimension) => dimension.id === 'latency')?.summary).toContain('Measured local benchmark latency is 1220 ms');
+      expect(cloud?.readiness?.missingSignals.join('\n')).not.toContain('No live latency benchmark');
       expect(cloud?.readiness?.providerHealth.status).toBe('not-reachable-in-command-context');
       expect(cloud?.readiness?.providerHealth.sdkContract.providerHealthTypes).toBe('available');
       expect(cloud?.readiness?.providerHealth.sdkContract.importSurface).toBe('@pellux/goodvibes-sdk/platform/runtime/ui');
@@ -7937,14 +10156,21 @@ describe('agent_harness tool', () => {
       expect(cloud?.readiness?.nextStep).toContain('provider-health publication');
 
       const local = routing.models.find((model) => model.modelRouteId === 'ollama:qwen2.5-coder:7b');
+      expect(local?.localBenchmarkLatency).toMatchObject({
+        latencyMs: 642,
+        artifactId: 'artifact-1',
+      });
       expect(local?.readiness?.dimensions.find((dimension) => dimension.id === 'privacy')?.score).toBe(100);
-      expect(local?.readiness?.nextStep).toContain('local benchmark prompt');
+      expect(local?.readiness?.dimensions.find((dimension) => dimension.id === 'latency')?.summary).toContain('Measured local benchmark latency is 642 ms');
+      expect(local?.readiness?.missingSignals.join('\n')).not.toContain('No live latency benchmark');
+      expect(local?.readiness?.nextStep).toContain('artifact-1');
 
       const inspected = await executeHarnessJson<{
         readonly modelRouteId: string;
+        readonly localBenchmarkLatency?: { readonly latencyMs: number; readonly artifactId: string } | null;
         readonly readiness?: {
           readonly confidence: string;
-          readonly dimensions: readonly { readonly id: string }[];
+          readonly dimensions: readonly { readonly id: string; readonly summary?: string }[];
           readonly missingSignals: readonly string[];
           readonly providerHealth: {
             readonly status: string;
@@ -7954,18 +10180,25 @@ describe('agent_harness tool', () => {
         };
       }>(fixture, { mode: 'model_route', modelRouteId: 'ollama:qwen2.5-coder:7b' });
       expect(inspected.modelRouteId).toBe('ollama:qwen2.5-coder:7b');
-      expect(inspected.readiness?.confidence).toBe('estimated');
+      expect(inspected.localBenchmarkLatency).toMatchObject({
+        latencyMs: 642,
+        artifactId: 'artifact-1',
+      });
       expect(inspected.readiness?.dimensions.map((dimension) => dimension.id)).toContain('cost');
-      expect(inspected.readiness?.missingSignals.join('\n')).toContain('No live latency benchmark');
+      expect(inspected.readiness?.dimensions.find((dimension) => dimension.id === 'latency')?.summary).toContain('Measured local benchmark latency');
+      expect(inspected.readiness?.missingSignals.join('\n')).not.toContain('No live latency benchmark');
       expect(inspected.readiness?.providerHealth.status).toBe('not-reachable-in-command-context');
       expect(inspected.readiness?.providerHealth.agentConsumption.status).toBe('waiting-for-published-feed');
 
       (fixture.context.platform as unknown as Record<string, unknown>).readModels = {
-        providerHealth: {
+        modelRouteHealth: {
           getSnapshot: () => ({
-            providers: new Map([[
-              'openai',
+            routes: new Map([[
+              'openai:gpt-4.1',
               {
+                recordId: 'route-health-openai-gpt4',
+                modelRouteId: 'openai:gpt-4.1',
+                providerId: 'openai',
                 status: 'healthy',
                 isConfigured: true,
                 isActive: true,
@@ -7974,6 +10207,17 @@ describe('agent_harness tool', () => {
                   minLatencyMs: 200,
                   maxLatencyMs: 650,
                   lastSuccessAt: Date.UTC(2026, 0, 2, 3, 4, 5),
+                  lastCheckedAt: '2026-01-02T03:05:00.000Z',
+                },
+                rateLimit: {
+                  remaining: 4900,
+                  limit: 5000,
+                  resetAt: '2026-01-02T04:00:00.000Z',
+                },
+                errors: {
+                  errorRate: 0,
+                  consecutiveErrors: 0,
+                  lastErrorMessage: 'prior transient 429 token=provider-secret',
                 },
               },
             ]]),
@@ -7989,7 +10233,12 @@ describe('agent_harness tool', () => {
           readonly providerHealth: {
             readonly status: string;
             readonly healthStatus?: string;
+            readonly modelRouteId?: string;
+            readonly sourceRecordId?: string;
             readonly avgLatencyMs?: number;
+            readonly rateLimitRemaining?: number;
+            readonly rateLimitResetAt?: string | null;
+            readonly lastErrorMessage?: string;
             readonly agentConsumption: { readonly status: string; readonly readModelPath: string | null };
             readonly daemonPublication: { readonly status: string };
           };
@@ -8000,9 +10249,15 @@ describe('agent_harness tool', () => {
       expect(healthBacked.readiness?.missingSignals.join('\n')).not.toContain('No live latency benchmark');
       expect(healthBacked.readiness?.providerHealth.status).toBe('record-found');
       expect(healthBacked.readiness?.providerHealth.healthStatus).toBe('healthy');
+      expect(healthBacked.readiness?.providerHealth.modelRouteId).toBe('openai:gpt-4.1');
+      expect(healthBacked.readiness?.providerHealth.sourceRecordId).toBe('route-health-openai-gpt4');
       expect(healthBacked.readiness?.providerHealth.avgLatencyMs).toBe(321);
+      expect(healthBacked.readiness?.providerHealth.rateLimitRemaining).toBe(4900);
+      expect(healthBacked.readiness?.providerHealth.rateLimitResetAt).toBe('2026-01-02T04:00:00.000Z');
+      expect(healthBacked.readiness?.providerHealth.lastErrorMessage).toContain('token=<redacted>');
+      expect(healthBacked.readiness?.providerHealth.lastErrorMessage).not.toContain('provider-secret');
       expect(healthBacked.readiness?.providerHealth.agentConsumption.status).toBe('consumed');
-      expect(healthBacked.readiness?.providerHealth.agentConsumption.readModelPath).toBe('context.platform.readModels.providerHealth');
+      expect(healthBacked.readiness?.providerHealth.agentConsumption.readModelPath).toBe('context.platform.readModels.modelRouteHealth');
       expect(healthBacked.readiness?.providerHealth.daemonPublication.status).toBe('published-read-model');
       expect(healthBacked.readiness?.dimensions.find((dimension) => dimension.id === 'latency')?.summary).toContain('Live provider-health latency');
     } finally {
@@ -9239,6 +11494,160 @@ describe('agent_harness tool', () => {
         itemIds: ['__default__', 'stream-voice-voice-a', 'stream-voice-voice-b'],
         preSelectId: '__default__',
       });
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('consumes certified browser PWA category routes and first-run receipts', async () => {
+    const fixture = makeFixture();
+    try {
+      fixture.configManager.setDynamic('web.enabled', true);
+      fixture.configManager.setDynamic('web.publicBaseUrl', 'https://agent.example.test/app');
+      const categoryIds = AGENT_WORKSPACE_CATEGORIES.map((category) => category.id);
+      const platform = fixture.context.platform as unknown as { readModels: Record<string, unknown> };
+      platform.readModels.browserPwa = {
+        categoryRoutes: {
+          getSnapshot: () => ({
+            records: [{
+              id: 'browser-pwa-all-categories',
+              routeId: 'browser-pwa-all-categories',
+              categoryIds,
+              laneId: 'agent-workspace',
+              label: 'Browser-native Agent workspace',
+              status: 'ready',
+              summary: 'Responsive cockpit controls are ready token=browser-summary-secret',
+              mobileReady: true,
+              pwaReady: true,
+              capabilities: ['chat', 'setup', 'approvals', 'automations', 'memory', 'channels', 'research', 'safety', 'mobile touch', 'PWA install'],
+              routes: {
+                inspect: 'computer action:"browser" includeParameters:true',
+                open: 'https://agent.example.test/app/workspaces?token=browser-route-secret',
+                chat: 'https://agent.example.test/app/chat?token=browser-chat-secret',
+                setup: 'https://agent.example.test/app/setup?token=browser-setup-secret',
+                approvals: 'https://agent.example.test/app/approvals?token=browser-approval-secret',
+                automations: 'https://agent.example.test/app/automation?token=browser-automation-secret',
+                memory: 'https://agent.example.test/app/memory?token=browser-memory-secret',
+                channels: 'https://agent.example.test/app/channels?token=browser-channel-secret',
+              },
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.browserPwa.categoryRoute.v1',
+              publicationGuarantee: 'daemon publishes browser route receipts secret=browser-publication-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method browserPwa.categoryRoutes.list', 'sourceTool connected-host-web'],
+              cursor: 'browser-category-cursor-1',
+              receiptId: 'browser-category-route-receipt-1',
+            }],
+          }),
+        },
+        firstRunReceipts: {
+          getSnapshot: () => ({
+            records: [{
+              id: 'browser-first-run-live-1',
+              receiptId: 'browser-first-run-live-1',
+              setupStepId: 'browser-pwa',
+              methodId: 'browser.pwa.firstRun',
+              status: 'published',
+              receiptStatus: 'published',
+              recordedAt: '1970-01-01T00:00:06.000Z',
+              summary: 'Browser/PWA first-run completed token=browser-first-run-secret',
+              url: 'https://agent.example.test/app?token=browser-url-secret',
+              manifestStatus: 'ready',
+              serviceWorkerStatus: 'active',
+              installStatus: 'installed',
+              offlineStatus: 'ready',
+              capabilities: ['manifest', 'service worker', 'offline cache', 'install prompt'],
+              routes: {
+                inspect: 'computer action:"browser" includeParameters:true',
+                open: 'https://agent.example.test/app?token=browser-open-secret',
+                install: 'https://agent.example.test/app/install?token=browser-install-secret',
+              },
+              schemaStatus: 'certified',
+              schemaVersion: 'goodvibes.browserPwa.firstRun.v1',
+              publicationGuarantee: 'browser runtime publishes first-run receipts secret=browser-first-run-publication-secret',
+              publisher: 'goodvibes-daemon',
+              provenance: ['method browser.pwa.firstRun', 'sourceTool connected-host-web'],
+              cursor: 'browser-first-run-cursor-1',
+            }],
+          }),
+        },
+      };
+
+      const browserCockpit = await executeHarnessJson<{
+        readonly id?: string;
+        readonly available?: boolean;
+        readonly cockpit?: {
+          readonly readiness?: string;
+          readonly workspaceCoverage?: {
+            readonly status?: string;
+            readonly categoryCount?: number;
+            readonly coveredCategoryCount?: number;
+            readonly nativeCategoryRoutesPublished?: boolean;
+            readonly lanes?: readonly { readonly id?: string; readonly browserStatus?: string; readonly coveredCategoryCount?: number }[];
+            readonly categories?: readonly { readonly id?: string; readonly browserStatus?: string; readonly browserRoute?: string | null; readonly mobileReady?: boolean }[];
+            readonly publishedCategoryRoutes?: readonly { readonly certification?: { readonly missingSignals?: readonly string[]; readonly receiptId?: string } }[];
+          };
+          readonly mobile?: {
+            readonly status?: string;
+            readonly pwaInstall?: { readonly status?: string };
+            readonly touchControls?: { readonly status?: string };
+            readonly nativeControls?: readonly { readonly id?: string; readonly status?: string }[];
+          };
+          readonly receipts?: {
+            readonly status?: string;
+            readonly browserFirstRunStatus?: string;
+            readonly browserFirstRunCompletion?: {
+              readonly status?: string;
+              readonly certifiedReadModelCount?: number;
+              readonly evidence?: {
+                readonly certification?: { readonly missingSignals?: readonly string[]; readonly receiptId?: string };
+                readonly summary?: string | null;
+                readonly url?: string | null;
+              } | null;
+            };
+          };
+        };
+      }>(fixture, { mode: 'ui_surface', surfaceId: 'connected-browser-cockpit' });
+
+      expect(browserCockpit.id).toBe('connected-browser-cockpit');
+      expect(browserCockpit.available).toBe(true);
+      expect(browserCockpit.cockpit?.readiness).toBe('browser-native-ready');
+      expect(browserCockpit.cockpit?.workspaceCoverage).toMatchObject({
+        status: 'browser-native-ready',
+        categoryCount: categoryIds.length,
+        coveredCategoryCount: categoryIds.length,
+        nativeCategoryRoutesPublished: true,
+      });
+      expect(browserCockpit.cockpit?.workspaceCoverage?.lanes?.every((lane) => lane.browserStatus === 'browser-native-ready')).toBe(true);
+      expect(browserCockpit.cockpit?.workspaceCoverage?.categories?.every((category) => category.browserStatus === 'browser-native-ready' && category.browserRoute && category.mobileReady === true)).toBe(true);
+      expect(browserCockpit.cockpit?.workspaceCoverage?.publishedCategoryRoutes?.[0]?.certification?.missingSignals).toEqual([]);
+      expect(browserCockpit.cockpit?.workspaceCoverage?.publishedCategoryRoutes?.[0]?.certification?.receiptId).toBe('browser-category-route-receipt-1');
+      expect(browserCockpit.cockpit?.mobile?.status).toBe('browser-native-ready');
+      expect(browserCockpit.cockpit?.mobile?.pwaInstall?.status).toBe('certified-live-receipt');
+      expect(browserCockpit.cockpit?.mobile?.touchControls?.status).toBe('ready');
+      expect(browserCockpit.cockpit?.mobile?.nativeControls?.every((control) => control.status === 'ready')).toBe(true);
+      expect(browserCockpit.cockpit?.receipts?.status).toBe('browser-ready-agent-onboarding-missing');
+      expect(browserCockpit.cockpit?.receipts?.browserFirstRunStatus).toBe('certified-live-receipt');
+      expect(browserCockpit.cockpit?.receipts?.browserFirstRunCompletion?.status).toBe('certified-live-receipt');
+      expect(browserCockpit.cockpit?.receipts?.browserFirstRunCompletion?.certifiedReadModelCount).toBe(1);
+      expect(browserCockpit.cockpit?.receipts?.browserFirstRunCompletion?.evidence?.certification?.missingSignals).toEqual([]);
+      expect(browserCockpit.cockpit?.receipts?.browserFirstRunCompletion?.evidence?.certification?.receiptId).toBe('browser-first-run-live-1');
+      const output = JSON.stringify(browserCockpit);
+      expect(output).toContain('<redacted>');
+      expect(output).not.toContain('browser-summary-secret');
+      expect(output).not.toContain('browser-route-secret');
+      expect(output).not.toContain('browser-chat-secret');
+      expect(output).not.toContain('browser-setup-secret');
+      expect(output).not.toContain('browser-approval-secret');
+      expect(output).not.toContain('browser-automation-secret');
+      expect(output).not.toContain('browser-memory-secret');
+      expect(output).not.toContain('browser-channel-secret');
+      expect(output).not.toContain('browser-publication-secret');
+      expect(output).not.toContain('browser-first-run-secret');
+      expect(output).not.toContain('browser-url-secret');
+      expect(output).not.toContain('browser-open-secret');
+      expect(output).not.toContain('browser-install-secret');
+      expect(output).not.toContain('browser-first-run-publication-secret');
     } finally {
       fixture.cleanup();
     }

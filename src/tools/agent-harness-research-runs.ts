@@ -7,6 +7,7 @@ import {
   type AgentResearchRunStatus,
 } from '../agent/research-run-registry.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
+import { isCertifiedResearchLiveRecord, researchLiveReadModelSnapshot } from './agent-harness-research-live-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 interface AgentHarnessResearchRunArgs {
@@ -183,14 +184,19 @@ function describeRunItem(item: ResearchRunItem, includeParameters: boolean, look
 
 function researchRunnerPosture(context: CommandContext, includeParameters: boolean): Record<string, unknown> {
   const browser = browserControlPosture(context);
+  const liveResearch = researchLiveReadModelSnapshot(context);
+  const certifiedRunnerRecords = liveResearch.browserRunnerRecords.filter(isCertifiedResearchLiveRecord);
+  const certifiedVisualReports = liveResearch.visualReportRecords.filter(isCertifiedResearchLiveRecord);
   return {
     browserBackedResearch: {
-      status: browser.status,
-      configured: browser.configured,
+      status: certifiedRunnerRecords.length > 0 ? 'certified-live-runner' : browser.status,
+      configured: browser.configured || certifiedRunnerRecords.length > 0,
       needsReview: browser.needsReview,
-      recommendedRoute: browser.recommendedRoute,
+      recommendedRoute: certifiedRunnerRecords[0]?.modelRoute ?? browser.recommendedRoute,
       setupRoute: browser.setupRoute,
       fallbackRoutes: browser.fallbackRoutes,
+      liveRecords: liveResearch.browserRunnerRecords.slice(0, includeParameters ? 8 : 3),
+      certifiedLiveRecords: certifiedRunnerRecords.slice(0, includeParameters ? 8 : 3),
       workflows: browser.workflows.map((workflow) => ({
         id: workflow.id,
         label: workflow.label,
@@ -199,6 +205,12 @@ function researchRunnerPosture(context: CommandContext, includeParameters: boole
         inspectRoute: workflow.inspectRoute,
         safety: previewHarnessText(workflow.safety, includeParameters ? 180 : 96),
       })),
+    },
+    visualReportRendering: {
+      status: certifiedVisualReports.length > 0 ? 'certified-live-renderer' : 'artifact-packet-only',
+      liveRecords: liveResearch.visualReportRecords.slice(0, includeParameters ? 8 : 3),
+      certifiedLiveRecords: certifiedVisualReports.slice(0, includeParameters ? 8 : 3),
+      route: certifiedVisualReports[0]?.modelRoute ?? 'research action:"reports"',
     },
     sourceQueueRoute: 'research action:"sources"',
     sourceReviewRoute: 'research action:"review_source" confirm:true explicitUserRequest:"..."',

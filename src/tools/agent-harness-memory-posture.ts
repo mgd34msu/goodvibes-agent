@@ -2,12 +2,11 @@ import type { MemoryDoctorReport, MemoryEmbeddingProviderStatus, MemoryVectorSta
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import { EXTERNAL_MEMORY_RECEIPT_FIELDS, EXTERNAL_MEMORY_REQUIRED_CONTRACTS, aggregateExternalProviderLiveRecord, aggregateExternalProviderSetupStatus, externalMemoryLiveProviderRecords, externalMemoryProviderCatalog, externalMemoryReceiptEvidence, externalProviderLiveReady, liveRecordForProvider, receiptEvidenceForProvider, setupStatusFromLiveRecord } from './agent-harness-memory-external-providers.ts';
+import type { ExternalMemoryProviderCatalogEntry, MemoryExternalProviderContractCheck, MemoryExternalProviderContractStatus, MemoryExternalProviderLiveRecord, MemoryExternalProviderReceiptContract, MemoryExternalProviderReceiptEvidence, MemoryExternalProviderRoute, MemoryExternalProviderSetupGuide, MemoryExternalProviderStatus, MemoryPostureProvider, MemoryProviderResolution } from './agent-harness-memory-external-providers.ts';
 
 type MemoryPostureStatus = 'ready' | 'needs-review' | 'empty' | 'unavailable';
 type MemoryVectorPostureStatus = 'ready' | 'attention' | 'disabled' | 'unavailable';
-type MemoryExternalProviderStatus = 'not-published' | 'available';
-type MemoryExternalProviderSetupStatus = 'contract-needed' | 'ready';
-
 interface AgentHarnessMemoryPostureArgs {
   readonly providerId?: unknown;
   readonly target?: unknown;
@@ -15,98 +14,6 @@ interface AgentHarnessMemoryPostureArgs {
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
 }
-
-interface MemoryPostureProvider {
-  readonly id: string;
-  readonly label: string;
-  readonly kind: 'embedding' | 'external-memory';
-  readonly status: string;
-  readonly summary: string;
-  readonly modelRoute: string;
-  readonly setupRoute?: string;
-  readonly configured?: boolean;
-  readonly active?: boolean;
-  readonly dimensions?: number;
-  readonly deterministic?: boolean;
-  readonly metadata?: Readonly<Record<string, unknown>>;
-  readonly setupGuide?: MemoryExternalProviderSetupGuide;
-}
-
-interface MemoryExternalProviderSetupGuide {
-  readonly status: MemoryExternalProviderSetupStatus;
-  readonly userOutcome: string;
-  readonly currentState: string;
-  readonly safeFirstStep: string;
-  readonly inspectRoutes: readonly string[];
-  readonly nextRoutes: readonly MemoryExternalProviderRoute[];
-  readonly contractChecklist: readonly MemoryExternalProviderContractCheck[];
-  readonly receiptContract: MemoryExternalProviderReceiptContract;
-  readonly requiredHostContracts: readonly string[];
-  readonly credentialPolicy: string;
-  readonly confirmationPolicy: string;
-}
-
-interface MemoryExternalProviderRoute {
-  readonly id: string;
-  readonly label: string;
-  readonly modelRoute: string;
-  readonly effect: 'read-only' | 'confirmed';
-  readonly why: string;
-}
-
-interface MemoryExternalProviderContractCheck {
-  readonly id: string;
-  readonly label: string;
-  readonly status: 'missing';
-  readonly requiredFor: string;
-  readonly owner: 'goodvibes-sdk-or-daemon';
-  readonly inspectRoute: string;
-}
-
-interface MemoryExternalProviderReceiptContract {
-  readonly status: 'missing';
-  readonly appliesTo: readonly string[];
-  readonly requiredFields: readonly string[];
-  readonly nextWhenPublished: string;
-}
-
-export type MemoryProviderResolution =
-  | { readonly status: 'found'; readonly provider: Record<string, unknown> }
-  | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
-  | { readonly status: 'missing_lookup'; readonly usage: string };
-
-const EXTERNAL_MEMORY_PROVIDERS: readonly { readonly id: string; readonly label: string }[] = [
-  { id: 'honcho', label: 'Honcho' },
-  { id: 'openviking', label: 'OpenViking' },
-  { id: 'mem0', label: 'Mem0' },
-  { id: 'hindsight', label: 'Hindsight' },
-  { id: 'holographic', label: 'Holographic' },
-  { id: 'retaindb', label: 'RetainDB' },
-  { id: 'byterover', label: 'ByteRover' },
-  { id: 'supermemory', label: 'Supermemory' },
-];
-
-const EXTERNAL_MEMORY_REQUIRED_CONTRACTS = [
-  'Provider status/readiness record with stable provider id.',
-  'Credential reference or setup state that never returns raw secret values.',
-  'Bounded read/search route with redaction and source provenance.',
-  'Explicit write/upsert/import route with confirmation and durable receipt.',
-  'Forget/delete/disable route or an explicit not-supported contract.',
-  'Sync/export/import receipts with timestamps and failure reasons.',
-  'Prompt-injection eligibility policy for what may enter the Agent prompt.',
-] as const;
-
-const EXTERNAL_MEMORY_RECEIPT_FIELDS = [
-  'receiptId',
-  'providerId',
-  'operation',
-  'status',
-  'createdAt',
-  'sourceCount',
-  'redaction',
-  'failureReason',
-  'nextRoute',
-] as const;
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -181,8 +88,49 @@ function describeEmbeddingProvider(
   };
 }
 
-function externalProviderNextRoutes(provider: typeof EXTERNAL_MEMORY_PROVIDERS[number]): readonly MemoryExternalProviderRoute[] {
+function externalProviderNextRoutes(
+  provider: ExternalMemoryProviderCatalogEntry,
+  liveRecord: MemoryExternalProviderLiveRecord | null = null,
+): readonly MemoryExternalProviderRoute[] {
+  const liveRoutes: MemoryExternalProviderRoute[] = [];
+  if (liveRecord?.readRoute) {
+    liveRoutes.push({
+      id: 'read-provider-memory',
+      label: 'Read provider memory',
+      modelRoute: liveRecord.readRoute,
+      effect: 'read-only',
+      why: 'Uses the daemon-published bounded read/search route with provider redaction and provenance policy.',
+    });
+  }
+  if (liveRecord?.writeRoute) {
+    liveRoutes.push({
+      id: 'write-provider-memory',
+      label: 'Write provider memory',
+      modelRoute: liveRecord.writeRoute,
+      effect: 'confirmed',
+      why: 'External memory writes require explicit user request, confirmation, and a durable provider receipt.',
+    });
+  }
+  if (liveRecord?.syncRoute) {
+    liveRoutes.push({
+      id: 'sync-provider-memory',
+      label: 'Sync provider memory',
+      modelRoute: liveRecord.syncRoute,
+      effect: 'confirmed',
+      why: 'Provider sync/import/export crosses a boundary and needs confirmation plus durable receipt evidence.',
+    });
+  }
+  if (liveRecord?.forgetRoute) {
+    liveRoutes.push({
+      id: 'forget-provider-memory',
+      label: 'Forget provider memory',
+      modelRoute: liveRecord.forgetRoute,
+      effect: 'confirmed',
+      why: 'Provider forget/delete/disable effects require explicit user request and durable receipt evidence.',
+    });
+  }
   return [
+    ...liveRoutes,
     {
       id: 'inspect-provider-contract',
       label: 'Inspect provider contract',
@@ -214,53 +162,90 @@ function externalProviderNextRoutes(provider: typeof EXTERNAL_MEMORY_PROVIDERS[n
   ];
 }
 
-function externalProviderContractChecklist(provider: typeof EXTERNAL_MEMORY_PROVIDERS[number]): readonly MemoryExternalProviderContractCheck[] {
+function externalProviderContractChecklist(
+  provider: ExternalMemoryProviderCatalogEntry,
+  receipts: readonly MemoryExternalProviderReceiptEvidence[] = [],
+  liveRecord: MemoryExternalProviderLiveRecord | null = null,
+): readonly MemoryExternalProviderContractCheck[] {
   const providerQuery = `${provider.id} memory provider`;
+  const hasReceipts = receipts.length > 0;
+  const liveInspectRoute = liveRecord?.inspectRoute ?? `host action:"capability" query:"${providerQuery}"`;
+  const providerCertificationPublished: MemoryExternalProviderContractStatus = liveRecord?.certification?.schemaStatus === 'certified'
+    && liveRecord.certification.missingSignals.length === 0
+    ? 'published'
+    : 'missing';
+  const statusRecordStatus: MemoryExternalProviderContractStatus = liveRecord ? 'published' : 'missing';
+  const credentialStatus: MemoryExternalProviderContractStatus = liveRecord && (liveRecord.credentialState !== null || liveRecord.configured !== null) ? 'published' : 'missing';
+  const readStatus: MemoryExternalProviderContractStatus = liveRecord?.readReady === true || liveRecord?.readRoute ? 'published' : 'missing';
+  const writeStatus: MemoryExternalProviderContractStatus = liveRecord?.writeReady === true || liveRecord?.writeRoute ? 'published' : 'missing';
+  const forgetStatus: MemoryExternalProviderContractStatus = liveRecord && (liveRecord.forgetReady !== null || liveRecord.forgetRoute) ? 'published' : 'missing';
+  const syncStatus: MemoryExternalProviderContractStatus = liveRecord?.syncReady === true || liveRecord?.syncRoute || liveRecord?.receiptRoute || liveRecord?.receiptIds.length
+    ? 'published'
+    : hasReceipts ? 'artifact-evidence-found' : 'missing';
+  const promptPolicyStatus: MemoryExternalProviderContractStatus = liveRecord && liveRecord.promptEligible !== null ? 'published' : 'missing';
   return [
+    {
+      id: 'certified-provider-contract',
+      label: 'Certified provider schema/publication evidence',
+      status: providerCertificationPublished,
+      requiredFor: 'Treat provider readiness as release-grade instead of a legacy host hint.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: liveInspectRoute,
+    },
     {
       id: 'status-record',
       label: 'Provider status/readiness record',
-      status: 'missing',
+      status: statusRecordStatus,
       requiredFor: 'Show whether the provider is configured, reachable, and safe to use.',
       owner: 'goodvibes-sdk-or-daemon',
-      inspectRoute: `host action:"capability" query:"${providerQuery}"`,
+      inspectRoute: liveInspectRoute,
     },
     {
       id: 'credential-reference',
       label: 'Credential reference without raw secret values',
-      status: 'missing',
+      status: credentialStatus,
       requiredFor: 'Let the user repair auth without exposing API keys or memory payloads.',
       owner: 'goodvibes-sdk-or-daemon',
-      inspectRoute: 'settings action:"list" query:"memory" includeHidden:true',
+      inspectRoute: liveRecord?.setupRoute ?? 'settings action:"list" query:"memory" includeHidden:true',
     },
     {
       id: 'bounded-read-search',
       label: 'Bounded read/search route',
-      status: 'missing',
+      status: readStatus,
       requiredFor: 'Review external memories with redaction, provenance, and source limits before prompt use.',
       owner: 'goodvibes-sdk-or-daemon',
-      inspectRoute: `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
+      inspectRoute: liveRecord?.readRoute ?? `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
     },
     {
       id: 'confirmed-write-upsert',
       label: 'Confirmed write/upsert/import route',
-      status: 'missing',
+      status: writeStatus,
       requiredFor: 'Write external memories only after explicit user request and confirmation.',
       owner: 'goodvibes-sdk-or-daemon',
-      inspectRoute: `host action:"capability" query:"${providerQuery}"`,
+      inspectRoute: liveRecord?.writeRoute ?? `host action:"capability" query:"${providerQuery}"`,
+    },
+    {
+      id: 'forget-contract',
+      label: 'Forget/delete or explicit not-supported contract',
+      status: forgetStatus,
+      requiredFor: 'Prove provider memory can be removed or that removal is explicitly unsupported before the provider is relied on.',
+      owner: 'goodvibes-sdk-or-daemon',
+      inspectRoute: liveRecord?.forgetRoute ?? liveInspectRoute,
     },
     {
       id: 'sync-receipts',
       label: 'Sync/import/export receipts',
-      status: 'missing',
+      status: syncStatus,
       requiredFor: 'Prove what crossed the provider boundary, when it happened, and what failed.',
       owner: 'goodvibes-sdk-or-daemon',
-      inspectRoute: `memory action:"provider" providerId:"${provider.id}" includeParameters:true`,
+      inspectRoute: liveRecord?.receiptRoute ?? liveRecord?.syncRoute ?? (hasReceipts
+        ? receipts[0]!.inspectRoute
+        : `memory action:"provider" providerId:"${provider.id}" includeParameters:true`),
     },
     {
       id: 'prompt-eligibility-policy',
       label: 'Prompt eligibility policy',
-      status: 'missing',
+      status: promptPolicyStatus,
       requiredFor: 'Prevent external provider records from silently entering the Agent prompt.',
       owner: 'goodvibes-sdk-or-daemon',
       inspectRoute: 'context action:"prompt" includeParameters:true',
@@ -268,30 +253,77 @@ function externalProviderContractChecklist(provider: typeof EXTERNAL_MEMORY_PROV
   ];
 }
 
-function externalProviderReceiptContract(providerId = '<provider-id>'): MemoryExternalProviderReceiptContract {
+function externalProviderReceiptContract(
+  providerId = '<provider-id>',
+  receipts: readonly MemoryExternalProviderReceiptEvidence[] = [],
+  liveRecord: MemoryExternalProviderLiveRecord | null = null,
+): MemoryExternalProviderReceiptContract {
+  const liveReceiptsPublished = Boolean(liveRecord && (liveRecord.receiptIds.length > 0 || liveRecord.receiptRoute || liveRecord.syncReady === true || liveRecord.syncRoute));
+  const liveReceiptCertified = liveRecord?.certification?.schemaStatus === 'certified' && liveRecord.certification.missingSignals.length === 0;
+  const artifactReceiptCertified = receipts.some((receipt) => receipt.certification?.schemaStatus === 'certified' && receipt.certification.missingSignals.length === 0);
   return {
-    status: 'missing',
+    status: liveReceiptsPublished && liveReceiptCertified ? 'published' : receipts.length > 0 && artifactReceiptCertified ? 'artifact-evidence-found' : 'missing',
     appliesTo: ['status', 'read', 'write', 'upsert', 'import', 'export', 'sync', 'forget'],
     requiredFields: EXTERNAL_MEMORY_RECEIPT_FIELDS,
     nextWhenPublished: `memory action:"provider" providerId:"${providerId}" includeParameters:true should expose latest receipts and exact follow-up routes.`,
   };
 }
 
-function externalProviderSetupGuide(provider: typeof EXTERNAL_MEMORY_PROVIDERS[number]): MemoryExternalProviderSetupGuide {
+function externalProviderSetupGuide(
+  provider: ExternalMemoryProviderCatalogEntry,
+  receipts: readonly MemoryExternalProviderReceiptEvidence[] = [],
+  liveRecord: MemoryExternalProviderLiveRecord | null = null,
+): MemoryExternalProviderSetupGuide {
+  const latestReceipt = receipts[0] ?? null;
+  const liveSetupStatus = setupStatusFromLiveRecord(liveRecord);
+  const readiness = liveRecord
+    ? [
+      `status ${liveRecord.status}`,
+      liveRecord.configured === null ? '' : `configured ${liveRecord.configured}`,
+      liveRecord.reachable === null ? '' : `reachable ${liveRecord.reachable}`,
+      liveRecord.readReady === null ? '' : `read ${liveRecord.readReady}`,
+      liveRecord.writeReady === null ? '' : `write ${liveRecord.writeReady}`,
+      liveRecord.syncReady === null ? '' : `sync ${liveRecord.syncReady}`,
+      liveRecord.forgetReady === null ? '' : `forget ${liveRecord.forgetReady}`,
+      liveRecord.promptEligible === null ? '' : `promptEligible ${liveRecord.promptEligible}`,
+    ].filter(Boolean).join(', ')
+    : '';
+  const liveInspectRoutes = liveRecord
+    ? [
+      liveRecord.inspectRoute,
+      liveRecord.readRoute,
+      liveRecord.writeRoute,
+      liveRecord.syncRoute,
+      liveRecord.forgetRoute,
+      liveRecord.receiptRoute,
+    ].filter((route): route is string => Boolean(route))
+    : [];
   return {
-    status: 'contract-needed',
-    userOutcome: `Use ${provider.label} as an external memory backend only after the SDK/daemon publishes provider setup, status, read, write, and receipt contracts for Agent to consume.`,
-    currentState: `No concrete ${provider.label} provider record is published by the current SDK/daemon contract.`,
-    safeFirstStep: `Inspect connected-host and MCP setup for ${provider.label}; keep Agent-local memory as the active path until a ready provider record exists.`,
-    inspectRoutes: [
+    status: liveSetupStatus ?? (latestReceipt ? 'receipt-evidence-found' : 'contract-needed'),
+    userOutcome: liveRecord
+      ? `Use ${provider.label} as an external memory backend through the daemon-published read model, with bounded reads visible before prompt use and every write/sync/forget route treated as confirmed external provider effect.`
+      : `Use ${provider.label} as an external memory backend only after the SDK/daemon publishes provider setup, status, read, write, and receipt contracts for Agent to consume.`,
+    currentState: liveRecord
+      ? `Live ${provider.label} provider record from ${liveRecord.source} reports ${readiness || liveRecord.status}.${latestReceipt ? ` Latest durable receipt artifact ${latestReceipt.artifactId} reports ${latestReceipt.operation} ${latestReceipt.status}.` : ''}`
+      : latestReceipt
+      ? `Latest durable ${provider.label} receipt artifact ${latestReceipt.artifactId} reports ${latestReceipt.operation} ${latestReceipt.status}; live provider status/read/write records are still not published by the current SDK/daemon contract.`
+      : `No concrete ${provider.label} provider record is published by the current SDK/daemon contract.`,
+    safeFirstStep: liveRecord
+      ? `Inspect the live ${provider.label} record and use only the published bounded read route until the user explicitly confirms any write, sync, import/export, forget/delete, or prompt-eligibility change.`
+      : latestReceipt
+      ? `Review ${latestReceipt.artifactId}, then keep Agent-local memory as the active prompt path until a ready provider record and prompt-eligibility policy exist.`
+      : `Inspect connected-host and MCP setup for ${provider.label}; keep Agent-local memory as the active path until a ready provider record exists.`,
+    inspectRoutes: [...new Set([
       `memory action:"provider" providerId:"${provider.id}" includeParameters:true`,
+      ...liveInspectRoutes,
       `host action:"capability" query:"${provider.id} memory provider"`,
       `agent_harness mode:"mcp_servers" query:"${provider.id}"`,
       'settings action:"list" query:"memory" includeHidden:true',
-    ],
-    nextRoutes: externalProviderNextRoutes(provider),
-    contractChecklist: externalProviderContractChecklist(provider),
-    receiptContract: externalProviderReceiptContract(provider.id),
+    ])],
+    nextRoutes: externalProviderNextRoutes(provider, liveRecord),
+    contractChecklist: externalProviderContractChecklist(provider, receipts, liveRecord),
+    receiptContract: externalProviderReceiptContract(provider.id, receipts, liveRecord),
+    ...(latestReceipt ? { latestReceipt, receiptHistory: receipts.slice(0, 5) } : {}),
     requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
     credentialPolicy: 'Provider credentials must use secret refs or connected-host auth state; raw API keys, tokens, and user memory payloads are never returned by posture inspection.',
     confirmationPolicy: 'External memory writes, sync, import, export, forget/delete, and prompt-eligibility changes require explicit user request, confirmation, and durable receipts.',
@@ -299,20 +331,33 @@ function externalProviderSetupGuide(provider: typeof EXTERNAL_MEMORY_PROVIDERS[n
 }
 
 function describeExternalProvider(
-  provider: typeof EXTERNAL_MEMORY_PROVIDERS[number],
+  provider: ExternalMemoryProviderCatalogEntry,
   includeParameters: boolean,
+  receipts: readonly MemoryExternalProviderReceiptEvidence[] = [],
+  liveRecord: MemoryExternalProviderLiveRecord | null = null,
 ): MemoryPostureProvider {
-  const status: MemoryExternalProviderStatus = 'not-published';
+  const latestReceipt = receipts[0] ?? null;
+  const status: MemoryExternalProviderStatus = liveRecord?.status ?? (latestReceipt ? 'receipt-evidence-found' : 'not-published');
+  const liveSummary = liveRecord
+    ? `Live external memory provider record from ${liveRecord.source} reports ${liveRecord.status}; configured ${liveRecord.configured ?? 'unknown'}, read ${liveRecord.readReady ?? 'unknown'}, write ${liveRecord.writeReady ?? 'unknown'}, sync ${liveRecord.syncReady ?? 'unknown'}.`
+    : '';
   return {
     id: provider.id,
     label: provider.label,
     kind: 'external-memory',
     status,
-    summary: previewHarnessText('External memory backend records are not published by the current GoodVibes SDK/daemon contract.', includeParameters ? 180 : 96),
+    summary: previewHarnessText(liveRecord
+      ? liveSummary
+      : latestReceipt
+      ? `Durable external memory receipt ${latestReceipt.artifactId} reports ${latestReceipt.operation} ${latestReceipt.status}; live provider records are still not published.`
+      : 'External memory backend records are not published by the current GoodVibes SDK/daemon contract.', includeParameters ? 180 : 96),
     modelRoute: `memory action:"provider" providerId:"${provider.id}"`,
     setupRoute: 'host action:"capability" query:"memory provider"',
-    configured: false,
-    ...(includeParameters ? { setupGuide: externalProviderSetupGuide(provider) } : {}),
+    configured: liveRecord?.configured ?? (liveRecord ? externalProviderLiveReady(liveRecord) : latestReceipt ? latestReceipt.status === 'succeeded' : false),
+    ...(includeParameters && liveRecord ? { liveRecord } : {}),
+    ...(latestReceipt ? { latestReceipt } : {}),
+    ...(includeParameters && receipts.length > 0 ? { receiptEvidence: receipts.slice(0, 5) } : {}),
+    ...(includeParameters ? { setupGuide: externalProviderSetupGuide(provider, receipts, liveRecord) } : {}),
   };
 }
 
@@ -325,6 +370,41 @@ function providerSearchText(provider: MemoryPostureProvider): string {
     provider.summary,
     provider.modelRoute,
     provider.setupRoute ?? '',
+    provider.liveRecord ? [
+      provider.liveRecord.providerId,
+      provider.liveRecord.label ?? '',
+      provider.liveRecord.status,
+      provider.liveRecord.source,
+      provider.liveRecord.credentialState ?? '',
+      provider.liveRecord.readRoute ?? '',
+      provider.liveRecord.writeRoute ?? '',
+      provider.liveRecord.syncRoute ?? '',
+      provider.liveRecord.receiptIds.join('\n'),
+      provider.liveRecord.certification ? [
+        provider.liveRecord.certification.schemaStatus,
+        provider.liveRecord.certification.schemaVersion ?? '',
+        provider.liveRecord.certification.publicationGuarantee ?? '',
+        provider.liveRecord.certification.publisher ?? '',
+        provider.liveRecord.certification.provenance?.join('\n') ?? '',
+        provider.liveRecord.certification.receiptIds?.join('\n') ?? '',
+        provider.liveRecord.certification.missingSignals.join('\n'),
+      ].join('\n') : '',
+    ].join('\n') : '',
+    provider.latestReceipt ? [
+      provider.latestReceipt.artifactId,
+      provider.latestReceipt.operation,
+      provider.latestReceipt.status,
+      provider.latestReceipt.nextRoute,
+      provider.latestReceipt.certification ? [
+        provider.latestReceipt.certification.schemaStatus,
+        provider.latestReceipt.certification.schemaVersion ?? '',
+        provider.latestReceipt.certification.publicationGuarantee ?? '',
+        provider.latestReceipt.certification.publisher ?? '',
+        provider.latestReceipt.certification.provenance?.join('\n') ?? '',
+        provider.latestReceipt.certification.receiptIds?.join('\n') ?? '',
+        provider.latestReceipt.certification.missingSignals.join('\n'),
+      ].join('\n') : '',
+    ].join('\n') : '',
     provider.setupGuide ? [
       provider.setupGuide.status,
       provider.setupGuide.userOutcome,
@@ -336,6 +416,11 @@ function providerSearchText(provider: MemoryPostureProvider): string {
       provider.setupGuide.receiptContract.appliesTo.join('\n'),
       provider.setupGuide.receiptContract.requiredFields.join('\n'),
       provider.setupGuide.receiptContract.nextWhenPublished,
+      provider.setupGuide.latestReceipt ? [
+        provider.setupGuide.latestReceipt.artifactId,
+        provider.setupGuide.latestReceipt.operation,
+        provider.setupGuide.latestReceipt.status,
+      ].join('\n') : '',
       provider.setupGuide.requiredHostContracts.join('\n'),
       provider.setupGuide.credentialPolicy,
       provider.setupGuide.confirmationPolicy,
@@ -357,6 +442,9 @@ function compactProvider(provider: MemoryPostureProvider, includeParameters: boo
     ...(includeParameters && typeof provider.dimensions === 'number' ? { dimensions: provider.dimensions } : {}),
     ...(includeParameters && typeof provider.deterministic === 'boolean' ? { deterministic: provider.deterministic } : {}),
     ...(includeParameters && provider.metadata ? { metadata: provider.metadata } : {}),
+    ...(includeParameters && provider.liveRecord ? { liveRecord: provider.liveRecord } : {}),
+    ...(provider.latestReceipt ? { latestReceipt: provider.latestReceipt } : {}),
+    ...(includeParameters && provider.receiptEvidence ? { receiptEvidence: provider.receiptEvidence } : {}),
     ...(includeParameters && provider.setupGuide ? { setupGuide: provider.setupGuide } : {}),
   };
 }
@@ -368,18 +456,31 @@ async function buildProviderRecords(
   readonly doctor: MemoryDoctorReport | null;
   readonly vector: MemoryVectorStats | null;
   readonly providers: readonly MemoryPostureProvider[];
+  readonly receiptEvidence: readonly MemoryExternalProviderReceiptEvidence[];
+  readonly liveRecords: readonly MemoryExternalProviderLiveRecord[];
 }> {
   const includeParameters = args.includeParameters === true;
   const doctor = await readMemoryDoctor(context);
   const vector = readVectorStats(context, doctor);
+  const receiptEvidence = externalMemoryReceiptEvidence(context);
+  const liveRecords = await externalMemoryLiveProviderRecords(context);
   const embeddingProviders = (doctor?.embeddings.providers ?? []).map((provider) => (
     describeEmbeddingProvider(provider, doctor?.embeddings.activeProviderId, includeParameters)
   ));
-  const externalProviders = EXTERNAL_MEMORY_PROVIDERS.map((provider) => describeExternalProvider(provider, includeParameters));
+  const externalProviders = externalMemoryProviderCatalog(liveRecords, receiptEvidence).map((provider) => (
+    describeExternalProvider(
+      provider,
+      includeParameters,
+      receiptEvidenceForProvider(receiptEvidence, provider.id),
+      liveRecordForProvider(liveRecords, provider.id),
+    )
+  ));
   return {
     doctor,
     vector,
     providers: [...embeddingProviders, ...externalProviders],
+    receiptEvidence,
+    liveRecords,
   };
 }
 
@@ -427,6 +528,8 @@ export async function memoryPostureCatalogStatus(context: CommandContext): Promi
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
   const doctor = await readMemoryDoctor(context);
   const vector = readVectorStats(context, doctor);
+  const receiptEvidence = externalMemoryReceiptEvidence(context);
+  const liveRecords = await externalMemoryLiveProviderRecords(context);
   const status = memoryStatus(snapshot, Boolean(memoryApi(context)));
   const vectorState = vectorStatus(vector);
   return {
@@ -438,9 +541,12 @@ export async function memoryPostureCatalogStatus(context: CommandContext): Promi
     promptActive: snapshot.localMemoryPromptActiveCount,
     vector: vectorState,
     embeddingProviders: doctor?.embeddings.providers.length ?? 0,
-    externalProviders: EXTERNAL_MEMORY_PROVIDERS.length,
-    externalProviderRecordsPublished: false,
-    externalProviderSetupGuideStatus: 'contract-needed',
+    externalProviders: externalMemoryProviderCatalog(liveRecords, receiptEvidence).length,
+    externalProviderRecordsPublished: liveRecords.length > 0,
+    externalProviderLiveRecordCount: liveRecords.length,
+    externalProviderReceiptEvidenceFound: receiptEvidence.length > 0,
+    externalProviderReceiptEvidenceCount: receiptEvidence.length,
+    externalProviderSetupGuideStatus: aggregateExternalProviderSetupStatus(liveRecords, receiptEvidence),
   };
 }
 
@@ -449,9 +555,10 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
   const limit = readLimit(args.limit, 100);
   const query = readString(args.query).toLowerCase();
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
-  const { doctor, vector, providers } = await buildProviderRecords(context, args);
+  const { doctor, vector, providers, receiptEvidence, liveRecords } = await buildProviderRecords(context, args);
   const status = memoryStatus(snapshot, Boolean(memoryApi(context)));
   const vectorState = vectorStatus(vector);
+  const aggregateLiveRecord = aggregateExternalProviderLiveRecord(liveRecords);
   const filteredProviders = providers
     .filter((provider) => !query || providerSearchText(provider).includes(query))
     .slice(0, limit)
@@ -483,13 +590,18 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
     returned: filteredProviders.length,
     totalProviders: providers.length,
     externalMemory: {
-      status: 'not-published',
-      providerRecordsPublished: false,
-      setupGuideStatus: 'contract-needed',
-      checkedProviders: EXTERNAL_MEMORY_PROVIDERS.map((provider) => provider.id),
+      status: aggregateLiveRecord?.status ?? (receiptEvidence.length > 0 ? 'receipt-evidence-found' : 'not-published'),
+      providerRecordsPublished: liveRecords.length > 0,
+      liveProviderRecordCount: liveRecords.length,
+      latestLiveProviderRecords: liveRecords.slice(0, 5),
+      receiptEvidenceFound: receiptEvidence.length > 0,
+      receiptEvidenceCount: receiptEvidence.length,
+      latestReceipts: receiptEvidence.slice(0, 5),
+      setupGuideStatus: aggregateExternalProviderSetupStatus(liveRecords, receiptEvidence),
+      checkedProviders: externalMemoryProviderCatalog(liveRecords, receiptEvidence).map((provider) => provider.id),
       requiredHostContracts: EXTERNAL_MEMORY_REQUIRED_CONTRACTS,
-      contractChecklist: externalProviderContractChecklist({ id: '<provider-id>', label: 'External memory provider' }),
-      receiptContract: externalProviderReceiptContract(),
+      contractChecklist: externalProviderContractChecklist({ id: '<provider-id>', label: 'External memory provider' }, receiptEvidence, aggregateLiveRecord),
+      receiptContract: externalProviderReceiptContract('<provider-id>', receiptEvidence, aggregateLiveRecord),
       nextRoutes: [
         {
           id: 'inspect-one-provider',
@@ -506,7 +618,11 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
           why: 'Checks whether the connected host exposes a provider-backed memory capability.',
         },
       ],
-      next: 'Use Agent-local memory now. Inspect one external provider for the required SDK/daemon setup/status/read/write/receipt contracts Agent can consume before provider use.',
+      next: liveRecords.length > 0
+        ? 'Inspect the matching live provider record before any provider read; keep write, sync, import/export, forget/delete, and prompt-eligibility changes on confirmed routes with durable receipts.'
+        : receiptEvidence.length > 0
+        ? 'Review the latest external-memory receipt artifact, then keep Agent-local memory as the active prompt path until live provider status/read/write records are published.'
+        : 'Use Agent-local memory now. Inspect one external provider for the required SDK/daemon setup/status/read/write/receipt contracts Agent can consume before provider use.',
       inspectRoute: 'host action:"capability" query:"memory provider"',
       providerLookup: 'memory action:"provider" providerId:"<id>" includeParameters:true',
     },

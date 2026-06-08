@@ -3,6 +3,7 @@ import type { BackgroundProcess, ProcessManager } from '@pellux/goodvibes-sdk/pl
 import type { CommandContext } from '../input/command-registry.ts';
 import { sudoExecutionPosture } from './agent-harness-sudo-posture.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import { interactiveRuntimeCapabilitySummary, interactiveRuntimeParityStatus } from './agent-harness-interactive-runtime-records.ts';
 import type {
   AgentHarnessBackgroundProcessArgs,
   BackgroundProcessLookupSource,
@@ -356,17 +357,19 @@ function candidateProcess(entry: BackgroundProcess): Record<string, unknown> {
 
 function processToolParity(context?: CommandContext): readonly Record<string, unknown>[] {
   const substrate = processSubstrateReport(context);
+  const interactive = context ? interactiveRuntimeParityStatus(context) : null;
   const localProcessManager = substrate.localProcessManager as Record<string, unknown>;
   const daemonContract = substrate.daemonOperatorContract as Record<string, unknown>;
   const stdinWrite = localProcessManager.stdinWrite as Record<string, unknown>;
   const pty = localProcessManager.pty as Record<string, unknown>;
   const terminalRoutes = Array.isArray(daemonContract.terminalOrPtyRoutes) ? daemonContract.terminalOrPtyRoutes : [];
-  const writeStatus: ProcessCapabilityStatus = stdinWrite.status === 'contract-discovered'
+  const writeStatus: ProcessCapabilityStatus = interactive?.stdinWriteContract ? 'contract-discovered' : stdinWrite.status === 'contract-discovered'
     ? 'contract-discovered'
     : terminalRoutes.some((route) => String((route as Record<string, unknown>).methodId).toLowerCase().includes('write'))
       ? 'contract-discovered'
       : 'blocked-contract-gap';
-  const ptyStatus: ProcessCapabilityStatus = pty.status === 'contract-discovered' || terminalRoutes.length > 0 ? 'contract-discovered' : 'blocked-contract-gap';
+  const ptyStatus: ProcessCapabilityStatus = interactive?.ptyContract || pty.status === 'contract-discovered' || terminalRoutes.length > 0 ? 'contract-discovered' : 'blocked-contract-gap';
+  const sudoStatus: ProcessCapabilityStatus = interactive?.sudoMediationContract ? 'contract-discovered' : 'visible-only';
   return [
     {
       capability: 'terminal(background=true)',
@@ -422,8 +425,8 @@ function processToolParity(context?: CommandContext): readonly Record<string, un
     },
     {
       capability: 'sudo',
-      status: 'visible-only',
-      userOutcome: 'Privilege prompts must stay foreground or use a future safe credential-prompt contract.',
+      status: sudoStatus,
+      userOutcome: sudoStatus === 'contract-discovered' ? 'A certified daemon mediation route is published for visible credential prompts.' : 'Privilege prompts must stay foreground or use a future safe credential-prompt contract.',
       modelRoute: 'execution action:"route" id:"local-shell-command"',
     },
   ];
@@ -455,6 +458,7 @@ function capabilities(context?: CommandContext): Record<string, unknown> {
       ...substrate,
       auditedTerms: ['terminal', 'process.write', 'stdin', 'pty', 'sudo', 'sessions.inputs'],
     },
+    interactiveRuntime: context ? interactiveRuntimeCapabilitySummary(context) : null,
     pty: {
       status: pty.status === 'contract-discovered' ? 'contract-discovered-but-not-generic-executable' : 'not-yet-supported-in-agent-harness',
       guidance: pty.status === 'contract-discovered'

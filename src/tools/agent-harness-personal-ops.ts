@@ -52,6 +52,11 @@ function recordCount(lane: PersonalOpsLane, predicate: (record: PersonalOpsLiveR
   return (lane.liveRecords ?? []).filter(predicate).length;
 }
 
+function isFreshProviderRecord(record: PersonalOpsLiveRecord): boolean {
+  return record.freshness?.status === 'fresh-provider-route-ready'
+    || record.freshness?.status === 'fresh-provider-record-current';
+}
+
 function workflowCount(lane: PersonalOpsLane, status: PersonalOpsWorkflowStatus): number {
   return (lane.workflows ?? []).filter((workflow) => workflow.status === status).length;
 }
@@ -67,12 +72,12 @@ function briefingPurpose(lane: PersonalOpsLane): string {
 }
 
 function briefingNext(lane: PersonalOpsLane): string {
-  const freshProviderReads = recordCount(lane, (record) => record.freshness?.status === 'fresh-provider-route-ready');
+  const freshProviderReads = recordCount(lane, isFreshProviderRecord);
   const refreshableSavedRecords = recordCount(lane, (record) => record.freshness?.status === 'saved-review-refreshable');
   const savedReviewRecords = recordCount(lane, (record) => record.freshness?.source === 'saved-review-artifact' || typeof record.reviewRecordCount === 'number');
   const attentionWorkflows = workflowCount(lane, 'attention');
   if ((lane.id === 'inbox' || lane.id === 'calendar') && freshProviderReads > 0) {
-    return 'Pick one bounded read-only record and run it with personal_ops action:"read" only when the user asks for live provider data.';
+    return 'Inspect one current provider-backed record first; run a bounded refresh/read route only when the returned record exposes one and the user asks for live provider data.';
   }
   if ((lane.id === 'inbox' || lane.id === 'calendar') && refreshableSavedRecords > 0) {
     return 'Recap the saved redacted queue first; refresh a single record only through the returned confirmed read route.';
@@ -89,7 +94,7 @@ function briefingNext(lane: PersonalOpsLane): string {
 function briefingStepForLane(lane: PersonalOpsLane, includeParameters: boolean): Record<string, unknown> {
   const records = lane.liveRecords ?? [];
   const workflows = lane.workflows ?? [];
-  const freshProviderReads = recordCount(lane, (record) => record.freshness?.status === 'fresh-provider-route-ready');
+  const freshProviderReads = recordCount(lane, isFreshProviderRecord);
   const refreshableSavedRecords = recordCount(lane, (record) => record.freshness?.status === 'saved-review-refreshable');
   const savedReviewRecords = recordCount(lane, (record) => record.freshness?.source === 'saved-review-artifact' || typeof record.reviewRecordCount === 'number');
   const readOnlyRecords = recordCount(lane, (record) => record.effect === 'read-only');
@@ -105,7 +110,7 @@ function briefingStepForLane(lane: PersonalOpsLane, includeParameters: boolean):
     `${records.length} live/operation record(s)`,
     `${workflowCount(lane, 'ready')} ready workflow(s)`,
     `${workflowCount(lane, 'attention')} attention workflow(s)`,
-    `${freshProviderReads} fresh provider read route(s)`,
+    `${freshProviderReads} fresh provider read/record route(s)`,
     `${refreshableSavedRecords} refreshable saved review record(s)`,
     `${savedReviewRecords} saved review record(s)`,
   ];
@@ -215,7 +220,7 @@ export async function personalOpsBriefingSummary(context: CommandContext, args: 
       workflows: workflows.length,
       readyWorkflows: workflows.filter((workflow) => workflow.status === 'ready').length,
       attentionWorkflows: workflows.filter((workflow) => workflow.status === 'attention').length,
-      freshProviderReads: liveRecords.filter((record) => record.freshness?.status === 'fresh-provider-route-ready').length,
+      freshProviderReads: liveRecords.filter(isFreshProviderRecord).length,
       refreshableSavedRecords: liveRecords.filter((record) => record.freshness?.status === 'saved-review-refreshable').length,
       savedReviewRecords: liveRecords.filter((record) => record.freshness?.source === 'saved-review-artifact' || typeof record.reviewRecordCount === 'number').length,
       connectorSignals: lanes.reduce((sum, lane) => sum + (lane.connectorSignals?.length ?? 0), 0),
@@ -258,7 +263,7 @@ export async function personalOpsSummary(context: CommandContext, args: AgentHar
       attention: workflows.filter((workflow) => workflow.status === 'attention').length,
       needsSetup: workflows.filter((workflow) => workflow.status === 'needs-setup').length,
     },
-    policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Lanes include live records when Agent owns them and schema-derived connector operation records when MCP schemas are available. Missing email/calendar connectors, messages, and events are reported as setup/data gaps, not faked.',
+    policy: 'Personal Ops unifies inbox, agenda, notes, tasks, reminders, routines, and delivery. Lanes include live records when Agent owns them, daemon/SDK provider read-model queue records when published, and schema-derived connector operation records when MCP schemas are available. Missing email/calendar connectors, messages, and events are reported as setup/data gaps, not faked.',
     nextActions: nextActions(lanes),
   };
 }
@@ -268,6 +273,7 @@ function queueRecordType(record: PersonalOpsLiveRecord): string {
   if (record.capability === 'calendar-event-review') return 'saved-calendar-event';
   if (record.capability === 'inbox-review-artifact') return 'saved-inbox-review';
   if (record.capability === 'calendar-review-artifact') return 'saved-calendar-review';
+  if (record.freshness?.status === 'fresh-provider-record-current') return 'fresh-provider-record';
   if (record.freshness?.status === 'fresh-provider-route-ready') return 'fresh-provider-read';
   if (record.freshness?.status === 'connector-attention') return 'provider-read-attention';
   return record.capability ?? 'personal-ops-record';
@@ -276,7 +282,7 @@ function queueRecordType(record: PersonalOpsLiveRecord): string {
 function queueStatusRank(record: PersonalOpsLiveRecord): number {
   if (record.freshness?.status === 'saved-review-refreshable') return 100;
   if (record.capability === 'inbox-thread-review' || record.capability === 'calendar-event-review') return 90;
-  if (record.freshness?.status === 'fresh-provider-route-ready') return 80;
+  if (record.freshness?.status === 'fresh-provider-route-ready' || record.freshness?.status === 'fresh-provider-record-current') return 80;
   if (record.capability === 'inbox-review-artifact' || record.capability === 'calendar-review-artifact') return 70;
   if (record.freshness?.status === 'connector-attention') return 50;
   if (record.freshness?.status === 'provider-contract-missing') return 35;
@@ -286,7 +292,7 @@ function queueStatusRank(record: PersonalOpsLiveRecord): number {
 
 function isPersonalOpsQueueRecord(record: PersonalOpsLiveRecord): boolean {
   if (record.freshness?.source === 'saved-review-artifact') return true;
-  if (record.freshness?.status === 'fresh-provider-route-ready' || record.freshness?.status === 'connector-attention') return true;
+  if (isFreshProviderRecord(record) || record.freshness?.status === 'connector-attention') return true;
   return record.capability ? QUEUE_CAPABILITIES.has(record.capability) : false;
 }
 
@@ -323,6 +329,7 @@ function describeQueueItem(lane: PersonalOpsLane, record: PersonalOpsLiveRecord,
       ...(record.artifactId ? { artifact: `agent_artifacts show artifactId:"${record.artifactId}" includeContent:true` } : {}),
     },
     followUpRoutes,
+    ...(includeParameters && record.certification ? { certification: record.certification } : {}),
     ...(includeParameters && record.tags && record.tags.length > 0 ? { tags: record.tags } : {}),
     ...(includeParameters && record.requiredFields ? { requiredFields: record.requiredFields } : {}),
     ...(includeParameters && record.sampleInput ? { sampleInput: record.sampleInput } : {}),
@@ -359,7 +366,7 @@ export async function personalOpsQueueSummary(context: CommandContext, args: Age
   const items = allItems.slice(0, limit).map((item) => describeQueueItem(item.lane, item.record, includeParameters));
   const readRecords = allItems.filter((item) => item.record.effect === 'read-only');
   const confirmedFollowUps = allItems.reduce((total, item) => total + (item.record.followUpRoutes ?? []).filter((route) => route.requiresConfirmation).length, 0);
-  const freshProviderReads = allItems.filter((item) => item.record.freshness?.status === 'fresh-provider-route-ready').length;
+  const freshProviderReads = allItems.filter((item) => isFreshProviderRecord(item.record)).length;
   const refreshableSavedRecords = allItems.filter((item) => item.record.freshness?.status === 'saved-review-refreshable').length;
   const savedReviewRecords = allItems.filter((item) => item.record.freshness?.source === 'saved-review-artifact' || typeof item.record.reviewRecordCount === 'number').length;
   const attentionRecords = allItems.filter((item) => item.record.freshness?.status === 'connector-attention' || item.lane.status === 'gap' || item.lane.status === 'needs-setup').length;
@@ -389,14 +396,14 @@ export async function personalOpsQueueSummary(context: CommandContext, args: Age
     nextActions: allItems.length > 0
       ? [
         refreshableSavedRecords > 0 ? 'Refresh one saved queue item only through its returned confirmed read route when the user asks for current provider state.' : '',
-        freshProviderReads > 0 ? 'Run one fresh provider read at a time, summarize it, and save review cards when the user wants a durable queue.' : '',
+        freshProviderReads > 0 ? 'Inspect one current provider-backed queue record at a time; run a refresh route only when the record publishes one and the user asks.' : '',
         'Use saved redacted queue artifacts for recap or local drafts before any external send, label, archive, edit, RSVP, or delete.',
       ].filter(Boolean).slice(0, includeParameters ? 5 : 3)
       : [
         'Run personal_ops action:"intake" for the user request to find a safe connector route.',
         'Set up an inbox or calendar connector before promising fresh queue state.',
       ],
-    policy: 'Personal Ops queue is read-only. It aggregates existing saved review artifacts and connector read-route records; it does not execute MCP tools, read live provider data, send messages, edit calendar events, create reminders, or mutate artifacts.',
+    policy: 'Personal Ops queue is read-only. It aggregates existing saved review artifacts, connector read-route records, and daemon/SDK provider read-model records; it does not execute MCP tools, read live provider data beyond already-published read models, send messages, edit calendar events, create reminders, or mutate artifacts.',
   };
 }
 

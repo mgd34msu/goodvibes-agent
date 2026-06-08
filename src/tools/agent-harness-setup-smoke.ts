@@ -2,8 +2,10 @@ import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifact
 import type { CommandContext } from '../input/command-registry.ts';
 import { requireShellPaths } from '../input/commands/runtime-services.ts';
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
+import { buildSetupWizardDurableReceipts } from '../agent/setup-wizard-artifact-receipts.ts';
+import { mergeSetupWizardDurableReceipts, setupWizardLiveDurableReceipts } from '../input/setup-wizard-live-receipts.ts';
 import { clearSetupWizardCheckpoint, readSetupWizardCheckpoint, saveSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
-import { DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE, buildAgentSetupWizard, emptyAgentSetupSmokeHistory, emptyAgentSetupWizardCheckpoint, type AgentSetupWizard, type AgentSetupWizardCheckpoint, type AgentSetupWizardSmokeHistory, type AgentSetupWizardSourceItem } from '../agent/setup-wizard.ts';
+import { DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE, buildAgentSetupWizard, emptyAgentSetupSmokeHistory, emptyAgentSetupWizardCheckpoint, type AgentSetupWizard, type AgentSetupWizardCheckpoint, type AgentSetupWizardDurableReceipt, type AgentSetupWizardSmokeHistory, type AgentSetupWizardSourceItem } from '../agent/setup-wizard.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { readFieldMap, readString, safeIso, setupSmokeArtifactStore } from './agent-harness-setup-posture-utils.ts';
 import { setupHandoffsForItem } from './agent-harness-setup-handoffs.ts';
@@ -273,6 +275,12 @@ export function setupSmokeEvidenceTrend(artifacts: readonly ArtifactDescriptor[]
   return 'unchanged';
 }
 
+function artifactCreatedAtIso(artifact: ArtifactDescriptor): string | null {
+  const createdAt = artifact.createdAt;
+  if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return null;
+  return new Date(createdAt).toISOString();
+}
+
 export function setupSmokeBlockedCheckFrequency(artifacts: readonly ArtifactDescriptor[]): readonly Record<string, unknown>[] {
   const counts = new Map<string, number>();
   for (const artifact of artifacts) {
@@ -343,6 +351,8 @@ export function setupSmokeEvidenceHistory(context: CommandContext): Record<strin
     trend: setupSmokeEvidenceTrend(artifacts),
     latestResult: readArtifactMetadataString(artifacts[0]!, 'result') || 'unknown',
     previousResult: artifacts[1] ? readArtifactMetadataString(artifacts[1], 'result') || 'unknown' : null,
+    latestEvidenceId: artifacts[0]!.id,
+    latestEvidenceAt: artifactCreatedAtIso(artifacts[0]!),
     resultCounts,
     blockedCheckFrequency: setupSmokeBlockedCheckFrequency(artifacts),
     recent: artifacts.slice(0, 5).map(describeSetupSmokeEvidenceArtifact),
@@ -373,6 +383,8 @@ export function setupWizardSmokeHistory(context: CommandContext): AgentSetupWiza
     trend: setupSmokeEvidenceTrend(artifacts),
     latestResult: readArtifactMetadataString(artifacts[0]!, 'result') || 'unknown',
     previousResult: artifacts[1] ? readArtifactMetadataString(artifacts[1], 'result') || 'unknown' : null,
+    latestEvidenceId: artifacts[0]!.id,
+    latestEvidenceAt: artifactCreatedAtIso(artifacts[0]!),
     resultCounts,
     blockedCheckFrequency: setupSmokeBlockedCheckFrequency(artifacts).map((entry) => ({
       checkId: readString(entry.checkId),
@@ -430,6 +442,17 @@ export function setupWizardCheckpoint(context: CommandContext): AgentSetupWizard
   }
 }
 
+export function setupWizardDurableReceipts(context: CommandContext): readonly AgentSetupWizardDurableReceipt[] {
+  const artifactStore = setupSmokeArtifactStore(context);
+  const liveReceipts = setupWizardLiveDurableReceipts(context);
+  if (!artifactStore?.list) return liveReceipts;
+  try {
+    return mergeSetupWizardDurableReceipts(buildSetupWizardDurableReceipts(artifactStore.list(100)), liveReceipts);
+  } catch {
+    return liveReceipts;
+  }
+}
+
 export function setupCompletionMarkerExists(context: CommandContext): boolean {
   try {
     return readOnboardingCompletionMarker(requireShellPaths(context), 'user').exists;
@@ -467,6 +490,8 @@ export function buildSetupWizard(plan: readonly SetupPlanItem[], context: Comman
     smokeHistory: setupWizardSmokeHistory(context),
     checkpoint: setupWizardCheckpoint(context),
     closeoutCriticalStepIds: plan.filter((item) => item.blocksAutonomy).map((item) => item.id),
+    receiptRequiredStepIds: ['connected-host-readiness', 'connected-host-auth', 'install-smoke'],
+    durableReceipts: setupWizardDurableReceipts(context),
     setupMarkerExists: markerItem?.status === 'ready' || setupCompletionMarkerExists(context),
     repeatedBlockerAliases: SETUP_WIZARD_PLAN_BLOCKER_ALIASES,
   });

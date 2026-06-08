@@ -31,6 +31,7 @@ export interface ModelCandidate {
   readonly tier?: string;
   readonly benchmarkCompositeScore?: number | null;
   readonly benchmarkQualityTier?: string;
+  readonly localBenchmarkLatency?: LocalModelBenchmarkRouteLatency | null;
   readonly pinned: boolean;
 }
 
@@ -92,6 +93,8 @@ export interface ModelReadinessDimension {
 export interface ModelProviderHealthSignal {
   readonly status: 'not-reachable-in-command-context' | 'read-model-empty' | 'read-model-error' | 'record-found';
   readonly providerId: string;
+  readonly modelRouteId?: string;
+  readonly sourceRecordId?: string;
   readonly sdkContract: {
     readonly providerHealthTypes: 'available';
     readonly importSurface: string;
@@ -116,8 +119,12 @@ export interface ModelProviderHealthSignal {
   readonly lastSuccessAt?: string | null;
   readonly lastErrorAt?: string | null;
   readonly lastErrorMessage?: string;
+  readonly errorRate?: number;
+  readonly consecutiveErrors?: number;
   readonly lastCheckedAt?: string | null;
   readonly rateLimitResetAt?: string | null;
+  readonly rateLimitRemaining?: number;
+  readonly rateLimitLimit?: number;
   readonly missingSignals: readonly string[];
   readonly policy: string;
 }
@@ -157,6 +164,20 @@ export interface LocalModelBenchmarkWinner {
   readonly applyRoute: string;
 }
 
+export interface LocalModelBenchmarkRouteLatency {
+  readonly registryKey: string;
+  readonly providerId: string;
+  readonly modelId: string;
+  readonly displayName: string;
+  readonly blindId: string;
+  readonly latencyMs: number;
+  readonly status: string;
+  readonly artifactId: string;
+  readonly comparisonId: string | null;
+  readonly createdAt: string | null;
+  readonly reviewRoute: string;
+}
+
 export interface LocalModelBenchmarkEvidence {
   readonly status: 'unavailable' | 'unmeasured' | 'comparison-saved' | 'reviewed-winner';
   readonly comparisonCount: number;
@@ -165,6 +186,7 @@ export interface LocalModelBenchmarkEvidence {
   readonly hiddenJudgmentCount: number;
   readonly winnerStacks: readonly string[];
   readonly winnerModels: readonly LocalModelBenchmarkWinner[];
+  readonly routeLatencies: readonly LocalModelBenchmarkRouteLatency[];
   readonly summary: string;
   readonly confidence: 'estimated' | 'measured';
 }
@@ -188,6 +210,7 @@ export interface LocalModelServerEndpoint {
   readonly refreshRoute: string;
   readonly addProviderRoute: string | null;
   readonly notes: readonly string[];
+  readonly servingDiagnostics?: LocalModelServerServingDiagnostics;
   readonly diagnostics?: {
     readonly liveProbe: 'not-run';
     readonly successCriteria: readonly string[];
@@ -195,6 +218,43 @@ export interface LocalModelServerEndpoint {
     readonly afterSmoke: readonly string[];
     readonly policy: string;
   };
+}
+
+export interface LocalModelServerServingDiagnostics {
+  readonly status: 'ready' | 'attention' | 'blocked' | 'unknown';
+  readonly source: string;
+  readonly summary: string;
+  readonly schemaStatus?: 'certified' | 'legacy';
+  readonly schemaVersion?: string;
+  readonly provenance?: readonly string[];
+  readonly publicationGuarantee?: string;
+  readonly publisher?: string;
+  readonly serverVersion?: string;
+  readonly loadedModelCount?: number;
+  readonly loadedModels: readonly string[];
+  readonly contextWindowTokens?: number;
+  readonly toolSupport?: boolean;
+  readonly resourcePressure: 'low' | 'moderate' | 'high' | 'unknown';
+  readonly resourceSummary?: string;
+  readonly lastCheckedAt?: string | null;
+  readonly startReceiptId?: string;
+  readonly repairReceiptId?: string;
+  readonly receiptStatus?: string;
+  readonly startRoute?: string;
+  readonly repairRoute?: string;
+  readonly inspectRoute: string;
+  readonly missingSignals: readonly string[];
+  readonly policy: string;
+}
+
+export interface LocalModelServerDiagnosticsPublication {
+  readonly status: 'not-published' | 'published-read-model' | 'read-model-empty' | 'read-model-error';
+  readonly requiredPaths: readonly string[];
+  readonly sourcePaths: readonly string[];
+  readonly recordCount: number;
+  readonly matchedEndpointCount: number;
+  readonly missingSignals: readonly string[];
+  readonly policy: string;
 }
 
 export interface LocalModelServerDefaultEndpoint {
@@ -215,6 +275,7 @@ export interface LocalModelServerHealthMap {
   readonly returnedEndpoints: number;
   readonly endpoints: readonly LocalModelServerEndpoint[];
   readonly suggestedDefaults: readonly LocalModelServerDefaultEndpoint[];
+  readonly daemonDiagnostics: LocalModelServerDiagnosticsPublication;
   readonly nextActions: readonly string[];
   readonly policy: string;
 }

@@ -64,15 +64,15 @@ describe('Agent user-first product docs', () => {
     expect(combined).toContain('explicitUserRequest');
   });
 
-  test('audit docs cover competitor and GoodVibes platform capability inventory', () => {
-    const competitive = readRepoFile('docs/audits/autonomous-agent-competitive-inventory.md');
-    const platform = readRepoFile('docs/audits/goodvibes-platform-capabilities.md');
+  test('repair handoff and canonical inventory cover competitor and platform capability context', () => {
+    const handoff = readRepoFile('docs/audits/goodvibes-agent-1.2.0-repair-handoff.md');
+    const inventory = readRepoFile('src/agent/competitive-feature-inventory.ts');
 
-    for (const token of ['OpenClaw', 'Hermes Agent', 'Odysseus', 'GoodVibes now', 'Target']) {
-      expect(competitive).toContain(token);
+    for (const token of ['OpenClaw', 'Hermes Agent', 'Odysseus', 'GoodVibes SDK owns', 'GoodVibes TUI/daemon owns']) {
+      expect(handoff).toContain(token);
     }
-    for (const token of ['279 methods', 'Automation', 'Knowledge', 'Remote and services', 'Current Code Decisions']) {
-      expect(platform).toContain(token);
+    for (const token of ['goodVibesNow', 'targetStandard', 'bestInClassRequirement', 'openclaw', 'hermes', 'odysseus']) {
+      expect(inventory).toContain(token);
     }
   });
 

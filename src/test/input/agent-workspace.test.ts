@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -128,6 +129,25 @@ function memoryRecord(overrides: Partial<MemoryRecord> = {}): MemoryRecord {
   };
 }
 
+function setupReceiptArtifact(input: {
+  readonly id: string;
+  readonly createdAt: number;
+  readonly metadata: Record<string, unknown>;
+}): ArtifactDescriptor {
+  return {
+    id: input.id,
+    kind: 'data',
+    mimeType: 'application/json',
+    filename: `${input.id}.json`,
+    sizeBytes: 256,
+    sha256: `sha-${input.id}`,
+    createdAt: input.createdAt,
+    acquisitionMode: 'inline-data',
+    fetchMode: 'not-applicable',
+    metadata: input.metadata,
+  };
+}
+
 function vectorStats() {
   return {
     backend: 'sqlite-vec' as const,
@@ -145,14 +165,13 @@ const ALLOWED_ONBOARDING_READONLY_GUIDANCE = new Set([
   'account-route-readiness',
   'account-local-server-health',
   'account-local-benchmark-evidence',
+  'context-vibe-status',
   'context-project-files',
   'context-project-file',
   'context-prompt-context',
 ]);
 
-const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set([
-  'context-vibe-status',
-]);
+const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set<string>();
 
 function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
   return {
@@ -3234,6 +3253,8 @@ describe('AgentWorkspace', () => {
     expect(byId.get('agent-knowledge')?.status).toBe('recommended');
     expect(byId.get('memory')?.status).toBe('ready');
     expect(byId.get('channels')?.status).toBe('ready');
+    expect(byId.get('browser-pwa')?.status).toBe('recommended');
+    expect(byId.get('browser-pwa')?.detail).toContain('Enable the connected-host web endpoint');
     expect(byId.get('agent-knowledge')?.command).toBe('Knowledge');
     expect(byId.get('profile')?.command).toBe('Profiles');
     expect(byId.get('persona')?.command).toBe('Personas');
@@ -3241,8 +3262,155 @@ describe('AgentWorkspace', () => {
     expect(byId.get('routines')?.command).toBe('Routines');
     expect(byId.get('memory')?.command).toBe('Memory');
     expect(byId.get('channels')?.command).toBe('Channels');
+    expect(byId.get('browser-pwa')?.command).toBe('Voice & Media -> Browser/PWA readiness');
     expect(byId.get('voice-media')?.command).toBe('Voice & Media');
     expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
+  });
+
+  test('promotes setup checklist rows from durable setup receipt artifacts', () => {
+    const configValues = new Map<string, unknown>([
+      ['controlPlane.host', '127.0.0.1'],
+      ['controlPlane.port', 3421],
+      ['web.enabled', true],
+      ['web.publicBaseUrl', 'http://127.0.0.1:3421/app'],
+    ]);
+    const artifacts: readonly ArtifactDescriptor[] = [
+      setupReceiptArtifact({
+        id: 'setup-auth-ready',
+        createdAt: 3_000,
+        metadata: {
+          purpose: 'connected-host-setup-receipt',
+          setupStepId: 'connected-host-auth',
+          receiptId: 'auth-ready',
+          receiptStatus: 'authenticated',
+          recordedAt: '1970-01-01T00:00:03.000Z',
+          summary: 'Operator auth token validated by connected host.',
+        },
+      }),
+      setupReceiptArtifact({
+        id: 'setup-smoke-ready',
+        createdAt: 4_000,
+        metadata: {
+          purpose: 'agent-setup-receipt',
+          setupStepId: 'install-smoke',
+          receiptId: 'smoke-ready',
+          receiptStatus: 'ready',
+          recordedAt: '1970-01-01T00:00:04.000Z',
+          summary: 'Setup smoke completed with first assistant turn.',
+        },
+      }),
+      setupReceiptArtifact({
+        id: 'setup-browser-ready',
+        createdAt: 5_000,
+        metadata: {
+          purpose: 'connected-host-browser-pwa-receipt',
+          methodId: 'browser.pwa.firstRun',
+          receiptId: 'browser-ready',
+          receiptStatus: 'published',
+          recordedAt: '1970-01-01T00:00:05.000Z',
+          summary: 'Browser/PWA first-run completed.',
+        },
+      }),
+    ];
+
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot({
+      ...commandContext(),
+      session: {
+        runtime: {
+          model: 'openai:gpt-5.5',
+          provider: 'openai-subscriber',
+          sessionId: 'agent-session-1',
+        },
+      },
+      platform: {
+        configManager: {
+          get: (key: string) => configValues.get(key),
+        },
+        artifactStore: {
+          list: () => artifacts,
+        },
+      },
+    } as unknown as CommandContext);
+    const byId = new Map(snapshot.setupChecklist.map((item) => [item.id, item]));
+
+    expect(byId.get('connected-host-auth')?.status).toBe('ready');
+    expect(byId.get('connected-host-auth')?.detail).toContain('Durable connected-host auth receipt is ready');
+    expect(byId.get('install-smoke')?.status).toBe('ready');
+    expect(byId.get('install-smoke')?.detail).toContain('Durable setup smoke receipt is ready');
+    expect(byId.get('browser-pwa')?.status).toBe('ready');
+    expect(byId.get('browser-pwa')?.detail).toContain('Connected-host browser/PWA first-run receipt is published for http://127.0.0.1:3421/app');
+    expect(snapshot.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt')).toHaveLength(3);
+    expect(snapshot.setupWizard.receiptGaps.map((gap) => gap.stepId)).toEqual(['runtime']);
+  });
+
+  test('promotes setup checklist rows from live daemon setup receipt read models', () => {
+    const configValues = new Map<string, unknown>([
+      ['controlPlane.host', '127.0.0.1'],
+      ['controlPlane.port', 3421],
+      ['web.enabled', true],
+      ['web.publicBaseUrl', 'http://127.0.0.1:3421/app'],
+    ]);
+
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot({
+      ...commandContext(),
+      session: {
+        runtime: {
+          model: 'openai:gpt-5.5',
+          provider: 'openai-subscriber',
+          sessionId: 'agent-session-1',
+        },
+      },
+      platform: {
+        configManager: {
+          get: (key: string) => configValues.get(key),
+        },
+        readModels: {
+          setup: {
+            receipts: {
+              getSnapshot: () => ({
+                receipts: {
+                  auth: {
+                    setupStepId: 'connected-host-auth',
+                    receiptId: 'live-auth-ready',
+                    receiptStatus: 'authenticated',
+                    recordedAt: '1970-01-01T00:00:03.000Z',
+                    summary: 'Operator auth token=super-secret was validated by connected host.',
+                  },
+                  smoke: {
+                    setupStepId: 'install-smoke',
+                    receiptId: 'live-smoke-ready',
+                    status: 'ready',
+                    recordedAt: '1970-01-01T00:00:04.000Z',
+                    summary: 'Live setup smoke completed with first assistant turn.',
+                    inspectRoute: 'setup action:"item" setupItemId:"install-smoke" includeParameters:true',
+                  },
+                  browser: {
+                    methodId: 'browser.pwa.firstRun',
+                    receiptId: 'live-browser-ready',
+                    state: 'published',
+                    timestamp: '1970-01-01T00:00:05.000Z',
+                    summary: 'Browser/PWA first-run completed from browser runtime.',
+                  },
+                },
+              }),
+            },
+          },
+        },
+      },
+    } as unknown as CommandContext);
+    const byId = new Map(snapshot.setupChecklist.map((item) => [item.id, item]));
+    const wizardSteps = new Map(snapshot.setupWizard.steps.map((step) => [step.id, step]));
+
+    expect(byId.get('connected-host-auth')?.status).toBe('ready');
+    expect(wizardSteps.get('connected-host-auth')?.detail).toContain('live-auth-ready');
+    expect(wizardSteps.get('connected-host-auth')?.detail).not.toContain('super-secret');
+    expect(byId.get('install-smoke')?.status).toBe('ready');
+    expect(byId.get('browser-pwa')?.status).toBe('ready');
+    const durableHistory = snapshot.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt');
+    expect(durableHistory).toHaveLength(3);
+    expect(durableHistory.every((entry) => entry.source === 'context.platform.readModels.setup.receipts')).toBe(true);
+    expect(durableHistory.find((entry) => entry.receiptId === 'live-auth-ready')?.summary).toContain('token=<redacted>');
+    expect(snapshot.setupWizard.receiptGaps.map((gap) => gap.stepId)).toEqual(['runtime']);
   });
 
   test('exposes Agent Knowledge review queue and list views without default knowledge fallback', () => {

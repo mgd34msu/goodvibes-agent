@@ -24,6 +24,8 @@ import type { PromptContextReceipt } from '../agent/prompt-context-receipts.ts';
 import { discoverProjectContextFiles } from '../agent/project-context-files.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
 import { RoutineScheduleReceiptStore } from '../agent/routine-schedule-receipts.ts';
+import { buildSetupWizardDurableReceipts } from '../agent/setup-wizard-artifact-receipts.ts';
+import { mergeSetupWizardDurableReceipts, setupWizardLiveDurableReceipts } from './setup-wizard-live-receipts.ts';
 import { readSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
 import { discoverVibeFiles } from '../agent/vibe-file.ts';
 import {
@@ -35,6 +37,7 @@ import {
   buildAgentSetupWizard,
   emptyAgentSetupSmokeHistory,
   emptyAgentSetupWizardCheckpoint,
+  setupStepHasSatisfyingReceipt,
   type AgentSetupWizard,
   type AgentSetupWizardBlockedCheckFrequency,
   type AgentSetupWizardCheckpoint,
@@ -266,6 +269,11 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { available: false, items: [] };
     }
   })();
+  const setupSmokeHistory = buildSetupSmokeHistory(artifactListSnapshot.items, artifactListSnapshot.available);
+  const durableSetupReceipts = mergeSetupWizardDurableReceipts(
+    buildSetupWizardDurableReceipts(artifactListSnapshot.items),
+    setupWizardLiveDurableReceipts(context),
+  );
   const recentReviewerHandoffs = (() => {
     try {
       const handoffs = artifactListSnapshot.items
@@ -452,6 +460,12 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     voiceProviders: voiceProviderDescriptors,
     mediaProviders: mediaProviderDescriptors,
   });
+  const browserPwaEnabled = readConfigBoolean(context, 'web.enabled', false);
+  const browserPwaPublicBaseUrl = readConfigString(context, 'web.publicBaseUrl', '(not configured)');
+  const connectedHostAuthReceiptReady = setupStepHasSatisfyingReceipt(durableSetupReceipts, 'connected-host-auth');
+  const installSmokeReceiptReady = setupSmokeHistory.latestResult === 'ready-for-user-run'
+    || setupStepHasSatisfyingReceipt(durableSetupReceipts, 'install-smoke');
+  const browserPwaReceiptReady = setupStepHasSatisfyingReceipt(durableSetupReceipts, 'browser-pwa');
   const setupChecklist = buildAgentWorkspaceSetupChecklist({
     provider,
     model,
@@ -460,6 +474,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     connectedHostTokenReadable: companionAccess.tokenReadable,
     connectedHostTokenPath: companionAccess.tokenPath,
     connectedHostTokenError: companionAccess.tokenError,
+    connectedHostAuthReceiptReady,
     activeSubscriptionCount: subscriptionSnapshot.active,
     pendingSubscriptionCount: subscriptionSnapshot.pending,
     availableSubscriptionProviderCount: subscriptionSnapshot.available,
@@ -483,14 +498,19 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     readyChannelCount: channels.filter((channel) => channel.ready).length,
     voiceProviderCount: voiceProviders.length,
     mediaProviderCount: mediaProviders.length,
+    installSmokeReceiptReady,
+    browserPwaEnabled,
+    browserPwaPublicBaseUrl,
+    browserPwaFirstRunReceiptStatus: browserPwaReceiptReady ? 'published' : 'not-published',
     runtimeProfileCount: runtimeProfiles.length,
     runtimeStarterTemplateCount: runtimeStarterTemplates.length,
   });
   const setupWizard = buildWorkspaceSetupWizard(
     setupChecklist,
-    buildSetupSmokeHistory(artifactListSnapshot.items, artifactListSnapshot.available),
+    setupSmokeHistory,
     buildSetupWizardCheckpoint(context),
     setupCompletionMarkerExists(context),
+    durableSetupReceipts,
   );
   const researchBrowserRunnerContract = buildResearchBrowserRunnerContract(context);
   const researchVisualReportContract = buildResearchVisualReportContract(researchSourceSnapshot);
@@ -619,8 +639,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     mcpConnectedServerCount: mcpSnapshot.connectedCount,
     mcpQuarantinedServerCount: mcpSnapshot.quarantinedCount,
     mcpAllowAllServerCount: mcpSnapshot.allowAllCount,
-    browserToolExposureEnabled: readConfigBoolean(context, 'web.enabled', false),
-    browserToolPublicBaseUrl: readConfigString(context, 'web.publicBaseUrl', '(not configured)'),
+    browserToolExposureEnabled: browserPwaEnabled,
+    browserToolPublicBaseUrl: browserPwaPublicBaseUrl,
     activeRuntimeProfile: inferActiveRuntimeProfile(context.workspace?.shellPaths?.homeDirectory ?? ''),
     selectedRuntimeProfile: selectedRuntimeProfile?.id ?? null,
     selectedRuntimeProfileExists: selectedRuntimeProfile?.exists ?? false,

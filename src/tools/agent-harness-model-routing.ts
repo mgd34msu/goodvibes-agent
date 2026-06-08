@@ -4,14 +4,16 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { requireProviderApi } from '../input/commands/runtime-services.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { localModelCookbook } from './agent-harness-local-model-cookbook.ts';
-import { collectLocalServerEndpointCandidates, describeLocalServerEndpoint, localModelDetection, localModelServerHealthMap, runLocalModelServerSmoke } from './agent-harness-local-model-endpoints.ts';
+import { localBenchmarkRouteLatencyMap } from './agent-harness-local-model-benchmarks.ts';
+import { localModelDetection, localModelServerEndpoints, localModelServerHealthMap } from './agent-harness-local-model-endpoints.ts';
+import { runLocalModelServerSmoke } from './agent-harness-local-model-smoke.ts';
 import { localHardwareProfile, modelReadinessScore } from './agent-harness-model-readiness.ts';
 import { contextWindowFor, loadModels, listProviderIds, modelBenchmarkCompositeScore, modelBenchmarkQualityTier, modelCapabilities, modelCurrent, modelDisplayName, modelModelId, modelProviderId, modelReasoning, modelRegistryKey, modelTier, readConfig, readProviderApi } from './agent-harness-model-catalog.ts';
 import type { AgentHarnessModelRoutingArgs, LocalModelServerEndpoint, ModelCandidate, ModelProviderHealthSignal, ModelRouteLookupSource, ModelRouteResolution, RouteCandidate } from './agent-harness-model-routing-types.ts';
 import { readLimit, readString } from './agent-harness-model-routing-utils.ts';
 export type { AgentHarnessModelRoutingArgs } from './agent-harness-model-routing-types.ts';
 export { localModelCookbook } from './agent-harness-local-model-cookbook.ts';
-export { runLocalModelServerSmoke } from './agent-harness-local-model-endpoints.ts';
+export { runLocalModelServerSmoke } from './agent-harness-local-model-smoke.ts';
 
 async function readCurrentModel(context: CommandContext): Promise<unknown> {
   try {
@@ -19,6 +21,15 @@ async function readCurrentModel(context: CommandContext): Promise<unknown> {
   } catch {
     return null;
   }
+}
+
+function attachLocalBenchmarkLatencies(context: CommandContext, models: readonly ModelCandidate[]): readonly ModelCandidate[] {
+  const latencies = localBenchmarkRouteLatencyMap(context);
+  if (latencies.size === 0) return models;
+  return models.map((model) => ({
+    ...model,
+    localBenchmarkLatency: latencies.get(model.registryKey) ?? null,
+  }));
 }
 
 function routeCandidates(context: CommandContext): readonly RouteCandidate[] {
@@ -238,7 +249,12 @@ function compactProviderHealthSignal(signal: ModelProviderHealthSignal): Record<
     daemonPublication: signal.daemonPublication,
     agentConsumption: signal.agentConsumption,
     ...(signal.healthStatus ? { healthStatus: signal.healthStatus } : {}),
+    ...(signal.modelRouteId ? { modelRouteId: signal.modelRouteId } : {}),
+    ...(signal.sourceRecordId ? { sourceRecordId: signal.sourceRecordId } : {}),
     ...(signal.avgLatencyMs !== undefined ? { avgLatencyMs: signal.avgLatencyMs } : {}),
+    ...(signal.rateLimitRemaining !== undefined ? { rateLimitRemaining: signal.rateLimitRemaining } : {}),
+    ...(signal.rateLimitResetAt ? { rateLimitResetAt: signal.rateLimitResetAt } : {}),
+    ...(signal.lastErrorMessage ? { lastErrorMessage: signal.lastErrorMessage } : {}),
     missingSignals: signal.missingSignals,
     policy: signal.policy,
   };
@@ -260,6 +276,7 @@ function describeModel(model: ModelCandidate, options: { readonly context: Comma
     tier: model.tier ?? null,
     benchmarkCompositeScore: model.benchmarkCompositeScore ?? null,
     benchmarkQualityTier: model.benchmarkQualityTier ?? null,
+    localBenchmarkLatency: model.localBenchmarkLatency ?? null,
     readinessScore: readiness.score,
     readinessLevel: readiness.level,
     readiness: options.includeParameters
@@ -330,10 +347,11 @@ function modelCandidateModelRoute(): string {
 }
 
 export async function modelRoutingCatalogStatus(context: CommandContext): Promise<Record<string, unknown>> {
-  const [models, providerIds] = await Promise.all([
+  const [rawModels, providerIds] = await Promise.all([
     loadModels(context),
     Promise.resolve(listProviderIds(context)),
   ]);
+  const models = attachLocalBenchmarkLatencies(context, rawModels);
   return {
     modes: ['model_routing', 'model_route'],
     status: readProviderApi(context) ? 'available' : 'degraded',
@@ -349,15 +367,20 @@ export async function modelRoutingCatalogStatus(context: CommandContext): Promis
 export async function modelRoutingSummary(context: CommandContext, args: AgentHarnessModelRoutingArgs): Promise<Record<string, unknown>> {
   const query = readString(args.query).toLowerCase();
   const includeParameters = args.includeParameters === true;
-  const [models, providerIds, currentModel] = await Promise.all([
+  const [rawModels, providerIds, currentModel] = await Promise.all([
     loadModels(context),
     Promise.resolve(listProviderIds(context)),
     readCurrentModel(context),
   ]);
+  const models = attachLocalBenchmarkLatencies(context, rawModels);
   const routes = routeCandidates(context);
   const filteredRoutes = routes.filter((route) => !query || routeSearchText(route).includes(query));
   const filteredModels = models.filter((model) => !query || modelSearchText(model).includes(query));
   const limit = readLimit(args.limit, 100);
+  const currentRegistryKey = currentModel ? modelRegistryKey(currentModel) : '';
+  const loadedCurrentModel = currentRegistryKey
+    ? models.find((model) => model.registryKey === currentRegistryKey || model.modelId === modelModelId(currentModel))
+    : null;
   return {
     status: readProviderApi(context) ? 'available' : 'degraded',
     current: {
@@ -378,6 +401,7 @@ export async function modelRoutingSummary(context: CommandContext, args: AgentHa
         tier: modelTier(currentModel),
         benchmarkCompositeScore: modelBenchmarkCompositeScore(currentModel),
         benchmarkQualityTier: modelBenchmarkQualityTier(currentModel),
+        localBenchmarkLatency: loadedCurrentModel?.localBenchmarkLatency ?? null,
         pinned: false,
       }, { context, includeParameters }) : null,
     },
@@ -410,9 +434,10 @@ export async function describeHarnessModelRoute(context: CommandContext, args: A
       usage: 'model_route requires modelRouteId, target, or query. Prefer models action:"status" to inspect route, model, and local endpoint ids.',
     };
   }
-  const [models] = await Promise.all([loadModels(context)]);
+  const [rawModels] = await Promise.all([loadModels(context)]);
+  const models = attachLocalBenchmarkLatencies(context, rawModels);
   const routes = routeCandidates(context);
-  const endpoints = collectLocalServerEndpointCandidates(context).map((endpoint) => describeLocalServerEndpoint(endpoint, true));
+  const endpoints = localModelServerEndpoints(context, true);
   const normalized = lookup.input.toLowerCase();
   const exactRoute = routes.find((route) => route.id === lookup.input);
   if (exactRoute) return { status: 'found', route: describeRoute(exactRoute, { context, includeParameters: true, lookup: { ...lookup, resolvedBy: 'route-id' } }) };

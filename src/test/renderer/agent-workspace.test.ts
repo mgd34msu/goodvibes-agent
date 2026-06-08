@@ -17,6 +17,7 @@ import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import type { Line } from '../../types/grid.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
+import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 
@@ -28,6 +29,42 @@ function commandContext(): CommandContext {
   return {
     executeCommand: async () => true,
     print: () => undefined,
+  } as unknown as CommandContext;
+}
+
+function configSetting(
+  key: string,
+  type: ConfigSetting['type'],
+  defaultValue: unknown,
+  enumValues?: readonly string[],
+): ConfigSetting {
+  return {
+    key: key as ConfigSetting['key'],
+    type,
+    default: defaultValue,
+    description: `${key} test setting`,
+    ...(enumValues ? { enumValues: [...enumValues] } : {}),
+  };
+}
+
+function onboardingConfigContext(values: Record<string, unknown>): CommandContext {
+  const configValues = new Map<string, unknown>(Object.entries(values));
+  const schema: ConfigSetting[] = [
+    configSetting('surfaces.ntfy.enabled', 'boolean', false),
+    configSetting('surfaces.ntfy.token', 'string', ''),
+    configSetting('provider.reasoningEffort', 'enum', 'medium', ['low', 'medium', 'high']),
+    configSetting('storage.secretPolicy', 'enum', 'system', ['system', 'file-ref', 'disabled']),
+    configSetting('behavior.saveHistory', 'boolean', true),
+  ];
+  return {
+    executeCommand: async () => true,
+    print: () => undefined,
+    platform: {
+      configManager: {
+        get: (key: string) => configValues.get(key),
+        getSchema: () => schema,
+      },
+    },
   } as unknown as CommandContext;
 }
 
@@ -248,6 +285,9 @@ function liveCommandContext(options: {
   const configValues = new Map<string, unknown>([
     ['controlPlane.host', '127.0.0.1'],
     ['controlPlane.port', 3421],
+    ['provider.reasoningEffort', 'medium'],
+    ['storage.secretPolicy', 'system'],
+    ['behavior.saveHistory', true],
     ['surfaces.slack.enabled', true],
     ['surfaces.slack.botToken', 'goodvibes://secrets/goodvibes/SLACK_BOT_TOKEN'],
     ['surfaces.slack.signingSecret', 'goodvibes://secrets/goodvibes/SLACK_SIGNING_SECRET'],
@@ -424,6 +464,19 @@ function liveCommandContext(options: {
     platform: {
       configManager: {
         get: (key: string) => configValues.get(key),
+        getSchema: () => [
+          configSetting('provider.reasoningEffort', 'enum', 'medium', ['low', 'medium', 'high']),
+          configSetting('storage.secretPolicy', 'enum', 'system', ['system', 'file-ref', 'disabled']),
+          configSetting('behavior.saveHistory', 'boolean', true),
+          configSetting('surfaces.slack.enabled', 'boolean', false),
+          configSetting('surfaces.slack.botToken', 'string', ''),
+          configSetting('surfaces.slack.signingSecret', 'string', ''),
+          configSetting('surfaces.telegram.enabled', 'boolean', false),
+          configSetting('surfaces.telegram.botToken', 'string', ''),
+          configSetting('tts.provider', 'string', ''),
+          configSetting('tts.voice', 'string', ''),
+          configSetting('ui.voiceEnabled', 'boolean', false),
+        ],
       },
       voiceProviderRegistry: {
         list: () => [
@@ -519,17 +572,22 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Onboarding');
-    expect(output).toContain('8/14 ready; 4 recommended; 2 optional; 0 blocked.');
-    expect(output).toContain('Setup wizard: 8/14 done; current Install smoke.');
+    expect(output).toContain('8/15 ready; 5 recommended; 2 optional; 0 blocked.');
+    expect(output).toContain('Setup wizard: 8/15 done; current Install smoke.');
     expect(output).toContain('Wizard next: Install smoke');
     expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
     expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
     expect(output).toContain('Next: Install smoke (recommended)');
+    expect(output).toContain('Option');
+    expect(output).toContain('Change');
     expect(output).toContain('Import GoodVibes settings');
     expect(output).toContain('Choose main model');
     expect(output).toContain('Start subscription login');
     expect(output).toContain('Store secret');
-    expect(output).not.toContain('->');
+    expect(output).toContain('->');
+    expect(output).not.toContain('Does:');
+    expect(output).not.toContain('Command:');
+    expect(output).not.toContain('setting provider.reasoningEffort');
     expect(output).not.toContain('SLACK_BOT_TOKEN');
     expect(output).not.toContain('daemonBaseUrl');
     expect(output).not.toContain('daemon URL');
@@ -573,9 +631,66 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 52));
 
-    expect(output).toContain('Setup wizard: 8/14 done; current Install smoke.');
+    expect(output).toContain('Setup wizard: 8/15 done; current Install smoke.');
     expect(output).toContain('Repeated blocker: setup-posture in 2 saved smoke run(s).');
     expect(output).toContain('Smoke history: 2 run(s); trend unchanged-blocked; latest blocked.');
+    expect(output).toContain('Step history: 1 recorded; latest Install smoke setup-smoke at 1970-01-01T00:00:02.000Z.');
+    expect(output).toContain('Receipt gaps: Connected host, Connected-host auth, Install smoke, +1 more still need durable');
+  });
+
+  test('renders durable setup receipts as first-run readiness evidence', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext({
+      reviewerHandoffs: [
+        reviewPacketArtifact({
+          id: 'setup-service-ready',
+          filename: 'setup-service-ready.json',
+          createdAt: 3000,
+          metadata: {
+            purpose: 'connected-host-setup-receipt',
+            methodId: 'services.status',
+            receiptId: 'svc-ready',
+            receiptStatus: 'ready',
+            recordedAt: '1970-01-01T00:00:03.000Z',
+            summary: 'services.status reported healthy.',
+          },
+        }),
+        reviewPacketArtifact({
+          id: 'setup-smoke-ready',
+          filename: 'setup-smoke-ready.json',
+          createdAt: 4000,
+          metadata: {
+            purpose: 'agent-setup-receipt',
+            setupStepId: 'install-smoke',
+            receiptId: 'smoke-ready',
+            receiptStatus: 'ready',
+            recordedAt: '1970-01-01T00:00:04.000Z',
+            summary: 'Setup smoke completed with first assistant turn.',
+          },
+        }),
+        reviewPacketArtifact({
+          id: 'setup-browser-ready',
+          filename: 'setup-browser-ready.json',
+          createdAt: 5000,
+          metadata: {
+            purpose: 'connected-host-browser-pwa-receipt',
+            methodId: 'browser.pwa.firstRun',
+            receiptId: 'browser-ready',
+            receiptStatus: 'published',
+            recordedAt: '1970-01-01T00:00:05.000Z',
+            summary: 'Browser/PWA first-run completed.',
+          },
+        }),
+      ],
+    }), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 52));
+
+    expect(output).toContain('Setup wizard: 10/15 done');
+    expect(output).toContain('Step history: 3 recorded; latest Browser/PWA durable-receipt at 1970-01-01T00:00:05.000Z.');
+    expect(output).toContain('Receipt gaps: Connected-host auth still need durable setup receipt ids.');
+    expect(output).not.toContain('Install smoke, Browser/PWA still need durable setup receipt');
   });
 
   test('renders saved setup checkpoint state on Start', () => {
@@ -920,6 +1035,55 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('->');
   });
 
+  test('renders onboarding setting choices as compact current-to-proposed previews', () => {
+    let workspace = new AgentWorkspace();
+    workspace.open(onboardingConfigContext({
+      'surfaces.ntfy.enabled': false,
+      'surfaces.ntfy.token': 'goodvibes://secrets/goodvibes/NTFY_TOKEN',
+    }), () => undefined, 'onboarding-channels');
+
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-enabled');
+    let output = text(renderAgentWorkspace(workspace, 180, 48));
+
+    expect(output).toContain('Option');
+    expect(output).toContain('Change');
+    expect(output).toContain('Change: surfaces.ntfy.enabled: false -> true');
+    expect(output).not.toContain('Action  Does');
+    expect(output).not.toContain('Does:');
+    expect(output).not.toContain('setting surfaces.ntfy.enabled');
+
+    workspace = new AgentWorkspace();
+    workspace.open(onboardingConfigContext({
+      'surfaces.ntfy.enabled': true,
+      'surfaces.ntfy.token': 'goodvibes://secrets/goodvibes/NTFY_TOKEN',
+    }), () => undefined, 'onboarding-channels');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-token');
+    output = text(renderAgentWorkspace(workspace, 180, 48));
+
+    expect(output).toContain('Change: surfaces.ntfy.token: (secret) -> (secret)');
+    expect(output).not.toContain('NTFY_TOKEN');
+    expect(output).not.toContain('goodvibes://secrets');
+  });
+
+  test('suppresses internal command lines in onboarding result panes', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined, 'onboarding-context');
+    workspace.lastActionResult = {
+      kind: 'guidance',
+      title: 'Context ready',
+      detail: 'Context inspection is available from this setup page.',
+      command: '/vibe status',
+      safety: 'read-only',
+    };
+
+    const output = text(renderAgentWorkspace(workspace, 150, 48));
+
+    expect(output).toContain('Result: Context ready');
+    expect(output).not.toContain('Action Result');
+    expect(output).not.toContain('Command:');
+    expect(output).not.toContain('/vibe status');
+  });
+
   test('keeps every Agent workspace category on the compact top-pane split', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);
@@ -934,7 +1098,13 @@ describe('renderAgentWorkspace', () => {
       expect(contextSeparatorRow).toBeGreaterThan(0);
       expect(contextSeparatorRow).toBeLessThanOrEqual(16);
       expect(output).toContain(category.label);
-      expect(output).toContain('Action');
+      if (category.group === 'ONBOARDING') {
+        expect(output).toContain('Option');
+        expect(output).toContain('Change');
+        expect(output).not.toContain('Does:');
+      } else {
+        expect(output).toContain('Action');
+      }
     }
   });
 
@@ -946,12 +1116,12 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     let output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Choose provider and model');
-    expect(output).toContain('provider/model picker');
+    expect(output).toContain('Change: Choose provider and model');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-main-model');
     output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Choose main model');
-    expect(output).toContain('model picker');
+    expect(output).toContain('Change: Choose a model');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-route-readiness');
     output = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1004,7 +1174,7 @@ describe('renderAgentWorkspace', () => {
 
     const actionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(actionOutput).toContain('Start subscription login');
-    expect(actionOutput).toContain('edit subscription-login-start');
+    expect(actionOutput).toContain('Change: Open guided form');
 
     workspace.activateSelected();
     const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1061,7 +1231,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     const addActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(addActionOutput).toContain('Add custom provider');
-    expect(addActionOutput).toContain('edit provider-add');
+    expect(addActionOutput).toContain('Change: Open guided form');
 
     workspace.activateSelected();
     const addEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1076,7 +1246,7 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
     const removeActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(removeActionOutput).toContain('Remove custom provider');
-    expect(removeActionOutput).toContain('edit provider-remove');
+    expect(removeActionOutput).toContain('Change: Open guided form');
   });
 
   test('renders auth trust subscription and voice bundle forms in the workspace', () => {
@@ -1161,23 +1331,22 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Create/import memory, personas, skills, routines, notes, and Knowledge.');
     expect(output).toContain('VIBE.md: 1 applied; 0 blocked; 0 truncated.');
     expect(output).toContain('Project context: 1 loaded; 1 blocked; 0 truncated.');
-    expect(output).toContain('Context routes: context prompt/files/file/receipt, /vibe status.');
+    expect(output).toContain('Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.');
     expect(output).toContain('Inspect VIBE.md');
-    expect(output).toContain('/vibe status');
     expect(output).toContain('Inspect project context');
-    expect(output).toContain('context action:"files"');
     expect(output).toContain('Inspect one context file');
-    expect(output).toContain('context action:"file"');
+    expect(output).toContain('Review readiness');
     expect(output).toContain('Profile from discovered files');
-    expect(output).toContain('edit profile-from-discovered');
+    expect(output).toContain('Open guided form');
     expect(output).toContain('Import persona files');
-    expect(output).toContain('edit persona-discovery-import');
     expect(output).toContain('Import skill files');
-    expect(output).toContain('edit skill-discovery-import');
     expect(output).toContain('Import routine files');
-    expect(output).toContain('edit routine-discovery-import');
     expect(output).toContain('Create starter memory');
     expect(output).toContain('Ingest URL');
+    expect(output).not.toContain('/vibe status');
+    expect(output).not.toContain('context action:"');
+    expect(output).not.toContain('Command:');
+    expect(output).not.toContain('Does:');
     expect(output).not.toContain('RECOMMENDED Agent profile -> Profiles');
     expect(output).not.toContain('RECOMMENDED Persona -> Personas');
     expect(output).not.toContain('Discovered Behavior Files');
@@ -1189,23 +1358,27 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
 
-    const expectSetupAction = (id: string, label: string, command: string) => {
+    const expectSetupAction = (id: string, label: string, change: string) => {
       workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === id);
       const output = text(renderAgentWorkspace(workspace, 150, 48));
       expect(output).toContain(label);
-      expect(output).toContain(command);
+      expect(output).toContain(change);
+      expect(output).not.toContain('/vibe status');
+      expect(output).not.toContain('context action:"');
+      expect(output).not.toContain('Command:');
+      expect(output).not.toContain('Does:');
       expect(output).not.toContain('->');
     };
 
-    expectSetupAction('context-vibe-status', 'Inspect VIBE.md', '/vibe status');
-    expectSetupAction('context-project-files', 'Inspect project context', 'context action:"files"');
-    expectSetupAction('context-project-file', 'Inspect one context file', 'context action:"file"');
-    expectSetupAction('context-prompt-context', 'Prompt context', 'context action:"prompt"');
-    expectSetupAction('context-create-skill', 'Create skill', 'edit skill');
-    expectSetupAction('context-create-routine', 'Create routine', 'edit routine');
-    expectSetupAction('context-knowledge-url', 'Ingest URL', 'edit knowledge-url');
-    expectSetupAction('context-knowledge-file', 'Ingest file', 'edit knowledge-file');
-    expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context routes: context prompt/files/file/receipt');
+    expectSetupAction('context-vibe-status', 'Inspect VIBE.md', 'Review readiness');
+    expectSetupAction('context-project-files', 'Inspect project context', 'Review readiness');
+    expectSetupAction('context-project-file', 'Inspect one context file', 'Review readiness');
+    expectSetupAction('context-prompt-context', 'Prompt context', 'Review readiness');
+    expectSetupAction('context-create-skill', 'Create skill', 'Open guided form');
+    expectSetupAction('context-create-routine', 'Create routine', 'Open guided form');
+    expectSetupAction('context-knowledge-url', 'Ingest URL', 'Open guided form');
+    expectSetupAction('context-knowledge-file', 'Ingest file', 'Open guided form');
+    expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.');
   });
 
   test('renders prompt receipt outcomes in the Local Context workspace', () => {
@@ -1217,12 +1390,15 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Prompt receipt timeline: 1 total; completed 0; errors 1; cancelled 0; pending 0.');
     expect(output).toContain('Latest prompt receipt: error turn turn-renderer-fail; 3 applied / 1 suppressed; 512 tokens; stop provider_error.');
-    expect(output).toContain('Inspect latest prompt receipt: context action:"receipt" receiptId:"promptctx-');
-    expect(output).toContain('Filter prompt receipt errors: context action:"receipts" outcomeStatus:"error" includeParameters:true');
+    expect(output).toContain('Latest prompt receipt: promptctx-');
+    expect(output).toContain('inspect it from Prompt context.');
+    expect(output).toContain('Prompt receipt filter: show errors.');
     expect(output).toContain('openai-subscriber/openai:gpt-5.5');
     expect(output).toContain('2 segment(s), 3 active, 1 suppressed.');
     expect(output).toContain('Latest outcome detail: Provider rejected the test request.');
-    expect(output).toContain('Inspect: context action:"prompt" includeParameters:true');
+    expect(output).toContain('Prompt context controls stay read-only from this setup page.');
+    expect(output).not.toContain('context action:"');
+    expect(output).not.toContain('/vibe status');
     expect(output).not.toContain('cccccccccccccccc');
   });
 

@@ -83,6 +83,21 @@ function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLin
       fg: wizard.smokeHistory.latestResult === 'blocked' ? PALETTE.warn : PALETTE.info,
     });
   }
+  if (wizard.stepHistory.length > 0) {
+    const latest = wizard.stepHistory[0]!;
+    lines.push({
+      text: `Step history: ${wizard.stepHistory.length} recorded; latest ${latest.stepLabel} ${latest.kind} at ${latest.recordedAt}.`,
+      fg: PALETTE.good,
+    });
+  }
+  if (wizard.receiptGaps.length > 0) {
+    const labels = wizard.receiptGaps.slice(0, 3).map((gap) => gap.stepLabel).join(', ');
+    const suffix = wizard.receiptGaps.length > 3 ? `, +${wizard.receiptGaps.length - 3} more` : '';
+    lines.push({
+      text: `Receipt gaps: ${labels}${suffix} still need durable setup receipt ids.`,
+      fg: PALETTE.warn,
+    });
+  }
   return lines;
 }
 
@@ -257,13 +272,13 @@ function promptReceiptTimelineLines(snapshot: AgentWorkspaceRuntimeSnapshot): Co
     fg: promptReceiptOutcomeColor(latest.outcomeStatus),
     bold: latest.outcomeStatus === 'error' || latest.outcomeStatus === 'cancelled',
   });
-  lines.push({ text: `Inspect latest prompt receipt: ${latest.inspectRoute}`, fg: PALETTE.good });
+  lines.push({ text: `Latest prompt receipt: ${latest.receiptId}; inspect it from Prompt context.`, fg: PALETTE.good });
   if (timeline.errorCount > 0) {
-    lines.push({ text: `Filter prompt receipt errors: ${timeline.filterRoutes.error}`, fg: PALETTE.warn });
+    lines.push({ text: 'Prompt receipt filter: show errors.', fg: PALETTE.warn });
   } else if (timeline.cancelledCount > 0) {
-    lines.push({ text: `Filter cancelled prompt receipts: ${timeline.filterRoutes.cancelled}`, fg: PALETTE.warn });
+    lines.push({ text: 'Prompt receipt filter: show cancelled turns.', fg: PALETTE.warn });
   } else if (timeline.pendingCount > 0) {
-    lines.push({ text: `Filter pending prompt receipts: ${timeline.filterRoutes.pending}`, fg: PALETTE.info });
+    lines.push({ text: 'Prompt receipt filter: show pending turns.', fg: PALETTE.info });
   }
   for (const receipt of timeline.items.slice(0, 3)) {
     lines.push({
@@ -274,7 +289,7 @@ function promptReceiptTimelineLines(snapshot: AgentWorkspaceRuntimeSnapshot): Co
   if (latest.detail) {
     lines.push({ text: `Latest outcome detail: ${compactText(latest.detail, 104)}`, fg: PALETTE.warn });
   }
-  lines.push({ text: `Inspect: ${timeline.inspectRoute}`, fg: PALETTE.good });
+  lines.push({ text: 'Prompt context controls stay read-only from this setup page.', fg: PALETTE.good });
   return lines;
 }
 
@@ -478,7 +493,7 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       { text: `VIBE.md: ${vibe.applied} applied; ${vibe.blocked} blocked; ${vibe.truncated} truncated.`, fg: vibe.blocked > 0 ? PALETTE.warn : vibe.applied > 0 ? PALETTE.good : PALETTE.muted },
       { text: `Project context: ${projectContext.loaded} loaded; ${projectContext.blocked} blocked; ${projectContext.truncated} truncated.`, fg: projectContext.blocked > 0 ? PALETTE.warn : projectContext.loaded > 0 ? PALETTE.good : PALETTE.muted },
       ...promptReceiptTimelineLines(snapshot),
-      { text: 'Context routes: context prompt/files/file/receipt, /vibe status.', fg: PALETTE.good },
+      { text: 'Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.', fg: PALETTE.good },
     );
   } else if (category.id === 'onboarding-automation') {
     base.push(

@@ -296,6 +296,13 @@ describe('agent_model_compare tool', () => {
       candidateCount: 2,
       completedCandidates: 2,
     });
+    const latencyEvidence = artifacts.inputs[0]?.metadata.candidateLatencyEvidence;
+    expect(Array.isArray(latencyEvidence)).toBe(true);
+    expect((latencyEvidence as readonly Record<string, unknown>[]).map((entry) => entry.registryKey)).toEqual([
+      'openai:gpt-4.1',
+      'anthropic:claude-sonnet',
+    ]);
+    expect(typeof (latencyEvidence as readonly Record<string, unknown>[])[0]?.latencyMs).toBe('number');
     const payload = JSON.parse(artifacts.inputs[0]?.text ?? '{}') as {
       readonly benchmarkKind?: string;
       readonly prompt?: string;

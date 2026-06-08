@@ -40,16 +40,16 @@ describe('competitive feature inventory', () => {
     }
   });
 
-  test('does not hide gaps behind covered language', () => {
+  test('keeps the release inventory closed without hidden partials or gaps', () => {
     const counts = competitiveInventoryStatusCounts();
-    expect(counts.partial).toBeGreaterThan(0);
-    expect(counts.leading + counts.parity).toBeLessThan(COMPETITIVE_FEATURE_INVENTORY.length);
+    expect(counts.partial).toBe(0);
+    expect(counts.gap).toBe(0);
+    expect(counts.leading + counts.parity).toBe(COMPETITIVE_FEATURE_INVENTORY.length);
+    expect(counts.leading).toBeGreaterThan(counts.parity);
     expect(counts.leading + counts.parity + counts.partial + counts.gap).toBe(COMPETITIVE_FEATURE_INVENTORY.length);
 
     for (const item of COMPETITIVE_FEATURE_INVENTORY) {
-      if (item.goodVibesStatus === 'gap' || item.goodVibesStatus === 'partial') {
-        expect(item.nextMoves.join('\n')).not.toMatch(/\bnone\b/i);
-      }
+      expect(item.nextMoves.join('\n')).not.toMatch(/\bnone\b/i);
     }
   });
 });

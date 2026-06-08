@@ -461,6 +461,18 @@ export function toArtifactCandidate(candidate: CompareCandidateResult): Record<s
   };
 }
 
+export function toArtifactCandidateLatencyMetadata(candidate: CompareCandidateResult): Record<string, unknown> {
+  return {
+    blindId: candidate.blindId,
+    status: candidate.status,
+    latencyMs: candidate.latencyMs,
+    registryKey: candidate.model.registryKey,
+    providerId: candidate.model.providerId,
+    modelId: candidate.model.modelId,
+    displayName: candidate.model.displayName,
+  };
+}
+
 export function comparisonArtifactText(input: {
   readonly comparison: StoredComparison;
   readonly prompt: string;
@@ -580,6 +592,7 @@ export async function saveComparisonArtifact(input: {
         ...(input.comparison.documentId ? { documentId: input.comparison.documentId } : {}),
         candidateCount: input.comparison.candidates.length,
         completedCandidates: input.comparison.candidates.filter((candidate) => candidate.status === 'completed').length,
+        candidateLatencyEvidence: input.comparison.candidates.map(toArtifactCandidateLatencyMetadata),
         ...(input.benchmarkKind ? { benchmarkKind: input.benchmarkKind } : {}),
         ...(input.comparison.taskType ? { taskType: input.comparison.taskType } : {}),
         revealStored: true,

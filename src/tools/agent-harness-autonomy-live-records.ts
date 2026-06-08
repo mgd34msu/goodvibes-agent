@@ -1,4 +1,5 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import type { UiAutomationSnapshot, UiTasksSnapshot } from '../runtime/ui-read-models.ts';
@@ -22,6 +23,10 @@ function formatTimeFragment(label: string, value: number | undefined): string {
   return formatted ? `${label} ${formatted}` : '';
 }
 
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 const SENSITIVE_TEXT_PATTERNS: readonly [RegExp, string][] = [
   [/("?\b(?:api[-_]?key|apikey|token|secret|password|passwd|credential|authorization)\b"?\s*:\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, '$1"<redacted>"'],
   [/\b([A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTHORIZATION|BEARER)[A-Z0-9_]*)=("[^"]*"|'[^']*'|[^\s]+)/gi, '$1=<redacted>'],
@@ -29,6 +34,20 @@ const SENSITIVE_TEXT_PATTERNS: readonly [RegExp, string][] = [
   [/(Authorization:\s*Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1<redacted>'],
   [/(\s--(?:token|password|secret|api-key|api_key)\s+)("[^"]*"|'[^']*'|[^\s]+)/gi, '$1<redacted>'],
 ];
+
+const WATCHER_RECEIPT_PURPOSES = new Set([
+  'watcher-receipt',
+  'watcher-run-receipt',
+  'automation-watcher-receipt',
+  'automation-run-history-receipt',
+  'durable-run-history-receipt',
+  'agent-watcher-receipt',
+  'agent-watcher-run-receipt',
+  'connected-host-watcher-receipt',
+  'connected-host-watcher-run-receipt',
+  'connected-host-automation-run-history-receipt',
+  'provider-source-record-receipt',
+]);
 
 function redactHarnessOutputText(value: string): string {
   return SENSITIVE_TEXT_PATTERNS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
@@ -42,6 +61,64 @@ function compactUnknown(value: unknown): string {
     return redactHarnessOutputText(JSON.stringify(value).replace(/\s+/g, ' ').trim());
   } catch {
     return '';
+  }
+}
+
+function artifactMetadata(artifact: ArtifactDescriptor): Readonly<Record<string, unknown>> {
+  return artifact.metadata && typeof artifact.metadata === 'object'
+    ? artifact.metadata as Readonly<Record<string, unknown>>
+    : {};
+}
+
+function artifactMetadataString(artifact: ArtifactDescriptor, key: string): string {
+  return readString(artifactMetadata(artifact)[key]);
+}
+
+function artifactMetadataBoolean(artifact: ArtifactDescriptor, key: string): boolean | null {
+  const value = artifactMetadata(artifact)[key];
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === 'true') return true;
+    if (normalized === 'false') return false;
+  }
+  return null;
+}
+
+function artifactTimestamp(artifact: ArtifactDescriptor): number {
+  const explicit = artifactMetadataString(artifact, 'createdAt')
+    || artifactMetadataString(artifact, 'recordedAt')
+    || artifactMetadataString(artifact, 'completedAt')
+    || artifactMetadataString(artifact, 'timestamp');
+  if (explicit) {
+    const parsed = Date.parse(explicit);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt) ? artifact.createdAt : 0;
+}
+
+function normalizedReceiptStatus(artifact: ArtifactDescriptor): string {
+  const raw = (artifactMetadataString(artifact, 'status')
+    || artifactMetadataString(artifact, 'outcome')
+    || artifactMetadataString(artifact, 'result')).toLowerCase();
+  if (!raw) return 'unknown';
+  if (['ok', 'ready', 'success', 'succeeded', 'complete', 'completed', 'delivered', 'captured', 'recorded'].includes(raw)) return 'succeeded';
+  if (['queued', 'scheduled', 'running', 'pending', 'in-progress', 'in_progress'].includes(raw)) return raw.replace('_', '-');
+  if (['blocked', 'needs-review', 'needs_setup', 'needs-setup'].includes(raw)) return 'blocked';
+  if (['fail', 'failed', 'error', 'errored'].includes(raw)) return 'failed';
+  return raw;
+}
+
+function watcherReceiptArtifacts(context: CommandContext): readonly ArtifactDescriptor[] {
+  const store = context.platform.artifactStore;
+  if (!store?.list) return [];
+  try {
+    return store.list(100)
+      .filter((artifact) => WATCHER_RECEIPT_PURPOSES.has(artifactMetadataString(artifact, 'purpose')))
+      .sort((left, right) => artifactTimestamp(right) - artifactTimestamp(left))
+      .slice(0, 20);
+  } catch {
+    return [];
   }
 }
 
@@ -460,6 +537,83 @@ export function automationRunLiveRecords(context: CommandContext): readonly Auto
         ],
       };
     });
+}
+
+export function watcherReceiptLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRecord[] {
+  return watcherReceiptArtifacts(context).map((artifact) => {
+    const purpose = artifactMetadataString(artifact, 'purpose');
+    const operation = artifactMetadataString(artifact, 'operation')
+      || artifactMetadataString(artifact, 'action')
+      || artifactMetadataString(artifact, 'event')
+      || 'watcher-run';
+    const status = normalizedReceiptStatus(artifact);
+    const watcherId = artifactMetadataString(artifact, 'watcherId')
+      || artifactMetadataString(artifact, 'sourceId')
+      || artifactMetadataString(artifact, 'providerSourceId');
+    const runId = artifactMetadataString(artifact, 'runId')
+      || artifactMetadataString(artifact, 'jobRunId')
+      || artifactMetadataString(artifact, 'automationRunId');
+    const provider = artifactMetadataString(artifact, 'providerId')
+      || artifactMetadataString(artifact, 'provider')
+      || artifactMetadataString(artifact, 'sourceProvider');
+    const trigger = artifactMetadataString(artifact, 'trigger')
+      || artifactMetadataString(artifact, 'triggerKind')
+      || artifactMetadataString(artifact, 'eventKind');
+    const correlationId = artifactMetadataString(artifact, 'correlationId')
+      || artifactMetadataString(artifact, 'turnId')
+      || artifactMetadataString(artifact, 'sessionId');
+    const redaction = artifactMetadataString(artifact, 'redaction')
+      || artifactMetadataString(artifact, 'redactionPolicy')
+      || 'metadata-only';
+    const failureReason = artifactMetadataString(artifact, 'failureReason')
+      || artifactMetadataString(artifact, 'error');
+    const sourceTool = artifactMetadataString(artifact, 'sourceTool')
+      || artifactMetadataString(artifact, 'qualifiedName');
+    const payloadRedacted = artifactMetadataBoolean(artifact, 'payloadRedacted');
+    const artifactRoute = `agent_artifacts show artifactId:"${artifact.id}" includeContent:false`;
+    const queueRoute = 'autonomy action:"item" queueItemId:"automation-runs" includeParameters:true';
+    return {
+      id: `watcher-receipt:${artifact.id}`,
+      label: `Watcher receipt: ${operation.replace(/[-_]+/g, ' ')}`,
+      status,
+      phase: trigger || operation,
+      updatedAt: formatEpochMs(artifactTimestamp(artifact)),
+      summary: [
+        `Durable watcher/run receipt ${artifact.id} reports ${operation} ${status}.`,
+        `Redaction ${redaction}.`,
+        payloadRedacted === true ? 'Payload redacted.' : payloadRedacted === false ? 'Payload redaction not asserted.' : '',
+        provider ? `Provider ${provider}.` : '',
+        watcherId ? `Watcher ${compactUnknown(watcherId)}.` : '',
+        runId ? `Run ${compactUnknown(runId)}.` : '',
+        trigger ? `Trigger ${compactUnknown(trigger)}.` : '',
+        failureReason ? `Failure ${compactUnknown(failureReason)}.` : '',
+        sourceTool ? `Source ${sourceTool}.` : '',
+      ].filter(Boolean).join(' '),
+      inspectRoute: artifactRoute,
+      nextSteps: [
+        artifactRoute,
+        queueRoute,
+      ],
+      sourceIds: [
+        watcherId,
+        runId,
+        provider,
+        trigger,
+        correlationId,
+      ].filter((value): value is string => typeof value === 'string' && value.length > 0),
+      diagnostics: [
+        `purpose ${purpose}`,
+        `receipt artifact ${artifact.id}`,
+        `redaction ${redaction}`,
+        failureReason ? `failure ${compactUnknown(failureReason)}` : '',
+      ].filter((value): value is string => value.length > 0),
+      ...(failureReason ? { logTail: [compactUnknown(failureReason)] } : {}),
+      controls: [
+        availableControl('inspect', 'Inspect watcher receipt', 'read-only', artifactRoute),
+        availableControl('queue', 'Inspect automation queue', 'read-only', queueRoute),
+      ],
+    };
+  });
 }
 
 export function scheduleLiveRecords(context: CommandContext): readonly AutonomyQueueLiveRecord[] {

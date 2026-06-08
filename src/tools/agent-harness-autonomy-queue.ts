@@ -1,7 +1,8 @@
 import { getOperatorContract } from '@pellux/goodvibes-sdk/contracts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
-import { automationRunLiveRecords, approvalLiveRecords, controlAvailable, firstAvailableControlRoute, researchRunLiveRecords, scheduleLiveRecords, taskLiveRecords } from './agent-harness-autonomy-live-records.ts';
+import { automationRunLiveRecords, approvalLiveRecords, controlAvailable, firstAvailableControlRoute, researchRunLiveRecords, scheduleLiveRecords, taskLiveRecords, watcherReceiptLiveRecords } from './agent-harness-autonomy-live-records.ts';
+import { watcherReadModelLiveRecords } from './agent-harness-autonomy-watcher-read-models.ts';
 import type { AgentHarnessAutonomyQueueArgs, AutonomyQueueItem, AutonomyQueueLiveRecord, AutonomyQueueRecordControl, AutonomyQueueRecordOutput, AutonomyQueueResolution, AutonomyQueueStatus, OperatorContractMethod } from './agent-harness-autonomy-queue-types.ts';
 export type { AutonomyQueueResolution } from './agent-harness-autonomy-queue-types.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
@@ -196,7 +197,10 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
   const researchRuns = researchRunLiveRecords(snapshot);
   const taskRecords = taskLiveRecords(context);
   const approvalRecords = approvalLiveRecords(context);
-  const automationRecords = automationRunLiveRecords(context);
+  const automationReadModelRecords = automationRunLiveRecords(context);
+  const watcherReadModelRecords = watcherReadModelLiveRecords(context);
+  const watcherReceiptRecords = watcherReceiptLiveRecords(context);
+  const automationRecords = [...automationReadModelRecords, ...watcherReadModelRecords, ...watcherReceiptRecords];
   const scheduleRecords = scheduleLiveRecords(context);
   const latestResearchRun = researchRuns[0];
   const taskCancelRoute = firstAvailableControlRoute(taskRecords, 'cancel');
@@ -212,11 +216,12 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
     : approvalMethods.length > 0
       ? 'ready'
       : 'needs-setup';
-  const automationStatus: AutonomyQueueStatus = automationRecords.some((record) => record.status === 'failed')
+  const automationStatus: AutonomyQueueStatus = automationRecords.some((record) => record.status === 'failed' || record.status === 'blocked')
     ? 'attention'
-    : automationRecords.some((record) => record.status === 'queued' || record.status === 'running')
+    : automationReadModelRecords.some((record) => record.status === 'queued' || record.status === 'running')
+      || watcherReadModelRecords.some((record) => record.status === 'queued' || record.status === 'running')
       ? 'active'
-      : automationMethods.length > 0
+      : automationMethods.length > 0 || watcherReadModelRecords.length > 0 || watcherReceiptRecords.length > 0
         ? 'ready'
         : 'needs-setup';
   const scheduleStatus: AutonomyQueueStatus = scheduleRecords.some((record) => record.status === 'error')
@@ -345,13 +350,19 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       cancellable: true,
       count: automationRecords.length > 0 ? automationRecords.length : automationMethods.length,
       current: automationRecords.length > 0
-        ? `${automationRecords.length} recent automation run record(s); active, failed, and retryable runs expose exact control routes.`
+        ? `${automationReadModelRecords.length} recent automation run record(s), ${watcherReadModelRecords.length} live watcher run/source record(s), ${watcherReceiptRecords.length} durable watcher/run receipt(s); active, failed, and retryable live runs expose exact control routes while receipt records stay read-only.`
         : `${automationMethods.length} automation daemon method(s) are present; run, pause, resume, cancel, and retry actions are confirmed forms.`,
       next: automationRecords.some((record) => record.status === 'failed')
         ? 'Inspect failed automation runs, then retry or leave them alone only through exact confirmed run routes.'
-        : automationRecords.some((record) => record.status === 'queued' || record.status === 'running')
+        : automationReadModelRecords.some((record) => record.status === 'queued' || record.status === 'running')
           ? 'Inspect active automation runs and cancel only the exact run id the user authorizes.'
-          : 'Inspect automation posture first. Use exact run/job ids for confirmed run control.',
+          : watcherReadModelRecords.some((record) => record.status === 'queued' || record.status === 'running')
+            ? 'Inspect live watcher/source records and use exact published watcher controls only for the run id the user authorizes.'
+            : watcherReadModelRecords.length > 0
+              ? 'Review live watcher/source read models and durable receipts; mutate only through exact confirmed routes published by the host.'
+              : watcherReceiptRecords.length > 0
+                ? 'Review durable watcher/run receipts, then wait for live SDK/daemon run records before controlling any run.'
+                : 'Inspect automation posture first. Use exact run/job ids for confirmed run control.',
       inspectRoute: 'host action:"methods" query:"automation"',
       modelRoute: 'workspace action:"actions" categoryId:"automation"',
       cancelRoute: 'workspace action:"run" actionId:"automation-run-cancel" confirm:true explicitUserRequest:"..."',

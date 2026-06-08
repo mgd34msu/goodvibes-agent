@@ -1,6 +1,7 @@
 import { buildAgentWorkspaceVoiceMediaReadiness } from '../input/agent-workspace-voice-media.ts';
 import type { AgentWorkspaceVoiceMediaProviderStatus } from '../input/agent-workspace-voice-media.ts';
 import type { CommandContext } from '../input/command-registry.ts';
+import { certifiedDeviceLiveRecords, deviceLiveReadModelSnapshot } from './agent-harness-device-live-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessMediaArgs {
@@ -136,6 +137,11 @@ function buildVoiceInteractionWorkflows(
   context: CommandContext,
   readiness: ReturnType<typeof buildReadiness>,
 ): readonly VoiceInteractionWorkflow[] {
+  const liveDevice = deviceLiveReadModelSnapshot(context);
+  const pushToTalkRecords = certifiedDeviceLiveRecords(liveDevice, 'push-to-talk', ['push to talk', 'speech input', 'microphone']);
+  const transcriptionRecords = certifiedDeviceLiveRecords(liveDevice, 'voice-memo-transcription', ['voice memo', 'speech-to-text', 'audio transcription']);
+  const spokenResponseRecords = certifiedDeviceLiveRecords(liveDevice, 'spoken-responses', ['tts', 'spoken response', 'speaker']);
+  const wakeRecords = certifiedDeviceLiveRecords(liveDevice, 'wake-and-speak', ['wake word', 'always listening']);
   const voiceEnabled = readConfigBoolean(context, 'ui.voiceEnabled', false);
   const spokenTurnRuntime = typeof context.submitSpokenInput === 'function';
   const stopSpokenOutputRuntime = typeof context.stopSpokenOutput === 'function';
@@ -143,11 +149,11 @@ function buildVoiceInteractionWorkflows(
   const speechInputReady = hasReadyVoiceFeature(readiness, ['stt', 'realtime']);
   const speechInputRegistered = hasRegisteredVoiceFeature(readiness, ['stt', 'realtime']);
   const selectedTtsReady = readiness.selectedTtsProviderStatus === 'ready';
-  const spokenReady = spokenTurnRuntime && selectedTtsReady && readiness.ttsVoiceConfigured;
+  const spokenReady = spokenResponseRecords.length > 0 || (spokenTurnRuntime && selectedTtsReady && readiness.ttsVoiceConfigured);
   const spokenAttention = spokenTurnRuntime && selectedTtsReady && !readiness.ttsVoiceConfigured;
-  const pushToTalkReady = voiceEnabled && spokenTurnRuntime && speechInputReady;
+  const pushToTalkReady = pushToTalkRecords.length > 0 || (voiceEnabled && spokenTurnRuntime && speechInputReady);
   const pushToTalkAttention = voiceEnabled && (spokenTurnRuntime || speechInputRegistered);
-  const transcriptionReady = transcribeRuntime && speechInputReady;
+  const transcriptionReady = transcriptionRecords.length > 0 || (transcribeRuntime && speechInputReady);
   const transcriptionAttention = transcribeRuntime || speechInputRegistered;
 
   return [
@@ -157,7 +163,7 @@ function buildVoiceInteractionWorkflows(
       status: pushToTalkReady ? 'ready' : pushToTalkAttention ? 'attention' : 'setup-needed',
       userOutcome: 'Speak a short prompt when the local voice surface and speech-input provider are ready.',
       summary: pushToTalkReady
-        ? 'Voice surface, spoken-turn runtime, and a ready STT/realtime provider are available.'
+        ? pushToTalkRecords.length > 0 ? 'The SDK/daemon published a certified push-to-talk route with permission-scoped microphone evidence.' : 'Voice surface, spoken-turn runtime, and a ready STT/realtime provider are available.'
         : pushToTalkAttention
           ? 'Some voice input pieces are present, but the full push-to-talk route is not ready.'
           : 'Voice input needs the voice surface plus a ready STT or realtime provider.',
@@ -176,6 +182,7 @@ function buildVoiceInteractionWorkflows(
         spokenTurnRuntime,
         speechInputReady,
         speechInputRegistered,
+        ...(pushToTalkRecords.length > 0 ? { certifiedLiveRecords: pushToTalkRecords.slice(0, 5) } : {}),
       },
       policy: 'Voice input stays a visible local operator surface; provider setup and transcript submission are separate explicit routes.',
     },
@@ -185,7 +192,7 @@ function buildVoiceInteractionWorkflows(
       status: transcriptionReady ? 'ready' : transcriptionAttention ? 'attention' : 'setup-needed',
       userOutcome: 'Transcribe an audio note only when a speech-to-text provider and runtime route are both present.',
       summary: transcriptionReady
-        ? 'Speech-to-text provider and voiceService.transcribe are available.'
+        ? transcriptionRecords.length > 0 ? 'The SDK/daemon published a certified voice memo transcription route.' : 'Speech-to-text provider and voiceService.transcribe are available.'
         : transcriptionAttention
           ? 'A speech-to-text provider or runtime route is present, but transcription is not fully ready.'
           : 'No ready speech-to-text transcription route is available.',
@@ -202,6 +209,7 @@ function buildVoiceInteractionWorkflows(
         transcribeRuntime,
         speechInputReady,
         speechInputRegistered,
+        ...(transcriptionRecords.length > 0 ? { certifiedLiveRecords: transcriptionRecords.slice(0, 5) } : {}),
       },
       policy: 'Audio bytes are not printed into chat; transcription must use reviewed media or connected-host voice routes.',
     },
@@ -211,7 +219,7 @@ function buildVoiceInteractionWorkflows(
       status: spokenReady ? 'ready' : spokenAttention ? 'attention' : 'setup-needed',
       userOutcome: 'Play an assistant answer aloud with a predictable TTS provider and voice.',
       summary: spokenReady
-        ? 'Spoken-turn runtime, selected TTS provider, and voice setting are ready.'
+        ? spokenResponseRecords.length > 0 ? 'The SDK/daemon published a certified spoken-response route.' : 'Spoken-turn runtime, selected TTS provider, and voice setting are ready.'
         : spokenAttention
           ? 'Spoken-turn runtime and provider are ready, but the exact voice is not configured.'
           : 'Spoken responses need a ready selected TTS provider and runtime spoken-turn route.',
@@ -230,26 +238,33 @@ function buildVoiceInteractionWorkflows(
         stopSpokenOutputRuntime,
         selectedTtsProviderStatus: readiness.selectedTtsProviderStatus,
         ttsVoiceConfigured: readiness.ttsVoiceConfigured,
+        ...(spokenResponseRecords.length > 0 ? { certifiedLiveRecords: spokenResponseRecords.slice(0, 5) } : {}),
       },
       policy: 'Spoken turns submit normal assistant prompts and may call model/speech providers; playback stop is local runtime control.',
     },
     {
       id: 'wake-and-speak',
       label: 'Wake and speak',
-      status: 'not-published',
+      status: wakeRecords.length > 0 ? 'ready' : 'not-published',
       userOutcome: 'Use wake-word or always-listening input only after a permission-scoped runtime contract exists.',
-      summary: 'Wake-word or always-listening voice capture is not published by the current Agent runtime contract.',
-      nextStep: 'Use explicit voice input or /tts until a wake-word route is published with visible permission controls.',
+      summary: wakeRecords.length > 0
+        ? 'The SDK/daemon published certified wake-word evidence with permission scope, receipt metadata, and exact control routes.'
+        : 'Wake-word or always-listening voice capture is not published by the current Agent runtime contract.',
+      nextStep: wakeRecords.length > 0
+        ? 'Inspect the certified wake-word route and keep microphone capture on visible permission controls.'
+        : 'Use explicit voice input or /tts until a wake-word route is published with visible permission controls.',
       capabilities: ['wake word', 'always listening', 'permission repair'],
-      modelRoute: 'agent_harness mode:"media_posture" query:"wake word" includeParameters:true',
+      modelRoute: wakeRecords[0]?.modelRoute ?? 'agent_harness mode:"media_posture" query:"wake word" includeParameters:true',
       setupRoutes: [
+        ...wakeRecords.slice(0, 3).map((record) => record.modelRoute),
         'agent_harness mode:"media_posture" query:"push to talk" includeParameters:true',
         'agent_harness mode:"pairing_posture" query:"device" includeParameters:true',
       ],
       evidence: {
-        publishedByCurrentAgentContract: false,
+        publishedByCurrentAgentContract: wakeRecords.length > 0,
+        ...(wakeRecords.length > 0 ? { certifiedLiveRecords: wakeRecords.slice(0, 5) } : {}),
       },
-      policy: 'Agent does not claim always-listening behavior without an explicit permission-scoped runtime contract.',
+      policy: 'Agent does not claim always-listening behavior without an explicit permission-scoped runtime contract and certified SDK/daemon receipt evidence.',
     },
   ];
 }

@@ -11,6 +11,12 @@ import {
   type AgentResearchSourceRecord,
 } from '../agent/research-source-registry.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
+import {
+  isCertifiedResearchLiveRecord,
+  researchLiveReadModelSnapshot,
+  type ResearchBrowserRunnerRecord,
+  type ResearchVisualReportRecord,
+} from './agent-harness-research-live-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 interface AgentHarnessResearchWorkflowArgs {
@@ -91,6 +97,41 @@ function relatedSources(
   ));
 }
 
+function liveRunnerSearchText(record: ResearchBrowserRunnerRecord): string {
+  return [
+    record.id,
+    record.runId ?? '',
+    record.status,
+    record.phase ?? '',
+    record.question ?? '',
+    record.currentUrl ?? '',
+    record.reportDraftId ?? '',
+    record.reportArtifactId ?? '',
+    ...record.sourceReceiptIds,
+  ].join('\n').toLowerCase();
+}
+
+function matchingLiveRunners(
+  records: readonly ResearchBrowserRunnerRecord[],
+  run: AgentResearchRunRecord | null,
+  question: string,
+): readonly ResearchBrowserRunnerRecord[] {
+  const normalized = question.toLowerCase();
+  return records.filter((record) => (
+    (!!run && record.runId === run.id)
+    || (!!run?.reportArtifactId && record.reportArtifactId === run.reportArtifactId)
+    || (!!normalized && liveRunnerSearchText(record).includes(normalized))
+  ));
+}
+
+function matchingVisualReports(
+  records: readonly ResearchVisualReportRecord[],
+  run: AgentResearchRunRecord | null,
+): readonly ResearchVisualReportRecord[] {
+  if (!run?.reportArtifactId) return records;
+  return records.filter((record) => record.reportArtifactId === run.reportArtifactId);
+}
+
 function runSummary(run: AgentResearchRunRecord, includeParameters: boolean): Record<string, unknown> {
   return {
     runId: run.id,
@@ -128,14 +169,21 @@ function sourceSummary(source: AgentResearchSourceRecord): Record<string, unknow
   };
 }
 
-function browserRunnerContract(browser: ReturnType<typeof browserControlPosture>): Record<string, unknown> {
+function browserRunnerContract(
+  browser: ReturnType<typeof browserControlPosture>,
+  liveRecords: readonly ResearchBrowserRunnerRecord[],
+): Record<string, unknown> {
+  const certified = liveRecords.filter(isCertifiedResearchLiveRecord);
   return {
-    status: browser.configured ? 'ready-with-confirmation' : 'setup-contract-needed',
+    status: certified.length > 0 ? 'certified-live-runner' : browser.configured ? 'ready-with-confirmation' : 'setup-contract-needed',
     userOutcome: 'Run browser-backed research only when live browser state, authenticated pages, or interactive source discovery are necessary.',
-    currentState: browser.configured
+    currentState: certified.length > 0
+      ? 'The SDK/daemon published certified browser-backed research run records with visible controls, source/page receipts, bounded logs, and exact inspect routes.'
+      : browser.configured
       ? 'A reviewed browser/desktop route is configured; use it only after the user accepts the browser-backed research scope.'
       : 'No reviewed browser-backed research runner is configured, so public web_search/fetch stays the current safe route.',
     requiredContracts: [
+      'Certified schema/version/publication/publisher/provenance/freshness-cursor/receipt metadata for every live browser-backed research run.',
       'Trusted browser or desktop-control route with setup posture status ready.',
       'Visible run id, phase/progress, current URL/task scope, checkpoint route, and pause/resume/cancel controls for every browser-backed research run.',
       'Source-capture receipt for each accepted source with URL/title/publisher/summary/provenance.',
@@ -144,14 +192,17 @@ function browserRunnerContract(browser: ReturnType<typeof browserControlPosture>
       'No credential or page-content leakage outside bounded redacted source summaries.',
     ],
     setupRoutes: [
+      ...certified.slice(0, 3).map((record) => record.modelRoute),
       'computer action:"control" includeParameters:true',
       'computer action:"setup" includeParameters:true',
       browser.setupRoute,
       ...browser.fallbackRoutes,
     ],
-    recommendedRoute: browser.recommendedRoute,
+    recommendedRoute: certified[0]?.modelRoute ?? browser.recommendedRoute,
     fallbackRoutes: browser.fallbackRoutes,
-    policy: 'Browser-backed research is not started by this workflow plan. Use bounded public web/fetch routes until the browser runner contract is ready and the user explicitly confirms the scope.',
+    liveRecords: liveRecords.slice(0, 5),
+    certifiedLiveRecords: certified.slice(0, 5),
+    policy: 'Browser-backed research is not started by this workflow plan. Use certified live SDK/daemon records only as read-only evidence, and use returned confirmed routes before any browser/PWA, source-save, report-save, or Knowledge-ingest effect.',
   };
 }
 
@@ -160,12 +211,16 @@ function visualReportContract(options: {
   readonly reportRoute: string;
   readonly bundleRoute: string;
   readonly question: string;
+  readonly liveRecords: readonly ResearchVisualReportRecord[];
 }): Record<string, unknown> {
+  const certified = options.liveRecords.filter(isCertifiedResearchLiveRecord);
   return {
-    status: options.reviewedSources > 0 ? 'visual-report-packet-ready' : 'waiting-for-reviewed-sources',
+    status: certified.length > 0 ? 'certified-live-renderer' : options.reviewedSources > 0 ? 'visual-report-packet-ready' : 'waiting-for-reviewed-sources',
     userOutcome: 'Produce an inspectable research report with source-backed findings, citations, caveats, and handoff/export routes.',
-    currentRoute: options.reviewedSources > 0 ? options.reportRoute : options.bundleRoute,
-    currentState: options.reviewedSources > 0
+    currentRoute: certified[0]?.modelRoute ?? (options.reviewedSources > 0 ? options.reportRoute : options.bundleRoute),
+    currentState: certified.length > 0
+      ? 'The SDK/daemon published a certified browser/PWA visual report render over the same reviewed report artifact, with source-map and citation-coverage evidence.'
+      : options.reviewedSources > 0
       ? 'Agent can save a citation-covered markdown report artifact with a visual report packet now; browser/PWA rendering remains an optional view over the same artifact.'
       : 'Review at least one source before saving a report or visual packet.',
     requiredSections: [
@@ -184,12 +239,14 @@ function visualReportContract(options: {
       'Every material claim maps to a reviewed source line or an explicit caveat.',
       'The report artifact includes citation coverage metadata and repair hints.',
       'The visual report packet is generated by research action:"report" visualReport:true over the same saved report/source artifacts, not a separate uncited answer.',
+      'Connected-host visual rendering counts only when the SDK/daemon publishes certified render route, source-map, citation coverage, section, publication, and receipt evidence.',
       'Knowledge ingest remains a separate confirmed action after report review.',
     ],
     routes: {
       reviewedSourceBundle: options.bundleRoute,
       saveVisualReport: options.reportRoute,
       saveMarkdownReport: options.reportRoute,
+      ...(certified[0] ? { openRenderedReport: certified[0].renderRoute } : {}),
       reviewPacketWizard: 'agent_harness mode:"document_ops_lane" laneId:"review_packet_wizard"',
       archiveArtifacts: 'agent_artifacts mode:"archive" artifactIds:["..."] destinationPath:"exports/research-report.zip" confirm:true explicitUserRequest:"..."',
     },
@@ -199,6 +256,8 @@ function visualReportContract(options: {
       'agent_harness mode:"document_ops_lane" laneId:"review_packet_wizard"',
       'agent_artifacts mode:"archive" artifactIds:["..."] destinationPath:"exports/research-report.zip" confirm:true explicitUserRequest:"..."',
     ],
+    liveRecords: options.liveRecords.slice(0, 5),
+    certifiedRendererRecords: certified.slice(0, 5),
     policy: `This contract is read-only planning for ${previewHarnessText(options.question, 96)}; saving reports, exports, packages, shares, or Knowledge ingest stay on separate confirmed routes.`,
   };
 }
@@ -216,6 +275,11 @@ export function researchWorkflowSummary(context: CommandContext, args: AgentHarn
   const reviewedSources = matchedSources.filter((source) => source.status === 'reviewed' || source.status === 'used');
   const candidateSources = matchedSources.filter((source) => source.status === 'candidate');
   const browser = browserControlPosture(context);
+  const liveResearch = researchLiveReadModelSnapshot(context);
+  const liveRunnerRecords = matchingLiveRunners(liveResearch.browserRunnerRecords, run, question);
+  const certifiedRunnerRecords = liveRunnerRecords.filter(isCertifiedResearchLiveRecord);
+  const liveVisualRecords = matchingVisualReports(liveResearch.visualReportRecords, run);
+  const certifiedVisualRecords = liveVisualRecords.filter(isCertifiedResearchLiveRecord);
   const status = !shellPaths
     ? 'unavailable'
     : run?.status === 'completed'
@@ -251,20 +315,25 @@ export function researchWorkflowSummary(context: CommandContext, args: AgentHarn
       candidateSources: candidateSources.slice(0, includeParameters ? 8 : 3).map(sourceSummary),
     },
     browserBackedResearch: {
-      status: browser.status,
-      configured: browser.configured,
-      recommendedRoute: browser.recommendedRoute,
+      status: certifiedRunnerRecords.length > 0 ? 'certified-live-runner' : browser.status,
+      configured: browser.configured || certifiedRunnerRecords.length > 0,
+      recommendedRoute: certifiedRunnerRecords[0]?.modelRoute ?? browser.recommendedRoute,
       fallbackRoutes: browser.fallbackRoutes,
       next: browser.configured
         ? 'Use reviewed browser/desktop tooling only when live browser state or authenticated pages are necessary.'
-        : 'Use bounded public web_search/fetch routes now; inspect setup before browser-backed execution.',
+        : certifiedRunnerRecords.length > 0
+          ? 'Inspect the certified live research runner record, then use confirmed routes for follow-up source, report, or browser effects.'
+          : 'Use bounded public web_search/fetch routes now; inspect setup before browser-backed execution.',
+      liveRunnerRecords: liveRunnerRecords.slice(0, includeParameters ? 8 : 3),
+      certifiedLiveRunnerCount: certifiedRunnerRecords.length,
     },
-    browserRunnerContract: browserRunnerContract(browser),
+    browserRunnerContract: browserRunnerContract(browser, liveRunnerRecords),
     visualReportContract: visualReportContract({
       reviewedSources: reviewedSources.length,
       reportRoute,
       bundleRoute,
       question,
+      liveRecords: liveVisualRecords,
     }),
     workflow: [
       {
@@ -276,11 +345,13 @@ export function researchWorkflowSummary(context: CommandContext, args: AgentHarn
       },
       {
         id: 'collect-sources',
-        status: reviewedSources.length > 0 || candidateSources.length > 0 ? 'started' : 'needed',
-        next: browser.configured
+        status: certifiedRunnerRecords.length > 0 ? 'ready' : reviewedSources.length > 0 || candidateSources.length > 0 ? 'started' : 'needed',
+        next: certifiedRunnerRecords.length > 0
+          ? 'Use the certified live runner record to inspect source receipts, then review captured sources before report generation.'
+          : browser.configured
           ? 'Collect bounded sources, preferring primary/current sources, then capture each useful source in the queue.'
           : 'Use web_search/fetch for public sources and capture each useful source in the queue.',
-        route: 'web_search query:"..." verbosity:"evidence" maxResults:10 evidenceTopN:3 or fetch urls:[...]',
+        route: certifiedRunnerRecords[0]?.modelRoute ?? 'web_search query:"..." verbosity:"evidence" maxResults:10 evidenceTopN:3 or fetch urls:[...]',
         captureRoute: `research action:"add_source" question:${quote(question)} title:"..." url:"..." summary:"..." credibility:"unreviewed" tags:["research"] confirm:true explicitUserRequest:"..."`,
       },
       {
@@ -292,9 +363,9 @@ export function researchWorkflowSummary(context: CommandContext, args: AgentHarn
       },
       {
         id: 'save-report',
-        status: reviewedSources.length > 0 ? 'ready' : 'waiting',
-        next: reviewedSources.length > 0 ? 'Use the reviewed-source bundle and save a citation-covered visual report packet artifact.' : 'Save the report only after reviewed or used sources exist.',
-        route: reviewedSources.length > 0 ? bundleRoute : `research action:"sources" query:${quote(sourceQuery)}`,
+        status: certifiedVisualRecords.length > 0 || reviewedSources.length > 0 ? 'ready' : 'waiting',
+        next: certifiedVisualRecords.length > 0 ? 'Inspect the certified browser/PWA report render, then export, archive, or promote only after review.' : reviewedSources.length > 0 ? 'Use the reviewed-source bundle and save a citation-covered visual report packet artifact.' : 'Save the report only after reviewed or used sources exist.',
+        route: certifiedVisualRecords[0]?.modelRoute ?? (reviewedSources.length > 0 ? bundleRoute : `research action:"sources" query:${quote(sourceQuery)}`),
         reportRoute,
       },
       {
@@ -312,6 +383,8 @@ export function researchWorkflowSummary(context: CommandContext, args: AgentHarn
       inspectSources: `research action:"sources" query:${quote(sourceQuery)}`,
       bundleSources: bundleRoute,
       saveReport: reportRoute,
+      ...(certifiedRunnerRecords[0] ? { liveRunner: certifiedRunnerRecords[0].modelRoute } : {}),
+      ...(certifiedVisualRecords[0] ? { liveVisualReport: certifiedVisualRecords[0].modelRoute } : {}),
       ...(run ? {
         checkpointRun: `research action:"checkpoint" id:${quote(run.id)} phase:"reading" progress:${Math.max(run.progress, 25)} note:"..." sourceIds:["..."] confirm:true explicitUserRequest:"..."`,
         completeRun: `research action:"complete" id:${quote(run.id)} reportArtifactId:"..." confirm:true explicitUserRequest:"..."`,

@@ -68,10 +68,42 @@ function actionCommand(action: AgentWorkspaceAction): string {
   return action.command ?? '(guidance)';
 }
 
-function actionMetaLine(action: AgentWorkspaceAction): ContextLine {
+function isOnboardingCategory(category: AgentWorkspaceCategory): boolean {
+  return category.group === 'ONBOARDING';
+}
+
+function onboardingActionChange(workspace: AgentWorkspace, action: AgentWorkspaceAction): string {
+  if (action.kind === 'setting') {
+    return workspace.settingActionPreview(action) ?? 'Update setting';
+  }
+  if (action.kind === 'settings-import') return 'Import compatible GoodVibes preferences';
+  if (action.kind === 'setup-checkpoint') {
+    if (action.setupCheckpointOperation === 'show') return 'Show saved setup progress';
+    if (action.setupCheckpointOperation === 'mark-current') return 'Save current setup progress';
+    if (action.setupCheckpointOperation === 'clear') return 'Clear saved setup progress';
+    return 'Review setup progress';
+  }
+  if (action.kind === 'model-picker') return action.modelPickerFlow === 'model' ? 'Choose a model' : 'Choose provider and model';
+  if (action.kind === 'settings-modal') return 'Open settings';
+  if (action.kind === 'workspace') return 'Open setup area';
+  if (action.kind === 'editor') return 'Open guided form';
+  if (action.kind === 'local-selection') return 'Move selection';
+  if (action.kind === 'local-operation') return 'Apply selected library action';
+  if (action.kind === 'onboarding-complete') return 'Save setup completion';
+  if (action.safety === 'read-only') return 'Review readiness';
+  if (action.safety === 'blocked') return 'Unavailable in this setup step';
+  return 'Open option';
+}
+
+function actionChange(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction): string {
+  return isOnboardingCategory(category) ? onboardingActionChange(workspace, action) : actionCommand(action);
+}
+
+function actionMetaLine(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction): ContextLine {
+  const onboarding = isOnboardingCategory(category);
   return {
-    text: `Does: ${actionCommand(action)}`,
-    fg: action.safety === 'blocked' ? PALETTE.warn : action.kind === 'command' ? PALETTE.info : PALETTE.muted,
+    text: `${onboarding ? 'Change' : 'Does'}: ${actionChange(workspace, category, action)}`,
+    fg: action.safety === 'blocked' ? PALETTE.warn : !onboarding && action.kind === 'command' ? PALETTE.info : PALETTE.muted,
   };
 }
 
@@ -135,19 +167,20 @@ function buildContextRows(workspace: AgentWorkspace, category: AgentWorkspaceCat
   const selectedActionLines: ContextLine[] = action
     ? [
       { text: `Selected: ${action.label}`, fg: PALETTE.title, bold: true },
-      actionMetaLine(action),
+      actionMetaLine(workspace, category, action),
     ]
     : [];
   const snapshotContextLines = snapshotLines(workspace, category, workspace.runtimeSnapshot);
   lines.push(...selectedActionLines, ...snapshotContextLines);
 
+  const onboarding = isOnboardingCategory(category);
   if (workspace.lastActionResult) {
     lines.push(
-      { text: 'Action Result', fg: PALETTE.title, bold: true },
+      { text: onboarding ? 'Result' : 'Action Result', fg: PALETTE.title, bold: true },
       { text: workspace.lastActionResult.title, fg: actionResultColor(workspace.lastActionResult), bold: true },
       { text: compactText(workspace.lastActionResult.detail), fg: PALETTE.text },
     );
-    if (workspace.lastActionResult.command) {
+    if (!onboarding && workspace.lastActionResult.command) {
       lines.push({ text: `Command: ${workspace.lastActionResult.command}`, fg: PALETTE.muted });
     }
   }
@@ -213,6 +246,8 @@ function buildEditorFieldRows(editor: AgentWorkspaceLocalEditor, index: number, 
 
 function buildActionRows(workspace: AgentWorkspace, width: number, height: number): WorkspaceRow[] {
   if (workspace.localEditor) return buildEditorRows(workspace.localEditor, width, height);
+  const category = workspace.selectedActionCategory;
+  const onboarding = isOnboardingCategory(category);
   const rows: WorkspaceRow[] = [];
   const labelWidth = Math.min(34, Math.max(18, Math.floor(width * 0.38)));
   const commandWidth = Math.max(10, width - labelWidth - 6);
@@ -224,7 +259,7 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
     });
   }
   rows.push({
-    text: `  ${padDisplay(workspace.actionSearchActive ? 'Result' : 'Action', labelWidth)}  ${padDisplay('Does', commandWidth)}`,
+    text: `  ${padDisplay(workspace.actionSearchActive ? 'Result' : onboarding ? 'Option' : 'Action', labelWidth)}  ${padDisplay(onboarding ? 'Change' : 'Does', commandWidth)}`,
     fg: PALETTE.muted,
     bold: true,
   });
@@ -238,10 +273,11 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
     const action = actions[index]!;
     const selected = index === workspace.selectedActionIndex;
     const searchResult = workspace.actionSearchActive ? workspace.actionSearchResults[index] : null;
+    const actionCategory = searchResult?.category ?? category;
     const label = searchResult ? `${searchResult.category.label} / ${action.label}` : action.label;
     const marker = selected ? GLYPHS.navigation.selected : ' ';
     rows.push({
-      text: `${marker} ${padDisplay(label, labelWidth)}  ${padDisplay(actionCommand(action), commandWidth)}`,
+      text: `${marker} ${padDisplay(label, labelWidth)}  ${padDisplay(actionChange(workspace, actionCategory, action), commandWidth)}`,
       selected: selected && workspace.focusPane === 'actions',
       fg: action.safety === 'blocked' ? PALETTE.warn : selected ? PALETTE.text : PALETTE.info,
       bold: selected,
@@ -253,11 +289,11 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   rows.push({ text: `Status: ${workspace.status}`, fg: PALETTE.muted });
   if (workspace.lastActionResult) {
     rows.push({ text: '' });
-    rows.push({ text: `Action Result: ${workspace.lastActionResult.title}`, fg: actionResultColor(workspace.lastActionResult), bold: true });
+    rows.push({ text: `${onboarding ? 'Result' : 'Action Result'}: ${workspace.lastActionResult.title}`, fg: actionResultColor(workspace.lastActionResult), bold: true });
     for (const line of wrapText(workspace.lastActionResult.detail, Math.max(1, width - 2))) {
       rows.push({ text: `  ${line}`, fg: PALETTE.text });
     }
-    if (workspace.lastActionResult.command) {
+    if (!onboarding && workspace.lastActionResult.command) {
       rows.push({ text: `  Command: ${workspace.lastActionResult.command}`, fg: PALETTE.muted });
     }
   }

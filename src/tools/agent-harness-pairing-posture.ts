@@ -7,6 +7,7 @@ import { buildAgentWorkspaceChannels } from '../input/agent-workspace-channels.t
 import { buildAgentWorkspaceVoiceMediaReadiness } from '../input/agent-workspace-voice-media.ts';
 import { requirePlatform, requireShellPaths } from '../input/commands/runtime-services.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
+import { certifiedDeviceLiveRecords, deviceLiveReadModelSnapshot } from './agent-harness-device-live-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 export interface AgentHarnessPairingArgs {
@@ -370,6 +371,10 @@ function queryRequestsWholeDeviceMap(query: string): boolean {
   return tokens.includes('device') && (tokens.includes('capability') || tokens.includes('capabilities') || tokens.includes('map'));
 }
 
+function liveDeviceEvidence(records: ReturnType<typeof certifiedDeviceLiveRecords>): Record<string, unknown> | undefined {
+  return records.length > 0 ? { certifiedLiveRecords: records.slice(0, 5) } : undefined;
+}
+
 function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap {
   const state = pairingState(context);
   const hasToken = tokenPresent(state);
@@ -389,6 +394,9 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
   const enabledChannels = channels.filter((channel) => channel.enabled);
   const notificationWebhookCount = readConfigStringArray(context, 'notifications.webhookUrls').length;
   const browserPosture = browserControlPosture(context);
+  const liveDevice = deviceLiveReadModelSnapshot(context);
+  const sensorRecords = certifiedDeviceLiveRecords(liveDevice, 'camera-location-sensors', ['camera', 'location', 'screen', 'device command', 'sensor']);
+  const sensorReady = sensorRecords.length > 0;
   const ttsStatus: DeviceCapabilityStatus = voiceReadiness.selectedTtsProviderStatus === 'ready' && voiceReadiness.ttsVoiceConfigured
     ? 'ready'
     : voiceReadiness.selectedTtsProviderStatus === 'ready' || voiceReadiness.selectedTtsProviderStatus === 'registered'
@@ -575,22 +583,35 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
     },
     {
       id: 'camera-location-sensors',
-      label: 'Camera and location sensors',
+      label: 'Camera, screen, and location sensors',
       domain: 'device',
-      status: 'not-published',
-      userOutcome: 'Use phone camera or location only after the daemon/companion publishes permission-scoped records.',
-      summary: 'Camera and location sensor adapters are not published by the current Agent-visible SDK/daemon contract.',
-      nextStep: 'Inspect operator methods for newly published camera/location contracts before claiming device access.',
-      capabilities: ['camera permission posture', 'location permission posture', 'device sensor commands'],
-      modelRoute: 'host action:"methods" query:"camera location device"',
+      status: sensorReady ? 'ready' : 'not-published',
+      userOutcome: 'Use phone camera, screen, location, or local device commands only after the daemon/companion publishes permission-scoped records.',
+      summary: sensorReady
+        ? 'The SDK/daemon published certified permission-scoped camera, screen, location, or device-command capability records.'
+        : 'Camera, screen, location, and device-command adapters are not published by the current Agent-visible SDK/daemon contract.',
+      nextStep: sensorReady
+        ? 'Inspect the certified device record and use only its returned confirmed permission/control routes.'
+        : 'Inspect operator methods for newly published camera/location/screen contracts before claiming device access.',
+      capabilities: [
+        'camera permission posture',
+        'screen capture permission posture',
+        'location permission posture',
+        'local device command routes',
+        ...sensorRecords.flatMap((record) => record.capabilities),
+      ],
+      modelRoute: sensorRecords[0]?.modelRoute ?? 'host action:"methods" query:"camera location device"',
       setupRoutes: [
+        ...sensorRecords.slice(0, 3).map((record) => record.modelRoute),
         'host action:"methods" query:"camera location device"',
         'host action:"capabilities" includeParameters:true',
       ],
       evidence: {
-        publishedByCurrentAgentContract: false,
+        publishedByCurrentAgentContract: sensorReady,
+        liveDeviceRecords: liveDevice.capabilities.length,
+        ...liveDeviceEvidence(sensorRecords),
       },
-      policy: 'Agent reports unpublished device sensor APIs honestly instead of simulating camera or location access.',
+      policy: 'Agent reports unpublished device sensor APIs honestly and counts device access only when certified SDK/daemon permission-scoped records publish exact routes without raw payloads.',
     },
   ];
   capabilities.sort((left, right) => deviceStatusRank(left.status) - deviceStatusRank(right.status) || left.label.localeCompare(right.label));

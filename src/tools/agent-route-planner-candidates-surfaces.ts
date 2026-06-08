@@ -119,7 +119,7 @@ if (browserControlLike(lower)) {
         'workspace action:"open" surfaceId:"connected-browser-cockpit" confirm:true explicitUserRequest:"..."',
         'host action:"services" query:"web" includeParameters:true',
       ],
-      policy: 'Browser/PWA readiness is read-only. Opening the connected browser cockpit is a visible confirmed handoff; browser-native Agent workspace receipts remain unpublished until the connected host provides them.',
+      policy: 'Browser/PWA readiness is read-only. Opening the connected browser cockpit is a visible confirmed handoff; browser-native Agent workspace routes count as ready only from certified SDK/daemon browser/PWA route and first-run receipt read models.',
     });
   }
 

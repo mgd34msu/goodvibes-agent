@@ -6,68 +6,133 @@ import { readBoolean, readFiniteNumber, readRecord, readString, safeIso } from '
 function readPotentialProviderHealthSnapshot(source: unknown): unknown {
   if (!source || typeof source !== 'object') return null;
   const record = source as Record<string, unknown>;
-  const directSnapshot = typeof record.getSnapshot === 'function'
-    ? (record.getSnapshot as () => unknown)()
-    : null;
+  const directSnapshot = ['getSnapshot', 'snapshot', 'list', 'listProviders', 'listRoutes', 'listHealth']
+    .map((method) => {
+      const fn = record[method];
+      if (typeof fn !== 'function') return null;
+      const result = (fn as () => unknown).call(record);
+      return result instanceof Promise ? null : result;
+    })
+    .find((result) => result !== null);
   return directSnapshot ?? record.snapshot ?? record.data ?? record.state ?? source;
+}
+
+const PROVIDER_HEALTH_SECRET_PATTERNS: readonly [RegExp, string][] = [
+  [/("?\b(?:api[-_]?key|apikey|token|secret|password|passwd|credential|authorization)\b"?\s*:\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, '$1"<redacted>"'],
+  [/\b([A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTHORIZATION|BEARER)[A-Z0-9_]*)=("[^"]*"|'[^']*'|[^\s]+)/gi, '$1=<redacted>'],
+  [/(\b(?:token|secret|password|passwd|api[-_]?key|apikey|authorization|credential)\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, '$1<redacted>'],
+  [/(Authorization:\s*Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1<redacted>'],
+];
+
+function redactProviderHealthText(value: string): string {
+  return PROVIDER_HEALTH_SECRET_PATTERNS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+}
+
+function entryWithKey(key: unknown, entry: unknown): Record<string, unknown> {
+  const record = readRecord(entry);
+  const textKey = readString(key);
+  if (!textKey) return record;
+  const looksLikeRoute = textKey.includes(':') || textKey.includes('/');
+  return {
+    ...record,
+    ...(looksLikeRoute ? { modelRouteId: readString(record.modelRouteId) || readString(record.routeId) || textKey } : {}),
+    providerId: readString(record.providerId) || readString(record.provider) || (looksLikeRoute ? readString(record.providerId) : textKey),
+  };
+}
+
+function looksLikeProviderHealthRecord(record: Record<string, unknown>): boolean {
+  return Boolean(
+    readString(record.providerId)
+      || readString(record.provider)
+      || readString(record.modelRouteId)
+      || readString(record.routeId)
+      || readString(record.registryKey)
+      || readString(record.status)
+      || readFiniteNumber(record.avgLatencyMs) !== undefined
+      || Object.keys(readRecord(record.stats)).length > 0,
+  );
 }
 
 function providerHealthCandidatesFromSnapshot(snapshot: unknown): readonly Record<string, unknown>[] {
   if (!snapshot || typeof snapshot !== 'object') return [];
   if (snapshot instanceof Map) {
-    return [...snapshot.entries()].map(([key, entry]) => {
-      const record = readRecord(entry);
-      return { ...record, providerId: readString(record.providerId) || readString(key) };
-    });
+    return [...snapshot.entries()].map(([key, entry]) => entryWithKey(key, entry));
   }
   const record = readRecord(snapshot);
-  const providers = record.providers;
-  const entries = record.entries;
-  if (providers instanceof Map) {
-    return [...providers.entries()].map(([key, entry]) => {
-      const providerRecord = readRecord(entry);
-      return { ...providerRecord, providerId: readString(providerRecord.providerId) || readString(key) };
-    });
+  for (const key of ['providers', 'providerHealth', 'routes', 'modelRoutes', 'routeHealth', 'providerRoutes', 'records', 'items', 'entries', 'health']) {
+    const value = record[key];
+    if (value instanceof Map) return [...value.entries()].map(([entryKey, entry]) => entryWithKey(entryKey, entry));
+    if (Array.isArray(value)) return value.map((entry) => readRecord(entry));
+    const valueRecord = readRecord(value);
+    if (Object.keys(valueRecord).length > 0) return Object.entries(valueRecord).map(([entryKey, entry]) => entryWithKey(entryKey, entry));
   }
-  if (Array.isArray(providers)) {
-    return providers.map((entry) => readRecord(entry));
-  }
-  if (providers && typeof providers === 'object') {
-    return Object.entries(providers as Record<string, unknown>).map(([key, entry]) => {
-      const providerRecord = readRecord(entry);
-      return { ...providerRecord, providerId: readString(providerRecord.providerId) || key };
-    });
-  }
-  if (entries instanceof Map) {
-    return [...entries.entries()].map(([key, entry]) => {
-      const entryRecord = readRecord(entry);
-      return { ...entryRecord, providerId: readString(entryRecord.providerId) || readString(key) };
-    });
-  }
-  if (Array.isArray(entries)) {
-    return entries.map((entry) => readRecord(entry));
-  }
-  return [];
+  return looksLikeProviderHealthRecord(record) ? [record] : [];
 }
 
-function providerHealthCandidateId(candidate: Record<string, unknown>): string {
+function providerHealthCandidateProviderId(candidate: Record<string, unknown>): string {
   return readString(candidate.providerId)
-    || readString(candidate.id)
     || readString(candidate.provider)
-    || readString(candidate.name);
+    || readString(candidate.providerName)
+    || (readString(candidate.id).includes(':') ? '' : readString(candidate.id));
+}
+
+function providerHealthCandidateRouteId(candidate: Record<string, unknown>): string {
+  return readString(candidate.modelRouteId)
+    || readString(candidate.registryKey)
+    || readString(candidate.routeId)
+    || readString(candidate.modelRoute)
+    || (readString(candidate.id).includes(':') ? readString(candidate.id) : '');
+}
+
+function providerHealthCandidateMatchesProvider(candidate: Record<string, unknown>, providerId: string): boolean {
+  return providerHealthCandidateProviderId(candidate) === providerId;
 }
 
 function providerHealthRecordStats(candidate: Record<string, unknown>): Record<string, unknown> {
   return readRecord(candidate.stats);
 }
 
-function providerHealthTimestamp(candidate: Record<string, unknown>, stats: Record<string, unknown>, key: string): string | null {
-  return safeIso(readFiniteNumber(candidate[key]) ?? readFiniteNumber(stats[key]));
+function providerHealthRecordRateLimit(candidate: Record<string, unknown>): Record<string, unknown> {
+  return readRecord(candidate.rateLimit);
 }
 
-export function readProviderHealthSignal(context: CommandContext, providerId: string): ModelProviderHealthSignal {
+function providerHealthRecordErrors(candidate: Record<string, unknown>): Record<string, unknown> {
+  return readRecord(candidate.errors);
+}
+
+function isoFromUnknown(value: unknown): string | null {
+  const numeric = readFiniteNumber(value);
+  if (numeric !== undefined) return safeIso(numeric);
+  const text = readString(value);
+  if (!text) return null;
+  const parsed = Date.parse(text);
+  return Number.isFinite(parsed) ? new Date(parsed).toISOString() : null;
+}
+
+function firstTimestamp(values: readonly unknown[]): string | null {
+  for (const value of values) {
+    const timestamp = isoFromUnknown(value);
+    if (timestamp) return timestamp;
+  }
+  return null;
+}
+
+function providerHealthTimestamp(candidate: Record<string, unknown>, stats: Record<string, unknown>, key: string): string | null {
+  return firstTimestamp([candidate[key], stats[key]]);
+}
+
+function nestedNumber(candidate: Record<string, unknown>, stats: Record<string, unknown>, nested: Record<string, unknown>, keys: readonly string[]): number | undefined {
+  for (const key of keys) {
+    const value = readFiniteNumber(candidate[key]) ?? readFiniteNumber(stats[key]) ?? readFiniteNumber(nested[key]);
+    if (value !== undefined) return value;
+  }
+  return undefined;
+}
+
+export function readProviderHealthSignal(context: CommandContext, providerId: string, modelRouteId?: string): ModelProviderHealthSignal {
   const base: Omit<ModelProviderHealthSignal, 'status' | 'daemonPublication' | 'agentConsumption' | 'missingSignals' | 'policy'> = {
     providerId,
+    ...(modelRouteId ? { modelRouteId } : {}),
     sdkContract: {
       providerHealthTypes: 'available',
       importSurface: '@pellux/goodvibes-sdk/platform/runtime/ui',
@@ -77,10 +142,17 @@ export function readProviderHealthSignal(context: CommandContext, providerId: st
   const policy = 'Provider health is live route-condition evidence. Local benchmark artifacts remain separate task-fit evidence and must not be treated as provider-health publication.';
   const platform = context.platform as unknown as Record<string, unknown>;
   const readModels = readRecord(platform.readModels);
+  const clients = readRecord(context.clients as unknown as Record<string, unknown>);
+  const operator = readRecord(clients.operator);
   const sourceEntries: readonly { readonly path: string; readonly source: unknown }[] = [
     { path: 'context.platform.readModels.providerHealth', source: readModels.providerHealth },
     { path: 'context.platform.readModels.providersHealth', source: readModels.providersHealth },
+    { path: 'context.platform.readModels.modelRouteHealth', source: readModels.modelRouteHealth },
+    { path: 'context.platform.readModels.routeHealth', source: readModels.routeHealth },
+    { path: 'context.platform.readModels.models.providerHealth', source: readRecord(readModels.models).providerHealth },
+    { path: 'context.platform.readModels.models.routeHealth', source: readRecord(readModels.models).routeHealth },
     { path: 'context.platform.providerHealth', source: platform.providerHealth },
+    { path: 'context.clients.operator.providerHealth', source: operator.providerHealth },
   ];
 
   for (const entry of sourceEntries) {
@@ -88,7 +160,10 @@ export function readProviderHealthSignal(context: CommandContext, providerId: st
     try {
       const snapshot = readPotentialProviderHealthSnapshot(entry.source);
       const candidates = providerHealthCandidatesFromSnapshot(snapshot);
-      const candidate = candidates.find((item) => providerHealthCandidateId(item) === providerId);
+      const candidate = (modelRouteId
+        ? candidates.find((item) => providerHealthCandidateRouteId(item) === modelRouteId)
+        : undefined)
+        ?? candidates.find((item) => providerHealthCandidateMatchesProvider(item, providerId));
       if (!candidate) {
         return {
           ...base,
@@ -109,10 +184,24 @@ export function readProviderHealthSignal(context: CommandContext, providerId: st
       }
 
       const stats = providerHealthRecordStats(candidate);
+      const rateLimit = providerHealthRecordRateLimit(candidate);
+      const errors = providerHealthRecordErrors(candidate);
       const avgLatencyMs = readFiniteNumber(candidate.avgLatencyMs) ?? readFiniteNumber(stats.avgLatencyMs);
       const minLatencyMs = readFiniteNumber(candidate.minLatencyMs) ?? readFiniteNumber(stats.minLatencyMs);
       const maxLatencyMs = readFiniteNumber(candidate.maxLatencyMs) ?? readFiniteNumber(candidate.p95LatencyMs) ?? readFiniteNumber(stats.maxLatencyMs);
       const healthStatus = readString(candidate.status) || 'unknown';
+      const rateLimitRemaining = nestedNumber(candidate, stats, rateLimit, ['rateLimitRemaining', 'remaining', 'requestsRemaining']);
+      const rateLimitLimit = nestedNumber(candidate, stats, rateLimit, ['rateLimitLimit', 'limit', 'requestsLimit']);
+      const rateLimitResetAt = firstTimestamp([candidate.rateLimitResetAt, stats.rateLimitResetAt, rateLimit.resetAt, rateLimit.resetsAt]);
+      const lastErrorAt = firstTimestamp([candidate.lastErrorAt, stats.lastErrorAt, errors.lastErrorAt]);
+      const lastErrorMessage = readString(candidate.lastErrorMessage)
+        || readString(stats.lastErrorMessage)
+        || readString(errors.lastErrorMessage)
+        || readString(errors.message);
+      const errorRate = nestedNumber(candidate, stats, errors, ['errorRate', 'recentErrorRate']);
+      const consecutiveErrors = nestedNumber(candidate, stats, errors, ['consecutiveErrors', 'failureStreak']);
+      const hasRateLimitPosture = rateLimitRemaining !== undefined || rateLimitLimit !== undefined || rateLimitResetAt !== null;
+      const hasErrorPosture = lastErrorAt !== null || lastErrorMessage || errorRate !== undefined || consecutiveErrors !== undefined;
       return {
         ...base,
         status: 'record-found',
@@ -126,6 +215,8 @@ export function readProviderHealthSignal(context: CommandContext, providerId: st
           readModelPath: entry.path,
           evidence: 'Agent consumed the published provider-health record for exact model-route readiness.',
         },
+        sourceRecordId: readString(candidate.recordId) || readString(candidate.id) || providerHealthCandidateRouteId(candidate) || providerHealthCandidateProviderId(candidate),
+        ...(providerHealthCandidateRouteId(candidate) ? { modelRouteId: providerHealthCandidateRouteId(candidate) } : {}),
         healthStatus,
         isConfigured: readBoolean(candidate.isConfigured),
         isActive: readBoolean(candidate.isActive),
@@ -133,14 +224,20 @@ export function readProviderHealthSignal(context: CommandContext, providerId: st
         minLatencyMs,
         maxLatencyMs,
         lastSuccessAt: providerHealthTimestamp(candidate, stats, 'lastSuccessAt'),
-        lastErrorAt: providerHealthTimestamp(candidate, stats, 'lastErrorAt'),
-        lastErrorMessage: readString(candidate.lastErrorMessage) || readString(stats.lastErrorMessage) || undefined,
+        lastErrorAt,
+        lastErrorMessage: lastErrorMessage ? previewHarnessText(redactProviderHealthText(lastErrorMessage), 160) : undefined,
+        errorRate,
+        consecutiveErrors,
         lastCheckedAt: providerHealthTimestamp(candidate, stats, 'lastCheckedAt'),
-        rateLimitResetAt: providerHealthTimestamp(candidate, stats, 'rateLimitResetAt'),
+        rateLimitResetAt,
+        rateLimitRemaining,
+        rateLimitLimit,
         missingSignals: [
           ...(avgLatencyMs === undefined ? ['Provider-health record did not include average latency.'] : []),
           ...(minLatencyMs === undefined ? ['Provider-health record did not include minimum latency.'] : []),
           ...(maxLatencyMs === undefined ? ['Provider-health record did not include maximum or p95 latency.'] : []),
+          ...(hasRateLimitPosture ? [] : ['Provider-health record did not include rate-limit posture.']),
+          ...(hasErrorPosture ? [] : ['Provider-health record did not include error posture.']),
         ],
         policy,
       };

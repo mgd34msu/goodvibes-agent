@@ -2,9 +2,11 @@ import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifact
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
-import { hasMethod } from './agent-harness-personal-ops-discovery.ts';
 import { redactedPersonalOpsText } from './agent-harness-personal-ops-runner.ts';
+import { personalOpsRecordCertification } from './agent-harness-personal-ops-certification.ts';
 import type { PersonalOpsConnectorSignal, PersonalOpsConnectorTool, PersonalOpsLane, PersonalOpsLaneId, PersonalOpsLiveRecord, PersonalOpsRecordFreshness, PersonalOpsStatus, PersonalOpsWorkflow, PersonalOpsWorkflowStatus } from './agent-harness-personal-ops-types.ts';
+
+type PersonalOpsEffectReceiptLaneId = Extract<PersonalOpsLaneId, 'inbox' | 'calendar' | 'tasks' | 'reminders'>;
 
 export function laneStatusRank(status: PersonalOpsStatus): number {
   if (status === 'ready') return 4;
@@ -61,6 +63,15 @@ export function searchText(lane: PersonalOpsLane): string {
         record.freshness.refreshRoute ?? '',
         record.freshness.policy,
       ].join('\n') : '',
+      record.certification ? [
+        record.certification.schemaStatus,
+        record.certification.schemaVersion ?? '',
+        record.certification.publicationGuarantee ?? '',
+        record.certification.publisher ?? '',
+        record.certification.provenance?.join('\n') ?? '',
+        record.certification.receiptIds?.join('\n') ?? '',
+        record.certification.missingSignals.join('\n'),
+      ].join('\n') : '',
     ]).join('\n') ?? '',
   ].join('\n').toLowerCase();
 }
@@ -70,7 +81,7 @@ export function describeLiveRecord(record: PersonalOpsLiveRecord, includeParamet
     id: record.id,
     label: record.label,
     status: record.status,
-    summary: previewHarnessText(record.summary, includeParameters ? 180 : 96),
+    summary: previewHarnessText(record.summary, includeParameters ? 240 : 96),
     userRoute: previewHarnessText(record.userRoute, includeParameters ? 140 : 96),
     modelRoute: previewHarnessText(record.modelRoute, includeParameters ? 140 : 96),
     ...(record.tags && record.tags.length > 0 ? { tags: record.tags.slice(0, includeParameters ? 12 : 4) } : {}),
@@ -85,6 +96,7 @@ export function describeLiveRecord(record: PersonalOpsLiveRecord, includeParamet
     ...(includeParameters && typeof record.reviewRecordCount === 'number' ? { reviewRecordCount: record.reviewRecordCount } : {}),
     ...(includeParameters && record.reviewLabels && record.reviewLabels.length > 0 ? { reviewLabels: record.reviewLabels } : {}),
     ...(includeParameters && record.sourceTool ? { sourceTool: record.sourceTool } : {}),
+    ...(includeParameters && record.certification ? { certification: record.certification } : {}),
     ...(includeParameters && record.freshness ? { freshness: record.freshness } : {}),
     ...(includeParameters && record.followUpRoutes && record.followUpRoutes.length > 0 ? { followUpRoutes: record.followUpRoutes } : {}),
   };
@@ -279,12 +291,38 @@ export function artifactMetadataStringArray(artifact: ArtifactDescriptor, key: s
   return [];
 }
 
+const PERSONAL_OPS_EFFECT_RECEIPT_PURPOSES = new Set([
+  'personal-ops-provider-effect-receipt',
+  'personal-ops-effect-receipt',
+  'personal-ops-connector-effect-receipt',
+  'agent-personal-ops-effect-receipt',
+  'connected-host-personal-ops-effect-receipt',
+]);
+
 export function safeRecordIdPart(value: string): string {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80) || 'item';
+}
+
+function artifactCreatedAtIso(artifact: ArtifactDescriptor): string {
+  return typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt)
+    ? new Date(artifact.createdAt).toISOString()
+    : '';
+}
+
+function metadataCreatedAtIso(artifact: ArtifactDescriptor): string {
+  const explicit = artifactMetadataString(artifact, 'createdAt')
+    || artifactMetadataString(artifact, 'recordedAt')
+    || artifactMetadataString(artifact, 'completedAt')
+    || artifactMetadataString(artifact, 'timestamp');
+  if (explicit) {
+    const parsed = Date.parse(explicit);
+    if (Number.isFinite(parsed)) return new Date(parsed).toISOString();
+  }
+  return artifactCreatedAtIso(artifact);
 }
 
 export function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 'calendar'): readonly ArtifactDescriptor[] {
@@ -303,6 +341,141 @@ export function savedReviewArtifacts(context: CommandContext, laneId: 'inbox' | 
   } catch {
     return [];
   }
+}
+
+function savedProviderEffectReceiptArtifacts(context: CommandContext, laneId: PersonalOpsEffectReceiptLaneId): readonly ArtifactDescriptor[] {
+  const store = context.platform.artifactStore;
+  if (!store?.list) return [];
+  try {
+    return store.list(100)
+      .filter((artifact) => PERSONAL_OPS_EFFECT_RECEIPT_PURPOSES.has(artifactMetadataString(artifact, 'purpose')))
+      .filter((artifact) => artifactMetadataString(artifact, 'laneId') === laneId)
+      .sort((left, right) => {
+        const leftCreated = typeof left.createdAt === 'number' ? left.createdAt : 0;
+        const rightCreated = typeof right.createdAt === 'number' ? right.createdAt : 0;
+        return rightCreated - leftCreated;
+      })
+      .slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+function normalizedEffectReceiptStatus(artifact: ArtifactDescriptor): string {
+  const raw = (artifactMetadataString(artifact, 'status')
+    || artifactMetadataString(artifact, 'outcome')
+    || artifactMetadataString(artifact, 'result')).toLowerCase();
+  if (!raw) return 'unknown';
+  if (['ok', 'ready', 'success', 'succeeded', 'complete', 'completed', 'sent', 'archived', 'labeled', 'updated', 'accepted', 'declined'].includes(raw)) return 'succeeded';
+  if (['blocked', 'needs-review', 'needs_setup', 'needs-setup'].includes(raw)) return 'blocked';
+  if (['fail', 'failed', 'error', 'errored'].includes(raw)) return 'failed';
+  if (['running', 'pending', 'in-progress', 'in_progress'].includes(raw)) return 'running';
+  return raw;
+}
+
+function providerEffectSubjectId(artifact: ArtifactDescriptor): string {
+  return artifactMetadataString(artifact, 'subjectId')
+    || artifactMetadataString(artifact, 'threadId')
+    || artifactMetadataString(artifact, 'messageId')
+    || artifactMetadataString(artifact, 'eventId')
+    || artifactMetadataString(artifact, 'taskId')
+    || artifactMetadataString(artifact, 'reminderId')
+    || artifactMetadataString(artifact, 'scheduleId')
+    || artifactMetadataString(artifact, 'providerRecordId')
+    || artifactMetadataString(artifact, 'targetId');
+}
+
+function effectReceiptLaneLabel(laneId: PersonalOpsEffectReceiptLaneId): string {
+  if (laneId === 'inbox') return 'Inbox';
+  if (laneId === 'calendar') return 'Calendar';
+  if (laneId === 'tasks') return 'Task';
+  return 'Reminder';
+}
+
+function effectReceiptCapability(laneId: PersonalOpsEffectReceiptLaneId): string {
+  if (laneId === 'inbox') return 'inbox-effect-receipt';
+  if (laneId === 'calendar') return 'calendar-effect-receipt';
+  if (laneId === 'tasks') return 'task-effect-receipt';
+  return 'reminder-effect-receipt';
+}
+
+export function savedProviderEffectReceiptRecords(
+  context: CommandContext,
+  laneId: PersonalOpsEffectReceiptLaneId,
+): readonly PersonalOpsLiveRecord[] {
+  return savedProviderEffectReceiptArtifacts(context, laneId).map((artifact) => {
+    const laneLabel = effectReceiptLaneLabel(laneId);
+    const lowerLaneLabel = laneLabel.toLowerCase();
+    const providerId = artifactMetadataString(artifact, 'providerId') || artifactMetadataString(artifact, 'provider') || 'provider';
+    const operation = artifactMetadataString(artifact, 'operation') || artifactMetadataString(artifact, 'action') || `${laneId}-effect`;
+    const status = normalizedEffectReceiptStatus(artifact);
+    const sourceTool = artifactMetadataString(artifact, 'sourceTool') || artifactMetadataString(artifact, 'qualifiedName');
+    const subjectId = providerEffectSubjectId(artifact);
+    const receiptId = artifactMetadataString(artifact, 'receiptId') || artifact.id;
+    const createdAt = metadataCreatedAtIso(artifact);
+    const failureReason = artifactMetadataString(artifact, 'failureReason') || artifactMetadataString(artifact, 'error');
+    const redaction = artifactMetadataString(artifact, 'redaction') || artifactMetadataString(artifact, 'redactionPolicy') || 'metadata-only';
+    const nextRoute = artifactMetadataString(artifact, 'nextRoute')
+      || `personal_ops action:"lane" laneId:"${laneId}" includeParameters:true`;
+    const artifactRoute = `agent_artifacts show artifactId:"${artifact.id}" includeContent:false`;
+    const operationLabel = operation.replace(/[-_]+/g, ' ');
+    const certification = personalOpsRecordCertification({
+      record: artifactMetadata(artifact),
+      sourcePath: sourceTool || artifactRoute,
+      durableId: subjectId || receiptId,
+      recordKind: `${lowerLaneLabel} provider-effect receipt`,
+      hasConfirmedEffectRoute: true,
+      requireReceipt: true,
+    });
+    return {
+      id: `provider-effect-receipt:${artifact.id}`,
+      label: `${laneLabel} effect receipt: ${operationLabel}`,
+      status,
+      summary: [
+        `Confirmed ${lowerLaneLabel} provider-effect receipt ${receiptId} reports ${operation} ${status}.`,
+        providerId ? `Provider ${providerId}.` : '',
+        subjectId ? `Subject ${previewHarnessText(redactedPersonalOpsText(subjectId), 96)}.` : '',
+        `Redaction ${redaction}.`,
+        failureReason ? `Failure ${previewHarnessText(redactedPersonalOpsText(failureReason), 140)}.` : '',
+        sourceTool ? `Source ${sourceTool}.` : '',
+        createdAt ? `Recorded ${createdAt}.` : '',
+      ].filter(Boolean).join(' '),
+      userRoute: `Agent Workspace -> Personal Ops -> ${laneLabel} effect receipts`,
+      modelRoute: artifactRoute,
+      tags: [
+        'provider-effect-receipt',
+        'artifact',
+        `${laneId}-effect`,
+        operation,
+        status,
+        providerId,
+      ].filter(Boolean),
+      effect: 'read-only',
+      capability: effectReceiptCapability(laneId),
+      confirmationRequired: false,
+      artifactId: artifact.id,
+      ...(sourceTool ? { sourceTool } : {}),
+      certification,
+      followUpRoutes: [
+        {
+          id: 'inspect-effect-receipt',
+          label: 'Inspect provider-effect receipt',
+          effect: 'read-only',
+          modelRoute: artifactRoute,
+          requiresConfirmation: false,
+          policy: 'Receipt inspection is read-only and uses redacted artifact metadata/content boundaries.',
+        },
+        {
+          id: 'continue-provider-lane',
+          label: `Continue ${lowerLaneLabel} lane review`,
+          effect: 'read-only',
+          modelRoute: nextRoute,
+          requiresConfirmation: false,
+          policy: 'Use the lane posture to decide whether a fresh connector read or separate confirmed provider effect is appropriate.',
+        },
+      ],
+    };
+  });
 }
 
 export function matchingReadTool(
@@ -508,225 +681,4 @@ export function savedReviewArtifactRecords(
   });
 }
 
-export function taskOperationRecords(methodIds: readonly string[]): readonly PersonalOpsLiveRecord[] {
-  const records: PersonalOpsLiveRecord[] = [
-    {
-      id: 'workplan-list',
-      label: 'Review visible work plan',
-      status: 'ready',
-      summary: 'Read Agent-owned work-plan items before starting or switching multi-step work.',
-      userRoute: 'Agent Workspace -> Work -> Review work plan',
-      modelRoute: 'agent_work_plan action:"list"',
-      tags: ['work-plan', 'task-read'],
-      effect: 'read-only',
-      capability: 'task-read',
-    },
-    {
-      id: 'workplan-add',
-      label: 'Add visible work item',
-      status: 'ready',
-      summary: 'Create one local Agent work-plan item instead of hiding task state in chat.',
-      userRoute: 'Agent Workspace -> Personal Ops -> Add work item',
-      modelRoute: 'agent_work_plan action:"create" title:"..."',
-      tags: ['work-plan', 'task-write'],
-      effect: 'confirmed-effect',
-      capability: 'task-write',
-      requiredFields: ['title'],
-      optionalFields: ['detail', 'priority', 'status'],
-      confirmationRequired: false,
-    },
-    {
-      id: 'workplan-status',
-      label: 'Update work item status',
-      status: 'ready',
-      summary: 'Move one visible work item through pending, active, blocked, done, failed, or cancelled state.',
-      userRoute: 'Agent Workspace -> Work -> Update work item status',
-      modelRoute: 'agent_work_plan action:"set_status" id:"..." status:"..."',
-      tags: ['work-plan', 'task-write'],
-      effect: 'confirmed-effect',
-      capability: 'task-write',
-      requiredFields: ['id', 'status'],
-      confirmationRequired: false,
-    },
-  ];
-  if (hasMethod(methodIds, 'tasks.list')) {
-    records.push({
-      id: 'host-tasks-list',
-      label: 'List connected-host tasks',
-      status: 'ready',
-      summary: 'Inspect connected-host task state without creating, retrying, or mutating host tasks.',
-      userRoute: 'Agent Workspace -> Work -> Host tasks',
-      modelRoute: 'workspace action:"action" actionId:"tasks-list"',
-      tags: ['host-task', 'task-read'],
-      effect: 'read-only',
-      capability: 'host-task-read',
-    });
-  }
-  if (hasMethod(methodIds, 'tasks.get') || hasMethod(methodIds, 'tasks.status')) {
-    records.push({
-      id: 'host-task-inspect',
-      label: 'Inspect connected-host task',
-      status: 'ready',
-      summary: 'Inspect one exact connected-host task id and output before considering controls.',
-      userRoute: 'Agent Workspace -> Work -> Inspect host task',
-      modelRoute: 'workspace action:"action" actionId:"task-show"',
-      tags: ['host-task', 'task-read'],
-      effect: 'read-only',
-      capability: 'host-task-read',
-      requiredFields: ['taskId'],
-    });
-  }
-  if (hasMethod(methodIds, 'tasks.cancel')) {
-    records.push({
-      id: 'host-task-cancel',
-      label: 'Cancel connected-host task',
-      status: 'ready',
-      summary: 'Cancel one exact connected-host task id only when the user authorizes it.',
-      userRoute: 'Agent Workspace -> Work -> Host task controls',
-      modelRoute: 'agent_operator_method methodId:"tasks.cancel" input:{"taskId":"..."} confirm:true explicitUserRequest:"..."',
-      tags: ['host-task', 'task-write'],
-      effect: 'confirmed-effect',
-      capability: 'host-task-control',
-      requiredFields: ['taskId'],
-      confirmationRequired: true,
-    });
-  }
-  if (hasMethod(methodIds, 'tasks.retry')) {
-    records.push({
-      id: 'host-task-retry',
-      label: 'Retry connected-host task',
-      status: 'ready',
-      summary: 'Retry one failed or cancelled connected-host task id only after inspection.',
-      userRoute: 'Agent Workspace -> Work -> Host task controls',
-      modelRoute: 'agent_operator_method methodId:"tasks.retry" input:{"taskId":"..."} confirm:true explicitUserRequest:"..."',
-      tags: ['host-task', 'task-write'],
-      effect: 'confirmed-effect',
-      capability: 'host-task-control',
-      requiredFields: ['taskId'],
-      confirmationRequired: true,
-    });
-  }
-  return records;
-}
-
-export function reminderOperationRecords(methodIds: readonly string[], deliveryConfigured: boolean): readonly PersonalOpsLiveRecord[] {
-  const records: PersonalOpsLiveRecord[] = [
-    {
-      id: 'reminder-create',
-      label: 'Create confirmed reminder',
-      status: hasMethod(methodIds, 'schedules.create') ? deliveryConfigured ? 'ready' : 'attention' : 'needs-setup',
-      summary: deliveryConfigured
-        ? 'Create one connected reminder schedule with real timing and a visible delivery path.'
-        : 'Create one reminder only after confirming timing and delivery scope; no configured delivery target was detected.',
-      userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
-      modelRoute: 'schedule action:"remind" message:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
-      tags: ['reminder', 'schedule-write'],
-      effect: 'confirmed-effect',
-      capability: 'reminder-create',
-      requiredFields: ['title', 'scheduleKind', 'scheduleValue'],
-      optionalFields: ['deliveryTargetId', 'timezone', 'message'],
-      confirmationRequired: true,
-    },
-    {
-      id: 'autonomous-schedule-create',
-      label: 'Create autonomous schedule',
-      status: hasMethod(methodIds, 'schedules.create') ? 'ready' : 'needs-setup',
-      summary: 'Create one visible autonomous schedule only when task, cadence, success criteria, and user request provenance are explicit.',
-      userRoute: 'Agent Workspace -> Automation -> Create schedule',
-      modelRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
-      tags: ['autonomy', 'schedule-write'],
-      effect: 'confirmed-effect',
-      capability: 'schedule-create',
-      requiredFields: ['task', 'successCriteria', 'scheduleKind', 'scheduleValue'],
-      confirmationRequired: true,
-    },
-  ];
-  if (hasMethod(methodIds, 'schedules.list')) {
-    records.push({
-      id: 'schedule-list',
-      label: 'List connected schedules',
-      status: 'ready',
-      summary: 'Inspect configured schedules and history before running or mutating one.',
-      userRoute: 'Agent Workspace -> Automation -> Schedules',
-      modelRoute: 'workspace action:"action" actionId:"schedule-list"',
-      tags: ['schedule', 'schedule-read'],
-      effect: 'read-only',
-      capability: 'schedule-read',
-    });
-    records.push({
-      id: 'schedule-edit',
-      label: 'Edit connected schedule',
-      status: 'ready',
-      summary: 'Preview and edit one exact connected schedule id with before/after diff context.',
-      userRoute: 'Agent Workspace -> Automation -> Edit schedule',
-      modelRoute: 'schedule action:"edit" scheduleId:"..." confirm:true explicitUserRequest:"..."',
-      tags: ['schedule', 'schedule-write'],
-      effect: 'confirmed-effect',
-      capability: 'schedule-control',
-      requiredFields: ['scheduleId'],
-      optionalFields: ['name', 'scheduleKind', 'scheduleValue', 'prompt'],
-      confirmationRequired: true,
-    });
-  }
-  if (hasMethod(methodIds, 'schedules.run')) {
-    records.push({
-      id: 'schedule-run-now',
-      label: 'Run schedule now',
-      status: 'ready',
-      summary: 'Run one exact connected schedule id now after the user confirms.',
-      userRoute: 'Agent Workspace -> Automation -> Run job now',
-      modelRoute: 'schedule action:"run" scheduleId:"..." confirm:true explicitUserRequest:"..."',
-      tags: ['schedule', 'schedule-write'],
-      effect: 'confirmed-effect',
-      capability: 'schedule-control',
-      requiredFields: ['scheduleId'],
-      confirmationRequired: true,
-    });
-  }
-  if (hasMethod(methodIds, 'schedules.disable')) {
-    records.push({
-      id: 'schedule-pause',
-      label: 'Pause connected schedule',
-      status: 'ready',
-      summary: 'Disable one exact connected schedule id after reviewing current state.',
-      userRoute: 'Agent Workspace -> Automation -> Schedule controls',
-      modelRoute: 'schedule action:"pause" scheduleId:"..." confirm:true explicitUserRequest:"..."',
-      tags: ['schedule', 'schedule-write'],
-      effect: 'confirmed-effect',
-      capability: 'schedule-control',
-      requiredFields: ['scheduleId'],
-      confirmationRequired: true,
-    });
-  }
-  if (hasMethod(methodIds, 'schedules.enable')) {
-    records.push({
-      id: 'schedule-resume',
-      label: 'Resume connected schedule',
-      status: 'ready',
-      summary: 'Enable one exact connected schedule id after reviewing current state.',
-      userRoute: 'Agent Workspace -> Automation -> Schedule controls',
-      modelRoute: 'schedule action:"resume" scheduleId:"..." confirm:true explicitUserRequest:"..."',
-      tags: ['schedule', 'schedule-write'],
-      effect: 'confirmed-effect',
-      capability: 'schedule-control',
-      requiredFields: ['scheduleId'],
-      confirmationRequired: true,
-    });
-  }
-  if (hasMethod(methodIds, 'schedules.delete')) {
-    records.push({
-      id: 'schedule-delete',
-      label: 'Delete connected schedule',
-      status: 'ready',
-      summary: 'Delete one exact connected schedule id only after explicit user confirmation.',
-      userRoute: 'Agent Workspace -> Automation -> Schedule controls',
-      modelRoute: 'schedule action:"delete" scheduleId:"..." confirm:true explicitUserRequest:"..."',
-      tags: ['schedule', 'schedule-write'],
-      effect: 'confirmed-effect',
-      capability: 'schedule-control',
-      requiredFields: ['scheduleId'],
-      confirmationRequired: true,
-    });
-  }
-  return records;
-}
+export { reminderOperationRecords, taskOperationRecords } from './agent-harness-personal-ops-operations.ts';

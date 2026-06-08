@@ -1,5 +1,7 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
+import { interactiveRuntimeCapabilitySummary, interactiveRuntimeParityStatus } from './agent-harness-interactive-runtime-records.ts';
+import type { AgentHarnessInteractiveRuntimeRecord } from './agent-harness-interactive-runtime-records.ts';
 
 type BrowserControlStatus = 'ready' | 'attention' | 'setup-needed';
 type BrowserControlDecisionStatus = 'ready-to-inspect-tool' | 'review-connector-first' | 'setup-needed';
@@ -47,6 +49,8 @@ export interface BrowserControlPosture {
   readonly needsReview: boolean;
   readonly toolMatches: readonly string[];
   readonly mcpServers: readonly BrowserControlMcpServer[];
+  readonly certifiedRuntimeRecords: readonly AgentHarnessInteractiveRuntimeRecord[];
+  readonly runtime: Record<string, unknown>;
   readonly workflows: readonly BrowserControlWorkflow[];
   readonly setupChecklist: readonly string[];
   readonly fallbackRoutes: readonly string[];
@@ -172,9 +176,11 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
 
   const readyBrowserMcp = mcpServers.some((server) => server.readiness === 'ready');
   const needsReview = mcpServers.some((server) => server.readiness === 'attention');
-  const configured = toolMatches.length > 0 || readyBrowserMcp;
+  const runtime = interactiveRuntimeCapabilitySummary(context);
+  const runtimeParity = interactiveRuntimeParityStatus(context);
+  const configured = runtimeParity.browserDesktopControlContract || toolMatches.length > 0 || readyBrowserMcp;
   const recommendedRoute = configured
-    ? 'execution action:"route" id:"browser-or-desktop-control"'
+    ? runtimeParity.browserDesktopRoute ?? 'execution action:"route" id:"browser-or-desktop-control"'
     : needsReview
       ? 'agent_harness mode:"mcp_servers" query:"browser desktop"'
       : 'agent_harness mode:"mcp_servers" query:"browser desktop"';
@@ -185,6 +191,8 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
     needsReview,
     toolMatches,
     mcpServers,
+    certifiedRuntimeRecords: runtimeParity.browserDesktopRecords.slice(0, 5),
+    runtime,
     workflows: browserControlWorkflows(configured, needsReview, recommendedRoute, setupRoute),
     setupChecklist: [
       'Inspect browser/desktop MCP servers and first-class tools before attempting live UI control.',
@@ -199,7 +207,7 @@ export function browserControlPosture(context: CommandContext, toolRegistry?: To
     executionRoute: 'execution action:"route" id:"browser-or-desktop-control"',
     setupRoute,
     recommendedRoute,
-    policy: 'Browser and desktop control stays explicit: no live UI control is assumed unless a trusted tool or fresh constrained MCP server is configured.',
+    policy: 'Browser and desktop control stays explicit: no live UI control is assumed unless a trusted tool, fresh constrained MCP server, or certified daemon browser/desktop command receipt is configured.',
   };
 }
 
@@ -270,7 +278,7 @@ function browserControlDecision(
     return {
       id: 'inspect-configured-browser-control',
       status: 'ready-to-inspect-tool',
-      modelRoute: firstToolRoute || firstReadyMcpRoute || posture.executionRoute,
+      modelRoute: firstToolRoute || firstReadyMcpRoute || posture.recommendedRoute || posture.executionRoute,
       userRoute: 'Agent Workspace -> Work & Approvals or Tools & MCP',
       nextStep: `Inspect the configured ${workflow.label.toLowerCase()} tool/server, then invoke the narrowest live-control tool only if the user request still needs it.`,
       reason: 'A browser/desktop control tool or fresh trusted MCP server is configured.',

@@ -3,7 +3,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { readProviderHealthSignal } from './agent-harness-model-provider-health.ts';
 import { localStackFor } from './agent-harness-local-model-endpoints.ts';
-import type { LocalModelBenchmarkEvidence, LocalModelDetection, LocalModelHardwareProfile, LocalModelRecipe, LocalModelRecipeFit, ModelCandidate, ModelReadinessDimension, ModelReadinessScore, ModelRouteReadinessScore, ModelProviderHealthSignal } from './agent-harness-model-routing-types.ts';
+import type { LocalModelBenchmarkEvidence, LocalModelBenchmarkRouteLatency, LocalModelDetection, LocalModelHardwareProfile, LocalModelRecipe, LocalModelRecipeFit, ModelCandidate, ModelReadinessDimension, ModelReadinessScore, ModelRouteReadinessScore, ModelProviderHealthSignal } from './agent-harness-model-routing-types.ts';
 import { readRecord } from './agent-harness-model-routing-utils.ts';
 
 export function localRecipeStackId(recipe: LocalModelRecipe): string {
@@ -169,6 +169,7 @@ export function latencyScore(
   local: boolean,
   benchmarkCompositeScore: number | null | undefined,
   providerHealth: ModelProviderHealthSignal,
+  localBenchmarkLatency: LocalModelBenchmarkRouteLatency | null | undefined,
 ): ModelReadinessDimension {
   const liveLatency = providerHealth.status === 'record-found' ? providerHealth.avgLatencyMs : undefined;
   if (liveLatency !== undefined) {
@@ -193,6 +194,24 @@ export function latencyScore(
       score,
       weight: 20,
       summary: `${details.join('; ')}.`,
+    };
+  }
+
+  if (localBenchmarkLatency && localBenchmarkLatency.status !== 'failed') {
+    const latency = localBenchmarkLatency.latencyMs;
+    const score = latency <= 750
+      ? 93
+      : latency <= 1500
+        ? 84
+        : latency <= 3000
+          ? 70
+          : 54;
+    return {
+      id: 'latency',
+      label: 'Latency',
+      score,
+      weight: 20,
+      summary: `Measured local benchmark latency is ${latency} ms from ${localBenchmarkLatency.artifactId}${localBenchmarkLatency.comparisonId ? ` (${localBenchmarkLatency.comparisonId})` : ''}.`,
     };
   }
 
@@ -222,9 +241,9 @@ export function weightedReadiness(dimensions: readonly ModelReadinessDimension[]
 
 export function modelReadinessScore(context: CommandContext, model: ModelCandidate): ModelRouteReadinessScore {
   const local = isLocalCandidate([model.providerId, model.registryKey, model.modelId, model.displayName]);
-  const providerHealth = readProviderHealthSignal(context, model.providerId);
+  const providerHealth = readProviderHealthSignal(context, model.providerId, model.registryKey);
   const dimensions: readonly ModelReadinessDimension[] = [
-    latencyScore(local, model.benchmarkCompositeScore, providerHealth),
+    latencyScore(local, model.benchmarkCompositeScore, providerHealth, model.localBenchmarkLatency),
     contextWindowScore(model.contextWindow),
     toolSupportScore(model.capabilities),
     visionScore(model.capabilities),
@@ -233,9 +252,10 @@ export function modelReadinessScore(context: CommandContext, model: ModelCandida
   ];
   const score = weightedReadiness(dimensions);
   const hasLiveLatency = providerHealth.status === 'record-found' && providerHealth.avgLatencyMs !== undefined;
+  const hasBenchmarkLatency = Boolean(model.localBenchmarkLatency && model.localBenchmarkLatency.status !== 'failed');
   const missingSignals = [
     ...providerHealth.missingSignals,
-    ...(hasLiveLatency ? [] : ['No live latency benchmark has been recorded for this Agent route.']),
+    ...(hasLiveLatency || hasBenchmarkLatency ? [] : ['No live latency benchmark has been recorded for this Agent route.']),
     ...(model.contextWindow == null ? ['Context-window metadata is missing.'] : []),
     ...(capabilityEnabled(model.capabilities, 'toolCalling') == null ? ['Tool-calling support is unknown.'] : []),
     ...(capabilityEnabled(model.capabilities, 'multimodal') == null ? ['Vision support is unknown.'] : []),
@@ -246,6 +266,8 @@ export function modelReadinessScore(context: CommandContext, model: ModelCandida
     level: modelReadinessLevel(score),
     confidence: providerHealth.status === 'record-found' && missingSignals.length === 0
       ? 'provider-health-backed'
+      : hasBenchmarkLatency && missingSignals.length === 0
+        ? 'measured'
       : missingSignals.length === 0
         ? 'metadata-backed'
         : 'estimated',
@@ -253,9 +275,13 @@ export function modelReadinessScore(context: CommandContext, model: ModelCandida
     missingSignals,
     providerHealth,
     nextStep: local
-      ? 'Run the local benchmark prompt before making this route the default.'
+      ? hasBenchmarkLatency
+        ? `Review local benchmark latency evidence ${model.localBenchmarkLatency?.artifactId}, then use a separate confirmed apply/update route only if the user wants this route as default.`
+        : 'Run the local benchmark prompt before making this route the default.'
       : providerHealth.status === 'record-found'
         ? 'Use provider-health-backed route posture for triage; run a task-specific comparison before changing the default model.'
+        : hasBenchmarkLatency
+          ? `Review benchmark latency evidence ${model.localBenchmarkLatency?.artifactId}; wait for daemon provider-health publication for live status, rate-limit, and error posture before changing defaults.`
         : 'Use this score for routing triage; wait for daemon provider-health publication or run a task-specific comparison before changing the default model.',
   };
 }

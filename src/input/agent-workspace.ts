@@ -19,7 +19,7 @@ import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } fr
 import { jumpAgentWorkspaceSelection, moveAgentWorkspaceSelection, selectAgentWorkspaceCategory } from './agent-workspace-navigation.ts';
 import { appendAgentWorkspaceActionSearchText, backspaceAgentWorkspaceActionSearch, beginAgentWorkspaceActionSearch, clearAgentWorkspaceActionSearch, commitAgentWorkspaceActionSearchSelection, searchAgentWorkspaceActions } from './agent-workspace-search.ts';
 import { applyAgentWorkspaceSetupCheckpointAction } from './agent-workspace-setup-checkpoint-action.ts';
-import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgentWorkspaceSettingActionEffect, importAgentWorkspaceTuiSettings, isAgentWorkspaceActionVisible } from './agent-workspace-settings.ts';
+import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgentWorkspaceSettingActionEffect, buildAgentWorkspaceSettingActionPreview, importAgentWorkspaceTuiSettings, isAgentWorkspaceActionVisible } from './agent-workspace-settings.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import { submitAgentWorkspaceSubscriptionLoginFinishEditor, submitAgentWorkspaceSubscriptionLoginStartEditor, submitAgentWorkspaceSubscriptionLogoutEditor } from './agent-workspace-subscription-editor.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
@@ -140,6 +140,10 @@ export class AgentWorkspace {
 
   selectedLocalLibraryItem(kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null {
     return selectedAgentWorkspaceLocalLibraryItem(this.runtimeSnapshot, this.selectedLibraryItemIndexes, kind);
+  }
+
+  settingActionPreview(action: AgentWorkspaceAction): string | null {
+    return buildAgentWorkspaceSettingActionPreview(this.context, action);
   }
 
   focusCategories(): void {

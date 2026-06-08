@@ -151,6 +151,17 @@ describe('agent_harness mode catalog', () => {
     expect(ids).toContain('memory_posture');
     expect(ids).toContain('memory_provider');
     expect(memory.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
+
+    const refinement = listHarnessModes({ query: 'closed learning loop semantic refinement knowledge gaps', includeParameters: true, limit: 10 }) as {
+      readonly modes: readonly { readonly id: string; readonly requiresConfirmation?: boolean; readonly parameters?: readonly string[]; readonly summary: string }[];
+    };
+    const refinementIds = refinement.modes.map((mode) => mode.id);
+    expect(refinementIds).toContain('memory_refinement');
+    expect(refinementIds).toContain('run_memory_refinement');
+    expect(refinement.modes.find((mode) => mode.id === 'memory_refinement')?.parameters).toEqual(expect.arrayContaining(['knowledgeSpaceId', 'gapIds', 'includeParameters']));
+    expect(refinement.modes.find((mode) => mode.id === 'run_memory_refinement')?.requiresConfirmation).toBe(true);
+    expect(refinement.modes.find((mode) => mode.id === 'run_memory_refinement')?.parameters).toEqual(expect.arrayContaining(['gapIds', 'maxRunMs', 'confirm', 'explicitUserRequest']));
+    expect(refinement.modes.filter((mode) => mode.summary.length > 72)).toEqual([]);
   });
 
   test('finds setup posture by first-run always-on wording', () => {

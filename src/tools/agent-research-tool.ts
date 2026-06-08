@@ -1,11 +1,11 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext, CommandRegistry } from '../input/command-registry.ts';
-import { AgentResearchRunRegistry, type AgentResearchRunRecord } from '../agent/research-run-registry.ts';
 import { createAgentArtifactsTool } from './agent-artifacts-tool.ts';
 import { createAgentHarnessTool } from './agent-harness-tool.ts';
 import { createAgentResearchReportTool } from './agent-research-report-tool.ts';
 import { createAgentResearchRunsTool } from './agent-research-runs-tool.ts';
+import { runConfirmedResearchRunner, runPublicSearch } from './agent-research-runner.ts';
 import { createAgentResearchSourcesTool } from './agent-research-sources-tool.ts';
 
 type AgentResearchAction =
@@ -36,7 +36,7 @@ type AgentResearchAction =
   | 'delete_source'
   | 'report';
 
-interface AgentResearchToolArgs {
+export interface AgentResearchToolArgs {
   readonly action?: unknown;
   readonly mode?: unknown;
   readonly id?: unknown;
@@ -109,12 +109,6 @@ function error(message: string): { readonly success: false; readonly error: stri
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
-}
-
-function readNumber(value: unknown, fallback: number, max: number): number {
-  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
-  return Math.max(1, Math.min(max, Math.trunc(parsed)));
 }
 
 function normalizeResearchAction(value: unknown): AgentResearchAction | null {
@@ -279,22 +273,6 @@ function bundleArgs(args: AgentResearchToolArgs): Record<string, unknown> {
   });
 }
 
-function searchArgs(args: AgentResearchToolArgs): Record<string, unknown> {
-  const safeSearch = readString(args.safeSearch).toLowerCase() === 'strict' ? 'strict' : 'moderate';
-  return compactArgs({
-    query: args.query ?? args.target,
-    providerId: args.providerId,
-    maxResults: readNumber(args.maxResults, readNumber(args.limit, 5, 10), 10),
-    verbosity: 'evidence',
-    region: args.region,
-    safeSearch,
-    timeRange: args.timeRange,
-    includeEvidence: true,
-    evidenceTopN: readNumber(args.evidenceTopN, 3, 3),
-    evidenceExtract: args.evidenceExtract ?? 'readable',
-  });
-}
-
 function reportsArgs(args: AgentResearchToolArgs): Record<string, unknown> {
   return compactArgs({
     mode: 'list',
@@ -311,160 +289,6 @@ function reportArtifactArgs(args: AgentResearchToolArgs): Record<string, unknown
     includeContent: args.includeContent ?? true,
     previewBytes: args.previewBytes,
   });
-}
-
-function previewText(value: unknown, limit: number): string {
-  const text = typeof value === 'string' ? value.replace(/\s+/g, ' ').trim() : '';
-  if (text.length <= limit) return text;
-  return `${text.slice(0, Math.max(0, limit - 3)).trimEnd()}...`;
-}
-
-function quote(value: string): string {
-  return JSON.stringify(value);
-}
-
-function readRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
-}
-
-function readRecordArray(value: unknown): readonly Record<string, unknown>[] {
-  return Array.isArray(value) ? value.map(readRecord).filter((entry): entry is Record<string, unknown> => Boolean(entry)) : [];
-}
-
-function hostname(value: string): string {
-  try {
-    return new URL(value).hostname.replace(/^www\./i, '');
-  } catch {
-    return '';
-  }
-}
-
-function sanitizeUrlForRoute(value: string): string {
-  try {
-    const url = new URL(value);
-    for (const key of [...url.searchParams.keys()]) {
-      if (/token|secret|password|authorization|credential|api[-_]?key/i.test(key)) url.searchParams.set(key, '<redacted>');
-    }
-    return url.toString();
-  } catch {
-    return value.replace(/([?&\s](?:token|secret|password|authorization|credential|api[-_]?key)=)[^\s&]+/gi, '$1<redacted>');
-  }
-}
-
-function candidateFromSearchResult(question: string, result: Record<string, unknown>, index: number): Record<string, unknown> {
-  const rawUrl = readString(result.url);
-  const url = sanitizeUrlForRoute(rawUrl);
-  const title = previewText(result.title, 120) || hostname(rawUrl) || `Search result ${index + 1}`;
-  const publisher = previewText(result.domain, 80) || hostname(rawUrl);
-  const evidenceRecords = readRecordArray(result.evidence);
-  const evidenceText = previewText(
-    evidenceRecords.map((entry) => readString(entry.content)).filter(Boolean).join('\n\n') || result.snippet,
-    420,
-  );
-  const summary = previewText(result.snippet, 260) || previewText(evidenceText, 260) || `Public web result for ${question}.`;
-  const captureArgs = compactArgs({
-    action: 'add_source',
-    question,
-    title,
-    url,
-    publisher,
-    summary,
-    evidence: evidenceText,
-    credibility: 'unreviewed',
-    tags: ['research', 'web-search'],
-    confirm: true,
-    explicitUserRequest: '...',
-  });
-  return {
-    rank: typeof result.rank === 'number' ? result.rank : index + 1,
-    title,
-    url,
-    ...(publisher ? { publisher } : {}),
-    summary,
-    ...(evidenceText ? { evidencePreview: evidenceText } : {}),
-    captureArgs,
-    captureRoute: [
-      'research action:"add_source"',
-      `question:${quote(question)}`,
-      `title:${quote(title)}`,
-      ...(url ? [`url:${quote(url)}`] : []),
-      ...(publisher ? [`publisher:${quote(publisher)}`] : []),
-      `summary:${quote(summary)}`,
-      ...(evidenceText ? [`evidence:${quote(evidenceText)}`] : []),
-      'credibility:"unreviewed"',
-      'tags:["research","web-search"]',
-      'confirm:true',
-      'explicitUserRequest:"..."',
-    ].join(' '),
-  };
-}
-
-function parseSearchPayload(outputValue: unknown): Record<string, unknown> | null {
-  if (typeof outputValue !== 'string') return readRecord(outputValue);
-  try {
-    return readRecord(JSON.parse(outputValue));
-  } catch {
-    return null;
-  }
-}
-
-function resolveSearchRun(args: AgentResearchToolArgs, shellPaths: CommandContext['workspace']['shellPaths'] | undefined): AgentResearchRunRecord | null {
-  if (!shellPaths) return null;
-  const lookup = readString(args.runId) || readString(args.id);
-  if (!lookup) return null;
-  return AgentResearchRunRegistry.fromShellPaths(shellPaths).get(lookup);
-}
-
-async function runPublicSearch(
-  webSearchTool: Tool | undefined,
-  args: AgentResearchToolArgs,
-  shellPaths: CommandContext['workspace']['shellPaths'] | undefined,
-): Promise<{ readonly success: true; readonly output: string } | { readonly success: false; readonly error: string }> {
-  const run = resolveSearchRun(args, shellPaths);
-  const query = readString(args.query) || readString(args.question) || run?.question || readString(args.target);
-  if ((readString(args.runId) || readString(args.id)) && !run && !readString(args.query) && !readString(args.question)) {
-    return error(`Unknown research run ${readString(args.runId) || readString(args.id)}. Use research action:"runs" to inspect run ids.`);
-  }
-  if (!query) return error('research action:"search" requires query or target.');
-  if (!webSearchTool) {
-    return error('Bounded public web search is unavailable because web_search is not registered. Use research action:"briefing" for the offline next-action queue or action:"plan" for the route plan.');
-  }
-  const webArgs = searchArgs({ ...args, query });
-  const webResult = await webSearchTool.execute(webArgs);
-  if (!webResult.success) return { success: false, error: readString(webResult.error) || 'web_search failed.' };
-  const payload = parseSearchPayload(webResult.output);
-  const results = readRecordArray(payload?.results);
-  const sourceCandidates = results
-    .filter((result) => readString(result.url))
-    .map((result, index) => candidateFromSearchResult(query, result, index));
-  return {
-    success: true,
-    output: JSON.stringify({
-      status: sourceCandidates.length > 0 ? 'source-candidates-ready' : 'no-source-candidates',
-      query,
-      providerId: readString(payload?.providerId),
-      providerLabel: readString(payload?.providerLabel),
-      resultCount: results.length,
-      sourceCandidateCount: sourceCandidates.length,
-      sourceCandidates,
-      nextRoutes: {
-        ...(run ? {
-          run: `research action:"run" runId:${quote(run.id)}`,
-          briefing: `research action:"briefing" target:${quote(run.id)}`,
-          startRun: `research action:"start_run" id:${quote(run.id)} confirm:true explicitUserRequest:"..."`,
-          checkpointAfterCapture: `research action:"checkpoint" id:${quote(run.id)} phase:"reading" progress:${Math.max(run.progress, 25)} note:"Captured candidate sources for review." sourceIds:["..."] confirm:true explicitUserRequest:"..."`,
-        } : {
-          createRun: `research action:"create_run" question:${quote(query)} plan:["Search bounded public web sources","Capture candidate sources","Review credibility","Save sourced report"] confirm:true explicitUserRequest:"..."`,
-        }),
-        sourceQueue: `research action:"sources" query:${quote(query)}`,
-        reviewedBundle: `research action:"bundle" query:${quote(query)} includeReportLines:true`,
-        saveReport: `research action:"report" question:${quote(query)} sources:[...] visualReport:true requireCitationCoverage:true confirm:true explicitUserRequest:"..."`,
-      },
-      ...(run ? { run: { id: run.id, title: run.title, status: run.status, phase: run.phase, progress: run.progress } } : {}),
-      searchArgs: webArgs,
-      policy: 'This route performs bounded read-only public web search only. It does not create or start a run, save sources, checkpoint progress, write a report, ingest Knowledge, or send messages. Use each returned route only after explicit user confirmation.',
-    }, null, 2),
-  };
 }
 
 function addSourceArgs(args: AgentResearchToolArgs): Record<string, unknown> {
@@ -648,7 +472,11 @@ export function createAgentResearchTool(deps: AgentResearchToolDeps): Tool {
 
       if (action === 'briefing') return harnessTool.execute(briefingArgs(args));
       if (action === 'plan') return harnessTool.execute(planArgs(args));
-      if (action === 'runner') return harnessTool.execute(runnerArgs(args));
+      if (action === 'runner') {
+        return args.confirm === true
+          ? runConfirmedResearchRunner(webSearchTool, args, shellPaths)
+          : harnessTool.execute(runnerArgs(args));
+      }
       if (action === 'runs') return harnessTool.execute(runsArgs(args));
       if (action === 'run') return harnessTool.execute(runArgs(args));
       if (action === 'sources') return harnessTool.execute(sourcesArgs(args));

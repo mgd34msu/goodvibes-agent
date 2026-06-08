@@ -18,6 +18,7 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly connectedHostTokenReadable: boolean;
   readonly connectedHostTokenPath: string;
   readonly connectedHostTokenError?: string | null;
+  readonly connectedHostAuthReceiptReady?: boolean;
   readonly activeSubscriptionCount: number;
   readonly pendingSubscriptionCount: number;
   readonly availableSubscriptionProviderCount: number;
@@ -41,6 +42,10 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly readyChannelCount: number;
   readonly voiceProviderCount: number;
   readonly mediaProviderCount: number;
+  readonly installSmokeReceiptReady?: boolean;
+  readonly browserPwaEnabled: boolean;
+  readonly browserPwaPublicBaseUrl: string;
+  readonly browserPwaFirstRunReceiptStatus: 'published' | 'not-published';
   readonly runtimeProfileCount: number;
   readonly runtimeStarterTemplateCount: number;
 }
@@ -58,14 +63,19 @@ function sampleNames(summary: AgentBehaviorDiscoverySummary): string {
 export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChecklistInput): readonly AgentWorkspaceSetupChecklistItem[] {
   const providerReady = input.provider !== 'unknown' && input.model !== 'unknown';
   const tokenPathKnown = input.connectedHostTokenPath !== '(Agent home unavailable)';
-  const connectedHostAuthStatus: AgentWorkspaceSetupStatus = input.connectedHostTokenReadable
+  const connectedHostAuthReceiptReady = input.connectedHostAuthReceiptReady === true;
+  const connectedHostAuthStatus: AgentWorkspaceSetupStatus = input.connectedHostTokenReadable || connectedHostAuthReceiptReady
     ? 'ready'
     : tokenPathKnown
       ? 'blocked'
       : 'recommended';
-  const installSmokeReady = providerReady && input.connectedHostTokenReadable;
+  const installSmokePrerequisitesReady = providerReady && (input.connectedHostTokenReadable || connectedHostAuthReceiptReady);
+  const installSmokeReceiptReady = input.installSmokeReceiptReady === true;
   const hasActivePersona = input.activePersonaName !== '(none)' && input.activePersonaName !== '(unavailable)';
   const discoveredBehaviorCount = input.discoveredPersonas.count + input.discoveredSkills.count + input.discoveredRoutines.count;
+  const browserPwaUrl = input.browserPwaPublicBaseUrl.trim();
+  const browserPwaHasPublicUrl = browserPwaUrl.length > 0 && browserPwaUrl !== '(not configured)';
+  const browserPwaReceiptPublished = input.browserPwaFirstRunReceiptStatus === 'published';
   return [
     {
       id: 'runtime',
@@ -78,7 +88,9 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       id: 'connected-host-auth',
       label: 'Connected-host auth',
       status: connectedHostAuthStatus,
-      detail: input.connectedHostTokenReadable
+      detail: connectedHostAuthReceiptReady
+        ? `Durable connected-host auth receipt is ready${input.connectedHostTokenReadable ? ` and Agent has a readable operator token at ${input.connectedHostTokenPath}` : ''}.`
+        : input.connectedHostTokenReadable
         ? `Agent has a readable connected-host operator token at ${input.connectedHostTokenPath}.`
         : input.connectedHostTokenError
           ? `The connected-host operator token exists but cannot be read at ${input.connectedHostTokenPath}. Use the confirmed setup token provisioning route, then rerun auth review.`
@@ -99,8 +111,10 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     {
       id: 'install-smoke',
       label: 'Install smoke',
-      status: installSmokeReady ? 'recommended' : tokenPathKnown ? 'blocked' : 'recommended',
-      detail: installSmokeReady
+      status: installSmokeReceiptReady ? 'ready' : installSmokePrerequisitesReady ? 'recommended' : tokenPathKnown ? 'blocked' : 'recommended',
+      detail: installSmokeReceiptReady
+        ? 'Durable setup smoke receipt is ready for release closeout; rerun smoke only after install, host, auth, or model changes.'
+        : installSmokePrerequisitesReady
         ? 'Run setup smoke after install or migration to prove package start, connected host, auth, model route, setup posture, and first assistant turn.'
         : 'Resolve connected-host auth and provider/model setup before treating the first assistant turn as install-ready.',
       command: 'Start -> Install smoke',
@@ -207,6 +221,19 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         ? `${input.readyChannelCount} external channel(s) are ready.`
         : 'Pair or review channels only when you want the assistant reachable outside this terminal.',
       command: 'Channels',
+    },
+    {
+      id: 'browser-pwa',
+      label: 'Browser/PWA',
+      status: browserPwaReceiptPublished ? 'ready' : 'recommended',
+      detail: browserPwaReceiptPublished
+        ? `Connected-host browser/PWA first-run receipt is published${browserPwaHasPublicUrl ? ` for ${browserPwaUrl}` : ''}.`
+        : input.browserPwaEnabled
+          ? browserPwaHasPublicUrl
+            ? `Browser cockpit is openable at ${browserPwaUrl}, but the connected-host browser/PWA first-run completion receipt is not published yet. Terminal Agent remains primary until that receipt exists.`
+            : 'Browser cockpit is enabled through the connected-host web endpoint, but the connected-host browser/PWA first-run completion receipt is not published yet.'
+          : 'Enable the connected-host web endpoint and publish the browser/PWA first-run completion receipt before treating browser access as setup-ready.',
+      command: 'Voice & Media -> Browser/PWA readiness',
     },
     {
       id: 'voice-media',

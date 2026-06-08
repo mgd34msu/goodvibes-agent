@@ -13,7 +13,7 @@ export const AGENT_HARNESS_MODES = [
   'execution_history', 'execution_history_item',
   'file_recovery', 'run_file_recovery',
   'personal_ops_briefing', 'personal_ops', 'personal_ops_queue', 'personal_ops_intake', 'personal_ops_lane', 'run_personal_ops_read',
-  'memory_posture', 'memory_provider',
+  'memory_posture', 'memory_provider', 'memory_refinement', 'run_memory_refinement',
   'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
   'learning_curator', 'learning_candidate',
   'research_briefing', 'research_workflow', 'research_runs', 'research_run',
@@ -241,6 +241,28 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   recordId: {
     type: 'string',
     description: 'Selected Agent-local record id.',
+  },
+  knowledgeSpaceId: {
+    type: 'string',
+    description: 'Agent Knowledge space id for memory_refinement or run_memory_refinement.',
+  },
+  sourceIds: {
+    type: 'array',
+    items: { type: 'string' },
+    description: 'Agent Knowledge source ids for scoped semantic refinement.',
+  },
+  gapIds: {
+    type: 'array',
+    items: { type: 'string' },
+    description: 'Agent Knowledge semantic gap ids for scoped refinement.',
+  },
+  maxRunMs: {
+    type: 'number',
+    description: 'Maximum semantic refinement run budget in milliseconds.',
+  },
+  force: {
+    type: 'boolean',
+    description: 'Force semantic refinement reprocessing where supported.',
   },
   key: {
     type: 'string',

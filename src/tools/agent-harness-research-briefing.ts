@@ -12,6 +12,7 @@ import {
   type AgentResearchSourceRecord,
 } from '../agent/research-source-registry.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
+import { isCertifiedResearchLiveRecord, researchLiveReadModelSnapshot } from './agent-harness-research-live-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 interface AgentHarnessResearchBriefingArgs {
@@ -313,30 +314,41 @@ function workflowItem(query: string, includeParameters: boolean): ResearchBriefi
 
 function browserItem(context: CommandContext, includeParameters: boolean): ResearchBriefingItem {
   const browser = browserControlPosture(context);
+  const liveResearch = researchLiveReadModelSnapshot(context);
+  const certifiedRunnerRecords = liveResearch.browserRunnerRecords.filter(isCertifiedResearchLiveRecord);
+  const certifiedVisualReports = liveResearch.visualReportRecords.filter(isCertifiedResearchLiveRecord);
+  const hasCertifiedRunner = certifiedRunnerRecords.length > 0;
   return {
     id: 'browser:research-runner',
     kind: 'browser',
-    priority: browser.configured ? 60 : 28,
+    priority: hasCertifiedRunner ? 86 : browser.configured ? 60 : 28,
     label: 'Browser-backed research runner',
-    status: browser.configured ? 'ready-with-confirmation' : 'setup-needed',
-    summary: browser.configured
+    status: hasCertifiedRunner ? 'certified-live-runner' : browser.configured ? 'ready-with-confirmation' : 'setup-needed',
+    summary: hasCertifiedRunner
+      ? 'The SDK/daemon published certified live browser-backed research runner evidence.'
+      : browser.configured
       ? 'Browser or desktop control is configured; use it only when public web/fetch is insufficient.'
       : 'Browser-backed research needs setup before live browser execution should be promised.',
-    next: browser.configured
+    next: hasCertifiedRunner
+      ? 'Inspect certified run, source receipt, and visual-render evidence before saving reports or promoting Knowledge.'
+      : browser.configured
       ? 'Use browser-backed research only after the user confirms authenticated or interactive scope.'
       : 'Use bounded public search now, or inspect browser setup if live browser state is required.',
     routes: {
       runner: 'research action:"runner"',
       setup: browser.setupRoute,
-      recommended: browser.recommendedRoute,
+      recommended: certifiedRunnerRecords[0]?.modelRoute ?? browser.recommendedRoute,
       fallback: browser.fallbackRoutes[0] ?? 'research action:"search"',
+      ...(certifiedVisualReports[0] ? { visualReport: certifiedVisualReports[0].modelRoute } : {}),
     },
     confirmationBoundary: 'This briefing never opens the browser; browser handoff stays on confirmed computer/browser routes.',
     ...(includeParameters ? {
       detail: {
-        configured: browser.configured,
+        configured: browser.configured || hasCertifiedRunner,
         needsReview: browser.needsReview,
         fallbackRoutes: browser.fallbackRoutes,
+        liveRunnerRecords: liveResearch.browserRunnerRecords.slice(0, 8),
+        liveVisualReportRecords: liveResearch.visualReportRecords.slice(0, 8),
       },
     } : {}),
   };
@@ -347,6 +359,7 @@ export function researchBriefingCatalogStatus(context: CommandContext): Record<s
   const runs = shellPaths ? AgentResearchRunRegistry.fromShellPaths(shellPaths).snapshot() : null;
   const sources = shellPaths ? AgentResearchSourceRegistry.fromShellPaths(shellPaths).snapshot() : null;
   const reports = reportArtifacts(context, '');
+  const liveResearch = researchLiveReadModelSnapshot(context);
   return {
     modes: ['research_briefing'],
     status: shellPaths ? 'ready' : 'unavailable',
@@ -354,6 +367,8 @@ export function researchBriefingCatalogStatus(context: CommandContext): Record<s
     candidateSources: sources?.candidates.length ?? 0,
     reviewedSources: sources?.reviewed.length ?? 0,
     savedReports: reports.length,
+    liveBrowserRuns: liveResearch.browserRunnerRecords.length,
+    liveVisualReports: liveResearch.visualReportRecords.length,
     readOnly: true,
   };
 }
@@ -368,6 +383,8 @@ export function researchBriefingSummary(context: CommandContext, args: AgentHarn
   const matchedRuns = runs.filter((run) => !normalized || runSearchText(run).includes(normalized));
   const matchedSources = matchingSources(sources, matchedRuns, query);
   const reports = reportArtifacts(context, query);
+  const liveResearch = researchLiveReadModelSnapshot(context);
+  const certifiedRunnerRecords = liveResearch.browserRunnerRecords.filter(isCertifiedResearchLiveRecord);
   const activeRuns = matchedRuns.filter((run) => isMutableRun(run.status));
   const candidateSources = matchedSources.filter((source) => source.status === 'candidate');
   const reviewedSources = matchedSources.filter((source) => source.status === 'reviewed');
@@ -404,7 +421,9 @@ export function researchBriefingSummary(context: CommandContext, args: AgentHarn
       candidateSources: candidateSources.length,
       reviewedSources: reviewedSources.length,
       savedReports: reports.length,
-      browserReady: browserControlPosture(context).configured,
+      browserReady: browserControlPosture(context).configured || certifiedRunnerRecords.length > 0,
+      liveBrowserRuns: liveResearch.browserRunnerRecords.length,
+      liveVisualReports: liveResearch.visualReportRecords.length,
     },
     queue: items.slice(0, limit),
     returned: Math.min(items.length, limit),

@@ -2,7 +2,7 @@ import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifact
 import type { CommandContext } from './command-registry.ts';
 import { readSetupWizardCheckpoint } from '../agent/setup-wizard-checkpoint.ts';
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
-import { DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE, buildAgentSetupWizard, emptyAgentSetupSmokeHistory, emptyAgentSetupWizardCheckpoint, type AgentSetupWizard, type AgentSetupWizardBlockedCheckFrequency, type AgentSetupWizardCheckpoint, type AgentSetupWizardSmokeHistory, type AgentSetupWizardSourceItem } from '../agent/setup-wizard.ts';
+import { DEFAULT_AGENT_SETUP_WIZARD_CLEAR_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_MARK_CHECKPOINT_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE, DEFAULT_AGENT_SETUP_WIZARD_SAVE_SMOKE_ROUTE, buildAgentSetupWizard, emptyAgentSetupSmokeHistory, emptyAgentSetupWizardCheckpoint, type AgentSetupWizard, type AgentSetupWizardBlockedCheckFrequency, type AgentSetupWizardCheckpoint, type AgentSetupWizardDurableReceipt, type AgentSetupWizardSmokeHistory, type AgentSetupWizardSourceItem } from '../agent/setup-wizard.ts';
 import type { AgentWorkspaceSetupChecklistItem } from './agent-workspace-setup.ts';
 import { readArtifactMetadataString, readArtifactMetadataStringList } from './agent-workspace-artifact-metadata.ts';
 
@@ -28,6 +28,12 @@ function setupSmokeEvidenceTrend(artifacts: readonly ArtifactDescriptor[]): stri
   if (result === 'ready-for-user-run') return 'unchanged-ready';
   if (result === 'blocked') return 'unchanged-blocked';
   return 'unchanged';
+}
+
+function artifactCreatedAtIso(artifact: ArtifactDescriptor): string | null {
+  const createdAt = artifact.createdAt;
+  if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return null;
+  return new Date(createdAt).toISOString();
 }
 
 function setupSmokeBlockedCheckFrequency(artifacts: readonly ArtifactDescriptor[]): readonly AgentSetupWizardBlockedCheckFrequency[] {
@@ -67,6 +73,8 @@ export function buildSetupSmokeHistory(artifacts: readonly ArtifactDescriptor[],
     trend: setupSmokeEvidenceTrend(setupSmokeArtifacts),
     latestResult: readArtifactMetadataString(latest.metadata, 'result') || 'unknown',
     previousResult: previous ? readArtifactMetadataString(previous.metadata, 'result') || 'unknown' : null,
+    latestEvidenceId: latest.id,
+    latestEvidenceAt: artifactCreatedAtIso(latest),
     resultCounts,
     blockedCheckFrequency: setupSmokeBlockedCheckFrequency(setupSmokeArtifacts),
     inspectLatestRoute: `agent_artifacts show artifactId:"${latest.id}" includeContent:false`,
@@ -136,6 +144,7 @@ function setupChecklistModelRoute(item: AgentWorkspaceSetupChecklistItem): strin
   if (item.id === 'memory') return 'memory action:"status"';
   if (item.id === 'notes') return 'personal_ops action:"lane" laneId:"notes"';
   if (item.id === 'channels') return 'channels action:"status"';
+  if (item.id === 'browser-pwa') return 'computer action:"browser" includeParameters:true';
   if (item.id === 'voice-media') return 'device action:"voice"';
   return `agent_harness mode:"setup_item" setupItemId:"${item.id}"`;
 }
@@ -149,6 +158,7 @@ function setupChecklistActionId(item: AgentWorkspaceSetupChecklistItem): string 
   if (item.id === 'skills') return 'skill-search';
   if (item.id === 'routines') return 'routine-search';
   if (item.id === 'channels') return 'channel-show';
+  if (item.id === 'browser-pwa') return 'browser-cockpit-readiness';
   if (item.id === 'voice-media') return 'voice-enable';
   return item.id;
 }
@@ -167,7 +177,9 @@ export function buildWorkspaceSetupWizard(
   smokeHistory: AgentSetupWizardSmokeHistory,
   checkpoint: AgentSetupWizardCheckpoint,
   setupMarkerExists: boolean,
+  durableReceipts: readonly AgentSetupWizardDurableReceipt[] = [],
 ): AgentSetupWizard {
+  const browserPwaNeedsReceipt = checklist.some((item) => item.id === 'browser-pwa' && item.status !== 'ready');
   const items: AgentSetupWizardSourceItem[] = checklist.map((item) => ({
     id: item.id,
     label: item.label,
@@ -182,6 +194,13 @@ export function buildWorkspaceSetupWizard(
     smokeHistory,
     checkpoint,
     closeoutCriticalStepIds: ['runtime', 'connected-host-auth', 'provider-model'],
+    receiptRequiredStepIds: [
+      'runtime',
+      'connected-host-auth',
+      'install-smoke',
+      ...(browserPwaNeedsReceipt ? ['browser-pwa'] : []),
+    ],
+    durableReceipts,
     setupMarkerExists,
     repeatedBlockerAliases: SETUP_WIZARD_SNAPSHOT_BLOCKER_ALIASES,
   });

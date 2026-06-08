@@ -1,6 +1,9 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { WorkPlanItem } from '../work-plans/work-plan-store.ts';
+import { AGENT_TEMPLATES, AGENT_TOOL_MODES, agentOrchestrationDecisionCards } from './agent-harness-agent-orchestration-policy.ts';
+import { remoteReadModelSnapshot, type RemoteCaptureOutcomeRecord, type RemoteWorkspaceEvidenceRecord } from './agent-harness-remote-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
 interface AgentHarnessAgentOrchestrationArgs {
@@ -19,6 +22,9 @@ interface RemoteRuntimeSnapshot {
   readonly pools: readonly Record<string, unknown>[];
   readonly contracts: readonly Record<string, unknown>[];
   readonly artifacts: readonly Record<string, unknown>[];
+  readonly outcomes: readonly RemoteCaptureOutcomeRecord[];
+  readonly workspaces: readonly RemoteWorkspaceEvidenceRecord[];
+  readonly sourceCounts: Readonly<Record<string, number>>;
 }
 
 export type AgentOrchestrationResolution =
@@ -26,36 +32,47 @@ export type AgentOrchestrationResolution =
   | { readonly status: 'ambiguous'; readonly input: string; readonly candidates: readonly Record<string, unknown>[] }
   | { readonly status: 'missing_lookup'; readonly usage: string };
 
-const AGENT_TOOL_MODES = [
-  'spawn',
-  'batch-spawn',
-  'list',
-  'templates',
-  'status',
-  'get',
-  'budget',
-  'plan',
-  'wait',
-  'message',
-  'cancel',
-  'wrfc-chains',
-  'wrfc-history',
-  'cohort-status',
-  'cohort-report',
-] as const;
-
-const AGENT_TEMPLATES = [
-  'orchestrator',
-  'engineer',
-  'reviewer',
-  'tester',
-  'researcher',
-  'integrator',
-  'general',
-] as const;
+const REMOTE_ARTIFACT_RECEIPT_PURPOSES = new Set([
+  'remote-runner-artifact-receipt',
+  'remote-runner-closeout-receipt',
+  'remote-runner-export-receipt',
+  'agent-remote-runner-artifact-receipt',
+  'agent-remote-runner-closeout-receipt',
+  'connected-host-remote-runner-artifact-receipt',
+  'connected-host-remote-runner-closeout-receipt',
+]);
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function readObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+}
+
+function artifactMetadata(record: Record<string, unknown>): Record<string, unknown> {
+  return readObject(record.metadata);
+}
+
+function metadataString(record: Record<string, unknown>, key: string): string {
+  return readString(artifactMetadata(record)[key]);
+}
+
+function recordOrMetadataString(record: Record<string, unknown>, key: string): string {
+  return readString(record[key]) || metadataString(record, key);
+}
+
+function recordOrMetadataNumber(record: Record<string, unknown>, key: string): number {
+  const value = record[key] ?? artifactMetadata(record)[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function artifactPurpose(record: Record<string, unknown>): string {
+  return metadataString(record, 'purpose');
+}
+
+function isRemoteArtifactReceipt(record: Record<string, unknown>): boolean {
+  return REMOTE_ARTIFACT_RECEIPT_PURPOSES.has(artifactPurpose(record));
 }
 
 function readLimit(value: unknown, fallback: number): number {
@@ -99,7 +116,7 @@ function remotePools(context: CommandContext): readonly Record<string, unknown>[
   }
 }
 
-function remoteArtifacts(context: CommandContext): readonly Record<string, unknown>[] {
+function remoteRuntimeArtifacts(context: CommandContext): readonly Record<string, unknown>[] {
   try {
     return context.ops.remoteRuntime?.listArtifacts().map((record) => record as unknown as Record<string, unknown>) ?? [];
   } catch {
@@ -107,11 +124,44 @@ function remoteArtifacts(context: CommandContext): readonly Record<string, unkno
   }
 }
 
+function artifactCreatedAt(artifact: ArtifactDescriptor): number {
+  return typeof artifact.createdAt === 'number' && Number.isFinite(artifact.createdAt) ? artifact.createdAt : 0;
+}
+
+function remoteReceiptArtifacts(context: CommandContext): readonly Record<string, unknown>[] {
+  const store = context.platform.artifactStore;
+  if (!store?.list) return [];
+  try {
+    return store.list(100)
+      .filter((artifact) => isRemoteArtifactReceipt(artifact as unknown as Record<string, unknown>))
+      .filter((artifact) => remoteRunnerId(artifact as unknown as Record<string, unknown>))
+      .sort((left, right) => artifactCreatedAt(right) - artifactCreatedAt(left))
+      .slice(0, 20)
+      .map((artifact) => artifact as unknown as Record<string, unknown>);
+  } catch {
+    return [];
+  }
+}
+
+function remoteArtifacts(context: CommandContext): readonly Record<string, unknown>[] {
+  const runtimeArtifacts = remoteRuntimeArtifacts(context);
+  const seen = new Set(runtimeArtifacts.map((artifact) => readString(artifact.id)).filter(Boolean));
+  const receiptArtifacts = remoteReceiptArtifacts(context).filter((artifact) => {
+    const id = readString(artifact.id);
+    return !id || !seen.has(id);
+  });
+  return [...runtimeArtifacts, ...receiptArtifacts];
+}
+
 function remoteRuntimeSnapshot(context: CommandContext): RemoteRuntimeSnapshot {
+  const readModels = remoteReadModelSnapshot(context);
   return {
     pools: remotePools(context),
     contracts: remoteContracts(context),
     artifacts: remoteArtifacts(context),
+    outcomes: readModels.outcomes,
+    workspaces: readModels.workspaces,
+    sourceCounts: readModels.sourceCounts,
   };
 }
 
@@ -166,7 +216,10 @@ function routeForAgent(mode: string, id: string): string {
 }
 
 function remoteRunnerId(record: Record<string, unknown>): string {
-  return readString(record.runnerId);
+  return recordOrMetadataString(record, 'runnerId')
+    || recordOrMetadataString(record, 'agentId')
+    || recordOrMetadataString(record, 'linkedAgentId')
+    || recordOrMetadataString(record, 'runner');
 }
 
 function transportState(contract: Record<string, unknown>): string {
@@ -207,20 +260,49 @@ function contractSummary(contract: Record<string, unknown>, includeParameters: b
 }
 
 function artifactSummary(artifact: Record<string, unknown>, includeParameters: boolean): Record<string, unknown> {
-  const task = artifact.task && typeof artifact.task === 'object' ? artifact.task as Record<string, unknown> : {};
-  const evidence = artifact.evidence && typeof artifact.evidence === 'object' ? artifact.evidence as Record<string, unknown> : {};
+  const metadata = artifactMetadata(artifact);
+  const task = readObject(artifact.task);
+  const evidence = readObject(artifact.evidence);
+  const receipt = isRemoteArtifactReceipt(artifact);
+  const id = readString(artifact.id);
+  const status = readString(task.status)
+    || metadataString(artifact, 'status')
+    || metadataString(artifact, 'outcome')
+    || 'unknown';
+  const taskText = readString(task.task)
+    || metadataString(artifact, 'task')
+    || metadataString(artifact, 'title');
+  const summary = readString(task.summary)
+    || metadataString(artifact, 'summary')
+    || metadataString(artifact, 'description');
+  const sourceArtifactId = metadataString(artifact, 'sourceArtifactId')
+    || metadataString(artifact, 'remoteArtifactId')
+    || metadataString(artifact, 'exportArtifactId');
   return {
-    id: readString(artifact.id),
+    id,
     runnerId: remoteRunnerId(artifact),
-    status: readString(task.status) || 'unknown',
-    task: previewHarnessText(readString(task.task), includeParameters ? 160 : 72),
-    summary: previewHarnessText(readString(task.summary), includeParameters ? 220 : 96),
-    toolCallCount: typeof evidence.toolCallCount === 'number' ? evidence.toolCallCount : 0,
-    messageCount: typeof evidence.messageCount === 'number' ? evidence.messageCount : 0,
-    errorCount: typeof evidence.errorCount === 'number' ? evidence.errorCount : 0,
-    hasKnowledgeInjections: Boolean(evidence.hasKnowledgeInjections),
-    modelRoute: `remote { mode: "review", artifactId: "${readString(artifact.id)}" }`,
+    status,
+    task: previewHarnessText(taskText, includeParameters ? 160 : 72),
+    summary: previewHarnessText(summary, includeParameters ? 220 : 96),
+    toolCallCount: typeof evidence.toolCallCount === 'number' ? evidence.toolCallCount : recordOrMetadataNumber(artifact, 'toolCallCount'),
+    messageCount: typeof evidence.messageCount === 'number' ? evidence.messageCount : recordOrMetadataNumber(artifact, 'messageCount'),
+    errorCount: typeof evidence.errorCount === 'number' ? evidence.errorCount : recordOrMetadataNumber(artifact, 'errorCount'),
+    hasKnowledgeInjections: Boolean(evidence.hasKnowledgeInjections ?? metadata.hasKnowledgeInjections),
+    modelRoute: artifactReviewRoute(artifact),
+    ...(receipt ? {
+      receipt: true,
+      purpose: artifactPurpose(artifact),
+      sourceArtifactId: sourceArtifactId || null,
+      redaction: metadataString(artifact, 'redaction') || metadataString(artifact, 'redactionPolicy') || 'metadata-only',
+    } : {}),
   };
+}
+
+function artifactReviewRoute(artifact: Record<string, unknown>): string {
+  const id = readString(artifact.id);
+  return isRemoteArtifactReceipt(artifact)
+    ? `agent_artifacts show artifactId:"${id}" includeContent:false`
+    : `remote { mode: "review", artifactId: "${id}" }`;
 }
 
 function agentRoutes(id: string): Record<string, string> {
@@ -252,6 +334,26 @@ function artifactsByRunnerId(artifacts: readonly Record<string, unknown>[]): Map
     const entries = grouped.get(id) ?? [];
     entries.push(artifact);
     grouped.set(id, entries);
+  }
+  return grouped;
+}
+
+function outcomesByRunnerId(outcomes: readonly RemoteCaptureOutcomeRecord[]): Map<string, readonly RemoteCaptureOutcomeRecord[]> {
+  const grouped = new Map<string, RemoteCaptureOutcomeRecord[]>();
+  for (const outcome of outcomes) {
+    const entries = grouped.get(outcome.runnerId) ?? [];
+    entries.push(outcome);
+    grouped.set(outcome.runnerId, entries);
+  }
+  return grouped;
+}
+
+function workspacesByRunnerId(workspaces: readonly RemoteWorkspaceEvidenceRecord[]): Map<string, readonly RemoteWorkspaceEvidenceRecord[]> {
+  const grouped = new Map<string, RemoteWorkspaceEvidenceRecord[]>();
+  for (const workspace of workspaces) {
+    const entries = grouped.get(workspace.runnerId) ?? [];
+    entries.push(workspace);
+    grouped.set(workspace.runnerId, entries);
   }
   return grouped;
 }
@@ -301,39 +403,45 @@ function workPlanCloseoutItem(item: WorkPlanItem, includeParameters: boolean): R
   };
 }
 
-function closeoutReviewRoutes(id: string, items: readonly WorkPlanItem[], artifacts: readonly Record<string, unknown>[]): readonly string[] {
+function closeoutReviewRoutes(id: string, items: readonly WorkPlanItem[], artifacts: readonly Record<string, unknown>[], outcomes: readonly RemoteCaptureOutcomeRecord[] = [], workspaces: readonly RemoteWorkspaceEvidenceRecord[] = []): readonly string[] {
   return [
     routeForAgent('get', id),
     ...items.map((item) => `agent_work_plan action:"get" id:"${item.id}"`),
-    ...artifacts.map((artifact) => `remote { mode: "review", artifactId: "${readString(artifact.id)}" }`),
+    ...artifacts.map((artifact) => artifactReviewRoute(artifact)),
+    ...outcomes.map((outcome) => outcome.modelRoute),
+    ...workspaces.map((workspace) => workspace.modelRoute),
   ];
 }
 
-function closeoutStatus(status: string, items: readonly WorkPlanItem[], artifacts: readonly Record<string, unknown>[]): string {
+function closeoutStatus(status: string, items: readonly WorkPlanItem[], artifacts: readonly Record<string, unknown>[], outcomes: readonly RemoteCaptureOutcomeRecord[] = []): string {
   if (['pending', 'running'].includes(status)) return 'pending-work';
   if (status === 'failed') return 'attention';
   if (items.some((item) => item.status === 'blocked' || item.status === 'failed')) return 'attention';
-  if (artifacts.length > 0) return 'evidence-ready';
+  if (artifacts.length > 0 || outcomes.length > 0) return 'evidence-ready';
   if (items.length > 0) return 'needs-artifact-evidence';
   return 'unlinked';
 }
 
-function closeoutCard(
-  id: string,
-  status: string,
-  items: readonly WorkPlanItem[],
-  artifacts: readonly Record<string, unknown>[],
-  includeParameters: boolean,
-): Record<string, unknown> {
+function closeoutCard(id: string, status: string, items: readonly WorkPlanItem[], artifacts: readonly Record<string, unknown>[], outcomes: readonly RemoteCaptureOutcomeRecord[], workspaces: readonly RemoteWorkspaceEvidenceRecord[], includeParameters: boolean): Record<string, unknown> {
+  const hasReadModelEvidence = outcomes.length > 0 || workspaces.length > 0;
   return {
-    status: closeoutStatus(status, items, artifacts),
+    status: closeoutStatus(status, items, artifacts, outcomes),
     workPlanItemCount: items.length,
     dispatchReceiptCount: items.reduce((count, item) => count + dispatchReceiptLines(item).length, 0),
     remoteArtifactCount: artifacts.length,
-    autoAttachReason: artifacts.length > 0 ? 'remote artifact runnerId matched the visible agent id' : null,
+    remoteReceiptCount: artifacts.filter((artifact) => isRemoteArtifactReceipt(artifact)).length,
+    remoteOutcomeCount: outcomes.length,
+    workspaceEvidenceCount: workspaces.length,
+    autoAttachReason: artifacts.length > 0
+      ? 'remote artifact or durable receipt runnerId matched the visible agent id'
+      : hasReadModelEvidence
+        ? 'daemon/SDK remote read-model runnerId matched the visible agent id'
+        : null,
     workPlanItems: items.slice(0, includeParameters ? 8 : 3).map((item) => workPlanCloseoutItem(item, includeParameters)),
     autoAttachedRemoteArtifacts: artifacts.slice(0, includeParameters ? 8 : 3).map((artifact) => artifactSummary(artifact, includeParameters)),
-    reviewRoutes: closeoutReviewRoutes(id, items, artifacts).slice(0, includeParameters ? 20 : 8),
+    liveRemoteOutcomes: outcomes.slice(0, includeParameters ? 8 : 3),
+    workspaceEvidence: workspaces.slice(0, includeParameters ? 8 : 3),
+    reviewRoutes: closeoutReviewRoutes(id, items, artifacts, outcomes, workspaces).slice(0, includeParameters ? 24 : 8),
     updateRoutes: items.slice(0, includeParameters ? 8 : 3).flatMap((item) => [
       `agent_work_plan action:"set_status" id:"${item.id}" status:"done"`,
       `agent_work_plan action:"set_status" id:"${item.id}" status:"blocked"`,
@@ -346,6 +454,8 @@ function managedPlanItem(
   record: AgentRecordView,
   contract: Record<string, unknown> | undefined,
   artifacts: readonly Record<string, unknown>[],
+  outcomes: readonly RemoteCaptureOutcomeRecord[],
+  workspaces: readonly RemoteWorkspaceEvidenceRecord[],
   linkedWorkItems: readonly WorkPlanItem[],
   includeParameters: boolean,
 ): Record<string, unknown> {
@@ -354,12 +464,14 @@ function managedPlanItem(
   const task = readString(record.task);
   const progress = readString(record.progress);
   const hasRemoteContract = Boolean(contract);
+  const hasLiveRemoteEvidence = hasRemoteContract || outcomes.length > 0 || workspaces.length > 0;
   const running = ['pending', 'running'].includes(status);
   const failed = status === 'failed';
+  const hasOutcomeEvidence = artifacts.length > 0 || outcomes.length > 0;
   return {
     planItemId: `agent:${id}`,
     agentId: id,
-    lane: hasRemoteContract ? 'remote-runner' : 'visible-agent',
+    lane: hasLiveRemoteEvidence ? 'remote-runner' : 'visible-agent',
     milestoneId: running ? 'visible-agent-work' : 'review-and-closeout',
     status,
     title: previewHarnessText(task || id, includeParameters ? 160 : 72),
@@ -370,18 +482,26 @@ function managedPlanItem(
     workPlanLinks: linkedWorkItems.slice(0, includeParameters ? 8 : 3).map((item) => workPlanCloseoutItem(item, includeParameters)),
     remoteContract: contract ? contractSummary(contract, includeParameters) : null,
     artifactTrail: artifacts.slice(0, includeParameters ? 8 : 3).map((artifact) => artifactSummary(artifact, includeParameters)),
-    closeout: closeoutCard(id, status, linkedWorkItems, artifacts, includeParameters),
+    liveOutcomeTrail: outcomes.slice(0, includeParameters ? 8 : 3),
+    workspaceEvidence: workspaces.slice(0, includeParameters ? 8 : 3),
+    closeout: closeoutCard(id, status, linkedWorkItems, artifacts, outcomes, workspaces, includeParameters),
     reviewGate: {
-      status: artifacts.length > 0 ? 'artifact-ready' : running ? 'pending-work' : linkedWorkItems.length > 0 ? 'needs-artifact-evidence' : 'needs-link',
-      requiredEvidence: contract ? stringArray(capabilityCeiling(contract).requiredEvidence).slice(0, includeParameters ? 12 : 5) : [],
-      modelRoutes: closeoutReviewRoutes(id, linkedWorkItems, artifacts).slice(0, includeParameters ? 20 : 8),
+      status: failed ? 'attention' : running ? 'pending-work' : hasOutcomeEvidence ? 'artifact-ready' : workspaces.length > 0 ? 'workspace-evidence-ready' : linkedWorkItems.length > 0 ? 'needs-artifact-evidence' : 'needs-link',
+      requiredEvidence: [
+        ...(contract ? stringArray(capabilityCeiling(contract).requiredEvidence).slice(0, includeParameters ? 12 : 5) : []),
+        ...(workspaces.length > 0 ? ['workspace/worktree isolation evidence'] : []),
+        ...(outcomes.length > 0 ? ['live remote capture/export outcome evidence'] : []),
+      ],
+      modelRoutes: closeoutReviewRoutes(id, linkedWorkItems, artifacts, outcomes, workspaces).slice(0, includeParameters ? 24 : 8),
     },
     nextAction: failed
       ? 'Inspect the failed agent, then decide whether to message, retry through a new visible task, or cancel related work.'
       : running
         ? 'Use wait/status for progress, message for guidance, or cancel if the work no longer helps the user.'
-        : artifacts.length > 0
+        : hasOutcomeEvidence
           ? 'Review the artifact trail before closing the plan.'
+          : workspaces.length > 0
+            ? 'Confirm the workspace isolation evidence, then attach outcome evidence before closing the plan.'
           : 'Capture or attach outcome evidence before treating this work as complete.',
   };
 }
@@ -402,19 +522,29 @@ function managedExecutionPlan(
 ): Record<string, unknown> {
   const agentToolAvailable = agentToolRegistered(toolRegistry);
   const remoteToolAvailable = remoteToolRegistered(toolRegistry);
-  const { pools, contracts, artifacts } = remoteSnapshot;
+  const { pools, contracts, artifacts, outcomes, workspaces, sourceCounts } = remoteSnapshot;
   const contractsByRunner = contractByRunnerId(contracts);
   const artifactsByRunner = artifactsByRunnerId(artifacts);
+  const outcomesByRunner = outcomesByRunnerId(outcomes);
+  const workspacesByRunner = workspacesByRunnerId(workspaces);
   const workPlanByAgent = workPlanItemsByAgentId(workPlanItems(context));
   const items = records.map((record) => {
     const id = agentId(record);
-    return managedPlanItem(record, contractsByRunner.get(id), artifactsByRunner.get(id) ?? [], workPlanByAgent.get(id) ?? [], includeParameters);
+    return managedPlanItem(
+      record,
+      contractsByRunner.get(id),
+      artifactsByRunner.get(id) ?? [],
+      outcomesByRunner.get(id) ?? [],
+      workspacesByRunner.get(id) ?? [],
+      workPlanByAgent.get(id) ?? [],
+      includeParameters,
+    );
   });
   const status = managedPlanStatus(records, agentToolAvailable);
   const running = records.filter((record) => ['pending', 'running'].includes(agentStatus(record))).length;
   const failed = records.filter((record) => agentStatus(record) === 'failed').length;
   const completed = records.filter((record) => agentStatus(record) === 'completed').length;
-  const remoteStatus = contracts.length > 0 || artifacts.length > 0 ? 'ready' : context.ops.remoteRuntime ? 'ready' : 'needs-setup';
+  const remoteStatus = contracts.length > 0 || artifacts.length > 0 || outcomes.length > 0 || workspaces.length > 0 ? 'ready' : context.ops.remoteRuntime ? 'ready' : 'needs-setup';
   const linkedWorkPlanItemCount = Array.from(workPlanByAgent.values()).reduce((count, entries) => count + entries.length, 0);
   const dispatchReceiptCount = Array.from(workPlanByAgent.values()).reduce(
     (count, entries) => count + entries.reduce((entryCount, item) => entryCount + dispatchReceiptLines(item).length, 0),
@@ -423,7 +553,7 @@ function managedExecutionPlan(
   return {
     planId: 'visible-managed-execution',
     status,
-    summary: `${records.length} visible agent${records.length === 1 ? '' : 's'}, ${running} active, ${failed} attention, ${artifacts.length} remote artifact${artifacts.length === 1 ? '' : 's'}, ${dispatchReceiptCount} dispatch receipt${dispatchReceiptCount === 1 ? '' : 's'}.`,
+    summary: `${records.length} visible agent${records.length === 1 ? '' : 's'}, ${running} active, ${failed} attention, ${artifacts.length} remote artifact${artifacts.length === 1 ? '' : 's'}, ${outcomes.length} live remote outcome${outcomes.length === 1 ? '' : 's'}, ${workspaces.length} workspace evidence record${workspaces.length === 1 ? '' : 's'}, ${dispatchReceiptCount} dispatch receipt${dispatchReceiptCount === 1 ? '' : 's'}.`,
     milestones: [
       {
         id: 'intake-and-lane-selection',
@@ -449,6 +579,8 @@ function managedExecutionPlan(
         pools: pools.length,
         contracts: contracts.length,
         artifacts: artifacts.length,
+        readModelOutcomes: outcomes.length,
+        workspaceEvidence: workspaces.length,
         routes: {
           pools: remoteToolAvailable ? 'remote { mode: "pools", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
           contracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
@@ -462,7 +594,9 @@ function managedExecutionPlan(
         linkedWorkPlanItems: linkedWorkPlanItemCount,
         dispatchReceipts: dispatchReceiptCount,
         autoAttachedRemoteArtifacts: artifacts.length,
-        requiredEvidence: ['changed files or artifact', 'test or verification output', 'agent status', 'recovery route when writes happened'],
+        liveRemoteOutcomes: outcomes.length,
+        workspaceEvidence: workspaces.length,
+        requiredEvidence: ['changed files or artifact', 'test or verification output', 'agent status', 'workspace isolation evidence when remote runners are used', 'recovery route when writes happened'],
         routes: ['agent_harness mode:"agent_orchestration"', 'execution action:"history"', 'execution action:"recovery"', 'delegation action:"status"', 'agent_work_plan action:"list"'],
       },
     ],
@@ -476,7 +610,10 @@ function managedExecutionPlan(
       })),
       contracts: contracts.slice(0, includeParameters ? 8 : 3).map((contract) => contractSummary(contract, includeParameters)),
       artifacts: artifacts.slice(0, includeParameters ? 8 : 3).map((artifact) => artifactSummary(artifact, includeParameters)),
-      policy: 'Remote runner evidence is read-only here; creating pools, assigning runners, importing artifacts, or spawning agents stays on confirmed first-class routes.',
+      liveOutcomes: outcomes.slice(0, includeParameters ? 8 : 3),
+      workspaceEvidence: workspaces.slice(0, includeParameters ? 8 : 3),
+      sourceCounts,
+      policy: 'Remote runner evidence is read-only here; creating pools, assigning runners, importing artifacts, accepting workspace isolation, or spawning agents stays on confirmed first-class routes.',
     },
     modelAccess: {
       spawn: 'agent { mode: "spawn" }',
@@ -484,6 +621,7 @@ function managedExecutionPlan(
       listAgents: 'agent { mode: "list" }',
       remoteContracts: remoteToolAvailable ? 'remote { mode: "contracts", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
       remoteArtifacts: remoteToolAvailable ? 'remote { mode: "artifacts", view: "summary" }' : 'delegation action:"route" delegationRouteId:"remote-runner-inspection"',
+      remoteReadModelOutcomes: 'agent_harness mode:"agent_orchestration" includeParameters:true',
     },
     policy: 'Managed execution plans are read-only summaries. Parallel work must remain visible, cancellable, attached to evidence, and justified by user outcome.',
   };
@@ -494,6 +632,8 @@ function describeAgent(
   includeParameters: boolean,
   contract?: Record<string, unknown>,
   artifacts: readonly Record<string, unknown>[] = [],
+  outcomes: readonly RemoteCaptureOutcomeRecord[] = [],
+  workspaces: readonly RemoteWorkspaceEvidenceRecord[] = [],
   linkedWorkItems: readonly WorkPlanItem[] = [],
 ): Record<string, unknown> {
   const id = agentId(record);
@@ -510,7 +650,7 @@ function describeAgent(
     modelRoute: 'agent { mode: "get" }',
     userRoute: 'Agent Workspace -> Work -> Autonomy queue',
     routes: agentRoutes(id),
-    managedPlanCard: managedPlanItem(record, contract, artifacts, linkedWorkItems, includeParameters),
+    managedPlanCard: managedPlanItem(record, contract, artifacts, outcomes, workspaces, linkedWorkItems, includeParameters),
     ...(readString(record.model) ? { model: readString(record.model) } : {}),
     ...(readString(record.provider) ? { provider: readString(record.provider) } : {}),
     ...(includeParameters ? {
@@ -521,62 +661,6 @@ function describeAgent(
       usage: record.usage && typeof record.usage === 'object' ? record.usage : null,
     } : {}),
   };
-}
-
-function decisionCards(agentToolAvailable: boolean): readonly Record<string, unknown>[] {
-  return [
-    {
-      id: 'serial-by-default',
-      label: 'Stay serial by default',
-      status: 'ready',
-      chooseWhen: ['Ordinary chat, planning, research, setup, local context, and short current-workspace tool work.'],
-      route: 'main conversation',
-      reason: 'Lowest-friction route for the user when parallelism does not improve outcome.',
-    },
-    {
-      id: 'visible-single-agent',
-      label: 'Spawn one visible agent',
-      status: agentToolAvailable ? 'ready' : 'unavailable',
-      chooseWhen: ['A bounded autonomous task can run independently with visible status and cancellation.'],
-      requiredFields: ['task', 'successCriteria or requiredEvidence when outcome quality matters'],
-      modelRoute: 'agent { mode: "spawn" }',
-      inspectRoute: 'agent_harness mode:"agent_orchestration"',
-    },
-    {
-      id: 'visible-batch-spawn',
-      label: 'Batch-spawn independent agents',
-      status: agentToolAvailable ? 'ready' : 'unavailable',
-      chooseWhen: ['Tasks are genuinely independent and parallel work materially improves time-to-result.'],
-      doNotUseWhen: ['Review/test/verification role fanout for one deliverable; that collapses to one owner chain.'],
-      requiredFields: ['tasks[]', 'authoritativeTask for the original user ask when applicable'],
-      modelRoute: 'agent { mode: "batch-spawn" }',
-      inspectRoute: 'agent_harness mode:"agent_orchestration"',
-    },
-    {
-      id: 'managed-multi-runner-plan',
-      label: 'Use a managed multi-runner plan',
-      status: agentToolAvailable ? 'ready' : 'unavailable',
-      chooseWhen: ['A large task already has approval for parallel work and needs milestones, evidence, and cancellation routes.'],
-      requiredFields: ['original user ask', 'lane reason', 'success criteria', 'per-runner evidence', 'cancel/recovery route'],
-      modelRoute: 'agent_work_plan action:"dispatch_agents" ids:["..."] confirm:true explicitUserRequest:"..."',
-      inspectRoute: 'agent_harness mode:"agent_orchestration"',
-      policy: 'Read-only plan surface first; approved work-plan dispatch, spawn, message, wait, cancel, or remote mutation stays on confirmed first-class routes.',
-    },
-    {
-      id: 'inspect-or-control-visible-agent',
-      label: 'Inspect or control a visible agent',
-      status: agentToolAvailable ? 'ready' : 'unavailable',
-      chooseWhen: ['The user asks for progress, budget, plan, message, wait, cancel, WRFC chain, or cohort status.'],
-      modelRoutes: ['agent { mode: "list" }', 'agent { mode: "get" }', 'agent { mode: "message" }', 'agent { mode: "wait" }', 'agent { mode: "cancel" }'],
-    },
-    {
-      id: 'hidden-fanout-blocked',
-      label: 'Block hidden fanout',
-      status: 'blocked',
-      chooseWhen: ['A request implies invisible background agents, unmanaged parallel coding workers, or orphaned jobs.'],
-      saferRoutes: ['visible work plan', 'research run', 'confirmed schedule', 'agent { mode: "spawn" }', 'delegation action:"status"'],
-    },
-  ];
 }
 
 export function agentOrchestrationCatalogStatus(context: CommandContext, toolRegistry: ToolRegistry): Record<string, unknown> {
@@ -617,6 +701,8 @@ export function agentOrchestrationSummary(context: CommandContext, toolRegistry:
   const remoteSnapshot = remoteRuntimeSnapshot(context);
   const contracts = contractByRunnerId(remoteSnapshot.contracts);
   const artifacts = artifactsByRunnerId(remoteSnapshot.artifacts);
+  const outcomes = outcomesByRunnerId(remoteSnapshot.outcomes);
+  const workspaces = workspacesByRunnerId(remoteSnapshot.workspaces);
   const workPlanByAgent = workPlanItemsByAgentId(workPlanItems(context));
   return {
     status: counts.running > 0 || counts.pending > 0 ? 'attention' : toolRegistered ? 'ready' : 'needs-setup',
@@ -635,11 +721,11 @@ export function agentOrchestrationSummary(context: CommandContext, toolRegistry:
     managedExecutionPlan: managedExecutionPlan(records, context, toolRegistry, remoteSnapshot, includeParameters),
     agents: filtered.map((record) => {
       const id = agentId(record);
-      return describeAgent(record, includeParameters, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []);
+      return describeAgent(record, includeParameters, contracts.get(id), artifacts.get(id) ?? [], outcomes.get(id) ?? [], workspaces.get(id) ?? [], workPlanByAgent.get(id) ?? []);
     }),
     returned: filtered.length,
     total: records.length,
-    decisionCards: decisionCards(toolRegistered),
+    decisionCards: agentOrchestrationDecisionCards(toolRegistered),
     modes: [...AGENT_TOOL_MODES],
     templates: [...AGENT_TEMPLATES],
     modelAccess: {
@@ -674,17 +760,19 @@ export function describeAgentOrchestrationAgent(context: CommandContext, args: A
   const remoteSnapshot = remoteRuntimeSnapshot(context);
   const contracts = contractByRunnerId(remoteSnapshot.contracts);
   const artifacts = artifactsByRunnerId(remoteSnapshot.artifacts);
+  const outcomes = outcomesByRunnerId(remoteSnapshot.outcomes);
+  const workspaces = workspacesByRunnerId(remoteSnapshot.workspaces);
   const workPlanByAgent = workPlanItemsByAgentId(workPlanItems(context));
   if (exact) {
     const id = agentId(exact);
-    return { status: 'found', agent: describeAgent(exact, args.includeParameters !== false, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []) };
+    return { status: 'found', agent: describeAgent(exact, args.includeParameters !== false, contracts.get(id), artifacts.get(id) ?? [], outcomes.get(id) ?? [], workspaces.get(id) ?? [], workPlanByAgent.get(id) ?? []) };
   }
   const normalized = lookup.input.toLowerCase();
   const matches = records.filter((record) => agentSearchText(record).includes(normalized));
   if (matches.length === 1) {
     const record = matches[0]!;
     const id = agentId(record);
-    return { status: 'found', agent: describeAgent(record, args.includeParameters !== false, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []) };
+    return { status: 'found', agent: describeAgent(record, args.includeParameters !== false, contracts.get(id), artifacts.get(id) ?? [], outcomes.get(id) ?? [], workspaces.get(id) ?? [], workPlanByAgent.get(id) ?? []) };
   }
   if (matches.length > 1) {
     return {
@@ -692,7 +780,7 @@ export function describeAgentOrchestrationAgent(context: CommandContext, args: A
       input: lookup.input,
       candidates: matches.slice(0, 8).map((record) => {
         const id = agentId(record);
-        return describeAgent(record, false, contracts.get(id), artifacts.get(id) ?? [], workPlanByAgent.get(id) ?? []);
+        return describeAgent(record, false, contracts.get(id), artifacts.get(id) ?? [], outcomes.get(id) ?? [], workspaces.get(id) ?? [], workPlanByAgent.get(id) ?? []);
       }),
     };
   }

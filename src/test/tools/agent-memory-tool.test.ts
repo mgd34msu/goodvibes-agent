@@ -38,12 +38,16 @@ describe('memory adapter', () => {
 
     await tool.execute({});
     await tool.execute({ action: 'provider', providerId: 'mem0', includeParameters: true });
+    await tool.execute({ action: 'refinement', query: 'knowledge gaps', includeParameters: true });
+    await tool.execute({ action: 'run_refinement', knowledgeSpaceId: 'agent', gapIds: ['gap-1'], limit: 2, maxRunMs: 5_000, force: true, confirm: true, explicitUserRequest: 'Run semantic refinement.' });
     await tool.execute({ action: 'queue', query: 'consolidation', limit: 4 });
     await tool.execute({ candidateId: 'learn-1' });
 
     expect(harnessCalls).toEqual([
       { mode: 'memory_posture' },
       { mode: 'memory_provider', providerId: 'mem0', includeParameters: true },
+      { mode: 'memory_refinement', query: 'knowledge gaps', includeParameters: true },
+      { mode: 'run_memory_refinement', knowledgeSpaceId: 'agent', gapIds: ['gap-1'], limit: 2, maxRunMs: 5_000, force: true, confirm: true, explicitUserRequest: 'Run semantic refinement.' },
       { mode: 'learning_curator', query: 'consolidation', limit: 4 },
       { mode: 'learning_candidate', candidateId: 'learn-1' },
     ]);

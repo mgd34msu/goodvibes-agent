@@ -41,6 +41,11 @@ export interface AgentHarnessToolArgs {
   readonly panelId?: unknown;
   readonly actionId?: unknown;
   readonly recordId?: unknown;
+  readonly knowledgeSpaceId?: unknown;
+  readonly sourceIds?: unknown;
+  readonly gapIds?: unknown;
+  readonly maxRunMs?: unknown;
+  readonly force?: unknown;
   readonly fields?: unknown;
   readonly combo?: unknown;
   readonly combos?: unknown;

@@ -6,6 +6,7 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { CommandContext, CommandRegistry } from '../../input/command-registry.ts';
 import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
+import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
 import { createAgentResearchTool, registerAgentResearchTool } from '../../tools/agent-research-tool.ts';
 
 function fakeTool(name: string, calls: Record<string, unknown>[], output?: unknown): Tool {
@@ -182,6 +183,122 @@ describe('research adapter', () => {
       expect(packet.nextRoutes.briefing).toContain(`target:"${run.id}"`);
       expect(packet.nextRoutes.checkpointAfterCapture).toContain(`id:"${run.id}"`);
       expect(packet.policy).toContain('does not create or start a run');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('requires explicit confirmation before the research runner mutates visible run state', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-runner-confirm-'));
+    const shellPaths = {
+      resolveProjectPath: (...parts: string[]) => join(root, '.goodvibes', ...parts),
+    };
+    try {
+      const calls: Record<string, unknown>[] = [];
+      const tool = makeTool(calls, { workspace: { shellPaths }, platform: {} } as CommandContext);
+
+      const result = await tool.execute({ action: 'runner', query: 'browser agents', confirm: true });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain('explicitUserRequest');
+      expect(calls).toEqual([]);
+      expect(AgentResearchRunRegistry.fromShellPaths(shellPaths).list()).toEqual([]);
+      expect(AgentResearchSourceRegistry.fromShellPaths(shellPaths).list()).toEqual([]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('confirmed research runner starts a visible run, saves source candidates, and checkpoints next review routes', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-runner-'));
+    const shellPaths = {
+      resolveProjectPath: (...parts: string[]) => join(root, '.goodvibes', ...parts),
+    };
+    try {
+      const calls: Record<string, unknown>[] = [];
+      const tool = makeTool(calls, { workspace: { shellPaths }, platform: {} } as CommandContext);
+
+      const result = await tool.execute({
+        action: 'runner',
+        query: 'Which browser agents have the best user experience?',
+        maxResults: 2,
+        evidenceTopN: 1,
+        confirm: true,
+        explicitUserRequest: 'Start a visible research runner and capture candidate sources.',
+      });
+      const packet = JSON.parse(result.output as string) as {
+        readonly status: string;
+        readonly query: string;
+        readonly resultCount: number;
+        readonly sourceCandidateCount: number;
+        readonly savedSourceCount: number;
+        readonly reusedSourceCount: number;
+        readonly run: {
+          readonly id: string;
+          readonly status: string;
+          readonly phase: string;
+          readonly progress: number;
+          readonly sourceIds: readonly string[];
+          readonly inspectRoute: string;
+        };
+        readonly sources: readonly {
+          readonly sourceId: string;
+          readonly title: string;
+          readonly status: string;
+          readonly credibility: string;
+          readonly inspectRoute: string;
+          readonly reviewRoute: string;
+          readonly reportLine: string;
+        }[];
+        readonly nextRoutes: {
+          readonly run: string;
+          readonly sources: string;
+          readonly bundle: string;
+          readonly saveReport: string;
+        };
+        readonly policy: string;
+      };
+
+      expect(calls).toEqual([
+        { tool: 'web_search', query: 'Which browser agents have the best user experience?', maxResults: 2, verbosity: 'evidence', safeSearch: 'moderate', includeEvidence: true, evidenceTopN: 1, evidenceExtract: 'readable' },
+      ]);
+      expect(packet.status).toBe('source-collection-checkpointed');
+      expect(packet.query).toBe('Which browser agents have the best user experience?');
+      expect(packet.resultCount).toBe(1);
+      expect(packet.sourceCandidateCount).toBe(1);
+      expect(packet.savedSourceCount).toBe(1);
+      expect(packet.reusedSourceCount).toBe(0);
+      expect(packet.run.status).toBe('running');
+      expect(packet.run.phase).toBe('reading');
+      expect(packet.run.progress).toBeGreaterThanOrEqual(35);
+      expect(packet.run.sourceIds).toEqual([packet.sources[0]?.sourceId]);
+      expect(packet.run.inspectRoute).toContain(`runId:"${packet.run.id}"`);
+      expect(packet.sources[0]).toMatchObject({
+        title: 'Browser Agent Report',
+        status: 'candidate',
+        credibility: 'unreviewed',
+      });
+      expect(packet.sources[0]?.inspectRoute).toContain(`sourceId:"${packet.sources[0]?.sourceId}"`);
+      expect(packet.sources[0]?.reviewRoute).toContain('confirm:true');
+      expect(packet.sources[0]?.reportLine).toContain('https://example.test/report?api_key=%3Credacted%3E');
+      expect(packet.nextRoutes.run).toContain(`runId:"${packet.run.id}"`);
+      expect(packet.nextRoutes.sources).toContain('includeReportLines:true');
+      expect(packet.nextRoutes.bundle).toContain('includeReportLines:true');
+      expect(packet.nextRoutes.saveReport).toContain('requireCitationCoverage:true');
+      expect(packet.policy).toContain('does not save a report');
+      expect(packet.policy).toContain('does not save a report, ingest Knowledge, send messages, or control a browser/PWA surface');
+
+      const savedRun = AgentResearchRunRegistry.fromShellPaths(shellPaths).get(packet.run.id);
+      const savedSources = AgentResearchSourceRegistry.fromShellPaths(shellPaths).list();
+      expect(savedRun?.status).toBe('running');
+      expect(savedRun?.phase).toBe('reading');
+      expect(savedRun?.checkpoints.at(-1)?.sourceIds).toEqual(packet.run.sourceIds);
+      expect(savedSources).toHaveLength(1);
+      expect(savedSources[0]?.url).toBe('https://example.test/report?api_key=%3Credacted%3E');
+      expect(savedSources[0]?.provenance).toBe('agent-research-runner');
+      expect(savedSources[0]?.tags).toEqual(['research', 'web-search', 'runner']);
+      expect(calls.some((call) => call.tool === 'agent_research_report')).toBe(false);
+      expect(calls.some((call) => call.tool === 'agent_artifacts')).toBe(false);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

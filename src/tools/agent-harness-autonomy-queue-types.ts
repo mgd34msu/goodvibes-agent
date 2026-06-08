@@ -63,7 +63,7 @@ export interface AutonomyQueueLiveRecord {
 export interface AutonomyQueueRecordOutput {
   readonly status: 'preview' | 'route-only';
   readonly route: string;
-  readonly source: 'runtime-task-result' | 'runtime-task-error' | 'not-published';
+  readonly source: 'runtime-task-result' | 'runtime-task-error' | 'host-output-chunk' | 'provider-source-preview' | 'not-published';
   readonly preview?: string;
   readonly policy: string;
 }

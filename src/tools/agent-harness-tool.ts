@@ -24,6 +24,7 @@ import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } fr
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary, runLocalModelServerSmoke } from './agent-harness-model-routing.ts';
 import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
+import { memoryRefinementCatalogStatus, memoryRefinementSummary, runMemoryRefinement } from './agent-harness-memory-refinement.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
 import { describePersonalOpsLane, personalOpsBriefingSummary, personalOpsCatalogStatus, personalOpsIntakeSummary, personalOpsQueueSummary, personalOpsSummary, runPersonalOpsRead } from './agent-harness-personal-ops.ts';
 import { describeHarnessPairingRoute, pairingPostureCatalogStatus, pairingPostureSummary } from './agent-harness-pairing-posture.ts';
@@ -99,7 +100,7 @@ function detailedHarnessModelAccessGuide(): Record<string, string> {
     executionHistory: 'Prefer execution action:"history|record" for activity cards and records; use returned verification, supervision, and recovery routes.',
     fileRecovery: 'Prefer execution action:"recovery"; apply local file undo/redo snapshots with mode:"run_file_recovery" and confirmation.',
     personalOps: 'Prefer personal_ops action:"briefing|status|queue|intake|lane|read"; lower-level modes personal_ops_briefing/personal_ops/personal_ops_queue/personal_ops_intake/personal_ops_lane/run_personal_ops_read remain available for harness inspection.',
-    memoryPosture: 'Prefer memory action:"status|provider|curator|candidate|list|search|get"; memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',
+    memoryPosture: 'Prefer memory action:"status|provider|refinement|run_refinement|curator|candidate|list|search|get"; run_refinement, memory writes, vector rebuilds, and embedding-provider changes stay on confirmed existing routes.',
     autonomyQueue: 'Prefer autonomy action:"intake|queue|item" for ongoing work and visible autonomous work; lower-level autonomy_* modes remain available for detail. Effects stay confirmed on the owning route.',
     learningCurator: 'Prefer memory action:"curator|candidate"; writes stay on reviewed Agent-local routes.',
     researchWorkflow: 'Prefer research action:"briefing" for the current next-action queue, action:"plan" for deep-research route planning, action:"search" for bounded public source candidates, and action:"runner" for browser-runner readiness; lower-level mode:"research_workflow" sequences visible run, web/fetch or browser posture, source queue, report, and Knowledge promotion routes.',
@@ -176,6 +177,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             status: 'unavailable',
             error: formatHarnessError(err),
           }));
+          const memoryRefinement = memoryRefinementCatalogStatus(deps.commandContext);
           const autonomyQueue = autonomyQueueCatalogStatus(deps.commandContext);
           const learningCurator = learningCuratorCatalogStatus(deps.commandContext);
           const researchBriefing = researchBriefingCatalogStatus(deps.commandContext);
@@ -232,6 +234,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             fileRecovery,
             personalOps,
             memoryPosture,
+            memoryRefinement,
             autonomyQueue,
             learningCurator,
             researchBriefing,
@@ -482,6 +485,11 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           if (resolved.status === 'found') return output(resolved.provider);
           if (resolved.status === 'ambiguous') return error(`Ambiguous memory provider ${resolved.input}. Candidates: ${JSON.stringify(resolved.candidates)}`);
           return error(resolved.usage);
+        }
+        if (args.mode === 'memory_refinement') return output(memoryRefinementSummary(deps.commandContext, args));
+        if (args.mode === 'run_memory_refinement') {
+          const confirmationError = requireConfirmedAction(args, 'Agent Knowledge semantic refinement');
+          return confirmationError ? error(confirmationError) : output(await runMemoryRefinement(deps.commandContext, args));
         }
         if (args.mode === 'autonomy_intake') return output(autonomyIntakeSummary(deps.commandContext, args));
         if (args.mode === 'autonomy_queue') return output(autonomyQueueSummary(deps.commandContext, args));

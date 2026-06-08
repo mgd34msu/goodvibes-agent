@@ -173,10 +173,31 @@ function valuesMatch(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function isSecretLikeSettingKey(key: string): boolean {
+  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1.$2').toLowerCase();
+  if (normalized.endsWith('secret.policy')) return false;
+  return /(?:secret|token|password|api[-_.]?key|api\.key|signing)/i.test(normalized);
+}
+
+function compactSettingValue(key: string, value: unknown): string {
+  if (value === undefined || value === null) return '(unset)';
+  if (isSecretLikeSettingKey(key)) return value === '' ? '(empty)' : '(secret)';
+  if (typeof value === 'boolean') return value ? 'true' : 'false';
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : '(invalid)';
+  if (typeof value === 'string') {
+    if (value.length === 0) return '(empty)';
+    if (value.startsWith('goodvibes://secrets/')) return '(secret)';
+    return value.length > 36 ? `${value.slice(0, 33)}...` : value;
+  }
+  if (Array.isArray(value)) return `[${value.length} item${value.length === 1 ? '' : 's'}]`;
+  if (isRecord(value)) return '{...}';
+  return String(value);
+}
+
 function redactImportValue(key: string, value: unknown): unknown {
   if (typeof value !== 'string') return value;
   if (!value) return value;
-  if (/(?:secret|token|password|api[-_.]?key|signing)/i.test(key)) {
+  if (isSecretLikeSettingKey(key)) {
     return value.startsWith('goodvibes://secrets/') ? '<secret-ref>' : '<redacted>';
   }
   return value;
@@ -367,6 +388,36 @@ export function buildAgentWorkspaceSettingActionEffect(
       safety: action.safety,
     },
   };
+}
+
+export function buildAgentWorkspaceSettingActionPreview(
+  context: CommandContext | null,
+  action: AgentWorkspaceAction,
+): string | null {
+  const settingKey = action.settingKey?.trim();
+  const configManager = context?.platform?.configManager;
+  if (!settingKey || !configManager) return null;
+
+  const setting = agentWorkspaceSettingSchema(context, settingKey);
+  const currentValue = configManager.get(settingKey as ConfigKey);
+  let proposedValue: unknown;
+
+  if (action.settingValueHint !== undefined) {
+    proposedValue = action.settingValueHint;
+  } else if (setting?.type === 'boolean') {
+    proposedValue = !Boolean(currentValue);
+  } else if (setting?.type === 'enum' && setting.enumValues && setting.enumValues.length > 0) {
+    const currentIndex = Math.max(0, setting.enumValues.indexOf(String(currentValue)));
+    proposedValue = setting.enumValues[(currentIndex + 1) % setting.enumValues.length]!;
+  } else if (setting?.type === 'number' || setting?.type === 'string') {
+    proposedValue = 'edit value';
+  } else if (typeof currentValue === 'boolean') {
+    proposedValue = !currentValue;
+  } else {
+    proposedValue = 'choose value';
+  }
+
+  return `${settingKey}: ${compactSettingValue(settingKey, currentValue)} -> ${compactSettingValue(settingKey, proposedValue)}`;
 }
 
 export async function applyAgentWorkspaceSettingValue(

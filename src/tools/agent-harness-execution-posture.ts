@@ -3,6 +3,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { browserControlPosture } from './agent-harness-browser-control.ts';
 import { delegationDecisionCards } from './agent-harness-delegation-posture.ts';
 import { fileRecoveryCatalogStatus } from './agent-harness-file-recovery.ts';
+import { interactiveRuntimeCapabilitySummary } from './agent-harness-interactive-runtime-records.ts';
 import { sudoExecutionPosture } from './agent-harness-sudo-posture.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -333,6 +334,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       browserControlSetup: browserControl,
       delegationDecisionCards: delegationCards,
       sudoPosture: sudoExecutionPosture(context),
+      interactiveRuntime: interactiveRuntimeCapabilitySummary(context),
       executionHistory: 'execution action:"history"',
       backgroundProcesses: 'execution action:"processes"',
       fileRecovery: fileRecoveryCatalogStatus(context),
@@ -343,6 +345,7 @@ export function executionPostureSummary(context: CommandContext, toolRegistry: T
       'Do not delegate ordinary local implementation, fix, review, or verification work when local tools and permissions are sufficient.',
       'Do delegate when isolation, parallelism, remote execution, a separate worktree, or a requested delegated review improves the user outcome.',
       'Report setup gaps directly for browser/desktop control instead of pretending browser automation exists.',
+      'Treat PTY, sudo, live output, and browser/desktop command execution as ready only when certified SDK/daemon runtime records publish exact visible routes and receipts.',
       'Use tracked background processes for approved long-running local commands instead of hidden exec background mode.',
     ],
     routes: routes.map((route) => describeRoute(route, context, toolRegistry, { includeParameters })),

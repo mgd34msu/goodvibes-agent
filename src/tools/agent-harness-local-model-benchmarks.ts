@@ -3,7 +3,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { readArtifactStore } from './agent-harness-model-catalog.ts';
 import { localStackFor } from './agent-harness-local-model-endpoints.ts';
-import type { LocalModelBenchmarkEvidence, LocalModelBenchmarkPlan, LocalModelBenchmarkWinner, LocalModelRecipe } from './agent-harness-model-routing-types.ts';
+import type { LocalModelBenchmarkEvidence, LocalModelBenchmarkPlan, LocalModelBenchmarkRouteLatency, LocalModelBenchmarkWinner, LocalModelRecipe } from './agent-harness-model-routing-types.ts';
 import { readRecord, readString } from './agent-harness-model-routing-utils.ts';
 
 export function isLocalModelBenchmarkArtifact(artifact: ArtifactDescriptor): boolean {
@@ -24,6 +24,7 @@ export function benchmarkCreatedAt(artifact: ArtifactDescriptor): string | null 
 }
 
 export function describeLocalBenchmarkArtifact(artifact: ArtifactDescriptor): Record<string, unknown> {
+  const routeLatencies = localBenchmarkRouteLatenciesForArtifact(artifact);
   return {
     artifactId: artifact.id,
     ...(artifact.filename ? { filename: artifact.filename } : {}),
@@ -32,6 +33,14 @@ export function describeLocalBenchmarkArtifact(artifact: ArtifactDescriptor): Re
     promptPreview: previewHarnessText(readString(artifact.metadata.promptPreview) || 'local model benchmark', 120),
     candidateCount: artifact.metadata.candidateCount ?? null,
     completedCandidates: artifact.metadata.completedCandidates ?? null,
+    ...(routeLatencies.length > 0 ? {
+      routeLatencies: routeLatencies.map((entry) => ({
+        registryKey: entry.registryKey,
+        latencyMs: entry.latencyMs,
+        status: entry.status,
+        blindId: entry.blindId,
+      })),
+    } : {}),
     benchmarkKind: readString(artifact.metadata.benchmarkKind) || 'local-model-route',
     reviewRoute: `agent_model_compare review artifactId:"${artifact.id}"`,
     revealRoute: `agent_model_compare reveal artifactId:"${artifact.id}"`,
@@ -61,6 +70,64 @@ export function describeLocalBenchmarkJudgment(artifact: ArtifactDescriptor): Re
   };
 }
 
+function readLatencyMs(value: unknown): number | null {
+  const numberValue = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
+  return Number.isFinite(numberValue) && numberValue >= 0 ? Math.round(numberValue) : null;
+}
+
+export function localBenchmarkRouteLatenciesForArtifact(artifact: ArtifactDescriptor): readonly LocalModelBenchmarkRouteLatency[] {
+  const evidence = artifact.metadata.candidateLatencyEvidence;
+  if (!Array.isArray(evidence)) return [];
+  const comparisonId = readString(artifact.metadata.comparisonId) || null;
+  const createdAt = benchmarkCreatedAt(artifact);
+  return evidence.map((entry, index) => {
+    const record = readRecord(entry);
+    const registryKey = readString(record.registryKey);
+    const latencyMs = readLatencyMs(record.latencyMs);
+    if (!registryKey || latencyMs == null) return null;
+    const blindId = readString(record.blindId) || String.fromCharCode(65 + index);
+    return {
+      registryKey,
+      providerId: readString(record.providerId),
+      modelId: readString(record.modelId) || registryKey,
+      displayName: readString(record.displayName) || registryKey,
+      blindId,
+      latencyMs,
+      status: readString(record.status) || 'completed',
+      artifactId: artifact.id,
+      comparisonId,
+      createdAt,
+      reviewRoute: `agent_model_compare review artifactId:"${artifact.id}"`,
+    };
+  }).filter((entry): entry is LocalModelBenchmarkRouteLatency => entry !== null);
+}
+
+export function localBenchmarkRouteLatencies(artifacts: readonly ArtifactDescriptor[]): readonly LocalModelBenchmarkRouteLatency[] {
+  const byRoute = new Map<string, LocalModelBenchmarkRouteLatency>();
+  for (const artifact of artifacts) {
+    for (const latency of localBenchmarkRouteLatenciesForArtifact(artifact)) {
+      const current = byRoute.get(latency.registryKey);
+      if (!current) {
+        byRoute.set(latency.registryKey, latency);
+        continue;
+      }
+      const currentTime = current.createdAt ? Date.parse(current.createdAt) : 0;
+      const candidateTime = latency.createdAt ? Date.parse(latency.createdAt) : 0;
+      if (candidateTime > currentTime || (candidateTime === currentTime && latency.latencyMs < current.latencyMs)) {
+        byRoute.set(latency.registryKey, latency);
+      }
+    }
+  }
+  return [...byRoute.values()].sort((left, right) => left.registryKey.localeCompare(right.registryKey));
+}
+
+export function localBenchmarkRouteLatencyMap(context: CommandContext): ReadonlyMap<string, LocalModelBenchmarkRouteLatency> {
+  const store = readArtifactStore(context);
+  if (!store?.list) return new Map();
+  const artifacts = store.list(100).filter(isLocalModelBenchmarkArtifact);
+  return new Map(localBenchmarkRouteLatencies(artifacts).map((entry) => [entry.registryKey, entry]));
+}
+
 export function localBenchmarkEvidence(
   comparisons: readonly ArtifactDescriptor[],
   judgments: readonly ArtifactDescriptor[],
@@ -75,6 +142,7 @@ export function localBenchmarkEvidence(
       hiddenJudgmentCount: 0,
       winnerStacks: [],
       winnerModels: [],
+      routeLatencies: [],
       summary: 'Artifact history is unavailable in this runtime.',
       confidence: 'estimated',
     };
@@ -106,6 +174,7 @@ export function localBenchmarkEvidence(
     const value = artifact.metadata.completedCandidates;
     return total + (typeof value === 'number' && Number.isFinite(value) ? value : 0);
   }, 0);
+  const routeLatencies = localBenchmarkRouteLatencies(comparisons);
   const status: LocalModelBenchmarkEvidence['status'] = winnerModels.length > 0
     ? 'reviewed-winner'
     : comparisons.length > 0
@@ -119,6 +188,7 @@ export function localBenchmarkEvidence(
     hiddenJudgmentCount,
     winnerStacks,
     winnerModels,
+    routeLatencies,
     summary: winnerModels.length > 0
       ? `Reviewed benchmark winner(s): ${winnerModels.map((winner) => winner.registryKey).join(', ')}.`
       : comparisons.length > 0

@@ -1,87 +1,11 @@
 import type { CommandContext } from '../input/command-registry.ts';
-import type { AgentHarnessModelRoutingArgs, LocalModelDetection, LocalModelEndpointSource, LocalModelServerDefaultEndpoint, LocalModelServerEndpoint, LocalModelServerHealthMap, LocalModelSmokeTarget, MutableLocalModelServerEndpoint } from './agent-harness-model-routing-types.ts';
+import type { LocalModelDetection, LocalModelEndpointSource, LocalModelServerDefaultEndpoint, LocalModelServerDiagnosticsPublication, LocalModelServerEndpoint, LocalModelServerHealthMap, LocalModelServerServingDiagnostics, MutableLocalModelServerEndpoint } from './agent-harness-model-routing-types.ts';
 import { listProviderIds, listProviderRegistryProviders, listRegistryModels, modelDisplayName, modelModelId, modelProviderId, modelRegistryKey, readProviderModels } from './agent-harness-model-catalog.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { readLimit, readRecord, readString } from './agent-harness-model-routing-utils.ts';
+import { extractUrls, isPrivateOrLocalUrl, localStackFor, modelsUrlFor, normalizeLocalBaseUrl, parseUrlCandidate } from './agent-harness-local-model-url.ts';
 
-export function localStackFor(value: string): string | null {
-  const normalized = value.toLowerCase();
-  if (/ollama[-_\s]?cloud/.test(normalized)) return null;
-  if (/\bollama\b/.test(normalized)) return 'ollama';
-  if (/llama[.-]?cpp|llamacpp/.test(normalized)) return 'llama.cpp';
-  if (/\bvllm\b/.test(normalized)) return 'vllm';
-  if (/lm[-_\s]?studio/.test(normalized)) return 'openai-compatible';
-  if (/localai|text-generation-inference|\btgi\b/.test(normalized)) return 'openai-compatible';
-  if (/localhost|127\.0\.0\.1|\[?::1\]?/.test(normalized)) return 'openai-compatible';
-  if (/openai-compatible|openai compatible|custom-provider|custom provider/.test(normalized)) return 'openai-compatible';
-  return null;
-}
-
-export function cleanUrlCandidate(value: string): string {
-  return value.trim().replace(/[),.;]+$/g, '');
-}
-
-export function extractUrls(value: string): readonly string[] {
-  const matches = value.match(/https?:\/\/[^\s"'`<>]+/gi) ?? [];
-  return [...new Set(matches.map(cleanUrlCandidate).filter(Boolean))];
-}
-
-export function parseUrlCandidate(raw: string): URL | null {
-  const trimmed = cleanUrlCandidate(raw);
-  if (!trimmed) return null;
-  const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : `http://${trimmed}`;
-  try {
-    return new URL(withScheme);
-  } catch {
-    return null;
-  }
-}
-
-export function isPrivateOrLocalHost(hostname: string): boolean {
-  const host = hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (!host) return false;
-  if (host === 'localhost' || host === '0.0.0.0' || host === '::1') return true;
-  if (host.endsWith('.local')) return true;
-  if (host.includes(':')) return host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80:');
-  const octets = host.split('.').map((entry) => Number(entry));
-  if (octets.length === 4 && octets.every((entry) => Number.isInteger(entry) && entry >= 0 && entry <= 255)) {
-    const [first, second] = octets as [number, number, number, number];
-    return first === 10
-      || first === 127
-      || (first === 172 && second >= 16 && second <= 31)
-      || (first === 192 && second === 168)
-      || (first === 169 && second === 254)
-      || first === 0;
-  }
-  return !host.includes('.');
-}
-
-export function isPrivateOrLocalUrl(raw: string): boolean {
-  const url = parseUrlCandidate(raw);
-  if (!url || !/^https?:$/.test(url.protocol)) return false;
-  return isPrivateOrLocalHost(url.hostname);
-}
-
-export function normalizeLocalBaseUrl(raw: string, stackHint?: string | null): string | null {
-  const url = parseUrlCandidate(raw);
-  if (!url || !/^https?:$/.test(url.protocol)) return null;
-  const stack = stackHint ?? localStackFor(raw) ?? (isPrivateOrLocalHost(url.hostname) ? 'openai-compatible' : null);
-  if (!isPrivateOrLocalUrl(url.href)) return null;
-
-  let pathname = url.pathname.replace(/\/+$/g, '');
-  if (pathname.endsWith('/models')) pathname = pathname.slice(0, -'/models'.length);
-  if (pathname.endsWith('/api/tags')) pathname = pathname.slice(0, -'/api/tags'.length);
-  const needsOpenAiPath = stack === 'ollama' || stack === 'llama.cpp' || stack === 'vllm' || stack === 'openai-compatible';
-  if (needsOpenAiPath && (!pathname || pathname === '/')) pathname = '/v1';
-  url.pathname = pathname || '';
-  url.search = '';
-  url.hash = '';
-  return url.toString().replace(/\/+$/g, '');
-}
-
-export function modelsUrlFor(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/g, '')}/models`;
-}
+export { cleanUrlCandidate, extractUrls, isPrivateOrLocalHost, isPrivateOrLocalUrl, localStackFor, modelsUrlFor, normalizeLocalBaseUrl, parseUrlCandidate } from './agent-harness-local-model-url.ts';
 
 export function localProviderNameFor(providerId: string | null, stack: string | null, fallback: string): string {
   const seed = providerId || stack || fallback;
@@ -126,6 +50,448 @@ export function localEndpointDiagnostics(endpoint: MutableLocalModelServerEndpoi
       : ['Add the provider route only after smoke succeeds, then refresh models and run a local benchmark.'],
     policy: 'Diagnostics are read-only criteria and confirmed route hints. Agent probes local model-list endpoints only through models action:"smoke" after explicit confirmation; provider add, refresh, benchmark, and route changes remain separate actions.',
   };
+}
+
+interface LocalModelServingReadModelSource {
+  readonly path: string;
+  readonly source: unknown;
+}
+
+interface LocalModelServingDiagnosticRecord extends LocalModelServerServingDiagnostics {
+  readonly baseUrl: string | null;
+  readonly modelsUrl: string | null;
+  readonly providerId: string | null;
+  readonly stack: string | null;
+}
+
+interface LocalModelServingDiagnosticIndex {
+  readonly records: readonly LocalModelServingDiagnosticRecord[];
+  readonly publication: Omit<LocalModelServerDiagnosticsPublication, 'matchedEndpointCount'>;
+}
+
+const LOCAL_MODEL_SERVING_READ_MODEL_PATHS = [
+  'context.platform.readModels.localModelServers',
+  'context.platform.readModels.localModelServing',
+  'context.platform.readModels.localModelDiagnostics',
+  'context.platform.readModels.models.localServers',
+  'context.platform.readModels.models.servingDiagnostics',
+  'context.platform.readModels.localModels.servingDiagnostics',
+  'context.platform.readModels.ollama.servingDiagnostics',
+  'context.platform.readModels.llamaCpp.servingDiagnostics',
+  'context.platform.readModels.vllm.servingDiagnostics',
+  'context.platform.readModels.localAi.servingDiagnostics',
+  'context.platform.readModels.openAiCompatible.servingDiagnostics',
+  'context.platform.localModelServing',
+  'context.clients.operator.models.servingDiagnostics',
+  'context.clients.operator.localModelServingDiagnostics',
+] as const;
+
+const LOCAL_MODEL_SECRET_PATTERNS: readonly [RegExp, string][] = [
+  [/("?\b(?:api[-_]?key|apikey|token|secret|password|passwd|credential|authorization)\b"?\s*:\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, '$1"<redacted>"'],
+  [/\b([A-Z0-9_]*(?:API[_-]?KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|AUTHORIZATION|BEARER)[A-Z0-9_]*)=("[^"]*"|'[^']*'|[^\s]+)/gi, '$1=<redacted>'],
+  [/(\b(?:token|secret|password|passwd|api[-_]?key|apikey|authorization|credential)\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,}]+)/gi, '$1<redacted>'],
+  [/(Authorization:\s*Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1<redacted>'],
+];
+
+function redactLocalModelDiagnosticText(value: string): string {
+  return LOCAL_MODEL_SECRET_PATTERNS.reduce((text, [pattern, replacement]) => text.replace(pattern, replacement), value);
+}
+
+function readNumber(value: unknown): number | null {
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  return typeof parsed === 'number' && Number.isFinite(parsed) ? parsed : null;
+}
+
+function readBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', 'yes', '1', 'supported', 'enabled'].includes(normalized)) return true;
+    if (['false', 'no', '0', 'unsupported', 'disabled'].includes(normalized)) return false;
+  }
+  return null;
+}
+
+function readStringArray(value: unknown): readonly string[] {
+  const values = Array.isArray(value) ? value : [];
+  return [...new Set(values.map((entry) => {
+    if (typeof entry === 'string') return entry.trim();
+    const record = readRecord(entry);
+    return readString(record.id) || readString(record.name) || readString(record.model) || readString(record.modelId);
+  }).filter(Boolean))].slice(0, 12);
+}
+
+function firstString(record: Record<string, unknown>, keys: readonly string[]): string {
+  for (const key of keys) {
+    const value = readString(record[key]);
+    if (value) return value;
+  }
+  return '';
+}
+
+function firstNumber(record: Record<string, unknown>, keys: readonly string[]): number | null {
+  for (const key of keys) {
+    const value = readNumber(record[key]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function firstBoolean(record: Record<string, unknown>, keys: readonly string[]): boolean | null {
+  for (const key of keys) {
+    const value = readBoolean(record[key]);
+    if (value !== null) return value;
+  }
+  return null;
+}
+
+function isoFromDiagnosticValue(value: unknown): string | null {
+  const timestamp = typeof value === 'number' && Number.isFinite(value)
+    ? value
+    : typeof value === 'string' && value.trim()
+      ? Date.parse(value)
+      : Number.NaN;
+  return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString();
+}
+
+function localServingStatus(record: Record<string, unknown>, loadedModelCount: number): LocalModelServerServingDiagnostics['status'] {
+  const value = firstString(record, ['status', 'healthStatus', 'state', 'result', 'outcome']).toLowerCase().replace(/[_\s]+/g, '-');
+  if (['ready', 'ok', 'healthy', 'running', 'online', 'passed', 'success', 'succeeded', 'available'].includes(value)) return 'ready';
+  if (['blocked', 'missing', 'unavailable', 'unreachable', 'offline', 'not-running', 'needs-setup'].includes(value)) return 'blocked';
+  if (['degraded', 'attention', 'warning', 'slow', 'resource-pressure', 'limited'].includes(value)) return 'attention';
+  if (loadedModelCount > 0) return 'ready';
+  return 'unknown';
+}
+
+function localResourcePressure(record: Record<string, unknown>): LocalModelServerServingDiagnostics['resourcePressure'] {
+  const value = firstString(record, ['resourcePressure', 'pressure', 'memoryPressure', 'vramPressure']).toLowerCase().replace(/[_\s]+/g, '-');
+  if (['low', 'ok', 'normal', 'healthy'].includes(value)) return 'low';
+  if (['moderate', 'medium', 'warning', 'attention'].includes(value)) return 'moderate';
+  if (['high', 'critical', 'exhausted', 'oom'].includes(value)) return 'high';
+  const usage = firstNumber(record, ['memoryUsagePercent', 'memoryPercent', 'vramUsagePercent', 'gpuMemoryPercent']);
+  if (usage !== null) return usage >= 90 ? 'high' : usage >= 70 ? 'moderate' : 'low';
+  return 'unknown';
+}
+
+function localResourceSummary(record: Record<string, unknown>, pressure: LocalModelServerServingDiagnostics['resourcePressure']): string | undefined {
+  const explicit = firstString(record, ['resourceSummary', 'resources', 'resourceDetail']);
+  if (explicit) return redactLocalModelDiagnosticText(previewHarnessText(explicit, 180));
+  const parts = [
+    firstNumber(record, ['memoryUsagePercent', 'memoryPercent']) !== null ? `memory ${firstNumber(record, ['memoryUsagePercent', 'memoryPercent'])}%` : '',
+    firstNumber(record, ['vramUsagePercent', 'gpuMemoryPercent']) !== null ? `vram ${firstNumber(record, ['vramUsagePercent', 'gpuMemoryPercent'])}%` : '',
+    firstNumber(record, ['cpuPercent', 'cpuUsagePercent']) !== null ? `cpu ${firstNumber(record, ['cpuPercent', 'cpuUsagePercent'])}%` : '',
+  ].filter(Boolean);
+  if (parts.length > 0) return `${pressure} pressure; ${parts.join(', ')}.`;
+  return undefined;
+}
+
+function firstStringFromRecords(records: readonly Record<string, unknown>[], keys: readonly string[]): string {
+  for (const record of records) {
+    const value = firstString(record, keys);
+    if (value) return value;
+  }
+  return '';
+}
+
+function localServingSchemaStatus(record: Record<string, unknown>): LocalModelServerServingDiagnostics['schemaStatus'] {
+  const records = [record, readRecord(record.schema), readRecord(record.contract), readRecord(record.receipt)];
+  const explicit = firstStringFromRecords(records, ['schemaStatus', 'receiptSchemaStatus', 'certificationStatus']).toLowerCase().replace(/[_\s]+/g, '-');
+  if (['certified', 'valid', 'verified', 'schema-certified'].includes(explicit)) return 'certified';
+  const schemaVersion = firstStringFromRecords(records, ['schemaVersion', 'receiptSchemaVersion', 'contractVersion']);
+  const provenance = firstStringFromRecords(records, ['methodId', 'sourceTool', 'actionId']);
+  const publicationGuarantee = firstStringFromRecords(records, ['publicationGuarantee', 'hostPublicationGuarantee', 'servingPublicationGuarantee']);
+  return schemaVersion && provenance && publicationGuarantee ? 'certified' : 'legacy';
+}
+
+function routeTextFromDiagnosticValue(value: unknown): string {
+  const direct = readString(value);
+  if (direct) return previewHarnessText(redactLocalModelDiagnosticText(direct), 260);
+  const record = readRecord(value);
+  const route = firstString(record, ['route', 'modelRoute', 'operatorRoute', 'methodRoute', 'commandRoute']);
+  return route ? previewHarnessText(redactLocalModelDiagnosticText(route), 260) : '';
+}
+
+function diagnosticRouteFromRecord(record: Record<string, unknown>, keys: readonly string[]): string {
+  for (const key of keys) {
+    const route = routeTextFromDiagnosticValue(record[key]);
+    if (route) return route;
+  }
+  for (const nestedKey of ['routes', 'actions', 'controls', 'operatorRoutes', 'hostRoutes', 'receiptRoutes']) {
+    const nested = readRecord(record[nestedKey]);
+    for (const key of keys) {
+      const route = routeTextFromDiagnosticValue(nested[key]);
+      if (route) return route;
+    }
+  }
+  return '';
+}
+
+function diagnosticPublicationGuarantee(record: Record<string, unknown>): string {
+  const value = firstStringFromRecords(
+    [record, readRecord(record.schema), readRecord(record.contract), readRecord(record.receipt)],
+    ['publicationGuarantee', 'hostPublicationGuarantee', 'servingPublicationGuarantee'],
+  );
+  return value ? previewHarnessText(redactLocalModelDiagnosticText(value), 220) : '';
+}
+
+function localServingProvenance(
+  record: Record<string, unknown>,
+  startRoute: string,
+  repairRoute: string,
+): readonly string[] {
+  const explicit = readStringArray(record.provenance);
+  const values = [
+    ...explicit,
+    firstStringFromRecords([record, readRecord(record.receipt)], ['methodId']) ? `method ${firstStringFromRecords([record, readRecord(record.receipt)], ['methodId'])}` : '',
+    firstString(record, ['actionId']) ? `action ${firstString(record, ['actionId'])}` : '',
+    firstString(record, ['sourceTool']) ? `sourceTool ${firstString(record, ['sourceTool'])}` : '',
+    startRoute ? `start ${startRoute}` : '',
+    repairRoute ? `repair ${repairRoute}` : '',
+  ];
+  return [...new Set(values
+    .map((entry) => previewHarnessText(redactLocalModelDiagnosticText(entry), 220))
+    .filter(Boolean))]
+    .slice(0, 8);
+}
+
+function setupServingReadModelSources(context: CommandContext): readonly LocalModelServingReadModelSource[] {
+  const contextRecord = context as unknown as Record<string, unknown>;
+  const platform = readRecord(contextRecord.platform);
+  const clients = readRecord(contextRecord.clients);
+  const readModels = readRecord(platform.readModels);
+  const modelReadModels = readRecord(readModels.models);
+  const localModels = readRecord(readModels.localModels);
+  const ollama = readRecord(readModels.ollama);
+  const llamaCpp = readRecord(readModels.llamaCpp);
+  const vllm = readRecord(readModels.vllm);
+  const localAi = readRecord(readModels.localAi);
+  const openAiCompatible = readRecord(readModels.openAiCompatible);
+  const operator = readRecord(clients.operator);
+  const operatorModels = readRecord(operator.models);
+  return [
+    { path: 'context.platform.readModels.localModelServers', source: readModels.localModelServers },
+    { path: 'context.platform.readModels.localModelServing', source: readModels.localModelServing },
+    { path: 'context.platform.readModels.localModelDiagnostics', source: readModels.localModelDiagnostics },
+    { path: 'context.platform.readModels.models.localServers', source: modelReadModels.localServers },
+    { path: 'context.platform.readModels.models.servingDiagnostics', source: modelReadModels.servingDiagnostics },
+    { path: 'context.platform.readModels.localModels.servingDiagnostics', source: localModels.servingDiagnostics },
+    { path: 'context.platform.readModels.ollama.servingDiagnostics', source: ollama.servingDiagnostics },
+    { path: 'context.platform.readModels.llamaCpp.servingDiagnostics', source: llamaCpp.servingDiagnostics },
+    { path: 'context.platform.readModels.vllm.servingDiagnostics', source: vllm.servingDiagnostics },
+    { path: 'context.platform.readModels.localAi.servingDiagnostics', source: localAi.servingDiagnostics },
+    { path: 'context.platform.readModels.openAiCompatible.servingDiagnostics', source: openAiCompatible.servingDiagnostics },
+    { path: 'context.platform.localModelServing', source: platform.localModelServing },
+    { path: 'context.clients.operator.models.servingDiagnostics', source: operatorModels.servingDiagnostics },
+    { path: 'context.clients.operator.localModelServingDiagnostics', source: operator.localModelServingDiagnostics },
+  ];
+}
+
+function readServingSnapshot(source: unknown): unknown {
+  if (typeof source === 'function') {
+    const value = (source as () => unknown)();
+    return value instanceof Promise ? null : value;
+  }
+  const record = readRecord(source);
+  for (const methodName of ['getSnapshot', 'snapshot', 'list', 'listDiagnostics', 'listServingDiagnostics', 'listLocalServers', 'listServers', 'readSnapshot']) {
+    const method = record[methodName];
+    if (typeof method === 'function') {
+      const value = (method as () => unknown)();
+      return value instanceof Promise ? null : value;
+    }
+  }
+  return source;
+}
+
+function diagnosticEntriesFromSnapshot(snapshot: unknown): readonly unknown[] {
+  if (Array.isArray(snapshot)) return snapshot;
+  if (snapshot instanceof Map) return [...snapshot.entries()].map(([id, entry]) => {
+    const entryRecord = readRecord(entry);
+    return Object.keys(entryRecord).length > 0 && !readString(entryRecord.id) ? { ...entryRecord, id } : entry;
+  });
+  const record = readRecord(snapshot);
+  for (const key of ['localModelServers', 'localServers', 'servingDiagnostics', 'diagnostics', 'servers', 'endpoints', 'records', 'items', 'entries']) {
+    const value = record[key];
+    if (value instanceof Map) return [...value.entries()].map(([id, entry]) => {
+      const entryRecord = readRecord(entry);
+      return Object.keys(entryRecord).length > 0 && !readString(entryRecord.id) ? { ...entryRecord, id } : entry;
+    });
+    if (Array.isArray(value)) return value;
+    const valueRecord = readRecord(value);
+    if (Object.keys(valueRecord).length > 0) {
+      return Object.entries(valueRecord).map(([id, entry]) => {
+        const entryRecord = readRecord(entry);
+        return Object.keys(entryRecord).length > 0 && !readString(entryRecord.id) ? { ...entryRecord, id } : entry;
+      });
+    }
+  }
+  return Object.keys(record).length > 0 ? [record] : [];
+}
+
+function isLocalServingDiagnosticRecord(record: Record<string, unknown>): boolean {
+  const base = firstString(record, ['baseUrl', 'baseURL', 'endpoint', 'url', 'modelsUrl', 'serverUrl']);
+  const providerId = firstString(record, ['providerId', 'provider', 'providerName']);
+  if (!base && !providerId) return false;
+  return Boolean(
+    firstString(record, ['serverVersion', 'version', 'resourcePressure', 'status', 'healthStatus', 'startReceiptId', 'repairReceiptId', 'receiptId'])
+      || readStringArray(record.loadedModels).length > 0
+      || readStringArray(record.models).length > 0
+      || firstNumber(record, ['loadedModelCount', 'modelCount', 'contextWindowTokens', 'memoryUsagePercent', 'vramUsagePercent']) !== null,
+  );
+}
+
+function normalizeServingDiagnosticRecord(value: unknown, source: string): LocalModelServingDiagnosticRecord | null {
+  const record = {
+    ...readRecord(readRecord(value).metadata),
+    ...readRecord(value),
+  };
+  if (!isLocalServingDiagnosticRecord(record)) return null;
+  const stack = firstString(record, ['stack', 'serverType', 'backend']) || localStackFor(JSON.stringify(record)) || null;
+  const rawBaseUrl = firstString(record, ['baseUrl', 'baseURL', 'endpoint', 'url', 'serverUrl']);
+  const rawModelsUrl = firstString(record, ['modelsUrl', 'modelListUrl']);
+  const baseUrl = rawBaseUrl
+    ? normalizeLocalBaseUrl(rawBaseUrl, stack)
+    : rawModelsUrl
+      ? normalizeLocalBaseUrl(rawModelsUrl, stack)
+      : null;
+  const modelsUrl = rawModelsUrl
+    ? modelsUrlFor(normalizeLocalBaseUrl(rawModelsUrl, stack) ?? rawModelsUrl.replace(/\/models\/?$/i, ''))
+    : baseUrl
+      ? modelsUrlFor(baseUrl)
+      : null;
+  const loadedModels = readStringArray(record.loadedModels).length > 0
+    ? readStringArray(record.loadedModels)
+    : readStringArray(record.models).length > 0
+      ? readStringArray(record.models)
+      : readStringArray(record.modelIds);
+  const loadedModelCount = firstNumber(record, ['loadedModelCount', 'modelCount']) ?? loadedModels.length;
+  const status = localServingStatus(record, loadedModelCount);
+  const resourcePressure = localResourcePressure(record);
+  const summary = redactLocalModelDiagnosticText(firstString(record, ['summary', 'detail', 'message']))
+    || `${providerIdLabel(firstString(record, ['providerId', 'provider', 'providerName']))} local serving diagnostics are ${status}.`;
+  const serverVersion = firstString(record, ['serverVersion', 'version']);
+  const contextWindowTokens = firstNumber(record, ['contextWindowTokens', 'contextWindow', 'maxContextTokens']);
+  const toolSupport = firstBoolean(record, ['toolSupport', 'toolCalling', 'supportsTools', 'supportsToolCalling']);
+  const startReceiptId = firstString(record, ['startReceiptId', 'startupReceiptId']);
+  const repairReceiptId = firstString(record, ['repairReceiptId', 'restartReceiptId']);
+  const receiptStatus = firstString(record, ['receiptStatus', 'receiptOutcome']);
+  const schemaStatus = localServingSchemaStatus(record);
+  const schemaVersion = firstStringFromRecords(
+    [record, readRecord(record.schema), readRecord(record.contract), readRecord(record.receipt)],
+    ['schemaVersion', 'receiptSchemaVersion', 'contractVersion'],
+  );
+  const publicationGuarantee = diagnosticPublicationGuarantee(record);
+  const publisher = firstString(record, ['publisher', 'publisherId', 'daemonId', 'hostId']);
+  const startRoute = diagnosticRouteFromRecord(record, ['startRoute', 'startupRoute', 'startModelServerRoute', 'startServerRoute', 'startActionRoute', 'startCommandRoute']);
+  const repairRoute = diagnosticRouteFromRecord(record, ['repairRoute', 'restartRoute', 'restartServerRoute', 'repairModelServerRoute', 'repairActionRoute', 'repairCommandRoute']);
+  const provenance = localServingProvenance(record, startRoute, repairRoute);
+  const missingSignals = [
+    ...(schemaStatus === 'certified' ? [] : ['Certified local serving diagnostics schema is not published.']),
+    ...(serverVersion ? [] : ['Server version is not published.']),
+    ...(loadedModelCount > 0 ? [] : ['Loaded model detail is not published.']),
+    ...(contextWindowTokens !== null ? [] : ['Context-window support is not published.']),
+    ...(toolSupport !== null ? [] : ['Tool-support capability is not published.']),
+    ...(resourcePressure !== 'unknown' ? [] : ['Resource pressure is not published.']),
+    ...(startReceiptId || repairReceiptId ? [] : ['Start/repair receipt ids are not published.']),
+    ...(startRoute || repairRoute ? [] : ['Host-published start/repair execution routes are not published.']),
+  ];
+  return {
+    status,
+    source,
+    summary: previewHarnessText(summary, 220),
+    schemaStatus,
+    ...(schemaVersion ? { schemaVersion: previewHarnessText(redactLocalModelDiagnosticText(schemaVersion), 80) } : {}),
+    ...(provenance.length > 0 ? { provenance } : {}),
+    ...(publicationGuarantee ? { publicationGuarantee } : {}),
+    ...(publisher ? { publisher: previewHarnessText(redactLocalModelDiagnosticText(publisher), 80) } : {}),
+    ...(serverVersion ? { serverVersion: previewHarnessText(serverVersion, 80) } : {}),
+    ...(loadedModelCount > 0 ? { loadedModelCount } : {}),
+    loadedModels: loadedModels.map((model) => previewHarnessText(model, 96)),
+    ...(contextWindowTokens !== null ? { contextWindowTokens } : {}),
+    ...(toolSupport !== null ? { toolSupport } : {}),
+    resourcePressure,
+    ...(localResourceSummary(record, resourcePressure) ? { resourceSummary: localResourceSummary(record, resourcePressure) } : {}),
+    lastCheckedAt: isoFromDiagnosticValue(firstString(record, ['lastCheckedAt', 'checkedAt', 'updatedAt', 'timestamp']) || record.lastCheckedAt || record.checkedAt || record.updatedAt || record.timestamp),
+    ...(startReceiptId ? { startReceiptId } : {}),
+    ...(repairReceiptId ? { repairReceiptId } : {}),
+    ...(receiptStatus ? { receiptStatus } : {}),
+    ...(startRoute ? { startRoute } : {}),
+    ...(repairRoute ? { repairRoute } : {}),
+    inspectRoute: firstString(record, ['inspectRoute', 'modelRoute', 'route']) || 'models action:"local" includeParameters:true',
+    missingSignals,
+    policy: 'Read-only daemon-published local serving diagnostics. Agent consumes certified version/model/capability/resource/receipt metadata when present, and surfaces start/repair routes only when the host publishes exact confirmed routes; provider edits, refresh, smoke, benchmark, and route changes remain separate visible confirmed actions.',
+    baseUrl,
+    modelsUrl,
+    providerId: firstString(record, ['providerId', 'provider', 'providerName']) || null,
+    stack,
+  };
+}
+
+function providerIdLabel(providerId: string): string {
+  return providerId || 'Detected';
+}
+
+function localServingDiagnosticsIndex(context: CommandContext): LocalModelServingDiagnosticIndex {
+  const records: LocalModelServingDiagnosticRecord[] = [];
+  const sourcePaths = new Set<string>();
+  let sawSource = false;
+  let sawError = false;
+  for (const entry of setupServingReadModelSources(context)) {
+    if (entry.source === undefined || entry.source === null) continue;
+    sawSource = true;
+    try {
+      const sourceRecords = diagnosticEntriesFromSnapshot(readServingSnapshot(entry.source))
+        .flatMap((value) => {
+          const record = normalizeServingDiagnosticRecord(value, entry.path);
+          return record ? [record] : [];
+        });
+      if (sourceRecords.length > 0) sourcePaths.add(entry.path);
+      records.push(...sourceRecords);
+    } catch {
+      sawError = true;
+    }
+  }
+  const status = records.length > 0
+    ? 'published-read-model'
+    : sawError
+      ? 'read-model-error'
+      : sawSource
+        ? 'read-model-empty'
+        : 'not-published';
+  const missingSignals = records.length > 0
+    ? []
+    : ['No daemon-published local serving diagnostics read model is available to Agent yet.'];
+  return {
+    records,
+    publication: {
+      status,
+      requiredPaths: LOCAL_MODEL_SERVING_READ_MODEL_PATHS,
+      sourcePaths: [...sourcePaths],
+      recordCount: records.length,
+      missingSignals,
+      policy: 'Agent reads local serving diagnostics only from SDK/daemon read models. It does not probe local servers until the user confirms models action:"smoke".',
+    },
+  };
+}
+
+function servingDiagnosticForEndpoint(
+  records: readonly LocalModelServingDiagnosticRecord[],
+  endpoint: MutableLocalModelServerEndpoint,
+): LocalModelServingDiagnosticRecord | null {
+  return records.find((record) => record.baseUrl === endpoint.baseUrl || record.modelsUrl === modelsUrlFor(endpoint.baseUrl))
+    ?? records.find((record) => Boolean(record.providerId && endpoint.providerId && record.providerId === endpoint.providerId))
+    ?? null;
+}
+
+export function localModelServerEndpoints(
+  context: CommandContext,
+  includeParameters: boolean,
+): readonly LocalModelServerEndpoint[] {
+  const servingDiagnostics = localServingDiagnosticsIndex(context);
+  return collectLocalServerEndpointCandidates(context).map((endpoint) => describeLocalServerEndpoint(
+    endpoint,
+    includeParameters,
+    servingDiagnosticForEndpoint(servingDiagnostics.records, endpoint),
+  ));
 }
 
 export function localModelServerDefaults(): readonly LocalModelServerDefaultEndpoint[] {
@@ -338,7 +704,11 @@ export function collectLocalServerEndpointCandidates(context: CommandContext): r
   return [...endpoints.values()].sort((left, right) => left.baseUrl.localeCompare(right.baseUrl));
 }
 
-export function describeLocalServerEndpoint(endpoint: MutableLocalModelServerEndpoint, includeParameters = false): LocalModelServerEndpoint {
+export function describeLocalServerEndpoint(
+  endpoint: MutableLocalModelServerEndpoint,
+  includeParameters = false,
+  servingDiagnostics?: LocalModelServerServingDiagnostics | null,
+): LocalModelServerEndpoint {
   const modelsUrl = modelsUrlFor(endpoint.baseUrl);
   const providerExists = Boolean(endpoint.providerId) || endpoint.modelRoutes.size > 0;
   const notes = new Set(endpoint.notes);
@@ -366,6 +736,7 @@ export function describeLocalServerEndpoint(endpoint: MutableLocalModelServerEnd
     refreshRoute: 'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh models after verifying the local server."',
     addProviderRoute: providerExists ? null : localProviderAddRoute(endpoint.providerId, endpoint.stack, endpoint.baseUrl),
     notes: [...notes],
+    ...(servingDiagnostics ? { servingDiagnostics } : {}),
     ...(includeParameters ? { diagnostics: localEndpointDiagnostics(endpoint, providerExists) } : {}),
   };
 }
@@ -374,10 +745,20 @@ export function localModelServerHealthMap(
   context: CommandContext,
   includeParameters: boolean,
 ): LocalModelServerHealthMap {
-  const endpoints = collectLocalServerEndpointCandidates(context).map((endpoint) => describeLocalServerEndpoint(endpoint, includeParameters));
+  const servingDiagnostics = localServingDiagnosticsIndex(context);
+  const rawEndpoints = collectLocalServerEndpointCandidates(context);
+  const matchedEndpointCount = rawEndpoints
+    .filter((endpoint) => Boolean(servingDiagnosticForEndpoint(servingDiagnostics.records, endpoint)))
+    .length;
+  const endpoints = rawEndpoints.map((endpoint) => describeLocalServerEndpoint(
+    endpoint,
+    includeParameters,
+    servingDiagnosticForEndpoint(servingDiagnostics.records, endpoint),
+  ));
   const returned = endpoints.slice(0, includeParameters ? 8 : 3);
   const suggestedDefaults = localModelServerDefaults().slice(0, includeParameters ? 4 : 2);
   const first = returned[0];
+  const hasMatchedDiagnostics = matchedEndpointCount > 0;
   return {
     status: endpoints.length > 0 ? 'candidate-endpoints' : 'no-local-endpoints',
     liveProbe: 'not-run',
@@ -385,8 +766,14 @@ export function localModelServerHealthMap(
     returnedEndpoints: returned.length,
     endpoints: returned,
     suggestedDefaults,
+    daemonDiagnostics: {
+      ...servingDiagnostics.publication,
+      matchedEndpointCount,
+      missingSignals: hasMatchedDiagnostics ? [] : servingDiagnostics.publication.missingSignals,
+    },
     nextActions: endpoints.length > 0
       ? [
+        ...(hasMatchedDiagnostics ? ['Review published local serving diagnostics before smoke, refresh, benchmark, or provider changes.'] : []),
         `Smoke test ${first?.modelsUrl ?? 'the detected model-list endpoint'} before benchmark or route changes.`,
         'Refresh the model catalog after the local server is running and reachable.',
         'Run the local benchmark comparison before making a local route the default.',
@@ -396,278 +783,6 @@ export function localModelServerHealthMap(
         'Add or select the provider route only after the server is reachable.',
         'Refresh models and run the local benchmark before changing the default route.',
       ],
-    policy: 'Read-only local endpoint map. It derives candidate model-list URLs, smoke commands, and confirmed route hints from registry/env metadata; it does not probe the network, install servers, download models, add providers, refresh models, benchmark, or change routes.',
-  };
-}
-
-function localModelSmokeTargetFromEndpoint(endpoint: LocalModelServerEndpoint): LocalModelSmokeTarget {
-  return {
-    kind: endpoint.kind,
-    id: endpoint.id,
-    label: `Local model server ${endpoint.baseUrl}`,
-    providerId: endpoint.providerId,
-    stack: endpoint.stack,
-    baseUrl: endpoint.baseUrl,
-    modelsUrl: endpoint.modelsUrl,
-    smokeCommand: endpoint.smokeCommand,
-    smokeRoute: endpoint.smokeRoute,
-    refreshRoute: endpoint.refreshRoute,
-    addProviderRoute: endpoint.addProviderRoute,
-    source: endpoint.sources.join(', ') || 'local-endpoint',
-    notes: endpoint.notes,
-  };
-}
-
-function localModelSmokeTargetFromDefault(endpoint: LocalModelServerDefaultEndpoint): LocalModelSmokeTarget {
-  return {
-    kind: 'suggested-local-server',
-    id: endpoint.id,
-    label: endpoint.label,
-    providerId: null,
-    stack: endpoint.stack,
-    baseUrl: endpoint.baseUrl,
-    modelsUrl: endpoint.modelsUrl,
-    smokeCommand: endpoint.smokeCommand,
-    smokeRoute: localEndpointSmokeRoute(endpoint.id),
-    refreshRoute: 'agent_harness mode:"run_command" command:"/refresh-models" confirm:true explicitUserRequest:"Refresh models after verifying the local server."',
-    addProviderRoute: endpoint.addProviderRoute,
-    source: 'suggested-default',
-    notes: [endpoint.startHint],
-  };
-}
-
-function localSmokeTargetSearchText(target: LocalModelSmokeTarget): string {
-  return [
-    target.kind,
-    target.id,
-    target.label,
-    target.providerId ?? '',
-    target.stack ?? '',
-    target.baseUrl,
-    target.modelsUrl,
-    target.source,
-    ...target.notes,
-  ].join('\n').toLowerCase();
-}
-
-function localModelSmokeLookup(args: AgentHarnessModelRoutingArgs): string {
-  const fields = readRecord(args.fields);
-  return readString(args.modelRouteId)
-    || readString(args.target)
-    || readString(args.query)
-    || readString(fields.endpointId)
-    || readString(fields.modelRouteId)
-    || readString(fields.baseUrl)
-    || readString(fields.modelsUrl);
-}
-
-function localModelSmokeTargets(context: CommandContext, args: AgentHarnessModelRoutingArgs): Record<string, unknown> | readonly LocalModelSmokeTarget[] {
-  const endpoints = collectLocalServerEndpointCandidates(context)
-    .map((endpoint) => localModelSmokeTargetFromEndpoint(describeLocalServerEndpoint(endpoint, true)));
-  const defaults = localModelServerDefaults().map(localModelSmokeTargetFromDefault);
-  const lookup = localModelSmokeLookup(args);
-  const allTargets = [...endpoints, ...defaults];
-  if (lookup) {
-    const normalized = lookup.toLowerCase();
-    const exact = allTargets.filter((target) => target.id === lookup || target.baseUrl === lookup || target.modelsUrl === lookup);
-    if (exact.length === 1) return exact;
-    if (exact.length > 1) {
-      return {
-        status: 'ambiguous',
-        input: lookup,
-        candidates: exact.slice(0, 8).map((target) => ({
-          kind: target.kind,
-          id: target.id,
-          label: target.label,
-          baseUrl: target.baseUrl,
-          modelsUrl: target.modelsUrl,
-        })),
-      };
-    }
-    const searched = allTargets.filter((target) => localSmokeTargetSearchText(target).includes(normalized));
-    if (searched.length === 1) return searched;
-    if (searched.length > 1) {
-      return {
-        status: 'ambiguous',
-        input: lookup,
-        candidates: searched.slice(0, 8).map((target) => ({
-          kind: target.kind,
-          id: target.id,
-          label: target.label,
-          baseUrl: target.baseUrl,
-          modelsUrl: target.modelsUrl,
-        })),
-      };
-    }
-    return {
-      status: 'missing_lookup',
-      input: lookup,
-      usage: 'Unknown local model endpoint. Use models action:"local" includeParameters:true to inspect local endpoint ids, or omit the lookup to check detected/default local servers.',
-    };
-  }
-  const pool = endpoints.length ? endpoints : defaults;
-  return pool.slice(0, readLimit(args.limit, 4));
-}
-
-function readSmokeTimeoutMs(value: unknown): number {
-  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return 1500;
-  return Math.max(250, Math.min(10000, Math.trunc(parsed)));
-}
-
-function localSmokeNetworkScope(modelsUrl: string): { readonly allowed: boolean; readonly scope: string; readonly reason?: string } {
-  const url = parseUrlCandidate(modelsUrl);
-  if (!url || !/^https?:$/.test(url.protocol)) return { allowed: false, scope: 'invalid-url', reason: 'The model-list URL is not a valid HTTP(S) URL.' };
-  const host = url.hostname.replace(/^\[|\]$/g, '').toLowerCase();
-  if (host === '0.0.0.0') {
-    return { allowed: false, scope: 'bind-all-host', reason: '0.0.0.0 is a bind address, not a client URL. Use 127.0.0.1 or the intended LAN host.' };
-  }
-  if (!isPrivateOrLocalUrl(url.href)) {
-    return { allowed: false, scope: 'non-local-host', reason: 'Local model smoke only probes loopback, local-name, or private LAN endpoints.' };
-  }
-  if (host === 'localhost' || host === '127.0.0.1' || host === '::1') return { allowed: true, scope: 'loopback' };
-  if (host.endsWith('.local') || !host.includes('.')) return { allowed: true, scope: 'local-name' };
-  return { allowed: true, scope: 'private-lan' };
-}
-
-function extractModelIdsFromPayload(payload: unknown): readonly string[] {
-  const record = readRecord(payload);
-  const candidates = Array.isArray(record.data)
-    ? record.data
-    : Array.isArray(record.models)
-      ? record.models
-      : Array.isArray(payload)
-        ? payload
-        : [];
-  const ids = candidates.map((entry) => {
-    if (typeof entry === 'string') return entry;
-    const item = readRecord(entry);
-    return readString(item.id) || readString(item.name) || readString(item.model);
-  }).filter(Boolean);
-  return [...new Set(ids)].slice(0, 12);
-}
-
-function safeSmokeError(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return previewHarnessText(message.replace(/https?:\/\/\S+/g, '[redacted-url]'), 180);
-}
-
-async function smokeOneLocalModelTarget(target: LocalModelSmokeTarget, timeoutMs: number): Promise<Record<string, unknown>> {
-  const network = localSmokeNetworkScope(target.modelsUrl);
-  if (!network.allowed) {
-    return {
-      ...target,
-      status: 'blocked',
-      liveProbe: 'confirmed',
-      networkScope: network.scope,
-      failure: network.reason,
-      nextActions: ['Inspect the endpoint route and correct the base URL before running smoke again.'],
-    };
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const started = Date.now();
-  try {
-    const response = await fetch(target.modelsUrl, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      signal: controller.signal,
-    });
-    const elapsedMs = Date.now() - started;
-    const contentType = response.headers.get('content-type') ?? '';
-    const text = await response.text();
-    let payload: unknown = null;
-    let jsonValid = false;
-    try {
-      payload = text ? JSON.parse(text) : null;
-      jsonValid = true;
-    } catch {
-      jsonValid = false;
-    }
-    const modelIds = jsonValid ? extractModelIdsFromPayload(payload) : [];
-    const status = !response.ok
-      ? 'http-error'
-      : !jsonValid
-        ? 'invalid-json'
-        : modelIds.length === 0
-          ? 'no-models'
-          : 'passed';
-    return {
-      ...target,
-      status,
-      liveProbe: 'confirmed',
-      networkScope: network.scope,
-      httpStatus: response.status,
-      contentType,
-      elapsedMs,
-      jsonValid,
-      modelCount: modelIds.length,
-      sampleModelIds: modelIds.slice(0, 5),
-      success: status === 'passed',
-      nextActions: status === 'passed'
-        ? ['Refresh the model catalog, then run a local benchmark before changing the default model.']
-        : ['Start or fix the local server, confirm /v1/models returns model ids, then retry this smoke check.'],
-    };
-  } catch (error) {
-    const elapsedMs = Date.now() - started;
-    const aborted = controller.signal.aborted;
-    return {
-      ...target,
-      status: aborted ? 'timeout' : 'unreachable',
-      liveProbe: 'confirmed',
-      networkScope: network.scope,
-      elapsedMs,
-      timeoutMs,
-      success: false,
-      failure: aborted ? `Timed out after ${timeoutMs}ms.` : safeSmokeError(error),
-      nextActions: ['Start the local server, load at least one model, verify the base URL, then retry this smoke check.'],
-    };
-  } finally {
-    clearTimeout(timeout);
-  }
-}
-
-export async function runLocalModelServerSmoke(context: CommandContext, args: AgentHarnessModelRoutingArgs): Promise<Record<string, unknown>> {
-  const targets = localModelSmokeTargets(context, args);
-  if (!Array.isArray(targets)) {
-    return {
-      kind: 'local-model-smoke',
-      liveProbe: 'not-run',
-      ...targets,
-      policy: 'No local model endpoint was probed because the requested endpoint lookup did not resolve exactly.',
-    };
-  }
-  if (targets.length === 0) {
-    return {
-      kind: 'local-model-smoke',
-      status: 'no-candidates',
-      liveProbe: 'not-run',
-      endpoints: [],
-      nextActions: ['Use the local model cookbook to start a local server or configure a local provider endpoint.'],
-      cookbookRoute: 'models action:"local" includeParameters:true',
-      policy: 'No local model endpoint was probed because no candidate endpoints were available.',
-    };
-  }
-  const timeoutMs = readSmokeTimeoutMs(args.timeoutMs);
-  const checkedAt = new Date().toISOString();
-  const results = await Promise.all(targets.map((target) => smokeOneLocalModelTarget(target, timeoutMs)));
-  const passed = results.filter((result) => result.success === true);
-  const blocked = results.filter((result) => result.status === 'blocked');
-  return {
-    kind: 'local-model-smoke',
-    status: passed.length > 0 ? 'ready' : blocked.length === results.length ? 'blocked' : 'needs-attention',
-    liveProbe: 'confirmed',
-    checkedAt,
-    timeoutMs,
-    endpointCount: results.length,
-    passedCount: passed.length,
-    failedCount: results.length - passed.length,
-    endpoints: results,
-    nextActions: passed.length > 0
-      ? ['Refresh the model catalog and run the local benchmark action before changing the default route.']
-      : ['Start a local model server, load one model, and rerun this confirmed smoke check.'],
-    cookbookRoute: 'models action:"local" includeParameters:true',
-    policy: 'Confirmed read-only local model smoke. Agent only sends bounded GET requests to discovered or suggested local/private model-list endpoints; it does not add providers, refresh catalogs, benchmark, download models, or change routes.',
+    policy: 'Read-only local endpoint map. It derives candidate model-list URLs, smoke commands, confirmed route hints, and daemon-published serving diagnostics from registry/env/read-model metadata; it does not probe the network, install servers, download models, add providers, refresh models, benchmark, or change routes.',
   };
 }
