@@ -12,6 +12,8 @@
 - External memory-provider, backend, cross-session sync, import/export, and named-provider requests now route to `memory action:"provider"` or the external provider checklist before Agent promises provider writes, sync, credentials, or import/export effects.
 - Browser-backed research runner requests now route to `research action:"runner"`, and visual research report rendering requests route to `research action:"plan"` plus report artifacts before Agent claims browser/PWA rendering readiness.
 - Voice workflow, TTS-provider, browser cockpit, and PWA requests now route to `device action:"voice|provider"` or `computer action:"browser"` before Agent attempts capture, playback, picker, or browser-open effects.
+- Personal Ops briefing, saved queue, fresh inbox/calendar read, and connector setup requests now route to `personal_ops action:"briefing|queue|intake|lane"` before Agent attempts live provider reads or effects.
+- Channel setup, triage, delivery receipt, and send requests now route to `channels action:"setup|triage|deliveries|channel"` before Agent attempts confirmed external delivery.
 - Plain file undo/redo/recovery requests now route to `execution action:"recovery"` so users inspect available snapshots before confirming a local file mutation.
 - Media generation requests now route to provider readiness and confirmed `agent_media_generate` saved-artifact output instead of inline bytes or silent Knowledge promotion.
 - Added first-class setup repair decisions: `setup action:"repair"` and lower-level `agent_harness mode:"setup_repair"` choose the next safe token repair, connected-host status, services.status receipt, user-run bootstrap, or no lifecycle action without executing lifecycle, token, import, or UI effects.

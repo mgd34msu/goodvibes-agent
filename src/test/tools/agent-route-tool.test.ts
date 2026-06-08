@@ -45,10 +45,43 @@ describe('route adapter', () => {
   test('routes inbox and reply work to Personal Ops intake', async () => {
     const body = await route('triage my inbox and draft replies');
 
-    expect(preferredId(body)).toBe('personal-ops-request');
+    expect(preferredId(body)).toBe('personal-ops-intake-route');
     expect(body.preferred).toMatchObject({
-      modelRoute: 'personal_ops action:"intake" query:"triage my inbox and draft replies"',
+      modelRoute: 'personal_ops action:"intake" query:"triage my inbox and draft replies" includeParameters:true',
       userSurface: 'Personal Ops workspace',
+    });
+  });
+
+  test('routes daily briefing requests to Personal Ops briefing', async () => {
+    const body = await route('brief my calendar for today');
+
+    expect(preferredId(body)).toBe('personal-ops-daily-briefing');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'personal_ops action:"briefing" query:"brief my calendar for today" includeParameters:true',
+      inspectRoute: 'personal_ops action:"status" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes saved personal review queues to queue inspection', async () => {
+    const body = await route('show my saved inbox review queue');
+
+    expect(preferredId(body)).toBe('personal-ops-review-queue');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'personal_ops action:"queue" query:"inbox" includeParameters:true',
+      inspectRoute: 'personal_ops action:"lane" laneId:"inbox" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes live Gmail refresh requests to a confirmed fresh-read plan', async () => {
+    const body = await route('refresh my Gmail inbox');
+
+    expect(preferredId(body)).toBe('personal-ops-fresh-read-plan');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'personal_ops action:"intake" query:"refresh my Gmail inbox" includeParameters:true',
+      inspectRoute: 'personal_ops action:"lane" laneId:"inbox" includeParameters:true',
+      requiresConfirmation: true,
     });
   });
 
@@ -122,6 +155,49 @@ describe('route adapter', () => {
     expect(body.preferred).toMatchObject({
       modelRoute: 'schedule action:"list" query:"remind me tomorrow to stretch" limit:5',
       inspectRoute: 'schedule action:"list"',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('routes channel setup requests to the setup guide', async () => {
+    const body = await route('set up Slack notifications');
+
+    expect(preferredId(body)).toBe('channel-setup-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'channels action:"setup" target:"slack" includeParameters:true',
+      inspectRoute: 'channels action:"triage" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('routes channel triage requests to channel triage', async () => {
+    const body = await route('triage failed Discord delivery retries');
+
+    expect(preferredId(body)).toBe('channel-triage-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'channels action:"triage" includeParameters:true',
+      inspectRoute: 'channels action:"status" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes delivery receipt requests to channel history', async () => {
+    const body = await route('show recent delivery receipts');
+
+    expect(preferredId(body)).toBe('channel-delivery-receipts');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'channels action:"deliveries" limit:10 includeParameters:true',
+      inspectRoute: 'channels action:"status" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes channel sends to a confirmed delivery boundary', async () => {
+    const body = await route('send message to Telegram');
+
+    expect(preferredId(body)).toBe('channel-delivery-boundary');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'channels action:"channel" target:"telegram" includeParameters:true',
       requiresConfirmation: true,
     });
   });

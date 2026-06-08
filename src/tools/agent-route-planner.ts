@@ -340,6 +340,117 @@ function browserCockpitLike(lower: string): boolean {
   ]);
 }
 
+type PersonalOpsLaneId = 'inbox' | 'calendar' | 'notes' | 'tasks' | 'reminders' | 'routines' | 'delivery';
+
+function personalOpsLike(lower: string): boolean {
+  return hasAny(lower, [
+    'personal ops',
+    'daily brief',
+    'daily briefing',
+    'morning brief',
+    'morning briefing',
+    'inbox',
+    'email',
+    'gmail',
+    'imap',
+    'smtp',
+    'calendar',
+    'caldav',
+    'agenda',
+    'rsvp',
+    'draft reply',
+    'reply to',
+    'tasks',
+    'todo',
+    'to-do',
+    'note',
+    'routine',
+    'review queue',
+    'saved review',
+  ]);
+}
+
+function personalOpsLaneFromText(lower: string): PersonalOpsLaneId | null {
+  if (hasAny(lower, ['inbox', 'email', 'mail', 'gmail', 'imap', 'smtp', 'message', 'thread', 'draft reply', 'reply to'])) return 'inbox';
+  if (hasAny(lower, ['calendar', 'caldav', 'agenda', 'meeting', 'event', 'availability', 'freebusy', 'free busy', 'rsvp'])) return 'calendar';
+  if (hasAny(lower, ['note', 'scratchpad', 'jot down'])) return 'notes';
+  if (hasAny(lower, ['task', 'tasks', 'todo', 'to-do', 'work item', 'work plan'])) return 'tasks';
+  if (hasAny(lower, ['reminder', 'reminders', 'follow up', 'follow-up', 'ping me'])) return 'reminders';
+  if (hasAny(lower, ['routine', 'checklist', 'repeatable'])) return 'routines';
+  if (hasAny(lower, ['delivery', 'deliver', 'send summary', 'send briefing'])) return 'delivery';
+  return null;
+}
+
+function personalOpsBriefingLike(lower: string): boolean {
+  if (hasAny(lower, ['daily brief', 'daily briefing', 'morning brief', 'morning briefing', 'brief me', 'brief my', 'briefing'])) return true;
+  return hasAny(lower, ['what is on my calendar', "what's on my calendar", 'today agenda', "today's agenda", 'agenda today']);
+}
+
+function personalOpsQueueLike(lower: string): boolean {
+  return hasAny(lower, [
+    'review queue',
+    'saved review',
+    'saved inbox',
+    'saved calendar',
+    'saved thread',
+    'saved event',
+    'queued inbox',
+    'queued calendar',
+  ]);
+}
+
+function personalOpsConnectorSetupLike(lower: string): boolean {
+  const connector = hasAny(lower, ['gmail', 'imap', 'smtp', 'email connector', 'mail connector', 'calendar connector', 'caldav', 'mcp connector']);
+  const setup = hasAny(lower, ['set up', 'setup', 'connect', 'configure', 'enable', 'repair', 'provider']);
+  return connector && setup;
+}
+
+function personalOpsFreshReadLike(lower: string): boolean {
+  return hasAny(lower, [
+    'read live',
+    'refresh',
+    'fresh read',
+    'fetch',
+    'sync',
+    'pull latest',
+    'latest email',
+    'new email',
+    'unread',
+    'upcoming event',
+    'upcoming meeting',
+    'calendar today',
+    'today calendar',
+  ]);
+}
+
+function personalOpsMutationLike(lower: string): boolean {
+  return hasAny(lower, ['send', 'reply', 'archive', 'label', 'edit', 'rsvp', 'delete', 'move', 'create event', 'reschedule']);
+}
+
+function externalChannelLike(lower: string): boolean {
+  return hasAny(lower, ['slack', 'discord', 'telegram', 'whatsapp', 'signal', 'matrix', 'teams', 'ntfy', 'webhook', 'notification', 'notify', 'send message', 'channel', 'delivery receipt']);
+}
+
+function channelTargetFromText(lower: string): string | null {
+  return ['slack', 'discord', 'telegram', 'whatsapp', 'signal', 'matrix', 'teams', 'ntfy', 'webhook'].find((target) => lower.includes(target)) ?? null;
+}
+
+function channelSetupLike(lower: string): boolean {
+  return hasAny(lower, ['set up', 'setup', 'connect', 'configure', 'enable', 'repair']) && externalChannelLike(lower);
+}
+
+function channelTriageLike(lower: string): boolean {
+  return hasAny(lower, ['triage', 'blocker', 'blockers', 'retry', 'retries', 'failed', 'failure', 'error', 'pending message', 'pending delivery', 'doctor']) && externalChannelLike(lower);
+}
+
+function channelDeliveriesLike(lower: string): boolean {
+  return hasAny(lower, ['delivery receipt', 'delivery receipts', 'delivery history', 'send history', 'sent messages', 'send outcomes', 'recent deliveries']);
+}
+
+function channelSendLike(lower: string): boolean {
+  return hasAny(lower, ['send', 'notify', 'deliver', 'test send', 'test notification', 'ping']);
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -537,24 +648,118 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
-  if (hasAny(lower, ['inbox', 'email', 'gmail', 'imap', 'smtp', 'calendar', 'caldav', 'agenda', 'rsvp', 'draft reply', 'reply to', 'tasks', 'todo', 'note']) && !hasAny(lower, ['channel', 'slack', 'discord', 'telegram'])) {
+  if (personalOpsLike(lower) && !externalChannelLike(lower) && !directScheduleLike(lower)) {
+    const laneId = personalOpsLaneFromText(lower);
+    const laneRoute = laneId ? `personal_ops action:"lane" laneId:"${laneId}" includeParameters:true` : 'personal_ops action:"status" includeParameters:true';
+    const laneQueueQuery = laneId ? ` query:"${laneId}"` : '';
+    const intakeRoute = `personal_ops action:"intake" query:${quote(request)} includeParameters:true`;
+
+    if (personalOpsConnectorSetupLike(lower)) {
+      const connectorEffect = hasAny(lower, ['connect', 'set up', 'setup', 'configure', 'enable', 'repair']);
+      add({
+        id: 'personal-ops-connector-setup',
+        label: 'Personal Ops connector setup posture',
+        score: 97,
+        userSurface: 'Personal Ops workspace',
+        userOutcome: 'Inspect the inbox or calendar connector lane before promising fresh provider data.',
+        why: 'The request mentions Gmail, IMAP/SMTP, CalDAV, or an email/calendar connector setup task.',
+        modelRoute: laneRoute,
+        inspectRoute: 'personal_ops action:"status" includeParameters:true',
+        userRoute: 'Agent Workspace -> Personal Ops -> Connector readiness',
+        requiresConfirmation: connectorEffect,
+        missingFields: connectorEffect ? ['connector/provider choice', 'credential or MCP setup route', 'confirmation before any account or secret mutation'] : undefined,
+        supportingRoutes: [
+          intakeRoute,
+          'agent_harness mode:"mcp_servers" query:"email calendar" includeParameters:true',
+          'settings action:"list" query:"gmail imap smtp caldav" includeHidden:true',
+        ],
+        policy: 'Connector setup posture is read-only. Account connection, secret storage, MCP trust, and provider effects remain on explicit confirmed setup routes.',
+      });
+    }
+
+    if (personalOpsBriefingLike(lower)) {
+      add({
+        id: 'personal-ops-daily-briefing',
+        label: 'Personal Ops daily briefing',
+        score: 96,
+        userSurface: 'Personal Ops workspace',
+        userOutcome: 'Start with one read-only daily plan across agenda, inbox, tasks, reminders, routines, delivery, and autonomy.',
+        why: 'The request asks for a brief, briefing, agenda summary, or today view.',
+        modelRoute: `personal_ops action:"briefing" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'personal_ops action:"status" includeParameters:true',
+        userRoute: 'Agent Workspace -> Personal Ops -> Daily briefing',
+        requiresConfirmation: false,
+        supportingRoutes: [
+          'personal_ops action:"queue" includeParameters:true',
+          'personal_ops action:"lane" laneId:"calendar" includeParameters:true',
+          'autonomy action:"queue"',
+          'schedule action:"list" limit:5',
+        ],
+        policy: 'Briefing is read-only. Live inbox/calendar reads, reminder creation, sends, edits, and schedule mutations stay on their owning confirmed routes.',
+      });
+    }
+
+    if (personalOpsQueueLike(lower)) {
+      add({
+        id: 'personal-ops-review-queue',
+        label: 'Personal Ops saved review queue',
+        score: 96,
+        userSurface: 'Personal Ops workspace',
+        userOutcome: 'Review saved inbox threads and calendar events before doing fresh reads or provider effects.',
+        why: 'The request asks for saved Personal Ops review queues or previously captured inbox/calendar cards.',
+        modelRoute: `personal_ops action:"queue"${laneQueueQuery} includeParameters:true`,
+        inspectRoute: laneRoute,
+        userRoute: 'Agent Workspace -> Personal Ops -> Review queue',
+        requiresConfirmation: false,
+        supportingRoutes: [
+          intakeRoute,
+          'personal_ops action:"read" laneId:"inbox|calendar" recordId:"..." fields:{...} confirm:true explicitUserRequest:"..."',
+          'agent_artifacts mode:"list" query:"personal ops review"',
+        ],
+        policy: 'Review queue inspection is read-only. Refreshing from a provider or applying send/edit/archive/RSVP effects requires a selected connector route and confirmation.',
+      });
+    }
+
+    if (personalOpsFreshReadLike(lower)) {
+      add({
+        id: 'personal-ops-fresh-read-plan',
+        label: 'Personal Ops fresh provider read plan',
+        score: 95,
+        userSurface: 'Personal Ops workspace',
+        userOutcome: 'Select the safest read-only connector operation before fetching fresh inbox or calendar data.',
+        why: 'The request asks to refresh, sync, fetch, or inspect unread/upcoming personal provider data.',
+        modelRoute: intakeRoute,
+        inspectRoute: laneRoute,
+        userRoute: 'Agent Workspace -> Personal Ops -> Fresh read',
+        requiresConfirmation: true,
+        missingFields: ['lane id', 'read-only connector operation record id', 'bounded input fields', 'confirmation before reading live personal provider data'],
+        supportingRoutes: [
+          laneRoute,
+          'personal_ops action:"read" laneId:"inbox|calendar" recordId:"..." fields:{...} confirm:true explicitUserRequest:"..."',
+          'personal_ops action:"queue" includeParameters:true',
+        ],
+        policy: 'Fresh provider reads are never implicit. The planner only selects the lane; one read-only connector operation still needs exact fields, confirm:true, and explicitUserRequest.',
+      });
+    }
+
     add({
-      id: 'personal-ops-request',
-      label: 'Personal Ops intake',
+      id: 'personal-ops-intake-route',
+      label: 'Personal Ops request intake',
       score: hasAny(lower, ['email', 'inbox', 'calendar', 'agenda', 'draft reply', 'rsvp']) ? 94 : 78,
       userSurface: 'Personal Ops workspace',
       userOutcome: 'Triage personal data through reviewed lanes, redacted cards, and confirmed external effects.',
       why: 'The request involves inbox, email, calendar, notes, tasks, reminders, or reply drafting.',
-      modelRoute: `personal_ops action:"intake" query:${quote(request)}`,
-      inspectRoute: 'personal_ops action:"status" includeParameters:true',
+      modelRoute: intakeRoute,
+      inspectRoute: laneRoute,
       userRoute: 'Agent Workspace -> Personal Ops',
-      requiresConfirmation: hasAny(lower, ['read live', 'refresh', 'send', 'reply', 'archive', 'label', 'edit', 'rsvp', 'delete']),
-      missingFields: hasAny(lower, ['send', 'reply', 'archive', 'label', 'edit', 'rsvp', 'delete'])
+      requiresConfirmation: personalOpsFreshReadLike(lower) || personalOpsMutationLike(lower),
+      missingFields: personalOpsMutationLike(lower)
         ? ['connector lane and record id', 'exact provider effect', 'confirmation']
         : undefined,
       supportingRoutes: [
-        'personal_ops action:"queue"',
-        'personal_ops action:"lane" laneId:"inbox|calendar"',
+        'personal_ops action:"briefing" includeParameters:true',
+        'personal_ops action:"queue" includeParameters:true',
+        laneRoute,
         'personal_ops action:"read" laneId:"inbox|calendar" recordId:"..." fields:{...} confirm:true explicitUserRequest:"..."',
       ],
       policy: 'Personal Ops intake is read-only. Provider reads and every send/edit/archive/RSVP effect stay scoped and confirmed.',
@@ -943,22 +1148,69 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
-  if (hasAny(lower, ['slack', 'discord', 'telegram', 'whatsapp', 'signal', 'matrix', 'teams', 'ntfy', 'notification', 'notify', 'send message', 'channel', 'delivery receipt'])) {
+  if (externalChannelLike(lower)) {
+    const target = channelTargetFromText(lower);
+    const setup = channelSetupLike(lower);
+    const triage = channelTriageLike(lower);
+    const deliveries = channelDeliveriesLike(lower);
+    const send = channelSendLike(lower);
+    const setupEffect = setup;
+    const sendEffect = send && !setup && !triage && !deliveries;
+    const channelRoute = target
+      ? `channels action:"channel" target:"${target}" includeParameters:true`
+      : `channels action:"status" query:${quote(request)} includeParameters:true`;
+    const setupRoute = target
+      ? `channels action:"setup" target:"${target}" includeParameters:true`
+      : 'channels action:"setup" includeParameters:true';
+    const modelRoute = deliveries
+      ? 'channels action:"deliveries" limit:10 includeParameters:true'
+      : triage
+        ? 'channels action:"triage" includeParameters:true'
+        : setup
+          ? setupRoute
+          : channelRoute;
     add({
-      id: 'channel-delivery',
-      label: 'Channel setup, triage, or confirmed delivery',
-      score: 88,
+      id: deliveries
+        ? 'channel-delivery-receipts'
+        : triage
+          ? 'channel-triage-route'
+          : setup
+            ? 'channel-setup-route'
+            : send
+              ? 'channel-delivery-boundary'
+              : 'channel-readiness-route',
+      label: deliveries
+        ? 'Channel delivery receipts'
+        : triage
+          ? 'Channel triage and retry posture'
+          : setup
+            ? 'Channel setup guide'
+            : send
+              ? 'Confirmed channel delivery boundary'
+              : 'Channel readiness',
+      score: deliveries || triage || setup || send ? 95 : 88,
       userSurface: 'Channels workspace',
-      userOutcome: 'Send and troubleshoot external messages through configured, inspectable channel targets.',
+      userOutcome: deliveries
+        ? 'Review recent redacted delivery outcomes before retrying or sending more messages.'
+        : triage
+          ? 'Troubleshoot channel blockers, retries, pending messages, and route bindings without sending.'
+          : setup
+            ? 'Follow the ordered channel setup guide before relying on external delivery.'
+            : 'Send and troubleshoot external messages through configured, inspectable channel targets.',
       why: 'The request mentions external channels, notifications, target setup, or delivery receipts.',
-      modelRoute: 'channels action:"status" includeParameters:true',
-      inspectRoute: 'channels action:"triage" includeParameters:true',
+      modelRoute,
+      inspectRoute: deliveries ? 'channels action:"status" includeParameters:true' : triage ? 'channels action:"status" includeParameters:true' : 'channels action:"triage" includeParameters:true',
       userRoute: 'Agent Workspace -> Channels',
-      requiresConfirmation: hasAny(lower, ['send', 'notify', 'deliver', 'test']),
-      missingFields: hasAny(lower, ['send', 'notify', 'deliver']) ? ['configured target', 'message text', 'confirmation'] : undefined,
+      requiresConfirmation: setupEffect || sendEffect,
+      missingFields: sendEffect
+        ? ['configured target', 'message text', 'confirmation']
+        : setupEffect
+          ? ['channel/account target', 'configuration or credential route', 'confirmation before mutating channel setup']
+          : undefined,
       supportingRoutes: [
-        'channels action:"setup"',
-        'channels action:"deliveries"',
+        setupRoute,
+        'channels action:"triage" includeParameters:true',
+        'channels action:"deliveries" limit:10 includeParameters:true',
         'agent_channel_send confirm:true explicitUserRequest:"..."',
         'agent_notify confirm:true explicitUserRequest:"..."',
       ],
