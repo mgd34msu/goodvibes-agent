@@ -91,6 +91,10 @@ describe('import_goodvibes_settings adapter', () => {
       expect(preview.success).toBe(true);
       expect(preview.output).toContain('"status": "confirmation_required"');
       expect(preview.output).toContain('"settingsToImport": 2');
+      expect(preview.output).toContain('"sourceCatalog"');
+      expect(preview.output).toContain('"packageId": "goodvibes-tui"');
+      expect(preview.output).toContain('"ownership": "source-owned"');
+      expect(preview.output).toContain('"mutatesSource": false');
       expect(preview.output).toContain('<redacted>');
       expect(preview.output).not.toContain('xoxb-import-secret');
       expect(fixture.configManager.get('behavior.saveHistory')).toBe(!nextSaveHistory);

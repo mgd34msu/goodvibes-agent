@@ -118,7 +118,7 @@ goodvibes-agent profiles templates export research ./research-starter.json --inc
 goodvibes-agent profiles templates import ./research-starter.json --yes
 ```
 
-Named profiles isolate Agent-local config, sessions, VIBE.md, memory, notes, personas, skills, routines, and setup state. Starter export/from-discovered flows can include the current safe VIBE.md with `--include-vibe`; blocked VIBE.md files must be repaired first. Shared GoodVibes settings import can reuse existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings from goodvibes-tui and other published GoodVibes platform stores. The direct `settings action:"import"` route, `import_goodvibes_settings` compatibility route, and workspace action all preview changed counts first, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions without mutating the source package stores.
+Named profiles isolate Agent-local config, sessions, VIBE.md, memory, notes, personas, skills, routines, and setup state. Starter export/from-discovered flows can include the current safe VIBE.md with `--include-vibe`; blocked VIBE.md files must be repaired first. Shared GoodVibes settings import can reuse existing provider, UI, permission, subscription, surface, tool, and daemon endpoint settings from goodvibes-tui and other published GoodVibes platform stores. The direct `settings action:"import"` route, `import_goodvibes_settings` compatibility route, and workspace action all preview changed counts first, show source-package ownership metadata, redact secret values, and require confirmation before applying Agent-owned settings or provider subscriptions without mutating the source package stores.
 
 ## Local Behavior
 

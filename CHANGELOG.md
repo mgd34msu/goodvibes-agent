@@ -19,6 +19,7 @@ Product-facing release notes for GoodVibes Agent.
 - Routed interactive terminal, PTY, stdin, and sudo wording through `execution action:"process_capabilities"` so unsupported interactive routes are explained before any hidden process start or credential effect.
 - Routed external memory-provider, backend, cross-session sync, import/export, and named-provider wording through `memory action:"provider"` or the external provider checklist before promising provider writes, sync, credentials, or import/export effects.
 - Added provider-specific next routes, missing setup/status/read/write/sync checklist items, and required receipt fields to the external memory-provider posture so Agent can explain exactly what SDK/daemon records are missing before provider-backed memory is used.
+- Clarified shared GoodVibes settings import with source-package ownership metadata so imports remain user-controlled without implying Agent owns the source package capability.
 - Routed browser-backed research runner wording through `research action:"runner"` and visual research report rendering wording through `research action:"plan"` plus report artifacts before claiming browser/PWA rendering readiness.
 - Routed voice workflow, TTS-provider, browser cockpit, and PWA wording through `device action:"voice|provider"` or `computer action:"browser"` before capture, playback, picker, or browser-open effects.
 - Routed channel setup, triage, delivery receipts, and send wording through `channels action:"setup|triage|deliveries|channel"` before confirmed external delivery.

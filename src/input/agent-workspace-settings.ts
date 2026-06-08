@@ -59,11 +59,26 @@ export interface TuiSettingsImportOutcome extends SettingMutationOutcome {
 type TuiImportStatus = 'would_import' | 'unchanged' | 'skipped';
 
 interface TuiSettingsImportSource {
+  readonly id: string;
   readonly label: string;
   readonly path: string;
+  readonly sourcePackage: string;
+  readonly surfaceRoot: string;
+  readonly scope: 'user' | 'project';
+  readonly ownership: 'source-owned';
+  readonly mutatesSource: false;
   readonly status: 'missing' | 'loaded' | 'invalid' | 'error';
   readonly importableSettings: number;
   readonly error?: string;
+}
+
+interface GoodVibesSettingsImportSourceCatalogEntry {
+  readonly packageId: string;
+  readonly surfaceRoot: string;
+  readonly scopes: readonly string[];
+  readonly status: 'implemented';
+  readonly ownership: 'source-owned';
+  readonly mutatesSource: false;
 }
 
 interface TuiSettingImportPlanEntry {
@@ -101,6 +116,7 @@ export interface TuiSettingsImportPreview {
     readonly subscriptionsSkipped: number;
     readonly parseErrors: number;
   };
+  readonly sourceCatalog: readonly GoodVibesSettingsImportSourceCatalogEntry[];
   readonly sources: readonly TuiSettingsImportSource[];
   readonly settings: readonly {
     readonly key: string;
@@ -117,6 +133,17 @@ export interface TuiSettingsImportPreview {
     readonly boundary: string;
   };
 }
+
+const GOODVIBES_SETTINGS_IMPORT_SOURCE_CATALOG: readonly GoodVibesSettingsImportSourceCatalogEntry[] = [
+  {
+    packageId: 'goodvibes-tui',
+    surfaceRoot: GOODVIBES_TUI_SURFACE_ROOT,
+    scopes: ['user-settings', 'project-settings', 'provider-subscriptions'],
+    status: 'implemented',
+    ownership: 'source-owned',
+    mutatesSource: false,
+  },
+];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -389,9 +416,27 @@ function buildTuiSettingsImportPlan(context: CommandContext | null): TuiSettings
   const configManager = context?.platform?.configManager;
   if (!context || !shellPaths || !configManager) return null;
 
-  const sourceInputs = [
-    { label: 'user', path: shellPaths.resolveUserPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json') },
-    { label: 'project', path: shellPaths.resolveProjectPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json') },
+  const sourceInputs: readonly Omit<TuiSettingsImportSource, 'status' | 'importableSettings' | 'error'>[] = [
+    {
+      id: 'goodvibes-tui:user-settings',
+      label: 'goodvibes-tui user settings',
+      path: shellPaths.resolveUserPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json'),
+      sourcePackage: 'goodvibes-tui',
+      surfaceRoot: GOODVIBES_TUI_SURFACE_ROOT,
+      scope: 'user',
+      ownership: 'source-owned',
+      mutatesSource: false,
+    },
+    {
+      id: 'goodvibes-tui:project-settings',
+      label: 'goodvibes-tui project settings',
+      path: shellPaths.resolveProjectPath(GOODVIBES_TUI_SURFACE_ROOT, 'settings.json'),
+      sourcePackage: 'goodvibes-tui',
+      surfaceRoot: GOODVIBES_TUI_SURFACE_ROOT,
+      scope: 'project',
+      ownership: 'source-owned',
+      mutatesSource: false,
+    },
   ];
   const values = new Map<string, { readonly value: unknown; readonly source: string }>();
   const parseErrors: string[] = [];
@@ -415,7 +460,7 @@ function buildTuiSettingsImportPlan(context: CommandContext | null): TuiSettings
         const value = readNestedSettingValue(record, setting.key);
         if (value === undefined) continue;
         importableSettings += 1;
-        values.set(setting.key, { value, source: source.label });
+        values.set(setting.key, { value, source: source.id });
       }
       sources.push({ ...source, status: 'loaded', importableSettings });
     } catch (error) {
@@ -458,6 +503,7 @@ export function previewAgentWorkspaceTuiSettingsImport(context: CommandContext |
       subscriptionsSkipped: plan.subscriptions.filter((entry) => entry.status === 'skipped').length,
       parseErrors: plan.parseErrors.length,
     },
+    sourceCatalog: GOODVIBES_SETTINGS_IMPORT_SOURCE_CATALOG,
     sources: plan.sources,
     settings: plan.settings.map((entry) => ({
       key: entry.key,
