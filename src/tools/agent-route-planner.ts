@@ -648,6 +648,80 @@ function securityPolicyToolTarget(lower: string): string | null {
   return null;
 }
 
+function supportBundleLike(lower: string): boolean {
+  if (hasAny(lower, ['support bundle', 'support packet', 'diagnostic bundle', 'diagnostics bundle', 'forensic bundle', 'forensics bundle'])) return true;
+  return lower.includes('bundle') && hasAny(lower, ['support', 'diagnostic', 'diagnostics', 'forensic', 'forensics', 'auth', 'trust', 'subscription', 'security']);
+}
+
+function supportBundleEffectLike(lower: string): boolean {
+  return hasAny(lower, ['export', 'import', 'create', 'generate', 'save', 'write', 'share', 'attach', 'send']);
+}
+
+function sessionWorkspaceLike(lower: string): boolean {
+  if (hasAny(lower, [
+    'saved session',
+    'saved sessions',
+    'session search',
+    'search sessions',
+    'session export',
+    'export session',
+    'session resume',
+    'resume session',
+    'session load',
+    'load session',
+    'session save',
+    'save session',
+    'session delete',
+    'delete session',
+    'session rename',
+    'rename session',
+    'session fork',
+    'fork session',
+    'session graph',
+    'session bookmark',
+    'bookmarked session',
+    'bookmarks',
+    'conversation restore',
+    'restore conversation',
+    'previous conversation',
+    'past conversation',
+    'transcript export',
+    'export transcript',
+    'return context',
+    'session continuity',
+  ])) return true;
+  return lower.includes('session') && hasAny(lower, ['browse', 'find', 'search', 'show', 'inspect', 'resume', 'load', 'save', 'export', 'delete', 'rename', 'fork', 'bookmark']);
+}
+
+function sessionMutationLike(lower: string): boolean {
+  if (hasAny(lower, ['resume', 'load', 'rename', 'fork', 'delete', 'remove', 'restore', 'export', 'unbookmark'])) return true;
+  return hasAny(lower, ['save session', 'session save', 'bookmark session', 'session bookmark']);
+}
+
+function releaseAuditLike(lower: string): boolean {
+  return hasAny(lower, [
+    'release evidence',
+    'release artifact',
+    'release artifacts',
+    'release readiness',
+    'release quality',
+    'readiness inventory',
+    'release inventory',
+    'release gate',
+    'release gates',
+    'verification ledger',
+    'operator audit',
+    'audit evidence',
+    'audit artifact',
+    'audit artifacts',
+    'package evidence',
+  ]);
+}
+
+function releaseEvidenceLike(lower: string): boolean {
+  return hasAny(lower, ['release evidence', 'release artifact', 'release artifacts', 'audit evidence', 'audit artifact', 'audit artifacts', 'verification ledger', 'package evidence']);
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -1620,6 +1694,85 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
         policy: 'Policy explanations are read-only and never execute the target tool. Final execution still uses the live route guard, permission prompt, and typed confirmation gate.',
       });
     }
+  }
+
+  if (supportBundleLike(lower)) {
+    const bundleEffect = supportBundleEffectLike(lower);
+    add({
+      id: 'support-bundle-route',
+      label: 'Support bundle and diagnostics packet route',
+      score: 96,
+      userSurface: 'Safety and recovery workspace',
+      userOutcome: 'Inspect available redacted support, diagnostic, trust, auth, or forensic bundles before exporting or importing anything.',
+      why: 'The request mentions support bundles, diagnostic bundles, forensic bundles, or support packets.',
+      modelRoute: `agent_harness mode:"support_bundles" query:${quote(request)} includeParameters:true`,
+      inspectRoute: 'agent_harness mode:"support_bundles" includeParameters:true',
+      userRoute: 'Agent Workspace -> Safety & Recovery -> Support bundles',
+      requiresConfirmation: bundleEffect,
+      missingFields: bundleEffect ? ['bundle type or path', 'export/import/share destination when applicable', 'confirmation before bundle export, import, or external sharing'] : undefined,
+      supportingRoutes: [
+        'agent_harness mode:"support_bundle" bundlePath:"..." includeParameters:true',
+        'workspace action:"actions" query:"support bundle" includeParameters:true',
+        'agent_harness mode:"run_workspace_action" actionId:"..." confirm:true explicitUserRequest:"..."',
+      ],
+      policy: 'Bundle catalog and bundle inspection are read-only and redacted. Bundle export, import, file writes, and sharing remain confirmation-gated workspace or slash-command flows.',
+    });
+  }
+
+  if (sessionWorkspaceLike(lower) && !externalMemoryProviderLike(lower)) {
+    const mutation = sessionMutationLike(lower);
+    add({
+      id: 'saved-session-route',
+      label: 'Saved sessions, bookmarks, and transcript continuity',
+      score: 97,
+      userSurface: 'Conversation workspace',
+      userOutcome: 'Find, inspect, resume, export, or manage saved Agent sessions and bookmarks from the conversation workspace.',
+      why: 'The request mentions saved sessions, session search, transcript export, bookmarks, restore, or conversation continuity.',
+      modelRoute: `agent_harness mode:"sessions" query:${quote(request)} includeParameters:true`,
+      inspectRoute: 'agent_harness mode:"sessions" includeParameters:true',
+      userRoute: 'Agent Workspace -> Conversation -> Saved sessions',
+      requiresConfirmation: mutation,
+      missingFields: mutation ? ['session id, title, or search target', 'exact lifecycle action', 'confirmation before save/load/resume/rename/fork/export/delete/bookmark changes'] : undefined,
+      supportingRoutes: [
+        'agent_harness mode:"sessions" query:"..." includeParameters:true',
+        'agent_harness mode:"session" sessionId:"..." includeParameters:true',
+        'workspace action:"actions" categoryId:"conversation" query:"session" includeParameters:true',
+        'agent_harness mode:"run_workspace_action" actionId:"session-save|session-load|session-export-saved|session-delete" confirm:true explicitUserRequest:"..."',
+      ],
+      policy: 'Session and bookmark inspection is read-only. Save, load, resume, rename, fork, export, delete, and bookmark writes stay visible and confirmed through workspace or slash-command routes.',
+    });
+  }
+
+  if (releaseAuditLike(lower)) {
+    const evidence = releaseEvidenceLike(lower);
+    add({
+      id: evidence ? 'release-evidence-route' : 'release-readiness-route',
+      label: evidence ? 'Release evidence artifact route' : 'Release readiness inventory route',
+      score: 96,
+      userSurface: 'Operator audit workspace',
+      userOutcome: evidence
+        ? 'Inspect packaged release evidence and operator/audit artifacts without expanding raw files blindly.'
+        : 'Inspect the release-quality inventory, gates, and readiness dimensions before claiming a product capability is covered.',
+      why: 'The request mentions release evidence, readiness inventory, release gates, verification ledger, or operator audit artifacts.',
+      modelRoute: evidence
+        ? `agent_harness mode:"release_evidence" query:${quote(request)} includeParameters:true`
+        : `agent_harness mode:"release_readiness" query:${quote(request)} includeParameters:true`,
+      inspectRoute: evidence
+        ? 'agent_harness mode:"release_evidence" includeParameters:true'
+        : 'agent_harness mode:"release_readiness" includeParameters:true',
+      userRoute: 'Agent Workspace -> Operator Audit',
+      requiresConfirmation: false,
+      supportingRoutes: evidence
+        ? [
+          'agent_harness mode:"release_evidence_artifact" artifactId:"..." includeParameters:true',
+          'agent_harness mode:"release_readiness" includeParameters:true',
+        ]
+        : [
+          'agent_harness mode:"release_readiness_item" itemId:"..." includeParameters:true',
+          'agent_harness mode:"release_evidence" includeParameters:true',
+        ],
+      policy: 'Release evidence and readiness inventory inspection are read-only. They expose packaged audit facts and bounded artifact content, not product mutations.',
+    });
   }
 
   if (hasAny(lower, ['daemon method', 'operator method', 'host capability', 'service endpoint', 'control plane', 'api route'])) {

@@ -296,6 +296,50 @@ describe('route adapter', () => {
     expect(preferredId(body)).toBe('deep-research-workflow');
   });
 
+  test('routes support bundle export requests to redacted bundle posture first', async () => {
+    const body = await route('export a support bundle for diagnostics');
+
+    expect(preferredId(body)).toBe('support-bundle-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'agent_harness mode:"support_bundles" query:"export a support bundle for diagnostics" includeParameters:true',
+      inspectRoute: 'agent_harness mode:"support_bundles" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('routes saved session searches to the session catalog', async () => {
+    const body = await route('search saved sessions for the onboarding thread');
+
+    expect(preferredId(body)).toBe('saved-session-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'agent_harness mode:"sessions" query:"search saved sessions for the onboarding thread" includeParameters:true',
+      inspectRoute: 'agent_harness mode:"sessions" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes release readiness questions to the audit inventory', async () => {
+    const body = await route('show release readiness inventory');
+
+    expect(preferredId(body)).toBe('release-readiness-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'agent_harness mode:"release_readiness" query:"show release readiness inventory" includeParameters:true',
+      inspectRoute: 'agent_harness mode:"release_readiness" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes release evidence questions to evidence artifacts', async () => {
+    const body = await route('inspect release evidence artifact live verification');
+
+    expect(preferredId(body)).toBe('release-evidence-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'agent_harness mode:"release_evidence" query:"inspect release evidence artifact live verification" includeParameters:true',
+      inspectRoute: 'agent_harness mode:"release_evidence" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
   test('routes named external memory providers to provider posture', async () => {
     const body = await route('connect Supermemory as an external memory provider');
 
