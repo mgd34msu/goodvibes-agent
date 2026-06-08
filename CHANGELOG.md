@@ -12,7 +12,6 @@ Product-facing release notes for GoodVibes Agent.
 - Routed model provider, local-cookbook, local server smoke, and route-fit wording through `models action:"provider|local|smoke|route"` before credential, smoke, benchmark, or route-change effects.
 - Routed direct reminder, schedule, cron, and schedule lifecycle wording through `schedule action:"list"` plus confirmed schedule actions, while broader ongoing work remains on autonomy intake.
 - Added a source-owned watcher evidence contract to autonomy intake so durable run-history receipts, provider source records, redacted event payload descriptors, and queue correlation stay explicit SDK/daemon handoff requirements instead of hidden Agent assumptions.
-- Added `handoff` status to the competitive inventory so Agent-owned release gaps are separated from SDK/TUI/daemon source-owned contracts, with the current inventory at zero partials and zero gaps.
 - Routed Personal Ops briefing, saved queue, fresh inbox/calendar read, and connector setup wording through `personal_ops action:"briefing|queue|intake|lane"` before live provider reads or effects.
 - Added `setup action:"repair"` and `agent_harness mode:"setup_repair"` for read-only setup repair decisions that choose token repair, host status, services.status receipt, user-run bootstrap, or no lifecycle action without executing effects.
 - Added `execution action:"capabilities|process_capabilities"` so process parity, PTY, stdin, and sudo posture reports are reachable from the first-class execution tool.

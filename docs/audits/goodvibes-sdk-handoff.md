@@ -49,31 +49,6 @@ The SDK should make these routes type-safe and portable. Avoid adding alternate
 string-only helper paths that would force Agent to keep dynamic probes or route
 string parsing.
 
-## Agent Release Handoff Matrix
-
-GoodVibes Agent now marks these competitive items as `handoff`: the Agent repo
-has the user-facing UX, safety boundaries, route planning, and honest fallback
-posture; the SDK needs typed records, schemas, clients, events, and examples so
-the TUI/daemon runtime can publish concrete proof.
-
-| Agent inventory item | SDK contract required | Preferred SDK surface |
-|---|---|---|
-| `first-run-and-always-on-setup` | Durable setup receipt schemas for service/auth/smoke/browser readiness, setup-step correlation, and stale receipt detection. | `@pellux/goodvibes-sdk/contracts`, `@pellux/goodvibes-sdk/operator` |
-| `models-and-local-model-cookbook` | Local provider health, model inventory, smoke, benchmark, route-fit, latency, and degradation schemas. | `@pellux/goodvibes-sdk/contracts`, `@pellux/goodvibes-sdk/daemon` |
-| `email-calendar-notes-and-tasks` | Provider-backed inbox/calendar/task/reminder/note records plus confirmed effect receipt schemas. | `@pellux/goodvibes-sdk/contracts`, browser/web-safe clients |
-| `closed-learning-loop` | External memory-provider setup/status/read/write/sync schemas and provider-neutral receipt records. | `@pellux/goodvibes-sdk/contracts` |
-| `autonomous-schedules-and-background-work` | Watcher records, source records, run receipts, redacted event payload descriptors, queue correlation, and live output events. | `@pellux/goodvibes-sdk/contracts`, `@pellux/goodvibes-sdk/operator` |
-| `computer-use-browser-and-shell` | Process/PTY/live-output/sudo/browser-control records and events without raw credential fields. | `@pellux/goodvibes-sdk/contracts`, browser-safe split bundles |
-| `multi-agent-and-remote-execution` | Remote runner, worktree isolation, artifact capture/export, changed-file summary, cancel/recovery receipt schemas. | `@pellux/goodvibes-sdk/contracts` |
-| `deep-research-and-knowledge-reports` | Browser research run/source/report/handoff schemas, visual report packet schema, rendering receipts, and realtime events. | `@pellux/goodvibes-sdk/contracts`, `@pellux/goodvibes-sdk/browser` |
-| `mobile-voice-and-device-nodes` | Companion device capability, permission, push-to-talk, transcription, wake/speak, camera/screen/notification/location schemas. | `@pellux/goodvibes-sdk/react-native`, `@pellux/goodvibes-sdk/expo` |
-| `web-dashboard-and-pwa` | Browser workspace category, PWA open/completion, mobile action form, visual report render, and session restore receipt schemas. | `@pellux/goodvibes-sdk/browser`, `@pellux/goodvibes-sdk/web` |
-
-Every schema should include effect metadata, redaction metadata, auth scope,
-confirmation expectation where relevant, and a stable method/event id. Agent
-will not import runtime implementations from the SDK; it will consume the
-published contracts and operator clients.
-
 ## Priority 1: Operator Contract Expansion
 
 Add typed operator methods and generated references for the daemon contracts
@@ -81,7 +56,6 @@ requested in `docs/audits/goodvibes-tui-handoff.md`.
 
 The minimum contract groups are:
 
-- durable setup service/auth/smoke/browser readiness receipts;
 - browser-backed research runner;
 - browser/PWA Agent workspace surface and visual report rendering;
 - Personal Ops provider queues and effects;
@@ -117,8 +91,7 @@ Publish typed realtime events for:
 - `browser.workspace.opened`, `browser.workspace.receipt`;
 - `provider.health.updated`, `local_model.smoke.receipt`;
 - `channel.delivery.receipt`;
-- `memory_provider.sync.receipt`;
-- `setup.receipt.created`, `setup.receipt.updated`.
+- `memory_provider.sync.receipt`.
 
 Each event should carry correlation id, subject id, timestamp, status, bounded
 payload, and redaction/truncation metadata where content exists.
@@ -128,26 +101,6 @@ Acceptance criteria:
 - Events are documented in `docs/reference-runtime-events.md`.
 - Realtime tests cover reconnect and session/subject filtering.
 - Browser and React Native clients can subscribe without Node-only imports.
-
-## Priority 2A: Setup Receipt Types
-
-Agent setup already exposes checkpoints, smoke evidence, service repair
-decisions, and closeout state. The SDK should make the daemon proof shape typed.
-
-Needed types:
-
-- setup receipt record for service, auth, smoke, and browser readiness;
-- setup step correlation metadata;
-- stale/fresh receipt posture;
-- blocker summary and recovery route;
-- redaction metadata and bounded evidence descriptors.
-
-Acceptance criteria:
-
-- Type tests prevent raw token, password, command output, or secret fields.
-- Receipts can represent ready, blocked, failed, expired, and stale states.
-- Examples show Agent reading latest setup receipts without rerunning setup
-  effects.
 
 ## Priority 3: Deep Research And Visual Report Types
 
