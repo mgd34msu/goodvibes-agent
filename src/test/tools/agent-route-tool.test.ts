@@ -213,6 +213,50 @@ describe('route adapter', () => {
     });
   });
 
+  test('routes local model recommendations to the cookbook route', async () => {
+    const body = await route('recommend an Ollama model for this laptop');
+
+    expect(preferredId(body)).toBe('local-model-cookbook-route');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'models action:"local" query:"recommend an Ollama model for this laptop" includeParameters:true',
+      inspectRoute: 'models action:"status" query:"local" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
+  test('routes local model server checks through the confirmed smoke route', async () => {
+    const body = await route('check local model servers');
+
+    expect(preferredId(body)).toBe('local-model-smoke-check');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'models action:"smoke" query:"check local model servers" includeParameters:true',
+      inspectRoute: 'models action:"local" query:"local server health" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('routes provider account setup through provider posture', async () => {
+    const body = await route('connect OpenRouter subscription');
+
+    expect(preferredId(body)).toBe('model-provider-account-posture');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'models action:"provider" providerId:"openrouter" includeParameters:true',
+      inspectRoute: 'models action:"providers" includeParameters:true',
+      requiresConfirmation: true,
+    });
+  });
+
+  test('routes route-fit requests through model route readiness', async () => {
+    const body = await route('choose the best model route for long context coding');
+
+    expect(preferredId(body)).toBe('model-route-readiness');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'models action:"route" query:"choose the best model route for long context coding" includeParameters:true',
+      inspectRoute: 'models action:"status" includeParameters:true',
+      requiresConfirmation: false,
+    });
+  });
+
   test('routes named external memory providers to provider posture', async () => {
     const body = await route('connect Supermemory as an external memory provider');
 
@@ -357,7 +401,7 @@ describe('route adapter', () => {
     expect(result.success).toBe(true);
     if (!result.success) throw new Error(result.error);
     const body = JSON.parse(result.output) as Record<string, unknown>;
-    expect(preferredId(body)).toBe('model-provider-routing');
+    expect(preferredId(body)).toBe('local-model-cookbook-route');
   });
 
   test('registers the direct route adapter once', () => {

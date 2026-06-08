@@ -451,6 +451,93 @@ function channelSendLike(lower: string): boolean {
   return hasAny(lower, ['send', 'notify', 'deliver', 'test send', 'test notification', 'ping']);
 }
 
+const MODEL_PROVIDER_IDS = [
+  'openrouter',
+  'openai',
+  'anthropic',
+  'claude',
+  'ollama',
+  'llama.cpp',
+  'llamacpp',
+  'vllm',
+  'lm studio',
+] as const;
+
+function modelProviderId(lower: string): string | null {
+  const provider = MODEL_PROVIDER_IDS.find((candidate) => lower.includes(candidate));
+  if (!provider) return null;
+  if (provider === 'llama.cpp' || provider === 'llamacpp') return 'llama.cpp';
+  if (provider === 'lm studio') return 'lm-studio';
+  return provider;
+}
+
+function localModelLike(lower: string): boolean {
+  return hasAny(lower, [
+    'local model',
+    'local server',
+    'local endpoint',
+    'local ai',
+    'ollama',
+    'llama.cpp',
+    'llamacpp',
+    'vllm',
+    'lm studio',
+    'cookbook',
+    'model recipe',
+    'hardware fit',
+    'serve model',
+    'download model',
+  ]);
+}
+
+function localModelSmokeLike(lower: string): boolean {
+  return hasAny(lower, [
+    'local model smoke',
+    'model smoke',
+    'check local model',
+    'check local servers',
+    'local server health',
+    'server health',
+    'model-list smoke',
+    'test ollama',
+    'smoke ollama',
+  ]);
+}
+
+function providerAccountLike(lower: string): boolean {
+  return hasAny(lower, [
+    'provider account',
+    'provider auth',
+    'subscription',
+    'api key',
+    'apikey',
+    'openrouter',
+    'openai',
+    'anthropic',
+    'claude',
+    'login',
+    'billing',
+  ]);
+}
+
+function modelRouteReadinessLike(lower: string): boolean {
+  return hasAny(lower, [
+    'model route',
+    'route readiness',
+    'best model',
+    'choose model',
+    'pick model',
+    'compare route',
+    'context window',
+    'long context',
+    'tool support',
+    'vision model',
+    'latency',
+    'model cost',
+    'privacy',
+  ]);
+}
+
 function buildCandidates(request: string): readonly RouteCandidateDraft[] {
   const lower = request.toLowerCase();
   const candidates: RouteCandidateDraft[] = [];
@@ -546,7 +633,103 @@ function buildCandidates(request: string): readonly RouteCandidateDraft[] {
     });
   }
 
-  if (hasAny(lower, ['model', 'provider', 'openrouter', 'openai', 'anthropic', 'claude', 'subscription', 'local model', 'ollama', 'llama.cpp', 'llamacpp', 'vllm', 'context window'])) {
+  if (hasAny(lower, ['model', 'provider', 'openrouter', 'openai', 'anthropic', 'claude', 'subscription', 'local model', 'ollama', 'llama.cpp', 'llamacpp', 'vllm', 'context window', 'api key', 'local server', 'cookbook'])) {
+    const providerId = modelProviderId(lower);
+
+    if (localModelSmokeLike(lower)) {
+      add({
+        id: 'local-model-smoke-check',
+        label: 'Local model server smoke check',
+        score: 98,
+        userSurface: 'Model Routing workspace',
+        userOutcome: 'Check local model endpoints only through the confirmed smoke route with clear success criteria.',
+        why: 'The request asks to check, smoke, or verify local model server health.',
+        modelRoute: `models action:"smoke" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'models action:"local" query:"local server health" includeParameters:true',
+        userRoute: 'Agent Workspace -> Model Routing -> Check local servers',
+        requiresConfirmation: true,
+        missingFields: ['local endpoint or route id when multiple candidates exist', 'timeout when not default', 'confirmation before probing local servers'],
+        supportingRoutes: [
+          `models action:"local" query:${quote(request)} includeParameters:true`,
+          'models action:"route" target:"local" includeParameters:true',
+          'setup action:"item" setupItemId:"local-model-readiness"',
+        ],
+        policy: 'Local model discovery is read-only. Smoke checks may contact local endpoints and require confirm:true plus explicitUserRequest.',
+      });
+    }
+
+    if (localModelLike(lower)) {
+      const localEffect = hasAny(lower, ['download', 'install', 'start', 'serve', 'run ', 'set up', 'setup']);
+      add({
+        id: 'local-model-cookbook-route',
+        label: 'Local model cookbook and endpoint readiness',
+        score: localModelSmokeLike(lower) ? 94 : 96,
+        userSurface: 'Model Routing workspace',
+        userOutcome: 'Recommend local model recipes and inspect endpoint readiness before setup or smoke effects.',
+        why: 'The request mentions local models, Ollama, llama.cpp, vLLM, LM Studio, cookbook recipes, or hardware fit.',
+        modelRoute: `models action:"local" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'models action:"status" query:"local" includeParameters:true',
+        userRoute: 'Agent Workspace -> Model Routing -> Local cookbook',
+        requiresConfirmation: localEffect,
+        missingFields: localEffect ? ['selected recipe or endpoint', 'install/start/smoke intent', 'confirmation before local setup or server probing'] : undefined,
+        supportingRoutes: [
+          'models action:"route" target:"local" includeParameters:true',
+          'models action:"smoke" query:"local" confirm:true explicitUserRequest:"..."',
+          'agent_model_compare mode:"compare" confirm:true explicitUserRequest:"..."',
+        ],
+        policy: 'Cookbook and endpoint readiness are read-only. Downloads, server starts, benchmark runs, route updates, and local smoke checks remain separate confirmed effects.',
+      });
+    }
+
+    if (providerAccountLike(lower) && !localModelLike(lower)) {
+      const providerEffect = hasAny(lower, ['connect', 'set up', 'setup', 'configure', 'add', 'login', 'sign in', 'api key', 'key', 'change', 'refresh']);
+      add({
+        id: 'model-provider-account-posture',
+        label: 'Model provider account and subscription posture',
+        score: 96,
+        userSurface: 'Model Routing workspace',
+        userOutcome: 'Inspect provider account, subscription, and auth readiness before changing credentials or model routes.',
+        why: 'The request mentions model providers, subscriptions, provider auth, or API keys.',
+        modelRoute: providerId
+          ? `models action:"provider" providerId:"${providerId}" includeParameters:true`
+          : `models action:"providers" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'models action:"providers" includeParameters:true',
+        userRoute: 'Agent Workspace -> Model Routing -> Providers',
+        requiresConfirmation: providerEffect,
+        missingFields: providerEffect ? ['provider id', 'credential or subscription setup route', 'confirmation before storing credentials or changing routes'] : undefined,
+        supportingRoutes: [
+          'settings action:"list" query:"provider model api key" includeHidden:true',
+          'models action:"status" includeParameters:true',
+          'models action:"route" target:"default" includeParameters:true',
+        ],
+        policy: 'Provider inspection is read-only. Credential storage, provider refreshes, and route changes stay on explicit confirmed settings or model-route effects.',
+      });
+    }
+
+    if (modelRouteReadinessLike(lower)) {
+      add({
+        id: 'model-route-readiness',
+        label: 'Model route fit and readiness',
+        score: 94,
+        userSurface: 'Model Routing workspace',
+        userOutcome: 'Inspect the best model route for context, tools, vision, cost, latency, and privacy before changing defaults.',
+        why: 'The request asks to choose, compare, or inspect model route fit.',
+        modelRoute: `models action:"route" query:${quote(request)} includeParameters:true`,
+        inspectRoute: 'models action:"status" includeParameters:true',
+        userRoute: 'Agent Workspace -> Model Routing -> Route readiness',
+        requiresConfirmation: hasAny(lower, ['change', 'switch', 'set default', 'apply', 'use ']),
+        missingFields: hasAny(lower, ['change', 'switch', 'set default', 'apply'])
+          ? ['selected model route id', 'confirmation before route change']
+          : undefined,
+        supportingRoutes: [
+          'models action:"status" includeParameters:true',
+          'models action:"providers" includeParameters:true',
+          'agent_model_compare mode:"compare" confirm:true explicitUserRequest:"..."',
+        ],
+        policy: 'Route inspection is read-only. Model comparisons and winner/default-route changes are separate confirmed routes with saved evidence.',
+      });
+    }
+
     add({
       id: 'model-provider-routing',
       label: 'Model/provider route readiness',
