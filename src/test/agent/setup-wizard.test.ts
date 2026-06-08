@@ -81,9 +81,9 @@ describe('Agent setup wizard checkpoints', () => {
 
     expect(wizard.currentStepId).toBe('install-smoke');
     expect(wizard.currentStepLabel).toBe('Install smoke');
-    expect(wizard.checkpoint.status).toBe('available');
-    expect(wizard.checkpoint.resumed).toBe(true);
-    expect(wizard.checkpoint.summary).toContain('Resuming Install smoke');
+    expect(wizard._diagnostic.checkpoint.status).toBe('available');
+    expect(wizard._diagnostic.checkpoint.resumed).toBe(true);
+    expect(wizard._diagnostic.checkpoint.summary).toContain('Resuming Install smoke');
     expect(wizard.steps.find((step) => step.id === 'install-smoke')?.status).toBe('current');
   });
 
@@ -96,9 +96,9 @@ describe('Agent setup wizard checkpoints', () => {
 
     expect(wizard.status).toBe('blocked');
     expect(wizard.currentStepId).toBe('provider-model');
-    expect(wizard.checkpoint.status).toBe('available');
-    expect(wizard.checkpoint.resumed).toBe(false);
-    expect(wizard.checkpoint.summary).toContain('live blocker Provider and model is taking priority');
+    expect(wizard._diagnostic.checkpoint.status).toBe('available');
+    expect(wizard._diagnostic.checkpoint.resumed).toBe(false);
+    expect(wizard._diagnostic.checkpoint.summary).toContain('live blocker Provider and model is taking priority');
     expect(wizard.steps.find((step) => step.id === 'install-smoke')?.status).toBe('pending');
   });
 
@@ -110,9 +110,9 @@ describe('Agent setup wizard checkpoints', () => {
     });
 
     expect(wizard.currentStepId).toBe('provider-model');
-    expect(wizard.checkpoint.status).toBe('stale');
-    expect(wizard.checkpoint.resumed).toBe(false);
-    expect(wizard.checkpoint.summary).toContain('already ready');
+    expect(wizard._diagnostic.checkpoint.status).toBe('stale');
+    expect(wizard._diagnostic.checkpoint.resumed).toBe(false);
+    expect(wizard._diagnostic.checkpoint.summary).toContain('already ready');
   });
 
   test('builds timestamped step history and explicit durable receipt gaps', () => {
@@ -123,11 +123,11 @@ describe('Agent setup wizard checkpoints', () => {
       receiptRequiredStepIds: ['runtime', 'provider-model', 'install-smoke', 'browser-pwa'],
     });
 
-    expect(wizard.stepHistory.map((entry) => entry.id)).toEqual([
+    expect(wizard._diagnostic.stepHistory.map((entry) => entry.id)).toEqual([
       'setup-step-history:install-smoke:setup-smoke:artifact-1',
       'setup-step-history:provider-model:checkpoint:2026-06-06T12:00:00.000Z',
     ]);
-    expect(wizard.stepHistory[0]).toMatchObject({
+    expect(wizard._diagnostic.stepHistory[0]).toMatchObject({
       stepId: 'install-smoke',
       stepLabel: 'Install smoke',
       kind: 'setup-smoke',
@@ -136,14 +136,14 @@ describe('Agent setup wizard checkpoints', () => {
       receiptStatus: 'ready-for-user-run',
       satisfiesReceipt: true,
     });
-    expect(wizard.stepHistory[1]).toMatchObject({
+    expect(wizard._diagnostic.stepHistory[1]).toMatchObject({
       stepId: 'provider-model',
       kind: 'checkpoint',
       receiptId: 'setup-wizard-checkpoint:provider-model:2026-06-06T12:00:00.000Z',
       recordedAt: '2026-06-06T12:00:00.000Z',
       satisfiesReceipt: false,
     });
-    expect(wizard.receiptGaps).toEqual([
+    expect(wizard._diagnostic.receiptGaps).toEqual([
       {
         stepId: 'runtime',
         stepLabel: 'Connected host',
@@ -220,12 +220,12 @@ describe('Agent setup wizard checkpoints', () => {
     expect(wizard.steps.find((step) => step.id === 'connected-host-auth')?.status).toBe('done');
     expect(wizard.currentStepId).toBe('install-smoke');
     expect(wizard.steps.find((step) => step.id === 'browser-pwa')?.status).toBe('pending');
-    expect(wizard.stepHistory.find((entry) => entry.receiptId === 'browser-blocked')).toMatchObject({
+    expect(wizard._diagnostic.stepHistory.find((entry) => entry.receiptId === 'browser-blocked')).toMatchObject({
       kind: 'durable-receipt',
       receiptStatus: 'blocked',
       satisfiesReceipt: false,
     });
-    expect(wizard.receiptGaps.map((gap) => gap.stepId)).toEqual(['install-smoke', 'browser-pwa']);
+    expect(wizard._diagnostic.receiptGaps.map((gap) => gap.stepId)).toEqual(['install-smoke', 'browser-pwa']);
   });
 
   test('does not infer generic first-run setup smoke as browser/PWA receipt', () => {
@@ -271,9 +271,9 @@ describe('Agent setup wizard checkpoints', () => {
       }],
     });
 
-    expect(wizard.closeout.status).toBe('ready-to-finish');
-    expect(wizard.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
-    expect(wizard.closeout.evidence.join('\n')).toContain('latest setup smoke: durable receipt ready');
+    expect(wizard._diagnostic.closeout.status).toBe('ready-to-finish');
+    expect(wizard._diagnostic.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
+    expect(wizard._diagnostic.closeout.evidence.join('\n')).toContain('latest setup smoke: durable receipt ready');
   });
 
   test('blocks closeout on critical blocked setup rows', () => {
@@ -284,10 +284,10 @@ describe('Agent setup wizard checkpoints', () => {
       setupMarkerExists: false,
     });
 
-    expect(wizard.closeout.status).toBe('blocked');
-    expect(wizard.closeout.primaryStepId).toBe('provider-model');
-    expect(wizard.closeout.modelRoute).toContain('models action:"status"');
-    expect(wizard.closeout.evidence.join('\n')).toContain('critical setup blockers: Provider and model');
+    expect(wizard._diagnostic.closeout.status).toBe('blocked');
+    expect(wizard._diagnostic.closeout.primaryStepId).toBe('provider-model');
+    expect(wizard._diagnostic.closeout.modelRoute).toContain('models action:"status"');
+    expect(wizard._diagnostic.closeout.evidence.join('\n')).toContain('critical setup blockers: Provider and model');
   });
 
   test('asks for setup smoke before finish when critical setup is ready', () => {
@@ -298,10 +298,10 @@ describe('Agent setup wizard checkpoints', () => {
       setupMarkerExists: false,
     });
 
-    expect(wizard.closeout.status).toBe('needs-smoke-evidence');
-    expect(wizard.closeout.primaryStepId).toBe('install-smoke');
-    expect(wizard.closeout.requiresConfirmation).toBe(true);
-    expect(wizard.closeout.modelRoute).toContain('setup action:"smoke"');
+    expect(wizard._diagnostic.closeout.status).toBe('needs-smoke-evidence');
+    expect(wizard._diagnostic.closeout.primaryStepId).toBe('install-smoke');
+    expect(wizard._diagnostic.closeout.requiresConfirmation).toBe(true);
+    expect(wizard._diagnostic.closeout.modelRoute).toContain('setup action:"smoke"');
   });
 
   test('routes ready setup to finish and marks complete after the user marker exists', () => {
@@ -312,9 +312,9 @@ describe('Agent setup wizard checkpoints', () => {
       closeoutCriticalStepIds: ['runtime', 'provider-model'],
       setupMarkerExists: false,
     });
-    expect(readyToFinish.closeout.status).toBe('ready-to-finish');
-    expect(readyToFinish.closeout.modelRoute).toContain('setup action:"finish"');
-    expect(readyToFinish.closeout.requiresConfirmation).toBe(true);
+    expect(readyToFinish._diagnostic.closeout.status).toBe('ready-to-finish');
+    expect(readyToFinish._diagnostic.closeout.modelRoute).toContain('setup action:"finish"');
+    expect(readyToFinish._diagnostic.closeout.requiresConfirmation).toBe(true);
 
     const complete = buildAgentSetupWizard({
       items: readyItems,
@@ -322,8 +322,8 @@ describe('Agent setup wizard checkpoints', () => {
       closeoutCriticalStepIds: ['runtime', 'provider-model'],
       setupMarkerExists: true,
     });
-    expect(complete.closeout.status).toBe('complete');
-    expect(complete.closeout.requiresConfirmation).toBe(false);
-    expect(complete.closeout.primaryStepId).toBeNull();
+    expect(complete._diagnostic.closeout.status).toBe('complete');
+    expect(complete._diagnostic.closeout.requiresConfirmation).toBe(false);
+    expect(complete._diagnostic.closeout.primaryStepId).toBeNull();
   });
 });

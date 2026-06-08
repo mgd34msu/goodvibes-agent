@@ -52,7 +52,7 @@ interface AgentWorkspaceActivationHost {
   openSettingsModalAction(action: AgentWorkspaceCategory['actions'][number], requestRender?: () => void): void;
   completeOnboarding(): void;
   hasCommandDispatch(): boolean;
-  dispatchWorkspaceCommand: AgentWorkspaceCommandDispatcher;
+  dispatchWorkspaceCommand(command: string, behavior?: 'inline' | 'compose' | 'exit'): void;
   commitActionSearchSelection(): boolean;
 }
 
@@ -186,7 +186,7 @@ export function activateAgentWorkspaceSelection(
     command: action.command,
     safety: action.safety,
   };
-  workspace.dispatchWorkspaceCommand(action.command);
+  workspace.dispatchWorkspaceCommand(action.command, action.commandBehavior);
 }
 
 export function createAgentWorkspaceEditor(

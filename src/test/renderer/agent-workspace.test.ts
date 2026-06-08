@@ -572,19 +572,20 @@ describe('renderAgentWorkspace', () => {
 
     expect(output).toContain('Selected: Import GoodVibes settings');
     expect(output).toContain('Onboarding');
-    expect(output).toContain('8/15 ready; 5 recommended; 2 optional; 0 blocked.');
-    expect(output).toContain('Setup wizard: 8/15 done; current Install smoke.');
-    expect(output).toContain('Wizard next: Install smoke');
+    expect(output).toContain('8 of 13 done — 3 need attention');
     expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
     expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
-    expect(output).toContain('Next: Install smoke (recommended)');
+    expect(output).toContain('Next: Agent Knowledge (recommended)');
     expect(output).toContain('Option');
-    expect(output).toContain('Change');
+    expect(output).toContain('Does');
     expect(output).toContain('Import GoodVibes settings');
     expect(output).toContain('Choose main model');
     expect(output).toContain('Start subscription login');
     expect(output).toContain('Store secret');
-    expect(output).toContain('->');
+    expect(output).not.toContain('Setup wizard:');
+    expect(output).not.toContain('Wizard next:');
+    expect(output).not.toContain('Setup closeout:');
+    expect(output).not.toContain('->');
     expect(output).not.toContain('Does:');
     expect(output).not.toContain('Command:');
     expect(output).not.toContain('setting provider.reasoningEffort');
@@ -631,11 +632,13 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 52));
 
-    expect(output).toContain('Setup wizard: 8/15 done; current Install smoke.');
-    expect(output).toContain('Repeated blocker: setup-posture in 2 saved smoke run(s).');
-    expect(output).toContain('Smoke history: 2 run(s); trend unchanged-blocked; latest blocked.');
-    expect(output).toContain('Step history: 1 recorded; latest Install smoke setup-smoke at 1970-01-01T00:00:02.000Z.');
-    expect(output).toContain('Receipt gaps: Connected host, Connected-host auth, Install smoke, +1 more still need durable');
+    expect(output).toContain('Onboarding');
+    expect(output).toContain('need attention');
+    expect(output).not.toContain('Setup wizard:');
+    expect(output).not.toContain('Repeated blocker:');
+    expect(output).not.toContain('Smoke history:');
+    expect(output).not.toContain('Step history:');
+    expect(output).not.toContain('Receipt gaps:');
   });
 
   test('renders durable setup receipts as first-run readiness evidence', () => {
@@ -687,10 +690,11 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 52));
 
-    expect(output).toContain('Setup wizard: 10/15 done');
-    expect(output).toContain('Step history: 3 recorded; latest Browser/PWA durable-receipt at 1970-01-01T00:00:05.000Z.');
-    expect(output).toContain('Receipt gaps: Connected-host auth still need durable setup receipt ids.');
-    expect(output).not.toContain('Install smoke, Browser/PWA still need durable setup receipt');
+    expect(output).toContain('Onboarding');
+    expect(output).toContain('of 13 done');
+    expect(output).not.toContain('Step history:');
+    expect(output).not.toContain('Receipt gaps:');
+    expect(output).not.toContain('durable setup receipt');
   });
 
   test('renders saved setup checkpoint state on Start', () => {
@@ -700,9 +704,10 @@ describe('renderAgentWorkspace', () => {
 
     const output = text(renderAgentWorkspace(workspace, 132, 52));
 
-    expect(output).toContain('Setup checkpoint: Resuming Install smoke from saved setup checkpoint.');
+    expect(output).toContain('Onboarding');
     expect(output).toContain('Save setup checkpoint');
     expect(output).toContain('Clear setup checkpoint');
+    expect(output).not.toContain('Setup checkpoint:');
   });
 
   test('renders Personal Ops as one daily operations surface', () => {
@@ -1033,9 +1038,11 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('Setup Checklist');
     expect(output).not.toContain('RECOMMENDED');
     expect(output).not.toContain('->');
+    expect(output).not.toContain('Setup wizard:');
+    expect(output).not.toContain('Wizard next:');
   });
 
-  test('renders onboarding setting choices as compact current-to-proposed previews', () => {
+  test('renders onboarding setting pages as default and current value columns', () => {
     let workspace = new AgentWorkspace();
     workspace.open(onboardingConfigContext({
       'surfaces.ntfy.enabled': false,
@@ -1045,9 +1052,14 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-enabled');
     let output = text(renderAgentWorkspace(workspace, 180, 48));
 
-    expect(output).toContain('Option');
-    expect(output).toContain('Change');
-    expect(output).toContain('Change: surfaces.ntfy.enabled: false -> true');
+    expect(output).toContain('Setting');
+    expect(output).toContain('Default');
+    expect(output).toContain('Current');
+    expect(output).toContain('Use ntfy');
+    expect(output).toContain('false');
+    expect(output).toContain('About: Toggle ntfy notifications and chat routing.');
+    expect(output).not.toContain('Change');
+    expect(output).not.toContain('->');
     expect(output).not.toContain('Action  Does');
     expect(output).not.toContain('Does:');
     expect(output).not.toContain('setting surfaces.ntfy.enabled');
@@ -1060,7 +1072,11 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-token');
     output = text(renderAgentWorkspace(workspace, 180, 48));
 
-    expect(output).toContain('Change: surfaces.ntfy.token: (secret) -> (secret)');
+    expect(output).toContain('ntfy token');
+    expect(output).toContain('(empty)');
+    expect(output).toContain('(secret)');
+    expect(output).not.toContain('Change:');
+    expect(output).not.toContain('->');
     expect(output).not.toContain('NTFY_TOKEN');
     expect(output).not.toContain('goodvibes://secrets');
   });
@@ -1099,8 +1115,15 @@ describe('renderAgentWorkspace', () => {
       expect(contextSeparatorRow).toBeLessThanOrEqual(16);
       expect(output).toContain(category.label);
       if (category.group === 'ONBOARDING') {
-        expect(output).toContain('Option');
-        expect(output).toContain('Change');
+        if (category.actions.length > 0 && category.actions.every((action) => action.kind === 'setting')) {
+          expect(output).toContain('Setting');
+          expect(output).toContain('Default');
+          expect(output).toContain('Current');
+        } else {
+          expect(output).toContain('Option');
+          expect(output).toContain('Does');
+        }
+        expect(output).not.toContain('Change:');
         expect(output).not.toContain('Does:');
       } else {
         expect(output).toContain('Action');
@@ -1116,12 +1139,14 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-use');
     let output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Choose provider and model');
-    expect(output).toContain('Change: Choose provider and model');
+    expect(output).toContain('About: Open the shared provider/model picker for the main chat route.');
+    expect(output).not.toContain('Change:');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-main-model');
     output = text(renderAgentWorkspace(workspace, 132, 44));
     expect(output).toContain('Choose main model');
-    expect(output).toContain('Change: Choose a model');
+    expect(output).toContain('About: Open the shared model picker for normal assistant turns.');
+    expect(output).not.toContain('Change:');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-route-readiness');
     output = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1174,7 +1199,8 @@ describe('renderAgentWorkspace', () => {
 
     const actionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(actionOutput).toContain('Start subscription login');
-    expect(actionOutput).toContain('Change: Open guided form');
+    expect(actionOutput).toContain('About: Start one provider sign-in flow, save pending state, and return here.');
+    expect(actionOutput).not.toContain('Change:');
 
     workspace.activateSelected();
     const editorOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1231,7 +1257,8 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-add');
     const addActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(addActionOutput).toContain('Add custom provider');
-    expect(addActionOutput).toContain('Change: Open guided form');
+    expect(addActionOutput).toContain('About: Add one OpenAI-compatible provider for Agent model routing.');
+    expect(addActionOutput).not.toContain('Change:');
 
     workspace.activateSelected();
     const addEditorOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1246,7 +1273,8 @@ describe('renderAgentWorkspace', () => {
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'provider-remove');
     const removeActionOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(removeActionOutput).toContain('Remove custom provider');
-    expect(removeActionOutput).toContain('Change: Open guided form');
+    expect(removeActionOutput).toContain('About: Remove one custom provider config after confirmation.');
+    expect(removeActionOutput).not.toContain('Change:');
   });
 
   test('renders auth trust subscription and voice bundle forms in the workspace', () => {
@@ -1335,9 +1363,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Inspect VIBE.md');
     expect(output).toContain('Inspect project context');
     expect(output).toContain('Inspect one context file');
-    expect(output).toContain('Review readiness');
+    expect(output).toContain('Review');
     expect(output).toContain('Profile from discovered files');
-    expect(output).toContain('Open guided form');
+    expect(output).toContain('Create profile from files');
     expect(output).toContain('Import persona files');
     expect(output).toContain('Import skill files');
     expect(output).toContain('Import routine files');
@@ -1370,14 +1398,14 @@ describe('renderAgentWorkspace', () => {
       expect(output).not.toContain('->');
     };
 
-    expectSetupAction('context-vibe-status', 'Inspect VIBE.md', 'Review readiness');
-    expectSetupAction('context-project-files', 'Inspect project context', 'Review readiness');
-    expectSetupAction('context-project-file', 'Inspect one context file', 'Review readiness');
-    expectSetupAction('context-prompt-context', 'Prompt context', 'Review readiness');
-    expectSetupAction('context-create-skill', 'Create skill', 'Open guided form');
-    expectSetupAction('context-create-routine', 'Create routine', 'Open guided form');
-    expectSetupAction('context-knowledge-url', 'Ingest URL', 'Open guided form');
-    expectSetupAction('context-knowledge-file', 'Ingest file', 'Open guided form');
+    expectSetupAction('context-vibe-status', 'Inspect VIBE.md', 'Review');
+    expectSetupAction('context-project-files', 'Inspect project context', 'Review');
+    expectSetupAction('context-project-file', 'Inspect one context file', 'Review');
+    expectSetupAction('context-prompt-context', 'Prompt context', 'Review');
+    expectSetupAction('context-create-skill', 'Create skill', 'Edit skill');
+    expectSetupAction('context-create-routine', 'Create routine', 'Edit routine');
+    expectSetupAction('context-knowledge-url', 'Ingest URL', 'Ingest URL');
+    expectSetupAction('context-knowledge-file', 'Ingest file', 'Ingest file');
     expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.');
   });
 
@@ -2027,7 +2055,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).not.toContain('goodvibes-agent-test-token');
     expect(output).toContain('Channels: 2/14 ready; 2 enabled; 1 target(s).');
     expect(output).toContain('Setup guide: 5/8 Choose target; Telegram.');
-    expect(output).toContain('Next: Choose target - /channels show telegram');
+    expect(output).toContain('Next: Choose target');
     expect(output).toContain('Guide checks setup schema, accounts, allowlist policy, live status, and explicit test sends.');
     expect(output).toContain('Triage: /channels triage');
     expect(output).toContain('Pair companion');
@@ -2330,5 +2358,116 @@ describe('renderAgentWorkspace', () => {
     const deleteOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(deleteOutput).toContain('Delete Saved Session');
     expect(deleteOutput).toContain('Confirm *');
+  });
+
+  test('setupOverviewLines never emits release-engineering jargon in the setup category', () => {
+    const jargonPatterns: Array<[string, RegExp | string]> = [
+      ['smoke', /\bsmoke\b/i],
+      ['receipt', /\breceipt\b/i],
+      ['receipt gaps / durable', /receipt gaps|durable/i],
+      ['closeout', /closeout/i],
+      ['schema', /\bschema\b/i],
+      ['checkpoint', /Setup checkpoint:/i],
+      ['repeated blocker', /Repeated blocker:/i],
+      ['schema status', /schema status/i],
+      ['publication guarantee', /publication guarantee/i],
+      ['event cursor', /event cursor/i],
+      ['wizard step count', /Setup wizard:/i],
+      ['action: syntax', /(action|mode|setupItemId):"/],
+      ['Wizard next', /Wizard next:/i],
+      ['Setup closeout', /Setup closeout:/i],
+    ];
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    const output = text(renderAgentWorkspace(workspace, 132, 50));
+
+    for (const [label, pattern] of jargonPatterns) {
+      expect(output).not.toMatch(pattern);
+      if (output.match(pattern)) {
+        throw new Error(`Jargon guard failed for "${label}": pattern ${pattern} matched in setup output`);
+      }
+    }
+  });
+
+  test('channels guide next-action never leaks userRoute tool-call syntax', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    const output = text(renderAgentWorkspace(workspace, 132, 44));
+
+    // userRoute strings look like "/channels show telegram" or tool-call syntax — strip entirely, only label shown
+    expect(output).not.toMatch(/Next:.*\/channels show/);
+    expect(output).not.toMatch(/Next:.*->/);
+    expect(output).not.toMatch(/Next:.*action:"/);
+    expect(output).not.toMatch(/Next:.*mode:"/);
+    // The label itself should be present
+    expect(output).toContain('Next:');
+  });
+
+  test('onboarding row labels show clear verbs', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 50));
+
+    // Positive assertions: verb column must show goal-directed labels
+    expect(output).toContain('Import GoodVibes preferences');
+    expect(output).toContain('Choose provider and model');
+    expect(output).toContain('Sign in to provider');
+    expect(output).toContain('Finish setup');
+
+    // Negative assertions: old generic labels must not appear
+    expect(output).not.toContain('Open option');
+    expect(output).not.toContain('Open setup area');
+    expect(output).not.toContain('Open guided form');
+    expect(output).not.toContain('Apply selected library action');
+    expect(output).not.toContain('Save setup completion');
+  });
+
+  test('finish row is sticky on every onboarding category', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+
+    // Category 1: setup (Start)
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    const setupOutput = text(renderAgentWorkspace(workspace, 132, 50));
+    expect(setupOutput).toContain('Finish setup');
+
+    // Category 2: onboarding-context (Local Context) — different ONBOARDING category
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
+    const contextOutput = text(renderAgentWorkspace(workspace, 132, 50));
+    expect(contextOutput).toContain('Finish setup');
+
+    // Category 3: account-model (Model Routing)
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
+    const accountOutput = text(renderAgentWorkspace(workspace, 132, 50));
+    expect(accountOutput).toContain('Finish setup');
+  });
+
+  test('left pane shows per-category readiness glyphs for onboarding categories', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(liveCommandContext(), () => undefined);
+    // Navigate to setup category so the left pane is rendered at that position
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+
+    const output = text(renderAgentWorkspace(workspace, 132, 50));
+
+    // setup category covers runtime + connected-host-auth + provider-model — all ready in liveCommandContext
+    // So the Start row should show the success glyph ✓
+    // We look for the left pane: the Start label with a readiness marker
+    expect(output).toContain('✓'); // ✓ GLYPHS.status.success — at least one ready category
+
+    // onboarding-context covers agent-knowledge (recommended) — should show attention marker !
+    // Navigate to a different category so onboarding-context row is still visible in the left pane
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
+    const output2 = text(renderAgentWorkspace(workspace, 132, 50));
+    // The left pane includes ONBOARDING group header and category rows
+    expect(output2).toContain('ONBOARDING');
+    // Both success (✓) and attention (!) markers must be present: setup maps to all-ready
+    // critical items, and onboarding-context maps to agent-knowledge which is recommended.
+    expect(output2).toContain('✓');
+    expect(output2).toContain('!');
   });
 });

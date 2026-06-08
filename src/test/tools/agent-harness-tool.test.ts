@@ -1136,14 +1136,14 @@ describe('agent_harness tool', () => {
       expect(posture.setupWizard.currentStepLabel).toBe('Connected-host auth');
       expect(posture.setupWizard.progressLabel).toContain('setup step');
       expect(posture.setupWizard.next).toContain('Connected-host auth');
-      expect(posture.setupWizard.smokeHistory.status).toBe('unavailable');
-      expect(posture.setupWizard.smokeHistory.rerunRoute).toContain('setup action:"smoke"');
-      expect(posture.setupWizard.smokeHistory.saveRoute).toContain('fields:{...}');
-      expect(posture.setupWizard.closeout.status).toBe('blocked');
-      expect(posture.setupWizard.closeout.label).toBe('Fix setup blocker');
-      expect(posture.setupWizard.closeout.primaryStepId).toBe('connected-host-auth');
-      expect(posture.setupWizard.closeout.modelRoute).toContain('setup action:"token"');
-      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('critical setup blockers: Connected-host auth');
+      expect(posture.setupWizard._diagnostic.smokeHistory.status).toBe('unavailable');
+      expect(posture.setupWizard._diagnostic.smokeHistory.rerunRoute).toContain('setup action:"smoke"');
+      expect(posture.setupWizard._diagnostic.smokeHistory.saveRoute).toContain('fields:{...}');
+      expect(posture.setupWizard._diagnostic.closeout.status).toBe('blocked');
+      expect(posture.setupWizard._diagnostic.closeout.label).toBe('Fix setup blocker');
+      expect(posture.setupWizard._diagnostic.closeout.primaryStepId).toBe('connected-host-auth');
+      expect(posture.setupWizard._diagnostic.closeout.modelRoute).toContain('setup action:"token"');
+      expect(posture.setupWizard._diagnostic.closeout.evidence.join('\n')).toContain('critical setup blockers: Connected-host auth');
       expect(posture.setupCloseout).toMatchObject({
         status: 'blocked',
         primaryStepId: 'connected-host-auth',
@@ -1555,10 +1555,10 @@ describe('agent_harness tool', () => {
       expect(steps.get('connected-host-readiness')?.detail).toContain('Durable receipt svc-ready');
       expect(steps.get('connected-host-auth')?.status).toBe('done');
       expect(steps.get('install-smoke')?.status).toBe('done');
-      expect(posture.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt')).toHaveLength(3);
-      expect(posture.setupWizard.stepHistory.every((entry) => entry.satisfiesReceipt === true)).toBe(true);
-      expect(posture.setupWizard.receiptGaps).toEqual([]);
-      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
+      expect(posture.setupWizard._diagnostic.stepHistory.filter((entry) => entry.kind === 'durable-receipt')).toHaveLength(3);
+      expect(posture.setupWizard._diagnostic.stepHistory.every((entry) => entry.satisfiesReceipt === true)).toBe(true);
+      expect(posture.setupWizard._diagnostic.receiptGaps).toEqual([]);
+      expect(posture.setupWizard._diagnostic.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
     } finally {
       fixture.cleanup();
     }
@@ -1649,7 +1649,7 @@ describe('agent_harness tool', () => {
       expect(steps.get('connected-host-auth')?.status).toBe('done');
       expect(steps.get('connected-host-auth')?.detail).not.toContain('hidden-live-secret');
       expect(steps.get('install-smoke')?.status).toBe('done');
-      const durableHistory = posture.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt');
+      const durableHistory = posture.setupWizard._diagnostic.stepHistory.filter((entry) => entry.kind === 'durable-receipt');
       expect(durableHistory).toHaveLength(4);
       expect(durableHistory.filter((entry) => entry.receiptId !== 'live-smoke-event-ready').every((entry) => entry.source === 'context.platform.readModels.setup')).toBe(true);
       expect(durableHistory.find((entry) => entry.receiptId === 'live-auth-ready')?.summary).toContain('token=<redacted>');
@@ -1667,10 +1667,10 @@ describe('agent_harness tool', () => {
       expect(eventReceipt?.provenance?.join('\n')).toContain('method setup.smoke');
       expect(eventReceipt?.provenance?.join('\n')).toContain('repair setup action:"smoke"');
       expect(durableHistory.every((entry) => entry.satisfiesReceipt === true)).toBe(true);
-      expect(posture.setupWizard.receiptGaps).toEqual([]);
-      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
-      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('certified setup receipts: 1/4');
-      expect(posture.setupWizard.closeout.evidence.join('\n')).toContain('setup receipt event streams: 1');
+      expect(posture.setupWizard._diagnostic.receiptGaps).toEqual([]);
+      expect(posture.setupWizard._diagnostic.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
+      expect(posture.setupWizard._diagnostic.closeout.evidence.join('\n')).toContain('certified setup receipts: 1/4');
+      expect(posture.setupWizard._diagnostic.closeout.evidence.join('\n')).toContain('setup receipt event streams: 1');
     } finally {
       fixture.cleanup();
     }
@@ -2917,12 +2917,12 @@ describe('agent_harness tool', () => {
       });
       expect(summary.setupPosture?.setupWizard?.currentStepId).toBe('connected-host-auth');
       expect(summary.setupPosture?.setupWizard?.currentStepLabel).toBe('Connected-host auth');
-      expect(summary.setupPosture?.setupWizard?.repeatedBlocker).toMatchObject({
+      expect(summary.setupPosture?.setupWizard?._diagnostic.repeatedBlocker).toMatchObject({
         setupItemId: 'connected-host-auth',
         checkId: 'connected-host-auth',
         count: 1,
       });
-      expect(summary.setupPosture?.setupWizard?.smokeHistory).toMatchObject({
+      expect(summary.setupPosture?.setupWizard?._diagnostic.smokeHistory).toMatchObject({
         status: 'available',
         total: 1,
         latestResult: 'blocked',
@@ -2999,8 +2999,8 @@ describe('agent_harness tool', () => {
         expect(posture.setupCloseout.modelRoute).toContain('setup action:"finish"');
         expect(posture.setupCloseout.userRoute).toContain('Finish');
         expect(posture.setupCloseout.evidence.join('\n')).toContain('latest setup smoke: ready-for-user-run');
-        expect(posture.setupWizard.closeout.status).toBe('ready-to-finish');
-        expect(posture.setupWizard.closeout.modelRoute).toContain('setup action:"finish"');
+        expect(posture.setupWizard._diagnostic.closeout.status).toBe('ready-to-finish');
+        expect(posture.setupWizard._diagnostic.closeout.modelRoute).toContain('setup action:"finish"');
 
         const finished = await executeHarnessJson<{
           readonly status: string;

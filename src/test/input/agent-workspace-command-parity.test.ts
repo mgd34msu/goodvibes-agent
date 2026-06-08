@@ -105,7 +105,7 @@ describe('Agent workspace command parity', () => {
     } satisfies AgentWorkspaceAction;
     const category: AgentWorkspaceCategory = {
       id: 'bad-category',
-      group: 'TEST',
+      group: 'START', // test fixture — real group not needed for this structural test
       label: 'Bad Category',
       summary: 'Malformed test category.',
       detail: 'Malformed test category.',
@@ -129,7 +129,7 @@ describe('Agent workspace command parity', () => {
       selectedLocalLibraryItem: (_kind: AgentWorkspaceLocalEditorKind): AgentWorkspaceLocalLibraryItem | null => null,
       applyLocalLibraryOperation: (_operation: AgentWorkspaceLocalOperation) => {},
       hasCommandDispatch: () => true,
-      dispatchWorkspaceCommand: (_command: string) => {},
+      dispatchWorkspaceCommand: (_command: string, _behavior?: 'inline' | 'compose' | 'exit') => {},
       commitActionSearchSelection: () => true,
     };
 

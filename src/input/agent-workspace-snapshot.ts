@@ -463,9 +463,6 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
   const browserPwaEnabled = readConfigBoolean(context, 'web.enabled', false);
   const browserPwaPublicBaseUrl = readConfigString(context, 'web.publicBaseUrl', '(not configured)');
   const connectedHostAuthReceiptReady = setupStepHasSatisfyingReceipt(durableSetupReceipts, 'connected-host-auth');
-  const installSmokeReceiptReady = setupSmokeHistory.latestResult === 'ready-for-user-run'
-    || setupStepHasSatisfyingReceipt(durableSetupReceipts, 'install-smoke');
-  const browserPwaReceiptReady = setupStepHasSatisfyingReceipt(durableSetupReceipts, 'browser-pwa');
   const setupChecklist = buildAgentWorkspaceSetupChecklist({
     provider,
     model,
@@ -498,10 +495,6 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     readyChannelCount: channels.filter((channel) => channel.ready).length,
     voiceProviderCount: voiceProviders.length,
     mediaProviderCount: mediaProviders.length,
-    installSmokeReceiptReady,
-    browserPwaEnabled,
-    browserPwaPublicBaseUrl,
-    browserPwaFirstRunReceiptStatus: browserPwaReceiptReady ? 'published' : 'not-published',
     runtimeProfileCount: runtimeProfiles.length,
     runtimeStarterTemplateCount: runtimeStarterTemplates.length,
   });

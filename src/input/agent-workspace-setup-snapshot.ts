@@ -128,13 +128,12 @@ export function buildSetupWizardCheckpoint(context: CommandContext): AgentSetupW
 }
 
 function setupChecklistUserRoute(item: AgentWorkspaceSetupChecklistItem): string {
-  return item.command ?? 'Start';
+  return item.breadcrumb ?? 'Start';
 }
 
 function setupChecklistModelRoute(item: AgentWorkspaceSetupChecklistItem): string {
   if (item.id === 'runtime') return 'agent_harness mode:"setup_item" setupItemId:"connected-host-readiness"';
   if (item.id === 'provider-model') return 'models action:"status"';
-  if (item.id === 'install-smoke') return DEFAULT_AGENT_SETUP_WIZARD_RERUN_SMOKE_ROUTE;
   if (item.id === 'subscriptions') return 'models action:"providers"';
   if (item.id === 'agent-knowledge') return 'agent_knowledge mode:"status"';
   if (item.id === 'profile') return 'agent_harness mode:"workspace_action" actionId:"profile-template-show"';
@@ -144,7 +143,6 @@ function setupChecklistModelRoute(item: AgentWorkspaceSetupChecklistItem): strin
   if (item.id === 'memory') return 'memory action:"status"';
   if (item.id === 'notes') return 'personal_ops action:"lane" laneId:"notes"';
   if (item.id === 'channels') return 'channels action:"status"';
-  if (item.id === 'browser-pwa') return 'computer action:"browser" includeParameters:true';
   if (item.id === 'voice-media') return 'device action:"voice"';
   return `agent_harness mode:"setup_item" setupItemId:"${item.id}"`;
 }
@@ -158,18 +156,15 @@ function setupChecklistActionId(item: AgentWorkspaceSetupChecklistItem): string 
   if (item.id === 'skills') return 'skill-search';
   if (item.id === 'routines') return 'routine-search';
   if (item.id === 'channels') return 'channel-show';
-  if (item.id === 'browser-pwa') return 'browser-cockpit-readiness';
   if (item.id === 'voice-media') return 'voice-enable';
   return item.id;
 }
 
 const SETUP_WIZARD_SNAPSHOT_BLOCKER_ALIASES: Readonly<Record<string, readonly string[]>> = {
-  'agent-binary': ['runtime', 'install-smoke'],
+  'agent-binary': ['runtime'],
   'connected-host-status': ['runtime'],
   'connected-host-auth': ['connected-host-auth'],
   'provider-model': ['provider-model'],
-  'setup-posture': ['install-smoke'],
-  'first-assistant-turn': ['install-smoke'],
 };
 
 export function buildWorkspaceSetupWizard(
@@ -179,7 +174,6 @@ export function buildWorkspaceSetupWizard(
   setupMarkerExists: boolean,
   durableReceipts: readonly AgentSetupWizardDurableReceipt[] = [],
 ): AgentSetupWizard {
-  const browserPwaNeedsReceipt = checklist.some((item) => item.id === 'browser-pwa' && item.status !== 'ready');
   const items: AgentSetupWizardSourceItem[] = checklist.map((item) => ({
     id: item.id,
     label: item.label,
@@ -197,8 +191,6 @@ export function buildWorkspaceSetupWizard(
     receiptRequiredStepIds: [
       'runtime',
       'connected-host-auth',
-      'install-smoke',
-      ...(browserPwaNeedsReceipt ? ['browser-pwa'] : []),
     ],
     durableReceipts,
     setupMarkerExists,

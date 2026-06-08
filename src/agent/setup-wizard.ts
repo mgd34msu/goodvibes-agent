@@ -148,6 +148,15 @@ export interface AgentSetupWizardCheckpointAutoAdvance {
   readonly inspectRoute: string;
 }
 
+export interface AgentSetupWizardDiagnostic {
+  readonly repeatedBlocker: AgentSetupWizardRepeatedBlocker | null;
+  readonly smokeHistory: AgentSetupWizardSmokeHistory;
+  readonly stepHistory: readonly AgentSetupWizardStepHistoryEntry[];
+  readonly receiptGaps: readonly AgentSetupWizardReceiptGap[];
+  readonly closeout: AgentSetupWizardCloseout;
+  readonly checkpoint: AgentSetupWizardCheckpoint;
+}
+
 export interface AgentSetupWizard {
   readonly available: true;
   readonly status: AgentSetupWizardStatus;
@@ -158,13 +167,8 @@ export interface AgentSetupWizard {
   readonly progressLabel: string;
   readonly next: string;
   readonly reviewRoute: string;
-  readonly repeatedBlocker: AgentSetupWizardRepeatedBlocker | null;
-  readonly smokeHistory: AgentSetupWizardSmokeHistory;
-  readonly stepHistory: readonly AgentSetupWizardStepHistoryEntry[];
-  readonly receiptGaps: readonly AgentSetupWizardReceiptGap[];
-  readonly closeout: AgentSetupWizardCloseout;
-  readonly checkpoint: AgentSetupWizardCheckpoint;
   readonly steps: readonly AgentSetupWizardStep[];
+  readonly _diagnostic: AgentSetupWizardDiagnostic;
 }
 
 export interface BuildAgentSetupWizardInput {
@@ -652,6 +656,17 @@ export function buildAgentSetupWizard(input: BuildAgentSetupWizardInput): AgentS
       ? `${current.label}: ${repeated.blocker.summary} ${current.detail}`
       : `${current.label}: ${current.detail}`
     : 'Setup wizard is complete; rerun setup smoke if this machine was upgraded or moved.';
+  const closeout = buildCloseout({
+    items,
+    smokeHistory,
+    setupSmokeReceiptReady,
+    stepHistory,
+    criticalStepIds: input.closeoutCriticalStepIds ?? [],
+    setupMarkerExists: input.setupMarkerExists === true,
+    reviewRoute: input.reviewRoute ?? DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
+    finishRoute: input.finishRoute ?? DEFAULT_AGENT_SETUP_WIZARD_FINISH_ROUTE,
+    finishUserRoute: input.finishUserRoute ?? DEFAULT_AGENT_SETUP_WIZARD_FINISH_USER_ROUTE,
+  });
   return {
     available: true,
     status,
@@ -662,22 +677,14 @@ export function buildAgentSetupWizard(input: BuildAgentSetupWizardInput): AgentS
     progressLabel: `${completedSteps}/${steps.length} setup step(s) ready`,
     next,
     reviewRoute: input.reviewRoute ?? DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
-    repeatedBlocker: repeated?.blocker ?? null,
-    smokeHistory,
-    stepHistory,
-    receiptGaps,
-    closeout: buildCloseout({
-      items,
-      smokeHistory,
-      setupSmokeReceiptReady,
-      stepHistory,
-      criticalStepIds: input.closeoutCriticalStepIds ?? [],
-      setupMarkerExists: input.setupMarkerExists === true,
-      reviewRoute: input.reviewRoute ?? DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
-      finishRoute: input.finishRoute ?? DEFAULT_AGENT_SETUP_WIZARD_FINISH_ROUTE,
-      finishUserRoute: input.finishUserRoute ?? DEFAULT_AGENT_SETUP_WIZARD_FINISH_USER_ROUTE,
-    }),
-    checkpoint,
     steps,
+    _diagnostic: {
+      repeatedBlocker: repeated?.blocker ?? null,
+      smokeHistory,
+      stepHistory,
+      receiptGaps,
+      closeout,
+      checkpoint,
+    },
   };
 }

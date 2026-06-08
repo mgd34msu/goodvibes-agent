@@ -46,56 +46,25 @@ function setupAttentionItems(snapshot: AgentWorkspaceRuntimeSnapshot, limit: num
 
 function setupOverviewLines(snapshot: AgentWorkspaceRuntimeSnapshot): ContextLine[] {
   const counts = setupCounts(snapshot);
-  const nextItems = setupAttentionItems(snapshot, 3);
-  const wizard = snapshot.setupWizard;
+  const attentionItems = setupAttentionItems(snapshot, 1);
+  const doneCount = counts.ready;
+  const totalCount = snapshot.setupChecklist.length;
+  const attentionCount = counts.blocked + counts.recommended;
+  const progressDetail = attentionCount > 0
+    ? `${doneCount} of ${totalCount} done — ${attentionCount} need attention`
+    : `${doneCount} of ${totalCount} done`;
   const lines: ContextLine[] = [
     { text: 'Onboarding', fg: PALETTE.title, bold: true },
-    { text: `${counts.ready}/${snapshot.setupChecklist.length} ready; ${counts.recommended} recommended; ${counts.optional} optional; ${counts.blocked} blocked.`, fg: counts.blocked > 0 ? PALETTE.warn : PALETTE.info },
-    { text: `Setup wizard: ${wizard.completedSteps}/${wizard.totalSteps} done; ${wizard.currentStepLabel ? `current ${wizard.currentStepLabel}` : wizard.status}.`, fg: wizard.status === 'complete' ? PALETTE.good : wizard.status === 'blocked' ? PALETTE.warn : PALETTE.info },
-    { text: `Wizard next: ${compactText(wizard.next, 112)}`, fg: wizard.status === 'complete' ? PALETTE.good : wizard.status === 'blocked' ? PALETTE.warn : PALETTE.info },
-    { text: `Setup closeout: ${wizard.closeout.label}; ${compactText(wizard.closeout.nextAction, 104)}`, fg: wizard.closeout.status === 'complete' || wizard.closeout.status === 'ready-to-finish' ? PALETTE.good : wizard.closeout.status === 'blocked' ? PALETTE.warn : PALETTE.info },
+    { text: progressDetail, fg: counts.blocked > 0 ? PALETTE.warn : doneCount === totalCount ? PALETTE.good : PALETTE.info },
     { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}.`, fg: PALETTE.info },
     { text: `Local: ${snapshot.localPersonaCount} personas, ${snapshot.localSkillCount} skills, ${snapshot.localRoutineCount} routines, ${snapshot.localMemoryCount} memories.`, fg: PALETTE.info },
   ];
-  if (nextItems.length > 0) {
-    const item = nextItems[0]!;
+  if (attentionItems.length > 0) {
+    const item = attentionItems[0]!;
     lines.push({
       text: `Next: ${item.label} (${setupStatusLabel(item.status).toLowerCase()})`,
       fg: setupStatusColor(item.status),
       bold: item.status === 'blocked',
-    });
-  }
-  if (wizard.repeatedBlocker) {
-    lines.push({
-      text: `Repeated blocker: ${wizard.repeatedBlocker.checkId} in ${wizard.repeatedBlocker.count} saved smoke run(s).`,
-      fg: PALETTE.warn,
-    });
-  }
-  if (wizard.checkpoint.status !== 'none') {
-    lines.push({
-      text: `Setup checkpoint: ${compactText(wizard.checkpoint.summary, 112)}`,
-      fg: wizard.checkpoint.status === 'stale' || wizard.checkpoint.status === 'unavailable' ? PALETTE.warn : PALETTE.info,
-    });
-  }
-  if (wizard.smokeHistory.status === 'available') {
-    lines.push({
-      text: `Smoke history: ${wizard.smokeHistory.total} run(s); trend ${wizard.smokeHistory.trend}; latest ${wizard.smokeHistory.latestResult ?? 'unknown'}.`,
-      fg: wizard.smokeHistory.latestResult === 'blocked' ? PALETTE.warn : PALETTE.info,
-    });
-  }
-  if (wizard.stepHistory.length > 0) {
-    const latest = wizard.stepHistory[0]!;
-    lines.push({
-      text: `Step history: ${wizard.stepHistory.length} recorded; latest ${latest.stepLabel} ${latest.kind} at ${latest.recordedAt}.`,
-      fg: PALETTE.good,
-    });
-  }
-  if (wizard.receiptGaps.length > 0) {
-    const labels = wizard.receiptGaps.slice(0, 3).map((gap) => gap.stepLabel).join(', ');
-    const suffix = wizard.receiptGaps.length > 3 ? `, +${wizard.receiptGaps.length - 3} more` : '';
-    lines.push({
-      text: `Receipt gaps: ${labels}${suffix} still need durable setup receipt ids.`,
-      fg: PALETTE.warn,
     });
   }
   return lines;
@@ -551,7 +520,7 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       companionAccessLine(snapshot),
       { text: `Channels: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} target(s).`, fg: PALETTE.info },
       { text: `Setup guide: ${guide.progressLabel}; ${guide.currentChannelLabel ?? 'choose a channel'}.`, fg: guide.status === 'ready' ? PALETTE.good : PALETTE.warn },
-      { text: `Next: ${currentGuideStep ? `${currentGuideStep.label} - ${compactText(currentGuideStep.userRoute)}` : 'All enabled channels ready.'}`, fg: currentGuideStep ? PALETTE.warn : PALETTE.good },
+      { text: `Next: ${currentGuideStep ? currentGuideStep.label : 'All enabled channels ready.'}`, fg: currentGuideStep ? PALETTE.warn : PALETTE.good },
       { text: 'Guide checks setup schema, accounts, allowlist policy, live status, and explicit test sends.', fg: PALETTE.good },
       { text: 'Triage: /channels triage shows blockers, delivery retries, surface messages, route bindings, and receipts.', fg: PALETTE.good },
       { text: 'Secrets hidden; sends require explicit action.', fg: PALETTE.warn },

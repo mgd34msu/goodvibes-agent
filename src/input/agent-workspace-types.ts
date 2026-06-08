@@ -7,6 +7,8 @@ import type { AgentSetupWizard } from '../agent/setup-wizard.ts';
 
 export const AGENT_WORKSPACE_MODAL_NAME = 'agentWorkspace';
 
+export type AgentWorkspaceCategoryGroup = 'START' | 'ONBOARDING' | 'DAY-TO-DAY' | 'CAPABILITIES' | 'LOCAL BEHAVIOR' | 'OPERATIONS' | 'FINISH';
+
 export type AgentWorkspaceFocusPane = 'categories' | 'actions';
 
 export const AGENT_WORKSPACE_CATEGORY_IDS = [
@@ -310,11 +312,12 @@ export interface AgentWorkspaceAction {
   readonly localOperation?: AgentWorkspaceLocalOperation;
   readonly kind: AgentWorkspaceActionKind;
   readonly safety: 'safe' | 'read-only' | 'delegates' | 'blocked';
+  readonly commandBehavior?: 'inline' | 'compose' | 'exit';
 }
 
 export interface AgentWorkspaceCategory {
   readonly id: AgentWorkspaceCategoryId;
-  readonly group: string;
+  readonly group: AgentWorkspaceCategoryGroup;
   readonly label: string;
   readonly summary: string;
   readonly detail: string;
@@ -328,7 +331,7 @@ export interface AgentWorkspaceActionSearchResult {
   readonly actionIndex: number;
 }
 
-export type AgentWorkspaceCommandDispatcher = (command: string) => void;
+export type AgentWorkspaceCommandDispatcher = (command: string, behavior?: 'inline' | 'compose' | 'exit') => void;
 export type AgentWorkspacePromptDispatcher = (prompt: string) => void;
 
 export type AgentWorkspaceActionResultKind = 'guidance' | 'blocked' | 'dispatched' | 'refreshed' | 'error';

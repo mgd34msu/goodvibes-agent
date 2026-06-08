@@ -1257,7 +1257,7 @@ describe('AgentWorkspace', () => {
     expect(saved.checkpoint?.currentStepId).toBe(workspace.runtimeSnapshot?.setupWizard.currentStepId);
     expect(saved.checkpoint?.source).toBe('workspace');
     expect(workspace.lastActionResult?.title).toBe('Setup checkpoint saved');
-    expect(workspace.runtimeSnapshot?.setupWizard.checkpoint.status).toBe('available');
+    expect(workspace.runtimeSnapshot?.setupWizard._diagnostic.checkpoint.status).toBe('available');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-checkpoint-show');
     workspace.activateSelected();
@@ -1270,7 +1270,7 @@ describe('AgentWorkspace', () => {
     expect(cleared.exists).toBe(false);
     expect(cleared.checkpoint).toBeNull();
     expect(workspace.lastActionResult?.title).toBe('Setup checkpoint cleared');
-    expect(workspace.runtimeSnapshot?.setupWizard.checkpoint.status).toBe('none');
+    expect(workspace.runtimeSnapshot?.setupWizard._diagnostic.checkpoint.status).toBe('none');
   });
 
   test('onboarding has no verify page and routes schema-backed Agent settings', () => {
@@ -3246,24 +3246,19 @@ describe('AgentWorkspace', () => {
 
     expect(byId.get('runtime')?.status).toBe('ready');
     expect(byId.get('connected-host-auth')?.status).toBe('recommended');
-    expect(byId.get('connected-host-auth')?.command).toBe('Host -> Connected-host auth owner');
+    expect(byId.get('connected-host-auth')?.breadcrumb).toBe('Host -> Connected-host auth owner');
     expect(byId.get('provider-model')?.status).toBe('ready');
-    expect(byId.get('install-smoke')?.status).toBe('recommended');
-    expect(byId.get('install-smoke')?.command).toBe('Start -> Install smoke');
     expect(byId.get('agent-knowledge')?.status).toBe('recommended');
     expect(byId.get('memory')?.status).toBe('ready');
     expect(byId.get('channels')?.status).toBe('ready');
-    expect(byId.get('browser-pwa')?.status).toBe('recommended');
-    expect(byId.get('browser-pwa')?.detail).toContain('Enable the connected-host web endpoint');
-    expect(byId.get('agent-knowledge')?.command).toBe('Knowledge');
-    expect(byId.get('profile')?.command).toBe('Profiles');
-    expect(byId.get('persona')?.command).toBe('Personas');
-    expect(byId.get('skills')?.command).toBe('Skills');
-    expect(byId.get('routines')?.command).toBe('Routines');
-    expect(byId.get('memory')?.command).toBe('Memory');
-    expect(byId.get('channels')?.command).toBe('Channels');
-    expect(byId.get('browser-pwa')?.command).toBe('Voice & Media -> Browser/PWA readiness');
-    expect(byId.get('voice-media')?.command).toBe('Voice & Media');
+    expect(byId.get('agent-knowledge')?.breadcrumb).toBe('Knowledge');
+    expect(byId.get('profile')?.breadcrumb).toBe('Profiles');
+    expect(byId.get('persona')?.breadcrumb).toBe('Personas');
+    expect(byId.get('skills')?.breadcrumb).toBe('Skills');
+    expect(byId.get('routines')?.breadcrumb).toBe('Routines');
+    expect(byId.get('memory')?.breadcrumb).toBe('Memory');
+    expect(byId.get('channels')?.breadcrumb).toBe('Channels');
+    expect(byId.get('voice-media')?.breadcrumb).toBe('Voice & Media');
     expect(JSON.stringify(snapshot.setupChecklist)).not.toContain('SLACK_BOT_TOKEN');
   });
 
@@ -3335,12 +3330,8 @@ describe('AgentWorkspace', () => {
 
     expect(byId.get('connected-host-auth')?.status).toBe('ready');
     expect(byId.get('connected-host-auth')?.detail).toContain('Durable connected-host auth receipt is ready');
-    expect(byId.get('install-smoke')?.status).toBe('ready');
-    expect(byId.get('install-smoke')?.detail).toContain('Durable setup smoke receipt is ready');
-    expect(byId.get('browser-pwa')?.status).toBe('ready');
-    expect(byId.get('browser-pwa')?.detail).toContain('Connected-host browser/PWA first-run receipt is published for http://127.0.0.1:3421/app');
-    expect(snapshot.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt')).toHaveLength(3);
-    expect(snapshot.setupWizard.receiptGaps.map((gap) => gap.stepId)).toEqual(['runtime']);
+    expect(snapshot.setupWizard._diagnostic.stepHistory.filter((entry) => entry.kind === 'durable-receipt')).toHaveLength(3);
+    expect(snapshot.setupWizard._diagnostic.receiptGaps.map((gap) => gap.stepId)).toEqual(['runtime']);
   });
 
   test('promotes setup checklist rows from live daemon setup receipt read models', () => {
@@ -3404,13 +3395,11 @@ describe('AgentWorkspace', () => {
     expect(byId.get('connected-host-auth')?.status).toBe('ready');
     expect(wizardSteps.get('connected-host-auth')?.detail).toContain('live-auth-ready');
     expect(wizardSteps.get('connected-host-auth')?.detail).not.toContain('super-secret');
-    expect(byId.get('install-smoke')?.status).toBe('ready');
-    expect(byId.get('browser-pwa')?.status).toBe('ready');
-    const durableHistory = snapshot.setupWizard.stepHistory.filter((entry) => entry.kind === 'durable-receipt');
+    const durableHistory = snapshot.setupWizard._diagnostic.stepHistory.filter((entry) => entry.kind === 'durable-receipt');
     expect(durableHistory).toHaveLength(3);
     expect(durableHistory.every((entry) => entry.source === 'context.platform.readModels.setup.receipts')).toBe(true);
     expect(durableHistory.find((entry) => entry.receiptId === 'live-auth-ready')?.summary).toContain('token=<redacted>');
-    expect(snapshot.setupWizard.receiptGaps.map((gap) => gap.stepId)).toEqual(['runtime']);
+    expect(snapshot.setupWizard._diagnostic.receiptGaps.map((gap) => gap.stepId)).toEqual(['runtime']);
   });
 
   test('exposes Agent Knowledge review queue and list views without default knowledge fallback', () => {
@@ -4679,5 +4668,133 @@ describe('AgentWorkspace', () => {
 
     expect(workspace.selectCategory('not-a-category')).toBe(false);
     expect(workspace.selectedCategory.id).toBe('channels');
+  });
+
+  test('Enter on the sticky Finish setup row triggers completeOnboarding when prerequisites are met', () => {
+    // Use a persistent context so shellPaths are available for completeOnboarding
+    const { context } = persistentConfigContext();
+    const workspace = new AgentWorkspace();
+    const dispatched: string[] = [];
+    workspace.open(context, (command) => dispatched.push(command));
+
+    // Navigate to a non-finish ONBOARDING category that has no onboarding-complete action of its own
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
+    workspace.clampSelection();
+
+    // The synthetic Finish setup row is appended last by workspace.actions
+    workspace.selectedActionIndex = workspace.actions.length - 1;
+    expect(workspace.selectedAction?.kind).toBe('onboarding-complete');
+
+    // Activate it — should call completeOnboarding and not dispatch any command
+    workspace.activateSelected();
+
+    expect(dispatched).toEqual([]);
+    expect(workspace.lastActionResult?.title).toBe('Onboarding complete');
+  });
+
+  // Test A: inline command behavior drives through handler.dispatchAgentWorkspaceCommand end-to-end
+  test('activating a kind:command action with commandBehavior:inline does NOT close the workspace and captures output', async () => {
+    const printedByContext: string[] = [];
+    const ctx: CommandContext = {
+      executeCommand: async (name: string, args: string[]) => {
+        // Simulate a command that produces output via context.print (which is intercepted inline)
+        ctx.print(`captured line 1 from ${[name, ...args].join(' ')}`);
+        ctx.print('captured line 2');
+        return true;
+      },
+      print: (text: string) => {
+        printedByContext.push(text);
+      },
+    } as unknown as CommandContext;
+
+    const workspace = new AgentWorkspace();
+    const renders: number[] = [];
+
+    // Build a minimal context that exercises the real dispatchAgentWorkspaceCommand without
+    // constructing a full InputHandler (which requires UiRuntimeServices).
+    // The inline branch only accesses this.agentWorkspace and this.requestRender, so we bind
+    // the prototype method onto a minimal stub with exactly those two fields.
+    const { InputHandler: HandlerClass } = await import('../../input/handler.ts');
+    const stub = { agentWorkspace: workspace, requestRender: () => renders.push(Date.now()) };
+    const dispatchInline = HandlerClass.prototype.dispatchAgentWorkspaceCommand.bind(stub);
+
+    workspace.open(
+      ctx,
+      (command, behavior) => dispatchInline(command, ctx, behavior),
+    );
+
+    // Dispatch an inline command through the real handler method
+    dispatchInline('/help', ctx, 'inline');
+
+    // Inline does NOT close the workspace — active must remain true
+    expect(workspace.active).toBe(true);
+
+    // The print interceptor is active during executeCommand; wait for the microtask to settle
+    await Promise.resolve();
+
+    // lastActionResult must be populated with dispatched kind
+    expect(workspace.lastActionResult).toBeDefined();
+    expect(workspace.lastActionResult?.kind).toBe('dispatched');
+
+    // detail must contain BOTH captured lines
+    expect(workspace.lastActionResult?.detail).toContain('captured line 1 from help');
+    expect(workspace.lastActionResult?.detail).toContain('captured line 2');
+
+    // context.print must be restored (not the intercepted version)
+    ctx.print('after dispatch');
+    expect(printedByContext).toContain('after dispatch');
+  });
+
+  // Test A (supplemental): inline branch with executeCommand undefined yields an error result without clobbering context.print
+  test('inline branch with no executeCommand sets an error result and does not clobber context.print', async () => {
+    const printedByContext: string[] = [];
+    const ctx: CommandContext = {
+      // No executeCommand intentionally
+      print: (text: string) => {
+        printedByContext.push(text);
+      },
+    } as unknown as CommandContext;
+
+    const workspace = new AgentWorkspace();
+    const renders: number[] = [];
+
+    const { InputHandler: HandlerClass } = await import('../../input/handler.ts');
+    const stub = { agentWorkspace: workspace, requestRender: () => renders.push(Date.now()) };
+    const dispatchInline = HandlerClass.prototype.dispatchAgentWorkspaceCommand.bind(stub);
+
+    workspace.open(ctx, (command, behavior) => dispatchInline(command, ctx, behavior));
+    dispatchInline('/help', ctx, 'inline');
+
+    // Should be an error result, not dispatched
+    expect(workspace.lastActionResult?.kind).toBe('error');
+    expect(workspace.lastActionResult?.detail).toContain('No command dispatcher');
+
+    // context.print must NOT be clobbered — it must still route to printedByContext
+    ctx.print('still works');
+    expect(printedByContext).toContain('still works');
+  });
+
+  // Test B: first-run launch shows ONBOARDING categories only; HOME hidden until completion marker
+  test('first-run launch shows ONBOARDING categories only; HOME hidden until completion marker exists', () => {
+    const workspace = new AgentWorkspace();
+
+    // Open with onlyGroup: ONBOARDING (first-run mode)
+    workspace.open(commandContext(), () => undefined, undefined, undefined, 'ONBOARDING');
+
+    // All categories must be ONBOARDING group
+    expect(workspace.categories.every((category) => category.group === 'ONBOARDING')).toBe(true);
+
+    // The 'home' category must not appear
+    expect(workspace.categories.some((category) => category.id === 'home')).toBe(false);
+
+    // Close and reopen without onlyGroup (post-completion behavior)
+    workspace.close();
+    workspace.open(commandContext(), () => undefined);
+
+    // Full category list is present
+    expect(workspace.categories.length).toBeGreaterThan(workspace.categories.filter((c) => c.group === 'ONBOARDING').length);
+
+    // The 'home' category is now present
+    expect(workspace.categories.some((category) => category.id === 'home')).toBe(true);
   });
 });

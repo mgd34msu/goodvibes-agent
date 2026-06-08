@@ -7,7 +7,7 @@ export interface AgentWorkspaceSetupChecklistItem {
   readonly label: string;
   readonly status: AgentWorkspaceSetupStatus;
   readonly detail: string;
-  readonly command?: string;
+  readonly breadcrumb?: string;
 }
 
 export interface AgentWorkspaceSetupChecklistInput {
@@ -42,10 +42,6 @@ export interface AgentWorkspaceSetupChecklistInput {
   readonly readyChannelCount: number;
   readonly voiceProviderCount: number;
   readonly mediaProviderCount: number;
-  readonly installSmokeReceiptReady?: boolean;
-  readonly browserPwaEnabled: boolean;
-  readonly browserPwaPublicBaseUrl: string;
-  readonly browserPwaFirstRunReceiptStatus: 'published' | 'not-published';
   readonly runtimeProfileCount: number;
   readonly runtimeStarterTemplateCount: number;
 }
@@ -69,20 +65,15 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
     : tokenPathKnown
       ? 'blocked'
       : 'recommended';
-  const installSmokePrerequisitesReady = providerReady && (input.connectedHostTokenReadable || connectedHostAuthReceiptReady);
-  const installSmokeReceiptReady = input.installSmokeReceiptReady === true;
   const hasActivePersona = input.activePersonaName !== '(none)' && input.activePersonaName !== '(unavailable)';
   const discoveredBehaviorCount = input.discoveredPersonas.count + input.discoveredSkills.count + input.discoveredRoutines.count;
-  const browserPwaUrl = input.browserPwaPublicBaseUrl.trim();
-  const browserPwaHasPublicUrl = browserPwaUrl.length > 0 && browserPwaUrl !== '(not configured)';
-  const browserPwaReceiptPublished = input.browserPwaFirstRunReceiptStatus === 'published';
   return [
     {
       id: 'runtime',
       label: 'Connected host',
       status: 'ready',
       detail: `Agent will connect to ${input.runtimeBaseUrl}; protected host routes also need the Agent companion token below.`,
-      command: 'Home -> Review health',
+      breadcrumb: 'Home -> Review health',
     },
     {
       id: 'connected-host-auth',
@@ -97,7 +88,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
           : tokenPathKnown
             ? `Provision Agent's local connected-host operator token at ${input.connectedHostTokenPath} before pairing channels, Knowledge, schedules, or protected daemon routes.`
             : 'Shell paths are unavailable in this runtime, so connected-host auth cannot be verified from the workspace snapshot.',
-      command: 'Host -> Connected-host auth owner',
+      breadcrumb: 'Host -> Connected-host auth owner',
     },
     {
       id: 'provider-model',
@@ -106,18 +97,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: providerReady
         ? `Current chat route is ${input.provider} / ${input.model}.`
         : 'Choose a provider and model before relying on assistant turns.',
-      command: 'Setup -> Provider and model',
-    },
-    {
-      id: 'install-smoke',
-      label: 'Install smoke',
-      status: installSmokeReceiptReady ? 'ready' : installSmokePrerequisitesReady ? 'recommended' : tokenPathKnown ? 'blocked' : 'recommended',
-      detail: installSmokeReceiptReady
-        ? 'Durable setup smoke receipt is ready for release closeout; rerun smoke only after install, host, auth, or model changes.'
-        : installSmokePrerequisitesReady
-        ? 'Run setup smoke after install or migration to prove package start, connected host, auth, model route, setup posture, and first assistant turn.'
-        : 'Resolve connected-host auth and provider/model setup before treating the first assistant turn as install-ready.',
-      command: 'Start -> Install smoke',
+      breadcrumb: 'Setup -> Provider and model',
     },
     {
       id: 'subscriptions',
@@ -134,14 +114,14 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
           : input.availableSubscriptionProviderCount > 0
             ? `${input.availableSubscriptionProviderCount} subscription-capable provider(s) are available. Start login if you want subscription routing.`
             : 'No subscription-capable providers are available yet. Use API keys or add an OAuth provider service.',
-      command: 'Start -> Start subscription login',
+      breadcrumb: 'Start -> Start subscription login',
     },
     {
       id: 'agent-knowledge',
       label: 'Agent Knowledge',
       status: 'recommended',
       detail: 'Check isolated Agent Knowledge status, then ingest source-backed material into the Agent segment only.',
-      command: 'Knowledge',
+      breadcrumb: 'Knowledge',
     },
     {
       id: 'profile',
@@ -152,7 +132,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : discoveredBehaviorCount > 0
           ? `${discoveredBehaviorCount} discovered behavior file(s) can seed an isolated Agent profile from the Profiles workspace.`
         : `${input.runtimeStarterTemplateCount} starter template(s) are available if this machine needs separate operator identities.`,
-      command: 'Profiles',
+      breadcrumb: 'Profiles',
     },
     {
       id: 'persona',
@@ -163,7 +143,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : input.discoveredPersonas.count > 0
           ? `${input.discoveredPersonas.count} discovered persona file(s) can be imported into the Agent-local registry.${sampleNames(input.discoveredPersonas)}`
           : 'Create or choose a persona to make the assistant voice and policy explicit.',
-      command: 'Personas',
+      breadcrumb: 'Personas',
     },
     {
       id: 'skills',
@@ -180,7 +160,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : input.discoveredSkills.count > 0
           ? `${input.discoveredSkills.count} discovered skill file(s) can be imported as local reusable procedures.${sampleNames(input.discoveredSkills)}`
           : 'Create reusable local skills and bundles for repeated workflows.',
-      command: 'Skills',
+      breadcrumb: 'Skills',
     },
     {
       id: 'routines',
@@ -193,7 +173,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
         : input.discoveredRoutines.count > 0
           ? `${input.discoveredRoutines.count} discovered routine file(s) can be imported as main-conversation workflows.${sampleNames(input.discoveredRoutines)}`
           : 'Create local routines first; promote schedules only with explicit confirmation.',
-      command: 'Routines',
+      breadcrumb: 'Routines',
     },
     {
       id: 'memory',
@@ -202,7 +182,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: input.localMemoryCount > 0
         ? `${input.localMemoryCount} Agent memory record(s) are available; ${input.localMemoryReviewQueueCount} need review.`
         : 'Memory starts empty; durable facts should be stored deliberately and never include secrets.',
-      command: 'Memory',
+      breadcrumb: 'Memory',
     },
     {
       id: 'notes',
@@ -211,7 +191,7 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: input.localNoteCount > 0
         ? `${input.localNoteCount} Agent scratchpad note(s) are available; ${input.localNoteReviewQueueCount} need review.`
         : 'Notes start empty; use them for source triage, temporary decisions, and handoff before promoting anything durable.',
-      command: 'Notes',
+      breadcrumb: 'Notes',
     },
     {
       id: 'channels',
@@ -220,27 +200,14 @@ export function buildAgentWorkspaceSetupChecklist(input: AgentWorkspaceSetupChec
       detail: input.readyChannelCount > 0
         ? `${input.readyChannelCount} external channel(s) are ready.`
         : 'Pair or review channels only when you want the assistant reachable outside this terminal.',
-      command: 'Channels',
-    },
-    {
-      id: 'browser-pwa',
-      label: 'Browser/PWA',
-      status: browserPwaReceiptPublished ? 'ready' : 'recommended',
-      detail: browserPwaReceiptPublished
-        ? `Connected-host browser/PWA first-run receipt is published${browserPwaHasPublicUrl ? ` for ${browserPwaUrl}` : ''}.`
-        : input.browserPwaEnabled
-          ? browserPwaHasPublicUrl
-            ? `Browser cockpit is openable at ${browserPwaUrl}, but the connected-host browser/PWA first-run completion receipt is not published yet. Terminal Agent remains primary until that receipt exists.`
-            : 'Browser cockpit is enabled through the connected-host web endpoint, but the connected-host browser/PWA first-run completion receipt is not published yet.'
-          : 'Enable the connected-host web endpoint and publish the browser/PWA first-run completion receipt before treating browser access as setup-ready.',
-      command: 'Voice & Media -> Browser/PWA readiness',
+      breadcrumb: 'Channels',
     },
     {
       id: 'voice-media',
       label: 'Voice and media',
       status: input.voiceProviderCount > 0 || input.mediaProviderCount > 0 ? 'ready' : 'optional',
       detail: `${input.voiceProviderCount} voice provider(s), ${input.mediaProviderCount} media provider(s). Configure these only when useful.`,
-      command: 'Voice & Media',
+      breadcrumb: 'Voice & Media',
     },
   ];
 }

@@ -366,15 +366,16 @@ export class InputHandler {
     this.mcpWorkspace.open(context);
     this.requestRender();
   }
-  public openAgentWorkspace(context: CommandContext, categoryId?: string): void {
+  public openAgentWorkspace(context: CommandContext, categoryId?: string, onlyGroup?: string): void {
     this.panelFocused = false;
     this.indicatorFocused = false;
     this.modalOpened('agentWorkspace');
     this.agentWorkspace.open(
       context,
-      (command) => this.dispatchAgentWorkspaceCommand(command, context),
+      (command, behavior) => this.dispatchAgentWorkspaceCommand(command, context, behavior),
       categoryId,
       (prompt) => this.dispatchAgentWorkspacePrompt(prompt, context),
+      onlyGroup as import('./agent-workspace-types.ts').AgentWorkspaceCategoryGroup | undefined,
     );
     this.requestRender();
   }
@@ -395,10 +396,71 @@ export class InputHandler {
     return true;
   }
 
-  private dispatchAgentWorkspaceCommand(command: string, context: CommandContext): void {
-    this.closeAgentWorkspaceModal();
+  public dispatchAgentWorkspaceCommand(command: string, context: CommandContext, behavior?: 'inline' | 'compose' | 'exit'): void {
+    const resolved = behavior ?? 'compose';
     const { name, args } = parseSlashCommand(command);
     if (!name) return;
+    if (resolved === 'exit') {
+      this.closeAgentWorkspaceModal();
+      void context.executeCommand?.(name, [...args]).catch((error: unknown) => {
+        context.print(`Agent workspace command failed: ${error instanceof Error ? error.message : String(error)}`);
+        this.requestRender();
+      });
+      this.requestRender();
+      return;
+    }
+    if (resolved === 'inline') {
+      const capturedLines: string[] = [];
+      const originalPrint = context.print;
+      if (typeof context.executeCommand !== 'function') {
+        this.agentWorkspace.lastActionResult = {
+          kind: 'error',
+          title: `Command unavailable: ${command}`,
+          detail: 'No command dispatcher is configured for this runtime.',
+          command,
+          safety: 'safe',
+        };
+        this.requestRender();
+        return;
+      }
+      context.print = (text: string): void => {
+        capturedLines.push(text);
+      };
+      const buildCapturedDetail = (): string => {
+        const MAX_CHARS = 1500;
+        const MAX_LINES = 12;
+        const lines = capturedLines.slice(-MAX_LINES);
+        const joined = lines.join('\n');
+        if (joined.length > MAX_CHARS) {
+          return joined.slice(0, MAX_CHARS) + '\n… (output truncated)';
+        }
+        const omitted = capturedLines.length - lines.length;
+        return omitted > 0 ? `… (${omitted} line(s) truncated)\n${joined}` : joined || '(no output)';
+      };
+      void context.executeCommand(name, [...args]).then(() => {
+        context.print = originalPrint;
+        this.agentWorkspace.lastActionResult = {
+          kind: 'dispatched',
+          title: `Result: ${command}`,
+          detail: buildCapturedDetail(),
+          command,
+          safety: 'safe',
+        };
+        this.requestRender();
+      }).catch((error: unknown) => {
+        context.print = originalPrint;
+        this.agentWorkspace.lastActionResult = {
+          kind: 'error',
+          title: `${command} failed`,
+          detail: error instanceof Error ? error.message : String(error),
+          command,
+        };
+        this.requestRender();
+      });
+      return;
+    }
+    // compose (default): close workspace then execute
+    this.closeAgentWorkspaceModal();
     void context.executeCommand?.(name, [...args]).catch((error: unknown) => {
       context.print(`Agent workspace command failed: ${error instanceof Error ? error.message : String(error)}`);
       this.requestRender();
@@ -674,7 +736,7 @@ export class InputHandler {
       this.modalOpened('agentWorkspace');
       this.agentWorkspace.open(
         context,
-        (command) => this.dispatchAgentWorkspaceCommand(command, context),
+        (command, behavior) => this.dispatchAgentWorkspaceCommand(command, context, behavior),
         undefined,
         (prompt) => this.dispatchAgentWorkspacePrompt(prompt, context),
       );

@@ -30,7 +30,7 @@ export async function setupPostureCatalogStatus(context: CommandContext): Promis
     autonomyBlockers: plan.filter((item) => item.blocksAutonomy && item.status !== 'ready').length,
     nextSetupHandoffs: nextSetupHandoffSummaries(plan, 5),
     setupWizard,
-    setupCloseout: setupWizard.closeout,
+    setupCloseout: setupWizard._diagnostic.closeout,
     collectionIssues: snapshot.collectionIssues.length,
     setupMarkerExists: setupCompletionMarkerExists(context),
     setupSmokeEvidence,
@@ -81,7 +81,7 @@ export async function setupRepairSummary(context: CommandContext, args: AgentHar
       status: setupWizard.status,
       currentStepId: setupWizard.currentStepId,
       currentStepLabel: setupWizard.currentStepLabel,
-      closeout: setupWizard.closeout,
+      closeout: setupWizard._diagnostic.closeout,
     },
     routes: {
       inspectSetup: DEFAULT_AGENT_SETUP_WIZARD_REVIEW_ROUTE,
@@ -149,14 +149,14 @@ export async function setupPostureSummary(context: CommandContext, args: AgentHa
         progressLabel: setupWizard.progressLabel,
         currentStepId: setupWizard.currentStepId,
         currentStepLabel: setupWizard.currentStepLabel,
-        repeatedBlocker: setupWizard.repeatedBlocker,
+        repeatedBlocker: setupWizard._diagnostic.repeatedBlocker,
       },
-      setupCloseout: setupWizard.closeout,
+      setupCloseout: setupWizard._diagnostic.closeout,
     },
     setupSmokeEvidence,
     setupSmokeHistory,
     setupWizard,
-    setupCloseout: setupWizard.closeout,
+    setupCloseout: setupWizard._diagnostic.closeout,
     currentRoute: snapshot.providerRouting,
     issues: snapshot.collectionIssues,
     readinessPlan: filteredPlan.map((item) => describePlanItem(item, includeParameters)),
@@ -175,7 +175,7 @@ export async function setupCheckpointSummary(context: CommandContext): Promise<R
   const setupWizard = buildSetupWizard(plan, context);
   return {
     mode: 'setup_checkpoint',
-    checkpoint: setupWizard.checkpoint,
+    checkpoint: setupWizard._diagnostic.checkpoint,
     currentStep: setupWizard.currentStepId
       ? setupWizard.steps.find((step) => step.id === setupWizard.currentStepId) ?? null
       : null,
@@ -254,7 +254,7 @@ export async function markSetupCheckpoint(context: CommandContext, args: AgentHa
       progressLabel: updatedWizard.progressLabel,
       currentStepId: updatedWizard.currentStepId,
       currentStepLabel: updatedWizard.currentStepLabel,
-      checkpoint: updatedWizard.checkpoint,
+      checkpoint: updatedWizard._diagnostic.checkpoint,
     },
     routes: {
       inspectCheckpoint: DEFAULT_AGENT_SETUP_WIZARD_INSPECT_CHECKPOINT_ROUTE,

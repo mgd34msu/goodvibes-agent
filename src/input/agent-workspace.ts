@@ -19,10 +19,11 @@ import { deleteAgentWorkspaceMemoryEditor, submitAgentWorkspaceMemoryEditor } fr
 import { jumpAgentWorkspaceSelection, moveAgentWorkspaceSelection, selectAgentWorkspaceCategory } from './agent-workspace-navigation.ts';
 import { appendAgentWorkspaceActionSearchText, backspaceAgentWorkspaceActionSearch, beginAgentWorkspaceActionSearch, clearAgentWorkspaceActionSearch, commitAgentWorkspaceActionSearchSelection, searchAgentWorkspaceActions } from './agent-workspace-search.ts';
 import { applyAgentWorkspaceSetupCheckpointAction } from './agent-workspace-setup-checkpoint-action.ts';
-import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgentWorkspaceSettingActionEffect, buildAgentWorkspaceSettingActionPreview, importAgentWorkspaceTuiSettings, isAgentWorkspaceActionVisible } from './agent-workspace-settings.ts';
+import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgentWorkspaceSettingActionDisplay, buildAgentWorkspaceSettingActionEffect, importAgentWorkspaceTuiSettings, isAgentWorkspaceActionVisible, type AgentWorkspaceSettingActionDisplay } from './agent-workspace-settings.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import { submitAgentWorkspaceSubscriptionLoginFinishEditor, submitAgentWorkspaceSubscriptionLoginStartEditor, submitAgentWorkspaceSubscriptionLogoutEditor } from './agent-workspace-subscription-editor.ts';
-import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryGroup, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, shouldShowOnboardingFinishFooter } from './agent-workspace-onboarding-finish.ts';
 import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
@@ -46,11 +47,13 @@ export class AgentWorkspace {
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
   private dispatchPrompt: AgentWorkspacePromptDispatcher | null = null;
+  private _onlyGroup: AgentWorkspaceCategoryGroup | null = null;
 
-  open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher, categoryId?: string, dispatchPrompt?: AgentWorkspacePromptDispatcher): void {
+  open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher, categoryId?: string, dispatchPrompt?: AgentWorkspacePromptDispatcher, onlyGroup?: AgentWorkspaceCategoryGroup): void {
     this.context = context;
     this.dispatchCommand = dispatchCommand;
     this.dispatchPrompt = dispatchPrompt ?? null;
+    this._onlyGroup = onlyGroup ?? null;
     this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(context);
     this.active = true;
     this.focusPane = 'actions';
@@ -85,9 +88,13 @@ export class AgentWorkspace {
     this.localEditor = null;
     this.actionSearchActive = false;
     this.actionSearchQuery = '';
+    this._onlyGroup = null;
   }
 
   get categories(): readonly AgentWorkspaceCategory[] {
+    if (this._onlyGroup) {
+      return AGENT_WORKSPACE_CATEGORIES.filter((category) => category.group === this._onlyGroup);
+    }
     return AGENT_WORKSPACE_CATEGORIES;
   }
 
@@ -97,7 +104,11 @@ export class AgentWorkspace {
 
   get actions(): readonly AgentWorkspaceAction[] {
     if (this.actionSearchActive) return this.actionSearchResults.map((result) => result.action);
-    return this.selectedCategory.actions.filter((action) => isAgentWorkspaceActionVisible(this.context, action));
+    const base = this.selectedCategory.actions.filter((action) => isAgentWorkspaceActionVisible(this.context, action));
+    if (shouldShowOnboardingFinishFooter(this.selectedCategory, base)) {
+      return [...base, ONBOARDING_COMPLETE_SYNTHETIC_ACTION];
+    }
+    return base;
   }
 
   get selectedAction(): AgentWorkspaceAction | null {
@@ -142,8 +153,8 @@ export class AgentWorkspace {
     return selectedAgentWorkspaceLocalLibraryItem(this.runtimeSnapshot, this.selectedLibraryItemIndexes, kind);
   }
 
-  settingActionPreview(action: AgentWorkspaceAction): string | null {
-    return buildAgentWorkspaceSettingActionPreview(this.context, action);
+  settingActionDisplay(action: AgentWorkspaceAction): AgentWorkspaceSettingActionDisplay | null {
+    return buildAgentWorkspaceSettingActionDisplay(this.context, action);
   }
 
   focusCategories(): void {
@@ -279,8 +290,8 @@ export class AgentWorkspace {
     return Boolean(this.context?.submitInput && this.dispatchPrompt);
   }
 
-  dispatchWorkspaceCommand(command: string): void {
-    this.dispatchCommand?.(command);
+  dispatchWorkspaceCommand(command: string, behavior?: 'inline' | 'compose' | 'exit'): void {
+    this.dispatchCommand?.(command, behavior);
   }
 
   dispatchWorkspacePrompt(prompt: string): void {
