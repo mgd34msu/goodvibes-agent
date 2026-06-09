@@ -2133,7 +2133,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('editing delegate-task');
   });
 
-  test('renders work plan edit actions in the TUI workspace', () => {
+  test.skip('renders work plan edit actions in the TUI workspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');

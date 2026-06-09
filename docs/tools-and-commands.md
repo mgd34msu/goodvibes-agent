@@ -24,7 +24,6 @@ High-signal TUI routes:
 | `/model`, `/provider`, `/effort` | Inspect or change provider/model/reasoning routes. |
 | `/knowledge` | Use isolated Agent Knowledge. |
 | `/vibe`, `/memory`, `/notes`, `/personas`, `/skills`, `/routines` | Manage VIBE.md personality and Agent-local behavior libraries. |
-| `/plan`, `/workplan` | Planning and durable visible work tracking. |
 | `/approval`, `/automation`, `/schedule` | Read posture and run exact confirmed operator actions. |
 | `/channels`, `/notify`, `/qrcode` | Pair companions, inspect channel readiness, review delivery receipts, and send confirmed messages. |
 | `/media`, `/voice`, `/tts` | Inspect media/voice readiness, generate media, and run spoken turns. |
@@ -297,7 +296,6 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/paste` | Insert clipboard text or image into the prompt. |
 | `/personas` | Manage Agent-local personas. |
 | `/pin` | Pin a model to the favorites list. |
-| `/plan` | Inspect or seed Agent workspace planning state. |
 | `/prev-error` | Jump to the previous error message in the conversation. |
 | `/provider` | Switch provider or manage custom providers. |
 | `/qrcode` | Print companion pairing details and a QR code. |
@@ -327,7 +325,6 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/vibe` | Inspect, create, show, or import VIBE.md personality files. |
 | `/voice` | Review voice posture and portable voice metadata. |
 | `/welcome` | Open or print the Agent setup guide. |
-| `/workplan` | Track a persistent workspace-scoped work plan. |
 
 ## Related Docs
 

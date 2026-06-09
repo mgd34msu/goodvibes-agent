@@ -81,7 +81,6 @@ const visibleAgentBreadthCommands = [
   'tasks',
   'trust',
   'voice',
-  'workplan',
 ] as const;
 
 describe('product breadth commands', () => {

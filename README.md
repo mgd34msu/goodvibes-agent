@@ -172,5 +172,4 @@ GoodVibes TUI remains the vibecoding harness and is still useful when the user w
 - [Channels, Remote Access, and API](docs/channels-remote-and-api.md)
 - [Providers and Routing](docs/providers-and-routing.md)
 - [Voice and Live TTS](docs/voice-and-live-tts.md)
-- [Project Planning](docs/project-planning.md)
 - [Release And Publishing](docs/release-and-publishing.md)

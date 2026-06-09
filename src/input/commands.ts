@@ -6,7 +6,6 @@ import { knowledgeCommand } from './commands/knowledge.ts';
 import { registerShellCoreCommands } from './commands/shell-core.ts';
 import { registerConfigCommand } from './commands/config.ts';
 import { registerSessionWorkflowCommands } from './commands/session-workflow.ts';
-import { registerPlanningRuntimeCommands } from './commands/planning-runtime.ts';
 import { registerScheduleRuntimeCommands } from './commands/schedule-runtime.ts';
 import { registerOperatorRuntimeCommands } from './commands/operator-runtime.ts';
 import { registerNotifyRuntimeCommands } from './commands/notify-runtime.ts';
@@ -27,7 +26,6 @@ import { registerConversationRuntimeCommands } from './commands/conversation-run
 import { registerQrcodeRuntimeCommands } from './commands/qrcode-runtime.ts';
 import { registerOnboardingRuntimeCommands } from './commands/onboarding-runtime.ts';
 import { registerTtsRuntimeCommands } from './commands/tts-runtime.ts';
-import { registerWorkPlanRuntimeCommands } from './commands/work-plan-runtime.ts';
 import { registerAgentWorkspaceRuntimeCommands } from './commands/agent-workspace-runtime.ts';
 import { registerAgentRuntimeProfileRuntimeCommands } from './commands/agent-runtime-profile-runtime.ts';
 import { registerDelegationRuntimeCommands } from './commands/delegation-runtime.ts';
@@ -90,10 +88,8 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerQrcodeRuntimeCommands(registry);
   registerOnboardingRuntimeCommands(registry);
   registerTtsRuntimeCommands(registry);
-  registerWorkPlanRuntimeCommands(registry);
   registerLocalRuntimeCommands(registry);
   registerSessionWorkflowCommands(registry);
-  registerPlanningRuntimeCommands(registry);
   registerScheduleRuntimeCommands(registry);
   registerSessionContentCommands(registry);
   registerAgentMemoryCommand(registry);

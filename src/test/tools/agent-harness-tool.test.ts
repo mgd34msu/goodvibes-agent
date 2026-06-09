@@ -10545,7 +10545,6 @@ describe('agent_harness tool', () => {
         'settings',
         'tasks',
         'voice',
-        'workplan',
       ]));
       for (const hidden of [
         'bridge',

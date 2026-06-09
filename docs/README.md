@@ -12,7 +12,6 @@ These are the package-facing docs for the GoodVibes Agent `1.0.x` release line.
 - [Channels, Remote Access, and API](channels-remote-and-api.md)
 - [Providers and Routing](providers-and-routing.md)
 - [Voice and Live TTS](voice-and-live-tts.md)
-- [Project Planning](project-planning.md)
 - [Release And Publishing](release-and-publishing.md)
 
 ## Baseline

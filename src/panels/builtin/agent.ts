@@ -3,8 +3,6 @@ import { ContextVisualizerPanel } from '../context-visualizer-panel.ts';
 import { ThinkingPanel } from '../thinking-panel.ts';
 import { ToolInspectorPanel } from '../tool-inspector-panel.ts';
 import { SchedulePanel } from '../schedule-panel.ts';
-import { ProjectPlanningPanel } from '../project-planning-panel.ts';
-import { WorkPlanPanel } from '../work-plan-panel.ts';
 import type { ResolvedBuiltinPanelDeps } from './shared.ts';
 import { requireAutomationManager, requireUiServices } from './shared.ts';
 
@@ -47,32 +45,6 @@ export function registerAgentPanels(manager: PanelManager, deps: ResolvedBuiltin
       deps.contextWindow,
       requireUiServices(deps).readModels.session,
     ),
-  });
-
-  manager.registerType({
-    id: 'work-plan',
-    name: 'Work Plan',
-    icon: 'L',
-    category: 'agent',
-    description: 'Persistent workspace checklist for multi-step work and cross-session task tracking',
-    preload: true,
-    factory: () => new WorkPlanPanel(deps.workPlanStore),
-  });
-
-  manager.registerType({
-    id: 'project-planning',
-    name: 'Planning',
-    icon: 'P',
-    category: 'agent',
-    description: 'Passive project planning artifacts: readiness, questions, decisions, language, task graph, and agent handoff metadata',
-    preload: true,
-    factory: () => new ProjectPlanningPanel({
-      service: deps.projectPlanningService,
-      projectId: deps.projectPlanningProjectId,
-      requestRender: deps.requestRender,
-      submitAnswer: deps.submitPlanningAnswer,
-      dismissPlanning: deps.dismissPlanning,
-    }),
   });
 
   manager.registerType({

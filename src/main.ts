@@ -54,7 +54,6 @@ import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStar
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
-import { ProjectPlanningCoordinator } from './planning/project-planning-coordinator.ts';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 
@@ -262,18 +261,6 @@ async function main() {
     configManager,
     notify: (message) => { systemMessageRouter.high(message); render(); },
   }));
-  const projectPlanningCoordinator = new ProjectPlanningCoordinator({
-    service: ctx.services.projectPlanningService,
-    projectId: ctx.services.projectPlanningProjectId,
-    workingDirectory: workingDir,
-    notify: (message) => { systemMessageRouter.high(message); render(); },
-    openPanel: () => {
-      panelManager.open('project-planning');
-      panelManager.show();
-      render();
-    },
-  });
-
   const submitInput = (text: string, content?: ContentPart[], options: { readonly spokenOutput?: boolean } = {}) => {
     input.clearModalStack();
     scrollLocked = true; // Re-lock on user input
@@ -308,33 +295,7 @@ async function main() {
     }
     if (processedText || content) {
       void (async () => {
-        let inputOptions = options.spokenOutput ? createSpokenTurnInputOptions() : undefined;
-        if (!options.spokenOutput && processedText) {
-          try {
-            const planning = await projectPlanningCoordinator.prepareTurn(processedText);
-            if (planning) {
-              if (planning.handledLocally) {
-                systemMessageRouter.high(planning.statusMessage);
-                render();
-                return;
-              }
-              conversation.addSystemMessage(planning.systemMessage);
-              inputOptions = {
-                origin: {
-                  source: 'project-planning',
-                  surface: GOODVIBES_AGENT_PAIRING_SURFACE,
-                  metadata: {
-                    projectId: ctx.services.projectPlanningProjectId,
-                    knowledgeSpaceId: planning.state.knowledgeSpaceId,
-                    readiness: planning.evaluation.readiness,
-                  },
-                },
-              };
-            }
-          } catch (err) {
-            systemMessageRouter.high(`[Planning] ${summarizeError(err)}`);
-          }
-        }
+        const inputOptions = options.spokenOutput ? createSpokenTurnInputOptions() : undefined;
         if (options.spokenOutput && processedText) {
           spokenTurns.submitNextTurn(processedText);
         }

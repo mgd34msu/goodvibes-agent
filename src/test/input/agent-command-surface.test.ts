@@ -94,7 +94,6 @@ const expectedAgentCommands = [
   'setup',
   'skills',
   'trust',
-  'workplan',
 ] as const;
 
 describe('Agent command interface', () => {
@@ -247,10 +246,8 @@ describe('Agent command interface', () => {
       'accounts',
       'approval',
       'health',
-      'plan',
       'qrcode',
       'tasks',
-      'workplan',
     ] as const;
 
     for (const commandName of checkedCommands) {
