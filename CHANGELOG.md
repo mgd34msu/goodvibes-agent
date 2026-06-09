@@ -2,6 +2,24 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.4.1 - 2026-06-08
+
+- v1.4.0 was cut but its publish step never ran; v1.4.1 ships the same onboarding rebuild as the first publicly published version of the 1.4.x line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x all stay in force.
+- Fixed a release-evidence test that hardcoded a 1.3.0-specific phrase (`compact model-visible harness pass`) and prevented the v1.4.0 publish workflow from completing. The assertion now targets the stable required-theme `fullscreen Agent workspace`, so future release-notes rotations no longer break release CI.
+- Rebuilt the Agent Workspace onboarding modal so first-time users land in a focused ONBOARDING-only category list, no longer see HOME and post-onboarding categories competing for attention, and never get kicked out of the modal when activating a slash-command row.
+- Added typed `commandBehavior` (inline | compose | exit) on workspace actions so safe read-only commands can run inside the onboarding modal with their captured output rendered into the result pane, instead of forcing the modal closed to dispatch through the composer.
+- Guarded the new inline dispatch path so a missing `executeCommand` no longer clobbers `context.print`; the modal surfaces a clear "command unavailable" result and stays open.
+- Replaced release-engineering vocabulary (smoke history, receipt gaps, durable receipt, closeout policy, schema status, event cursor, publication guarantee, step history, repeated blocker, setup checkpoint summary) with a tight progress + single next-action summary in the onboarding right pane.
+- Closed a leak where channel-guide context lines could expose internal `userRoute` strings containing model-tool-call syntax; the channels guide now shows only human-readable labels.
+- Trimmed the user-facing setup checklist from fifteen items to thirteen by removing the `install-smoke` and `browser-pwa` release-engineering items; both remain available to model-facing routes but no longer appear in the onboarding flow.
+- Renamed the misleading `command` field on `AgentWorkspaceSetupChecklistItem` to `breadcrumb` so the field's purpose (UI navigation hint) no longer collides with the `kind: 'command'` action type.
+- Added clear verb-led row labels in the onboarding modal so users can see exactly what activating a row does: "Choose provider and model", "Edit MCP server", "Switch to <category>", "Run: <command>", "Open: <command>", "Finish setup", and so on, replacing generic labels like "Open option" and "Open guided form".
+- Added a sticky "Finish setup" footer row visible on every ONBOARDING category, colored green when prerequisites (provider/model, connected-host auth, runtime) are ready and warn-colored with the unmet items listed otherwise; the row is wired through the real activation path so pressing Enter triggers `completeOnboarding()`.
+- Added per-category readiness glyphs in the onboarding left pane: a green checkmark for categories whose mapped checklist items are all ready, a warn glyph for categories with blockers or recommended items, and no glyph for optional-only categories.
+- Relocated the diagnostic fields on `AgentSetupWizard` (smokeHistory, stepHistory, receiptGaps, closeout, checkpoint, repeatedBlocker) under a `_diagnostic` subkey so model-facing wizard mechanics are cleanly separated from user-facing wizard state, while preserving the existing model-tool surface.
+- Tightened `AgentWorkspaceCategory.group` and the workspace `_onlyGroup` filter to a literal union `AgentWorkspaceCategoryGroup`, so category-group typos fail at compile time instead of producing silent navigation bugs.
+- Added end-to-end acceptance tests for the new behavior: inline command dispatch keeps the workspace active and populates `lastActionResult` with captured output, first-run filter restricts the modal to ONBOARDING categories only, and the jargon allowlist guarantees no banned vocabulary leaks back into user-facing copy.
+
 ## 1.4.0 - 2026-06-08
 
 - Continued the stable 1.x line: the fullscreen Agent workspace remains the primary TUI surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening all stay in force; 1.4.0 sharpens the onboarding flow inside that surface.
