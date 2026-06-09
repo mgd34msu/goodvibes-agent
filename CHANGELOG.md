@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.4.3 - 2026-06-09
+
+- v1.4.3 continues the stable 1.x line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force. This patch finishes the workspace cleanup.
+- Every workspace category now renders the consistent Setting/Default/Current 3-column table. The old Option/Does fallback was confusing users who saw two different page styles across the same modal. Non-setting rows (editors, model pickers, settings modals, guidance) show their label in Setting and a placeholder dash in Default/Current.
+- Removed every `kind: 'command'` slash-command row from the workspace categories — 145 rows gone. The modal is not a redundant slash-command launcher; the slash commands themselves still work in the main prompt. This applies across the full category list, not just the ONBOARDING group.
+- Reordered the Start (setup) category so a first-time user sees the essentials first: sign in to a provider, finish sign-in, choose main model, then optional settings import, reasoning effort, and save-history toggle. The advanced rows (custom provider, stored credentials, secret storage policy, resume-point controls) moved to the bottom of the page where they don't clutter first-run.
+- Renamed several Start rows to plain English: "Start subscription login" → "Sign in to a provider", "Finish subscription login" → "Finish provider sign-in", "Logout subscription" → "Sign out of a provider", "Setup checkpoint show/save/clear" → "Show/Save/Clear saved resume point".
+- Tests covering the removed command-row dispatch paths are skipped rather than rewritten; the slash commands still exist as commands, just not as workspace rows.
+- Test suite: 7556 pass / 0 fail / 64 skip across 548 files.
+
 ## 1.4.2 - 2026-06-08
 
 - v1.4.2 continues the stable 1.x line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force; 1.4.2 removes a planning feature that did not belong in this product and finishes the onboarding-modal cleanup.
