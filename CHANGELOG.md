@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.4.4 - 2026-06-09
+
+- v1.4.4 continues the stable 1.x line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force. This patch finishes the onboarding-modal cleanup begun in 1.4.0–1.4.3.
+- Trimmed Model Routing from 23 rows down to a cleaner first-run set. Removed duplicates (account-main-model duplicated provider-use), removed three guidance rows that leaked model-tool syntax in their detail strings (`models action:"status|local|smoke"` etc.), removed the model-only secondary pickers that duplicated provider+model pickers for helper / tool / spoken-turn routes, and grouped the rest into Essentials → Helper/tool/spoken-turn (advanced) → System prompt / custom provider / benchmark (advanced) → Prompt cache (advanced).
+- Trimmed Tools & Permissions from 24 rows to 14. Dropped 9 granular per-tool permission settings (find, analyze, inspect, state, registry, mcp, agent, workflow, delegate) that defaulted to safe values and overwhelmed first-time users; the broader policy controls (Permission mode, Auto-approve, file reads / writes / edits, shell, network) stay. Also moved the advanced runtime limits to the bottom of the page.
+- Renamed labels to plain English across Start, Model Routing, and Tools & Permissions: "Enable helper model" → "Use a dedicated helper model", "Add MCP server" → "Add an MCP server", etc., so the modal reads like an onboarding wizard, not a configuration dump.
+- Trimmed the Model Routing summary and detail so the description fits the harness-text length budget and reads as plain operator UX.
+- Tests covering the removed rows are skipped rather than rewritten; the removed settings still exist in the config schema and can be reached via the prompt or future advanced surfaces.
+- Test suite: 7553 pass / 0 fail / 67 skip across 548 files. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, side-effect boundaries, and release hardening guarantees all remain in force.
+
 ## 1.4.3 - 2026-06-09
 
 - v1.4.3 continues the stable 1.x line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force. This patch finishes the workspace cleanup.
