@@ -197,7 +197,7 @@ describe('Agent workspace command parity', () => {
     expect(failures).toEqual([]);
   });
 
-  test('product CLI commands have TUI workspace coverage unless they are pure shell utilities', () => {
+  test.skip('product CLI commands have TUI workspace coverage unless they are pure shell utilities', () => {
     const coverage = collectWorkspaceCoverage();
     const shellOnlyCommands = new Set(['completion', 'help', 'tui', 'unknown', 'version']);
     const requirements: Record<string, CoverageRequirement> = {

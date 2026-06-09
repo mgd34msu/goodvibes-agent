@@ -403,20 +403,15 @@ function onboardingActionColumns(workspace: AgentWorkspace, action: AgentWorkspa
 }
 
 function actionChange(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction): string {
-  return isOnboardingCategory(category) ? onboardingActionColumns(workspace, action).setting : actionCommand(action);
+  // Always show the action label via onboardingActionColumns for consistency across categories.
+  return onboardingActionColumns(workspace, action).setting;
 }
 
 function actionMetaLine(workspace: AgentWorkspace, category: AgentWorkspaceCategory, action: AgentWorkspaceAction): ContextLine {
-  const onboarding = isOnboardingCategory(category);
-  if (onboarding) {
-    return {
-      text: `About: ${compactText(action.detail, 100)}`,
-      fg: action.safety === 'blocked' ? PALETTE.warn : PALETTE.muted,
-    };
-  }
+  // Same About-style detail line on every category.
   return {
-    text: `Does: ${actionChange(workspace, category, action)}`,
-    fg: action.safety === 'blocked' ? PALETTE.warn : action.kind === 'command' ? PALETTE.info : PALETTE.muted,
+    text: `About: ${compactText(action.detail, 100)}`,
+    fg: action.safety === 'blocked' ? PALETTE.warn : PALETTE.muted,
   };
 }
 
@@ -575,8 +570,9 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   if (workspace.localEditor) return buildEditorRows(workspace.localEditor, width, height);
   const category = workspace.selectedActionCategory;
   const onboarding = isOnboardingCategory(category);
-  const settingTable = onboarding
-    && !workspace.actionSearchActive
+  // Apply the consistent Setting/Default/Current 3-column layout to EVERY category, not
+  // just the ONBOARDING group. Different layouts across pages were confusing.
+  const settingTable = !workspace.actionSearchActive
     && shouldRenderOnboardingSettingsTable(workspace.actions);
   const rows: WorkspaceRow[] = [];
   const valueWidth = settingTable
