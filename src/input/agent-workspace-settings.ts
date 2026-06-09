@@ -56,6 +56,12 @@ export interface TuiSettingsImportOutcome extends SettingMutationOutcome {
   readonly runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null;
 }
 
+export interface AgentWorkspaceSettingActionDisplay {
+  readonly setting: string;
+  readonly defaultValue: string;
+  readonly currentValue: string;
+}
+
 type TuiImportStatus = 'would_import' | 'unchanged' | 'skipped';
 
 interface TuiSettingsImportSource {
@@ -390,34 +396,23 @@ export function buildAgentWorkspaceSettingActionEffect(
   };
 }
 
-export function buildAgentWorkspaceSettingActionPreview(
+export function buildAgentWorkspaceSettingActionDisplay(
   context: CommandContext | null,
   action: AgentWorkspaceAction,
-): string | null {
+): AgentWorkspaceSettingActionDisplay | null {
   const settingKey = action.settingKey?.trim();
   const configManager = context?.platform?.configManager;
   if (!settingKey || !configManager) return null;
 
   const setting = agentWorkspaceSettingSchema(context, settingKey);
+  if (!setting) return null;
   const currentValue = configManager.get(settingKey as ConfigKey);
-  let proposedValue: unknown;
 
-  if (action.settingValueHint !== undefined) {
-    proposedValue = action.settingValueHint;
-  } else if (setting?.type === 'boolean') {
-    proposedValue = !Boolean(currentValue);
-  } else if (setting?.type === 'enum' && setting.enumValues && setting.enumValues.length > 0) {
-    const currentIndex = Math.max(0, setting.enumValues.indexOf(String(currentValue)));
-    proposedValue = setting.enumValues[(currentIndex + 1) % setting.enumValues.length]!;
-  } else if (setting?.type === 'number' || setting?.type === 'string') {
-    proposedValue = 'edit value';
-  } else if (typeof currentValue === 'boolean') {
-    proposedValue = !currentValue;
-  } else {
-    proposedValue = 'choose value';
-  }
-
-  return `${settingKey}: ${compactSettingValue(settingKey, currentValue)} -> ${compactSettingValue(settingKey, proposedValue)}`;
+  return {
+    setting: action.label || settingKey,
+    defaultValue: compactSettingValue(settingKey, setting.default),
+    currentValue: compactSettingValue(settingKey, currentValue),
+  };
 }
 
 export async function applyAgentWorkspaceSettingValue(

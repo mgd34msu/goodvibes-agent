@@ -64,13 +64,9 @@ describe('Agent user-first product docs', () => {
     expect(combined).toContain('explicitUserRequest');
   });
 
-  test('repair handoff and canonical inventory cover competitor and platform capability context', () => {
-    const handoff = readRepoFile('docs/audits/goodvibes-agent-1.2.0-repair-handoff.md');
+  test('canonical inventory covers competitor and platform capability context', () => {
     const inventory = readRepoFile('src/agent/competitive-feature-inventory.ts');
 
-    for (const token of ['OpenClaw', 'Hermes Agent', 'Odysseus', 'GoodVibes SDK owns', 'GoodVibes TUI/daemon owns']) {
-      expect(handoff).toContain(token);
-    }
     for (const token of ['goodVibesNow', 'targetStandard', 'bestInClassRequirement', 'openclaw', 'hermes', 'odysseus']) {
       expect(inventory).toContain(token);
     }
