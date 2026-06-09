@@ -392,10 +392,13 @@ function onboardingActionColumns(workspace: AgentWorkspace, action: AgentWorkspa
       currentValue: '(unknown)',
     };
   }
+  // Non-setting rows keep the 3-column layout but use placeholders for Default and Current,
+  // since those concepts only make sense for actual settings. The action label carries
+  // the meaning of the row.
   return {
-    setting: onboardingActionLabel(workspace, action),
-    defaultValue: '',
-    currentValue: '',
+    setting: action.label,
+    defaultValue: '—',
+    currentValue: '—',
   };
 }
 
@@ -418,9 +421,12 @@ function actionMetaLine(workspace: AgentWorkspace, category: AgentWorkspaceCateg
 }
 
 function shouldRenderOnboardingSettingsTable(actions: readonly AgentWorkspaceAction[]): boolean {
-  // Exclude the synthetic finish footer row — it is not a setting and must not block table mode.
+  // Always use the Setting/Default/Current 3-column layout on ONBOARDING pages so the
+  // user gets a consistent visual structure across every category, even ones that mix
+  // settings with editors, guidance, or pickers. Non-setting rows fill Default/Current
+  // with placeholders via onboardingActionColumns().
   const nonFinish = actions.filter((a) => a.kind !== 'onboarding-complete');
-  return nonFinish.length > 0 && nonFinish.every((action) => action.kind === 'setting');
+  return nonFinish.length > 0;
 }
 
 function editorContextLines(editor: AgentWorkspaceLocalEditor, snapshot: AgentWorkspaceRuntimeSnapshot | null): ContextLine[] {

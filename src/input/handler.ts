@@ -397,7 +397,10 @@ export class InputHandler {
   }
 
   public dispatchAgentWorkspaceCommand(command: string, context: CommandContext, behavior?: 'inline' | 'compose' | 'exit'): void {
-    const resolved = behavior ?? 'compose';
+    // Default to 'inline' so editor submissions stay inside the workspace modal.
+    // Closing the modal mid-flow (the old 'compose' default) traps users in the
+    // wrong context and was the primary symptom of the broken onboarding flow.
+    const resolved = behavior ?? 'inline';
     const { name, args } = parseSlashCommand(command);
     if (!name) return;
     if (resolved === 'exit') {

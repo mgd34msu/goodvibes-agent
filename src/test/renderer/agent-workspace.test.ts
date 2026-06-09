@@ -576,8 +576,9 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Chat: openai-subscriber / GPT-5.5.');
     expect(output).toContain('Local: 1 personas, 1 skills, 1 routines, 1 memories.');
     expect(output).toContain('Next: Agent Knowledge (recommended)');
-    expect(output).toContain('Option');
-    expect(output).toContain('Does');
+    expect(output).toContain('Setting');
+    expect(output).toContain('Default');
+    expect(output).toContain('Current');
     expect(output).toContain('Import GoodVibes settings');
     expect(output).toContain('Choose main model');
     expect(output).toContain('Start subscription login');
@@ -1115,14 +1116,10 @@ describe('renderAgentWorkspace', () => {
       expect(contextSeparatorRow).toBeLessThanOrEqual(16);
       expect(output).toContain(category.label);
       if (category.group === 'ONBOARDING') {
-        if (category.actions.length > 0 && category.actions.every((action) => action.kind === 'setting')) {
-          expect(output).toContain('Setting');
-          expect(output).toContain('Default');
-          expect(output).toContain('Current');
-        } else {
-          expect(output).toContain('Option');
-          expect(output).toContain('Does');
-        }
+        // Every onboarding category uses the consistent Setting/Default/Current layout.
+        expect(output).toContain('Setting');
+        expect(output).toContain('Default');
+        expect(output).toContain('Current');
         expect(output).not.toContain('Change:');
         expect(output).not.toContain('Does:');
       } else {
@@ -1363,9 +1360,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Inspect VIBE.md');
     expect(output).toContain('Inspect project context');
     expect(output).toContain('Inspect one context file');
-    expect(output).toContain('Review');
     expect(output).toContain('Profile from discovered files');
-    expect(output).toContain('Create profile from files');
     expect(output).toContain('Import persona files');
     expect(output).toContain('Import skill files');
     expect(output).toContain('Import routine files');
@@ -1386,11 +1381,10 @@ describe('renderAgentWorkspace', () => {
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-context');
 
-    const expectSetupAction = (id: string, label: string, change: string) => {
+    const expectSetupAction = (id: string, label: string) => {
       workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === id);
       const output = text(renderAgentWorkspace(workspace, 150, 48));
       expect(output).toContain(label);
-      expect(output).toContain(change);
       expect(output).not.toContain('/vibe status');
       expect(output).not.toContain('context action:"');
       expect(output).not.toContain('Command:');
@@ -1398,14 +1392,14 @@ describe('renderAgentWorkspace', () => {
       expect(output).not.toContain('->');
     };
 
-    expectSetupAction('context-vibe-status', 'Inspect VIBE.md', 'Review');
-    expectSetupAction('context-project-files', 'Inspect project context', 'Review');
-    expectSetupAction('context-project-file', 'Inspect one context file', 'Review');
-    expectSetupAction('context-prompt-context', 'Prompt context', 'Review');
-    expectSetupAction('context-create-skill', 'Create skill', 'Edit skill');
-    expectSetupAction('context-create-routine', 'Create routine', 'Edit routine');
-    expectSetupAction('context-knowledge-url', 'Ingest URL', 'Ingest URL');
-    expectSetupAction('context-knowledge-file', 'Ingest file', 'Ingest file');
+    expectSetupAction('context-vibe-status', 'Inspect VIBE.md');
+    expectSetupAction('context-project-files', 'Inspect project context');
+    expectSetupAction('context-project-file', 'Inspect one context file');
+    expectSetupAction('context-prompt-context', 'Prompt context');
+    expectSetupAction('context-create-skill', 'Create skill');
+    expectSetupAction('context-create-routine', 'Create routine');
+    expectSetupAction('context-knowledge-url', 'Ingest URL');
+    expectSetupAction('context-knowledge-file', 'Ingest file');
     expect(text(renderAgentWorkspace(workspace, 150, 48))).toContain('Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.');
   });
 
@@ -2405,25 +2399,25 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Next:');
   });
 
-  test('onboarding row labels show clear verbs', () => {
+  test('onboarding pages render the consistent Setting/Default/Current layout', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
 
     const output = text(renderAgentWorkspace(workspace, 132, 50));
 
-    // Positive assertions: verb column must show goal-directed labels
-    expect(output).toContain('Import GoodVibes preferences');
-    expect(output).toContain('Choose provider and model');
-    expect(output).toContain('Sign in to provider');
-    expect(output).toContain('Finish setup');
+    // 3-column header on every onboarding page
+    expect(output).toContain('Setting');
+    expect(output).toContain('Default');
+    expect(output).toContain('Current');
 
-    // Negative assertions: old generic labels must not appear
-    expect(output).not.toContain('Open option');
-    expect(output).not.toContain('Open setup area');
-    expect(output).not.toContain('Open guided form');
-    expect(output).not.toContain('Apply selected library action');
-    expect(output).not.toContain('Save setup completion');
+    // Action labels appear in the Setting column
+    expect(output).toContain('Import GoodVibes settings');
+    expect(output).toContain('Choose main model');
+    expect(output).toContain('Start subscription login');
+
+    // The footer finish row is always visible
+    expect(output).toContain('Finish setup');
   });
 
   test('finish row is sticky on every onboarding category', () => {
