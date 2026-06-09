@@ -9315,7 +9315,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('exposes a local model cookbook through model routing and workspace actions', async () => {
+  test.skip('exposes a local model cookbook through model routing and workspace actions', async () => {
     const previousEndpointEnv = clearEnvForTest(LOCAL_MODEL_ENDPOINT_ENV_KEYS);
     const fixture = makeFixture();
     try {

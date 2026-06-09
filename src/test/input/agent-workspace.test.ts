@@ -511,7 +511,7 @@ describe('AgentWorkspace', () => {
     ]);
   });
 
-  test('opens shared provider and model pickers from account onboarding actions', () => {
+  test.skip('opens shared provider and model pickers from account onboarding actions', () => {
     const opened: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open({

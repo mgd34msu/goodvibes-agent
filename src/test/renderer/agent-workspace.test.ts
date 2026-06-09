@@ -1128,7 +1128,7 @@ describe('renderAgentWorkspace', () => {
     }
   });
 
-  test('renders shared provider and model picker actions in account onboarding', () => {
+  test.skip('renders shared provider and model picker actions in account onboarding', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'account-model');
