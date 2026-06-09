@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.4.2 - 2026-06-08
+
+- v1.4.2 continues the stable 1.x line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force; 1.4.2 removes a planning feature that did not belong in this product and finishes the onboarding-modal cleanup.
+- Removed the project planning subsystem entirely. The `/plan` and `/workplan` slash commands, the project-planning panel, the work-plan panel, the planning runtime coordinator, and all related workspace categories are gone. This is an operator assistant, not a coding planning harness, and the planning interceptor at `src/planning/project-planning-coordinator.ts` was matching the word `plan` in any user prompt and auto-opening a panel that captured keyboard focus.
+- Stopped the onboarding modal from exiting the user mid-flow. The Phase 1 default dispatch behavior was `compose`, which closed the modal before running the slash command. The new default is `inline`: editor submissions, settings imports, and ad-hoc commands now stay inside the workspace and surface their output in the result pane. Only `commandBehavior: 'compose'` (explicit) or `'exit'` (only `/quit`) closes the modal.
+- Forced the consistent Setting/Default/Current 3-column table layout on every ONBOARDING category. Pages with mixed-kind action lists (editor + setting + guidance) previously fell back to the old two-column Option/Does layout, so users saw two different page styles across the onboarding flow. Now every onboarding page uses the same 3-column header, and non-setting rows show their action label in the Setting column with placeholder dashes for Default and Current.
+- Removed every onboarding workspace row that referenced the deleted planning feature: `personal-ops-workplan`, `personal-ops-workplan-add`, `workplan`, `workplan-show`, `workplan-add`, `workplan-status`, `workplan-delete`, `workplan-clear-completed`, `planning-status`, `planning-mode`, `planning-explain`, `planning-list`, `plan-seed`, `plan-show`, `plan-approve`, `plan-override`, `plan-clear`. Help overlay and docs cleaned of `/plan` and `/workplan` mentions.
+- Trimmed the agent-boundary docs test that previously asserted on the deleted 1.2.0 repair handoff doc, plus the release-evidence test now targets a stable required theme instead of a 1.3.0-specific phrase.
+- Test suite: 7601 pass / 0 fail / 19 skip across 548 files.
+
 ## 1.4.1 - 2026-06-08
 
 - v1.4.0 was cut but its publish step never ran; v1.4.1 ships the same onboarding rebuild as the first publicly published version of the 1.4.x line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x all stay in force.
