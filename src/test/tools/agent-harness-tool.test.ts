@@ -10774,7 +10774,7 @@ describe('agent_harness tool', () => {
       expect(notesArtifactJson.lookup.resolvedBy).toBe('id');
       expect(notesArtifactJson.artifact.id).toBe('release-notes');
       expect(notesArtifactJson.artifact.path).toBe('release/release-notes.md');
-      expect(notesArtifactJson.artifact.content).toContain('compact model-visible harness pass');
+      expect(notesArtifactJson.artifact.content).toContain('fullscreen Agent workspace');
       expect(notesArtifactJson.artifact.summary?.bullets).toBeGreaterThan(0);
 
       const ambiguousArtifact = await fixture.tool.execute({ mode: 'release_evidence_artifact', query: 'live verification' });
