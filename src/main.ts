@@ -30,13 +30,10 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
 import type { HITLMode } from '@pellux/goodvibes-sdk/platform/state';
-import type { HookPhase, HookCategory, HookEventPath } from '@pellux/goodvibes-sdk/platform/hooks';
+import { wireSessionPersistenceAndRecovery } from './shell/startup-wiring.ts';
 import {
-  checkRecoveryFile,
   deleteRecoveryFile,
   loadRecoveryConversation,
-  persistConversation,
-  writeRecoveryFile,
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
@@ -45,7 +42,7 @@ import { getTerminalSize } from './shell/terminal-size.ts';
 import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
-import { buildPersistedSessionContext, formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
+import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
@@ -152,8 +149,6 @@ async function main() {
     render();
   });
 
-  let streamStartTime = 0;
-  let streamDeltaCount = 0;
   let streamTokenSpeed = 0;
 
   let scrollTop = 0;
@@ -682,35 +677,6 @@ async function main() {
     render,
   });
 
-  // --- Streaming speed + tool preview wiring ---
-  unsubs.push(uiServices.events.turns.on('TURN_COMPLETED', () => {
-    // Auto-save after every LLM turn so kills don't lose the session
-    try {
-      const snapshot = buildCurrentSessionSnapshot();
-      persistConversation(
-        runtime.sessionId,
-        snapshot,
-        runtime.model,
-        runtime.provider,
-        conversation.title || '',
-        { workingDirectory: workingDir, homeDirectory, sessionManager: ctx.services.sessionManager },
-      );
-      hookDispatcher.fire({ path: 'Lifecycle:session:save' as HookEventPath, phase: 'Lifecycle' as HookPhase, category: 'session' as HookCategory, specific: 'save', sessionId: runtime.sessionId, timestamp: Date.now(), payload: { sessionId: runtime.sessionId } }).catch((err: unknown) => logger.debug('hook fire error', { error: summarizeError(err) }));
-    } catch (e) { logger.debug('auto-save on turn:complete failed', { error: summarizeError(e) }); }
-  }));
-
-  unsubs.push(uiServices.events.turns.on('STREAM_START', () => {
-    streamStartTime = Date.now();
-    streamDeltaCount = 0;
-    streamTokenSpeed = 0;
-  }));
-  unsubs.push(uiServices.events.turns.on('STREAM_DELTA', () => {
-    streamDeltaCount++;
-    const elapsed = (Date.now() - streamStartTime) / 1000;
-    // Note: counts stream deltas, not actual tokens. ~1 delta per token for most providers.
-    streamTokenSpeed = elapsed > 0 ? streamDeltaCount / elapsed : 0;
-  }));
-
   stdin.setRawMode(true);
   stdin.resume();
   stdin.setEncoding('utf8');
@@ -760,25 +726,22 @@ async function main() {
   // never a startup blocker.
   autonomy.announceAwayDigest();
 
-  const recoveryInfo = checkRecoveryFile({ workingDirectory: workingDir, homeDirectory });
-  if (recoveryInfo) {
-    systemMessageRouter.high(`[Recovery] Found unsaved session from ${new Date(recoveryInfo.timestamp).toLocaleString()}. Title: "${recoveryInfo.title}". Press Ctrl+R to restore, Esc to discard, or start typing to ignore it.`);
-    for (const line of formatReturnContextForDisplay(recoveryInfo.returnContext)) {
-      systemMessageRouter.low(`[Recovery] ${line}`);
-    }
-    render();
-    recoveryPending = true;
-  }
-
-  recoveryInterval = setInterval(() => {
-    const snapshot = buildCurrentSessionSnapshot();
-    writeRecoveryFile(
-      snapshot,
-      runtime.sessionId,
-      conversation.title ?? '',
-      { workingDirectory: workingDir, homeDirectory },
-    );
-  }, 60_000);
+  // Wire streaming-speed metrics, auto-save, and recovery — all run after the
+  // first render so they land as ambient context, never startup blockers.
+  ({ recoveryInterval, recoveryPending } = wireSessionPersistenceAndRecovery({
+    buildCurrentSessionSnapshot,
+    runtime,
+    conversation,
+    workingDir,
+    homeDirectory,
+    systemMessageRouter,
+    render,
+    unsubs,
+    uiServicesTurns: uiServices.events.turns,
+    hookDispatcher,
+    sessionManager: ctx.services.sessionManager,
+    onStreamSpeedUpdate: (speed) => { streamTokenSpeed = speed; },
+  }));
 }
 main().catch((err: unknown) => {
   const detail = formatFatalStartupErrorForLog(err);
