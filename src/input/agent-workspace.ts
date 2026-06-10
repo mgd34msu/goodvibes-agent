@@ -24,7 +24,7 @@ import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.t
 import { submitAgentWorkspaceSubscriptionLoginFinishEditor, submitAgentWorkspaceSubscriptionLoginStartEditor, submitAgentWorkspaceSubscriptionLogoutEditor } from './agent-workspace-subscription-editor.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryGroup, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, shouldShowOnboardingFinishFooter } from './agent-workspace-onboarding-finish.ts';
-import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
+import { completeOnboardingAction, onSubscriptionLoginSuccessAction } from './agent-workspace-onboarding-actions.ts';
 import { computeOnboardingStateFromSnapshot, deriveOnboardingEntry, updateRevealedOnboardingCategories } from './agent-workspace-onboarding-state.ts';
 import type { OnboardingState } from '../runtime/onboarding/onboarding-state.ts';
 
@@ -338,42 +338,31 @@ export class AgentWorkspace {
   }
 
   completeOnboarding(): void {
-    if (this._awaitingRecapDismiss) {
-      this._awaitingRecapDismiss = false;
-      if (!this.context?.dismissAgentWorkspace?.()) this.close();
-      return;
-    }
-    const shellPaths = this.context?.workspace?.shellPaths;
-    if (!shellPaths) {
-      this.status = 'Cannot complete onboarding without Agent shell paths.';
-      this.lastActionResult = { kind: 'error', title: 'Onboarding completion unavailable', detail: 'The Agent workspace cannot locate the user onboarding completion marker path for this runtime.', safety: 'safe' };
-      return;
-    }
-    try {
-      const marker = { scope: 'user', source: 'wizard', mode: 'new', workspaceRoot: shellPaths.workingDirectory } as const;
-      writeOnboardingCheckMarker(shellPaths, marker);
-      writeOnboardingCompletionMarker(shellPaths, marker);
-      const obs = computeOnboardingStateFromSnapshot(this.runtimeSnapshot, shellPaths);
-      const headline = obs?.recap.headline ?? 'Onboarding complete';
-      const lines: readonly string[] = obs?.recap.lines ?? [];
-      this.status = headline;
-      this.lastActionResult = { kind: 'recap', title: headline, detail: lines.join('\n') || 'Saved the user onboarding completion marker.', lines, safety: 'safe' };
-      this._awaitingRecapDismiss = true;
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      this.status = 'Onboarding completion failed.';
-      this.lastActionResult = { kind: 'error', title: 'Onboarding completion failed', detail, safety: 'safe' };
-    }
+    const result = completeOnboardingAction({
+      awaitingRecapDismiss: this._awaitingRecapDismiss,
+      runtimeSnapshot: this.runtimeSnapshot,
+      shellPaths: this.context?.workspace?.shellPaths,
+      dismissAgentWorkspace: this.context?.dismissAgentWorkspace,
+      close: () => this.close(),
+    });
+    if (result.dismissed) return;
+    this._awaitingRecapDismiss = result.awaitingRecapDismiss;
+    this.status = result.status;
+    this.lastActionResult = result.lastActionResult;
   }
 
   onSubscriptionLoginSuccess(): void {
+    const result = onSubscriptionLoginSuccessAction({
+      onlyGroup: this._onlyGroup,
+      runtimeSnapshot: this.runtimeSnapshot,
+      shellPaths: this.context?.workspace?.shellPaths,
+      categories: this.categories,
+    });
     if (this._onlyGroup !== 'ONBOARDING') return;
-    this._onboardingState = computeOnboardingStateFromSnapshot(this.runtimeSnapshot, this.context?.workspace?.shellPaths);
-    if (!this._onboardingState) return;
-    const entry = deriveOnboardingEntry(this._onboardingState);
-    const idx = entry.categoryId ? this.categories.findIndex((c) => c.id === entry.categoryId) : -1;
-    if (idx >= 0) this.selectedCategoryIndex = idx;
-    this.status = this._onboardingState.readyToChat ? 'Signed in. You are ready to chat — Apply & close when ready.' : `Signed in. ${entry.status}`;
+    this._onboardingState = result.onboardingState;
+    if (!result.onboardingState) return;
+    if (result.selectedCategoryIndex >= 0) this.selectedCategoryIndex = result.selectedCategoryIndex;
+    this.status = result.status;
   }
 
   openModelPickerAction(action: AgentWorkspaceAction, requestRender?: () => void): void {
