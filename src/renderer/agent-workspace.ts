@@ -671,8 +671,18 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   if (workspace.lastActionResult) {
     rows.push({ text: '' });
     rows.push({ text: `${onboarding ? 'Result' : 'Action Result'}: ${workspace.lastActionResult.title}`, fg: actionResultColor(workspace.lastActionResult), bold: true });
-    for (const line of wrapText(workspace.lastActionResult.detail, Math.max(1, width - 2))) {
-      rows.push({ text: `  ${line}`, fg: PALETTE.text });
+    // For recap results, skip the detail body — the checkmarked lines below carry
+    // the full content. Rendering detail AND lines would duplicate every line.
+    if (workspace.lastActionResult.kind !== 'recap') {
+      for (const line of wrapText(workspace.lastActionResult.detail, Math.max(1, width - 2))) {
+        rows.push({ text: `  ${line}`, fg: PALETTE.text });
+      }
+    }
+    if (workspace.lastActionResult.kind === 'recap' && workspace.lastActionResult.lines?.length) {
+      rows.push({ text: '' });
+      for (const line of workspace.lastActionResult.lines) {
+        rows.push({ text: `  ✔ ${line}`, fg: PALETTE.good });
+      }
     }
     if (!onboarding && workspace.lastActionResult.command) {
       rows.push({ text: `  Command: ${workspace.lastActionResult.command}`, fg: PALETTE.muted });

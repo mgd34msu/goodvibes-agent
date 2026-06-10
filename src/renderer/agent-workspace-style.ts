@@ -22,7 +22,7 @@ export function safetyColor(action: AgentWorkspaceAction): string {
 export function actionResultColor(result: AgentWorkspaceActionResult): string {
   if (result.kind === 'blocked' || result.kind === 'error') return PALETTE.bad;
   if (result.kind === 'dispatched') return PALETTE.info;
-  if (result.kind === 'refreshed') return PALETTE.good;
+  if (result.kind === 'refreshed' || result.kind === 'recap') return PALETTE.good;
   return PALETTE.muted;
 }
 

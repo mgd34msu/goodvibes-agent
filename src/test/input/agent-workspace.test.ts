@@ -20,7 +20,8 @@ import { createAgentRuntimeProfile, getAgentRuntimeProfilesRoot, listAgentRuntim
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
-import { readOnboardingCheckMarker, readOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
+import { readOnboardingCheckMarker, readOnboardingCompletionMarker, writeOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
+import { connectedHostOperatorTokenPath } from '../../runtime/connected-host-auth.ts';
 import { ConfigManager } from '../../config/index.ts';
 import { isAgentHiddenSettingKey } from '../../config/agent-settings-policy.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
@@ -425,17 +426,24 @@ describe('AgentWorkspace', () => {
     expect(workspace.selectedCategory.id).toBe('finish');
     expect(workspace.selectedAction?.label).toBe('Apply & close');
 
+    // First activate: writes markers, shows recap, defers dismiss.
     workspace.activateSelected();
 
     const checkMarker = readOnboardingCheckMarker(shellPaths, 'user');
     const completionMarker = readOnboardingCompletionMarker(shellPaths, 'user');
-    expect(dismissed).toBe(true);
-    expect(workspace.active).toBe(false);
     expect(checkMarker.exists).toBe(true);
     expect(completionMarker.exists).toBe(true);
     expect(completionMarker.payload?.source).toBe('wizard');
     expect(completionMarker.payload?.mode).toBe('new');
     expect(completionMarker.payload?.workspaceRoot).toBe(shellPaths.workingDirectory);
+    expect(workspace.lastActionResult?.kind).toBe('recap');
+    expect(workspace.active).toBe(true); // still open showing recap
+
+    // Second activate: confirms recap and dismisses.
+    workspace.activateSelected();
+
+    expect(dismissed).toBe(true);
+    expect(workspace.active).toBe(false);
   });
 
   test.skip('dispatches command actions through the shell-owned callback', () => {
@@ -4473,7 +4481,10 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
 
     expect(dispatched).toEqual([]);
-    expect(workspace.lastActionResult?.title).toBe('Onboarding complete');
+    expect(workspace.lastActionResult?.kind).toBe('recap');
+    // After writing the completion marker, phase becomes 'complete', so the headline is the
+    // phase-derived completion headline from deriveRecap (not the generic fallback).
+    expect(workspace.lastActionResult?.title).toBe("You're set up. Here's what you can do now.");
   });
 
   // Test A: inline command behavior drives through handler.dispatchAgentWorkspaceCommand end-to-end
@@ -4580,5 +4591,49 @@ describe('AgentWorkspace', () => {
 
     // The 'home' category is now present
     expect(workspace.categories.some((category) => category.id === 'home')).toBe(true);
+  });
+
+  // Test C (integration): open() in ONBOARDING mode with an in-progress user whose first non-ready
+  // blocker maps to a non-setup category (provider-model blocked → resume target 'account-model').
+  // Verifies that the real open() navigation path lands on the resume category, not 'setup'.
+  // This is the regression test for the original bug: updateRevealedOnboardingCategories did NOT
+  // reveal the resume target (a non-ready blocker), so open() silently stayed on 'setup' while
+  // the status line claimed 'Picking up where you left off: Provider and model'.
+  test('open() in ONBOARDING mode with in-progress user (provider-model blocked) navigates to account-model category', () => {
+    // Set up a temp directory with shellPaths.
+    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-resume-nav-'));
+    const workingDirectory = join(root, 'ws');
+    const homeDirectory = join(root, 'home');
+    mkdirSync(workingDirectory, { recursive: true });
+    mkdirSync(homeDirectory, { recursive: true });
+    const shellPaths = createShellPathService({ workingDirectory, homeDirectory });
+
+    // Write a readable connected-host operator token so that connected-host-auth resolves to
+    // 'ready' in buildAgentWorkspaceSetupChecklist. Without this, connected-host-auth is also
+    // blocked and becomes the resume target (category 'setup'), not provider-model.
+    const tokenDir = join(homeDirectory, '.goodvibes', 'daemon');
+    mkdirSync(tokenDir, { recursive: true });
+    writeFileSync(connectedHostOperatorTokenPath(homeDirectory), JSON.stringify({ token: 'test-operator-token' }), 'utf-8');
+
+    // Write the check marker (no completion marker) → phase becomes 'in-progress'.
+    writeOnboardingCheckMarker(shellPaths);
+
+    // Build a context that open() will feed into buildAgentWorkspaceRuntimeSnapshot.
+    // No session.runtime.provider → provider === 'unknown' → provider-model is 'blocked'.
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined, undefined, undefined, 'ONBOARDING');
+
+    // The resume target must be 'account-model', not 'setup'.
+    // Before the fix, updateRevealedOnboardingCategories did not reveal the non-ready blocker,
+    // so categories.findIndex('account-model') returned -1 and selectedCategoryIndex stayed at 0 (setup).
+    expect(workspace.selectedCategory.id).toBe('account-model');
+
+    // The status line must reflect the resume narrative.
+    expect(workspace.status).toContain('Picking up where you left off');
   });
 });

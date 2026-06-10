@@ -336,7 +336,7 @@ export interface AgentWorkspaceActionSearchResult {
 export type AgentWorkspaceCommandDispatcher = (command: string, behavior?: 'inline' | 'compose' | 'exit') => void;
 export type AgentWorkspacePromptDispatcher = (prompt: string) => void;
 
-export type AgentWorkspaceActionResultKind = 'guidance' | 'blocked' | 'dispatched' | 'refreshed' | 'error';
+export type AgentWorkspaceActionResultKind = 'guidance' | 'blocked' | 'dispatched' | 'refreshed' | 'error' | 'recap';
 
 export interface AgentWorkspaceActionResult {
   readonly kind: AgentWorkspaceActionResultKind;
@@ -344,6 +344,8 @@ export interface AgentWorkspaceActionResult {
   readonly detail: string;
   readonly command?: string;
   readonly safety?: AgentWorkspaceAction['safety'];
+  /** Lines to display when kind is 'recap'. */
+  readonly lines?: readonly string[];
 }
 
 export interface AgentWorkspaceLocalLibraryItem {

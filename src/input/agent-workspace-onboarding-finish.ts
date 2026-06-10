@@ -13,9 +13,13 @@ export const ONBOARDING_COMPLETE_SYNTHETIC_ACTION: AgentWorkspaceAction = {
 export function shouldShowOnboardingFinishFooter(
   category: AgentWorkspaceCategory,
   baseActions: readonly AgentWorkspaceAction[],
+  readyToChat?: boolean,
 ): boolean {
-  return (
-    category.group === 'ONBOARDING'
-    && baseActions.every((a) => a.kind !== 'onboarding-complete')
-  );
+  if (category.group !== 'ONBOARDING') return false;
+  if (baseActions.some((a) => a.kind === 'onboarding-complete')) return false;
+  // When readyToChat is explicitly false (we have a valid OnboardingState and the user
+  // cannot chat yet), withhold the footer so completion is not premature.
+  // When readyToChat is undefined (no OnboardingState available), default to showing.
+  if (readyToChat === false) return false;
+  return true;
 }

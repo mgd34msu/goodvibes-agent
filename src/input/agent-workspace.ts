@@ -25,6 +25,8 @@ import { submitAgentWorkspaceSubscriptionLoginFinishEditor, submitAgentWorkspace
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryGroup, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, shouldShowOnboardingFinishFooter } from './agent-workspace-onboarding-finish.ts';
 import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
+import { computeOnboardingStateFromSnapshot, deriveOnboardingEntry, updateRevealedOnboardingCategories } from './agent-workspace-onboarding-state.ts';
+import type { OnboardingState } from '../runtime/onboarding/onboarding-state.ts';
 
 export type { AgentWorkspaceChannelRisk, AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 export type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryId, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
@@ -48,13 +50,19 @@ export class AgentWorkspace {
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
   private dispatchPrompt: AgentWorkspacePromptDispatcher | null = null;
   private _onlyGroup: AgentWorkspaceCategoryGroup | null = null;
+  private _onboardingState: OnboardingState | null = null;
+  private _revealedOnboardingCategoryIds = new Set<string>(); // monotonic reveal set
+  private _awaitingRecapDismiss = false; // true while showing recap before final close
 
   open(context: CommandContext, dispatchCommand: AgentWorkspaceCommandDispatcher, categoryId?: string, dispatchPrompt?: AgentWorkspacePromptDispatcher, onlyGroup?: AgentWorkspaceCategoryGroup): void {
     this.context = context;
     this.dispatchCommand = dispatchCommand;
     this.dispatchPrompt = dispatchPrompt ?? null;
     this._onlyGroup = onlyGroup ?? null;
+    this._awaitingRecapDismiss = false;
     this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(context);
+    const shellPaths = context.workspace?.shellPaths;
+    this._onboardingState = computeOnboardingStateFromSnapshot(this.runtimeSnapshot, shellPaths);
     this.active = true;
     this.focusPane = 'actions';
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
@@ -75,6 +83,14 @@ export class AgentWorkspace {
         safety: 'safe',
       };
     }
+    if (onlyGroup === 'ONBOARDING' && this._onboardingState) {
+      const entry = deriveOnboardingEntry(this._onboardingState);
+      this.status = entry.status;
+      if (entry.categoryId) {
+        const idx = this.categories.findIndex((c) => c.id === entry.categoryId);
+        if (idx >= 0) this.selectedCategoryIndex = idx;
+      }
+    }
     this.clampSelection();
   }
 
@@ -89,9 +105,19 @@ export class AgentWorkspace {
     this.actionSearchActive = false;
     this.actionSearchQuery = '';
     this._onlyGroup = null;
+    this._onboardingState = null;
+    this._awaitingRecapDismiss = false;
   }
 
   get categories(): readonly AgentWorkspaceCategory[] {
+    if (this._onlyGroup === 'ONBOARDING') {
+      const onboarding = AGENT_WORKSPACE_CATEGORIES.filter((c) => c.group === 'ONBOARDING');
+      if (this._onboardingState) {
+        updateRevealedOnboardingCategories(this._onboardingState, this._revealedOnboardingCategoryIds);
+        return onboarding.filter((c) => this._revealedOnboardingCategoryIds.has(c.id));
+      }
+      return onboarding;
+    }
     if (this._onlyGroup) {
       return AGENT_WORKSPACE_CATEGORIES.filter((category) => category.group === this._onlyGroup);
     }
@@ -105,7 +131,7 @@ export class AgentWorkspace {
   get actions(): readonly AgentWorkspaceAction[] {
     if (this.actionSearchActive) return this.actionSearchResults.map((result) => result.action);
     const base = this.selectedCategory.actions.filter((action) => isAgentWorkspaceActionVisible(this.context, action));
-    if (shouldShowOnboardingFinishFooter(this.selectedCategory, base)) {
+    if (shouldShowOnboardingFinishFooter(this.selectedCategory, base, this._onlyGroup === 'ONBOARDING' ? this._onboardingState?.readyToChat : undefined)) {
       return [...base, ONBOARDING_COMPLETE_SYNTHETIC_ACTION];
     }
     return base;
@@ -323,25 +349,27 @@ export class AgentWorkspace {
   }
 
   completeOnboarding(): void {
+    if (this._awaitingRecapDismiss) {
+      this._awaitingRecapDismiss = false;
+      if (!this.context?.dismissAgentWorkspace?.()) this.close();
+      return;
+    }
     const shellPaths = this.context?.workspace?.shellPaths;
     if (!shellPaths) {
       this.status = 'Cannot complete onboarding without Agent shell paths.';
-      this.lastActionResult = {
-        kind: 'error',
-        title: 'Onboarding completion unavailable',
-        detail: 'The Agent workspace cannot locate the user onboarding completion marker path for this runtime.',
-        safety: 'safe',
-      };
+      this.lastActionResult = { kind: 'error', title: 'Onboarding completion unavailable', detail: 'The Agent workspace cannot locate the user onboarding completion marker path for this runtime.', safety: 'safe' };
       return;
     }
-
     try {
       const marker = { scope: 'user', source: 'wizard', mode: 'new', workspaceRoot: shellPaths.workingDirectory } as const;
       writeOnboardingCheckMarker(shellPaths, marker);
       writeOnboardingCompletionMarker(shellPaths, marker);
-      this.status = 'Onboarding applied and closed.';
-      this.lastActionResult = { kind: 'refreshed', title: 'Onboarding complete', detail: 'Saved the user onboarding completion marker. Future normal launches start in the main conversation.', safety: 'safe' };
-      if (!this.context?.dismissAgentWorkspace?.()) this.close();
+      const obs = computeOnboardingStateFromSnapshot(this.runtimeSnapshot, shellPaths);
+      const headline = obs?.recap.headline ?? 'Onboarding complete';
+      const lines: readonly string[] = obs?.recap.lines ?? [];
+      this.status = headline;
+      this.lastActionResult = { kind: 'recap', title: headline, detail: lines.join('\n') || 'Saved the user onboarding completion marker.', lines, safety: 'safe' };
+      this._awaitingRecapDismiss = true;
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       this.status = 'Onboarding completion failed.';
