@@ -12,6 +12,7 @@ import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config'
 import type { SecretsManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
+import { buildLocalFitRecommendations, buildSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
 
 type WireShellUiOpenersOptions = {
@@ -186,10 +187,19 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
 
   commandContext.openModelPicker = () => {
     void (async () => {
-      const models = providerRegistry.getSelectableModels();
+      const catalogModels = providerRegistry.getSelectableModels();
       const configuredIds = new Set(getConfiguredProviderIds());
       input.modelPicker.configuredProviders = configuredIds;
-      const providerIds = [...new Set(models.map((m) => m.provider))];
+
+      // CRITICAL GATE: inject synthetic local recommendations ONLY when zero
+      // providers are configured. When any real credential exists these must
+      // not be present in the list. The sign-in row is appended last so it
+      // is always reachable but does not displace hardware-fit entries.
+      const models = configuredIds.size === 0
+        ? [...buildLocalFitRecommendations(), buildSignInRow(), ...catalogModels]
+        : catalogModels;
+
+      const providerIds = [...new Set(models.map((m) => m.provider).filter((p) => p !== LOCAL_REC_PROVIDER))];
       const secretProviderIds = await resolveSecretProviderIds();
       input.modelPicker.configuredViaMap = buildConfiguredViaMap(providerIds, configuredIds, subscriptionManager, secretProviderIds);
       void getPinned().then((pinned) => {
@@ -198,7 +208,11 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
       void input.modelPicker.loadRecentModels().catch(() => {}); // best-effort: prefetch for UI, failure is non-visible
       input.modalOpened('modelPicker');
       input.modelPicker.setTargetInfos(buildModelPickerTargets());
-      input.modelPicker.openAllModels(models, getCurrentModelForPickerTarget());
+      // Pre-select the best-fit local recommendation when no providers are configured.
+      const preSelectId = configuredIds.size === 0 && models.length > 0
+        ? (models[0]?.registryKey ?? models[0]?.id ?? getCurrentModelForPickerTarget())
+        : getCurrentModelForPickerTarget();
+      input.modelPicker.openAllModels(models, preSelectId);
       render();
     })().catch((error: unknown) => {
       commandContext.print?.(`Model picker failed to open: ${error instanceof Error ? error.message : String(error)}`);

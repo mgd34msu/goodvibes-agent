@@ -8,6 +8,7 @@
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ModelPickerModal } from '../input/model-picker.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
+import { isLocalFitRecommendation, isProviderSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { estimateModelBytes, fitAssessment, fitVerdictLabel, paramCountFromModel, readHardwareProfileSync, REPRESENTATIVE_7B_PARAMS } from '../core/hardware-profile.ts';
 import type { Line } from '../types/grid.ts';
 import { createEmptyLine, createStyledCell } from '../types/grid.ts';
@@ -59,6 +60,18 @@ const MODEL_WORKSPACE_CONTEXT_CAP_INPUT_HELP = 'Type digits to set a cap. Enter 
 const MODEL_WORKSPACE_FOOTER_SEARCH_ACTIVE = 'Typing filters search; Esc clears search';
 const MODEL_WORKSPACE_FOOTER_SEARCH_INACTIVE = '/ search';
 const MODEL_WORKSPACE_FOOTER_CONTROLS = 'Up/Down navigate • Left/Right pane • Enter select • <search> • Tab price • C caps • A available • B benchmark • G group • Esc close';
+const MODEL_WORKSPACE_LOCAL_ONLY_HEADER = 'No provider signed in — these run on your machine';
+const MODEL_WORKSPACE_LOCAL_ONLY_SIGN_IN = 'Sign in instead: select "Sign in to a provider" in the list below to connect a cloud or local provider.';
+
+/**
+ * Returns true when every model in the picker's list is a synthetic local
+ * fit recommendation (no real credentials configured).
+ */
+function isLocalOnlyList(picker: ModelPickerModal): boolean {
+  if (picker.mode !== 'model') return false;
+  const models = picker.models;
+  return models.length > 0 && models.every((m) => m.provider === LOCAL_REC_PROVIDER || isLocalFitRecommendation(m));
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -242,6 +255,8 @@ export function renderModelWorkspacePackageText(): string {
     'Detected context: <context>',
     'Override: <cap>',
     MODEL_WORKSPACE_CONTEXT_CAP_INPUT_HELP,
+    MODEL_WORKSPACE_LOCAL_ONLY_HEADER,
+    MODEL_WORKSPACE_LOCAL_ONLY_SIGN_IN,
     'Focus targets',
     'Focus list',
     modelWorkspaceFooterControls(MODEL_WORKSPACE_FOOTER_SEARCH_ACTIVE),
@@ -301,6 +316,14 @@ function detailLines(picker: ModelPickerModal, width: number): string[] {
   const targetState = target ? (target.enabled ? 'enabled' : 'disabled') : 'active';
   const selected = selectedModel(picker);
   const lines: string[] = [];
+
+  // Local-only header: shown when the list contains only synthetic fit recommendations.
+  // Never show when any real provider is configured.
+  if (isLocalOnlyList(picker)) {
+    lines.push(MODEL_WORKSPACE_LOCAL_ONLY_HEADER);
+    lines.push(MODEL_WORKSPACE_LOCAL_ONLY_SIGN_IN);
+  }
+
   lines.push(`Target: ${targetLabel} (${targetState})`);
   if (target) lines.push(`Current: ${targetSummary(target)}`);
   if (picker.mode === 'provider') {
@@ -316,7 +339,18 @@ function detailLines(picker: ModelPickerModal, width: number): string[] {
         caps.multimodal ? 'vision' : '',
         caps.toolCalling ? 'tools' : '',
       ].filter(Boolean).join(', ') || 'standard';
-      lines.push(`Selected: ${modelKey(selected)} | ${selected.displayName} | context ${formatContext(selected.contextWindow)} | ${capText}`);
+      // Suppress the key:id line for synthetic local recommendations — they have
+      // no real registry key and displaying the synthetic id would confuse users.
+      if (isProviderSignInRow(selected)) {
+        lines.push('Sign in to a provider to connect a cloud or local model.');
+        if (selected.description) lines.push(selected.description);
+      } else if (!isLocalFitRecommendation(selected)) {
+        lines.push(`Selected: ${modelKey(selected)} | ${selected.displayName} | context ${formatContext(selected.contextWindow)} | ${capText}`);
+      } else {
+        lines.push(`Selected: ${selected.displayName}`);
+        // Show the fit hint from the description (e.g. "not yet installed (fits in GPU memory)")
+        if (selected.description) lines.push(selected.description);
+      }
       const fitLine = modelHardwareFitLine(selected);
       if (fitLine) lines.push(fitLine);
     }

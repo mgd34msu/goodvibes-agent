@@ -3,6 +3,7 @@ import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { CommandContext } from './command-registry.ts';
 import type { CapabilityFilter, CategoryFilter, ModelPickerModal } from './model-picker.ts';
 import { MODEL_PICKER_CHROME_LINES } from '../renderer/model-picker-overlay.ts';
+import { isLocalFitRecommendation, isProviderSignInRow } from '../input/model-picker-local-fit.ts';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ProcessEntry } from '../renderer/process-modal.ts';
@@ -59,6 +60,28 @@ export function handleModelPickerToken(state: ModelPickerRouteState, token: Inpu
       if (mode === 'model') {
         const selected = state.modelPicker.getSelected();
         if (selected) {
+          // Sign-in row: route to provider picker instead of committing a model.
+          if (isProviderSignInRow(selected)) {
+            state.modelPicker.close();
+            if (state.modalStack[state.modalStack.length - 1] === 'modelPicker') state.modalStack.pop();
+            state.commandContext?.openProviderPicker?.();
+            return true;
+          }
+          // Local fit rec: the model is not installed — do not commit it as the
+          // active model. Print a plain-language guide and close the picker.
+          if (isLocalFitRecommendation(selected)) {
+            state.modelPicker.close();
+            if (state.modalStack[state.modalStack.length - 1] === 'modelPicker') state.modalStack.pop();
+            state.commandContext?.print?.(
+              [
+                `${selected.displayName} is not installed yet.`,
+                'To use a local model, add a custom provider:',
+                '  /provider add <name> <baseURL>  (e.g. /provider add ollama http://localhost:11434/v1)',
+                'Or sign in to a cloud provider via the provider picker.',
+              ].join('\n'),
+            );
+            return true;
+          }
           const currentEffort = state.commandContext?.session.runtime.reasoningEffort ?? 'medium';
           if (state.modelPicker.target === 'main' && selected.reasoningEffort && selected.reasoningEffort.length > 0) {
             state.modelPicker.showEffortPicker(selected, currentEffort);
