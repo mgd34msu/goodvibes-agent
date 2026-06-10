@@ -1,7 +1,8 @@
-import { describe, expect, test } from 'bun:test';
+import { describe, expect, test, afterEach } from 'bun:test';
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import { ModelPickerModal } from '../../input/model-picker.ts';
 import { renderModelWorkspace } from '../../renderer/model-workspace.ts';
+import { _resetHardwareProfileCache, _setHardwareProfileForTest } from '../../core/hardware-profile.ts';
 import { linesToText } from '../setup.ts';
 
 const W = 132;
@@ -86,6 +87,80 @@ function makePicker(): ModelPickerModal {
   picker.openAllModels(picker.models, 'openai:gpt-test');
   return picker;
 }
+
+// ---------------------------------------------------------------------------
+// Hardware fit line tests
+// ---------------------------------------------------------------------------
+
+describe('modelHardwareFitLine (via detailLines)', () => {
+  afterEach(() => {
+    _resetHardwareProfileCache();
+  });
+
+  test('local ollama model in model-mode detail contains Hardware: line', () => {
+    // Inject a deterministic hardware profile so the verdict is never 'unknown'.
+    _setHardwareProfileForTest({
+      totalRamBytes: 16 * 1024 ** 3,
+      availableRamBytes: 8 * 1024 ** 3,
+      gpus: [],
+      cpuCores: 8,
+    });
+    const ollamaModel = makeModel({ id: 'llama3', provider: 'ollama', registryKey: 'ollama:llama3', displayName: 'Llama 3' });
+    const picker = makePicker();
+    picker.models = [ollamaModel];
+    picker.providers = ['ollama'];
+    picker.configuredProviders = new Set(['ollama']);
+    picker.configuredViaMap = new Map([['ollama', 'local']]);
+    picker.availableOnly = false;
+    picker.openAllModels(picker.models, 'ollama:llama3');
+    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    expect(text).toContain('Hardware:');
+  });
+
+  test('cloud model (groq llama-3.1-70b) does NOT produce Hardware: line', () => {
+    _setHardwareProfileForTest({
+      totalRamBytes: 16 * 1024 ** 3,
+      availableRamBytes: 8 * 1024 ** 3,
+      gpus: [],
+      cpuCores: 8,
+    });
+    const groqModel = makeModel({ id: 'llama-3.1-70b', provider: 'groq', registryKey: 'groq:llama-3.1-70b', displayName: 'Llama 3.1 70B' });
+    const picker = makePicker();
+    picker.models = [groqModel];
+    picker.providers = ['groq'];
+    picker.configuredProviders = new Set(['groq']);
+    picker.configuredViaMap = new Map([['groq', 'env']]);
+    picker.availableOnly = false;
+    picker.openAllModels(picker.models, 'groq:llama-3.1-70b');
+    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    expect(text).not.toContain('Hardware:');
+  });
+
+  test('local 70B model label mentions 70B not 7B', () => {
+    // Use a 16 GB RAM profile so 70B (38.5 GB) is definitely too-big and produces a non-empty label.
+    _setHardwareProfileForTest({
+      totalRamBytes: 16 * 1024 ** 3,
+      availableRamBytes: 8 * 1024 ** 3,
+      gpus: [],
+      cpuCores: 8,
+    });
+    const ollamaModel70b = makeModel({ id: 'llama-3.1-70b', provider: 'ollama', registryKey: 'ollama:llama-3.1-70b', displayName: 'Llama 3.1 70B' });
+    const picker = makePicker();
+    picker.models = [ollamaModel70b];
+    picker.providers = ['ollama'];
+    picker.configuredProviders = new Set(['ollama']);
+    picker.configuredViaMap = new Map([['ollama', 'local']]);
+    picker.availableOnly = false;
+    picker.openAllModels(picker.models, 'ollama:llama-3.1-70b');
+    const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
+    // Label must reference the real model size, not the 7B fallback.
+    expect(text).toContain('70B');
+    // Verify it doesn't fall through to the 7B representative label.
+    // Extract only the Hardware: line to avoid false positives from model id text.
+    const hwLine = text.split('\n').find((line) => line.includes('Hardware:')) ?? '';
+    expect(hwLine).not.toContain('7B');
+  });
+});
 
 describe('renderModelWorkspace', () => {
   test('fills the full viewport with stable-width lines', () => {

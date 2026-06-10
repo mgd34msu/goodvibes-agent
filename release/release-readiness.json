@@ -167,7 +167,7 @@
       "quality": {
         "capabilityCoverage": "Covers local skills, skill bundles, routines, learned behavior capture, imports, review states, and reusable operator workflows.",
         "userAccess": "The user can manage skills, routines, bundles, and learned behavior through workspace routes and /skills or /routines commands.",
-        "modelAccess": "agent_local_registry and memory action:\"curator|candidate\" expose skill/routine actions, editor schemas, selected-record promotion, prompt-active/suppressed/proposal/consolidation planning, local learning review cards, and routine schedule prefill to the model; lower-level agent_harness mode:\"learning_curator\" and mode:\"learning_candidate\" remain available for compatibility/detail coverage.",
+        "modelAccess": "agent_local_registry and memory action:\"curator|candidate\" expose skill/routine actions, editor schemas, selected-record promotion, prompt-active/suppressed/proposal/consolidation planning, local learning review cards, and routine schedule prefill to the model; lower-level agent_harness mode:\"learning_curator\" and mode:\"learning_candidate\" remain available for compatibility/detail coverage; agent_harness mode:\"propose_skill_drafts\" exposes a confirmed pass that drafts up to 3 skills from recent learning candidates, requiring confirm:true and explicitUserRequest, and returns proposed/skipped counts with skill ids.",
         "safetyBoundary": "Behavior capture remains local until the user explicitly promotes, exports, schedules, or deletes a reviewed record.",
         "releaseEvidence": "Readiness evidence cites registry and command sources, and release docs describe local behavior library ownership."
       }

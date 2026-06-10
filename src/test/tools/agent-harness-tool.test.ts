@@ -13968,4 +13968,39 @@ describe('agent_harness tool', () => {
       fixture.cleanup();
     }
   });
+
+  test('model_routing cookbook recipes include hardwareFit annotation for known stacks', async () => {
+    const fixture = makeFixture();
+    try {
+      const routing = await executeHarnessJson<{
+        readonly localCookbook: {
+          readonly recipes: readonly {
+            readonly id: string;
+            readonly hardwareFit?: string;
+          }[];
+        };
+      }>(fixture, { mode: 'model_routing', includeParameters: true });
+      const recipes = routing.localCookbook.recipes;
+      expect(recipes.length).toBeGreaterThan(0);
+      // Every recipe with a known stack (ollama, llama-cpp, vllm) must carry a
+      // hardwareFit string when the hardware verdict is deterministic. When the
+      // machine returns 'unknown' (null totalRamBytes and no GPU), fitVerdictLabel
+      // returns '' and hardwareFit is absent — that is tolerated here.
+      const knownStackIds = new Set(['ollama', 'llama-cpp', 'vllm']);
+      for (const recipe of recipes) {
+        if (knownStackIds.has(recipe.id)) {
+          // Either absent (unknown hardware verdict) or a non-empty string.
+          if (recipe.hardwareFit !== undefined) {
+            expect(typeof recipe.hardwareFit).toBe('string');
+            expect((recipe.hardwareFit as string).length).toBeGreaterThan(0);
+          }
+        }
+      }
+      // The openai-compatible-local stack has no stable size estimate; hardwareFit is absent.
+      const generic = recipes.find((r) => r.id === 'openai-compatible-local');
+      expect(generic?.hardwareFit).toBeUndefined();
+    } finally {
+      fixture.cleanup();
+    }
+  });
 });

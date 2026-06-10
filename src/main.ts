@@ -54,7 +54,8 @@ import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './au
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
-import { createAutonomySurfacing } from './shell/autonomy-surfacing.ts';
+import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProposer } from './shell/autonomy-surfacing.ts';
+import { startHardwareProbe } from './core/hardware-profile.ts';
 
 const ALT_SCREEN_ENTER = '\x1b[?1049h', ALT_SCREEN_EXIT = '\x1b[?1049l', MOUSE_ENABLE = '\x1b[?1000h\x1b[?1002h\x1b[?1006h', MOUSE_DISABLE = '\x1b[?1006l\x1b[?1002l\x1b[?1000l', CURSOR_HIDE = '\x1b[?25l', CURSOR_SHOW = '\x1b[?25h', CLEAR_SCREEN = '\x1b[2J\x1b[3J\x1b[H';
 const KEYBOARD_EXT_ENABLE = '\x1b[>4;2m' + '\x1b[?1u', KEYBOARD_EXT_DISABLE = '\x1b[>4;0m' + '\x1b[?1l', PASTE_ENABLE = '\x1b[?2004h', PASTE_DISABLE = '\x1b[?2004l';
@@ -169,6 +170,8 @@ async function main() {
       getFeed: () => systemMessageRouter.getFeed(),
     },
     render: () => render(),
+    listCalendarEvents: buildCalendarEventsLister(ctx.services.shellPaths),
+    onAwayDigest: buildSkillDraftProposer(ctx.services.shellPaths, commandContext),
   });
 
   // Activity sidebar: shows ambient status on wide terminals. null = automatic
@@ -748,6 +751,10 @@ async function main() {
 
   conversation.rebuildHistory();
   render();
+
+  // Async GPU probe runs off the render frame — nvidia-smi result will populate
+  // the module cache and appear on the next render cycle after it completes.
+  startHardwareProbe();
 
   // Away digest runs after the first render so it lands as ambient context,
   // never a startup blocker.

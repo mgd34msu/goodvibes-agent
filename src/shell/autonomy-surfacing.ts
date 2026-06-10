@@ -1,6 +1,10 @@
 import { buildAwayDigest, formatRelativeTime } from '../core/away-digest.ts';
 import { LastSeenStore } from '../core/last-seen-store.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { AgentCalendarRegistry } from '../agent/calendar-registry.ts';
+import { AgentSkillRegistry } from '../agent/skill-registry.ts';
+import { runSkillDraftProposer } from '../agent/skill-draft-runner.ts';
+import type { CommandContext } from '../input/command-registry.ts';
 
 interface AutomationJobLike {
   readonly name: string;
@@ -26,6 +30,18 @@ export interface AutonomySurfacingOptions {
   readonly getTasksSnapshot: () => readonly unknown[];
   readonly router: AutonomyMessageRouter;
   readonly render: () => void;
+  /**
+   * Optional callback to list upcoming local calendar events.
+   * Each item carries a formatted label and a numeric sort key (ms since epoch)
+   * so the Coming up section merges calendar and job entries chronologically.
+   */
+  readonly listCalendarEvents?: () => readonly { label: string; start: number }[];
+  /**
+   * Optional callback invoked once per announceAwayDigest pass.
+   * Should run skill draft proposal and return the count of drafts created.
+   * When > 0, a line is appended to the digest feed.
+   */
+  readonly onAwayDigest?: () => number;
 }
 
 const COMING_UP_TTL_MS = 60_000;
@@ -60,15 +76,30 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
     Promise.resolve().then(() => {
       try {
         const jobs = options.listAutomationJobs();
-        comingUpCache.items = jobs
+        const jobItems: Array<{ label: string; sortKey: number }> = jobs
           .filter((job) => job.enabled && job.nextRunAt !== undefined && job.nextRunAt > now)
           .sort((a, b) => (a.nextRunAt ?? 0) - (b.nextRunAt ?? 0))
-          .slice(0, 3)
           .map((job) => {
             const when = job.nextRunAt ? formatRelativeTime(job.nextRunAt, now) : '';
             const name = job.name.length > 22 ? `${job.name.slice(0, 20)}…` : job.name;
-            return when ? `${name} — ${when}` : name;
+            return { label: when ? `${name} — ${when}` : name, sortKey: job.nextRunAt ?? 0 };
           });
+
+        const calItems: Array<{ label: string; sortKey: number }> = [];
+        if (options.listCalendarEvents) {
+          try {
+            for (const ev of options.listCalendarEvents()) {
+              calItems.push({ label: ev.label, sortKey: ev.start });
+            }
+          } catch {
+            // Calendar unavailable — skip silently.
+          }
+        }
+
+        comingUpCache.items = [...jobItems, ...calItems]
+          .sort((a, b) => a.sortKey - b.sortKey)
+          .slice(0, 3)
+          .map((item) => item.label);
         comingUpCache.fetchedAt = Date.now();
       } catch {
         // Offline or manager unavailable — leave cache as-is.
@@ -135,6 +166,22 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
           }
           options.render();
         }
+
+        // Invoke optional skill-draft hook once per pass.
+        if (options.onAwayDigest) {
+          try {
+            const drafted = options.onAwayDigest();
+            if (drafted > 0) {
+              options.router.getFeed()?.push(
+                `[Status] I drafted ${drafted} skill${drafted !== 1 ? 's' : ''} from recent work — review them under Memory`,
+                'low',
+                'schedule',
+              );
+            }
+          } catch {
+            // Skill draft hook failed — skip silently.
+          }
+        }
       } catch (err) {
         logger.debug('away-digest failed (non-fatal)', { error: err instanceof Error ? err.message : String(err) });
       }
@@ -152,4 +199,42 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
     stop,
     comingUpItems: (): readonly string[] => comingUpCache.items,
   };
+}
+
+/**
+ * Build the onAwayDigest callback for the given shellPaths and command context.
+ * Extracted so main.ts can pass a single symbol instead of an inline lambda.
+ */
+export function buildSkillDraftProposer(
+  shellPaths: Parameters<typeof AgentSkillRegistry.fromShellPaths>[0],
+  context: CommandContext,
+): () => number {
+  return () =>
+    runSkillDraftProposer(
+      context,
+      AgentSkillRegistry.fromShellPaths(shellPaths),
+    ).proposed;
+}
+
+/**
+ * Build the listCalendarEvents callback for the given shellPaths.
+ * Extracts the closure that was previously inlined in main.ts so that
+ * file stays under the 800-line cap.
+ */
+export function buildCalendarEventsLister(
+  shellPaths: Parameters<typeof LastSeenStore.fromShellPaths>[0],
+): () => readonly { label: string; start: number }[] {
+  return () =>
+    AgentCalendarRegistry.fromShellPaths(shellPaths)
+      .upcoming(7)
+      .map((e) => {
+        const allDay = e.allDay;
+        const startMs = allDay
+          ? Date.parse(`${e.start}T00:00:00Z`)
+          : Date.parse(e.start);
+        const sortMs = isNaN(startMs) ? Date.now() : startMs;
+        const when = allDay ? e.start : e.start.slice(0, 16).replace('T', ' ');
+        const label = e.title.length > 22 ? `${e.title.slice(0, 20)}…` : e.title;
+        return { label: `${label} — ${when}`, start: sortMs };
+      });
 }

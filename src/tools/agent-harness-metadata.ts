@@ -204,6 +204,22 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Connected schedules require an explicit user request and do not create hidden Agent jobs or local schedulers.',
     };
   }
+  if (root === 'email') {
+    return {
+      effect: 'external-network',
+      confirmation,
+      preferredModelTool: `${agentHarnessModes('run_command')} (use /email set to configure, /email config to view settings)`,
+      boundary: 'Email IMAP reads are read-only (EXAMINE); sends require explicit --yes confirmation and route only to the configured account. Use /email set email.<key> <value> to configure email settings; use /email config to view current settings. The generic settings action cannot set email.* keys — /email set is the only supported path.',
+    };
+  }
+  if (root === 'calendar' || root === 'cal') {
+    return {
+      effect: 'local-state',
+      confirmation,
+      preferredModelTool: agentHarnessModes('run_command'),
+      boundary: 'Calendar commands manage local ICS events only; import/export and mutations require explicit --yes confirmation. Calendar configuration is set via /calendar subcommands, not the generic settings action.',
+    };
+  }
   if (root === 'channels' || root === 'channel' || root === 'notify') {
     return {
       effect: 'external-network',

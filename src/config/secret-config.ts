@@ -3,6 +3,8 @@ import type { ConfigKey } from './index.ts';
 import type { SecretScope, SecretStorageMedium } from './secrets.ts';
 
 export const SECRET_CONFIG_KEYS = new Set<ConfigKey>([
+  // email section (app-layer extension, key is string-cast for ConfigKey compatibility)
+  'email.passwordRef' as unknown as ConfigKey,
   'surfaces.slack.signingSecret',
   'surfaces.slack.botToken',
   'surfaces.slack.appToken',

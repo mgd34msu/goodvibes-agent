@@ -8,6 +8,7 @@
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ModelPickerModal } from '../input/model-picker.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
+import { estimateModelBytes, fitAssessment, fitVerdictLabel, paramCountFromModel, readHardwareProfileSync, REPRESENTATIVE_7B_PARAMS } from '../core/hardware-profile.ts';
 import type { Line } from '../types/grid.ts';
 import { createEmptyLine, createStyledCell } from '../types/grid.ts';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
@@ -248,6 +249,52 @@ export function renderModelWorkspacePackageText(): string {
   ].join('\n');
 }
 
+/**
+ * Returns a plain-language hardware fit line for a local model, or an empty
+ * string when the model is not local or when the verdict is unknown.
+ * Uses the process-level cached hardware probe — never probes per render.
+ */
+/**
+ * Format a param count (e.g. 70e9) as a human-readable size token (e.g. '70B', '1.5B').
+ * Used to build the sizeDescriptor passed to fitVerdictLabel.
+ */
+function formatParamDescriptor(params: number): string {
+  const b = params / 1e9;
+  // Avoid floating-point noise: round to 1 decimal, strip trailing .0
+  const rounded = Math.round(b * 10) / 10;
+  return rounded === Math.floor(rounded) ? `${Math.floor(rounded)}B` : `${rounded}B`;
+}
+
+function modelHardwareFitLine(model: ModelDefinition): string {
+  const provider = (model.provider ?? '').toLowerCase();
+  // Anchor on known local-provider identities only; cloud providers that happen
+  // to serve Llama/local-named models (Groq 'llama-3.1-70b', Together
+  // 'meta-llama/...') are NOT local and must not be annotated.
+  const isLocal =
+    provider === 'ollama' ||
+    provider === 'vllm' ||
+    provider === 'llama-cpp' ||
+    provider === 'llama.cpp' ||
+    provider === 'lm-studio' ||
+    provider === 'lmstudio' ||
+    provider === 'localai' ||
+    provider === 'tgi' ||
+    provider === 'local-openai' ||
+    provider === 'openai-compatible-local';
+  if (!isLocal) return '';
+  // Use the actual param count from the model id/displayName when parseable;
+  // fall back to the shared 7B representative constant otherwise.
+  const parsedParams = paramCountFromModel(model);
+  const params = parsedParams ?? REPRESENTATIVE_7B_PARAMS;
+  const sizeBytes = estimateModelBytes(params);
+  // Build a human-readable size descriptor only when we could parse the real size.
+  const sizeDescriptor = parsedParams !== null
+    ? formatParamDescriptor(parsedParams)
+    : undefined;
+  const label = fitVerdictLabel(fitAssessment(sizeBytes, readHardwareProfileSync()), sizeDescriptor);
+  return label ? `Hardware: ${label}` : '';
+}
+
 function detailLines(picker: ModelPickerModal, width: number): string[] {
   const target = picker.getSelectedTargetInfo();
   const targetLabel = target?.label ?? targetLabelFor(picker.target);
@@ -270,6 +317,8 @@ function detailLines(picker: ModelPickerModal, width: number): string[] {
         caps.toolCalling ? 'tools' : '',
       ].filter(Boolean).join(', ') || 'standard';
       lines.push(`Selected: ${modelKey(selected)} | ${selected.displayName} | context ${formatContext(selected.contextWindow)} | ${capText}`);
+      const fitLine = modelHardwareFitLine(selected);
+      if (fitLine) lines.push(fitLine);
     }
   } else if (picker.mode === 'effort') {
     lines.push(MODEL_WORKSPACE_REASONING_EFFORT_DETAIL);

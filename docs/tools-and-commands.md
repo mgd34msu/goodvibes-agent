@@ -266,6 +266,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/bookmarks` | List bookmarked transcript blocks. |
 | `/brief` | Show a concise Agent operator briefing and next actions. |
 | `/bundle` | Export, inspect, or import redacted Agent support bundles from the TUI. |
+| `/calendar` | Manage a local calendar: list upcoming events, import or export .ics files, and add or remove events. |
 | `/channels` | Inspect channel readiness, delivery receipts, or send one explicitly confirmed delivery message. |
 | `/clear` | Clear the conversation display while keeping LLM context. |
 | `/collapse` | Collapse rendered blocks by type. |
@@ -277,6 +278,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/conversation` | Review conversation structure, transcript hotspots, and composer posture. |
 | `/delegate` | Explicitly delegate build/fix/review work to GoodVibes TUI with reason, success criteria, workspace hint, priority, and explicit review intent. |
 | `/effort` | Show or set reasoning effort level. |
+| `/email` | Configure direct email, read inbox summaries read-only, and send a confirmed message. |
 | `/expand` | Expand rendered blocks by type. |
 | `/export` | Export the current conversation to Markdown. |
 | `/health` | Review startup posture, connected-host readiness, provider health, and Agent continuity. |

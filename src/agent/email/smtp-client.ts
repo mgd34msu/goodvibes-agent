@@ -1,0 +1,377 @@
+/**
+ * Minimal SMTP submission client over an injectable transport socket.
+ *
+ * Scope and honest boundaries
+ * ────────────────────────────
+ * Supported:
+ *   - EHLO negotiation
+ *   - AUTH PLAIN and AUTH LOGIN
+ *   - MAIL FROM / RCPT TO / DATA with RFC 2821 dot-stuffing
+ *   - QUIT
+ *   - TLS-direct (port 465) via `createSmtpTlsSocket()`
+ *   - STARTTLS upgrade (port 587) via `createSmtpStartTlsSocket()`
+ *
+ * Not supported (document boundaries):
+ *   - HTML, MIME multipart, attachments
+ *   - Multiple recipients in a single session (call sendMail per recipient)
+ *   - DSN / delivery-status-notification extensions
+ *   - PIPELINING (all commands are sent sequentially and await a reply)
+ *   - Credentials are never logged
+ *
+ * Transport injection
+ * ────────────────────
+ * The `socket` parameter accepts any net.Socket so that unit tests can supply
+ * a plain in-process fake socket instead of a real TLS connection.
+ */
+
+import type { Socket } from 'node:net';
+
+// ---------------------------------------------------------------------------
+// Public types
+// ---------------------------------------------------------------------------
+
+export interface SmtpClientOptions {
+  readonly socket: Socket;
+  readonly hostname: string;
+  readonly username: string;
+  readonly password: string;
+  readonly timeoutMs?: number;
+}
+
+export interface SmtpSendOptions {
+  readonly from: string;
+  readonly to: string;
+  readonly subject: string;
+  readonly body: string;
+}
+
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+const CRLF = '\r\n';
+
+function dotStuff(body: string): string {
+  // RFC 2821 §4.5.2: lines beginning with '.' get an extra '.'
+  return body
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => (line.startsWith('.') ? `.${line}` : line))
+    .join(CRLF);
+}
+
+function base64(str: string): string {
+  return Buffer.from(str, 'utf8').toString('base64');
+}
+
+// ---------------------------------------------------------------------------
+// SMTP session
+// ---------------------------------------------------------------------------
+
+class SmtpSession {
+  private readonly socket: Socket;
+  private readonly timeoutMs: number;
+  private buffer = '';
+
+  constructor(socket: Socket, timeoutMs: number) {
+    this.socket = socket;
+    this.timeoutMs = timeoutMs;
+    this.socket.setEncoding('utf8');
+  }
+
+  /** Read lines until a final SMTP response (no continuation dash). */
+  async readResponse(): Promise<{ code: number; lines: string[] }> {
+    const lines: string[] = [];
+
+    return new Promise<{ code: number; lines: string[] }>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        cleanup();
+        reject(new Error('SMTP read timeout'));
+      }, this.timeoutMs);
+
+      const tryFlush = (): void => {
+        let pos: number;
+        while ((pos = this.buffer.indexOf('\n')) !== -1) {
+          const line = this.buffer.slice(0, pos).replace(/\r$/, '');
+          this.buffer = this.buffer.slice(pos + 1);
+          lines.push(line);
+
+          // SMTP responses: XYZ-text (continuation) vs XYZ text (final)
+          const match = /^(\d{3})([- ])/.exec(line);
+          if (match && match[2] !== '-') {
+            cleanup();
+            const code = parseInt(match[1] ?? '0', 10);
+            resolve({ code, lines });
+            return;
+          }
+        }
+      };
+
+      const onData = (chunk: string): void => {
+        this.buffer += chunk;
+        tryFlush();
+      };
+
+      const onError = (err: Error): void => {
+        cleanup();
+        reject(err);
+      };
+
+      const onClose = (): void => {
+        cleanup();
+        reject(new Error('SMTP connection closed unexpectedly'));
+      };
+
+      const cleanup = (): void => {
+        clearTimeout(timer);
+        this.socket.off('data', onData);
+        this.socket.off('error', onError);
+        this.socket.off('close', onClose);
+      };
+
+      this.socket.on('data', onData);
+      this.socket.on('error', onError);
+      this.socket.on('close', onClose);
+
+      // Flush already-buffered data
+      if (this.buffer.length > 0) {
+        tryFlush();
+      }
+    });
+  }
+
+  async send(line: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.socket.write(`${line}${CRLF}`, 'utf8', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
+
+  async sendRaw(data: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      this.socket.write(data, 'utf8', (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+    });
+  }
+
+  /** Send a command and assert the response code. Throws on failure. */
+  async cmd(line: string, expectCode: number): Promise<{ code: number; lines: string[] }> {
+    await this.send(line);
+    const resp = await this.readResponse();
+    if (resp.code !== expectCode) {
+      throw new Error(`SMTP ${line.split(' ')[0] ?? 'CMD'} failed: ${resp.lines.join(' | ')}`);
+    }
+    return resp;
+  }
+
+  destroy(): void {
+    try {
+      this.socket.destroy();
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Public client
+// ---------------------------------------------------------------------------
+
+export class SmtpClient {
+  private readonly options: SmtpClientOptions;
+
+  constructor(options: SmtpClientOptions) {
+    this.options = options;
+  }
+
+  /**
+   * Send a plain-text email.
+   * Callers must ensure the caller-side confirms the send before calling this.
+   */
+  async sendMail(opts: SmtpSendOptions): Promise<void> {
+    const { hostname, username, password } = this.options;
+    const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const session = new SmtpSession(this.options.socket, timeoutMs);
+
+    // Read server greeting
+    const greeting = await session.readResponse();
+    if (greeting.code !== 220) {
+      throw new Error(`SMTP unexpected greeting: ${greeting.lines.join(' | ')}`);
+    }
+
+    // EHLO
+    const ehlo = await session.cmd(`EHLO ${hostname}`, 250);
+    const capabilities = ehlo.lines.map((l) => l.slice(4).trim().toUpperCase());
+
+    // AUTH
+    await this.authenticate(session, capabilities, username, password);
+
+    // Envelope
+    await session.cmd(`MAIL FROM:<${opts.from}>`, 250);
+    await session.cmd(`RCPT TO:<${opts.to}>`, 250);
+
+    // DATA
+    await session.cmd('DATA', 354);
+
+    const date = new Date().toUTCString();
+    const message = [
+      `From: ${opts.from}`,
+      `To: ${opts.to}`,
+      `Subject: ${opts.subject}`,
+      `Date: ${date}`,
+      `MIME-Version: 1.0`,
+      `Content-Type: text/plain; charset=utf-8`,
+      '',
+      dotStuff(opts.body),
+      '.',
+    ].join(CRLF) + CRLF;
+
+    await session.sendRaw(message);
+    const dataResp = await session.readResponse();
+    if (dataResp.code !== 250) {
+      throw new Error(`SMTP DATA rejected: ${dataResp.lines.join(' | ')}`);
+    }
+
+    // QUIT
+    await session.send('QUIT');
+    session.destroy();
+  }
+
+  // -------------------------------------------------------------------------
+  // Private
+  // -------------------------------------------------------------------------
+
+  private async authenticate(
+    session: SmtpSession,
+    capabilities: readonly string[],
+    username: string,
+    password: string,
+  ): Promise<void> {
+    const hasPlain = capabilities.some((c) => c.includes('AUTH') && c.includes('PLAIN'));
+    const hasLogin = capabilities.some((c) => c.includes('AUTH') && c.includes('LOGIN'));
+
+    if (hasPlain) {
+      // AUTH PLAIN: base64(\x00username\x00password)
+      const token = base64(`\x00${username}\x00${password}`);
+      await session.cmd(`AUTH PLAIN ${token}`, 235);
+    } else if (hasLogin) {
+      // AUTH LOGIN: two-step base64 exchange
+      await session.cmd('AUTH LOGIN', 334);
+      await session.cmd(base64(username), 334);
+      await session.cmd(base64(password), 235);
+    } else {
+      throw new Error('SMTP server does not advertise AUTH PLAIN or AUTH LOGIN');
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Socket factories (production)
+// ---------------------------------------------------------------------------
+
+/** Connect TLS-direct (implicit TLS, port 465). */
+export function createSmtpTlsSocket(
+  host: string,
+  port: number,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<Socket> {
+  return new Promise<Socket>((resolve, reject) => {
+    const { connect } = require('node:tls') as typeof import('node:tls');
+    const timer = setTimeout(() => {
+      sock.destroy();
+      reject(new Error(`SMTP TLS connect timeout to ${host}:${port}`));
+    }, timeoutMs);
+
+    const sock = connect({ host, port, servername: host }, () => {
+      clearTimeout(timer);
+      resolve(sock as unknown as Socket);
+    });
+
+    sock.once('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
+
+/** Connect plain then upgrade via STARTTLS (port 587). */
+export function createSmtpStartTlsSocket(
+  host: string,
+  port: number,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
+): Promise<Socket> {
+  return new Promise<Socket>((resolve, reject) => {
+    const net = require('node:net') as typeof import('node:net');
+    const tls = require('node:tls') as typeof import('node:tls');
+
+    const timer = setTimeout(() => {
+      plain.destroy();
+      reject(new Error(`SMTP STARTTLS connect timeout to ${host}:${port}`));
+    }, timeoutMs);
+
+    const plain = net.connect({ host, port }, () => {
+      // Read the 220 greeting, send EHLO, then STARTTLS
+      let buffer = '';
+      plain.setEncoding('utf8');
+
+      const onGreeting = (chunk: string): void => {
+        buffer += chunk;
+        if (!buffer.includes('\n')) return;
+        plain.off('data', onGreeting);
+
+        plain.write(`EHLO ${host}${CRLF}`, 'utf8', () => {
+          let ehloBuffer = '';
+          const onEhlo = (data: string): void => {
+            ehloBuffer += data;
+            // Wait for final 250 line (no dash)
+            if (!/^250 /m.test(ehloBuffer)) return;
+            plain.off('data', onEhlo);
+
+            plain.write(`STARTTLS${CRLF}`, 'utf8', () => {
+              let stBuffer = '';
+              const onStartTls = (data: string): void => {
+                stBuffer += data;
+                if (!stBuffer.includes('\n')) return;
+                plain.off('data', onStartTls);
+
+                if (!stBuffer.startsWith('220')) {
+                  clearTimeout(timer);
+                  plain.destroy();
+                  reject(new Error(`STARTTLS rejected: ${stBuffer.trim()}`));
+                  return;
+                }
+
+                const upgraded = tls.connect({
+                  socket: plain,
+                  host,
+                  servername: host,
+                }, () => {
+                  clearTimeout(timer);
+                  resolve(upgraded as unknown as Socket);
+                });
+                upgraded.once('error', (err) => {
+                  clearTimeout(timer);
+                  reject(err);
+                });
+              };
+              plain.on('data', onStartTls);
+            });
+          };
+          plain.on('data', onEhlo);
+        });
+      };
+
+      plain.on('data', onGreeting);
+    });
+
+    plain.once('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}

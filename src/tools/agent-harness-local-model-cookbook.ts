@@ -1,4 +1,5 @@
 import type { CommandContext } from '../input/command-registry.ts';
+import { estimateModelBytes, fitAssessment, fitVerdictLabel, readHardwareProfileSync, REPRESENTATIVE_7B_PARAMS } from '../core/hardware-profile.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { localModelDetection, localModelServerHealthMap } from './agent-harness-local-model-endpoints.ts';
 import { localHardwareProfile, localRecipeReadinessScore, localRecipeStackId, scoreLocalModelRecipe } from './agent-harness-model-readiness.ts';
@@ -81,6 +82,21 @@ export function localModelSetupPlan(
     benchmarkPlan: localModelBenchmarkPlan(recipe),
     confirmationBoundary: 'The plan is read-only guidance. Installs, downloads, server starts, provider edits, refreshes, comparisons, and route changes require explicit user action or confirmation.',
   };
+}
+
+/**
+ * Representative Q4 parameter count for a recipe's default/starter model.
+ * Used to estimate memory footprint for hardware fit annotation.
+ * Returns null for stacks where size is too variable to estimate safely.
+ */
+function recipeRepresentativeParamCount(recipe: LocalModelRecipe): number | null {
+  // Uses the shared REPRESENTATIVE_7B_PARAMS constant so the renderer and cookbook
+  // always reference the same basis.
+  // The generic openai-compatible stack is too varied to estimate.
+  if (recipe.id === 'ollama' || recipe.id === 'llama-cpp' || recipe.id === 'vllm') {
+    return REPRESENTATIVE_7B_PARAMS;
+  }
+  return null;
 }
 
 export function localModelRecipes(): readonly LocalModelRecipe[] {
@@ -176,6 +192,13 @@ export function describeLocalModelRecipe(
     hardwareMatched: fit.reasons.slice(0, includeParameters ? 6 : 3),
     detected,
       modelRoute: 'models action:"status" or agent_harness mode:"open_ui_surface"',
+    ...(() => {
+      const paramCount = recipeRepresentativeParamCount(recipe);
+      if (paramCount === null) return {};
+      const sizeBytes = estimateModelBytes(paramCount);
+      const label = fitVerdictLabel(fitAssessment(sizeBytes, readHardwareProfileSync()));
+      return label ? { hardwareFit: label } : {};
+    })(),
     ...(includeParameters ? {
       setup: recipe.setup,
       modelExamples: recipe.modelExamples,

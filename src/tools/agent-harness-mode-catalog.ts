@@ -144,6 +144,7 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
   { id: 'connected_host_capability', kind: 'inspect', family: 'connected-host', summary: 'Inspect one connected-host capability and blocked surfaces.', next: 'Prefer host action:"capability".', parameters: ['capabilityId', 'target', 'query'] },
   { id: 'daemon', kind: 'alias', family: 'connected-host', summary: 'GoodVibes daemon -> connected_host; mutations use confirmed methods.', next: 'Prefer host action:"capabilities".', aliases: ['connected_host'], parameters: ['includeParameters'] },
   { id: 'daemon_status', kind: 'alias', family: 'connected-host', summary: 'GoodVibes daemon status -> connected_host_status.', next: 'Prefer host action:"status".', aliases: ['connected_host_status'], parameters: ['includeParameters'] },
+  { id: 'propose_skill_drafts', kind: 'effect', family: 'personal-ops', summary: 'Draft up to 3 skills from recent learning candidates for review.', requiresConfirmation: true, keywords: ['skill draft', 'propose skill', 'auto-propose', 'draft skills', 'learning draft'], parameters: ['confirm', 'explicitUserRequest'] },
 ] as const;
 
 function readString(value: unknown): string {

@@ -8,6 +8,8 @@ import { channelReadinessCatalogStatus, describeHarnessChannel, describeHarnessC
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessCommand, listHarnessCommands } from './agent-harness-command-catalog.ts';
 import { describeLearningCandidate, learningCuratorCatalogStatus, learningCuratorSummary } from './agent-harness-learning-curator.ts';
+import { runSkillDraftProposer } from '../agent/skill-draft-runner.ts';
+import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { delegationPostureCatalogStatus, delegationPostureSummary, describeHarnessDelegationRoute } from './agent-harness-delegation-posture.ts';
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, runHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessMediaProvider, mediaPostureCatalogStatus, mediaPostureSummary } from './agent-harness-media-posture.ts';
@@ -701,6 +703,23 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return output(await connectedHostStatusSummary(deps.commandContext, deps.toolRegistry, {
             includeParameters: args.includeParameters === true,
           }));
+        }
+        if (args.mode === 'propose_skill_drafts') {
+          const confirmationError = requireConfirmedAction(args, 'Skill draft proposal');
+          if (confirmationError) return error(confirmationError);
+          const shellPaths = deps.commandContext.workspace?.shellPaths;
+          if (!shellPaths) return error('Skill draft proposal requires an active workspace.');
+          const registry = AgentSkillRegistry.fromShellPaths(shellPaths);
+          const result = runSkillDraftProposer(deps.commandContext, registry);
+          return output({
+            proposed: result.proposed,
+            skipped: result.skipped,
+            skillIds: result.skillIds,
+            message: result.proposed > 0
+              ? `Drafted ${result.proposed} skill${result.proposed !== 1 ? 's' : ''} for review. Find them under Memory > Skills with enabled:false.`
+              : 'No new skill drafts this pass.',
+            policy: 'Drafted skills are disabled and require review before use. Enable them under Memory > Skills.',
+          });
         }
         return error(`Unhandled agent_harness mode: ${args.mode}`);
       } catch (err) {
