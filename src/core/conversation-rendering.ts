@@ -1,6 +1,7 @@
 import { UIFactory } from '../renderer/ui-factory.ts';
 import { renderMarkdownTracked } from '../renderer/markdown.ts';
 import { renderToolCallBlock } from '../renderer/tool-call.ts';
+import { friendlyToolLabel } from '../renderer/tool-labels.ts';
 import { renderThinkingBlock } from '../renderer/thinking.ts';
 import { renderSystemMessage } from '../renderer/system-message.ts';
 import { createEmptyLine, type Line, type Cell } from '../types/grid.ts';
@@ -224,7 +225,7 @@ export function renderConversationToolMessage(
     detailFg: '244',
   }, [
     ...(message.toolName
-      ? [{ text: ` ${message.toolName} `, fg: '#e2e8f0' as const }]
+      ? [{ text: ` ${friendlyToolLabel(message.toolName)} `, fg: '#e2e8f0' as const }]
       : [{ text: ` ${summarizeCallId(message.callId || 'standalone')} `, fg: '244' as const, dim: true }]),
     { text: ` ${isCollapsed ? GLYPHS.navigation.collapsed : GLYPHS.navigation.expanded} ${lineCount} line${lineCount === 1 ? '' : 's'} `, fg: '244', dim: true },
   ]));

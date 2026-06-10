@@ -3,9 +3,10 @@ import { LAYOUT, TOOL_STATUS } from './layout.ts';
 import { getDisplayWidth, truncateDisplay } from '../utils/terminal-width.ts';
 import type { ToolCall } from '@pellux/goodvibes-sdk/platform/types';
 import { stripDangerousAnsi } from './ansi-sanitize.ts';
+import { friendlyToolLabel } from './tool-labels.ts';
 
 const TOOL_NAME_MIN_WIDTH = 8;
-const TOOL_NAME_MAX_WIDTH = 20;
+const TOOL_NAME_MAX_WIDTH = 30;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -200,10 +201,8 @@ export function renderToolCallBlock(
   }
   col += 2; // icon + space
 
-  // Tool name — extract short name for long MCP tool names, but keep a readable dynamic width.
-  const rawName = toolCall.name.includes('__')
-    ? toolCall.name.split('__').pop()!
-    : toolCall.name;
+  // Human phrase for the tool ("Searching the web") instead of the raw name.
+  const rawName = friendlyToolLabel(toolCall.name);
   const keyArg = stripDangerousAnsi(extractKeyArg(toolCall));
   const suffixText = status === 'error' && errorMsg
     ? `- ${stripDangerousAnsi(errorMsg).slice(0, 40)}`

@@ -17,8 +17,8 @@ describe('tool call layout', () => {
     const text = lineToString(line);
 
     expect(text.indexOf('✓')).toBe(4);
-    expect(text).toContain('find');
-    expect(text.indexOf('find')).toBeLessThan(12);
+    expect(text).toContain('Searching files');
+    expect(text.indexOf('Searching files')).toBeLessThan(12);
   });
 
   test('tool-call rows prefer explicit query arguments instead of relying on fallback object order', () => {
@@ -34,7 +34,7 @@ describe('tool call layout', () => {
     const [line] = renderToolCallBlock(toolCall, 'done', undefined, 64);
     const text = lineToString(line);
 
-    expect(text).toContain('web_search');
+    expect(text).toContain('Searching the web');
     expect(text).toContain('dllm language model');
     expect(text).not.toContain('duckduckgo');
   });
@@ -51,7 +51,7 @@ describe('tool call layout', () => {
     const [line] = renderToolCallBlock(toolCall, 'done', '1 line', 72, 1200);
     const text = lineToString(line);
 
-    expect(text).toContain('web_search');
+    expect(text).toContain('Searching the web');
     expect(text).toContain('dllm language model');
     expect(text).toContain('(1 line)');
     expect(text).toContain('1.2s');

@@ -87,12 +87,12 @@ describe('shell surface', () => {
     expect(lineToString(result.lines[2])).toContain('▀');
   });
 
-  test('composer posture line surfaces mode and pending risk without bloating the footer', () => {
+  test('status line stays compact and only surfaces approval waits in plain language', () => {
     const result = buildShellFooter({
       width: 100,
       promptText: 'hello',
       promptLineCount: 1,
-      usage: { up: 0, down: 0 },
+      usage: { up: 1200, down: 800 },
       showExitNotice: false,
       lastCopyTime: 0,
       model: 'gpt-test',
@@ -106,12 +106,16 @@ describe('shell surface', () => {
       composerMode: 'shell',
       composerStatus: 'preflight',
       composerFlags: ['approval'],
-      composerPendingRisk: 'shell',
+      composerPendingRisk: 'approval-wait',
     });
     const text = result.lines.map(lineToString).join('\n');
-    expect(text).toContain('risk:shell');
-    expect(text).toContain('state:preflight');
-    expect(text).toContain('flags:approval');
+    expect(text).toContain('gpt-test · openai');
+    expect(text).toContain('waiting for your approval');
+    expect(text).not.toContain('risk:');
+    expect(text).not.toContain('state:');
+    expect(text).not.toContain('flags:');
+    // Footer chrome stays at 5 rows + prompt: box top/bottom, indicator, status, hints.
+    expect(result.lines.length).toBe(6);
   });
 
   test('prompt box visibly loses focus when the indicator is focused', () => {

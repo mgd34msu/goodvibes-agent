@@ -215,113 +215,65 @@ export class UIFactory {
     const bottomLine = createBaseLine();
     for (let x = 0; x < boxWidth; x++) bottomLine[boxStartX + x] = { char: GLYPHS.surface.bottom, fg: BORDER_COLOR, bg: '', bold: false, dim: false, underline: false, italic: false, strikethrough: false };
     lines.push(bottomLine);
-    lines.push(createBaseLine());
-    const composerTokens: Array<{ text: string; fg: string; bold?: boolean; dim?: boolean }> = [];
-    if (composerMode) composerTokens.push({ text: ` ${GLYPHS.status.active} ${composerMode} `, fg: '#38bdf8', bold: true });
-    if (composerPendingRisk && composerPendingRisk !== 'none') {
-      const riskColor = composerPendingRisk === 'approval-wait'
-        ? '#f59e0b'
-        : composerPendingRisk === 'shell'
-          ? '#ef4444'
-          : composerPendingRisk === 'remote'
-            ? '#a78bfa'
-            : '#f59e0b';
-      composerTokens.push({ text: ` risk:${composerPendingRisk} `, fg: riskColor, bold: true });
-    }
-    if (composerStatus && composerStatus !== 'idle') composerTokens.push({ text: ` state:${composerStatus} `, fg: '244', dim: true });
-    if (composerFlags && composerFlags.length > 0) composerTokens.push({ text: ` flags:${composerFlags.join(',')} `, fg: '244', dim: true });
-    if (composerTokens.length > 0) {
-      const postureLine = createBaseLine();
-      let px = 2;
-      for (const token of composerTokens) {
-        for (const ch of token.text) {
-          if (px >= width) break;
-          postureLine[px] = {
-            char: ch,
-            fg: token.fg,
-            bg: '',
-            bold: token.bold ?? false,
-            dim: token.dim ?? false,
-            underline: false,
-            italic: false,
-            strikethrough: false,
-          };
-          px += getDisplayWidth(ch);
-        }
-        if (px >= width) break;
-      }
-      lines.push(postureLine);
-      lines.push(createBaseLine());
-    }
+
+    // ── Status line: model · context meter · tokens, with alerts on the right ──
     const isRecentlyCopied = Date.now() - lastCopyTime < 2000;
-    // Token usage line
-    const u = usage as { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; up?: number; down?: number };
+    const u = usage as { input?: number; output?: number; up?: number; down?: number };
     const inp = u.input ?? u.up ?? 0;
     const out = u.output ?? u.down ?? 0;
-    const cr = u.cacheRead ?? 0;
-    const cw = u.cacheWrite ?? 0;
-    const total = inp + out + cr + cw;
-    const tokenSep = ` ${GLYPHS.navigation.pipeSeparator} `;
-    const tokenLine = ` Token Usage [ Input: ${fmtNum(inp)}${tokenSep}Output: ${fmtNum(out)}${tokenSep}Cache Read: ${fmtNum(cr)}${tokenSep}Cache Write: ${fmtNum(cw)}${tokenSep}Total: ${fmtNum(total)} ]`;
-    const copiedNotice = isRecentlyCopied ? ` [COPIED] ` : '';
-    const statsLine = '  ' + tokenLine + ' '.repeat(Math.max(0, width - 4 - getDisplayWidth(tokenLine) - getDisplayWidth(copiedNotice))) + copiedNotice;
-    lines.push(this.stringToLine(statsLine, width, { fg: isRecentlyCopied ? '81' : '244', bold: isRecentlyCopied }));
-    // Context usage progress bar
+    const statusTokens: Array<{ text: string; fg: string; bold?: boolean }> = [];
+    if (model) {
+      statusTokens.push({ text: provider ? `${model} · ${provider}` : model, fg: '245' });
+    }
     if (contextWindow && contextWindow > 0) {
       const ctxTokens = lastInputTokens ?? 0;
-      const label = '   Context Usage: ';
-      const suffix = ` [ ${fmtNum(ctxTokens)} / ${fmtNum(contextWindow)} ]`;
-      const barWidth = Math.max(10, Math.min(30, width - getDisplayWidth(label) - getDisplayWidth(suffix) - 8));
-      const ctxPct = Math.min(1, ctxTokens / contextWindow);
-      lines.push(createBaseLine());
-      lines.push(this.createProgressBarLine(label, ctxPct, barWidth, width, suffix));
+      const pct = Math.min(100, Math.round((ctxTokens / contextWindow) * 100));
+      const filled = Math.round((pct / 100) * 6);
+      const meter = GLYPHS.meter.filled.repeat(filled) + GLYPHS.meter.empty.repeat(6 - filled);
+      const meterFg = pct >= 85 ? '#ef4444' : pct >= 65 ? '#f59e0b' : '240';
+      statusTokens.push({ text: `context ${meter} ${pct}%`, fg: meterFg, bold: pct >= 85 });
     }
-    // Context info line (working dir, model+provider, tools)
-    if (workingDir || model) {
-      const home = typeof process !== 'undefined' ? process.env.HOME ?? '' : '';
-      const displayDir = workingDir && home && workingDir.startsWith(home)
-        ? '~' + workingDir.slice(home.length)
-        : workingDir ?? '';
-      const ctxParts: string[] = [];
-      if (displayDir) ctxParts.push(displayDir);
-      if (model) {
-        ctxParts.push(model + (provider ? ` (${provider})` : ''));
+    if (inp > 0 || out > 0) {
+      statusTokens.push({ text: `↑${fmtNum(inp)} ↓${fmtNum(out)}`, fg: '240' });
+    }
+    if (composerPendingRisk === 'approval-wait') {
+      statusTokens.push({ text: 'waiting for your approval', fg: '#f59e0b', bold: true });
+    }
+    const rightNotice = isRecentlyCopied
+      ? { text: `copied ${GLYPHS.status.success} `, fg: '81', bold: true }
+      : dangerMode
+        ? { text: '⚠ auto-approve is on ', fg: '#ef4444', bold: true }
+        : null;
+    const statusLine = createBaseLine();
+    let sx = 3;
+    const writeStatusText = (text: string, fg: string, bold = false) => {
+      for (const ch of text) {
+        if (sx >= width - 1) break;
+        statusLine[sx] = { char: ch, fg, bg: '', bold, dim: false, underline: false, italic: false, strikethrough: false };
+        sx += getDisplayWidth(ch);
       }
-      if (toolCount) ctxParts.push(`${toolCount} tools`);
-      if (hitlMode) ctxParts.push(`hitl:${hitlMode}`);
-      if (composerMode) ctxParts.push(`mode:${composerMode}`);
-      if (composerStatus && composerStatus !== 'idle') ctxParts.push(`status:${composerStatus}`);
-      if (composerFlags && composerFlags.length > 0) ctxParts.push(composerFlags.join(','));
-      const ctxLine = '   ' + ctxParts.join(`  ${GLYPHS.navigation.pipeSeparator}  `);
-      lines.push(createBaseLine());
-      lines.push(this.stringToLine(truncateDisplay(ctxLine, width), width, { fg: '240', dim: true }));
-      lines.push(createBaseLine());
+    };
+    statusTokens.forEach((token, index) => {
+      if (index > 0) writeStatusText(`  ${GLYPHS.navigation.pipeSeparator}  `, '238');
+      writeStatusText(token.text, token.fg, token.bold ?? false);
+    });
+    if (rightNotice) {
+      let col = Math.max(sx + 2, width - getDisplayWidth(rightNotice.text));
+      for (const ch of rightNotice.text) {
+        if (col >= width) break;
+        statusLine[col] = { char: ch, fg: rightNotice.fg, bg: '', bold: rightNotice.bold ?? false, dim: false, underline: false, italic: false, strikethrough: false };
+        col += getDisplayWidth(ch);
+      }
     }
+    lines.push(statusLine);
+
+    // ── Hints line ──
     if (showExitNotice) {
-      const notice = `   !!! Press Ctrl+C again to exit !!! `;
-      lines.push(this.stringToLine(fitDisplay(notice, width), width, { fg: '196', bold: true }));
+      lines.push(this.stringToLine(fitDisplay('   Press Ctrl+C again to exit ', width), width, { fg: '196', bold: true }));
     } else {
-      const help = `   /help for commands  -  Ctrl+C to quit `;
-      const dangerWarn = dangerMode ? `! DANGER MODE - ALL CHANGES AUTO-APPROVED ` : '';
-      const helpW = getDisplayWidth(help);
-      const dangerW = getDisplayWidth(dangerWarn);
-      const spacerW = Math.max(0, width - helpW - dangerW);
-      const combinedLine = help + ' '.repeat(spacerW) + dangerWarn;
-      const line = this.stringToLine(truncateDisplay(combinedLine, width), width, { fg: '240', dim: true });
-      // Overlay the danger warning in red bold
-      if (dangerMode && dangerW > 0) {
-        let col = helpW + spacerW;
-        for (const ch of dangerWarn) {
-          if (col >= width) break;
-          const cw = getDisplayWidth(ch);
-          line[col] = { char: ch, fg: '#ef4444', bg: '', bold: true, dim: false, underline: false, italic: false, strikethrough: false };
-          if (cw === 2 && col + 1 < width) line[col + 1] = { ...line[col], char: '' };
-          col += cw;
-        }
-      }
-      lines.push(line);
+      const hints = `   /help commands  ${GLYPHS.navigation.pipeSeparator}  Ctrl+P settings  ${GLYPHS.navigation.pipeSeparator}  Ctrl+O activity `;
+      lines.push(this.stringToLine(truncateDisplay(hints, width), width, { fg: '240', dim: true }));
     }
-    lines.push(createBaseLine());
     return lines;
   }
 

@@ -58,7 +58,7 @@ describe('tool result rendering', () => {
       .join('\n');
 
     expect(text).toContain('tool result');
-    expect(text).toContain('web_search');
+    expect(text).toContain('Searching the web');
     expect(text).not.toContain(callId);
   });
 });

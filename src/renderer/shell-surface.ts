@@ -36,17 +36,16 @@ export interface ShellFooterBuildResult {
   readonly height: number;
 }
 
-const FOOTER_BASE_ROWS = 9;
-const CONTEXT_PROGRESS_ROWS = 2;
+// Footer chrome: box top + box bottom + status line + hints line.
+const FOOTER_BASE_ROWS = 4;
 const PROCESS_INDICATOR_ROWS = 1;
 
 export function estimateShellFooterHeight(
   promptLineCount: number,
-  contextWindow?: number,
+  _contextWindow?: number,
 ): number {
   const safePromptLines = Math.max(1, promptLineCount);
-  const progressRows = contextWindow && contextWindow > 0 ? CONTEXT_PROGRESS_ROWS : 0;
-  return FOOTER_BASE_ROWS + safePromptLines + progressRows + PROCESS_INDICATOR_ROWS;
+  return FOOTER_BASE_ROWS + safePromptLines + PROCESS_INDICATOR_ROWS;
 }
 
 export function buildShellFooter(
