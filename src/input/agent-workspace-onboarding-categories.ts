@@ -7,9 +7,9 @@ export const AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES: readonly AgentWorkspa
     group: 'ONBOARDING',
     label: 'Messaging',
     summary: 'Connect messaging channels, then check, test, and send from one page.',
-    detail: 'Enable the channels you actually want. Channel credentials and default targets are saved as Agent settings or secret refs.',
+    detail: 'Connect a chat app so the assistant can message you and you can reply from your phone. Enable the channels you want, then fill in the credentials for each one.',
     actions: [
-      settingAction({ id: 'channel-ntfy-enabled', label: 'Use ntfy', detail: 'Toggle ntfy notifications and chat routing.', key: 'surfaces.ntfy.enabled' }),
+      settingAction({ id: 'channel-ntfy-enabled', label: 'Use ntfy', detail: 'Turn on ntfy to get push notifications and send replies from your phone or browser. Fill in the server URL and topics below once enabled.', key: 'surfaces.ntfy.enabled' }),
       settingAction({ id: 'channel-ntfy-base-url', label: 'ntfy base URL', detail: 'Set the ntfy server URL.', key: 'surfaces.ntfy.baseUrl', visibleWhenKey: 'surfaces.ntfy.enabled', visibleWhenValue: true }),
       settingAction({ id: 'channel-ntfy-chat-topic', label: 'ntfy chat topic', detail: 'Set the topic routed into active terminal chat.', key: 'surfaces.ntfy.chatTopic', visibleWhenKey: 'surfaces.ntfy.enabled', visibleWhenValue: true }),
       settingAction({ id: 'channel-ntfy-agent-topic', label: 'ntfy agent topic', detail: 'Set the topic routed to Agent work.', key: 'surfaces.ntfy.agentTopic', visibleWhenKey: 'surfaces.ntfy.enabled', visibleWhenValue: true }),
@@ -88,9 +88,9 @@ export const AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES: readonly AgentWorkspa
     group: 'ONBOARDING',
     label: 'Voice & Media',
     summary: 'Voice controls, spoken output, media generation, and phone delivery.',
-    detail: 'Voice, TTS, image input, media generation, and telephony live on this one page. Side effects stay explicit.',
+    detail: 'Let the assistant speak to you, listen for your voice, describe images, or send SMS. Voice, TTS, image input, media generation, and telephony live on this one page. Side effects stay explicit.',
     actions: [
-      settingAction({ id: 'voice-enabled', label: 'Use voice controls', detail: 'Toggle the optional local voice control surface.', key: 'ui.voiceEnabled' }),
+      settingAction({ id: 'voice-enabled', label: 'Use voice controls', detail: 'Turn on the local voice control surface so the assistant can listen and respond out loud. Requires a microphone and configured TTS provider.', key: 'ui.voiceEnabled' }),
       settingAction({ id: 'voice-tts-provider', label: 'TTS provider', detail: 'Set the default text-to-speech provider id.', key: 'tts.provider' }),
       settingAction({ id: 'voice-tts-voice', label: 'TTS voice', detail: 'Set the default text-to-speech voice id.', key: 'tts.voice' }),
       settingAction({ id: 'telephony-enabled', label: 'Use telephony', detail: 'Toggle SMS, voice call, or telephony bridge delivery.', key: 'surfaces.telephony.enabled' }),
@@ -120,7 +120,7 @@ export const AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES: readonly AgentWorkspa
     group: 'ONBOARDING',
     label: 'Local Context',
     summary: 'Create/import memory, personas, skills, routines, notes, and Knowledge.',
-    detail: 'Use this page to seed the assistant with durable local context. These forms create Agent-owned records or ingest reviewed sources.',
+    detail: 'Give the assistant a memory of who you are and what you care about. Create personas, starter memories, skills, and routines, or import context files you already have. These records are stored locally and used on every turn.',
     actions: [
       { id: 'context-vibe-status', label: 'Inspect VIBE.md', detail: 'Show project/global VIBE.md personality files, blocked files, and init paths before relying on a custom assistant feel.', kind: 'guidance', safety: 'read-only' },
       { id: 'context-project-files', label: 'Inspect project context', detail: 'List secret-scanned .hermes.md, HERMES.md, AGENTS.md, CLAUDE.md, SOUL.md, and Cursor context files with blocked/truncated status.', kind: 'guidance', safety: 'read-only' },

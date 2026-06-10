@@ -30,7 +30,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Import preferences, sign in, and choose the main model.',
     detail: 'Start here on a fresh install. Every row either saves state, opens the shared model picker, or opens a confirmed in-modal form.',
     actions: [
-      // Essentials first — a first-time user signs in, picks a model, optionally imports prior settings.
+      // Working-path choices first — local (no sign-in needed) then provider sign-in.
+      { id: 'use-local-model', label: 'Use a local model (no sign-in)', detail: 'Opens the model picker, which recommends models that fit this computer. No account or subscription needed.', kind: 'model-picker', modelPickerFlow: 'model', modelPickerTarget: 'main', safety: 'safe' },
       { id: 'subscription-login-start', label: 'Sign in to a provider', detail: 'Start one provider sign-in flow, save pending state, and return here.', editorKind: 'subscription-login-start', kind: 'editor', safety: 'safe' },
       { id: 'subscription-login-finish', label: 'Finish provider sign-in', detail: 'Exchange a code or redirect URL and save the provider subscription session.', editorKind: 'subscription-login-finish', kind: 'editor', safety: 'safe' },
       { id: 'setup-provider-model', label: 'Choose main model', detail: 'Open the shared provider/model picker for normal assistant turns.', kind: 'model-picker', modelPickerFlow: 'providerModel', modelPickerTarget: 'main', safety: 'safe' },
