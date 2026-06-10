@@ -378,6 +378,7 @@ export function registerChannelsRuntimeCommands(registry: CommandRegistry): void
     name: 'channels',
     aliases: ['channel'],
     description: 'Inspect Agent channel readiness or send an explicitly confirmed delivery message',
+    hidden: true,
     usage: '[list|readiness|ready|attention|triage [limit]|guide [id]|show <id>|deliveries [limit]|send --channel <id> --message <text> --yes|accounts|policies|status|doctor <id>|setup <id>]',
     argsHint: 'list|readiness|ready|attention|triage|guide|show|deliveries|send|accounts|policies|status|doctor|setup',
     async handler(args, ctx) {

@@ -65,6 +65,7 @@ export function registerQrcodeRuntimeCommands(registry: CommandRegistry): void {
     name: 'qrcode',
     aliases: ['qr', 'pair'],
     description: 'Print companion pairing details and a QR code',
+    hidden: true,
     usage: '',
     handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);

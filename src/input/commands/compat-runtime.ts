@@ -9,6 +9,7 @@ export function registerCompatRuntimeCommands(registry: CommandRegistry): void {
     name: 'compat',
     aliases: ['compatibility'],
     description: 'Inspect connected-host compatibility and Agent Knowledge route readiness',
+    hidden: true,
     usage: '[--json]',
     argsHint: '[--json]',
     async handler(args, ctx) {

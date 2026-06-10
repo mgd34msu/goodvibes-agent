@@ -31,6 +31,7 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
   registry.register({
     name: 'auth',
     description: 'Review provider auth posture and export redacted auth review bundles',
+    hidden: true,
     usage: '[review|show <provider>|repair <provider>|bundle export <path> --yes|bundle inspect <path>]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);

@@ -250,6 +250,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
   registry.register({
     name: 'sessions',
     description: 'List saved sessions',
+    hidden: true,
     async handler(_args, ctx) {
       const sessionManager = requireSessionManager(ctx);
       const sessions = sessionManager.list();

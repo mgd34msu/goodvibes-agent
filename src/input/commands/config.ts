@@ -5,6 +5,7 @@ export function registerConfigCommand(registry: CommandRegistry): void {
     name: 'config',
     aliases: ['cfg'],
     description: 'Open the fullscreen configuration workspace',
+    hidden: true,
     usage: '[category|key]',
     argsHint: '[category|key]',
     handler(args, ctx) {

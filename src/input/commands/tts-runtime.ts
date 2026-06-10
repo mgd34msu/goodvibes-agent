@@ -4,6 +4,7 @@ export function registerTtsRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'tts',
     description: 'Submit a normal prompt and play the assistant response through live TTS',
+    hidden: true,
     usage: '<prompt>|stop',
     handler(args, ctx) {
       const first = (args[0] ?? '').toLowerCase();

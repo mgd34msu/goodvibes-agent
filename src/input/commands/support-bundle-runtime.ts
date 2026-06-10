@@ -22,6 +22,7 @@ export function registerSupportBundleRuntimeCommands(registry: CommandRegistry):
   registry.register({
     name: 'bundle',
     description: 'Export, inspect, or import redacted Agent support bundles from the TUI',
+    hidden: true,
     usage: '[export [path] --yes|inspect <path>|import <path> --yes]',
     argsHint: 'export|inspect|import',
     async handler(args, ctx) {

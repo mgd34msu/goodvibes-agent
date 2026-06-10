@@ -105,7 +105,7 @@ function listRegisteredCommandItems(registry: CommandRegistry): SelectionItem[] 
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((command) => ({
       id: `/${command.name}`,
-      label: `/${command.name}`,
+      label: command.hidden ? `/${command.name} (hidden)` : `/${command.name}`,
       detail: commandDetail(command),
       category: commandCategory(command.name),
       primaryAction: 'select',
@@ -199,6 +199,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     name: 'shortcuts',
     aliases: ['keys', 'keybinds'],
     description: 'Show keyboard shortcuts reference',
+    hidden: true,
     handler(_args, ctx) {
       if (ctx.openShortcutsOverlay) {
         ctx.openShortcutsOverlay();
@@ -212,6 +213,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     name: 'keybindings',
     aliases: ['kb'],
     description: 'List current keyboard bindings and their config file path',
+    hidden: true,
     handler(_args, ctx) {
       const km = requireKeybindingsManager(ctx);
       const all = km.getAll();
@@ -275,6 +277,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     name: 'reset',
     aliases: [],
     description: 'Full reset: clear display and conversation context',
+    hidden: true,
     handler(_args, ctx) {
       ctx.session.conversationManager.resetAll();
       if (ctx.reloadSystemPrompt) {
@@ -310,6 +313,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     name: 'effort',
     aliases: ['e'],
     description: 'Show or set reasoning effort level',
+    hidden: true,
     usage: '[level]',
     argsHint: '<instant|low|medium|high>',
     async handler(args, ctx) {

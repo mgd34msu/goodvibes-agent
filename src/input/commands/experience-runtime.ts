@@ -26,6 +26,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
     name: 'approval',
     aliases: ['approvals'],
     description: 'Review action-specific approval classes and the specialized security UX matrix',
+    hidden: true,
     usage: '[matrix|review <kind>|approve <id> --yes|deny <id> --yes|cancel <id> --yes]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'matrix').toLowerCase();

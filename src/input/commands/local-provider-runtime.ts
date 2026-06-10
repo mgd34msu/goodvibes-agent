@@ -26,6 +26,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
     name: 'provider',
     aliases: ['p'],
     description: 'Switch provider or manage custom providers (add/remove)',
+    hidden: true,
     usage: '[add <name> <baseURL> [apiKey] --yes | remove <name> --yes | <provider-name>]',
     argsHint: '[name|add --yes|remove --yes]',
     async handler(args, ctx) {

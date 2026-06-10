@@ -164,6 +164,7 @@ export function registerPersonasRuntimeCommands(registry: CommandRegistry): void
     name: 'personas',
     aliases: ['persona'],
     description: 'Manage Agent-local personas',
+    hidden: true,
     usage: '[list|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --body <instructions>|update <id> [--name ...] [--description ...] [--body ...]|use <id>|active|clear|review <id>|stale <id> <reason...>|delete <id> --yes]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'list').toLowerCase();

@@ -102,7 +102,7 @@ export function applyConversationOverlays(
   }
 
   if (input.helpOverlayActive) {
-    const lines = renderHelpOverlay(conversationWidth, keybindingsManager, commandRegistry.getAll(), input.helpScrollOffset, viewportHeight);
+    const lines = renderHelpOverlay(conversationWidth, keybindingsManager, commandRegistry.getVisible(), input.helpScrollOffset, viewportHeight);
     next = replaceViewportWithOverlay(lines, conversationWidth, viewportHeight);
   }
 

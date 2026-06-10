@@ -5,6 +5,7 @@ export function registerOnboardingRuntimeCommands(registry: CommandRegistry): vo
     name: 'setup',
     aliases: ['onboarding'],
     description: 'Open the Agent workspace',
+    hidden: true,
     usage: '',
     async handler(_args, ctx) {
       if (ctx.executeCommand && await ctx.executeCommand('agent', [])) return;

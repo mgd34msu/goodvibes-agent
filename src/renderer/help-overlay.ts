@@ -55,6 +55,7 @@ const HELP_OVERLAY_STATIC_TEXT = [
   'Quick Start',
   'Available Slash Commands',
   'More Commands',
+  'Hidden power commands still work — run /commands for the full catalog.',
   'Essentials',
   'Show this help overlay',
   'Keyboard shortcut reference',
@@ -234,6 +235,7 @@ export function renderHelpOverlay(
         commandRows.push(`  ${nameCol}  ${cmd.description}`);
       }
     }
+    commandRows.push('', '  Hidden power commands still work — run /commands for the full catalog.');
   } else if (!hasCommand('help')) {
     commandRows.push('', '  Essentials', '  ' + '\u2500'.repeat(40));
     commandRows.push('  /help               Show this help overlay');

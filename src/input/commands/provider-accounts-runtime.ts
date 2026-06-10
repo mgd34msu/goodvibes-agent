@@ -45,6 +45,7 @@ export function registerProviderAccountsRuntimeCommands(registry: CommandRegistr
     name: 'accounts',
     aliases: ['account'],
     description: 'Review provider auth routes, subscription windows, and billing-path safety',
+    hidden: true,
     usage: '[review|show <provider>|routes <provider>|repair <provider>]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();

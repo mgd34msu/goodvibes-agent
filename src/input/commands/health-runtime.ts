@@ -48,6 +48,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
     name: 'health',
     aliases: ['doctor'],
     description: 'Health workspace for startup posture, connected host readiness, provider health, and Agent continuity',
+    hidden: true,
     usage: '[review|setup|host|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();

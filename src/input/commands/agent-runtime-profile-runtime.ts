@@ -139,6 +139,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
     name: 'agent-profile',
     aliases: ['runtime-profile', 'agent-profiles'],
     description: 'Manage isolated Agent profiles and starter templates',
+    hidden: true,
     usage: '[list|show|default|use|templates|guide|template show|template export|template import|template from-discovered|create|create-from-discovered|delete]',
     async handler(args, ctx) {
       const shellPaths = requireShellPaths(ctx);

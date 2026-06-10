@@ -52,6 +52,7 @@ export function registerTasksRuntimeCommands(registry: CommandRegistry): void {
     name: 'tasks',
     aliases: ['task'],
     description: 'Inspect connected-host tasks without starting or mutating local background work',
+    hidden: true,
     usage: '[list [status|kind] | show <taskId> | output <taskId>]',
     handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'list';

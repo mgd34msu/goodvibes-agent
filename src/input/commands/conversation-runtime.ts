@@ -136,6 +136,7 @@ export function registerConversationRuntimeCommands(registry: CommandRegistry): 
     name: 'conversation',
     aliases: ['transcript', 'composer'],
     description: 'Review conversation structure, transcript hotspots, and composer posture',
+    hidden: true,
     usage: '[review|events [kind]|groups [kind]|hotspots|composer|find <query> [kind]|next [kind]|prev [kind]|restore]',
     handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();

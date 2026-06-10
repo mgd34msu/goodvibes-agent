@@ -8,6 +8,7 @@ export function registerSecurityRuntimeCommands(registry: CommandRegistry): void
     name: 'security',
     aliases: [],
     description: 'Inspect security posture, attack paths, and review state',
+    hidden: true,
     usage: '[review | attack-paths | tokens]',
     handler(args, ctx) {
       const subcommand = args[0]?.toLowerCase() ?? 'review';

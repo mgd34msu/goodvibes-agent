@@ -108,13 +108,14 @@ function parseMediaGenerateArgs(args: readonly string[]): MediaGenerateArgs {
 }
 
 export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
-  registry.register({ name: 'expand', description: 'Expand blocks by type', usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', false, ctx); } });
-  registry.register({ name: 'collapse', description: 'Collapse blocks by type', usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', true, ctx); } });
+  registry.register({ name: 'expand', description: 'Expand blocks by type', hidden: true, usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', false, ctx); } });
+  registry.register({ name: 'collapse', description: 'Collapse blocks by type', hidden: true, usage: '[all|thinking|tool|code]', argsHint: '[all|thinking|tool|code]', handler(args, ctx) { toggleBlocks(args[0] || 'all', true, ctx); } });
 
   registry.register({
     name: 'bookmarks',
     aliases: ['bm'],
     description: 'List bookmarked blocks',
+    hidden: true,
     handler(_args, ctx) {
       if (ctx.openBookmarkModal) {
         ctx.openBookmarkModal();
@@ -145,6 +146,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'secrets',
     description: 'Manage hierarchy-aware secrets, external secret refs, and secure/plaintext storage policy controls',
+    hidden: true,
     usage: 'set <KEY> <value> [--user|--project] [--secure|--plaintext] --yes | link <KEY> <secret-ref> [--user|--project] [--secure|--plaintext] --yes | get <KEY> | test <secret-ref> | providers | list | delete <KEY> [--user|--project] [--secure|--plaintext] --yes',
     argsHint: '<set|link|get|test|providers|list|delete> [KEY]',
     async handler(args, ctx) {
@@ -326,6 +328,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'media',
     description: 'Inspect media providers or generate media through configured providers',
+    hidden: true,
     usage: 'providers | generate [--provider <id>] [--model <id>] [--mime <mime>] <prompt> --yes',
     argsHint: '<providers|generate>',
     async handler(args, ctx) {
@@ -373,6 +376,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'refresh-models',
     description: 'Refresh model catalog, benchmarks, and token limits',
+    hidden: true,
     async handler(_args, ctx) {
       const providerApi = requireProviderApi(ctx);
       let catalogOk = false;
@@ -411,6 +415,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'pin',
     description: 'Pin a model to the favorites list',
+    hidden: true,
     usage: '<model-id>',
     argsHint: '<model-id>',
     async handler(args, ctx) {
@@ -445,6 +450,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'unpin',
     description: 'Unpin a model from the favorites list',
+    hidden: true,
     usage: '<model-id>',
     argsHint: '<model-id>',
     async handler(args, ctx) {

@@ -192,6 +192,7 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
     name: 'mcp',
     aliases: [],
     description: 'Manage MCP servers and their tools',
+    hidden: true,
     usage: '[servers|review|tools [<server>]|config|add|remove|reload|auth-review|repair [server]]',
     argsHint: '[servers|review|tools|config|add --yes|remove --yes]',
     async handler(args, ctx) {

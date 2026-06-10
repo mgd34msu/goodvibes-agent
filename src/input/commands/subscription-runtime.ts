@@ -73,6 +73,7 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
     name: 'subscription',
     aliases: ['subs'],
     description: 'Manage provider subscription sessions and, when supported, let them override ambient API keys for matching providers',
+    hidden: true,
     usage: '[review|list|providers|inspect <provider>|login <provider> start [--no-browser] --yes|login <provider> finish <code-or-url> --yes|logout <provider> --yes|bundle export <path> --yes|bundle inspect <path>]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);

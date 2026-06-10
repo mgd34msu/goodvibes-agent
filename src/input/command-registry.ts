@@ -240,6 +240,12 @@ export interface SlashCommand {
   usage?: string;
   /** Short inline argument hint shown after cursor in dim grey, e.g. "[name]". Falls back to usage if not set. */
   argsHint?: string;
+  /**
+   * Hidden commands still run when typed, but stay out of autocomplete
+   * suggestions and /help listings. They surface in autocomplete only on an
+   * exact name or alias match, and /commands still lists everything.
+   */
+  hidden?: boolean;
   /** The function executed when the command is invoked. */
   handler: (args: string[], context: CommandContext) => void | Promise<void>;
 }
@@ -283,6 +289,11 @@ export class CommandRegistry {
     return Array.from(this.commands.values());
   }
 
+  /** Commands that should appear in autocomplete and /help listings. */
+  getVisible(): SlashCommand[] {
+    return this.getAll().filter((command) => !command.hidden);
+  }
+
   /**
    * list - Compatibility alias for the simpler SDK registry surface.
    */
@@ -306,6 +317,10 @@ export class CommandRegistry {
         const score = scoreMatch(q, candidate);
         if (score > bestScore) bestScore = score;
       }
+
+      // Hidden commands stay out of suggestions until the user types the
+      // exact name or alias — they still execute normally.
+      if (cmd.hidden && !names.includes(q)) continue;
 
       if (bestScore > 0 || q === '') {
         results.push({ command: cmd, score: q === '' ? 1 : bestScore });

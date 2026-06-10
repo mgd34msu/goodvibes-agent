@@ -91,6 +91,7 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
   registry.register({
     name: 'trust',
     description: 'Review trust posture and export portable trust bundles',
+    hidden: true,
     usage: '[review|bundle export <path> --yes|bundle inspect <path>]',
     async handler(args, ctx) {
       const parsed = stripYesFlag(args);

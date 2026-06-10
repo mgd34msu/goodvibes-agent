@@ -39,6 +39,7 @@ export function registerVibeRuntimeCommands(registry: CommandRegistry): void {
     name: 'vibe',
     aliases: ['vibes'],
     description: 'Inspect, create, and import VIBE.md personality files',
+    hidden: true,
     usage: '[status|init|show|import-persona]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'status').toLowerCase();

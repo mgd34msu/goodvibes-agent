@@ -506,6 +506,7 @@ export function registerAgentSkillsRuntimeCommands(registry: CommandRegistry): v
     name: 'skills',
     aliases: ['skill', 'agent-skills', 'askills', 'local-skills'],
     description: 'Manage Agent-local skills',
+    hidden: true,
     usage: '[list|enabled|attention|discover|import-discovered <name> --yes|search <query>|show <id>|create --name <name> --description <summary> --procedure <steps> [--requires-env A,B] [--requires-command gh,jq]|update <id> [--name ...] [--description ...] [--procedure ...]|enable <id>|disable <id>|review <id>|stale <id> <reason...>|delete <id> --yes|bundle ...]',
     handler: runAgentSkillsRuntimeCommand,
   });

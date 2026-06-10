@@ -154,6 +154,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
     name: 'context',
     aliases: ['ctx'],
     description: 'Inspect context window usage (token breakdown per message)',
+    hidden: true,
     handler: (_args, ctx) => {
       if (ctx.openContextInspector) {
         ctx.openContextInspector();
@@ -187,6 +188,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
     name: 'next-error',
     aliases: ['ne'],
     description: 'Jump to the next error message in the conversation',
+    hidden: true,
     handler(_args, ctx) {
       const nextLine = ctx.session.conversationManager.nextErrorLine(ctx.getScrollTop?.() ?? 0);
       if (nextLine < 0) ctx.print('[No error messages found in conversation]');
@@ -197,6 +199,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
     name: 'prev-error',
     aliases: ['pe'],
     description: 'Jump to the previous error message in the conversation',
+    hidden: true,
     handler(_args, ctx) {
       const prevLine = ctx.session.conversationManager.prevErrorLine(ctx.getScrollTop?.() ?? 0);
       if (prevLine < 0) ctx.print('[No error messages found in conversation]');

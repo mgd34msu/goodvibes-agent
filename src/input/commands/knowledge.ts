@@ -200,6 +200,7 @@ export const knowledgeCommand: SlashCommand = {
   name: 'knowledge',
   aliases: ['know', 'kb'],
   description: 'Agent Knowledge: isolated Agent-owned status, ask/search, source/node/issue lists, item lookup, map, connectors, ingest, and review queue.',
+  hidden: true,
   usage: '<subcommand> [args]',
   argsHint: 'status|ask|search|list|get|map|connectors|connector|connector-doctor|ingest-url --yes|ingest-file --yes|ingest-artifact --yes|import-urls --yes|import-bookmarks --yes|import-browser-history --yes|ingest-connector --yes|review-issue --yes|reindex --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
