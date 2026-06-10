@@ -15,9 +15,12 @@ const AGENT_WORKSPACE_CATEGORY_ALIASES = {
   host: 'host',
   mcp: 'tools',
   tool: 'tools',
-  channel: 'channels',
-  voice: 'voice-media',
-  media: 'voice-media',
+  channel: 'onboarding-channels',
+  channels: 'onboarding-channels',
+  messaging: 'onboarding-channels',
+  voice: 'onboarding-voice-media',
+  media: 'onboarding-voice-media',
+  'voice-media': 'onboarding-voice-media',
   profile: 'profiles',
   persona: 'personas',
   skill: 'skills',
@@ -31,6 +34,10 @@ const AGENT_WORKSPACE_CATEGORY_ALIASES = {
   note: 'notes',
   scratchpad: 'notes',
   kb: 'knowledge',
+  artifacts: 'documents',
+  artifact: 'documents',
+  delegate: 'work',
+  delegation: 'work',
 } as const satisfies Readonly<Record<string, AgentWorkspaceCategoryId>>;
 
 type AgentWorkspaceCategoryAlias = keyof typeof AGENT_WORKSPACE_CATEGORY_ALIASES;

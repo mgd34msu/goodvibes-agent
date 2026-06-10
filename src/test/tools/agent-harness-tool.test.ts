@@ -8547,8 +8547,8 @@ describe('agent_harness tool', () => {
       expect(documents?.actionIds).toContain('document-export-draft');
       expect(exports?.actionIds).toContain('document-export-artifact-file');
       expect(exports?.actionIds).toContain('document-export-artifact-package');
-      expect(exports?.actionIds).toContain('artifact-export-file');
-      expect(exports?.actionIds).toContain('artifact-export-package');
+      expect(exports?.actionIds).toContain('document-export-artifact-file');
+      expect(exports?.actionIds).toContain('document-export-artifact-package');
       expect(uploads?.status).toBe('ready');
       expect(uploads?.actionIds).toContain('document-ingest-file');
       expect(exports?.status).toBe('ready');

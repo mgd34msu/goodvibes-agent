@@ -59,7 +59,7 @@ describe('renderHelpOverlay Quick Start sourced from live registry (β3)', () =>
     expect(text).toContain('Open workspace; press / there to search every action');
     expect(text).not.toContain('/agent setup');
     expect(text).toContain('/agent knowledge');
-    expect(text).toContain('/agent voice-media');
+    expect(text).toContain('/agent voice');
   });
 
   test('omits /agent when the Agent workspace command is not registered', () => {

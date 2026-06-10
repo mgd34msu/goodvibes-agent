@@ -36,7 +36,7 @@ const BROWSER_COCKPIT_EXPECTED_LANES = [
   {
     id: 'mobile-and-channels',
     label: 'Mobile and channels',
-    categoryIds: ['onboarding-channels', 'onboarding-voice-media', 'channels', 'voice-media', 'personal-ops'],
+    categoryIds: ['onboarding-channels', 'onboarding-voice-media', 'personal-ops'],
     userOutcome: 'Configure mobile-friendly messaging, notification, voice, phone, and daily personal-operation routes from one cockpit.',
   },
   {
@@ -48,13 +48,13 @@ const BROWSER_COCKPIT_EXPECTED_LANES = [
   {
     id: 'work-and-automation',
     label: 'Work and automation',
-    categoryIds: ['work', 'automation', 'onboarding-automation', 'delegate'],
+    categoryIds: ['work', 'automation'],
     userOutcome: 'Approve, supervise, recover, schedule, and delegate autonomous work with touch-friendly controls and receipts.',
   },
   {
     id: 'research-and-artifacts',
     label: 'Research and artifacts',
-    categoryIds: ['research', 'documents', 'artifacts'],
+    categoryIds: ['research', 'documents'],
     userOutcome: 'Run research, draft documents, review packets, browse artifacts, and export/share deliverables from the browser.',
   },
   {

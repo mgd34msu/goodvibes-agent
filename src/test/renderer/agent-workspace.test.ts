@@ -538,13 +538,12 @@ describe('renderAgentWorkspace', () => {
   test('renders build delegation as an explicit TUI handoff area', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
 
     const output = text(renderAgentWorkspace(workspace, 130, 34));
 
-    expect(output).toContain('Build Delegation');
-    expect(output).toContain('GoodVibes TUI');
-    expect(output).toContain('Delegated review policy: explicit-build-delegation-only');
+    expect(output).toContain('Work & Approvals');
+    expect(output).toContain('Delegate a build task');
     expect(output).not.toContain('coding transcript');
   });
 
@@ -1302,7 +1301,7 @@ describe('renderAgentWorkspace', () => {
     expect(trustOutput).toContain('Confirm *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-enable');
     workspace.activateSelected();
     const voiceOutput = text(renderAgentWorkspace(workspace, 132, 44));
@@ -1711,7 +1710,7 @@ describe('renderAgentWorkspace', () => {
     expect(bookmarkOutput).toContain('Confirm *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'image-attach');
     workspace.activateSelected();
     const imageOutput = text(renderAgentWorkspace(workspace, 132, 38));
@@ -1858,7 +1857,7 @@ describe('renderAgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     try {
       workspace.open(liveCommandContext(), () => undefined);
-      workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+      workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
 
       const output = text(renderAgentWorkspace(workspace, 132, 54));
 
@@ -2096,7 +2095,7 @@ describe('renderAgentWorkspace', () => {
   test.skip('renders action feedback and refresh affordance', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegation-status');
     workspace.activateSelected();
 
@@ -2111,7 +2110,7 @@ describe('renderAgentWorkspace', () => {
   test('renders build delegation form as a confirmed TUI workflow', () => {
     const workspace = new AgentWorkspace();
     workspace.open(liveCommandContext(), () => undefined);
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
     workspace.activateSelected();
 
@@ -2262,92 +2261,80 @@ describe('renderAgentWorkspace', () => {
     expect(modeOutput).toContain('Preset *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-export');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'conversation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-export-current');
     workspace.activateSelected();
     const exportOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(exportOutput).toContain('Export Conversation');
     expect(exportOutput).toContain('Output path *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-events');
-    workspace.activateSelected();
-    const eventsOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(eventsOutput).toContain('Show Transcript Events');
-    expect(eventsOutput).toContain('Event kind');
-
-    workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-groups');
-    workspace.activateSelected();
-    const groupsOutput = text(renderAgentWorkspace(workspace, 132, 44));
-    expect(groupsOutput).toContain('Show Transcript Groups');
-    expect(groupsOutput).toContain('Event kind');
-
-    workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-find');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-controls-find');
     workspace.activateSelected();
     const findOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(findOutput).toContain('Find Transcript Text');
     expect(findOutput).toContain('Search query *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-load');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-load');
     workspace.activateSelected();
     const loadOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(loadOutput).toContain('Load Session');
     expect(loadOutput).toContain('Session name *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-rename');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-rename');
     workspace.activateSelected();
     const renameOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(renameOutput).toContain('Rename Current Session');
     expect(renameOutput).toContain('New session name *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-fork');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-fork');
     workspace.activateSelected();
     const forkOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(forkOutput).toContain('Fork Current Session');
     expect(forkOutput).toContain('Fork name');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-resume');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-resume');
     workspace.activateSelected();
     const resumeOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(resumeOutput).toContain('Resume Saved Session');
     expect(resumeOutput).toContain('Session id or name *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-info');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-info');
     workspace.activateSelected();
     const infoOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(infoOutput).toContain('Inspect Saved Session');
     expect(infoOutput).toContain('Session id or name *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-graph');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'host');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'host-session-graph');
     workspace.activateSelected();
     const graphOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(graphOutput).toContain('Inspect Session Graph');
     expect(graphOutput).toContain('Session id');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-export-saved');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'conversation');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-export');
     workspace.activateSelected();
     const savedExportOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(savedExportOutput).toContain('Export Saved Session');
     expect(savedExportOutput).toContain('Format *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-search');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-search');
     workspace.activateSelected();
     const searchOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(searchOutput).toContain('Search Saved Sessions');
     expect(searchOutput).toContain('Search query *');
 
     workspace.cancelLocalEditor();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-delete');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-session-delete');
     workspace.activateSelected();
     const deleteOutput = text(renderAgentWorkspace(workspace, 132, 44));
     expect(deleteOutput).toContain('Delete Saved Session');

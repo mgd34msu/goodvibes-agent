@@ -464,12 +464,6 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       ...promptReceiptTimelineLines(snapshot),
       { text: 'Context controls: prompt receipts, project files, one-file inspection, and VIBE.md review.', fg: PALETTE.good },
     );
-  } else if (category.id === 'onboarding-automation') {
-    base.push(
-      { text: `Automation: ${snapshot.automationEnabled ? 'enabled' : 'disabled'}; max ${snapshot.automationMaxConcurrentRuns} concurrent; history ${snapshot.automationRunHistoryLimit}.`, fg: snapshot.automationEnabled ? PALETTE.good : PALETTE.muted },
-      { text: `Timeout ${snapshot.automationDefaultTimeoutMs} ms; catch-up ${snapshot.automationCatchUpWindowMinutes} min; cooldown ${snapshot.automationFailureCooldownMs} ms.`, fg: PALETTE.info },
-      { text: `Delete one-shot jobs after success: ${snapshot.automationDeleteAfterRun ? 'yes' : 'no'}.`, fg: snapshot.automationDeleteAfterRun ? PALETTE.info : PALETTE.muted },
-    );
   } else if (category.id === 'research') {
     const runnerContract = snapshot.researchBrowserRunnerContract;
     const visualContract = snapshot.researchVisualReportContract;
@@ -500,31 +494,6 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       { text: 'Email/calendar: connector setup needed before inbox triage or agenda workflows are first-class.', fg: PALETTE.warn },
       { text: 'Model route: personal_ops action:"briefing|status|queue|intake|lane|read".', fg: PALETTE.muted },
     );
-  } else if (category.id === 'artifacts') {
-    const mediaReady = snapshot.voiceMediaReadiness.readyMediaProviderCount;
-    base.push(
-      { text: `Chat: ${snapshot.provider} / ${snapshot.modelDisplayName}; Knowledge: ${snapshot.knowledgeRoute}`, fg: PALETTE.info },
-      { text: `Media: ${mediaReady}/${snapshot.mediaProviderCount} ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: mediaReady > 0 ? PALETTE.good : PALETTE.warn },
-      reviewerHandoffArtifactLine(snapshot),
-      { text: 'Files: attach, export, inspect, ingest reviewed sources, or generate media.', fg: PALETTE.good },
-      { text: 'Knowledge ingest and media generation require explicit actions.', fg: PALETTE.warn },
-    );
-  } else if (category.id === 'channels') {
-    const enabledCount = snapshot.channels.filter((channel) => channel.enabled).length;
-    const readyCount = snapshot.channels.filter((channel) => channel.ready).length;
-    const configuredDefaults = snapshot.channels.filter((channel) => channel.defaultTarget === 'configured').length;
-    const guide = snapshot.channelSetupGuide;
-    const currentGuideStep = guide.steps.find((step) => step.status === 'current') ?? null;
-    base.push(
-      { text: `API: ${snapshot.runtimeBaseUrl}`, fg: PALETTE.info },
-      companionAccessLine(snapshot),
-      { text: `Channels: ${readyCount}/${snapshot.channels.length} ready; ${enabledCount} enabled; ${configuredDefaults} target(s).`, fg: PALETTE.info },
-      { text: `Setup guide: ${guide.progressLabel}; ${guide.currentChannelLabel ?? 'choose a channel'}.`, fg: guide.status === 'ready' ? PALETTE.good : PALETTE.warn },
-      { text: `Next: ${currentGuideStep ? currentGuideStep.label : 'All enabled channels ready.'}`, fg: currentGuideStep ? PALETTE.warn : PALETTE.good },
-      { text: 'Guide checks setup schema, accounts, allowlist policy, live status, and explicit test sends.', fg: PALETTE.good },
-      { text: 'Triage: /channels triage shows blockers, delivery retries, surface messages, route bindings, and receipts.', fg: PALETTE.good },
-      { text: 'Secrets hidden; sends require explicit action.', fg: PALETTE.warn },
-    );
   } else if (category.id === 'knowledge') {
     base.push(
       { text: `Route: ${snapshot.knowledgeRoute}; isolation ${snapshot.knowledgeIsolation}.`, fg: PALETTE.info },
@@ -553,17 +522,6 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       { text: `MCP servers: ${snapshot.mcpConnectedServerCount}/${snapshot.mcpServerCount} connected; quarantined ${snapshot.mcpQuarantinedServerCount}; allow-all ${snapshot.mcpAllowAllServerCount}.`, fg: snapshot.mcpQuarantinedServerCount > 0 || snapshot.mcpAllowAllServerCount > 0 ? PALETTE.warn : PALETTE.info },
       { text: 'Add/update/reload and trust changes require confirmation.', fg: PALETTE.good },
       { text: 'Start: /mcp review, /mcp tools, /mcp config, Add MCP server.', fg: PALETTE.muted },
-    );
-  } else if (category.id === 'voice-media') {
-    const readiness = snapshot.voiceMediaReadiness;
-    base.push(
-      { text: `Voice: ${readiness.readyVoiceProviderCount}/${snapshot.voiceProviderCount} ready; TTS ${snapshot.ttsProvider}; voice ${snapshot.ttsVoice}.`, fg: readiness.readyVoiceProviderCount > 0 ? PALETTE.good : PALETTE.warn },
-      { text: `Media: ${readiness.readyMediaProviderCount}/${snapshot.mediaProviderCount} ready; generation ${snapshot.mediaGenerationProviderCount}.`, fg: readiness.readyMediaProviderCount > 0 ? PALETTE.good : PALETTE.warn },
-      { text: `Browser: ${readiness.browserToolState}; public URL ${snapshot.browserToolPublicBaseUrl}.`, fg: snapshot.browserToolExposureEnabled ? PALETTE.warn : PALETTE.muted },
-      { text: 'Model route: device action:"voice|status"; computer action:"plan|browser|open_browser".', fg: PALETTE.info },
-      { text: 'Device map: pairing, mobile/PWA, notifications, browser/desktop, camera/location via device.', fg: PALETTE.info },
-      { text: readiness.nextSteps[0] ? `Next: ${compactText(readiness.nextSteps[0])}` : 'Next: voice/media setup is ready.', fg: readiness.nextSteps.length > 0 ? PALETTE.info : PALETTE.good },
-      { text: 'Secrets hidden; voice, browser, and media side effects require explicit action.', fg: PALETTE.warn },
     );
   } else if (category.id === 'profiles') {
     const defaultProfile = snapshot.selectedRuntimeProfile
@@ -642,6 +600,11 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       { text: 'Approval actions require id plus typed confirmation.', fg: PALETTE.warn },
     );
   } else if (category.id === 'automation') {
+    base.push(
+      { text: `Automation: ${snapshot.automationEnabled ? 'enabled' : 'disabled'}; max ${snapshot.automationMaxConcurrentRuns} concurrent; history ${snapshot.automationRunHistoryLimit}.`, fg: snapshot.automationEnabled ? PALETTE.good : PALETTE.muted },
+      { text: `Timeout ${snapshot.automationDefaultTimeoutMs} ms; catch-up ${snapshot.automationCatchUpWindowMinutes} min; cooldown ${snapshot.automationFailureCooldownMs} ms.`, fg: PALETTE.info },
+      { text: `Delete one-shot jobs after success: ${snapshot.automationDeleteAfterRun ? 'yes' : 'no'}.`, fg: snapshot.automationDeleteAfterRun ? PALETTE.info : PALETTE.muted },
+    );
     const ready = readyRoutineItems(snapshot);
     base.push(
       { text: `Automation: ${ready.length} schedule-ready routine(s); receipts ${snapshot.routineScheduleReceiptCount}.`, fg: ready.length > 0 ? PALETTE.good : PALETTE.warn },
@@ -649,12 +612,6 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       compactRoutineReceiptLine(snapshot),
       { text: 'Autonomy queue: review visible schedules, runs, receipts, and cancel routes first.', fg: PALETTE.good },
       { text: 'Reminders and routine promotion require confirmation.', fg: PALETTE.warn },
-    );
-  } else if (category.id === 'delegate') {
-    base.push(
-      { text: 'Build/fix/review work is handed to GoodVibes TUI.', fg: PALETTE.info },
-      { text: `Delegated review policy: ${snapshot.delegatedReviewPolicy}`, fg: PALETTE.warn },
-      { text: 'No coding-role Agent jobs are created here.', fg: PALETTE.good },
     );
   } else if (category.id === 'finish') {
     base.push(

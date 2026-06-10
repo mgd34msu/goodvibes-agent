@@ -169,6 +169,9 @@ const ALLOWED_ONBOARDING_READONLY_GUIDANCE = new Set([
   'context-project-files',
   'context-project-file',
   'context-prompt-context',
+  'channel-safety',
+  'voice-workflow-posture',
+  'device-capability-map',
 ]);
 
 const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set<string>();
@@ -392,12 +395,12 @@ describe('AgentWorkspace', () => {
     expect(workspace.active).toBe(true);
     expect(workspace.selectedCategory.label).toBe('Home');
     expect(workspace.categories.at(-1)?.id).toBe('finish');
-    expect(workspace.selectedAction?.label).toBe('Continue assistant chat');
+    expect(workspace.selectedAction?.label).toBe('Just start typing');
 
     workspace.activateSelected();
 
     expect(dispatched).toEqual([]);
-    expect(workspace.status).toContain('main conversation');
+    expect(workspace.status).toContain('Close this workspace and ask for anything');
   });
 
   test('finishes onboarding by writing the user marker and closing the workspace', () => {
@@ -544,15 +547,15 @@ describe('AgentWorkspace', () => {
     workspace.open(commandContext(), (command) => dispatched.push(command), 'voice-media');
 
     expect(workspace.active).toBe(true);
-    expect(workspace.selectedCategory.id).toBe('voice-media');
-    expect(workspace.selectedCategory.detail).toContain('Connected-host administration stays outside Agent');
+    expect(workspace.selectedCategory.id).toBe('onboarding-voice-media');
+    expect(workspace.selectedCategory.detail).toContain('Voice, TTS, image input, media generation, and telephony live on this one page.');
     expect(workspace.selectedCategory.detail).not.toContain('Service management');
     expect(workspace.focusPane).toBe('actions');
     expect(workspace.lastActionResult).toBeNull();
 
     workspace.open(commandContext(), (command) => dispatched.push(command), 'not-real');
 
-    expect(workspace.selectedCategory.id).toBe('voice-media');
+    expect(workspace.selectedCategory.id).toBe('onboarding-voice-media');
     expect(workspace.status).toContain('Unknown Agent workspace area: not-real');
     expect(workspace.lastActionResult).toMatchObject({
       kind: 'guidance',
@@ -560,7 +563,7 @@ describe('AgentWorkspace', () => {
       safety: 'safe',
     });
     expect(workspace.lastActionResult?.detail).toContain('knowledge');
-    expect(workspace.lastActionResult?.detail).toContain('delegate');
+    expect(workspace.lastActionResult?.detail).toContain('work');
     expect(dispatched).toEqual([]);
   });
 
@@ -886,7 +889,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'pair');
 
     workspace.activateSelected();
@@ -929,7 +932,8 @@ describe('AgentWorkspace', () => {
         action.kind === 'workspace'
         || (
           action.kind === 'guidance'
-          && (action.safety !== 'read-only' || !ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id))
+          && !ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id)
+          && (action.safety !== 'read-only' && action.safety !== 'blocked')
         )
       ))
       .map((action) => `${category.id}/${action.id}`));
@@ -1088,8 +1092,10 @@ describe('AgentWorkspace', () => {
           expect(ALLOWED_ONBOARDING_READONLY_COMMANDS.has(action.id)).toBe(true);
         }
         if (action.kind === 'guidance') {
-          expect(action.safety).toBe('read-only');
-          expect(ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id)).toBe(true);
+          expect(['read-only', 'blocked']).toContain(action.safety);
+          if (action.safety === 'read-only') {
+            expect(ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id)).toBe(true);
+          }
         }
       }
     }
@@ -1106,10 +1112,8 @@ describe('AgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'assistant-safety-lane');
-    workspace.activateSelected();
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
     expect(workspace.selectedCategory.id).toBe('tools');
-    expect(workspace.status).toContain('Opened Tools & MCP');
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools-permissions');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'onboarding-mcp-server');
@@ -1451,8 +1455,8 @@ describe('AgentWorkspace', () => {
     expect(skill?.provenance).toBe('agent-workspace-learned-behavior');
     expect(skill?.procedure).toContain('Capture decisions');
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'home');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'learned-behavior-home');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'learned-behavior');
     workspace.activateSelected();
     clearEditorField(workspace);
     feedText(workspace, 'routine');
@@ -2001,7 +2005,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.localEditor?.kind).toBe('trust-bundle-inspect');
     feedKey(workspace, 'enter');
 
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'voice-enable');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('voice-enable');
@@ -2180,7 +2184,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-add-webhook');
 
     workspace.activateSelected();
@@ -2207,7 +2211,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-show');
     workspace.activateSelected();
@@ -2240,7 +2244,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-send');
 
     workspace.activateSelected();
@@ -2274,7 +2278,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-remove-webhook');
 
     workspace.activateSelected();
@@ -2301,7 +2305,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-clear-webhooks');
 
     workspace.activateSelected();
@@ -2326,7 +2330,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-test-webhooks');
 
     workspace.activateSelected();
@@ -2351,7 +2355,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'notification-send');
 
     workspace.activateSelected();
@@ -2918,14 +2922,14 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'channels');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-safety');
 
     workspace.activateSelected();
 
     expect(dispatched).toEqual([]);
     expect(workspace.lastActionResult?.kind).toBe('guidance');
-    expect(workspace.status).toContain('will not silently send');
+    expect(workspace.status).toContain('delivered silently');
   });
 
   test('summarizes channel readiness without exposing secret config values', () => {
@@ -3615,7 +3619,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'voice-media');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-voice-media');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'tts-speak');
     workspace.activateSelected();
@@ -4246,7 +4250,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
 
     const actionText = workspace.actions
       .map((action) => `${action.id} ${action.label} ${action.detail} ${action.command ?? ''}`)
@@ -4265,7 +4269,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
 
     workspace.activateSelected();
@@ -4306,7 +4310,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
 
     workspace.activateSelected();
@@ -4335,7 +4339,7 @@ describe('AgentWorkspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'delegate-task');
 
     workspace.activateSelected();
@@ -4352,20 +4356,6 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
 
     expect(dispatched).toEqual(['/delegate --review "Review the release workflow implementation"']);
-  });
-
-  test('does not dispatch template delegation commands from the workspace', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'delegate');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'review-command');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual([]);
-    expect(workspace.lastActionResult?.kind).toBe('guidance');
-    expect(workspace.status).toContain('actual task text');
   });
 
   test('refresh key rereads the live runtime snapshot', () => {
@@ -4455,13 +4445,13 @@ describe('AgentWorkspace', () => {
   test('selects Agent workspace categories by id or label', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined, 'voice-media');
-    expect(workspace.selectedCategory.id).toBe('voice-media');
+    expect(workspace.selectedCategory.id).toBe('onboarding-voice-media');
 
     expect(workspace.selectCategory('Channels')).toBe(true);
-    expect(workspace.selectedCategory.id).toBe('channels');
+    expect(workspace.selectedCategory.id).toBe('onboarding-channels');
 
     expect(workspace.selectCategory('not-a-category')).toBe(false);
-    expect(workspace.selectedCategory.id).toBe('channels');
+    expect(workspace.selectedCategory.id).toBe('onboarding-channels');
   });
 
   test('Enter on the sticky Finish setup row triggers completeOnboarding when prerequisites are met', () => {
