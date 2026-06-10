@@ -8,6 +8,12 @@ import {
   writeRecoveryFile,
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
+import {
+  readOnboardingCheckMarker,
+  readOnboardingCompletionMarker,
+} from '../runtime/onboarding/index.ts';
+import { deriveOnboardingState } from '../runtime/onboarding/onboarding-state.ts';
+import { buildSetupIncompleteHint } from '../core/setup-incomplete-hint.ts';
 
 export interface SessionPersistenceAndRecoveryDeps {
   readonly buildCurrentSessionSnapshot: () => SessionSnapshot;
@@ -120,4 +126,96 @@ export function wireSessionPersistenceAndRecovery(
   }, 60_000);
 
   return { recoveryInterval, recoveryPending };
+}
+
+/**
+ * Deps for the setup-incomplete hint, kept narrow so the function is easily
+ * testable and doesn't pull in the full bootstrap context.
+ */
+export interface SetupIncompleteHintDeps {
+  /**
+   * Shell path service — used to locate onboarding marker files.
+   * Must satisfy the minimal interface required by readOnboardingCheckMarker.
+   */
+  readonly shellPaths: Parameters<typeof readOnboardingCheckMarker>[0];
+  /**
+   * Whether a model route is currently configured and usable for chat.
+   * Pass true when the provider registry has a ready model, false otherwise.
+   */
+  readonly providerReady: boolean;
+  /**
+   * Whether a local model route has been detected and is ready for chat.
+   * Pass true when the local-model-cookbook status === 'detected-local-route'.
+   * Omit or pass false when unavailable. Best-effort: errors should produce false.
+   * This mirrors the 'local-model-readiness' plan item in the real buildSetupPlan.
+   */
+  readonly localReady?: boolean;
+  /**
+   * Whether the assistant service (connected host) is known to be running.
+   * Pass true/false for a confirmed live signal; omit or pass null/undefined
+   * when the signal is unreliable or unavailable at startup time.
+   */
+  readonly hostReady?: boolean | null;
+  /** Low-priority message channel — same interface as SystemMessageRouter.low(). */
+  readonly systemMessageRouter: { low(message: string): void };
+}
+
+/**
+ * Derives the current onboarding state from disk markers and, if setup is
+ * in-progress, pushes a plain-language hint to the conversation feed.
+ *
+ * Best-effort: any error is caught silently so startup is never blocked.
+ * Call after the first render, alongside announceAwayDigest.
+ */
+export function wireSetupIncompleteHint(deps: SetupIncompleteHintDeps): void {
+  try {
+    const { shellPaths, providerReady, localReady, hostReady, systemMessageRouter } = deps;
+
+    const checkMarker = readOnboardingCheckMarker(shellPaths, 'user');
+    const completionMarker = readOnboardingCompletionMarker(shellPaths, 'user');
+
+    // Build a minimal plan with BOTH provider-access AND local-model-readiness so
+    // that deriveReadyToChat mirrors the workspace's canonical definition:
+    //   readyToChat = providerItem.ready OR localModelItem.ready
+    //
+    // local-model-readiness uses blocksAutonomy:false so it never becomes a false
+    // blocker when only the local route is available (matching real plan behaviour).
+    // We intentionally skip the full buildSetupPlan (requires CommandContext +
+    // async collectSnapshot) because this is a best-effort ambient hint.
+    const minimalPlan = [
+      {
+        id: 'provider-access',
+        label: 'Model access',
+        status: providerReady ? ('ready' as const) : ('blocked' as const),
+        priority: 20,
+        blocksAutonomy: true,
+        reason: '',
+        nextAction: 'Choose a model to start chatting.',
+        userRoute: 'Agent Workspace -> Start -> Choose main model',
+        modelRoute: '',
+      },
+      {
+        id: 'local-model-readiness',
+        label: 'Local model',
+        status: localReady ? ('ready' as const) : ('recommended' as const),
+        priority: 25,
+        blocksAutonomy: false,
+        reason: '',
+        nextAction: 'Run /agent to set up a local model route.',
+        userRoute: 'Agent Workspace -> Models -> Local models',
+        modelRoute: '',
+      },
+    ];
+
+    const state = deriveOnboardingState({ plan: minimalPlan, checkMarker, completionMarker });
+
+    const hint = buildSetupIncompleteHint(state, hostReady);
+    if (hint === null) return;
+
+    for (const line of hint.lines) {
+      systemMessageRouter.low(`[Setup] ${line}`);
+    }
+  } catch {
+    // Never block startup on hint errors.
+  }
 }

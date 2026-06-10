@@ -30,7 +30,9 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
 import type { HITLMode } from '@pellux/goodvibes-sdk/platform/state';
-import { wireSessionPersistenceAndRecovery } from './shell/startup-wiring.ts';
+import { wireSessionPersistenceAndRecovery, wireSetupIncompleteHint } from './shell/startup-wiring.ts';
+import { localModelCookbook } from './tools/agent-harness-model-routing.ts';
+import { localModelSetupStatus } from './tools/agent-harness-setup-model-helpers.ts';
 import {
   deleteRecoveryFile,
   loadRecoveryConversation,
@@ -725,6 +727,24 @@ async function main() {
   // Away digest runs after the first render so it lands as ambient context,
   // never a startup blocker.
   autonomy.announceAwayDigest();
+
+  // If setup is in-progress (user has opened /agent but not finished), show a
+  // gentle plain-language reminder and point them back to /agent.
+  wireSetupIncompleteHint({
+    shellPaths: ctx.services.shellPaths,
+    providerReady: (() => {
+      try { return Boolean(providerRegistry.getCurrentModel()?.id); } catch { return false; }
+    })(),
+    // localReady mirrors the 'local-model-readiness' plan item from buildSetupPlan:
+    // cookbook status === 'detected-local-route'. Best-effort — never blocks render.
+    localReady: (() => {
+      try { return localModelSetupStatus(localModelCookbook(commandContext, false) as Record<string, unknown>) === 'ready'; } catch { return false; }
+    })(),
+    // hostReady is intentionally omitted: at startup the external-services stub
+    // always reports mode='external', which would produce a misleading 'active'
+    // line before any real probe has run. Omitting it keeps the hint honest.
+    systemMessageRouter,
+  });
 
   // Wire streaming-speed metrics, auto-save, and recovery — all run after the
   // first render so they land as ambient context, never startup blockers.
