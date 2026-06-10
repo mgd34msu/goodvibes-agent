@@ -3,14 +3,6 @@ import { handleGlobalShortcutToken, type GlobalShortcutRouteState } from '../../
 
 function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalShortcutRouteState {
   return {
-    panelFocused: false,
-    panelManager: {
-      isVisible: () => true,
-      getAllOpen: () => [],
-      close: () => {},
-      hide: () => {},
-      getActivePanel: () => null,
-    } as unknown as GlobalShortcutRouteState['panelManager'],
     keybindingsManager: {
       matches: (action: string, token: { logicalName?: string; ctrl?: boolean }) =>
         action === 'panel-picker' && token.logicalName === 'p' && !!token.ctrl,
@@ -25,7 +17,7 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
     historySearch: { open: mock(() => {}) } as unknown as GlobalShortcutRouteState['historySearch'],
     searchManager: { active: false, open: mock(() => {}), close: mock(() => {}) } as unknown as GlobalShortcutRouteState['searchManager'],
     conversationManager: null,
-    commandContext: { openPanelPicker: mock(() => {}), clearScreen: mock(() => {}) } as unknown as NonNullable<GlobalShortcutRouteState['commandContext']>,
+    commandContext: { openPanelPicker: mock(() => {}), clearScreen: mock(() => {}), toggleActivitySidebar: mock(() => {}) } as unknown as NonNullable<GlobalShortcutRouteState['commandContext']>,
     contentWidth: 80,
     getScrollTop: () => 0,
     getWrappedPromptInfo: () => ({ wrappedLines: [''], segments: [{ rawStart: 0, length: 0 }], cursorWrappedLine: 0 }),
@@ -49,8 +41,8 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
 }
 
 describe('handleGlobalShortcutToken', () => {
-  test('panel-picker remains global while panel workspace has focus', () => {
-    const state = buildState({ panelFocused: true });
+  test('panel-picker opens the Agent workspace', () => {
+    const state = buildState();
     const handled = handleGlobalShortcutToken(
       state,
       { type: 'key', name: '\x10', logicalName: 'p', ctrl: true, shift: false, meta: false },
@@ -59,26 +51,16 @@ describe('handleGlobalShortcutToken', () => {
 
     expect(handled).toBe(true);
     expect(state.commandContext?.openPanelPicker).toHaveBeenCalled();
-    expect(state.panelFocused).toBe(false);
     expect(state.requestRender).toHaveBeenCalled();
   });
 
-  test('panel-close shortcut clears stale panel focus', () => {
-    const closed: string[] = [];
+  test('panel-close dismisses the Agent workspace', () => {
     const state = buildState({
-      panelFocused: true,
-      panelManager: {
-        getAllOpen: () => [{ id: 'system-messages' }, { id: 'tasks' }],
-        close: (id: string) => { closed.push(id); },
-        hide: () => {},
-        getActivePanel: () => ({ id: 'system-messages' }),
-        isVisible: () => true,
-      } as unknown as GlobalShortcutRouteState['panelManager'],
       keybindingsManager: {
         matches: () => false,
         lookup: () => 'panel-close',
       } as unknown as GlobalShortcutRouteState['keybindingsManager'],
-      dismissAgentWorkspace: mock(() => false),
+      dismissAgentWorkspace: mock(() => true),
     });
 
     const handled = handleGlobalShortcutToken(
@@ -88,24 +70,41 @@ describe('handleGlobalShortcutToken', () => {
     );
 
     expect(handled).toBe(true);
-    expect(state.panelFocused).toBe(false);
-    expect(closed).toEqual(['system-messages']);
+    expect(state.dismissAgentWorkspace).toHaveBeenCalled();
   });
 
-  test('escape does not bypass panel focus handling', () => {
-    const state = buildState({ panelFocused: true });
+  test('sidebar-toggle shows or hides the activity sidebar', () => {
+    const state = buildState({
+      keybindingsManager: {
+        matches: () => false,
+        lookup: () => 'sidebar-toggle',
+      } as unknown as GlobalShortcutRouteState['keybindingsManager'],
+    });
+
+    const handled = handleGlobalShortcutToken(
+      state,
+      { type: 'key', name: '\x0f', logicalName: 'o', ctrl: true, shift: false, meta: false },
+      24,
+    );
+
+    expect(handled).toBe(true);
+    expect(state.commandContext?.toggleActivitySidebar).toHaveBeenCalled();
+  });
+
+  test('bare escape routes to the escape handler', () => {
+    const state = buildState();
     const handled = handleGlobalShortcutToken(
       state,
       { type: 'key', name: '\x1b', logicalName: 'escape', ctrl: false, shift: false, meta: false },
       24,
     );
 
-    expect(handled).toBe(false);
-    expect(state.handleEscape).not.toHaveBeenCalled();
+    expect(handled).toBe(true);
+    expect(state.handleEscape).toHaveBeenCalled();
   });
 
-  test('page scroll keys do not bypass focused panel handling', () => {
-    const state = buildState({ panelFocused: true });
+  test('page keys scroll the conversation', () => {
+    const state = buildState();
 
     const pageUpHandled = handleGlobalShortcutToken(
       state,
@@ -118,9 +117,9 @@ describe('handleGlobalShortcutToken', () => {
       24,
     );
 
-    expect(pageUpHandled).toBe(false);
-    expect(pageDownHandled).toBe(false);
-    expect(state.scroll).not.toHaveBeenCalled();
+    expect(pageUpHandled).toBe(true);
+    expect(pageDownHandled).toBe(true);
+    expect(state.scroll).toHaveBeenCalledTimes(2);
   });
 
   test('Ctrl+A moves to line start without invoking build or edit actions', () => {

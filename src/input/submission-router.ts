@@ -3,13 +3,11 @@ import type { SubmissionIntent } from './submission-intent.ts';
 export interface SubmissionRouterInput {
   readonly text: string;
   readonly commandMode?: boolean;
-  readonly panelFocused?: boolean;
   readonly hasAttachments?: boolean;
 }
 
 const PLAN_COMMANDS = new Set(['plan']);
 const DELEGATION_COMMANDS = new Set(['delegate', 'build', 'review', 'wrfc', 'agents', 'remote']);
-const PANEL_COMMANDS = new Set(['panel']);
 const ORCHESTRATION_COMMANDS = new Set([
   'orchestration',
   'tasks',
@@ -44,9 +42,6 @@ export function routeSubmissionIntent(input: SubmissionRouterInput): SubmissionI
     }
     if (DELEGATION_COMMANDS.has(commandName)) {
       return { kind: 'delegation', label: 'delegation', commandName, hasAttachments };
-    }
-    if (PANEL_COMMANDS.has(commandName)) {
-      return { kind: 'slash-command', label: 'Agent workspace', commandName, hasAttachments };
     }
     if (ORCHESTRATION_COMMANDS.has(commandName)) {
       return { kind: 'orchestration', label: 'orchestration', commandName, hasAttachments };

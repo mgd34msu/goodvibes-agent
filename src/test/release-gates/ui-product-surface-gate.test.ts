@@ -114,14 +114,6 @@ describe('UI product surface gate', () => {
       settingsModal: { open: () => {} },
       sessionPickerModal: { open: () => {} },
     } as unknown as Parameters<typeof wireShellUiOpeners>[0]['input'];
-    let visible = false;
-    const panelManager = {
-      isVisible: () => visible,
-      getAllOpen: () => ['docs'],
-      open: () => {},
-      show: () => { visible = true; },
-      hide: () => { visible = false; },
-    } as never;
     const conversation = {
       log: () => {},
       setSplashSuppressed: () => {},
@@ -132,7 +124,6 @@ describe('UI product surface gate', () => {
     wireShellUiOpeners({
       commandContext,
       input,
-      panelManager,
       conversation,
       configManager: testManagers.configManager,
       providerRegistry: { getSelectableModels: () => [], listModels: () => [] } as never,
@@ -146,9 +137,7 @@ describe('UI product surface gate', () => {
       render: () => {},
     });
 
-    (commandContext as { showPanel?: (panelId: string, pane?: 'top' | 'bottom') => void }).showPanel?.('docs');
-    expect(input.panelFocused).toBe(false);
-    expect(visible).toBe(false);
+    (commandContext as { openPanelPicker?: () => void }).openPanelPicker?.();
     expect(openedWorkspaceCategory).toBe('home');
   });
 

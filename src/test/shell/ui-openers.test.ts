@@ -5,7 +5,6 @@ import { createTestManagers } from '../helpers/test-managers.ts';
 describe('wireShellUiOpeners', () => {
   let commandContext: Record<string, unknown>;
   let input: Record<string, unknown>;
-  let panelManager: Record<string, unknown>;
   let conversation: Record<string, unknown>;
   let render: ReturnType<typeof mock>;
   let testManagers = createTestManagers();
@@ -14,17 +13,10 @@ describe('wireShellUiOpeners', () => {
     testManagers = createTestManagers();
     commandContext = {};
     input = {
-      panelFocused: false,
+      indicatorFocused: false,
       modelPicker: {},
       modalOpened: mock(() => {}),
       openAgentWorkspace: mock(() => {}),
-    };
-    panelManager = {
-      isVisible: mock(() => false),
-      getAllOpen: mock(() => []),
-      open: mock(() => ({})),
-      show: mock(() => {}),
-      hide: mock(() => {}),
     };
     conversation = {
       log: mock(() => {}),
@@ -36,7 +28,6 @@ describe('wireShellUiOpeners', () => {
     wireShellUiOpeners({
       commandContext: commandContext as never,
       input: input as never,
-      panelManager: panelManager as never,
       conversation: conversation as never,
       configManager: testManagers.configManager,
       providerRegistry: {} as never,
@@ -51,49 +42,19 @@ describe('wireShellUiOpeners', () => {
     });
   });
 
-  test('openPanelPicker redirects to the Agent operator workspace', () => {
+  test('openPanelPicker opens the Agent workspace home', () => {
     (commandContext.openPanelPicker as () => void)();
-    expect(panelManager.open).not.toHaveBeenCalled();
-    expect(panelManager.hide).toHaveBeenCalled();
-    expect(input.panelFocused).toBe(false);
     expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
     expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(false);
-    expect(conversation.log).toHaveBeenCalledWith(
-      'Panel picker is handled through Agent Workspace. Use /agent for current operator controls.',
-      { fg: '214' },
-    );
+    expect(conversation.rebuildHistory).toHaveBeenCalled();
+    expect(render).toHaveBeenCalled();
   });
 
-  test('openPanelPicker does not focus already-visible copied panel workspace', () => {
-    (panelManager.isVisible as ReturnType<typeof mock>).mockReturnValue(true);
-    (panelManager.getAllOpen as ReturnType<typeof mock>).mockReturnValue([{ id: 'system-messages' }]);
-    (commandContext.openPanelPicker as () => void)();
-    expect(panelManager.show).not.toHaveBeenCalled();
-    expect(panelManager.hide).toHaveBeenCalled();
-    expect(input.panelFocused).toBe(false);
-    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
-  });
-
-  test('focusPanels redirects to the Agent workspace instead of copied panels', () => {
-    (panelManager.isVisible as ReturnType<typeof mock>).mockReturnValue(true);
-    (panelManager.getAllOpen as ReturnType<typeof mock>).mockReturnValue([{ id: 'docs' }]);
-    input.panelFocused = true;
-    (commandContext.focusPanels as () => void)();
-    expect(input.panelFocused).toBe(false);
-    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
-  });
-
-  test('showPanel redirects known panel ids to matching Agent workspace categories', () => {
-    (commandContext.showPanel as (panelId: string) => void)('tasks');
-    expect(panelManager.open).not.toHaveBeenCalled();
-    expect(panelManager.hide).toHaveBeenCalled();
-    expect(input.panelFocused).toBe(false);
-    expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'work');
-    expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(false);
-    expect(conversation.log).toHaveBeenCalledWith(
-      'Panel route "tasks" is handled through Agent Workspace. Opening the matching operator area.',
-      { fg: '214' },
-    );
+  test('focusPrompt clears indicator focus and rerenders', () => {
+    input.indicatorFocused = true;
+    (commandContext.focusPrompt as () => void)();
+    expect(input.indicatorFocused).toBe(false);
+    expect(render).toHaveBeenCalled();
   });
 
   test('openAgentWorkspace delegates through the shared opener route', () => {

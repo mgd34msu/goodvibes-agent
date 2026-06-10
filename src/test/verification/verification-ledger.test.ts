@@ -18,7 +18,6 @@ describe('verification ledger', () => {
     expect(ledger.areas.map((area) => area.area)).toEqual(expect.arrayContaining([
       'Settings schema and persistence',
       'Slash commands',
-      'Built-in panels',
       'Top-level CLI commands',
       'Model-visible release evidence bundle',
       'Model-visible service posture',
@@ -60,7 +59,6 @@ describe('verification ledger', () => {
     expect(markdown).toContain('Local verification signal');
     expect(markdown).toContain('External outcome required');
     expect(markdown).toContain('in-process command harness');
-    expect(markdown).toContain('test read models');
     expect(markdown).toContain('release_evidence_artifact');
     expect(markdown).toContain('service_endpoint');
     expect(markdown).toContain('operator_method');

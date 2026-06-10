@@ -12,128 +12,7 @@ import {
   moveCursorVertical as computeCursorVerticalMove,
 } from './handler-prompt-buffer.ts';
 import { cleanupMarkerRegistry, expandPrompt, findMarkerAtPos, registerPaste } from './handler-content-actions.ts';
-import type { PanelManager } from '../panels/panel-manager.ts';
-import type { KeybindingsManager } from './keybindings.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-
-export type PanelFocusRouteState = {
-  panelManager: PanelManager;
-  keybindingsManager: KeybindingsManager;
-  panelFocused: boolean;
-  commandMode: boolean;
-  searchActive: boolean;
-  autocompleteActive: boolean;
-  requestRender: () => void;
-  handlePathCompletion: () => boolean;
-  cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
-  dismissAgentWorkspace: () => boolean;
-  onPanelInputConsumed?: (activePanel: import('../panels/types.ts').Panel | null, key: string) => void;
-};
-
-export function handlePanelFocusToken(state: PanelFocusRouteState, token: InputToken): {
-  handled: boolean;
-  panelFocused: boolean;
-} {
-  let panelFocused = state.panelFocused;
-
-  if (
-    token.type === 'key' &&
-    token.logicalName === 'tab' &&
-    !state.commandMode &&
-    !state.searchActive &&
-    !state.autocompleteActive
-  ) {
-    if (panelFocused) {
-      panelFocused = false;
-      state.requestRender();
-      return { handled: true, panelFocused };
-    }
-    if (state.handlePathCompletion()) {
-      state.requestRender();
-      return { handled: true, panelFocused };
-    }
-    return { handled: false, panelFocused };
-  }
-
-  if (!panelFocused) {
-    return { handled: false, panelFocused };
-  }
-
-  if (token.type === 'key') {
-    // I6: two-stage Escape — give the panel a chance to consume escape first
-    // (e.g. dismiss a confirm dialog or clear search). Only unfocus if the
-    // panel returns false (unconsumed) or there is no active panel.
-    if (token.logicalName === 'escape') {
-      const activePanel = state.panelManager.getActive();
-      const panelConsumedEscape = activePanel?.handleInput?.('escape') ?? false;
-      if (panelConsumedEscape) {
-        state.onPanelInputConsumed?.(activePanel!, 'escape');
-        state.requestRender();
-        return { handled: true, panelFocused };
-      }
-      panelFocused = false;
-      state.requestRender();
-      return { handled: true, panelFocused };
-    }
-    const kb = state.keybindingsManager;
-    if (kb.matches('panel-tab-next', token)) {
-      state.cycleAgentWorkspaceCategory('next');
-      return { handled: true, panelFocused: false };
-    }
-    if (kb.matches('panel-tab-prev', token)) {
-      state.cycleAgentWorkspaceCategory('prev');
-      return { handled: true, panelFocused: false };
-    }
-    if (kb.matches('panel-close-all', token)) {
-      if (state.dismissAgentWorkspace()) {
-        return { handled: true, panelFocused: false };
-      }
-      const pm = state.panelManager;
-      for (const p of pm.getAllOpen()) pm.close(p.id);
-      panelFocused = false;
-      state.requestRender();
-      return { handled: true, panelFocused };
-    }
-    if (kb.matches('panel-close', token)) {
-      if (state.dismissAgentWorkspace()) {
-        return { handled: true, panelFocused: false };
-      }
-      const pm = state.panelManager;
-      const active = pm.getActivePanel();
-      if (active) {
-        pm.close(active.id);
-      }
-      panelFocused = false;
-      state.requestRender();
-      return { handled: true, panelFocused };
-    }
-    if (token.ctrl || token.meta) {
-      return { handled: false, panelFocused };
-    }
-    const activePanel = state.panelManager.getActive();
-    if (activePanel?.handleInput) {
-      const consumed = activePanel.handleInput(token.logicalName);
-      if (consumed) {
-        state.onPanelInputConsumed?.(activePanel, token.logicalName);
-        state.requestRender();
-        return { handled: true, panelFocused };
-      }
-    }
-  }
-
-  if (token.type === 'text' && token.value) {
-    const activePanel = state.panelManager.getActive();
-    if (activePanel?.handleInput) {
-      for (const ch of token.value) {
-        activePanel.handleInput(ch);
-      }
-      state.requestRender();
-    }
-    return { handled: true, panelFocused };
-  }
-
-  return { handled: true, panelFocused };
-}
 
 export type IndicatorFocusRouteState = {
   indicatorFocused: boolean;
@@ -512,8 +391,6 @@ export function handlePromptKeyToken(state: KeyRouteState, token: InputToken): {
 export type MouseRouteState = {
   conversationManager: ConversationManager | null;
   selection: SelectionManager;
-  panelManager: PanelManager;
-  panelMouseLayout: PanelMouseLayout | null;
   mouseDownRow: number;
   mouseDownCol: number;
   scrollTop: number;
@@ -524,71 +401,6 @@ export type MouseRouteState = {
   handlePaste: () => void;
   handleCopy: () => void;
 };
-
-export type PanelMouseLayout = {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  hasBottomPane: boolean;
-  verticalSplitRatio: number;
-};
-
-function clampRatio(value: number): number {
-  return Math.max(0.2, Math.min(0.8, value));
-}
-
-function getActivePanelInPane(panelManager: PanelManager, pane: 'top' | 'bottom') {
-  const target = pane === 'top' ? panelManager.getTopPane() : panelManager.getBottomPane();
-  return target.panels[target.activeIndex] ?? null;
-}
-
-function getPanelUnderMouse(
-  panelManager: PanelManager,
-  layout: PanelMouseLayout | null,
-  row: number,
-  col: number,
-) {
-  if (
-    layout === null
-    || !panelManager.isVisible()
-    || panelManager.getAllOpen().length === 0
-    || col < layout.x
-    || col >= layout.x + layout.width
-    || row < layout.y
-    || row >= layout.y + layout.height
-  ) {
-    return null;
-  }
-
-  const panelRow = row - layout.y;
-  if (!layout.hasBottomPane) {
-    return getActivePanelInPane(panelManager, 'top');
-  }
-
-  const panelAreaRows = Math.max(0, layout.height - 1);
-  const contentRows = Math.max(0, panelAreaRows - 3);
-  const topContentRows = contentRows <= 1
-    ? contentRows
-    : Math.max(1, Math.floor(contentRows * clampRatio(layout.verticalSplitRatio)));
-  const topLastRow = 2 + topContentRows;
-
-  return panelRow <= topLastRow
-    ? getActivePanelInPane(panelManager, 'top')
-    : getActivePanelInPane(panelManager, 'bottom');
-}
-
-function scrollPanelUnderMouse(
-  state: MouseRouteState,
-  token: Extract<InputToken, { type: 'mouse' }>,
-  deltaRows: number,
-): boolean {
-  const panel = getPanelUnderMouse(state.panelManager, state.panelMouseLayout, token.row, token.col);
-  if (!panel?.handleScroll) return false;
-  const consumed = panel.handleScroll(deltaRows);
-  if (consumed) state.requestRender();
-  return true;
-}
 
 export function handleMouseToken(state: MouseRouteState, token: InputToken): {
   handled: boolean;
@@ -605,16 +417,10 @@ export function handleMouseToken(state: MouseRouteState, token: InputToken): {
   const viewportRow = token.row - headerH;
 
   if (token.button === 64) {
-    if (scrollPanelUnderMouse(state, token, -3)) {
-      return { handled: true, mouseDownRow, mouseDownCol };
-    }
     state.scroll(-3);
     return { handled: true, mouseDownRow, mouseDownCol };
   }
   if (token.button === 65) {
-    if (scrollPanelUnderMouse(state, token, 3)) {
-      return { handled: true, mouseDownRow, mouseDownCol };
-    }
     state.scroll(3);
     return { handled: true, mouseDownRow, mouseDownCol };
   }

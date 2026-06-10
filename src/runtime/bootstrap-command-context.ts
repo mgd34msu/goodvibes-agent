@@ -4,7 +4,6 @@ import type { ConversationManager } from '../core/conversation';
 import type { KnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { HookApi } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { McpApi } from '@pellux/goodvibes-sdk/platform/mcp';
-import type { PanelManager } from '../panels/panel-manager.ts';
 import type { ProviderApi } from '@pellux/goodvibes-sdk/platform/providers';
 import type { OpsApi } from '@/runtime/index.ts';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
@@ -116,7 +115,6 @@ export type CreateBootstrapCommandContextOptions = {
   mcpApi?: McpApi;
   opsApi?: OpsApi;
   directTransport?: DirectTransport;
-  panelManager: PanelManager;
   worktreeRegistry: WorktreeRegistry;
   sandboxSessionRegistry: SandboxSessionRegistry;
   loadSystemPrompt: () => string;
@@ -192,7 +190,6 @@ export function createBootstrapCommandContext(
     mcpApi,
     opsApi,
     directTransport,
-    panelManager,
     worktreeRegistry,
     sandboxSessionRegistry,
     loadSystemPrompt,
@@ -247,7 +244,6 @@ export function createBootstrapCommandContext(
   const workspace = createBootstrapCommandWorkspaceSection({
     keybindingsManager,
     fileUndoManager,
-    panelManager,
     processManager,
     profileManager,
     bookmarkManager,
@@ -277,7 +273,6 @@ export function createBootstrapCommandContext(
     conversation,
     runtime,
     requestRender,
-    panelManager,
     loadSystemPrompt,
     activatePlan,
     requestPermission,

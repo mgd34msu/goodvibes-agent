@@ -101,16 +101,6 @@ function openPanelWorkspaceSurface(
     options.opener();
     return opened(surface, { categoryId: options.categoryId, panelId: options.panelId, route: 'named-opener' });
   }
-  if (context.showPanel) {
-    const pane = optionalPane(args);
-    context.showPanel(options.panelId, pane);
-    return opened(surface, {
-      categoryId: options.categoryId,
-      panelId: options.panelId,
-      pane: pane ?? 'default',
-      route: 'panel-route',
-    });
-  }
   return routeUnavailable(surface);
 }
 
@@ -187,7 +177,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     kind: 'picker',
     summary: 'Operator panel route into Agent Workspace home.',
     command: 'Ctrl+P',
-    preferredModelRoute: `Use ${agentHarnessModes('panels', 'panel', 'open_panel')} for panel catalog and routing, or mode:"workspace_actions" for concrete model operation.`,
+    preferredModelRoute: 'Use mode:"workspace_actions" for concrete model operation, or mode:"open_ui_surface" for visible routing.',
     available: (context) => typeof context.openPanelPicker === 'function' || typeof context.openAgentWorkspace === 'function',
     open: (context) => {
       const surface = findSurfaceById('panel-picker')!;
@@ -206,7 +196,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/security',
     preferredModelRoute: `Use mode:"workspace_actions" for security review actions or ${agentHarnessModes('run_command')} for confirmed /security review output.`,
     parameters: ['pane'],
-    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openSecurityPanel === 'function' || typeof context.showPanel === 'function',
+    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openSecurityPanel === 'function',
     open: (context, args) => {
       const surface = findSurfaceById('security-panel')!;
       return openPanelWorkspaceSurface(context, args, surface, {
@@ -224,7 +214,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/knowledge',
     preferredModelRoute: `Use agent_knowledge, agent_knowledge_ingest, mode:"workspace_actions", or ${agentHarnessModes('run_command')} for confirmed /knowledge operation.`,
     parameters: ['pane'],
-    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openKnowledgePanel === 'function' || typeof context.showPanel === 'function',
+    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openKnowledgePanel === 'function',
     open: (context, args) => {
       const surface = findSurfaceById('knowledge-panel')!;
       return openPanelWorkspaceSurface(context, args, surface, {
@@ -242,7 +232,7 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
     command: '/subscription',
     preferredModelRoute: `Use mode:"workspace_actions" or ${agentHarnessModes('run_command')} for confirmed /subscription mirrors.`,
     parameters: ['pane'],
-    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openSubscriptionPanel === 'function' || typeof context.showPanel === 'function',
+    available: (context) => typeof context.openAgentWorkspace === 'function' || typeof context.openSubscriptionPanel === 'function',
     open: (context, args) => {
       const surface = findSurfaceById('subscription-panel')!;
       return openPanelWorkspaceSurface(context, args, surface, {

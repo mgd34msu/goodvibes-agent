@@ -3,8 +3,7 @@ import type { CommandContext, CommandRegistry } from './command-registry.ts';
 import type { AutocompleteEngine } from './autocomplete.ts';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { ConversationManager } from '../core/conversation';
-import type { PanelManager } from '../panels/panel-manager.ts';
-import { handleClipboardPaste, type ClipboardPasteSource } from './handler-content-actions.ts';
+import type { ClipboardPasteSource } from './handler-content-actions.ts';
 
 export type CommandModeRouteState = {
   commandMode: boolean;
@@ -14,8 +13,6 @@ export type CommandModeRouteState = {
   modalStack: string[];
   commandRegistry: CommandRegistry | null;
   commandContext?: CommandContext;
-  panelFocused: boolean;
-  panelManager: PanelManager;
   conversationManager: ConversationManager | null;
   requestRender: () => void;
   handleEscape: () => void;
@@ -88,7 +85,7 @@ export function handleCommandModeToken(state: CommandModeRouteState, token: Inpu
       const parts = raw.slice(1).trim().split(/\s+/);
       const name = parts[0];
       const args = parts.slice(1);
-      const ctx = withPanelFocusSync(state.commandContext, state);
+      const ctx = state.commandContext;
       const commandPromise = state.commandRegistry.get(name)
         ? state.commandRegistry.execute(name, args, ctx)
         : (ctx.executeCommand?.(name, args) ?? Promise.resolve(false));
@@ -120,58 +117,3 @@ export function handleCommandModeToken(state: CommandModeRouteState, token: Inpu
   return token.logicalName !== 'left' && token.logicalName !== 'right';
 }
 
-function withPanelFocusSync(context: CommandContext, state: CommandModeRouteState): CommandContext {
-  return {
-    ...context,
-    openPanelPicker: context.openPanelPicker
-      ? () => {
-          context.openPanelPicker?.();
-          state.panelFocused = false;
-        }
-      : undefined,
-    showPanel: context.showPanel
-      ? (panelId, pane) => {
-          context.showPanel?.(panelId, pane);
-          state.panelFocused = false;
-        }
-      : undefined,
-    focusPanels: context.focusPanels
-      ? () => {
-          context.focusPanels?.();
-          state.panelFocused = false;
-        }
-      : undefined,
-    focusPrompt: context.focusPrompt
-      ? () => {
-          context.focusPrompt?.();
-          state.panelFocused = false;
-        }
-      : undefined,
-    pasteFromClipboard: () => {
-      const result = handleClipboardPaste({
-        prompt: state.prompt,
-        cursorPos: state.cursorPos,
-        pasteRegistry: state.pasteRegistry,
-        nextPasteId: state.nextPasteId,
-        imageRegistry: state.imageRegistry,
-        nextImageId: state.nextImageId,
-        saveUndoState: state.saveUndoState,
-        ensureInputCursorVisible: state.ensureInputCursorVisible,
-        requestRender: state.requestRender,
-      }, context.workspace.shellPaths?.workingDirectory ?? state.projectRoot, state.clipboard);
-      state.prompt = result.prompt;
-      state.cursorPos = result.cursorPos;
-      state.nextImageId = result.nextImageId;
-      state.nextPasteId = result.nextPasteId;
-      return result;
-    },
-    executeCommand: async (name, args) => {
-      const wrapped = withPanelFocusSync(context, state);
-      const handled = state.commandRegistry?.get(name)
-        ? await state.commandRegistry.execute(name, args, wrapped)
-        : false;
-      if (handled) return true;
-      return (await context.executeCommand?.(name, args)) ?? false;
-    },
-  };
-}

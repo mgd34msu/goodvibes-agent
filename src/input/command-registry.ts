@@ -8,7 +8,6 @@ import type { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { SelectionItem, SelectionResult, SelectionAction } from './selection-modal.ts';
 import type { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
-import type { PanelManager } from '../panels/panel-manager.ts';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { KnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { HookApi } from '@pellux/goodvibes-sdk/platform/hooks';
@@ -125,8 +124,6 @@ export interface CommandShellUiOpeners {
   openShortcutsOverlay?: () => void;
   getScrollTop?: () => number;
   openPanelPicker?: () => void;
-  showPanel?: (panelId: string, pane?: 'top' | 'bottom') => void;
-  focusPanels?: () => void;
   focusPrompt?: () => void;
   openMcpWorkspace?: () => void;
   openAgentWorkspace?: (categoryId?: string) => void;
@@ -134,6 +131,7 @@ export interface CommandShellUiOpeners {
   openSecurityPanel?: () => void;
   openKnowledgePanel?: () => void;
   openSubscriptionPanel?: () => void;
+  toggleActivitySidebar?: () => void;
 }
 
 export interface CommandSessionServices {
@@ -159,7 +157,6 @@ export interface CommandProviderServices {
 export interface CommandWorkspaceUiServices {
   keybindingsManager?: KeybindingsManager;
   fileUndoManager?: FileUndoManager;
-  panelManager?: PanelManager;
   processManager?: ProcessManager;
   profileManager?: import('@pellux/goodvibes-sdk/platform/profiles').ProfileManager;
   bookmarkManager?: import('@pellux/goodvibes-sdk/platform/bookmarks').BookmarkManager;

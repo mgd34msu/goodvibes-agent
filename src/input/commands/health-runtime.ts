@@ -3,7 +3,7 @@ import { evaluateSessionMaintenance, formatSessionMaintenanceLines } from '@/run
 import { estimateConversationTokens } from '@pellux/goodvibes-sdk/platform/core';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { buildSetupReviewSnapshot } from './local-setup-review.ts';
-import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
+import { buildProviderAccountSnapshot } from '../../runtime/provider-account-snapshot.ts';
 import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import {

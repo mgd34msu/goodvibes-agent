@@ -4,8 +4,8 @@ import type {
   ProviderAccountSnapshot,
   ProviderAuthRoute,
   ProviderRouteRecord,
-} from '../../panels/provider-account-snapshot.ts';
-import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
+} from '../../runtime/provider-account-snapshot.ts';
+import { buildProviderAccountSnapshot } from '../../runtime/provider-account-snapshot.ts';
 import {
   requireProvider,
   requireServiceRegistry,

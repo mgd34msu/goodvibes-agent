@@ -204,10 +204,6 @@ function describeCandidate(route: ExecutionRoute, context: CommandContext, toolR
   };
 }
 
-function toolInspectorAvailable(context: CommandContext): boolean {
-  return Boolean(context.workspace.panelManager?.getRegisteredTypes().some((panel) => panel.id === 'tools'));
-}
-
 function executionSupervisionRoutes(context: CommandContext, route: ExecutionRoute): readonly ExecutionSupervisionRoute[] {
   const routes: ExecutionSupervisionRoute[] = [];
   if (route.id === 'local-shell-command') {
@@ -228,15 +224,6 @@ function executionSupervisionRoutes(context: CommandContext, route: ExecutionRou
       },
     );
   }
-  if (route.id === 'local-shell-command' || route.id === 'local-edit-write') {
-    routes.push({
-      id: 'tool-inspector',
-      label: 'Tool Call Inspector',
-      available: toolInspectorAvailable(context),
-      modelRoute: 'workspace action:"open_panel" panelId:"tools"',
-      requiresConfirmation: true,
-    });
-  }
   return routes;
 }
 
@@ -244,11 +231,9 @@ function executionSupervisionSummary(context: CommandContext): Record<string, un
   return {
     processMonitorAvailable: typeof context.openProcessModal === 'function',
     liveTailAvailable: typeof context.openLiveTail === 'function',
-    toolInspectorAvailable: toolInspectorAvailable(context),
     routes: [
       'workspace action:"open" surfaceId:"process-monitor"',
       'workspace action:"open" surfaceId:"live-tail"',
-      'workspace action:"open_panel" panelId:"tools"',
     ],
   };
 }

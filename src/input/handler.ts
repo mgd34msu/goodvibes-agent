@@ -44,10 +44,8 @@ import {
 import {
   handleIndicatorFocusToken,
   handleMouseToken,
-  handlePanelFocusToken,
   handlePromptKeyToken,
   handlePromptTextToken,
-  type PanelMouseLayout,
 } from './handler-feed-routes.ts';
 import {
   ensureInputCursorVisible,
@@ -67,10 +65,7 @@ import { handleCommandModeToken } from './handler-command-route.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
 import { feedInputTokens } from './handler-feed.ts';
 import { buildInitialFeedContext, syncFeedContextMutableFields } from './feed-context-factory.ts';
-import { handlePanelIntegrationAction as runPanelIntegrationAction } from './panel-integration-actions.ts';
-import type { Panel } from '../panels/types.ts';
 import type { UiRuntimeServices } from '../runtime/ui-services.ts';
-export { handlePanelIntegrationAction } from './panel-integration-actions.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
 
 type SelectionModalCallback = (result: SelectionResult | null) => void;
@@ -93,8 +88,6 @@ export class InputHandler {
   public commandMode = false;
   /** True when the process indicator bar has keyboard focus. */
   public indicatorFocused = false;
-  /** True when keyboard focus is on the active panel (arrow/enter go to panel, not prompt). */
-  public panelFocused = false;
 
   public tokenizer = new InputTokenizer();
   public pasteRegistry = new Map<string, string>();
@@ -202,12 +195,12 @@ export class InputHandler {
     this.feedContext = buildInitialFeedContext(
       {
         prompt: this.prompt, cursorPos: this.cursorPos, inputScrollTop: this.inputScrollTop, commandMode: this.commandMode,
-        panelFocused: this.panelFocused, indicatorFocused: this.indicatorFocused,
+        indicatorFocused: this.indicatorFocused,
         helpOverlayActive: this.helpOverlayActive, helpScrollOffset: this.helpScrollOffset,
         shortcutsOverlayActive: this.shortcutsOverlayActive, shortcutsScrollOffset: this.shortcutsScrollOffset,
         nextPasteId: this.nextPasteId, nextImageId: this.nextImageId,
         mouseDownRow: this.mouseDownRow, mouseDownCol: this.mouseDownCol,
-        contentWidth: this.contentWidth, panelMouseLayout: this.panelMouseLayout,
+        contentWidth: this.contentWidth,
         selectionCallback: this.selectionCallback,
       },
       {
@@ -236,7 +229,6 @@ export class InputHandler {
         modalStack: this.modalStack,
         inputHistory: this.inputHistory,
         conversationManager: this.conversationManager,
-        panelManager: this.uiServices.shell.panelManager,
         keybindingsManager: this.uiServices.shell.keybindingsManager,
         getHistory: this.getHistory,
         getViewportHeight: this.getViewportHeight,
@@ -261,7 +253,6 @@ export class InputHandler {
         executeBlockAction: (id: string) => this.executeBlockAction(id),
         cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => this.cycleAgentWorkspaceCategory(direction),
         dismissAgentWorkspace: () => this.dismissAgentWorkspace(),
-        onPanelInputConsumed: (activePanel: Panel | null, key: string) => this.handlePanelIntegrationAction(activePanel, key),
         getWrappedPromptInfo: (contentWidth: number) => this.getWrappedPromptInfo(contentWidth),
         moveCursorVertical: (direction: -1 | 1) => this.moveCursorVertical(direction),
         handlePathCompletion: () => this.handlePathCompletion(),
@@ -280,12 +271,11 @@ export class InputHandler {
   public syncFeedContextMutableFields(): void {
     const h = this;
     syncFeedContextMutableFields({ prompt: h.prompt, cursorPos: h.cursorPos, inputScrollTop: h.inputScrollTop, commandMode: h.commandMode,
-      panelFocused: h.panelFocused, indicatorFocused: h.indicatorFocused, helpOverlayActive: h.helpOverlayActive,
+      indicatorFocused: h.indicatorFocused, helpOverlayActive: h.helpOverlayActive,
       helpScrollOffset: h.helpScrollOffset, shortcutsOverlayActive: h.shortcutsOverlayActive,
       shortcutsScrollOffset: h.shortcutsScrollOffset, selectionCallback: h.selectionCallback,
       nextPasteId: h.nextPasteId, nextImageId: h.nextImageId, mouseDownRow: h.mouseDownRow,
-      mouseDownCol: h.mouseDownCol, contentWidth: h.contentWidth,
-      panelMouseLayout: h.panelMouseLayout }, this.feedContext);
+      mouseDownCol: h.mouseDownCol, contentWidth: h.contentWidth }, this.feedContext);
   }
 
   /** Wire in the InputHistory instance. Optional; disables history navigation if unset. */
@@ -360,14 +350,12 @@ export class InputHandler {
     return true;
   }
   public openMcpWorkspace(context: CommandContext): void {
-    this.panelFocused = false;
     this.indicatorFocused = false;
     this.modalOpened('mcpWorkspace');
     this.mcpWorkspace.open(context);
     this.requestRender();
   }
   public openAgentWorkspace(context: CommandContext, categoryId?: string, onlyGroup?: string): void {
-    this.panelFocused = false;
     this.indicatorFocused = false;
     this.modalOpened('agentWorkspace');
     this.agentWorkspace.open(
@@ -390,7 +378,6 @@ export class InputHandler {
   public dismissAgentWorkspace(): boolean {
     if (!this.agentWorkspace.active) return false;
     this.closeAgentWorkspaceModal();
-    this.panelFocused = false;
     this.indicatorFocused = false;
     this.requestRender();
     return true;
@@ -503,7 +490,6 @@ export class InputHandler {
       context.cursorPos = this.cursorPos;
       context.inputScrollTop = this.inputScrollTop;
       context.commandMode = this.commandMode;
-      context.panelFocused = this.panelFocused;
       context.indicatorFocused = this.indicatorFocused;
       context.helpOverlayActive = this.helpOverlayActive;
       context.helpScrollOffset = this.helpScrollOffset;
@@ -515,7 +501,6 @@ export class InputHandler {
       context.mouseDownRow = this.mouseDownRow;
       context.mouseDownCol = this.mouseDownCol;
       context.contentWidth = this.contentWidth;
-      context.panelMouseLayout = this.panelMouseLayout;
       // Sync semi-stable refs that may be wired after construction.
       context.commandRegistry = this.commandRegistry;
       context.commandContext = this.commandContext;
@@ -532,7 +517,6 @@ export class InputHandler {
       this.cursorPos = context.cursorPos;
       this.inputScrollTop = context.inputScrollTop;
       this.commandMode = context.commandMode;
-      this.panelFocused = context.panelFocused;
       this.indicatorFocused = context.indicatorFocused;
       this.helpOverlayActive = context.helpOverlayActive;
       this.helpScrollOffset = context.helpScrollOffset;
@@ -583,15 +567,10 @@ export class InputHandler {
 
   /** Content width for wrapping — set by main.ts via setContentWidth(). */
   public contentWidth = 76;
-  public panelMouseLayout: PanelMouseLayout | null = null;
 
   /** Set the content width used for wrapping calculations. Call from main.ts. */
   public setContentWidth(w: number): void {
     this.contentWidth = w;
-  }
-
-  public setPanelMouseLayout(layout: PanelMouseLayout | null): void {
-    this.panelMouseLayout = layout;
   }
 
   /**
@@ -734,7 +713,6 @@ export class InputHandler {
     const context = this.commandContext;
     if (!this.agentWorkspace.active) {
       if (!context) return;
-      this.panelFocused = false;
       this.indicatorFocused = false;
       this.modalOpened('agentWorkspace');
       this.agentWorkspace.open(
@@ -745,13 +723,8 @@ export class InputHandler {
       );
     }
     this.agentWorkspace.cycleCategory(direction);
-    this.panelFocused = false;
     this.indicatorFocused = false;
     this.requestRender();
-  }
-
-  public handlePanelIntegrationAction(activePanel: Panel | null, key: string): void {
-    runPanelIntegrationAction(this.uiServices.shell.panelManager, activePanel, key, this.commandContext);
   }
 
   public wordWrapLine(line: string, maxW: number): string[] {

@@ -90,25 +90,12 @@ export function requirePluginPathOptions(
   };
 }
 
-export function openCommandPanel(
-  context: Pick<CommandContext, 'showPanel'>,
-  panelId: string,
-  pane?: 'top' | 'bottom',
-): void {
-  const showPanel = requireContextValue(context.showPanel, 'showPanel');
-  showPanel(panelId, pane);
-}
-
 export function requireKeybindingsManager(context: CommandContext) {
   return requireContextValue(context.workspace.keybindingsManager, 'workspace.keybindingsManager');
 }
 
 export function requireProfileManager(context: CommandContext) {
   return requireContextValue(context.workspace.profileManager, 'workspace.profileManager');
-}
-
-export function requirePanelManager(context: CommandContext) {
-  return requireContextValue(context.workspace.panelManager, 'workspace.panelManager');
 }
 
 export function requireBookmarkManager(context: CommandContext) {

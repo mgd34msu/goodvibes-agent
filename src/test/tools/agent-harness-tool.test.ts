@@ -11,8 +11,6 @@ import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, Memor
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
-import { PanelManager } from '../../panels/panel-manager.ts';
-import type { Panel, PanelCategory } from '../../panels/types.ts';
 import { CONFIG_SCHEMA, ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -56,14 +54,12 @@ interface HarnessFixture {
   readonly commandRegistry: CommandRegistry;
   readonly configManager: ConfigManager;
   readonly secretsManager: SecretsManager | null;
-  readonly panelManager: PanelManager;
   readonly keybindingsManager: KeybindingsManager;
   readonly toolRegistry: ToolRegistry;
   readonly processManager: ProcessManager;
   readonly tool: ReturnType<typeof createAgentHarnessTool>;
   readonly context: CommandContext;
   readonly printed: string[];
-  readonly routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }>;
   readonly openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }>;
   readonly openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }>;
   readonly executionRecords: AgentExecutionRecord[];
@@ -130,51 +126,6 @@ function createHarnessArtifactStore() {
   return { records, store };
 }
 
-function createFakePanel(id: string, name: string, icon: string, category: PanelCategory): Panel {
-  return {
-    id,
-    name,
-    icon,
-    category,
-    isTransient: false,
-    isPinned: false,
-    needsRender: true,
-    onActivate: () => {},
-    onDeactivate: () => {},
-    onDestroy: () => {},
-    render: () => [],
-    invalidate: () => {},
-    markRendered: () => {},
-  };
-}
-
-function registerHarnessFixturePanels(panelManager: PanelManager): void {
-  panelManager.registerType({
-    id: 'provider-health',
-    name: 'Health',
-    icon: 'N',
-    category: 'monitoring',
-    description: 'Provider health dashboard for current Agent provider posture',
-    factory: () => createFakePanel('provider-health', 'Health', 'N', 'monitoring'),
-  });
-  panelManager.registerType({
-    id: 'knowledge',
-    name: 'Knowledge',
-    icon: 'K',
-    category: 'agent',
-    description: 'Isolated Agent Knowledge and local memory review',
-    factory: () => createFakePanel('knowledge', 'Knowledge', 'K', 'agent'),
-  });
-  panelManager.registerType({
-    id: 'panel-list',
-    name: 'Panel List',
-    icon: 'L',
-    category: 'session',
-    description: 'Browse all registered panels grouped by category',
-    factory: () => createFakePanel('panel-list', 'Panel List', 'L', 'session'),
-  });
-}
-
 function makeFixture(options: {
   readonly secrets?: boolean;
   readonly dismissAgentWorkspace?: boolean;
@@ -192,17 +143,14 @@ function makeFixture(options: {
   const secretsManager = options.secrets === false
     ? null
     : new SecretsManager({ projectRoot: root, globalHome: root, configManager });
-  const panelManager = new PanelManager();
   const keybindingsManager = new KeybindingsManager({
     configPath: paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'keybindings.json'),
   });
-  registerHarnessFixturePanels(panelManager);
   const toolRegistry = new ToolRegistry();
   const processManager = new ProcessManager();
   const fileUndoManager = new FileUndoManager();
   const workPlanStore = new WorkPlanStore({ homeDirectory: root, projectId: 'harness-test', projectRoot: root });
   const printed: string[] = [];
-  const routedPanels: Array<{ readonly panelId: string; readonly pane: 'top' | 'bottom' | undefined }> = [];
   const openedSurfaces: Array<{ readonly id: string; readonly detail?: string; readonly result?: boolean }> = [];
   const openedSelections: Array<{ readonly title: string; readonly itemIds: readonly string[]; readonly preSelectId?: string }> = [];
   const executionRecords: AgentExecutionRecord[] = [];
@@ -261,9 +209,6 @@ function makeFixture(options: {
     print: (text: string) => printed.push(text),
     renderRequest: () => {},
     executeCommand: async (name: string, args: string[]) => commandRegistry.execute(name, args, context as CommandContext),
-    showPanel: (panelId: string, pane?: 'top' | 'bottom') => {
-      routedPanels.push({ panelId, pane });
-    },
     openPanelPicker: () => {
       openedSurfaces.push({ id: 'panel-picker', detail: 'home' });
     },
@@ -351,8 +296,8 @@ function makeFixture(options: {
     },
     openSelection,
     workspace: options.keybindings === false
-      ? { shellPaths: paths, panelManager, processManager, bookmarkManager, fileUndoManager, workPlanStore }
-      : { shellPaths: paths, panelManager, processManager, keybindingsManager, bookmarkManager, fileUndoManager, workPlanStore },
+      ? { shellPaths: paths, processManager, bookmarkManager, fileUndoManager, workPlanStore }
+      : { shellPaths: paths, processManager, keybindingsManager, bookmarkManager, fileUndoManager, workPlanStore },
     platform: {
       configManager,
       serviceRegistry: {
@@ -491,14 +436,12 @@ function makeFixture(options: {
     commandRegistry,
     configManager,
     secretsManager,
-    panelManager,
     keybindingsManager,
     toolRegistry,
     processManager,
     tool,
     context,
     printed,
-    routedPanels,
     openedSurfaces,
     openedSelections,
     executionRecords,
@@ -6477,7 +6420,7 @@ describe('agent_harness tool', () => {
       const shell = posture.routes.find((route) => route.executionRouteId === 'local-shell-command');
       expect(shell?.availability).toBe('ready');
       expect(shell?.modelRoute).toBe('exec');
-      expect(shell?.supervisionRoutes?.map((route) => route.id)).toEqual(expect.arrayContaining(['process-monitor', 'live-tail', 'tool-inspector']));
+      expect(shell?.supervisionRoutes?.map((route) => route.id)).toEqual(expect.arrayContaining(['process-monitor', 'live-tail']));
       expect(shell?.supervisionRoutes?.find((route) => route.id === 'process-monitor')?.available).toBe(true);
       expect(shell?.supervisionRoutes?.find((route) => route.id === 'live-tail')?.modelRoute).toContain('workspace action:"open"');
 
@@ -6485,7 +6428,6 @@ describe('agent_harness tool', () => {
       expect(edit?.availability).toBe('ready');
       expect(edit?.modelRoute).toBe('edit/write');
       expect(edit?.recoveryRoute).toContain('execution action:"recovery"');
-      expect(edit?.supervisionRoutes?.map((route) => route.id)).toContain('tool-inspector');
 
       const browser = posture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control');
       expect(browser?.availability).toBe('setup-needed');
@@ -11002,87 +10944,6 @@ describe('agent_harness tool', () => {
       expect(blocked.output).toContain('"supported": false');
       expect(blocked.output).toContain('Unsupported command: daemon');
       expect(blocked.output).toContain('connected-host');
-    } finally {
-      fixture.cleanup();
-    }
-  });
-
-  test('exposes built-in panel catalog state and confirmation-gated routing', async () => {
-    const fixture = makeFixture();
-    try {
-      fixture.panelManager.open('provider-health');
-
-      const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
-      expect(summary.success).toBe(true);
-      expect(summary.output).toContain('"panels": 3');
-      const summaryJson = JSON.parse(summary.output ?? '{}') as { readonly modelAccess?: { readonly panels?: string } };
-      expect(summaryJson.modelAccess?.panels).toContain('workspace action:"panels');
-
-      const panels = await fixture.tool.execute({ mode: 'panels', category: 'monitoring' });
-      expect(panels.success).toBe(true);
-      expect(panels.output).toContain('"id": "provider-health"');
-      expect(panels.output).toContain('"open": true');
-      expect(panels.output).toContain('"command": "/agent"');
-      expectCompactSummaryFields(JSON.parse(panels.output));
-      expectModelFacingText(panels.output);
-      const panelsPayload = JSON.parse(panels.output) as {
-        readonly panels: readonly { readonly id?: string; readonly modelRoute?: string }[];
-      };
-      expect(panelsPayload.panels.filter((panel) => (
-        typeof panel.modelRoute !== 'string'
-        || panel.modelRoute.length === 0
-        || panel.modelRoute.length > 72
-      ))).toEqual([]);
-      expect(panelsPayload.panels.find((panel) => panel.id === 'provider-health')?.modelRoute).toBe('agent_harness mode:"open_panel" or mode:"workspace_actions"');
-
-      const panel = await fixture.tool.execute({ mode: 'panel', panelId: 'knowledge' });
-      expect(panel.success).toBe(true);
-      expect(panel.output).toContain('"categoryId": "knowledge"');
-      expect(panel.output).toContain('"command": "/agent knowledge"');
-      expectModelFacingText(panel.output);
-      expect(JSON.parse(panel.output).modelRoute).toBe('agent_harness mode:"open_panel" or mode:"workspace_actions"');
-
-      const panelByQuery = await fixture.tool.execute({ mode: 'panel', query: 'isolated Agent Knowledge' });
-      expect(panelByQuery.success).toBe(true);
-      const panelByQueryJson = JSON.parse(panelByQuery.output);
-      expect(panelByQueryJson.id).toBe('knowledge');
-      expect(panelByQueryJson.lookup).toEqual({
-        source: 'query',
-        input: 'isolated Agent Knowledge',
-        resolvedBy: 'search',
-      });
-
-      const ambiguousPanel = await fixture.tool.execute({
-        mode: 'open_panel',
-        query: 'Agent',
-        confirm: true,
-        explicitUserRequest: 'Open an Agent panel.',
-      });
-      expect(ambiguousPanel.success).toBe(true);
-      expect(ambiguousPanel.output).toContain('"status": "ambiguous_panel"');
-      expect(ambiguousPanel.output).toContain('provider-health');
-      expect(fixture.routedPanels).toEqual([]);
-
-      const denied = await fixture.tool.execute({
-        mode: 'open_panel',
-        panelId: 'knowledge',
-        explicitUserRequest: 'Show the knowledge panel.',
-      });
-      expect(denied.success).toBe(false);
-      expect(denied.error).toContain('confirm:true');
-      expect(fixture.routedPanels).toEqual([]);
-
-      const routed = await fixture.tool.execute({
-        mode: 'open_panel',
-        panelId: 'knowledge',
-        pane: 'bottom',
-        confirm: true,
-        explicitUserRequest: 'Show the knowledge panel.',
-      });
-      expect(routed.success).toBe(true);
-      expect(routed.output).toContain('"status": "routed"');
-      expectModelFacingText(routed.output);
-      expect(fixture.routedPanels).toEqual([{ panelId: 'knowledge', pane: 'bottom' }]);
     } finally {
       fixture.cleanup();
     }

@@ -18,15 +18,10 @@ interface ShellRemoteSnapshot {
   readonly contracts: readonly ShellRemoteContract[];
 }
 
-interface ShellPanelRecord {
-  readonly id: string;
-}
-
 export function buildShellSessionContinuityHints(
   sessionSnapshot: ShellSessionSnapshot,
   tasksSnapshot: ShellTaskSnapshot,
   remoteSnapshot: ShellRemoteSnapshot,
-  openPanels: readonly ShellPanelRecord[],
 ) {
   return {
     pendingApprovals: sessionSnapshot.pendingApproval ? 1 : 0,
@@ -34,6 +29,5 @@ export function buildShellSessionContinuityHints(
     blockedTasks: tasksSnapshot.tasks.filter((task) => task.status === 'blocked').length,
     remoteContracts: remoteSnapshot.contracts.length,
     remoteRunners: remoteSnapshot.contracts.slice(0, 4).map((contract) => contract.runnerId),
-    openPanels: openPanels.map((panel) => panel.id),
   };
 }

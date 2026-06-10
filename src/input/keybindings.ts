@@ -39,6 +39,7 @@ export type KeyAction =
   | 'panel-close-all'
   | 'panel-tab-next'
   | 'panel-tab-prev'
+  | 'sidebar-toggle'
   | 'history-search'
   | 'search'
   | 'block-copy'
@@ -60,10 +61,11 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'clear-cancel':          'Clear input / cancel generation / exit (double)',
   'screen-clear':          'Repaint the screen',
   'panel-picker':          'Open the Agent operator workspace',
-  'panel-close':            'Dismiss Agent workspace',
-  'panel-close-all':         'Dismiss Agent workspace focus',
+  'panel-close':            'Close the Agent workspace',
+  'panel-close-all':         'Close the Agent workspace',
   'panel-tab-next':        'Cycle Agent workspace category forward',
   'panel-tab-prev':        'Cycle Agent workspace category backward',
+  'sidebar-toggle':        'Show or hide the activity sidebar',
   'history-search':        'Reverse input history search',
   'search':                'Toggle conversation search',
   'block-copy':            'Copy nearest block to clipboard',
@@ -103,6 +105,7 @@ export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'panel-close-all':         [{ key: 'x', ctrl: true, shift: true }],
   'panel-tab-next':        [{ key: ']', ctrl: true }],
   'panel-tab-prev':        [{ key: '[', ctrl: true }],
+  'sidebar-toggle':        [{ key: 'o', ctrl: true }],
   'history-search':        [{ key: 'r', ctrl: true }],
   'search':                [{ key: 'f', ctrl: true }],
   'block-copy':            [{ key: 'y', ctrl: true }],

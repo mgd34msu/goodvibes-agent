@@ -1,6 +1,6 @@
 import type { Line } from '../types/grid.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
-import { buildStyledPanelLine, type StyledPanelSegment } from '../panels/polish.ts';
+import { buildStyledPanelLine, type StyledPanelSegment } from './polish.ts';
 
 export interface TabStripItem {
   readonly label: string;

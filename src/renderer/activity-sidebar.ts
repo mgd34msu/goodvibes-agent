@@ -1,0 +1,186 @@
+/**
+ * Activity sidebar — the ambient right-hand surface of the shell.
+ *
+ * One glanceable column with at most four sections:
+ *
+ *   Now        what the assistant is doing this second (only while busy)
+ *   Needs you  approvals waiting on the user (only when non-empty)
+ *   Coming up  next scheduled work, when known (only when non-empty)
+ *   Recent     the activity feed, newest first
+ *
+ * Deliberately display-only: no focus, no tabs, no selection. Interactions
+ * stay in the conversation and the Agent workspace.
+ */
+
+import type { Line } from '../types/grid.ts';
+import { createEmptyLine } from '../types/grid.ts';
+import type { ActivityEntry, ActivityKind } from '../core/activity-feed.ts';
+import {
+  DEFAULT_PANEL_PALETTE,
+  buildPanelLine,
+  buildSectionHeader,
+  buildBodyText,
+} from './polish.ts';
+import { getDisplayWidth, truncateDisplay } from '../utils/terminal-width.ts';
+
+export interface ActivitySidebarNow {
+  /** True while a turn is streaming or tools are running. */
+  readonly busy: boolean;
+  /** Short human label for the current work, e.g. "Searching the web…". */
+  readonly label?: string;
+  /** Background agents with their latest progress lines. */
+  readonly agents: ReadonlyArray<{ readonly label: string; readonly progress?: string }>;
+  /** Count of running background processes. */
+  readonly processes: number;
+}
+
+export interface ActivitySidebarView {
+  readonly now: ActivitySidebarNow;
+  /** Plain-language items waiting on the user (approvals, prompts). */
+  readonly needsYou: readonly string[];
+  /** Plain-language upcoming scheduled work, soonest first. */
+  readonly comingUp: readonly string[];
+  /** Activity feed entries, newest first. */
+  readonly recent: readonly ActivityEntry[];
+}
+
+const C = DEFAULT_PANEL_PALETTE;
+
+const KIND_GLYPHS: Record<ActivityKind, string> = {
+  status: '·',
+  tool: '·',
+  agent: '»',
+  schedule: '◷',
+  delivery: '↗',
+  security: '!',
+  system: '·',
+};
+
+const KIND_COLORS: Record<ActivityKind, string> = {
+  status: C.dim,
+  tool: C.dim,
+  agent: C.info,
+  schedule: C.accent,
+  delivery: C.good,
+  security: C.warn,
+  system: C.dim,
+};
+
+function fmtClock(at: number): string {
+  const d = new Date(at);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function entryLine(width: number, entry: ActivityEntry): Line {
+  const time = fmtClock(entry.at);
+  const glyph = KIND_GLYPHS[entry.kind];
+  const color = KIND_COLORS[entry.kind];
+  // Strip the leading "[Tag]" — the glyph and color already carry the kind,
+  // and horizontal space is the scarcest resource in the sidebar.
+  const text = entry.text.replace(/^\[[^\]]+\]\s*/, '');
+  const room = Math.max(4, width - time.length - 5);
+  return buildPanelLine(width, [
+    [` ${time} `, C.dim],
+    [`${glyph} `, color],
+    [truncateDisplay(text, room), entry.priority === 'high' ? C.value : C.dim],
+  ]);
+}
+
+function wrappedItemLines(width: number, text: string, fg: string, bullet: string, bulletFg: string): Line[] {
+  const bodyWidth = Math.max(4, width - 3);
+  const body = buildBodyText(bodyWidth, text, C, fg);
+  return body.map((line, index) => {
+    const prefix = index === 0 ? ` ${bullet} ` : '   ';
+    const cells = buildPanelLine(width, [[prefix, bulletFg]]);
+    for (let i = 0; i < bodyWidth; i++) {
+      const cell = line[i];
+      if (cell !== undefined && 3 + i < width) cells[3 + i] = cell;
+    }
+    return cells;
+  });
+}
+
+/**
+ * Render the sidebar to exactly `height` lines of exactly `width` cells.
+ */
+export function buildActivitySidebarLines(
+  view: ActivitySidebarView,
+  width: number,
+  height: number,
+): Line[] {
+  const lines: Line[] = [];
+  const push = (line: Line) => {
+    if (lines.length < height) lines.push(line);
+  };
+  const blank = () => push(createEmptyLine(width));
+
+  // ── Now ──
+  if (view.now.busy || view.now.agents.length > 0 || view.now.processes > 0) {
+    push(buildSectionHeader(width, 'Now', C));
+    if (view.now.busy) {
+      push(buildPanelLine(width, [
+        [' ● ', C.info],
+        [truncateDisplay(view.now.label ?? 'Working…', Math.max(4, width - 4)), C.value],
+      ]));
+    }
+    for (const agent of view.now.agents.slice(0, 3)) {
+      const text = agent.progress ? `${agent.label} — ${agent.progress}` : agent.label;
+      push(buildPanelLine(width, [
+        [' » ', C.info],
+        [truncateDisplay(text, Math.max(4, width - 4)), C.dim],
+      ]));
+    }
+    if (view.now.processes > 0) {
+      push(buildPanelLine(width, [
+        [' ▸ ', C.dim],
+        [`${view.now.processes} background ${view.now.processes === 1 ? 'process' : 'processes'}`, C.dim],
+      ]));
+    }
+    blank();
+  }
+
+  // ── Needs you ──
+  if (view.needsYou.length > 0) {
+    push(buildSectionHeader(width, 'Needs you', C));
+    for (const item of view.needsYou.slice(0, 4)) {
+      for (const line of wrappedItemLines(width, item, C.value, '!', C.warn)) push(line);
+    }
+    blank();
+  }
+
+  // ── Coming up ──
+  if (view.comingUp.length > 0) {
+    push(buildSectionHeader(width, 'Coming up', C));
+    for (const item of view.comingUp.slice(0, 4)) {
+      for (const line of wrappedItemLines(width, item, C.dim, '◷', C.accent)) push(line);
+    }
+    blank();
+  }
+
+  // ── Recent ──
+  push(buildSectionHeader(width, 'Recent', C));
+  const remaining = Math.max(0, height - lines.length);
+  if (view.recent.length === 0) {
+    push(buildPanelLine(width, [[' Nothing yet — activity will show up here.', C.dim]]));
+  } else {
+    for (const entry of view.recent.slice(0, remaining)) {
+      push(entryLine(width, entry));
+    }
+  }
+
+  while (lines.length < height) lines.push(createEmptyLine(width));
+  return lines.slice(0, height);
+}
+
+/**
+ * Pick the sidebar width for a terminal width, or 0 when it should not render.
+ * The sidebar only earns its space on wide terminals; the conversation always
+ * keeps at least ~80 usable columns.
+ */
+export function resolveActivitySidebarWidth(terminalWidth: number): number {
+  if (terminalWidth < 120) return 0;
+  return Math.min(44, Math.max(32, Math.floor(terminalWidth * 0.24)));
+}
+
+/** True when `getDisplayWidth` would matter; exported for tests. */
+export const __test__ = { fmtClock, entryLine, KIND_GLYPHS, getDisplayWidth };

@@ -120,8 +120,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
   test('known panel-local repaint files do not emit render:request', () => {
     const violations: string[] = [];
     const restrictedFiles = [
-      'src/panels/provider-stats-panel.ts',
-      'src/panels/provider-health-panel.ts',
     ];
 
     for (const relPath of restrictedFiles) {
@@ -154,11 +152,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
   test('typed turn-consumer panels do not subscribe to legacy turn bus events', () => {
     const violations: string[] = [];
     const restrictedFiles = [
-      'src/panels/thinking-panel.ts',
-      'src/panels/context-visualizer-panel.ts',
-      'src/panels/provider-stats-panel.ts',
-      'src/panels/provider-health-panel.ts',
-      'src/panels/cost-tracker-panel.ts',
       'src/main.ts',
     ];
 
@@ -193,7 +186,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
     const violations: string[] = [];
     const restrictedFiles = [
       'src/runtime/bootstrap.ts',
-      'src/panels/cost-tracker-panel.ts',
     ];
 
     for (const relPath of restrictedFiles) {
@@ -260,8 +252,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
     const violations: string[] = [];
     const restrictedFiles = [
       'src/runtime/bootstrap.ts',
-      'src/panels/provider-stats-panel.ts',
-      'src/panels/provider-health-panel.ts',
     ];
     const legacyTokens = [
       "providers:changed",
@@ -301,7 +291,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
   test('tool typed-consumer files do not subscribe to legacy tool bus events', () => {
     const violations: string[] = [];
     const restrictedFiles = [
-      'src/panels/tool-inspector-panel.ts',
       'src/main.ts',
     ];
     const legacyTokens = [
@@ -484,7 +473,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
     const currentTuiSurfaces = [
       'src/runtime/services.ts',
       'src/input/commands/runtime-services.ts',
-      'src/panels/builtin/operations.ts',
     ];
 
     for (const relPath of currentTuiSurfaces) {
@@ -518,38 +506,6 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
   test('WRFC producer-side flow no longer depends on legacy EventBus wiring', () => {
     const removedLocalController = join(projectRoot, 'src/agents/wrfc-controller.ts');
     expect(existsSync(removedLocalController)).toBe(false);
-
-    const relPath = 'src/panels/builtin/agent.ts';
-    const absPath = join(projectRoot, relPath);
-    const content = readFileSync(absPath, 'utf8');
-    const lines = content.split('\n');
-    const violations: string[] = [];
-    const legacyTokens = [
-      "from '../core/event-bus.ts'",
-      'this.eventBus.',
-      'requires EventBus',
-    ];
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (legacyTokens.find((token) => line.includes(token)) !== undefined) {
-        violations.push(`${relPath}:${i + 1} — ${line.trim()}`);
-      }
-    }
-
-    if (violations.length > 0) {
-      throw new Error(
-        [
-          'GC-ARCH-004 violation: WRFC producer code reintroduced legacy EventBus coupling.',
-          'Use RuntimeEventBus agent/workflow events only for WRFC runtime flow.',
-          '',
-          'Violations:',
-          ...violations.map((v) => `  - ${v}`),
-        ].join('\n'),
-      );
-    }
-
-    expect(violations).toHaveLength(0);
   });
 
   test('notification integrations do not expose legacy EventBus attachment paths', () => {

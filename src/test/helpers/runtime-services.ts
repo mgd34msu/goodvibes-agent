@@ -194,10 +194,6 @@ export function getTestProviderRegistry(): RuntimeServices['providerRegistry'] {
   return getTestRuntimeServices().providerRegistry;
 }
 
-export function getTestPanelManager(): RuntimeServices['panelManager'] {
-  return getTestRuntimeServices().panelManager;
-}
-
 export function getTestBookmarkManager(): RuntimeServices['bookmarkManager'] {
   return getTestRuntimeServices().bookmarkManager;
 }

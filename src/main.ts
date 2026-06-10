@@ -25,10 +25,8 @@ import { createShellLayout } from './renderer/layout-engine.ts';
 import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-surface.ts';
 import { buildConversationViewport } from './renderer/conversation-layout.ts';
 import { applyConversationOverlays } from './renderer/conversation-overlays.ts';
-import { buildPanelCompositeData } from './renderer/panel-composite.ts';
+import { buildActivitySidebarLines, resolveActivitySidebarWidth } from './renderer/activity-sidebar.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
-import { registerBuiltinPanels } from './panels/builtin-panels.ts';
-import { renderPanelTabBar } from './renderer/panel-tab-bar.ts';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
 import type { HITLMode } from '@pellux/goodvibes-sdk/platform/state';
@@ -127,12 +125,10 @@ async function main() {
     }
   }
 
-  const panelManager = ctx.services.panelManager;
   const buildSessionContinuityHints = () => buildShellSessionContinuityHints(
     uiServices.readModels.session.getSnapshot(),
     uiServices.readModels.tasks.getSnapshot(),
     uiServices.readModels.remote.getSnapshot(),
-    panelManager.getAllOpen(),
   );
   const buildCurrentSessionSnapshot = (): SessionSnapshot => {
     const messages = conversation.getMessageSnapshot();
@@ -160,6 +156,17 @@ async function main() {
 
   let scrollTop = 0;
   let scrollLocked = true;
+
+  // Activity sidebar: shows ambient status on wide terminals. null = automatic
+  // (visible when the terminal is wide enough); the user can toggle it with
+  // Ctrl+O, which pins an explicit on/off override for the session.
+  let sidebarOverride: boolean | null = null;
+  const sidebarWidthFor = (width: number): number => {
+    const auto = resolveActivitySidebarWidth(width);
+    if (sidebarOverride === null) return auto;
+    if (!sidebarOverride) return 0;
+    return auto > 0 ? auto : Math.min(36, Math.max(28, Math.floor(width * 0.3)));
+  };
 
   const getPromptContentWidth = () => {
     const w = getTerminalSize(stdout).width;
@@ -349,6 +356,11 @@ async function main() {
     allowTerminalWrite(() => stdout.write(CLEAR_SCREEN));
     render();
   };
+  commandContext.toggleActivitySidebar = () => {
+    const width = getTerminalSize(stdout).width;
+    sidebarOverride = !(sidebarWidthFor(width) > 0);
+    render();
+  };
   permissionPromptRef.requestPermission = (request) =>
     new Promise((resolve) => {
       pendingPermission = {
@@ -389,7 +401,6 @@ async function main() {
       shell: {
         bookmarkManager: ctx.services.bookmarkManager,
         keybindingsManager: ctx.services.keybindingsManager,
-        panelManager,
         processManager,
         profileManager: ctx.services.profileManager,
       },
@@ -431,7 +442,6 @@ async function main() {
     const { width, height } = getTerminalSize(stdout);
 
     if (input.agentWorkspace.active) {
-      input.setPanelMouseLayout(null);
       activeConversationWidth = width;
       conversation.setSplashSuppressed(true);
       if (input.modelPicker.active) {
@@ -463,7 +473,6 @@ async function main() {
     const composerState = deriveComposerState({
       text: input.prompt,
       commandMode: input.commandMode,
-      panelFocused: input.panelFocused,
       pendingApproval: pendingPermission !== null,
       hasAttachments: input.getImageAttachments().size > 0,
       turnState: sessionSnapshot.turnState,
@@ -513,31 +522,18 @@ async function main() {
 
     const shellHeaderLines = headerLines;
     const shellFooterLines = footerLines;
-    const panelWidth = panelManager.isVisible() && panelManager.getAllOpen().length > 0
-      ? panelManager.getRightWidth(width)
-      : 0;
+    const sidebarWidth = sidebarWidthFor(width);
     const shellLayout = createShellLayout({
       width,
       height,
       headerHeight: shellHeaderLines.length,
       footerHeight: shellFooterLines.length,
-      panelWidth,
+      panelWidth: sidebarWidth,
     });
-    input.setPanelMouseLayout(shellLayout.panel
-      ? {
-          x: shellLayout.panel.x,
-          y: shellLayout.panel.y,
-          width: shellLayout.panel.width,
-          height: shellLayout.panel.height,
-          hasBottomPane: panelManager.isBottomPaneVisible() && panelManager.getBottomPane().panels.length > 0,
-          verticalSplitRatio: panelManager.getVerticalSplitRatio(),
-        }
-      : null);
     const vHeight = shellLayout.body.height;
     const conversationWidth = shellLayout.conversation.width;
     activeConversationWidth = conversationWidth;
-    const hasPanelWorkspace = panelManager.isVisible() && panelManager.getAllOpen().length > 0;
-    conversation.setSplashSuppressed(hasPanelWorkspace);
+    conversation.setSplashSuppressed(false);
 
     // Flush pending renders after updating the width provider and splash posture
     // so the transcript and splash rebuild against the current shell layout.
@@ -599,13 +595,27 @@ async function main() {
       contextWindow: currentModel.contextWindow,
     });
 
-    // Panel composite data
-    const panelComposite = buildPanelCompositeData(
-        panelManager,
-        input,
-        shellLayout.panel?.width ?? 0,
-        shellLayout.panel?.height ?? vHeight,
-      );
+    // Activity sidebar (ambient status on wide terminals)
+    const sidebar = sidebarWidth > 0
+      ? {
+          lines: buildActivitySidebarLines({
+            now: {
+              busy: orchestrator.isThinking,
+              label: sessionSnapshot.streamToolPreview?.trim() || undefined,
+              agents: activeAgents.slice(0, 3).map((agent) => ({
+                label: agent.label,
+                progress: agent.latestProgress?.trim() || undefined,
+              })),
+              processes: runningProcessCount,
+            },
+            needsYou: pendingPermission
+              ? ['Approval needed — answer the prompt under the conversation.']
+              : [],
+            comingUp: [],
+            recent: systemMessageRouter.getFeed()?.latest(Math.max(4, vHeight - 8)) ?? [],
+          }, sidebarWidth, vHeight),
+        }
+      : undefined;
 
     compositor.composite({
       width, height,
@@ -622,8 +632,8 @@ async function main() {
         scrollTop,
         viewportStartY: shellHeaderLines.length,
       } : undefined,
-      panel: panelComposite.panelData,
-      panelWidth: panelComposite.panelWidth,
+      sidebar,
+      sidebarWidth,
     });
   };
   const terminalOutputGuard = installTuiTerminalOutputGuard({ stdout, stderr: process.stderr, notify: (message) => { systemMessageRouter.low(message); render(); } });
@@ -634,7 +644,6 @@ async function main() {
   wireShellUiOpeners({
     commandContext,
     input,
-    panelManager,
     conversation,
     configManager,
     providerRegistry,

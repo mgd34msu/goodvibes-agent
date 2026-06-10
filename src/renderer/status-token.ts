@@ -12,7 +12,7 @@
 // ---------------------------------------------------------------------------
 
 import type { Cell } from '../types/grid.ts';
-import { DEFAULT_PANEL_PALETTE } from '../panels/polish.ts';
+import { DEFAULT_PANEL_PALETTE } from './polish.ts';
 import { type StatusState, STATE_GLYPHS } from './status-glyphs.ts';
 
 // Re-export for downstream consumers that import from this module.

@@ -27,19 +27,14 @@ import {
 import {
   handleIndicatorFocusToken,
   handleMouseToken,
-  handlePanelFocusToken,
   handlePromptKeyToken,
   handlePromptTextToken,
-  type PanelMouseLayout,
 } from './handler-feed-routes.ts';
 import type { WrappedPromptInfo } from './handler-prompt-buffer.ts';
 import { handleModalTokenRoutes } from './handler-modal-token-routes.ts';
 import { handleCommandModeToken } from './handler-command-route.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
-import type { Panel } from '../panels/types.ts';
-import { handlePanelIntegrationAction } from './panel-integration-actions.ts';
 import { SelectionManager } from './selection.ts';
-import type { PanelManager } from '../panels/panel-manager.ts';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
 
@@ -51,7 +46,7 @@ import type { ModelPickerTarget } from './model-picker.ts';
  * **Mutable per-feed** (synced from handler at the top of every feed() call, and
  * updated inside action closures via syncFeedContextMutableFields):
  *   - `prompt`, `cursorPos` — current text buffer state
- *   - `commandMode`, `panelFocused`, `indicatorFocused` — focus-mode flags
+ *   - `commandMode`, `indicatorFocused` — focus-mode flags
  *   - `helpOverlayActive`, `helpScrollOffset` — help overlay visibility and scroll
  *   - `shortcutsOverlayActive`, `shortcutsScrollOffset` — shortcuts overlay state
  *   - `nextPasteId`, `nextImageId` — monotonically increasing ID counters
@@ -72,7 +67,7 @@ import type { ModelPickerTarget } from './model-picker.ts';
  *   - `filePicker`, `modelPicker`, `processModal`, `liveTailModal`,
  *     `contextInspectorModal`, `blockActionsMenu`, `searchManager`, `historySearch` —
  *     service objects constructed once
- *   - `panelManager`, `keybindingsManager` — from uiServices, stable for app lifetime
+ *   - `keybindingsManager` — from uiServices, stable for app lifetime
  *   - `modalStack` — reference to the handler's shared array (mutated in place)
  *   - `getHistory`, `getViewportHeight`, `getScrollTop`, `scroll`, `exitApp` — stable
  *     callbacks bound in the InputHandler constructor
@@ -86,7 +81,6 @@ export interface InputFeedContext {
   cursorPos: number;
   inputScrollTop: number;
   commandMode: boolean;
-  panelFocused: boolean;
   indicatorFocused: boolean;
   helpOverlayActive: boolean;
   helpScrollOffset: number;
@@ -120,8 +114,6 @@ export interface InputFeedContext {
   readonly contextInspectorModal: ContextInspectorModal;
   readonly blockActionsMenu: BlockActionsMenu;
   readonly searchManager: SearchManager;
-  readonly panelManager: PanelManager;
-  panelMouseLayout: PanelMouseLayout | null;
   readonly keybindingsManager: KeybindingsManager;
   readonly modalStack: string[];
   inputHistory: InputHistory | null;
@@ -147,7 +139,6 @@ export interface InputFeedContext {
   readonly executeBlockAction: (id: string) => void;
   readonly cycleAgentWorkspaceCategory: (direction: 'next' | 'prev') => void;
   readonly dismissAgentWorkspace: () => boolean;
-  readonly onPanelInputConsumed: (activePanel: Panel | null, key: string) => void;
   readonly getWrappedPromptInfo: (contentWidth: number) => WrappedPromptInfo;
   readonly moveCursorVertical: (direction: -1 | 1) => boolean;
   readonly handlePathCompletion: () => boolean;
@@ -236,16 +227,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
     }
 
     if (token.type === 'key') {
-      if (
-        context.panelFocused
-        && (!context.panelManager.isVisible()
-          || context.panelManager.getAllOpen().length === 0
-          || context.panelManager.getActivePanel() === null)
-      ) {
-        context.panelFocused = false;
-      }
       const shortcutState = {
-        panelFocused: context.panelFocused,
         prompt: context.prompt,
         cursorPos: context.cursorPos,
         commandMode: context.commandMode,
@@ -272,34 +254,14 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         handleEscape: context.handleEscape,
         cycleAgentWorkspaceCategory: context.cycleAgentWorkspaceCategory,
         dismissAgentWorkspace: context.dismissAgentWorkspace,
-        panelManager: context.panelManager,
         keybindingsManager: context.keybindingsManager,
       };
       if (handleGlobalShortcutToken(shortcutState, token, viewportHeight)) {
         context.prompt = shortcutState.prompt;
         context.cursorPos = shortcutState.cursorPos;
         context.commandMode = shortcutState.commandMode;
-        context.panelFocused = shortcutState.panelFocused;
         continue;
       }
-    }
-
-    const panelRoute = handlePanelFocusToken({
-      panelFocused: context.panelFocused,
-      commandMode: context.commandMode,
-      searchActive: context.searchManager.active,
-      autocompleteActive: !!context.autocomplete?.isActive,
-      requestRender: context.requestRender,
-      handlePathCompletion: context.handlePathCompletion,
-      cycleAgentWorkspaceCategory: context.cycleAgentWorkspaceCategory,
-      dismissAgentWorkspace: context.dismissAgentWorkspace,
-      panelManager: context.panelManager,
-      keybindingsManager: context.keybindingsManager,
-      onPanelInputConsumed: context.onPanelInputConsumed,
-    }, token);
-    context.panelFocused = panelRoute.panelFocused;
-    if (panelRoute.handled) {
-      continue;
     }
 
     const indicatorRoute = handleIndicatorFocusToken({
@@ -348,8 +310,6 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         modalStack: context.modalStack,
         commandRegistry: context.commandRegistry,
         commandContext: context.commandContext,
-        panelFocused: context.panelFocused,
-        panelManager: context.panelManager,
         conversationManager: context.conversationManager,
         requestRender: context.requestRender,
         handleEscape: context.handleEscape,
@@ -365,7 +325,6 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         context.commandMode = commandState.commandMode;
         context.prompt = commandState.prompt;
         context.cursorPos = commandState.cursorPos;
-        context.panelFocused = commandState.panelFocused;
         context.nextPasteId = commandState.nextPasteId;
         context.nextImageId = commandState.nextImageId;
         continue;
@@ -411,8 +370,6 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       const mouseRoute = handleMouseToken({
         conversationManager: context.conversationManager,
         selection: context.selection,
-        panelManager: context.panelManager,
-        panelMouseLayout: context.panelMouseLayout,
         mouseDownRow: context.mouseDownRow,
         mouseDownCol: context.mouseDownCol,
         scrollTop,
@@ -432,13 +389,4 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
   }
 
   context.requestRender();
-}
-
-export function defaultPanelInputConsumer(
-  panelManager: PanelManager,
-  activePanel: Panel | null,
-  key: string,
-  commandContext?: CommandContext,
-): void {
-  handlePanelIntegrationAction(panelManager, activePanel, key, commandContext);
 }

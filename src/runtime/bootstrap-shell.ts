@@ -13,8 +13,7 @@ import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
 import { InputHistory } from '../input/input-history.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
-import { registerBuiltinPanels } from '../panels/builtin-panels.ts';
-import { SystemMessagesPanel } from '../panels/system-messages-panel.ts';
+import { ActivityFeed } from '../core/activity-feed.ts';
 import { createSystemMessageRouter, type SystemMessageRouter } from '../core/system-message-router.ts';
 import { getConfigSnapshot } from '../config/index.ts';
 import { createBootstrapCommandContext } from './bootstrap-command-context.ts';
@@ -24,7 +23,6 @@ import { loadBootstrapSystemPrompt } from '@/runtime/index.ts';
 import { createShellPlanRuntime, createShellRemoteCommandService } from '@/runtime/index.ts';
 import { createRuntimeFoundationClients } from '@/runtime/index.ts';
 import type { ControlPlaneRecentEvent } from '@pellux/goodvibes-sdk/platform/control-plane';
-import type { BuiltinPanelDeps } from '../panels/builtin/shared.ts';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ForensicsRegistry } from '@/runtime/index.ts';
 import type { PolicyRuntimeState } from '@/runtime/index.ts';
@@ -125,7 +123,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     completeModelSelectionSideEffect,
   } = options;
 
-  const systemMessagesPanel = new SystemMessagesPanel(configManager, services.componentHealthMonitor);
+  const activityFeed = new ActivityFeed();
   const resumeSession = createResumeSessionHandler({
     runtimeBus,
     runtime,
@@ -141,54 +139,10 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
   });
 
   let commandContextRef: CommandContext | null = null;
-  registerBuiltinPanels(services.panelManager, {
-    configManager,
-    getOrchestratorUsage: () => orchestrator.usage as { input: number; output: number; cacheRead: number; cacheWrite: number; model?: string },
-    toolRegistry,
-    providerRegistry: services.providerRegistry,
-    contextWindow: services.providerRegistry.getContextWindowForModel(services.providerRegistry.getCurrentModel()),
-    orchestrator,
-    getCtxWindow: () => services.providerRegistry.getContextWindowForModel(services.providerRegistry.getCurrentModel()),
-    resumeSession,
-    requestRender,
-    submitPlanningAnswer: (answer) => {
-      submitPlanningAnswerWithShellFallback(answer, {
-        getSubmitInput: () => commandContextRef?.submitInput,
-        addSystemMessage: (message) => conversation.addSystemMessage(message),
-        requestRender,
-      });
-    },
-    dismissPlanning: () => {
-      services.panelManager.close('project-planning');
-      commandContextRef?.focusPrompt?.();
-      requestRender();
-    },
-    forensicsRegistry,
-    policyRuntimeState,
-    approvalBroker: services.approvalBroker,
-    sessionBroker: services.sessionBroker,
-    automationManager: services.automationManager,
-    getControlPlaneRecentEvents,
-    tokenAuditor: services.tokenAuditor,
-    componentHealthMonitor: services.componentHealthMonitor,
-    worktreeRegistry: services.worktreeRegistry,
-    sandboxSessionRegistry: services.sandboxSessionRegistry,
-    systemMessagesPanel,
-    memoryRegistry: services.memoryRegistry,
-    agentKnowledgeService: services.agentKnowledgeService,
-    uiServices,
-    pluginManager: services.pluginManager,
-    hookDispatcher: services.hookDispatcher,
-    hookActivityTracker: services.hookActivityTracker,
-    hookWorkbench: services.hookWorkbench,
-    mcpRegistry: services.mcpRegistry,
-    connectedHostTokenDir: join(services.homeDirectory, '.goodvibes', 'daemon'),
-  });
-  services.panelManager.prewarmRegistered();
 
   const systemMessageRouter = createSystemMessageRouter(
     conversation,
-    systemMessagesPanel,
+    activityFeed,
     (kind) => {
       const ui = getConfigSnapshot(configManager).ui;
       if (kind === 'wrfc') return ui.wrfcMessages;
@@ -287,7 +241,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     mcpApi,
     opsApi,
     directTransport,
-    panelManager: services.panelManager,
     worktreeRegistry: services.worktreeRegistry,
     sandboxSessionRegistry: services.sandboxSessionRegistry,
     loadSystemPrompt: () => loadBootstrapSystemPrompt(configManager),

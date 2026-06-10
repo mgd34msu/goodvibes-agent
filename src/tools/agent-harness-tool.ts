@@ -12,7 +12,6 @@ import { delegationPostureCatalogStatus, delegationPostureSummary, describeHarne
 import { describeHarnessKeybinding, listHarnessKeybindings, listHarnessShortcuts, resetHarnessKeybinding, runHarnessKeybinding, setHarnessKeybinding, totalHarnessKeybindings, totalHarnessShortcuts } from './agent-harness-keybinding-metadata.ts';
 import { describeHarnessMediaProvider, mediaPostureCatalogStatus, mediaPostureSummary } from './agent-harness-media-posture.ts';
 import { describeHarnessNotificationTarget, listHarnessNotificationTargets, notificationTargetCatalogStatus } from './agent-harness-notification-metadata.ts';
-import { describeHarnessPanel, listHarnessPanels, openHarnessPanel, totalHarnessPanels } from './agent-harness-panel-metadata.ts';
 import { connectedHostStatusSummary } from './agent-harness-connected-host-status.ts';
 import { backgroundProcessCatalogStatus, backgroundProcessSummary, describeBackgroundProcess, runBackgroundProcessAction } from './agent-harness-background-processes.ts';
 import { describeDocumentOpsLane, documentOpsCatalogStatus, documentOpsSummary } from './agent-harness-document-ops.ts';
@@ -81,7 +80,6 @@ function compactHarnessModeGuide(): Record<string, unknown> {
 function detailedHarnessModelAccessGuide(): Record<string, string> {
   return {
     cliCommands: 'Prefer workspace action:"cli_commands|cli_command" for CLI discovery. Lower-level cli command modes remain available.',
-    panels: 'Prefer workspace action:"panels|panel|open_panel"; visible navigation needs confirm:true and explicitUserRequest.',
     uiSurfaces: 'Prefer workspace action:"surfaces|surface|open" for visible UI and computer action:"browser|open_browser" for browser/PWA. Lower-level UI modes remain available.',
     shortcuts: 'Prefer workspace action:"shortcuts|keybindings|keybinding|run_keybinding|set_keybinding|reset_keybinding"; effects need confirmation.',
     slashCommands: 'Prefer workspace action:"commands|command|run_command"; slash-command execution needs confirmation.',
@@ -214,7 +212,6 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             harnessModes: HARNESS_MODE_DESCRIPTORS.length,
             cliCommands: totalHarnessCliCommands(),
             blockedCliCommandTokens: blockedHarnessCliCommandTokens(),
-            panels: totalHarnessPanels(deps.commandContext),
             uiSurfaces: totalHarnessUiSurfaces(),
             shortcuts: totalHarnessShortcuts(deps.commandContext),
             keybindings: totalHarnessKeybindings(deps.commandContext),
@@ -281,24 +278,6 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'cli_command') {
           return output(describeHarnessCliCommand(args));
-        }
-        if (args.mode === 'panels') {
-          const panels = listHarnessPanels(deps.commandContext, args);
-          return output({
-            panels,
-            returned: panels.length,
-            total: totalHarnessPanels(deps.commandContext),
-            policy: 'Panel modes expose Agent/TUI operator view catalog and open state. open_panel is confirmation-gated and routes through the current Agent operator surface.',
-          });
-        }
-        if (args.mode === 'panel') {
-          const panel = describeHarnessPanel(deps.commandContext, args);
-          return panel ? output(panel) : error(`Unknown panel ${readString(args.panelId || args.target || args.query) || '<missing>'}.`);
-        }
-        if (args.mode === 'open_panel') {
-          const confirmationError = requireConfirmedAction(args, 'Panel routing');
-          if (confirmationError) return error(confirmationError);
-          return output(openHarnessPanel(deps.commandContext, args));
         }
         if (args.mode === 'ui_surfaces') {
           const surfaces = listHarnessUiSurfaces(deps.commandContext, args);

@@ -1,6 +1,6 @@
 import type { CommandContext } from '../input/command-registry.ts';
-import type { ProviderAccountRecord, ProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
-import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
+import type { ProviderAccountRecord, ProviderAccountSnapshot } from '../runtime/provider-account-snapshot.ts';
+import { buildProviderAccountSnapshot } from '../runtime/provider-account-snapshot.ts';
 import { requireProvider, requireServiceRegistry, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 

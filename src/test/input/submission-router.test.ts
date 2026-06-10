@@ -39,17 +39,6 @@ describe('submission router', () => {
     });
   });
 
-  test('classifies panel routes as Agent workspace commands', () => {
-    expect(routeSubmissionIntent({ text: '/panel' })).toMatchObject({
-      kind: 'slash-command',
-      label: 'Agent workspace',
-      commandName: 'panel',
-    });
-    expect(routeSubmissionIntent({ text: '', panelFocused: true })).toMatchObject({
-      kind: 'empty',
-      label: 'prompt',
-    });
-  });
 
   test('classifies shell shorthand and memory pin', () => {
     expect(routeSubmissionIntent({ text: '!git status' }).kind).toBe('shell');

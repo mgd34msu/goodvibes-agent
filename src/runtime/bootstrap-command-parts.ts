@@ -6,7 +6,6 @@ import type { KnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
 import type { HookApi } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { McpApi } from '@pellux/goodvibes-sdk/platform/mcp';
-import type { PanelManager } from '../panels/panel-manager.ts';
 import type { ProviderApi } from '@pellux/goodvibes-sdk/platform/providers';
 import type { OpsApi } from '@/runtime/index.ts';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
@@ -62,7 +61,6 @@ export interface BootstrapCommandActionOptions {
   readonly conversation: ConversationManager;
   readonly runtime: MutableRuntimeState;
   readonly requestRender: () => void;
-  readonly panelManager: PanelManager;
   readonly loadSystemPrompt: () => string;
   readonly activatePlan: (planId: string, task: string) => void;
   readonly requestPermission: PermissionRequestHandler;
@@ -76,7 +74,6 @@ export interface BootstrapCommandSectionOptions {
   readonly runtime: MutableRuntimeState;
   readonly keybindingsManager?: KeybindingsManager;
   readonly processManager?: import('@pellux/goodvibes-sdk/platform/tools').ProcessManager;
-  readonly panelManager: PanelManager;
   readonly requestRender: () => void;
   readonly requestPermission: PermissionRequestHandler;
   readonly toolRegistry: ToolRegistry;
@@ -158,7 +155,6 @@ export function createBootstrapCommandActions(
   | 'print'
   | 'exit'
   | 'reloadSystemPrompt'
-  | 'showPanel'
   | 'openMcpWorkspace'
   | 'openAgentWorkspace'
   | 'dismissAgentWorkspace'
@@ -172,17 +168,14 @@ export function createBootstrapCommandActions(
     conversation,
     runtime,
     requestRender,
-    panelManager,
     loadSystemPrompt,
     activatePlan,
     requestPermission,
     completeModelSelectionSideEffect,
   } = options;
 
-  const showPanel = (panelId: string, pane?: 'top' | 'bottom') => {
-    void pane;
-    panelManager.hide();
-    conversation.log(`Panel route "${panelId}" is handled through Agent Workspace. Use /agent for current operator controls.`, { fg: '214' });
+  const pointToWorkspace = (what: string) => {
+    conversation.log(`${what} lives in the Agent workspace — press Ctrl+P or run /agent.`, { fg: '214' });
     requestRender();
   };
 
@@ -246,18 +239,17 @@ export function createBootstrapCommandActions(
     },
     exit: () => unwiredShellAction('exit'),
     reloadSystemPrompt: loadSystemPrompt,
-    showPanel,
     openMcpWorkspace: () => unwiredShellAction('openMcpWorkspace'),
     openAgentWorkspace: () => unwiredShellAction('openAgentWorkspace'),
     dismissAgentWorkspace: () => unwiredShellAction('dismissAgentWorkspace'),
     openSecurityPanel: () => {
-      showPanel('security');
+      pointToWorkspace('Security review');
     },
     openKnowledgePanel: () => {
-      showPanel('knowledge');
+      pointToWorkspace('Knowledge');
     },
     openSubscriptionPanel: () => {
-      showPanel('subscription');
+      pointToWorkspace('Provider subscriptions');
     },
   };
 }
@@ -295,7 +287,7 @@ export function createBootstrapCommandProviderSection(
 export function createBootstrapCommandWorkspaceSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'keybindingsManager' | 'fileUndoManager' | 'panelManager' | 'profileManager' | 'bookmarkManager'
+    'keybindingsManager' | 'fileUndoManager' | 'profileManager' | 'bookmarkManager'
     | 'processManager' | 'projectPlanningService' | 'projectPlanningProjectId' | 'workPlanStore'
   >,
   shellServices: BootstrapCommandShellServices,
@@ -303,7 +295,6 @@ export function createBootstrapCommandWorkspaceSection(
   return {
     keybindingsManager: options.keybindingsManager,
     fileUndoManager: options.fileUndoManager,
-    panelManager: options.panelManager,
     processManager: options.processManager,
     profileManager: options.profileManager,
     bookmarkManager: options.bookmarkManager,

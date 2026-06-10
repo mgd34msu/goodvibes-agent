@@ -28,7 +28,6 @@ export function createFullscreenCompositeFromLines(
     viewport: normalizeFullscreenViewport(lines, width, height),
     footer: [],
     forceFullRedraw: true,
-    panelWidth: 0,
   };
 }
 

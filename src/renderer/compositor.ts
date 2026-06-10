@@ -17,25 +17,9 @@ export interface SearchInfo {
   viewportStartY: number;
 }
 
-export interface PanelCompositeData {
-  /** Workspace-level tab bar spanning all open panels. */
-  workspaceBar: Line;
-  /** Top pane: tab bar */
-  topTabBar?: Line;
-  /** Top pane: panel content lines */
-  topContent: Line[];
-  /** Whether the top pane is focused (affects separator color) */
-  topFocused: boolean;
-  /** Bottom pane tab bar. Undefined = no bottom pane. */
-  bottomTabBar?: Line;
-  /** Bottom pane content lines. Undefined = no bottom pane. */
-  bottomContent?: Line[];
-  /** Whether the bottom pane is focused */
-  bottomFocused?: boolean;
-  /** Separator between left and right panel area */
-  separator: boolean;
-  /** Ratio of panel height for the top pane (0–1). Only used when bottom pane is present. */
-  verticalSplitRatio: number;
+export interface SidebarCompositeData {
+  /** Pre-rendered sidebar lines, one per viewport row. */
+  lines: Line[];
 }
 
 export interface CompositeRequest {
@@ -47,8 +31,8 @@ export interface CompositeRequest {
   forceFullRedraw?: boolean;
   selection?: SelectionInfo;
   search?: SearchInfo;
-  panel?: PanelCompositeData;
-  panelWidth?: number; // width of the right panel area (0 = no panel)
+  sidebar?: SidebarCompositeData;
+  sidebarWidth?: number; // width of the right sidebar area (0 = no sidebar)
 }
 
 /**
@@ -75,7 +59,7 @@ export class Compositor {
   }
 
   public composite(params: CompositeRequest): void {
-    const { width, height, header, viewport, footer, forceFullRedraw, selection, search, panel, panelWidth } = params;
+    const { width, height, header, viewport, footer, forceFullRedraw, selection, search, sidebar, sidebarWidth } = params;
     const previousFrontBuffer = forceFullRedraw ? null : this.frontBuffer;
     if (forceFullRedraw) this.diffEngine.reset();
 
@@ -87,9 +71,9 @@ export class Compositor {
     }
     const newBuffer = this.backBuffer;
 
-    const hasPanel = panel !== undefined && panelWidth !== undefined && panelWidth > 0;
-    const leftWidth = hasPanel ? Math.max(1, width - panelWidth - 1) : width;
-    const sepX = hasPanel ? leftWidth : -1;
+    const hasSidebar = sidebar !== undefined && sidebarWidth !== undefined && sidebarWidth > 0;
+    const leftWidth = hasSidebar ? Math.max(1, width - sidebarWidth - 1) : width;
+    const sepX = hasSidebar ? leftWidth : -1;
 
     // 1. Draw Header — always full width
     header.forEach((line, i) => newBuffer.blitLine(i, line));
@@ -102,41 +86,17 @@ export class Compositor {
     const lineCount = selection?.lineCount ?? 0;
     const offset = Math.max(0, vHeight - lineCount);
 
-    // --- Pre-compute panel row layout when split pane is active ---
-    // When both top and bottom panes are visible, the panel area is split:
-    //   row 0:              workspace tab bar
-    //   row 1:              top tab bar
-    //   rows 2..topH+1:     top content
-    //   row topH+2:         horizontal separator (───)
-    //   row topH+3:         bottom tab bar
-    //   rows topH+4..end:   bottom content
-    const hasBottomPane = hasPanel && panel!.bottomTabBar !== undefined;
-    let topPaneHeight = 0;   // number of content rows in top pane
-    let bottomPaneHeight = 0;
-    let hSepRow = -1;        // viewport row of the horizontal separator
-    if (hasPanel && hasBottomPane) {
-      const panelAreaRows = Math.max(0, vHeight - 1); // subtract workspace tab bar
-      // top: 1 (tabbar) + topContent rows; bottom: 1 (sep) + 1 (tabbar) + bottomContent
-      const contentRows = Math.max(0, panelAreaRows - 3); // subtract top-tabbar + h-sep + bottom-tabbar
-      topPaneHeight = Math.max(1, Math.floor(contentRows * panel!.verticalSplitRatio));
-      bottomPaneHeight = Math.max(1, contentRows - topPaneHeight);
-      hSepRow = 2 + topPaneHeight; // workspace bar + top tab bar + top content rows
-    }
-
-    const sepFg = hasPanel && panel!.separator
-      ? (panel!.topFocused || panel!.bottomFocused ? '244' : '238')
-      : '238';
+    const sepFg = '238';
 
     viewport.forEach((line, i) => {
       const screenY = viewportStartY + i;
       if (screenY >= height) return;
 
-      if (!hasPanel) {
-        // No panel: existing fast path
+      if (!hasSidebar) {
+        // No sidebar: existing fast path
         newBuffer.blitLine(screenY, line);
       } else {
-        // Panel active: write cells individually to support split layout
-        // Left side: viewport cells 0..leftWidth-1
+        // Sidebar active: left side gets viewport cells 0..leftWidth-1
         for (let x = 0; x < leftWidth; x++) {
           const cell = line[x];
           if (cell !== undefined) {
@@ -151,78 +111,20 @@ export class Compositor {
           }
         }
 
-        const p = panel!;
+        // Separator column (vertical bar between conversation and sidebar)
+        newBuffer.setCell(sepX, screenY, createStyledCell('│', { fg: sepFg }));
 
-        // Separator column (vertical bar between left and panel area)
-        if (p.separator) {
-          newBuffer.setCell(sepX, screenY, createStyledCell('│', { fg: sepFg }));
+        const sidebarStartX = sepX + 1;
+        const sidebarLine = sidebar!.lines[i];
+        const limit = sidebarLine === undefined ? 0 : Math.min(sidebarLine.length, sidebarWidth);
+        for (let x = 0; x < limit; x++) {
+          const cell = sidebarLine![x];
+          if (cell !== undefined) {
+            newBuffer.setCell(sidebarStartX + x, screenY, cell);
+          }
         }
-
-        const panelStartX = sepX + 1;
-        const clearPanelRemainder = (fromX = 0) => {
-          for (let x = Math.max(0, fromX); x < panelWidth; x++) {
-            newBuffer.setCell(panelStartX + x, screenY, createEmptyCell());
-          }
-        };
-        const drawPanelLine = (panelLine: Line | undefined) => {
-          if (panelLine === undefined) {
-            clearPanelRemainder();
-            return;
-          }
-          const limit = Math.min(panelLine.length, panelWidth);
-          for (let x = 0; x < limit; x++) {
-            const cell = panelLine[x];
-            if (cell !== undefined) {
-              newBuffer.setCell(panelStartX + x, screenY, cell);
-            }
-          }
-          clearPanelRemainder(limit);
-        };
-
-        if (!hasBottomPane) {
-          // --- Single pane mode ---
-          // viewport row 0 → workspace bar, viewport rows 1+ → panel content
-          const panelLine = i === 0 ? p.workspaceBar : p.topContent[i - 1];
-          drawPanelLine(panelLine);
-        } else {
-          // --- Two pane mode ---
-          // Row layout (by viewport row i):
-          //   i = 0:                      workspace tab bar
-          //   i = 1:                      top tab bar
-          //   2 <= i <= topPaneHeight+1:  top content[i-2]
-          //   i = hSepRow:                horizontal separator
-          //   i = hSepRow+1:              bottom tab bar
-          //   i >= hSepRow+2:             bottom content[i - (hSepRow+2)]
-          let panelLine: Line | undefined;
-
-          if (i === 0) {
-            panelLine = p.workspaceBar;
-          } else if (i === 1) {
-            panelLine = p.topTabBar;
-          } else if (i <= topPaneHeight + 1) {
-            panelLine = p.topContent[i - 2];
-          } else if (i === hSepRow) {
-            // Horizontal separator between the two panes
-            // Render ─ chars across the panel width
-            const focusFg = p.bottomFocused ? '36' : '238'; // cyan if bottom pane focused
-            for (let x = 0; x < panelWidth; x++) {
-              newBuffer.setCell(panelStartX + x, screenY, createStyledCell('─', { fg: focusFg }));
-            }
-            // Also update the separator column char to T-junction (├):
-            // ├ connects the vertical left-separator with the horizontal pane divider,
-            // forming a clean T-shaped joint at the split point.
-            if (p.separator) {
-              newBuffer.setCell(sepX, screenY, createStyledCell('├', { fg: focusFg }));
-            }
-          } else if (i === hSepRow + 1) {
-            panelLine = p.bottomTabBar;
-          } else {
-            panelLine = p.bottomContent?.[i - (hSepRow + 2)];
-          }
-
-          if (i !== hSepRow) {
-            drawPanelLine(panelLine);
-          }
+        for (let x = limit; x < sidebarWidth; x++) {
+          newBuffer.setCell(sidebarStartX + x, screenY, createEmptyCell());
         }
       }
 
@@ -260,12 +162,22 @@ export class Compositor {
       newBuffer.blitLine(screenY, createEmptyLine(width));
     }
 
-    // Draw separator on remaining viewport rows past content (when panel is active)
-    if (hasPanel && panel!.separator) {
+    // Draw the separator and sidebar on viewport rows past the conversation content
+    if (hasSidebar) {
       for (let i = viewport.length; i < vHeight; i++) {
         const screenY = viewportStartY + i;
         if (screenY >= height) break;
         newBuffer.setCell(sepX, screenY, createStyledCell('│', { fg: sepFg }));
+        const sidebarStartX = sepX + 1;
+        const sidebarLine = sidebar!.lines[i];
+        const limit = sidebarLine === undefined ? 0 : Math.min(sidebarLine.length, sidebarWidth!);
+        for (let x = 0; x < limit; x++) {
+          const cell = sidebarLine![x];
+          if (cell !== undefined) newBuffer.setCell(sidebarStartX + x, screenY, cell);
+        }
+        for (let x = limit; x < sidebarWidth!; x++) {
+          newBuffer.setCell(sidebarStartX + x, screenY, createEmptyCell());
+        }
       }
     }
 

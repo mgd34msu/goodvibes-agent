@@ -237,7 +237,6 @@ export async function bootstrapRuntime(
   const {
     automationManager,
     hookDispatcher,
-    panelManager,
     pluginManager,
   } = services;
 

@@ -161,7 +161,7 @@ export async function initializeBootstrapCore(
     sessionId: userSessionId,
     authenticatedAt: Date.now(),
     lastSeenAt: Date.now(),
-    capabilities: ['session', 'panels', 'commands', 'automation'],
+    capabilities: ['session', 'commands', 'automation'],
     metadata: {
       product: 'goodvibes-agent',
       surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
@@ -176,7 +176,6 @@ export async function initializeBootstrapCore(
     hookDispatcher,
     hookWorkbench,
     memoryStore,
-    panelManager,
     routeBindings,
     sessionBroker: sharedSessionBroker,
     surfaceRegistry,
@@ -215,13 +214,7 @@ export async function initializeBootstrapCore(
     getControlPlaneRecentEvents,
   });
 
-  const conversation = new ConversationManager(() => {
-    const width = getTerminalSize(stdout).width;
-    if (panelManager.isVisible() && panelManager.getAllOpen().length > 0) {
-      return Math.max(1, panelManager.getLeftWidth(width) - 1);
-    }
-    return width;
-  });
+  const conversation = new ConversationManager(() => getTerminalSize(stdout).width);
   conversation.setConfigManager(configManager);
   getConversationTitle = () => conversation.title;
 

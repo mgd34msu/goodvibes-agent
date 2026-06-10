@@ -4,7 +4,7 @@
 
 import { describe, test, expect } from 'bun:test';
 import { buildStatusToken, type StatusState } from '../../renderer/status-token.ts';
-import { DEFAULT_PANEL_PALETTE } from '../../panels/polish.ts';
+import { DEFAULT_PANEL_PALETTE } from '../../renderer/polish.ts';
 
 describe('buildStatusToken', () => {
   const STATES: StatusState[] = ['good', 'warn', 'bad', 'info'];

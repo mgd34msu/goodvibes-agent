@@ -4,7 +4,6 @@ import type { SearchManager } from './search.ts';
 import type { HistorySearch } from './input-history.ts';
 import type { ConversationManager } from '../core/conversation';
 import type { AutocompleteEngine } from './autocomplete.ts';
-import type { PanelManager } from '../panels/panel-manager.ts';
 import type { KeybindingsManager } from './keybindings.ts';
 
 type WrappedPromptInfo = {
@@ -14,8 +13,6 @@ type WrappedPromptInfo = {
 };
 
 export type GlobalShortcutRouteState = {
-  panelFocused: boolean;
-  panelManager: PanelManager;
   keybindingsManager: KeybindingsManager;
   prompt: string;
   cursorPos: number;
@@ -54,17 +51,15 @@ export function handleGlobalShortcutToken(
 
   // Fast-path: bare pageup/pagedown have no keybinding entry.
   if (token.logicalName === 'pageup') {
-    if (state.panelFocused) return false;
     state.scroll(-Math.max(1, viewportHeight - 2));
     return true;
   }
   if (token.logicalName === 'pagedown') {
-    if (state.panelFocused) return false;
     state.scroll(Math.max(1, viewportHeight - 2));
     return true;
   }
   // Bare escape is also not in the keybinding table.
-  if (token.logicalName === 'escape' && !state.panelFocused) {
+  if (token.logicalName === 'escape') {
     state.handleEscape();
     return true;
   }
@@ -86,48 +81,28 @@ export function handleGlobalShortcutToken(
       state.commandContext?.clearScreen?.();
       return true;
 
-    case 'panel-close-all': {
-      if (state.dismissAgentWorkspace()) {
-        state.panelFocused = false;
-        return true;
-      }
-      const pm = state.panelManager;
-      for (const p of pm.getAllOpen()) pm.close(p.id);
-      pm.hide();
-      state.panelFocused = false;
+    case 'panel-close-all':
+    case 'panel-close':
+      state.dismissAgentWorkspace();
       state.requestRender();
       return true;
-    }
-
-    case 'panel-close': {
-      if (state.dismissAgentWorkspace()) {
-        state.panelFocused = false;
-        return true;
-      }
-      const pm = state.panelManager;
-      const active = pm.getActivePanel();
-      if (active) {
-        pm.close(active.id);
-        state.requestRender();
-      }
-      state.panelFocused = false;
-      return true;
-    }
 
     case 'panel-picker':
       state.commandContext?.openPanelPicker?.();
-      state.panelFocused = false;
+      state.requestRender();
+      return true;
+
+    case 'sidebar-toggle':
+      state.commandContext?.toggleActivitySidebar?.();
       state.requestRender();
       return true;
 
     case 'panel-tab-next':
       state.cycleAgentWorkspaceCategory('next');
-      state.panelFocused = false;
       return true;
 
     case 'panel-tab-prev':
       state.cycleAgentWorkspaceCategory('prev');
-      state.panelFocused = false;
       return true;
 
     case 'history-search':

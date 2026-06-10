@@ -109,17 +109,6 @@ function listSlashCommands(): string[] {
   return registry.getAll().map((command) => command.name);
 }
 
-function countBuiltinPanels(root: string): number {
-  const builtinDir = join(root, 'src', 'panels', 'builtin');
-  let count = 0;
-  for (const file of readdirSync(builtinDir)) {
-    if (!file.endsWith('.ts')) continue;
-    const text = readFileSync(join(builtinDir, file), 'utf8');
-    count += [...text.matchAll(/registerType\(\s*\{\s*id:\s*['"][^'"]+['"]/g)].length;
-  }
-  return count;
-}
-
 function listCliCommands(root: string): string[] {
   const text = readFileSync(join(root, 'src', 'cli', 'types.ts'), 'utf8');
   const match = text.match(/export type GoodVibesCliCommand =([\s\S]*?)export type GoodVibesCliOutputFormat/);
@@ -133,7 +122,6 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   const slashCommandNames = listSlashCommands();
   const cliCommandNames = listCliCommands(root);
   const slashCommands = slashCommandNames.length;
-  const panels = countBuiltinPanels(root);
   const cliCommands = cliCommandNames.length;
   const featureFlags = FEATURE_FLAG_MAP.size;
   const settings = CONFIG_SCHEMA.length;
@@ -180,14 +168,6 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       localBehaviorVerified: slashCommands - externalSlashCommands,
       externalOutcomeRequired: externalSlashCommands,
       notes: 'Every command can be routed and invoked through an in-process command harness; external/provider/device commands need live outcome checks.',
-    },
-    {
-      area: 'Built-in panels',
-      total: panels,
-      localSignalVerified: panels,
-      localBehaviorVerified: panels,
-      externalOutcomeRequired: 0,
-      notes: 'Panels can be rendered and input-tested against test read models and real cached state.',
     },
     {
       area: 'Top-level CLI commands',

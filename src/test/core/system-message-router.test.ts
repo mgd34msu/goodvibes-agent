@@ -1,6 +1,6 @@
 import { describe, test, expect, beforeEach, mock } from 'bun:test';
-import { SystemMessageRouter, createSystemMessageRouter, type SystemMessageKind, type SystemMessageTarget } from '../../core/system-message-router.ts';
-import type { SystemMessagesPanel, SystemMessagePriority } from '../../panels/system-messages-panel.ts';
+import { SystemMessageRouter, createSystemMessageRouter, type SystemMessageKind, type SystemMessagePriority, type SystemMessageTarget } from '../../core/system-message-router.ts';
+import type { ActivityFeed } from '../../core/activity-feed.ts';
 import type { ConversationManager } from '../../core/conversation';
 
 // ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ describe('classifyPriority (via routeAuto)', () => {
     panel = makePanel();
     router = createSystemMessageRouter(
       conv as unknown as ConversationManager,
-      panel as unknown as SystemMessagesPanel,
+      panel as unknown as ActivityFeed,
       makeTargetResolver(),
     );
   });
@@ -85,7 +85,7 @@ describe('classifyPriority (via routeAuto)', () => {
   test('[Tool] activity messages classify as operational and can route separately', () => {
     const opsRouter = createSystemMessageRouter(
       conv as unknown as ConversationManager,
-      panel as unknown as SystemMessagesPanel,
+      panel as unknown as ActivityFeed,
       makeTargetResolver({ operational: 'conversation' }),
     );
     opsRouter.routeAuto('[Tool] edit applied to src/main.ts');
@@ -112,7 +112,7 @@ describe('routeSystemMessage', () => {
     panel = makePanel();
     router = createSystemMessageRouter(
       conv as unknown as ConversationManager,
-      panel as unknown as SystemMessagesPanel,
+      panel as unknown as ActivityFeed,
       makeTargetResolver(),
     );
   });
@@ -168,7 +168,7 @@ describe('routeSystemMessage', () => {
   test('custom system target can route to both', () => {
     const bothRouter = createSystemMessageRouter(
       conv as unknown as ConversationManager,
-      panel as unknown as SystemMessagesPanel,
+      panel as unknown as ActivityFeed,
       makeTargetResolver({ system: 'both' }),
     );
     bothRouter.routeSystemMessage('both message', 'high');
@@ -241,7 +241,7 @@ describe('SystemMessagesPanel integration', () => {
     const panel = makePanel();
     const router = createSystemMessageRouter(
       conv as unknown as ConversationManager,
-      panel as unknown as SystemMessagesPanel,
+      panel as unknown as ActivityFeed,
       makeTargetResolver(),
     );
 
@@ -256,7 +256,7 @@ describe('SystemMessagesPanel integration', () => {
     const panel = makePanel();
     const router = createSystemMessageRouter(
       conv as unknown as ConversationManager,
-      panel as unknown as SystemMessagesPanel,
+      panel as unknown as ActivityFeed,
       makeTargetResolver(),
     );
 
@@ -269,21 +269,21 @@ describe('SystemMessagesPanel integration', () => {
 // getPanel
 // ---------------------------------------------------------------------------
 
-describe('getPanel', () => {
+describe('getFeed', () => {
   test('returns the panel passed at construction', () => {
     const conv = makeConversation();
     const panel = makePanel();
     const router = createSystemMessageRouter(
       conv as unknown as ConversationManager,
-      panel as unknown as SystemMessagesPanel,
+      panel as unknown as ActivityFeed,
       makeTargetResolver(),
     );
-    expect(router.getPanel()).toBe(panel as unknown as SystemMessagesPanel);
+    expect(router.getFeed()).toBe(panel as unknown as ActivityFeed);
   });
 
   test('returns null when no panel passed', () => {
     const conv = makeConversation();
     const router = createSystemMessageRouter(conv as unknown as ConversationManager);
-    expect(router.getPanel()).toBeNull();
+    expect(router.getFeed()).toBeNull();
   });
 });

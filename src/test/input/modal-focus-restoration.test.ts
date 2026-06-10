@@ -8,7 +8,6 @@ function buildState() {
     commandMode: false,
     modalStack: [] as string[],
     modalReturnFocus: 'prompt' as 'prompt' | 'indicator',
-    panelFocused: false,
     indicatorFocused: false,
     prompt: '',
     cursorPos: 0,
@@ -37,7 +36,6 @@ function buildState() {
 describe('modal focus restoration', () => {
   test('records prompt focus when the first modal opens from copied panel focus', () => {
     const state = buildState();
-    state.panelFocused = true;
     state.helpOverlayActive = true;
     modalOpened(state, 'help');
     expect(state.modalReturnFocus).toBe('prompt');
@@ -45,11 +43,9 @@ describe('modal focus restoration', () => {
 
   test('returns to prompt focus when the last modal closes after copied panel focus', () => {
     const state = buildState();
-    state.panelFocused = true;
     state.helpOverlayActive = true;
     modalOpened(state, 'help');
     const result = handleEscape(state);
-    expect(result.panelFocused).toBe(false);
     expect(result.indicatorFocused).toBe(false);
   });
 
@@ -59,7 +55,6 @@ describe('modal focus restoration', () => {
     state.processModal.active = true;
     modalOpened(state, 'process');
     const result = handleEscape(state);
-    expect(result.panelFocused).toBe(false);
     expect(result.indicatorFocused).toBe(true);
   });
 
@@ -98,7 +93,6 @@ describe('modal focus restoration', () => {
     expect(state.modalStack).toEqual(['process']);
     expect(state.contextInspectorModal.active).toBe(false);
     expect(state.processModal.active).toBe(true);
-    expect(result.panelFocused).toBe(false);
     expect(result.indicatorFocused).toBe(false);
   });
 });

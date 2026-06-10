@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildProviderAccountSnapshot } from '../../panels/provider-account-snapshot.ts';
+import { buildProviderAccountSnapshot } from '../../runtime/provider-account-snapshot.ts';
 import { createTestManagers } from '../helpers/test-managers.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';

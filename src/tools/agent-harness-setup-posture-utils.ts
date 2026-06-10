@@ -1,5 +1,5 @@
 import { statSync } from 'node:fs';
-import { buildProviderAccountSnapshot } from '../panels/provider-account-snapshot.ts';
+import { buildProviderAccountSnapshot } from '../runtime/provider-account-snapshot.ts';
 import { requireLocalUserAuthManager, requirePlatform, requireProvider, requireSecretsManager, requireServiceRegistry, requireShellPaths, requireSubscriptionManager } from '../input/commands/runtime-services.ts';
 import { collectOnboardingSnapshot } from '../runtime/onboarding/index.ts';
 import type { CommandContext } from '../input/command-registry.ts';

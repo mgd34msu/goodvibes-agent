@@ -46,7 +46,6 @@ import { IntegrationHelperService } from '@/runtime/index.ts';
 import { VoiceProviderRegistry, VoiceService, ensureBuiltinVoiceProviders } from '@pellux/goodvibes-sdk/platform/voice';
 import { WebSearchProviderRegistry, WebSearchService } from '@pellux/goodvibes-sdk/platform/web-search';
 import { MemoryEmbeddingProviderRegistry } from '@pellux/goodvibes-sdk/platform/state';
-import { PanelManager } from '../panels/panel-manager.ts';
 import { HookActivityTracker } from '@pellux/goodvibes-sdk/platform/hooks';
 import { HookDispatcher, createHookWorkbench, type HookWorkbench } from '@pellux/goodvibes-sdk/platform/hooks';
 import { PluginManager } from '@pellux/goodvibes-sdk/platform/plugins';
@@ -388,7 +387,6 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly runtimeBus: RuntimeEventBus;
   readonly runtimeStore: RuntimeStore;
   readonly runtimeDispatch: DomainDispatch;
-  readonly panelManager: PanelManager;
   readonly keybindingsManager: KeybindingsManager;
   readonly routeBindings: RouteBindingManager;
   readonly surfaceRegistry: SurfaceRegistry;
@@ -488,7 +486,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const featureFlags = options.featureFlags ?? createFeatureFlagManager();
   const runtimeDispatch = createDomainDispatch(options.runtimeStore);
   const gatewayMethods = new GatewayMethodCatalog();
-  const panelManager = new PanelManager();
   const keybindingsManager = new KeybindingsManager({
     configPath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'keybindings.json'),
   });
@@ -761,9 +758,21 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const modeManager = new ModeManager();
   const fileUndoManager = new FileUndoManager();
   const executionLedger = new AgentExecutionLedger(options.runtimeBus);
+  // The SDK's foundation/integration contracts still expect a panel manager;
+  // the Agent shell has no panel UI (the Activity sidebar replaced it), so we
+  // satisfy those contracts with a no-op implementation.
+  const emptyPane = { panels: [], activeIndex: 0 } as const;
+  const panelManager = {
+    getTopPane: () => emptyPane,
+    getBottomPane: () => emptyPane,
+    getRegisteredTypes: () => [],
+    open: () => undefined,
+    show: () => {},
+  };
   const integrationHelpers = new IntegrationHelperService({
     workingDirectory,
     homeDirectory,
+    panelManager,
     runtimeStore: options.runtimeStore,
     runtimeBus: options.runtimeBus,
     configManager,
@@ -774,7 +783,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     distributedRuntime,
     remoteRunnerRegistry,
     remoteSupervisor,
-    panelManager,
     localUserAuthManager,
     providerRegistry,
     serviceRegistry,

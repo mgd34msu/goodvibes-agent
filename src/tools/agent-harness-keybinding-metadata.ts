@@ -310,6 +310,13 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
         note: 'Runs the available clear-screen route.',
       };
+    case 'sidebar-toggle':
+      return {
+        supported: false,
+        effect: 'visible-ui-navigation',
+        confirmation: 'Direct user interaction only.',
+        note: 'Shows or hides the activity sidebar. Layout preferences stay under user control.',
+      };
     case 'panel-picker':
       return {
         supported: true,
@@ -579,16 +586,13 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
           keybinding: descriptor,
         };
       }
-      const active = context.workspace.panelManager?.getActivePanel() ?? null;
-      if (active) context.workspace.panelManager?.close(active.id);
-      if (!active && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, active panel, or prompt focus route is available.');
-      if (context.focusPrompt) context.focusPrompt();
+      if (!context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace or prompt focus route is available.');
+      context.focusPrompt();
       context.renderRequest();
       return {
         status: 'executed',
         action: resolved.action,
-        effect: active ? 'active-panel-closed' : 'prompt-focused',
-        ...(active ? { panelId: active.id } : {}),
+        effect: 'prompt-focused',
         keybinding: descriptor,
       };
     }
@@ -603,18 +607,13 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
           keybinding: descriptor,
         };
       }
-      const managerPanel = context.workspace.panelManager;
-      const openPanels = managerPanel?.getAllOpen() ?? [];
-      for (const panel of openPanels) managerPanel?.close(panel.id);
-      managerPanel?.hide();
-      if (openPanels.length === 0 && !context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace, open panels, or prompt focus route is available.');
-      if (context.focusPrompt) context.focusPrompt();
+      if (!context.focusPrompt) return runUnavailable(resolved.action, route, 'No active Agent workspace or prompt focus route is available.');
+      context.focusPrompt();
       context.renderRequest();
       return {
         status: 'executed',
         action: resolved.action,
-        effect: 'all-panels-closed',
-        closedPanels: openPanels.map((panel) => panel.id),
+        effect: 'prompt-focused',
         keybinding: descriptor,
       };
     }

@@ -1,9 +1,9 @@
 import type { Line } from '../types/grid.ts';
 import { createEmptyLine, createStyledCell } from '../types/grid.ts';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
-import { getSurfaceContentRows, getTrackedVisibleWindow, getVisibleWindow, type VisibleWindow } from '../renderer/surface-layout.ts';
-import { GLYPHS, UI_TONES } from '../renderer/ui-primitives.ts';
-import { type StatusState, STATE_GLYPHS } from '../renderer/status-glyphs.ts';
+import { getSurfaceContentRows, getTrackedVisibleWindow, getVisibleWindow, type VisibleWindow } from './surface-layout.ts';
+import { GLYPHS, UI_TONES } from './ui-primitives.ts';
+import { type StatusState, STATE_GLYPHS } from './status-glyphs.ts';
 
 export interface PanelPalette {
   readonly label: string;

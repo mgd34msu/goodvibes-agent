@@ -2080,7 +2080,6 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'FEATURE_FLAG_MAP', label: 'feature flag inventory source' },
       { marker: 'CommandRegistry', label: 'slash command registry inventory source' },
       { marker: 'registerBuiltinCommands', label: 'builtin slash command registration source' },
-      { marker: 'countBuiltinPanels(root)', label: 'builtin panel inventory source' },
       { marker: 'listCliCommands(root)', label: 'top-level CLI command inventory source' },
       { marker: 'GoodVibesCliCommand', label: 'CLI command type inventory source' },
       { marker: 'EXTERNAL_SLASH_COMMANDS', label: 'external slash command accounting' },
@@ -2143,7 +2142,6 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'Settings schema and persistence', label: 'settings ledger area' },
       { marker: 'Feature flags', label: 'feature flag ledger area' },
       { marker: 'Slash commands', label: 'slash command ledger area' },
-      { marker: 'Built-in panels', label: 'panel ledger area' },
       { marker: 'Top-level CLI commands', label: 'CLI ledger area' },
       { marker: 'External surfaces', label: 'external surface ledger area' },
       { marker: 'Onboarding capability bundles', label: 'onboarding ledger area' },
@@ -2452,7 +2450,6 @@ function verifyHarnessModeCatalogDescriptionPolicy(root: string): readonly strin
     'src/tools/agent-harness-mode-catalog.ts',
     'src/tools/agent-harness-command-catalog.ts',
     'src/tools/agent-harness-model-tool-catalog.ts',
-    'src/tools/agent-harness-panel-metadata.ts',
     'src/tools/agent-harness-ui-surface-metadata.ts',
     'src/tools/agent-harness-workspace-actions.ts',
     'src/input/agent-workspace-categories.ts',
@@ -2682,7 +2679,6 @@ function markerCount(source: string, marker: string): number {
 function verifyHarnessVisibleSurfaceModelAccessPolicy(root: string): readonly string[] {
   const issues: string[] = [];
   const workspaceActionsPath = join(root, 'src', 'tools', 'agent-harness-workspace-actions.ts');
-  const panelMetadataPath = join(root, 'src', 'tools', 'agent-harness-panel-metadata.ts');
   const uiSurfaceMetadataPath = join(root, 'src', 'tools', 'agent-harness-ui-surface-metadata.ts');
 
   if (!existsSync(workspaceActionsPath)) {
@@ -2709,27 +2705,6 @@ function verifyHarnessVisibleSurfaceModelAccessPolicy(root: string): readonly st
     for (const { marker, label } of requiredMarkers) {
       if (!source.includes(marker)) {
         issues.push(`harness workspace actions must keep ${label}.`);
-      }
-    }
-  }
-
-  if (!existsSync(panelMetadataPath)) {
-    issues.push('harness panel metadata source is missing: src/tools/agent-harness-panel-metadata.ts.');
-  } else {
-    const source = readFileSync(panelMetadataPath, 'utf-8');
-    if (markerCount(source, 'modelRoute: panelModelRoute()') < 2) {
-      issues.push('harness panel metadata must expose modelRoute on both panel candidates and detailed panel descriptions.');
-    }
-    const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
-      { marker: 'function panelModelRoute()', label: 'panel model route builder' },
-      { marker: 'workspaceRoute:', label: 'panel workspace route hint' },
-      { marker: 'openHarnessPanel', label: 'confirmed panel opener' },
-      { marker: 'confirmation: \'agent_harness mode:"open_panel" requires confirm:true and explicitUserRequest.\'', label: 'panel opener confirmation policy' },
-      { marker: "status: 'ambiguous'", label: 'ambiguous panel refusal' },
-    ];
-    for (const { marker, label } of requiredMarkers) {
-      if (!source.includes(marker)) {
-        issues.push(`harness panel metadata must keep ${label}.`);
       }
     }
   }

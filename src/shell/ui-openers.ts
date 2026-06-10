@@ -3,7 +3,6 @@ import { getProviderIdFromModel } from '../config/provider-model.ts';
 import type { ConversationManager } from '../core/conversation';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHandler } from '../input/handler.ts';
-import type { PanelManager } from '../panels/panel-manager.ts';
 import { EFFORT_DESCRIPTIONS } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
@@ -14,12 +13,10 @@ import type { SecretsManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
-import { agentWorkspaceCategoryForPanel } from '../input/agent-workspace-panel-route.ts';
 
 type WireShellUiOpenersOptions = {
   commandContext: CommandContext;
   input: InputHandler;
-  panelManager: PanelManager;
   conversation: ConversationManager;
   configManager: ConfigManager;
   providerRegistry: ProviderRegistry;
@@ -84,7 +81,6 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   const {
     commandContext,
     input,
-    panelManager,
     conversation,
     configManager,
     providerRegistry,
@@ -440,35 +436,14 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   };
 
   commandContext.openPanelPicker = () => {
-    panelManager.hide();
-    input.panelFocused = false;
     conversation.setSplashSuppressed(false);
-    conversation.log('Panel picker is handled through Agent Workspace. Use /agent for current operator controls.', { fg: '214' });
     input.openAgentWorkspace(commandContext, 'home');
     conversation.rebuildHistory();
-    render();
-  };
-
-  commandContext.focusPanels = () => {
-    input.panelFocused = false;
-    input.openAgentWorkspace(commandContext, 'home');
     render();
   };
 
   commandContext.focusPrompt = () => {
-    input.panelFocused = false;
     input.indicatorFocused = false;
-    render();
-  };
-
-  commandContext.showPanel = (panelId, pane) => {
-    void pane;
-    panelManager.hide();
-    input.panelFocused = false;
-    conversation.setSplashSuppressed(false);
-    conversation.log(`Panel route "${panelId}" is handled through Agent Workspace. Opening the matching operator area.`, { fg: '214' });
-    input.openAgentWorkspace(commandContext, agentWorkspaceCategoryForPanel(panelId));
-    conversation.rebuildHistory();
     render();
   };
 }

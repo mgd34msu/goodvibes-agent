@@ -29,8 +29,7 @@ describe('createAgentWorkspaceFullscreenComposite', () => {
     expect(composite.height).toBe(height);
     expect(composite.header).toEqual([]);
     expect(composite.footer).toEqual([]);
-    expect(composite.panel).toBeUndefined();
-    expect(composite.panelWidth).toBe(0);
+    expect(composite.sidebar).toBeUndefined();
     expect(composite.selection).toBeUndefined();
     expect(composite.search).toBeUndefined();
     expect(composite.forceFullRedraw).toBe(true);

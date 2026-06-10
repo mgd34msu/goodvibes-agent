@@ -1,7 +1,7 @@
 import { listBuiltinSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type {
   ProviderAccountInspectionQuery,
-} from '../runtime/ui-service-queries.ts';
+} from './ui-service-queries.ts';
 
 export type ProviderAuthRoute = 'api-key' | 'subscription' | 'service-oauth' | 'unconfigured';
 export type ProviderAuthFreshness = 'healthy' | 'expiring' | 'expired' | 'pending' | 'unconfigured';

@@ -78,20 +78,8 @@ function isRecoverableRoute(record: AgentExecutionRecord): boolean {
   return tool.includes('write') || tool.includes('edit') || tool.includes('patch') || tool.includes('delete');
 }
 
-function toolInspectorAvailable(context: CommandContext): boolean {
-  return Boolean(context.workspace.panelManager?.getRegisteredTypes().some((panel) => panel.id === 'tools'));
-}
-
 function supervisionRoutes(context: CommandContext, record: AgentExecutionRecord): readonly Record<string, unknown>[] {
   const routes: Record<string, unknown>[] = [];
-  if (toolInspectorAvailable(context)) {
-    routes.push({
-      id: 'tool-inspector',
-      label: 'Tool Call Inspector',
-      modelRoute: 'workspace action:"open_panel" panelId:"tools"',
-      requiresConfirmation: true,
-    });
-  }
   if (record.routeKind === 'shell') {
     if (typeof context.openProcessModal === 'function') {
       routes.push({
