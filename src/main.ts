@@ -54,6 +54,8 @@ import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './au
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
+import { buildAwayDigest, formatRelativeTime } from './core/away-digest.ts';
+import { LastSeenStore } from './core/last-seen-store.ts';
 
 const ALT_SCREEN_ENTER = '\x1b[?1049h', ALT_SCREEN_EXIT = '\x1b[?1049l', MOUSE_ENABLE = '\x1b[?1000h\x1b[?1002h\x1b[?1006h', MOUSE_DISABLE = '\x1b[?1006l\x1b[?1002l\x1b[?1000l', CURSOR_HIDE = '\x1b[?25l', CURSOR_SHOW = '\x1b[?25h', CLEAR_SCREEN = '\x1b[2J\x1b[3J\x1b[H';
 const KEYBOARD_EXT_ENABLE = '\x1b[>4;2m' + '\x1b[?1u', KEYBOARD_EXT_DISABLE = '\x1b[>4;0m' + '\x1b[?1l', PASTE_ENABLE = '\x1b[?2004h', PASTE_DISABLE = '\x1b[?2004l';
@@ -157,6 +159,53 @@ async function main() {
   let scrollTop = 0;
   let scrollLocked = true;
 
+  // ── Last-seen persistence (away digest + coming-up) ───────────────────────────
+  const lastSeenStore = LastSeenStore.fromShellPaths(ctx.services.shellPaths);
+
+  // Refresh lastSeenAt every 5 minutes so rapid restarts still detect activity.
+  const lastSeenRefreshInterval = setInterval(() => {
+    lastSeenStore.save();
+  }, 5 * 60_000);
+  lastSeenRefreshInterval.unref();
+
+  // ── Coming-up cache for the sidebar ───────────────────────────────────────────
+  const comingUpCache: { items: string[]; fetchedAt: number | null; fetching: boolean } = {
+    items: [],
+    fetchedAt: null,
+    fetching: false,
+  };
+  const COMING_UP_TTL_MS = 60_000;
+
+  function refreshComingUp(): void {
+    if (comingUpCache.fetching) return;
+    const now = Date.now();
+    if (comingUpCache.fetchedAt !== null && now - comingUpCache.fetchedAt < COMING_UP_TTL_MS) return;
+    comingUpCache.fetching = true;
+    Promise.resolve().then(() => {
+      try {
+        const manager = ctx.services.automationManager;
+        const jobs = manager.listJobs();
+        const upcoming = jobs
+          .filter((j) => j.enabled && j.nextRunAt !== undefined && j.nextRunAt > now)
+          .sort((a, b) => (a.nextRunAt ?? 0) - (b.nextRunAt ?? 0))
+          .slice(0, 3)
+          .map((j) => {
+            const when = j.nextRunAt ? formatRelativeTime(j.nextRunAt, now) : '';
+            const name = j.name.length > 22 ? `${j.name.slice(0, 20)}…` : j.name;
+            return when ? `${name} — ${when}` : name;
+          });
+        comingUpCache.items = upcoming;
+        comingUpCache.fetchedAt = Date.now();
+      } catch {
+        // Offline or manager unavailable — leave cache as-is.
+      } finally {
+        comingUpCache.fetching = false;
+      }
+    }).catch(() => {
+      comingUpCache.fetching = false;
+    });
+  }
+
   // Activity sidebar: shows ambient status on wide terminals. null = automatic
   // (visible when the terminal is wide enough); the user can toggle it with
   // Ctrl+O, which pins an explicit on/off override for the session.
@@ -235,6 +284,9 @@ async function main() {
   const exitApp = (): void => {
     stopSpokenOutputForExit?.();
     unsubs.forEach(fn => fn());
+    // Persist last-seen before shutdown so the next launch can compute the digest.
+    clearInterval(lastSeenRefreshInterval);
+    lastSeenStore.save();
     const snapshot = buildCurrentSessionSnapshot();
     ctx.shutdown(snapshot).catch((err) => {
       logger.debug('ctx.shutdown error during exitApp (non-fatal)', { error: summarizeError(err) });
@@ -441,6 +493,9 @@ async function main() {
   const render = () => {
     const { width, height } = getTerminalSize(stdout);
 
+    // Fire-and-forget refresh for the 'Coming up' sidebar section.
+    refreshComingUp();
+
     if (input.agentWorkspace.active) {
       activeConversationWidth = width;
       conversation.setSplashSuppressed(true);
@@ -611,7 +666,7 @@ async function main() {
             needsYou: pendingPermission
               ? ['Approval needed — answer the prompt under the conversation.']
               : [],
-            comingUp: [],
+            comingUp: comingUpCache.items,
             recent: systemMessageRouter.getFeed()?.latest(Math.max(4, vHeight - 8)) ?? [],
           }, sidebarWidth, vHeight),
         }
@@ -729,6 +784,71 @@ async function main() {
 
   conversation.rebuildHistory();
   render();
+
+  // ── Away digest ───────────────────────────────────────────────────────────
+  // Async, races with a short timeout. Runs after the first render so the
+  // digest appears as ambient conversation context, not a startup blocker.
+  void (async () => {
+    try {
+      const lastSeenAt = lastSeenStore.read();
+      const FETCH_TIMEOUT = 2500;
+      const getJobs = () => Promise.race([
+        Promise.resolve(ctx.services.automationManager.listJobs()),
+        new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), FETCH_TIMEOUT)),
+      ]);
+      const getTasks = () => Promise.race([
+        Promise.resolve(uiServices.readModels.tasks.getSnapshot().tasks),
+        new Promise<never>((_, r) => setTimeout(() => r(new Error('timeout')), FETCH_TIMEOUT)),
+      ]);
+
+      const [jobsResult, tasksResult] = await Promise.allSettled([getJobs(), getTasks()]);
+      const jobs = jobsResult.status === 'fulfilled' ? jobsResult.value : [];
+      const allTasks = tasksResult.status === 'fulfilled' ? tasksResult.value : [];
+
+      const firedSchedules = lastSeenAt !== null
+        ? jobs
+          .filter((j) => j.lastRunAt !== undefined && j.lastRunAt > lastSeenAt)
+          .map((j) => ({ name: j.name, lastRunAt: j.lastRunAt, runCount: j.runCount ?? 0 }))
+        : [];
+
+      const changedTasks = lastSeenAt !== null
+        ? allTasks
+          .filter((t) => {
+            const completedAt = (t as { completedAt?: number }).completedAt;
+            return completedAt !== undefined ? completedAt > lastSeenAt : false;
+          })
+          .map((t) => ({
+            title: (t as { title?: string; name?: string; description?: string }).title
+              ?? (t as { name?: string }).name
+              ?? 'Task',
+            status: (t as { status?: string }).status ?? 'done',
+            completedAt: (t as { completedAt?: number }).completedAt,
+          }))
+        : [];
+
+      const pendingApprovals = ctx.services.approvalBroker
+        .listApprovals()
+        .filter((a) => a.status === 'pending').length;
+
+      const digest = buildAwayDigest({
+        lastSeenAt,
+        schedules: firedSchedules,
+        tasks: changedTasks,
+        pendingApprovals,
+      });
+
+      if (digest !== null) {
+        const full = [digest.headline, ...digest.lines].join('\n  ');
+        systemMessageRouter.high(`[Status] ${full}`);
+        for (const line of digest.lines) {
+          systemMessageRouter.getFeed()?.push(`[Status] ${line}`, 'low', 'schedule');
+        }
+        render();
+      }
+    } catch (err) {
+      logger.debug('away-digest failed (non-fatal)', { error: summarizeError(err) });
+    }
+  })();
 
   const recoveryInfo = checkRecoveryFile({ workingDirectory: workingDir, homeDirectory });
   if (recoveryInfo) {
