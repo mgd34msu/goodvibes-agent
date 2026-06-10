@@ -3211,17 +3211,20 @@ function verifyReleaseReleaseNotesPolicy(root: string): readonly string[] {
       break;
     }
   }
-  const requiredThemes = [
-    'fullscreen Agent workspace',
-    'Agent-local behavior',
-    'Agent Knowledge',
-    'connected-host operator integration',
-    'side-effect boundaries',
-    'release hardening',
+  // Release notes describe what actually changed — no mandatory marketing
+  // themes, and no superlatives that a reader cannot verify from the diff.
+  const hypePhrases = [
+    'best-in-class',
+    'industry-leading',
+    'world-class',
+    'revolutionary',
+    'game-changing',
+    'unmatched',
   ] as const;
-  for (const theme of requiredThemes) {
-    if (!content.includes(theme)) {
-      issues.push(`release notes must mention ${theme}.`);
+  const lowered = content.toLowerCase();
+  for (const phrase of hypePhrases) {
+    if (lowered.includes(phrase)) {
+      issues.push(`release notes must describe changes plainly; remove "${phrase}".`);
     }
   }
   return issues;
