@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import {
   AgentSkillRegistry,
   buildAgentSkillRequirements,
@@ -8,6 +9,7 @@ import {
   type AgentSkillRecord,
 } from '../../agent/skill-registry.ts';
 import { discoverSkills, type SkillRecord } from '../../agent/skill-discovery.ts';
+import { parseSkillStandardMarkdown } from '../../agent/skill-standard.ts';
 import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../../agent/record-labels.ts';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { parseAgentLocalLibraryArgs, type ParsedAgentLocalLibraryArgs } from './agent-local-library-args.ts';
@@ -375,6 +377,57 @@ export async function runAgentSkillsRuntimeCommand(args: readonly string[], ctx:
     }
     if (sub === 'import-discovered' || sub === 'import-skill') {
       await importDiscoveredSkill(args.slice(1), ctx, skillRegistry);
+      return;
+    }
+    if (sub === 'import-standard') {
+      const parsed = parseSkillArgs(args.slice(1));
+      const filePath = parsed.rest[0];
+      if (!filePath) {
+        ctx.print('Usage: /skills import-standard <path/to/SKILL.md> --yes');
+        return;
+      }
+      if (!parsed.yes) {
+        ctx.print([
+          'Agent skill standard import preview',
+          `  path ${filePath}`,
+          '  next rerun with --yes to import into the Agent-local skill registry',
+        ].join('\n'));
+        return;
+      }
+      const content = readFileSync(filePath, 'utf-8');
+      const parseResult = parseSkillStandardMarkdown(content);
+      if ('error' in parseResult) {
+        ctx.print(`Skill standard import rejected: ${parseResult.error}`);
+        return;
+      }
+      const skill = skillRegistry.importFromStandard(content);
+      ctx.print(formatSkillReceipt('Imported shared skill', skill, [`  source ${filePath}`, `  review-state ${skill.reviewState}`]));
+      return;
+    }
+    if (sub === 'export-standard') {
+      const parsed = parseSkillArgs(args.slice(1));
+      const skillId = parsed.rest[0];
+      const destDir = parsed.rest[1];
+      if (!skillId || !destDir) {
+        ctx.print('Usage: /skills export-standard <id> <dest-directory> --yes');
+        return;
+      }
+      if (!parsed.yes) {
+        const skill = skillRegistry.get(skillId);
+        if (!skill) {
+          ctx.print(`Unknown Agent skill ${skillId}`);
+          return;
+        }
+        ctx.print([
+          'Agent skill standard export preview',
+          `  skill ${skill.id} (${skill.name})`,
+          `  dest ${destDir}/${skill.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}/SKILL.md`,
+          '  next rerun with --yes to write the file',
+        ].join('\n'));
+        return;
+      }
+      const written = skillRegistry.exportToStandard(skillId, destDir);
+      ctx.print(`Exported skill to ${written}`);
       return;
     }
     if (sub === 'list' || sub === 'open') {

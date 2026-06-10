@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentSkillRegistry, buildEnabledSkillsPrompt, evaluateAgentSkillReadiness, formatAgentSkillRequirement } from '../../agent/skill-registry.ts';
+import { renderSkillStandardMarkdown } from '../../agent/skill-standard.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
 function tempRegistry(): { readonly registry: AgentSkillRegistry; readonly paths: ReturnType<typeof createShellPathService> } {
@@ -204,5 +205,82 @@ describe('AgentSkillRegistry', () => {
 
     expect(registry.snapshot().skills).toHaveLength(0);
     expect(registry.snapshot().bundles).toHaveLength(0);
+  });
+
+  test('imports a skill from standard SKILL.md content with review-first policy', () => {
+    const { registry } = tempRegistry();
+    const content = '---\nname: Morning Brief\ndescription: Prepare a daily briefing.\nlicense: MIT\n---\nCheck calendar and tasks.\n';
+    const skill = registry.importFromStandard(content);
+    expect(skill.name).toBe('Morning Brief');
+    expect(skill.description).toBe('Prepare a daily briefing.');
+    expect(skill.procedure).toBe('Check calendar and tasks.');
+    expect(skill.enabled).toBe(false);
+    expect(skill.provenance).toBe('skill-standard-import');
+    expect(skill.source).toBe('imported');
+    expect(skill.reviewState).toBe('fresh');
+  });
+
+  test('importFromStandard rejects file missing required frontmatter', () => {
+    const { registry } = tempRegistry();
+    const content = '---\ndescription: No name.\n---\nBody.\n';
+    expect(() => registry.importFromStandard(content)).toThrow('name');
+  });
+
+  test('importFromStandard rejects secret-looking content', () => {
+    const { registry } = tempRegistry();
+    const content = '---\nname: Bad Skill\ndescription: Invalid.\n---\npassword=hunter2-value\n';
+    expect(() => registry.importFromStandard(content)).toThrow('secret');
+  });
+
+  test('exports a skill to standard SKILL.md format and round-trips', () => {
+    const { registry } = tempRegistry();
+    registry.create({
+      name: 'Status Review',
+      description: 'Review visible status.',
+      procedure: 'Inspect health endpoint and report warnings.',
+    });
+    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-export-'));
+    const written = registry.exportToStandard('status-review', tmpDir);
+    expect(written).toBe(join(tmpDir, 'status-review', 'SKILL.md'));
+    const content = readFileSync(written, 'utf-8');
+    // import into a fresh registry to avoid duplicate-name collision
+    const { registry: importRegistry } = tempRegistry();
+    const reimported = importRegistry.importFromStandard(content);
+    expect(reimported.name).toBe('Status Review');
+    expect(reimported.description).toBe('Review visible status.');
+  });
+
+  test('exportToStandard throws for unknown skill id', () => {
+    const { registry } = tempRegistry();
+    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-export-'));
+    expect(() => registry.exportToStandard('nonexistent', tmpDir)).toThrow('Unknown skill');
+  });
+
+  test('exportToStandard rejects overwrite without flag', () => {
+    const { registry } = tempRegistry();
+    registry.create({
+      name: 'Status Review',
+      description: 'Review visible status.',
+      procedure: 'Inspect health endpoint.',
+    });
+    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-export-'));
+    registry.exportToStandard('status-review', tmpDir);
+    expect(() => registry.exportToStandard('status-review', tmpDir)).toThrow('already exists');
+  });
+
+  test('render + import creates skill matching original fields', () => {
+    const { registry } = tempRegistry();
+    const original = registry.create({
+      name: 'Approval Review',
+      description: 'Summarize pending approvals.',
+      procedure: 'Use read-only approval routes first.',
+    });
+    const rendered = renderSkillStandardMarkdown(original);
+    // import into a fresh registry to avoid duplicate-name collision
+    const { registry: importRegistry } = tempRegistry();
+    const imported = importRegistry.importFromStandard(rendered);
+    expect(imported.name).toBe(original.name);
+    expect(imported.description).toBe(original.description);
+    expect(imported.procedure).toBe(original.procedure);
   });
 });

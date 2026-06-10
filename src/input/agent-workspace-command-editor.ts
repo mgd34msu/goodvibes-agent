@@ -80,6 +80,8 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'persona-discovery-import'
   | 'routine-discovery-import'
   | 'skill-discovery-import'
+  | 'skill-standard-import'
+  | 'skill-standard-export'
   | 'profile-template-export'
   | 'profile-template-import'
   | 'profile-template-from-discovered'

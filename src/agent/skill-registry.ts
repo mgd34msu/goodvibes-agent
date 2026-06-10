@@ -3,6 +3,7 @@ import { delimiter, dirname, join } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
+import { parseSkillStandardMarkdown, writeSkillStandardFile } from './skill-standard.ts';
 import { formatAgentRecordReviewState } from './record-labels.ts';
 import type {
   AgentSkillBundleCreateInput,
@@ -529,6 +530,35 @@ export class AgentSkillRegistry {
       bundles: store.bundles.filter((bundle) => bundle.id !== existing.id),
     });
     return existing;
+  }
+
+  /**
+   * Import a skill from the open skill standard format (SKILL.md).
+   * The skill is created with provenance 'skill-standard-import' and enabled=false (review-first policy).
+   * Throws if the file content is invalid or contains secret-looking text.
+   */
+  public importFromStandard(content: string): AgentSkillRecord {
+    const parsed = parseSkillStandardMarkdown(content);
+    if ('error' in parsed) throw new Error(parsed.error);
+    return this.create({
+      name: parsed.name,
+      description: parsed.description,
+      procedure: parsed.body,
+      enabled: false,
+      source: 'imported',
+      provenance: 'skill-standard-import',
+    });
+  }
+
+  /**
+   * Export one local skill by id to `<destDir>/<slug>/SKILL.md`.
+   * Throws if the skill is not found or the file already exists without overwrite=true.
+   * Returns the path written.
+   */
+  public exportToStandard(idOrName: string, destDir: string, overwrite = false): string {
+    const skill = this.get(idOrName);
+    if (!skill) throw new Error(`Unknown skill ${idOrName}`);
+    return writeSkillStandardFile(skill, destDir, overwrite);
   }
 
   private validateRequired(name: string, description: string, procedure: string): void {

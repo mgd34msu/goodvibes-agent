@@ -158,6 +158,8 @@ function editorPurposeLabel(editorKind: AgentWorkspaceEditorKind): string {
     case 'skill-search': return 'Search skills';
     case 'skill-show': return 'Show skill';
     case 'skill-discovery-import': return 'Import skill files';
+    case 'skill-standard-import': return 'Import shared skill';
+    case 'skill-standard-export': return 'Export skill to share';
     case 'routine': return 'Edit routine';
     case 'routine-search': return 'Search routines';
     case 'routine-show': return 'Show routine';
