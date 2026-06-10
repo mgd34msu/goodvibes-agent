@@ -59,12 +59,12 @@ describe('buildSetupIncompleteHint — phase gating', () => {
 // ---------------------------------------------------------------------------
 
 describe('buildSetupIncompleteHint — in-progress, ready to chat', () => {
-  test('line 1 mentions setup is not finished', () => {
+  test('line 1 mentions setup is not finished or still in progress', () => {
     const state = makeState({ readyToChat: true });
     const result = buildSetupIncompleteHint(state);
     expect(result).not.toBeNull();
     const line = result!.lines[0]!;
-    expect(line.toLowerCase()).toMatch(/setup|not finished|in progress/);
+    expect(line.toLowerCase()).toMatch(/setup|not finished|in progress|finishing/);
   });
 
   test('line 1 does not include progress label (dropped to avoid misleading counts)', () => {
@@ -86,7 +86,7 @@ describe('buildSetupIncompleteHint — in-progress, ready to chat', () => {
     const state = makeState({ readyToChat: true });
     const result = buildSetupIncompleteHint(state);
     const line = result!.lines[0]!.toLowerCase();
-    expect(line).toMatch(/chat|now|still/);
+    expect(line).toMatch(/chat|now|still|finishing/);
   });
 
   test('includes blocker label when blockers present', () => {

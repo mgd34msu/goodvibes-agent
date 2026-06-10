@@ -195,21 +195,10 @@ export class AgentWorkspace {
     this.focusPane = this.focusPane === 'categories' ? 'actions' : 'categories';
   }
 
-  moveUp(): void {
-    moveAgentWorkspaceSelection(this, -1);
-  }
-
-  moveDown(): void {
-    moveAgentWorkspaceSelection(this, 1);
-  }
-
-  jumpHome(): void {
-    jumpAgentWorkspaceSelection(this, 'home');
-  }
-
-  jumpEnd(): void {
-    jumpAgentWorkspaceSelection(this, 'end');
-  }
+  moveUp(): void { moveAgentWorkspaceSelection(this, -1); }
+  moveDown(): void { moveAgentWorkspaceSelection(this, 1); }
+  jumpHome(): void { jumpAgentWorkspaceSelection(this, 'home'); }
+  jumpEnd(): void { jumpAgentWorkspaceSelection(this, 'end'); }
 
   refreshRuntimeSnapshot(): void {
     if (!this.context) {
@@ -375,6 +364,16 @@ export class AgentWorkspace {
       this.status = 'Onboarding completion failed.';
       this.lastActionResult = { kind: 'error', title: 'Onboarding completion failed', detail, safety: 'safe' };
     }
+  }
+
+  onSubscriptionLoginSuccess(): void {
+    if (this._onlyGroup !== 'ONBOARDING') return;
+    this._onboardingState = computeOnboardingStateFromSnapshot(this.runtimeSnapshot, this.context?.workspace?.shellPaths);
+    if (!this._onboardingState) return;
+    const entry = deriveOnboardingEntry(this._onboardingState);
+    const idx = entry.categoryId ? this.categories.findIndex((c) => c.id === entry.categoryId) : -1;
+    if (idx >= 0) this.selectedCategoryIndex = idx;
+    this.status = this._onboardingState.readyToChat ? 'Signed in. You are ready to chat — Apply & close when ready.' : `Signed in. ${entry.status}`;
   }
 
   openModelPickerAction(action: AgentWorkspaceAction, requestRender?: () => void): void {

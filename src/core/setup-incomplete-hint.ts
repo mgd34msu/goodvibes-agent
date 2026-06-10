@@ -45,11 +45,11 @@ export function buildSetupIncompleteHint(
     const nextStep = pickNextStep(state);
     if (nextStep) {
       lines.push(
-        `Setup isn't finished. You can chat now, but ${nextStep} — run /agent to continue.`,
+        `You can chat now. Still finishing setup — ${nextStep} — run /agent to complete it.`,
       );
     } else {
       lines.push(
-        `Setup isn't finished. You can chat now — run /agent to continue.`,
+        'You can chat now. Some background features still need setup — run /agent to finish.',
       );
     }
   }

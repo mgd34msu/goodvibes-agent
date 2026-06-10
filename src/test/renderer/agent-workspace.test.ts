@@ -1057,7 +1057,7 @@ describe('renderAgentWorkspace', () => {
     expect(output).toContain('Current');
     expect(output).toContain('Use ntfy');
     expect(output).toContain('false');
-    expect(output).toContain('About: Toggle ntfy notifications and chat routing.');
+    expect(output).toContain('About: Turn on ntfy to get push notifications');
     expect(output).not.toContain('Change');
     expect(output).not.toContain('->');
     expect(output).not.toContain('Action  Does');

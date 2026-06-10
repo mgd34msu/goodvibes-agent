@@ -517,6 +517,90 @@ describe('deriveOnboardingState — recap', () => {
     expect(hasPromptLine).toBe(true);
   });
 
+  test('recap includes capability examples when model is ready (in-progress)', () => {
+    const plan: readonly SetupPlanItem[] = [
+      makePlanItem('provider-access', 'ready', true),
+      makePlanItem('connected-host-readiness', 'blocked', true),
+    ];
+    const shellPaths = createShellPaths();
+    writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
+
+    const state = deriveOnboardingState({
+      plan,
+      checkMarker: readOnboardingCheckMarker(shellPaths),
+      completionMarker: readOnboardingCompletionMarker(shellPaths),
+    });
+
+    // Should include always-safe capability examples (research, draft, summarize).
+    const hasCapabilityLine = state.recap.lines.some((l) =>
+      l.toLowerCase().includes('research') && l.toLowerCase().includes('draft'),
+    );
+    expect(hasCapabilityLine).toBe(true);
+  });
+
+  test('recap capability examples omit channel-dependent features when channels not ready', () => {
+    const plan: readonly SetupPlanItem[] = [
+      makePlanItem('provider-access', 'ready', true),
+      makePlanItem('communication-channels', 'optional', false), // not ready
+    ];
+    const shellPaths = createShellPaths();
+    writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
+
+    const state = deriveOnboardingState({
+      plan,
+      checkMarker: readOnboardingCheckMarker(shellPaths),
+      completionMarker: readOnboardingCompletionMarker(shellPaths),
+    });
+
+    // Should NOT include reminders/messaging when channels lane is not ready.
+    const hasChannelLine = state.recap.lines.some((l) =>
+      l.toLowerCase().includes('reminders') && l.toLowerCase().includes('messages'),
+    );
+    expect(hasChannelLine).toBe(false);
+  });
+
+  test('recap capability examples include reminders/messaging when channels ready', () => {
+    const plan: readonly SetupPlanItem[] = [
+      makePlanItem('provider-access', 'ready', true),
+      makePlanItem('communication-channels', 'ready', false),
+    ];
+    const shellPaths = createShellPaths();
+    writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
+
+    const state = deriveOnboardingState({
+      plan,
+      checkMarker: readOnboardingCheckMarker(shellPaths),
+      completionMarker: readOnboardingCompletionMarker(shellPaths),
+    });
+
+    // Should include reminders/messaging when channels lane IS ready.
+    const hasChannelLine = state.recap.lines.some((l) =>
+      l.toLowerCase().includes('reminders') && l.toLowerCase().includes('messages'),
+    );
+    expect(hasChannelLine).toBe(true);
+  });
+
+  test('recap does not include capability examples when model is not ready', () => {
+    const plan: readonly SetupPlanItem[] = [
+      makePlanItem('provider-access', 'blocked', true),
+      makePlanItem('local-model-readiness', 'recommended', false),
+    ];
+    const shellPaths = createShellPaths();
+    writeOnboardingCheckMarker(shellPaths, { scope: 'user', checkedAt: 1000, source: 'wizard' });
+
+    const state = deriveOnboardingState({
+      plan,
+      checkMarker: readOnboardingCheckMarker(shellPaths),
+      completionMarker: readOnboardingCompletionMarker(shellPaths),
+    });
+
+    // No capability examples without a model route.
+    const hasCapabilityLine = state.recap.lines.some((l) =>
+      l.toLowerCase().includes('research') && l.toLowerCase().includes('draft'),
+    );
+    expect(hasCapabilityLine).toBe(false);
+  });
+
   test('recap has at least one line even with no ready steps', () => {
     const plan: readonly SetupPlanItem[] = [
       makePlanItem('connected-host-readiness', 'blocked', true),

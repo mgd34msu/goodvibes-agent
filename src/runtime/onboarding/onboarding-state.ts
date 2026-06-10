@@ -143,6 +143,23 @@ function deriveRecap(
 
   const lines: string[] = readySteps.map((s) => s.label);
 
+  // Capability examples: show what the user can actually do right now.
+  // Always-safe examples (research/draft/summarize) are shown whenever a model route is ready.
+  // Channel-dependent examples (reminders/messaging) only appear when that lane is configured.
+  const modelReady = deriveReadyToChat(plan);
+  if (modelReady && phase !== 'fresh') {
+    const channelsReady = plan.some(
+      (item) => item.id === 'communication-channels' && item.status === 'ready',
+    );
+    const capabilityLines: string[] = [
+      'Ask me to research a topic, draft an email, summarize a file, or compare models.',
+    ];
+    if (channelsReady) {
+      capabilityLines.push('You can also set reminders and send messages through your connected channels.');
+    }
+    lines.push(...capabilityLines);
+  }
+
   if (optionalCount > 0 && phase !== 'fresh') {
     lines.push(`Still optional: ${optionalCount} item${optionalCount === 1 ? '' : 's'} available`);
   }

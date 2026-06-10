@@ -12,6 +12,12 @@ export interface AgentWorkspaceSubscriptionEditorHost {
   status: string;
   lastActionResult: AgentWorkspaceActionResult | null;
   clampSelection(): void;
+  /**
+   * Called after a successful sign-in so the host can refresh onboarding state
+   * and navigate to the next onboarding step (e.g. account-model). Optional —
+   * only available when running in ONBOARDING mode.
+   */
+  onSubscriptionLoginSuccess?(): void;
 }
 
 export type AgentWorkspaceSubscriptionFieldReader = (id: string) => string;
@@ -140,6 +146,7 @@ export async function submitAgentWorkspaceSubscriptionLoginFinishEditor(
       safety: 'safe',
     };
     host.clampSelection();
+    host.onSubscriptionLoginSuccess?.();
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     host.localEditor = { ...editor, message: detail };

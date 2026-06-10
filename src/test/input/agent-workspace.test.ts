@@ -173,6 +173,10 @@ const ALLOWED_ONBOARDING_READONLY_GUIDANCE = new Set([
   'channel-safety',
   'voice-workflow-posture',
   'device-capability-map',
+  // setup-skip-to-chat: guidance row that instructs Escape/close; safe to skip setup.
+  'setup-skip-to-chat',
+  // account-advanced-separator: read-only separator that labels the advanced routes section.
+  'account-advanced-separator',
 ]);
 
 const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set<string>();
@@ -1100,9 +1104,18 @@ describe('AgentWorkspace', () => {
           expect(ALLOWED_ONBOARDING_READONLY_COMMANDS.has(action.id)).toBe(true);
         }
         if (action.kind === 'guidance') {
-          expect(['read-only', 'blocked']).toContain(action.safety);
-          if (action.safety === 'read-only') {
-            expect(ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id)).toBe(true);
+          // Safe guidance rows must be explicitly allowlisted (e.g. skip-to-chat instructions).
+          // Read-only and blocked guidance rows are accepted broadly.
+          if (action.safety === 'safe') {
+            expect(
+              ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id),
+              `Guidance row ${action.id} with safety 'safe' must be in ALLOWED_ONBOARDING_READONLY_GUIDANCE`,
+            ).toBe(true);
+          } else {
+            expect(['read-only', 'blocked']).toContain(action.safety);
+            if (action.safety === 'read-only') {
+              expect(ALLOWED_ONBOARDING_READONLY_GUIDANCE.has(action.id)).toBe(true);
+            }
           }
         }
       }
@@ -4635,5 +4648,179 @@ describe('AgentWorkspace', () => {
 
     // The status line must reflect the resume narrative.
     expect(workspace.status).toContain('Picking up where you left off');
+  });
+
+  // Test D: after subscription-login-finish completes in ONBOARDING mode,
+  // the workspace navigates to account-model and shows a plain success + next-step status.
+  test('subscription-login-finish in ONBOARDING mode navigates to account-model and shows signed-in next-step', async () => {
+    // Set up a real temp directory so shellPaths + onboarding markers work.
+    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-login-finish-'));
+    const workingDirectory = join(root, 'ws');
+    const homeDirectory = join(root, 'home');
+    mkdirSync(workingDirectory, { recursive: true });
+    mkdirSync(homeDirectory, { recursive: true });
+    const shellPaths = createShellPathService({ workingDirectory, homeDirectory });
+    // Write the operator token so connected-host-auth is 'ready', leaving provider-access as the blocker.
+    const tokenDir = join(homeDirectory, '.goodvibes', 'daemon');
+    mkdirSync(tokenDir, { recursive: true });
+    writeFileSync(connectedHostOperatorTokenPath(homeDirectory), JSON.stringify({ token: 'test-operator-token' }), 'utf-8');
+    // Write check marker so phase becomes 'in-progress' rather than 'fresh'.
+    writeOnboardingCheckMarker(shellPaths);
+
+    // Minimal service-based OAuth provider mock.
+    const serviceOauth = {
+      authUrl: 'https://auth.example.test/oauth',
+      tokenUrl: 'https://auth.example.test/token',
+      clientId: 'test-client',
+      redirectUri: 'http://localhost:1455/auth/callback',
+      manualRedirectUri: 'urn:ietf:wg:oauth:2.0:oob',
+      scopes: ['profile'],
+      usePkce: true,
+      overrideAmbientApiKeys: false,
+    };
+    const pending = new Map<string, { provider: string; state: string; verifier: string; redirectUri: string; createdAt: number }>();
+    const subscriptions = new Map<string, { provider: string; accessToken: string; tokenType: string; authMode: 'oauth'; overrideAmbientApiKeys: boolean; createdAt: number; updatedAt: number }>();
+    const subscriptionManager = {
+      list: () => [...subscriptions.values()],
+      listPending: () => [...pending.values()],
+      get: (provider: string) => subscriptions.get(provider) ?? null,
+      getPending: (provider: string) => pending.get(provider) ?? null,
+      beginOAuthLogin: async (provider: string, config: typeof serviceOauth) => {
+        const record = { provider, state: 'state-1', verifier: 'verifier-1', redirectUri: config.redirectUri, createdAt: Date.now() };
+        pending.set(provider, record);
+        return { authorizationUrl: `https://auth.example.test/start?provider=${provider}`, pending: record };
+      },
+      completeOAuthLogin: async (provider: string, config: typeof serviceOauth, code: string) => {
+        const now = Date.now();
+        const record = { provider, accessToken: `token-${code}`, tokenType: 'Bearer', authMode: 'oauth' as const, overrideAmbientApiKeys: false, createdAt: now, updatedAt: now };
+        subscriptions.set(provider, record);
+        pending.delete(provider);
+        return record;
+      },
+      logout: (_provider: string) => false,
+    };
+    const serviceRegistry = {
+      get: (provider: string) => provider === 'test-oauth'
+        ? { name: 'test-oauth', authType: 'oauth', tokenKey: 'TEST_OAUTH_TOKEN', providerId: 'test-oauth', oauth: serviceOauth }
+        : null,
+      getAll: () => ({ 'test-oauth': { name: 'test-oauth', authType: 'oauth', tokenKey: 'TEST_OAUTH_TOKEN', providerId: 'test-oauth', oauth: serviceOauth } }),
+    };
+
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+      platform: { subscriptionManager, serviceRegistry },
+    } as unknown as CommandContext;
+
+    const workspace = new AgentWorkspace();
+    // Open in ONBOARDING mode — account-model not yet revealed (provider-access blocked)
+    workspace.open(ctx, () => undefined, undefined, undefined, 'ONBOARDING');
+    expect(workspace.selectedCategory.id).toBe('account-model'); // provider-access blocker resumes here
+
+    // Run subscription-login-start.
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((c) => c.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((a) => a.id === 'subscription-login-start');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-login-start');
+    clearEditorField(workspace);
+    feedText(workspace, 'test-oauth');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'no'); // openBrowser = no
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes'); // confirm
+    feedKey(workspace, 'enter');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(workspace.lastActionResult?.title).toBe('Subscription login started');
+
+    // Run subscription-login-finish.
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((c) => c.id === 'setup');
+    workspace.selectedActionIndex = workspace.actions.findIndex((a) => a.id === 'subscription-login-finish');
+    workspace.activateSelected();
+    expect(workspace.localEditor?.kind).toBe('subscription-login-finish');
+    clearEditorField(workspace);
+    feedText(workspace, 'test-oauth');
+    feedKey(workspace, 'enter');
+    feedText(workspace, 'auth-code-123');
+    feedKey(workspace, 'enter');
+    clearEditorField(workspace);
+    feedText(workspace, 'yes'); // confirm
+    feedKey(workspace, 'enter');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // (a) Result confirms success.
+    expect(workspace.lastActionResult?.title).toBe('Subscription session saved');
+    // (b) Status gives plain success + derived next-step — 'choose your model' is gone; derived from state.
+    expect(workspace.status).toContain('Signed in.');
+    expect(workspace.status).not.toContain('choose your model');
+    // (c) Workspace navigated to account-model so the user can pick a model.
+    expect(workspace.selectedCategory.id).toBe('account-model');
+  });
+
+  // Test D (part 2): onSubscriptionLoginSuccess() when refreshed state is readyToChat=true
+  // (provider-access satisfied by subscription) — status must reflect ready-to-chat, NOT 'choose your model'.
+  test('onSubscriptionLoginSuccess() with readyToChat=true status reflects ready-to-chat, not choose-your-model', () => {
+    // Set up temp directory for shellPaths.
+    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-login-ready-'));
+    const workingDirectory = join(root, 'ws');
+    const homeDirectory = join(root, 'home');
+    mkdirSync(workingDirectory, { recursive: true });
+    mkdirSync(homeDirectory, { recursive: true });
+    const shellPaths = createShellPathService({ workingDirectory, homeDirectory });
+
+    // Write operator token so connected-host-auth resolves to ready.
+    const tokenDir = join(homeDirectory, '.goodvibes', 'daemon');
+    mkdirSync(tokenDir, { recursive: true });
+    writeFileSync(connectedHostOperatorTokenPath(homeDirectory), JSON.stringify({ token: 'test-operator-token' }), 'utf-8');
+
+    // Write check marker so phase is 'in-progress' (non-fresh), not 'complete'.
+    writeOnboardingCheckMarker(shellPaths);
+
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined, undefined, undefined, 'ONBOARDING');
+
+    // Inject a runtime snapshot where all wizard steps are 'ready' (provider-access satisfied),
+    // so computeOnboardingStateFromSnapshot inside onSubscriptionLoginSuccess returns readyToChat=true.
+    const readyStep = {
+      id: 'provider-access',
+      label: 'Provider and model',
+      status: 'done' as const,
+      sourceStatus: 'ready' as const,
+      detail: '',
+      userRoute: '',
+      modelRoute: '',
+      actionId: '',
+      backtrackRoute: null,
+    };
+    workspace.runtimeSnapshot = {
+      ...workspace.runtimeSnapshot!,
+      setupWizard: {
+        available: true,
+        status: 'complete' as const,
+        completedSteps: 1,
+        totalSteps: 1,
+        currentStepId: null,
+        currentStepLabel: null,
+        progressLabel: 'All steps complete',
+        next: '',
+        reviewRoute: '',
+        steps: [readyStep],
+        _diagnostic: workspace.runtimeSnapshot!.setupWizard._diagnostic,
+      },
+    };
+
+    // Call the method under test directly.
+    workspace.onSubscriptionLoginSuccess();
+
+    // Status must contain 'ready to chat' or 'Apply & close' — NOT 'choose your model'.
+    expect(workspace.status).toContain('Signed in.');
+    expect(workspace.status).toContain('ready to chat');
+    expect(workspace.status).not.toContain('choose your model');
   });
 });

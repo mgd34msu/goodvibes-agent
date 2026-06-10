@@ -27,7 +27,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     id: 'setup',
     group: 'ONBOARDING',
     label: 'Start',
-    summary: 'Import preferences, sign in, and choose the main model.',
+    summary: 'Pick a model to start — use a local one or sign in to a provider.',
     detail: 'Start here on a fresh install. Every row either saves state, opens the shared model picker, or opens a confirmed in-modal form.',
     actions: [
       // Working-path choices first — local (no sign-in needed) then provider sign-in.
@@ -47,6 +47,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'setup-checkpoint-show', label: 'Show saved resume point', detail: 'Inspect the saved setup wizard resume point without writing setup state.', setupCheckpointOperation: 'show', kind: 'setup-checkpoint', safety: 'read-only' },
       { id: 'setup-checkpoint-mark-current', label: 'Save resume point', detail: 'Save the current setup wizard step as the Agent-owned resume point for the next launch.', setupCheckpointOperation: 'mark-current', kind: 'setup-checkpoint', safety: 'safe' },
       { id: 'setup-checkpoint-clear', label: 'Clear saved resume point', detail: 'Clear the saved setup wizard resume point after setup is complete or no longer useful.', setupCheckpointOperation: 'clear', kind: 'setup-checkpoint', safety: 'safe' },
+      { id: 'setup-skip-to-chat', label: 'Just start chatting (set up later)', detail: 'Close setup and go to the conversation. You can finish setup anytime with /agent.', kind: 'guidance', safety: 'safe' },
     ],
   },
   {
@@ -59,6 +60,8 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       // Essentials — chat route + reasoning
       { id: 'provider-use', label: 'Choose provider and model', detail: 'Open the shared provider/model picker for the main chat route.', kind: 'model-picker', modelPickerFlow: 'providerModel', modelPickerTarget: 'main', safety: 'safe' },
       settingAction({ id: 'account-reasoning', label: 'Reasoning effort', detail: 'Cycle the reasoning effort used when supported.', key: 'provider.reasoningEffort' }),
+      // Advanced routes — most people can skip these
+      { id: 'account-advanced-separator', label: 'Advanced routes (optional) — most people can skip these', detail: 'Helper, tool, TTS, embedding, system-prompt, and cache routing are here when you need them. Chat works without any of these.', kind: 'guidance', safety: 'read-only' },
       settingAction({ id: 'account-embedding', label: 'Embedding provider', detail: 'Set the embedding provider for memory and retrieval.', key: 'provider.embeddingProvider' }),
       settingAction({ id: 'account-provider-fallback-hint', label: 'Provider failure hints', detail: 'Toggle alternative model suggestions when the current provider fails non-transiently.', key: 'behavior.suggestAlternativeOnProviderFail' }),
       // Helper / tool / spoken-turn routes (advanced — only matters when you want dedicated routing)
