@@ -160,7 +160,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
       { id: 'personal-ops-routines', label: 'Routine library', detail: 'Open repeatable workflows and schedule-promotion readiness.', targetCategoryId: 'routines', kind: 'workspace', safety: 'safe' },
       { id: 'personal-ops-schedules', label: 'Schedules', detail: 'Inspect connected schedules and promotion receipts from the automation area.', targetCategoryId: 'automation', kind: 'workspace', safety: 'safe' },
       { id: 'personal-ops-channels', label: 'Delivery channels', detail: 'Open pairing and channel readiness before sending summaries, reminders, or follow-ups.', targetCategoryId: 'onboarding-channels', kind: 'workspace', safety: 'safe' },
-      { id: 'personal-ops-operator-methods', label: 'Exact daemon methods', detail: 'The model can inspect the live daemon contract with host action:"methods" query:"task" or personal_ops action:"lane" for one lane.', kind: 'guidance', safety: 'read-only' },
+      { id: 'personal-ops-operator-methods', label: 'Assistant service methods', detail: 'The model can inspect the live daemon contract with host action:"methods" query:"task" or personal_ops action:"lane" for one lane.', kind: 'guidance', safety: 'read-only' },
     ],
   },
   {
@@ -339,7 +339,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     summary: 'Local assistant memory, notes, routines, skills, and reusable behavior.',
     detail: 'Memory, notes, routines, skills, and personas stay Agent-local until stable shared registry contracts exist. Secrets must not be stored as memory or notes.',
     actions: [
-      { id: 'memory-posture', label: 'Memory posture', detail: 'Inspect Agent-local memory, prompt-active recall, vector health, embedding providers, and external-memory provider gaps with memory action:"status".', kind: 'guidance', safety: 'read-only' },
+      { id: 'memory-posture', label: 'Memory status', detail: 'Inspect Agent-local memory, prompt-active recall, vector health, embedding providers, and external-memory provider gaps with memory action:"status".', kind: 'guidance', safety: 'read-only' },
       { id: 'memory-search', label: 'Search memory', detail: 'Open an in-workspace Agent-local memory search form. This never queries default knowledge or other product routes.', editorKind: 'memory-search', kind: 'editor', safety: 'read-only' },
       { id: 'memory-get', label: 'Show memory by id', detail: 'Open an in-workspace form that prints one Agent-local memory record with provenance and links.', editorKind: 'memory-get', kind: 'editor', safety: 'read-only' },
       { id: 'memory-learning-curator', label: 'Learning curator', detail: 'Inspect ranked local memory, note, persona, skill, bundle, routine, duplicate-consolidation, completed-work, completed-research, and saved-session candidates with review, setup, stale, proposal, capture, diff, and rollback routes.', kind: 'guidance', safety: 'read-only' },
