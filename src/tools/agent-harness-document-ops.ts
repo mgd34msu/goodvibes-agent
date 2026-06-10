@@ -222,19 +222,14 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-draft-chat',
   ], available);
   const uploadActions = existingActions([
-    'artifact-attach-image',
-    'artifact-paste',
-    'artifact-ingest-file',
-    'artifact-ingest-url-list',
-    'artifact-import-bookmarks',
-    'artifact-browser-history',
     'document-attach-image',
-    'document-paste',
     'document-ingest-file',
+    'document-ingest-url-list',
+    'knowledge-import-bookmarks',
+    'knowledge-import-browser-history',
+    'conversation-image',
   ], available);
   const exportActions = existingActions([
-    'artifact-export-conversation',
-    'artifact-session-export',
     'conversation-export-current',
     'conversation-session-export',
     'document-export-draft',
@@ -242,20 +237,14 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-export-artifact-package',
     'document-export-conversation',
     'document-export-session',
-    'artifact-export-file',
-    'artifact-export-package',
   ], available);
   const sourceActions = existingActions([
-    'artifact-source-library',
-    'artifact-show-source',
     'research-knowledge-search',
     'research-knowledge-ask',
     'document-sources',
     'document-show-source',
   ], available);
   const mediaActions = existingActions([
-    'artifact-media-providers',
-    'artifact-generate-media',
     'media-providers',
     'media-generate',
     'document-media-providers',
@@ -267,16 +256,8 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-export-artifact-file',
     'document-export-artifact-package',
     'document-promote-artifact',
-    'artifact-browse',
-    'artifact-show',
-    'artifact-export-file',
-    'artifact-export-package',
-    'artifact-promote-knowledge',
-    'artifact-insert-document',
-    'artifact-attach-document',
-    'document-artifacts',
-    'artifact-flow',
-    'artifact-show-source',
+    'document-insert-artifact',
+    'document-attach-artifact',
   ], available);
   const modelCompareActions = existingActions([
     'document-run-compare',
@@ -287,12 +268,6 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     'document-apply-compare',
     'document-record-route-decision',
     'document-export-compare',
-    'artifact-review-compare',
-    'artifact-diff-handoffs',
-    'artifact-judge-compare',
-    'artifact-compare-analytics',
-    'artifact-apply-compare',
-    'artifact-export-compare',
     'document-model-routing',
     'account-main-model',
   ], available);
@@ -314,11 +289,11 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
     && hasTool(context, 'agent_knowledge_ingest')
     && Boolean(context.platform.artifactStore?.list)
     && Boolean(context.platform.artifactStore?.readContent)
-    && artifactBrowserActions.includes('artifact-browse')
-    && artifactBrowserActions.includes('artifact-show')
-    && artifactBrowserActions.includes('artifact-export-file')
-    && artifactBrowserActions.includes('artifact-export-package')
-    && artifactBrowserActions.includes('artifact-promote-knowledge');
+    && artifactBrowserActions.includes('document-browse-artifacts')
+    && artifactBrowserActions.includes('document-show-artifact')
+    && artifactBrowserActions.includes('document-export-artifact-file')
+    && artifactBrowserActions.includes('document-export-artifact-package')
+    && artifactBrowserActions.includes('document-promote-artifact');
   const reviewerReadiness = buildReviewerReadinessChecklist(context, {
     documentsReady,
     modelCompareReady,
@@ -337,7 +312,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       next: documentsReady
         ? 'Use versioned drafts, comments, suggestions, artifact reuse, artifact packages or ZIP archives, and artifact-backed comparison as one document workflow.'
         : 'Wire agent_documents plus browse/show/create/revise/review/export workspace actions.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Create document draft',
+      userRoute: 'Agent Workspace -> Documents & Files -> Create document draft',
       modelRoute: documentsReady ? 'agent_documents' : 'agent_harness mode:"workspace_actions" categoryId:"documents"',
       signals: [
         `Chat route ${snapshot.provider} / ${snapshot.modelDisplayName}`,
@@ -363,7 +338,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       next: uploadActions.length > 0
         ? 'Use attach, paste, or reviewed source ingest depending on whether the file is prompt context or durable Agent Knowledge.'
         : 'Wire upload, paste, and file ingest actions before exposing this as ready.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Attach or ingest',
+      userRoute: 'Agent Workspace -> Documents & Files -> Attach or ingest',
       modelRoute: 'agent_harness mode:"workspace_actions" query:"upload file ingest"',
       signals: [
         `${uploadActions.length} upload/ingest action(s)`,
@@ -378,7 +353,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       outcome: 'Turn conversations, sessions, documents, and saved artifacts into local files the user can keep or reuse.',
       current: `${exportActions.length} export action(s) are reachable for conversation, session, document, comparison, and saved artifact output.`,
       next: 'Keep transcript, session, document, comparison, and artifact exports visible, explicit, and reusable from one place.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Export',
+      userRoute: 'Agent Workspace -> Documents & Files -> Export',
       modelRoute: 'agent_harness mode:"workspace_actions" query:"export artifact"',
       signals: [
         `${exportActions.length} export action(s)`,
@@ -393,7 +368,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       outcome: 'Know what must be resolved before exporting, handing off, archiving, or applying comparison-backed route changes.',
       current: `${reviewerReadiness.summary.documents} document draft(s), ${reviewerReadiness.summary.openComments} open comment(s), ${reviewerReadiness.summary.proposedSuggestions} proposed suggestion(s), ${reviewerReadiness.summary.savedComparisons} saved comparison(s), ${reviewerReadiness.summary.revealedJudgments} revealed judgment(s).`,
       next: reviewerReadiness.next,
-      userRoute: 'Agent Workspace -> Documents & Compare -> Review readiness preflight',
+      userRoute: 'Agent Workspace -> Documents & Files -> Review readiness preflight',
       modelRoute: 'agent_harness mode:"document_ops_lane" laneId:"reviewer_readiness"',
       signals: [
         `Reviewer readiness ${reviewerReadiness.status}`,
@@ -423,9 +398,8 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
           'document-export-compare',
         ].includes(id)),
         ...artifactBrowserActions.filter((id) => [
-          'artifact-browse',
-          'artifact-show',
-          'artifact-export-package',
+          'document-browse-artifacts',
+          'document-show-artifact',
         ].includes(id)),
       ],
       reviewerReadiness,
@@ -445,7 +419,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? `${snapshot.reviewPacketTimeline.count} packet event(s); latest ${snapshot.reviewPacketTimeline.items[0].label}.`
         : 'No document, artifact, comparison, judgment, handoff, archive, or route-decision packet events are available yet.',
       next: snapshot.reviewPacketTimeline.next,
-      userRoute: 'Agent Workspace -> Documents & Compare -> Review packet timeline',
+      userRoute: 'Agent Workspace -> Documents & Files -> Review packet timeline',
       modelRoute: 'agent_harness mode:"document_ops_lane" laneId:"review_packet_timeline"',
       signals: [
         `Timeline available ${snapshot.reviewPacketTimeline.available ? 'yes' : 'no'}`,
@@ -471,9 +445,8 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
           'document-export-compare',
         ].includes(id)),
         ...artifactBrowserActions.filter((id) => [
-          'artifact-browse',
-          'artifact-show',
-          'artifact-export-package',
+          'document-browse-artifacts',
+          'document-show-artifact',
         ].includes(id)),
       ],
     },
@@ -492,7 +465,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         ? `${snapshot.reviewPacketWizard.completedSteps}/${snapshot.reviewPacketWizard.totalSteps} step(s) complete; current ${snapshot.reviewPacketWizard.currentStepLabel}.`
         : `${snapshot.reviewPacketWizard.completedSteps}/${snapshot.reviewPacketWizard.totalSteps} step(s) complete.`,
       next: snapshot.reviewPacketWizard.next,
-      userRoute: 'Agent Workspace -> Documents & Compare -> Review packet wizard',
+      userRoute: 'Agent Workspace -> Documents & Files -> Review packet wizard',
       modelRoute: 'agent_harness mode:"document_ops_lane" laneId:"review_packet_wizard"',
       signals: [
         `Wizard status ${snapshot.reviewPacketWizard.status}`,
@@ -516,7 +489,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       outcome: 'Inspect source-backed records before citing, summarizing, or promoting knowledge.',
       current: `${sourceActions.length} source lookup/search action(s) are reachable through isolated Agent Knowledge.`,
       next: 'Use source search/show for citation checks; ingest reviewed files or URLs only through explicit source actions.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Sources',
+      userRoute: 'Agent Workspace -> Documents & Files -> Sources',
       modelRoute: 'agent_harness mode:"workspace_actions" query:"Agent Knowledge sources"',
       signals: [
         `Knowledge route ${snapshot.knowledgeRoute}`,
@@ -533,7 +506,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       next: snapshot.mediaGenerationProviderCount > 0
         ? 'Use confirmed media generation when the user asks for a concrete artifact.'
         : 'Configure a media generation provider before claiming generated media is ready.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Generate media',
+      userRoute: 'Agent Workspace -> Documents & Files -> Generate media',
       modelRoute: 'agent_media_generate',
       signals: [
         `${mediaActions.length} media action(s)`,
@@ -559,8 +532,8 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
         `Artifact browser tool: ${hasTool(context, 'agent_artifacts') ? 'available' : 'gap'}`,
         `Knowledge ingest tool: ${hasTool(context, 'agent_knowledge_ingest') ? 'available' : 'gap'}`,
         `Artifact list/read store: ${context.platform.artifactStore?.list && context.platform.artifactStore?.readContent ? 'available' : 'gap'}`,
-        `Artifact export action: ${artifactBrowserActions.includes('artifact-export-file') ? 'available' : 'gap'}`,
-        `Artifact package export action: ${artifactBrowserActions.includes('artifact-export-package') ? 'available' : 'gap'}`,
+        `Artifact export action: ${artifactBrowserActions.includes('document-export-artifact-file') ? 'available' : 'gap'}`,
+        `Artifact package export action: ${artifactBrowserActions.includes('document-export-artifact-package') ? 'available' : 'gap'}`,
         `Knowledge promotion action: ${artifactBrowserActions.includes('artifact-promote-knowledge') ? 'available' : 'gap'}`,
         `Document attachment action: ${artifactBrowserActions.includes('artifact-attach-document') ? 'available' : 'gap'}`,
         `Document insertion action: ${artifactBrowserActions.includes('artifact-insert-document') ? 'available' : 'gap'}`,
@@ -578,7 +551,7 @@ function buildLanes(context: CommandContext): readonly DocumentOpsLane[] {
       next: modelCompareReady
         ? 'Use cross-session synthesis and reviewer handoff ZIP archives around saved comparison, judgment, export, route-update, route-decision receipt, and source-artifact reuse artifacts.'
         : 'Implement a blind compare runner with selectable candidate models, identical prompt/context, rubric capture, delayed reveal, export, and route update handoff.',
-      userRoute: 'Agent Workspace -> Documents & Compare -> Run blind compare',
+      userRoute: 'Agent Workspace -> Documents & Files -> Run blind compare',
       modelRoute: modelCompareReady ? 'agent_model_compare' : 'models action:"status"',
       signals: [
         `Current model ${snapshot.provider} / ${snapshot.modelDisplayName}`,

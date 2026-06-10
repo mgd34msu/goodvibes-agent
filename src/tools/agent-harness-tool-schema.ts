@@ -42,10 +42,12 @@ const KEY_COMBO_PARAMETER_SCHEMA = {
 } as const;
 
 export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
+  // The full mode catalog (115 modes) is intentionally NOT inlined as an enum:
+  // it would bloat every model prompt. Dispatch still validates against
+  // AGENT_HARNESS_MODES and unknown modes return suggestions.
   mode: {
     type: 'string',
-    enum: AGENT_HARNESS_MODES,
-    description: 'Harness operation. Start with summary or a plural catalog mode.',
+    description: 'Operation. Start with "summary"; mode:"modes" lists the catalog.',
   },
   query: {
     type: 'string',
@@ -216,10 +218,6 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
     type: 'string',
     description: 'UI surface id for ui_surface or open_ui_surface modes.',
   },
-  panelId: {
-    type: 'string',
-    description: 'Built-in panel id for panel or open_panel modes.',
-  },
   actionId: {
     type: 'string',
     description: 'Workspace action id or keybinding action id.',
@@ -331,11 +329,6 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   limit: {
     type: 'number',
     description: 'Maximum catalog entries to return.',
-  },
-  pane: {
-    type: 'string',
-    enum: ['top', 'bottom'],
-    description: 'Preferred pane for open_panel.',
   },
   confirm: {
     type: 'boolean',

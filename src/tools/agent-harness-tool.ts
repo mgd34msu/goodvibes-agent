@@ -129,7 +129,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
   return {
     definition: {
       name: 'agent_harness',
-      description: 'Inspect or operate GoodVibes Agent harness surfaces.',
+      description: 'Inspect or operate Agent harness surfaces; mode:"modes" lists all.',
       parameters: {
         type: 'object',
         properties: AGENT_HARNESS_PARAMETER_PROPERTIES,
@@ -141,7 +141,13 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
     },
     execute: async (rawArgs) => {
       const args = rawArgs as AgentHarnessToolArgs;
-      if (!isMode(args.mode)) return error(`Unknown agent_harness mode: ${String(args.mode)}`);
+      if (!isMode(args.mode)) {
+        const requested = String(args.mode).toLowerCase();
+        const suggestions = AGENT_HARNESS_MODES
+          .filter((mode) => mode.includes(requested) || requested.includes(mode))
+          .slice(0, 5);
+        return error(`Unknown agent_harness mode: ${String(args.mode)}. ${suggestions.length > 0 ? `Closest modes: ${suggestions.join(', ')}. ` : ''}Use mode:"modes" to list the full catalog.`);
+      }
       try {
         if (args.mode === 'summary') {
           const channelReadiness = channelReadinessCatalogStatus(deps.commandContext);
