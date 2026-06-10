@@ -173,3 +173,4 @@ GoodVibes TUI remains the vibecoding harness and is still useful when the user w
 - [Providers and Routing](docs/providers-and-routing.md)
 - [Voice and Live TTS](docs/voice-and-live-tts.md)
 - [Release And Publishing](docs/release-and-publishing.md)
+- [Competitive Parity Plan](docs/competitive-parity-plan.md)

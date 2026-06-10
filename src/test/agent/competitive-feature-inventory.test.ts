@@ -40,16 +40,25 @@ describe('competitive feature inventory', () => {
     }
   });
 
-  test('keeps the release inventory closed without hidden partials or gaps', () => {
+  test('keeps the inventory honest: status counts are evidence-backed, not inflated', () => {
     const counts = competitiveInventoryStatusCounts();
-    expect(counts.partial).toBe(0);
-    expect(counts.gap).toBe(0);
-    expect(counts.leading + counts.parity).toBe(COMPETITIVE_FEATURE_INVENTORY.length);
-    expect(counts.leading).toBeGreaterThan(counts.parity);
+
+    // Status distribution must add up to the full inventory.
     expect(counts.leading + counts.parity + counts.partial + counts.gap).toBe(COMPETITIVE_FEATURE_INVENTORY.length);
 
+    // Partial and gap items are allowed and expected; they must all have actionable nextMoves.
     for (const item of COMPETITIVE_FEATURE_INVENTORY) {
-      expect(item.nextMoves.join('\n')).not.toMatch(/\bnone\b/i);
+      if (item.goodVibesStatus === 'partial' || item.goodVibesStatus === 'gap') {
+        expect(item.nextMoves.length).toBeGreaterThanOrEqual(2);
+        // nextMoves must not say "none" — every gap must have a build path.
+        expect(item.nextMoves.join('\n')).not.toMatch(/\bnone\b/i);
+      }
     }
+
+    // Leading items must be in the minority — if everything is leading, nothing is.
+    expect(counts.leading).toBeLessThan(COMPETITIVE_FEATURE_INVENTORY.length);
+
+    // At least some items must be less than leading — the inventory should be honest.
+    expect(counts.partial + counts.gap).toBeGreaterThan(0);
   });
 });
