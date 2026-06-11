@@ -4,7 +4,8 @@ export function getProviderIdFromModel(model: unknown): string {
   const raw = String(model ?? '').trim();
   if (!raw) return getProviderIdFromModel(DEFAULT_CONFIG.provider.model);
   const separator = raw.indexOf(':');
-  return separator > 0 ? raw.slice(0, separator) : raw;
+  // separator === 0 means a leading colon (e.g. ':foo') — treat as no provider specified
+  return separator > 0 ? raw.slice(0, separator) : getProviderIdFromModel(DEFAULT_CONFIG.provider.model);
 }
 
 export function getModelIdFromProviderModel(model: unknown): string {

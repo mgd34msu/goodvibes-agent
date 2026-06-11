@@ -13,7 +13,14 @@ type RuntimeOnlyConfigManager = {
 };
 
 function mutableConfig(configManager: ConfigManager): Record<string, unknown> {
-  return (configManager as unknown as RuntimeOnlyConfigManager).config;
+  const cast = configManager as unknown as RuntimeOnlyConfigManager;
+  if (!cast.config || typeof cast.config !== 'object') {
+    throw new Error(
+      'ConfigManager.config private field is missing or was renamed in the SDK. ' +
+      'Update setRuntimeOnlyConfigValue to use the correct field name.',
+    );
+  }
+  return cast.config;
 }
 
 function setRuntimeOnlyConfigValue(configManager: ConfigManager, key: ConfigKey, value: unknown): void {
@@ -158,6 +165,8 @@ export function applyRuntimeFeatureFlagOverrides(
   for (const feature of options.disableFeatures) {
     flags[feature] = 'disabled' satisfies PersistedFlagState;
   }
+  // Write the entire featureFlags category at once to preserve the exact shape getCategory expects.
+  // mutableConfig() validates the 'config' field exists and throws loudly if the SDK renames it.
   mutableConfig(configManager).featureFlags = flags;
 }
 

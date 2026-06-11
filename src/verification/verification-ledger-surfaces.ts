@@ -106,7 +106,7 @@ function listHarnessModeSchemaIds(root: string): readonly string[] {
     const schemaSource = readFileSync(join(root, 'src', 'tools', 'agent-harness-tool-schema.ts'), 'utf8');
     const match = /export const AGENT_HARNESS_MODES = \[([\s\S]*?)\] as const;/.exec(schemaSource);
     if (!match) return [];
-    return [...match[1]!.matchAll(/'([a-z_]+)'/g)].map((entry) => entry[1]!).sort();
+    return [...match[1]!.matchAll(/'([a-z0-9_]+)'/g)].map((entry) => entry[1]!).sort();
   } catch {
     return [];
   }
@@ -117,7 +117,7 @@ function listHarnessModeDescriptorIds(root: string): readonly string[] {
     const source = readFileSync(join(root, 'src', 'tools', 'agent-harness-mode-catalog.ts'), 'utf8');
     const match = /const HARNESS_MODE_DESCRIPTORS:[\s\S]*?\] as const;/.exec(source);
     if (!match) return [];
-    return [...match[0].matchAll(/\bid:\s*'([a-z_]+)'/g)].map((entry) => entry[1]!).sort();
+    return [...match[0].matchAll(/\bid:\s*'([a-z0-9_]+)'/g)].map((entry) => entry[1]!).sort();
   } catch {
     return [];
   }

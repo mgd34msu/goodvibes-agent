@@ -171,6 +171,43 @@ describe('live verification report', () => {
     expect(rendered).not.toContain('secret');
   });
 
+  it('redacts raw operator token when it appears outside Bearer or JSON token shapes', () => {
+    // This test MUST fail before D1 fix (no literal token replacement) and pass after.
+    const token = 'tok_abc123xyz';
+    const report = sanitizeLiveVerificationReport({
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      homeDir: '/home/operator/.goodvibes',
+      binaryPath: '/workspace/goodvibes-agent/dist/goodvibes-agent',
+      connectedHostBaseUrl: 'http://127.0.0.1:3421',
+      strict: false,
+      counts: { pass: 0, warn: 0, fail: 1, skip: 0 },
+      ok: false,
+      checks: [
+        {
+          id: 'connected-host-status',
+          title: 'Connected host status',
+          status: 'fail',
+          summary: `login failed for token ${token}`,
+          detail: `url=http://127.0.0.1:3421/status?access_token=${token}&retry=1`,
+        },
+      ],
+    }, {
+      homeDir: '/home/operator/.goodvibes',
+      userHomeDir: '/home/operator',
+      projectRoot: '/workspace/goodvibes-agent',
+      binaryPath: '/workspace/goodvibes-agent/dist/goodvibes-agent',
+      tokens: [token],
+    });
+
+    const rendered = JSON.stringify(report) + '\n' + renderLiveVerificationReportMarkdown(report);
+
+    // The raw token must not appear in any shape in the release artifact
+    expect(rendered).not.toContain(token);
+    expect(rendered).not.toContain('tok_abc123xyz');
+    // Redaction placeholders must be present instead
+    expect(rendered).toContain('[redacted]');
+  });
+
   it('fails warn-only JSON command checks when the JSON contract is broken', async () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-live-verifier-'));
     try {

@@ -89,6 +89,8 @@ export interface LiveVerificationRedactionContext {
   userHomeDir: string;
   projectRoot: string;
   binaryPath: string;
+  /** Operator/daemon tokens that must never appear verbatim in release artifacts. */
+  tokens?: readonly string[];
 }
 
 function readJsonFile(path: string): unknown {
@@ -98,7 +100,9 @@ function readJsonFile(path: string): unknown {
 function redact(text: string): string {
   return text
     .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, 'Bearer [redacted]')
-    .replace(/"token"\s*:\s*"[^"]+"/g, '"token":"[redacted]"');
+    .replace(/Authorization:\s*[A-Za-z]+\s+[A-Za-z0-9._~+/=-]+/gi, 'Authorization: [redacted]')
+    .replace(/"token"\s*:\s*"[^"]+"/g, '"token":"[redacted]"')
+    .replace(/(?<![A-Za-z])(?:access_token|api[_-]?key|token)\s*=\s*[^\s&"'`]+/gi, (m) => m.replace(/=.*/, '=[redacted]'));
 }
 
 function replaceLiteral(text: string, search: string, replacement: string): string {
@@ -124,7 +128,15 @@ function redactPrivateNetworkAddresses(text: string): string {
 }
 
 function redactForReleaseArtifact(text: string, context: LiveVerificationRedactionContext): string {
-  return redactPrivateNetworkAddresses(redactLocalPaths(redact(text), context));
+  let result = redactPrivateNetworkAddresses(redactLocalPaths(redact(text), context));
+  if (context.tokens) {
+    for (const token of context.tokens) {
+      if (token.length >= 8) {
+        result = result.split(token).join('[redacted]');
+      }
+    }
+  }
+  return result;
 }
 
 function compact(text: string, maxLength = 900): string {
@@ -647,7 +659,7 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
     checks,
     counts,
     ok,
-  }, { homeDir, userHomeDir: dirname(homeDir), projectRoot, binaryPath });
+  }, { homeDir, userHomeDir: dirname(homeDir), projectRoot, binaryPath, tokens: token ? [token] : undefined });
 }
 
 export function sanitizeLiveVerificationReport(

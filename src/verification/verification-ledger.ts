@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { FEATURE_FLAG_MAP } from '@pellux/goodvibes-sdk/platform/runtime/state';
@@ -149,16 +149,20 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Settings schema and persistence',
       total: settings,
       localSignalVerified: settings,
-      localBehaviorVerified: 184,
-      externalOutcomeRequired: settings - 184,
+      // 184 = approximate count of settings covered by local schema/load/write tests
+      // (known-approximation — exact derivation tracked in backlog I1)
+      localBehaviorVerified: Math.min(184, settings),
+      externalOutcomeRequired: Math.max(0, settings - 184),
       notes: 'Every schema setting can be validated for schema/default/load/write/location; external side effects remain separate.',
     },
     {
       area: 'Feature flags',
       total: featureFlags,
       localSignalVerified: featureFlags,
-      localBehaviorVerified: featureFlags - 4,
-      externalOutcomeRequired: 4,
+      // 4 = approximate count of flags requiring live external runtime behavior
+      // (known-approximation — exact derivation tracked in backlog I1)
+      localBehaviorVerified: Math.max(0, featureFlags - 4),
+      externalOutcomeRequired: Math.min(4, featureFlags),
       notes: 'All flags can be loaded/toggled; a small external runtime subset still requires live behavior.',
     },
     {

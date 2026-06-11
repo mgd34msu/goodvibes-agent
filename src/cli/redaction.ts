@@ -64,10 +64,17 @@ export function redactConfig<T>(config: T): RedactedConfigResult<T> {
 }
 
 export function redactText(input: string): string {
-  let output = input.replace(
-    /\b([A-Za-z0-9_]*(?:token|secret|password|api[_-]?key|key)[A-Za-z0-9_]*\s*=\s*)([^ \t\r\n"'`]+)/gi,
-    `$1${REDACTED_VALUE}`,
-  );
+  // Assignment form: keyword=value — anchored so 'monkey=' and 'donkey=' do NOT match.
+  // Matches: token=, access_token=, api_key=, api-key=, secret=, password= and colon form token: value
+  let output = input
+    .replace(
+      /(?<![A-Za-z])(?:access_token|api[_-]?key|secret|password|token)\s*=\s*([^ \t\r\n"'`]+)/gi,
+      (m, val) => m.slice(0, m.length - val.length) + REDACTED_VALUE,
+    )
+    .replace(
+      /(?<![A-Za-z])(?:access_token|api[_-]?key|secret|password|token)\s*:\s*([^ \t\r\n"'`]+)/gi,
+      (m, val) => m.slice(0, m.length - val.length) + REDACTED_VALUE,
+    );
   for (const pattern of SECRET_LIKE_TEXT_PATTERNS) {
     output = output.replace(pattern, REDACTED_VALUE);
   }
