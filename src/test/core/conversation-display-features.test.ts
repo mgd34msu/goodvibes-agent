@@ -238,10 +238,39 @@ describe('ConversationManager.getErrorLines', () => {
     cm.addUserMessage('run');
     cm.addSystemMessage('error: lowercase error');
     cm.addUserMessage('run2');
-    cm.addSystemMessage('WARNING: some error occurred');
+    cm.addSystemMessage('ERROR! uppercase variant');
     cm.getDisplayBlocks();
 
     const lines = cm.getErrorLines();
     expect(lines.length).toBe(2);
+  });
+
+  test('does not register false-positive substrings as error targets', () => {
+    // "No errors found" and "terror" contain 'error' but do NOT start with [error]/error:/error!
+    cm.addUserMessage('scan');
+    cm.addSystemMessage('No errors found in codebase');
+    cm.addUserMessage('search');
+    cm.addSystemMessage('Scanning... recovered from terror');
+    cm.getDisplayBlocks();
+
+    expect(cm.getErrorLines()).toHaveLength(0);
+  });
+
+  test('[error] bracket tag is a valid error target', () => {
+    cm.addUserMessage('ping');
+    cm.addSystemMessage('[Error] Connection refused');
+    cm.getDisplayBlocks();
+
+    expect(cm.getErrorLines()).toHaveLength(1);
+  });
+
+  test('[critical] bracket tag is a valid error target', () => {
+    // [Critical] is emitted by the cascading-unhandled-rejection handler in main.ts
+    // e.g. "[Critical] Multiple errors detected (4 in 10s) ..."
+    cm.addUserMessage('ping');
+    cm.addSystemMessage('[Critical] Multiple errors detected (4 in 10s) ...');
+    cm.getDisplayBlocks();
+
+    expect(cm.getErrorLines()).toHaveLength(1);
   });
 });

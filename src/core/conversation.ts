@@ -60,8 +60,7 @@ export class ConversationManager extends SdkConversationManager {
   private lastRenderedWidth = 0;
   /** When true the buffer needs to be rebuilt before the next display. */
   private dirty = true;
-  /** Index of the first message not yet appended to the buffer. */
-  private appendedUpTo = 0;
+
   /** Optional config manager for display settings. */
   private _configManager: ConfigManager | null = null;
   /** Collapse state: stable key (msg_N) -> collapsed (true = collapsed). */
@@ -70,7 +69,7 @@ export class ConversationManager extends SdkConversationManager {
   protected blockRegistry: BlockMeta[] = [];
   /** Message index -> first rendered line index in the history buffer. */
   private messageLineRegistry: number[] = [];
-  /** Registry of rendered line indices for system messages matching /error/i. */
+  /** Registry of rendered line indices for system messages matching a leading [error]/[critical] tag or error:/error! prefix. */
   private errorLineRegistry: number[] = [];
   /** Streaming block start line in history buffer (for incremental streaming update). */
   private streamingStartLine = -1;
@@ -184,11 +183,25 @@ export class ConversationManager extends SdkConversationManager {
    */
   public override updateStreamingBlock(content: string): void {
     super.updateStreamingBlock(content);
-    // Incrementally update the history buffer instead of full rebuild
+    // Incrementally update the history buffer instead of full rebuild.
+    // Use the same width computation as the finalized path in renderConversationAssistantMessage
+    // so that streaming content does not reflow when it finalizes.
+    // NOTE: The 'all' line-number mode requires a two-pass measurement (total line count first,
+    // then render with gutter) which is impractical during streaming. For 'all' mode we apply
+    // a fixed pessimistic gutter (numWidth=3, gutterW=6) so the streaming width closely
+    // matches the finalized width; a single-line reflow may still occur if the final message
+    // exceeds 999 lines (extremely unlikely in practice). This is documented here as an
+    // intentional approximation, not a bug.
     if (this.streamingStartLine >= 0) {
       const width = this._getWidth();
+      const lineNumberMode = this._configManager?.get('display.lineNumbers') ?? 'off';
+      const showAllLineNumbers = lineNumberMode === 'all';
+      // Match the gutter computation from renderConversationAssistantMessage:
+      // use numWidth=3 (minimum) during streaming since total line count is unknown.
+      const gutterW = showAllLineNumbers ? 3 + 3 : 0; // numWidth=3, separator=' | ' = +3
+      const renderWidth = showAllLineNumbers ? width - gutterW : width;
       this.history.truncateToLine(this.streamingStartLine);
-      const rendered = renderMarkdown(content, width);
+      const rendered = renderMarkdown(content, renderWidth);
       this.history.addLines(rendered);
     }
   }
@@ -214,7 +227,6 @@ export class ConversationManager extends SdkConversationManager {
   public override resetAll(): void {
     super.resetAll();
     this.history.clear();
-    this.appendedUpTo = 0;
     this.lastRenderedWidth = 0;
     this.dirty = true;
     this.collapseState.clear();
@@ -235,7 +247,6 @@ export class ConversationManager extends SdkConversationManager {
   public override replaceMessagesForLLM(newMessages: ProviderMessage[]): void {
     super.replaceMessagesForLLM(newMessages);
     this.history.clear();
-    this.appendedUpTo = 0;
     this.lastRenderedWidth = 0;
     this.dirty = true;
   }
@@ -273,7 +284,6 @@ export class ConversationManager extends SdkConversationManager {
   }): void {
     super.fromJSON(data);
     this.history.clear();
-    this.appendedUpTo = 0;
     this.lastRenderedWidth = 0;
     this.dirty = true;
   }
@@ -288,12 +298,10 @@ export class ConversationManager extends SdkConversationManager {
   }
 
   /**
-   * rebuildHistory - Full rebuild. Called when width changes or on first render.
-   * For incremental appends use flushHistory().
+   * rebuildHistory - Full rebuild. Called when dirty flag is set or terminal width changes.
    */
   public rebuildHistory(): void {
     this.history.clear();
-    this.appendedUpTo = 0;
     this.blockRegistry = [];
     this.messageLineRegistry = [];
     this.errorLineRegistry = [];
@@ -322,12 +330,12 @@ export class ConversationManager extends SdkConversationManager {
     }
 
     this.appendMessages(visibleSnapshot, width);
-    this.appendedUpTo = snapshot.length;
   }
 
   /**
-   * flushHistory - Incremental update. Appends only newly added messages.
-   * Falls back to a full rebuild when the terminal width has changed.
+   * flushHistory - Rebuilds the full buffer when dirty or when the terminal width has changed.
+   * Clears the history buffer and re-renders all messages from scratch on each call.
+   * No-ops when the buffer is clean and width is unchanged.
    */
   public flushHistory(): void {
     const currentWidth = this._getWidth();
@@ -541,7 +549,6 @@ export class ConversationManager extends SdkConversationManager {
     // Advance _displayFromMessageIndex to exclude all current messages from display.
     // rebuildHistory() will only render messages added AFTER this point.
     this._displayFromMessageIndex = this.getMessageSnapshot().length;
-    this.appendedUpTo = this._displayFromMessageIndex;
     this.dirty = false;
     // Do NOT re-render here — display stays blank until the next message is added.
     // The lastRenderedWidth is kept so subsequent appends use the correct width.

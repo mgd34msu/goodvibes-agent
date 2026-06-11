@@ -185,7 +185,9 @@ export function renderConversationSystemMessage(
   const sysStartLine = context.history.getLineCount();
   const sysLines = renderSystemMessage(message.content, width);
   context.history.addLines(sysLines);
-  if (/error/i.test(message.content)) {
+  // Match only messages that begin with a severity tag or bare "Error:" / "Error!" prefix.
+  // Bare /error/i over-matches false positives like "No errors found", "terror", etc.
+  if (/^\s*(\[(error|critical)\]|error[:!])/i.test(message.content)) {
     context.errorLineRegistry.push(sysStartLine);
   }
 }
@@ -232,7 +234,8 @@ export function renderConversationToolMessage(
 
   if (isCollapsed) {
     const collapseSuffixReserve = 30;
-    const preview = contentLines[0].slice(0, width - LAYOUT.LEFT_MARGIN - LAYOUT.RIGHT_MARGIN - collapseSuffixReserve);
+    const previewWidth = Math.max(0, width - LAYOUT.LEFT_MARGIN - LAYOUT.RIGHT_MARGIN - collapseSuffixReserve);
+    const preview = contentLines[0].slice(0, previewWidth);
     const hiddenCount = lineCount - 1;
     const collapsedText = hiddenCount > 0
       ? `${preview}...  [${GLYPHS.navigation.collapsed} ${hiddenCount} hidden]`
