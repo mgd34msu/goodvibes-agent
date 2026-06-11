@@ -53,8 +53,10 @@ export function submitAgentWorkspaceLocalRegistryEditor(
     submitPersonaEditor(shellPaths, editor, field, callbacks.finishLocalEditor);
   } else if (editor.kind === 'skill') {
     submitSkillEditor(shellPaths, editor, field, callbacks.finishLocalEditor);
-  } else {
+  } else if (editor.kind === 'routine') {
     submitRoutineEditor(shellPaths, editor, field, callbacks.finishLocalEditor);
+  } else {
+    throw new Error(`This form isn't wired to a save action yet (kind: ${editor.kind}).`);
   }
 }
 
