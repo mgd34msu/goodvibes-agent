@@ -282,7 +282,7 @@
       "capability": "Planning, workplan status, and task visibility support personal operator work without auto-spawning parallel implementation jobs.",
       "owner": "agent",
       "status": "covered",
-      "evidence": "src/input/commands/planning-runtime.ts; src/input/commands/work-plan-runtime.ts; src/planning/project-planning-coordinator.ts; docs/project-planning.md",
+      "evidence": "src/tools/agent-work-plan-tool.ts; src/work-plans/work-plan-store.ts; src/input/agent-workspace-workplan-editor-submission.ts; docs/tools-and-commands.md",
       "action": "Keep planning serial and explicit until the user asks for execution.",
       "quality": {
         "capabilityCoverage": "Covers planning interviews, visible work-plan state, confirmed dispatch of approved plan items into visible Agent spawn/batch-spawn jobs with saved linked-agent receipts, closeout surfacing in managed orchestration cards, certified live remote capture/export/closeout outcome records, certified workspace/worktree isolation evidence with schema/version/publication/publisher/provenance/freshness-cursor/receipt metadata, task status, and project planning without implicit parallel execution jobs.",
@@ -384,7 +384,7 @@
     },
     {
       "id": "release-package-install",
-      "capability": "Package metadata, docs, Bun-only install, runtime build, compiled binary smoke, recorded performance snapshot checks, publish checks, install checks, and release workflows are guarded by shared release metadata verification.",
+      "capability": "Package metadata, docs, Bun-only install, runtime build, compiled binary smoke, committed performance snapshot fixture evaluation, publish checks, install checks, and release workflows are guarded by shared release metadata verification.",
       "owner": "release",
       "status": "covered",
       "evidence": "release/performance-snapshot.json; src/cli/package-verification.ts; scripts/release.ts; scripts/perf-check.ts; scripts/publish-check.ts; scripts/package-install-check.ts; .github/workflows/ci.yml",
@@ -394,7 +394,7 @@
         "userAccess": "The user receives one installable package with goodvibes-agent as the executable and package-facing docs included in the tarball.",
         "modelAccess": "agent_harness exposes package-facing slash-command, CLI mirror, keybinding, tool catalog, connected-host, and operator/audit route metadata plus mode:\"modes\" and mode:\"mode\" discovery so the assistant can operate installed surfaces instead of hidden nested processes.",
         "safetyBoundary": "The package excludes tests, private verification internals, connected-host binaries, lifecycle ownership, and forbidden boundary paths.",
-        "releaseEvidence": "Shared package verification, compact model tool/harness metadata checks, searchable harness mode catalog ledger, command/CLI/tool route guards, keyboard route guards, connected-host route guards, operator/audit route guards, stripped schema-description checks, release scripts, performance snapshot, and release workflow policy keep the package gate required for every release."
+        "releaseEvidence": "Shared package verification, compact model tool/harness metadata checks, searchable harness mode catalog ledger, command/CLI/tool route guards, keyboard route guards, connected-host route guards, operator/audit route guards, stripped schema-description checks, release scripts, committed performance snapshot fixture, and release workflow policy keep the package gate required for every release."
       }
     },
     {

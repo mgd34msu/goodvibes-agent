@@ -40,8 +40,8 @@
       { "keyEventAt": 1780491600440, "respondedAt": 1780491600456, "latencyMs": 16 },
       { "keyEventAt": 1780491600460, "respondedAt": 1780491600484, "latencyMs": 24 }
     ],
-    "heapUsedBytes": 0,
-    "rssBytes": 0
+    "heapUsedBytes": 54525952,
+    "rssBytes": 93323264
   },
   "extraMetrics": {
     "event.queue.depth": 12,

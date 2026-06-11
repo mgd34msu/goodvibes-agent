@@ -13,7 +13,6 @@ These are the package-facing docs for the GoodVibes Agent `1.4.x` release line.
 - [Providers and Routing](providers-and-routing.md)
 - [Voice and Live TTS](voice-and-live-tts.md)
 - [Release And Publishing](release-and-publishing.md)
-- [Competitive Parity Plan](competitive-parity-plan.md)
 
 ## Baseline
 

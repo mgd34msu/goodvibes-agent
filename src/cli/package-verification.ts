@@ -134,6 +134,7 @@ const FORBIDDEN_TARBALL_DOCS = [
   ['docs/cloud', 'flare-batch.md'].join(''),
   ['docs/home', 'assistant-surface.md'].join(''),
   'docs/wrfc/',
+  'docs/competitive-parity-plan.md',
 ] as const;
 const FORBIDDEN_TARBALL_FILES = new Set([
   'src/panels/diff-panel.ts',
@@ -407,12 +408,24 @@ function readTopChangelogRelease(root: string): { readonly version: string; read
   return match ? { version: match[1]!, date: match[2]! } : null;
 }
 
+const ALLOWED_PACKAGE_DOC_FILENAMES = [
+  'README.md',
+  'channels-remote-and-api.md',
+  'connected-host.md',
+  'getting-started.md',
+  'knowledge-artifacts-and-multimodal.md',
+  'providers-and-routing.md',
+  'release-and-publishing.md',
+  'tools-and-commands.md',
+  'voice-and-live-tts.md',
+] as const;
+
 export function packageDocPaths(root: string): readonly string[] {
   const docsPath = join(root, 'docs');
   if (!existsSync(docsPath)) return [];
-  return readdirSync(docsPath)
-    .filter((entry) => entry.endsWith('.md'))
+  return ALLOWED_PACKAGE_DOC_FILENAMES
     .map((entry) => `docs/${entry}`)
+    .filter((docPath) => existsSync(join(root, docPath)))
     .sort();
 }
 
@@ -1098,6 +1111,15 @@ function verifyReleasePerformanceSnapshotPolicy(root: string): readonly string[]
     }
   }
 
+  const heapUsedBytes = readFiniteNumberValue(surfacePerf.heapUsedBytes);
+  const rssBytes = readFiniteNumberValue(surfacePerf.rssBytes);
+  if (heapUsedBytes === null || heapUsedBytes <= 0) {
+    issues.push('release performance snapshot surfacePerf.heapUsedBytes must be a positive number (use realistic fixture values, not 0).');
+  }
+  if (rssBytes === null || rssBytes <= 0) {
+    issues.push('release performance snapshot surfacePerf.rssBytes must be a positive number (use realistic fixture values, not 0).');
+  }
+
   const extraMetrics = readNumberRecord(parsed.extraMetrics);
   if (!isRecord(parsed.extraMetrics)) {
     issues.push('release performance snapshot is missing extraMetrics object.');
@@ -1334,6 +1356,13 @@ function verifyReleaseReadinessPolicy(root: string, packageVersion: string): rea
     }
     if (evidence.length === 0) {
       issues.push(`release readiness inventory ${label} is missing evidence.`);
+    }
+    for (const token of evidence.split(/[;,\s]+/)) {
+      if (/^(?:src|docs|scripts|release)\//.test(token)) {
+        if (!existsSync(join(root, token))) {
+          issues.push(`release readiness inventory ${label} evidence cites missing path: ${token}`);
+        }
+      }
     }
     if (owner === 'connected-host' && status === 'covered' && !evidence.includes('goodvibes-connected-host')) {
       issues.push(`release readiness inventory ${label} must cite the goodvibes-connected-host source alias.`);

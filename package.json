@@ -23,6 +23,7 @@
     "README.md",
     "CHANGELOG.md",
     "docs/*.md",
+    "!docs/competitive-parity-plan.md",
     "release/release-notes.md",
     "release/performance-snapshot.json",
     "release/release-readiness.json",

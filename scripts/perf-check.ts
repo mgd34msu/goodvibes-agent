@@ -148,6 +148,14 @@ function parseExtraMetrics(value: unknown): Record<string, number> {
 function parseSurfacePerf(value: unknown): SurfacePerfSnapshot {
   const record = readRecord(value, 'surfacePerf');
   const base = createInitialSurfacePerfState();
+  const heapUsedBytes = readFiniteNumber(record, 'heapUsedBytes', 'surfacePerf');
+  const rssBytes = readFiniteNumber(record, 'rssBytes', 'surfacePerf');
+  if (heapUsedBytes <= 0) {
+    failSnapshot('surfacePerf.heapUsedBytes must be a positive number (use realistic fixture values, not 0).');
+  }
+  if (rssBytes <= 0) {
+    failSnapshot('surfacePerf.rssBytes must be a positive number (use realistic fixture values, not 0).');
+  }
   return {
     ...base,
     revision: readFiniteNumber(record, 'revision', 'surfacePerf'),
@@ -164,8 +172,8 @@ function parseSurfacePerf(value: unknown): SurfacePerfSnapshot {
     avgInputLatencyMs: readFiniteNumber(record, 'avgInputLatencyMs', 'surfacePerf'),
     maxInputLatencyMs: readFiniteNumber(record, 'maxInputLatencyMs', 'surfacePerf'),
     recentInputLatency: parseInputLatency(record.recentInputLatency),
-    heapUsedBytes: readFiniteNumber(record, 'heapUsedBytes', 'surfacePerf'),
-    rssBytes: readFiniteNumber(record, 'rssBytes', 'surfacePerf'),
+    heapUsedBytes,
+    rssBytes,
     lastMemorySampleAt: readOptionalFiniteNumber(record, 'lastMemorySampleAt', 'surfacePerf'),
   };
 }
@@ -215,7 +223,7 @@ function formatAgentPerfReport(report: PerfReport): string {
   const horizontalRule = '-'.repeat(REPORT_COLUMNS.metric + REPORT_COLUMNS.actual + REPORT_COLUMNS.budget + REPORT_COLUMNS.status + 9);
   const lines = [
     '',
-    'Performance Budget Report',
+    'Performance Budget Evaluation (Committed Fixture)',
     new Date(report.timestamp).toISOString(),
     horizontalRule,
     [
