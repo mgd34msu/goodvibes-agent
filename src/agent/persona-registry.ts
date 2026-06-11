@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { formatAgentRecordReviewState } from './record-labels.ts';
+import { containsSecretLikeText } from './memory-safety.ts';
 
 export type AgentPersonaSource = 'user' | 'agent' | 'imported' | 'system';
 export type AgentPersonaReviewState = 'fresh' | 'reviewed' | 'stale';
@@ -56,12 +57,6 @@ interface PersonaStoreFile {
 }
 
 const STORE_VERSION = 1;
-const SECRET_PATTERNS: readonly RegExp[] = [
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
-  /\bsk-[A-Za-z0-9_-]{16,}\b/,
-  /\bgh[pousr]_[A-Za-z0-9_]{16,}\b/i,
-  /\b(?:password|passwd|api[_-]?key|token|secret)\s*[:=]\s*\S{6,}/i,
-];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -101,10 +96,6 @@ function slugify(value: string): string {
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-function containsSecretLikeText(text: string): boolean {
-  return SECRET_PATTERNS.some((pattern) => pattern.test(text));
 }
 
 export function assertNoSecretLikeText(fields: readonly string[], ownerLabel = 'Agent local records'): void {

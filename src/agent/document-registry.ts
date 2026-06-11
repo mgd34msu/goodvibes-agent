@@ -664,7 +664,11 @@ export class AgentDocumentRegistry {
 
   private readStore(): DocumentStoreFile {
     if (!existsSync(this.storePath)) return { version: STORE_VERSION, documents: [] };
-    return parseStore(readFileSync(this.storePath, 'utf-8'));
+    try {
+      return parseStore(readFileSync(this.storePath, 'utf-8'));
+    } catch (error) {
+      throw new Error(`Could not read Agent document store: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private writeStore(store: DocumentStoreFile): void {

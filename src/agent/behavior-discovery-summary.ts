@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from './markdown-frontmatter.ts';
 
 type DiscoveryOrigin = 'project-local' | 'global';
 
@@ -42,22 +43,7 @@ export const EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT: AgentBehaviorDiscoverySnap
   routines: EMPTY_SUMMARY,
 };
 
-function parseFrontmatter(content: string): Record<string, string> {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return {};
-  const result: Record<string, string> = {};
-  for (const line of match[1].split('\n')) {
-    const [key, ...rest] = line.split(':');
-    if (key && rest.length > 0) {
-      result[key.trim()] = rest.join(':').trim();
-    }
-  }
-  return result;
-}
 
-function markdownBody(content: string): string {
-  return content.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
-}
 
 function readDiscoveryCandidate(path: string, origin: DiscoveryOrigin, definition: DiscoveryKindDefinition): { readonly name: string; readonly origin: DiscoveryOrigin } | null {
   let content = '';
@@ -67,10 +53,10 @@ function readDiscoveryCandidate(path: string, origin: DiscoveryOrigin, definitio
     return null;
   }
 
-  const frontmatter = parseFrontmatter(content);
+  const frontmatter = parseMarkdownFrontmatter(content);
   const body = definition.frontmatterBodyKey
-    ? (frontmatter[definition.frontmatterBodyKey] ?? markdownBody(content)).trim()
-    : markdownBody(content);
+    ? (frontmatter[definition.frontmatterBodyKey] ?? stripMarkdownFrontmatter(content)).trim()
+    : stripMarkdownFrontmatter(content);
   if (body.length === 0) return null;
   const name = frontmatter.name ?? path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? '';
   const normalized = name.trim();

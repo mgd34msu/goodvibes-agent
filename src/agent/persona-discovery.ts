@@ -2,6 +2,7 @@ import { promises as fsPromises } from 'node:fs';
 import { join } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from './markdown-frontmatter.ts';
 
 export type PersonaOrigin = 'project-local' | 'global' | 'custom';
 
@@ -15,19 +16,6 @@ export interface DiscoveredPersonaRecord {
 }
 
 const DIRECTORY_MARKERS: readonly string[] = ['PERSONA.md', 'persona.md'];
-
-function parseFrontmatter(content: string): Record<string, string> {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) return {};
-  const result: Record<string, string> = {};
-  for (const line of match[1].split('\n')) {
-    const [key, ...rest] = line.split(':');
-    if (key && rest.length > 0) {
-      result[key.trim()] = rest.join(':').trim();
-    }
-  }
-  return result;
-}
 
 function getPersonaDirectories(cwd: string, homeDir: string): Array<{ root: string; origin: PersonaOrigin }> {
   return [
@@ -46,8 +34,8 @@ async function readPersonaFile(path: string, origin: PersonaOrigin): Promise<Dis
     return null;
   }
 
-  const frontmatter = parseFrontmatter(content);
-  const markdownBody = content.replace(/^---\n[\s\S]*?\n---\n?/, '').trim();
+  const frontmatter = parseMarkdownFrontmatter(content);
+  const markdownBody = stripMarkdownFrontmatter(content);
   const body = (frontmatter.system_prompt ?? markdownBody).trim();
   if (!body) return null;
   const name = frontmatter.name ?? path.split(/[\\/]/).pop()?.replace(/\.md$/i, '') ?? 'persona';

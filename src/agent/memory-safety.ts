@@ -1,4 +1,4 @@
-const SECRET_PATTERNS: readonly RegExp[] = [
+export const SECRET_PATTERNS: readonly RegExp[] = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
   /\bsk-[A-Za-z0-9_-]{16,}\b/,
   /\bgh[pousr]_[A-Za-z0-9_]{16,}\b/i,

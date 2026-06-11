@@ -92,13 +92,7 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function assertNoNoteSecretLikeText(fields: readonly string[]): void {
-  try {
-    assertNoSecretLikeText(fields);
-  } catch {
-    throw new Error('Notes cannot store secret-looking values. Store a secret reference or remove the sensitive text.');
-  }
-}
+
 
 function parseNote(value: unknown): AgentNoteRecord | null {
   if (!isRecord(value)) return null;
@@ -193,7 +187,7 @@ export class AgentNoteRegistry {
     const body = input.body.trim();
     this.validateRequired(title, body);
     const sourceUrl = input.sourceUrl?.trim() || undefined;
-    assertNoNoteSecretLikeText([title, body, sourceUrl ?? '', ...(input.tags ?? [])]);
+    assertNoSecretLikeText([title, body, sourceUrl ?? '', ...(input.tags ?? [])], 'Notes');
     const duplicate = store.notes.find((note) => note.title.toLowerCase() === title.toLowerCase());
     if (duplicate) throw new Error(`Note already exists ${duplicate.id}`);
     const timestamp = nowIso();
@@ -221,7 +215,7 @@ export class AgentNoteRegistry {
     const body = input.body === undefined ? existing.body : input.body.trim();
     this.validateRequired(title, body);
     const sourceUrl = input.sourceUrl === undefined ? existing.sourceUrl : input.sourceUrl.trim() || undefined;
-    assertNoNoteSecretLikeText([title, body, sourceUrl ?? '', ...(input.tags ?? [])]);
+    assertNoSecretLikeText([title, body, sourceUrl ?? '', ...(input.tags ?? [])], 'Notes');
     const duplicate = store.notes.find((note) => note.id !== existing.id && note.title.toLowerCase() === title.toLowerCase());
     if (duplicate) throw new Error(`Note already exists ${duplicate.id}`);
     const updated: AgentNoteRecord = {

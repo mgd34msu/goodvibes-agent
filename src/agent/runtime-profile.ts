@@ -302,6 +302,7 @@ function selectDiscoveredRecords<T extends { readonly name: string; readonly pat
 
 function discoveredSkillToTemplate(skill: SkillRecord): AgentRuntimeProfileStarterTemplate['skills'][number] {
   if (!skill.body.trim()) throw new Error(`Discovered Agent skill ${skill.name} has no procedure body.`);
+  assertNoSecretLikeText([skill.name, skill.description, skill.body], `Discovered skill '${skill.name}'`);
   return {
     name: skill.name,
     description: skill.description || `Imported skill from ${skill.origin} skill file.`,
@@ -313,6 +314,7 @@ function discoveredSkillToTemplate(skill: SkillRecord): AgentRuntimeProfileStart
 
 function discoveredRoutineToTemplate(routine: DiscoveredRoutineRecord): AgentRuntimeProfileStarterTemplate['routines'][number] {
   if (!routine.steps.trim()) throw new Error(`Discovered Agent routine ${routine.name} has no steps.`);
+  assertNoSecretLikeText([routine.name, routine.description, routine.steps], `Discovered routine '${routine.name}'`);
   return {
     name: routine.name,
     description: routine.description || `Imported routine from ${routine.origin} markdown file.`,
@@ -323,6 +325,7 @@ function discoveredRoutineToTemplate(routine: DiscoveredRoutineRecord): AgentRun
 }
 
 function discoveredPersonaToTemplate(persona: DiscoveredPersonaRecord): AgentRuntimeProfileStarterTemplate['persona'] {
+  assertNoSecretLikeText([persona.name, persona.description, persona.body], `Discovered persona '${persona.name}'`);
   return {
     name: persona.name,
     description: persona.description || `Imported persona from ${persona.origin} markdown file.`,

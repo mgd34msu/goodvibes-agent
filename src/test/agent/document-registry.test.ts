@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
-import { AgentDocumentRegistry, renderAgentDocumentMarkdown } from '../../agent/document-registry.ts';
+import { AgentDocumentRegistry, documentStorePath, renderAgentDocumentMarkdown } from '../../agent/document-registry.ts';
 
 function registry(): AgentDocumentRegistry {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-documents-'));
@@ -113,6 +113,18 @@ describe('AgentDocumentRegistry', () => {
     expect(markdown).toContain('Attachments: 1');
     expect(markdown).toContain('## Attached Artifacts');
     expect(markdown).toContain('a1: Reviewed chart (artifact-123, chart.png / image/png / image)');
+  });
+
+  test('corrupt store throws plain-language error', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-documents-corrupt-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const storePath = documentStorePath(shellPaths);
+    const documents = AgentDocumentRegistry.fromShellPaths(shellPaths);
+    // seed a record so the store file exists
+    documents.create({ title: 'Init Doc', body: 'Body.' });
+    // corrupt it
+    writeFileSync(storePath, '{corrupt json', 'utf-8');
+    expect(() => documents.list()).toThrow('Could not read Agent document store');
   });
 
   test('stores accepts and rejects AI suggestions through explicit review', () => {

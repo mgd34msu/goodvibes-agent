@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
+import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from './markdown-frontmatter.ts';
 
 export type AgentVibeScope = 'project' | 'global';
 
@@ -64,23 +65,6 @@ type AgentVibePaths = Pick<ShellPathService,
   'workingDirectory' | 'homeDirectory' | 'resolveUserPath' | 'expandHomePath' | 'resolveWorkspacePath'
 >;
 
-function parseFrontmatter(content: string): Record<string, string> {
-  const match = content.match(/^---\n([\s\S]*?)\n---\n?/);
-  if (!match) return {};
-  const result: Record<string, string> = {};
-  for (const line of match[1].split('\n')) {
-    const [key, ...rest] = line.split(':');
-    if (key && rest.length > 0) result[key.trim()] = rest.join(':').trim();
-  }
-  return result;
-}
-
-function markdownBody(content: string): string {
-  const frontmatter = parseFrontmatter(content);
-  const body = (frontmatter.system_prompt ?? content.replace(/^---\n[\s\S]*?\n---\n?/, '')).trim();
-  return body;
-}
-
 function readVibeCandidate(path: string, scope: AgentVibeScope): AgentVibeFile | BlockedAgentVibeFile | null {
   if (!existsSync(path)) return null;
   let content = '';
@@ -94,8 +78,9 @@ function readVibeCandidate(path: string, scope: AgentVibeScope): AgentVibeFile |
     };
   }
 
-  const body = markdownBody(content);
-  if (!body) return {
+  const frontmatter = parseMarkdownFrontmatter(content);
+  const rawBody = (frontmatter.system_prompt ?? stripMarkdownFrontmatter(content)).trim();
+  if (!rawBody) return {
     path,
     scope,
     reason: 'File is empty after frontmatter.',
@@ -114,9 +99,9 @@ function readVibeCandidate(path: string, scope: AgentVibeScope): AgentVibeFile |
   return {
     path,
     scope,
-    body: body.length > MAX_VIBE_BODY_CHARS ? body.slice(0, MAX_VIBE_BODY_CHARS).trimEnd() : body,
-    frontmatter: parseFrontmatter(content),
-    truncated: body.length > MAX_VIBE_BODY_CHARS,
+    body: rawBody.length > MAX_VIBE_BODY_CHARS ? rawBody.slice(0, MAX_VIBE_BODY_CHARS).trimEnd() : rawBody,
+    frontmatter,
+    truncated: rawBody.length > MAX_VIBE_BODY_CHARS,
   };
 }
 

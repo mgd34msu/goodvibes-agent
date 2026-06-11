@@ -289,4 +289,36 @@ describe('Agent profiles', () => {
     expect(skills.enabledSkills.map((skill) => skill.name)).toEqual(['Daily Brief Skill']);
     expect(routines.enabledRoutines.map((routine) => routine.name)).toEqual(['Evening Review']);
   });
+
+  test('template build refuses discovered content containing secret-looking values', async () => {
+    const home = makeHome();
+    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-secret-'));
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'personas'), { recursive: true });
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'skills'), { recursive: true });
+    mkdirSync(join(workspace, '.goodvibes', 'agent', 'routines'), { recursive: true });
+    // persona body contains a secret-looking value
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'personas', 'leaked.md'), [
+      '---',
+      'name: Leaked Persona',
+      '---',
+      'Use api_key=sk-supersecretvalue123456 to access the service.',
+    ].join('\n'));
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'skills', 'SKILL.md'), [
+      '---',
+      'name: Clean Skill',
+      '---',
+      'Review work plans before summarizing.',
+    ].join('\n'));
+    writeFileSync(join(workspace, '.goodvibes', 'agent', 'routines', 'routine.md'), [
+      '---',
+      'name: Clean Routine',
+      '---',
+      'Review and summarize progress.',
+    ].join('\n'));
+
+    await expect(createAgentRuntimeProfileTemplateFromDiscovered(
+      { homeDirectory: home, workingDirectory: workspace },
+      { id: 'leaked-template' },
+    )).rejects.toThrow("secret-looking");
+  });
 });

@@ -384,13 +384,13 @@ export const COMPETITIVE_FEATURE_INVENTORY: readonly CompetitiveFeatureInventory
     userOutcome: 'The assistant can triage email, draft replies in the user\'s writing style, apply labels, access calendar events directly over IMAP/SMTP and CalDAV, and act on tasks and reminders.',
     targetStandard: 'better',
     bestInClassRequirement: 'Email triage, AI-matched draft replies, auto-tagging, spam triage, direct CalDAV calendar sync, .ics import/export, and agent-aware scheduling share one reviewed personal operations surface.',
-    goodVibesStatus: 'gap',
+    goodVibesStatus: 'partial',
     owners: ['agent', 'connected-host'],
-    goodVibesNow: 'GoodVibes Personal Ops has a unified workspace and first-class `personal_ops action:"briefing|status|queue|intake|lane|read"` model tool. Email and calendar access is connector-mediated: MCP connectors surface inbox/calendar operations as inspectable setup routes with confirmed read and write boundaries. Direct IMAP/SMTP access, writing-style-matched draft replies, auto-tagging, spam triage, direct CalDAV sync, and .ics import/export are not shipped. Odysseus ships native IMAP/SMTP email triage with AI summaries, style-matched draft replies, auto-tagging, and spam triage, plus a local-first CalDAV calendar with Radicale/Nextcloud/Apple/Fastmail sync and .ics import/export.',
+    goodVibesNow: 'GoodVibes ships direct IMAP/SMTP email access and .ics calendar import/export, wired to the `/email` and `/calendar` agent routes. Personal Ops has a unified workspace and first-class `personal_ops action:"briefing|status|queue|intake|lane|read"` model tool. Email and calendar access is backed by direct protocol connectors and MCP connectors that surface inbox and calendar operations as inspectable setup routes with confirmed read and write boundaries. Writing-style-matched draft replies, auto-tagging, spam triage, and direct CalDAV server sync (Radicale/Nextcloud/Apple/Fastmail) are not yet shipped.',
     nextMoves: [
-      'Add a direct IMAP/SMTP email connector to the connected-host operator method surface so inbox triage and draft replies do not require a third-party MCP server.',
-      'Add a CalDAV calendar connector with .ics import/export so calendar context is available without relying on a cloud calendar MCP service.',
       'Design writing-style matching for draft replies as a confirmed Personal Ops lane so the assistant can draft in the user\'s voice with explicit before-send review.',
+      'Add a CalDAV server sync connector (Radicale, Nextcloud, Apple Calendar, Fastmail) so local-first calendar changes propagate without a cloud calendar MCP service.',
+      'Add auto-tagging and spam triage to the IMAP email connector so high-volume inboxes are manageable from the Personal Ops briefing surface.',
     ],
     competitorSignals: [
       { competitor: 'openclaw', evidence: 'OpenClaw showcases mail, calendar, reminders, and personal operating-system workflows; channel breadth suggests direct protocol access.' },

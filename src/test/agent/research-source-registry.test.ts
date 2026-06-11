@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentResearchSourceRegistry, researchSourceReportLine, researchSourceStorePath } from '../../agent/research-source-registry.ts';
@@ -75,6 +75,21 @@ describe('AgentResearchSourceRegistry', () => {
       const deleted = fixture.registry.delete(source.id);
       expect(deleted.id).toBe(source.id);
       expect(fixture.registry.list()).toHaveLength(0);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('corrupt store throws plain-language error', () => {
+    const fixture = makeRegistry();
+    try {
+      fixture.registry.create({
+        question: 'Seed question',
+        title: 'Seed source',
+        summary: 'Seeded so the store file exists.',
+      });
+      writeFileSync(researchSourceStorePath({ resolveProjectPath: (...parts: string[]) => join(fixture.root, '.goodvibes', ...parts) }), '{corrupt json', 'utf-8');
+      expect(() => fixture.registry.list()).toThrow('Could not read Agent research source store');
     } finally {
       fixture.cleanup();
     }

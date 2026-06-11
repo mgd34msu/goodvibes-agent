@@ -408,7 +408,11 @@ export class AgentResearchSourceRegistry {
 
   private readStore(): ResearchSourceStoreFile {
     if (!existsSync(this.storePath)) return { version: STORE_VERSION, sources: [] };
-    return parseStore(readFileSync(this.storePath, 'utf-8'));
+    try {
+      return parseStore(readFileSync(this.storePath, 'utf-8'));
+    } catch (error) {
+      throw new Error(`Could not read Agent research source store: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   private writeStore(store: ResearchSourceStoreFile): void {
