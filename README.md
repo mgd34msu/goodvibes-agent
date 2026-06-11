@@ -1,7 +1,7 @@
 # GoodVibes Agent
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Status: 1.0.x](https://img.shields.io/badge/status-1.0.x-green.svg)](#install)
+[![Version: 1.4.4](https://img.shields.io/badge/version-1.4.4-blue.svg)](#install)
 
 GoodVibes Agent is the installable autonomous operator assistant for GoodVibes. It keeps the existing terminal renderer and workspace bones, but the product goal is different from a vibecoding harness: the user should experience one assistant that can chat, plan, remember, research, schedule, send, generate, run visible agents, and operate the GoodVibes daemon contract with clear confirmation gates.
 

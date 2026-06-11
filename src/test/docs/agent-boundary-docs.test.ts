@@ -114,6 +114,26 @@ describe('Agent user-first product docs', () => {
     expect(documentedRoots).toEqual(canonicalRoots);
   });
 
+  test('README badge version and docs/README release-line stay in sync with package.json major.minor', () => {
+    const pkg = JSON.parse(readRepoFile('package.json')) as { version: string };
+    const [pkgMajor, pkgMinor] = pkg.version.split('.');
+    const pkgMajorMinor = `${pkgMajor}.${pkgMinor}`;
+
+    // README.md: badge must be in the synced form `version-X.Y.Z-blue.svg`
+    const readme = readRepoFile('README.md');
+    const badgeMatch = /version-([0-9]+\.[0-9]+\.[0-9]+)-blue\.svg/.exec(readme);
+    expect(badgeMatch).not.toBeNull();
+    const [badgeMajor, badgeMinor] = (badgeMatch![1] ?? '').split('.');
+    expect(`${badgeMajor}.${badgeMinor}`).toBe(pkgMajorMinor);
+
+    // docs/README.md: release-line string must be `X.Y.x`
+    const docsReadme = readRepoFile('docs/README.md');
+    const releaseLineMatch = /`([0-9]+\.[0-9]+\.x)`\s+release line/.exec(docsReadme);
+    expect(releaseLineMatch).not.toBeNull();
+    const [rlMajor, rlMinor] = (releaseLineMatch![1] ?? '').split('.');
+    expect(`${rlMajor}.${rlMinor}`).toBe(pkgMajorMinor);
+  });
+
   test('docs workspace action tokens only reference real workspace tool actions', () => {
     // Extract the accepted action enum from the live workspace tool definition.
     // createAgentWorkspaceTool requires deps but we only need the definition, so we

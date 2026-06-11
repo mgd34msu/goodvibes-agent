@@ -61,7 +61,7 @@ The main Agent model can use the Agent-controlled harness through Agent-owned to
 Default discovery is intentionally compact:
 
 - plural modes return ids, labels, counts, safe state, effect class, and route hints;
-- workspace action, slash-command, CLI, panel, UI surface, shortcut/keybinding, settings, tool, connected-host posture/status/capability, and operator/audit catalogs include short `modelRoute` or `modelAccess` hints for route choice;
+- workspace action, slash-command, CLI, UI surface, shortcut/keybinding, settings, tool, connected-host posture/status/capability, and operator/audit catalogs include short `modelRoute` or `modelAccess` hints for route choice;
 - singular modes return detailed policy and lookup metadata;
 - `includeParameters:true` adds schemas, editor fields, model routes, parameter hints, release artifact data, redacted log tail, and detail that would be too large for normal discovery.
 

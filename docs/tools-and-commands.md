@@ -109,7 +109,7 @@ Single-item inspect modes:
 | `mode` | `target` or `query` |
 | `workspace_action` | `actionId`, `command`, `target`, `query` |
 | `command`, `cli_command` | `command`, `commandName`, `cliCommand`, `target`, `query` |
-| `panel`, `ui_surface`, `keybinding`, `tool` | Exact id/name or `target`/`query` |
+| `ui_surface`, `keybinding`, `tool` | Exact id/name or `target`/`query` |
 | `channels action:"channel|setup|triage"`, `notification_target`, `provider_account`, `mcp_server` | Exact id or `target`/`query`; channel triage also accepts `limit` |
 | `project_context_file` | `contextFileId`, `target`, or `query` |
 | `agent_orchestration_agent` | `agentId`, `target`, or `query` |
