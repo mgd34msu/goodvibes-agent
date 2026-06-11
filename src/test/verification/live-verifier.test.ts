@@ -95,7 +95,9 @@ describe('live verification report', () => {
     const markdown = renderLiveVerificationReportMarkdown(report);
 
     expect(markdown).toContain('| pass | 2 |');
-    expect(markdown).toContain('Binary: `/repo/dist/goodvibes-agent`');
+    // Raw filesystem paths in header fields are normalized to placeholders by the renderer
+    // (defense-in-depth hardening: normalizeRenderedPath in renderLiveVerificationReportMarkdown).
+    expect(markdown).toContain('Binary: `[agent-binary]`');
     expect(markdown).toContain('Connected host: `http://127.0.0.1:3421`');
     expect(markdown).not.toContain('daemonBaseUrl');
     expect(markdown).toContain('| Agent Knowledge CLI status command | warn | Agent Knowledge route is not available. |');
@@ -169,6 +171,64 @@ describe('live verification report', () => {
     expect(rendered).not.toContain('192.168.0.85');
     expect(rendered).not.toContain('abc123');
     expect(rendered).not.toContain('secret');
+  });
+
+  it('renderer strips private IPs and token patterns from header values even without sanitization', () => {
+    // D5: renderLiveVerificationReportMarkdown must apply redact() + redactPrivateNetworkAddresses()
+    // to header values as defense-in-depth. Local path replacement requires context that the renderer
+    // does not have (use sanitizeLiveVerificationReport for full path stripping), but the renderer
+    // must at minimum strip private IPs and embedded token/bearer patterns.
+    const unsanitized: LiveVerificationReport = {
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      homeDir: '[goodvibes-home]',   // already a placeholder (normal sanitized case)
+      binaryPath: 'token=supersecret', // a token-bearing value must be stripped by the renderer
+      connectedHostBaseUrl: 'http://192.168.1.50:3421', // private IP must be stripped
+      strict: false,
+      counts: { pass: 1, warn: 0, fail: 0, skip: 0 },
+      ok: true,
+      checks: [{ id: 'test', title: 'Test', status: 'pass', summary: 'ok' }],
+    };
+
+    const rendered = renderLiveVerificationReportMarkdown(unsanitized);
+
+    // Private IP must be replaced by [private-ip].
+    expect(rendered).not.toContain('192.168.1.50');
+    expect(rendered).toContain('[private-ip]');
+    // Token pattern must be redacted by the renderer.
+    expect(rendered).not.toContain('supersecret');
+    // The header lines must still be present.
+    expect(rendered).toContain('Home:');
+    expect(rendered).toContain('Binary:');
+    expect(rendered).toContain('Connected host:');
+  });
+
+  it('renderer normalizes raw filesystem paths in header values to sanitized placeholders', () => {
+    // Hardening: even when sanitizeLiveVerificationReport is NOT called first,
+    // the renderer must not echo a raw filesystem path for homeDir or binaryPath.
+    // normalizeRenderedPath in renderLiveVerificationReportMarkdown detects /- or ~-leading
+    // values and replaces them with the canonical placeholder.
+    const unsanitized: LiveVerificationReport = {
+      generatedAt: '2026-01-01T00:00:00.000Z',
+      homeDir: '/home/operator/.goodvibes',          // raw path, starts with /
+      binaryPath: '/workspace/goodvibes-agent/dist/goodvibes-agent', // raw path, starts with /
+      connectedHostBaseUrl: 'http://127.0.0.1:3421',
+      strict: false,
+      counts: { pass: 1, warn: 0, fail: 0, skip: 0 },
+      ok: true,
+      checks: [{ id: 'test', title: 'Test', status: 'pass', summary: 'ok' }],
+    };
+
+    const rendered = renderLiveVerificationReportMarkdown(unsanitized);
+
+    // Raw paths must not appear in the rendered output.
+    expect(rendered).not.toContain('/home/operator');
+    expect(rendered).not.toContain('/workspace/goodvibes-agent');
+    // Canonical placeholders must be present instead.
+    expect(rendered).toContain('[goodvibes-home]');
+    expect(rendered).toContain('[agent-binary]');
+    // Header lines must still be present.
+    expect(rendered).toContain('Home: `[goodvibes-home]`');
+    expect(rendered).toContain('Binary: `[agent-binary]`');
   });
 
   it('redacts raw operator token when it appears outside Bearer or JSON token shapes', () => {

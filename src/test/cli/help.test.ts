@@ -68,6 +68,13 @@ describe('CLI help/version', () => {
     expect(completion).not.toContain('--port');
   });
 
+  test('shell completion defaults to goodvibes-agent as the binary name', () => {
+    // D6: renderCompletion default binary must be 'goodvibes-agent', not 'goodvibes'.
+    const completion = renderCompletion('bash');
+    expect(completion).toContain('goodvibes-agent');
+    expect(completion).not.toContain('_goodvibes()');
+  });
+
   test('profiles command help explains isolated profile homes', () => {
     const help = renderGoodVibesCommandHelp('profiles');
     expect(help).toContain('isolated Agent profile homes');

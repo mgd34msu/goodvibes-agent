@@ -105,15 +105,20 @@ export async function persistSecretBackedConfigValue(
 ): Promise<string> {
   const update = buildSecretBackedConfigUpdate(configKey, rawValue);
   const scope = options.scope ?? 'user';
-  if (update.secretKey && update.secretValue !== undefined && secretsManager) {
-    await secretsManager.set(update.secretKey, update.secretValue, {
-      scope,
-      medium: getSecretWriteMedium(configManager.get('storage.secretPolicy')),
-    });
-  }
-  if (update.clearSecretKey && secretsManager?.delete) {
-    await secretsManager.delete(update.clearSecretKey, { scope });
-  }
+  const medium = getSecretWriteMedium(configManager.get('storage.secretPolicy'));
+
+  // 1. Validate config write first. If setDynamic throws, no secret is written (avoids orphans).
   configManager.setDynamic(configKey, update.configValue);
+
+  // 2. Write new secret only after config accepted it.
+  if (update.secretKey && update.secretValue !== undefined && secretsManager) {
+    await secretsManager.set(update.secretKey, update.secretValue, { scope, medium });
+  }
+
+  // 3. Clear old secret — pass the same medium so plaintext-medium secrets are found for deletion.
+  if (update.clearSecretKey && secretsManager?.delete) {
+    await secretsManager.delete(update.clearSecretKey, { scope, medium });
+  }
+
   return update.configValue;
 }

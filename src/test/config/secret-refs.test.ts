@@ -1,4 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { persistSecretBackedConfigValue } from '../../config/secret-config.ts';
+import type {
+  SecretBackedConfigManager,
+  SecretBackedSecretStore,
+} from '../../config/secret-config.ts';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -197,6 +202,56 @@ describe('secret refs', () => {
     process.env.GV_EXTERNAL_REF_TEST = externalProviderValue;
 
     expect(await manager.get('GV_EXTERNAL_REF_TEST')).toBe(externalProviderValue);
+  });
+
+  test('persistSecretBackedConfigValue: setDynamic failure prevents secret from being written', async () => {
+    // D3: if setDynamic throws, no secret must be written.
+    const setDynamicError = new Error('unknown setting');
+    const configManager: SecretBackedConfigManager = {
+      get: () => 'secure',
+      setDynamic: () => { throw setDynamicError; },
+    };
+    const written: Array<{ key: string; value: string }> = [];
+    const secretsManager: SecretBackedSecretStore = {
+      set: async (key, value) => { written.push({ key, value }); },
+    };
+
+    await expect(
+      persistSecretBackedConfigValue(
+        configManager,
+        secretsManager,
+        'surfaces.slack.botToken' as never,
+        'xoxb-secret-token',
+      ),
+    ).rejects.toThrow('unknown setting');
+
+    // No secret must have been written after setDynamic threw.
+    expect(written).toEqual([]);
+  });
+
+  test('persistSecretBackedConfigValue: clearSecretKey delete passes the resolved medium', async () => {
+    // D3: the delete path must receive the same medium as the set path.
+    const configManager: SecretBackedConfigManager = {
+      get: (key) => key === 'storage.secretPolicy' ? 'plaintext_allowed' : undefined,
+      setDynamic: () => {},
+    };
+    const deletedWith: Array<{ key: string; options?: unknown }> = [];
+    const secretsManager: SecretBackedSecretStore = {
+      set: async () => {},
+      delete: async (key, options) => { deletedWith.push({ key, options }); },
+    };
+
+    // Empty rawValue triggers the clear path.
+    await persistSecretBackedConfigValue(
+      configManager,
+      secretsManager,
+      'surfaces.slack.botToken' as never,
+      '',
+    );
+
+    expect(deletedWith).toHaveLength(1);
+    // Medium must be 'plaintext' (derived from storage.secretPolicy = 'plaintext_allowed').
+    expect((deletedWith[0].options as { medium?: string }).medium).toBe('plaintext');
   });
 
   test('ServiceRegistry resolves tokenRef without requiring a local tokenKey value', async () => {

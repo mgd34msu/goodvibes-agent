@@ -55,7 +55,7 @@ const OPTIONS = [
   '--manual',
 ] as const;
 
-export function renderCompletion(shell: string | undefined, binary = 'goodvibes'): string {
+export function renderCompletion(shell: string | undefined, binary = 'goodvibes-agent'): string {
   const normalized = (shell ?? 'bash').toLowerCase();
   const words = [...COMMANDS, ...OPTIONS].join(' ');
 

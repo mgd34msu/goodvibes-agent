@@ -25,9 +25,14 @@ export interface RedactedConfigResult<T> {
   readonly redactedPaths: readonly string[];
 }
 
+// Redaction rule for sensitive config paths:
+// - Non-string values: redact if truthy (i.e. non-null, non-undefined, non-zero, non-false).
+//   Rationale: zero and false are never meaningful secrets; null/undefined mean absent.
+// - String values: redact non-empty strings that are not goodvibes:// secret refs.
+//   Rationale: empty string means unset; secret refs are safe placeholders, not raw values.
 function shouldRedactValue(path: string, value: unknown): boolean {
   if (!isSensitiveConfigPath(path)) return false;
-  if (typeof value !== 'string') return value !== undefined && value !== null;
+  if (typeof value !== 'string') return value !== null && value !== undefined && Boolean(value);
   if (value.trim().length === 0) return false;
   if (value.startsWith('goodvibes://secrets/')) return false;
   return true;

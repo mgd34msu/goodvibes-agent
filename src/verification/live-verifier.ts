@@ -680,13 +680,26 @@ export function sanitizeLiveVerificationReport(
 }
 
 export function renderLiveVerificationReportMarkdown(report: LiveVerificationReport): string {
+  // Defense-in-depth: redact header values even if the report was not pre-sanitized.
+  // sanitizeLiveVerificationReport already replaces these with placeholders for normal
+  // usage, but an unsanitized report passed directly must not leak local paths.
+  // normalizeRenderedPath: if the value still looks like a raw filesystem path (starts with /
+  // or ~) replace it with the canonical sanitized placeholder so the renderer cannot echo
+  // a raw path even when called without prior sanitization.
+  function normalizeRenderedPath(value: string, placeholder: string): string {
+    const stripped = redactPrivateNetworkAddresses(redact(value));
+    return /^[/~]/.test(stripped) ? placeholder : stripped;
+  }
+  const homeDir = normalizeRenderedPath(report.homeDir, '[goodvibes-home]');
+  const binaryPath = normalizeRenderedPath(report.binaryPath, '[agent-binary]');
+  const connectedHostBaseUrl = redactPrivateNetworkAddresses(redact(report.connectedHostBaseUrl));
   const lines: string[] = [
     '# GoodVibes Agent Live Verification',
     '',
     `Generated: ${report.generatedAt}`,
-    `Home: \`${report.homeDir}\``,
-    `Binary: \`${report.binaryPath}\``,
-    `Connected host: \`${report.connectedHostBaseUrl}\``,
+    `Home: \`${homeDir}\``,
+    `Binary: \`${binaryPath}\``,
+    `Connected host: \`${connectedHostBaseUrl}\``,
     '',
     '| Status | Count |',
     '|---|---:|',

@@ -118,6 +118,27 @@ function listCliCommands(root: string): string[] {
     .filter((command) => command !== 'unknown');
 }
 
+/**
+ * Approximation of the number of CONFIG_SCHEMA entries for which local
+ * schema/load/write/persistence tests exercise observable behavior. This is NOT the
+ * schema size — it is a manually-maintained estimate that may lag the true per-key
+ * coverage count. Deriving the exact count (one assertion per key) is backlogged as I1.
+ *
+ * The ledger formula uses Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settings) so that
+ * if the schema shrinks below the estimate, localBehaviorVerified never overstates total.
+ * The drift test in verification-ledger.test.ts asserts
+ * SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE <= CONFIG_SCHEMA.length — the constant may never
+ * claim more verified settings than keys that actually exist.
+ */
+export const SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE = 184;
+
+/**
+ * Conservative estimate of the number of feature flags that require live external runtime
+ * behavior and cannot be behavior-verified locally. The remainder are classed as locally
+ * behavior-verified. Update this constant when flag semantics change. See backlog I1.
+ */
+export const FEATURE_FLAGS_EXTERNAL_ESTIMATE = 4;
+
 export function buildVerificationLedger(root: string): VerificationLedger {
   const slashCommandNames = listSlashCommands();
   const cliCommandNames = listCliCommands(root);
@@ -144,26 +165,30 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   const harnessModeCatalog = countHarnessModeCatalogSurface(root);
   const qualityReadiness = countQualityReadinessDimensions(root);
 
+  // Use module-level exported constants (defined below buildVerificationLedger).
+  // Importing from here keeps test and production in sync — the drift test imports the same constants.
+
   const areas: VerificationLedgerArea[] = [
     {
       area: 'Settings schema and persistence',
       total: settings,
       localSignalVerified: settings,
-      // 184 = approximate count of settings covered by local schema/load/write tests
-      // (known-approximation — exact derivation tracked in backlog I1)
-      localBehaviorVerified: Math.min(184, settings),
-      externalOutcomeRequired: Math.max(0, settings - 184),
-      notes: 'Every schema setting can be validated for schema/default/load/write/location; external side effects remain separate.',
+      // localBehaviorVerified uses SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE — a documented estimate,
+      // not a precise derivation. Drift test in verification-ledger.test.ts guards against silent
+      // overstatement when the schema grows past the constant.
+      localBehaviorVerified: Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settings),
+      externalOutcomeRequired: Math.max(0, settings - SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE),
+      notes: 'Every schema setting can be validated for schema/default/load/write/location; external side effects remain separate. localBehaviorVerified uses a documented estimate (SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE); update the constant when coverage evidence changes.',
     },
     {
       area: 'Feature flags',
       total: featureFlags,
       localSignalVerified: featureFlags,
-      // 4 = approximate count of flags requiring live external runtime behavior
-      // (known-approximation — exact derivation tracked in backlog I1)
-      localBehaviorVerified: Math.max(0, featureFlags - 4),
-      externalOutcomeRequired: Math.min(4, featureFlags),
-      notes: 'All flags can be loaded/toggled; a small external runtime subset still requires live behavior.',
+      // localBehaviorVerified uses FEATURE_FLAGS_EXTERNAL_ESTIMATE — a documented estimate,
+      // not a precise derivation. See backlog I1.
+      localBehaviorVerified: Math.max(0, featureFlags - FEATURE_FLAGS_EXTERNAL_ESTIMATE),
+      externalOutcomeRequired: Math.min(FEATURE_FLAGS_EXTERNAL_ESTIMATE, featureFlags),
+      notes: 'All flags can be loaded/toggled; a small external runtime subset still requires live behavior. localBehaviorVerified uses a documented estimate (FEATURE_FLAGS_EXTERNAL_ESTIMATE); update the constant when flag semantics change.',
     },
     {
       area: 'Slash commands',
@@ -224,8 +249,9 @@ export function buildVerificationLedger(root: string): VerificationLedger {
     {
       area: 'Model-visible notification targets',
       total: notificationTargets.modes + notificationTargets.sources,
+      // availableSources counts source-marker substring hits (signal tier only, not behavior-backed).
       localSignalVerified: notificationTargets.availableModes + notificationTargets.availableSources,
-      localBehaviorVerified: notificationTargets.availableModes + notificationTargets.availableSources,
+      localBehaviorVerified: notificationTargets.availableModes,
       externalOutcomeRequired: 0,
       notes: `${notificationTargets.modes} agent_harness modes, notifications and notification_target, and ${notificationTargets.sources} notification source markers must stay locally inspectable with webhook values redacted.`,
     },
@@ -233,7 +259,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible provider accounts',
       total: providerAccounts.modes + providerAccounts.sources,
       localSignalVerified: providerAccounts.availableModes + providerAccounts.availableSources,
-      localBehaviorVerified: providerAccounts.availableModes + providerAccounts.availableSources,
+      localBehaviorVerified: providerAccounts.availableModes,
       externalOutcomeRequired: 0,
       notes: `${providerAccounts.modes} agent_harness modes, provider_accounts and provider_account, and ${providerAccounts.sources} provider-account source markers must stay locally inspectable without exposing tokens or authorization codes.`,
     },
@@ -241,7 +267,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible MCP servers',
       total: mcpServers.modes + mcpServers.sources,
       localSignalVerified: mcpServers.availableModes + mcpServers.availableSources,
-      localBehaviorVerified: mcpServers.availableModes + mcpServers.availableSources,
+      localBehaviorVerified: mcpServers.availableModes,
       externalOutcomeRequired: 0,
       notes: `${mcpServers.modes} agent_harness modes, mcp_servers and mcp_server, and ${mcpServers.sources} MCP source markers must stay locally inspectable without exposing env or secret values.`,
     },
@@ -249,7 +275,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible setup and onboarding posture',
       total: setupPosture.modes + setupPosture.sources,
       localSignalVerified: setupPosture.availableModes + setupPosture.availableSources,
-      localBehaviorVerified: setupPosture.availableModes + setupPosture.availableSources,
+      localBehaviorVerified: setupPosture.availableModes,
       externalOutcomeRequired: 0,
       notes: `${setupPosture.modes} agent_harness modes, setup_posture, setup_item, setup_checkpoint, mark_setup_checkpoint, clear_setup_checkpoint, provision_connected_host_token, and run_setup_smoke, and ${setupPosture.sources} setup/onboarding source markers must stay locally inspectable while confirmed setup effects avoid exposing secret values.`,
     },
@@ -257,7 +283,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible model routing posture',
       total: modelRouting.modes + modelRouting.sources,
       localSignalVerified: modelRouting.availableModes + modelRouting.availableSources,
-      localBehaviorVerified: modelRouting.availableModes + modelRouting.availableSources,
+      localBehaviorVerified: modelRouting.availableModes,
       externalOutcomeRequired: 0,
       notes: `${modelRouting.modes} agent_harness modes, model_routing, model_route, run_local_model_smoke, and ${modelRouting.sources} provider/model source markers must stay locally inspectable while route changes stay visible user flows.`,
     },
@@ -265,7 +291,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible pairing posture',
       total: pairingPosture.modes + pairingPosture.sources,
       localSignalVerified: pairingPosture.availableModes + pairingPosture.availableSources,
-      localBehaviorVerified: pairingPosture.availableModes + pairingPosture.availableSources,
+      localBehaviorVerified: pairingPosture.availableModes,
       externalOutcomeRequired: 0,
       notes: `${pairingPosture.modes} agent_harness modes, pairing_posture and pairing_route, and ${pairingPosture.sources} pairing source markers must stay locally inspectable without returning raw tokens or QR payloads.`,
     },
@@ -273,7 +299,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible delegation posture',
       total: delegationPosture.modes + delegationPosture.sources,
       localSignalVerified: delegationPosture.availableModes + delegationPosture.availableSources,
-      localBehaviorVerified: delegationPosture.availableModes + delegationPosture.availableSources,
+      localBehaviorVerified: delegationPosture.availableModes,
       externalOutcomeRequired: 0,
       notes: `${delegationPosture.modes} agent_harness modes, delegation_posture and delegation_route, and ${delegationPosture.sources} delegation source markers must stay locally inspectable while delegated work submission remains an explicit visible flow.`,
     },
@@ -281,7 +307,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible security and support bundles',
       total: securitySupport.modes + securitySupport.sources,
       localSignalVerified: securitySupport.availableModes + securitySupport.availableSources,
-      localBehaviorVerified: securitySupport.availableModes + securitySupport.availableSources,
+      localBehaviorVerified: securitySupport.availableModes,
       externalOutcomeRequired: 0,
       notes: `${securitySupport.modes} agent_harness modes, security_posture, security_finding, support_bundles, and support_bundle, and ${securitySupport.sources} security/support source markers must stay locally inspectable without exposing token, secret, or raw config values.`,
     },
@@ -289,7 +315,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible voice and media posture',
       total: mediaPosture.modes + mediaPosture.sources,
       localSignalVerified: mediaPosture.availableModes + mediaPosture.availableSources,
-      localBehaviorVerified: mediaPosture.availableModes + mediaPosture.availableSources,
+      localBehaviorVerified: mediaPosture.availableModes,
       externalOutcomeRequired: 0,
       notes: `${mediaPosture.modes} agent_harness modes, media_posture and media_provider, and ${mediaPosture.sources} voice/media source markers must stay locally inspectable without exposing secret values or media payloads.`,
     },
@@ -297,7 +323,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible sessions and bookmarks',
       total: sessionSurface.modes + sessionSurface.sources,
       localSignalVerified: sessionSurface.availableModes + sessionSurface.availableSources,
-      localBehaviorVerified: sessionSurface.availableModes + sessionSurface.availableSources,
+      localBehaviorVerified: sessionSurface.availableModes,
       externalOutcomeRequired: 0,
       notes: `${sessionSurface.modes} agent_harness modes, sessions and session, and ${sessionSurface.sources} session/bookmark source markers must stay locally inspectable while save/resume/export/delete/bookmark writes stay visible user flows.`,
     },
@@ -305,7 +331,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       area: 'Model-visible operator method catalog',
       total: operatorMethods.modes + operatorMethods.sources,
       localSignalVerified: operatorMethods.availableModes + operatorMethods.availableSources,
-      localBehaviorVerified: operatorMethods.availableModes + operatorMethods.availableSources,
+      localBehaviorVerified: operatorMethods.availableModes,
       externalOutcomeRequired: 0,
       notes: `${operatorMethods.modes} agent_harness modes, operator_methods and operator_method, and ${operatorMethods.sources} SDK-backed method source markers must stay locally inspectable with exact-route invocation gated by agent_operator_method confirmation policy.`,
     },

@@ -1,8 +1,12 @@
 import { describe, expect, test } from 'bun:test';
 import {
   buildVerificationLedger,
+  FEATURE_FLAGS_EXTERNAL_ESTIMATE,
   renderVerificationLedgerMarkdown,
+  SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE,
 } from '../../verification/verification-ledger.ts';
+import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
+import { FEATURE_FLAG_MAP } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { join, resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 
@@ -17,7 +21,9 @@ describe('verification ledger', () => {
     expect(ledger.totals.total).toBeGreaterThan(400);
     // Signal percent: localSignalVerified / total must be >= 90%
     expect(ledger.totals.localSignalPercent).toBeGreaterThanOrEqual(90);
-    expect(ledger.totals.localBehaviorPercent).toBeGreaterThan(70);
+    // localBehaviorPercent is now honest: source-marker substring hits no longer
+    // inflate localBehaviorVerified. Floor reflects dispatch-backed behavior only.
+    expect(ledger.totals.localBehaviorPercent).toBeGreaterThanOrEqual(70);
     // All counts must be non-negative
     expect(ledger.totals.total).toBeGreaterThanOrEqual(0);
     expect(ledger.totals.localSignalVerified).toBeGreaterThanOrEqual(0);
@@ -84,6 +90,70 @@ describe('verification ledger', () => {
     expect(markdown).toContain('mode descriptors');
     expect(markdown).not.toContain('fake context');
     expect(markdown).not.toContain('fake read models');
+  });
+
+  test('drift guard: SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE does not silently overstate when schema grows', () => {
+    // Real drift guard: uses the same CONFIG_SCHEMA the ledger uses at runtime.
+    // Assertion (a) is the line that FAILS when the schema grows past the claim,
+    // forcing a developer to update SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE with new evidence
+    // before the overstatement goes unnoticed.
+    const schemaSize = CONFIG_SCHEMA.length;
+
+    // (a) Anti-overstatement guard: the constant may never claim more verified settings than
+    // schema keys that actually exist. FAILS if SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE > schemaSize,
+    // preventing the estimate from silently padding beyond the real schema.
+    expect(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE).toBeLessThanOrEqual(schemaSize);
+
+    // (b) Formula-fidelity guards: verify the ledger applies the Math.min/Math.max formula
+    // correctly regardless of where the estimate sits relative to total.
+    //   localBehaviorVerified = Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settings)
+    //   externalOutcomeRequired = Math.max(0, settings - SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE)
+    // These are non-tautological: they are falsifiable when the formula or constant changes.
+    const ledger = buildVerificationLedger(projectRoot);
+    const settingsArea = ledger.areas.find((area) => area.area === 'Settings schema and persistence')!;
+    expect(settingsArea).toBeDefined();
+    expect(settingsArea.localBehaviorVerified).toBeLessThanOrEqual(settingsArea.total);
+    expect(settingsArea.localBehaviorVerified).toBe(Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settingsArea.total));
+    expect(settingsArea.externalOutcomeRequired).toBe(Math.max(0, settingsArea.total - SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE));
+
+    // (c) Mirror the same pattern for feature flags.
+    const flagCount = FEATURE_FLAG_MAP.size;
+    // Feature-flags external estimate is an upper bound on externally-required flags.
+    // This assertion FAILS if the total flag count somehow drops below the external estimate,
+    // which would imply a data error (can't have more external flags than total flags).
+    expect(flagCount).toBeGreaterThanOrEqual(FEATURE_FLAGS_EXTERNAL_ESTIMATE);
+    const featureFlagsArea = ledger.areas.find((area) => area.area === 'Feature flags')!;
+    expect(featureFlagsArea).toBeDefined();
+    // externalOutcomeRequired must equal min(FEATURE_FLAGS_EXTERNAL_ESTIMATE, flagCount).
+    expect(featureFlagsArea.externalOutcomeRequired).toBe(
+      Math.min(FEATURE_FLAGS_EXTERNAL_ESTIMATE, flagCount),
+    );
+    // localBehaviorVerified must be the remainder.
+    expect(featureFlagsArea.localBehaviorVerified).toBe(
+      Math.max(0, flagCount - FEATURE_FLAGS_EXTERNAL_ESTIMATE),
+    );
+  });
+
+  test('source marker guard: each countSourceMarkers marker string must be present in its file', () => {
+    const source = readFileSync(join(projectRoot, 'src/verification/verification-ledger-surfaces.ts'), 'utf8');
+    // Verify that countHarnessSourceSurface callers still reference real markers.
+    // If any of these strings disappear (e.g. a rename), this test fails.
+    const markerConstants = [
+      'notifications.webhookUrls',
+      'buildProviderAccountSnapshot',
+      'listServerSecurity',
+      'collectOnboardingSnapshot',
+      'listModels',
+      'readConnectedHostOperatorToken',
+      'delegatedReviewPolicy',
+      'buildMcpAttackPathReview',
+      'buildAgentWorkspaceVoiceMediaReadiness',
+      'sessionManager',
+      'getOperatorContract',
+    ];
+    for (const marker of markerConstants) {
+      expect(source).toContain(marker);
+    }
   });
 
   test('does not count hidden host lifecycle commands as Agent verification scope', () => {
