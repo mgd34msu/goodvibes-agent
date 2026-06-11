@@ -112,7 +112,7 @@ const REQUIRED_PACKAGE_SCRIPTS: Readonly<Record<string, string>> = {
   'package:install-check': 'bun run scripts/package-install-check.ts',
   'architecture:check': 'bun run scripts/check-architecture.ts',
   'perf:check': 'bun run scripts/perf-check.ts',
-  'ci:gate': 'bun run typecheck && bun run test && bun run architecture:check && bun run perf:check && bun run build && bun run publish:check && bun run package:install-check && bun run verification:ledger',
+  'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run test && bun run architecture:check && bun run perf:check && bun run build && bun run publish:check && bun run package:install-check && bun run verification:ledger',
   'build:prod': 'bun run scripts/build.ts',
   'build:all': 'bun run scripts/build.ts --all',
   'verification:ledger': 'bun run scripts/verification-ledger.ts',

@@ -38,6 +38,8 @@ describe('wireShellUiOpeners', () => {
       serviceRegistry: testManagers.serviceRegistry,
       getConfiguredProviderIds: () => [],
       getPinned: async () => [],
+      workingDirectory: process.cwd(),
+      homeDirectory: process.env['HOME'] ?? process.cwd(),
       render,
     });
   });

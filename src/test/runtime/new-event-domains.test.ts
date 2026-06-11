@@ -107,7 +107,7 @@ describe('new runtime event domains', () => {
   });
 
   test('event vocabularies cover all first-class GoodVibes surfaces', () => {
-    const copiedSurfaceKind = ['home', 'assistant'].join('');
+    const copiedSurfaceKind = ['home', 'assistant'].join('') as unknown as 'service';
     expect([...ROUTE_SURFACE_KINDS]).toEqual([
       'tui',
       'web',

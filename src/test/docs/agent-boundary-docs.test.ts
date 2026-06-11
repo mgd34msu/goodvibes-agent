@@ -141,6 +141,7 @@ describe('Agent user-first product docs', () => {
     const tool = createAgentWorkspaceTool({
       commandRegistry: new CommandRegistry(),
       commandContext: {} as never,
+      toolRegistry: {} as never,
     });
     const actionEnum = (tool.definition.parameters as {
       properties: { action: { enum: string[] } };

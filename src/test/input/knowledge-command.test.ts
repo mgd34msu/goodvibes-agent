@@ -509,7 +509,6 @@ describe('knowledgeCommand', () => {
   test('maps Agent Knowledge through the isolated service map', async () => {
     const artifactStore = new ArtifactStore({
       rootDir: join(root, 'artifacts'),
-      sessionId: 'knowledge-test',
     });
     const knowledgeStore = new KnowledgeStore({
       configManager: {

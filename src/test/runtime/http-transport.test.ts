@@ -194,7 +194,7 @@ describe('HttpTransport', () => {
     try {
       await waitFor(() => seen[0]);
       await waitFor(() => telemetryReady ? streamedTelemetry[0] : null);
-      await transport.operator.tasks.cancel(taskRecord.id);
+      await transport.operator.tasks.cancel(taskRecord!.id);
     } finally {
       unsubscribe();
       stopTelemetry();

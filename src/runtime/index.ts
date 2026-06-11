@@ -325,6 +325,11 @@ export const getDistributedNodeHostContract = operations.getDistributedNodeHostC
 export const CURRENT_PROTOCOL_VERSION = operations.CURRENT_PROTOCOL_VERSION;
 export const VersionMismatchError = operations.VersionMismatchError;
 export const negotiateProtocolVersion = operations.negotiateProtocolVersion;
+// Protocol version types — re-exported for transport compatibility tests.
+// ProtocolVersion, VersionNegotiationResult, NegotiatedProtocol are available
+// via operations namespace (operations.ProtocolVersion etc.) but cannot be
+// re-exported here without a registered subpath. Tests that need these types
+// should import from the operations namespace types directly.
 export const createTaskManager = operations.createTaskManager;
 export const PhasedToolExecutor = operations.PhasedToolExecutor;
 export const budgetPhase = operations.budgetPhase;
@@ -614,7 +619,7 @@ export type BundleProvenance = Security.BundleProvenance;
 export type DecisionReason = Security.DecisionReason;
 export type DivergenceReport = Security.DivergenceReport;
 export type EnforceGateResult = Security.EnforceGateResult;
-export type SignedPolicyBundle = Security.SignedPolicyBundle;
+export type SignedPolicyBundle<T = unknown> = Security.SignedPolicyBundle<T>;
 
 export interface InspectableDomain {
   readonly name: string;

@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createResumeSessionHandler } from '../../runtime/bootstrap-hook-bridge.ts';
 import { buildLocalReturnContextSummary } from '@/runtime/index.ts';
+import type { SharedSessionRecord } from '@pellux/goodvibes-sdk/platform/control-plane';
 
 describe('bootstrap hook bridge session resume', () => {
   test('stays independent from panel manager restore paths', () => {
@@ -42,9 +43,9 @@ describe('bootstrap hook bridge session resume', () => {
         log: mock((message: string) => { logs.push(message); }),
       } as never,
       requestRender: mock(() => {}),
-      onSessionIdChanged: mock(() => {}),
+      onSessionIdChanged: mock((_sessionId: string) => null as SharedSessionRecord | null) as never,
       sharedSessionBroker: {
-        reopenSession: mock(async () => {}),
+        reopenSession: mock(async () => null as SharedSessionRecord | null),
       },
       writeLastSessionPointer: mock(() => {}),
       hookDispatcher: {

@@ -13,6 +13,7 @@ function makeHealthState(maxLatencyMs = 500): ProviderHealthDomainState {
   return {
     providers: new Map([
       ['anthropic', {
+        providerId: 'anthropic',
         status: 'healthy' as const,
         displayName: 'Anthropic',
         isActive: true,
@@ -31,21 +32,36 @@ function makeHealthState(maxLatencyMs = 500): ProviderHealthDomainState {
         rateLimitResetAt: undefined,
       }],
     ]),
+    revision: 0,
+    lastUpdatedAt: Date.now(),
+    source: 'test',
     compositeStatus: 'healthy' as const,
     degradedCount: 0,
     unavailableCount: 0,
     warnings: [],
-    updatedAt: Date.now(),
   };
 }
 
 function makeModelState(): ModelDomainState {
   return {
+    revision: 0,
+    lastUpdatedAt: Date.now(),
+    source: 'test',
     activeModelId: 'claude-opus-4',
     activeProviderId: 'anthropic',
     fallbackChain: [],
-    updatedAt: Date.now(),
-  };
+    displayName: 'Claude Opus 4',
+    registryKey: 'anthropic:claude-opus-4',
+    tier: 'premium',
+    tokenLimits: { contextWindow: 200000, maxOutputTokens: 4096 },
+    supportsStreaming: true,
+    supportsTools: true,
+    supportsVision: true,
+    reasoningEffort: 'medium',
+    reasoningSummary: null,
+    activeFallbackIndex: 0,
+    falloverCount: 0,
+  } as unknown as ModelDomainState;
 }
 
 describe('ProviderHealthDataProvider — D1 field name accuracy', () => {
@@ -57,7 +73,7 @@ describe('ProviderHealthDataProvider — D1 field name accuracy', () => {
     // The field must be named maxLatencyMs.
     expect(entry!.maxLatencyMs).toBe(999);
     // Verify the misleading p95 field does NOT exist on the entry.
-    expect((entry as Record<string, unknown>)['p95LatencyMs']).toBeUndefined();
+    expect((entry as unknown as Record<string, unknown>)['p95LatencyMs']).toBeUndefined();
     provider.dispose();
   });
 });
@@ -82,7 +98,7 @@ describe('health-enrichment — D1 field name accuracy', () => {
     const modelState = makeModelState();
     const mockBenchmarkStore = { getBenchmarks: () => undefined };
     const mockProviderRegistry = {
-      getSyntheticModelInfoFromCatalog: () => undefined,
+      getSyntheticModelInfoFromCatalog: () => null,
       getContextWindowForModel: (m: ModelDefinition) => m.contextWindow ?? 200000,
     };
 
@@ -101,6 +117,6 @@ describe('health-enrichment — D1 field name accuracy', () => {
     // The field must be named maxMs.
     expect(entry!.health.latency!.maxMs).toBe(750);
     // The misleading p95Ms field must NOT exist.
-    expect((entry!.health.latency as Record<string, unknown>)['p95Ms']).toBeUndefined();
+    expect((entry!.health.latency as unknown as Record<string, unknown>)['p95Ms']).toBeUndefined();
   });
 });

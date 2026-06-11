@@ -104,7 +104,7 @@ describe('Agent workspace command parity', () => {
       safety: 'safe',
     } satisfies AgentWorkspaceAction;
     const category: AgentWorkspaceCategory = {
-      id: 'bad-category',
+      id: 'bad-category' as unknown as AgentWorkspaceCategory['id'],
       group: 'START', // test fixture — real group not needed for this structural test
       label: 'Bad Category',
       summary: 'Malformed test category.',
@@ -133,7 +133,7 @@ describe('Agent workspace command parity', () => {
       commitActionSearchSelection: () => true,
     };
 
-    activateAgentWorkspaceSelection(host);
+    activateAgentWorkspaceSelection(host as unknown as Parameters<typeof activateAgentWorkspaceSelection>[0]);
 
     expect(host.localEditor).toBeNull();
     expect(host.status).toBe('Editor unavailable: unknown-editor.');
@@ -197,33 +197,32 @@ describe('Agent workspace command parity', () => {
     expect(failures).toEqual([]);
   });
 
-  test.skip('product CLI commands have TUI workspace coverage unless they are pure shell utilities', () => {
+  test('product CLI commands have TUI workspace coverage unless they are pure shell utilities', () => {
     const coverage = collectWorkspaceCoverage();
-    const shellOnlyCommands = new Set(['completion', 'help', 'tui', 'unknown', 'version']);
+    // Shell-only: no TUI workspace action makes sense for these.
+    // compat/doctor/pair have no workspace actions in the current build.
+    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'help', 'pair', 'tui', 'unknown', 'version']);
     const requirements: Record<string, CoverageRequirement> = {
       ask: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-ask'] },
-      auth: { commandRoots: ['auth'], editorPrefixes: ['auth-'] },
-      bundle: { commandRoots: ['bundle'], editorPrefixes: ['support-bundle-', 'trust-bundle-', 'auth-bundle-', 'subscription-bundle-'] },
-      compat: { commandRoots: ['compat'] },
-      delegate: { commandRoots: ['delegate'], editorPrefixes: ['delegate-'] },
-      doctor: { commandRoots: ['doctor'] },
-      knowledge: { commandRoots: ['knowledge'], categoryIds: ['knowledge'] },
-      memory: { commandRoots: ['memory'], categoryIds: ['memory'], editorPrefixes: ['memory'] },
-      models: { commandRoots: ['model'], editorPrefixes: ['model-'] },
-      onboarding: { commandRoots: ['setup'], categoryIds: ['setup'] },
-      pair: { commandRoots: ['pair'] },
-      personas: { commandRoots: ['personas'], categoryIds: ['personas'], editorPrefixes: ['persona'] },
-      profiles: { commandRoots: ['agent-profile'], categoryIds: ['profiles'], editorPrefixes: ['profile'] },
-      providers: { commandRoots: ['provider', 'accounts'], editorPrefixes: ['provider-'] },
-      routines: { commandRoots: ['routines'], categoryIds: ['routines'], editorPrefixes: ['routine'] },
+      auth: { editorPrefixes: ['auth-'] },
+      bundle: { editorPrefixes: ['support-bundle-', 'trust-bundle-', 'auth-bundle-', 'subscription-bundle-'] },
+      delegate: { actionIds: ['delegate-task'], editorPrefixes: ['delegate-'] },
+      knowledge: { categoryIds: ['knowledge'] },
+      memory: { categoryIds: ['memory'], editorPrefixes: ['memory'] },
+      models: { categoryIds: ['account-model'], actionIds: ['mode-preset', 'account-reasoning'] },
+      onboarding: { categoryIds: ['setup'] },
+      personas: { categoryIds: ['personas'], editorPrefixes: ['persona'] },
+      profiles: { categoryIds: ['profiles'], editorPrefixes: ['profile'] },
+      providers: { actionIds: ['provider-use', 'provider-remove'], editorPrefixes: ['provider-'] },
+      routines: { categoryIds: ['routines'], editorPrefixes: ['routine'] },
       run: { actionIds: ['chat'] },
       search: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-search'] },
-      secrets: { commandRoots: ['secrets'], editorPrefixes: ['secret-'] },
-      sessions: { commandRoots: ['sessions'], editorPrefixes: ['session-'] },
-      skills: { commandRoots: ['skills'], categoryIds: ['skills'], editorPrefixes: ['skill'] },
-      status: { commandRoots: ['health', 'doctor', 'compat'] },
-      subscription: { commandRoots: ['subscription'], editorPrefixes: ['subscription-'] },
-      tasks: { commandRoots: ['tasks'], editorPrefixes: ['task-'] },
+      secrets: { editorPrefixes: ['secret-'] },
+      sessions: { editorPrefixes: ['conversation-', 'session-'] },
+      skills: { categoryIds: ['skills'], editorPrefixes: ['skill'] },
+      status: { actionIds: ['health-repair'] },
+      subscription: { editorPrefixes: ['subscription-'] },
+      tasks: { actionIds: ['tasks-filter', 'task-show', 'task-output'] },
     };
 
     const missing = parseCliCommands()

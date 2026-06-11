@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -259,10 +260,10 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('routines', ['create', '--name', 'Inbox Sweep', '--description', 'Review messages.', '--steps', 'Summarize inbound messages and ask before replies.'], ctx);
@@ -285,7 +286,7 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -293,7 +294,7 @@ describe('/routines command', () => {
       });
       if ((init?.method ?? 'GET') === 'GET') return schedulesListResponse();
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('routines', ['create', '--name', 'Inbox Sweep', '--description', 'Review messages.', '--steps', 'Summarize inbound messages and ask before replies.'], ctx);
@@ -371,10 +372,10 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('routines', ['create', '--name', 'Inbox Sweep', '--description', 'Review messages.', '--steps', 'Summarize inbound messages and ask before replies.'], ctx);
@@ -401,10 +402,10 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('schedule', [
@@ -431,14 +432,14 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('schedule', [
@@ -491,10 +492,10 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return schedulesListResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('schedule', [
@@ -524,14 +525,14 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('schedule', [
@@ -571,14 +572,14 @@ describe('/routines command', () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('schedule', ['disable', 'sched-1', '--yes'], ctx);
@@ -604,13 +605,13 @@ describe('/routines command', () => {
     } as unknown as CommandContext;
     const requests: Array<{ readonly url: string; readonly method: string }> = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
       });
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       await registry.execute('schedule', ['run', 'sched-1', '--yes'], contextWithoutManager);

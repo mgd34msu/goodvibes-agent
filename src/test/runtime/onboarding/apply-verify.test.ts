@@ -326,6 +326,8 @@ describe('onboarding apply and verify helpers', () => {
           getRaw: configManager.getRaw.bind(configManager),
           load: configManager.load.bind(configManager),
           setDynamic: configManager.setDynamic.bind(configManager),
+          getCategory: configManager.getCategory.bind(configManager),
+          mergeCategory: configManager.mergeCategory.bind(configManager),
         },
         shellPaths,
         acknowledgementScope: 'project',
@@ -544,6 +546,8 @@ describe('onboarding apply and verify helpers', () => {
           setDynamic: () => {
             throw new Error('simulated config write failure');
           },
+          getCategory: configManager.getCategory.bind(configManager),
+          mergeCategory: configManager.mergeCategory.bind(configManager),
         },
         shellPaths,
         acknowledgementScope: 'project',
@@ -645,6 +649,7 @@ describe('onboarding apply and verify helpers', () => {
           hasSigningSecret: false,
           hasPublicKey: false,
           hasAppToken: false,
+          hasAuthTokenCredential: false,
         }),
       },
     });

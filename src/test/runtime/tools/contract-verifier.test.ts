@@ -59,7 +59,7 @@ function makeTool(overrides: {
 }
 
 const verifier = new ToolContractVerifier();
-type VerificationResult = ReturnType<ToolContractVerifier['verify']>;
+type VerificationResult = ReturnType<InstanceType<typeof ToolContractVerifier>['verify']>;
 type ContractViolation = VerificationResult['violations'][number];
 
 function expectViolation(

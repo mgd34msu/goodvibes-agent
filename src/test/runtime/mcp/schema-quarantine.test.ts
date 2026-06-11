@@ -197,7 +197,7 @@ describe('McpSchemaFreshnessTracker: quarantine', () => {
 // ---------------------------------------------------------------------------
 
 describe('McpLifecycleManager: quarantine execution block', () => {
-  function makeManager(): { mgr: McpLifecycleManager; events: McpEvent[] } {
+  function makeManager(): { mgr: InstanceType<typeof McpLifecycleManager>; events: McpEvent[] } {
     const mgr = new McpLifecycleManager();
     const events: McpEvent[] = [];
     mgr.onEvent((e) => events.push(e));

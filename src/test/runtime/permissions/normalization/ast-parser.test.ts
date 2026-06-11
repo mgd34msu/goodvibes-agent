@@ -190,7 +190,7 @@ describe('parseCommandAST — subshell expressions', () => {
     const sub = ast as SubshellNode;
     expect(sub.raw).toBe('`ls -la`');
     expect(sub.inner).toEqual(expect.objectContaining({ kind: 'command' }));
-    const innerNodes = collectCommandNodes(sub.inner);
+    const innerNodes = collectCommandNodes(sub.inner!);
     expect(innerNodes.map((node) => node.command)).toEqual(['ls']);
   });
 

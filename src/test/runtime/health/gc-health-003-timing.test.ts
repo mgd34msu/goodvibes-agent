@@ -334,7 +334,7 @@ describe('createCascadeAppliedEvent — timing field preservation', () => {
     const { cascades } = timer.evaluate('turn', 'failed');
     const event = createCascadeAppliedEvent(expectCascade(cascades, 'turn-failed-cancels-tools'));
     const severity = event.severity;
-    expect(['critical', 'high', 'medium', 'low']).toContain(severity);
+    expect(['critical', 'high', 'medium', 'low']).toContain(severity as string);
   });
 
   test('remediationPlaybookIds is an array on the produced event', () => {

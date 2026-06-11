@@ -73,7 +73,7 @@ function makeSimulator(diverged: boolean) {
         authoritativeDecision: { allowed: true },
       };
     },
-  } as unknown as import('@/runtime/index.ts').PermissionSimulator;
+  } as unknown as InstanceType<typeof import('@/runtime/index.ts').PermissionSimulator>;
 }
 
 // ---------------------------------------------------------------------------

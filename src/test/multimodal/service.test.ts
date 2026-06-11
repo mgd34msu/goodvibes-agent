@@ -58,7 +58,7 @@ describe('MultimodalService', () => {
       tags: ['docs', 'memory'],
     });
     expect(writeback.analysisArtifact.id.length).toBeGreaterThan(0);
-    expect(writeback.knowledgeSourceId.length).toBeGreaterThan(0);
+    expect(writeback.knowledgeSourceId!.length).toBeGreaterThan(0);
     expect(knowledgeService.listSources(20)).toContainEqual(
       expect.objectContaining({ id: writeback.knowledgeSourceId }),
     );

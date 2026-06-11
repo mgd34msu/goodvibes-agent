@@ -47,7 +47,7 @@ describe('KVState', () => {
 
   describe('session ID', () => {
     test('requires an explicit state directory or storage root', () => {
-      expect(() => new KVState()).toThrow();
+      expect(() => new (KVState as unknown as new () => never)()).toThrow();
     });
 
     test('auto-generates an 8-char hex session ID', () => {

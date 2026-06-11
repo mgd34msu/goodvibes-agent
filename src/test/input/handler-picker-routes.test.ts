@@ -11,6 +11,7 @@ import { describe, expect, test } from 'bun:test';
 import { handleModelPickerToken } from '../../input/handler-picker-routes.ts';
 import { buildLocalFitRecommendations, buildSignInRow } from '../../input/model-picker-local-fit.ts';
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
+import type { ModelPickerModal } from '../../input/model-picker.ts';
 
 const STUB_PROFILE = {
   totalRamBytes: 16 * 1024 ** 3,
@@ -102,7 +103,7 @@ function makePickerState(selectedModel: ModelDefinition) {
   };
 
   const state = {
-    modelPicker: modelPicker as never,
+    modelPicker: modelPicker as unknown as ModelPickerModal,
     modalStack,
     commandContext: commandContext as never,
     getViewportHeight: () => 40,

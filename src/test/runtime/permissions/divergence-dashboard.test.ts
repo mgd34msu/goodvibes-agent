@@ -65,7 +65,7 @@ function makeSimulator() {
 
 /** Drive N evaluations through the simulator: `diverging` use a write tool. */
 function drive(
-  sim: PermissionSimulator,
+  sim: InstanceType<typeof PermissionSimulator>,
   { total, diverging }: { total: number; diverging: number },
 ) {
   for (let i = 0; i < diverging; i++) {
@@ -167,18 +167,18 @@ describe('DivergenceDashboard.checkEnforceGate() — blocked', () => {
     const sim = makeSimulator();
     drive(sim, { total: 100, diverging: 20 });
     const dash = new DivergenceDashboard(sim, 'warn-on-divergence');
-    expect(() => dash.setMode('enforce')).toThrow(DivergenceGateError);
+    expect(() => dash.setMode('enforce')).toThrow(DivergenceGateError as unknown as new () => Error);
   });
 
   it('DivergenceGateError carries the gate result', () => {
     const sim = makeSimulator();
     drive(sim, { total: 100, diverging: 20 });
     const dash = new DivergenceDashboard(sim, 'warn-on-divergence');
-    let caught: DivergenceGateError | undefined;
+    let caught: InstanceType<typeof DivergenceGateError> | undefined;
     try {
       dash.setMode('enforce');
     } catch (e) {
-      caught = e as DivergenceGateError;
+      caught = e as InstanceType<typeof DivergenceGateError>;
     }
     expect(caught).toEqual(expect.objectContaining({
       name: 'DivergenceGateError',

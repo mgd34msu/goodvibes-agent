@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,12 +7,13 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { ShellPathService } from '@/runtime/index.ts';
 import {
   createAgentAutonomyScheduleTool,
   registerAgentAutonomyScheduleTool,
 } from '../../tools/agent-autonomy-schedule-tool.ts';
 
-type ShellPaths = ReturnType<typeof shellPaths>;
+type ShellPaths = ShellPathService;
 
 interface ScheduleRequest {
   readonly url: string;
@@ -112,10 +114,10 @@ describe('agent_autonomy_schedule tool', () => {
     const tool = createAgentAutonomyScheduleTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -145,10 +147,10 @@ describe('agent_autonomy_schedule tool', () => {
     const tool = createAgentAutonomyScheduleTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -172,14 +174,14 @@ describe('agent_autonomy_schedule tool', () => {
     const tool = createAgentAutonomyScheduleTool(paths, configManager(paths));
     const requests: ScheduleRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({

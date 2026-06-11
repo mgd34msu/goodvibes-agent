@@ -169,7 +169,7 @@ describe('RealtimeTransport', () => {
 
     expect(seen[0]).toEqual({
       type: 'AGENT_SPAWNING',
-      agentId: task.agentId,
+      agentId: task.agentId!,
     });
     const snapshot = await transport.snapshot();
     expect(snapshot.kind).toBe('realtime');

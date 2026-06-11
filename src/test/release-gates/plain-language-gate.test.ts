@@ -122,7 +122,7 @@ describe('plain-language gate', () => {
     const failures: string[] = [];
     for (const state of cases) {
       for (const hostReady of [true, false, null, undefined] as const) {
-        const result = buildSetupIncompleteHint(state as Parameters<typeof buildSetupIncompleteHint>[0], hostReady);
+        const result = buildSetupIncompleteHint(state as unknown as Parameters<typeof buildSetupIncompleteHint>[0], hostReady);
         if (result) {
           const text = result.lines.join(' ');
           for (const hit of violations(text, FIRST_GLANCE_BANNED)) {

@@ -319,9 +319,9 @@ describe('Orchestrator tool result reconciliation', () => {
       expect(r.result).toMatchObject({
         kind: 'error',
       });
-      expect(r.result.preview).toContain('[RECONCILED]');
-      expect(r.result.preview).toContain(r.callId);
-      expect(r.result.byteSize).toBeGreaterThan(0);
+      expect(r.result!.preview).toContain('[RECONCILED]');
+      expect(r.result!.preview).toContain(r.callId);
+      expect(r.result!.byteSize).toBeGreaterThan(0);
     }
   });
 

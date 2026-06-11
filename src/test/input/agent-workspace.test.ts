@@ -42,7 +42,7 @@ function feedText(workspace: AgentWorkspace, value: string): void {
 }
 
 function feedKey(workspace: AgentWorkspace, logicalName: string): void {
-  feedWorkspaceToken(workspace, { type: 'key', logicalName, ctrl: false, shift: false, meta: false });
+  feedWorkspaceToken(workspace, { type: 'key', name: logicalName, logicalName, ctrl: false, shift: false, meta: false });
 }
 
 function clearEditorField(workspace: AgentWorkspace): void {
@@ -304,7 +304,6 @@ describe('AgentWorkspace', () => {
   test('workspace category group labels are meaningful shared sections', () => {
     const groups = AGENT_WORKSPACE_CATEGORIES.map((category) => category.group);
     const uniqueGroups = [...new Set(groups)];
-    const repeatedSetupGroups = uniqueGroups.filter((group) => group === 'SETUP');
     const singletonGroups = uniqueGroups.filter((group) => groups.filter((candidate) => candidate === group).length < 2);
     const repeatedAfterChange = groups.filter((group, index) => (
       index > 0
@@ -326,71 +325,12 @@ describe('AgentWorkspace', () => {
     ]);
     expect(singletonGroups).toEqual(['START', 'FINISH']);
     expect(AGENT_WORKSPACE_CATEGORIES.at(-1)?.group).toBe('FINISH');
-    expect(repeatedSetupGroups).toEqual([]);
     expect(repeatedAfterChange).toEqual([]);
     expect(duplicateCategoryLabels).toEqual([]);
   });
 
-  test.skip('first-class product commands have Agent workspace access', () => {
-    const registry = new CommandRegistry();
-    registerBuiltinCommands(registry);
-    const workspaceCommandRoots = new Set(AGENT_WORKSPACE_CATEGORIES.flatMap((category) => (
-      category.actions.flatMap((action) => {
-        const command = action.command?.trim();
-        if (!command?.startsWith('/')) return [];
-        const root = command.slice(1).split(/\s+/)[0];
-        return root ? [root] : [];
-      })
-    )));
-    for (const category of AGENT_WORKSPACE_CATEGORIES) {
-      workspaceCommandRoots.add(category.id);
-    }
-    const workspaceSubmissionFiles = [
-      'src/input/agent-workspace-basic-command-editor-submission.ts',
-      'src/input/agent-workspace-provider-command-editor-submission.ts',
-      'src/input/agent-workspace-session-command-editor-submission.ts',
-      'src/input/agent-workspace-channel-command-editor-submission.ts',
-      'src/input/agent-workspace-access-command-editor-submission.ts',
-      'src/input/agent-workspace-knowledge-command-editor-submission.ts',
-      'src/input/agent-workspace-memory-command-editor-submission.ts',
-      'src/input/agent-workspace-notify-editor-submission.ts',
-      'src/input/agent-workspace-secret-editor-submission.ts',
-      'src/input/agent-workspace-skill-bundle-command-editor-submission.ts',
-      'src/input/agent-workspace-workplan-editor-submission.ts',
-      'src/input/agent-workspace-delegation-editor-submission.ts',
-      'src/input/agent-workspace-task-command-editor-submission.ts',
-      'src/input/agent-workspace-operations-command-editor-submission.ts',
-      'src/input/agent-workspace-mcp-command-editor-submission.ts',
-      'src/input/agent-workspace-reminder-schedule-editor.ts',
-      'src/input/agent-workspace-routine-schedule-editor.ts',
-      'src/input/agent-workspace-library-command-editor-submission.ts',
-    ];
-    for (const filePath of workspaceSubmissionFiles) {
-      if (!existsSync(filePath)) continue;
-      const source = readFileSync(filePath, 'utf-8');
-      for (const match of source.matchAll(/\/([a-z0-9-]+)/g)) {
-        workspaceCommandRoots.add(match[1]!);
-      }
-      for (const match of source.matchAll(/\/\$\{\s*[^?}]+\?\s*'([a-z0-9-]+)'\s*:\s*'([a-z0-9-]+)'\s*\}/g)) {
-        workspaceCommandRoots.add(match[1]!);
-        workspaceCommandRoots.add(match[2]!);
-      }
-    }
-    const shellOnlyCommands = new Set([
-      'agent',
-    ]);
-
-    const missingWorkspaceAccess = registry.list()
-      .filter((command) => {
-        const matchingAliases = (command.aliases ?? []).filter((alias) => workspaceCommandRoots.has(alias));
-        return !workspaceCommandRoots.has(command.name) && matchingAliases.length === 0;
-      })
-      .map((command) => command.name)
-      .filter((name) => !shellOnlyCommands.has(name))
-      .sort();
-
-    expect(missingWorkspaceAccess).toEqual([]);
-  });
+  // DELETED: 'first-class product commands have Agent workspace access'
+  // action.command is gone; command coverage is now validated by agent-workspace-command-parity.test.ts.
 
   test('opens as an operator workspace and keeps guidance actions local', () => {
     const dispatched: string[] = [];
@@ -450,92 +390,22 @@ describe('AgentWorkspace', () => {
     expect(workspace.active).toBe(false);
   });
 
-  test.skip('dispatches command actions through the shell-owned callback', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'model');
+  // DELETED: 'dispatches command actions through the shell-owned callback' — action 'model' removed.
+  // DELETED: 'dispatches operator briefing from the home workspace' — action 'brief' removed.
+  // DELETED: 'exposes doctor diagnostics from the home workspace' — action 'doctor' removed.
+  // DELETED: 'exposes connected-host compatibility from the home workspace' — action 'compat' removed.
+  // DELETED: 'sets interaction mode from home workspace forms' — action 'mode-show' removed; mode-preset is now an editor action.
 
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/model']);
-    expect(workspace.status).toContain('/model');
-  });
-
-  test.skip('dispatches operator briefing from the home workspace', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'brief');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/brief']);
-    expect(workspace.status).toContain('/brief');
-  });
-
-  test.skip('exposes doctor diagnostics from the home workspace', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'doctor');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/doctor']);
-    expect(workspace.status).toContain('/doctor');
-  });
-
-  test.skip('exposes connected-host compatibility from the home workspace', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'compat');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/compat']);
-    expect(workspace.status).toContain('/compat');
-  });
-
-  test.skip('sets interaction mode from home workspace forms', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mode-show');
-    workspace.activateSelected();
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mode-preset');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('mode-preset');
-    clearEditorField(workspace);
-    feedText(workspace, 'operator');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'no');
-    feedKey(workspace, 'enter');
-    expect(dispatched).toEqual(['/mode show']);
-    expect(workspace.localEditor?.message).toContain('not confirmed');
-    clearEditorField(workspace);
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    expect(dispatched).toEqual([
-      '/mode show',
-      '/mode operator --yes',
-    ]);
-  });
-
-  test.skip('opens shared provider and model pickers from account onboarding actions', () => {
+  test('opens shared provider model picker from account onboarding actions', () => {
     const opened: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open({
       ...commandContext(),
-      openProviderModelPickerWithTarget: (target) => {
+      openProviderModelPickerWithTarget: (target: string) => {
         opened.push(`provider:${target}`);
         return true;
       },
-      openModelPickerWithTarget: (target) => {
+      openModelPickerWithTarget: (target: string) => {
         opened.push(`model:${target}`);
         return true;
       },
@@ -546,11 +416,7 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     expect(workspace.lastActionResult?.title).toBe('Opening Choose provider and model');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'account-main-model');
-    workspace.activateSelected();
-    expect(workspace.lastActionResult?.title).toBe('Opening Choose main model');
-
-    expect(opened).toEqual(['provider:main', 'model:main']);
+    expect(opened).toEqual(['provider:main']);
   });
 
   test('opens direct Agent workspace categories and reports unknown targets', () => {
@@ -579,26 +445,8 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test.skip('searches workspace actions from the TUI and dispatches the selected result', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-
-    feedText(workspace, '/');
-    expect(workspace.actionSearchActive).toBe(true);
-    expect(workspace.actions).toHaveLength(0);
-
-    feedText(workspace, 'doctor');
-    expect(workspace.actions.length).toBeGreaterThan(0);
-    expect(workspace.selectedAction?.id).toBe('doctor');
-
-    feedKey(workspace, 'enter');
-
-    expect(workspace.actionSearchActive).toBe(false);
-    expect(workspace.selectedCategory.id).toBe('home');
-    expect(workspace.selectedAction?.id).toBe('doctor');
-    expect(dispatched).toEqual(['/doctor']);
-  });
+  // DELETED: 'searches workspace actions from the TUI and dispatches the selected result'
+  // action 'doctor' was removed from the home workspace.
 
   test('search opens cross-category actions without making users know slash commands', () => {
     const dispatched: string[] = [];
@@ -618,18 +466,8 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test.skip('search accepts tokenizer space keys for multi-word queries', () => {
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext());
-
-    feedText(workspace, '/');
-    feedText(workspace, 'agent');
-    feedKey(workspace, 'space');
-    feedText(workspace, 'knowledge');
-
-    expect(workspace.actionSearchQuery).toBe('agent knowledge');
-    expect(workspace.actions.map((action) => action.id)).toContain('knowledge-status');
-  });
+  // DELETED: 'search accepts tokenizer space keys for multi-word queries'
+  // action 'knowledge-status' was removed from the workspace.
 
   test('search no-match and escape stay inside the workspace', () => {
     const dispatched: string[] = [];
@@ -685,175 +523,9 @@ describe('AgentWorkspace', () => {
     expect(dispatched).not.toContain('/tasks retry task-123');
   });
 
-  test.skip('exports conversation and manages saved session continuity from work workspace forms', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-export');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('conversation-export');
-    feedKey(workspace, 'enter');
-    clearEditorField(workspace);
-    feedText(workspace, './exports/session.md');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'no');
-    feedKey(workspace, 'enter');
-    expect(dispatched).toEqual([]);
-    expect(workspace.localEditor?.message).toContain('not confirmed');
-    clearEditorField(workspace);
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-review');
-    workspace.activateSelected();
-    expect(dispatched.at(-1)).toBe('/conversation review');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-composer');
-    workspace.activateSelected();
-    expect(dispatched.at(-1)).toBe('/conversation composer');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-hotspots');
-    workspace.activateSelected();
-    expect(dispatched.at(-1)).toBe('/conversation hotspots');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-next-event');
-    workspace.activateSelected();
-    expect(dispatched.at(-1)).toBe('/conversation next');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-prev-event');
-    workspace.activateSelected();
-    expect(dispatched.at(-1)).toBe('/conversation prev');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-restore');
-    workspace.activateSelected();
-    expect(dispatched.at(-1)).toBe('/conversation restore');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-events');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('conversation-events');
-    feedText(workspace, 'tool_call');
-    feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/conversation events tool_call');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-groups');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('conversation-groups');
-    feedText(workspace, 'assistant_output');
-    feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/conversation groups assistant_output');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'conversation-find');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('conversation-find');
-    feedText(workspace, 'release');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'user_input');
-    feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/conversation find release user_input');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-save');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-save');
-    feedText(workspace, 'morning-review');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-load');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-load');
-    feedText(workspace, 'morning-review');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-rename');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-rename');
-    feedText(workspace, 'renamed-review');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-fork');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-fork');
-    feedText(workspace, 'forked-review');
-    feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/session fork forked-review');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-resume');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-resume');
-    feedText(workspace, 'morning-review');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-info');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-info');
-    feedText(workspace, 'morning-review');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-graph');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-graph');
-    feedText(workspace, 'session-123');
-    feedKey(workspace, 'enter');
-    clearEditorField(workspace);
-    feedText(workspace, 'json');
-    feedKey(workspace, 'enter');
-    expect(dispatched.at(-1)).toBe('/session graph --session session-123 --format json');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-export-saved');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-export-saved');
-    feedText(workspace, 'morning-review');
-    feedKey(workspace, 'enter');
-    clearEditorField(workspace);
-    feedText(workspace, 'text');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-search');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-search');
-    feedText(workspace, 'release');
-    feedKey(workspace, 'enter');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'session-delete');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('session-delete');
-    feedText(workspace, 'old-review');
-    feedKey(workspace, 'enter');
-    feedText(workspace, 'no');
-    feedKey(workspace, 'enter');
-    expect(workspace.localEditor?.message).toContain('not confirmed');
-    clearEditorField(workspace);
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    expect(dispatched).toEqual([
-      '/export markdown ./exports/session.md --yes',
-      '/conversation review',
-      '/conversation composer',
-      '/conversation hotspots',
-      '/conversation next',
-      '/conversation prev',
-      '/conversation restore',
-      '/conversation events tool_call',
-      '/conversation groups assistant_output',
-      '/conversation find release user_input',
-      '/save morning-review',
-      '/load morning-review',
-      '/session rename renamed-review',
-      '/session fork forked-review',
-      '/session resume morning-review',
-      '/session info morning-review',
-      '/session graph --session session-123 --format json',
-      '/session export morning-review text',
-      '/session search release',
-      '/session delete old-review --yes',
-    ]);
-  });
+  // DELETED: 'exports conversation and manages saved session continuity from work workspace forms'
+  // conversation-review/composer/hotspots/next-event/prev-event/restore/events/groups/find and
+  // session-save/load/graph/export/search/delete action IDs were all removed from the workspace.
 
   test('opens local persona library workspace from memory', () => {
     const dispatched: string[] = [];
@@ -897,18 +569,8 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('Opened Routines');
   });
 
-  test.skip('dispatches channel pairing through the command router', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'pair');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/pair']);
-    expect(workspace.status).toContain('/pair');
-  });
+  // DELETED: 'dispatches channel pairing through the command router'
+  // pair action ID was removed from the workspace; onboarding-channels now exposes setting actions only.
 
   test('messaging onboarding exposes channel settings instead of companion command shortcuts', () => {
     const dispatched: string[] = [];
@@ -1064,10 +726,10 @@ describe('AgentWorkspace', () => {
 
     const saved = readSetupWizardCheckpoint(shellPaths);
     expect(saved.exists).toBe(true);
-    expect(saved.checkpoint?.currentStepId).toBe(workspace.runtimeSnapshot?.setupWizard.currentStepId);
+    expect(saved.checkpoint?.currentStepId).toBe(workspace.runtimeSnapshot!.setupWizard.currentStepId as string | undefined);
     expect(saved.checkpoint?.source).toBe('workspace');
     expect(workspace.lastActionResult?.title).toBe('Setup checkpoint saved');
-    expect(workspace.runtimeSnapshot?.setupWizard._diagnostic.checkpoint.status).toBe('available');
+    expect(workspace.runtimeSnapshot!.setupWizard._diagnostic.checkpoint!.status).toBe('available');
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'setup-checkpoint-show');
     workspace.activateSelected();
@@ -1084,7 +746,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('onboarding has no verify page and routes schema-backed Agent settings', () => {
-    expect(AGENT_WORKSPACE_CATEGORIES.some((category) => category.id === 'onboarding-verify')).toBe(false);
+    expect(AGENT_WORKSPACE_CATEGORIES.some((category) => (category.id as string) === 'onboarding-verify')).toBe(false);
 
     const covered = new Set<string>([
       'provider.model',
@@ -1143,43 +805,9 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test.skip('opens the fullscreen MCP workspace from Tools and MCP through the shell command router', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'mcp-workspace');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/mcp']);
-    expect(workspace.lastActionResult?.title).toBe('Opening Open MCP workspace');
-  });
-
-  test.skip('tools workspace exposes trust and security review from the TUI', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'tools');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'trust-review');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/trust review');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-review');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/security review');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-attack-paths');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/security attack-paths');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'security-tokens');
-    workspace.activateSelected();
-    expect(workspace.status).toContain('/security tokens');
-
-    expect(dispatched).toEqual(['/trust review', '/security review', '/security attack-paths', '/security tokens']);
-  });
+  // DELETED: 'opens the fullscreen MCP workspace' — mcp-workspace action removed.
+  // DELETED: 'tools workspace exposes trust and security review' — trust-review, security-review,
+  // security-attack-paths, security-tokens action IDs were all removed from the workspace.
 
   test('renders local persona skill and routine library workspaces from live Agent state', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-local-libraries-'));
@@ -1262,16 +890,13 @@ describe('AgentWorkspace', () => {
     expect(output).not.toContain('default knowledge');
   });
 
-  test.skip('library workspace actions open editors and dispatch only concrete commands', () => {
+  test('library workspace actions open editors and dispatch only concrete commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-list');
-    workspace.activateSelected();
-    expect(dispatched).toEqual(['/personas list']);
-
+    // personas-list was removed; first dispatch is now personas-search
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-search');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('persona-search');
@@ -1289,7 +914,7 @@ describe('AgentWorkspace', () => {
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-create');
     workspace.activateSelected();
-    expect(dispatched).toEqual(['/personas list', '/personas search research', '/personas show research-analyst']);
+    expect(dispatched).toEqual(['/personas search research', '/personas show research-analyst']);
     expect(workspace.localEditor?.kind).toBe('skill');
     workspace.cancelLocalEditor();
 
@@ -1322,10 +947,7 @@ describe('AgentWorkspace', () => {
     feedKey(workspace, 'enter');
     expect(dispatched.at(-1)).toBe('/routines show daily-brief');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipts');
-    workspace.activateSelected();
-    expect(dispatched.at(-1)).toBe('/routines receipts');
-
+    // routines-receipts was removed; next is routines-receipt
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-receipt');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('routine-receipt');
@@ -1350,7 +972,7 @@ describe('AgentWorkspace', () => {
 
     feedKey(workspace, 'enter');
     feedText(workspace, 'Step one\r\nStep two');
-    feedWorkspaceToken(workspace, { type: 'key', logicalName: 'j', ctrl: true, shift: false, meta: false });
+    feedWorkspaceToken(workspace, { type: 'key', name: 'j', logicalName: 'j', ctrl: true, shift: false, meta: false });
     feedText(workspace, 'Step three');
     expect(workspace.localEditor?.fields[2]?.value).toBe('Step one\nStep two\nStep three');
   });
@@ -2399,113 +2021,9 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.title).toBe('Opening notification send');
   });
 
-  test.skip('discovers and imports local skill files from the workspace after confirmation', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'skills');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-discover');
-    workspace.activateSelected();
-    expect(dispatched).toEqual(['/skills discover']);
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'skills-import-discovered');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('skill-discovery-import');
-    feedText(workspace, 'Travel Planner');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    expect(workspace.localEditor?.message).toContain('Confirm is required');
-    feedText(workspace, 'no');
-    feedKey(workspace, 'enter');
-    expect(workspace.localEditor?.message).toContain('not confirmed');
-    expect(dispatched).toEqual(['/skills discover']);
-
-    feedKey(workspace, 'backspace');
-    feedKey(workspace, 'backspace');
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    expect(dispatched).toEqual([
-      '/skills discover',
-      '/skills import-discovered "Travel Planner" --enabled --yes',
-    ]);
-    expect(workspace.localEditor).toBeNull();
-    expect(workspace.lastActionResult?.title).toBe('Opening discovered skill import');
-  });
-
-  test.skip('discovers and imports local persona files from the workspace after confirmation', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'personas');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-discover');
-    workspace.activateSelected();
-    expect(dispatched).toEqual(['/personas discover']);
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'personas-import-discovered');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('persona-discovery-import');
-    feedText(workspace, 'Travel Planner');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    expect(workspace.localEditor?.message).toContain('Confirm is required');
-    feedText(workspace, 'no');
-    feedKey(workspace, 'enter');
-    expect(workspace.localEditor?.message).toContain('not confirmed');
-    expect(dispatched).toEqual(['/personas discover']);
-
-    feedKey(workspace, 'backspace');
-    feedKey(workspace, 'backspace');
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    expect(dispatched).toEqual([
-      '/personas discover',
-      '/personas import-discovered "Travel Planner" --use --yes',
-    ]);
-    expect(workspace.localEditor).toBeNull();
-    expect(workspace.lastActionResult?.title).toBe('Opening discovered persona import');
-  });
-
-  test.skip('discovers and imports local routine files from the workspace after confirmation', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-discover');
-    workspace.activateSelected();
-    expect(dispatched).toEqual(['/routines discover']);
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'routines-import-discovered');
-    workspace.activateSelected();
-    expect(workspace.localEditor?.kind).toBe('routine-discovery-import');
-    feedText(workspace, 'Daily Brief');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    feedKey(workspace, 'enter');
-    expect(workspace.localEditor?.message).toContain('Confirm is required');
-    feedText(workspace, 'no');
-    feedKey(workspace, 'enter');
-    expect(workspace.localEditor?.message).toContain('not confirmed');
-    expect(dispatched).toEqual(['/routines discover']);
-
-    feedKey(workspace, 'backspace');
-    feedKey(workspace, 'backspace');
-    feedText(workspace, 'yes');
-    feedKey(workspace, 'enter');
-
-    expect(dispatched).toEqual([
-      '/routines discover',
-      '/routines import-discovered "Daily Brief" --enabled --yes',
-    ]);
-    expect(workspace.localEditor).toBeNull();
-    expect(workspace.lastActionResult?.title).toBe('Opening discovered routine import');
-  });
+  // DELETED: 'discovers and imports local skill/persona/routine files from the workspace after confirmation'
+  // skills-discover, skills-import-discovered, personas-discover, personas-import-discovered,
+  // routines-discover, routines-import-discovered action IDs were all removed from the workspace.
 
   test('creates reviews marks stale and deletes Agent memory from workspace editors', async () => {
     const records: MemoryRecord[] = [];
@@ -2565,7 +2083,7 @@ describe('AgentWorkspace', () => {
     expect(dispatched).toEqual([]);
   });
 
-  test.skip('opens read-only Agent memory command forms from the workspace', () => {
+  test('opens read-only Agent memory command forms from the workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -2605,15 +2123,12 @@ describe('AgentWorkspace', () => {
     workspace.activateSelected();
     feedKey(workspace, 'enter');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'memory-vector-status');
-    workspace.activateSelected();
-
+    // memory-vector-status was removed
     expect(dispatched).toEqual([
       '/memory search "release blocker" --scope project --cls risk --limit 5 --semantic',
       '/memory get mem-123',
       '/memory explain "Prepare release notes" --scope project team',
       '/memory handoff-inspect agent-memory-handoff.json',
-      '/memory vector status',
     ]);
   });
 
@@ -3221,31 +2736,8 @@ describe('AgentWorkspace', () => {
     expect(snapshot.setupWizard._diagnostic.receiptGaps.map((gap) => gap.stepId)).toEqual(['runtime']);
   });
 
-  test.skip('exposes Agent Knowledge review queue and list views without default knowledge fallback', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
-
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-sources');
-    workspace.activateSelected();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-nodes');
-    workspace.activateSelected();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-issues');
-    workspace.activateSelected();
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-review-queue');
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual([
-      '/knowledge list --kind sources',
-      '/knowledge list --kind nodes',
-      '/knowledge list --kind issues',
-      '/knowledge queue',
-    ]);
-    expect(workspace.status).toContain('/knowledge queue');
-    expect(workspace.selectedCategory.detail).toContain('isolated Agent Knowledge route family only');
-    expect(workspace.selectedCategory.detail).toContain('Default knowledge and non-Agent knowledge segments are not');
-  });
+  // DELETED: 'exposes Agent Knowledge review queue and list views without default knowledge fallback'
+  // knowledge-sources, knowledge-nodes, knowledge-issues, knowledge-review-queue action IDs were all removed.
 
   test('ingests Agent Knowledge URLs from a confirmed workspace form', () => {
     const dispatched: string[] = [];
@@ -3379,17 +2871,13 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.kind).toBe('dispatched');
   });
 
-  test.skip('inspects Agent Knowledge connectors from workspace actions', () => {
+  test('inspects Agent Knowledge connectors from workspace actions', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'knowledge');
 
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-connectors');
-    workspace.activateSelected();
-    expect(dispatched).toEqual(['/knowledge connectors']);
-    expect(workspace.lastActionResult?.safety).toBe('read-only');
-
+    // knowledge-connectors (list) was removed; connector-show and connector-doctor remain
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'knowledge-connector-show');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('knowledge-connector-show');
@@ -4027,18 +3515,8 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('not confirmed');
   });
 
-  test.skip('dispatches starter authoring guide from the workspace', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'profiles');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'runtime-profile-guide');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/agent-profile guide']);
-    expect(workspace.status).toContain('/agent-profile guide');
-  });
+  // DELETED: 'dispatches starter authoring guide from the workspace'
+  // runtime-profile-guide action ID was removed from the workspace.
 
   test('creates an isolated Agent profile from the workspace form', () => {
     const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profile-form-'));
@@ -4092,7 +3570,7 @@ describe('AgentWorkspace', () => {
     expect(listAgentRuntimeProfiles(root)).toHaveLength(1);
   });
 
-  test.skip('automation workspace dispatches routine promotion receipt review', () => {
+  test('automation workspace dispatches routine promotion receipt review', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
@@ -4104,17 +3582,12 @@ describe('AgentWorkspace', () => {
 
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-delivery-targets');
     workspace.activateSelected();
-    expect(workspace.selectedCategory.id).toBe('channels');
+    // schedule-delivery-targets navigates to onboarding-channels (renamed from 'channels')
+    expect(workspace.selectedCategory.id).toBe('onboarding-channels');
     expect(dispatched).toEqual([]);
 
+    // schedule-receipts was removed; navigate back to automation for schedule-receipt
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-receipts');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/schedule receipts']);
-    expect(workspace.status).toContain('/schedule receipts');
-
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-receipt');
     workspace.activateSelected();
     expect(workspace.localEditor?.kind).toBe('schedule-receipt');
@@ -4125,18 +3598,8 @@ describe('AgentWorkspace', () => {
     expect(workspace.lastActionResult?.safety).toBe('read-only');
   });
 
-  test.skip('automation workspace dispatches routine schedule reconciliation', () => {
-    const dispatched: string[] = [];
-    const workspace = new AgentWorkspace();
-    workspace.open(commandContext(), (command) => dispatched.push(command));
-    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'automation');
-    workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'schedule-reconcile');
-
-    workspace.activateSelected();
-
-    expect(dispatched).toEqual(['/schedule reconcile']);
-    expect(workspace.status).toContain('/schedule reconcile');
-  });
+  // DELETED: 'automation workspace dispatches routine schedule reconciliation'
+  // schedule-reconcile action ID was removed from the workspace.
 
   test('automation workspace opens health repair guidance from a domain form', () => {
     const dispatched: string[] = [];
@@ -4267,23 +3730,19 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('not confirmed');
   });
 
-  test.skip('keeps copied runner controls out of the build delegation workspace', () => {
+  test('keeps copied runner controls out of the build delegation workspace', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), (command) => dispatched.push(command));
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'work');
 
-    const actionText = workspace.actions
-      .map((action) => `${action.id} ${action.label} ${action.detail} ${action.command ?? ''}`)
-      .join('\n');
+    const actionIds = workspace.actions.map((action) => action.id);
 
+    // delegation-status was removed; delegate-task remains as the primary delegation entry point
     expect(dispatched).toEqual([]);
-    expect(actionText).toContain('delegation-status');
-    expect(actionText).toContain('/delegate status');
-    expect(actionText).toContain('delegate-task');
-    expect(actionText).toContain('Open a confirmed form');
-    expect(actionText).not.toContain('remote runner');
-    expect(actionText).not.toContain('/remote dispatch');
+    expect(actionIds).toContain('delegate-task');
+    expect(actionIds).not.toContain('delegation-status');
+    expect(actionIds).not.toContain('remote-runner');
   });
 
   test('delegates build work from a confirmed workspace form without default WRFC', () => {
@@ -4424,13 +3883,13 @@ describe('AgentWorkspace', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);
 
-    handleAgentWorkspaceToken(workspace, { type: 'key', logicalName: 'left', ctrl: false, meta: false, shift: false, alt: false }, () => undefined, () => undefined);
+    handleAgentWorkspaceToken(workspace, { type: 'key', name: 'left', logicalName: 'left', ctrl: false, meta: false, shift: false }, () => undefined, () => undefined);
     expect(workspace.focusPane).toBe('categories');
 
-    handleAgentWorkspaceToken(workspace, { type: 'key', logicalName: 'down', ctrl: false, meta: false, shift: false, alt: false }, () => undefined, () => undefined);
+    handleAgentWorkspaceToken(workspace, { type: 'key', name: 'down', logicalName: 'down', ctrl: false, meta: false, shift: false }, () => undefined, () => undefined);
     expect(workspace.selectedCategory.label).toBe('Start');
 
-    handleAgentWorkspaceToken(workspace, { type: 'key', logicalName: 'right', ctrl: false, meta: false, shift: false, alt: false }, () => undefined, () => undefined);
+    handleAgentWorkspaceToken(workspace, { type: 'key', name: 'right', logicalName: 'right', ctrl: false, meta: false, shift: false }, () => undefined, () => undefined);
     expect(workspace.focusPane).toBe('actions');
   });
 

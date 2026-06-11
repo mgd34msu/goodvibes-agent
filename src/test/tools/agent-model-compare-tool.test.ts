@@ -196,7 +196,7 @@ describe('agent_model_compare tool', () => {
     expect(item.openai.calls[0]?.messages[0]).toEqual({ role: 'user', content: 'Write a concise product update.' });
     expect(item.recordedUsage.sort()).toEqual(['anthropic:claude-sonnet', 'openai:gpt-4.1']);
 
-    const comparisonId = result.output.match(/cmp_[0-9a-f-]+/)?.[0];
+    const comparisonId = result.output!.match(/cmp_[0-9a-f-]+/)?.[0];
     expect(comparisonId).toBeTruthy();
 
     const reveal = await item.tool.execute({
@@ -296,13 +296,13 @@ describe('agent_model_compare tool', () => {
       candidateCount: 2,
       completedCandidates: 2,
     });
-    const latencyEvidence = artifacts.inputs[0]?.metadata.candidateLatencyEvidence;
+    const latencyEvidence = artifacts.inputs[0]?.metadata?.candidateLatencyEvidence;
     expect(Array.isArray(latencyEvidence)).toBe(true);
-    expect((latencyEvidence as readonly Record<string, unknown>[]).map((entry) => entry.registryKey)).toEqual([
+    expect((latencyEvidence as unknown as readonly Record<string, unknown>[]).map((entry) => entry.registryKey)).toEqual([
       'openai:gpt-4.1',
       'anthropic:claude-sonnet',
     ]);
-    expect(typeof (latencyEvidence as readonly Record<string, unknown>[])[0]?.latencyMs).toBe('number');
+    expect(typeof ((latencyEvidence as unknown as Array<Record<string, unknown>>)[0] as Record<string, unknown>).latencyMs).toBe('number');
     const payload = JSON.parse(artifacts.inputs[0]?.text ?? '{}') as {
       readonly benchmarkKind?: string;
       readonly prompt?: string;

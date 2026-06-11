@@ -53,7 +53,7 @@ function makeCapManifest(caps: PluginCapability[]): PluginCapabilityManifest {
 // ── PluginTrustStore ──────────────────────────────────────────────────────────
 
 describe('security: PluginTrustStore', () => {
-  let store: PluginTrustStore;
+  let store: InstanceType<typeof PluginTrustStore>;
 
   beforeEach(() => {
     store = new PluginTrustStore();
@@ -308,7 +308,7 @@ describe('security: HIGH_RISK_CAPABILITIES', () => {
 // ── PluginQuarantineEngine ────────────────────────────────────────────────────
 
 describe('security: PluginQuarantineEngine', () => {
-  let engine: PluginQuarantineEngine;
+  let engine: InstanceType<typeof PluginQuarantineEngine>;
 
   beforeEach(() => {
     engine = new PluginQuarantineEngine();
@@ -430,8 +430,8 @@ describe('security: PluginQuarantineEngine', () => {
 // coordinated integration scenario that mirrors PluginManager's internal logic.
 
 describe('security: PluginManager layer — trust/quarantine integration', () => {
-  let trustStore: PluginTrustStore;
-  let quarantineEngine: PluginQuarantineEngine;
+  let trustStore: InstanceType<typeof PluginTrustStore>;
+  let quarantineEngine: InstanceType<typeof PluginQuarantineEngine>;
 
   beforeEach(() => {
     trustStore = new PluginTrustStore();

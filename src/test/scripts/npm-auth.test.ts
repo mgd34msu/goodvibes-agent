@@ -23,7 +23,7 @@ describe('buildNpmPublishAuthEnv', () => {
       });
 
       expect(result.userconfigPath).toBe(`${tempRoot}/npmrc`);
-      expect(result.env.NPM_CONFIG_USERCONFIG).toBe(result.userconfigPath);
+      expect(result.env.NPM_CONFIG_USERCONFIG).toBe(result.userconfigPath ?? undefined);
       expect(readFileSync(result.userconfigPath ?? '', 'utf8')).toContain(
         '//registry.npmjs.org/:_authToken=test-token',
       );

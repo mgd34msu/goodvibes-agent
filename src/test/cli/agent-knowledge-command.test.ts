@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -66,7 +67,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('ingest-url uses the Agent Knowledge route and never the default knowledge path', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -82,7 +83,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime([
@@ -132,7 +133,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('ingest-file uses the Agent Knowledge artifact route and never the default knowledge path', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -149,7 +150,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime([
@@ -200,7 +201,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('ingest-artifact uses artifact ids on the isolated Agent Knowledge route', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -217,7 +218,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime([
@@ -250,9 +251,9 @@ describe('Agent Knowledge CLI route isolation', () => {
 
   test('rejects Knowledge space flags before any connected-host request', async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       throw new Error('connected host must not be called for rejected Agent Knowledge scope flags');
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime([
@@ -278,7 +279,7 @@ describe('Agent Knowledge CLI route isolation', () => {
 
   test('status JSON reports Agent Knowledge route identity', async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response(JSON.stringify({
+    globalThis.fetch = mockFetch(async () => new Response(JSON.stringify({
       ready: true,
       sourceCount: 0,
       nodeCount: 0,
@@ -288,7 +289,7 @@ describe('Agent Knowledge CLI route isolation', () => {
     }), {
       status: 200,
       headers: { 'content-type': 'application/json' },
-    })) satisfies typeof fetch;
+    }));
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime(['status']));
@@ -308,7 +309,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('list/get/connectors use isolated Agent Knowledge read routes', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       const url = inputUrl(input);
       requests.push({
         url,
@@ -400,7 +401,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         });
       }
       throw new Error(`Unexpected route ${url}`);
-    }) satisfies typeof fetch;
+    });
 
     try {
       const sources = await handleAgentKnowledgeCommand(createRuntime(['list', '--kind', 'sources', '--limit', '2']));
@@ -460,7 +461,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('import-urls and reindex require confirmation and use isolated Agent Knowledge routes', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -500,7 +501,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         });
       }
       throw new Error(`Unexpected route ${inputUrl(input)}`);
-    }) satisfies typeof fetch;
+    });
 
     try {
       const preview = await handleAgentKnowledgeCommand(createRuntime(['import-urls', '/tmp/links.txt']));
@@ -552,7 +553,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('import-browser-history requires confirmation and uses isolated Agent Knowledge routes', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -573,7 +574,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const preview = await handleAgentKnowledgeCommand(createRuntime([
@@ -626,7 +627,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('ingest-connector requires confirmation and uses isolated Agent Knowledge routes', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -641,7 +642,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const preview = await handleAgentKnowledgeCommand(createRuntime([
@@ -687,7 +688,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('ask uses only the Agent Knowledge route', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -709,7 +710,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime([
@@ -738,7 +739,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('top-level ask shortcut uses only the Agent Knowledge route', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -760,7 +761,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const runtime = createRuntimeForArgv(['ask', 'What', 'is', 'GoodVibes', 'Agent?']);
@@ -785,7 +786,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('search uses only the Agent Knowledge route', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -798,7 +799,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime([
@@ -825,7 +826,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('normalizes Agent Knowledge default scope aliases on public Agent routes', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -850,7 +851,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime([
@@ -884,7 +885,7 @@ describe('Agent Knowledge CLI route isolation', () => {
   test('classifies missing Agent Knowledge route without legacy daemon fields or default knowledge fallback', async () => {
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       const url = inputUrl(input);
       requests.push({
         url,
@@ -892,7 +893,7 @@ describe('Agent Knowledge CLI route isolation', () => {
         body: typeof init?.body === 'string' ? init.body : null,
       });
       throw new Error('Route not found: /api/goodvibes-agent/knowledge/status (404)');
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleAgentKnowledgeCommand(createRuntime(['status']));

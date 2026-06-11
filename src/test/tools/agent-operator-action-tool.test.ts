@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,12 +7,13 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { ShellPathService } from '@/runtime/index.ts';
 import {
   createAgentOperatorActionTool,
   registerAgentOperatorActionTool,
 } from '../../tools/agent-operator-action-tool.ts';
 
-type ShellPaths = ReturnType<typeof shellPaths>;
+type ShellPaths = ShellPathService;
 
 interface CapturedRequest {
   readonly url: string;
@@ -153,10 +155,10 @@ describe('agent_operator_action tool', () => {
     const tool = createAgentOperatorActionTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return successResponse({});
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -180,10 +182,10 @@ describe('agent_operator_action tool', () => {
     const tool = createAgentOperatorActionTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return successResponse({});
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -206,10 +208,10 @@ describe('agent_operator_action tool', () => {
     const tool = createAgentOperatorActionTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return successResponse({});
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -233,10 +235,10 @@ describe('agent_operator_action tool', () => {
     const paths = shellPaths();
     const tool = createAgentOperatorActionTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response(JSON.stringify({ error: 'missing route' }), {
+    globalThis.fetch = mockFetch(async () => new Response(JSON.stringify({ error: 'missing route' }), {
       status: 404,
       headers: { 'content-type': 'application/json' },
-    })) satisfies typeof fetch;
+    }));
 
     try {
       const result = await tool.execute({
@@ -259,7 +261,7 @@ describe('agent_operator_action tool', () => {
     const tool = createAgentOperatorActionTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       const url = inputUrl(input);
       requests.push({
         url,
@@ -268,7 +270,7 @@ describe('agent_operator_action tool', () => {
       });
       const match = ACTION_CASES.find((entry) => url.endsWith(entry.path));
       return match ? successResponse(match.response) : successResponse({ error: 'unexpected route' });
-    }) satisfies typeof fetch;
+    });
 
     try {
       for (const entry of ACTION_CASES) {
@@ -301,14 +303,14 @@ describe('agent_operator_action tool', () => {
     const tool = createAgentOperatorActionTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
       return successResponse({ approval: { id: 'approval-1', status: 'approved' } });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({

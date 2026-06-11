@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,12 +7,13 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { ShellPathService } from '@/runtime/index.ts';
 import {
   createAgentOperatorBriefingTool,
   registerAgentOperatorBriefingTool,
 } from '../../tools/agent-operator-briefing-tool.ts';
 
-type ShellPaths = ReturnType<typeof shellPaths>;
+type ShellPaths = ShellPathService;
 
 interface CapturedRequest {
   readonly url: string;
@@ -90,13 +92,13 @@ describe('agent_operator_briefing tool', () => {
     const tool = createAgentOperatorBriefingTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
       });
       return routeResponse(inputUrl(input));
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({});
@@ -129,10 +131,10 @@ describe('agent_operator_briefing tool', () => {
     const tool = createAgentOperatorBriefingTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return routeResponse('/api/approvals');
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({});
@@ -149,11 +151,11 @@ describe('agent_operator_briefing tool', () => {
     const paths = shellPaths();
     const tool = createAgentOperatorBriefingTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input) => {
+    globalThis.fetch = mockFetch(async (input) => {
       const url = inputUrl(input);
       if (url.endsWith('/api/approvals')) return Response.json({ error: 'missing' }, { status: 404 });
       return routeResponse(url);
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({});

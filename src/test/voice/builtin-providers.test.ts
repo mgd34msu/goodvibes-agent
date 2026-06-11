@@ -136,8 +136,8 @@ describe('builtin voice providers', () => {
     expect(result.audio.format).toBe('wav');
     expect(Buffer.from(result.audio.dataBase64 ?? '', 'base64').toString()).toBe('OPENAI_TTS_BYTES');
     expect(requestUrl).toBe('https://openai.example/v1/audio/speech');
-    const headers = captured(requestHeaders, 'OpenAI TTS headers');
-    const body = captured(requestBody, 'OpenAI TTS body');
+    const headers = captured<Headers>(requestHeaders, 'OpenAI TTS headers');
+    const body = captured<Record<string, unknown>>(requestBody, 'OpenAI TTS body');
     expect(headers.get('authorization')).toBe('Bearer openai-test-key');
     expect(body).toMatchObject({
       input: 'hello world',
@@ -190,8 +190,8 @@ describe('builtin voice providers', () => {
     });
     expect((result.segments?.[0]?.confidence ?? 0)).toBeGreaterThan(0.8);
     expect(requestUrl).toBe('https://openai.example/v1/audio/transcriptions');
-    const headers = captured(requestHeaders, 'OpenAI STT headers');
-    const form = captured(requestBody, 'OpenAI STT form');
+    const headers = captured<Headers>(requestHeaders, 'OpenAI STT headers');
+    const form = captured<FormData>(requestBody, 'OpenAI STT form');
     expect(headers.get('authorization')).toBe('Bearer openai-test-key');
     expect(form.get('model')).toBe('gpt-4o-mini-transcribe');
     expect(form.get('response_format')).toBe('verbose_json');
@@ -290,8 +290,8 @@ describe('builtin voice providers', () => {
     expect(result.text).toBe('google transcript');
     expect(result.metadata['uploadMode']).toBe('inline');
     expect(requestUrl).toBe('https://gemini.example/v1beta/models/gemini-2.5-flash:generateContent');
-    const headers = captured(requestHeaders, 'Google STT headers');
-    const body = captured(requestBody, 'Google STT body');
+    const headers = captured<Headers>(requestHeaders, 'Google STT headers');
+    const body = captured<Record<string, unknown>>(requestBody, 'Google STT body');
     expect(headers.get('x-goog-api-key')).toBe('gemini-test-key');
     const contents = body['contents'] as unknown as Array<Record<string, unknown>>;
     const parts = contents[0]?.['parts'] as Array<Record<string, unknown>>;
@@ -363,7 +363,7 @@ describe('builtin voice providers', () => {
       'https://gemini.example/v1beta/models/gemini-2.5-flash:generateContent',
       'https://gemini.example/v1beta/files/abc123',
     ]);
-    const contents = captured(generateBody, 'Google file-mode generate body')['contents'] as unknown as Array<Record<string, unknown>>;
+    const contents = captured<Record<string, unknown>>(generateBody, 'Google file-mode generate body')['contents'] as unknown as Array<Record<string, unknown>>;
     const parts = contents[0]?.['parts'] as Array<Record<string, unknown>>;
     expect((parts[0]?.['file_data'] as Record<string, unknown>)['file_uri']).toBe('google://files/abc123');
     expect((parts[0]?.['file_data'] as Record<string, unknown>)['mime_type']).toBe('audio/wav');
@@ -417,8 +417,8 @@ describe('builtin voice providers', () => {
     expect(result.metadata['sourceMode']).toBe('source_url');
     expect(result.metadata['transcriptionId']).toBe('tr_123');
     expect(requestUrl).toBe('https://elevenlabs.example/v1/speech-to-text?enable_logging=false');
-    const headers = captured(requestHeaders, 'ElevenLabs STT headers');
-    const form = captured(requestBody, 'ElevenLabs STT form');
+    const headers = captured<Headers>(requestHeaders, 'ElevenLabs STT headers');
+    const form = captured<FormData>(requestBody, 'ElevenLabs STT form');
     expect(headers.get('xi-api-key')).toBe('elevenlabs-test-key');
     expect(form.get('model_id')).toBe('scribe_v2');
     expect(form.get('source_url')).toBe('https://cdn.example/audio.mp3');

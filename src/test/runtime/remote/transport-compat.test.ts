@@ -5,11 +5,10 @@ import {
   TRANSPORT_COMPATIBILITY_MATRIX,
   VersionMismatchError,
 } from '@/runtime/index.ts';
-import type {
-  ProtocolVersion,
-  VersionNegotiationResult,
-  NegotiatedProtocol,
-} from '@/runtime/index.ts';
+import type { operations as Operations } from '@pellux/goodvibes-sdk/platform/runtime';
+type ProtocolVersion = Operations.ProtocolVersion;
+type VersionNegotiationResult = Operations.VersionNegotiationResult;
+type NegotiatedProtocol = Operations.NegotiatedProtocol;
 import { TransportPanel } from '@/runtime/index.ts';
 
 // ---------------------------------------------------------------------------

@@ -59,6 +59,7 @@ describe('provider runtime snapshots', () => {
         provider: 'openai',
         registryKey: 'openai:gpt-5-test',
         displayName: 'GPT-5 Test',
+        description: 'GPT-5 test model',
         capabilities: { toolCalling: true, codeEditing: true, reasoning: true, multimodal: false },
         contextWindow: 128_000,
         selectable: true,

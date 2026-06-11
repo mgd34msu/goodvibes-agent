@@ -379,7 +379,7 @@ describe('RetentionPolicy — error handling', () => {
     const result = await policy.prune();
 
     expect(result.deletedIds).toEqual([]);
-    expect(result.failedIds.sort()).toEqual(['cpt_a', 'cpt_b']);
+    expect([...result.failedIds].sort()).toEqual(['cpt_a', 'cpt_b']);
     expect(result.errors).toEqual({
       cpt_a: 'mock I/O error',
       cpt_b: 'mock I/O error',

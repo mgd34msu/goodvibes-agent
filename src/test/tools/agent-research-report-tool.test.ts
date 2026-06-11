@@ -13,7 +13,7 @@ class ResearchReportArtifactStore implements Pick<ArtifactStore, 'create'> {
     const record: ArtifactRecord = {
       id,
       kind: input.kind ?? 'document',
-      mimeType: input.mimeType,
+      mimeType: input.mimeType ?? 'text/plain',
       ...(input.filename ? { filename: input.filename } : {}),
       sizeBytes: Buffer.byteLength(text, 'utf-8'),
       sha256: `sha-${id}`,

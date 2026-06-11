@@ -22,7 +22,6 @@ function makeContext(out: string[], root: string): CommandContext {
       shellPaths: createShellPathService({
         workingDirectory: root,
         homeDirectory: root,
-        surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
       }),
     },
   } as unknown as CommandContext;

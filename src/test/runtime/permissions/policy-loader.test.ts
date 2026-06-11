@@ -167,7 +167,7 @@ describe('loadPolicyBundle (throwOnRejection)', () => {
 
   it('thrown error carries bundleId and signatureStatus', () => {
     const bundle = createUnsignedBundle('t-2', EMPTY_PAYLOAD);
-    let caught: PolicySignatureError | undefined;
+    let caught: InstanceType<typeof PolicySignatureError> | undefined;
     try {
       loadPolicyBundle(bundle, {
         signingKey: TEST_KEY,
@@ -175,7 +175,7 @@ describe('loadPolicyBundle (throwOnRejection)', () => {
         throwOnRejection: true,
       });
     } catch (e) {
-      caught = e as PolicySignatureError;
+      caught = e as InstanceType<typeof PolicySignatureError>;
     }
     expect(caught).toEqual(expect.objectContaining({
       bundleId: 't-2',

@@ -35,7 +35,7 @@ describe('Ctrl+C behavior', () => {
     const { input, renders } = makeInput();
     input.prompt = 'pending text';
     input.cursorPos = input.prompt.length;
-    input.panelFocused = true;
+    input.indicatorFocused = true;
 
     input.feed('\x03');
 
@@ -63,7 +63,7 @@ describe('Ctrl+C behavior', () => {
     const { input } = makeInput();
     const cancelGeneration = mock(() => {});
     (input as unknown as InputHandlerTestAccess).commandContext = { cancelGeneration };
-    input.panelFocused = true;
+    input.indicatorFocused = true;
 
     input.feed('\x03');
 

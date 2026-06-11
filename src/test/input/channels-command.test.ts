@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -58,9 +59,9 @@ function writeTokenHome(): string {
   return home;
 }
 
-async function withMockFetch<T>(handler: typeof fetch, run: () => Promise<T>): Promise<T> {
+async function withMockFetch<T>(handler: Parameters<typeof mockFetch>[0], run: () => Promise<T>): Promise<T> {
   const originalFetch = globalThis.fetch;
-  globalThis.fetch = handler;
+  globalThis.fetch = mockFetch(handler);
   try {
     return await run();
   } finally {
@@ -399,7 +400,7 @@ describe('/channels command', () => {
       '--yes',
     ], context);
 
-    const snapshot = readAgentChannelDeliveryReceipts(context.workspace.shellPaths);
+    const snapshot = readAgentChannelDeliveryReceipts(context.workspace.shellPaths!);
     expect(snapshot.receipts).toHaveLength(1);
     expect(snapshot.receipts[0]?.target.display).toBe('webhook https://hooks.example.test/...');
     expect(snapshot.receipts[0]?.messagePreview).toContain('api_key=[redacted]');

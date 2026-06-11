@@ -30,7 +30,7 @@ function makeManager() {
   return new PluginLifecycleManager({ sessionId: 'test-session' });
 }
 
-function registerPlugin(manager: PluginLifecycleManager, name: string) {
+function registerPlugin(manager: InstanceType<typeof PluginLifecycleManager>, name: string) {
   manager.registerDiscovered(makeManifest(name), '/plugins/' + name);
 }
 

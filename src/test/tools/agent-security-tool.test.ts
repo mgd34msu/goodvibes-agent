@@ -90,7 +90,7 @@ describe('security adapter', () => {
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error(result.error);
-    const body = JSON.parse(result.output) as {
+    const body = JSON.parse(result.output!) as {
       readonly status: string;
       readonly category: string;
       readonly policyLayers: readonly { readonly layer: string; readonly outcome: string; readonly reason: string }[];
@@ -121,7 +121,7 @@ describe('security adapter', () => {
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error(result.error);
-    const body = JSON.parse(result.output) as {
+    const body = JSON.parse(result.output!) as {
       readonly status: string;
       readonly requiredActions: readonly string[];
       readonly preflight: {
@@ -150,7 +150,7 @@ describe('security adapter', () => {
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error(result.error);
-    const body = JSON.parse(result.output) as {
+    const body = JSON.parse(result.output!) as {
       readonly status: string;
       readonly preflight: {
         readonly toolConfirmationRequired: boolean;

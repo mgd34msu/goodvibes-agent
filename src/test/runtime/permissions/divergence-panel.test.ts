@@ -27,11 +27,11 @@ function makeSimulator() {
   );
 }
 
-function makeDashboard(sim?: PermissionSimulator) {
+function makeDashboard(sim?: InstanceType<typeof PermissionSimulator>) {
   return new DivergenceDashboard(sim ?? makeSimulator(), 'warn-on-divergence');
 }
 
-function makePanel(dash?: DivergenceDashboard) {
+function makePanel(dash?: InstanceType<typeof DivergenceDashboard>) {
   return new DivergencePanel(dash ?? makeDashboard());
 }
 

@@ -134,11 +134,13 @@ describe('UI product surface gate', () => {
       serviceRegistry: testManagers.serviceRegistry,
       getConfiguredProviderIds: () => [],
       getPinned: async () => [],
+      workingDirectory: process.cwd(),
+      homeDirectory: process.env['HOME'] ?? process.cwd(),
       render: () => {},
     });
 
     (commandContext as { openWorkspacePicker?: () => void }).openWorkspacePicker?.();
-    expect(openedWorkspaceCategory).toBe('home');
+    expect(openedWorkspaceCategory!).toBe('home');
   });
 
   test('keeps overlays on shared width bands for narrow, medium, and wide terminals', () => {

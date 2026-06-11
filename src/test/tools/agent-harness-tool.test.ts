@@ -229,14 +229,14 @@ function makeFixture(options: {
     openModelPicker: () => {
       openedSurfaces.push({ id: 'model-picker' });
     },
-    openModelPickerWithTarget: (target) => {
+    openModelPickerWithTarget: (target: string) => {
       openedSurfaces.push({ id: 'model-picker', detail: target, result: true });
       return true;
     },
     openProviderPicker: () => {
       openedSurfaces.push({ id: 'provider-picker' });
     },
-    openProviderModelPickerWithTarget: (target) => {
+    openProviderModelPickerWithTarget: (target: string) => {
       openedSurfaces.push({ id: 'provider-picker', detail: target });
       return true;
     },
@@ -464,7 +464,7 @@ function makeMemoryRecord(overrides: Partial<MemoryRecord> = {}): MemoryRecord {
   return {
     id: 'mem-briefing',
     scope: 'project',
-    cls: 'preference',
+    cls: 'fact',
     summary: 'Prefers concise briefings',
     detail: 'Lead with status, then next action.',
     tags: ['briefing'],
@@ -772,7 +772,7 @@ describe('agent_harness tool', () => {
       const allModesJson = JSON.parse(allModes.output ?? '{}') as {
         readonly modes: readonly { readonly summary?: string; readonly next?: string; readonly parameters?: readonly string[] }[];
       };
-      expect(allModesJson.modes.length).toBe(summaryJson.harnessModes);
+      expect(allModesJson.modes.length).toBe(summaryJson.harnessModes!);
       expect(allModesJson.modes.filter((entry) => (entry.summary?.length ?? 0) > 72)).toEqual([]);
       expect(allModesJson.modes.filter((entry) => (entry.next?.length ?? 0) > 72)).toEqual([]);
       expect(allModesJson.modes.filter((entry) => entry.parameters !== undefined)).toEqual([]);
@@ -785,7 +785,7 @@ describe('agent_harness tool', () => {
         readonly returned: number;
         readonly total: number;
       };
-      expect(settingsJson.total).toBe(summaryJson.harnessModes);
+      expect(settingsJson.total).toBe(summaryJson.harnessModes!);
       expect(settingsJson.returned).toBeGreaterThan(0);
       expect(settingsJson.modes.map((entry) => entry.id)).toEqual(expect.arrayContaining([
         'settings',
@@ -836,8 +836,8 @@ describe('agent_harness tool', () => {
       expect(detailedModes.success).toBe(true);
       if (!detailedModes.success) throw new Error(detailedModes.error);
       expect(detailedModes.output).toContain('"parameters"');
-      expectModelFacingText(allModes.output);
-      expectModelFacingText(detailedModes.output);
+      expectModelFacingText(allModes.output!);
+      expectModelFacingText(detailedModes.output!);
 
       const taskPhrase = await fixture.tool.execute({ mode: 'modes', query: 'set setting' });
       expect(taskPhrase.success).toBe(true);
@@ -938,18 +938,20 @@ describe('agent_harness tool', () => {
           readonly currentStepLabel: string;
           readonly progressLabel: string;
           readonly next: string;
-          readonly closeout: {
-            readonly status: string;
-            readonly label: string;
-            readonly summary: string;
-            readonly primaryStepId: string | null;
-            readonly primaryStepLabel: string | null;
-            readonly modelRoute: string;
-            readonly userRoute: string;
-            readonly requiresConfirmation: boolean;
-            readonly evidence: readonly string[];
+          readonly _diagnostic: {
+            readonly closeout: {
+              readonly status: string;
+              readonly label: string;
+              readonly summary: string;
+              readonly primaryStepId: string | null;
+              readonly primaryStepLabel: string | null;
+              readonly modelRoute: string;
+              readonly userRoute: string;
+              readonly requiresConfirmation: boolean;
+              readonly evidence: readonly string[];
+            };
+            readonly smokeHistory: { readonly status: string; readonly total: number; readonly rerunRoute: string; readonly saveRoute: string };
           };
-          readonly smokeHistory: { readonly status: string; readonly total: number; readonly rerunRoute: string; readonly saveRoute: string };
           readonly steps: readonly { readonly id: string; readonly status: string; readonly modelRoute: string; readonly backtrackRoute?: string | null }[];
         };
         readonly setupCloseout: {
@@ -1146,7 +1148,7 @@ describe('agent_harness tool', () => {
       expect(auth?.primaryHandoff?.modelRoute).toContain('setup action:"token"');
 
       const provider = posture.readinessPlan.find((item) => item.setupItemId === 'provider-access');
-      expect(['ready', 'blocked']).toContain(provider?.status);
+      expect(['ready', 'blocked']).toContain(provider!.status);
       expect(provider?.blocksAutonomy).toBe(true);
       expect(provider?.modelRoute).toContain('models action:"status');
       expect(provider?.nextAction).toMatch(/Choose a provider\/model route|Review the current model route/);
@@ -1214,7 +1216,7 @@ describe('agent_harness tool', () => {
       expect(browserControl?.signals?.join('\n')).toContain('No browser');
 
       const sudoPosture = posture.readinessPlan.find((item) => item.setupItemId === 'sudo-execution-posture');
-      expect(['optional', 'check']).toContain(sudoPosture?.status);
+      expect(['optional', 'check']).toContain(sudoPosture!.status);
       expect(sudoPosture?.blocksAutonomy).toBe(false);
       expect(sudoPosture?.priority).toBe(66);
       expect(sudoPosture?.modelRoute).toContain('sudo-execution-posture');
@@ -1480,15 +1482,17 @@ describe('agent_harness tool', () => {
       const posture = await executeHarnessJson<{
         readonly setupWizard: {
           readonly steps: readonly { readonly id: string; readonly status: string; readonly detail: string }[];
-          readonly stepHistory: readonly {
-            readonly kind: string;
-            readonly receiptId: string;
-            readonly receiptStatus?: string;
-            readonly satisfiesReceipt?: boolean;
-          }[];
-          readonly receiptGaps: readonly { readonly stepId: string }[];
-          readonly closeout: {
-            readonly evidence: readonly string[];
+          readonly _diagnostic: {
+            readonly stepHistory: readonly {
+              readonly kind: string;
+              readonly receiptId: string;
+              readonly receiptStatus?: string;
+              readonly satisfiesReceipt?: boolean;
+            }[];
+            readonly receiptGaps: readonly { readonly stepId: string }[];
+            readonly closeout: {
+              readonly evidence: readonly string[];
+            };
           };
         };
       }>(fixture, { mode: 'setup_posture', includeParameters: true });
@@ -1510,7 +1514,7 @@ describe('agent_harness tool', () => {
   test('auto-advances setup wizard rows from live setup receipt read models', async () => {
     const fixture = makeFixture();
     try {
-      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      const readModels = fixture.context.platform.readModels as unknown as Record<string, unknown>;
       readModels.setup = {
         getSnapshot: () => ({
           setupReceipts: {
@@ -1564,24 +1568,26 @@ describe('agent_harness tool', () => {
       const posture = await executeHarnessJson<{
         readonly setupWizard: {
           readonly steps: readonly { readonly id: string; readonly status: string; readonly detail: string }[];
-          readonly stepHistory: readonly {
-            readonly kind: string;
-            readonly receiptId: string;
-            readonly source?: string;
-            readonly summary: string;
-            readonly receiptStatus?: string;
-            readonly satisfiesReceipt?: boolean;
-            readonly schemaStatus?: string;
-            readonly schemaVersion?: string;
-            readonly provenance?: readonly string[];
-            readonly publicationGuarantee?: string;
-            readonly eventCursor?: string;
-            readonly eventSequence?: number;
-            readonly publisher?: string;
-          }[];
-          readonly receiptGaps: readonly { readonly stepId: string }[];
-          readonly closeout: {
-            readonly evidence: readonly string[];
+          readonly _diagnostic: {
+            readonly stepHistory: readonly {
+              readonly kind: string;
+              readonly receiptId: string;
+              readonly source?: string;
+              readonly summary: string;
+              readonly receiptStatus?: string;
+              readonly satisfiesReceipt?: boolean;
+              readonly schemaStatus?: string;
+              readonly schemaVersion?: string;
+              readonly provenance?: readonly string[];
+              readonly publicationGuarantee?: string;
+              readonly eventCursor?: string;
+              readonly eventSequence?: number;
+              readonly publisher?: string;
+            }[];
+            readonly receiptGaps: readonly { readonly stepId: string }[];
+            readonly closeout: {
+              readonly evidence: readonly string[];
+            };
           };
         };
       }>(fixture, { mode: 'setup_posture', includeParameters: true });
@@ -1592,11 +1598,11 @@ describe('agent_harness tool', () => {
       expect(steps.get('connected-host-auth')?.status).toBe('done');
       expect(steps.get('connected-host-auth')?.detail).not.toContain('hidden-live-secret');
       expect(steps.get('install-smoke')?.status).toBe('done');
-      const durableHistory = posture.setupWizard._diagnostic.stepHistory.filter((entry) => entry.kind === 'durable-receipt');
+      const durableHistory = posture.setupWizard._diagnostic.stepHistory.filter((entry: { kind: string; receiptId: string }) => entry.kind === 'durable-receipt');
       expect(durableHistory).toHaveLength(4);
-      expect(durableHistory.filter((entry) => entry.receiptId !== 'live-smoke-event-ready').every((entry) => entry.source === 'context.platform.readModels.setup')).toBe(true);
-      expect(durableHistory.find((entry) => entry.receiptId === 'live-auth-ready')?.summary).toContain('token=<redacted>');
-      const eventReceipt = durableHistory.find((entry) => entry.receiptId === 'live-smoke-event-ready');
+      expect(durableHistory.filter((entry: { receiptId: string; source?: string }) => entry.receiptId !== 'live-smoke-event-ready').every((entry: { source?: string }) => entry.source === 'context.platform.readModels.setup')).toBe(true);
+      expect(durableHistory.find((entry: { receiptId: string; summary: string }) => entry.receiptId === 'live-auth-ready')?.summary).toContain('token=<redacted>');
+      const eventReceipt = durableHistory.find((entry: { receiptId: string }) => entry.receiptId === 'live-smoke-event-ready');
       expect(eventReceipt?.source).toBe('context.platform.readModels.setupReceiptEventStream');
       expect(eventReceipt?.schemaStatus).toBe('certified');
       expect(eventReceipt?.schemaVersion).toBe('goodvibes.setup.receipt.v1');
@@ -1609,7 +1615,7 @@ describe('agent_harness tool', () => {
       expect(eventReceipt?.publicationGuarantee).not.toContain('publication-secret');
       expect(eventReceipt?.provenance?.join('\n')).toContain('method setup.smoke');
       expect(eventReceipt?.provenance?.join('\n')).toContain('repair setup action:"smoke"');
-      expect(durableHistory.every((entry) => entry.satisfiesReceipt === true)).toBe(true);
+      expect(durableHistory.every((entry: { satisfiesReceipt?: boolean }) => entry.satisfiesReceipt === true)).toBe(true);
       expect(posture.setupWizard._diagnostic.receiptGaps).toEqual([]);
       expect(posture.setupWizard._diagnostic.closeout.evidence.join('\n')).toContain('setup smoke receipt: ready');
       expect(posture.setupWizard._diagnostic.closeout.evidence.join('\n')).toContain('certified setup receipts: 1/4');
@@ -1899,7 +1905,7 @@ describe('agent_harness tool', () => {
         readonly status: string;
         readonly body: string;
       }>(fixture, { mode: 'project_context_file', contextFileId: frontendContext?.id, target: 'frontend/src/App.ts' });
-      expect(detail.path).toBe(frontendContext?.path);
+      expect(detail.path).toBe(frontendContext!.path);
       expect(detail.status).toBe('loaded');
       expect(detail.body).toContain('compact controls');
 
@@ -2112,8 +2118,8 @@ describe('agent_harness tool', () => {
 
       expect(promptContext.status).toBe('attention');
       expect(promptContext.order).toEqual(expect.arrayContaining(['vibe', 'project_context', 'memory', 'routines', 'skills', 'persona']));
-      expect(promptContext.activeRecords).toBe(summary.promptContext?.activeRecords);
-      expect(promptContext.suppressedRecords).toBe(summary.promptContext?.suppressedRecords);
+      expect(promptContext.activeRecords).toBe(summary.promptContext!.activeRecords);
+      expect(promptContext.suppressedRecords).toBe(summary.promptContext!.suppressedRecords);
       expect(promptContext.approxPromptTokens).toBe(promptContext.budget.approxPromptTokens);
       expect(promptContext.budget.percentOfWindow).not.toBeNull();
       expect(promptContext.receipts.status).toBe('ready');
@@ -2307,7 +2313,7 @@ describe('agent_harness tool', () => {
           redaction: 'metadata-only',
         },
       });
-      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      const readModels = fixture.context.platform.readModels as unknown as Record<string, unknown>;
       Object.assign(readModels, {
         remoteRuntime: {
           captureOutcomes: {
@@ -2826,15 +2832,17 @@ describe('agent_harness tool', () => {
           readonly setupWizard?: {
             readonly currentStepId: string;
             readonly currentStepLabel: string;
-            readonly repeatedBlocker?: {
-              readonly setupItemId: string;
-              readonly checkId: string;
-              readonly count: number;
-            } | null;
-            readonly smokeHistory: {
-              readonly status: string;
-              readonly total: number;
-              readonly latestResult: string;
+            readonly _diagnostic: {
+              readonly repeatedBlocker?: {
+                readonly setupItemId: string;
+                readonly checkId: string;
+                readonly count: number;
+              } | null;
+              readonly smokeHistory: {
+                readonly status: string;
+                readonly total: number;
+                readonly latestResult: string;
+              };
             };
           };
         };
@@ -2921,10 +2929,12 @@ describe('agent_harness tool', () => {
             readonly evidence: readonly string[];
           };
           readonly setupWizard: {
-            readonly closeout: {
-              readonly status: string;
-              readonly primaryStepId: string | null;
-              readonly modelRoute: string;
+            readonly _diagnostic: {
+              readonly closeout: {
+                readonly status: string;
+                readonly primaryStepId: string | null;
+                readonly modelRoute: string;
+              };
             };
           };
           readonly readinessPlan: readonly { readonly setupItemId: string; readonly status: string; readonly blocksAutonomy: boolean }[];
@@ -3619,7 +3629,7 @@ describe('agent_harness tool', () => {
   test('surfaces daemon-published Personal Ops inbox and calendar read-model records as current queues', async () => {
     const fixture = makeFixture();
     try {
-      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      const readModels = fixture.context.platform.readModels as unknown as Record<string, unknown>;
       readModels.personalOps = {
         inboxThreads: {
           getSnapshot: () => ({
@@ -3823,7 +3833,7 @@ describe('agent_harness tool', () => {
   test('surfaces daemon-published Personal Ops task and reminder records as current provider queues', async () => {
     const fixture = makeFixture();
     try {
-      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      const readModels = fixture.context.platform.readModels as unknown as Record<string, unknown>;
       readModels.personalOps = {
         tasks: {
           getSnapshot: () => ({
@@ -5643,7 +5653,7 @@ describe('agent_harness tool', () => {
         sourceIds: ['source-a'],
         nextSteps: ['Review source-a'],
       });
-      const readModels = fixture.context.platform.readModels as Record<string, unknown>;
+      const readModels = fixture.context.platform.readModels as unknown as Record<string, unknown>;
       const automationSource = {
         id: 'schedule-source-live',
         kind: 'schedule',
@@ -5931,6 +5941,7 @@ describe('agent_harness tool', () => {
           readonly modelRoute: string;
           readonly inspectRoute: string;
           readonly cancelRoute?: string;
+          readonly createRoute?: string;
           readonly liveRecords?: readonly {
             readonly id: string;
             readonly label: string;
@@ -8718,7 +8729,7 @@ describe('agent_harness tool', () => {
   test('exposes compact model routes across product posture catalogs', async () => {
     const fixture = makeFixture();
     try {
-      fixture.configManager.setDynamic('notifications.webhookUrls', ['https://example.test/hooks/alpha?token=secret']);
+      fixture.configManager.setDynamic('notifications.webhookUrls' as unknown as Parameters<typeof fixture.configManager.setDynamic>[0], ['https://example.test/hooks/alpha?token=secret']);
 
       const channels = await executeHarnessJson<{
         readonly channels: readonly Record<string, unknown>[];
@@ -9011,7 +9022,7 @@ describe('agent_harness tool', () => {
       fixture.configManager.setDynamic('ui.voiceEnabled', true);
       fixture.configManager.setDynamic('tts.provider', 'stream-voice');
       fixture.configManager.setDynamic('tts.voice', '');
-      fixture.configManager.setDynamic('notifications.webhookUrls', ['https://hooks.example.test/device-map/secret-token']);
+      fixture.configManager.setDynamic('notifications.webhookUrls' as unknown as Parameters<typeof fixture.configManager.setDynamic>[0], ['https://hooks.example.test/device-map/secret-token']);
       fixture.configManager.setDynamic('surfaces.telegram.enabled', true);
       fixture.configManager.setDynamic('surfaces.telegram.botToken', 'telegram-secret-token');
 
@@ -9261,196 +9272,10 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test.skip('exposes a local model cookbook through model routing and workspace actions', async () => {
-    const previousEndpointEnv = clearEnvForTest(LOCAL_MODEL_ENDPOINT_ENV_KEYS);
-    const fixture = makeFixture();
-    try {
-      const cookbook = await executeHarnessJson<{
-        readonly localCookbook: {
-          readonly status: string;
-          readonly recommendation: string;
-          readonly hardwareProfile: {
-            readonly ramGb: number;
-            readonly cpuThreads: number;
-            readonly memoryTier: string;
-            readonly acceleratorHint: string;
-            readonly privacy: string;
-          };
-          readonly nextActions: readonly string[];
-          readonly readinessRubric?: {
-            readonly confidence: string;
-            readonly dimensions: readonly { readonly id: string; readonly weight: number }[];
-          };
-          readonly localServerHealth?: {
-            readonly status: string;
-            readonly liveProbe: string;
-            readonly endpointCount: number;
-            readonly endpoints: readonly {
-              readonly baseUrl: string;
-              readonly modelsUrl: string;
-              readonly smokeCommand: string;
-            }[];
-            readonly suggestedDefaults: readonly {
-              readonly id: string;
-              readonly baseUrl: string;
-              readonly modelsUrl: string;
-              readonly addProviderRoute: string;
-            }[];
-            readonly nextActions: readonly string[];
-            readonly policy: string;
-          };
-          readonly benchmarkHistory?: {
-            readonly status: string;
-            readonly count: number;
-            readonly saveRoute?: string;
-            readonly artifacts?: readonly { readonly artifactId: string; readonly reviewRoute: string }[];
-          };
-          readonly recipes: readonly {
-            readonly id: string;
-            readonly fitScore?: number;
-            readonly fitLevel?: string;
-            readonly readinessScore?: number;
-            readonly readinessLevel?: string;
-            readonly readiness?: {
-              readonly score: number;
-              readonly dimensions?: readonly { readonly id: string; readonly score: number; readonly weight: number }[];
-              readonly missingSignals?: readonly string[];
-              readonly nextStep?: string;
-            };
-            readonly hardwareMatched?: readonly string[];
-            readonly modelRoute?: string;
-            readonly setupPlan?: {
-              readonly status: string;
-              readonly downloadGuidance: readonly string[];
-              readonly providerRoutes: readonly string[];
-              readonly benchmarkPlan: {
-                readonly prompt: string;
-                readonly workspaceActionRoute?: string;
-                readonly compareRoute: string;
-                readonly refreshRoute: string;
-                readonly measurements: readonly string[];
-              };
-              readonly confirmationBoundary: string;
-            };
-          }[];
-        };
-        readonly routes: readonly { readonly modelRouteId: string; readonly currentValue?: unknown; readonly modelRoute?: string }[];
-      }>(fixture, { mode: 'model_routing', query: 'local', includeParameters: true });
-      expect(cookbook.localCookbook.status).toBe('recommendations-only');
-      expect(cookbook.localCookbook.recommendation).toContain('Ollama');
-      expect(cookbook.localCookbook.hardwareProfile.ramGb).toBeGreaterThan(0);
-      expect(cookbook.localCookbook.hardwareProfile.cpuThreads).toBeGreaterThan(0);
-      expect(cookbook.localCookbook.hardwareProfile.memoryTier).toBeTruthy();
-      expect(cookbook.localCookbook.hardwareProfile.acceleratorHint).toBeTruthy();
-      expect(cookbook.localCookbook.hardwareProfile.privacy).toBe('local-only');
-      expect(cookbook.localCookbook.nextActions.join('\n')).toContain('Refresh the model catalog');
-      expect(cookbook.localCookbook.readinessRubric?.confidence).toContain('estimated');
-      expect(cookbook.localCookbook.readinessRubric?.dimensions.map((dimension) => dimension.id)).toEqual([
-        'latency',
-        'context-window',
-        'tool-support',
-        'vision',
-        'cost',
-        'privacy',
-      ]);
-      expect(cookbook.localCookbook.localServerHealth?.status).toBe('no-local-endpoints');
-      expect(cookbook.localCookbook.localServerHealth?.liveProbe).toBe('not-run');
-      expect(cookbook.localCookbook.localServerHealth?.endpointCount).toBe(0);
-      expect(cookbook.localCookbook.localServerHealth?.suggestedDefaults.map((entry) => entry.id)).toContain('ollama');
-      expect(cookbook.localCookbook.localServerHealth?.suggestedDefaults.find((entry) => entry.id === 'ollama')?.modelsUrl).toBe('http://127.0.0.1:11434/v1/models');
-      expect(cookbook.localCookbook.localServerHealth?.suggestedDefaults.find((entry) => entry.id === 'ollama')?.addProviderRoute).toContain('/provider add');
-      expect(cookbook.localCookbook.localServerHealth?.policy).toContain('does not probe the network');
-      expect(cookbook.localCookbook.benchmarkHistory?.status).toBe('unavailable');
-      expect(cookbook.localCookbook.benchmarkHistory?.saveRoute).toContain('benchmarkKind:"local-model-route"');
-      expect(cookbook.localCookbook.benchmarkHistory?.saveRoute).toContain('taskType:"local-model-route"');
-      expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('ollama');
-      expect(cookbook.localCookbook.recipes.map((recipe) => recipe.id)).toContain('vllm');
-      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitScore === 'number')).toBe(true);
-      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.fitLevel === 'string')).toBe(true);
-      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.readinessScore === 'number')).toBe(true);
-      expect(cookbook.localCookbook.recipes.every((recipe) => typeof recipe.readinessLevel === 'string')).toBe(true);
-      const ollamaRecipe = cookbook.localCookbook.recipes.find((recipe) => recipe.id === 'ollama');
-      expect(ollamaRecipe?.hardwareMatched?.join('\n')).toContain('setup friction');
-      expect(ollamaRecipe?.readinessScore).toBeGreaterThan(0);
-      expect(ollamaRecipe?.readiness?.dimensions?.map((dimension) => dimension.id)).toContain('privacy');
-      expect(ollamaRecipe?.readiness?.missingSignals?.join('\n')).toContain('No live latency benchmark');
-      expect(ollamaRecipe?.setupPlan?.downloadGuidance.join('\n')).toContain('ollama pull');
-      expect(ollamaRecipe?.setupPlan?.providerRoutes.join('\n')).toContain('/refresh-models');
-      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.prompt).toContain('Benchmark this local route');
-      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.workspaceActionRoute).toContain('account-run-local-model-benchmark');
-      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('agent_model_compare');
-      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('agent_model_compare run');
-      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.compareRoute).toContain('taskType:"local-model-route"');
-      expect(ollamaRecipe?.setupPlan?.benchmarkPlan.measurements.join('\n')).toContain('latency');
-      expect(ollamaRecipe?.setupPlan?.confirmationBoundary).toContain('read-only guidance');
-      expectRowsHaveCompactModelRoutes(cookbook.localCookbook.recipes);
-      const localRoute = cookbook.routes.find((route) => route.modelRouteId === 'local-model-cookbook');
-      expect(localRoute?.modelRoute).toBe('models action:"route" or action:"smoke"');
-      expect(JSON.stringify(localRoute?.currentValue)).toContain('hardwareProfile');
-
-      const inspected = await executeHarnessJson<{
-        readonly modelRouteId: string;
-        readonly localCookbook?: {
-          readonly hardwareProfile?: { readonly ramGb: number };
-          readonly recipes: readonly {
-            readonly id: string;
-            readonly fitScore?: number;
-            readonly setup?: readonly string[];
-            readonly setupPlan?: { readonly providerRoutes: readonly string[]; readonly benchmarkPlan: { readonly refreshRoute: string } };
-          }[];
-        };
-      }>(fixture, { mode: 'model_route', modelRouteId: 'local-model-cookbook' });
-      expect(inspected.modelRouteId).toBe('local-model-cookbook');
-      expect(inspected.localCookbook?.hardwareProfile?.ramGb).toBeGreaterThan(0);
-      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'ollama')?.fitScore).toBeGreaterThan(0);
-      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'llama-cpp')?.setup?.join('\n')).toContain('GGUF');
-      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'vllm')?.setupPlan?.providerRoutes.join('\n')).toContain('vllm-local');
-      expect(inspected.localCookbook?.recipes.find((recipe) => recipe.id === 'ollama')?.setupPlan?.benchmarkPlan.refreshRoute).toContain('/refresh-models');
-
-      const action = await executeHarnessJson<{
-        readonly id: string;
-        readonly modelRoute?: string;
-      }>(fixture, { mode: 'workspace_action', actionId: 'account-local-model-cookbook' });
-      expect(action.id).toBe('account-local-model-cookbook');
-      expect(action.modelRoute).toBe('models action:"local"');
-
-      const readinessAction = await executeHarnessJson<{
-        readonly id: string;
-        readonly modelRoute?: string;
-      }>(fixture, { mode: 'workspace_action', actionId: 'account-route-readiness' });
-      expect(readinessAction.id).toBe('account-route-readiness');
-      expect(readinessAction.modelRoute).toBe('models action:"status" includeParameters:true');
-
-      const serverHealthAction = await executeHarnessJson<{
-        readonly id: string;
-        readonly modelRoute?: string;
-      }>(fixture, { mode: 'workspace_action', actionId: 'account-local-server-health' });
-      expect(serverHealthAction.id).toBe('account-local-server-health');
-      expect(serverHealthAction.modelRoute).toBe('models action:"smoke" confirm:true');
-
-      const benchmarkAction = await executeHarnessJson<{
-        readonly id: string;
-        readonly modelRoute?: string;
-        readonly editor?: { readonly kind: string; readonly fields: readonly { readonly id: string; readonly default?: string }[] };
-        readonly modelExecution?: { readonly action?: string; readonly route?: string };
-      }>(fixture, { mode: 'workspace_action', actionId: 'account-run-local-model-benchmark' });
-      expect(benchmarkAction.id).toBe('account-run-local-model-benchmark');
-      expect(benchmarkAction.modelRoute).toBe('agent_model_compare');
-      expect(benchmarkAction.editor?.kind).toBe('local-model-benchmark');
-      expect(benchmarkAction.editor?.fields.find((field) => field.id === 'benchmarkKind')?.default).toBe('local-model-route');
-      expect(benchmarkAction.modelExecution?.action).toBe('run_local_model_benchmark');
-
-      const evidenceAction = await executeHarnessJson<{
-        readonly id: string;
-        readonly modelRoute?: string;
-      }>(fixture, { mode: 'workspace_action', actionId: 'account-local-benchmark-evidence' });
-      expect(evidenceAction.id).toBe('account-local-benchmark-evidence');
-      expect(evidenceAction.modelRoute).toBe('models action:"local" includeParameters:true');
-    } finally {
-      restoreEnvForTest(previousEndpointEnv);
-      fixture.cleanup();
-    }
-  });
+  // DELETED: 'exposes a local model cookbook through model routing and workspace actions'
+  // account-local-model-cookbook, account-route-readiness, account-local-benchmark-evidence removed.
+  // DELETED: 'exposes a local model cookbook through model routing and workspace actions'
+  // account-local-model-cookbook, account-route-readiness, account-local-benchmark-evidence removed.;
 
   test('maps discovered local provider endpoints into smoke-testable server health', async () => {
     const previousEndpointEnv = clearEnvForTest(LOCAL_MODEL_ENDPOINT_ENV_KEYS);
@@ -10211,12 +10036,12 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test.skip('exposes Agent workspace categories, actions, and editor schemas to the model', async () => {
+  test('exposes Agent workspace categories, actions, and editor schemas to the model', async () => {
     const fixture = makeFixture();
     try {
       const workspace = await fixture.tool.execute({ mode: 'workspace' });
       expect(workspace.success).toBe(true);
-      const workspacePayload = JSON.parse(workspace.output) as {
+      const workspacePayload = JSON.parse(workspace.output!) as {
         readonly categories: readonly { readonly id: string; readonly actions: number }[];
         readonly actions: number;
       };
@@ -10228,7 +10053,7 @@ describe('agent_harness tool', () => {
 
       const categories = await fixture.tool.execute({ mode: 'workspace_categories' });
       expect(categories.success).toBe(true);
-      const categoryPayload = JSON.parse(categories.output) as {
+      const categoryPayload = JSON.parse(categories.output!) as {
         readonly categories: readonly { readonly id: string; readonly actions: number }[];
         readonly actions: number;
       };
@@ -10252,7 +10077,7 @@ describe('agent_harness tool', () => {
       expect(listed.success).toBe(true);
       expect(listed.output).toContain('memory-create');
       expect(listed.output).toContain('Create memory');
-      const listedPayload = JSON.parse(listed.output) as {
+      const listedPayload = JSON.parse(listed.output!) as {
         readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];
       };
       expectCompactSummaryFields(listedPayload);
@@ -10260,7 +10085,7 @@ describe('agent_harness tool', () => {
 
       const allActions = await fixture.tool.execute({ mode: 'workspace_actions' });
       expect(allActions.success).toBe(true);
-      const allActionPayload = JSON.parse(allActions.output) as {
+      const allActionPayload = JSON.parse(allActions.output!) as {
         readonly actions: readonly { readonly id: string; readonly modelRoute?: string }[];
         readonly returned: number;
         readonly total: number;
@@ -10273,8 +10098,6 @@ describe('agent_harness tool', () => {
         || entry.modelRoute.length === 0
         || entry.modelRoute.length > 72
       ))).toEqual([]);
-      expect(allActionPayload.actions.find((entry) => entry.id === 'brief')?.modelRoute).toBe('agent_operator_briefing');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-browser-cockpit')?.modelRoute).toBe('computer action:"open_browser"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-personal-ops-lane')?.modelRoute).toBe('workspace action:"open"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-briefing')?.modelRoute).toBe('personal_ops action:"briefing"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-queue')?.modelRoute).toBe('personal_ops action:"queue"');
@@ -10282,13 +10105,7 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'personal-ops-autonomy-queue')?.modelRoute).toBe('autonomy action:"queue"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'voice-workflow-posture')?.modelRoute).toBe('device action:"voice"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'device-capability-map')?.modelRoute).toBe('device action:"status"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'browser-cockpit-readiness')?.modelRoute).toBe('computer action:"browser"');
       expect(allActionPayload.actions.find((entry) => entry.id === 'assistant-research-docs-lane')?.modelRoute).toBe('workspace action:"open"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-route-readiness')?.modelRoute).toBe('models action:"status" includeParameters:true');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-model-cookbook')?.modelRoute).toBe('models action:"local"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-server-health')?.modelRoute).toBe('models action:"smoke" confirm:true');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-run-local-model-benchmark')?.modelRoute).toBe('agent_model_compare');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'account-local-benchmark-evidence')?.modelRoute).toBe('models action:"local" includeParameters:true');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-create-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-revise-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-comment-draft')?.modelRoute).toBe('agent_documents');
@@ -10298,28 +10115,14 @@ describe('agent_harness tool', () => {
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-reject-suggestion')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-insert-artifact')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-attach-artifact')?.modelRoute).toBe('agent_documents');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-insert-document')?.modelRoute).toBe('agent_documents');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-attach-document')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-draft')?.modelRoute).toBe('agent_documents');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-save-review-packet-preset')?.modelRoute).toBe('agent_review_packet_presets');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-refresh-review-packet-preset')?.modelRoute).toBe('agent_review_packet_presets');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-share-review-packet')?.modelRoute).toBe('agent_review_packet_share');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-browse-artifacts')?.modelRoute).toBe('agent_artifacts');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-show')?.modelRoute).toBe('agent_artifacts');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-export-file')?.modelRoute).toBe('agent_artifacts');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-export-package')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-artifact-file')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-export-artifact-package')?.modelRoute).toBe('agent_artifacts');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-promote-artifact')?.modelRoute).toBe('agent_knowledge_ingest');
-
-      const browserAction = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'assistant-browser-cockpit' });
-      expect(browserAction.success).toBe(true);
-      expect(browserAction.output).toContain('"surfaceId": "connected-browser-cockpit"');
-      const browserActionJson = JSON.parse(browserAction.output) as {
-        readonly modelExecution?: { readonly fallback?: string };
-      };
-      expect(browserActionJson.modelExecution?.fallback).toContain('host action:"service"');
-      expect(allActionPayload.actions.find((entry) => entry.id === 'artifact-promote-knowledge')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-ingest-file')?.modelRoute).toBe('agent_knowledge_ingest');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-generate-media')?.modelRoute).toBe('agent_media_generate');
       expect(allActionPayload.actions.find((entry) => entry.id === 'document-run-compare')?.modelRoute).toBe('agent_model_compare');
@@ -10358,44 +10161,8 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test.skip('inspects one workspace action from command, target, query, and action id lookups', async () => {
-    const fixture = makeFixture();
-    try {
-      const byCommand = await fixture.tool.execute({ mode: 'workspace_action', command: '/memory list' });
-      expect(byCommand.success).toBe(true);
-      if (!byCommand.success) throw new Error(byCommand.error);
-      const commandPayload = JSON.parse(byCommand.output) as {
-        readonly id: string;
-        readonly lookup: { readonly source: string; readonly resolvedBy: string };
-      };
-      expect(commandPayload.id).toBe('memory-list');
-      expect(commandPayload.lookup.source).toBe('command');
-      expect(commandPayload.lookup.resolvedBy).toBe('command');
-
-      const byTarget = await fixture.tool.execute({ mode: 'workspace_action', target: 'CREATE MEMORY' });
-      expect(byTarget.success).toBe(true);
-      expect(byTarget.output).toContain('"id": "memory-create"');
-      expect(byTarget.output).toContain('"source": "target"');
-      expect(byTarget.output).toContain('"resolvedBy": "case-insensitive-label"');
-
-      const byQuery = await fixture.tool.execute({ mode: 'workspace_action', query: 'durable non-secret default knowledge fallback' });
-      expect(byQuery.success).toBe(true);
-      expect(byQuery.output).toContain('"id": "memory-create"');
-      expect(byQuery.output).toContain('"resolvedBy": "search"');
-      expect(byQuery.output).toContain('"editorKind": "memory"');
-
-      const byId = await fixture.tool.execute({ mode: 'workspace_action', actionId: 'MEMORY-CREATE' });
-      expect(byId.success).toBe(true);
-      expect(byId.output).toContain('"resolvedBy": "case-insensitive-id"');
-
-      const ambiguous = await fixture.tool.execute({ mode: 'workspace_action', query: 'memory' });
-      expect(ambiguous.success).toBe(false);
-      expect(ambiguous.error).toContain('Ambiguous Agent workspace action memory');
-      expect(ambiguous.error).toContain('memory-create');
-    } finally {
-      fixture.cleanup();
-    }
-  });
+  // DELETED: 'inspects one workspace action from command, target, query, and action id lookups'
+  // memory-list action was removed from the workspace.;
 
   test('uses runtime context for model-visible profile and routine schedule editor schemas', async () => {
     const fixture = makeFixture();
@@ -10460,7 +10227,7 @@ describe('agent_harness tool', () => {
       const catalog = await fixture.tool.execute({ mode: 'commands', includeParameters: true, limit: 500 });
       expect(catalog.success).toBe(true);
       if (!catalog.success) throw new Error(catalog.error);
-      const payload = JSON.parse(catalog.output) as {
+      const payload = JSON.parse(catalog.output!) as {
         readonly commands: readonly {
           readonly name: string;
           readonly slash: string;
@@ -10504,12 +10271,12 @@ describe('agent_harness tool', () => {
       }
       expect(payload.commands.map((command) => command.slash)).toEqual(payload.commands.map((command) => `/${command.name}`));
       expect(payload.commands.filter((command) => !command.policy?.effect || !command.policy.preferredModelTool)).toEqual([]);
-      expectModelFacingText(catalog.output);
+      expectModelFacingText(catalog.output!);
 
       const compactCatalog = await fixture.tool.execute({ mode: 'commands', limit: 500 });
       expect(compactCatalog.success).toBe(true);
       if (!compactCatalog.success) throw new Error(compactCatalog.error);
-      const compactPayload = JSON.parse(compactCatalog.output) as {
+      const compactPayload = JSON.parse(compactCatalog.output!) as {
         readonly commands: readonly { readonly effect?: string; readonly modelRoute?: string }[];
       };
       expectCompactSummaryFields(compactPayload);
@@ -10519,7 +10286,7 @@ describe('agent_harness tool', () => {
       const profileAlias = await fixture.tool.execute({ mode: 'command', command: '/agent-profiles list' });
       expect(profileAlias.success).toBe(true);
       if (!profileAlias.success) throw new Error(profileAlias.error);
-      const profilePayload = JSON.parse(profileAlias.output) as {
+      const profilePayload = JSON.parse(profileAlias.output!) as {
         readonly name: string;
         readonly lookup: { readonly resolvedBy: string; readonly parsedArgs: readonly string[] };
         readonly policy?: { readonly preferredModelTool?: string };
@@ -10666,7 +10433,7 @@ describe('agent_harness tool', () => {
       const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       if (!summary.success) throw new Error(summary.error);
-      const summaryJson = JSON.parse(summary.output) as {
+      const summaryJson = JSON.parse(summary.output!) as {
         readonly releaseEvidence?: { readonly status?: string; readonly artifacts?: number; readonly available?: number };
         readonly releaseReadiness?: { readonly status?: string; readonly path?: string; readonly items?: number };
         readonly modelAccess?: { readonly releaseEvidence?: string; readonly releaseReadiness?: string };
@@ -10686,7 +10453,7 @@ describe('agent_harness tool', () => {
       });
       expect(evidence.success).toBe(true);
       if (!evidence.success) throw new Error(evidence.error);
-      const evidenceJson = JSON.parse(evidence.output) as {
+      const evidenceJson = JSON.parse(evidence.output!) as {
         readonly mode: string;
         readonly artifacts: number;
         readonly available: number;
@@ -10709,9 +10476,9 @@ describe('agent_harness tool', () => {
       });
       expect(notesArtifact.success).toBe(true);
       if (!notesArtifact.success) throw new Error(notesArtifact.error);
-      const notesArtifactJson = JSON.parse(notesArtifact.output) as {
+      const notesArtifactJson = JSON.parse(notesArtifact.output!) as {
         readonly status: string;
-        readonly lookup: { readonly source: string; readonly resolvedBy: string };
+        readonly lookup: { readonly source: string; readonly input?: string; readonly resolvedBy: string };
         readonly artifact: { readonly id: string; readonly path: string; readonly content?: string; readonly summary?: { readonly bullets?: number } };
       };
       expect(notesArtifactJson.status).toBe('found');
@@ -10737,7 +10504,7 @@ describe('agent_harness tool', () => {
       });
       expect(inventory.success).toBe(true);
       if (!inventory.success) throw new Error(inventory.error);
-      const inventoryJson = JSON.parse(inventory.output) as {
+      const inventoryJson = JSON.parse(inventory.output!) as {
         readonly mode: string;
         readonly path: string;
         readonly totals: {
@@ -10773,7 +10540,7 @@ describe('agent_harness tool', () => {
       });
       expect(item.success).toBe(true);
       if (!item.success) throw new Error(item.error);
-      const itemJson = JSON.parse(item.output) as {
+      const itemJson = JSON.parse(item.output!) as {
         readonly status: string;
         readonly lookup: { readonly source: string; readonly resolvedBy: string };
         readonly item: { readonly id: string; readonly quality: { readonly modelAccess?: string } };
@@ -10807,7 +10574,7 @@ describe('agent_harness tool', () => {
       const summary = await fixture.tool.execute({ mode: 'summary', includeParameters: true });
       expect(summary.success).toBe(true);
       if (!summary.success) throw new Error(summary.error);
-      const summaryJson = JSON.parse(summary.output) as {
+      const summaryJson = JSON.parse(summary.output!) as {
         readonly operatorMethods?: { readonly modes?: readonly string[]; readonly methods?: number; readonly readOnlyMethods?: number };
         readonly servicePosture?: { readonly modes?: readonly string[]; readonly endpointIds?: readonly string[]; readonly readOnly?: boolean };
         readonly modelAccess?: { readonly operatorMethods?: string; readonly servicePosture?: string };
@@ -10829,7 +10596,7 @@ describe('agent_harness tool', () => {
       });
       expect(catalog.success).toBe(true);
       if (!catalog.success) throw new Error(catalog.error);
-      const catalogJson = JSON.parse(catalog.output) as {
+      const catalogJson = JSON.parse(catalog.output!) as {
         readonly methods: readonly { readonly id: string; readonly route: string; readonly preferredModelTool: string; readonly parameters?: readonly unknown[] }[];
       };
       expect(catalogJson.methods.map((method) => method.id)).toContain('knowledge.map');
@@ -10839,7 +10606,7 @@ describe('agent_harness tool', () => {
       const schedule = await fixture.tool.execute({ mode: 'operator_method', methodId: 'schedules.create' });
       expect(schedule.success).toBe(true);
       if (!schedule.success) throw new Error(schedule.error);
-      const scheduleJson = JSON.parse(schedule.output) as {
+      const scheduleJson = JSON.parse(schedule.output!) as {
         readonly id: string;
         readonly preferredModelTool: string;
         readonly parameters: readonly { readonly name: string; readonly required: boolean }[];
@@ -10856,7 +10623,7 @@ describe('agent_harness tool', () => {
       const posture = await fixture.tool.execute({ mode: 'service_posture', includeParameters: true });
       expect(posture.success).toBe(true);
       if (!posture.success) throw new Error(posture.error);
-      const postureJson = JSON.parse(posture.output) as {
+      const postureJson = JSON.parse(posture.output!) as {
         readonly readOnly: boolean;
         readonly endpoints: readonly { readonly id: string; readonly policy: { readonly lifecycle: string } }[];
       };
@@ -10867,9 +10634,9 @@ describe('agent_harness tool', () => {
       const endpoint = await fixture.tool.execute({ mode: 'service_endpoint', query: 'browser companion route' });
       expect(endpoint.success).toBe(true);
       if (!endpoint.success) throw new Error(endpoint.error);
-      const endpointJson = JSON.parse(endpoint.output) as {
+      const endpointJson = JSON.parse(endpoint.output!) as {
         readonly id: string;
-        readonly lookup: { readonly source: string; readonly resolvedBy: string };
+        readonly lookup: { readonly source: string; readonly input?: string; readonly resolvedBy: string };
         readonly policy: { readonly effect: string; readonly lifecycle: string };
       };
       expect(endpointJson.id).toBe('web');
@@ -10900,7 +10667,7 @@ describe('agent_harness tool', () => {
       expect(catalog.output).toContain('"blockedTokens"');
       expect(catalog.output).toContain('"daemon"');
       expect(catalog.output).toContain('CLI modes are read-only discovery');
-      const compactCliJson = JSON.parse(catalog.output) as {
+      const compactCliJson = JSON.parse(catalog.output!) as {
         readonly commands: readonly { readonly name: string; readonly effect?: string; readonly modelRoute?: string }[];
       };
       expect(compactCliJson.commands.filter((command) => (
@@ -10972,9 +10739,9 @@ describe('agent_harness tool', () => {
       expect(catalog.output).toContain('"id": "file-picker"');
       expect(catalog.output).toContain('modelRoute');
       expect(catalog.output).not.toContain('preferredModelRoute');
-      expectCompactSummaryFields(JSON.parse(catalog.output));
-      expectModelFacingText(catalog.output);
-      const catalogJson = JSON.parse(catalog.output) as {
+      expectCompactSummaryFields(JSON.parse(catalog.output!));
+      expectModelFacingText(catalog.output!);
+      const catalogJson = JSON.parse(catalog.output!) as {
         readonly surfaces: readonly { readonly id?: string; readonly modelRoute?: string }[];
       };
       expect(catalogJson.surfaces.filter((surface) => (
@@ -11034,7 +10801,7 @@ describe('agent_harness tool', () => {
       expect(settingsJson.modelRoute).toBe('settings action:"list|get|set" or workspace action:"open"');
       expect(settingsJson.preferredModelRoute).toContain('settings action:"list"|action:"get"|action:"set"|action:"reset"|action:"import"');
       expect(settingsJson.preferredModelRoute).not.toContain('settings/get_setting/set_setting/reset_setting');
-      expectModelFacingText(settings.output);
+      expectModelFacingText(settings.output!);
 
       const browserCockpit = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'connected-browser-cockpit' });
       expect(browserCockpit.success).toBe(true);
@@ -11111,7 +10878,7 @@ describe('agent_harness tool', () => {
         query: 'fullscreen settings workspace',
       });
       expect(settingsByQuery.success).toBe(true);
-      const settingsByQueryJson = JSON.parse(settingsByQuery.output);
+      const settingsByQueryJson = JSON.parse(settingsByQuery.output!);
       expect(settingsByQueryJson.id).toBe('settings');
       expect(settingsByQueryJson.lookup).toEqual({
         source: 'query',
@@ -11138,7 +10905,7 @@ describe('agent_harness tool', () => {
       });
       expect(openedSettings.success).toBe(true);
       expect(openedSettings.output).toContain('"status": "opened"');
-      expectModelFacingText(openedSettings.output);
+      expectModelFacingText(openedSettings.output!);
       expect(fixture.openedSurfaces).toEqual([{ id: 'settings', detail: 'provider.model' }]);
 
       const ambiguousSurface = await fixture.tool.execute({
@@ -11170,7 +10937,7 @@ describe('agent_harness tool', () => {
       });
       expect(disabledBrowserCockpit.success).toBe(true);
       expect(disabledBrowserCockpit.output).toContain('"status": "setup_needed"');
-      const disabledBrowserCockpitJson = JSON.parse(disabledBrowserCockpit.output) as {
+      const disabledBrowserCockpitJson = JSON.parse(disabledBrowserCockpit.output!) as {
         readonly route?: { readonly setupRoutes?: { readonly inspectEndpoint?: string } };
         readonly descriptor?: { readonly modelRoute?: string };
       };
@@ -11554,13 +11321,13 @@ describe('agent_harness tool', () => {
 
       const keybindingCatalog = await fixture.tool.execute({ mode: 'keybindings', limit: 500 });
       expect(keybindingCatalog.success).toBe(true);
-      expectModelFacingText(shortcuts.output);
-      expectModelFacingText(keybindingCatalog.output);
-      expectModelFacingText(keybinding.output);
+      expectModelFacingText(shortcuts.output!);
+      expectModelFacingText(keybindingCatalog.output!);
+      expectModelFacingText(keybinding.output!);
 
       const keybindingByQuery = await fixture.tool.execute({ mode: 'keybinding', query: 'Ctrl+F' });
       expect(keybindingByQuery.success).toBe(true);
-      const keybindingByQueryJson = JSON.parse(keybindingByQuery.output);
+      const keybindingByQueryJson = JSON.parse(keybindingByQuery.output!);
       expect(keybindingByQueryJson.action).toBe('search');
       expect(keybindingByQueryJson.lookup).toEqual({
         source: 'query',
@@ -11737,7 +11504,7 @@ describe('agent_harness tool', () => {
 
       const daemonAlias = await fixture.tool.execute({ mode: 'daemon' });
       expect(daemonAlias.success).toBe(true);
-      expect(JSON.parse(daemonAlias.output)).toEqual(JSON.parse(compactResult.output));
+      expect(JSON.parse(daemonAlias.output!)).toEqual(JSON.parse(compactResult.output!));
 
       const result = await fixture.tool.execute({ mode: 'connected_host', includeParameters: true });
       expect(result.success).toBe(true);
@@ -11851,7 +11618,7 @@ describe('agent_harness tool', () => {
       const result = await fixture.tool.execute({ mode: 'connected_host_status' });
       expect(result.success).toBe(true);
       if (!result.success) throw new Error(result.error);
-      const payload = JSON.parse(result.output) as {
+      const payload = JSON.parse(result.output!) as {
         readonly modelRoute?: string;
         readonly liveStatus: {
           readonly reachable: boolean;
@@ -11872,7 +11639,7 @@ describe('agent_harness tool', () => {
       const alias = await fixture.tool.execute({ mode: 'daemon_status' });
       expect(alias.success).toBe(true);
       if (!alias.success) throw new Error(alias.error);
-      const aliasPayload = JSON.parse(alias.output) as typeof payload;
+      const aliasPayload = JSON.parse(alias.output!) as typeof payload;
       expectCompactModelRoute(aliasPayload.modelRoute);
       expect(aliasPayload.liveStatus.reachable).toBe(true);
       expect(aliasPayload.operatorToken.usable).toBe(true);
@@ -11951,44 +11718,44 @@ describe('agent_harness tool', () => {
       expect(directLocal.success).toBe(true);
       expect(profile.success).toBe(true);
 
-      expect(JSON.parse(local.output).modelExecution).toMatchObject({
+      expect(JSON.parse(local.output!).modelExecution).toMatchObject({
         route: 'agent_local_registry',
         tool: 'agent_local_registry',
         domain: 'memory',
       });
-      expect(JSON.parse(commandBacked.output).modelExecution).toMatchObject({
+      expect(JSON.parse(commandBacked.output!).modelExecution).toMatchObject({
         route: 'slash-command-dispatch',
         dispatcher: 'run_command',
         confirmation: 'required',
       });
-      expect(JSON.parse(promptBacked.output).modelExecution).toMatchObject({
+      expect(JSON.parse(promptBacked.output!).modelExecution).toMatchObject({
         route: 'main-conversation-prompt',
         result: 'prompt',
         confirmation: 'not-required',
       });
-      expect(JSON.parse(researchRun.output).modelExecution).toMatchObject({
+      expect(JSON.parse(researchRun.output!).modelExecution).toMatchObject({
         route: 'agent_research_runs',
         tool: 'agent_research_runs',
         action: 'create_research_run',
         confirmation: 'required',
       });
-      expect(JSON.parse(researchSource.output).modelExecution).toMatchObject({
+      expect(JSON.parse(researchSource.output!).modelExecution).toMatchObject({
         route: 'agent_research_sources',
         tool: 'agent_research_sources',
         action: 'add_source_candidate',
         confirmation: 'required',
       });
-      expect(JSON.parse(researchReport.output).modelExecution).toMatchObject({
+      expect(JSON.parse(researchReport.output!).modelExecution).toMatchObject({
         route: 'agent_research_report',
         tool: 'agent_research_report',
         action: 'save_research_report_artifact',
         confirmation: 'required',
       });
-      expect(JSON.parse(directLocal.output).modelExecution).toMatchObject({
+      expect(JSON.parse(directLocal.output!).modelExecution).toMatchObject({
         route: 'direct-agent-local-create',
         action: 'create_learned_behavior',
       });
-      expect(JSON.parse(profile.output).modelExecution).toMatchObject({
+      expect(JSON.parse(profile.output!).modelExecution).toMatchObject({
         route: 'slash-command-dispatch',
         command: '/agent-profile create <name> [--template <template>] --yes',
       });
@@ -12011,7 +11778,7 @@ describe('agent_harness tool', () => {
         const result = await fixture.tool.execute({ mode: 'workspace_action', actionId: action.id });
         expect(result.success, action.id).toBe(true);
         expect(result.output, action.id).toContain('"modelExecution"');
-        expect(result.output.includes('agent_local_registry') || result.output.includes('agent_knowledge_ingest'), action.id).toBe(true);
+        expect(result.output!.includes('agent_local_registry') || result.output!.includes('agent_knowledge_ingest'), action.id).toBe(true);
       }
     } finally {
       fixture.cleanup();
@@ -12132,7 +11899,7 @@ describe('agent_harness tool', () => {
       const typed = await fixture.tool.execute({ mode: 'command', command: '/mem list --reviewed' });
       expect(typed.success).toBe(true);
       if (!typed.success) throw new Error(typed.error);
-      const typedPayload = JSON.parse(typed.output) as {
+      const typedPayload = JSON.parse(typed.output!) as {
         readonly name: string;
         readonly lookup: {
           readonly source: string;
@@ -12276,92 +12043,8 @@ describe('agent_harness tool', () => {
     });
   });
 
-  test.skip('runs command-backed workspace actions through id and command lookups', async () => {
-    const fixture = makeFixture();
-    const originalFetch = globalThis.fetch;
-    try {
-      const byId = await fixture.tool.execute({
-        mode: 'run_workspace_action',
-        actionId: 'brief',
-        confirm: true,
-        explicitUserRequest: 'Open the operator briefing.',
-      });
-
-      expect(byId.success).toBe(true);
-      expect(byId.output).toContain('Command /brief completed.');
-      expect(byId.output).toContain('briefing output');
-
-      const byCommand = await fixture.tool.execute({
-        mode: 'run_workspace_action',
-        command: '/brief',
-        confirm: true,
-        explicitUserRequest: 'Open the operator briefing.',
-      });
-
-      expect(byCommand.success).toBe(true);
-      expect(byCommand.output).toContain('Command /brief completed.');
-      expect(byCommand.output).toContain('briefing output');
-
-      registerScheduleRuntimeCommands(fixture.commandRegistry);
-      writeFileSync(join(fixture.root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'schedule-edit-token' }));
-      const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
-      globalThis.fetch = (async (input, init) => {
-        requests.push({
-          url: typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url,
-          method: init?.method ?? 'GET',
-          body: typeof init?.body === 'string' ? init.body : '',
-        });
-        return new Response(JSON.stringify({
-          id: 'sched-live-1',
-          name: 'Daily queue review',
-          labels: [],
-          createdAt: 1,
-          updatedAt: 2,
-          status: 'enabled',
-          enabled: true,
-          schedule: { kind: 'every', intervalMs: 86_400_000 },
-          execution: { prompt: 'updated prompt', target: { kind: 'main' } },
-          delivery: { mode: 'none', targets: [], fallbackTargets: [], includeSummary: true, includeTranscript: false, includeLinks: true },
-          failure: {
-            action: 'retry',
-            maxConsecutiveFailures: 3,
-            cooldownMs: 3_600_000,
-            retryPolicy: { maxAttempts: 2, delayMs: 60_000, strategy: 'exponential' },
-          },
-          source: { id: 'source-sched-live-1', kind: 'schedule', label: 'schedule', enabled: true, createdAt: 1, updatedAt: 2, metadata: {} },
-          runCount: 0,
-          successCount: 0,
-          failureCount: 0,
-          deleteAfterRun: false,
-        }), {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        });
-      }) satisfies typeof fetch;
-      const scheduleEdit = await fixture.tool.execute({
-        mode: 'run_workspace_action',
-        actionId: 'schedule-edit',
-        fields: {
-          scheduleId: 'sched-live-1',
-          scheduleKind: 'every',
-          scheduleValue: '1d',
-          scheduleName: 'Daily queue review',
-          confirm: 'yes',
-        },
-        confirm: true,
-        explicitUserRequest: 'Change schedule sched-live-1 to every day.',
-      });
-
-      expect(scheduleEdit.success).toBe(true);
-      expect(scheduleEdit.output).toContain('Updated GoodVibes schedule');
-      expect(requests.map((request) => `${request.method} ${request.url}`)).toEqual([
-        'PATCH http://127.0.0.1:3421/api/automation/jobs/sched-live-1',
-      ]);
-    } finally {
-      globalThis.fetch = originalFetch;
-      fixture.cleanup();
-    }
-  });
+  // DELETED: 'runs command-backed workspace actions through id and command lookups'
+  // brief action was removed from the workspace.;
 
   test('previews and applies GoodVibes settings import through workspace action route', async () => {
     const fixture = makeFixture();
@@ -12780,7 +12463,7 @@ describe('agent_harness tool', () => {
         metadata: {
           purpose: 'agent-document-export',
           documentId: draft.id,
-          versionId: draft.currentVersionId,
+          versionId: draft.versions.at(-1)?.id ?? '',
         },
       });
       const revealedJudgment = await artifacts.store.create({
@@ -12851,7 +12534,7 @@ describe('agent_harness tool', () => {
         metadata: {
           purpose: 'agent-document-export',
           documentId: draft.id,
-          versionId: `${draft.currentVersionId}-refresh`,
+          versionId: `${draft.versions.at(-1)?.id ?? ''}-refresh`,
         },
       });
       const refreshed = await fixture.tool.execute({
@@ -13754,7 +13437,7 @@ describe('agent_harness tool', () => {
 
       const defaultSettings = await fixture.tool.execute({ mode: 'settings' });
       expect(defaultSettings.success).toBe(true);
-      const defaultPayload = JSON.parse(defaultSettings.output) as {
+      const defaultPayload = JSON.parse(defaultSettings.output!) as {
         readonly settings: readonly { readonly key: string }[];
         readonly returned: number;
         readonly total: number;
@@ -13769,7 +13452,7 @@ describe('agent_harness tool', () => {
 
       const allSettings = await fixture.tool.execute({ mode: 'settings', includeHidden: true });
       expect(allSettings.success).toBe(true);
-      const allPayload = JSON.parse(allSettings.output) as {
+      const allPayload = JSON.parse(allSettings.output!) as {
         readonly settings: readonly { readonly key: string; readonly visibleInWorkspace: boolean }[];
         readonly returned: number;
         readonly total: number;
@@ -13786,7 +13469,7 @@ describe('agent_harness tool', () => {
         limit: 5,
       });
       expect(filteredSettings.success).toBe(true);
-      const filteredPayload = JSON.parse(filteredSettings.output) as {
+      const filteredPayload = JSON.parse(filteredSettings.output!) as {
         readonly settings: readonly { readonly key: string; readonly modelRoute?: string; readonly writable?: boolean }[];
         readonly returned: number;
       };
@@ -13804,7 +13487,7 @@ describe('agent_harness tool', () => {
         target: 'PROVIDER.MODEL',
       });
       expect(byTarget.success).toBe(true);
-      const targetSetting = JSON.parse(byTarget.output);
+      const targetSetting = JSON.parse(byTarget.output!);
       expect(targetSetting.key).toBe('provider.model');
       expect(targetSetting.modelRoute).toBe('settings set|reset key:provider.model');
       expect(targetSetting.lookup).toEqual({
@@ -13819,7 +13502,7 @@ describe('agent_harness tool', () => {
         prefix: 'provider.reasoningEffort',
       });
       expect(byQuery.success).toBe(true);
-      const querySetting = JSON.parse(byQuery.output);
+      const querySetting = JSON.parse(byQuery.output!);
       expect(querySetting.key).toBe('provider.reasoningEffort');
       expect(querySetting.modelRoute).toBe('settings set|reset key:provider.reasoningEffort');
       expect(querySetting.lookup).toEqual({
@@ -13838,7 +13521,7 @@ describe('agent_harness tool', () => {
       });
       expect(setByQuery.success).toBe(true);
       expect(fixture.configManager.get('provider.reasoningEffort')).toBe('high');
-      const setResult = JSON.parse(setByQuery.output);
+      const setResult = JSON.parse(setByQuery.output!);
       expect(setResult.key).toBe('provider.reasoningEffort');
       expect(setResult.lookup.resolvedBy).toBe('search');
 
@@ -13850,7 +13533,7 @@ describe('agent_harness tool', () => {
       });
       expect(resetByTarget.success).toBe(true);
       expect(fixture.configManager.get('provider.reasoningEffort')).not.toBe('high');
-      const resetResult = JSON.parse(resetByTarget.output);
+      const resetResult = JSON.parse(resetByTarget.output!);
       expect(resetResult.key).toBe('provider.reasoningEffort');
       expect(resetResult.lookup.resolvedBy).toBe('case-insensitive-key');
 

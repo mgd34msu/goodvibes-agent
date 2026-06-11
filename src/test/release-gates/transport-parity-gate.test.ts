@@ -166,11 +166,11 @@ async function createRemoteHarness(kind: 'http' | 'realtime'): Promise<Transport
   let boundPort: number | null = null;
   const serveFactory = ((options: Parameters<typeof Bun.serve>[0]) => {
     const server = Bun.serve({
-      ...options,
+      ...(options as unknown as Record<string, unknown>),
       port: 0,
       hostname: '127.0.0.1',
-    });
-    boundPort = server.port;
+    } as unknown as Parameters<typeof Bun.serve>[0]);
+    boundPort = server.port ?? null;
     return server;
   }) as typeof Bun.serve;
   const daemon = new DaemonServer({

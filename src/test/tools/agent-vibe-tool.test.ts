@@ -24,7 +24,7 @@ function tempContext(): CommandContext {
 async function executeJson(tool: Tool, args: Record<string, unknown>): Promise<Record<string, unknown>> {
   const result = await tool.execute(args);
   expect(result.success).toBe(true);
-  return JSON.parse(result.output) as Record<string, unknown>;
+  return JSON.parse(result.output!) as Record<string, unknown>;
 }
 
 describe('vibe adapter', () => {

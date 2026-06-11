@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,12 +7,13 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { ShellPathService } from '@/runtime/index.ts';
 import {
   createAgentKnowledgeTool,
   registerAgentKnowledgeTool,
 } from '../../tools/agent-knowledge-tool.ts';
 
-type ShellPaths = ReturnType<typeof shellPaths>;
+type ShellPaths = ShellPathService;
 
 interface CapturedRequest {
   readonly url: string;
@@ -99,14 +101,14 @@ describe('agent_knowledge tool', () => {
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : null,
       });
       return statusResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({ action: 'status' });
@@ -128,14 +130,14 @@ describe('agent_knowledge tool', () => {
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : null,
       });
       return askResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -163,14 +165,14 @@ describe('agent_knowledge tool', () => {
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : null,
       });
       return searchResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -194,7 +196,7 @@ describe('agent_knowledge tool', () => {
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -205,7 +207,7 @@ describe('agent_knowledge tool', () => {
         knowledgeSpaceId: 'default',
         sources: [{ id: 'src-default', title: 'Default source' }],
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({ action: 'sources', limit: 2 });
@@ -229,7 +231,7 @@ describe('agent_knowledge tool', () => {
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       const url = inputUrl(input);
       requests.push({
         url,
@@ -282,7 +284,7 @@ describe('agent_knowledge tool', () => {
         });
       }
       return new Response('not found', { status: 404 });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const sources = await tool.execute({ action: 'sources', limit: 2 });
@@ -349,10 +351,10 @@ describe('agent_knowledge tool', () => {
     const tool = createAgentKnowledgeTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return statusResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({ action: 'ask', query: 'What is GoodVibes Agent?' });

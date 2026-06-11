@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -62,7 +63,7 @@ describe('Agent user-first autonomy policy', () => {
     await services.sessionBroker.start();
 
     const submission = await services.sessionBroker.followUpMessage({
-      surfaceKind: 'goodvibes-agent',
+      surfaceKind: 'service',
       surfaceId: 'agent-policy-test',
       body: 'Build the thing',
     });
@@ -135,7 +136,7 @@ describe('Agent user-first autonomy policy', () => {
 
     const originalFetch = globalThis.fetch;
     const requests: Array<{ readonly url: string; readonly method: string; readonly authorization: string | null }> = [];
-    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    globalThis.fetch = mockFetch(async (input: RequestInfo | URL, init?: RequestInit) => {
       requests.push({
         url: String(input),
         method: String(init?.method ?? 'GET'),
@@ -157,7 +158,7 @@ describe('Agent user-first autonomy policy', () => {
           controlPlane: { ready: true },
         },
       }), { status: 200, headers: { 'content-type': 'application/json' } });
-    }) as typeof globalThis.fetch;
+    });
 
     try {
       const tool = createAgentOperatorMethodTool(
@@ -177,7 +178,7 @@ describe('Agent user-first autonomy policy', () => {
       });
       expect(result.success).toBe(true);
       if (!result.success) throw new Error(result.error);
-      const output = JSON.parse(result.output) as {
+      const output = JSON.parse(result.output!) as {
         readonly body: { readonly running: boolean };
         readonly outcome: {
           readonly status: string;
@@ -215,11 +216,11 @@ describe('Agent user-first autonomy policy', () => {
       { installed: true, autostart: true, running: true, network: { controlPlane: { ready: true } } },
     ];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       const receipt = receipts.shift();
       if (!receipt) throw new Error('No queued service receipt.');
       return new Response(JSON.stringify(receipt), { status: 200, headers: { 'content-type': 'application/json' } });
-    }) as typeof globalThis.fetch;
+    });
 
     try {
       const tool = createAgentOperatorMethodTool(
@@ -242,7 +243,7 @@ describe('Agent user-first autonomy policy', () => {
         const result = await tool.execute({ methodId: 'services.status' });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error(result.error);
-        const output = JSON.parse(result.output) as {
+        const output = JSON.parse(result.output!) as {
           readonly outcome: {
             readonly lifecycleDecision: {
               readonly status: string;
@@ -279,7 +280,7 @@ describe('Agent user-first autonomy policy', () => {
     writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'watcher-receipt-token' }));
 
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response(JSON.stringify({
+    globalThis.fetch = mockFetch(async () => new Response(JSON.stringify({
       id: 'watcher-billing',
       kind: 'webhook',
       label: 'Billing webhook triage',
@@ -295,7 +296,7 @@ describe('Agent user-first autonomy policy', () => {
       },
       metadata: {},
       lastCheckpoint: 'created',
-    }), { status: 200, headers: { 'content-type': 'application/json' } })) as typeof globalThis.fetch;
+    }), { status: 200, headers: { 'content-type': 'application/json' } }));
 
     try {
       const tool = createAgentOperatorMethodTool(
@@ -316,7 +317,7 @@ describe('Agent user-first autonomy policy', () => {
       });
       expect(result.success).toBe(true);
       if (!result.success) throw new Error(result.error);
-      const output = JSON.parse(result.output) as {
+      const output = JSON.parse(result.output!) as {
         readonly outcome: {
           readonly kind: string;
           readonly status: string;

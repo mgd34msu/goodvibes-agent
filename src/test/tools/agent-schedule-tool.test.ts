@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,12 +7,13 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import type { ShellPathService } from '@/runtime/index.ts';
 import {
   createAgentScheduleTool,
   registerAgentScheduleTool,
 } from '../../tools/agent-schedule-tool.ts';
 
-type ShellPaths = ReturnType<typeof shellPaths>;
+type ShellPaths = ShellPathService;
 
 interface CapturedRequest {
   readonly url: string;
@@ -124,14 +126,14 @@ describe('schedule adapter tool', () => {
     const tool = createAgentScheduleTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
       return schedulesListResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({ action: 'list' });
@@ -150,10 +152,10 @@ describe('schedule adapter tool', () => {
     const tool = createAgentScheduleTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleRecordResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -179,14 +181,14 @@ describe('schedule adapter tool', () => {
     const tool = createAgentScheduleTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
         body: typeof init?.body === 'string' ? init.body : '',
       });
       return scheduleRecordResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -215,10 +217,10 @@ describe('schedule adapter tool', () => {
     const tool = createAgentScheduleTool(paths, configManager(paths));
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return schedulesListResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({
@@ -245,7 +247,7 @@ describe('schedule adapter tool', () => {
     const tool = createAgentScheduleTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -255,7 +257,7 @@ describe('schedule adapter tool', () => {
         status: 200,
         headers: { 'content-type': 'application/json' },
       });
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await tool.execute({

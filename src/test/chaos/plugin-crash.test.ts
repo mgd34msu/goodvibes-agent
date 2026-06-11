@@ -30,7 +30,7 @@ function makeManager() {
   return new PluginLifecycleManager({ sessionId: 'chaos-test' });
 }
 
-function registerPlugin(manager: PluginLifecycleManager, name: string): void {
+function registerPlugin(manager: InstanceType<typeof PluginLifecycleManager>, name: string): void {
   manager.registerDiscovered(makeManifest(name), '/plugins/' + name);
 }
 

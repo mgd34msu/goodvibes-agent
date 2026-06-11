@@ -105,6 +105,7 @@ describe('collectOnboardingSnapshot', () => {
           hasSigningSecret: false,
           hasPublicKey: false,
           hasAppToken: false,
+          hasAuthTokenCredential: false,
         }),
       },
       surfaces: {

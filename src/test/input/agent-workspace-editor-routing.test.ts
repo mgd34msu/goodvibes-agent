@@ -56,7 +56,7 @@ function feedText(workspace: AgentWorkspace, value: string): void {
 }
 
 function feedKey(workspace: AgentWorkspace, logicalName: string): void {
-  feedToken(workspace, { type: 'key', logicalName, ctrl: false, shift: false, meta: false });
+  feedToken(workspace, { type: 'key', name: logicalName, logicalName, ctrl: false, shift: false, meta: false });
 }
 
 // ---------------------------------------------------------------------------
@@ -422,7 +422,7 @@ describe('settingKey exhaustiveness against CONFIG_SCHEMA', () => {
   test(
     'every settingKey in AGENT_WORKSPACE_CATEGORIES resolves in CONFIG_SCHEMA or allowlist',
     () => {
-      const schemaKeys = new Set(CONFIG_SCHEMA.map((s) => s.key));
+      const schemaKeys = new Set<string>(CONFIG_SCHEMA.map((s) => s.key));
       const keys = collectSettingKeys(AGENT_WORKSPACE_CATEGORIES);
       const failures = keys.filter(
         (k) => !schemaKeys.has(k) && !RUNTIME_EXTENDED_ALLOWLIST.has(k),
@@ -434,7 +434,7 @@ describe('settingKey exhaustiveness against CONFIG_SCHEMA', () => {
   test(
     'every settingKey in AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES resolves in CONFIG_SCHEMA or allowlist',
     () => {
-      const schemaKeys = new Set(CONFIG_SCHEMA.map((s) => s.key));
+      const schemaKeys = new Set<string>(CONFIG_SCHEMA.map((s) => s.key));
       const keys = collectSettingKeys(AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES);
       const failures = keys.filter(
         (k) => !schemaKeys.has(k) && !RUNTIME_EXTENDED_ALLOWLIST.has(k),

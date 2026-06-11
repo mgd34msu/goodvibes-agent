@@ -1,3 +1,4 @@
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -328,10 +329,10 @@ describe('routines CLI command', () => {
   test('previews schedule promotion with explicit delivery without calling the connected host', async () => {
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleRoutinesCommand(runtime([
@@ -356,7 +357,7 @@ describe('routines CLI command', () => {
   test('confirmed promotion posts schedules.create with Agent-only knowledge policy and delivery target', async () => {
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       requests.push({
         url: inputUrl(input),
         method: init?.method ?? 'GET',
@@ -364,7 +365,7 @@ describe('routines CLI command', () => {
       });
       if ((init?.method ?? 'GET') === 'GET') return schedulesListResponse();
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const baseRuntime = runtime([
@@ -451,11 +452,11 @@ describe('routines CLI command', () => {
   test('normalizes connected-host schedule failures and writes new receipt host fields', async () => {
     const requests: Array<{ readonly url: string; readonly method: string }> = [];
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = (async (input, init) => {
+    globalThis.fetch = mockFetch(async (input, init) => {
       const url = inputUrl(input);
       requests.push({ url, method: init?.method ?? 'GET' });
       throw new Error('Route not found: /api/automation/schedules (404)');
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleRoutinesCommand(runtime([
@@ -534,10 +535,10 @@ describe('routines CLI command', () => {
   test('rejects mixed delivery target kinds without calling the connected host', async () => {
     const originalFetch = globalThis.fetch;
     let calls = 0;
-    globalThis.fetch = (async () => {
+    globalThis.fetch = mockFetch(async () => {
       calls += 1;
       return scheduleResponse();
-    }) satisfies typeof fetch;
+    });
 
     try {
       const result = await handleRoutinesCommand(runtime([

@@ -106,7 +106,6 @@ describe('command modal handoff', () => {
       commandMode: true,
       modalStack,
       modalReturnFocus: 'prompt',
-      panelFocused: false,
       indicatorFocused: false,
       prompt: '/',
       cursorPos: 1,
@@ -149,7 +148,6 @@ describe('command modal handoff', () => {
       commandMode: false,
       modalStack,
       modalReturnFocus: 'prompt',
-      panelFocused: false,
       indicatorFocused: false,
       prompt: '',
       cursorPos: 0,
@@ -198,11 +196,16 @@ describe('command modal handoff', () => {
           return true;
         },
       }),
-      panelFocused: false,
-      panelManager: makePanelManager(),
       conversationManager: { log: () => {} } as never,
       requestRender: () => {},
       handleEscape: () => {},
+      projectRoot: '/tmp/test',
+      pasteRegistry: new Map(),
+      imageRegistry: new Map(),
+      nextPasteId: 1,
+      nextImageId: 1,
+      saveUndoState: () => {},
+      ensureInputCursorVisible: () => {},
     };
 
     const handled = handleCommandModeToken(state, key('enter'));
@@ -228,11 +231,16 @@ describe('command modal handoff', () => {
       commandContext: makeCommandContext({
         executeCommand: async () => true,
       }),
-      panelFocused: false,
-      panelManager: makePanelManager(),
       conversationManager: { log: () => {} } as never,
       requestRender: () => {},
       handleEscape: () => {},
+      projectRoot: '/tmp/test',
+      pasteRegistry: new Map(),
+      imageRegistry: new Map(),
+      nextPasteId: 1,
+      nextImageId: 1,
+      saveUndoState: () => {},
+      ensureInputCursorVisible: () => {},
     };
 
     const handled = handleCommandModeToken(state, key('enter'));
@@ -255,7 +263,6 @@ describe('command modal handoff', () => {
       commandMode: true,
       modalStack,
       modalReturnFocus: 'prompt',
-      panelFocused: false,
       indicatorFocused: false,
       prompt: '/',
       cursorPos: 1,

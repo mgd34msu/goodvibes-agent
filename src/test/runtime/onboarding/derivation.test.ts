@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { DEFAULT_CONFIG } from '../../../config/index.ts';
+import { getProviderIdFromModel } from '../../../config/provider-model.ts';
 import { EMPTY_AGENT_BEHAVIOR_DISCOVERY_SNAPSHOT } from '../../../agent/behavior-discovery-summary.ts';
 import type { OnboardingSnapshotState } from '../../../runtime/onboarding/index.ts';
 import {
@@ -27,7 +28,7 @@ function buildBaseSnapshot(): OnboardingSnapshotState {
       surfaces: structuredClone(DEFAULT_CONFIG.surfaces),
     },
     providerRouting: {
-      primaryProviderId: DEFAULT_CONFIG.provider.provider,
+      primaryProviderId: getProviderIdFromModel(DEFAULT_CONFIG.provider.model),
       primaryModelId: DEFAULT_CONFIG.provider.model,
       primaryReasoningEffort: DEFAULT_CONFIG.provider.reasoningEffort,
       embeddingProviderId: DEFAULT_CONFIG.provider.embeddingProvider,

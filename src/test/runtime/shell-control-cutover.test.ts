@@ -85,7 +85,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
 
   test('bootstrap and orchestrator do not use render:request for local invalidation', () => {
     const violations: string[] = [];
-    const restrictedFiles = [
+    const restrictedFiles: string[] = [
       'src/runtime/bootstrap.ts',
       'src/core/orchestrator.ts',
     ];
@@ -119,7 +119,7 @@ describe('GC-ARCH-004: shell control cutover enforcement', () => {
 
   test('known panel-local repaint files do not emit render:request', () => {
     const violations: string[] = [];
-    const restrictedFiles = [
+    const restrictedFiles: string[] = [
     ];
 
     for (const relPath of restrictedFiles) {

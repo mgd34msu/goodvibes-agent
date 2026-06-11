@@ -110,7 +110,7 @@ describe('modelHardwareFitLine (via detailLines)', () => {
     picker.models = [ollamaModel];
     picker.providers = ['ollama'];
     picker.configuredProviders = new Set(['ollama']);
-    picker.configuredViaMap = new Map([['ollama', 'local']]);
+    picker.configuredViaMap = new Map([['ollama', 'env']]);
     picker.availableOnly = false;
     picker.openAllModels(picker.models, 'ollama:llama3');
     const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');
@@ -149,7 +149,7 @@ describe('modelHardwareFitLine (via detailLines)', () => {
     picker.models = [ollamaModel70b];
     picker.providers = ['ollama'];
     picker.configuredProviders = new Set(['ollama']);
-    picker.configuredViaMap = new Map([['ollama', 'local']]);
+    picker.configuredViaMap = new Map([['ollama', 'env']]);
     picker.availableOnly = false;
     picker.openAllModels(picker.models, 'ollama:llama-3.1-70b');
     const text = linesToText(renderModelWorkspace(picker, W, H)).join('\n');

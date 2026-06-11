@@ -22,7 +22,7 @@ async function route(query: string, includeParameters = false): Promise<Record<s
   const result = await tool.execute({ action: 'plan', query, includeParameters });
   expect(result.success).toBe(true);
   if (!result.success) throw new Error(result.error);
-  return JSON.parse(result.output) as Record<string, unknown>;
+  return JSON.parse(result.output!) as Record<string, unknown>;
 }
 
 function preferredId(body: Record<string, unknown>): string {
@@ -37,7 +37,7 @@ describe('route adapter', () => {
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error(result.error);
-    const body = JSON.parse(result.output) as { readonly status: string; readonly usage: string };
+    const body = JSON.parse(result.output!) as { readonly status: string; readonly usage: string };
     expect(body.status).toBe('ready');
     expect(body.usage).toContain('route action:"plan"');
   });
@@ -483,7 +483,7 @@ describe('route adapter', () => {
 
     expect(result.success).toBe(true);
     if (!result.success) throw new Error(result.error);
-    const body = JSON.parse(result.output) as Record<string, unknown>;
+    const body = JSON.parse(result.output!) as Record<string, unknown>;
     expect(preferredId(body)).toBe('local-model-cookbook-route');
   });
 

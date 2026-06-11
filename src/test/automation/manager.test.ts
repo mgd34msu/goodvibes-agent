@@ -117,12 +117,12 @@ describe('AutomationManager', () => {
     const jobs = manager.listJobs();
     const updatedCronJob = jobs.find((job) => job.id === cronJob.id);
     expect(updatedCronJob?.runCount).toBe(1);
-    expect(updatedCronJob?.lastRunAt).toBeGreaterThanOrEqual(run.startedAt);
+    expect(updatedCronJob?.lastRunAt).toBeGreaterThanOrEqual(run.startedAt!);
 
     const runs = manager.listRuns(cronJob.id);
     expect(runs).toHaveLength(1);
     expect(runs[0]?.id).toBe(run.id);
-    expect(runs[0]?.deliveryIds).toEqual([]);
+    expect(runs[0]!.deliveryIds).toEqual([]);
   });
 
   test('applies config defaults and prunes run history by job', async () => {

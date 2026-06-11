@@ -99,8 +99,8 @@ describe('DirectTransport', () => {
     expect(snapshot.operator.currentSession).toEqual(transport.operator.sessions.current());
     expect(snapshot.operator.providers.providerIds).toEqual(transport.operator.providers.listIds());
     expect(snapshot.peer.pairing.total).toBe(1);
-    expect(snapshot.peer.peers.map((peer) => peer.id)).toContain(verified?.peer.id);
-    expect(snapshot.peer.nodeHostContract.basePath).toBe('/api/remote');
+    expect(snapshot.peer.peers.map((peer) => peer.id)).toContain(verified!.peer.id);
+    expect(String(snapshot.peer.nodeHostContract?.basePath)).toBe('/api/remote');
   });
 
   test('can be created from the narrowed foundation boundary', async () => {

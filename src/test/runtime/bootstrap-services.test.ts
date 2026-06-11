@@ -82,7 +82,7 @@ describe('startExternalServices', () => {
     expect(services.httpListenerStatus.reason).toContain('does not own listener lifecycle');
 
     await services.stop();
-    expect(services.listRecentControlPlaneEvents()).toEqual([]);
+    expect(services.listRecentControlPlaneEvents(100)).toEqual([]);
   });
 
   test('reports configured external daemon endpoint without binding ports', async () => {

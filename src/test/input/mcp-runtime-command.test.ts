@@ -402,7 +402,7 @@ describe('/mcp runtime config commands', () => {
       const out: string[] = [];
       const ctx = makeContext(root, out);
       const mcpApi = ctx.clients!.mcpApi!;
-      ctx.clients!.mcpApi = {
+      (ctx.clients as Record<string, unknown>)['mcpApi'] = {
         ...mcpApi,
         listServerSecurity: () => [{
           name: 'imported docs server',
@@ -415,7 +415,7 @@ describe('/mcp runtime config commands', () => {
           quarantineReason: 'operator_review',
           quarantineDetail: 'Imported config needs review.',
         }],
-      } as typeof mcpApi;
+      } as unknown as typeof mcpApi;
 
       await registry.get('mcp')!.handler(['repair'], ctx);
 

@@ -47,6 +47,7 @@ function makeCli(overrides: Partial<GoodVibesCliParseResult> = {}): GoodVibesCli
       fork: false,
       rawOutput: false,
       acceptRawOutputRisk: false,
+      runtimeUrl: undefined,
     },
     errors: [],
     ...overrides,

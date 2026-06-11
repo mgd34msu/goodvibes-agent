@@ -6,6 +6,10 @@ describe('McpApi', () => {
     const calls: string[] = [];
     const api = createMcpApi({
       serverNames: ['docs-server'],
+      getEffectiveConfig: () => ({ servers: [] } as never),
+      reload: async () => ({ added: 0, changed: 0, removed: 0, unchanged: 0, servers: [] }),
+      upsertServerConfig: async () => ({ path: '/tmp/mcp.json', reload: { added: 0, changed: 0, removed: 0, unchanged: 0, servers: [] } }),
+      removeServerConfig: async () => ({ path: '/tmp/mcp.json', removed: true, reload: { added: 0, changed: 0, removed: 0, unchanged: 0, servers: [] } }),
       listServers: () => [{ name: 'docs-server', connected: true }],
       listServerSecurity: () => [{
         name: 'docs-server',

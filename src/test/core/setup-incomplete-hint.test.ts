@@ -18,7 +18,7 @@ function makeStep(id: string, status: OnboardingStep['status'] = 'blocked', bloc
 }
 
 function makeState(overrides: Partial<OnboardingState> = {}): OnboardingState {
-  const steps: OnboardingStep[] = overrides.steps ?? [
+  const steps: OnboardingStep[] = (overrides.steps as OnboardingStep[] | undefined) ?? [
     makeStep('provider-access', 'blocked', true),
   ];
   return {
@@ -91,7 +91,7 @@ describe('buildSetupIncompleteHint — in-progress, ready to chat', () => {
 
   test('includes blocker label when blockers present', () => {
     const blocker = makeStep('communication-channels', 'blocked', true);
-    blocker.nextLabel = 'set up a notification channel';
+    (blocker as { nextLabel: string }).nextLabel = 'set up a notification channel';
     const state = makeState({
       readyToChat: true,
       steps: [blocker],
@@ -190,9 +190,9 @@ describe('buildSetupIncompleteHint — local-model-readiness ready, provider blo
    */
   function makeLocalReadyState(): OnboardingState {
     const localStep = makeStep('local-model-readiness', 'ready', false);
-    localStep.label = 'Local model';
+    (localStep as { label: string }).label = 'Local model';
     const providerStep = makeStep('provider-access', 'blocked', true);
-    providerStep.label = 'Model access';
+    (providerStep as { label: string }).label = 'Model access';
     return {
       phase: 'in-progress',
       steps: [providerStep, localStep],

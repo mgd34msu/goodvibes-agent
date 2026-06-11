@@ -100,16 +100,6 @@ function createProviderApiStub(overrides: Partial<ProviderApi> = {}): ProviderAp
     createHelperModel: (configManager) => new HelperModel({
       configManager,
       providerRegistry: {
-        get: () => ({
-          name: 'openai',
-          models: ['gpt-4o'],
-          chat: async () => ({
-            content: '',
-            toolCalls: [],
-            usage: { inputTokens: 0, outputTokens: 0 },
-            stopReason: 'completed',
-          }),
-        }),
         getCurrentModel: () => ({
           id: 'gpt-4o',
           provider: 'openai',
@@ -275,7 +265,7 @@ describe('provider command provider-api migration', () => {
     const { context, printed } = createCommandContext({
       providerApi: createProviderApiStub(),
     });
-    const providerFile = context.workspace.shellPaths.resolveUserPath(
+    const providerFile = context.workspace.shellPaths!.resolveUserPath(
       GOODVIBES_AGENT_SURFACE_ROOT,
       'providers',
       'local.json',
@@ -293,7 +283,7 @@ describe('provider command provider-api migration', () => {
     const { context, printed } = createCommandContext({
       providerApi: createProviderApiStub(),
     });
-    const providerFile = context.workspace.shellPaths.resolveUserPath(
+    const providerFile = context.workspace.shellPaths!.resolveUserPath(
       GOODVIBES_AGENT_SURFACE_ROOT,
       'providers',
       'local.json',

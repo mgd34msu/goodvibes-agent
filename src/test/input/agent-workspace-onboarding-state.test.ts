@@ -35,8 +35,8 @@ function snapshotWithSteps(
   steps: AgentSetupWizardStep[],
 ): AgentWorkspaceRuntimeSnapshot {
   return {
-    setupWizard: { steps } as AgentWorkspaceRuntimeSnapshot['setupWizard'],
-  } as AgentWorkspaceRuntimeSnapshot;
+    setupWizard: { steps } as unknown as AgentWorkspaceRuntimeSnapshot['setupWizard'],
+  } as unknown as AgentWorkspaceRuntimeSnapshot;
 }
 
 function tempShellPaths() {

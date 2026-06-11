@@ -46,7 +46,7 @@ function makeContext(root: string, out: string[]): CommandContext {
     } as never,
     print: (text: string) => out.push(text),
     exit: () => {},
-  } as CommandContext;
+  } as unknown as CommandContext;
 }
 
 describe('/mcp bare subcommand usage', () => {

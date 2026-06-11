@@ -17,7 +17,7 @@ import type { PermissionsConfig } from '@/runtime/index.ts';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeEvaluator(config: Partial<PermissionsConfig> = {}): LayeredPolicyEvaluator {
+function makeEvaluator(config: Partial<PermissionsConfig> = {}): InstanceType<typeof LayeredPolicyEvaluator> {
   return new LayeredPolicyEvaluator({ mode: 'default', rules: [], ...config });
 }
 
