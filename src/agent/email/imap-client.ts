@@ -588,7 +588,7 @@ export function createImapTlsSocket(
       resolve(sock as unknown as Socket);
     });
 
-    sock.once('error', (err) => {
+    sock.once('error', (err: Error) => {
       clearTimeout(timer);
       reject(err);
     });

@@ -353,7 +353,7 @@ export function createSmtpTlsSocket(
       resolve(sock as unknown as Socket);
     });
 
-    sock.once('error', (err) => {
+    sock.once('error', (err: Error) => {
       clearTimeout(timer);
       reject(err);
     });
@@ -430,7 +430,7 @@ export function createSmtpStartTlsSocket(
                   clearTimeout(timer);
                   resolve(upgraded as unknown as Socket);
                 });
-                upgraded.once('error', (err) => {
+                upgraded.once('error', (err: Error) => {
                   clearTimeout(timer);
                   reject(err);
                 });
