@@ -64,14 +64,22 @@ const TOOL_LABELS: Record<string, string> = {
   agent_work_plan: 'Organizing work',
   agent_review_packet_presets: 'Preparing a review packet',
   agent_review_packet_share: 'Sharing a review packet',
+  propose_skill_drafts: 'Proposing skill drafts',
 };
+
+/**
+ * Exported catalog of all registered tool IDs and their human phrases.
+ * Tests import this to enumerate the full set of tool IDs for coverage checks.
+ */
+export const TOOL_LABELS_CATALOG: Readonly<Record<string, string>> = TOOL_LABELS;
 
 function humanize(name: string): string {
   const short = name.includes('__') ? name.split('__').pop()! : name;
-  return short
+  return (short
     .replace(/^agent[_-]/, '')
     .replace(/[_-]+/g, ' ')
-    .trim();
+    .trim())
+    .replace(/^./, (c) => c.toUpperCase());
 }
 
 /**

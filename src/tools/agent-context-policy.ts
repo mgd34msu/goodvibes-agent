@@ -160,7 +160,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
       {
         area: 'Harness operation',
-        can: 'Discover and use harness modes, slash commands, workspace actions, settings, panels, UI surfaces, keybindings, and model tools.',
+        can: 'Discover and use harness modes, slash commands, workspace actions, settings, UI surfaces, keybindings, and model tools.',
         tools: [optionalTool('agent_harness'), optionalTool('host'), optionalTool('settings'), 'goodvibes_context'],
         inspect: 'agent_harness mode:"modes" query:"capability"',
       },

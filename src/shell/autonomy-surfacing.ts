@@ -1,4 +1,17 @@
-import { buildAwayDigest, formatRelativeTime } from '../core/away-digest.ts';
+/**
+ * Ambient autonomy surfacing module.
+ *
+ * HISTORY: this factory was extracted from main.ts to keep that file under the
+ * 800-line cap. After extraction it gained two capabilities:
+ *   1. Calendar merging — listCalendarEvents callback merges upcoming events
+ *      into the Coming-up sidebar alongside scheduled jobs (buildCalendarEventsLister).
+ *   2. Skill-draft accrual — onAwayDigest callback runs skill-draft proposal
+ *      once per away-digest pass and appends a feed line when drafts are created
+ *      (buildSkillDraftProposer).
+ * These additions are NOT "no behavior change" refactors; they add real surface.
+ */
+
+import { buildAwayDigest, formatDigestTime, formatRelativeTime } from '../core/away-digest.ts';
 import { LastSeenStore } from '../core/last-seen-store.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { AgentCalendarRegistry } from '../agent/calendar-registry.ts';
@@ -197,13 +210,15 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
     refreshComingUp,
     announceAwayDigest,
     stop,
-    comingUpItems: (): readonly string[] => comingUpCache.items,
+    // Return a defensive copy so callers cannot mutate internal cache state.
+    comingUpItems: (): readonly string[] => [...comingUpCache.items],
   };
 }
 
 /**
  * Build the onAwayDigest callback for the given shellPaths and command context.
  * Extracted so main.ts can pass a single symbol instead of an inline lambda.
+ * (See module-header note for history.)
  */
 export function buildSkillDraftProposer(
   shellPaths: Parameters<typeof AgentSkillRegistry.fromShellPaths>[0],
@@ -220,21 +235,38 @@ export function buildSkillDraftProposer(
  * Build the listCalendarEvents callback for the given shellPaths.
  * Extracts the closure that was previously inlined in main.ts so that
  * file stays under the 800-line cap.
+ *
+ * The optional `upcomingEvents` parameter is a testability seam: when provided,
+ * it replaces the `registry.upcoming(7)` call so unit tests can inject a
+ * deterministic event set without mocking the module. Production callers omit
+ * this parameter; the default is the real registry lookup.
  */
 export function buildCalendarEventsLister(
   shellPaths: Parameters<typeof LastSeenStore.fromShellPaths>[0],
+  upcomingEvents?: () => readonly import('../agent/calendar-registry.ts').AgentCalendarEvent[],
 ): () => readonly { label: string; start: number }[] {
-  return () =>
-    AgentCalendarRegistry.fromShellPaths(shellPaths)
-      .upcoming(7)
+  return () => {
+    const now = Date.now();
+    const registry = AgentCalendarRegistry.fromShellPaths(shellPaths);
+    return (upcomingEvents ?? (() => registry.upcoming(7)))()
       .map((e) => {
         const allDay = e.allDay;
+        // Sort key: use local midnight for all-day events so they sort at the
+        // correct local calendar date rather than UTC midnight (which would land
+        // the previous day for timezones east of UTC).
+        // Timed events: parse the ISO string directly; Date.parse handles
+        // offset-bearing strings correctly.
         const startMs = allDay
-          ? Date.parse(`${e.start}T00:00:00Z`)
+          ? new Date(`${e.start}T00:00:00`).getTime()   // no tz suffix ⇒ local time
           : Date.parse(e.start);
-        const sortMs = isNaN(startMs) ? Date.now() : startMs;
-        const when = allDay ? e.start : e.start.slice(0, 16).replace('T', ' ');
+        const sortMs = isNaN(startMs) ? now : startMs;
+        // Display: format via local Date methods so the user sees their own
+        // timezone, never a raw stored offset or UTC-shifted string.
         const label = e.title.length > 22 ? `${e.title.slice(0, 20)}…` : e.title;
+        const when = allDay
+          ? e.start   // date-only string, no time component to misformat
+          : formatDigestTime(startMs, now);
         return { label: `${label} — ${when}`, start: sortMs };
       });
+  };
 }
