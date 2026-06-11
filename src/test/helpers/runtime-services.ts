@@ -1,3 +1,13 @@
+/**
+ * Runtime services test helper.
+ *
+ * CONTRACT: Importing this helper auto-registers a beforeEach that calls
+ * resetAllTestServiceState(), so every test file gets a fresh singleton set
+ * without needing to call reset manually. Files that need custom reset logic
+ * can still call resetAllTestServiceState() or individual reset functions
+ * in their own beforeEach — bun:test runs all registered beforeEach hooks.
+ */
+import { beforeEach } from 'bun:test';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
@@ -465,6 +475,13 @@ export function resetAllTestServiceState(): void {
   resetTestProjectIndexes();
   resetTestGitServices();
 }
+
+// Auto-register a beforeEach reset so every test file that imports this helper
+// starts with clean singleton state, without needing explicit reset calls.
+// Files can still register additional beforeEach hooks — all registered hooks run.
+beforeEach(() => {
+  resetAllTestServiceState();
+});
 
 export function applyTestAgentExecutor(executor: AgentExecutor | null): void {
   agentExecutorForTests = executor;

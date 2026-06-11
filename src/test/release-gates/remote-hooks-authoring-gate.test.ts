@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
@@ -14,16 +13,20 @@ import {
   getTestHookDispatcher,
   getTestHookWorkbench,
   getTestRemoteRunnerRegistry,
-  resetTestRuntimeServices,
+  resetAllTestServiceState,
 } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('remote and hooks authoring gate', () => {
   let originalHooksFile: string;
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    resetTestRuntimeServices();
-    configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir: join(tmpdir(), `gv-remote-hooks-${Date.now()}-${Math.random().toString(36).slice(2)}`) });
+    // resetAllTestServiceState() is also auto-registered by importing runtime-services.ts.
+    // Calling it explicitly here ensures this file's beforeEach runs the full reset
+    // even if the auto-registration order changes.
+    resetAllTestServiceState();
+    configManager = new ConfigManager({ surfaceRoot: 'tui', configDir: makeProjectTempDir('gv-remote-hooks') });
     originalHooksFile = configManager.get('tools.hooksFile') as string;
     getTestHookDispatcher().clear();
   });
@@ -32,7 +35,7 @@ describe('remote and hooks authoring gate', () => {
     getTestAgentManager().clear();
     configManager.set('tools.hooksFile', originalHooksFile);
     getTestHookDispatcher().clear();
-    resetTestRuntimeServices();
+    resetAllTestServiceState();
   });
 
   test('remote runner execution can be exported into a portable review artifact', async () => {
@@ -69,7 +72,7 @@ describe('remote and hooks authoring gate', () => {
       },
     }));
 
-    const dir = mkdtempSync(join(tmpdir(), 'gv-remote-gate-'));
+    const dir = makeProjectTempDir('gv-remote-gate');
     const path = join(dir, 'remote-artifact.json');
     const remoteRunnerRegistry = getTestRemoteRunnerRegistry();
     const exported = await exportRemoteArtifactForAgent(remoteRunnerRegistry, agent.id, store, path);
@@ -85,7 +88,7 @@ describe('remote and hooks authoring gate', () => {
   });
 
   test('managed hooks can be scaffolded, reloaded, and simulated through the persisted workflow path', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'gv-hooks-gate-'));
+    const dir = makeProjectTempDir('gv-hooks-gate');
     const path = join(dir, 'hooks.json');
     configManager.set('tools.hooksFile', path);
 
