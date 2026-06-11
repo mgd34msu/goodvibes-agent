@@ -13,6 +13,7 @@
 
 import type { Cell } from '../types/grid.ts';
 import { DEFAULT_PANEL_PALETTE } from './polish.ts';
+import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { type StatusState, STATE_GLYPHS } from './status-glyphs.ts';
 
 // Re-export for downstream consumers that import from this module.
@@ -54,14 +55,33 @@ export function buildStatusToken(
   const suffix = opts?.count !== undefined ? ` (${opts.count})` : '';
   const text = `${glyph} ${label}${suffix}`;
 
-  return text.split('').map((char): Cell => ({
-    char,
-    fg: color,
-    bg: '',
-    bold: false,
-    dim: false,
-    underline: false,
-    italic: false,
-    strikethrough: false,
-  }));
+  const cells: Cell[] = [];
+  for (const char of text) {
+    const displayW = getDisplayWidth(char);
+    cells.push({
+      char,
+      fg: color,
+      bg: '',
+      bold: false,
+      dim: false,
+      underline: false,
+      italic: false,
+      strikethrough: false,
+    });
+    if (displayW > 1) {
+      // Continuation cell for wide characters (CJK, emoji) to occupy the
+      // second terminal column without introducing a broken surrogate half.
+      cells.push({
+        char: '',
+        fg: color,
+        bg: '',
+        bold: false,
+        dim: false,
+        underline: false,
+        italic: false,
+        strikethrough: false,
+      });
+    }
+  }
+  return cells;
 }

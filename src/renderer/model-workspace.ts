@@ -11,9 +11,21 @@ import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { isLocalFitRecommendation, isProviderSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { estimateModelBytes, fitAssessment, fitVerdictLabel, paramCountFromModel, readHardwareProfileSync, REPRESENTATIVE_7B_PARAMS } from '../core/hardware-profile.ts';
 import type { Line } from '../types/grid.ts';
-import { createEmptyLine, createStyledCell } from '../types/grid.ts';
+import { createStyledCell } from '../types/grid.ts';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { GLYPHS, UI_TONES } from './ui-primitives.ts';
+import {
+  clamp,
+  clipDisplay,
+  contentLine,
+  fillRange,
+  makeLine,
+  padDisplay,
+  stableWindow,
+  writeText,
+  borderLine as primsBorderLine,
+  drawVerticalRule,
+} from './fullscreen-primitives.ts';
 
 const PALETTE = {
   border: '#64748b',
@@ -73,97 +85,17 @@ function isLocalOnlyList(picker: ModelPickerModal): boolean {
   return models.length > 0 && models.every((m) => m.provider === LOCAL_REC_PROVIDER || isLocalFitRecommendation(m));
 }
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function fillRange(line: Line, startX: number, endX: number, bg: string): void {
-  for (let x = Math.max(0, startX); x <= Math.min(line.length - 1, endX); x += 1) {
-    const cell = line[x] ?? createStyledCell(' ');
-    line[x] = createStyledCell(cell.char, {
-      fg: cell.fg,
-      bg,
-      bold: cell.bold,
-      dim: cell.dim,
-      underline: cell.underline,
-      italic: cell.italic,
-      strikethrough: cell.strikethrough,
-      link: cell.link,
-    });
-  }
-}
-
-function makeLine(width: number, bg = ''): Line {
-  const line = createEmptyLine(width);
-  if (bg) fillRange(line, 0, width - 1, bg);
-  return line;
-}
-
-function writeText(line: Line, startX: number, maxWidth: number, text: string, style: Partial<Omit<Line[number], 'char'>> = {}): void {
-  let x = startX;
-  let used = 0;
-  for (const ch of text) {
-    const width = getDisplayWidth(ch);
-    if (width <= 0) continue;
-    if (used + width > maxWidth || x >= line.length) break;
-    line[x] = createStyledCell(ch, style);
-    if (width > 1 && x + 1 < line.length) {
-      line[x + 1] = createStyledCell(' ', style);
-    }
-    x += width;
-    used += width;
-  }
-}
-
+// Local wrappers that forward PALETTE.border as the fg/borderFg default, keeping
+// the same visual output as the deleted local copies.
 function borderLine(width: number, left: string, fill: string, right: string): Line {
-  const line = makeLine(width);
-  if (width <= 0) return line;
-  line[0] = createStyledCell(left, { fg: PALETTE.border });
-  for (let x = 1; x < width - 1; x += 1) {
-    line[x] = createStyledCell(fill, { fg: PALETTE.border });
-  }
-  if (width > 1) line[width - 1] = createStyledCell(right, { fg: PALETTE.border });
-  return line;
+  return primsBorderLine(width, left, fill, right, PALETTE.border);
 }
 
-function contentLine(width: number, bg: string): Line {
-  const line = makeLine(width, bg);
-  if (width > 0) line[0] = createStyledCell(GLYPHS.frame.vertical, { fg: PALETTE.border });
-  if (width > 1) line[width - 1] = createStyledCell(GLYPHS.frame.vertical, { fg: PALETTE.border });
-  return line;
-}
-
+// drawVertical intentionally keeps the original guard (x<=0) which differs from
+// drawVerticalRule in fullscreen-primitives (x<0). Callers rely on the <=0 skip.
 function drawVertical(line: Line, x: number, bg = ''): void {
   if (x <= 0 || x >= line.length - 1) return;
-  line[x] = createStyledCell(GLYPHS.frame.vertical, { fg: PALETTE.border, bg });
-}
-
-function clipDisplay(text: string, width: number): string {
-  if (width <= 0) return '';
-  let used = 0;
-  let output = '';
-  for (const ch of text) {
-    const chWidth = getDisplayWidth(ch);
-    if (chWidth <= 0) continue;
-    if (used + chWidth > width) break;
-    output += ch;
-    used += chWidth;
-  }
-  return output;
-}
-
-function padDisplay(text: string, width: number): string {
-  const clipped = clipDisplay(text, width);
-  return clipped + ' '.repeat(Math.max(0, width - getDisplayWidth(clipped)));
-}
-
-function stableWindow(total: number, selected: number, visible: number): { start: number; end: number } {
-  if (total <= 0 || visible <= 0) return { start: 0, end: 0 };
-  const clamped = clamp(selected, 0, total - 1);
-  const half = Math.floor(visible / 2);
-  const maxStart = Math.max(0, total - visible);
-  const start = clamp(clamped - half, 0, maxStart);
-  return { start, end: Math.min(total, start + visible) };
+  drawVerticalRule(line, x, PALETTE.border, bg);
 }
 
 function formatContext(value: number | undefined): string {

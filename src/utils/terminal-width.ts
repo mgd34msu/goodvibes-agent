@@ -139,14 +139,20 @@ export function wrapText(text: string, width: number): string[] {
         if (currentLine) lines.push(currentLine);
         let remaining = word;
         while (getDisplayWidth(remaining) > width) {
+          const codePoints = [...remaining];
           let splitIdx = 0;
           let currentWidth = 0;
-          for (let i = 0; i < remaining.length; i++) {
-            const charWidth = getDisplayWidth(remaining[i]!);
+          for (const cp of codePoints) {
+            const charWidth = getDisplayWidth(cp);
             if (currentWidth + charWidth > width) break;
             currentWidth += charWidth;
-            splitIdx = i + 1;
+            splitIdx += cp.length;
           }
+          // Safety: guarantee at least one code point of progress even if a
+          // single grapheme is wider than the available width (e.g. CJK/emoji
+          // at width===1). Without this guard splitIdx stays 0, remaining
+          // never shrinks, and the while-loop hangs.
+          if (splitIdx === 0) splitIdx = codePoints[0]!.length;
           lines.push(remaining.slice(0, splitIdx));
           remaining = remaining.slice(splitIdx);
         }

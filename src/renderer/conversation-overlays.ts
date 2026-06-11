@@ -54,11 +54,11 @@ export function applyConversationOverlays(
   }
 
   if (input.searchManager.active) {
-    next.push(...renderSearchOverlay(input.searchManager, conversationWidth));
+    next = [...next, ...renderSearchOverlay(input.searchManager, conversationWidth)];
   }
 
   if (input.historySearch.active) {
-    next.push(...renderHistorySearchOverlay(input.historySearch, conversationWidth));
+    next = [...next, ...renderHistorySearchOverlay(input.historySearch, conversationWidth)];
   }
 
   if (input.processModal.active) {

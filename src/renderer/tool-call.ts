@@ -138,11 +138,11 @@ function extractKeyArg(toolCall: ToolCall): string {
     if (url) return url;
   }
   // Agent
-  if (typeof args.task === 'string') return args.task.slice(0, 40);
+  if (typeof args.task === 'string') return [...args.task].slice(0, 40).join('');
   if (typeof args.mode === 'string') return args.mode;
   // Fallback: first string value
   for (const val of Object.values(args)) {
-    if (typeof val === 'string' && val.length > 0) return val.slice(0, 40);
+    if (typeof val === 'string' && val.length > 0) return [...val].slice(0, 40).join('');
   }
   return '';
 }
@@ -205,7 +205,7 @@ export function renderToolCallBlock(
   const rawName = friendlyToolLabel(toolCall.name);
   const keyArg = stripDangerousAnsi(extractKeyArg(toolCall));
   const suffixText = status === 'error' && errorMsg
-    ? `- ${stripDangerousAnsi(errorMsg).slice(0, 40)}`
+    ? `- ${[...stripDangerousAnsi(errorMsg)].slice(0, 40).join('')}`
     : status === 'done' && resultSummary
       ? `(${stripDangerousAnsi(resultSummary)})`
       : '';

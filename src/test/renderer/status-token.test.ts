@@ -74,4 +74,32 @@ describe('buildStatusToken', () => {
     const text = cells.map((c) => c.char).join('');
     expect(text).not.toContain('(');
   });
+
+  test('wide char label produces continuation cell with empty char', () => {
+    // Use CJK label — each CJK char is display-width 2 and needs a continuation
+    // cell. Without the fix, split('') would produce broken surrogate halves.
+    const cells = buildStatusToken('good', '界字');
+    // At least one cell with char==='' (continuation) must exist
+    const hasContinuation = cells.some((c) => c.char === '');
+    expect(hasContinuation).toBe(true);
+  });
+
+  test('emoji label produces continuation cell', () => {
+    const cells = buildStatusToken('info', '\u{1F600}');
+    const hasContinuation = cells.some((c) => c.char === '');
+    expect(hasContinuation).toBe(true);
+  });
+
+  test('wide char cells maintain state color on continuation', () => {
+    const cells = buildStatusToken('warn', '界');
+    const colors: Record<StatusState, string> = {
+      good: DEFAULT_PANEL_PALETTE.good,
+      warn: DEFAULT_PANEL_PALETTE.warn,
+      bad:  DEFAULT_PANEL_PALETTE.bad,
+      info: DEFAULT_PANEL_PALETTE.info,
+    };
+    for (const cell of cells) {
+      expect(cell.fg).toBe(colors.warn);
+    }
+  });
 });
