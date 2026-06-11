@@ -157,6 +157,7 @@ describe('/agent-skills command', () => {
 
     await registry.execute('agent-skills', ['discover'], ctx);
     await registry.execute('agent-skills', ['import-discovered', 'Travel', 'Planner'], ctx);
+    // --enabled is ignored; the skill is always imported disabled for review-first policy
     await registry.execute('agent-skills', ['import-discovered', 'travel-planner', '--enabled', '--yes'], ctx);
     await registry.execute('agent-skills', ['enabled'], ctx);
     await registry.execute('agent-skills', ['show', 'travel-planner'], ctx);
@@ -166,7 +167,12 @@ describe('/agent-skills command', () => {
     expect(text).toContain('Travel Planner  project-local');
     expect(text).toContain('Agent skill import preview');
     expect(text).toContain('Imported Agent skill travel-planner');
-    expect(text).toContain('travel-planner  enabled');
+    // skill is always imported disabled regardless of --enabled flag
+    expect(text).toContain('enabled no');
+    expect(text).toContain('imported disabled');
+    expect(text).toContain('review pending');
+    // the enabled list should NOT include the unreviewed skill
+    expect(text).not.toContain('travel-planner  enabled');
     expect(text).toContain('Collect destination, dates, budget');
     expect(text).toContain('tags: planning, personal');
     expect(text).toContain('triggers: travel, trip');

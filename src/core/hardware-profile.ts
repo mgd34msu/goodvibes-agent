@@ -174,13 +174,11 @@ export function readHardwareProfileSync(): HardwareProfile {
  * Safe to call many times — the OS probe runs exactly once per process.
  * Never throws; degraded fields are null.
  *
- * @deprecated Prefer `readHardwareProfileSync()` on the render path.
- *   Use `startHardwareProbe()` at startup to populate GPU data asynchronously.
- *
- * Linux-first strategy:
- *   RAM  : /proc/meminfo (MemTotal / MemAvailable) → fallback to node:os
- *   GPU  : nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits (1.5 s timeout)
- *   CPU  : node:os cpus().length
+ * @deprecated Delegates to `readHardwareProfileSync()`. Prefer calling
+ *   `readHardwareProfileSync()` directly on the render path.
+ *   GPU data is populated asynchronously — call `startHardwareProbe()` at
+ *   application startup so that subsequent `readHardwareProfileSync()` calls
+ *   include GPU information; this alias does not trigger the probe itself.
  */
 export function readHardwareProfile(): HardwareProfile {
   return readHardwareProfileSync();

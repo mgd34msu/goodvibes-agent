@@ -139,7 +139,7 @@ async function importDiscoveredSkill(args: readonly string[], ctx: CommandContex
   const parsed = parseSkillArgs(args);
   const name = parsed.rest.join(' ').trim();
   if (!name) {
-    ctx.print('Usage: /skills import-discovered <name> [--enabled] --yes');
+    ctx.print('Usage: /skills import-discovered <name> --yes\n  Note: discovered skills import disabled; review then enable via /skills enable <name>.');
     return;
   }
   const discovered = findDiscoveredSkill(await discoverSkills(requireShellPaths(ctx)), name);
@@ -169,11 +169,14 @@ async function importDiscoveredSkill(args: readonly string[], ctx: CommandContex
       env: frontmatterAnyList(discovered, ['requiresEnv', 'requires-env', 'requires_env']),
       commands: frontmatterAnyList(discovered, ['requiresCommands', 'requires-commands', 'requires_commands', 'commands']),
     }),
-    enabled: parsed.flags.get('enabled') === 'true',
+    enabled: false,
     source: 'imported',
     provenance: `Imported file (${discovered.origin}): ${discovered.path}`,
   });
-  ctx.print(formatSkillReceipt('Imported Agent skill', skill, [`  enabled ${skill.enabled ? 'yes' : 'no'}`]));
+  ctx.print(formatSkillReceipt('Imported Agent skill', skill, [
+    '  enabled no — imported disabled (review it, then enable it)',
+    '  review pending',
+  ]));
 }
 
 function renderBundleList(title: string, registry: AgentSkillRegistry, bundles: readonly AgentSkillBundleRecord[], emptyMessage?: string): string {

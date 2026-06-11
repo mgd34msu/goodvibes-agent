@@ -64,6 +64,11 @@ function normalizeName(name: string): string {
   return name.trim().replace(/\s+/g, ' ');
 }
 
+/** Collapse embedded newlines and whitespace runs so a description is always a single line. */
+function normalizeDescription(description: string): string {
+  return description.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 function normalizeList(values: readonly string[] | undefined): string[] {
   const seen = new Set<string>();
   const result: string[] = [];
@@ -298,7 +303,7 @@ export class AgentSkillRegistry {
   public create(input: AgentSkillCreateInput): AgentSkillRecord {
     const store = this.readStore();
     const name = normalizeName(input.name);
-    const description = input.description.trim();
+    const description = normalizeDescription(input.description);
     const procedure = input.procedure.trim();
     this.validateRequired(name, description, procedure);
     const requirements = normalizeRequirements(input.requirements);

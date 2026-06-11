@@ -61,7 +61,10 @@ export function renderSkillStandardMarkdown(
   skill: Pick<AgentSkillRecord, 'name' | 'description' | 'procedure'>,
 ): string {
   const nameLine = `name: ${skill.name}`;
-  const descLine = `description: ${skill.description}`;
+  // Collapse any embedded newlines/runs of whitespace so the description
+  // never spans more than one line and cannot break YAML frontmatter.
+  const safeDescription = skill.description.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const descLine = `description: ${safeDescription}`;
   const body = skill.procedure.trimEnd();
   return `---\n${nameLine}\n${descLine}\n---\n${body}\n`;
 }

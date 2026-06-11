@@ -111,6 +111,28 @@ describe('round-trip: parse(render(skill)) recovers original fields', () => {
     if ('error' in parsed) return;
     expect(parsed.description).toBe(original.description);
   });
+
+  test('description with embedded newline collapses to single line — frontmatter unbroken', () => {
+    // Skill created with a multi-line description (e.g. via API with \n in the string).
+    // render must collapse it so the YAML frontmatter is never broken across lines,
+    // and the recovered description equals the collapsed form.
+    const original = { name: 'Newline Desc', description: 'line1\nline2', procedure: 'Do the thing.' };
+    const rendered = renderSkillStandardMarkdown(original);
+    // The rendered frontmatter must not contain a bare newline inside the description value.
+    const frontmatterBlock = rendered.match(/^---\n([\s\S]*?)\n---/);
+    expect(frontmatterBlock).not.toBeNull();
+    const descLine = frontmatterBlock![1].split('\n').find((l) => l.startsWith('description:'));
+    expect(descLine).toBeDefined();
+    // The description line must be a single line with no embedded newlines.
+    expect(descLine).toBe('description: line1 line2');
+    // Round-trip: parse recovers the collapsed single-line description.
+    const parsed = parseSkillStandardMarkdown(rendered);
+    expect('error' in parsed).toBe(false);
+    if ('error' in parsed) return;
+    expect(parsed.description).toBe('line1 line2');
+    expect(parsed.name).toBe(original.name);
+    expect(parsed.body).toBe(original.procedure);
+  });
 });
 
 describe('parseSkillStandardMarkdown — input normalization', () => {

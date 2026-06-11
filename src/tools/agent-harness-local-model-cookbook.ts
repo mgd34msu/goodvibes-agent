@@ -191,7 +191,7 @@ export function describeLocalModelRecipe(
     hardware: previewHarnessText(recipe.hardware, includeParameters ? 180 : 96),
     hardwareMatched: fit.reasons.slice(0, includeParameters ? 6 : 3),
     detected,
-      modelRoute: 'models action:"status" or agent_harness mode:"open_ui_surface"',
+    modelRoute: 'models action:"status" or agent_harness mode:"open_ui_surface"',
     ...(() => {
       const paramCount = recipeRepresentativeParamCount(recipe);
       if (paramCount === null) return {};
