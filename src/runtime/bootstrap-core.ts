@@ -6,7 +6,7 @@ import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
 import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
-import { Notifier } from '@pellux/goodvibes-sdk/platform/integrations';
+import { Notifier, WebhookNotifier } from '@pellux/goodvibes-sdk/platform/integrations';
 
 import { Compositor } from '../renderer/compositor.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
@@ -93,6 +93,26 @@ export interface BootstrapCoreState {
 }
 
 export type CompanionMessagePayload = Extract<SessionEvent, { type: 'COMPANION_MESSAGE_RECEIVED' }>;
+
+/**
+ * Registers the webhook notifier for the runtime session.
+ *
+ * Configures the provided WebhookNotifier with the given URL list, attaches it
+ * to the runtime bus so it receives SESSION_NOTIFICATION events, and pushes a
+ * detach() cleanup into runtimeUnsubs for shutdown. When webhookUrls is empty
+ * this function is a complete no-op.
+ */
+export function registerWebhookNotifier(
+  webhookNotifier: WebhookNotifier,
+  webhookUrls: string[],
+  runtimeBus: RuntimeEventBus,
+  runtimeUnsubs: Array<() => void>,
+): void {
+  if (webhookUrls.length === 0) return;
+  webhookNotifier.setUrls(webhookUrls);
+  webhookNotifier.attachToRuntimeBus(runtimeBus);
+  runtimeUnsubs.push(() => webhookNotifier.detach());
+}
 
 export function companionMessageToOrchestratorInputOptions(
   payload: CompanionMessagePayload,
@@ -422,9 +442,7 @@ export async function initializeBootstrapCore(
     // Configure it with the resolved URL list via setUrls(), attach it to the runtime
     // bus so it receives SESSION_NOTIFICATION events, and register detach() in
     // runtimeUnsubs so the bus subscription is cleaned up on shutdown.
-    services.webhookNotifier.setUrls(webhookUrls);
-    services.webhookNotifier.attachToRuntimeBus(runtimeBus);
-    runtimeUnsubs.push(() => services.webhookNotifier.detach());
+    registerWebhookNotifier(services.webhookNotifier, webhookUrls, runtimeBus, runtimeUnsubs);
     domainDispatch.syncIntegration({
       id: 'webhooks',
       displayName: 'Webhooks',

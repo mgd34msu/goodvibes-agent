@@ -7,6 +7,7 @@
  * bus subscription is cleaned up on shutdown.
  */
 import { describe, expect, mock, test } from 'bun:test';
+import { registerWebhookNotifier } from '../../runtime/bootstrap-core.ts';
 
 // ── Minimal stubs ──────────────────────────────────────────────────────────────
 
@@ -28,31 +29,6 @@ function makeRuntimeBus() {
   return { on: mock(() => () => {}), emit: mock(() => {}) };
 }
 
-/**
- * Simulates the webhook registration block from bootstrap-core.ts:
- *
- *   if (webhookUrls.length > 0) {
- *     services.webhookNotifier.setUrls(webhookUrls);
- *     services.webhookNotifier.attachToRuntimeBus(runtimeBus);
- *     runtimeUnsubs.push(() => services.webhookNotifier.detach());
- *     ...
- *   }
- *
- * We test this logic in isolation — no need to spin up a full bootstrap.
- */
-function runBootstrapWebhookBlock(
-  webhookUrls: string[],
-  notifier: ReturnType<typeof makeWebhookNotifier>['notifier'],
-  runtimeBus: ReturnType<typeof makeRuntimeBus>,
-  runtimeUnsubs: Array<() => void>,
-): void {
-  if (webhookUrls.length > 0) {
-    notifier.setUrls(webhookUrls);
-    notifier.attachToRuntimeBus(runtimeBus);
-    runtimeUnsubs.push(() => notifier.detach());
-  }
-}
-
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('bootstrap webhook notifier lifecycle', () => {
@@ -61,10 +37,10 @@ describe('bootstrap webhook notifier lifecycle', () => {
     const runtimeBus = makeRuntimeBus();
     const runtimeUnsubs: Array<() => void> = [];
 
-    runBootstrapWebhookBlock(
+    registerWebhookNotifier(
+      notifier as never,
       ['https://hooks.example.com/1', 'https://hooks.example.com/2'],
-      notifier,
-      runtimeBus,
+      runtimeBus as never,
       runtimeUnsubs,
     );
 
@@ -80,10 +56,10 @@ describe('bootstrap webhook notifier lifecycle', () => {
     const runtimeBus = makeRuntimeBus();
     const runtimeUnsubs: Array<() => void> = [];
 
-    runBootstrapWebhookBlock(
+    registerWebhookNotifier(
+      notifier as never,
       ['https://hooks.example.com/a'],
-      notifier,
-      runtimeBus,
+      runtimeBus as never,
       runtimeUnsubs,
     );
 
@@ -96,10 +72,10 @@ describe('bootstrap webhook notifier lifecycle', () => {
     const runtimeBus = makeRuntimeBus();
     const runtimeUnsubs: Array<() => void> = [];
 
-    runBootstrapWebhookBlock(
+    registerWebhookNotifier(
+      notifier as never,
       ['https://hooks.example.com/a'],
-      notifier,
-      runtimeBus,
+      runtimeBus as never,
       runtimeUnsubs,
     );
 
@@ -113,10 +89,10 @@ describe('bootstrap webhook notifier lifecycle', () => {
     const runtimeBus = makeRuntimeBus();
     const runtimeUnsubs: Array<() => void> = [];
 
-    runBootstrapWebhookBlock(
+    registerWebhookNotifier(
+      notifier as never,
       ['https://hooks.example.com/a'],
-      notifier,
-      runtimeBus,
+      runtimeBus as never,
       runtimeUnsubs,
     );
 
@@ -131,7 +107,7 @@ describe('bootstrap webhook notifier lifecycle', () => {
     const runtimeBus = makeRuntimeBus();
     const runtimeUnsubs: Array<() => void> = [];
 
-    runBootstrapWebhookBlock([], notifier, runtimeBus, runtimeUnsubs);
+    registerWebhookNotifier(notifier as never, [], runtimeBus as never, runtimeUnsubs);
 
     expect(notifier.setUrls).not.toHaveBeenCalled();
     expect(notifier.attachToRuntimeBus).not.toHaveBeenCalled();
@@ -143,10 +119,10 @@ describe('bootstrap webhook notifier lifecycle', () => {
     const runtimeBus = makeRuntimeBus();
     const runtimeUnsubs: Array<() => void> = [];
 
-    runBootstrapWebhookBlock(
+    registerWebhookNotifier(
+      notifier as never,
       ['https://hooks.example.com/a'],
-      notifier,
-      runtimeBus,
+      runtimeBus as never,
       runtimeUnsubs,
     );
 
