@@ -15,7 +15,7 @@ import type {
   ProviderHealthEntry,
   HealthTimeline,
   HealthTimelinePoint,
-} from '@/runtime/index.ts';
+} from './types.ts';
 
 /**
  * Number of timeline points retained per provider.
@@ -87,7 +87,7 @@ export class ProviderHealthDataProvider {
    */
   public subscribe(callback: () => void): () => void {
     this._subscribers.add(callback);
-    return () => this._subscribers.delete(callback);
+    return () => { this._subscribers.delete(callback); };
   }
 
   /**
@@ -196,7 +196,7 @@ export class ProviderHealthDataProvider {
         isConfigured: record.isConfigured,
         successRate,
         errorRate,
-        p95LatencyMs: record.stats.maxLatencyMs,
+        maxLatencyMs: record.stats.maxLatencyMs,
         avgLatencyMs: record.stats.avgLatencyMs,
         totalCalls: total,
         // cacheHitRate is populated only when cache-capability is wired to the provider record.

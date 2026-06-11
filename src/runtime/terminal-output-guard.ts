@@ -89,6 +89,13 @@ export function allowTerminalWrite<T>(fn: () => T): T {
 }
 
 export function installTerminalOutputGuard(options: TerminalOutputGuardOptions): TerminalOutputGuard {
+  // D6 fix: if a guard already exists and hasn't been disposed, dispose it first
+  // so the monkeypatch chain is cleanly unwound BEFORE we snapshot the originals.
+  // This ensures stdout.write is the real underlying write when we capture it below.
+  if (currentGuard !== null) {
+    currentGuard.dispose();
+  }
+
   const stdout = options.stdout;
   const stderr = options.stderr ?? process.stderr;
   const originalStdoutWriteMethod = stdout.write;

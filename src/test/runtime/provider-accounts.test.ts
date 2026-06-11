@@ -79,6 +79,41 @@ describe('provider account snapshot', () => {
     }));
   });
 
+  test('D7: no fallbackRisk when activeRoute equals preferredRoute (healthy subscription)', async () => {
+    testManagers.subscriptionManager.saveSubscription({
+      provider: 'openai',
+      accessToken: 'header.payload.signature',
+      tokenType: 'Bearer',
+      expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
+      authMode: 'oauth',
+      overrideAmbientApiKeys: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    // No API key present — only subscription, so activeRoute === preferredRoute === 'subscription'.
+    const serviceRegistry = new ServiceRegistry(join(root, '.goodvibes', 'tui', 'services.json'), {
+      secretsManager: new SecretsManager({ projectRoot: root, globalHome: root }),
+      subscriptionManager: testManagers.subscriptionManager,
+    });
+    const snapshot = await buildProviderAccountSnapshot({
+      providerModels: testManagers.providerRegistry,
+      services: serviceRegistry,
+      subscriptions: testManagers.subscriptionManager,
+      environment: {
+        hasEnvironmentVariable: (_name: string) => false,
+      },
+    });
+    const openai = snapshot.providers.find((p) => p.providerId === 'openai');
+    expect(openai).toBeDefined();
+    // preferredRoute and activeRoute must both be subscription.
+    expect(openai!.preferredRoute).toBe('subscription');
+    expect(openai!.activeRoute).toBe('subscription');
+    // No fallbackRoute when routes are equal.
+    expect(openai!.fallbackRoute).toBeUndefined();
+    // No fallbackRisk when there is no fallback — operator should not see a spurious risk advisory.
+    expect(openai!.fallbackRisk).toBeUndefined();
+  });
+
   test('surfaces unusable provider OAuth posture as a repair issue', async () => {
     mkdirSync(join(root, '.goodvibes', 'tui'), { recursive: true });
     writeFileSync(join(root, '.goodvibes', 'tui', 'services.json'), JSON.stringify({

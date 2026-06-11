@@ -7,7 +7,7 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
 import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
 import { Notifier } from '@pellux/goodvibes-sdk/platform/integrations';
-import { WebhookNotifier } from '@pellux/goodvibes-sdk/platform/integrations';
+
 import { Compositor } from '../renderer/compositor.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
@@ -314,6 +314,11 @@ export async function initializeBootstrapCore(
   });
 
   const bootstrapUnsubs: Array<() => void> = [];
+  // D5 fix: stop the heartbeat watcher on shutdown so the setInterval is cleared.
+  // Registered here (after declaration) rather than inside the watcher block above.
+  if (configManager.get('watchers.enabled')) {
+    bootstrapUnsubs.push(() => watcherRegistry.stopWatcher('runtime-heartbeat'));
+  }
   await memoryStore.init();
   bootstrapUnsubs.push(() => {
     void memoryStore.save();
@@ -413,8 +418,13 @@ export async function initializeBootstrapCore(
 
   const webhookUrls = (configManager.getCategory('notifications') as { webhookUrls?: string[] }).webhookUrls ?? [];
   if (webhookUrls.length > 0) {
-    const webhookNotifier = WebhookNotifier.fromConfig(webhookUrls);
-    webhookNotifier.attachToRuntimeBus(runtimeBus);
+    // Reuse the services.webhookNotifier instance (constructed no-arg in services.ts).
+    // Configure it with the resolved URL list via setUrls(), attach it to the runtime
+    // bus so it receives SESSION_NOTIFICATION events, and register detach() in
+    // runtimeUnsubs so the bus subscription is cleaned up on shutdown.
+    services.webhookNotifier.setUrls(webhookUrls);
+    services.webhookNotifier.attachToRuntimeBus(runtimeBus);
+    runtimeUnsubs.push(() => services.webhookNotifier.detach());
     domainDispatch.syncIntegration({
       id: 'webhooks',
       displayName: 'Webhooks',

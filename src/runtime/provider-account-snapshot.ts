@@ -261,7 +261,10 @@ export async function buildProviderAccountSnapshot(
             : 'No usable auth route is configured for this provider.',
       authFreshness: freshness,
       fallbackRoute: activeRoute !== preferredRoute ? activeRoute : undefined,
-      fallbackRisk: hasSubscription && hasApiKey
+      // D7 fix: fallbackRisk is only meaningful when a fallbackRoute exists (i.e. activeRoute
+      // differs from preferredRoute). Setting it on a healthy provider where activeRoute===
+      // preferredRoute would show a spurious risk advisory with no fallback target.
+      fallbackRisk: (activeRoute !== preferredRoute) && hasSubscription && hasApiKey
         ? (isExpired(subscription?.expiresAt)
           ? 'preferred subscription path is expired; active route falls back to API key.'
           : 'Both subscription and API key are present; check route priority.')

@@ -32,8 +32,8 @@ export interface CapabilityFlags {
 export interface ProviderLatencyStats {
   /** Moving average latency in ms (last N calls). */
   readonly avgMs: number;
-  /** Approximate 95th-percentile latency in ms (max of recent observations). */
-  readonly p95Ms: number;
+  /** Maximum observed latency in ms (max of recent observations). */
+  readonly maxMs: number;
   /** Minimum observed latency in ms. */
   readonly minMs: number;
 }

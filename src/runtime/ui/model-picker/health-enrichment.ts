@@ -18,7 +18,7 @@ import type {
   ProviderHealthContext,
   CapabilityFlags,
   ProviderLatencyStats,
-} from '@/runtime/index.ts';
+} from './types.ts';
 
 /** Status sort priority (lower = shown first). */
 const STATUS_ORDER: Record<string, number> = {
@@ -46,7 +46,7 @@ function buildHealthContext(record: ProviderHealthRecord | undefined): ProviderH
   if (record.stats.totalCalls > 0) {
     latency = {
       avgMs: record.stats.avgLatencyMs,
-      p95Ms: record.stats.maxLatencyMs,
+      maxMs: record.stats.maxLatencyMs,
       minMs: record.stats.minLatencyMs,
     };
   }

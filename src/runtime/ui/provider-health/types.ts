@@ -59,8 +59,8 @@ export interface ProviderHealthEntry {
   readonly successRate: number;
   /** Error rate (0–1), derived from totalCalls and errorCalls. */
   readonly errorRate: number;
-  /** Approximate p95 latency in ms (max of recent observations). */
-  readonly p95LatencyMs: number;
+  /** Maximum observed latency in ms (max of recent observations). */
+  readonly maxLatencyMs: number;
   /** Moving average latency in ms. */
   readonly avgLatencyMs: number;
   /** Total API calls recorded. */

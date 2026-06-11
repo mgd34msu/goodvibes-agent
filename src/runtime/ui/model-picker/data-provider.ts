@@ -84,7 +84,7 @@ export class ModelPickerDataProvider {
    */
   public subscribe(callback: () => void): () => void {
     this._subscribers.add(callback);
-    return () => this._subscribers.delete(callback);
+    return () => { this._subscribers.delete(callback); };
   }
 
   /**

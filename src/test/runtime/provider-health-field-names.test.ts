@@ -1,0 +1,106 @@
+/**
+ * D1: Verify that ProviderHealthDataProvider produces maxLatencyMs (not p95LatencyMs)
+ * and that ModelPickerDataProvider / health-enrichment uses maxMs (not p95Ms).
+ *
+ * These tests guard against the field name reverting to misleading p95 labels
+ * when the underlying value is actually a maximum.
+ */
+import { describe, expect, test } from 'bun:test';
+import { ProviderHealthDataProvider } from '../../runtime/ui/provider-health/data-provider.ts';
+import type { ProviderHealthDomainState, ModelDomainState } from '@/runtime/index.ts';
+
+function makeHealthState(maxLatencyMs = 500): ProviderHealthDomainState {
+  return {
+    providers: new Map([
+      ['anthropic', {
+        status: 'healthy' as const,
+        displayName: 'Anthropic',
+        isActive: true,
+        isConfigured: true,
+        lastCheckedAt: Date.now(),
+        stats: {
+          totalCalls: 10,
+          successCalls: 10,
+          errorCalls: 0,
+          avgLatencyMs: 200,
+          minLatencyMs: 100,
+          maxLatencyMs,
+          lastSuccessAt: Date.now(),
+        },
+        cacheMetrics: undefined,
+        rateLimitResetAt: undefined,
+      }],
+    ]),
+    compositeStatus: 'healthy' as const,
+    degradedCount: 0,
+    unavailableCount: 0,
+    warnings: [],
+    updatedAt: Date.now(),
+  };
+}
+
+function makeModelState(): ModelDomainState {
+  return {
+    activeModelId: 'claude-opus-4',
+    activeProviderId: 'anthropic',
+    fallbackChain: [],
+    updatedAt: Date.now(),
+  };
+}
+
+describe('ProviderHealthDataProvider — D1 field name accuracy', () => {
+  test('entry exposes maxLatencyMs (not p95LatencyMs)', () => {
+    const provider = new ProviderHealthDataProvider(makeHealthState(999), makeModelState());
+    const snap = provider.getSnapshot();
+    const entry = snap.entries[0];
+    expect(entry).toBeDefined();
+    // The field must be named maxLatencyMs.
+    expect(entry!.maxLatencyMs).toBe(999);
+    // Verify the misleading p95 field does NOT exist on the entry.
+    expect((entry as Record<string, unknown>)['p95LatencyMs']).toBeUndefined();
+    provider.dispose();
+  });
+});
+
+import { enrichModelEntries } from '../../runtime/ui/model-picker/health-enrichment.ts';
+import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
+
+function makeModel(): ModelDefinition {
+  return {
+    id: 'claude-opus-4',
+    displayName: 'Claude Opus 4',
+    provider: 'anthropic',
+    tier: 'premium',
+    contextWindow: 200000,
+    capabilities: { reasoning: true, toolCalling: true, multimodal: true, codeEditing: true },
+  } as ModelDefinition;
+}
+
+describe('health-enrichment — D1 field name accuracy', () => {
+  test('ProviderLatencyStats exposes maxMs (not p95Ms)', () => {
+    const healthState = makeHealthState(750);
+    const modelState = makeModelState();
+    const mockBenchmarkStore = { getBenchmarks: () => undefined };
+    const mockProviderRegistry = {
+      getSyntheticModelInfoFromCatalog: () => undefined,
+      getContextWindowForModel: (m: ModelDefinition) => m.contextWindow ?? 200000,
+    };
+
+    const entries = enrichModelEntries(
+      [makeModel()],
+      healthState,
+      modelState,
+      new Set(),
+      mockBenchmarkStore,
+      mockProviderRegistry,
+    );
+
+    const entry = entries[0];
+    expect(entry).toBeDefined();
+    expect(entry!.health.latency).toBeDefined();
+    // The field must be named maxMs.
+    expect(entry!.health.latency!.maxMs).toBe(750);
+    // The misleading p95Ms field must NOT exist.
+    expect((entry!.health.latency as Record<string, unknown>)['p95Ms']).toBeUndefined();
+  });
+});

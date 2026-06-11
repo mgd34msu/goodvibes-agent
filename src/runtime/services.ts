@@ -735,6 +735,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const tokenAuditor = new ApiTokenAuditor({ managed: false });
   const componentHealthMonitor = new ComponentHealthMonitor();
   const worktreeRegistry = createDisabledAgentWorktreeRegistry(workingDirectory);
+  // Configured and attached to the runtime bus during bootstrap when webhook URLs are present.
   const webhookNotifier = new WebhookNotifier();
   const replayEngine = new DeterministicReplayEngine(workingDirectory);
   const providerOptimizer = new ProviderOptimizer(providerRegistry, providerCapabilityRegistry, false);

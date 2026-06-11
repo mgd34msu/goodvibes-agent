@@ -52,9 +52,11 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
       options.writeLastSessionPointer(sessionId);
       void options.sharedSessionBroker.reopenSession(sessionId).catch((err) => { logger.debug('session broker reopen session failed', { err }); });
       options.conversation.log(`Resumed session: ${sessionId}`, { fg: '135' });
-      const ignoredPanels = meta.returnContext?.openPanels?.slice(0, 4) ?? [];
       const returnContextMode = getReturnContextMode(options.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {
+        // N1 fix: compute ignoredPanels inside the guard so it is only evaluated
+        // when returnContext is present and the mode is not 'off'.
+        const ignoredPanels = meta.returnContext.openPanels?.slice(0, 4) ?? [];
         for (const line of formatReturnContextForDisplay(meta.returnContext)) {
           if (line.startsWith('Open panels:')) continue;
           options.conversation.log(`Resume: ${line}`, { fg: '244' });
