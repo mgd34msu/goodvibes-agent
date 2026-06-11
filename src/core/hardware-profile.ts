@@ -209,10 +209,9 @@ export function startHardwareProbe(): void {
         const gpus = code === 0 && chunks.length > 0
           ? parseNvidiaSmiOutput(Buffer.concat(chunks).toString('utf-8'))
           : [];
-        // Only populate if another caller hasn't already set the cache.
-        if (cachedProfile === null) {
-          cachedProfile = { totalRamBytes, availableRamBytes, gpus, cpuCores };
-        }
+        // Populate if cache is cold, or upgrade an existing sync-only entry
+        // (gpus: []) with the GPU data returned by the async probe.
+        cachedProfile = _mergeProbeIntoCache(cachedProfile, { totalRamBytes, availableRamBytes, gpus, cpuCores });
       } catch {
         // GPU probe failure is non-fatal — leave cache unpopulated.
       }
@@ -237,6 +236,29 @@ export function _resetHardwareProfileCache(): void {
  */
 export function _setHardwareProfileForTest(profile: HardwareProfile): void {
   cachedProfile = profile;
+}
+
+/**
+ * Pure helper: decide how to merge a freshly-probed profile into the current
+ * module cache. Extracted so the merge logic can be unit-tested independently
+ * of the child-process lifecycle.
+ *
+ * Rules:
+ *   - current === null  →  use fresh as-is (cold-cache populate)
+ *   - current.gpus.length === 0 && fresh.gpus.length > 0
+ *       →  { ...current, gpus: fresh.gpus }  (upgrade only the empty gpus field;
+ *          all other fields — RAM, CPU — are kept from the existing entry)
+ *   - otherwise  →  return current unchanged (never overwrite non-empty gpus)
+ */
+export function _mergeProbeIntoCache(
+  current: HardwareProfile | null,
+  fresh: HardwareProfile,
+): HardwareProfile {
+  if (current === null) return fresh;
+  if (current.gpus.length === 0 && fresh.gpus.length > 0) {
+    return { ...current, gpus: fresh.gpus };
+  }
+  return current;
 }
 
 // ---------------------------------------------------------------------------
@@ -293,7 +315,7 @@ function parseKbLine(line: string): number | null {
   // Format: "MemTotal:       16384000 kB"
   const parts = line.split(/\s+/);
   const kb = parts[1] !== undefined ? Number(parts[1]) : NaN;
-  return Number.isFinite(kb) && kb >= 0 ? kb : null;
+  return Number.isFinite(kb) && kb > 0 ? kb : null;
 }
 
 /**

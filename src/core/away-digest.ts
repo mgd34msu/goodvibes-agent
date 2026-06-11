@@ -126,7 +126,7 @@ export function buildAwayDigest(input: AwayDigestInput): AwayDigest | null {
   if (failedTasks.length === 1) {
     lines.push(`A task needs attention: ${failedTasks[0]!.title}`);
   } else if (failedTasks.length > 1) {
-    lines.push(`${failedTasks.length} tasks need attention`);
+    lines.push(`${failedTasks.length} tasks need attention since you were away`);
   }
 
   // ── Schedule runs ─────────────────────────────────────────────────────────

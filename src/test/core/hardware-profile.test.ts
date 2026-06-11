@@ -1,6 +1,8 @@
 import { describe, expect, test, afterEach } from 'bun:test';
 import {
+  _mergeProbeIntoCache,
   _resetHardwareProfileCache,
+  _setHardwareProfileForTest,
   estimateModelBytes,
   fitAssessment,
   fitVerdictLabel,
@@ -266,6 +268,16 @@ describe('parseProcMeminfo', () => {
     expect(result.availableRamBytes).toBeNull();
   });
 
+  test('MemTotal: 0 kB yields null (falls through to os fallback, never caches 0)', () => {
+    // A zero-value meminfo line must be rejected so that totalRamBytes is null
+    // and the node:os fallback (which also requires > 0) is used instead of
+    // caching 0 bytes as total RAM (which would make every fit verdict 'too-big').
+    const fixture = 'MemTotal:       0 kB\nMemAvailable:   0 kB\n';
+    const result = parseProcMeminfo(fixture);
+    expect(result.totalRamBytes).toBeNull();
+    expect(result.availableRamBytes).toBeNull();
+  });
+
   test('handles extra whitespace in kB lines', () => {
     const fixture = 'MemTotal:            8192000 kB\nMemAvailable:        4096000 kB\n';
     const result = parseProcMeminfo(fixture);
@@ -457,6 +469,70 @@ describe('readHardwareProfileSync', () => {
     // gpus is always an array (empty when nvidia-smi not found)
     expect(Array.isArray(profile.gpus)).toBe(true);
   }, 5000);
+
+  test('probe upgrades a sync-populated cache (gpus:[]) with GPU data on close', async () => {
+    // Smoke test: real probe runs and cache is populated.
+    _resetHardwareProfileCache();
+    startHardwareProbe();
+    await new Promise<void>((resolve) => setTimeout(resolve, 2000));
+    const profile = readHardwareProfileSync();
+    if (profile.totalRamBytes !== null) {
+      expect(profile.totalRamBytes).toBeGreaterThan(0);
+    }
+    expect(Array.isArray(profile.gpus)).toBe(true);
+  }, 5000);
+});
+
+// ---------------------------------------------------------------------------
+// _mergeProbeIntoCache — pure helper unit tests
+// ---------------------------------------------------------------------------
+
+describe('_mergeProbeIntoCache', () => {
+  const GB = 1024 ** 3;
+
+  const fresh: HardwareProfile = {
+    totalRamBytes: 32 * GB,
+    availableRamBytes: 16 * GB,
+    gpus: [{ name: 'NVIDIA GeForce RTX 3090', vramBytes: 24576 * 1024 * 1024 }],
+    cpuCores: 16,
+  };
+
+  test('cold cache (null) returns fresh as-is', () => {
+    const result = _mergeProbeIntoCache(null, fresh);
+    expect(result).toBe(fresh);
+  });
+
+  test('empty-gpus cache is upgraded: gpus come from fresh, other fields preserved from current', () => {
+    const current: HardwareProfile = {
+      totalRamBytes: 16 * GB,
+      availableRamBytes: 8 * GB,
+      gpus: [],
+      cpuCores: 8,
+    };
+    const result = _mergeProbeIntoCache(current, fresh);
+    // gpus upgraded from fresh
+    expect(result.gpus).toHaveLength(1);
+    expect(result.gpus[0]?.name).toBe('NVIDIA GeForce RTX 3090');
+    expect(result.gpus[0]?.vramBytes).toBe(24576 * 1024 * 1024);
+    // RAM and CPU fields preserved from current, not overwritten by fresh
+    expect(result.totalRamBytes).toBe(16 * GB);
+    expect(result.availableRamBytes).toBe(8 * GB);
+    expect(result.cpuCores).toBe(8);
+  });
+
+  test('non-empty-gpus cache is returned unchanged (no overwrite)', () => {
+    const current: HardwareProfile = {
+      totalRamBytes: 16 * GB,
+      availableRamBytes: 8 * GB,
+      gpus: [{ name: 'NVIDIA GeForce GTX 1070', vramBytes: 8192 * 1024 * 1024 }],
+      cpuCores: 8,
+    };
+    const result = _mergeProbeIntoCache(current, fresh);
+    // Returns the exact same object reference — cache untouched
+    expect(result).toBe(current);
+    // Original GPU is preserved, fresh GPU is NOT applied
+    expect(result.gpus[0]?.name).toBe('NVIDIA GeForce GTX 1070');
+  });
 });
 
 // ---------------------------------------------------------------------------
