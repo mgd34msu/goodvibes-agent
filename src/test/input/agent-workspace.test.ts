@@ -4823,4 +4823,90 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toContain('ready to chat');
     expect(workspace.status).not.toContain('choose your model');
   });
+
+  // Test E (MINOR 2 regression): onSubscriptionLoginSuccess() must navigate to a lane
+  // that was NOT revealed before sign-in (the stale-index window fix).
+  //
+  // Setup:
+  //   - phase 'in-progress' (check marker written), connected-host-auth ready,
+  //     provider-access blocked (no model) — resume target is account-model.
+  //   - account-model is revealed at open() because the resume target is added
+  //     by updateRevealedOnboardingCategories, but selectedCategory lands on it.
+  //
+  // The stale-window: before the fix, the action received a categories list derived
+  // from the PRE-update _onboardingState.  After sign-in the injected snapshot keeps
+  // provider-access as the currentStep, so deriveOnboardingEntry returns
+  // categoryId='account-model'.  With the old code that index was resolved against
+  // the OLD categories (before _onboardingState was updated), which could be -1 if
+  // the reveal set hadn't been refreshed yet.  With the fix the index is resolved
+  // after the reveal-set update, guaranteeing the lane is present.
+  test('onSubscriptionLoginSuccess() navigates to newly-revealed account-model lane (stale-index fix)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-stale-index-'));
+    const workingDirectory = join(root, 'ws');
+    const homeDirectory = join(root, 'home');
+    mkdirSync(workingDirectory, { recursive: true });
+    mkdirSync(homeDirectory, { recursive: true });
+    const shellPaths = createShellPathService({ workingDirectory, homeDirectory });
+
+    // Write operator token so connected-host-auth is 'ready'.
+    const tokenDir = join(homeDirectory, '.goodvibes', 'daemon');
+    mkdirSync(tokenDir, { recursive: true });
+    writeFileSync(connectedHostOperatorTokenPath(homeDirectory), JSON.stringify({ token: 'test-operator-token' }), 'utf-8');
+
+    // Write check marker — phase becomes 'in-progress'; provider-access is the
+    // resume target (account-model category), connected-host-auth is ready.
+    writeOnboardingCheckMarker(shellPaths);
+
+    const ctx = {
+      ...commandContext(),
+      workspace: { shellPaths },
+    } as unknown as CommandContext;
+
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined, undefined, undefined, 'ONBOARDING');
+
+    // After open(): resume target is account-model (provider-access blocked).
+    // Verify the pre-sign-in state: account-model is in categories (resume target
+    // is always revealed) and is the selected category.
+    expect(workspace.categories.some((c) => c.id === 'account-model')).toBe(true);
+    expect(workspace.selectedCategory.id).toBe('account-model');
+
+    // Navigate away to 'setup' to simulate the user browsing, so we can confirm
+    // onSubscriptionLoginSuccess() navigates back to account-model explicitly.
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((c) => c.id === 'setup');
+    expect(workspace.selectedCategory.id).toBe('setup');
+
+    // Inject a post-sign-in snapshot: same steps, provider-access still the current
+    // step (in-progress), so deriveOnboardingEntry returns categoryId='account-model'.
+    // The stale-index window would manifest here: if categories was resolved against
+    // the OLD _onboardingState (before updating the reveal set), findIndex could
+    // return -1 and selectedCategoryIndex would stay on 'setup'.
+    const blockedStep = {
+      id: 'provider-access',
+      label: 'Provider and model',
+      status: 'pending' as const,
+      sourceStatus: 'blocked' as const,
+      detail: '',
+      userRoute: '',
+      modelRoute: '',
+      actionId: '',
+      backtrackRoute: null,
+    };
+    workspace.runtimeSnapshot = {
+      ...workspace.runtimeSnapshot!,
+      setupWizard: {
+        ...workspace.runtimeSnapshot!.setupWizard,
+        steps: [blockedStep],
+        currentStepId: 'provider-access',
+        currentStepLabel: 'Provider and model',
+      },
+    };
+
+    workspace.onSubscriptionLoginSuccess();
+
+    // After sign-in: must navigate to account-model (the resume target),
+    // proving the index was resolved against the FRESH categories list.
+    expect(workspace.selectedCategory.id).toBe('account-model');
+    expect(workspace.status).toContain('Signed in.');
+  });
 });

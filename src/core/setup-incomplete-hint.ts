@@ -40,8 +40,9 @@ export function buildSetupIncompleteHint(
     lines.push('Pick a model to start — run /agent to continue setup.');
   } else {
     // Chat works but setup isn't done.
-    // NOTE: progressLabel is intentionally omitted here — the minimal startup plan
-    // only includes 2 items so any "N of 2" count would understate real progress.
+    // NOTE: progressLabel is intentionally omitted here — the hint's plan may be
+    // a reduced subset of the full setup plan, so any 'N of M' count would
+    // misrepresent real progress and mislead the user.
     const nextStep = pickNextStep(state);
     if (nextStep) {
       lines.push(

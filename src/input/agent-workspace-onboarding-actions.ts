@@ -90,38 +90,43 @@ export interface OnSubscriptionLoginSuccessParams {
   readonly onlyGroup: string | null;
   readonly runtimeSnapshot: AgentWorkspaceRuntimeSnapshot | null;
   readonly shellPaths: OnboardingShellPaths | undefined;
-  readonly categories: ReadonlyArray<{ readonly id: string }>;
 }
 
 export interface OnSubscriptionLoginSuccessResult {
   /** Updated onboarding state, or null when not in ONBOARDING mode. */
   readonly onboardingState: OnboardingState | null;
-  /** Category index to navigate to (-1 = no change). */
-  readonly selectedCategoryIndex: number;
+  /**
+   * Category ID to navigate to (undefined = no change).
+   * The caller must resolve this against its own this.categories AFTER
+   * updating _onboardingState and the reveal set, so the index is never stale.
+   */
+  readonly targetCategoryId: string | undefined;
   readonly status: string;
 }
 
 /**
  * Pure logic for the onSubscriptionLoginSuccess() class method.
- * Re-derives onboarding state and computes the next navigation target.
+ * Re-derives onboarding state and returns the target category ID.
+ * The caller is responsible for resolving the ID to an index against
+ * its FRESHLY-UPDATED categories list (after assigning _onboardingState
+ * and updating the reveal set) to avoid a stale-index window.
  */
 export function onSubscriptionLoginSuccessAction(params: OnSubscriptionLoginSuccessParams): OnSubscriptionLoginSuccessResult {
-  const { onlyGroup, runtimeSnapshot, shellPaths, categories } = params;
+  const { onlyGroup, runtimeSnapshot, shellPaths } = params;
 
   if (onlyGroup !== 'ONBOARDING') {
-    return { onboardingState: null, selectedCategoryIndex: -1, status: '' };
+    return { onboardingState: null, targetCategoryId: undefined, status: '' };
   }
 
   const obs = computeOnboardingStateFromSnapshot(runtimeSnapshot, shellPaths);
   if (!obs) {
-    return { onboardingState: null, selectedCategoryIndex: -1, status: '' };
+    return { onboardingState: null, targetCategoryId: undefined, status: '' };
   }
 
   const entry = deriveOnboardingEntry(obs);
-  const idx = entry.categoryId ? categories.findIndex((c) => c.id === entry.categoryId) : -1;
   const status = obs.readyToChat
     ? 'Signed in. You are ready to chat — Apply & close when ready.'
     : `Signed in. ${entry.status}`;
 
-  return { onboardingState: obs, selectedCategoryIndex: idx, status };
+  return { onboardingState: obs, targetCategoryId: entry.categoryId, status };
 }

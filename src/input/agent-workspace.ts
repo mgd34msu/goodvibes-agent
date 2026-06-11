@@ -63,6 +63,7 @@ export class AgentWorkspace {
     this.runtimeSnapshot = buildAgentWorkspaceRuntimeSnapshot(context);
     const shellPaths = context.workspace?.shellPaths;
     this._onboardingState = computeOnboardingStateFromSnapshot(this.runtimeSnapshot, shellPaths);
+    if (this._onboardingState) updateRevealedOnboardingCategories(this._onboardingState, this._revealedOnboardingCategoryIds);
     this.active = true;
     this.focusPane = 'actions';
     this.status = 'Ready. Choose an operator flow; ordinary assistant work stays in the main conversation.';
@@ -111,9 +112,11 @@ export class AgentWorkspace {
 
   get categories(): readonly AgentWorkspaceCategory[] {
     if (this._onlyGroup === 'ONBOARDING') {
+      // Pure read — reveal set is updated at every _onboardingState assignment
+      // (open, onSubscriptionLoginSuccess), not here. Recompute is O(categories)
+      // and intentionally simple; the list is small and no caching is needed.
       const onboarding = AGENT_WORKSPACE_CATEGORIES.filter((c) => c.group === 'ONBOARDING');
       if (this._onboardingState) {
-        updateRevealedOnboardingCategories(this._onboardingState, this._revealedOnboardingCategoryIds);
         return onboarding.filter((c) => this._revealedOnboardingCategoryIds.has(c.id));
       }
       return onboarding;
@@ -356,12 +359,18 @@ export class AgentWorkspace {
       onlyGroup: this._onlyGroup,
       runtimeSnapshot: this.runtimeSnapshot,
       shellPaths: this.context?.workspace?.shellPaths,
-      categories: this.categories,
     });
     if (this._onlyGroup !== 'ONBOARDING') return;
+    // Update _onboardingState and reveal set FIRST so that this.categories
+    // reflects any newly-unlocked lane (e.g. account-model after sign-in)
+    // before we try to resolve the target index against the fresh list.
     this._onboardingState = result.onboardingState;
     if (!result.onboardingState) return;
-    if (result.selectedCategoryIndex >= 0) this.selectedCategoryIndex = result.selectedCategoryIndex;
+    if (this._onboardingState) updateRevealedOnboardingCategories(this._onboardingState, this._revealedOnboardingCategoryIds);
+    if (result.targetCategoryId) {
+      const idx = this.categories.findIndex((c) => c.id === result.targetCategoryId);
+      if (idx >= 0) this.selectedCategoryIndex = idx;
+    }
     this.status = result.status;
   }
 
