@@ -35,6 +35,11 @@ export const AGENT_HARNESS_MODES = [
   'propose_skill_drafts',
 ] as const;
 
+const BACKGROUND_PROCESS_ACTION_VALUES = [
+  'start', 'spawn', 'run', 'stop', 'kill', 'cancel', 'wait', 'list',
+  'status', 'poll', 'log', 'output', 'write', 'capabilities', 'doctor', 'parity',
+] as const;
+
 const KEY_COMBO_PARAMETER_SCHEMA = {
   type: 'object',
   properties: { key: { type: 'string' }, ctrl: { type: 'boolean' }, shift: { type: 'boolean' }, alt: { type: 'boolean' } },
@@ -134,12 +139,12 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   },
   processAction: {
     type: 'string',
-    enum: ['start', 'spawn', 'run', 'stop', 'kill', 'cancel', 'wait', 'list', 'status', 'poll', 'log', 'output', 'write', 'capabilities', 'doctor', 'parity'],
+    enum: BACKGROUND_PROCESS_ACTION_VALUES,
     description: 'Background process lifecycle action or process-style alias.',
   },
   action: {
     type: 'string',
-    enum: ['start', 'spawn', 'run', 'stop', 'kill', 'cancel', 'wait', 'list', 'status', 'poll', 'log', 'output', 'write', 'capabilities', 'doctor', 'parity'],
+    enum: BACKGROUND_PROCESS_ACTION_VALUES,
     description: 'Process-style action alias for run_background_process.',
   },
   cwd: {

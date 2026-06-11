@@ -658,7 +658,7 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
   const action = readProcessAction(args);
   if (action === 'write') {
     const confirmationError = requireConfirmed(args, 'Background process stdin write');
-    if (confirmationError) throw new Error(confirmationError);
+    if (confirmationError) return { status: 'needs_confirmation', reason: confirmationError, policy: 'Writing stdin to a background process requires confirm:true and explicitUserRequest.' };
     const writeInput = firstManagerFunction(manager, STDIN_WRITE_METHOD_NAMES);
     if (!writeInput) {
       return {
@@ -710,7 +710,7 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
   }
   if (action === 'start' || action === 'spawn' || action === 'run') {
     const confirmationError = requireConfirmed(args, 'Background process start');
-    if (confirmationError) throw new Error(confirmationError);
+    if (confirmationError) return { status: 'needs_confirmation', reason: confirmationError, policy: 'Starting a background process requires confirm:true and explicitUserRequest.' };
     const command = readCommand(args);
     if (!command) throw new Error('Background process start requires command.');
     if (looksLikeSudo(command)) {
@@ -749,7 +749,7 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
 
   if (action === 'stop' || action === 'kill' || action === 'cancel') {
     const confirmationError = requireConfirmed(args, 'Background process stop');
-    if (confirmationError) throw new Error(confirmationError);
+    if (confirmationError) return { status: 'needs_confirmation', reason: confirmationError, policy: 'Stopping a background process requires confirm:true and explicitUserRequest.' };
     const processId = readProcessId(args);
     if (!processId) throw new Error('Background process stop requires processId.');
     const stopped = manager.stop(processId);
@@ -767,7 +767,7 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
 
   if (action === 'wait') {
     const confirmationError = requireConfirmed(args, 'Background process wait');
-    if (confirmationError) throw new Error(confirmationError);
+    if (confirmationError) return { status: 'needs_confirmation', reason: confirmationError, policy: 'Waiting on a background process requires confirm:true and explicitUserRequest.' };
     const processId = readProcessId(args);
     if (!processId) throw new Error('Background process wait requires processId.');
     const timeoutMs = clampTimeout(args.timeoutMs ?? readField(args, 'timeoutMs'), DEFAULT_WAIT_TIMEOUT_MS);

@@ -49,7 +49,7 @@ export async function runWorkspaceAction(
   if (action.kind === 'settings-import') {
     const preview = previewAgentWorkspaceTuiSettingsImport(deps.commandContext);
     if (!preview) return error('GoodVibes settings import is unavailable in this runtime.');
-    if (args.confirm !== true) {
+    if (args.confirm !== true && !readString(args.explicitUserRequest)) {
       return output({
         status: 'confirmation_required',
         action: describeWorkspaceAction(category, action, { lookup }),
@@ -57,10 +57,9 @@ export async function runWorkspaceAction(
         next: 'Run with confirm:true and explicitUserRequest after the user asks to import these settings.',
       });
     }
+    const confirmationError = requireConfirmedAction(args, 'GoodVibes settings import');
+    if (confirmationError) return error(confirmationError);
     const explicitUserRequest = readString(args.explicitUserRequest);
-    if (!explicitUserRequest) {
-      return error('GoodVibes settings import requires explicitUserRequest when confirm is true.');
-    }
     const outcome = await importAgentWorkspaceTuiSettings(deps.commandContext);
     return output({
       status: outcome.status,

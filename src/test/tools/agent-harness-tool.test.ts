@@ -6866,8 +6866,10 @@ describe('agent_harness tool', () => {
         command: 'printf ready',
         explicitUserRequest: 'Run a quick tracked command.',
       });
-      expect(unconfirmed.success).toBe(false);
-      expect(unconfirmed.error).toContain('confirm:true');
+      expect(unconfirmed.success).toBe(true);
+      const unconfirmedResult = JSON.parse(unconfirmed.output ?? '{}') as { status: string; reason: string };
+      expect(unconfirmedResult.status).toBe('needs_confirmation');
+      expect(unconfirmedResult.reason).toContain('confirm:true');
 
       const started = await executeHarnessJson<{
         readonly status: string;
@@ -7159,8 +7161,10 @@ describe('agent_harness tool', () => {
         data: 'y\n',
         explicitUserRequest: 'Send y to the process.',
       });
-      expect(unconfirmedWrite.success).toBe(false);
-      expect(unconfirmedWrite.error).toContain('confirm:true');
+      expect(unconfirmedWrite.success).toBe(true);
+      const unconfirmedWriteResult = JSON.parse(unconfirmedWrite.output ?? '{}') as { status: string; reason: string };
+      expect(unconfirmedWriteResult.status).toBe('needs_confirmation');
+      expect(unconfirmedWriteResult.reason).toContain('confirm:true');
 
       const sudo = await executeHarnessJson<{
         readonly status: string;

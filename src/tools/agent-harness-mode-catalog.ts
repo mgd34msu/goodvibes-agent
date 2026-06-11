@@ -1,4 +1,5 @@
 import { AGENT_HARNESS_MODES } from './agent-harness-tool-schema.ts';
+import { readLimit } from './agent-harness-tool-utils.ts';
 
 export type AgentHarnessMode = typeof AGENT_HARNESS_MODES[number];
 
@@ -149,12 +150,6 @@ export const HARNESS_MODE_DESCRIPTORS: readonly HarnessModeDescriptor[] = [
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
-}
-
-function readLimit(value: unknown, fallback: number): number {
-  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
-  return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
 function describeHarnessModeDescriptor(
