@@ -454,8 +454,12 @@ export function expandRecurringEvent(event: IcsEvent, referenceDate: Date, horiz
   const results: IcsEvent[] = [];
   let cursorMs = startMs;
   let count = 0;
+  let totalIterations = 0;
+  const MAX_TOTAL_ITERATIONS = 100_000;
 
   while (count < maxCount) {
+    // MIN-4: hard backstop on total loop iterations (independent of cursor monotonicity)
+    if (totalIterations++ >= MAX_TOTAL_ITERATIONS) break;
     // Enforce UNTIL boundary
     if (until && cursorMs > until.getTime()) break;
     // Enforce horizon

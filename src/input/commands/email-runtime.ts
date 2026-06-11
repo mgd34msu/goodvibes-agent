@@ -166,18 +166,19 @@ function formatConfig(ctx: CommandContext): void {
   const config = readEmailConfig((key) => cm.get(key));
   const lines = [
     'Email Config',
-    `  email.enabled:      ${String(config.enabled)}`,
-    `  email.imapHost:     ${config.imapHost || '[not set]'}`,
-    `  email.imapPort:     ${config.imapPort}`,
-    `  email.smtpHost:     ${config.smtpHost || '[not set]'}`,
-    `  email.smtpPort:     ${config.smtpPort}`,
-    `  email.username:     ${config.username || '[not set]'}`,
-    `  email.passwordRef:  ${config.passwordRef ? '[configured]' : '[not set]'}`,
-    `  email.fromAddress:  ${config.fromAddress || '[not set]'}`,
+    `  email.enabled:       ${String(config.enabled)}`,
+    `  email.imapHost:      ${config.imapHost || '[not set]'}`,
+    `  email.imapPort:      ${config.imapPort}`,
+    `  email.smtpHost:      ${config.smtpHost || '[not set]'}`,
+    `  email.smtpPort:      ${config.smtpPort}`,
+    `  email.smtpSecurity:  ${config.smtpSecurity} (tls|starttls|auto)`,
+    `  email.username:      ${config.username || '[not set]'}`,
+    `  email.passwordRef:   ${config.passwordRef ? '[configured]' : '[not set]'}`,
+    `  email.fromAddress:   ${config.fromAddress || '[not set]'}`,
     '',
     '  Settable keys: email.enabled, email.imapHost, email.imapPort, email.smtpHost,',
-    '                 email.smtpPort, email.username, email.passwordRef (--yes required),',
-    '                 email.fromAddress',
+    '                 email.smtpPort, email.smtpSecurity, email.username,',
+    '                 email.passwordRef (--yes required), email.fromAddress',
     '  Usage: /email set email.<key> <value> [--yes]',
   ];
   ctx.print(lines.join('\n'));
@@ -273,6 +274,16 @@ async function handleSet(
       return;
     }
     coerced = n;
+  } else if (fieldName === 'smtpSecurity') {
+    // MIN-2: validate at set time so invalid values never reach the socket factory
+    if (rawValue !== 'tls' && rawValue !== 'starttls' && rawValue !== 'auto') {
+      ctx.print(
+        `Invalid smtpSecurity value: "${rawValue}".\n` +
+        'Valid values: tls (direct TLS, e.g. port 465), starttls (STARTTLS upgrade, e.g. port 587), auto (port-based default).',
+      );
+      return;
+    }
+    coerced = rawValue;
   } else if (fieldName === 'enabled') {
     const lower = rawValue.toLowerCase();
     if (lower === 'true' || lower === '1' || lower === 'yes') {

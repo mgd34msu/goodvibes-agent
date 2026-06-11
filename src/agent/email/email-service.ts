@@ -29,7 +29,7 @@
  */
 
 import { ImapClient, createImapTlsSocket } from './imap-client.ts';
-import { SmtpClient, createSmtpTlsSocket, createSmtpStartTlsSocket } from './smtp-client.ts';
+import { SmtpClient, createSmtpTlsSocket, createSmtpStartTlsSocket, validateSmtpAddress, validateSmtpSubject } from './smtp-client.ts';
 import type { ImapEnvelope } from './imap-client.ts';
 import type { Socket } from 'node:net';
 
@@ -44,6 +44,7 @@ const EMAIL_DEFAULTS = {
   imapPort: 993,
   smtpHost: '',
   smtpPort: 587,
+  smtpSecurity: 'auto' as const,
   username: '',
   passwordRef: '',
   fromAddress: '',
@@ -76,12 +77,17 @@ export function ensureEmailConfigDefaults(
 // Public types
 // ---------------------------------------------------------------------------
 
+/** SMTP connection security mode. 'auto' = port-based default (465→tls, else starttls). */
+export type SmtpSecurityMode = 'tls' | 'starttls' | 'auto';
+
 export interface EmailConfig {
   readonly enabled: boolean;
   readonly imapHost: string;
   readonly imapPort: number;
   readonly smtpHost: string;
   readonly smtpPort: number;
+  /** SMTP connection security. Default: 'auto' (port-based). */
+  readonly smtpSecurity: SmtpSecurityMode;
   readonly username: string;
   /** Secret reference string — never a raw password. */
   readonly passwordRef: string;
@@ -135,6 +141,11 @@ function readBoolean(value: unknown, fallback = false): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function readSmtpSecurity(value: unknown): SmtpSecurityMode {
+  if (value === 'tls' || value === 'starttls' || value === 'auto') return value;
+  return 'auto';
+}
+
 export function readEmailConfig(getConfig: (key: string) => unknown): EmailConfig {
   return {
     enabled: readBoolean(getConfig('email.enabled'), false),
@@ -142,6 +153,7 @@ export function readEmailConfig(getConfig: (key: string) => unknown): EmailConfi
     imapPort: readNumber(getConfig('email.imapPort'), 993),
     smtpHost: readString(getConfig('email.smtpHost')),
     smtpPort: readNumber(getConfig('email.smtpPort'), 587),
+    smtpSecurity: readSmtpSecurity(getConfig('email.smtpSecurity')),
     username: readString(getConfig('email.username')),
     passwordRef: readString(getConfig('email.passwordRef')),
     fromAddress: readString(getConfig('email.fromAddress')),
@@ -284,7 +296,7 @@ export class EmailService {
     const config = this.getValidatedConfig();
     const password = await resolveEmailPassword(config.passwordRef, this.deps.secretsManager);
 
-    const socketFactory = this.deps.smtpSocketFactory ?? this.defaultSmtpSocketFactory(config.smtpPort);
+    const socketFactory = this.deps.smtpSocketFactory ?? this.defaultSmtpSocketFactory(config.smtpPort, config.smtpSecurity);
     const socket = await socketFactory(config.smtpHost, config.smtpPort);
 
     const client = new SmtpClient({
@@ -293,6 +305,12 @@ export class EmailService {
       username: config.username,
       password,
     });
+
+    // SEC-1: validate at the service boundary so injection is blocked regardless of
+    // which client implementation is used.
+    validateSmtpAddress(config.fromAddress, 'from');
+    validateSmtpAddress(opts.to, 'to');
+    validateSmtpSubject(opts.subject);
 
     await client.sendMail({
       from: config.fromAddress,
@@ -320,7 +338,12 @@ export class EmailService {
 
   private defaultSmtpSocketFactory(
     port: number,
+    security: SmtpSecurityMode,
   ): (host: string, p: number) => Promise<Socket> {
+    // MIN-2: honor explicit smtpSecurity setting; fall back to port-based auto detection
+    if (security === 'tls') return createSmtpTlsSocket;
+    if (security === 'starttls') return createSmtpStartTlsSocket;
+    // 'auto': use direct TLS on port 465, STARTTLS otherwise
     if (port === 465) return createSmtpTlsSocket;
     return createSmtpStartTlsSocket;
   }

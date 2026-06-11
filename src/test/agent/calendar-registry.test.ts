@@ -118,6 +118,25 @@ describe('AgentCalendarRegistry', () => {
     expect(reg.list()).toHaveLength(0);
   });
 
+  test('MIN-1: importIcs skips events whose UID alone looks like a secret', () => {
+    // UID field is now included in the assertNoSecretLikeText scan.
+    // A UID containing a secret-like pattern (e.g. api_key=...) must be rejected.
+    const reg = tempRegistry();
+    const ics = [
+      'BEGIN:VCALENDAR',
+      'BEGIN:VEVENT',
+      // UID itself contains a secret-looking value
+      'UID:api_key=sk-abc123def456ghi789jkl',
+      'SUMMARY:Clean Title',
+      'DTSTART:20250101T100000Z',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    const result = reg.importIcs(ics);
+    expect(result.imported).toHaveLength(0);
+    expect(result.secretSkipped).toBe(1);
+  });
+
   test('importIcs mixed batch: clean + duplicate + secret-bearing', () => {
     const reg = tempRegistry();
     // Pre-seed a duplicate by importing it first so sourceProvenance is stored.

@@ -220,7 +220,7 @@ export class AgentCalendarRegistry {
       const notes = icsEvent.description?.trim();
       // Per-event secret scan: skip (don't abort) if secret-looking values found.
       try {
-        assertNoCalendarSecretLikeText([title, notes ?? '', icsEvent.location ?? '']);
+        assertNoCalendarSecretLikeText([title, notes ?? '', icsEvent.location ?? '', icsEvent.uid ?? '']);
       } catch {
         secretSkipped++;
         continue;

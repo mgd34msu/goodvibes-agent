@@ -52,6 +52,62 @@ export interface SmtpSendOptions {
 const DEFAULT_TIMEOUT_MS = 15_000;
 const CRLF = '\r\n';
 
+// ---------------------------------------------------------------------------
+// Input validation (SEC-1: SMTP header/command injection prevention)
+// ---------------------------------------------------------------------------
+
+/** Control-character pattern: CR, LF, and other C0/C1 control characters. */
+const CONTROL_CHAR_RE = /[\x00-\x1f\x7f-\x9f]/;
+
+/**
+ * Validate a single SMTP envelope address (MAIL FROM / RCPT TO value).
+ * Rejects: control characters (\r, \n, any C0/C1), spaces, angle brackets,
+ * comma-separated lists. Only a single bare address is accepted.
+ *
+ * @throws Error with a plain-language message on invalid input.
+ */
+export function validateSmtpAddress(address: string, field: string): void {
+  if (CONTROL_CHAR_RE.test(address)) {
+    throw new Error(
+      `Invalid ${field}: address must not contain control characters (CR, LF, etc.).`,
+    );
+  }
+  if (address.includes(' ') || address.includes('\t')) {
+    throw new Error(
+      `Invalid ${field}: address must be a single bare address with no spaces or tabs.`,
+    );
+  }
+  if (address.includes('<') || address.includes('>')) {
+    throw new Error(
+      `Invalid ${field}: address must be a single bare address without angle brackets.`,
+    );
+  }
+  if (address.includes(',')) {
+    throw new Error(
+      `Invalid ${field}: only one address is allowed per field (no comma-separated lists).`,
+    );
+  }
+  if (!address.includes('@')) {
+    throw new Error(
+      `Invalid ${field}: "${address}" does not look like an email address (missing @).`,
+    );
+  }
+}
+
+/**
+ * Validate an SMTP message Subject header value.
+ * Rejects control characters (\r, \n, etc.) that could split headers.
+ *
+ * @throws Error with a plain-language message on invalid input.
+ */
+export function validateSmtpSubject(subject: string): void {
+  if (CONTROL_CHAR_RE.test(subject)) {
+    throw new Error(
+      'Invalid subject: subject must not contain control characters (CR, LF, etc.).',
+    );
+  }
+}
+
 function dotStuff(body: string): string {
   // RFC 2821 §4.5.2: lines beginning with '.' get an extra '.'
   return body
@@ -211,6 +267,11 @@ export class SmtpClient {
     // AUTH
     await this.authenticate(session, capabilities, username, password);
 
+    // Validate envelope fields before writing to the protocol stream (SEC-1)
+    validateSmtpAddress(opts.from, 'from');
+    validateSmtpAddress(opts.to, 'to');
+    validateSmtpSubject(opts.subject);
+
     // Envelope
     await session.cmd(`MAIL FROM:<${opts.from}>`, 250);
     await session.cmd(`RCPT TO:<${opts.to}>`, 250);
@@ -343,6 +404,21 @@ export function createSmtpStartTlsSocket(
                   clearTimeout(timer);
                   plain.destroy();
                   reject(new Error(`STARTTLS rejected: ${stBuffer.trim()}`));
+                  return;
+                }
+
+                // SEC-4: assert no pipelined data arrived after the 220 STARTTLS reply.
+                // Any bytes beyond the \n of the 220 line indicate a hostile server
+                // injecting data before TLS negotiation begins.
+                const newlineIdx = stBuffer.indexOf('\n');
+                const afterNewline = newlineIdx !== -1 ? stBuffer.slice(newlineIdx + 1) : '';
+                if (afterNewline.length > 0) {
+                  clearTimeout(timer);
+                  plain.destroy();
+                  reject(new Error(
+                    'STARTTLS aborted: server sent data after the 220 response before TLS upgrade. ' +
+                    'This may indicate a STARTTLS injection attack.',
+                  ));
                   return;
                 }
 

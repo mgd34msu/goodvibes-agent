@@ -79,15 +79,49 @@ function buildXOAuth2Token(username: string, bearerToken: string): string {
  * Wraps a Socket with line-buffered async reading and tagged command writing.
  * Owns a single shared read cursor; callers must not interleave awaits.
  */
+// ---------------------------------------------------------------------------
+// IMAP credential quoting (SEC-2: LOGIN injection prevention)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reject credentials containing CR or LF — these cannot be safely represented
+ * in any IMAP quoted-string or literal.
+ * Then return the credential as an RFC 3501 quoted string:
+ *   - backslashes escaped as \\\\
+ *   - double-quotes escaped as \\"
+ * If the result would contain characters outside of printable US-ASCII
+ * (which quoted strings cannot hold per RFC 3501), throw a plain-language error.
+ */
+export function imapQuoteCredential(value: string, name: string): string {
+  if (/[\r\n]/.test(value)) {
+    throw new Error(
+      `Invalid IMAP ${name}: credentials must not contain carriage return or newline characters.`,
+    );
+  }
+  // RFC 3501 quoted-string is 7-bit only: only printable US-ASCII (0x20–0x7E) is
+  // allowed. Reject anything outside that range — control chars (0x00–0x1F, 0x7F)
+  // and 8-bit bytes (0x80–0xFF) both produce malformed wire data.
+  if (/[^\x20-\x7e]/.test(value)) {
+    throw new Error(
+      `Invalid IMAP ${name}: credentials must be printable US-ASCII characters; 8-bit or control characters aren't supported.`,
+    );
+  }
+  // Escape backslash and double-quote per RFC 3501 §4.3
+  const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return `"${escaped}"`;
+}
+
 class ImapSession {
   private readonly socket: Socket;
   private readonly timeoutMs: number;
+  private readonly literalCap: number;
   private buffer = '';
   private tagCounter = 0;
 
-  constructor(socket: Socket, timeoutMs: number) {
+  constructor(socket: Socket, timeoutMs: number, literalCap: number) {
     this.socket = socket;
     this.timeoutMs = timeoutMs;
+    this.literalCap = literalCap;
     this.socket.setEncoding('utf8');
   }
 
@@ -213,7 +247,17 @@ class ImapSession {
           // Check for literal continuation
           const literalMatch = /\{(\d+)\}$/.exec(line);
           if (literalMatch) {
-            literalBytesRemaining = parseInt(literalMatch[1] ?? '0', 10);
+            const requested = parseInt(literalMatch[1] ?? '0', 10);
+            // SEC-3: cap server-supplied literal size to prevent memory DoS
+            if (requested > this.literalCap) {
+              cleanup();
+              reject(new Error(
+                `IMAP server sent an oversized literal ({${requested}} bytes, ` +
+                `max allowed: ${this.literalCap}). The operation has been aborted.`,
+              ));
+              return;
+            }
+            literalBytesRemaining = requested;
             literalOwnerLine = line.slice(0, line.lastIndexOf('{')) + ' ';
             continue;
           }
@@ -493,9 +537,13 @@ export class ImapClient {
   // -------------------------------------------------------------------------
 
   private session(): ImapSession {
+    const maxBodyBytes = this.options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
+    // SEC-3: cap literal size at the larger of 1 MB or 4× the configured body preview limit
+    const literalCap = Math.max(1_048_576, 4 * maxBodyBytes);
     return new ImapSession(
       this.options.socket,
       this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      literalCap,
     );
   }
 
@@ -506,8 +554,11 @@ export class ImapClient {
       const token = buildXOAuth2Token(username, password.slice(7));
       await session.command(`AUTHENTICATE XOAUTH2 ${token}`);
     } else {
-      // LOGIN — credentials are not logged anywhere in this module
-      await session.command(`LOGIN ${username} ${password}`);
+      // LOGIN — credentials are quoted per RFC 3501 to prevent injection (SEC-2).
+      // Credentials are not logged anywhere in this module.
+      const quotedUser = imapQuoteCredential(username, 'username');
+      const quotedPass = imapQuoteCredential(password, 'password');
+      await session.command(`LOGIN ${quotedUser} ${quotedPass}`);
     }
   }
 }
