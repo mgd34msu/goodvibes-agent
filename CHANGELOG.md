@@ -2,6 +2,20 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.0 - 2026-06-11
+
+- v1.5.0 opens the 1.5 minor line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force. This release replaces the split-pane panel system with the Activity sidebar, rebuilds first-run onboarding around readiness, and adds local calendar, direct email, hardware-aware model recommendations, and skill import/export.
+- Replaced the 21-panel split-pane system with a single Activity sidebar. Live activity, process output, and runtime state now surface in one consistent lane instead of stacked panels; the footer was slimmed and tool calls show human-readable labels.
+- Rewrote the workspace Home as plain-language lanes and merged duplicate categories. The slash-command long tail moved behind /commands so the prompt surface stays focused on what users actually run.
+- Added a While you were away digest on return plus a live Coming up sidebar fed by the local calendar, so upcoming commitments stay visible without asking.
+- Rebuilt first-run onboarding around a readiness model: setup steps sequence themselves by what is actually configured, the flow can be resumed midway, and a completion recap shows what was set up. The first screen leads with a working path, the first-run model picker opens with a hardware-fit recommendation, and a plain-language hint appears in conversation while setup is incomplete.
+- Competitive parity wave: local calendar support, direct email send and read over SMTP and IMAP with TLS or STARTTLS, hardware-aware model recommendations, and automatic skill drafts.
+- Skills now import and export in the open skill standard. Exports are lossless, and skills discovered from imports stay disabled until explicitly enabled.
+- Hardened the email and calendar surfaces: SMTP and IMAP commands validate addresses and reject control characters, STARTTLS upgrades verify no data arrives before negotiation completes, and calendar parsing is stricter about malformed input.
+- Reliability fixes across the TUI: closed a text-wrap hang, made wide-character rendering consistent, fixed webhook notifier reuse, routed the benchmark editor to its real action, and made command failures surface user-visible errors everywhere.
+- Release and verification hygiene: the operator token is redacted from release artifacts, the coverage ledger reports honest numbers, release evidence is checked for existence, and operator-facing copy passes a plain-language gate.
+- Test suite: 7931 pass / 0 fail / 2 skip across 554 files.
+
 ## 1.4.4 - 2026-06-09
 
 - v1.4.4 continues the stable 1.x line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force. This patch finishes the onboarding-modal cleanup begun in 1.4.0–1.4.3.
