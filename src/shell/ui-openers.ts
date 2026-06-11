@@ -449,7 +449,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     render();
   };
 
-  commandContext.openPanelPicker = () => {
+  commandContext.openWorkspacePicker = () => {
     conversation.setSplashSuppressed(false);
     input.openAgentWorkspace(commandContext, 'home');
     conversation.rebuildHistory();

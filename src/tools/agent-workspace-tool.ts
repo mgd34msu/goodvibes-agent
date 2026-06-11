@@ -11,9 +11,6 @@ type AgentWorkspaceToolAction =
   | 'surfaces'
   | 'surface'
   | 'open'
-  | 'panels'
-  | 'panel'
-  | 'open_panel'
   | 'shortcuts'
   | 'keybindings'
   | 'keybinding'
@@ -33,7 +30,6 @@ interface AgentWorkspaceToolArgs {
   readonly actionId?: unknown;
   readonly workspaceActionId?: unknown;
   readonly surfaceId?: unknown;
-  readonly panelId?: unknown;
   readonly command?: unknown;
   readonly commandName?: unknown;
   readonly args?: unknown;
@@ -47,7 +43,6 @@ interface AgentWorkspaceToolArgs {
   readonly combos?: unknown;
   readonly key?: unknown;
   readonly value?: unknown;
-  readonly pane?: unknown;
   readonly includeParameters?: unknown;
   readonly limit?: unknown;
   readonly confirm?: unknown;
@@ -79,9 +74,6 @@ function normalizeWorkspaceAction(value: unknown): AgentWorkspaceToolAction | nu
   if (action === 'surfaces' || action === 'ui_surfaces' || action === 'screens' || action === 'views') return 'surfaces';
   if (action === 'surface' || action === 'ui_surface' || action === 'screen' || action === 'view') return 'surface';
   if (action === 'open' || action === 'navigate' || action === 'open_surface' || action === 'open_ui_surface') return 'open';
-  if (action === 'panels' || action === 'panes') return 'panels';
-  if (action === 'panel' || action === 'pane') return 'panel';
-  if (action === 'open_panel' || action === 'open_pane') return 'open_panel';
   if (action === 'shortcuts' || action === 'shortcut_help' || action === 'help') return 'shortcuts';
   if (action === 'keybindings' || action === 'bindings' || action === 'keys') return 'keybindings';
   if (action === 'keybinding' || action === 'binding' || action === 'key') return 'keybinding';
@@ -100,7 +92,6 @@ function readAction(args: AgentWorkspaceToolArgs): AgentWorkspaceToolAction {
   const explicit = normalizeWorkspaceAction(args.action) ?? normalizeWorkspaceAction(args.mode);
   if (explicit) return explicit;
   if (readString(args.surfaceId)) return 'surface';
-  if (readString(args.panelId)) return 'panel';
   if (readString(args.actionId) || readString(args.workspaceActionId)) return 'action';
   if (readString(args.command) || readString(args.commandName)) return 'command';
   if (readString(args.key)) return 'keybinding';
@@ -118,10 +109,6 @@ function lookupId(args: AgentWorkspaceToolArgs): string {
 
 function surfaceLookup(args: AgentWorkspaceToolArgs): string {
   return readString(args.surfaceId) || readString(args.id);
-}
-
-function panelLookup(args: AgentWorkspaceToolArgs): string {
-  return readString(args.panelId) || readString(args.id);
 }
 
 function confirmedArgs(args: AgentWorkspaceToolArgs): Record<string, unknown> {
@@ -173,19 +160,6 @@ function surfaceArgs(mode: 'ui_surface' | 'open_ui_surface', args: AgentWorkspac
   });
 }
 
-function panelArgs(mode: 'panel' | 'open_panel', args: AgentWorkspaceToolArgs): Record<string, unknown> {
-  const panelId = panelLookup(args);
-  return compactArgs({
-    mode,
-    panelId,
-    target: panelId ? undefined : args.target,
-    query: panelId ? undefined : args.query,
-    pane: args.pane,
-    includeParameters: mode === 'panel' ? args.includeParameters : undefined,
-    ...(mode === 'open_panel' ? confirmedArgs(args) : {}),
-  });
-}
-
 function keybindingArgs(mode: 'keybinding' | 'run_keybinding' | 'set_keybinding' | 'reset_keybinding', args: AgentWorkspaceToolArgs): Record<string, unknown> {
   const actionId = lookupId(args);
   return compactArgs({
@@ -232,15 +206,14 @@ export function createAgentWorkspaceTool(deps: AgentWorkspaceToolDeps): Tool {
         properties: {
           action: {
             type: 'string',
-            enum: ['status', 'actions', 'action', 'run', 'surfaces', 'surface', 'open', 'panels', 'panel', 'open_panel', 'shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding', 'commands', 'command', 'run_command', 'cli_commands', 'cli_command'],
+            enum: ['status', 'actions', 'action', 'run', 'surfaces', 'surface', 'open', 'shortcuts', 'keybindings', 'keybinding', 'run_keybinding', 'set_keybinding', 'reset_keybinding', 'commands', 'command', 'run_command', 'cli_commands', 'cli_command'],
             description: 'Inspect catalogs, open UI, or run approved workspace actions.',
           },
           mode: { type: 'string', description: 'Alias for action.' },
-          id: { type: 'string', description: 'Generic action, surface, panel, or keybinding id.' },
+          id: { type: 'string', description: 'Generic action, surface, or keybinding id.' },
           actionId: { type: 'string', description: 'Workspace action or keybinding action id.' },
           workspaceActionId: { type: 'string', description: 'Workspace action id alias.' },
           surfaceId: { type: 'string', description: 'UI surface id.' },
-          panelId: { type: 'string', description: 'Panel id.' },
           command: { type: 'string', description: 'Slash or CLI command string.' },
           commandName: { type: 'string', description: 'Slash or CLI command name.' },
           args: { type: 'array', items: { type: 'string' }, description: 'Command arguments when commandName is used.' },
@@ -254,7 +227,6 @@ export function createAgentWorkspaceTool(deps: AgentWorkspaceToolDeps): Tool {
           combos: { type: 'array', items: { type: 'object' }, description: 'Multiple keybinding combos.' },
           key: { type: 'string', description: 'Keybinding lookup key.' },
           value: { anyOf: [{ type: 'string' }, { type: 'number' }, { type: 'boolean' }], description: 'Keybinding value such as Ctrl+G.' },
-          pane: { type: 'string', enum: ['top', 'bottom'], description: 'Preferred pane for panel open.' },
           includeParameters: { type: 'boolean', description: 'Include detailed schemas or route metadata.' },
           limit: { type: 'number', description: 'Maximum rows returned for catalog actions.' },
           confirm: { type: 'boolean', description: 'Required true for UI opens and side-effecting actions.' },
@@ -276,9 +248,6 @@ export function createAgentWorkspaceTool(deps: AgentWorkspaceToolDeps): Tool {
       if (action === 'surfaces') return harnessTool.execute(compactArgs({ mode: 'ui_surfaces', target: args.target, query: args.query, limit: args.limit, includeParameters: args.includeParameters }));
       if (action === 'surface') return harnessTool.execute(surfaceArgs('ui_surface', args));
       if (action === 'open') return harnessTool.execute(surfaceArgs('open_ui_surface', args));
-      if (action === 'panels') return harnessTool.execute(compactArgs({ mode: 'panels', target: args.target, query: args.query, limit: args.limit, includeParameters: args.includeParameters }));
-      if (action === 'panel') return harnessTool.execute(panelArgs('panel', args));
-      if (action === 'open_panel') return harnessTool.execute(panelArgs('open_panel', args));
       if (action === 'shortcuts') return harnessTool.execute(compactArgs({ mode: 'shortcuts', target: args.target, query: args.query, limit: args.limit, includeParameters: args.includeParameters }));
       if (action === 'keybindings') return harnessTool.execute(compactArgs({ mode: 'keybindings', target: args.target, query: args.query, limit: args.limit, includeParameters: args.includeParameters }));
       if (action === 'keybinding') return harnessTool.execute(keybindingArgs('keybinding', args));

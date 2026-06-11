@@ -209,7 +209,7 @@ function makeFixture(options: {
     print: (text: string) => printed.push(text),
     renderRequest: () => {},
     executeCommand: async (name: string, args: string[]) => commandRegistry.execute(name, args, context as CommandContext),
-    openPanelPicker: () => {
+    openWorkspacePicker: () => {
       openedSurfaces.push({ id: 'panel-picker', detail: 'home' });
     },
     openAgentWorkspace: (categoryId?: string) => {
@@ -11567,7 +11567,7 @@ describe('agent_harness tool', () => {
       const ambiguousKeybinding = await fixture.tool.execute({ mode: 'keybinding', query: 'workspace' });
       expect(ambiguousKeybinding.success).toBe(true);
       expect(ambiguousKeybinding.output).toContain('"status": "ambiguous"');
-      expect(ambiguousKeybinding.output).toContain('panel-picker');
+      expect(ambiguousKeybinding.output).toContain('workspace-picker');
 
       const runDenied = await fixture.tool.execute({
         mode: 'run_keybinding',
@@ -11594,7 +11594,7 @@ describe('agent_harness tool', () => {
       try {
         const runDismiss = await dismissFixture.tool.execute({
           mode: 'run_keybinding',
-          actionId: 'panel-close',
+          actionId: 'workspace-close',
           confirm: true,
           explicitUserRequest: 'Dismiss the active Agent workspace.',
         });

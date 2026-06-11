@@ -75,7 +75,7 @@ Common model routes:
 | Slash commands | `workspace action:"commands|command|run_command"`; lower-level command harness modes remain available for compatibility/detail |
 | Settings | `settings action:"list|get|set|reset|import"`; lower-level `agent_harness mode:"settings"`, `mode:"get_setting"`, `mode:"set_setting"`, `mode:"reset_setting"` remain available for compatibility/detail |
 | GoodVibes settings import | `settings action:"import"` previews by default; apply with `confirm:true explicitUserRequest:"..."`; `import_goodvibes_settings action:"preview|apply"` remains available |
-| Visible UI and devices | `workspace action:"surfaces|surface|open|panels|panel|open_panel"` for visible navigation; `computer action:"status|plan|control|browser|setup|mcp|open_browser"` for browser/PWA readiness, certified browser-native category routes and first-run receipts, browser/screenshot/desktop-control planning, and computer-use UX; `device action:"status|capability|voice|provider|open_tts_provider|open_tts_voice"` for device/voice UX |
+| Visible UI and devices | `workspace action:"surfaces|surface|open"` for visible navigation; `computer action:"status|plan|control|browser|setup|mcp|open_browser"` for browser/PWA readiness, certified browser-native category routes and first-run receipts, browser/screenshot/desktop-control planning, and computer-use UX; `device action:"status|capability|voice|provider|open_tts_provider|open_tts_voice"` for device/voice UX |
 | Keybindings | `workspace action:"shortcuts|keybindings|keybinding|run_keybinding|set_keybinding|reset_keybinding"` |
 | Tool contracts | `agent_harness mode:"tools"`, `mode:"tool"` |
 | Agent Knowledge | `agent_knowledge`, `agent_knowledge_ingest` |

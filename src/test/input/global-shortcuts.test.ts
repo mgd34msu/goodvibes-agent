@@ -5,10 +5,10 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
   return {
     keybindingsManager: {
       matches: (action: string, token: { logicalName?: string; ctrl?: boolean }) =>
-        action === 'panel-picker' && token.logicalName === 'p' && !!token.ctrl,
+        action === 'workspace-picker' && token.logicalName === 'p' && !!token.ctrl,
       // lookup: O(1) inverted-map equivalent used by the refactored handler.
       lookup: (token: { logicalName?: string; ctrl?: boolean }) =>
-        token.logicalName === 'p' && !!token.ctrl ? 'panel-picker' : null,
+        token.logicalName === 'p' && !!token.ctrl ? 'workspace-picker' : null,
     } as unknown as GlobalShortcutRouteState['keybindingsManager'],
     prompt: '',
     cursorPos: 0,
@@ -17,7 +17,7 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
     historySearch: { open: mock(() => {}) } as unknown as GlobalShortcutRouteState['historySearch'],
     searchManager: { active: false, open: mock(() => {}), close: mock(() => {}) } as unknown as GlobalShortcutRouteState['searchManager'],
     conversationManager: null,
-    commandContext: { openPanelPicker: mock(() => {}), clearScreen: mock(() => {}), toggleActivitySidebar: mock(() => {}) } as unknown as NonNullable<GlobalShortcutRouteState['commandContext']>,
+    commandContext: { openWorkspacePicker: mock(() => {}), clearScreen: mock(() => {}), toggleActivitySidebar: mock(() => {}) } as unknown as NonNullable<GlobalShortcutRouteState['commandContext']>,
     contentWidth: 80,
     getScrollTop: () => 0,
     getWrappedPromptInfo: () => ({ wrappedLines: [''], segments: [{ rawStart: 0, length: 0 }], cursorWrappedLine: 0 }),
@@ -41,7 +41,7 @@ function buildState(overrides: Partial<GlobalShortcutRouteState> = {}): GlobalSh
 }
 
 describe('handleGlobalShortcutToken', () => {
-  test('panel-picker opens the Agent workspace', () => {
+  test('workspace-picker opens the Agent workspace', () => {
     const state = buildState();
     const handled = handleGlobalShortcutToken(
       state,
@@ -50,15 +50,15 @@ describe('handleGlobalShortcutToken', () => {
     );
 
     expect(handled).toBe(true);
-    expect(state.commandContext?.openPanelPicker).toHaveBeenCalled();
+    expect(state.commandContext?.openWorkspacePicker).toHaveBeenCalled();
     expect(state.requestRender).toHaveBeenCalled();
   });
 
-  test('panel-close dismisses the Agent workspace', () => {
+  test('workspace-close dismisses the Agent workspace', () => {
     const state = buildState({
       keybindingsManager: {
         matches: () => false,
-        lookup: () => 'panel-close',
+        lookup: () => 'workspace-close',
       } as unknown as GlobalShortcutRouteState['keybindingsManager'],
       dismissAgentWorkspace: mock(() => true),
     });

@@ -42,8 +42,8 @@ describe('wireShellUiOpeners', () => {
     });
   });
 
-  test('openPanelPicker opens the Agent workspace home', () => {
-    (commandContext.openPanelPicker as () => void)();
+  test('openWorkspacePicker opens the Agent workspace home', () => {
+    (commandContext.openWorkspacePicker as () => void)();
     expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, 'home');
     expect(conversation.setSplashSuppressed).toHaveBeenCalledWith(false);
     expect(conversation.rebuildHistory).toHaveBeenCalled();

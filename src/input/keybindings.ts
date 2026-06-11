@@ -11,6 +11,16 @@
  * }
  *
  * Each value is a KeyCombo or an array of KeyCombos for multi-binding support.
+ *
+ * Action ID backward-compatibility aliases (accepted in keybindings.json):
+ *   "panel-picker"    → "workspace-picker"
+ *   "panel-close"     → "workspace-close"
+ *   "panel-close-all" → "workspace-close-all"
+ *   "panel-tab-next"  → "workspace-tab-next"
+ *   "panel-tab-prev"  → "workspace-tab-prev"
+ *
+ * These aliases are accepted when loading user-provided keybindings.json
+ * override files so existing user configs continue to work without changes.
  */
 
 import { readFileSync, existsSync } from 'node:fs';
@@ -34,11 +44,11 @@ export type KeyAction =
   | 'copy-selection'
   | 'clear-cancel'
   | 'screen-clear'
-  | 'panel-picker'
-  | 'panel-close'
-  | 'panel-close-all'
-  | 'panel-tab-next'
-  | 'panel-tab-prev'
+  | 'workspace-picker'
+  | 'workspace-close'
+  | 'workspace-close-all'
+  | 'workspace-tab-next'
+  | 'workspace-tab-prev'
   | 'sidebar-toggle'
   | 'history-search'
   | 'search'
@@ -60,11 +70,11 @@ export const ACTION_DESCRIPTIONS: Record<KeyAction, string> = {
   'copy-selection':        'Copy selected text to clipboard',
   'clear-cancel':          'Clear input / cancel generation / exit (double)',
   'screen-clear':          'Repaint the screen',
-  'panel-picker':          'Open the Agent operator workspace',
-  'panel-close':            'Close the Agent workspace',
-  'panel-close-all':         'Close the Agent workspace',
-  'panel-tab-next':        'Cycle Agent workspace category forward',
-  'panel-tab-prev':        'Cycle Agent workspace category backward',
+  'workspace-picker':      'Open the Agent operator workspace',
+  'workspace-close':       'Close the Agent workspace',
+  'workspace-close-all':   'Close the Agent workspace (alias: also bound to Ctrl+Shift+X)',
+  'workspace-tab-next':    'Cycle Agent workspace category forward',
+  'workspace-tab-prev':    'Cycle Agent workspace category backward',
   'sidebar-toggle':        'Show or hide the activity sidebar',
   'history-search':        'Reverse input history search',
   'search':                'Toggle conversation search',
@@ -100,11 +110,11 @@ export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'copy-selection':        [{ key: 'c', ctrl: true, shift: true }],
   'clear-cancel':          [{ key: 'c', ctrl: true }],
   'screen-clear':          [{ key: 'l', ctrl: true }],
-  'panel-picker':          [{ key: 'p', ctrl: true }],
-  'panel-close':            [{ key: 'x', ctrl: true }],
-  'panel-close-all':         [{ key: 'x', ctrl: true, shift: true }],
-  'panel-tab-next':        [{ key: ']', ctrl: true }],
-  'panel-tab-prev':        [{ key: '[', ctrl: true }],
+  'workspace-picker':      [{ key: 'p', ctrl: true }],
+  'workspace-close':       [{ key: 'x', ctrl: true }],
+  'workspace-close-all':   [{ key: 'x', ctrl: true, shift: true }],
+  'workspace-tab-next':    [{ key: ']', ctrl: true }],
+  'workspace-tab-prev':    [{ key: '[', ctrl: true }],
   'sidebar-toggle':        [{ key: 'o', ctrl: true }],
   'history-search':        [{ key: 'r', ctrl: true }],
   'search':                [{ key: 'f', ctrl: true }],
@@ -188,7 +198,17 @@ export class KeybindingsManager {
       // Reset to defaults before applying overrides
       this.bindings = this.cloneDefaults();
 
-      for (const [action, combo] of Object.entries(parsed)) {
+      // Backward-compatibility aliases: map old panel-* action ids to workspace-* equivalents.
+      const ALIASES: Readonly<Record<string, KeyAction>> = {
+        'panel-picker': 'workspace-picker',
+        'panel-close': 'workspace-close',
+        'panel-close-all': 'workspace-close-all',
+        'panel-tab-next': 'workspace-tab-next',
+        'panel-tab-prev': 'workspace-tab-prev',
+      };
+
+      for (const [rawAction, combo] of Object.entries(parsed)) {
+        const action: string = Object.hasOwn(ALIASES, rawAction) ? ALIASES[rawAction as keyof typeof ALIASES] : rawAction;
         if (!validActions.has(action as KeyAction)) {
           logger.debug('keybindings: unknown action, skipping', { action });
           continue;

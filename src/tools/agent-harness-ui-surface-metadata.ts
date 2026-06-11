@@ -173,17 +173,17 @@ const UI_SURFACES: readonly UiSurfaceDefinition[] = [
   },
   {
     id: 'panel-picker',
-    label: 'Panel Picker',
+    label: 'Workspace Picker',
     kind: 'picker',
-    summary: 'Operator panel route into Agent Workspace home.',
+    summary: 'Operator route into the Agent Workspace home.',
     command: 'Ctrl+P',
     preferredModelRoute: 'Use mode:"workspace_actions" for concrete model operation, or mode:"open_ui_surface" for visible routing.',
-    available: (context) => typeof context.openPanelPicker === 'function' || typeof context.openAgentWorkspace === 'function',
+    available: (context) => typeof context.openWorkspacePicker === 'function' || typeof context.openAgentWorkspace === 'function',
     open: (context) => {
       const surface = findSurfaceById('panel-picker')!;
-      if (context.openPanelPicker) {
-        context.openPanelPicker();
-        return opened(surface, { categoryId: 'home', route: 'panel-picker' });
+      if (context.openWorkspacePicker) {
+        context.openWorkspacePicker();
+        return opened(surface, { categoryId: 'home', route: 'workspace-picker' });
       }
       return openAgentWorkspaceCategory(context, surface, 'home');
     },

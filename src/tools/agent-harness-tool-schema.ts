@@ -43,7 +43,7 @@ const KEY_COMBO_PARAMETER_SCHEMA = {
 } as const;
 
 export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
-  // The full mode catalog (115 modes) is intentionally NOT inlined as an enum:
+  // The full mode catalog is intentionally NOT inlined as an enum:
   // it would bloat every model prompt. Dispatch still validates against
   // AGENT_HARNESS_MODES and unknown modes return suggestions.
   mode: {

@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
+import { createAgentWorkspaceTool } from '../../tools/agent-workspace-tool.ts';
 
 const ROOT = join(import.meta.dir, '../../..');
 
@@ -111,5 +112,46 @@ describe('Agent user-first product docs', () => {
     const documentedRoots = collectCatalogCommandRoots(readRepoFile('docs/tools-and-commands.md'));
 
     expect(documentedRoots).toEqual(canonicalRoots);
+  });
+
+  test('docs workspace action tokens only reference real workspace tool actions', () => {
+    // Extract the accepted action enum from the live workspace tool definition.
+    // createAgentWorkspaceTool requires deps but we only need the definition, so we
+    // cast to satisfy the minimal shape — execute is never called here.
+    const tool = createAgentWorkspaceTool({
+      commandRegistry: new CommandRegistry(),
+      commandContext: {} as never,
+    });
+    const actionEnum = (tool.definition.parameters as {
+      properties: { action: { enum: string[] } };
+    }).properties.action.enum;
+    const realActions = new Set(actionEnum);
+
+    // Collect every `workspace action:"..."` token list from checked-in docs.
+    const docFiles = [
+      'README.md',
+      'docs/getting-started.md',
+      'docs/tools-and-commands.md',
+    ] as const;
+
+    // Matches:  workspace action:"foo|bar|baz"  or  workspace action:"foo"
+    const tokenPattern = /workspace action:"([^"]+)"/g;
+
+    const ghost: string[] = [];
+    for (const docFile of docFiles) {
+      const content = readRepoFile(docFile);
+      tokenPattern.lastIndex = 0;
+      for (let m = tokenPattern.exec(content); m !== null; m = tokenPattern.exec(content)) {
+        const tokens = (m[1] ?? '').split('|');
+        for (const token of tokens) {
+          const t = token.trim();
+          if (t && !realActions.has(t)) {
+            ghost.push(`${docFile}: "${t}" is not a valid workspace action`);
+          }
+        }
+      }
+    }
+
+    expect(ghost).toEqual([]);
   });
 });

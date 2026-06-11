@@ -158,6 +158,34 @@ describe('shell surface', () => {
     expect(lineToString(unfocused.lines[1])).not.toContain('█');
   });
 
+  test('narrow terminal (width<=60) with long model id + provider + active alert produces no line exceeding the width', () => {
+    const WIDTH = 60;
+    const result = buildShellFooter({
+      width: WIDTH,
+      promptText: 'hello',
+      promptLineCount: 1,
+      usage: { up: 0, down: 0 },
+      showExitNotice: false,
+      lastCopyTime: 0,
+      model: 'claude-opus-4-5-20251101-thinking-extended',
+      toolCount: 3,
+      workingDir: '/home/user/some/very/long/working/directory/path',
+      provider: 'anthropic',
+      contextWindow: 200000,
+      lastInputTokens: 5000,
+      runningAgentCount: 1,
+      runningProcessCount: 0,
+      indicatorFocused: false,
+      composerMode: 'shell',
+      composerStatus: 'preflight',
+      composerFlags: ['approval'],
+      composerPendingRisk: 'approval-wait',
+    });
+    for (const line of result.lines) {
+      expect(line.length).toBeLessThanOrEqual(WIDTH);
+    }
+  });
+
   test('prompt box borders match the inactive prompt fill when the indicator is focused', () => {
     const result = buildShellFooter({
       width: 80,

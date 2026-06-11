@@ -80,7 +80,7 @@ Discovery modes:
 | `route action:"plan"` plus lower-level `route_decision` | User-task route planning across Agent setup, Personal Ops, research runner/report workflows, autonomy, execution, delegation, computer/browser/PWA, workspace, host, device/voice/TTS, channel, security, support bundles, saved sessions/bookmarks, release/audit evidence, Local Context, external memory-provider setup, and Knowledge surfaces. |
 | `workspace action:"status|actions|action"` plus lower-level `workspace`, `workspace_categories`, `workspace_actions` | Workspace categories and actions. |
 | `workspace action:"commands|command|cli_commands|cli_command"` plus lower-level `commands`, `cli_commands` | Slash commands and top-level package CLI mirrors with compact policy and route hints. |
-| `workspace action:"panels|panel|surfaces|surface"` plus lower-level `panels`, `ui_surfaces` | Built-in panels and visible modal/overlay/picker/workspace surfaces. |
+| `workspace action:"surfaces|surface"` plus lower-level `ui_surfaces` | Visible modal/overlay/picker/workspace surfaces. |
 | `workspace action:"shortcuts|keybindings|keybinding"` plus lower-level `shortcuts`, `keybindings` | Fixed shortcuts and configurable keybindings with direct route/access metadata. |
 | `settings` | Compact Agent setting rows with category, prefix, query, hidden, and limit filters. |
 | `tools` | First-class model tool definitions with compact harness inspection routes; schema details require `includeParameters:true` or `tool`. |
@@ -134,7 +134,7 @@ Effect modes:
 | `provision_connected_host_token` | Creates or repairs the local canonical connected-host token after confirmation without returning the raw token. |
 | `mark_setup_checkpoint`, `clear_setup_checkpoint` | Saves or clears the Agent-owned setup wizard resume checkpoint after confirmation. |
 | `run_setup_smoke` | Collects redacted first-run setup smoke evidence and can save user-run output as an artifact without implicit shell or host commands; `setup_posture` uses that evidence for setup closeout. |
-| `workspace action:"open_panel|open"` | Routes visible shell navigation. |
+| `workspace action:"open"` | Routes visible shell navigation. |
 | `workspace action:"run_keybinding"` | Runs supported shell-safe keybinding actions only. |
 | `workspace action:"set_keybinding|reset_keybinding"` | Writes the same Agent `keybindings.json` file exposed to the user. |
 | `set_setting`, `reset_setting` | Writes Agent settings through the config/secret managers. |
@@ -147,8 +147,6 @@ Registered model tool definitions are compact by default. Tool descriptions use 
 ## Workspace Action Execution
 
 `workspace action:"actions"` returns compact action rows with short `modelRoute` hints. `workspace action:"action"` inspection returns editor schemas and `modelExecution` detail. Lower-level `workspace_actions` can include the same detail with `includeParameters:true`.
-
-`workspace action:"panels"` returns compact built-in panel rows with workspace route metadata and a short `modelRoute` for visible navigation or matching workspace operation. `workspace action:"panel"` inspection adds policy detail and current open/focus state.
 
 Use `computer action:"browser"` for the connected browser cockpit/PWA readiness summary and `computer action:"open_browser" confirm:true explicitUserRequest:"..."` for the visible browser handoff. Use `computer action:"plan" query:"take a screenshot"` to choose the safest browser navigation, screenshot/observation, or desktop-control workflow before invoking any live-control tool; it returns setup/review/fallback routes plus exact tool or MCP-server inspection routes when configured. Use `computer action:"control|setup|mcp"` for browser/desktop control posture, repair routes, and trusted tool/server discovery. `workspace action:"surfaces|surface|open"` is the normal visible UI route; lower-level `browser_control_route`, `ui_surfaces`, and `ui_surface` remain detailed compatibility routes. The connected browser cockpit/PWA is `surfaceId:"connected-browser-cockpit"`; it resolves the configured connected-host web URL, opens only through confirmed `computer action:"open_browser"` or `workspace action:"open"`, returns service/web setup routes when disabled, and reports workspace category coverage, mobile/PWA controls, Agent onboarding marker status, and browser/PWA first-run evidence. Certified SDK/daemon browser/PWA category-route read models can make every Agent workspace category `browser-native-ready` only when they include schema/version/publication/publisher/provenance/freshness-cursor/receipt metadata, exact inspect/open routes, and mobile/touch evidence. Certified browser/PWA first-run receipts add manifest, service-worker, install, and offline evidence with redacted URLs and summaries. Start/setup readiness still consumes the receipt from saved durable artifacts or live SDK/daemon setup read models when published, and keeps the receipt gap visible when neither source is present.
 

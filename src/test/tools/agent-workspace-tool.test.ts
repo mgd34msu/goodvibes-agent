@@ -45,15 +45,13 @@ describe('workspace adapter', () => {
     ]);
   });
 
-  test('routes visible UI, panels, shortcuts, and keybinding effects', async () => {
+  test('routes visible UI surfaces, shortcuts, and keybinding effects; removed panel actions return an error', async () => {
     const calls: Record<string, unknown>[] = [];
     const tool = makeTool(calls);
 
     await tool.execute({ action: 'surfaces', query: 'workspace' });
     await tool.execute({ surfaceId: 'agent-workspace', includeParameters: true });
     await tool.execute({ action: 'open', surfaceId: 'agent-workspace', target: 'documents', confirm: true, explicitUserRequest: 'Open Documents.' });
-    await tool.execute({ action: 'panels' });
-    await tool.execute({ action: 'open_panel', panelId: 'tools', pane: 'bottom', confirm: true, explicitUserRequest: 'Open tools panel.' });
     await tool.execute({ action: 'shortcuts' });
     await tool.execute({ action: 'keybinding', actionId: 'screen-clear' });
     await tool.execute({ action: 'set_keybinding', actionId: 'screen-clear', value: 'Ctrl+L', confirm: true, explicitUserRequest: 'Bind clear screen.' });
@@ -62,12 +60,37 @@ describe('workspace adapter', () => {
       { mode: 'ui_surfaces', query: 'workspace' },
       { mode: 'ui_surface', surfaceId: 'agent-workspace', includeParameters: true },
       { mode: 'open_ui_surface', surfaceId: 'agent-workspace', target: 'documents', confirm: true, explicitUserRequest: 'Open Documents.' },
-      { mode: 'panels' },
-      { mode: 'open_panel', panelId: 'tools', pane: 'bottom', confirm: true, explicitUserRequest: 'Open tools panel.' },
       { mode: 'shortcuts' },
       { mode: 'keybinding', actionId: 'screen-clear' },
       { mode: 'set_keybinding', actionId: 'screen-clear', value: 'Ctrl+L', confirm: true, explicitUserRequest: 'Bind clear screen.' },
     ]);
+  });
+
+  test('removed panel actions (panels, panel, open_panel) are absent from the enum and fall through safely', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const tool = makeTool(calls);
+
+    // These inputs are no longer advertised; if passed they fall through to safe defaults (no crash).
+    const panelsResult = await tool.execute({ action: 'panels' }) as { success: boolean };
+    const panelResult = await tool.execute({ action: 'panel' }) as { success: boolean };
+    const openPanelResult = await tool.execute({ action: 'open_panel' }) as { success: boolean };
+
+    // All three fall through gracefully — no thrown exception
+    expect(panelsResult.success).toBe(true);
+    expect(panelResult.success).toBe(true);
+    expect(openPanelResult.success).toBe(true);
+
+    // The enum no longer carries the removed actions — model cannot discover or invoke them
+    const toolDef = tool.definition;
+    const actionEnum = (toolDef.parameters as { properties: { action: { enum: string[] } } }).properties.action.enum;
+    expect(actionEnum).not.toContain('panels');
+    expect(actionEnum).not.toContain('panel');
+    expect(actionEnum).not.toContain('open_panel');
+
+    // panelId and pane are no longer advertised in the schema properties
+    const props = (toolDef.parameters as { properties: Record<string, unknown> }).properties;
+    expect(props).not.toHaveProperty('panelId');
+    expect(props).not.toHaveProperty('pane');
   });
 
   test('routes slash and CLI command discovery separately from confirmed command execution', async () => {

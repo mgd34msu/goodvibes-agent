@@ -81,14 +81,14 @@ export function handleGlobalShortcutToken(
       state.commandContext?.clearScreen?.();
       return true;
 
-    case 'panel-close-all':
-    case 'panel-close':
+    case 'workspace-close-all':
+    case 'workspace-close':
       state.dismissAgentWorkspace();
       state.requestRender();
       return true;
 
-    case 'panel-picker':
-      state.commandContext?.openPanelPicker?.();
+    case 'workspace-picker':
+      state.commandContext?.openWorkspacePicker?.();
       state.requestRender();
       return true;
 
@@ -97,11 +97,11 @@ export function handleGlobalShortcutToken(
       state.requestRender();
       return true;
 
-    case 'panel-tab-next':
+    case 'workspace-tab-next':
       state.cycleAgentWorkspaceCategory('next');
       return true;
 
-    case 'panel-tab-prev':
+    case 'workspace-tab-prev':
       state.cycleAgentWorkspaceCategory('prev');
       return true;
 

@@ -385,7 +385,7 @@ function describeRecord(
       modelAccess: {
         inspectHistory: 'execution action:"history"',
         inspectRecord: routeForRecord(record),
-        toolInspector: 'workspace action:"open_panel" panelId:"tools" confirm:true explicitUserRequest:"..."',
+        toolInspector: 'execution action:"status"',
         fileRecovery: 'execution action:"recovery"',
       },
     } : {}),

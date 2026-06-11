@@ -317,30 +317,30 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         confirmation: 'Direct user interaction only.',
         note: 'Shows or hides the activity sidebar. Layout preferences stay under user control.',
       };
-    case 'panel-picker':
+    case 'workspace-picker':
       return {
         supported: true,
         effect: 'visible-ui-navigation',
         preferredMode: 'run_keybinding',
         surfaceId: 'agent-workspace',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Opens the same Agent workspace home route as the panel-picker shortcut.',
+        note: 'Opens the Agent workspace home.',
       };
-    case 'panel-close':
+    case 'workspace-close':
       return {
         supported: true,
         effect: 'visible-ui-navigation',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Dismisses Agent workspace first. If it is not active, closes the active panel and focuses the prompt when focus is available.',
+        note: 'Dismisses the Agent workspace.',
       };
-    case 'panel-close-all':
+    case 'workspace-close-all':
       return {
         supported: true,
         effect: 'visible-ui-navigation',
         preferredMode: 'run_keybinding',
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
-        note: 'Dismisses Agent workspace first. If it is not active, closes open panels and focuses the prompt when focus is available.',
+        note: 'Dismisses the Agent workspace (alias chord: Ctrl+Shift+X has the same effect as Ctrl+X).',
       };
     case 'history-search':
       return {
@@ -380,8 +380,8 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
         confirmation: 'agent_harness mode:"run_keybinding" requires confirm:true and explicitUserRequest.',
         note: 'Opens the visible nearest-block actions surface. The exact block action remains an interactive visible-shell selection because it depends on cursor/scroll position.',
       };
-    case 'panel-tab-next':
-    case 'panel-tab-prev':
+    case 'workspace-tab-next':
+    case 'workspace-tab-prev':
       return {
         supported: false,
         effect: 'visible-ui-navigation',
@@ -565,17 +565,17 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
       if (!context.clearScreen) return runUnavailable(resolved.action, route, 'Clear-screen route is unavailable.');
       context.clearScreen();
       return { status: 'executed', action: resolved.action, effect: 'screen-clear', keybinding: descriptor };
-    case 'panel-picker':
-      if (context.openPanelPicker) {
-        context.openPanelPicker();
-        return { status: 'executed', action: resolved.action, effect: 'agent-workspace-opened', route: 'openPanelPicker', keybinding: descriptor };
+    case 'workspace-picker':
+      if (context.openWorkspacePicker) {
+        context.openWorkspacePicker();
+        return { status: 'executed', action: resolved.action, effect: 'agent-workspace-opened', route: 'openWorkspacePicker', keybinding: descriptor };
       }
       if (context.openAgentWorkspace) {
         context.openAgentWorkspace('home');
         return { status: 'executed', action: resolved.action, effect: 'agent-workspace-opened', route: 'openAgentWorkspace', categoryId: 'home', keybinding: descriptor };
       }
-      return runUnavailable(resolved.action, route, 'No panel picker or Agent workspace route is available.');
-    case 'panel-close': {
+      return runUnavailable(resolved.action, route, 'No workspace picker or Agent workspace route is available.');
+    case 'workspace-close': {
       const dismissedAgentWorkspace = context.dismissAgentWorkspace?.() ?? false;
       if (dismissedAgentWorkspace) {
         return {
@@ -596,7 +596,7 @@ export function runHarnessKeybinding(context: CommandContext, args: HarnessKeybi
         keybinding: descriptor,
       };
     }
-    case 'panel-close-all': {
+    case 'workspace-close-all': {
       const dismissedAgentWorkspace = context.dismissAgentWorkspace?.() ?? false;
       if (dismissedAgentWorkspace) {
         return {

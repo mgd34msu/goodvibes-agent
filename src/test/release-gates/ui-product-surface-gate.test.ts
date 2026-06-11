@@ -40,7 +40,7 @@ function modelCatalogContext(): CommandContext {
     openSessionPicker: noop,
     openProfilePicker: noop,
     openShortcutsOverlay: noop,
-    openPanelPicker: noop,
+    openWorkspacePicker: noop,
     showPanel: noop,
     openMcpWorkspace: noop,
     openAgentWorkspace: noop,
@@ -137,7 +137,7 @@ describe('UI product surface gate', () => {
       render: () => {},
     });
 
-    (commandContext as { openPanelPicker?: () => void }).openPanelPicker?.();
+    (commandContext as { openWorkspacePicker?: () => void }).openWorkspacePicker?.();
     expect(openedWorkspaceCategory).toBe('home');
   });
 

@@ -123,7 +123,7 @@ export interface CommandShellUiOpeners {
   openProfilePicker?: () => void;
   openShortcutsOverlay?: () => void;
   getScrollTop?: () => number;
-  openPanelPicker?: () => void;
+  openWorkspacePicker?: () => void;
   focusPrompt?: () => void;
   openMcpWorkspace?: () => void;
   openAgentWorkspace?: (categoryId?: string) => void;
@@ -241,9 +241,10 @@ export interface SlashCommand {
   /** Short inline argument hint shown after cursor in dim grey, e.g. "[name]". Falls back to usage if not set. */
   argsHint?: string;
   /**
-   * Hidden commands still run when typed, but stay out of autocomplete
-   * suggestions and /help listings. They surface in autocomplete only on an
-   * exact name or alias match, and /commands still lists everything.
+   * Hidden commands still run when typed, but stay out of fuzzy autocomplete
+   * suggestions. They surface in autocomplete on an exact name or alias match.
+   * The /help overlay also filters them. The /commands slash command lists
+   * all commands including hidden ones, labeled "(hidden)".
    */
   hidden?: boolean;
   /** The function executed when the command is invoked. */

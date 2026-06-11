@@ -761,14 +761,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // The SDK's foundation/integration contracts still expect a panel manager;
   // the Agent shell has no panel UI (the Activity sidebar replaced it), so we
   // satisfy those contracts with a no-op implementation.
-  const emptyPane = { panels: [], activeIndex: 0 } as const;
-  const panelManager = {
-    getTopPane: () => emptyPane,
-    getBottomPane: () => emptyPane,
-    getRegisteredTypes: () => [],
-    open: () => undefined,
-    show: () => {},
-  };
+  const NOOP_PANEL_MANAGER = (() => {
+    const emptyPane = { panels: [], activeIndex: 0 } as const;
+    return {
+      getTopPane: () => emptyPane,
+      getBottomPane: () => emptyPane,
+      getRegisteredTypes: () => [],
+      open: () => undefined,
+      show: () => {},
+    };
+  })();
+  const panelManager = NOOP_PANEL_MANAGER;
   const integrationHelpers = new IntegrationHelperService({
     workingDirectory,
     homeDirectory,
