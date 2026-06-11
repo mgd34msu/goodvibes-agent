@@ -340,6 +340,9 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
         if (serverName || requestedMode) {
           ctx.print(`Usage: ${MCP_TRUST_COMMAND_USAGE}\nUse /settings -> MCP to explicitly enable allow-all.`);
           return;
+        } else {
+          ctx.print(`Usage: ${MCP_TRUST_COMMAND_USAGE}\nUse /settings -> MCP to explicitly enable allow-all.`);
+          return;
         }
       }
 
@@ -361,6 +364,9 @@ export function registerMcpRuntimeCommands(registry: CommandRegistry): void {
           return;
         }
         if (serverName || requestedRole) {
+          ctx.print(`Usage: ${MCP_ROLE_COMMAND_USAGE}`);
+          return;
+        } else {
           ctx.print(`Usage: ${MCP_ROLE_COMMAND_USAGE}`);
           return;
         }

@@ -705,10 +705,6 @@ export class InputHandler {
     return true;
   }
 
-  /**
-   * Word-wrap a single line to fit within maxW columns.
-   * Breaks at spaces; words wider than maxW are force-broken.
-   */
   public cycleAgentWorkspaceCategory(direction: 'next' | 'prev'): void {
     const context = this.commandContext;
     if (!this.agentWorkspace.active) {
@@ -727,6 +723,10 @@ export class InputHandler {
     this.requestRender();
   }
 
+  /**
+   * Word-wrap a single line to fit within maxW columns.
+   * Breaks at spaces; words wider than maxW are force-broken.
+   */
   public wordWrapLine(line: string, maxW: number): string[] {
     return wordWrapLine(line, maxW);
   }

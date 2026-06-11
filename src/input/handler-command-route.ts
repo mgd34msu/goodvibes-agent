@@ -1,4 +1,5 @@
 import { loadSkillByTrigger } from '@pellux/goodvibes-sdk/platform/tools';
+import { summarizeCommandError } from './commands/command-error.ts';
 import type { CommandContext, CommandRegistry } from './command-registry.ts';
 import type { AutocompleteEngine } from './autocomplete.ts';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
@@ -107,6 +108,10 @@ export function handleCommandModeToken(state: CommandModeRouteState, token: Inpu
             state.requestRender();
           }
         }
+      }).catch((error: unknown) => {
+        const message = summarizeCommandError(error);
+        state.conversationManager?.log(message, { fg: '#ef4444' });
+        state.requestRender();
       });
     } else {
       closeCommandMode();

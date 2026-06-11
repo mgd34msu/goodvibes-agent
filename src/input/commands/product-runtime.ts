@@ -123,7 +123,11 @@ export function registerProductRuntimeCommands(registry: CommandRegistry): void 
           return;
         }
         if (mode === 'inspect') {
-          ctx.print(inspectTrustBundle(shellPaths.resolveWorkspacePath(pathArg!)));
+          try {
+            ctx.print(inspectTrustBundle(shellPaths.resolveWorkspacePath(pathArg!)));
+          } catch (error) {
+            ctx.print(`Could not read that bundle file: ${error instanceof Error ? error.message : String(error)}`);
+          }
           return;
         }
       }

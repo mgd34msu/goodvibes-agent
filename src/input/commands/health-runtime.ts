@@ -52,6 +52,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
     usage: '[review|setup|host|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
+      try {
 
       if (sub === 'open' || sub === 'panel') {
         ctx.print('Open Agent Workspace -> Home -> Review health for the workspace view, or run /health review for the compact command output.');
@@ -372,6 +373,9 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         '  /health repair <domain>',
         '  /setup',
       ].join('\n'));
+      } catch (error) {
+        ctx.print(`Health command failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     },
   });
 }

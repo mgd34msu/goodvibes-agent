@@ -172,6 +172,7 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
       const providerName = commandArgs[0];
       const requestedModel = commandArgs[1];
       const providerApi = requireProviderApi(ctx);
+      try {
       const selectable = await providerApi.listModels({
         providerId: providerName,
         selectableOnly: true,
@@ -184,7 +185,6 @@ export function registerLocalProviderRuntimeCommands(registry: CommandRegistry):
         ].join('\n'));
         return;
       }
-      try {
         const registryKey = requestedModel
           ? requestedModel.includes(':') ? requestedModel : `${providerName}:${requestedModel}`
           : match.registryKey;

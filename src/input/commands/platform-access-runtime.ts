@@ -60,11 +60,17 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
       const serviceRegistry = requireServiceRegistry(ctx);
       const secretsManager = requireSecretsManager(ctx);
       if (sub === 'review') {
-        const snapshot = await buildAuthInspectionSnapshot({
-          serviceRegistry,
-          subscriptionManager: subscriptions,
-          secretsManager,
-        });
+        let snapshot;
+        try {
+          snapshot = await buildAuthInspectionSnapshot({
+            serviceRegistry,
+            subscriptionManager: subscriptions,
+            secretsManager,
+          });
+        } catch (error) {
+          ctx.print(`Could not build auth review: ${error instanceof Error ? error.message : String(error)}`);
+          return;
+        }
         const builtinProviders = listBuiltinSubscriptionProviders().map((entry) => entry.provider);
         ctx.print([
           'Auth Review',
@@ -84,11 +90,17 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           ctx.print('Usage: /auth show <provider>');
           return;
         }
-        const inspection = await inspectProviderAuth(provider, {
-          serviceRegistry,
-          subscriptionManager: subscriptions,
-          secretsManager,
-        });
+        let inspection;
+        try {
+          inspection = await inspectProviderAuth(provider, {
+            serviceRegistry,
+            subscriptionManager: subscriptions,
+            secretsManager,
+          });
+        } catch (error) {
+          ctx.print(`Could not inspect auth for ${provider}: ${error instanceof Error ? error.message : String(error)}`);
+          return;
+        }
         ctx.print([
           `Auth Provider ${provider}`,
           `  configured ${inspection.configured ? 'yes' : 'no'}`,
@@ -113,11 +125,17 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           ctx.print('Usage: /auth repair <provider>');
           return;
         }
-        const inspection = await inspectProviderAuth(provider, {
-          serviceRegistry,
-          subscriptionManager: subscriptions,
-          secretsManager,
-        });
+        let inspection;
+        try {
+          inspection = await inspectProviderAuth(provider, {
+            serviceRegistry,
+            subscriptionManager: subscriptions,
+            secretsManager,
+          });
+        } catch (error) {
+          ctx.print(`Could not inspect auth for repair of ${provider}: ${error instanceof Error ? error.message : String(error)}`);
+          return;
+        }
         ctx.print([
           `Auth Repair ${provider}`,
           `  configured ${inspection.configured ? 'yes' : 'no'}`,
@@ -159,8 +177,12 @@ export function registerPlatformAccessRuntimeCommands(registry: CommandRegistry)
           return;
         }
         if (mode === 'inspect') {
-          const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as AuthReviewBundle;
-          ctx.print(inspectAuthBundle(bundle));
+          try {
+            const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as AuthReviewBundle;
+            ctx.print(inspectAuthBundle(bundle));
+          } catch (error) {
+            ctx.print(`Could not read that bundle file: ${error instanceof Error ? error.message : String(error)}`);
+          }
           return;
         }
       }

@@ -47,7 +47,13 @@ export function registerSupportBundleRuntimeCommands(registry: CommandRegistry):
         workingDirectory: shellPaths.workingDirectory,
         homeDirectory: shellPaths.homeDirectory,
       };
-      const result = await handleBundleCommand(runtime);
+      let result;
+      try {
+        result = await handleBundleCommand(runtime);
+      } catch (error) {
+        ctx.print(`Could not complete bundle operation: ${error instanceof Error ? error.message : String(error)}`);
+        return;
+      }
       ctx.print(result.output);
     },
   });

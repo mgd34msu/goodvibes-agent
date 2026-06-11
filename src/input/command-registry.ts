@@ -321,7 +321,7 @@ export class CommandRegistry {
 
       // Hidden commands stay out of suggestions until the user types the
       // exact name or alias — they still execute normally.
-      if (cmd.hidden && !names.includes(q)) continue;
+      if (cmd.hidden && !names.map((n) => n.toLowerCase()).includes(q)) continue;
 
       if (bestScore > 0 || q === '') {
         results.push({ command: cmd, score: q === '' ? 1 : bestScore });

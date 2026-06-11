@@ -93,12 +93,10 @@ function buildDelegationBody(input: DelegationCommandInput): string {
 }
 
 export function registerDelegationRuntimeCommands(registry: CommandRegistry): void {
-  const makeHandler = (defaultReview: boolean) => async (args: string[], ctx: CommandContext): Promise<void> => {
-    const input = parseDelegationArgs(args, defaultReview);
+  const makeHandler = () => async (args: string[], ctx: CommandContext): Promise<void> => {
+    const input = parseDelegationArgs(args, false);
     if (!input.task) {
-      ctx.print(defaultReview
-        ? 'Usage: /delegate --review [--reason <why>] [--success <evidence>] [--workspace <hint>] [--priority <priority>] <build/fix/review task>'
-        : 'Usage: /delegate [--review] [--reason <why>] [--success <evidence>] [--workspace <hint>] [--priority <priority>] <build/fix/review task>');
+      ctx.print('Usage: /delegate [--review] [--reason <why>] [--success <evidence>] [--workspace <hint>] [--priority <priority>] <build/fix/review task>');
       return;
     }
     const operator = ctx.clients?.operator;
@@ -186,6 +184,6 @@ export function registerDelegationRuntimeCommands(registry: CommandRegistry): vo
     hidden: true,
     usage: '[--review] [--reason <why>] [--success <evidence>] [--workspace <hint>] [--priority <priority>] <task>',
     argsHint: '[--review] [--reason <why>] [--success <evidence>] [--workspace <hint>] [--priority <priority>] <task>',
-    handler: makeHandler(false),
+    handler: makeHandler(),
   });
 }

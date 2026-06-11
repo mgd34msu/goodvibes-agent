@@ -129,7 +129,7 @@ export const DEFAULT_KEYBINDINGS: Record<KeyAction, KeyCombo[]> = {
   'undo':                  [{ key: 'z', ctrl: true }],
   'redo':                  [{ key: 'z', ctrl: true, shift: true }],
   'paste':                 [{ key: 'v', ctrl: true }],
-  'replay-panel':          [{ key: 'r', ctrl: true, shift: true }],
+  'replay-panel':          [],  // intentionally unbound until replay-panel is implemented
 };
 
 /** Resolved overrides type: each key can be a single combo or array. */

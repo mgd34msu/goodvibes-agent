@@ -330,7 +330,6 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
         if (ctx.openSelection) {
           const descriptions: Record<string, string> = {
             ...EFFORT_DESCRIPTIONS,
-            medium: 'Balanced speed and quality (default)',
           };
           const items: SelectionItem[] = validLevels.map((level) => ({
             id: level,

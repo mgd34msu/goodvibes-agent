@@ -113,11 +113,17 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
           ctx.print(`No stored or available subscription provider named ${provider}.`);
           return;
         }
-        const inspection = await inspectProviderAuth(provider, {
-          serviceRegistry: services,
-          subscriptionManager: manager,
-          secretsManager: requireSecretsManager(ctx),
-        });
+        let inspection;
+        try {
+          inspection = await inspectProviderAuth(provider, {
+            serviceRegistry: services,
+            subscriptionManager: manager,
+            secretsManager: requireSecretsManager(ctx),
+          });
+        } catch (error) {
+          ctx.print(`Could not inspect provider auth for ${provider}: ${error instanceof Error ? error.message : String(error)}`);
+          return;
+        }
         ctx.print([
           `Subscription ${provider}`,
           `  configured ${inspection.configured ? 'yes' : 'no'}`,
@@ -229,7 +235,13 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
               ctx.print(`No pending OAuth login for ${provider}. Start with /subscription login ${provider} start --yes.`);
               return;
             }
-            const token = await exchangeOpenAICodexCode(code, pending.verifier);
+            let token;
+            try {
+              token = await exchangeOpenAICodexCode(code, pending.verifier);
+            } catch (error) {
+              ctx.print(`Could not exchange authorization code for ${provider}: ${error instanceof Error ? error.message : String(error)}`);
+              return;
+            }
             const now = Date.now();
             const record = manager.saveSubscription({
               provider,
@@ -252,7 +264,13 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
             return;
           }
           const activeConfig = resolveManualLoginConfig(resolved.oauth);
-          const record = await manager.completeOAuthLogin(provider, activeConfig, code);
+          let record;
+          try {
+            record = await manager.completeOAuthLogin(provider, activeConfig, code);
+          } catch (error) {
+            ctx.print(`Could not complete OAuth login for ${provider}: ${error instanceof Error ? error.message : String(error)}`);
+            return;
+          }
           ctx.print([
             `Stored subscription session for ${provider}.`,
             `  token type ${record.tokenType}`,
@@ -303,17 +321,22 @@ export function registerSubscriptionRuntimeCommands(registry: CommandRegistry): 
           mkdirSync(dirname(targetPath), { recursive: true });
           writeFileSync(targetPath, `${JSON.stringify(bundle, null, 2)}\n`, 'utf-8');
           ctx.print(`Subscription bundle exported to ${targetPath}`);
+          ctx.print('This file contains active sign-in tokens. Keep it private and delete it after use.');
           return;
         }
         if (mode === 'inspect') {
-          ctx.print(inspectBundle(targetPath));
+          try {
+            ctx.print(inspectBundle(targetPath));
+          } catch (error) {
+            ctx.print(`Could not read that bundle file: ${error instanceof Error ? error.message : String(error)}`);
+          }
           return;
         }
         ctx.print('Usage: /subscription bundle <export|inspect> <path>');
         return;
       }
 
-      ctx.print('Usage: /subscription [review|list|providers|inspect <provider>|login <provider> start [--no-browser] [--manual] --yes|login <provider> finish <code-or-url> --yes|logout <provider> --yes|bundle export <path> --yes|bundle inspect <path>]');
+      ctx.print('Usage: /subscription [review|list|providers|inspect <provider>|login <provider> start [--no-browser] --yes|login <provider> finish <code-or-url> --yes|logout <provider> --yes|bundle export <path> --yes|bundle inspect <path>]');
     },
   });
 }

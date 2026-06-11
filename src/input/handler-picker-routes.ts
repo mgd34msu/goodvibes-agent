@@ -185,7 +185,7 @@ export function handleModelPickerToken(state: ModelPickerRouteState, token: Inpu
       if (ch === ' ' && state.modelPicker.mode === 'model') {
         const selected = state.modelPicker.getSelected();
         if (selected && state.modelPicker.isLocalModel(selected)) state.modelPicker.enterContextCapMode(selected);
-        else if (ch.length === 1 && ch >= ' ') state.modelPicker.appendChar(ch);
+        else state.modelPicker.appendChar(ch);
       } else if (ch.length === 1 && ch >= ' ') {
         state.modelPicker.appendChar(ch);
       }

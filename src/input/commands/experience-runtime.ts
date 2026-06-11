@@ -1,5 +1,5 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
@@ -75,6 +75,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
     description: 'Review voice posture and package portable voice interaction metadata',
     usage: '[review|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
+      try {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
@@ -127,12 +128,23 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           return;
         }
         if (mode === 'inspect') {
-          const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as VoiceBundle;
-          ctx.print(inspectVoiceBundle(bundle));
+          if (!existsSync(targetPath)) {
+            ctx.print(`File not found: ${targetPath}`);
+            return;
+          }
+          try {
+            const bundle = JSON.parse(readFileSync(targetPath, 'utf-8')) as VoiceBundle;
+            ctx.print(inspectVoiceBundle(bundle));
+          } catch {
+            ctx.print('could not read voice bundle');
+          }
           return;
         }
       }
       ctx.print('Usage: /voice [review|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]');
+      } catch (error) {
+        ctx.print(`voice command failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     },
   });
 }

@@ -73,10 +73,6 @@ export function handleGlobalShortcutToken(
       state.handleCopy();
       return true;
 
-    case 'clear-cancel':
-      state.handleCtrlC();
-      return true;
-
     case 'screen-clear':
       state.commandContext?.clearScreen?.();
       return true;

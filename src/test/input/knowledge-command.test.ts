@@ -699,6 +699,27 @@ describe('knowledgeCommand', () => {
     expect(output).toContain('/api/goodvibes-agent/knowledge/*');
   });
 
+  test('ingest-url with rejecting API prints [knowledge] prefixed error', async () => {
+    const context = {
+      ...makeKnowledgeAskCommandContext(printed, {}),
+      clients: {
+        agentKnowledgeApi: {
+          ingest: {
+            url: async () => {
+              throw new Error('service unavailable');
+            },
+          },
+        },
+      },
+    } as unknown as CommandContext;
+
+    await knowledgeCommand.handler(['ingest-url', 'https://example.test/doc', '--yes'], context);
+
+    const output = printed.join('\n');
+    expect(output).toContain('[knowledge]');
+    expect(output).toContain('service unavailable');
+  });
+
   test('refuses Agent Knowledge maintenance mutations without --yes', async () => {
     let reindexed = false;
     let ranJob = false;

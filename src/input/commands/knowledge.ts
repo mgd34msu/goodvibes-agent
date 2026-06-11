@@ -202,7 +202,7 @@ export const knowledgeCommand: SlashCommand = {
   description: 'Agent Knowledge: isolated Agent-owned status, ask/search, source/node/issue lists, item lookup, map, connectors, ingest, and review queue.',
   hidden: true,
   usage: '<subcommand> [args]',
-  argsHint: 'status|ask|search|list|get|map|connectors|connector|connector-doctor|ingest-url --yes|ingest-file --yes|ingest-artifact --yes|import-urls --yes|import-bookmarks --yes|import-browser-history --yes|ingest-connector --yes|review-issue --yes|reindex --yes',
+  argsHint: 'status|ask|search|list|get|map|connectors|ingest-url --yes|ingest-file --yes|ingest-artifact --yes|import-urls --yes|import-bookmarks --yes|import-browser-history --yes|ingest-connector --yes|review-issue --yes|reindex --yes',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     if (args.length === 0 && context.openAgentWorkspace) {
       context.openAgentWorkspace('knowledge');
@@ -221,6 +221,7 @@ export const knowledgeCommand: SlashCommand = {
       return;
     }
 
+    try {
     switch (sub) {
       case 'ask': {
         const ask = requireAgentKnowledgeAsk(context);
@@ -792,6 +793,9 @@ export const knowledgeCommand: SlashCommand = {
           '  reindex --yes',
           '  consolidate [light|deep] --yes',
         ].join('\n'));
+    }
+    } catch (error) {
+      context.print(`[knowledge] ${error instanceof Error ? error.message : String(error)}`);
     }
   },
 };

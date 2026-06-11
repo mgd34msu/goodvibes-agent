@@ -125,6 +125,19 @@ export type ModalOpenOps = {
   openCommandMode: () => void;
 };
 
+/**
+ * Reopen the modal that was previously on top of the stack after it has been
+ * popped (so the one beneath it can resurface).
+ *
+ * INVARIANT: modals omitted from this switch are intentionally absent because
+ * they remain `.active` as underlays when something stacks above them — they
+ * never close themselves on stack push, so they need no explicit reopen.
+ * Only the self-closing set (help, shortcuts, bookmark, process,
+ * contextInspector, mcpWorkspace, agentWorkspace, command) is handled here.
+ *
+ * NOTE: any future modal that closes itself on overlay push MUST be added to
+ * this switch, or it will silently fail to reopen when the stack unwinds.
+ */
 export function reopenModalByName(name: string, ops: ModalOpenOps): void {
   switch (name) {
     case 'help':

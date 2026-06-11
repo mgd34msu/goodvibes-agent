@@ -245,7 +245,7 @@ export function registerAgentRuntimeProfileRuntimeCommands(registry: CommandRegi
             const templateId = commandArgs[2];
             const pathArg = commandArgs[3];
             if (!templateId || !pathArg) {
-            ctx.print('Usage: /agent-profile template export <id> <path> [--include-vibe] --yes');
+              ctx.print('Usage: /agent-profile template export <id> <path> [--include-vibe] --yes');
               return;
             }
             if (!parsed.yes) {

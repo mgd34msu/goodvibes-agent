@@ -1,4 +1,4 @@
-import { dirname, resolve } from 'path';
+import { dirname } from 'path';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import type { CommandRegistry, CommandContext } from '../command-registry.ts';
@@ -461,7 +461,7 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
       const favorites = await providerApi.getFavorites();
-      const pinned = favorites.pinned.find((entry) => entry.registryKey === modelId);
+      const pinned = favorites.pinned.find((entry) => entry.registryKey === modelId || entry.modelId === modelId);
       if (!pinned) {
         ctx.print(`Model is not pinned: ${modelId}`);
         return;

@@ -18,8 +18,24 @@ export function registerNotifyRuntimeCommands(registry: CommandRegistry): void {
       const sub = commandArgs[0];
 
       if (!sub || sub === 'list') {
+        const showFull = commandArgs.includes('--show') && parsed.yes;
         if (urls.length === 0) ctx.print('No webhook URLs configured.\nUse /notify add <url>');
-        else ctx.print(`Webhook URLs (${urls.length})\n${urls.map((u, i) => `  ${i + 1}. ${u}`).join('\n')}`);
+        else {
+          const display = urls.map((u, i) => {
+            if (showFull) return `  ${i + 1}. ${u}`;
+            try {
+              const parsedUrl = new URL(u);
+              const origin = parsedUrl.origin;
+              const truncPath = parsedUrl.pathname.length > 12
+                ? `${parsedUrl.pathname.slice(0, 12)}…`
+                : parsedUrl.pathname;
+              return `  ${i + 1}. ${origin}${truncPath} (use /notify list --show --yes to reveal full URL)`;
+            } catch {
+              return `  ${i + 1}. (invalid URL)`;
+            }
+          });
+          ctx.print(`Webhook URLs (${urls.length})\n${display.join('\n')}`);
+        }
         return;
       }
 

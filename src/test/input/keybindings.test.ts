@@ -48,13 +48,26 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe('default bindings', () => {
-  it('loads all default actions with at least one combo each', () => {
+  it('loads all default actions with at least one combo each (reserved actions may be unbound)', () => {
     const km = new KeybindingsManager({ configPath: '/nonexistent/path/keybindings.json' });
     const all = km.getAll();
     expect(all.length).toBe(Object.keys(DEFAULT_KEYBINDINGS).length);
+    // Reserved/unimplemented actions are intentionally unbound (empty combos).
+    // All other actions must have at least one combo.
+    const RESERVED_ACTIONS: string[] = ['replay-panel'];
     for (const entry of all) {
-      expect(entry.combos.length).toBeGreaterThanOrEqual(1);
+      if (RESERVED_ACTIONS.includes(entry.action)) {
+        expect(entry.combos.length).toBe(0);
+      } else {
+        expect(entry.combos.length).toBeGreaterThanOrEqual(1);
+      }
     }
+  });
+
+  it('replay-panel has no default combo and renders as (unbound)', () => {
+    const km = new KeybindingsManager({ configPath: '/nonexistent/path/keybindings.json' });
+    expect(km.matches('replay-panel', { logicalName: 'r', ctrl: true, shift: true })).toBe(false);
+    expect(km.getComboLabel('replay-panel')).toBe('(unbound)');
   });
 
   it('default bindings match the exported DEFAULT_KEYBINDINGS constant', () => {
