@@ -1,6 +1,6 @@
 # GoodVibes Agent Live Verification
 
-Generated: 2026-06-04T11:02:12.690Z
+Generated: 2026-06-14T21:34:04.442Z
 Home: `[goodvibes-home]`
 Binary: `[agent-binary]`
 Connected host: `http://127.0.0.1:3421`
@@ -14,7 +14,7 @@ Connected host: `http://127.0.0.1:3421`
 
 | Check | Status | Summary |
 |---|---|---|
-| Verification inventory ledger | pass | 100% local verification signal across 761 inventory items. |
+| Verification inventory ledger | pass | 99.5% local verification signal across 806 inventory items. |
 | Compiled GoodVibes Agent CLI binary | pass | Found [agent-binary]. |
 | Agent CLI version command | pass | Agent CLI version returned successfully. |
 | Agent CLI status JSON command | pass | Agent CLI status returned parseable JSON. |
@@ -24,7 +24,7 @@ Connected host: `http://127.0.0.1:3421`
 | CLI doctor command | pass | Doctor completed without findings. |
 | Authenticated connected-host /status | pass | /status returned 200 with parseable JSON. |
 | Authenticated connected-host /api/health | pass | Health overall=healthy. |
-| OpenAI-compatible /v1/models route | pass | /v1/models returned 11 model(s). |
+| OpenAI-compatible /v1/models route | pass | /v1/models returned 175 model(s). |
 | Agent Knowledge isolated /status | pass | Agent Knowledge status route returned parseable isolated JSON. |
 | Agent Knowledge isolated ask | pass | Agent Knowledge ask stayed on the isolated Agent route. |
 | Agent Knowledge isolated search | pass | Agent Knowledge search stayed on the isolated Agent route. |
@@ -39,13 +39,13 @@ Connected host: `http://127.0.0.1:3421`
 ### Verification inventory ledger
 
 ```text
-87.4% local behavior verified; 96 item(s) require external outcomes.
+83.9% local behavior verified; 96 item(s) require external outcomes.
 ```
 
 ### Agent CLI version command
 
 ```text
-goodvibes-agent 1.0.35
+goodvibes-agent 1.5.0
 ```
 
 ### Agent CLI status JSON command
@@ -59,7 +59,7 @@ Status JSON command completed; provider/model identifiers omitted from release a
 ```text
 {
   "ok": true,
-  "packageVersion": "1.0.35",
+  "packageVersion": "1.5.0",
   "connectedHost": {
     "baseUrl": "http://127.0.0.1:3421",
     "status": 200,
@@ -89,15 +89,15 @@ Status JSON command completed; provider/model identifiers omitted from release a
     "ready": true,
     "storagePath": "[goodvibes-home]/tui/knowledge-agent.sqlite",
     "sourceCount": 0,
-    "nodeCount": 12,
+    "nodeCount": 0,
     "edgeCount": 0,
     "issueCount": 0,
     "extractionCount": 0,
-    "jobRunCount": 35,
+    "jobRunCount": 0,
     "refinementTaskCount": 0,
     "usageCount": 0,
     "candidateCount": 0,
-    "reportCount": 2,
+    "reportCount": 0,
     "scheduleCount": 3,
     "note": "Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."
   }
@@ -119,25 +119,25 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Authenticated connected-host /status
 
 ```text
-{"status":"running"}
+{"status":"running","version":"0.33.36"}
 ```
 
 ### Authenticated connected-host /api/health
 
 ```text
-{"overall":"healthy","degradedDomains":[],"providerProblems":[],"mcpProblems":{"degraded":[],"quarantined":[]},"integrationProblems":[],"network":{"controlPlane":{"surface":"controlPlane","host":"0.0.0.0","port":3421,"mode":"off","scheme":"http","trustProxy":false,"usingDefaultPaths":false,"ready":true,"errors":[]},"httpListener":{"surface":"httpListener","host":"0.0.0.0","port":3422,"mode":"off","scheme":"http","trustProxy":false,"usingDefaultPaths":false,"ready":true,"errors":[]},"outbound":{"mode":"bundled","allowInsecureLocalhost":false,"customCaEntryCount":0,"effectiveCaStrategy":"bun-default","errors":[]}}}
+{"overall":"healthy","degradedDomains":[],"providerProblems":[],"mcpProblems":{"degraded":[],"quarantined":[]},"integrationProblems":[],"network":{"controlPlane":{"surface":"controlPlane","host":"127.0.0.1","port":3421,"mode":"off","scheme":"http","trustProxy":false,"usingDefaultPaths":false,"ready":true,"errors":[]},"httpListener":{"surface":"httpListener","host":"127.0.0.1","port":3422,"mode":"off","scheme":"http","trustProxy":false,"usingDefaultPaths":false,"ready":true,"errors":[]},"outbound":{"mode":"bundled","allowInsecureLocalhost":false,"customCaEntryCount":0,"effectiveCaStrategy":"bun-default","errors":[]}}}
 ```
 
 ### OpenAI-compatible /v1/models route
 
 ```text
-/v1/models returned 11 model(s); model identifiers omitted from release artifact.
+/v1/models returned 175 model(s); model identifiers omitted from release artifact.
 ```
 
 ### Agent Knowledge isolated /status
 
 ```text
-{"ready":true,"storagePath":"[goodvibes-home]/tui/knowledge-agent.sqlite","sourceCount":0,"nodeCount":12,"edgeCount":0,"issueCount":0,"extractionCount":0,"jobRunCount":35,"refinementTaskCount":0,"usageCount":0,"candidateCount":0,"reportCount":2,"scheduleCount":3,"note":"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."}
+{"ready":true,"storagePath":"[goodvibes-home]/tui/knowledge-agent.sqlite","sourceCount":0,"nodeCount":0,"edgeCount":0,"issueCount":0,"extractionCount":0,"jobRunCount":0,"refinementTaskCount":0,"usageCount":0,"candidateCount":0,"reportCount":0,"scheduleCount":3,"note":"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."}
 ```
 
 ### Agent Knowledge isolated ask
@@ -161,7 +161,7 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Agent Knowledge isolated nodes list
 
 ```text
-{"nodes":[{"id":"node-38d4924f","kind":"topic","slug":"linked-to-26-graph-relation-s","title":"linked to 26 graph relation(s)","summary":"Topic tag linked to 26 graph relation(s).","aliases":["linked to 26 graph relation(s)"],"status":"active","confidence":70,"metadata":{"tag":"linked to 26 graph relation(s)","knowledgeSpaceId":"goodvibes-agent:default","namespace":"goodvibes-agent:default"},"createdAt":1780489632675,"updatedAt":1780489632928},{"id":"node-4014fce2","kind":"topic","slug":"observed-via-2-usage-pattern-s","title":"observed via 2 usage pattern(s)","summary":"Topic tag observed via 2 usage pattern(s).","aliases":["observed via 2 usage pattern(s)"],"status":"active","confidence":70,"metadata":{"tag":"observed via 2 usage pattern(s)","knowledgeSpaceId":"goodvibes-agent:default","namespace":"goodvibes-agent:default"},"createdAt":1780489632666,"updatedAt":17804896... [truncated]
+{"nodes":[]}
 ```
 
 ### Agent Knowledge isolated issues list
@@ -173,7 +173,7 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Agent Knowledge isolated map
 
 ```text
-{"ok":true,"title":"Knowledge Map","generatedAt":1780570932688,"width":1280,"height":920,"nodeCount":12,"edgeCount":0,"totalNodeCount":12,"totalEdgeCount":0,"facets":{"recordKinds":[{"value":"node","count":12}],"nodeKinds":[{"value":"topic","count":12}],"sourceTypes":[],"sourceStatuses":[],"nodeStatuses":[{"value":"active","count":12}],"issueCodes":[],"issueStatuses":[],"issueSeverities":[],"edgeRelations":[],"tags":[]},"nodes":[{"id":"node-d2a534ae","recordKind":"node","kind":"topic","title":"linked to 19 graph relation(s)","summary":"Topic tag linked to 19 graph relation(s).","x":720,"y":277,"radius":23,"metadata":{"tag":"linked to 19 graph relation(s)","knowledgeSpaceId":"goodvibes-agent:default","namespace":"goodvibes-agent:default"}},{"id":"node-0cc2f686","recordKind":"node","kind":"topic","title":"linked to 20 graph relation(s)","summary":"Topic tag linked to 20 gra... [truncated]
+{"ok":true,"title":"Knowledge Map","generatedAt":1781472844439,"width":1280,"height":920,"nodeCount":0,"edgeCount":0,"totalNodeCount":0,"totalEdgeCount":0,"facets":{"recordKinds":[],"nodeKinds":[],"sourceTypes":[],"sourceStatuses":[],"nodeStatuses":[],"issueCodes":[],"issueStatuses":[],"issueSeverities":[],"edgeRelations":[],"tags":[]},"nodes":[],"edges":[],"svg":"<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"1280\" height=\"920\" viewBox=\"0 0 1280 920\" role=\"img\" aria-label=\"Knowledge Map\">\n<defs>\n  <radialGradient id=\"knowledgeMapBg\" cx=\"50%\" cy=\"46%\" r=\"70%\">\n    <stop offset=\"0%\" stop-color=\"#f7f4ec\" />\n    <stop offset=\"60%\" stop-color=\"#e9eef0\" />\n    <stop offset=\"100%\" stop-color=\"#dde6df\" />\n  </radialGradient>\n  <filter id=\"softShadow\" x=\"-20%\" y=\"-20%\" width=\"140%\" height=\"140%\">\n    <feDropShadow dx=\"0\" dy=\"6\... [truncated]
 ```
 
 ### Agent Knowledge isolated connectors list
