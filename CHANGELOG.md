@@ -2,6 +2,14 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.1 - 2026-06-14
+
+- v1.5.1 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release restores the inline shell escape and refreshes release verification.
+- Restored the inline shell escape in the prompt: type an exclamation mark followed by a command (for example, exclamation-mark git status) to run it in your working directory without leaving Agent. The command output appears inline, and the result is carried into your next message as context so you can run something and immediately ask about it. The composer already showed this as shell mode, but the command never actually ran since the workspace fork; it executes again now.
+- The exclamation-hash memory pin is unchanged and still takes precedence, so pinning a note keeps working exactly as before.
+- Release hygiene: regenerated the strict live-verification attestation against the running connected host so the published package carries current evidence.
+- Test suite: 7931 pass / 0 fail / 2 skip across 554 files.
+
 ## 1.5.0 - 2026-06-11
 
 - v1.5.0 opens the 1.5 minor line: the fullscreen Agent workspace remains the primary user surface, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, explicit side-effect boundaries, and release hardening from 1.3.x and 1.4.x all stay in force. This release replaces the split-pane panel system with the Activity sidebar, rebuilds first-run onboarding around readiness, and adds local calendar, direct email, hardware-aware model recommendations, and skill import/export.
