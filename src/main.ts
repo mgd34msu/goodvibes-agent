@@ -20,6 +20,7 @@ import { renderSettingsModal } from './renderer/settings-modal.ts';
 import { registerBuiltinCommands } from './input/commands.ts';
 import { ScheduleManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { InputHistory } from './input/input-history.ts';
+import { ShellPassthrough, SHELL_USAGE_HINT } from './input/shell-passthrough.ts';
 import { getTierPromptSupplement, getTierForContextWindow } from '@pellux/goodvibes-sdk/platform/providers';
 import { createShellLayout } from './renderer/layout-engine.ts';
 import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-surface.ts';
@@ -156,11 +157,7 @@ async function main() {
   let scrollTop = 0;
   let scrollLocked = true;
 
-  // `!`-prefix shell passthrough: output of a user-run command is shown
-  // immediately and buffered here so it is prepended (as context) to the
-  // user's next real message — making it visible to the model on the next turn
-  // without triggering a turn of its own.
-  let pendingShellContext: string[] = [];
+  const shellPassthrough = new ShellPassthrough();
 
   // Ambient autonomy surfacing: away digest at launch + sidebar Coming up.
   const autonomy = createAutonomySurfacing({
@@ -324,44 +321,21 @@ async function main() {
     } else if (processedText.startsWith('!')) {
       const command = processedText.slice(1).trim();
       if (!command) {
-        systemMessageRouter.high('[Shell] Usage: !<command> — runs a shell command; its output is shown and added as context for your next message.');
+        systemMessageRouter.high(SHELL_USAGE_HINT);
         render();
         return;
       }
-      systemMessageRouter.high(`[Shell] $ ${command}`);
-      render();
-      void (async () => {
-        try {
-          const proc = Bun.spawn(['bash', '-c', command], { cwd: workingDir, stdout: 'pipe', stderr: 'pipe' });
-          const [out, err] = await Promise.all([
-            new Response(proc.stdout).text(),
-            new Response(proc.stderr).text(),
-          ]);
-          const exitCode = await proc.exited;
-          const combined = [out, err].filter((s) => s.trim().length > 0).join('\n').trimEnd();
-          const MAX_SHELL_OUTPUT = 16_000;
-          const truncated = combined.length > MAX_SHELL_OUTPUT
-            ? `${combined.slice(0, MAX_SHELL_OUTPUT)}\n… [truncated ${combined.length - MAX_SHELL_OUTPUT} chars]`
-            : combined;
-          const body = truncated.length > 0 ? truncated : '(no output)';
-          systemMessageRouter.high(`[Shell] ${body}\n(exit ${exitCode})`);
-          pendingShellContext.push(`The user ran a shell command via the \`!\` prefix:\n$ ${command}\n--- output (exit ${exitCode}) ---\n${body}`);
-        } catch (shellErr) {
-          systemMessageRouter.high(`[Shell] Failed to run: ${summarizeError(shellErr)}`);
-        }
-        render();
-      })();
+      systemMessageRouter.high(`[Shell] $ ${command}`); render();
+      void shellPassthrough.run(command, workingDir)
+        .then((result) => systemMessageRouter.high(result.display))
+        .catch((shellErr: unknown) => systemMessageRouter.high(`[Shell] Failed to run: ${summarizeError(shellErr)}`))
+        .finally(() => render());
       return;
     }
     if (processedText || content) {
       void (async () => {
         const inputOptions = options.spokenOutput ? createSpokenTurnInputOptions() : undefined;
-        let outgoing = processedText;
-        if (pendingShellContext.length > 0) {
-          const shellContext = pendingShellContext.join('\n\n');
-          outgoing = outgoing ? `${shellContext}\n\n${outgoing}` : shellContext;
-          pendingShellContext = [];
-        }
+        const outgoing = shellPassthrough.consumeContext(processedText);
         if (options.spokenOutput && processedText) {
           spokenTurns.submitNextTurn(processedText);
         }
