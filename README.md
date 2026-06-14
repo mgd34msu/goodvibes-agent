@@ -69,7 +69,52 @@ Press `/` inside the workspace to search actions by name, category, command, or 
 
 The main Agent model can inspect and operate the Agent-controlled harness through Agent-owned tools. The important first-run entrypoint is `setup`; the detailed catalog entrypoint is `agent_harness`.
 
-`route action:"plan" query:"..."` is the first stop when a plain user task could map to several GoodVibes surfaces. It returns the preferred visible route, alternatives, missing fields, confirmation boundary, workspace matches, and harness mode matches without running tools; host/daemon health or doctor wording routes to `host action:"status"`, normal settings/configuration wording routes to `settings action:"list"`, model provider/local-cookbook/smoke/route-fit wording routes to `models action:"provider|local|smoke|route"`, Personal Ops briefing/queue/fresh-read/connector wording routes to `personal_ops action:"briefing|queue|intake|lane"`, direct reminders/schedule lifecycle wording routes to `schedule action:"list"` and confirmed schedule actions, command-shaped background work routes to `execution action:"processes"` and the first-class `terminal`/`process` UX, interactive PTY/stdin/sudo wording routes to `execution action:"process_capabilities"` before any start or credential effect, external memory-provider/backend/sync/import/export wording routes to `memory action:"provider"` or the provider contract checklist, browser-backed research runner wording routes to `research action:"runner"`, visual research report rendering routes to `research action:"plan"` plus report artifacts, voice workflow and TTS-provider wording routes to `device action:"voice|provider"`, browser cockpit/PWA wording routes to `computer action:"browser"` before any visible open handoff, channel setup/triage/delivery-receipt/send wording routes to `channels action:"setup|triage|deliveries|channel"` before confirmed external delivery, security permission/status/finding/blocked-action wording routes to `security action:"status|finding|explain"` before policy changes or risky work, support-bundle wording routes to `support action:"status|bundle"` before bundle export/import/share effects, saved-session/bookmark/continuity wording routes to `sessions action:"list|get"` before session lifecycle effects, release readiness/evidence/audit wording routes to `audit action:"readiness|evidence|item|artifact"`, file undo/redo/recovery wording routes to `execution action:"recovery"`, media generation wording routes to provider readiness plus confirmed `agent_media_generate` artifacts, and screenshot, browser-navigation/control, screen-observation, and desktop-control wording routes to `computer action:"plan"` before any live UI tool is considered. `setup action:"repair"` is the first stop for setup or host fix requests; it chooses the safest next token repair, connected-host status, services.status receipt, user-run bootstrap, or no-action route without executing it. `agent_harness mode:"summary"` is compact by default. It returns counts, status, and a short mode guide. `mode:"modes"` searches every harness mode by task, family, effect type, id, alias, or parameter name; `mode:"mode"` inspects one mode contract, and `mode:"route_decision"` remains the lower-level compatibility route for the same user-task planner. Plural catalog modes are also compact by default: they return ids, labels, counts, safe state, effect class, and short route hints. Workspace, command, UI, shortcut, and keybinding discovery should normally use `workspace action:"status|actions|action|run|surfaces|surface|open|commands|command|run_command|shortcuts|keybindings|keybinding"`, while lower-level harness modes remain for compatibility/detail inspection. Connected-host posture/status/capability and operator/audit rows include compact `modelRoute` or `modelAccess` hints so the model can choose the right first-class tool or confirmed harness route without expanding every row. Use `settings action:"list|get|set|reset|import"` for normal configuration work and `host action:"status|capabilities|capability|services|service|methods|method"` for normal connected-host/daemon diagnostics. Use `includeParameters:true` or a singular inspect mode when the model needs schemas, detailed route hints, full policy blocks, redacted log tail, operator/audit artifact data, or editor field definitions.
+### Route planning
+
+`route action:"plan" query:"..."` is the first stop when a plain user task could map to several GoodVibes surfaces. It returns the preferred visible route, alternatives, missing fields, confirmation boundary, workspace matches, and harness mode matches without running any tools.
+
+The planner maps task wording to a preferred route:
+
+| When the task sounds like… | Preferred route |
+| --- | --- |
+| Host/daemon health or doctor | `host action:"status"` |
+| Normal settings/configuration | `settings action:"list"` |
+| Model provider, local cookbook, smoke, or route-fit | `models action:"provider\|local\|smoke\|route"` |
+| Personal Ops briefing, queue, fresh-read, or connector | `personal_ops action:"briefing\|queue\|intake\|lane"` |
+| Direct reminders or schedule lifecycle | `schedule action:"list"` + confirmed schedule actions |
+| Command-shaped background work | `execution action:"processes"` + first-class `terminal`/`process` UX |
+| Interactive PTY/stdin/sudo | `execution action:"process_capabilities"` before any start or credential effect |
+| External memory provider, backend, sync, import, or export | `memory action:"provider"` or the provider contract checklist |
+| Browser-backed research runner | `research action:"runner"` |
+| Visual research report rendering | `research action:"plan"` + report artifacts |
+| Voice workflow or TTS provider | `device action:"voice\|provider"` |
+| Browser cockpit/PWA | `computer action:"browser"` before any visible open handoff |
+| Channel setup, triage, delivery receipt, or send | `channels action:"setup\|triage\|deliveries\|channel"` before confirmed external delivery |
+| Security permission, status, finding, or blocked action | `security action:"status\|finding\|explain"` before policy changes or risky work |
+| Support bundle | `support action:"status\|bundle"` before bundle export/import/share effects |
+| Saved session, bookmark, or continuity | `sessions action:"list\|get"` before session lifecycle effects |
+| Release readiness, evidence, or audit | `audit action:"readiness\|evidence\|item\|artifact"` |
+| File undo/redo/recovery | `execution action:"recovery"` |
+| Media generation | provider readiness + confirmed `agent_media_generate` artifacts |
+| Screenshot, browser navigation/control, screen observation, or desktop control | `computer action:"plan"` before any live UI tool is considered |
+
+`setup action:"repair"` is the first stop for setup or host fix requests. It chooses the safest next route — token repair, connected-host status, services.status receipt, user-run bootstrap, or no action — without executing it.
+
+### Inspecting the harness
+
+- `agent_harness mode:"summary"` — compact by default; returns counts, status, and a short mode guide.
+- `mode:"modes"` — searches every harness mode by task, family, effect type, id, alias, or parameter name.
+- `mode:"mode"` — inspects one mode contract.
+- `mode:"route_decision"` — lower-level compatibility route for the same user-task planner.
+- Plural catalog modes are compact by default: they return ids, labels, counts, safe state, effect class, and short route hints.
+
+For everyday discovery and diagnostics, prefer the first-class tools over raw harness modes:
+
+- Workspace, command, UI, shortcut, and keybinding discovery: `workspace action:"status|actions|action|run|surfaces|surface|open|commands|command|run_command|shortcuts|keybindings|keybinding"`.
+- Normal configuration: `settings action:"list|get|set|reset|import"`.
+- Connected-host/daemon diagnostics: `host action:"status|capabilities|capability|services|service|methods|method"`.
+
+Connected-host posture/status/capability and operator/audit rows include compact `modelRoute` or `modelAccess` hints, so the model can pick the right first-class tool or confirmed harness route without expanding every row. Pass `includeParameters:true` or use a singular inspect mode when you need schemas, detailed route hints, full policy blocks, a redacted log tail, operator/audit artifact data, or editor field definitions.
 
 High-value `agent_harness` mode groups:
 
