@@ -100,24 +100,30 @@ describe('extractPassedFromText', () => {
     expect(extractPassedFromText('The code has many issues.', 5, 7)).toBe(false);
   });
 
-  test('returns true when score < threshold but text contains "passed"', () => {
-    expect(extractPassedFromText('The review passed all criteria.', 5, 7)).toBe(true);
+  test('returns false when score < threshold even if text contains "passed"', () => {
+    // Score must meet or exceed threshold — prose pass language does not override it.
+    expect(extractPassedFromText('The review passed all criteria.', 5, 7)).toBe(false);
   });
 
-  test('returns true when text contains "approved"', () => {
-    expect(extractPassedFromText('Approved for merge.', 5, 7)).toBe(true);
+  test('returns false when score < threshold even if text contains "approved"', () => {
+    expect(extractPassedFromText('Approved for merge.', 5, 7)).toBe(false);
   });
 
-  test('returns false when text contains both "passed" and "failed"', () => {
-    expect(extractPassedFromText('The test passed but the review failed.', 5, 7)).toBe(false);
+  test('returns false when score >= threshold but text has fail language only', () => {
+    expect(extractPassedFromText('The review failed.', 8, 7)).toBe(false);
   });
 
-  test('returns true for "passes" variant', () => {
-    expect(extractPassedFromText('This passes the quality bar.', 5, 7)).toBe(true);
+  test('returns true when score >= threshold and text has both "passed" and "failed"', () => {
+    // Explicit pass language neutralizes the fail-language safety override.
+    expect(extractPassedFromText('The test passed but the review failed.', 8, 7)).toBe(true);
   });
 
-  test('returns true for "passing" variant', () => {
-    expect(extractPassedFromText('Currently passing minimum threshold.', 5, 7)).toBe(true);
+  test('returns false when score < threshold for "passes" variant', () => {
+    expect(extractPassedFromText('This passes the quality bar.', 5, 7)).toBe(false);
+  });
+
+  test('returns false when score < threshold for "passing" variant', () => {
+    expect(extractPassedFromText('Currently passing minimum threshold.', 5, 7)).toBe(false);
   });
 
   test('exact threshold boundary: score === threshold returns true', () => {
