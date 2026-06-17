@@ -2,6 +2,14 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.2 - 2026-06-17
+
+- v1.5.2 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release picks up the latest bundled platform SDK and keeps review scoring aligned with it.
+- Updated the bundled GoodVibes platform SDK to 0.33.38, so Agent runs on the current shared review, agent, and reporting primitives.
+- Tightened review pass/fail reporting to match the updated SDK: a review only passes when its score meets or exceeds the configured threshold. Prose like "passed" or "approved" no longer lifts a sub-threshold score over the bar, removing a path where a weak review could read as a pass.
+- Explicit fail language in a review at or above the threshold is still honored as a safety override unless the same review also states it passed, so genuine failures are not silently swallowed.
+- No change to your conversations, memory, skills, routines, or operator confirmation gates; this is an internal dependency and scoring-consistency update.
+
 ## 1.5.1 - 2026-06-14
 
 - v1.5.1 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release restores the inline shell escape and refreshes release verification.
