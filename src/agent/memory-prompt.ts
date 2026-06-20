@@ -3,7 +3,8 @@ const DEFAULT_LIMIT = 10;
 export const MIN_PROMPT_MEMORY_CONFIDENCE = 70;
 
 export function isPromptActiveMemory(record: MemoryRecord): boolean {
-  return record.reviewState === 'reviewed' && record.confidence >= MIN_PROMPT_MEMORY_CONFIDENCE;
+  // Fully autonomous learning: reviewState gate removed — confidence alone qualifies a memory for prompt recall.
+  return record.confidence >= MIN_PROMPT_MEMORY_CONFIDENCE;
 }
 
 function sortMemoryForPrompt(left: MemoryRecord, right: MemoryRecord): number {

@@ -15,7 +15,7 @@ export const AGENT_HARNESS_MODES = [
   'personal_ops_briefing', 'personal_ops', 'personal_ops_queue', 'personal_ops_intake', 'personal_ops_lane', 'run_personal_ops_read',
   'memory_posture', 'memory_provider', 'memory_refinement', 'run_memory_refinement',
   'autonomy_intake', 'autonomy_queue', 'autonomy_queue_item',
-  'learning_curator', 'learning_candidate',
+  'learning_curator', 'learning_candidate', 'learning_auto_promote',
   'research_briefing', 'research_workflow', 'research_runs', 'research_run',
   'research_queue', 'research_source',
   'document_ops', 'document_ops_lane',
@@ -33,6 +33,11 @@ export const AGENT_HARNESS_MODES = [
   'connected_host', 'connected_host_status', 'connected_host_capability',
   'daemon', 'daemon_status',
   'propose_skill_drafts',
+  'remote_snapshot', 'remote_peers', 'remote_work', 'remote_pair_requests',
+  'remote_pair_approve', 'remote_pair_reject', 'remote_peers_invoke', 'remote_work_cancel',
+  'unified_inbox',
+  'channel_drafts', 'channel_draft_save', 'channel_draft_send',
+  'channel_routing', 'channel_routing_assign', 'channel_routing_remove',
 ] as const;
 
 const BACKGROUND_PROCESS_ACTION_VALUES = [
@@ -343,5 +348,79 @@ export const AGENT_HARNESS_PARAMETER_PROPERTIES = {
   explicitUserRequest: {
     type: 'string',
     description: 'User request authorizing a confirmed harness effect.',
+  },
+  peerId: {
+    type: 'string',
+    description: 'Remote peer id for remote_peers_invoke or remote_peers_disconnect.',
+  },
+  requestId: {
+    type: 'string',
+    description: 'Pair request id for remote_pair_approve or remote_pair_reject.',
+  },
+  workId: {
+    type: 'string',
+    description: 'Remote work item id for remote_work_cancel.',
+  },
+  payload: {
+    type: 'object',
+    description: 'Command payload for remote_peers_invoke.',
+  },
+  note: {
+    type: 'string',
+    description: 'Optional note for remote pair request approve/reject.',
+  },
+  reason: {
+    type: 'string',
+    description: 'Optional cancellation reason for remote_work_cancel.',
+  },
+  draftId: {
+    type: 'string',
+    description: 'Channel draft id for channel_drafts, channel_draft_send.',
+  },
+  draftStatus: {
+    type: 'string',
+    enum: ['draft', 'queued', 'sent', 'failed'],
+    description: 'Status filter for channel_drafts list.',
+  },
+  draftTitle: {
+    type: 'string',
+    description: 'Optional title for channel_draft_save.',
+  },
+  draftMessage: {
+    type: 'string',
+    description: 'Message body for channel_draft_save.',
+  },
+  draftChannel: {
+    type: 'string',
+    description: 'Channel target for channel_draft_save.',
+  },
+  draftRoute: {
+    type: 'string',
+    description: 'Route id for channel_draft_save or channel_routing_remove.',
+  },
+  draftWebhook: {
+    type: 'string',
+    description: 'Webhook URL for channel_draft_save.',
+  },
+  draftLink: {
+    type: 'string',
+    description: 'Link target for channel_draft_save.',
+  },
+  draftTags: {
+    type: 'array',
+    items: { type: 'string' },
+    description: 'Tags for channel_draft_save.',
+  },
+  surfaceKind: {
+    type: 'string',
+    description: 'Channel surface kind for channel_routing or channel_routing_assign.',
+  },
+  profileId: {
+    type: 'string',
+    description: 'Profile id for channel_routing_assign.',
+  },
+  routeLabel: {
+    type: 'string',
+    description: 'Optional label for channel_routing_assign.',
   },
 } as const;

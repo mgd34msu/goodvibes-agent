@@ -5,6 +5,7 @@ import { providerBackedQueueRecords } from './agent-harness-personal-ops-provide
 import { providerBackedReminderRecords, providerBackedTaskRecords } from './agent-harness-personal-ops-provider-task-records.ts';
 import { channelRecords, connectorRecords, localRecord, refreshableSavedRecordCount, reminderOperationRecords, routineReceiptRecord, savedProviderEffectReceiptRecords, savedReviewArtifactRecords, savedReviewQueueRecords, taskOperationRecords } from './agent-harness-personal-ops-records.ts';
 import type { McpToolRecord, McpToolSchema, PersonalOpsLane, PersonalOpsLiveRecord } from './agent-harness-personal-ops-types.ts';
+import { buildStyleReplyLaneAdditions } from '../agent/email/style-reply-lane.ts';
 
 export function buildLanes(
   context: CommandContext,
@@ -44,6 +45,8 @@ export function buildLanes(
     && routine.reviewState === 'reviewed'
     && (routine.missingRequirementCount ?? 0) === 0
   )).length;
+  const hasEmailCapability = emailMethods.length > 0 || emailConnectors.length > 0;
+  const styleReplyAdditions = buildStyleReplyLaneAdditions(hasEmailCapability);
 
   return [
     {
@@ -89,13 +92,14 @@ export function buildLanes(
       ],
       methodIds: emailMethods,
       connectorSignals: emailConnectors,
-      workflows: inboxWorkflows(emailMethods, emailConnectors),
+      workflows: [...inboxWorkflows(emailMethods, emailConnectors), styleReplyAdditions.workflow],
       liveRecords: [
         ...inboxProviderRecords,
         ...inboxReviewQueueRecords,
         ...inboxArtifactRecords,
         ...inboxEffectReceiptRecords,
         ...connectorRecords(emailConnectors, 'Inbox', 'inbox'),
+        styleReplyAdditions.liveRecord,
       ],
     },
     {

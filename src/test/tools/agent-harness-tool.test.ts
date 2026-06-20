@@ -2139,7 +2139,8 @@ describe('agent_harness tool', () => {
       const memory = promptContext.segments.find((segment) => segment.id === 'memory');
       expect(memory?.selected?.some((record) => record.id === 'mem-briefing')).toBe(true);
       expect(memory?.suppressed?.some((record) => record.id === 'mem-low-confidence' && record.reason?.includes('confidence'))).toBe(true);
-      expect(memory?.suppressed?.some((record) => record.id === 'mem-unreviewed' && record.reason === 'not reviewed')).toBe(true);
+      // mem-unreviewed (confidence 91) is now ACTIVE: autonomous-learning change dropped the reviewState gate.
+      expect(memory?.selected?.some((record) => record.id === 'mem-unreviewed')).toBe(true);
       expect(memory?.preview).toContain('Reviewed GoodVibes Agent Memory');
 
       const vibe = promptContext.segments.find((segment) => segment.id === 'vibe');
@@ -7882,6 +7883,68 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'workspace_action', actionId: 'context-project-file' });
       expect(projectContextFileAction.id).toBe('context-project-file');
       expect(projectContextFileAction.modelRoute).toBe('context action:"file"');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('learning_auto_promote promotes eligible candidates without a confirm gate', async () => {
+    const fixture = makeFixture();
+    try {
+      // Wire up a real MemoryRegistry as the memoryApi (has .add())
+      const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
+      (fixture.context.clients as Record<string, unknown>).agentKnowledgeApi = { memory: memoryRegistry };
+
+      // Add a reviewed note with a session and a completed work-plan so the
+      // learning curator produces skill proposal candidates for runSkillDraftProposer.
+      const savedSession = {
+        name: 'session-auto-promote-test',
+        title: 'Auto-promote integration session',
+        model: 'gpt-4.1',
+        provider: 'openai',
+        timestamp: Date.now(),
+        messageCount: 4,
+        filePath: fixture.paths.resolveUserPath('sessions', 'session-auto-promote-test.json'),
+      };
+      (fixture.context.session as unknown as Record<string, unknown>).sessionManager = {
+        list: () => [savedSession],
+        search: (query: string) => [savedSession]
+          .filter((s) => s.title.toLowerCase().includes(query.toLowerCase()))
+          .map((s) => ({ session: s, matchCount: 1, snippets: ['Lesson: run auto-promote pass after curator review.'] })),
+        load: (name: string) => {
+          if (name !== savedSession.name) throw new Error(`Unknown session ${name}`);
+          return {
+            meta: { title: savedSession.title },
+            messages: [
+              { role: 'user', content: 'Run auto-promote.' },
+              { role: 'assistant', content: 'Lesson: invoke learning_auto_promote after curator review to promote skill drafts autonomously.' },
+            ],
+          };
+        },
+      };
+
+      const result = await executeHarnessJson<{
+        readonly eligible: number;
+        readonly promoted: number;
+        readonly skipped: number;
+        readonly consolidated: number;
+        readonly domains: Record<string, number>;
+        readonly log: readonly string[];
+        readonly message: string;
+        readonly policy: string;
+      }>(fixture, { mode: 'learning_auto_promote' });
+
+      // Shape assertions — the mode must always return these fields.
+      expect(typeof result.eligible).toBe('number');
+      expect(typeof result.promoted).toBe('number');
+      expect(typeof result.skipped).toBe('number');
+      expect(typeof result.consolidated).toBe('number');
+      expect(Array.isArray(result.log)).toBe(true);
+      expect(typeof result.message).toBe('string');
+      expect(typeof result.policy).toBe('string');
+      expect(result.policy).toContain('Secret scanning');
+      // At minimum the skill-draft pass runs; promoted + skipped covers all eligible
+      expect(result.promoted + result.skipped).toBeGreaterThanOrEqual(result.eligible);
     } finally {
       fixture.cleanup();
     }

@@ -88,7 +88,7 @@ function buildProcedureBody(candidate: LearningCandidate): string {
   }
 
   sections.push(`## Notes`);
-  sections.push('This skill was auto-proposed from a learning candidate. Review and refine the steps before enabling.');
+  sections.push('This skill was auto-proposed from a learning candidate and created enabled. Refine steps or disable via the skill registry as needed.');
 
   return sections.join('\n').trim();
 }
@@ -131,7 +131,7 @@ function buildTags(candidate: LearningCandidate): readonly string[] {
  *   (all comparisons use the kebab slug of the name, case-insensitive)
  * - Skip any candidate whose text fields contain secret-like content
  * - Skip any candidate whose derived name or description is empty
- * - All drafts are created with enabled: false (caller's responsibility; registry enforces reviewState 'fresh')
+ * - All drafts are created with enabled: true (autonomous promotion; registry enforces reviewState 'fresh')
  */
 export function proposeSkillDrafts(input: ProposeSkillDraftsInput): readonly SkillDraftPayload[] {
   const { candidates, existingSkillNames, previouslyProposedNames } = input;
@@ -193,7 +193,7 @@ export function proposeSkillDrafts(input: ProposeSkillDraftsInput): readonly Ski
       procedure,
       triggers: triggers.length > 0 ? triggers : undefined,
       tags: tags.length > 0 ? tags : undefined,
-      enabled: false,
+      enabled: true,
       source: 'agent',
       provenance: PROVENANCE,
     });

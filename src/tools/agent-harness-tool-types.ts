@@ -74,6 +74,24 @@ export interface AgentHarnessToolArgs {
   readonly pane?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
+  readonly peerId?: unknown;
+  readonly requestId?: unknown;
+  readonly workId?: unknown;
+  readonly payload?: unknown;
+  readonly note?: unknown;
+  readonly reason?: unknown;
+  readonly draftId?: unknown;
+  readonly draftStatus?: unknown;
+  readonly draftTitle?: unknown;
+  readonly draftMessage?: unknown;
+  readonly draftChannel?: unknown;
+  readonly draftRoute?: unknown;
+  readonly draftWebhook?: unknown;
+  readonly draftLink?: unknown;
+  readonly draftTags?: unknown;
+  readonly surfaceKind?: unknown;
+  readonly profileId?: unknown;
+  readonly routeLabel?: unknown;
 }
 
 export interface AgentHarnessToolDeps {

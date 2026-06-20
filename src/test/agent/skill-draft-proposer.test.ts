@@ -225,7 +225,7 @@ describe('proposeSkillDrafts — empty guards', () => {
 // ---------------------------------------------------------------------------
 
 describe('proposeSkillDrafts — payload shape', () => {
-  test('emitted payload has enabled:false, source:agent, provenance:auto-proposed-skill-draft', () => {
+  test('emitted payload has enabled:true (autonomous), source:agent, provenance:auto-proposed-skill-draft', () => {
     const candidates = [
       makeCandidate({
         id: 'c-1',
@@ -235,7 +235,7 @@ describe('proposeSkillDrafts — payload shape', () => {
     const result = proposeSkillDrafts(makeInput({ candidates }));
     expect(result).toHaveLength(1);
     const payload = result[0]!;
-    expect(payload.enabled).toBe(false);
+    expect(payload.enabled).toBe(true);
     expect(payload.source).toBe('agent');
     expect(payload.provenance).toBe('auto-proposed-skill-draft');
   });

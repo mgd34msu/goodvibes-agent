@@ -65,10 +65,8 @@ export function installSmokePlan(
     {
       id: 'first-assistant-turn',
       label: 'First assistant turn responds',
-      status: modelReady ? 'user-run' : 'blocked',
-      evidence: modelReady
-        ? 'Ask the main assistant for a short ready response after model routing is selected.'
-        : 'A first assistant turn needs a provider/model route first.',
+      status: 'user-run',
+      evidence: 'Ask the main assistant for a short ready response once a provider/model route is selected.',
       route: 'Ask the assistant: "Say ready in one sentence and list the active model route."',
     },
   ];

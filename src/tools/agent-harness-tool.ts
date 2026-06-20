@@ -8,6 +8,7 @@ import { channelReadinessCatalogStatus, describeHarnessChannel, describeHarnessC
 import { blockedHarnessCliCommandTokens, describeHarnessCliCommand, listHarnessCliCommands, totalHarnessCliCommands } from './agent-harness-cli-metadata.ts';
 import { describeHarnessCommand, listHarnessCommands } from './agent-harness-command-catalog.ts';
 import { describeLearningCandidate, learningCuratorCatalogStatus, learningCuratorSummary } from './agent-harness-learning-curator.ts';
+import { runAutoPromoter } from './agent-harness-learning-auto-promote.ts';
 import { runSkillDraftProposer } from '../agent/skill-draft-runner.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
 import { delegationPostureCatalogStatus, delegationPostureSummary, describeHarnessDelegationRoute } from './agent-harness-delegation-posture.ts';
@@ -55,6 +56,8 @@ import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorCo
 import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
 import { countHarnessSettings, formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
 import { buildAssistantCockpitFromSummaries } from '../agent/assistant-cockpit.ts';
+import { remoteCatalogStatus, remotePairApproveHandoff, remotePairRejectHandoff, remotePairRequestsSummary, remotePeersInvokeHandoff, remotePeersSummary, remoteSnapshotSummary, remoteWorkCancelHandoff, remoteWorkSummary } from './agent-harness-remote.ts';
+import { channelDraftSaveHandoff, channelDraftSendHandoff, channelDraftsSummary, channelRoutingAssignHandoff, channelRoutingRemoveHandoff, channelRoutingSummary, unifiedInboxSummary } from './agent-harness-comms.ts';
 
 function isMode(value: unknown): value is AgentHarnessMode {
   return typeof value === 'string' && AGENT_HARNESS_MODES.includes(value as AgentHarnessMode);
@@ -200,6 +203,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const releaseReadiness = releaseReadinessInventoryStatus();
           const operatorMethods = operatorMethodCatalogStatus();
           const servicePosture = servicePostureCatalogStatus();
+          const remote = remoteCatalogStatus(deps.commandContext);
           const connectedHost = connectedHostSummary(deps.commandContext, deps.toolRegistry, {
             includeParameters: args.includeParameters === true,
           });
@@ -260,6 +264,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             releaseReadiness,
             operatorMethods,
             servicePosture,
+            remote,
             modeGuide: compactHarnessModeGuide(),
             ...(args.includeParameters === true ? { modelAccess: detailedHarnessModelAccessGuide() } : {}),
             settingsPolicy: settingsPolicySummary(),
@@ -487,6 +492,21 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return error(resolved.usage);
         }
         if (args.mode === 'learning_curator') return output(learningCuratorSummary(deps.commandContext, args));
+        if (args.mode === 'learning_auto_promote') {
+          const shellPaths = deps.commandContext.workspace?.shellPaths;
+          if (!shellPaths) return error('learning_auto_promote requires an active workspace.');
+          const memoryApi = deps.commandContext.clients?.agentKnowledgeApi?.memory;
+          if (!memoryApi) return error('learning_auto_promote requires an active memory registry.');
+          const skillRegistry = AgentSkillRegistry.fromShellPaths(shellPaths);
+          const result = await runAutoPromoter(deps.commandContext, skillRegistry, memoryApi);
+          return output({
+            ...result,
+            message: result.promoted > 0
+              ? `Promoted ${result.promoted} item(s); consolidated ${result.consolidated} duplicate(s).`
+              : 'No items eligible for autonomous promotion this pass.',
+            policy: 'Autonomous promotion. Skills are created via the skill-draft runner. Memory, persona, routine creates call registry directly. Consolidation runs the full merge-stale-delete pipeline. Secret scanning enforced by each registry create().',
+          });
+        }
         if (args.mode === 'learning_candidate') {
           const resolved = describeLearningCandidate(deps.commandContext, args);
           if (resolved.status === 'found') return output(resolved.candidate);
@@ -720,6 +740,49 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
               : 'No new skill drafts this pass.',
             policy: 'Drafted skills are disabled and require review before use. Enable them under Memory > Skills.',
           });
+        }
+        if (args.mode === 'remote_snapshot') return output(remoteSnapshotSummary(args));
+        if (args.mode === 'remote_peers') return output(remotePeersSummary(args));
+        if (args.mode === 'remote_work') return output(remoteWorkSummary(args));
+        if (args.mode === 'remote_pair_requests') return output(remotePairRequestsSummary(args));
+        if (args.mode === 'remote_pair_approve') {
+          const confirmationError = requireConfirmedAction(args, 'Remote pair request approval');
+          if (confirmationError) return error(confirmationError);
+          return output(remotePairApproveHandoff(args));
+        }
+        if (args.mode === 'remote_pair_reject') {
+          const confirmationError = requireConfirmedAction(args, 'Remote pair request rejection');
+          if (confirmationError) return error(confirmationError);
+          return output(remotePairRejectHandoff(args));
+        }
+        if (args.mode === 'remote_peers_invoke') {
+          const confirmationError = requireConfirmedAction(args, 'Remote peer command invocation');
+          if (confirmationError) return error(confirmationError);
+          return output(remotePeersInvokeHandoff(args));
+        }
+        if (args.mode === 'remote_work_cancel') {
+          const confirmationError = requireConfirmedAction(args, 'Remote work cancellation');
+          if (confirmationError) return error(confirmationError);
+          return output(remoteWorkCancelHandoff(args));
+        }
+        if (args.mode === 'unified_inbox') return output(await unifiedInboxSummary(deps.commandContext, args));
+        if (args.mode === 'channel_drafts') return output(channelDraftsSummary(deps.commandContext, args));
+        if (args.mode === 'channel_draft_save') {
+          const result = channelDraftSaveHandoff(deps.commandContext, args);
+          return typeof result === 'string' ? error(result) : output(result);
+        }
+        if (args.mode === 'channel_draft_send') {
+          const result = await channelDraftSendHandoff(deps.commandContext, args);
+          return typeof result === 'string' ? error(result) : output(result);
+        }
+        if (args.mode === 'channel_routing') return output(channelRoutingSummary(deps.commandContext, args));
+        if (args.mode === 'channel_routing_assign') {
+          const result = channelRoutingAssignHandoff(deps.commandContext, args);
+          return typeof result === 'string' ? error(result) : output(result);
+        }
+        if (args.mode === 'channel_routing_remove') {
+          const result = channelRoutingRemoveHandoff(deps.commandContext, args);
+          return typeof result === 'string' ? error(result) : output(result);
         }
         return error(`Unhandled agent_harness mode: ${args.mode}`);
       } catch (err) {

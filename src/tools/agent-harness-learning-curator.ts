@@ -3,7 +3,7 @@ import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-sna
 import type { AgentWorkspaceLocalLibraryItem } from '../input/agent-workspace-types.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { buildLearningCandidates, candidateSearchText } from './agent-harness-learning-curator-proposals.ts';
-import { clampScore, isReviewed, localRegistryRoute, missingRequirementCount, routeValue, scoresForItem } from './agent-harness-learning-curator-common.ts';
+import { clampScore, localRegistryRoute, missingRequirementCount, routeValue, scoresForItem } from './agent-harness-learning-curator-common.ts';
 import type { AgentHarnessLearningCuratorArgs, LearningCandidate, LearningCandidateResolution, LearningConsolidationBatchPlan, LearningPromptPlan, LocalLearningCandidateDomain } from './agent-harness-learning-curator-types.ts';
 export type { LearningCandidate, LearningCandidateResolution, LearningConsolidationDiff, LearningConsolidationFields, LearningConsolidationPlan } from './agent-harness-learning-curator-types.ts';
 
@@ -184,7 +184,7 @@ function promptRecordPriority(item: AgentWorkspaceLocalLibraryItem): number {
 }
 
 function isPromptEligibleRecord(domain: LocalLearningCandidateDomain, item: AgentWorkspaceLocalLibraryItem): boolean {
-  if (!isReviewed(item)) return false;
+  // Fully autonomous learning: review gate removed — records qualify without human review.
   if (domain === 'memory') return (item.confidence ?? 100) >= 70;
   if (domain === 'persona') return item.active === true;
   if (domain === 'skill' || domain === 'skill_bundle' || domain === 'routine') {
@@ -202,10 +202,10 @@ function promptRecordEntry(domain: LocalLearningCandidateDomain, item: AgentWork
     priority: promptRecordPriority(item),
     scores: scoresForItem(item),
     reason: domain === 'memory'
-      ? 'Reviewed high-confidence memory is eligible for prompt recall.'
+      ? 'High-confidence memory (confidence ≥ 70) is eligible for prompt recall.'
       : domain === 'persona'
-        ? 'Reviewed active persona is eligible for prompt personality context.'
-        : 'Reviewed, enabled, setup-ready behavior is eligible for prompt context.',
+        ? 'Active persona is eligible for prompt personality context.'
+        : 'Enabled, setup-ready behavior is eligible for prompt context.',
     inspectRoute: localRegistryRoute(domain, 'get', item.id),
     ...(includeParameters ? {
       reviewState: item.reviewState,
@@ -280,9 +280,9 @@ function learningPromptPlan(context: CommandContext, candidates: readonly Learni
     consolidationQueue: consolidationCandidates.slice(0, includeParameters ? 8 : 3).map((candidate) => promptPlanCandidate(candidate, includeParameters)),
     suppressed,
     orderingRules: [
-      'Prompt context stays limited to reviewed high-confidence memory and reviewed setup-ready enabled behavior.',
-      'Usefulness, freshness, source-quality, and risk scores drive review priority before durable context expands.',
-      'Low-confidence, stale, setup-blocked, unreviewed, blocked VIBE.md, and duplicate records stay suppressed until reviewed or repaired.',
+      'Prompt context is limited to high-confidence memory (confidence ≥ 70), active personas, and enabled setup-ready behavior.',
+      'Usefulness, freshness, source-quality, and risk scores drive promotion priority and determine which records guide the assistant.',
+      'Low-confidence, stale, setup-blocked, blocked VIBE.md, and duplicate records stay suppressed until their confidence or enabled/active state is repaired.',
       'Proposals from notes, completed work, completed research, and saved sessions require explicit create or promotion routes before they can guide the assistant.',
     ],
     routes: {
@@ -336,7 +336,7 @@ export function learningCuratorSummary(context: CommandContext, args: AgentHarne
     returned: Math.min(filtered.length, limit),
     total: all.length,
     nextActions: nextActions(all),
-    policy: 'Learning curator is read-only. Proposed memory and behavior changes use reviewed notes, completed work-plan items, completed research runs, saved sessions, VIBE.md personality health cards, duplicate consolidation, and existing confirmed capture routes; durable context still requires provenance, review, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
+    policy: 'Learning curator is read-only. Proposed memory and behavior changes use notes, completed work-plan items, completed research runs, saved sessions, VIBE.md personality health cards, duplicate consolidation, and existing confirmed capture routes; durable context still requires provenance, rollback via stale/delete routes, and explicit user intent for writes or promotion.',
   };
 }
 
