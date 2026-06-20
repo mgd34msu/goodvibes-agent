@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.3 - 2026-06-20
+
+- v1.5.3 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release picks up the latest bundled platform SDK.
+- Updated the bundled GoodVibes platform SDK to 0.34.0. The SDK publishes 17 new additive operator method contracts (channels inbox/routing/drafts, email, and calendar) plus security advisory pins in the SDK's own build dependencies. Existing operator methods and types are unchanged.
+- No behavior change in this release: the Agent's inbound channel feed and channel-to-profile routing surfaces stay gated until a daemon release ships the matching handlers (inboundChannelFeed.available remains false; routes remain local_only). The bump only makes the new contracts visible to the operator-method tool so the Agent can detect them once the daemon exposes them.
+- No change to your conversations, memory, skills, routines, or operator confirmation gates; this is an internal dependency update.
+
 ## 1.5.2 - 2026-06-17
 
 - v1.5.2 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release picks up the latest bundled platform SDK and keeps review scoring aligned with it.
