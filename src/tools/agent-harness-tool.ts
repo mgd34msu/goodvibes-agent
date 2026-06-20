@@ -768,12 +768,10 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         if (args.mode === 'unified_inbox') return output(await unifiedInboxSummary(deps.commandContext, args));
         if (args.mode === 'channel_drafts') return output(channelDraftsSummary(deps.commandContext, args));
         if (args.mode === 'channel_draft_save') {
-          const result = channelDraftSaveHandoff(deps.commandContext, args);
-          return typeof result === 'string' ? error(result) : output(result);
+          const result = channelDraftSaveHandoff(deps.commandContext, args); return typeof result === 'string' ? error(result) : output(result);
         }
         if (args.mode === 'channel_draft_send') {
-          const result = await channelDraftSendHandoff(deps.commandContext, args);
-          return typeof result === 'string' ? error(result) : output(result);
+          const result = await channelDraftSendHandoff(deps.commandContext, args); return typeof result === 'string' ? error(result) : output(result);
         }
         if (args.mode === 'channel_routing') return output(channelRoutingSummary(deps.commandContext, args));
         if (args.mode === 'channel_routing_assign') {
