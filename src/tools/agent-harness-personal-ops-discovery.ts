@@ -315,8 +315,9 @@ export function connectorToolCount(signals: readonly PersonalOpsConnectorSignal[
 }
 
 export function workflowStatus(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): PersonalOpsWorkflowStatus {
-  if (methodIds.length > 0 || connectorReady(connectors)) return 'ready';
+  if (connectorReady(connectors)) return 'ready';
   if (connectors.length > 0) return 'attention';
+  if (methodIds.length > 0) return 'ready';
   return 'needs-setup';
 }
 

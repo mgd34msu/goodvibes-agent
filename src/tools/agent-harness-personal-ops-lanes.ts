@@ -58,7 +58,7 @@ export function buildLanes(
       outcome: 'Triage inbound email or message inboxes, summarize threads, draft replies, and send only after confirmation.',
       current: inboxProviderRecords.length > 0
         ? 'Fresh provider-backed inbox thread records are published by the connected daemon or SDK read model; Personal Ops can triage current queue state without inventing sends, labels, or archive effects.'
-        : emailMethods.length > 0
+        : emailMethods.length > 0 && emailConnectors.length === 0 && inboxArtifactRecords.length === 0 && inboxEffectReceiptRecords.length === 0
         ? 'The daemon contract exposes email-like methods; Personal Ops workflow cards now guide inbox triage and draft boundaries around exact methods.'
         : emailConnectors.length > 0
           ? 'A configured MCP connector looks email-capable; Personal Ops workflow cards now guide inbox triage, schema-derived operation records, and draft boundaries around its exact tools.'
@@ -69,7 +69,7 @@ export function buildLanes(
         : 'No email/IMAP/SMTP methods are present in the current GoodVibes SDK operator contract.',
       next: inboxProviderRecords.length > 0
         ? 'Inspect one fresh thread record, summarize or draft locally, and use only the published confirmed follow-up routes for replies, sends, labels, or archive.'
-        : emailMethods.length > 0
+        : emailMethods.length > 0 && emailConnectors.length === 0 && inboxArtifactRecords.length === 0 && inboxEffectReceiptRecords.length === 0
         ? 'Use the inbox workflow cards to inspect exact methods, read selected threads, summarize priorities, and keep send as a separate confirmation.'
         : emailConnectors.length > 0
           ? 'Use the inbox workflow cards and operation records to inspect matching MCP connector schemas, then route triage only through reviewed connector actions.'
@@ -111,7 +111,7 @@ export function buildLanes(
       outcome: 'Read agenda context, identify conflicts, prepare briefings, and create reminders for calendar-driven work.',
       current: calendarProviderRecords.length > 0
         ? 'Fresh provider-backed calendar event records are published by the connected daemon or SDK read model; Personal Ops can brief current agenda and conflict state without inventing event edits or RSVP effects.'
-        : calendarMethods.length > 0
+        : calendarMethods.length > 0 && calendarConnectors.length === 0 && calendarArtifactRecords.length === 0 && calendarEffectReceiptRecords.length === 0
         ? 'The daemon contract exposes calendar-like methods; Personal Ops workflow cards now guide agenda briefing and conflict-scan boundaries.'
         : calendarConnectors.length > 0
           ? 'A configured MCP connector looks calendar-capable; Personal Ops workflow cards now guide agenda briefing, schema-derived operation records, and conflict-scan boundaries around its exact tools.'
@@ -122,7 +122,7 @@ export function buildLanes(
         : 'No calendar/CalDAV/agenda methods are present in the current GoodVibes SDK operator contract.',
       next: calendarProviderRecords.length > 0
         ? 'Inspect one fresh event record, brief the agenda or conflicts locally, and use only the published confirmed follow-up routes for edits, RSVP, reschedule, or delete.'
-        : calendarMethods.length > 0
+        : calendarMethods.length > 0 && calendarConnectors.length === 0 && calendarArtifactRecords.length === 0 && calendarEffectReceiptRecords.length === 0
         ? 'Use the calendar workflow cards to inspect exact methods, fetch a bounded agenda window, and propose reminders or follow-ups.'
         : calendarConnectors.length > 0
           ? 'Use the calendar workflow cards and operation records to inspect matching MCP connector schemas, then route agenda work only through reviewed connector actions.'
