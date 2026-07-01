@@ -89,7 +89,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@pellux/goodvibes-sdk": "0.34.0",
+    "@pellux/goodvibes-sdk": "0.35.0",
     "sql.js": "^1.14.1",
     "sqlite-vec": "^0.1.9",
     "zustand": "^5.0.12",

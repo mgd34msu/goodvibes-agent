@@ -4,7 +4,7 @@
  * All tests are deterministic — no Date.now(), Math.random(), or I/O.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import type { EmailSummary } from '../../agent/email/email-service.ts';
 import {
   classifyTone,
@@ -459,7 +459,7 @@ describe('buildStyleReplyLaneAdditions', () => {
 
   it('workflow and liveRecord have consistent status', () => {
     const additions = buildStyleReplyLaneAdditions(true);
-    expect(additions.workflow.status).toBe(additions.liveRecord.status);
+    expect(additions.liveRecord.status).toBe(additions.workflow.status);
   });
 
   it('is deterministic — two calls with same arg produce equal results', () => {

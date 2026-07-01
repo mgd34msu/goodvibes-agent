@@ -1,5 +1,10 @@
 /**
- * Tests for session-lineage.ts
+ * Tests for SessionLineageTracker (from @pellux/goodvibes-sdk/platform/core).
+ *
+ * SDK 0.35.0 contract: the tracker is a pure, append-only data holder.
+ * Section formatting moved out to buildSessionLineage in compaction-sections,
+ * so the tracker no longer exposes format(). These tests exercise the tracker's
+ * public contract (setters + getters + reset) that this app consumes.
  *
  * Run with: bun test src/test/core/session-lineage.test.ts
  */
@@ -20,16 +25,13 @@ describe('SessionLineageTracker', () => {
   describe('setOriginalTask', () => {
     it('sets the task', () => {
       tracker.setOriginalTask('build the thing');
-      const output = tracker.format();
-      expect(output).toContain('build the thing');
+      expect(tracker.getOriginalTask()).toBe('build the thing');
     });
 
     it('silently ignores second call (overwrite guard)', () => {
       tracker.setOriginalTask('first task');
       tracker.setOriginalTask('second task');
-      const output = tracker.format();
-      expect(output).toContain('first task');
-      expect(output).not.toContain('second task');
+      expect(tracker.getOriginalTask()).toBe('first task');
     });
   });
 
@@ -42,14 +44,17 @@ describe('SessionLineageTracker', () => {
       tracker.setOriginalTask('some task');
       tracker.addCompactionEntry('first compaction');
       tracker.addCompactionEntry('second compaction');
-      const output = tracker.format()!;
-      expect(output).toContain('- #1: first compaction');
-      expect(output).toContain('- #2: second compaction');
+      expect(tracker.getEntries()).toEqual([
+        '- #1: first compaction',
+        '- #2: second compaction',
+      ]);
+      expect(tracker.getCompactionCount()).toBe(2);
     });
 
     it('rejects empty summary', () => {
       tracker.addCompactionEntry('');
       expect(tracker.getCompactionCount()).toBe(0);
+      expect(tracker.getEntries()).toEqual([]);
     });
 
     it('rejects whitespace-only summary', () => {
@@ -76,37 +81,33 @@ describe('SessionLineageTracker', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // format
+  // getOriginalTask
   // ---------------------------------------------------------------------------
 
-  describe('format', () => {
+  describe('getOriginalTask', () => {
     it('returns null when no task set', () => {
-      expect(tracker.format()).toBeNull();
+      expect(tracker.getOriginalTask()).toBeNull();
     });
 
-    it('returns null when no task set even after adding entries', () => {
-      tracker.addCompactionEntry('some compaction');
-      expect(tracker.format()).toBeNull();
-    });
-
-    it('returns formatted section with task and entries', () => {
+    it('returns the task once set', () => {
       tracker.setOriginalTask('implement the feature');
-      tracker.addCompactionEntry('compacted conversation 1');
-      tracker.addCompactionEntry('compacted conversation 2');
-      const output = tracker.format()!;
-      expect(output).toContain('## Session Lineage');
-      expect(output).toContain('Original task: "implement the feature"');
-      expect(output).toContain('Compactions: 2');
-      expect(output).toContain('- #1: compacted conversation 1');
-      expect(output).toContain('- #2: compacted conversation 2');
+      expect(tracker.getOriginalTask()).toBe('implement the feature');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // getEntries
+  // ---------------------------------------------------------------------------
+
+  describe('getEntries', () => {
+    it('returns an empty array when no entries added', () => {
+      expect(tracker.getEntries()).toEqual([]);
     });
 
-    it('returns formatted section with task and no entries', () => {
-      tracker.setOriginalTask('simple task');
-      const output = tracker.format()!;
-      expect(output).toContain('## Session Lineage');
-      expect(output).toContain('Original task: "simple task"');
-      expect(output).toContain('Compactions: 0');
+    it('reflects each accepted entry in order', () => {
+      tracker.addCompactionEntry('alpha');
+      tracker.addCompactionEntry('beta');
+      expect(tracker.getEntries()).toEqual(['- #1: alpha', '- #2: beta']);
     });
   });
 
@@ -119,7 +120,8 @@ describe('SessionLineageTracker', () => {
       tracker.setOriginalTask('some task');
       tracker.addCompactionEntry('entry one');
       tracker.reset();
-      expect(tracker.format()).toBeNull();
+      expect(tracker.getOriginalTask()).toBeNull();
+      expect(tracker.getEntries()).toEqual([]);
       expect(tracker.getCompactionCount()).toBe(0);
     });
 
@@ -127,8 +129,7 @@ describe('SessionLineageTracker', () => {
       tracker.setOriginalTask('first task');
       tracker.reset();
       tracker.setOriginalTask('new task after reset');
-      const output = tracker.format()!;
-      expect(output).toContain('new task after reset');
+      expect(tracker.getOriginalTask()).toBe('new task after reset');
     });
   });
 });
