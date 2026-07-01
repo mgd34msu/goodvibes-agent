@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.5 - 2026-06-30
+
+- v1.5.5 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release picks up the latest bundled platform SDK.
+- Updated the bundled GoodVibes platform SDK to 0.35.0.
+- Realigned the session-lineage tracker test suite with the 0.35.0 SessionLineageTracker contract, which removed .format() in favor of pure state tracking (setOriginalTask, addCompactionEntry, reset, getCompactionCount, getOriginalTask, getEntries); section formatting now lives in buildSessionLineage.
+- Fixed the email-style-reply test to import from bun:test instead of vitest, matching the rest of the suite.
+- Realigned three more test suites with SDK 0.35.0 runtime behavior: conversation token estimation now charges for image content parts instead of ignoring them, the import-graph specifier extractor now tracks relative side-effect imports, and the fetch tool's timeout error message changed to match the native AbortSignal.timeout() wording.
+- Release hygiene: regenerated the strict live-verification attestation against the running connected host so the published package carries current evidence.
+- No change to your conversations, memory, skills, routines, or operator confirmation gates; this is an internal dependency and test-alignment update.
+
 ## 1.5.4 - 2026-06-30
 
 - v1.5.4 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release picks up the latest bundled platform SDK.
