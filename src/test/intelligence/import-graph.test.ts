@@ -34,14 +34,16 @@ describe('extractRelativeSpecifiersForTest', () => {
     expect(specs).toEqual(['./a', './b', './c']);
   });
 
-  it('ignores side-effect imports and non-relative specifiers', () => {
+  it('includes relative side-effect imports but ignores non-relative specifiers', () => {
     const specs = extractRelativeSpecifiersForTest([
       `import './setup';`,
       `import React from 'react';`,
       `import { x } from '@scope/pkg';`,
     ].join('\n'));
 
-    expect(specs).toEqual([]);
+    // SDK 0.35.0: relative side-effect imports are now tracked as real module
+    // dependencies; only non-relative specifiers are excluded.
+    expect(specs).toEqual(['./setup']);
   });
 });
 

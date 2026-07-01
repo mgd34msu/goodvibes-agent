@@ -468,7 +468,9 @@ describe('fetch tool - error handling', () => {
     });
     expect(result.success).toBe(true);
     const out = JSON.parse(result.output!);
-    expect(out.results[0].error).toContain('Timeout');
+    // SDK 0.35.0: timeouts now use the native AbortSignal.timeout() fast path,
+    // whose DOMException message is "The operation timed out." (name TimeoutError).
+    expect(out.results[0].error).toContain('timed out');
     expect(out.summary.failed).toBe(1);
   }, 5000);
 

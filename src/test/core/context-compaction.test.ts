@@ -56,13 +56,13 @@ describe('estimateConversationTokens', () => {
     expect(estimateConversationTokens(msgs)).toBe(2);
   });
 
-  it('handles ContentPart[] messages — only counts text parts', () => {
+  it('handles ContentPart[] messages — text and image parts both count', () => {
     const parts: ContentPart[] = [
       { type: 'text', text: 'abcd' },       // 4 chars → 1 token
-      { type: 'image', url: 'http://x' } as unknown as ContentPart, // ignored
+      { type: 'image', url: 'http://x' } as unknown as ContentPart, // SDK 0.35.0: images now cost IMAGE_TOKEN_ESTIMATE (1600) tokens
     ];
     const msgs: ProviderMessage[] = [makeContentPartMsg('user', parts)];
-    expect(estimateConversationTokens(msgs)).toBe(1);
+    expect(estimateConversationTokens(msgs)).toBe(1601);
   });
 
   it('handles ContentPart[] with multiple text parts', () => {
@@ -155,10 +155,11 @@ describe('shouldAutoCompact', () => {
 // ---------------------------------------------------------------------------
 
 describe('extractText (via estimateConversationTokens)', () => {
-  it('ContentPart[] with no text parts contributes 0 tokens', () => {
+  it('ContentPart[] with only an image part contributes IMAGE_TOKEN_ESTIMATE tokens', () => {
     const parts = [{ type: 'image', url: 'http://x.com/img.png' } as unknown as ContentPart];
     const msgs: ProviderMessage[] = [makeContentPartMsg('user', parts)];
-    expect(estimateConversationTokens(msgs)).toBe(0);
+    // SDK 0.35.0: image parts contribute IMAGE_TOKEN_ESTIMATE (1600) tokens instead of being ignored.
+    expect(estimateConversationTokens(msgs)).toBe(1600);
   });
 
   it('empty string content produces 0 tokens', () => {
