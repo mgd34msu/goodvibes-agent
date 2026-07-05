@@ -1,8 +1,16 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process';
 import { isForbiddenPackageTarballPath, requiredTarballPaths, verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
+import { sdkReleaseGateIssues } from './sdk-release-gates.ts';
 
 const root = process.cwd();
+
+// SDK release gates: overlay-marker hard-fail, exact-pin, pin/lock/installed
+// agreement, and npm-only import sweep. Keeps scripts/sdk-dev.ts's local-SDK
+// overlay from ever leaking into a published @pellux/goodvibes-agent.
+for (const issue of sdkReleaseGateIssues(root)) {
+  throw new Error(issue);
+}
 
 for (const issue of verifyReleaseMetadata(root)) {
   throw new Error(issue);
