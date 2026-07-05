@@ -47,6 +47,10 @@ describe('bootstrap hook bridge session resume', () => {
       sharedSessionBroker: {
         reopenSession: mock(async () => null as SharedSessionRecord | null),
       },
+      sessionSpineClient: {
+        reopen: mock(() => {}),
+      },
+      projectRoot: '/project',
       writeLastSessionPointer: mock(() => {}),
       hookDispatcher: {
         fire: mock(async () => {}),

@@ -9,6 +9,7 @@ import { HelperModel } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
 import type { SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
+import type { SessionSpineClient } from './session-spine-client.ts';
 import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
@@ -21,6 +22,8 @@ export interface ResumeSessionOptions {
   readonly requestRender: () => void;
   readonly onSessionIdChanged?: (sessionId: string) => void;
   readonly sharedSessionBroker: Pick<SharedSessionBroker, 'reopenSession'>;
+  readonly sessionSpineClient: Pick<SessionSpineClient, 'reopen'>;
+  readonly projectRoot: string;
   readonly writeLastSessionPointer: (sessionId: string) => void;
   readonly hookDispatcher: HookDispatcher;
   readonly sessionManager: SessionManager;
@@ -51,6 +54,9 @@ export function createResumeSessionHandler(options: ResumeSessionOptions): (sess
       if (meta?.provider) options.runtime.provider = meta.provider;
       options.writeLastSessionPointer(sessionId);
       void options.sharedSessionBroker.reopenSession(sessionId).catch((err) => { logger.debug('session broker reopen session failed', { err }); });
+      // W2A: mirror the reopen into the daemon spine — reopen:true is sent ONLY on
+      // this explicit user resume verb (fire-and-forget; never blocks the resume).
+      options.sessionSpineClient.reopen({ sessionId, project: options.projectRoot });
       options.conversation.log(`Resumed session: ${sessionId}`, { fg: '135' });
       const returnContextMode = getReturnContextMode(options.configManager);
       if (returnContextMode !== 'off' && meta.returnContext) {

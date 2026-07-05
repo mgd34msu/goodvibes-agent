@@ -518,6 +518,21 @@ export async function initializeBootstrapCore(
     },
   }).catch((err) => { logger.debug('session broker create session failed at bootstrap', { err }); });
 
+  // W2A: mirror the create into the daemon spine (fire-and-forget; the local
+  // broker above stays the source of truth). kind:'agent' is the canonical record
+  // identity; participant.surfaceKind stays 'service' (the TRANSPORT axis).
+  services.sessionSpineClient.register({
+    sessionId: runtime.sessionId,
+    project: workingDir,
+    title: 'GoodVibes Agent session',
+  });
+  // Debounced heartbeat off turn activity — coalesced to one wire call per window,
+  // no title, reopen:false. Uses the ref so a resumed session id is followed.
+  runtimeUnsubs.push(
+    uiServices.events.turns.on('TURN_SUBMITTED', () => services.sessionSpineClient.heartbeat(runtimeSessionIdRef.value)),
+    uiServices.events.turns.on('TURN_COMPLETED', () => services.sessionSpineClient.heartbeat(runtimeSessionIdRef.value)),
+  );
+
   domainDispatch.syncSessionState({
     id: userSessionId,
     projectRoot: workingDir,

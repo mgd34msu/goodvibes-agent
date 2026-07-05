@@ -10,6 +10,8 @@ import { ChannelPluginRegistry, ChannelPolicyManager, RouteBindingManager, Surfa
 import { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { SessionSpineClient, createSpineConnectionResolver } from './session-spine-client.ts';
 import { WatcherRegistry } from '@pellux/goodvibes-sdk/platform/watchers';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import {
@@ -399,6 +401,7 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly watcherRegistry: WatcherRegistry;
   readonly approvalBroker: ApprovalBroker;
   readonly sessionBroker: SharedSessionBroker;
+  readonly sessionSpineClient: SessionSpineClient;
   readonly deliveryManager: AutomationDeliveryManager;
   readonly automationManager: AutomationManager;
   readonly gatewayMethods: GatewayMethodCatalog;
@@ -593,6 +596,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     routeBindings,
     agentStatusProvider: agentManager,
     messageSender: agentMessageBus,
+  });
+  // W2A: raw-REST spine mirror that registers this surface's sessions into the
+  // daemon next to the broker. Client-only; never starts the daemon. All calls
+  // are fire-and-forget; a down daemon degrades to an honest offline queue while
+  // the local broker keeps rendering.
+  const sessionSpineClient = new SessionSpineClient({
+    resolveConnection: createSpineConnectionResolver(configManager, homeDirectory),
+    log: logger,
   });
   sessionBroker.setContinuationRunner(async ({ task, input }) => {
     const record = agentManager.spawn({
@@ -890,6 +901,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     watcherRegistry,
     approvalBroker,
     sessionBroker,
+    sessionSpineClient,
     deliveryManager,
     automationManager,
     gatewayMethods,
