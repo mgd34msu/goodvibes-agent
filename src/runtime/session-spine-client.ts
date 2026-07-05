@@ -137,6 +137,22 @@ export class SessionSpineClient {
   private lastHeartbeatAt = 0;
   private heartbeatTimer: ReturnType<typeof setTimeout> | null = null;
   private flushing = false;
+  /** The most recently registered/reopened session — the target of the timer-driven
+   * keepalive heartbeat below. */
+  private lastSessionId: string | null = null;
+  /** Timer-driven keepalive: fires the heartbeat on a fixed cadence INDEPENDENT of
+   * turn activity, so a live-but-idle agent surface (no TURN_SUBMITTED/COMPLETED
+   * for a while) keeps its participant lastSeenAt fresh and never falls outside the
+   * daemon's idle-empty reaper window (SharedSessionBroker idleEmptyMs, default
+   * 10min — see session-broker.ts). Ports goodvibes-tui's D3/#4 fix
+   * (bda3cf5f) 1:1; this client has no separate activate()/deactivate() step (it
+   * is live for the whole process lifetime once constructed), so the keepalive
+   * starts here in the constructor and stops in dispose(). Each tick is just a
+   * heartbeat() call, so it rides the SAME bounded offline-queue/reconnect
+   * handling as every other op (dispatchRegister → runRegister marks reachability
+   * offline and enqueues, drop-oldest, on failure; online + flush on success) —
+   * no new retry loop, no faster-than-cadence attempts against a dead daemon. */
+  private keepaliveTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(options: SessionSpineClientOptions) {
     this.resolveConnection = options.resolveConnection;
@@ -148,6 +164,7 @@ export class SessionSpineClient {
     this.probeTimeoutMs = options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
     this.probeImpl = options.probe ?? defaultProbe;
     this.log = options.log ?? logger;
+    this.startKeepalive();
   }
 
   /** Honest reachability derived from this client's own probe/ops. */
@@ -158,6 +175,29 @@ export class SessionSpineClient {
   /** Current bounded offline-queue depth (for diagnostics / tests). */
   get pendingOps(): number {
     return this.queue.length;
+  }
+
+  /** The session the keepalive heartbeat currently targets (diagnostics/tests). */
+  get keepaliveSessionId(): string | null {
+    return this.lastSessionId;
+  }
+
+  /** Start the timer-driven keepalive heartbeat (idempotent). Fires at the same
+   * cadence as the debounce window so it coalesces with turn-driven beats — at
+   * most one wire call per window either way. */
+  private startKeepalive(): void {
+    if (this.keepaliveTimer !== null || this.heartbeatMinIntervalMs <= 0) return;
+    this.keepaliveTimer = setInterval(() => {
+      if (this.lastSessionId) this.heartbeat(this.lastSessionId);
+    }, this.heartbeatMinIntervalMs);
+    this.keepaliveTimer.unref?.();
+  }
+
+  private stopKeepalive(): void {
+    if (this.keepaliveTimer !== null) {
+      clearInterval(this.keepaliveTimer);
+      this.keepaliveTimer = null;
+    }
   }
 
   /** CREATE: fire-and-forget initial registration (title stamped once). */
@@ -233,17 +273,20 @@ export class SessionSpineClient {
     return this.reachability;
   }
 
-  /** Clears the pending heartbeat timer; call on shutdown. */
+  /** Clears the pending heartbeat timer and the keepalive timer; call on shutdown. */
   dispose(): void {
     if (this.heartbeatTimer) {
       clearTimeout(this.heartbeatTimer);
       this.heartbeatTimer = null;
     }
+    this.stopKeepalive();
   }
 
   private cacheHeartbeatRecord(record: SessionSpineRecord): void {
     // Cache the title-less form so heartbeats never rename a titled session.
     this.records.set(record.sessionId, this.buildInput(record, { includeTitle: false }));
+    // Track the newest session as the keepalive-heartbeat target.
+    this.lastSessionId = record.sessionId;
   }
 
   private buildInput(

@@ -279,3 +279,80 @@ describe('foldLegacySpineStore', () => {
     mkdirSync(root, { recursive: true }); // keep tmp dir referenced
   });
 });
+
+describe('SessionSpineClient timer-driven keepalive (an idle-open session must not go stale — ports goodvibes-tui bda3cf5f)', () => {
+  test('keepalive re-heartbeats on its own cadence with NO turn activity', async () => {
+    installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-1', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
+    // Small window so the interval fires quickly in the test.
+    const client = makeClient({ heartbeatMinIntervalMs: 15 });
+    client.register({ sessionId: 'keepalive-1', project: '/p', title: 'T' });
+    await settle();
+    expect(client.keepaliveSessionId).toBe('keepalive-1');
+    const afterRegister = requests.filter((r) => r.url.endsWith('/api/sessions/register')).length;
+
+    // Without touching the client again (no register/reopen/heartbeat calls), the
+    // keepalive timer must produce further heartbeats on its own.
+    await new Promise((r) => setTimeout(r, 70));
+    await settle();
+    const afterIdle = requests.filter((r) => r.url.endsWith('/api/sessions/register')).length;
+    expect(afterIdle).toBeGreaterThan(afterRegister);
+    // Every keepalive beat targets the live session id and omits the title.
+    const beats = requests.filter((r) => r.url.endsWith('/api/sessions/register')).slice(afterRegister);
+    for (const beat of beats) {
+      expect((beat.body as { sessionId: string }).sessionId).toBe('keepalive-1');
+      expect('title' in (beat.body as Record<string, unknown>)).toBe(false);
+    }
+    client.dispose();
+  });
+
+  test('dispose() stops the keepalive (no further wire calls after teardown)', async () => {
+    installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-2', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
+    const client = makeClient({ heartbeatMinIntervalMs: 15 });
+    client.register({ sessionId: 'keepalive-2', project: '/p', title: 'T' });
+    await settle();
+    client.dispose();
+    const afterDispose = requests.length;
+    await new Promise((r) => setTimeout(r, 70));
+    expect(requests.length).toBe(afterDispose);
+  });
+
+  test('close() clears the cached record so a subsequent keepalive tick is a no-op', async () => {
+    installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-3', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
+    const client = makeClient({ heartbeatMinIntervalMs: 15 });
+    client.register({ sessionId: 'keepalive-3', project: '/p', title: 'T' });
+    await settle();
+    client.close('keepalive-3');
+    await settle();
+    requests.length = 0;
+    await new Promise((r) => setTimeout(r, 40));
+    await settle();
+    // heartbeat() is a no-op for a session whose cached record was deleted by close().
+    expect(requests.filter((r) => r.url.endsWith('/api/sessions/register'))).toHaveLength(0);
+    client.dispose();
+  });
+
+  test('daemon goes offline: keepalive ticks queue (bounded) instead of throwing; a later successful tick flushes and goes back online', async () => {
+    installFetch(() => { throw new Error('ECONNREFUSED'); });
+    const client = makeClient({ heartbeatMinIntervalMs: 15 });
+    client.register({ sessionId: 'keepalive-4', project: '/p', title: 'T' });
+    await settle();
+    expect(client.status()).toBe('offline');
+
+    // Let at least one more keepalive tick land while still offline — it must
+    // ride the existing bounded queue (drop-oldest), never throw, never spin up
+    // a separate faster retry loop.
+    await new Promise((r) => setTimeout(r, 40));
+    await settle();
+    expect(client.status()).toBe('offline');
+    expect(client.pendingOps).toBeGreaterThan(0); // queued for replay, never thrown/dropped-on-the-floor
+
+    // Daemon comes back: the NEXT keepalive tick (no manual intervention) succeeds
+    // and flushes the queue.
+    installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-4', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
+    await new Promise((r) => setTimeout(r, 40));
+    await settle();
+    expect(client.status()).toBe('online');
+    expect(client.pendingOps).toBe(0);
+    client.dispose();
+  });
+});
