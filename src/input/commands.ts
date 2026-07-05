@@ -5,7 +5,6 @@ import { recallCommand } from './commands/memory.ts';
 import { knowledgeCommand } from './commands/knowledge.ts';
 import { registerShellCoreCommands } from './commands/shell-core.ts';
 import { registerConfigCommand } from './commands/config.ts';
-import { registerSessionWorkflowCommands } from './commands/session-workflow.ts';
 import { registerScheduleRuntimeCommands } from './commands/schedule-runtime.ts';
 import { registerOperatorRuntimeCommands } from './commands/operator-runtime.ts';
 import { registerNotifyRuntimeCommands } from './commands/notify-runtime.ts';
@@ -93,7 +92,6 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerOnboardingRuntimeCommands(registry);
   registerTtsRuntimeCommands(registry);
   registerLocalRuntimeCommands(registry);
-  registerSessionWorkflowCommands(registry);
   registerScheduleRuntimeCommands(registry);
   registerSessionContentCommands(registry);
   registerAgentMemoryCommand(registry);

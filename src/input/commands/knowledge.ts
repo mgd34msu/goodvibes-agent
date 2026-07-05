@@ -128,7 +128,7 @@ function requireAgentKnowledgeAsk(context: CommandContext): ((input: KnowledgeAs
 
 export const knowledgeCommand: SlashCommand = {
   name: 'knowledge',
-  aliases: ['know', 'kb'],
+  aliases: ['know'],
   description: 'Agent Knowledge: isolated Agent-owned status, ask/search, source/node/issue lists, item lookup, map, connectors, ingest, and review queue.',
   hidden: true,
   usage: '<subcommand> [args]',

@@ -259,8 +259,30 @@ export class CommandRegistry {
   private commands = new Map<string, SlashCommand>();
   private aliasIndex = new Map<string, SlashCommand>();
 
-  /** Register a command. Also indexes all aliases for O(1) lookup. */
+  /**
+   * Register a command. Also indexes all aliases for O(1) lookup.
+   *
+   * Collisions are LOUD: a second registration of the same primary name, or an
+   * alias that shadows an existing command's name or alias, throws instead of
+   * silently overwriting. Silent last-write-wins hid a real /session
+   * double-registration (session-workflow.ts vs commands/session.ts); the fork
+   * bypassed this check, so make it fail fast at startup instead.
+   */
   register(command: SlashCommand): void {
+    const existingByName = this.commands.get(command.name) ?? this.aliasIndex.get(command.name);
+    if (existingByName) {
+      throw new Error(
+        `Command registration collision: "${command.name}" is already registered by /${existingByName.name}.`,
+      );
+    }
+    for (const alias of command.aliases ?? []) {
+      const holder = this.commands.get(alias) ?? this.aliasIndex.get(alias);
+      if (holder) {
+        throw new Error(
+          `Command alias collision: "${alias}" on /${command.name} is already registered by /${holder.name}.`,
+        );
+      }
+    }
     this.commands.set(command.name, command);
     for (const alias of command.aliases ?? []) {
       this.aliasIndex.set(alias, command);
