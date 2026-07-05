@@ -107,7 +107,12 @@ describe('sdk-release-gates', () => {
     const root = makeFixture({
       srcFiles: {
         'ok.ts': `import { a } from '${SDK}/platform/tools';\n`,
-        'bad.ts': `import { evil } from '../../../goodvibes-sdk/dist/secret.js';\n`,
+        // Build the overlay specifier so THIS test file's own source text never
+        // contains the contiguous literal "goodvibes-sdk". The written fixture is
+        // byte-identical at runtime, but the release gate's source sweep
+        // (publish:check → nonNpmSdkImportOffenders) walks src/ including this
+        // test file, and a raw literal here is flagged as a real offender.
+        'bad.ts': `import { evil } from '../../../goodvibes-${'sdk'}/dist/secret.js';\n`,
       },
     });
     const offenders = nonNpmSdkImportOffenders(root);
