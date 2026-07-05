@@ -37,7 +37,7 @@ import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import { foldLegacySpineStore } from './session-spine-client.ts';
+import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';

@@ -3,12 +3,15 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { readdirSync, statSync } from 'node:fs';
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import {
-  SessionSpineClient,
+  AGENT_SPINE_PARTICIPANT,
   foldLegacySpineStore,
+  SessionSpineClient,
   type SessionSpineClientOptions,
-} from '../../runtime/session-spine-client.ts';
+} from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
+import { createSpineRestProbe, createSpineRestTransport } from '../../runtime/session-spine-rest-transport.ts';
 import type { SessionRegistrationConnection } from '../../agent/session-registration.ts';
 
 interface CapturedRequest {
@@ -29,8 +32,9 @@ const settle = async (): Promise<void> => {
 
 function makeClient(overrides: Partial<SessionSpineClientOptions> = {}): SessionSpineClient {
   return new SessionSpineClient({
-    resolveConnection: () => CONNECTION,
-    log: { debug: () => {} },
+    participant: AGENT_SPINE_PARTICIPANT,
+    transport: createSpineRestTransport({ resolveConnection: () => CONNECTION }),
+    log: { debug: () => {}, info: () => {} },
     ...overrides,
   });
 }
@@ -63,7 +67,7 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-describe('SessionSpineClient fire-and-forget', () => {
+describe('SessionSpineClient fire-and-forget (SDK core via the agent REST transport adapter)', () => {
   test('register returns synchronously and does not block on the wire', async () => {
     let resolveFetch: (r: Response) => void = () => {};
     installFetch(() => new Promise<Response>((resolve) => { resolveFetch = resolve; }));
@@ -98,7 +102,9 @@ describe('SessionSpineClient fire-and-forget', () => {
 describe('SessionSpineClient offline queue', () => {
   test('offline register enqueues; a later successful probe flushes idempotently', async () => {
     installFetch(() => { throw new Error('ECONNREFUSED'); });
-    const client = makeClient();
+    // Production shape: the real self-probe (GET /status), not a bare override —
+    // proves the adapter's probe wiring, not just the core's queue mechanics.
+    const client = makeClient({ probe: createSpineRestProbe({ resolveConnection: () => CONNECTION }) });
     client.register({ sessionId: 'user-1', project: '/p', title: 'T' });
     await settle();
     expect(client.status()).toBe('offline');
@@ -242,7 +248,7 @@ describe('foldLegacySpineStore', () => {
       },
     };
 
-    const result = foldLegacySpineStore(stub, { storePath, markerPath, project: '/p', now: () => 42, log: { debug: () => {} } });
+    const result = foldLegacySpineStore(stub, { storePath, markerPath, project: '/p', now: () => 42, log: { debug: () => {}, info: () => {} } });
     expect(result).toEqual({ folded: 2, skipped: false });
     expect(folded).toHaveLength(1);
     expect(folded[0]?.ids.sort()).toEqual(['user-1', 'user-2']);
@@ -260,7 +266,7 @@ describe('foldLegacySpineStore', () => {
     let called = 0;
     const result = foldLegacySpineStore(
       { foldLegacyRecords: () => { called += 1; } },
-      { storePath, markerPath, project: '/p', log: { debug: () => {} } },
+      { storePath, markerPath, project: '/p', log: { debug: () => {}, info: () => {} } },
     );
     expect(result.skipped).toBe(true);
     expect(called).toBe(0);
@@ -271,7 +277,7 @@ describe('foldLegacySpineStore', () => {
     let called = 0;
     const result = foldLegacySpineStore(
       { foldLegacyRecords: () => { called += 1; } },
-      { storePath: join(root, 'does-not-exist.json'), markerPath, project: '/p', log: { debug: () => {} } },
+      { storePath: join(root, 'does-not-exist.json'), markerPath, project: '/p', log: { debug: () => {}, info: () => {} } },
     );
     expect(result).toEqual({ folded: 0, skipped: false });
     expect(called).toBe(0);
@@ -354,5 +360,125 @@ describe('SessionSpineClient timer-driven keepalive (an idle-open session must n
     expect(client.status()).toBe('online');
     expect(client.pendingOps).toBe(0);
     client.dispose();
+  });
+});
+
+describe('SessionSpineClient result-kind fold (REST adapter -> SDK SpineResult, S4 divergence ruling #5)', () => {
+  test('a connected_host_unavailable response folds to offline (queue + reachability offline)', async () => {
+    installFetch(() => { throw new Error('ECONNREFUSED'); }); // -> connected_host_unavailable
+    const client = makeClient();
+    client.register({ sessionId: 'fold-1', project: '/p' });
+    await settle();
+    expect(client.status()).toBe('offline');
+    expect(client.pendingOps).toBe(1); // enqueued for idempotent replay
+    client.dispose();
+  });
+
+  test('an auth_required response folds to rejected: log-only, no queue, no infinite retry', async () => {
+    installFetch(() => new Response(JSON.stringify({ error: 'no token' }), { status: 401 })); // -> auth_required
+    const client = makeClient();
+    client.register({ sessionId: 'fold-2', project: '/p' });
+    await settle();
+    expect(client.status()).toBe('unknown'); // never claims online; reachability untouched by a durable reject
+    expect(client.pendingOps).toBe(0); // NOT enqueued — a durable refusal must not retry-forever
+    client.dispose();
+  });
+
+  test('a route_unavailable (404) response also folds to rejected: log-only, no queue', async () => {
+    installFetch(() => new Response('not found', { status: 404 })); // -> connected_host_route_unavailable
+    const client = makeClient();
+    client.register({ sessionId: 'fold-3', project: '/p' });
+    await settle();
+    expect(client.status()).toBe('unknown');
+    expect(client.pendingOps).toBe(0);
+    client.dispose();
+  });
+});
+
+describe('SessionSpineClient live-immediately construction (no activate() call)', () => {
+  test('a transport supplied at construction registers immediately, with no separate activation step', async () => {
+    installFetch(() => new Response(JSON.stringify({ session: { id: 'live-1', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
+    const client = makeClient();
+    // No client.activate(...) call anywhere in this test — live-immediately mode
+    // means the transport passed to the constructor is already active.
+    expect(client.active).toBe(true);
+    client.register({ sessionId: 'live-1', project: '/p' });
+    await settle();
+    expect(client.status()).toBe('online');
+    const registers = requests.filter((r) => r.url.endsWith('/api/sessions/register'));
+    expect(registers).toHaveLength(1);
+    client.dispose();
+  });
+});
+
+describe('SessionSpineClient self-probe reachability', () => {
+  test('probeReachability() flips offline -> online -> offline honestly, following the injected probe', async () => {
+    const client = makeClient({ probe: async () => false });
+    expect(await client.probeReachability()).toBe('offline');
+    expect(client.status()).toBe('offline');
+
+    const client2 = makeClient({ probe: async () => true });
+    expect(await client2.probeReachability()).toBe('online');
+    expect(client2.status()).toBe('online');
+    client.dispose();
+    client2.dispose();
+  });
+
+  test('the real REST probe (createSpineRestProbe, GET /status) flips honestly against a live-vs-dead mock host', async () => {
+    installFetch(() => { throw new Error('ECONNREFUSED'); });
+    const client = makeClient({ probe: createSpineRestProbe({ resolveConnection: () => CONNECTION }) });
+    expect(await client.probeReachability()).toBe('offline');
+
+    installFetch(() => new Response('{}', { status: 200 }));
+    expect(await client.probeReachability()).toBe('online');
+    const statusCalls = requests.filter((r) => r.url.endsWith('/status'));
+    expect(statusCalls.length).toBeGreaterThan(0);
+    client.dispose();
+  });
+});
+
+const REPO_ROOT = join(import.meta.dir, '..', '..', '..');
+
+describe('Deletion completeness (grep gate)', () => {
+  test('no agent file imports the deleted local session-spine-client module', () => {
+    const srcRoot = join(REPO_ROOT, 'src');
+    const offenders: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const abs = join(dir, entry.name);
+        if (entry.isDirectory()) { walk(abs); continue; }
+        if (!entry.name.endsWith('.ts')) continue;
+        if (abs === import.meta.path) continue; // this file's own text mentions the old name in comments/history only
+        const text = readFileSync(abs, 'utf-8');
+        if (text.includes('./session-spine-client') || text.includes('runtime/session-spine-client')) {
+          offenders.push(abs);
+        }
+      }
+    };
+    walk(srcRoot);
+    expect(offenders).toEqual([]);
+    expect(existsSync(join(srcRoot, 'runtime', 'session-spine-client.ts'))).toBe(false);
+  });
+});
+
+describe('Token-reading stays agent-local (the SDK module never reads token files)', () => {
+  test('the SDK session-spine dist has no filesystem token access', () => {
+    // The SDK core's client.ts imports node:fs ONLY for foldLegacySpineStore's
+    // legacy-store marker read/write (documented, storePath/markerPath are
+    // caller-supplied paths, not a token file) — it must never read the
+    // agent's connected-host operator-tokens.json or otherwise resolve a
+    // token itself. That responsibility belongs entirely to this adapter
+    // (createSpineConnectionResolver -> readConnectedHostOperatorToken).
+    const clientJsPath = join(
+      REPO_ROOT, 'node_modules', '@pellux', 'goodvibes-sdk', 'dist', 'platform', 'runtime', 'session-spine', 'client.js',
+    );
+    // Sanity: the file must actually exist and be non-empty, or the assertions
+    // below would be vacuously true.
+    expect(existsSync(clientJsPath)).toBe(true);
+    expect(statSync(clientJsPath).size).toBeGreaterThan(0);
+    const clientSource = readFileSync(clientJsPath, 'utf-8');
+    expect(clientSource).not.toContain('operator-tokens.json');
+    expect(clientSource).not.toContain('GOODVIBES_CONNECTED_HOST_TOKEN');
+    expect(clientSource).not.toContain('GOODVIBES_DAEMON_TOKEN');
   });
 });

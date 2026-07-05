@@ -11,7 +11,12 @@ import { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
-import { SessionSpineClient, createSpineConnectionResolver } from './session-spine-client.ts';
+import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
+import {
+  createSpineConnectionResolver,
+  createSpineRestProbe,
+  createSpineRestTransport,
+} from './session-spine-rest-transport.ts';
 import { WatcherRegistry } from '@pellux/goodvibes-sdk/platform/watchers';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import {
@@ -35,6 +40,7 @@ import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore } from '@pellux/goodvibes-sdk/platform/state';
+import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
 import { createProcessRegistry } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import { createOrchestrationEngine } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
@@ -234,7 +240,11 @@ function createDisabledAgentWrfcWorktreeOps(): AgentWrfcWorktreeOps {
     async cleanup(_agentId: string): Promise<void> {
       throw agentWrfcWorktreeError('cleanup');
     },
-    async commitWorkingTree(_message: string): Promise<string | null> {
+    // No explicit return-type annotation: this always throws before returning,
+    // so it structurally satisfies whatever CommitWorkingTreeResult shape the
+    // SDK's WrfcController#createWorktree option currently declares (derived
+    // via AgentWrfcWorktreeOps above) without importing that SDK-internal type.
+    async commitWorkingTree(_message: string) {
       throw agentWrfcWorktreeError('commit');
     },
     async currentHead(): Promise<string | null> {
@@ -597,12 +607,19 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     agentStatusProvider: agentManager,
     messageSender: agentMessageBus,
   });
-  // W2A: raw-REST spine mirror that registers this surface's sessions into the
-  // daemon next to the broker. Client-only; never starts the daemon. All calls
-  // are fire-and-forget; a down daemon degrades to an honest offline queue while
-  // the local broker keeps rendering.
+  // W3-A1: the SDK's extracted session-spine core, consumed via this surface's
+  // own REST transport adapter (session-spine-rest-transport.ts) — version-
+  // tolerant, since the agent may compile against a pinned SDK predating the
+  // typed sessions.register client. Live-immediately mode: passing `transport`
+  // at construction starts the keepalive now, for the whole process lifetime
+  // (no separate activate() step — the agent has none). Client-only; never
+  // starts the daemon. All calls are fire-and-forget; a down daemon degrades to
+  // an honest offline queue while the local broker keeps rendering.
+  const spineResolveConnection = createSpineConnectionResolver(configManager, homeDirectory);
   const sessionSpineClient = new SessionSpineClient({
-    resolveConnection: createSpineConnectionResolver(configManager, homeDirectory),
+    participant: AGENT_SPINE_PARTICIPANT,
+    transport: createSpineRestTransport({ resolveConnection: spineResolveConnection }),
+    probe: createSpineRestProbe({ resolveConnection: spineResolveConnection }),
     log: logger,
   });
   sessionBroker.setContinuationRunner(async ({ task, input }) => {
@@ -845,6 +862,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   //   • codeIndexStore       — constructed but neither schema-initialized nor
   //                            auto-built; the Agent runs no repo source-tree
   //                            code index (inert unless explicitly invoked).
+  //   • codeIndexReindexScheduler — real-but-inert twin of the above: isEnabled
+  //                            is a permanent `() => false`, so tool-driven
+  //                            reindex scheduling (Stage B, TUI-only feature)
+  //                            never fires for the Agent.
   //   • processRegistry      — fleet observability over the managers the Agent
   //                            already owns (agents, wrfc, processes, watchers).
   //   • workspaceCheckpointManager — constructed without a runtimeBus so it
@@ -861,6 +882,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     join(workingDirectory, '.goodvibes', 'agent', 'code-index.sqlite'),
     memoryEmbeddingRegistry,
   );
+  const codeIndexReindexScheduler = new CodeIndexReindexScheduler({
+    target: codeIndexStore,
+    workingDirectory,
+    isEnabled: () => false,
+  });
   const processRegistry = createProcessRegistry({
     agentManager,
     wrfcController,
@@ -887,6 +913,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     featureFlags,
     orchestrationEngine,
     codeIndexStore,
+    codeIndexReindexScheduler,
     processRegistry,
     workspaceCheckpointManager,
     runtimeBus: options.runtimeBus,
