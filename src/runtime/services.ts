@@ -32,6 +32,10 @@ import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
 import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
+import { CodeIndexStore } from '@pellux/goodvibes-sdk/platform/state';
+import { createProcessRegistry } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
+import { createOrchestrationEngine } from '@pellux/goodvibes-sdk/platform/orchestration';
+import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { ModeManager } from '@pellux/goodvibes-sdk/platform/state';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
@@ -820,12 +824,60 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     workflowServices: workflow,
   });
 
+  // ── One-Platform Wave 0: RuntimeServices members required by SDK 0.38 ──────
+  // The Agent is delegation-only: it does not own local build/worktree work.
+  // These are constructed as real-but-inert SDK services purely to satisfy the
+  // RuntimeServices contract — none auto-start:
+  //   • orchestrationEngine  — never .start()ed here (delegation goes through
+  //                            /delegate to the TUI); worktree isolation is
+  //                            omitted so any accidental run degrades to shared.
+  //   • codeIndexStore       — constructed but neither schema-initialized nor
+  //                            auto-built; the Agent runs no repo source-tree
+  //                            code index (inert unless explicitly invoked).
+  //   • processRegistry      — fleet observability over the managers the Agent
+  //                            already owns (agents, wrfc, processes, watchers).
+  //   • workspaceCheckpointManager — constructed without a runtimeBus so it
+  //                            never auto-subscribes to turn events / snapshots
+  //                            the workspace; inert unless explicitly invoked.
+  const orchestrationEngine = createOrchestrationEngine({
+    agentManager,
+    configManager,
+    runtimeBus: options.runtimeBus,
+    projectRoot: workingDirectory,
+  });
+  const codeIndexStore = new CodeIndexStore(
+    workingDirectory,
+    join(workingDirectory, '.goodvibes', 'agent', 'code-index.sqlite'),
+    memoryEmbeddingRegistry,
+  );
+  const processRegistry = createProcessRegistry({
+    agentManager,
+    wrfcController,
+    orchestrationEngine,
+    codeIndexService: codeIndexStore,
+    processManager,
+    watcherRegistry,
+    workflow,
+    approvalBroker,
+    sessionBroker,
+    messageBus: agentMessageBus,
+    automationManager,
+    runtimeBus: options.runtimeBus,
+  });
+  const workspaceCheckpointManager = new WorkspaceCheckpointManager({
+    workspaceRoot: workingDirectory,
+  });
+
   return {
     workingDirectory,
     homeDirectory,
     shellPaths,
     configManager,
     featureFlags,
+    orchestrationEngine,
+    codeIndexStore,
+    processRegistry,
+    workspaceCheckpointManager,
     runtimeBus: options.runtimeBus,
     runtimeStore: options.runtimeStore,
     runtimeDispatch,
