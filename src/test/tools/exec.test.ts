@@ -496,7 +496,11 @@ describe('exec tool — output truncation', () => {
     // Should succeed (the command itself may exit with SIGPIPE but outputs content)
     const out = parseOutput(result.output);
     expect(out.stdout_truncated).toBe(true);
-    expect((out.stdout as string).length).toBeLessThanOrEqual(50100);
+    // SDK 0.38.0's head+tail truncation keeps ~50000 chars of preview plus a
+    // bounded "[... N chars omitted ...]" marker and truncation footer, so the
+    // budget is 50000 + a small, bounded overhead — well under the 60000 input.
+    expect((out.stdout as string).length).toBeGreaterThanOrEqual(50_000);
+    expect((out.stdout as string).length).toBeLessThanOrEqual(50_000 + 512);
   }, 8000);
 });
 

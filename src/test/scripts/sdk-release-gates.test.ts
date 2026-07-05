@@ -1,0 +1,123 @@
+// ---------------------------------------------------------------------------
+// sdk-release-gates.test.ts
+//
+// Drives the publish-blocking SDK release gates (scripts/sdk-release-gates.ts)
+// against filesystem fixtures: each gate must FAIL when it should (overlay
+// marker present, pin not an exact semver, pin/installed/lock disagreement,
+// a non-npm SDK import injected into the source tree) and PASS on a clean tree.
+// ---------------------------------------------------------------------------
+
+import { afterEach, describe, expect, test } from 'bun:test';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import {
+  nonNpmSdkImportOffenders,
+  readSdkPin,
+  sdkPinAgreementIssues,
+  sdkReleaseGateIssues,
+} from '../../../scripts/sdk-release-gates.ts';
+
+const SDK = '@pellux/goodvibes-sdk';
+
+interface FixtureSpec {
+  readonly pin?: string; // devDependencies pin (default 0.38.0)
+  readonly installedVersion?: string | null; // node_modules SDK version; null = not installed
+  readonly lockPin?: string | null; // version string written into bun.lock; null = omit lockfile entry
+  readonly marker?: boolean; // write the overlay marker
+  readonly srcFiles?: Record<string, string>; // relative-to-src path -> file contents
+}
+
+const created: string[] = [];
+
+function makeFixture(spec: FixtureSpec): string {
+  const root = mkdtempSync(join(tmpdir(), 'gv-sdk-gate-'));
+  created.push(root);
+  const pin = spec.pin ?? '0.38.0';
+
+  writeFileSync(
+    join(root, 'package.json'),
+    JSON.stringify({ name: '@pellux/goodvibes-agent', version: '1.5.5', devDependencies: { [SDK]: pin } }, null, 2),
+  );
+
+  // Installed package
+  if (spec.installedVersion !== null) {
+    const pkgDir = join(root, 'node_modules', '@pellux', 'goodvibes-sdk');
+    mkdirSync(pkgDir, { recursive: true });
+    writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({ name: SDK, version: spec.installedVersion ?? pin }));
+    if (spec.marker) writeFileSync(join(pkgDir, '.local-sdk-overlay.json'), JSON.stringify({ sdkGit: 'x@y' }));
+  }
+
+  // Lockfile
+  const lockPin = spec.lockPin === undefined ? pin : spec.lockPin;
+  const lockBody = lockPin === null ? '{"lockfileVersion": 1, "packages": {}}' : `{"packages": {"${SDK}": ["${SDK}@${lockPin}"]}}`;
+  writeFileSync(join(root, 'bun.lock'), lockBody);
+
+  // Source tree
+  const srcDir = join(root, 'src');
+  mkdirSync(srcDir, { recursive: true });
+  const files = spec.srcFiles ?? { 'clean.ts': `import { x } from '${SDK}/platform/state';\n` };
+  for (const [rel, body] of Object.entries(files)) {
+    const abs = join(srcDir, rel);
+    mkdirSync(join(abs, '..'), { recursive: true });
+    writeFileSync(abs, body);
+  }
+
+  return root;
+}
+
+afterEach(() => {
+  while (created.length > 0) {
+    const dir = created.pop();
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+describe('sdk-release-gates', () => {
+  test('clean fixture passes every gate', () => {
+    const root = makeFixture({});
+    expect(sdkReleaseGateIssues(root)).toEqual([]);
+  });
+
+  test('overlay marker present is a publish-blocking issue', () => {
+    const root = makeFixture({ marker: true });
+    const issues = sdkPinAgreementIssues(root);
+    expect(issues.some((i) => i.includes('local SDK overlay is active'))).toBe(true);
+  });
+
+  test('a non-exact pin (caret range) fails the exact-semver gate', () => {
+    const root = makeFixture({ pin: '^0.38.0' });
+    const issues = sdkPinAgreementIssues(root);
+    expect(issues.some((i) => i.includes('must be an exact semver'))).toBe(true);
+  });
+
+  test('installed version disagreeing with the pin fails', () => {
+    const root = makeFixture({ installedVersion: '0.37.2' });
+    const issues = sdkPinAgreementIssues(root);
+    expect(issues.some((i) => i.includes('does not match the pin'))).toBe(true);
+  });
+
+  test('lockfile lagging the pin bump fails', () => {
+    const root = makeFixture({ lockPin: '0.35.0' });
+    const issues = sdkPinAgreementIssues(root);
+    expect(issues.some((i) => i.includes('bun.lock does not resolve'))).toBe(true);
+  });
+
+  test('a non-npm SDK import injected into source is caught', () => {
+    const root = makeFixture({
+      srcFiles: {
+        'ok.ts': `import { a } from '${SDK}/platform/tools';\n`,
+        'bad.ts': `import { evil } from '../../../goodvibes-sdk/dist/secret.js';\n`,
+      },
+    });
+    const offenders = nonNpmSdkImportOffenders(root);
+    expect(offenders.length).toBe(1);
+    expect(offenders[0]).toContain('bad.ts');
+    expect(sdkReleaseGateIssues(root).some((i) => i.includes('non-npm goodvibes-sdk import'))).toBe(true);
+  });
+
+  test('readSdkPin reads the devDependencies pin', () => {
+    const root = makeFixture({ pin: '0.38.0' });
+    expect(readSdkPin(root)).toBe('0.38.0');
+  });
+});

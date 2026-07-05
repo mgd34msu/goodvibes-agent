@@ -34,7 +34,12 @@ describe('OverflowHandler', () => {
     const content = makeString(60_000);
     const result = handler.handle(content, { label: 'my stdout' });
 
-    expect(result.content.startsWith(makeString(50_000))).toBe(true);
+    // SDK 0.38.0 truncates as a head+tail preview (leading slice + trailing
+    // slice with a middle "[... N chars omitted ...]" marker), not head-only,
+    // so the reader keeps both the start and the end/error of long output.
+    expect(result.content.startsWith('x')).toBe(true);
+    expect(result.content).toMatch(/\[\.\.\. \d+ chars omitted \.\.\.\]/);
+    expect(result.content.length).toBeLessThan(content.length);
     expect(result.content).toContain('[... truncated');
 
     if (result.overflowRef !== undefined) {
@@ -51,7 +56,10 @@ describe('OverflowHandler', () => {
     const fallback = handler.handle(makeString(60_000), { label: '' });
 
     expect(custom.content.length).toBeLessThan(content.length);
-    expect(custom.content.startsWith(makeString(100))).toBe(true);
+    // Head+tail preview (see above): starts with a head slice of the content
+    // and carries the middle "omitted" marker rather than the full first 100.
+    expect(custom.content.startsWith('x')).toBe(true);
+    expect(custom.content).toMatch(/\[\.\.\. \d+ chars omitted \.\.\.\]/);
     if (custom.overflowRef !== undefined) {
       expect(custom.overflowRef).toMatch(/^file:\.goodvibes\/\.overflow\/\d+-my-tool-output\.txt$/);
     }

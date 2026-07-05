@@ -110,7 +110,9 @@ describe('withRetry', () => {
     await withRetry(
       fn,
       { maxRetries: 3, initialDelayMs: 1, maxDelayMs: 5 },
-      (attempt, error) => onRetryArgs.push({ attempt, error }),
+      // SDK 0.38.0 widened onRetry to (attempt, maxAttempts, delayMs, error)
+      // to match ChatRequest.onRetry; error is now the 4th argument.
+      (attempt, _maxAttempts, _delayMs, error) => onRetryArgs.push({ attempt, error }),
     );
     expect(onRetryArgs).toHaveLength(2);
     expect(onRetryArgs[0].attempt).toBe(1);

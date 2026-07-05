@@ -33,6 +33,8 @@ jobs:
         run: bun x tsc --noEmit --pretty false
       - name: Run tests
         run: bun run test
+      - name: Coverage gate (ratchet)
+        run: bun run coverage:gate
       - name: Architecture check
         run: bun run architecture:check
       - name: Performance budget evaluation (committed fixture)
