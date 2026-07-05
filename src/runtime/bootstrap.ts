@@ -37,6 +37,7 @@ import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { foldLegacySpineStore } from './session-spine-client.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
@@ -482,6 +483,27 @@ export async function bootstrapRuntime(
       requestRender();
     },
   });
+  // W2A: probe the daemon spine OFF the interactive path. On a reachable daemon,
+  // fold the agent's own per-cwd legacy session store into it (once; marked
+  // migrated). Never starts the daemon; a down/absent daemon leaves the agent
+  // local-only with an honest offline status.
+  deferredStartup.schedule({
+    label: 'session-spine',
+    run: async () => {
+      const reachability = await services.sessionSpineClient.probeReachability();
+      if (reachability !== 'online') return;
+      foldLegacySpineStore(services.sessionSpineClient, {
+        storePath: services.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'sessions.json'),
+        markerPath: services.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'sessions.spine-folded.json'),
+        project: workingDir,
+        log: logger,
+      });
+    },
+    onError: (error) => {
+      logger.debug('Deferred session-spine startup failed', { error: summarizeError(error) });
+    },
+  });
+
   const toolCount = toolRegistry.list().length;
   conversation.splashOptions = {
     workingDir,
@@ -597,6 +619,10 @@ export async function bootstrapRuntime(
     commandRegistry,
     systemMessageRouter,
     shutdown: async (sessionData) => {
+      // W2A: best-effort spine close (short timeout, fire-and-forget) then stop
+      // the heartbeat timer. Tolerates a racing daemon stop; never blocks teardown.
+      services.sessionSpineClient.close(runtime.sessionId);
+      services.sessionSpineClient.dispose();
       // Clear bootstrap-owned subscriptions
       bootstrapUnsubs.forEach(fn => fn());
       bootstrapUnsubs.length = 0;

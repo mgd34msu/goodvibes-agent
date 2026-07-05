@@ -131,6 +131,8 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     requestRender,
     onSessionIdChanged,
     sharedSessionBroker: services.sessionBroker,
+    sessionSpineClient: services.sessionSpineClient,
+    projectRoot: services.shellPaths.workingDirectory,
     writeLastSessionPointer,
     hookDispatcher: services.hookDispatcher,
     sessionManager: services.sessionManager,
