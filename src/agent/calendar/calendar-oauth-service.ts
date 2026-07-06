@@ -283,12 +283,14 @@ export class CalendarOAuthService {
 
   private guardConfigured(config: ResolvedClientConfig): ConnectResult | null {
     if (!config.isPlaceholder) return null;
+    const label = config.provider === 'google' ? 'Google Calendar' : 'Microsoft Outlook';
+    const cardLabel = config.provider === 'google' ? 'Connect Google Calendar (advanced)' : 'Connect Microsoft Outlook (advanced)';
     return {
       ok: false,
       stage: 'config',
       error:
-        `No ${config.provider} client id is configured yet. Either this build ships no project ` +
-        'default, or add your own under the advanced connect card. See /calendar connect for help.',
+        `This build ships no ${label} client id — connecting needs your own. ` +
+        `Run /calendar connect for the setup steps, or open "${cardLabel}" under /agent personal-ops and paste your client id in.`,
     };
   }
 

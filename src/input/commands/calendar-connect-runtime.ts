@@ -61,6 +61,35 @@ function authUrlMessage(label: string, url: string): string {
   ].join('\n');
 }
 
+/**
+ * The real guide for a bare `/calendar connect` (F1a): what connecting does, the
+ * two providers, and — since this build ships only the SDK's placeholder client
+ * ids until someone registers a project app — the honest situation and the exact
+ * next step, instead of a bare usage line that dead-ends with no explanation.
+ */
+function connectGuideMessage(): string {
+  return [
+    'Connect a calendar account over OAuth so its events show up alongside your local ones in /calendar upcoming.',
+    '  Providers: google (Google Calendar), outlook (Microsoft Outlook)',
+    '    /calendar connect google',
+    '    /calendar connect outlook',
+    '    (add --device to sign in with a device code instead of a browser)',
+    '',
+    'This build has no built-in Google/Microsoft sign-in configured yet — there is no project ' +
+      'client id shipped, so a bare connect will stop at the config step and tell you so. To ' +
+      'connect, you need a client id:',
+    '  1. Register a free OAuth app with the provider (Google Cloud Console, or the Azure portal for Microsoft).',
+    '  2. Copy the client id it gives you — a desktop/public-client app needs no secret.',
+    '  3. Open /agent personal-ops -> "Connect Google Calendar (advanced)" or "Connect Microsoft Outlook (advanced)" and paste it in.',
+    '  4. Run /calendar connect google (or outlook) again to authorize.',
+  ].join('\n');
+}
+
+/** An unrecognized provider word (not a missing one) keeps the short usage form. */
+function unknownProviderMessage(word: string): string {
+  return `Unknown calendar provider '${word}'. Usage: /calendar connect <google|outlook> [--device]`;
+}
+
 /** Best-effort browser open; never throws, never blocks the flow. */
 function bestEffortOpenBrowser(url: string): void {
   void (async () => {
@@ -84,7 +113,7 @@ export async function runCalendarConnect(
 ): Promise<void> {
   const provider = normalizeProvider(args[1]);
   if (!provider) {
-    ctx.print('Usage: /calendar connect <google|outlook> [--device]');
+    ctx.print(args[1] ? unknownProviderMessage(args[1]) : connectGuideMessage());
     return;
   }
   const label = PROVIDER_LABEL[provider];

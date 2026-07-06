@@ -124,6 +124,31 @@ describe('calendar OAuth advanced-credentials wizard', () => {
     expect(editor.fields.at(-1)?.id).toBe('confirm');
   });
 
+  // F1c: the card's message is build-state-aware — it must stop claiming
+  // "most people can skip this and just run the connect command" while a
+  // bare connect always fails at the config stage (the placeholder state),
+  // and it should keep that original skip-this wording once a client id has
+  // actually been configured.
+  test('placeholder state: the card states a client id is needed, not that most people can skip it', () => {
+    const google = createCalendarOAuthEditor('google', false);
+    expect(google.message).toContain('This build needs a client id');
+    expect(google.message).not.toContain('Most people can skip this');
+
+    const microsoft = createCalendarOAuthEditor('microsoft', false);
+    expect(microsoft.message).toContain('This build needs a client id');
+    expect(microsoft.message).not.toContain('Most people can skip this');
+  });
+
+  test('configured state: the card keeps the original skip-this-if-you-do-not-need-it wording', () => {
+    const google = createCalendarOAuthEditor('google', true);
+    expect(google.message).toContain('Most people can skip this and just run the connect command');
+    expect(google.message).not.toContain('This build needs a client id');
+
+    const microsoft = createCalendarOAuthEditor('microsoft', true);
+    expect(microsoft.message).toContain('Most people can skip this and just run the connect command');
+    expect(microsoft.message).not.toContain('This build needs a client id');
+  });
+
   test('stores the client id in config and the secret through the secret manager, never echoing it', async () => {
     const root = tmpRoot();
     const secrets = memorySecrets();
@@ -200,6 +225,25 @@ describe('CalendarOAuthService config resolution', () => {
     expect(result.ok).toBe(false);
     expect(result.stage).toBe('config'); // throwingConnector proves begin* was never reached
   });
+
+  // F1b: the guard's error is a flat, deterministic statement (the placeholder
+  // state is not a maybe — this build always ships the SDK placeholder client
+  // id until someone configures one) with the exact next step, not a hedged
+  // "either...or" pair of possibilities.
+  test('the placeholder guard states the situation flatly and names the exact next step, per provider', async () => {
+    const google = new CalendarOAuthService({ config: mapConfig(), secrets: memorySecrets(), connector: throwingConnector() });
+    const googleResult = await google.connectAuto('google');
+    expect(googleResult.error).toContain('This build ships no Google Calendar client id');
+    expect(googleResult.error).not.toContain('Either');
+    expect(googleResult.error).toContain('/calendar connect');
+    expect(googleResult.error).toContain('Connect Google Calendar (advanced)');
+    expect(googleResult.error).toContain('/agent personal-ops');
+
+    const microsoft = new CalendarOAuthService({ config: mapConfig(), secrets: memorySecrets(), connector: throwingConnector() });
+    const microsoftResult = await microsoft.connectAuto('microsoft');
+    expect(microsoftResult.error).toContain('This build ships no Microsoft Outlook client id');
+    expect(microsoftResult.error).toContain('Connect Microsoft Outlook (advanced)');
+  });
 });
 
 // --- commands with an injected fake service ---------------------------------
@@ -272,9 +316,32 @@ describe('calendar connect/disconnect/accounts commands', () => {
     expect(out).toContain('reconnect needed');
   });
 
-  test('connect rejects an unknown provider with usage', async () => {
+  test('connect rejects an unknown provider with the short usage form', async () => {
     const { ctx, lines } = capturingContext();
     await runCalendarConnect(['connect', 'yahoo'], ctx, fakeServiceFactory({}));
-    expect(lines.join('\n')).toContain('Usage: /calendar connect');
+    const out = lines.join('\n');
+    expect(out).toContain('Usage: /calendar connect');
+    expect(out).toContain("Unknown calendar provider 'yahoo'");
+  });
+
+  // F1a: a bare `/calendar connect` (no provider at all) is a dead end today
+  // without a real guide — it must explain what connecting does, name both
+  // providers, and (since this build always ships the SDK placeholder client
+  // ids) state that honestly with the concrete next steps, not a bare usage
+  // line.
+  test('connect with no provider prints a real guide: what it does, both providers, and the honest no-client-id situation with next steps', async () => {
+    const { ctx, lines } = capturingContext();
+    await runCalendarConnect(['connect'], ctx, fakeServiceFactory({}));
+    const out = lines.join('\n');
+    expect(out).toContain('google');
+    expect(out).toContain('outlook');
+    expect(out).toContain('/calendar connect google');
+    expect(out).toContain('/calendar connect outlook');
+    expect(out).toContain('This build has no built-in Google/Microsoft sign-in configured');
+    expect(out).toContain('Register a free OAuth app');
+    expect(out).toContain('Connect Google Calendar (advanced)');
+    expect(out).toContain('Connect Microsoft Outlook (advanced)');
+    expect(out).toContain('/agent personal-ops');
+    expect(out).not.toBe('Usage: /calendar connect <google|outlook> [--device]');
   });
 });

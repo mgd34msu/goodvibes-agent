@@ -16,6 +16,7 @@ import { buildSetupSmokeHistory, buildSetupWizardCheckpoint, buildWorkspaceSetup
 import { readConfigNumber, readConfigString } from './agent-workspace-snapshot-config.ts';
 import {
   buildAgentWorkspaceArtifactListSnapshot,
+  buildAgentWorkspaceCalendarOAuthConfigStatus,
   buildAgentWorkspaceCompanionAccessSnapshot,
   buildAgentWorkspaceConfigSettingsSnapshot,
   buildAgentWorkspaceCurrentModelSnapshot,
@@ -411,5 +412,6 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     warnings,
     liveCountersStale: false,
     emailConnectStatus: buildAgentWorkspaceEmailConnectStatus(context),
+    calendarOAuthConfigStatus: buildAgentWorkspaceCalendarOAuthConfigStatus(context),
   };
 }

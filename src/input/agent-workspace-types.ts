@@ -796,4 +796,5 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly liveCountersStale: boolean;
   /** Honest email-connect status for the connect wizard's entry state (W4-A5). Null when unavailable in this runtime. */
   readonly emailConnectStatus: AgentWorkspaceEmailConnectStatus | null;
+  readonly calendarOAuthConfigStatus: { readonly google: boolean; readonly microsoft: boolean } | null; // F1c: per-provider client-id-configured state for the advanced cards
 }

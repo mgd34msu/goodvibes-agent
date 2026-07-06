@@ -13,6 +13,7 @@ import { createEmailConnectWizardEditor } from './agent-workspace-email-connect-
 import { createCalendarConnectEditor } from './agent-workspace-calendar-connect-editor.ts';
 import { createCalendarSubscribeWizardEditor } from './agent-workspace-calendar-subscribe-editor.ts';
 import { createCalendarOAuthEditor } from './agent-workspace-calendar-oauth-editor.ts';
+import type { AgentWorkspaceCalendarOAuthConfigStatus } from './agent-workspace-calendar-oauth-editor.ts';
 import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
 import { createAgentWorkspaceWebResearchEditor } from './agent-workspace-web-research-editor.ts';
 import { parseSlashCommand } from './slash-command-parser.ts';
@@ -103,6 +104,7 @@ export function activateAgentWorkspaceSelection(
       recentReviewerHandoffArtifacts: workspace.runtimeSnapshot?.recentReviewerHandoffArtifacts ?? [],
       reviewPacketDefaults: workspace.runtimeSnapshot?.reviewPacketDefaults ?? null,
       emailConnectStatus: workspace.runtimeSnapshot?.emailConnectStatus ?? null,
+      calendarOAuthConfigStatus: workspace.runtimeSnapshot?.calendarOAuthConfigStatus ?? null,
     });
     if (!editor) {
       workspace.status = `Editor unavailable: ${action.editorKind}.`;
@@ -203,13 +205,14 @@ export function createAgentWorkspaceEditor(
     readonly recentReviewerHandoffArtifacts?: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
     readonly reviewPacketDefaults?: AgentWorkspaceReviewPacketDefaults | null;
     readonly emailConnectStatus?: AgentWorkspaceEmailConnectStatus | null;
+    readonly calendarOAuthConfigStatus?: AgentWorkspaceCalendarOAuthConfigStatus | null;
   } = {},
 ): AgentWorkspaceLocalEditor | null {
   if (editorKind === 'email-connect-wizard') return createEmailConnectWizardEditor(options.emailConnectStatus ?? null);
   if (editorKind === 'calendar-connect') return createCalendarConnectEditor();
   if (editorKind === 'calendar-subscribe-wizard') return createCalendarSubscribeWizardEditor();
-  if (editorKind === 'calendar-oauth-google') return createCalendarOAuthEditor('google');
-  if (editorKind === 'calendar-oauth-outlook') return createCalendarOAuthEditor('microsoft');
+  if (editorKind === 'calendar-oauth-google') return createCalendarOAuthEditor('google', options.calendarOAuthConfigStatus?.google ?? false);
+  if (editorKind === 'calendar-oauth-outlook') return createCalendarOAuthEditor('microsoft', options.calendarOAuthConfigStatus?.microsoft ?? false);
   if (editorKind === 'profile') return createProfileEditor(options.runtimeStarterTemplates ?? []);
   if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
   if (editorKind === 'web-research') return createAgentWorkspaceWebResearchEditor('research');

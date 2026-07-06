@@ -36,11 +36,43 @@ export interface AgentWorkspaceCalendarOAuthEditorHost {
   lastActionResult: AgentWorkspaceActionResult | null;
 }
 
+/** Honest, no-I/O calendar-OAuth build state per provider — true once a client id override is stored (F1c). */
+export interface AgentWorkspaceCalendarOAuthConfigStatus {
+  readonly google: boolean;
+  readonly microsoft: boolean;
+}
+
 const PROVIDER_LABEL: Record<Provider, string> = { google: 'Google Calendar', microsoft: 'Microsoft Outlook' };
 const CONNECT_HINT: Record<Provider, string> = { google: '/calendar connect google', microsoft: '/calendar connect outlook' };
 
+/**
+ * Build-state-aware card message (F1c): while the build still ships only the
+ * bundled SDK placeholder client id, /calendar connect always fails at the
+ * config stage, so the old "most people can skip this" wording was a dead
+ * end. Once a client id has been stored (through this same card), the
+ * original skip-this-if-you-don't-need-it wording applies again.
+ */
+function cardMessage(label: string, isConfigured: boolean): string {
+  if (!isConfigured) {
+    return (
+      `This build needs a client id to connect ${label} — it ships no project default yet. ` +
+      'Enter your own below, or follow these steps: register a free OAuth app with the provider ' +
+      '(Google Cloud Console, or the Azure portal for Microsoft), copy the client id it gives you ' +
+      '(no client secret needed for the desktop/public-client flow), then paste it in here. ' +
+      'A client secret (only for a confidential-client registration) is stored through the Agent ' +
+      'secret manager and never shown again.'
+    );
+  }
+  return (
+    `Advanced: use your OWN registered ${label} app instead of the bundled default. ` +
+    'Most people can skip this and just run the connect command. The client id is not a ' +
+    'secret; a client secret (only for a confidential-client registration) is stored through ' +
+    'the Agent secret manager and never shown again.'
+  );
+}
+
 /** The advanced-credentials wizard for one provider. */
-export function createCalendarOAuthEditor(provider: Provider): AgentWorkspaceLocalEditor {
+export function createCalendarOAuthEditor(provider: Provider, isConfigured = false): AgentWorkspaceLocalEditor {
   const label = PROVIDER_LABEL[provider];
   const kind: AgentWorkspaceEditorKind = provider === 'google' ? 'calendar-oauth-google' : 'calendar-oauth-outlook';
   return {
@@ -48,11 +80,7 @@ export function createCalendarOAuthEditor(provider: Provider): AgentWorkspaceLoc
     mode: 'create',
     title: `Connect ${label} (advanced)`,
     selectedFieldIndex: 0,
-    message:
-      `Advanced: use your OWN registered ${label} app instead of the bundled default. ` +
-      'Most people can skip this and just run the connect command. The client id is not a ' +
-      'secret; a client secret (only for a confidential-client registration) is stored through ' +
-      'the Agent secret manager and never shown again.',
+    message: cardMessage(label, isConfigured),
     fields: [
       { id: 'clientId', label: 'Client ID', value: '', required: true, multiline: false, hint: `Your ${label} OAuth client id (Desktop/public client needs no secret).` },
       { id: 'clientSecret', label: 'Client secret (optional)', value: '', required: false, multiline: false, hint: 'Only for a confidential-client app. Stored through the secret manager, masked here.', redact: true },

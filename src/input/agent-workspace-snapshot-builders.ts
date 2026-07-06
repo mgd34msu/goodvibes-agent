@@ -25,7 +25,9 @@ import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken, 
 import { summarizePersonaItem, summarizeNoteItem, summarizeResearchRunItem, summarizeRoutineScheduleReceipt, summarizeSkillBundleItem, summarizeSkillItem } from './agent-workspace-local-library-snapshot.ts';
 import { isReviewerHandoffArtifact, summarizeReviewerHandoffArtifact } from './agent-workspace-review-packet-utils.ts';
 import { ensureEmailConfigDefaults, readEmailConfig, validateEmailConfig } from '../agent/email/email-service.ts';
+import { CALENDAR_OAUTH_CLIENT_ID_KEYS, ensureCalendarConfigDefaults } from '../agent/calendar/calendar-oauth-service.ts';
 import { readConfigBoolean, readConfigNumber, readConfigString } from './agent-workspace-snapshot-config.ts';
+import type { AgentWorkspaceCalendarOAuthConfigStatus } from './agent-workspace-calendar-oauth-editor.ts';
 import type { AgentWorkspaceEmailConnectStatus } from './agent-workspace-types.ts';
 
 export function buildAgentWorkspaceCurrentModelSnapshot(context: CommandContext): ReturnType<NonNullable<NonNullable<CommandContext['provider']>['providerRegistry']>['getCurrentModel']> | null | undefined {
@@ -285,6 +287,37 @@ export function buildAgentWorkspaceEmailConnectStatus(context: CommandContext): 
       username: config.username,
       imapHost: config.imapHost,
       errors,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Honest calendar-OAuth build state per provider for the advanced connect
+ * cards (F1c) — config read only, no network I/O. "Configured" means a
+ * config-override client id has been stored (through this same card);
+ * "not configured" means the build still ships only the bundled SDK
+ * placeholder client id, the state in which a bare /calendar connect always
+ * fails at the config stage. Best-effort: never throws, returns null on any
+ * read failure.
+ */
+export function buildAgentWorkspaceCalendarOAuthConfigStatus(context: CommandContext): AgentWorkspaceCalendarOAuthConfigStatus | null {
+  try {
+    ensureCalendarConfigDefaults(context.platform.configManager);
+    const cm = context.platform.configManager as unknown as { get: (key: string) => unknown };
+    const hasClientId = (key: string): boolean => {
+      let value: unknown;
+      try {
+        value = cm.get(key);
+      } catch {
+        return false;
+      }
+      return typeof value === 'string' && value.trim().length > 0;
+    };
+    return {
+      google: hasClientId(CALENDAR_OAUTH_CLIENT_ID_KEYS.google),
+      microsoft: hasClientId(CALENDAR_OAUTH_CLIENT_ID_KEYS.microsoft),
     };
   } catch {
     return null;

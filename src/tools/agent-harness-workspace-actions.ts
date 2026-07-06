@@ -29,6 +29,7 @@ export interface WorkspaceEditorContext {
   readonly selectedRoutine: AgentWorkspaceLocalLibraryItem | null;
   readonly recentReviewerHandoffArtifacts: AgentWorkspaceRuntimeSnapshot['recentReviewerHandoffArtifacts'];
   readonly reviewPacketDefaults: AgentWorkspaceRuntimeSnapshot['reviewPacketDefaults'] | null;
+  readonly calendarOAuthConfigStatus: AgentWorkspaceRuntimeSnapshot['calendarOAuthConfigStatus'] | null;
 }
 
 export interface WorkspaceActionLookup {
@@ -247,6 +248,7 @@ export function buildWorkspaceEditorContext(context: CommandContext, args: Agent
       selectedRoutine: selectedRoutineFromArgs(snapshot, args),
       recentReviewerHandoffArtifacts: snapshot.recentReviewerHandoffArtifacts,
       reviewPacketDefaults: snapshot.reviewPacketDefaults,
+      calendarOAuthConfigStatus: snapshot.calendarOAuthConfigStatus,
     };
   } catch {
     return {
@@ -254,6 +256,7 @@ export function buildWorkspaceEditorContext(context: CommandContext, args: Agent
       selectedRoutine: null,
       recentReviewerHandoffArtifacts: [],
       reviewPacketDefaults: null,
+      calendarOAuthConfigStatus: null,
     };
   }
 }
@@ -267,6 +270,7 @@ export function createWorkspaceEditor(
     selectedRoutine: editorKind === 'routine-schedule' ? editorContext?.selectedRoutine ?? null : null,
     recentReviewerHandoffArtifacts: editorContext?.recentReviewerHandoffArtifacts ?? [],
     reviewPacketDefaults: editorContext?.reviewPacketDefaults ?? null,
+    calendarOAuthConfigStatus: editorContext?.calendarOAuthConfigStatus ?? null,
   });
 }
 
