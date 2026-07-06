@@ -27,6 +27,7 @@ import {
   TerminalBackgroundProbe,
   wrapForTmuxPassthrough,
 } from '../../renderer/terminal-bg-probe.ts';
+import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 
 const BEL = '\x07';
 const ST = '\x1b\\';
@@ -222,45 +223,47 @@ describe('tmux passthrough + query', () => {
 // ---------------------------------------------------------------------------
 
 /** Minimal ConfigManager-shaped stub returning a fixed themeMode value. */
-function fakeConfig(themeMode: unknown): { get: (key: string) => unknown } {
-  return { get: (key: string) => (key === 'display.themeMode' ? themeMode : undefined) };
+function fakeConfig(themeMode: unknown): Pick<ConfigManager, 'get'> {
+  return {
+    get: ((key: string) => (key === 'display.themeMode' ? themeMode : undefined)),
+  } as unknown as Pick<ConfigManager, 'get'>;
 }
 
 describe('installBackgroundThemeProbe — forcing paths', () => {
   test("forced 'dark' applies dark, writes no query, filter is passthrough", () => {
     let wrote = '';
-    let applied: ThemeMode | null = null;
+    const applied: ThemeMode[] = [];
     const handle = installBackgroundThemeProbe({
       configManager: fakeConfig('dark'), isTTY: true, env: {},
-      applyThemeMode: (m) => { applied = m; },
+      applyThemeMode: (m) => { applied.push(m); },
       writeQuery: (b) => { wrote += b; }, requestRepaint: () => {},
     });
-    expect(applied).toBe('dark');
+    expect(applied).toEqual(['dark']);
     expect(wrote).toBe('');
     expect(handle.filterInput('abc')).toBe('abc');
   });
 
   test("forced 'light' applies light before first paint, no query", () => {
     let wrote = '';
-    let applied: ThemeMode | null = null;
+    const applied: ThemeMode[] = [];
     installBackgroundThemeProbe({
       configManager: fakeConfig('light'), isTTY: true, env: {},
-      applyThemeMode: (m) => { applied = m; },
+      applyThemeMode: (m) => { applied.push(m); },
       writeQuery: (b) => { wrote += b; }, requestRepaint: () => {},
     });
-    expect(applied).toBe('light');
+    expect(applied).toEqual(['light']);
     expect(wrote).toBe('');
   });
 
   test('auto + non-TTY stays dark and never queries', () => {
     let wrote = '';
-    let applied: ThemeMode | null = null;
+    const applied: ThemeMode[] = [];
     installBackgroundThemeProbe({
       configManager: fakeConfig('auto'), isTTY: false, env: {},
-      applyThemeMode: (m) => { applied = m; },
+      applyThemeMode: (m) => { applied.push(m); },
       writeQuery: (b) => { wrote += b; }, requestRepaint: () => {},
     });
-    expect(applied).toBe('dark');
+    expect(applied).toEqual(['dark']);
     expect(wrote).toBe('');
   });
 
@@ -279,33 +282,33 @@ describe('installBackgroundThemeProbe — auto probe flow', () => {
   test('auto + TTY writes the query; a light reply applies light + repaints once', () => {
     let wrote = '';
     let repaints = 0;
-    let applied: ThemeMode | null = null;
+    const applied: ThemeMode[] = [];
     const resolutions: ProbeResolution[] = [];
     const handle = installBackgroundThemeProbe({
       configManager: fakeConfig('auto'), isTTY: true, env: {}, timeoutMs: 1_000,
-      applyThemeMode: (m) => { applied = m; },
+      applyThemeMode: (m) => { applied.push(m); },
       writeQuery: (b) => { wrote += b; }, requestRepaint: () => { repaints++; },
       onResolve: (r) => resolutions.push(r),
     });
     expect(wrote).toBe(OSC11_QUERY);
-    expect(applied).toBeNull(); // still dark (unapplied) until the reply lands
+    expect(applied).toEqual([]); // still dark (unapplied) until the reply lands
     const passthrough = handle.filterInput(`\x1b]11;rgb:ffff/ffff/ffff${BEL}`);
     expect(passthrough).toBe('');
-    expect(applied).toBe('light');
+    expect(applied).toEqual(['light']);
     expect(repaints).toBe(1);
     expect(resolutions).toEqual([{ mode: 'light', reason: 'light-reply' }]);
   });
 
   test('auto + TTY: a dark reply stays dark and does NOT repaint', () => {
     let repaints = 0;
-    let applied: ThemeMode | null = null;
+    const applied: ThemeMode[] = [];
     const handle = installBackgroundThemeProbe({
       configManager: fakeConfig('auto'), isTTY: true, env: {}, timeoutMs: 1_000,
-      applyThemeMode: (m) => { applied = m; },
+      applyThemeMode: (m) => { applied.push(m); },
       writeQuery: () => {}, requestRepaint: () => { repaints++; },
     });
     handle.filterInput(`\x1b]11;rgb:0000/0000/0000${ST}`);
-    expect(applied).toBeNull(); // dark reply → no apply call, stays default dark
+    expect(applied).toEqual([]); // dark reply → no apply call, stays default dark
     expect(repaints).toBe(0);
   });
 
