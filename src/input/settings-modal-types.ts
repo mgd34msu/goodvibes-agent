@@ -39,6 +39,7 @@ export type SettingsCategory =
   | 'watchers'
   | 'network'
   | 'orchestration'
+  | 'planner'
   | 'runtime'
   | 'sandbox'
   | 'batch'
@@ -48,7 +49,8 @@ export type SettingsCategory =
   | 'cache'
   | 'mcp'
   | 'flags'
-  | 'release';
+  | 'release'
+  | 'daemon';
 
 export type SettingsFocusPane = 'categories' | 'settings';
 
@@ -60,8 +62,8 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation'] },
-  { label: 'Daemon Runtime', categories: ['service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network'] },
-  { label: 'Advanced Runtime', categories: ['orchestration', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc'] },
+  { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network'] },
+  { label: 'Advanced Runtime', categories: ['orchestration', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];
 

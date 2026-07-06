@@ -55,8 +55,14 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
     test('danger category fields have correct types when no project config exists', () => {
       const mgr = createConfigManager(tmpDir);
-      expect(typeof mgr.get('danger.daemon')).toBe('boolean');
+      // `danger.daemon` is a deprecated alias for `daemon.enabled` (removal scheduled
+      // Wave 6): it intentionally has no default, so it reads as `undefined` until a
+      // caller explicitly sets it, which lets resolveDaemonEnabled() distinguish
+      // "never set" from an explicit `false`. `daemon.enabled` carries the real default.
+      expect(mgr.get('danger.daemon')).toBeUndefined();
       expect(typeof mgr.get('danger.httpListener')).toBe('boolean');
+      expect(typeof mgr.get('daemon.enabled')).toBe('boolean');
+      expect(typeof mgr.get('daemon.embedInProcess')).toBe('boolean');
     });
 
     test('storage category fields have correct types when no project config exists', () => {
@@ -90,8 +96,12 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
     });
 
     test('DEFAULT_CONFIG.danger has correct default values', () => {
-      expect(DEFAULT_CONFIG.danger.daemon).toBe(false);
+      // `danger.daemon` deliberately has no default (see the type-check test above);
+      // the real default lives on `daemon.enabled`.
+      expect(DEFAULT_CONFIG.danger.daemon).toBeUndefined();
       expect(DEFAULT_CONFIG.danger.httpListener).toBe(false);
+      expect(DEFAULT_CONFIG.daemon.enabled).toBe(true);
+      expect(DEFAULT_CONFIG.daemon.embedInProcess).toBe(false);
     });
 
     test('DEFAULT_CONFIG.storage has correct default values', () => {
@@ -410,8 +420,10 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       expect(typeof all.orchestration.recursionEnabled).toBe('boolean');
       expect(typeof all.orchestration.maxActiveAgents).toBe('number');
       expect(typeof all.orchestration.maxDepth).toBe('number');
-      expect(typeof all.danger.daemon).toBe('boolean');
+      expect(all.danger.daemon).toBeUndefined();
       expect(typeof all.danger.httpListener).toBe('boolean');
+      expect(typeof all.daemon.enabled).toBe('boolean');
+      expect(typeof all.daemon.embedInProcess).toBe('boolean');
     });
 
     test('getAll returns tools category with correct field types', () => {
@@ -451,12 +463,17 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       expect(typeof DEFAULT_CONFIG.orchestration.recursionEnabled).toBe('boolean');
       expect(typeof DEFAULT_CONFIG.orchestration.maxActiveAgents).toBe('number');
       expect(typeof DEFAULT_CONFIG.orchestration.maxDepth).toBe('number');
+      // `danger.daemon` is a deprecated no-default alias (see tests above), so it is
+      // deliberately excluded from this objectContaining shape check.
       expect(DEFAULT_CONFIG.danger).toEqual(expect.objectContaining({
-        daemon: expect.any(Boolean),
         httpListener: expect.any(Boolean),
       }));
-      expect(typeof DEFAULT_CONFIG.danger.daemon).toBe('boolean');
+      expect(DEFAULT_CONFIG.danger.daemon).toBeUndefined();
       expect(typeof DEFAULT_CONFIG.danger.httpListener).toBe('boolean');
+      expect(DEFAULT_CONFIG.daemon).toEqual(expect.objectContaining({
+        enabled: expect.any(Boolean),
+        embedInProcess: expect.any(Boolean),
+      }));
     });
 
     test('DEFAULT_CONFIG.tools has all required keys', () => {

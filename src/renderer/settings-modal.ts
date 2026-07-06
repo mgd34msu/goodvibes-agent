@@ -41,6 +41,8 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   watchers: 'Polling watcher and heartbeat behavior for runtime recovery and periodic checks.',
   network: 'Outbound TLS and remote fetch network policy.',
   orchestration: 'Visible agent orchestration limits such as recursion and active-agent caps.',
+  planner: 'Planning-decomposition agent limits: decomposition strategy, max turns, token ceiling, and wall-clock timeout before falling back to the deterministic heuristic path.',
+  daemon: 'Whether the local session daemon runs, and whether it is embedded in this surface process instead of spawned as a detached background service.',
   runtime: 'Runtime service limits and event bus settings.',
   sandbox: 'Isolation settings for REPL, MCP, and VM-backed sessions.',
   batch: 'Batch queue backend, limits, and provider batching behavior.',

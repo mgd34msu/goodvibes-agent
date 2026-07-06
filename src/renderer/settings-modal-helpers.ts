@@ -92,6 +92,8 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   watchers: 'Watchers',
   network: 'Network',
   orchestration: 'Orchestration',
+  planner: 'Planner',
+  daemon: 'Daemon',
   runtime: 'Runtime',
   sandbox: 'Sandbox',
   batch: 'Batch',
