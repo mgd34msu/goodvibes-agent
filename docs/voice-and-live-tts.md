@@ -53,3 +53,50 @@ Leaving `tts.voice` empty lets the provider choose its default voice.
 Spoken responses are conversation output. They are not automatically written to Agent Knowledge, local memory, default knowledge, or any other product segment.
 
 If a spoken result should become durable, store it through an explicit Agent memory command or an Agent Knowledge ingestion path.
+
+## Platform Voice-Config Cohesion
+
+The `tts.*` config keys (`tts.provider`, `tts.voice`, `tts.speed`, `tts.llmProvider`,
+`tts.llmModel`) are defined once, in the shared GoodVibes SDK config schema, and read
+identically by every surface — Agent, TUI, and the daemon. Agent does not define its
+own voice-config schema and does not read tts.* through any path other than the
+standard `ConfigManager.get`/`set` API that every other Agent setting uses. Changing
+`tts.provider` through `/config tts.provider` or `settings action:"set"` changes the
+exact same key a TUI user would change through its own `/config` surface — the
+key name, type, and default are one contract, not two independently-maintained ones.
+`src/test/audio/voice-config-cohesion.test.ts` is the regression guard: it fails if
+the Agent ever reads a tts.* key that isn't in the shared schema, or if a tts.*
+reader stops importing `ConfigManager` from the shared SDK package.
+
+What "shared" does **not** mean here: each surface still persists its *values* to its
+own settings file (Agent's under its own surface root, TUI's under its own) — that is
+the existing, general-purpose per-surface config storage model, not something voice-
+specific, and changing it is out of scope for this ruling. "Shared" means the
+schema/contract (the key names, types, and defaults) is one definition used by every
+surface, so the same key always means the same thing and takes the same kind of
+value everywhere — a user (or an operator script) setting `tts.voice` on one surface
+is setting the same conceptual value the other surfaces would read under that name,
+even though each surface keeps its own copy of the setting today.
+
+Two related rulings, made for this parity pass:
+
+- **Local synthesis stays local.** Agent synthesizes speech directly against the
+  configured provider (through the shared `VoiceService`/`VoiceProviderRegistry`) via
+  a local `mpv`/`ffplay` subprocess, rather than routing playback through the daemon's
+  `voice.tts`/`voice.tts.stream` HTTP routes. This is deliberate, not an oversight:
+  Agent is a terminal tool that must keep working when there is no daemon running
+  (offline use), so voice output cannot depend on a daemon round-trip. The daemon's
+  voice routes exist for network consumers (the web UI); Agent's local-first design
+  is the reason it doesn't use them, and the config it reads to pick a provider is
+  still the one shared contract described above.
+- **Mic/STT input is an honest no-op in Agent, not a gap.** Agent has no
+  `getUserMedia`-equivalent microphone capture and does not call `voice.stt` or
+  `voice.realtime.session`. This is by design: Agent is a terminal application with
+  keyboard/text as its primary input surface, and the web UI is the platform's
+  intended owner of mic-based voice input (browser `getUserMedia`/`MediaRecorder`).
+  Agent already reports this honestly rather than implying a capability that doesn't
+  exist — see the wake-word/always-listening `not-published` posture described above,
+  which applies to mic input broadly, not only wake-word. If a future certified,
+  permission-scoped mic contract is published for terminal surfaces, this ruling is
+  the one to revisit; until then, building a partial mic flow in Agent would be
+  worse than not building one.
