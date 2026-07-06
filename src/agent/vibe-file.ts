@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
@@ -9,7 +10,7 @@ import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from './markdown-f
 // the same '## VIBE.md' block from those records (caveat preserved); the file is
 // demoted to an import/export FORMAT folded in via vibeBodyToConstraintOptions.
 import { renderVibeProjection, vibeBodyToConstraintOptions } from '@pellux/goodvibes-sdk/platform/state';
-import type { MemoryRegistry, MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryRecord, MemoryRegistry, MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
 
 export type AgentVibeScope = 'project' | 'global';
 
@@ -220,8 +221,8 @@ export function buildVibePrompt(shellPaths: AgentVibePaths): string | null {
  * store, so persona instructions have a single source of truth alongside every other
  * durable fact. Returns null when there are no persona records to project.
  */
-export function buildVibeProjectionPrompt(memoryRegistry: MemoryRegistry): string | null {
-  return renderVibeProjection(memoryRegistry.getAll());
+export function buildVibeProjectionPrompt(memoryRecords: { getAll(): readonly MemoryRecord[] }): string | null {
+  return renderVibeProjection(memoryRecords.getAll());
 }
 
 /**
@@ -252,6 +253,86 @@ export async function importVibeFilesIntoMemory(
       created += 1;
     }
   }
+  return created;
+}
+
+/**
+ * W6-C2 (E6): the persisted marker that makes the VIBE.md → memory import a strictly
+ * ONE-TIME migration. Keyed by absolute file path → content hash, so importing the same
+ * VIBE.md twice is a no-op (re-import would create near-duplicate persona records), while
+ * a NEW project's VIBE.md still migrates exactly once. Mirrors the sessions.spine-folded
+ * marker precedent (bootstrap.ts) — a small JSON sidecar, read before and written after.
+ */
+interface VibeImportMarker {
+  readonly migrated: Record<string, string>;
+}
+
+function vibeImportMarkerPath(shellPaths: Pick<ShellPathService, 'resolveUserPath'>): string {
+  return shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'vibe-import.migrated.json');
+}
+
+function readVibeImportMarker(path: string): VibeImportMarker {
+  if (!existsSync(path)) return { migrated: {} };
+  try {
+    const parsed = JSON.parse(readFileSync(path, 'utf-8')) as unknown;
+    const migrated = (parsed as { migrated?: unknown })?.migrated;
+    if (migrated && typeof migrated === 'object' && !Array.isArray(migrated)) {
+      const out: Record<string, string> = {};
+      for (const [key, value] of Object.entries(migrated as Record<string, unknown>)) {
+        if (typeof value === 'string') out[key] = value;
+      }
+      return { migrated: out };
+    }
+  } catch {
+    // Corrupt marker → treat as "nothing migrated"; the path+hash guard still prevents
+    // duplicating any record that was already imported in a prior clean run.
+  }
+  return { migrated: {} };
+}
+
+function writeVibeImportMarker(path: string, marker: VibeImportMarker): void {
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, `${JSON.stringify(marker, null, 2)}\n`, 'utf-8');
+}
+
+function hashVibeBody(body: string): string {
+  return createHash('sha256').update(body, 'utf-8').digest('hex');
+}
+
+/**
+ * W6-C2 (E6): fold discovered VIBE.md files into persona/constraint records ONCE.
+ * Guarded by a persisted path→hash marker so it never re-imports the same file (which
+ * would create near-duplicate persona records). Called at boot AFTER memoryStore.init().
+ * Returns the number of records created this run (0 when everything is already migrated).
+ */
+export async function importVibeFilesIntoMemoryOnce(
+  memoryRegistry: MemoryRegistry,
+  shellPaths: AgentVibePaths,
+): Promise<number> {
+  const markerPath = vibeImportMarkerPath(shellPaths);
+  const marker = readVibeImportMarker(markerPath);
+  const snapshot = discoverVibeFiles(shellPaths);
+  let created = 0;
+  let changed = false;
+  for (const file of snapshot.files) {
+    const key = resolve(file.path);
+    const hash = hashVibeBody(file.body);
+    if (marker.migrated[key] === hash) continue; // already migrated this exact content
+    const scope: MemoryScope = file.scope === 'global' ? 'team' : 'project';
+    const name = file.frontmatter.name?.trim();
+    const options = vibeBodyToConstraintOptions(file.body, {
+      scope,
+      ...(name ? { name } : {}),
+      sourceRef: file.path,
+    });
+    for (const opts of options) {
+      await memoryRegistry.add(opts);
+      created += 1;
+    }
+    marker.migrated[key] = hash;
+    changed = true;
+  }
+  if (changed) writeVibeImportMarker(markerPath, marker);
   return created;
 }
 

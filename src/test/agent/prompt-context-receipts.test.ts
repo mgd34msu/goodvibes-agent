@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../../agent/prompt-context-receipts.ts';
+import { importVibeFilesIntoMemoryOnce } from '../../agent/vibe-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
@@ -49,6 +50,10 @@ describe('prompt context receipts', () => {
         'Be direct and make the next user action obvious.',
       ].join('\n'));
       writeFileSync(join(shellPaths.workingDirectory, 'AGENTS.md'), 'Prefer visible autonomous work and reviewable local records.');
+
+      // W6-C2 (E6): VIBE.md is now a PROJECTION of persona records — migrate the file into
+      // the store (as boot does) so the projected '## GoodVibes Agent VIBE.md' block renders.
+      await importVibeFilesIntoMemoryOnce(memoryRegistry, shellPaths);
 
       const reviewed = await memoryRegistry.add({
         scope: 'project',

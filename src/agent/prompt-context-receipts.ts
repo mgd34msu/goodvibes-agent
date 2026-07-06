@@ -9,7 +9,7 @@ import { AgentPersonaRegistry, buildActivePersonaPrompt } from './persona-regist
 import { buildProjectContextPrompt, discoverProjectContextFiles } from './project-context-files.ts';
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from './routine-registry.ts';
 import { AgentSkillRegistry, buildEnabledSkillsPrompt, evaluateAgentSkillBundleReadiness, evaluateAgentSkillReadiness } from './skill-registry.ts';
-import { buildVibePrompt, discoverVibeFiles } from './vibe-file.ts';
+import { buildVibeProjectionPrompt, discoverVibeFiles } from './vibe-file.ts';
 
 export type PromptContextReceiptStatus = 'active' | 'attention' | 'empty' | 'unavailable';
 export type PromptContextReceiptSource = 'turn' | 'follow_up' | 'manual';
@@ -140,7 +140,9 @@ function receiptSegment(input: Omit<PromptContextReceiptSegment, 'approxTokens'>
 
 function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput): readonly PromptContextReceiptSegment[] {
   const vibe = discoverVibeFiles(input.shellPaths);
-  const vibePrompt = buildVibePrompt(input.shellPaths) ?? '';
+  // W6-C2 (E6): the VIBE prompt is a PROJECTION of persona/constraint records, not a
+  // re-read of the files (discoverVibeFiles above stays for the file-discovery receipt).
+  const vibePrompt = buildVibeProjectionPrompt(input.memoryRegistry) ?? '';
   const projectContext = discoverProjectContextFiles(input.shellPaths);
   const projectContextPrompt = buildProjectContextPrompt(input.shellPaths) ?? '';
   const memoryRecords = input.memoryRegistry.getAll();
@@ -341,7 +343,7 @@ export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionI
   const supplement = getTierPromptSupplement(tier);
   const prompt = joinPromptParts(
     input.runtimePrompt,
-    buildVibePrompt(input.shellPaths),
+    buildVibeProjectionPrompt(input.memoryRegistry),
     buildProjectContextPrompt(input.shellPaths),
     input.operatorPolicy,
     buildReviewedMemoryPrompt(input.memoryRegistry, { turnText: input.turnText }),

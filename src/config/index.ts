@@ -55,3 +55,15 @@ export function getConfiguredSystemPrompt(configManager: Pick<ConfigManager, 'ge
 }
 
 export { getConfiguredApiKeys, resolveApiKeys } from '@pellux/goodvibes-sdk/platform/config';
+
+// W6-C1 (E7): the daemon-client credential STATUS read (secret-free, honest-degrade).
+// Value reads above stay local/env; only the status VISIBILITY path moves to the daemon.
+export {
+  deriveCredentialAvailability,
+  fetchDaemonCredentialAvailability,
+} from './credential-status.ts';
+export type {
+  CredentialAvailability,
+  CredentialStatusConnection,
+  CredentialStatusEntry,
+} from './credential-status.ts';

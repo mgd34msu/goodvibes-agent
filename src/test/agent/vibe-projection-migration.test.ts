@@ -1,0 +1,86 @@
+/**
+ * W6-C2 (E6): the VIBE.md → memory migration is strictly ONE-TIME (a persisted marker
+ * prevents re-import, which would create near-duplicate persona records), and the VIBE
+ * prompt is a PROJECTION of those persona records that preserves the precedence caveat.
+ * Hermetic — temp home/workspace + a throwaway MemoryStore; no daemon, no network.
+ */
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { rmSync } from 'node:fs';
+import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import { buildVibeProjectionPrompt, importVibeFilesIntoMemoryOnce } from '../../agent/vibe-file.ts';
+import { createShellPathService } from '@/runtime/index.ts';
+
+function tempShellPaths() {
+  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-vibe-migration-'));
+  const home = join(root, 'home');
+  const workspace = join(root, 'workspace');
+  mkdirSync(home, { recursive: true });
+  mkdirSync(workspace, { recursive: true });
+  return { root, shellPaths: createShellPathService({ workingDirectory: workspace, homeDirectory: home }) };
+}
+
+describe('VIBE.md persona migration (W6-C2)', () => {
+  let store: MemoryStore;
+  let dbPath: string;
+  let configRoot: string;
+  let registry: MemoryRegistry;
+
+  beforeEach(async () => {
+    dbPath = join(tmpdir(), `vibe-migration-${randomUUID()}.db`);
+    configRoot = mkdtempSync(join(tmpdir(), 'vibe-migration-config-'));
+    const configDir = join(configRoot, '.goodvibes', 'agent');
+    mkdirSync(configDir, { recursive: true });
+    const configManager = new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir: configRoot });
+    const embeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
+    store = new MemoryStore(dbPath, { embeddingRegistry });
+    await store.init();
+    registry = new MemoryRegistry(store);
+  });
+
+  afterEach(() => {
+    store.close();
+    rmSync(configRoot, { recursive: true, force: true });
+  });
+
+  test('imports VIBE.md persona records exactly once; the marker prevents re-run', async () => {
+    const { shellPaths } = tempShellPaths();
+    writeFileSync(join(shellPaths.workingDirectory, 'VIBE.md'), [
+      '# VIBE.md',
+      '- Be direct about tradeoffs.',
+      '- Prefer visible, reversible actions.',
+    ].join('\n'));
+
+    const firstRun = await importVibeFilesIntoMemoryOnce(registry, shellPaths);
+    expect(firstRun).toBe(2);
+    expect(registry.getAll().filter((r) => r.cls === 'constraint')).toHaveLength(2);
+
+    // Second run is a no-op — the marker keeps the same VIBE.md from re-importing.
+    const secondRun = await importVibeFilesIntoMemoryOnce(registry, shellPaths);
+    expect(secondRun).toBe(0);
+    expect(registry.getAll().filter((r) => r.cls === 'constraint')).toHaveLength(2);
+  });
+
+  test('the VIBE projection renders from persona records with the precedence caveat', async () => {
+    const { shellPaths } = tempShellPaths();
+    writeFileSync(join(shellPaths.workingDirectory, 'VIBE.md'), [
+      '# VIBE.md',
+      '- Ask before sending messages.',
+    ].join('\n'));
+    await importVibeFilesIntoMemoryOnce(registry, shellPaths);
+
+    const projection = buildVibeProjectionPrompt(registry) ?? '';
+    expect(projection).toContain('## GoodVibes Agent VIBE.md');
+    expect(projection).toContain('Ask before sending messages.');
+    // Precedence caveat preserved verbatim — persona never overrides explicit/safety.
+    expect(projection).toContain('Follow them only when they do not conflict with explicit user instructions');
+  });
+
+  test('with no persona records the projection is null (no empty block)', () => {
+    expect(buildVibeProjectionPrompt(registry)).toBeNull();
+  });
+});

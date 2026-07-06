@@ -26,7 +26,10 @@ import {
 } from '@/runtime/index.ts';
 import { loadBootstrapSystemPrompt, syncConfiguredServices } from '@/runtime/index.ts';
 import { registerBootstrapHookBridge } from '@/runtime/index.ts';
-import { createRuntimeServices, type RuntimeServices } from './services.ts';
+import { createRuntimeServices, foldAgentLegacyMemory, type RuntimeServices } from './services.ts';
+import { formatMemoryFoldReport } from '@pellux/goodvibes-sdk/platform/state';
+import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { importVibeFilesIntoMemoryOnce } from '../agent/vibe-file.ts';
 import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.ts';
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
 import { registerAgentChannelSendTool } from '../tools/agent-channel-send-tool.ts';
@@ -344,6 +347,34 @@ export async function initializeBootstrapCore(
     void memoryStore.save();
     memoryStore.close();
   });
+
+  // W6-C2 (E6): fold the agent's legacy per-surface memory into the canonical
+  // cross-surface store (id-keyed, idempotent, never deletes the legacy file) and
+  // SURFACE the fold report — migration honesty requires that what moved is visible,
+  // not silently swallowed. Non-fatal: a fold failure must never block startup.
+  try {
+    const foldReport = await foldAgentLegacyMemory(
+      services.memoryStore,
+      services.memoryEmbeddingRegistry,
+      services.shellPaths,
+    );
+    logger.info('agent legacy memory fold report', { report: formatMemoryFoldReport(foldReport) });
+  } catch (err) {
+    logger.warn('agent legacy memory fold failed (non-fatal)', { error: summarizeError(err) });
+  }
+
+  // W6-C2 (E6): ONE-TIME migration of discovered VIBE.md files into persona/constraint
+  // records, guarded by a persisted path→hash marker so it never re-imports the same
+  // file (which would create near-duplicate persona records). After this, the VIBE
+  // prompt is a PROJECTION of those records (buildVibeProjectionPrompt).
+  try {
+    const importedPersona = await importVibeFilesIntoMemoryOnce(services.memoryRegistry, services.shellPaths);
+    if (importedPersona > 0) {
+      logger.info('agent VIBE.md persona migration', { records: importedPersona });
+    }
+  } catch (err) {
+    logger.warn('agent VIBE.md persona migration failed (non-fatal)', { error: summarizeError(err) });
+  }
 
   const renderRequestRef = { value: (): void => {} };
   // R1: Coalescing render scheduler — collapses N same-microtask requestRender() calls into 1.

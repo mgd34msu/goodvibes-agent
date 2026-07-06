@@ -6,7 +6,7 @@ import { AgentPersonaRegistry, buildActivePersonaPrompt } from '../agent/persona
 import { buildProjectContextPrompt, discoverProjectContextFiles } from '../agent/project-context-files.ts';
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, buildEnabledSkillsPrompt, evaluateAgentSkillBundleReadiness, evaluateAgentSkillReadiness } from '../agent/skill-registry.ts';
-import { buildVibePrompt, discoverVibeFiles } from '../agent/vibe-file.ts';
+import { buildVibeProjectionPrompt, discoverVibeFiles } from '../agent/vibe-file.ts';
 import type { PromptContextReceipt } from '../agent/prompt-context-receipts.ts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
@@ -399,7 +399,10 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
   }
 
   const vibe = discoverVibeFiles(shellPaths);
-  const vibePrompt = buildVibePrompt(shellPaths) ?? '';
+  // W6-C2 (E6): mirror the runtime — the VIBE prompt is a PROJECTION of persona records,
+  // not a file re-read (discoverVibeFiles stays for the file-discovery receipt below).
+  const vibeMemory = promptMemoryApi(context.clients?.agentKnowledgeApi?.memory);
+  const vibePrompt = (vibeMemory ? buildVibeProjectionPrompt(vibeMemory) : null) ?? '';
   const projectContext = discoverProjectContextFiles(shellPaths);
   const projectContextPrompt = buildProjectContextPrompt(shellPaths) ?? '';
   const personaSnapshot = AgentPersonaRegistry.fromShellPaths(shellPaths).snapshot();
