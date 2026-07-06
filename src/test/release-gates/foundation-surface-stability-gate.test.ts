@@ -107,6 +107,7 @@ describe('foundation surface stability gate', () => {
       'cancelInput',
       'close',
       'current',
+      'delete',
       'deliverInput',
       'detach',
       'ensureSession',
