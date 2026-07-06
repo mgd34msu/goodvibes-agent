@@ -124,7 +124,8 @@ describe('renderSettingsModal', () => {
   test('category rail and header show the active category count', () => {
     const lines = renderSettingsModal(modal, W);
     const texts = linesToText(lines).join('\n');
-    expect(texts).toContain('Display (8)');
+    // 8 SDK display.* settings + the synthetic display.themeMode entry (W4-R4).
+    expect(texts).toContain('Display (9)');
   });
 
   test('category rail is grouped and opens with category focus', () => {
@@ -134,7 +135,7 @@ describe('renderSettingsModal', () => {
     expect(texts).toContain('AGENT EXPERIENCE');
     expect(texts).toContain('MODELS AND PROVIDERS');
     expect(texts).toContain('CHANNELS AND TOOLS');
-    expect(texts).toContain('  ▸ Display (8)');
+    expect(texts).toContain('  ▸ Display (9)');
     expect(texts).not.toContain('EXTERNAL RUNTIME CONNECTION');
     expect(texts).not.toContain('DELEGATION COMPATIBILITY');
     const interfaceLines = lines.filter(line => lineToString(line).includes('AGENT EXPERIENCE'));

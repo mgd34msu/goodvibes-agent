@@ -14,6 +14,7 @@ import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { buildLocalFitRecommendations, buildSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
+import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
 
 type WireShellUiOpenersOptions = {
   commandContext: CommandContext;
@@ -422,10 +423,18 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   commandContext.openSettingsModal = (target?: string) => {
     input.modalOpened('settings');
     input.settingsModal.open(configManager, featureFlags, subscriptionManager, serviceRegistry, mcpRegistry, secretsManager, {
-      onSettingApplied: (change) => syncServiceSettingToPlatform(
-        { configManager, workingDirectory, homeDirectory },
-        change,
-      ),
+      onSettingApplied: (change) => {
+        // W4-R4: forced dark/light applies immediately (mode flip + full
+        // repaint via clearScreen's resetDiff); auto only re-probes at startup,
+        // so it takes effect next launch (stated honestly).
+        if (String(change.key) === THEME_MODE_CONFIG_KEY) {
+          return applyThemeModeSettingChange(change.value, () => commandContext.clearScreen?.());
+        }
+        return syncServiceSettingToPlatform(
+          { configManager, workingDirectory, homeDirectory },
+          change,
+        );
+      },
     });
     input.settingsModal.selectTarget(target);
     render();

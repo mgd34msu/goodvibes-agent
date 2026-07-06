@@ -21,7 +21,9 @@
  * can import it without pulling in the stateful probe class.
  */
 
-import type { ThemeModeSetting } from './theme.ts';
+import { setActiveThemeMode, type ThemeModeSetting } from './theme.ts';
+import { coerceThemeModeSetting, THEME_MODE_CONFIG_KEY, THEME_MODE_DEFAULT } from './terminal-bg-probe.ts';
+import type { ConfigKey, ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 
 export {
   THEME_MODE_CONFIG_KEY,
@@ -47,3 +49,39 @@ export const THEME_MODE_DESCRIPTION =
   + 'terminals fall back to dark. Scope (honest): transcript markdown, tool-call '
   + 'and system-message accents, and the header/footer/thinking chrome all flip '
   + 'with this setting; only the background colour itself follows your terminal.';
+
+/**
+ * The synthetic ConfigSetting descriptor for display.themeMode (the TUI's
+ * settings-modal-data.ts pattern). Agent-local — the key is NOT in the SDK
+ * ConfigKey union, so it is cast; safe because the `display` section exists in
+ * DEFAULT_CONFIG and ConfigManager.setDynamic/get round-trip unknown fields
+ * under an existing section. Injected into the settings modal's display group
+ * so the preference is discoverable and cycles like any other enum setting.
+ */
+export const THEME_MODE_SYNTHETIC_SETTING: ConfigSetting = {
+  key: THEME_MODE_CONFIG_KEY as ConfigKey,
+  type: 'enum',
+  default: THEME_MODE_DEFAULT,
+  enumValues: [...THEME_MODE_VALUES],
+  description: THEME_MODE_DESCRIPTION,
+};
+
+/**
+ * Apply a display.themeMode settings change with the honest timing contract:
+ * forced dark/light flip the active mode NOW (caller passes its full-repaint
+ * hook); auto is only evaluated by the startup probe, so it takes effect on the
+ * next launch — the returned message states which happened. Called by the
+ * settings-modal onSettingApplied hook (ui-openers).
+ */
+export function applyThemeModeSettingChange(
+  value: unknown,
+  requestFullRepaint?: () => void,
+): { message: string } {
+  const next = coerceThemeModeSetting(value);
+  if (next === 'dark' || next === 'light') {
+    setActiveThemeMode(next);
+    requestFullRepaint?.();
+    return { message: `Theme mode: ${next} (applied now)` };
+  }
+  return { message: 'Theme mode: auto (probes terminal on next startup)' };
+}

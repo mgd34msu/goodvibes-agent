@@ -133,12 +133,15 @@ describe('SettingsModal', () => {
         expect(modal.subscriptionEntries.map((entry) => entry.provider)).toContain('openai');
         continue;
       }
-      const expectedKeys = CONFIG_SCHEMA
+      const expectedKeys: string[] = CONFIG_SCHEMA
         .filter((entry) => !isAgentHiddenSettingKey(entry.key))
         .filter((entry) => entry.key.split('.')[0] === cat)
         .map((entry) => entry.key);
+      // W4-R4: display additionally carries the synthetic display.themeMode
+      // entry (agent-local key, not in the SDK CONFIG_SCHEMA).
+      if (cat === 'display') expectedKeys.push('display.themeMode');
       expect(specialCategories.has(cat)).toBe(false);
-      expect([...(modal.groups.get(cat)?.map((entry) => entry.setting.key) ?? [])].sort()).toEqual([...expectedKeys].sort());
+      expect([...(modal.groups.get(cat)?.map((entry) => String(entry.setting.key)) ?? [])].sort()).toEqual([...expectedKeys].sort());
     }
   });
 
