@@ -4,6 +4,12 @@ import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
 import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from './markdown-frontmatter.ts';
+// W6-C2 (E6): VIBE.md is now a PROJECTION of persona/constraint records in the
+// canonical memory store, not a separate source of truth. renderVibeProjection emits
+// the same '## VIBE.md' block from those records (caveat preserved); the file is
+// demoted to an import/export FORMAT folded in via vibeBodyToConstraintOptions.
+import { renderVibeProjection, vibeBodyToConstraintOptions } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryRegistry, MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
 
 export type AgentVibeScope = 'project' | 'global';
 
@@ -203,6 +209,50 @@ export function buildVibePrompt(shellPaths: AgentVibePaths): string | null {
   }
 
   return lines.join('\n');
+}
+
+/**
+ * W6-C2 (E6): the VIBE.md prompt block as a PROJECTION of persona/constraint records.
+ *
+ * This is the store-sourced replacement for buildVibePrompt (which reads the file
+ * directly). It renders the same '## GoodVibes Agent VIBE.md' block — including the
+ * precedence caveat — from the cls:'constraint' persona records in the canonical
+ * store, so persona instructions have a single source of truth alongside every other
+ * durable fact. Returns null when there are no persona records to project.
+ */
+export function buildVibeProjectionPrompt(memoryRegistry: MemoryRegistry): string | null {
+  return renderVibeProjection(memoryRegistry.getAll());
+}
+
+/**
+ * W6-C2 (E6): fold discovered VIBE.md files into the store as persona/constraint
+ * records — the file demoted to an IMPORT FORMAT. Each bullet becomes one record so a
+ * later single-record edit changes exactly one projected line. Secret-like content is
+ * already rejected by discoverVibeFiles (readVibeCandidate → assertNoSecretLikeText),
+ * so only clean bodies reach here. Idempotent enough for boot: importing the same body
+ * twice creates duplicate records only if their summaries differ, so callers should run
+ * this as a one-time migration, not every boot (mirrors the memory fold precedent).
+ */
+export async function importVibeFilesIntoMemory(
+  memoryRegistry: MemoryRegistry,
+  shellPaths: AgentVibePaths,
+): Promise<number> {
+  const snapshot = discoverVibeFiles(shellPaths);
+  let created = 0;
+  for (const file of snapshot.files) {
+    const scope: MemoryScope = file.scope === 'global' ? 'team' : 'project';
+    const name = file.frontmatter.name?.trim();
+    const options = vibeBodyToConstraintOptions(file.body, {
+      scope,
+      ...(name ? { name } : {}),
+      sourceRef: file.path,
+    });
+    for (const opts of options) {
+      await memoryRegistry.add(opts);
+      created += 1;
+    }
+  }
+  return created;
 }
 
 export function formatVibeStatus(snapshot: AgentVibeSnapshot): string {
