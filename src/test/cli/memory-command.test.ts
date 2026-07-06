@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -6,8 +6,26 @@ import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { renderGoodVibesCommandHelp, renderGoodVibesHelp } from '../../cli/help.ts';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 
 const roots: string[] = [];
+
+// The `memory` CLI command now probes for a reachable connected daemon (the
+// default controlPlane.host:port) before every wire-eligible subcommand and
+// routes over the wire when one answers (see memory-command-wire.ts). These
+// fixtures deliberately have no daemon and exercise the local-direct fallback —
+// so `fetch` is stubbed to fail fast for the whole file. This must NEVER dial a
+// real daemon that happens to be running on the developer's machine at the
+// default port; it always fails the probe instead, exactly like "no daemon".
+const originalFetch = globalThis.fetch;
+beforeEach(() => {
+  globalThis.fetch = mockFetch(async () => {
+    throw new Error('network disabled in this test file — memory CLI tests exercise the local-direct fallback only');
+  });
+});
+afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
 
 async function runCli(args: readonly string[], root?: string, homeRoot?: string): Promise<{
   readonly exitCode: number;

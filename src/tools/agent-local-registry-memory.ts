@@ -12,6 +12,18 @@
  * search so an unavailable index degrades honestly (stated reason, literal
  * fallback) instead of silently returning zero matches that read as "nothing
  * was ever stored."
+ *
+ * MEMORY-SPINE WIRING (SDK 1.1.0). get/create/review/stale/delete and the
+ * literal `search` path all have a wire-covered equivalent on `MemoryAccess`
+ * (get/add/updateReview/updateReview/delete/honestSearch), so they route
+ * through `memorySpine` — local by default, or over the wire the moment the
+ * agent has adopted a daemon (see services.ts's memorySpineClient). `list`,
+ * `update`, and the SEMANTIC search path have NO wire equivalent in this SDK
+ * version (no getAll/update/searchSemantic/vectorStats route exists yet), so
+ * those three stay on the raw local `registry` — a known, honest scope limit
+ * of the wire surface as shipped, not an oversight. Whenever one of them runs
+ * while a daemon IS adopted, it reads/writes the agent's own local snapshot of
+ * the store directly, out of band from the daemon's canonical copy.
  */
 import {
   HASHED_MEMORY_EMBEDDING_PROVIDER,
@@ -22,6 +34,7 @@ import {
   type MemorySemanticSearchResult,
   type MemoryVectorStats,
 } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 import { formatAgentRecordReference, formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import {
@@ -105,8 +118,15 @@ function renderMemorySearch(mode: string, query: string, lines: readonly string[
   return [`Agent-local memory search (${mode})`, `query ${query || '(all)'}`, ...lines].join('\n');
 }
 
-export async function handleMemory(registry: MemoryRegistry, action: AgentLocalRegistryAction, args: AgentLocalRegistryToolArgs): Promise<string> {
+export async function handleMemory(
+  registry: MemoryRegistry,
+  memorySpine: MemoryAccess,
+  action: AgentLocalRegistryAction,
+  args: AgentLocalRegistryToolArgs,
+): Promise<string> {
   if (action === 'list') {
+    // No wire equivalent to getAll() in this SDK version — stays local (see the
+    // file-header scope note).
     const records = registry.getAll();
     return records.length === 0
       ? 'Agent-local memory\nNo Agent-local memory records.'
@@ -116,13 +136,18 @@ export async function handleMemory(registry: MemoryRegistry, action: AgentLocalR
     const query = readString(args.query);
     const wantsLiteral = args.semantic === false;
     if (wantsLiteral) {
-      const records = registry.search({ query, limit: 10 });
+      // Literal search IS wire-covered — routes through the spine (honestSearch
+      // with no `semantic` flag is exactly a literal scan; see
+      // runHonestMemorySearch in the SDK).
+      const { records } = await memorySpine.honestSearch({ query, limit: 10 });
       return renderMemorySearch('literal — explicitly requested', query, records.map(formatMemory));
     }
     // SEMANTIC BY DEFAULT: natural-language recall must not depend on the query text
     // appearing as a literal substring in the stored summary/detail. Check index
     // health FIRST so an unavailable index degrades honestly instead of silently
-    // returning zero matches that read as "nothing was ever stored."
+    // returning zero matches that read as "nothing was ever stored." No wire
+    // equivalent for searchSemantic/vectorStats exists yet, so this path stays on
+    // the raw local registry regardless of spine mode (see the file-header note).
     const stats = registry.vectorStats();
     const unavailable = describeMemoryIndexUnavailable(stats);
     if (unavailable) {
@@ -140,7 +165,7 @@ export async function handleMemory(registry: MemoryRegistry, action: AgentLocalR
     return renderMemorySearch(mode, query, results.map(formatMemoryMatch));
   }
   if (action === 'get') {
-    const record = registry.get(requireId(args));
+    const record = await memorySpine.get(requireId(args));
     if (!record) return `Unknown Agent-local memory ${readString(args.id)}`;
     return [
       formatMemory(record),
@@ -158,7 +183,7 @@ export async function handleMemory(registry: MemoryRegistry, action: AgentLocalR
     const tags = readStringList(args.tags);
     const confidence = readOptionalConfidence(args.confidence);
     assertNoSecretLikeMemoryText([summary, detail, ...tags]);
-    const record = await registry.add({
+    const record = await memorySpine.add({
       scope: readMemoryScope(args),
       cls: requireMemoryClass(args),
       summary,
@@ -174,6 +199,8 @@ export async function handleMemory(registry: MemoryRegistry, action: AgentLocalR
     ].join('\n');
   }
   if (action === 'update') {
+    // No wire equivalent to update() (summary/detail/tags/scope patch) in this SDK
+    // version — stays local (see the file-header scope note).
     const summary = readString(args.summary || args.description);
     const detail = readString(args.detail || args.body);
     const tags = args.tags === undefined ? undefined : [...readStringList(args.tags)];
@@ -192,7 +219,7 @@ export async function handleMemory(registry: MemoryRegistry, action: AgentLocalR
     ].join('\n');
   }
   if (action === 'review') {
-    const record = registry.review(requireId(args), {
+    const record = await memorySpine.updateReview(requireId(args), {
       state: 'reviewed',
       confidence: readOptionalConfidence(args.confidence),
       reviewedBy: 'agent',
@@ -204,7 +231,7 @@ export async function handleMemory(registry: MemoryRegistry, action: AgentLocalR
     ].join('\n');
   }
   if (action === 'stale') {
-    const record = registry.review(requireId(args), {
+    const record = await memorySpine.updateReview(requireId(args), {
       state: 'stale',
       staleReason: readString(args.reason) || 'Marked stale by Agent.',
     });
@@ -217,7 +244,7 @@ export async function handleMemory(registry: MemoryRegistry, action: AgentLocalR
   if (action === 'delete') {
     const id = requireId(args);
     requireConfirmedDelete(args, 'Agent-local memory');
-    if (!registry.delete(id)) return `Unknown Agent-local memory ${id}`;
+    if (!(await memorySpine.delete(id))) return `Unknown Agent-local memory ${id}`;
     return [
       'Deleted Agent-local memory',
       `  id ${id}`,

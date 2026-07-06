@@ -77,6 +77,26 @@ export interface RuntimePromptCompositionInput {
    *  already-eligible memory set by relevance to this turn — see rankMemoryForTurn.
    *  Null/undefined when there is no active turn (e.g. a follow-up composition). */
   readonly turnText?: string | null;
+  /**
+   * The memory spine's current access posture ('local' | 'client'), when known.
+   *
+   * STRUCTURAL SCOPE NOTE (memory-spine adoption, SDK 1.1.0): this whole
+   * composition reads memory via `memoryRegistry.getAll()` / `.searchSemantic()` /
+   * `.vectorStats()` — none of which exist on the wire's `MemoryAccess` surface
+   * (only add/honestSearch/get/updateReview/delete do), AND this function is called
+   * synchronously from the SDK's `Orchestrator.getSystemPrompt` callback, which the
+   * SDK defines as non-async. Making this path route over the wire would need
+   * either new SDK wire routes for getAll/searchSemantic/vectorStats or an SDK-level
+   * signature change to an async getSystemPrompt — both out of scope for a
+   * consumer-side adoption. So recall here always reads `memoryRegistry` directly,
+   * even when the agent has adopted a daemon (`memorySpineMode === 'client'`). That is
+   * safe for READS (the daemon is the single WRITER, not the only reader) but it is a
+   * frozen snapshot from whenever this agent process last wrote to/opened its local
+   * copy — it will not see records the daemon writes afterward. `memorySpineMode` is
+   * passed through only so the 'memory' receipt segment can say so honestly instead
+   * of presenting a stale local snapshot as if it were the live canonical store.
+   */
+  readonly memorySpineMode?: 'local' | 'client';
 }
 
 const RECEIPT_STORE_LIMIT = 200;
@@ -102,6 +122,25 @@ function compactOutcomeDetail(value: string | undefined): string | undefined {
 
 function joinPromptParts(...parts: Array<string | null | undefined>): string {
   return parts.map((part) => part?.trim()).filter((part): part is string => Boolean(part)).join('\n\n');
+}
+
+/**
+ * The honest degrade note for the 'memory' receipt segment when the agent has
+ * adopted a daemon: recall here always reads the agent's own local store (see the
+ * RuntimePromptCompositionInput.memorySpineMode doc comment for why), which is a
+ * frozen snapshot the moment the daemon becomes the store's writer — it will not
+ * see records the daemon writes afterward. `undefined` when local (nothing to
+ * degrade) or when the mode isn't known to the caller.
+ */
+function memorySpineRecallNote(mode: 'local' | 'client' | undefined): string | undefined {
+  if (mode !== 'client') return undefined;
+  return 'this agent has adopted a connected daemon for memory writes; this recall reads the agent\'s own local snapshot (frozen since adoption), not the daemon\'s live canonical store — the SDK\'s memory wire has no equivalent to the bulk read this recall path needs';
+}
+
+/** Combines up to two optional short notes with a single separator; undefined when both are absent. */
+function combineNotes(first: string | null | undefined, second: string | null | undefined): string | undefined {
+  const parts = [first, second].map((part) => part?.trim()).filter((part): part is string => Boolean(part));
+  return parts.length > 0 ? parts.join(' — also: ') : undefined;
 }
 
 function modelLabel(model: unknown): string {
@@ -237,8 +276,15 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       // Honest degrade note: when per-turn relevance scoring did not
       // run — no active-turn text, semantic index unavailable, or no vector match —
       // say so instead of silently presenting the fallback confidence/recency order as
-      // if it were a relevance ranking.
-      note: memoryRanking.scored ? undefined : (memoryRanking.degradedReason ?? undefined),
+      // if it were a relevance ranking. Combined with the memory-spine client-mode
+      // note (see memorySpineRecallNote) when the agent has adopted a daemon — this
+      // recall path structurally cannot follow the spine onto the wire (see
+      // RuntimePromptCompositionInput.memorySpineMode), so it says so rather than
+      // presenting a possibly-stale local snapshot as the live canonical store.
+      note: combineNotes(
+        memoryRanking.scored ? undefined : memoryRanking.degradedReason,
+        memorySpineRecallNote(input.memorySpineMode),
+      ),
       selected: activeMemory.map((record) => ({
         id: record.id,
         scope: record.scope,

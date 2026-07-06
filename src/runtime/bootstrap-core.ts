@@ -275,7 +275,7 @@ export async function initializeBootstrapCore(
   registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter, { shellPaths: services.shellPaths });
   registerAgentKnowledgeTool(toolRegistry, services.shellPaths, configManager);
   registerAgentLearningConsolidationTool(toolRegistry, services.shellPaths, services.memoryRegistry);
-  registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry);
+  registerAgentLocalRegistryTool(toolRegistry, services.shellPaths, services.memoryRegistry, services.memorySpineClient);
   registerAgentMediaGenerateTool(toolRegistry, services.mediaProviders, services.artifactStore);
   registerAgentResearchRunsTool(toolRegistry, services.shellPaths);
   registerAgentResearchSourcesTool(toolRegistry, services.shellPaths);
@@ -368,7 +368,7 @@ export async function initializeBootstrapCore(
   // file (which would create near-duplicate persona records). After this, the VIBE
   // prompt is a PROJECTION of those records (buildVibeProjectionPrompt).
   try {
-    const importedPersona = await importVibeFilesIntoMemoryOnce(services.memoryRegistry, services.shellPaths);
+    const importedPersona = await importVibeFilesIntoMemoryOnce(services.memorySpineClient, services.shellPaths);
     if (importedPersona > 0) {
       logger.info('agent VIBE.md persona migration', { records: importedPersona });
     }

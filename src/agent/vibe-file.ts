@@ -10,7 +10,11 @@ import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from './markdown-f
 // the same '## VIBE.md' block from those records (caveat preserved); the file is
 // demoted to an import/export FORMAT folded in via vibeBodyToConstraintOptions.
 import { renderVibeProjection, vibeBodyToConstraintOptions } from '@pellux/goodvibes-sdk/platform/state';
-import type { MemoryRecord, MemoryRegistry, MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryRecord, MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
+// Writes go through the memory-spine's MemoryAccess surface (add), not the raw
+// MemoryRegistry, so this import folds correctly whether the agent is local or has
+// adopted a daemon — see services.ts's memorySpineClient.
+import type { MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 
 export type AgentVibeScope = 'project' | 'global';
 
@@ -235,7 +239,7 @@ export function buildVibeProjectionPrompt(memoryRecords: { getAll(): readonly Me
  * this as a one-time migration, not every boot (mirrors the memory fold precedent).
  */
 export async function importVibeFilesIntoMemory(
-  memoryRegistry: MemoryRegistry,
+  memorySpine: MemoryAccess,
   shellPaths: AgentVibePaths,
 ): Promise<number> {
   const snapshot = discoverVibeFiles(shellPaths);
@@ -249,7 +253,7 @@ export async function importVibeFilesIntoMemory(
       sourceRef: file.path,
     });
     for (const opts of options) {
-      await memoryRegistry.add(opts);
+      await memorySpine.add(opts);
       created += 1;
     }
   }
@@ -306,7 +310,7 @@ function hashVibeBody(body: string): string {
  * Returns the number of records created this run (0 when everything is already migrated).
  */
 export async function importVibeFilesIntoMemoryOnce(
-  memoryRegistry: MemoryRegistry,
+  memorySpine: MemoryAccess,
   shellPaths: AgentVibePaths,
 ): Promise<number> {
   const markerPath = vibeImportMarkerPath(shellPaths);
@@ -326,7 +330,7 @@ export async function importVibeFilesIntoMemoryOnce(
       sourceRef: file.path,
     });
     for (const opts of options) {
-      await memoryRegistry.add(opts);
+      await memorySpine.add(opts);
       created += 1;
     }
     marker.migrated[key] = hash;

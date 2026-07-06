@@ -11,6 +11,7 @@ import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import { createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { buildReviewedMemoryPrompt } from '../../agent/memory-prompt.ts';
 
@@ -43,7 +44,7 @@ async function toolFixture(): Promise<{
   return {
     paths,
     memoryRegistry,
-    tool: createAgentLocalRegistryTool(paths, memoryRegistry),
+    tool: createAgentLocalRegistryTool(paths, memoryRegistry, createLocalMemoryAccess(memoryRegistry)),
   };
 }
 
@@ -161,7 +162,7 @@ describe('agent_local_registry tool', () => {
     );
     await store.init();
     const disabledIndexRegistry = new MemoryRegistry(store);
-    const tool = createAgentLocalRegistryTool(paths, disabledIndexRegistry);
+    const tool = createAgentLocalRegistryTool(paths, disabledIndexRegistry, createLocalMemoryAccess(disabledIndexRegistry));
     await tool.execute({
       domain: 'memory',
       action: 'create',
@@ -444,7 +445,7 @@ describe('agent_local_registry tool', () => {
     const registry = new ToolRegistry();
     const paths = shellPaths();
     const memoryRegistry = await createMemoryRegistry(paths);
-    registerAgentLocalRegistryTool(registry, paths, memoryRegistry);
+    registerAgentLocalRegistryTool(registry, paths, memoryRegistry, createLocalMemoryAccess(memoryRegistry));
 
     expect(registry.has('agent_local_registry')).toBe(true);
     const result = await registry.execute('call-1', 'agent_local_registry', {

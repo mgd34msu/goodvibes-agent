@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import { rmSync } from 'node:fs';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import { createLocalMemoryAccess, type MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { buildVibeProjectionPrompt, importVibeFilesIntoMemoryOnce } from '../../agent/vibe-file.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 
@@ -29,6 +30,7 @@ describe('VIBE.md persona migration', () => {
   let dbPath: string;
   let configRoot: string;
   let registry: MemoryRegistry;
+  let memorySpine: MemoryAccess;
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `vibe-migration-${randomUUID()}.db`);
@@ -40,6 +42,10 @@ describe('VIBE.md persona migration', () => {
     store = new MemoryStore(dbPath, { embeddingRegistry });
     await store.init();
     registry = new MemoryRegistry(store);
+    // importVibeFilesIntoMemoryOnce now writes through the memory-spine's MemoryAccess
+    // surface (services.memorySpineClient in production); wrap the local registry the
+    // same way so the test exercises the real seam instead of a raw registry.
+    memorySpine = createLocalMemoryAccess(registry);
   });
 
   afterEach(() => {
@@ -55,12 +61,12 @@ describe('VIBE.md persona migration', () => {
       '- Prefer visible, reversible actions.',
     ].join('\n'));
 
-    const firstRun = await importVibeFilesIntoMemoryOnce(registry, shellPaths);
+    const firstRun = await importVibeFilesIntoMemoryOnce(memorySpine, shellPaths);
     expect(firstRun).toBe(2);
     expect(registry.getAll().filter((r) => r.cls === 'constraint')).toHaveLength(2);
 
     // Second run is a no-op — the marker keeps the same VIBE.md from re-importing.
-    const secondRun = await importVibeFilesIntoMemoryOnce(registry, shellPaths);
+    const secondRun = await importVibeFilesIntoMemoryOnce(memorySpine, shellPaths);
     expect(secondRun).toBe(0);
     expect(registry.getAll().filter((r) => r.cls === 'constraint')).toHaveLength(2);
   });
@@ -71,7 +77,7 @@ describe('VIBE.md persona migration', () => {
       '# VIBE.md',
       '- Ask before sending messages.',
     ].join('\n'));
-    await importVibeFilesIntoMemoryOnce(registry, shellPaths);
+    await importVibeFilesIntoMemoryOnce(memorySpine, shellPaths);
 
     const projection = buildVibeProjectionPrompt(registry) ?? '';
     expect(projection).toContain('## GoodVibes Agent VIBE.md');

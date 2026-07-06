@@ -18,6 +18,9 @@ import {
   createSpineRestProbe,
   createSpineRestTransport,
 } from './session-spine-rest-transport.ts';
+import { MemorySpineClient, createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
+import type { MemoryTransport } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
+import { createMemorySpineRestTransport } from './memory-spine-rest-transport.ts';
 import { WatcherRegistry } from '@pellux/goodvibes-sdk/platform/watchers';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import {
@@ -429,6 +432,20 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly workPlanStore: WorkPlanStore;
   readonly memoryStore: MemoryStore;
   readonly memoryRegistry: MemoryRegistry;
+  /**
+   * The consumer half of the daemon-served memory spine (SDK 1.1.0). Constructed
+   * in LOCAL mode always (wrapping `memoryRegistry` directly); a deferred boot task
+   * (see bootstrap.ts, mirroring the session-spine reachability probe) activates it
+   * with the REST wire transport when the agent confirms an adopted daemon, and
+   * deactivates it back to local on confirmed daemon loss. Every consumer that can
+   * express its memory op through the five wire-covered methods (add/honestSearch/
+   * get/updateReview/delete) should route through THIS client, never `memoryRegistry`
+   * directly, so it automatically stops touching the local store file the moment a
+   * daemon is adopted (the single-writer invariant — see memory-spine/client.ts).
+   */
+  readonly memorySpineClient: MemorySpineClient;
+  /** The wire transport handed to `memorySpineClient.activate()` on daemon adoption; exposed so bootstrap can activate/reuse it without rebuilding the connection resolver. */
+  readonly memorySpineTransport: MemoryTransport;
   readonly serviceRegistry: ServiceRegistry;
   readonly secretsManager: SecretsManager;
   readonly subscriptionManager: SubscriptionManager;
@@ -648,6 +665,20 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     embeddingRegistry: memoryEmbeddingRegistry,
   });
   const memoryRegistry = new MemoryRegistry(memoryStore);
+  // Consumer half of the memory spine (SDK 1.1.0). Always constructed in LOCAL mode
+  // (embedded/offline is a hard requirement — the agent must work with no daemon
+  // running). `spineResolveConnection` above is the SAME connected-host connection
+  // (host/port/token) already built for the session spine; one daemon, one resolver.
+  // Activation to CLIENT mode (routing every op over the wire, for the whole process
+  // lifetime, never touching this local store again) happens in a deferred boot task
+  // — see bootstrap.ts's 'memory-spine' schedule — once that task confirms a daemon
+  // is actually adopted, reusing sessionSpineClient.probeReachability() as the
+  // existing daemon-adoption signal rather than inventing a second one.
+  const memorySpineClient = new MemorySpineClient({
+    local: createLocalMemoryAccess(memoryRegistry),
+    log: logger,
+  });
+  const memorySpineTransport = createMemorySpineRestTransport({ resolveConnection: spineResolveConnection });
   const deliveryManager = new AutomationDeliveryManager({
     configManager,
     serviceRegistry,
@@ -955,6 +986,8 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     workPlanStore,
     memoryStore,
     memoryRegistry,
+    memorySpineClient,
+    memorySpineTransport,
     serviceRegistry,
     secretsManager,
     subscriptionManager,

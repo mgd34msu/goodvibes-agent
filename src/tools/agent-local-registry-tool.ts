@@ -2,6 +2,7 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
@@ -512,7 +513,7 @@ function handleRoutine(shellPaths: ShellPathService, action: AgentLocalRegistryA
   throw new Error(`Action ${action} is not valid for routines.`);
 }
 
-export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memoryRegistry: MemoryRegistry): Tool {
+export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memoryRegistry: MemoryRegistry, memorySpine: MemoryAccess): Tool {
   return {
     definition: {
       name: 'agent_local_registry',
@@ -560,7 +561,7 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
       if (!isDomain(args.domain)) return registryError(`Unknown domain. Valid values ${DOMAINS.join(', ')}.`);
       if (!isAction(args.action)) return registryError(`Unknown action. Valid values ${ACTIONS.join(', ')}.`);
       try {
-        if (args.domain === 'memory') return registryOutput(await handleMemory(memoryRegistry, args.action, args));
+        if (args.domain === 'memory') return registryOutput(await handleMemory(memoryRegistry, memorySpine, args.action, args));
         if (args.domain === 'note') return registryOutput(handleNote(shellPaths, args.action, args));
         if (args.domain === 'persona') return registryOutput(handlePersona(shellPaths, args.action, args));
         if (args.domain === 'skill') return registryOutput(handleSkill(shellPaths, args.action, args));
@@ -573,6 +574,6 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
   };
 }
 
-export function registerAgentLocalRegistryTool(registry: ToolRegistry, shellPaths: ShellPathService, memoryRegistry: MemoryRegistry): void {
-  registry.register(createAgentLocalRegistryTool(shellPaths, memoryRegistry));
+export function registerAgentLocalRegistryTool(registry: ToolRegistry, shellPaths: ShellPathService, memoryRegistry: MemoryRegistry, memorySpine: MemoryAccess): void {
+  registry.register(createAgentLocalRegistryTool(shellPaths, memoryRegistry, memorySpine));
 }

@@ -20,10 +20,13 @@ import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 import { formatAgentRecordReference, formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
+// Split out to stay under the architecture line cap; see its file header for the
+// CLI ruling on when a memory subcommand goes over the wire vs local-direct.
+import { tryWireMemoryCommand } from './memory-command-wire.ts';
 
 const VALID_CLASSES: readonly MemoryClass[] = ['decision', 'constraint', 'incident', 'pattern', 'fact', 'risk', 'runbook', 'architecture', 'ownership'];
 const VALID_SCOPES: readonly MemoryScope[] = ['session', 'project', 'team'];
-const VALID_REVIEW_STATES: readonly MemoryReviewState[] = ['fresh', 'reviewed', 'stale', 'contradicted'];
+export const VALID_REVIEW_STATES: readonly MemoryReviewState[] = ['fresh', 'reviewed', 'stale', 'contradicted'];
 const VALID_PROVENANCE_KINDS: readonly ProvenanceLinkKind[] = ['session', 'turn', 'task', 'event', 'file'];
 const VALUE_OPTIONS = new Set([
   'by',
@@ -53,7 +56,7 @@ interface CommandFailure {
   readonly error: string;
 }
 
-interface ParsedOptions {
+export interface ParsedOptions {
   readonly values: ReadonlyMap<string, string>;
   readonly flags: ReadonlySet<string>;
   readonly positionals: readonly string[];
@@ -65,13 +68,13 @@ interface MemoryContext {
   readonly path: string;
 }
 
-interface MemoryListData {
+export interface MemoryListData {
   readonly path: string;
   readonly records: readonly MemoryRecord[];
   readonly filter: MemorySearchFilter;
 }
 
-interface MemorySearchData extends MemoryListData {
+export interface MemorySearchData extends MemoryListData {
   readonly semantic: boolean;
   readonly semanticResults: readonly MemorySemanticSearchResult[];
 }
@@ -80,12 +83,12 @@ function jsonOrText(runtime: CliCommandRuntime, value: unknown, text: string): s
   return runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text;
 }
 
-function success<TData>(runtime: CliCommandRuntime, kind: string, data: TData, text: string): CliCommandOutput {
+export function success<TData>(runtime: CliCommandRuntime, kind: string, data: TData, text: string): CliCommandOutput {
   const value: CommandSuccess<TData> = { ok: true, kind, data };
   return { output: jsonOrText(runtime, value, text), exitCode: 0 };
 }
 
-function failure(runtime: CliCommandRuntime, kind: string, error: string, exitCode: number): CliCommandOutput {
+export function failure(runtime: CliCommandRuntime, kind: string, error: string, exitCode: number): CliCommandOutput {
   const value: CommandFailure = { ok: false, kind, error };
   return {
     output: runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : error,
@@ -93,7 +96,7 @@ function failure(runtime: CliCommandRuntime, kind: string, error: string, exitCo
   };
 }
 
-function parseOptions(args: readonly string[]): ParsedOptions {
+export function parseOptions(args: readonly string[]): ParsedOptions {
   const values = new Map<string, string>();
   const flags = new Set<string>();
   const positionals: string[] = [];
@@ -124,18 +127,18 @@ function parseOptions(args: readonly string[]): ParsedOptions {
   return { values, flags, positionals };
 }
 
-function optionValue(options: ParsedOptions, name: string): string | undefined {
+export function optionValue(options: ParsedOptions, name: string): string | undefined {
   const value = options.values.get(name);
   if (value === undefined) return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
-function hasFlag(options: ParsedOptions, name: string): boolean {
+export function hasFlag(options: ParsedOptions, name: string): boolean {
   return options.flags.has(name);
 }
 
-function csvOption(options: ParsedOptions, name: string): readonly string[] | undefined {
+export function csvOption(options: ParsedOptions, name: string): readonly string[] | undefined {
   const value = optionValue(options, name);
   if (value === undefined) return undefined;
   return value.split(',').map((entry) => entry.trim()).filter(Boolean);
@@ -148,7 +151,7 @@ function parseLimit(value: string | undefined, fallback: number): number {
   return Math.min(parsed, 200);
 }
 
-function parseConfidence(value: string | undefined): number | undefined {
+export function parseConfidence(value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
   const parsed = Number.parseInt(value, 10);
   if (!Number.isInteger(parsed) || parsed < 0 || parsed > 100) throw new Error('--confidence must be an integer from 0 to 100.');
@@ -163,7 +166,7 @@ function isMemoryScope(value: string): value is MemoryScope {
   return VALID_SCOPES.includes(value as MemoryScope);
 }
 
-function isReviewState(value: string): value is MemoryReviewState {
+export function isReviewState(value: string): value is MemoryReviewState {
   return VALID_REVIEW_STATES.includes(value as MemoryReviewState);
 }
 
@@ -171,7 +174,7 @@ function isProvenanceKind(value: string): value is ProvenanceLinkKind {
   return VALID_PROVENANCE_KINDS.includes(value as ProvenanceLinkKind);
 }
 
-function requireClass(value: string | undefined): MemoryClass {
+export function requireClass(value: string | undefined): MemoryClass {
   if (!value || !isMemoryClass(value)) throw new Error(`Invalid memory class "${value ?? ''}". Valid values ${VALID_CLASSES.join(', ')}`);
   return value;
 }
@@ -181,7 +184,7 @@ function requireScope(value: string | undefined): MemoryScope {
   return value;
 }
 
-function optionalScope(value: string | undefined): MemoryScope | undefined {
+export function optionalScope(value: string | undefined): MemoryScope | undefined {
   if (value === undefined) return undefined;
   return requireScope(value);
 }
@@ -226,7 +229,7 @@ function renderRecordLine(record: MemoryRecord, semanticEntry?: MemorySemanticSe
   return `  ${record.id}  ${record.scope}/${record.cls}  ${formatAgentRecordReviewState(record.reviewState)}  ${record.confidence}%${score}${tags}  ${record.summary}`;
 }
 
-function renderRecordList(title: string, path: string, records: readonly MemoryRecord[], semanticResults: readonly MemorySemanticSearchResult[] = []): string {
+export function renderRecordList(title: string, path: string, records: readonly MemoryRecord[], semanticResults: readonly MemorySemanticSearchResult[] = []): string {
   if (records.length === 0) {
     return [
       title,
@@ -264,7 +267,7 @@ function renderRecord(record: MemoryRecord, links: readonly MemoryLink[]): strin
   ].filter((line): line is string => Boolean(line)).join('\n');
 }
 
-function filterFromOptions(options: ParsedOptions, defaultLimit: number): MemorySearchFilter {
+export function filterFromOptions(options: ParsedOptions, defaultLimit: number): MemorySearchFilter {
   const filter: MemorySearchFilter = {
     limit: parseLimit(optionValue(options, 'limit'), defaultLimit),
   };
@@ -281,7 +284,7 @@ function addProvenance(provenance: ProvenanceLink[], kind: ProvenanceLinkKind, r
   if (ref !== undefined && ref.trim().length > 0) provenance.push({ kind, ref: ref.trim() });
 }
 
-function provenanceFromOptions(options: ParsedOptions): readonly ProvenanceLink[] {
+export function provenanceFromOptions(options: ParsedOptions): readonly ProvenanceLink[] {
   const provenance: ProvenanceLink[] = [];
   addProvenance(provenance, 'session', optionValue(options, 'session'));
   addProvenance(provenance, 'turn', optionValue(options, 'turn'));
@@ -644,6 +647,12 @@ export async function handleMemoryCommand(runtime: CliCommandRuntime): Promise<C
     const [sub = 'list', ...rest] = runtime.cli.commandArgs;
     const normalized = sub.toLowerCase();
     if (normalized === 'handoff-inspect' || normalized === 'inspect') return handleInspect(runtime, rest);
+    // Wire-first: try the memory spine when a daemon is reachable and the
+    // subcommand has a wire-covered equivalent — see the CLI ruling in
+    // memory-command-wire.ts. Falls through (null) to the unchanged local-direct
+    // path below for everything else, or when no daemon answers.
+    const wireResult = await tryWireMemoryCommand(runtime, normalized, rest);
+    if (wireResult) return wireResult;
     return await withMemory(runtime, async (context) => {
       if (normalized === 'list' || normalized === 'ls') return handleList(runtime, context, rest);
       if (normalized === 'search' || normalized === 'find') return handleSearch(runtime, context, rest);

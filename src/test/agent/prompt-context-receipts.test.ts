@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import { createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../../agent/prompt-context-receipts.ts';
 import { importVibeFilesIntoMemoryOnce } from '../../agent/vibe-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
@@ -53,7 +54,10 @@ describe('prompt context receipts', () => {
 
       // VIBE.md is now a PROJECTION of persona records — migrate the file into
       // the store (as boot does) so the projected '## GoodVibes Agent VIBE.md' block renders.
-      await importVibeFilesIntoMemoryOnce(memoryRegistry, shellPaths);
+      // importVibeFilesIntoMemoryOnce writes through the memory-spine's MemoryAccess
+      // surface in production (services.memorySpineClient); wrap the local registry
+      // the same way here.
+      await importVibeFilesIntoMemoryOnce(createLocalMemoryAccess(memoryRegistry), shellPaths);
 
       const reviewed = await memoryRegistry.add({
         scope: 'project',

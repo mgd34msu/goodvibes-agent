@@ -40,6 +40,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
+import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
@@ -291,6 +292,7 @@ export async function bootstrapRuntime(
         shellPaths: services.shellPaths,
         memoryRegistry: services.memoryRegistry,
         turnText: activePromptTurnText,
+        memorySpineMode: services.memorySpineClient.mode(),
       });
       promptContextReceipts.record(composed.receipt);
       return composed.prompt;
@@ -523,6 +525,44 @@ export async function bootstrapRuntime(
       logger.debug('Deferred session-spine startup failed', { error: summarizeError(error) });
     },
   });
+  // Memory spine (SDK 1.1.0): the daemon-owned canonical memory store is
+  // single-writer, so the agent must make an explicit adopted/not-adopted decision
+  // rather than trying the wire per call. Reuses the SAME reachability signal as the
+  // session-spine fold above (services.sessionSpineClient.probeReachability(), one
+  // daemon, one connected-host token) instead of inventing a second probe. On a
+  // reachable daemon, activate the spine for CLIENT mode — every wire-covered memory
+  // op now routes over HTTP and the local store is never written again. Embedded/
+  // offline is unaffected: the agent must keep working with no daemon running, and a
+  // failed/absent probe simply leaves the client in its constructed LOCAL mode.
+  //
+  // A daemon can also appear or disappear AFTER boot, so this keeps checking for the
+  // whole process lifetime on the same cadence as the runtime heartbeat: adopt late
+  // if one shows up, and hand back to local (deactivate) the moment a PREVIOUSLY
+  // adopted daemon stops answering — never guess and keep routing to a dead wire.
+  let memorySpineHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  const reconcileMemorySpine = (): Promise<void> => reconcileMemorySpineAdoption({
+    memorySpineClient: services.memorySpineClient,
+    transport: services.memorySpineTransport,
+    probeReachability: () => services.sessionSpineClient.probeReachability(),
+  });
+  deferredStartup.schedule({
+    label: 'memory-spine',
+    run: async () => {
+      await reconcileMemorySpine();
+      if (configManager.get('watchers.enabled')) {
+        const intervalMs = Number(configManager.get('watchers.heartbeatIntervalMs') ?? 30_000);
+        memorySpineHeartbeatTimer = setInterval(() => {
+          reconcileMemorySpine().catch((error: unknown) => {
+            logger.debug('Memory-spine reachability recheck failed', { error: summarizeError(error) });
+          });
+        }, intervalMs);
+        memorySpineHeartbeatTimer.unref?.();
+      }
+    },
+    onError: (error) => {
+      logger.debug('Deferred memory-spine startup failed', { error: summarizeError(error) });
+    },
+  });
 
   const toolCount = toolRegistry.list().length;
   conversation.splashOptions = {
@@ -660,6 +700,13 @@ export async function bootstrapRuntime(
       // the heartbeat timer. Tolerates a racing daemon stop; never blocks teardown.
       services.sessionSpineClient.close(runtime.sessionId);
       services.sessionSpineClient.dispose();
+      // Stop the memory-spine reachability recheck timer (see the 'memory-spine'
+      // deferred startup task above). No wire close call needed — unlike sessions,
+      // memory ops are request/response, not a registered/heartbeat-tracked record.
+      if (memorySpineHeartbeatTimer !== null) {
+        clearInterval(memorySpineHeartbeatTimer);
+        memorySpineHeartbeatTimer = null;
+      }
       // Clear bootstrap-owned subscriptions
       bootstrapUnsubs.forEach(fn => fn());
       bootstrapUnsubs.length = 0;

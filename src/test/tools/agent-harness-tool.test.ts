@@ -8,6 +8,7 @@ import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/chan
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { ProcessManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore, type MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
+import { createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
@@ -12228,7 +12229,7 @@ describe('agent_harness tool', () => {
     const fixture = makeFixture();
     try {
       const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
-      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry));
+      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry, createLocalMemoryAccess(memoryRegistry)));
 
       const targetRun = await fixture.tool.execute({
         mode: 'run_workspace_action',
@@ -12282,7 +12283,7 @@ describe('agent_harness tool', () => {
     const fixture = makeFixture();
     try {
       const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
-      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry));
+      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry, createLocalMemoryAccess(memoryRegistry)));
       const note = AgentNoteRegistry.fromShellPaths(fixture.paths).create({
         title: 'Daily triage',
         body: 'Read the queue, sort urgent items first, and summarize blocked work.',
@@ -12323,7 +12324,7 @@ describe('agent_harness tool', () => {
     const fixture = makeFixture();
     try {
       const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
-      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry));
+      fixture.toolRegistry.register(createAgentLocalRegistryTool(fixture.paths, memoryRegistry, createLocalMemoryAccess(memoryRegistry)));
 
       const missingFields = await fixture.tool.execute({
         mode: 'run_workspace_action',
