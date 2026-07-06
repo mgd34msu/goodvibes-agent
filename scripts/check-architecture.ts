@@ -8,7 +8,6 @@ const SCRIPTS_ROOT = join(ROOT, 'scripts');
 const MAX_SOURCE_LINES = 800;
 const SOURCE_LINE_LIMIT_EXEMPTIONS = new Set([
   'src/cli/package-verification.ts',
-  'src/cli/local-library-command.ts',
   'src/runtime/services.ts',
 ]);
 
