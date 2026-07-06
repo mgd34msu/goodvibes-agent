@@ -1,96 +1,36 @@
-export const GLYPHS = {
-  frame: {
-    topLeft: '┌',
-    topRight: '┐',
-    bottomLeft: '└',
-    bottomRight: '┘',
-    horizontal: '─',
-    vertical: '│',
-    teeLeft: '├',
-    teeRight: '┤',
-    teeTop: '┬',
-    teeBottom: '┴',
-    cross: '┼',
-  },
-  surface: {
-    top: '▄',
-    bottom: '▀',
-    cursor: '█',
-    altCursor: '▌',
-  },
-  navigation: {
-    selected: '▸',
-    collapsed: '▸',
-    expanded: '▾',
-    up: '↑',
-    down: '↓',
-    moreAbove: '▲',
-    moreBelow: '▼',
-    next: '→',
-    back: '←',
-    pipeSeparator: '│',
-  },
-  status: {
-    success: '✓',
-    failure: '✕',
-    pending: '•',
-    active: '●',
-    idle: '○',
-    info: '•',
-    blocked: '⊘',
-    skipped: '◇',
-    review: '◈',
-    retry: '↻',
-    handoff: '⇢',
-    reference: '↗',
-    partial: '◐',
-    dualPane: '◆',
-    star: '★',
-  },
-  meter: {
-    filled: '█',
-    medium: '▓',
-    light: '▒',
-    empty: '░',
-    spark: ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'],
-  },
-} as const;
+// ---------------------------------------------------------------------------
+// ui-primitives.ts — glyph registry + tone-token table.
+//
+// W4-R4: these four tables (GLYPHS, UI_TONES, DIFF_TONES, SPINNER_FRAMES) are
+// no longer minted locally. They are the SDK presentation contract
+// (@pellux/goodvibes-sdk/platform/presentation, landed by W4-S1), consumed here
+// so the agent and the TUI share ONE source (Mike's move-to-SDK ruling —
+// machinery needed by 2+ surfaces => SDK). See
+// docs/decisions/2026-07-05-presentation-contract-sdk-extraction.md in the SDK.
+//
+// Re-exported under the historical names (GLYPHS, UI_TONES) so every existing
+// importer keeps working with no call-site churn. UI_TONES is the dark-mode
+// tone table (== resolveTones('dark')); light is resolved via theme.ts's
+// activeUiTones() / resolveUiTones(), which composes the mode dimension over
+// the SDK's resolveTones().
+//
+// Visible glyph convergence (deliberate, per S1's divergence ruling): the
+// agent's status glyphs adopt the TUI reference — idle ○ (U+25CB) -> ◌ (U+25CC),
+// info • (U+2022) -> ○ (U+25CB), and a new warn ⚠ key. Called out here so the
+// render-time change is not mistaken for a regression.
+// ---------------------------------------------------------------------------
 
-export const UI_TONES = {
-  fg: {
-    primary: '#e2e8f0',
-    secondary: '#cbd5e1',
-    muted: '#94a3b8',
-    dim: '#475569',
-    inverse: '#0f172a',
-  },
-  bg: {
-    base: '#11131a',
-    surface: '#161a22',
-    title: '#0f172a',
-    section: '#18202b',
-    summary: '#1b2430',
-    selected: '#223049',
-    input: '#1e293b',
-    warning: '#2b2116',
-    error: '#2a161b',
-    success: '#14241b',
-  },
-  state: {
-    info: '#38bdf8',
-    good: '#22c55e',
-    warn: '#f59e0b',
-    bad: '#ef4444',
-    blocked: '#f97316',
-    active: '#60a5fa',
-  },
-  accent: {
-    browser: '#7dd3fc',
-    control: '#22d3ee',
-    inspector: '#c4b5fd',
-    workflow: '#fbbf24',
-    conversation: '#93c5fd',
-  },
-} as const;
+import {
+  GLYPHS,
+  TONE_TOKENS,
+  DIFF_TONES,
+  SPINNER_FRAMES,
+} from '@pellux/goodvibes-sdk/platform/presentation';
 
+export { GLYPHS, DIFF_TONES, SPINNER_FRAMES };
+
+/** The dark-mode tone-token table (== resolveTones('dark')). */
+export const UI_TONES = TONE_TOKENS;
+
+/** The glyph registry shape, preserved for existing type references. */
 export type UiGlyphRegistry = typeof GLYPHS;
