@@ -6,6 +6,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { fallbackPermissionCategoryForArgs } from '../runtime/tool-permission-safety.ts';
 import { HARNESS_MODE_DESCRIPTORS } from './agent-harness-mode-catalog.ts';
 import { explainAgentToolPolicyInvocation } from './agent-tool-policy-guard.ts';
+import { computeApprovalPosture, type ApprovalPosture } from '../permissions/approval-posture.ts';
 
 type PolicyExplanationStatus = 'allowed' | 'confirmation_required' | 'denied';
 type PermissionPredictionOutcome = 'allowed' | 'prompt' | 'denied';
@@ -186,18 +187,42 @@ function readAutoApprove(context: CommandContext): boolean {
   return context.platform.config?.behavior?.autoApprove === true;
 }
 
+/**
+ * Reads the SAME effective approval posture that cli/status.ts, the doctor
+ * surface, and the footer read (via computeApprovalPosture) — the shared
+ * single source of truth, so this tool's "explain" output never disagrees
+ * with what those other surfaces say about auto-approve / permission mode.
+ */
+function readEffectivePosture(context: CommandContext): ApprovalPosture {
+  const mode = readPermissionMode(context);
+  const customTools: Record<string, unknown> = {};
+  if (mode === 'custom') {
+    for (const key of Object.values(TOOL_CONFIG_KEYS)) {
+      if (key in customTools) continue;
+      customTools[key] = readPermissionToolAction(context, key) ?? undefined;
+    }
+  }
+  return computeApprovalPosture({
+    autoApprove: readAutoApprove(context),
+    mode,
+    customTools,
+  });
+}
+
 function predictPermission(context: CommandContext, toolName: string, category: PermissionCategory): PermissionPrediction {
-  if (readAutoApprove(context)) {
+  const posture = readEffectivePosture(context);
+
+  if (posture.autoApprove) {
     return {
       outcome: 'allowed',
       sourceLayer: 'config_policy',
       reasonCode: 'config_allow',
-      mode: readPermissionMode(context),
-      reason: 'Automatic tool approval is enabled for this session.',
+      mode: posture.mode,
+      reason: posture.detail,
     };
   }
 
-  const mode = readPermissionMode(context);
+  const mode = posture.mode;
   if (mode === 'allow-all') {
     return {
       outcome: 'allowed',
@@ -350,6 +375,10 @@ export function explainAgentPolicyDecision(
     ...(permission.outcome === 'prompt' ? [`Answer the ${category} permission prompt for ${toolName}.`] : []),
     ...(confirmation.required && !confirmation.confirmed ? ['Call the route with confirm:true and explicitUserRequest.'] : []),
   ];
+  // The overall approval posture — computed by the SAME shared helper that
+  // cli/status.ts, the doctor surface, and the footer use, so this tool's
+  // own displayed posture text can never disagree with theirs.
+  const posture = readEffectivePosture(context);
 
   return {
     status: 'found',
@@ -359,6 +388,12 @@ export function explainAgentPolicyDecision(
       registered: definition !== undefined,
       category,
       userExplanation: userExplanation(status, category),
+      posture: {
+        label: posture.label,
+        autoApprove: posture.autoApprove,
+        mode: posture.mode,
+        bypassesPrompts: posture.bypassesPrompts,
+      },
       policyLayers: [
         {
           layer: 'Agent route guard',

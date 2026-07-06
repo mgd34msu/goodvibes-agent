@@ -56,6 +56,7 @@ import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProposer } from './shell/autonomy-surfacing.ts';
 import { startHardwareProbe } from './core/hardware-profile.ts';
+import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
 
 const ALT_SCREEN_ENTER = '\x1b[?1049h', ALT_SCREEN_EXIT = '\x1b[?1049l', MOUSE_ENABLE = '\x1b[?1000h\x1b[?1002h\x1b[?1006h', MOUSE_DISABLE = '\x1b[?1006l\x1b[?1002l\x1b[?1000l', CURSOR_HIDE = '\x1b[?25l', CURSOR_SHOW = '\x1b[?25h', CLEAR_SCREEN = '\x1b[2J\x1b[3J\x1b[H';
 const KEYBOARD_EXT_ENABLE = '\x1b[>4;2m' + '\x1b[?1u', KEYBOARD_EXT_DISABLE = '\x1b[>4;0m' + '\x1b[?1l', PASTE_ENABLE = '\x1b[?2004h', PASTE_DISABLE = '\x1b[?2004l';
@@ -531,16 +532,12 @@ async function main() {
       provider: runtime.provider,
       contextWindow: currentModel.contextWindow,
       compactThreshold: configManager.get('behavior.autoCompactThreshold') as number,
-      dangerMode: (() => {
-        if (configManager.get('behavior.autoApprove')) return true;
-        const permMode = configManager.get('permissions.mode');
-        if (permMode === 'allow-all') return true;
-        if (permMode === 'custom') {
-          const tools = configManager.getCategory('permissions').tools;
-          if (Object.values(tools).every(v => v === 'allow')) return true;
-        }
-        return false;
-      })(),
+      // Single source of truth for "will this bypass the approval prompt?" —
+      // computed the same way cli/status.ts and the policy-explain tool
+      // compute it, so the footer can never disagree with them or with the
+      // permission gate itself (behavior.autoApprove first, then
+      // permissions.mode).
+      dangerMode: readApprovalPostureFromConfig(configManager).bypassesPrompts,
       lastInputTokens: orchestrator.lastInputTokens,
       commandArgsHint,
       hitlMode: modeManager.getHITLMode(),

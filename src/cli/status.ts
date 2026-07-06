@@ -7,6 +7,7 @@ import type { CliExternalRuntimeSnapshot } from './external-runtime.ts';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { formatAgentRecordSource } from '../agent/record-labels.ts';
 import { formatAgentKnowledgeFailureKind } from './agent-knowledge-format.ts';
+import { computeApprovalPosture, type ApprovalPosture } from '../permissions/approval-posture.ts';
 
 export interface CliStatusOptions {
   readonly configManager: Pick<ConfigManager, 'get'>;
@@ -51,6 +52,8 @@ export interface CliStatusSnapshot {
   readonly auth: {
     readonly permissionMode: unknown;
     readonly permissionLabel: string;
+    readonly autoApprove: boolean;
+    readonly bypassesPrompts: boolean;
     readonly secretPolicy: unknown;
     readonly secretPolicyLabel: string;
     readonly runtimeAuthSignal: CliAuthStatus | null;
@@ -79,11 +82,27 @@ function yesNo(value: unknown): string {
   return value === true ? 'yes' : 'no';
 }
 
-function permissionModeLabel(mode: unknown): string {
-  if (mode === 'prompt') return 'Ask before powerful actions';
-  if (mode === 'allow-all') return 'Allow everything';
-  if (mode === 'custom') return 'Custom rules';
-  return String(mode ?? 'unknown');
+/** permissions.tools.* keys — mirrors PermissionsToolConfig in the SDK config schema. */
+const PERMISSION_TOOL_KEYS = [
+  'read', 'write', 'edit', 'exec', 'find', 'fetch', 'analyze',
+  'inspect', 'agent', 'state', 'workflow', 'registry', 'delegate', 'mcp',
+] as const;
+
+/**
+ * Reads the effective approval posture the SAME way the permission gate
+ * decides it (behavior.autoApprove first, then permissions.mode), so the
+ * displayed label can never disagree with what actually happens when a tool
+ * runs. Do not compute a posture label from permissions.mode alone here —
+ * that was the original bug (this surface ignored behavior.autoApprove).
+ */
+function readApprovalPosture(config: Pick<ConfigManager, 'get'>): ApprovalPosture {
+  const customTools: Record<string, unknown> = {};
+  for (const key of PERMISSION_TOOL_KEYS) customTools[key] = config.get(`permissions.tools.${key}`);
+  return computeApprovalPosture({
+    autoApprove: config.get('behavior.autoApprove') === true,
+    mode: config.get('permissions.mode'),
+    customTools,
+  });
 }
 
 function secretPolicyLabel(policy: unknown): string {
@@ -97,6 +116,7 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
   const config = options.configManager;
   const permissionMode = config.get('permissions.mode');
   const secretPolicy = config.get('storage.secretPolicy');
+  const posture = readApprovalPosture(config);
   const marker = options.onboardingMarkers?.effective;
 
   const findings: CliDoctorFinding[] = [];
@@ -176,6 +196,18 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
     });
   }
 
+  if (posture.autoApprove) {
+    findings.push({
+      id: 'auto-approve-enabled',
+      area: 'security',
+      severity: 'risk',
+      summary: 'Auto-approve is on: tool calls never prompt.',
+      cause: 'behavior.autoApprove is true.',
+      impact: 'Every tool call — including powerful write, edit, network, and execution actions — runs without a Human-in-the-Loop (HITL) approval prompt, regardless of permissions.mode or any custom per-tool rule.',
+      action: 'Disable behavior.autoApprove unless this is an intentionally trusted environment.',
+    });
+  }
+
   if (permissionMode === 'allow-all') {
     findings.push({
       id: 'allow-all-permissions',
@@ -210,6 +242,7 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
   const webBinding = resolveRuntimeEndpointBinding(config, 'web');
   const marker = options.onboardingMarkers?.effective;
   const findings = buildCliDoctorFindings(options);
+  const posture = readApprovalPosture(config);
   return {
     title: options.doctor ? 'GoodVibes Agent doctor' : 'GoodVibes Agent status',
     workingDirectory: options.workingDirectory,
@@ -221,7 +254,9 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
     },
     auth: {
       permissionMode: config.get('permissions.mode'),
-      permissionLabel: permissionModeLabel(config.get('permissions.mode')),
+      permissionLabel: posture.label,
+      autoApprove: posture.autoApprove,
+      bypassesPrompts: posture.bypassesPrompts,
       secretPolicy: config.get('storage.secretPolicy'),
       secretPolicyLabel: secretPolicyLabel(config.get('storage.secretPolicy')),
       runtimeAuthSignal: options.auth ?? null,
@@ -267,7 +302,8 @@ export function renderCliStatus(options: CliStatusOptions): string {
     `  reasoning ${String(config.get('provider.reasoningEffort'))}`,
     '',
     'Auth',
-    `  permissions: ${permissionModeLabel(config.get('permissions.mode'))} (${String(config.get('permissions.mode'))})`,
+    `  permissions: ${snapshot.auth.permissionLabel} (${String(config.get('permissions.mode'))})`,
+    `  autoApprove: ${yesNo(snapshot.auth.autoApprove)} (behavior.autoApprove)`,
     `  secretPolicy: ${secretPolicyLabel(config.get('storage.secretPolicy'))} (${String(config.get('storage.secretPolicy'))})`,
     options.auth
       ? `  local auth store ${options.auth.userStorePresent ? 'present' : 'missing'} (${options.auth.userStorePath})`

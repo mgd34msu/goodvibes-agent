@@ -120,6 +120,43 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('secretPolicy: Require secure storage (require_secure)');
   });
 
+  test('A2: autoApprove=true with mode=prompt (the reproduced disagreement bug) — status honestly says auto-approve is on', () => {
+    const text = renderCliStatus(makeOptions({
+      'permissions.mode': 'prompt',
+      'behavior.autoApprove': true,
+    }));
+
+    // The historical bug: this surface derived its label from
+    // permissions.mode alone and would have printed "Ask before powerful
+    // actions" here, disagreeing with the gate (which checks autoApprove
+    // first and bypasses everything). It must now say auto-approve is on.
+    expect(text).toContain('Auto-approve ON');
+    expect(text).toContain('autoApprove: yes (behavior.autoApprove)');
+    expect(text).not.toContain('permissions: Ask before powerful actions');
+  });
+
+  test('A2: doctor flags auto-approve as a distinct risk finding, independent of permissions.mode', () => {
+    const text = renderCliStatus({
+      ...makeOptions({
+        'permissions.mode': 'prompt',
+        'behavior.autoApprove': true,
+      }),
+      doctor: true,
+    });
+
+    expect(text).toContain('[risk:security:auto-approve-enabled]');
+    expect(text).toContain('cause: behavior.autoApprove is true.');
+    expect(text).not.toContain('[risk:security:allow-all-permissions]');
+  });
+
+  test('A2: default posture (autoApprove=false, mode=prompt) still reads "prompt" everywhere', () => {
+    const text = renderCliStatus(makeOptions({ 'permissions.mode': 'prompt' }));
+
+    expect(text).toContain('permissions: Ask before powerful actions (prompt)');
+    expect(text).toContain('autoApprove: no (behavior.autoApprove)');
+    expect(text).not.toContain('Auto-approve ON');
+  });
+
   test('doctor findings include cause, impact, and action', () => {
     const text = renderCliStatus({
       ...makeOptions({
