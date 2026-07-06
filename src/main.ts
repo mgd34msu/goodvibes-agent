@@ -157,6 +157,14 @@ async function main() {
 
   let streamTokenSpeed = 0;
 
+  // W4-R4 honest waiting states: a per-turn last-delta clock for the thinking
+  // indicator. The SDK orchestrator surfaces no lastDeltaAtMs / reconnect signal
+  // directly, so we derive the clock from streaming output-token advances — a
+  // real, honest proxy that degrades gracefully with zero new SDK events.
+  let thinkingStreamStartedAt: number | null = null;
+  let thinkingLastDeltaAt = 0;
+  let thinkingLastOutputTokens = 0;
+
   let scrollTop = 0;
   let scrollLocked = true;
 
@@ -598,6 +606,26 @@ async function main() {
       const showSpeed = configManager.get('display.showTokenSpeed') as boolean;
       const showPreview = configManager.get('display.showToolPreview') as boolean;
       const partialToolPreview = showPreview ? sessionSnapshot.streamToolPreview : undefined;
+      // Advance the last-delta clock: seed it at turn start, then push it forward
+      // every time the streaming output-token count actually advances.
+      const now = Date.now();
+      if (thinkingStreamStartedAt === null) {
+        thinkingStreamStartedAt = now;
+        thinkingLastDeltaAt = now;
+        thinkingLastOutputTokens = orchestrator.streamingOutputTokens;
+      } else if (orchestrator.streamingOutputTokens > thinkingLastOutputTokens) {
+        thinkingLastDeltaAt = now;
+        thinkingLastOutputTokens = orchestrator.streamingOutputTokens;
+      }
+      // A tool preview means a tool is executing — suppress stall detection then
+      // (the model isn't producing tokens during tool execution; a "Stalled"
+      // label there would be a false positive). Read the raw snapshot preview,
+      // not the display-gated one, so the suppression is independent of config.
+      const stallInfo = UIFactory.computeRenderStallInfo({
+        toolActive: !!sessionSnapshot.streamToolPreview,
+        lastDeltaAtMs: thinkingLastDeltaAt,
+        nowMs: now,
+      });
       const thinking = UIFactory.createThinkingFragment(
         conversationWidth,
         orchestrator.getSpinner(),
@@ -606,8 +634,13 @@ async function main() {
         showPreview ? partialToolPreview : undefined,
         orchestrator.streamingInputTokens > 0 ? orchestrator.streamingInputTokens : undefined,
         orchestrator.streamingOutputTokens > 0 ? orchestrator.streamingOutputTokens : undefined,
+        stallInfo,
+        pendingPermission !== null,
       );
       viewport.push(...thinking);
+    } else {
+      // Turn ended (or not started) — reset the clock so the next turn re-seeds.
+      thinkingStreamStartedAt = null;
     }
 
     if (pendingPermission) {

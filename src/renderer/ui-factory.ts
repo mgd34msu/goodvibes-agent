@@ -4,11 +4,34 @@ import { VERSION } from '../version.ts';
 import { fitDisplay, getDisplayWidth, truncateDisplay, wrapText, interpolateColor } from '../utils/terminal-width.ts';
 import { renderConversationFragment, renderConversationStatusLine, type ConversationStatusSegment } from './conversation-surface.ts';
 import { GLYPHS } from './ui-primitives.ts';
+import { activeUiTones } from './theme.ts';
+import {
+  THINKING_PHRASES,
+  waitingPhrase,
+  type WaitingState,
+} from '@pellux/goodvibes-sdk/platform/presentation';
 
 /** Number of frames before the animated gradient completes one full cycle. */
 const GRADIENT_CYCLE_FRAMES = 50;
 /** Number of frames before rotating to the next thinking phrase (~30 seconds at 80ms/frame). */
 const PHRASE_ROTATION_FRAMES = 375;
+/**
+ * Silence threshold before the whimsical phrase rotation freezes and an honest
+ * label (Waiting for model Ns / Stalled Ns) takes over. Matches the TUI.
+ */
+const THINKING_STALL_FREEZE_MS = 2_500;
+
+/**
+ * Per-turn stall signal derived from stream metrics — computed from the last
+ * delta clock every render (not from any event), so it degrades gracefully with
+ * zero new SDK events. `reconnect` is set only when the transport surfaces retry
+ * counters (the agent's SDK orchestrator does not today — see computeStallInfo).
+ */
+export interface ThinkingStallInfo {
+  /** Ms since the last output-token advance (or the turn start if none yet). */
+  readonly msSinceLastDelta: number;
+  readonly reconnect?: { readonly attempt: number; readonly maxAttempts: number };
+}
 
 /** Format a number: up to 999, then 1.0k, 1.0M, 1.0B, 1.0T */
 function fmtNum(n: number): string {
@@ -236,9 +259,12 @@ export class UIFactory {
     if (inp > 0 || out > 0) {
       statusTokens.push({ text: `↑${fmtNum(inp)} ↓${fmtNum(out)}`, fg: '240' });
     }
-    if (composerPendingRisk === 'approval-wait') {
-      statusTokens.push({ text: 'waiting for your approval', fg: '#f59e0b', bold: true });
-    }
+    // W4-R4: the disconnected footer 'waiting for your approval' token is retired
+    // here — the approval-wait truth now lives in the unified waiting state of the
+    // thinking indicator (createThinkingFragment's approvalPending path) and in the
+    // permission prompt itself, so the footer no longer carries a separate,
+    // easily-desynced copy. composerPendingRisk stays in the signature for the
+    // composer flags row; it just no longer mints its own status token.
     const rightNotice = isRecentlyCopied
       ? { text: `copied ${GLYPHS.status.success} `, fg: '81', bold: true }
       : dangerMode
@@ -277,39 +303,69 @@ export class UIFactory {
     return lines;
   }
 
-  /** Rotating thinking phrases — vaporwave / good vibes themed. */
-  private static readonly THINKING_PHRASES = [
-    'Thinking...',
-    'Vibing...',
-    'Manifesting...',
-    'Channeling energy...',
-    'Tuning frequencies...',
-    'Riding the wave...',
-    'Aligning chakras...',
-    'Entering flow state...',
-    'Consulting the void...',
-    'Absorbing aesthetics...',
-    'Synthesizing vibes...',
-    'Transcending...',
-    'Dreaming in neon...',
-    'Parsing the cosmos...',
-    'Loading good vibes...',
-    'Meditating...',
-    'Catching a vibe...',
-    'Harmonizing...',
-    'Feeling it...',
-    'In the zone...',
-  ];
+  /**
+   * Per-frame stall info from stream metrics — computed from a last-delta clock
+   * every render (not from any event) so it degrades gracefully with zero new
+   * SDK events. Undefined until a delta clock exists this turn. Renderer-local
+   * by design (per the S1 decision record: the SDK owns state->wording; deriving
+   * WHICH state applies stays with each renderer's own stream-metrics shape).
+   */
+  public static computeStallInfo(
+    lastDeltaAtMs: number | undefined,
+    reconnectAttempt: number | undefined,
+    reconnectMaxAttempts: number | undefined,
+    nowMs: number,
+  ): ThinkingStallInfo | undefined {
+    if (lastDeltaAtMs === undefined) return undefined;
+    const reconnect = reconnectAttempt !== undefined && reconnectMaxAttempts !== undefined
+      ? { attempt: reconnectAttempt, maxAttempts: reconnectMaxAttempts }
+      : undefined;
+    return { msSinceLastDelta: nowMs - lastDeltaAtMs, reconnect };
+  }
 
-  /** Gradient colors for thinking text — cyan to purple (matches splash). */
-  private static readonly THINK_GRADIENT_START = '#00ffff';
-  private static readonly THINK_GRADIENT_END = '#d000ff';
+  /**
+   * Render-loop stall decision: suppress stall detection entirely while a tool
+   * is actively executing. The last-delta clock only advances on output-token
+   * deltas and is never advanced during tool execution (the model isn't
+   * producing tokens then), so without this gate any tool call longer than
+   * THINKING_STALL_FREEZE_MS would print "Stalled Ns..." above a ticking tool
+   * row — a false positive. Genuine no-delta silence while waiting on the
+   * provider (including pre-first-token) still stall-detects here, since no tool
+   * is active then — the honest stall case this indicator exists for.
+   */
+  public static computeRenderStallInfo(
+    metrics: { toolActive: boolean; lastDeltaAtMs: number | undefined; nowMs: number },
+  ): ThinkingStallInfo | undefined {
+    return metrics.toolActive
+      ? undefined
+      : this.computeStallInfo(metrics.lastDeltaAtMs, undefined, undefined, metrics.nowMs);
+  }
 
-  public static createThinkingFragment(width: number, spinner: string, frame: number = 0, tokenSpeed?: number, toolPreview?: string, inputTokens?: number, outputTokens?: number): Line[] {
-    // Rotate phrase every ~30 seconds (frame ticks at 80ms, so ~375 frames)
-    const phraseIndex = Math.floor(frame / PHRASE_ROTATION_FRAMES) % this.THINKING_PHRASES.length;
-    const phrase = this.THINKING_PHRASES[phraseIndex];
-    const speedSuffix = (tokenSpeed !== undefined && tokenSpeed > 0) ? ` (${Math.round(tokenSpeed)} tok/s)` : '';
+  public static createThinkingFragment(width: number, spinner: string, frame: number = 0, tokenSpeed?: number, toolPreview?: string, inputTokens?: number, outputTokens?: number, stallInfo?: ThinkingStallInfo, approvalPending?: boolean): Line[] {
+    // Live thinking row paints on the transparent terminal bg → read the
+    // mode-resolved chrome tones per render (gradient/brand flip in light mode).
+    const tones = activeUiTones();
+    // Decide WHICH honest waiting state applies (renderer-local), then defer the
+    // exact wording to the SDK presentation contract's waitingPhrase(). Precedence
+    // matches the contract: approval > reconnecting > pre-first-token > stalled >
+    // thinking. Pre-first-token silence reads "Waiting for model Ns..." (blame-free
+    // for reasoning models that think before emitting), NOT "Stalled".
+    const isStalled = stallInfo !== undefined && stallInfo.msSinceLastDelta >= THINKING_STALL_FREEZE_MS;
+    let state: WaitingState;
+    if (approvalPending) state = 'approval';
+    else if (stallInfo?.reconnect) state = 'reconnecting';
+    else if (isStalled && (outputTokens ?? 0) === 0) state = 'pre-first-token';
+    else if (isStalled) state = 'stalled';
+    else state = 'thinking';
+    const phrase = waitingPhrase(state, {
+      reconnectAttempt: stallInfo?.reconnect?.attempt,
+      reconnectMaxAttempts: stallInfo?.reconnect?.maxAttempts,
+      msSinceLastDelta: stallInfo?.msSinceLastDelta,
+      frame,
+    });
+    // A tok/s figure next to an approval prompt reads as if the model were still
+    // working — suppress it while waiting on the user.
+    const speedSuffix = (!approvalPending && tokenSpeed !== undefined && tokenSpeed > 0) ? ` (${Math.round(tokenSpeed)} tok/s)` : '';
     const text = `  ${spinner} ${phrase}${speedSuffix} `;
 
     const textWidth = Math.max(1, getDisplayWidth(text) - 1);
@@ -319,7 +375,7 @@ export class UIFactory {
       const gradientPos = raw <= 0.5 ? raw * 2 : (1 - raw) * 2;
       return {
         text: char,
-        fg: interpolateColor(this.THINK_GRADIENT_START, this.THINK_GRADIENT_END, gradientPos),
+        fg: interpolateColor(tones.accent.gradientStart, tones.accent.gradientEnd, gradientPos),
         bold: true,
       };
     });
@@ -327,7 +383,7 @@ export class UIFactory {
       const inTok = inputTokens ?? 0;
       const outTok = outputTokens ?? 0;
       segments.push({ text: ` in ${fmtNum(inTok)} `, fg: '243', dim: true });
-      segments.push({ text: `out ${fmtNum(outTok)}`, fg: '#00ffff' });
+      segments.push({ text: `out ${fmtNum(outTok)}`, fg: tones.accent.brand });
     }
     const line = createEmptyLine(width);
     let col = 1;
