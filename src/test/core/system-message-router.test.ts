@@ -76,10 +76,17 @@ describe('classifyPriority (via routeAuto)', () => {
     expect(panel._pushed[0]!.priority).toBe('low');
   });
 
-  test('[Agents] status messages classify as low', () => {
+  test('[Agents] periodic running-snapshot is dropped by the noise gate (W4-R2)', () => {
+    // The 30s "[Agents] N running:" churn is dropped from the feed; the live
+    // detail stays on the fleet/agents surface + footer count.
     router.routeAuto('[Agents] 3 running:\n  abc12345: working');
     expect(conv.addSystemMessage).not.toHaveBeenCalled();
-    expect(panel._pushed[0]!.priority).toBe('low');
+    expect(panel.push).not.toHaveBeenCalled();
+  });
+
+  test('[Agents] lifecycle (non-snapshot) still routes to the feed', () => {
+    router.routeAuto('[Agents] ✓ abc12345 completed');
+    expect(panel.push).toHaveBeenCalledTimes(1);
   });
 
   test('[Tool] activity messages classify as operational and can route separately', () => {
@@ -205,7 +212,6 @@ describe('routeAuto classification', () => {
   const lowCases = [
     '[Scan] Found server at localhost',
     '[Local] ollama at localhost:11434',
-    '[Agents] 2 running: task a',
     '[MCP] Discovered server foo',
     '[Plugin] loaded my-plugin',
     '[Tool] edit wrote app.ts',
@@ -268,6 +274,65 @@ describe('SystemMessagesPanel integration', () => {
 // ---------------------------------------------------------------------------
 // getPanel
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Noise gate (W4-R2) — router integration
+// ---------------------------------------------------------------------------
+
+describe('noise gate (W4-R2)', () => {
+  test('the terminal captured-write notice reaches neither the feed nor the conversation', () => {
+    const conv = makeConversation();
+    const panel = makePanel();
+    const router = createSystemMessageRouter(
+      conv as unknown as ConversationManager,
+      panel as unknown as ActivityFeed,
+      makeTargetResolver({ system: 'both' }), // even a "both" target must not leak it
+    );
+    // This is exactly what main.ts routes the guard notice through (.low).
+    router.low('[Terminal] Captured 4 direct stdout writes that would have corrupted the TUI: boot plumbing');
+    expect(panel.push).not.toHaveBeenCalled();
+    expect(conv.addSystemMessage).not.toHaveBeenCalled();
+  });
+
+  test('a genuine lifecycle message is NOT suppressed (classifier specificity)', () => {
+    const conv = makeConversation();
+    const panel = makePanel();
+    const router = createSystemMessageRouter(
+      conv as unknown as ConversationManager,
+      panel as unknown as ActivityFeed,
+      makeTargetResolver(),
+    );
+    router.low('[Terminal] resized to 120x40');
+    expect(panel.push).toHaveBeenCalledWith('[Terminal] resized to 120x40', 'low');
+  });
+
+  test('provider "from last session" replay folds off the feed (buffered, not pushed)', () => {
+    const conv = makeConversation();
+    const panel = makePanel();
+    const router = createSystemMessageRouter(
+      conv as unknown as ConversationManager,
+      panel as unknown as ActivityFeed,
+      makeTargetResolver(),
+    );
+    router.low('[Local] ollama at localhost:11434 (2 models) — from last session');
+    expect(panel.push).not.toHaveBeenCalled();
+    expect(conv.addSystemMessage).not.toHaveBeenCalled();
+  });
+
+  test('a WRFC replay for a terminal chain is dropped when isChainTerminal says so', () => {
+    const conv = makeConversation();
+    const panel = makePanel();
+    const router = createSystemMessageRouter(
+      conv as unknown as ConversationManager,
+      panel as unknown as ActivityFeed,
+      makeTargetResolver({ wrfc: 'both' }),
+      { isChainTerminal: (id) => id === 'chain-9' },
+    );
+    router.wrfc('[Replay] WRFC chain chain-9 transitioned pending → review — waiting for action (first notified 3 turns ago)');
+    expect(panel.push).not.toHaveBeenCalled();
+    expect(conv.addSystemMessage).not.toHaveBeenCalled();
+  });
+});
 
 describe('getFeed', () => {
   test('returns the panel passed at construction', () => {

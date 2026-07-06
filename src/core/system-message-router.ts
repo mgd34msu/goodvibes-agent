@@ -20,6 +20,7 @@
 
 import type { ConversationManager } from './conversation';
 import type { ActivityFeed } from './activity-feed.ts';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import {
   classifySystemMessageKind,
   classifySystemMessagePriority,
@@ -28,6 +29,12 @@ import {
   type SystemMessageKind,
   type SystemMessageTarget,
 } from '@/runtime/index.ts';
+import {
+  classifyNoise,
+  foldProviderReplayLines,
+  providerNameFromReplay,
+  type NoiseGateDeps,
+} from './system-message-noise.ts';
 
 export type {
   SystemMessageKind,
@@ -41,10 +48,16 @@ export type SystemMessagePriority = 'high' | 'low';
  * based on priority level and per-kind targets.
  */
 export class SystemMessageRouter {
+  /** Buffered provider "from last session" replay lines, folded on a microtask. */
+  private providerReplayBuffer: string[] = [];
+  private providerReplayScheduled = false;
+
   constructor(
     private readonly conversation: ConversationManager,
     private feed: ActivityFeed | null,
     private readonly getTargetForKind: (kind: SystemMessageKind) => SystemMessageTarget = defaultSystemMessageTarget,
+    /** Noise-gate dependencies (WRFC terminal-chain lookup). See system-message-noise.ts. */
+    private readonly noiseDeps: NoiseGateDeps = {},
   ) {}
 
   // ── Public API ────────────────────────────────────────────────────────────────
@@ -54,6 +67,16 @@ export class SystemMessageRouter {
     priority: SystemMessagePriority,
     kind: SystemMessageKind,
   ): void {
+    // Noise gate — keep first-run plumbing out of the Recent feed / transcript
+    // while the information stays reachable via other live surfaces (activity
+    // log, /health, /model). Dropped noise is drop-from-the-feed, not delete.
+    const verdict = classifyNoise(message, this.noiseDeps);
+    if (verdict.action === 'drop') return;
+    if (verdict.action === 'foldProviderReplay') {
+      this.bufferProviderReplay(message);
+      return;
+    }
+
     const target = this.getTargetForKind(kind);
     const delivery = resolveSystemMessageDelivery(target, this.feed !== null);
     if (delivery.toPanel) {
@@ -62,6 +85,35 @@ export class SystemMessageRouter {
     if (delivery.toConversation) {
       this.conversation.addSystemMessage(message);
     }
+  }
+
+  /**
+   * Buffer a provider "from last session" replay line and schedule a microtask
+   * flush. The SDK emits the whole persisted-provider burst synchronously, so a
+   * single microtask captures the full burst and folds it to one quiet line.
+   */
+  private bufferProviderReplay(message: string): void {
+    this.providerReplayBuffer.push(message);
+    if (this.providerReplayScheduled) return;
+    this.providerReplayScheduled = true;
+    queueMicrotask(() => this.flushProviderReplay());
+  }
+
+  /**
+   * Record the folded provider-replay summary to the activity log and reset the
+   * buffer. The boot-only "— from last session" burst stays out of the Recent
+   * feed; the persisted-provider set it summarizes is reachable on demand via
+   * /health and /model, and the fold line is logged for diagnosis. Only the
+   * boot burst folds — mid-session provider-discovery lines never match
+   * PROVIDER_REPLAY_RE, so they still reach the feed as live product signal.
+   */
+  flushProviderReplay(): void {
+    this.providerReplayScheduled = false;
+    if (this.providerReplayBuffer.length === 0) return;
+    const summary = foldProviderReplayLines(this.providerReplayBuffer);
+    const providerNames = this.providerReplayBuffer.map(providerNameFromReplay);
+    this.providerReplayBuffer = [];
+    logger.info(summary, { count: providerNames.length, providers: providerNames });
   }
 
   routeSystemMessage(message: string, priority: SystemMessagePriority): void {
@@ -117,6 +169,7 @@ export function createSystemMessageRouter(
   conversation: ConversationManager,
   feed: ActivityFeed | null = null,
   getTargetForKind: (kind: SystemMessageKind) => SystemMessageTarget = defaultSystemMessageTarget,
+  noiseDeps: NoiseGateDeps = {},
 ): SystemMessageRouter {
-  return new SystemMessageRouter(conversation, feed, getTargetForKind);
+  return new SystemMessageRouter(conversation, feed, getTargetForKind, noiseDeps);
 }
