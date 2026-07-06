@@ -1,9 +1,54 @@
 /**
+ * Strip ANSI SGR/CSI escape sequences and OSC-8 hyperlink sequences
+ * from a string so that only visible characters remain for width measurement.
+ *
+ * Covers:
+ *   - CSI sequences: ESC [ ... <final byte 0x40-0x7E>  (includes SGR \x1b[...m)
+ *   - OSC sequences: ESC ] ... ST  where ST is ESC\\ or BEL (0x07)
+ *   - Simple ESC followed by a single non-bracket/non-] character (e.g. ESC c)
+ */
+function stripAnsi(text: string): string {
+  let result = '';
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '\x1b') {
+      const next = text[i + 1];
+      if (next === '[') {
+        // CSI: skip until final byte (0x40-0x7E)
+        i += 2;
+        while (i < text.length) {
+          const c = text.charCodeAt(i);
+          i++;
+          if (c >= 0x40 && c <= 0x7e) break;
+        }
+      } else if (next === ']') {
+        // OSC: skip until ST (ESC\\ or BEL)
+        i += 2;
+        while (i < text.length) {
+          if (text[i] === '\x07') { i++; break; }
+          if (text[i] === '\x1b' && text[i + 1] === '\\') { i += 2; break; }
+          i++;
+        }
+      } else {
+        // Simple two-byte escape (ESC + one char)
+        i += next !== undefined ? 2 : 1;
+      }
+    } else {
+      result += text[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+/**
  * Calculates the visual width of a string in the terminal.
  * Handles CJK characters, emoji (including ZWJ sequences), and
- * variation selectors correctly as double-width.
+ * variation selectors correctly as double-width. ANSI escape sequences
+ * (SGR/CSI/OSC-8) are stripped before measurement.
  */
 export function getDisplayWidth(text: string): number {
+  text = stripAnsi(text);
   let width = 0;
   let i = 0;
   while (i < text.length) {
@@ -34,6 +79,13 @@ export function getDisplayWidth(text: string): number {
       code === 0x2717 ||
       code === 0x2714 ||
       code === 0x2718 ||
+      // ✕ (0x2715) and ✖ (0x2716) — the multiplication-X cross family used for
+      // the error-line prefix. Terminals draw them one cell wide, but they sit
+      // inside the 0x2600–0x27bf emoji block below and would otherwise be counted
+      // as width 2, desyncing the styled cell grid from the physical glyph and
+      // corrupting the following text (the "✕t" glitch on the steer error line).
+      code === 0x2715 ||
+      code === 0x2716 ||
       code === 0x2022 ||
       code === 0x258d ||
       (code >= 0x2500 && code <= 0x257f)
@@ -105,6 +157,51 @@ export function truncateDisplay(text: string, width: number, ellipsis = '…'): 
     currentWidth += charWidth;
   }
   return result + ellipsis;
+}
+
+/** A single footer/status-line segment plus its survival priority. */
+export interface PrioritizedSegment {
+  readonly text: string;
+  /** Lower number = higher priority = dropped LAST under width pressure. */
+  readonly priority: number;
+}
+
+/**
+ * Join segments left-to-right with `separator`, but when the joined line
+ * would exceed `width`, drop whole low-priority segments (highest `priority`
+ * number first) one at a time until it fits — rather than character-truncating
+ * the joined string, which can mangle a high-value segment mid-word (e.g. a
+ * `spine:online` daemon-liveness marker clipped to `spi…`).
+ *
+ * Only falls back to character truncation (via truncateDisplay) if the
+ * remaining highest-priority segments still don't fit at width — a rare,
+ * very-narrow-terminal case.
+ */
+export function joinPrioritizedSegments(
+  segments: readonly PrioritizedSegment[],
+  separator: string,
+  width: number,
+): string {
+  const join = (list: readonly PrioritizedSegment[]) => list.map(s => s.text).join(separator);
+  let kept = segments;
+  // Keep dropping whole segments while more than one remains; once a single
+  // segment is left, stop — an empty result would be a worse outcome than
+  // falling through to character truncation on that last segment below.
+  while (kept.length > 1 && getDisplayWidth(join(kept)) > width) {
+    // Drop the single lowest-priority (highest `priority` number) segment;
+    // ties broken toward the leftmost (earlier-declared) segment surviving —
+    // `>=` (not `>`) so that on equal priority the LATER index keeps winning
+    // as the drop candidate, leaving the earliest-declared segment of that
+    // priority tier intact (e.g. cwd survives over model when both are
+    // priority 0, since cwd is declared first).
+    let dropIdx = 0;
+    for (let i = 1; i < kept.length; i++) {
+      if (kept[i].priority >= kept[dropIdx].priority) dropIdx = i;
+    }
+    kept = kept.slice(0, dropIdx).concat(kept.slice(dropIdx + 1));
+  }
+  const joined = join(kept);
+  return getDisplayWidth(joined) > width ? truncateDisplay(joined, width) : joined;
 }
 
 export function padDisplayEnd(text: string, width: number): string {
