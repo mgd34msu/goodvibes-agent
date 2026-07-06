@@ -59,6 +59,7 @@ import {
 
 const EXPECTED_AGENT_TEMPLATES = [
   'orchestrator',
+  'planner',
   'engineer',
   'reviewer',
   'tester',
