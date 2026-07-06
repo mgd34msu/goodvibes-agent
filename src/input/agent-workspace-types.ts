@@ -243,7 +243,8 @@ export type AgentWorkspaceEditorKind =
   | 'routine-schedule'
   | 'reminder-schedule'
   | 'email-connect-wizard'
-  | 'calendar-connect';
+  | 'calendar-connect'
+  | 'calendar-subscribe-wizard';
 
 export type AgentWorkspaceLocalOperation =
   | 'memory-edit'

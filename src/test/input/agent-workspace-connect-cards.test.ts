@@ -25,17 +25,26 @@ describe('W4-A5: inbox/calendar workspace cards are real actions, not dead guida
     expect(createAgentWorkspaceEditor(action!.editorKind!)).not.toBeNull();
   });
 
-  test('personal-ops-calendar is a real editor action, not kind:guidance', () => {
+  test('personal-ops-calendar is the real external-calendar subscribe wizard (W4-A9)', () => {
     const action = findAction('personal-ops-calendar');
     expect(action).toBeDefined();
     expect(action?.kind).toBe('editor');
-    expect(action?.editorKind).toBe('calendar-connect');
+    expect(action?.editorKind).toBe('calendar-subscribe-wizard');
     expect(createAgentWorkspaceEditor(action!.editorKind!)).not.toBeNull();
   });
 
-  test('the calendar card is honest about having no external account connection', () => {
+  test('the calendar card names the real subscribe mechanism (an iCalendar feed URL), read-only', () => {
     const action = findAction('personal-ops-calendar');
-    expect(action?.detail.toLowerCase()).toContain('no external calendar account');
+    expect(action?.detail.toLowerCase()).toContain('.ics');
+    expect(action?.detail.toLowerCase()).toContain('read-only');
+    expect(action?.detail.toLowerCase()).toContain('secret manager');
+  });
+
+  test('personal-ops-calendar-add stays a real local add-event editor (W4-A5 preserved)', () => {
+    const action = findAction('personal-ops-calendar-add');
+    expect(action?.kind).toBe('editor');
+    expect(action?.editorKind).toBe('calendar-connect');
+    expect(createAgentWorkspaceEditor(action!.editorKind!)).not.toBeNull();
   });
 
   test('the inbox card names the real, dispatchable mechanism (a connect wizard), not just a description', () => {

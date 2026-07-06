@@ -16,9 +16,10 @@ import {
   type AgentWorkspaceSubscriptionEditorHost,
 } from './agent-workspace-subscription-editor.ts';
 import { submitAgentWorkspaceEmailConnectWizardEditor, type AgentWorkspaceEmailConnectEditorHost } from './agent-workspace-email-connect-editor.ts';
+import { submitAgentWorkspaceCalendarSubscribeWizardEditor, type AgentWorkspaceCalendarSubscribeEditorHost } from './agent-workspace-calendar-subscribe-editor.ts';
 
 type FieldReader = (id: string) => string;
-type DirectEditorHost = AgentWorkspaceSubscriptionEditorHost & AgentWorkspaceEmailConnectEditorHost;
+type DirectEditorHost = AgentWorkspaceSubscriptionEditorHost & AgentWorkspaceEmailConnectEditorHost & AgentWorkspaceCalendarSubscribeEditorHost;
 
 /** Returns true when this editor kind was handled directly (caller should return without further dispatch). */
 export function trySubmitDirectHostActionEditor(
@@ -43,6 +44,10 @@ export function trySubmitDirectHostActionEditor(
   }
   if (editor.kind === 'email-connect-wizard') {
     void submitAgentWorkspaceEmailConnectWizardEditor(host, editor, context, readField).finally(() => requestRender?.());
+    return true;
+  }
+  if (editor.kind === 'calendar-subscribe-wizard') {
+    void submitAgentWorkspaceCalendarSubscribeWizardEditor(host, editor, context, readField).finally(() => requestRender?.());
     return true;
   }
   return false;
