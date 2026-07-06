@@ -524,7 +524,7 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
           action: { type: 'string', enum: [...ACTIONS] },
           id: { type: 'string' },
           query: { type: 'string' },
-          semantic: { type: 'boolean', description: 'Memory search only: defaults to true (semantic recall). Pass false to force a literal substring search instead.' },
+          semantic: { type: 'boolean', description: 'Memory search: semantic by default; false forces literal matching.' },
           cls: { type: 'string', enum: [...MEMORY_CLASSES], description: 'Memory class when domain is memory.' },
           scope: { type: 'string', enum: [...MEMORY_SCOPES], description: 'Memory scope when domain is memory.' },
           summary: { type: 'string', description: 'Memory summary when domain is memory.' },
