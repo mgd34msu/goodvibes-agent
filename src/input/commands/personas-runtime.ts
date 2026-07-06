@@ -41,7 +41,7 @@ function summarizePersona(persona: AgentPersonaRecord, activePersonaId: string |
 function renderList(title: string, registry: AgentPersonaRegistry, personas: readonly AgentPersonaRecord[]): string {
   const snapshot = registry.snapshot();
   if (personas.length === 0) {
-    return `${title}\n  No local Agent personas yet.\n  No Agent-local personas yet. Create one with /personas create --name <name> --description <summary> --body <instructions>.`;
+    return `${title}\n  No local Agent personas yet. Create one with /personas create --name <name> --description <summary> --body <instructions>.`;
   }
   return [
     `${title} (${personas.length})`,
