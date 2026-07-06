@@ -2,6 +2,8 @@ import type { CommandContext, CommandRegistry } from '../input/command-registry.
 import type { InputHandler } from '../input/handler.ts';
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import type { GoodVibesCliParseResult } from './types.ts';
+import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
+import { resolveResumableSession, surfaceResumeRelaunchNotice } from './resume-relaunch-notice.ts';
 
 export type InteractiveTerminalCheckInput = {
   readonly binary: string;
@@ -95,7 +97,7 @@ export function applyInitialTuiCliState(options: {
   readonly input: InputHandler;
   readonly commandRegistry: CommandRegistry;
   readonly commandContext: CommandContext;
-  readonly shellPaths: Parameters<typeof readOnboardingCompletionMarker>[0];
+  readonly shellPaths: Parameters<typeof readOnboardingCompletionMarker>[0] & { readonly homeDirectory: string };
   readonly render: () => void;
 }): void {
   const { cli, input, commandRegistry, commandContext, shellPaths, render } = options;
@@ -110,6 +112,27 @@ export function applyInitialTuiCliState(options: {
     }
   } else if (!onboardingCompletionMarker.payload) {
     input.openAgentWorkspace(commandContext, 'setup', 'ONBOARDING');
+  } else {
+    // Normal relaunch: onboarding is done and the user didn't ask for
+    // onboarding or an explicit `sessions resume`. Surface an honest,
+    // non-blocking resume affordance instead of silently starting fresh
+    // (the W4-A4 dogfood finding) — never auto-resume, declining is
+    // frictionless (just start typing).
+    surfaceResumeRelaunchNotice({
+      getLastSessionPointer: () => readLastSessionPointer({
+        workingDirectory: shellPaths.workingDirectory,
+        homeDirectory: shellPaths.homeDirectory,
+      }),
+      isRecoveryPending: () => Boolean(checkRecoveryFile({
+        workingDirectory: shellPaths.workingDirectory,
+        homeDirectory: shellPaths.homeDirectory,
+      })),
+      findSession: (sessionId) => {
+        const sessionManager = commandContext.session?.sessionManager;
+        return sessionManager ? resolveResumableSession(sessionManager, sessionId) : null;
+      },
+      print: (text) => commandContext.print(text),
+    });
   }
 
   if (seededPrompt) {

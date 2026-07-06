@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createShellPathService } from '@/runtime/index.ts';
+import { createShellPathService, writeLastSessionPointer } from '@/runtime/index.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from '../../cli/tui-startup.ts';
 import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
@@ -79,6 +79,46 @@ function runStartup(
   return { workspaceCategories, prompt: input.prompt };
 }
 
+type FakeSavedSession = { readonly name: string; readonly title: string; readonly timestamp: number; readonly messageCount: number };
+
+/**
+ * Runs startup with a fully-wired fake CommandContext (print + a stub
+ * session-manager) so the resume-on-relaunch notice (W4-A4) can be observed
+ * end to end, the same way the real commandContext.print/session.sessionManager
+ * are wired in main.ts.
+ */
+function runStartupCapturingResumeNotice(
+  shellPaths: ReturnType<typeof makeShellPaths>,
+  savedSessions: readonly FakeSavedSession[],
+): { readonly printed: string[] } {
+  const printed: string[] = [];
+  const input = {
+    prompt: '',
+    cursorPos: 0,
+    openAgentWorkspace: () => {},
+  } as unknown as InputHandler;
+
+  const commandContext = {
+    print: (text: string) => printed.push(text),
+    session: {
+      sessionManager: {
+        list: () => savedSessions.map((s) => ({ ...s, model: '', provider: '', filePath: '' })),
+      },
+    },
+  } as unknown as CommandContext;
+
+  applyInitialTuiCliState({
+    cli: makeCli(),
+    input,
+    commandRegistry: new CommandRegistry(),
+    commandContext,
+    shellPaths,
+    render: () => {},
+  });
+
+  return { printed };
+}
+
 describe('initial TUI onboarding startup check', () => {
   test('opens the setup workspace when the user completion marker is absent', () => {
     const shellPaths = makeShellPaths();
@@ -152,6 +192,111 @@ describe('initial TUI onboarding startup check', () => {
 
     expect(result.workspaceCategories).toEqual([]);
     expect(result.prompt).toBe('summarize today');
+  });
+});
+
+describe('resume-on-relaunch notice (W4-A4)', () => {
+  function completeOnboarding(shellPaths: ReturnType<typeof makeShellPaths>): void {
+    writeOnboardingCompletionMarker(shellPaths, {
+      scope: 'user',
+      source: 'wizard',
+      mode: 'new',
+    });
+  }
+
+  test('shows no notice on a clean first run (no last-session pointer)', () => {
+    const shellPaths = makeShellPaths();
+    completeOnboarding(shellPaths);
+
+    const { printed } = runStartupCapturingResumeNotice(shellPaths, []);
+    expect(printed).toEqual([]);
+  });
+
+  test('surfaces an actionable resume notice when a valid last-session pointer exists', () => {
+    const shellPaths = makeShellPaths();
+    completeOnboarding(shellPaths);
+    writeLastSessionPointer('user-relaunch-1', {
+      workingDirectory: shellPaths.workingDirectory,
+      homeDirectory: shellPaths.homeDirectory,
+    });
+
+    const { printed } = runStartupCapturingResumeNotice(shellPaths, [
+      { name: 'user-relaunch-1', title: 'Investigate the boot race', timestamp: Date.now() - 5 * 60_000, messageCount: 7 },
+    ]);
+
+    expect(printed).toHaveLength(1);
+    expect(printed[0]).toContain('[Resume]');
+    expect(printed[0]).toContain('Investigate the boot race');
+    expect(printed[0]).toContain('/session resume user-relaunch-1');
+  });
+
+  test('is honest about a stale pointer instead of offering a dead resume button', () => {
+    const shellPaths = makeShellPaths();
+    completeOnboarding(shellPaths);
+    writeLastSessionPointer('user-deleted-session', {
+      workingDirectory: shellPaths.workingDirectory,
+      homeDirectory: shellPaths.homeDirectory,
+    });
+
+    // No matching entry in the session store: the pointer is dangling.
+    const { printed } = runStartupCapturingResumeNotice(shellPaths, []);
+
+    expect(printed).toHaveLength(1);
+    expect(printed[0]).toContain('unavailable');
+    expect(printed[0]).not.toContain('/session resume');
+  });
+
+  test('does not surface the notice before onboarding is complete', () => {
+    const shellPaths = makeShellPaths();
+    writeLastSessionPointer('user-relaunch-1', {
+      workingDirectory: shellPaths.workingDirectory,
+      homeDirectory: shellPaths.homeDirectory,
+    });
+
+    const { printed } = runStartupCapturingResumeNotice(shellPaths, [
+      { name: 'user-relaunch-1', title: 'x', timestamp: Date.now(), messageCount: 1 },
+    ]);
+
+    // Onboarding takes precedence; the resume branch never runs.
+    expect(printed).toEqual([]);
+  });
+
+  test('the explicit `sessions resume` CLI path never also prints the ambient notice', () => {
+    const shellPaths = makeShellPaths();
+    completeOnboarding(shellPaths);
+    writeLastSessionPointer('user-relaunch-1', {
+      workingDirectory: shellPaths.workingDirectory,
+      homeDirectory: shellPaths.homeDirectory,
+    });
+
+    const printed: string[] = [];
+    const input = { prompt: '', cursorPos: 0, openAgentWorkspace: () => {} } as unknown as InputHandler;
+    const commandRegistry = new CommandRegistry();
+    const resumeCalls: string[][] = [];
+    commandRegistry.register({
+      name: 'session',
+      description: 'stub',
+      usage: '',
+      handler: async (args) => { resumeCalls.push(args); },
+    });
+    const commandContext = {
+      print: (text: string) => printed.push(text),
+      session: { sessionManager: { list: () => [] } },
+    } as unknown as CommandContext;
+
+    applyInitialTuiCliState({
+      cli: makeCli({ command: 'sessions', commandArgs: ['resume', 'user-relaunch-1'] }),
+      input,
+      commandRegistry,
+      commandContext,
+      shellPaths,
+      render: () => {},
+    });
+
+    // The explicit path routes straight into the existing resume command —
+    // it does not also print the ambient relaunch notice.
+    expect(printed).toEqual([]);
+    expect(resumeCalls).toEqual([['resume', 'user-relaunch-1']]);
   });
 });
 
