@@ -28,6 +28,14 @@ function formatMegabytes(bytes: number): string {
   return `${Math.round(bytes / (1024 * 1024))} MB`;
 }
 
+// W4-A6: the memory/routine counts below are re-derived live on every
+// repaint (AgentWorkspace.syncLiveCountersForRender). If that live read
+// fails, liveCountersStale flags it so we say so instead of asserting a
+// number the disk might already contradict.
+function liveCounterStaleSuffix(snapshot: AgentWorkspaceRuntimeSnapshot): string {
+  return snapshot.liveCountersStale ? ' (refreshing...)' : '';
+}
+
 export function compactText(text: string, maxWidth = 104): string {
   const normalized = text.replace(/\s+/g, ' ').trim();
   if (normalized.length === 0) return '';
@@ -546,7 +554,7 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
       ...snapshot.localRoutines.filter((item) => item.enabled),
     ].filter((item) => item.reviewState !== 'reviewed').length;
     base.push(
-      { text: `Memory: ${snapshot.localMemoryCount}; prompt ${snapshot.localMemoryPromptActiveCount}; queue ${snapshot.localMemoryReviewQueueCount}; session ${snapshot.sessionMemoryCount}.`, fg: PALETTE.info },
+      { text: `Memory: ${snapshot.localMemoryCount}; prompt ${snapshot.localMemoryPromptActiveCount}; queue ${snapshot.localMemoryReviewQueueCount}; session ${snapshot.sessionMemoryCount}.${liveCounterStaleSuffix(snapshot)}`, fg: PALETTE.info },
       { text: `Notes: ${snapshot.localNoteCount}; skills ${snapshot.localSkillCount}/${snapshot.enabledSkillCount}; routines ${snapshot.localRoutineCount}/${snapshot.enabledRoutineCount}; personas ${snapshot.localPersonaCount}.`, fg: PALETTE.info },
       { text: `Learning curator: memory queue ${snapshot.localMemoryReviewQueueCount}; note queue ${snapshot.localNoteReviewQueueCount}; setup gaps ${behaviorNeedsSetup}; injected review ${injectedNeedsReview}.`, fg: behaviorNeedsSetup > 0 || injectedNeedsReview > 0 ? PALETTE.warn : PALETTE.good },
       { text: 'Prompt plan: score reviewed context, show suppressed records, and route review before behavior expands.', fg: PALETTE.good },
@@ -581,7 +589,7 @@ export function snapshotLines(workspace: AgentWorkspace, category: AgentWorkspac
     const needsSetup = routinesNeedingSetup(snapshot);
     const needsReview = routinesNeedingReview(snapshot);
     base.push(
-      { text: `Routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}`, fg: PALETTE.info },
+      { text: `Routines: ${snapshot.localRoutineCount}; enabled: ${snapshot.enabledRoutineCount}${liveCounterStaleSuffix(snapshot)}`, fg: PALETTE.info },
       { text: `Schedule-ready routines: ${ready.length}; setup gaps: ${needsSetup.length}; review needed: ${needsReview.length}`, fg: needsSetup.length > 0 || needsReview.length > 0 ? PALETTE.warn : PALETTE.good },
       routineNextActionLine(snapshot),
       compactRoutineReceiptLine(snapshot),

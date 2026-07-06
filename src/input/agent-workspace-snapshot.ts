@@ -56,7 +56,7 @@ import { buildReviewPacketDefaults, buildReviewPacketTimeline, buildReviewPacket
 import { isReviewerHandoffArtifact, summarizeReviewerHandoffArtifact } from './agent-workspace-review-packet-utils.ts';
 import { buildSetupSmokeHistory, buildSetupWizardCheckpoint, buildWorkspaceSetupWizard, setupCompletionMarkerExists } from './agent-workspace-setup-snapshot.ts';
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
-import type { AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import type { AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
 function readConfigString(context: CommandContext, key: string, fallback: string): string {
   try {
@@ -106,6 +106,84 @@ function inferRuntimeProfileBaseHome(homeDirectory: string): string {
   return markerIndex >= 0 ? homeDirectory.slice(0, markerIndex) : homeDirectory;
 }
 
+export interface AgentWorkspaceLiveMemoryCounters {
+  readonly count: number;
+  readonly reviewQueueCount: number;
+  readonly promptActiveCount: number;
+  readonly items: readonly AgentWorkspaceLocalLibraryItem[];
+}
+
+/**
+ * Reads the Agent memory count + items directly from the live memory API
+ * (no caching). Throws if the read itself fails (e.g. the memory API errors
+ * mid-call) rather than swallowing it — callers that need a best-effort,
+ * never-throws default (the full runtime snapshot builder below) should use
+ * buildAgentWorkspaceMemorySnapshot instead. The render-path live-counter
+ * refresh (AgentWorkspace.syncLiveCountersForRender, W4-A6) calls this
+ * directly so a genuine read failure can be surfaced as "stale" instead of
+ * being silently rewritten to a fabricated 0.
+ */
+export function readLiveAgentMemoryCounters(context: CommandContext): AgentWorkspaceLiveMemoryCounters {
+  const memory = context.clients?.agentKnowledgeApi?.memory;
+  if (!memory) return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
+  const records = [...memory.getAll()].sort((left, right) => right.updatedAt - left.updatedAt);
+  return {
+    count: records.length,
+    reviewQueueCount: memory.reviewQueue(100).length,
+    promptActiveCount: records.filter(isPromptActiveMemory).length,
+    items: records.map(summarizeMemoryItem),
+  };
+}
+
+/**
+ * Best-effort variant of readLiveAgentMemoryCounters for the full runtime
+ * snapshot builder: never throws, defaults to empty on any read failure.
+ */
+export function buildAgentWorkspaceMemorySnapshot(context: CommandContext): AgentWorkspaceLiveMemoryCounters {
+  try {
+    return readLiveAgentMemoryCounters(context);
+  } catch {
+    return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
+  }
+}
+
+export interface AgentWorkspaceLiveRoutineCounters {
+  readonly count: number;
+  readonly enabled: number;
+  readonly items: readonly AgentWorkspaceLocalLibraryItem[];
+}
+
+/**
+ * Reads the Agent routine count + items (including each routine's live
+ * startCount) directly from the on-disk routine store (no caching). Throws
+ * if the store read fails (e.g. a corrupt/unreadable routines.json —
+ * AgentRoutineRegistry.snapshot() itself throws in that case) rather than
+ * swallowing it; see readLiveAgentMemoryCounters above for why the
+ * render-path live-counter refresh (W4-A6) wants that.
+ */
+export function readLiveAgentRoutineCounters(context: CommandContext): AgentWorkspaceLiveRoutineCounters {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths) return { count: 0, enabled: 0, items: [] };
+  const snapshot = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot();
+  return {
+    count: snapshot.routines.length,
+    enabled: snapshot.enabledRoutines.length,
+    items: snapshot.routines.map(summarizeRoutineItem),
+  };
+}
+
+/**
+ * Best-effort variant of readLiveAgentRoutineCounters for the full runtime
+ * snapshot builder: never throws, defaults to empty on any read failure.
+ */
+export function buildAgentWorkspaceRoutineCounters(context: CommandContext): AgentWorkspaceLiveRoutineCounters {
+  try {
+    return readLiveAgentRoutineCounters(context);
+  } catch {
+    return { count: 0, enabled: 0, items: [] };
+  }
+}
+
 export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): AgentWorkspaceRuntimeSnapshot {
   const host = readConfigString(context, 'controlPlane.host', '127.0.0.1');
   const port = readConfigNumber(context, 'controlPlane.port', 3421);
@@ -125,21 +203,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return 0;
     }
   })();
-  const memorySnapshot = (() => {
-    try {
-      const memory = context.clients?.agentKnowledgeApi?.memory;
-      if (!memory) return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
-      const records = [...memory.getAll()].sort((left, right) => right.updatedAt - left.updatedAt);
-      return {
-        count: records.length,
-        reviewQueueCount: memory.reviewQueue(100).length,
-        promptActiveCount: records.filter(isPromptActiveMemory).length,
-        items: records.map(summarizeMemoryItem),
-      };
-    } catch {
-      return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
-    }
-  })();
+  const memorySnapshot = buildAgentWorkspaceMemorySnapshot(context);
   const personaSnapshot = (() => {
     try {
       const shellPaths = context.workspace?.shellPaths;
@@ -186,20 +250,7 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
       return { count: 0, enabled: 0, active: 0, bundleCount: 0, enabledBundleCount: 0, items: [], bundleItems: [] };
     }
   })();
-  const routineSnapshot = (() => {
-    try {
-      const shellPaths = context.workspace?.shellPaths;
-      if (!shellPaths) return { count: 0, enabled: 0, items: [] };
-      const snapshot = AgentRoutineRegistry.fromShellPaths(shellPaths).snapshot();
-      return {
-        count: snapshot.routines.length,
-        enabled: snapshot.enabledRoutines.length,
-        items: snapshot.routines.map(summarizeRoutineItem),
-      };
-    } catch {
-      return { count: 0, enabled: 0, items: [] };
-    }
-  })();
+  const routineSnapshot = buildAgentWorkspaceRoutineCounters(context);
   const routineScheduleReceipts = (() => {
     try {
       const shellPaths = context.workspace?.shellPaths;
@@ -647,5 +698,6 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     setupChecklist,
     setupWizard,
     warnings,
+    liveCountersStale: false,
   };
 }

@@ -763,4 +763,15 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly setupChecklist: readonly AgentWorkspaceSetupChecklistItem[];
   readonly setupWizard: AgentSetupWizard;
   readonly warnings: readonly string[];
+  /**
+   * True when the most recent render-path attempt to re-derive the live
+   * counters (memory count, routine counts + start counts — W4-A6) failed
+   * and the previous values below had to be kept. A fresh
+   * buildAgentWorkspaceRuntimeSnapshot() call is never stale (it just read
+   * everything); this only flips true from
+   * AgentWorkspace.syncLiveCountersForRender() when a live re-read errors.
+   * The render path uses this to label the counters honestly ("refreshing")
+   * instead of asserting a number the disk might already contradict.
+   */
+  readonly liveCountersStale: boolean;
 }

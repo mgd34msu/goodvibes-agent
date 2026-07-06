@@ -36,5 +36,10 @@ export function createAgentWorkspaceFullscreenComposite(
   width: number,
   height: number,
 ): CompositeRequest {
+  // W4-A6: mirror disk state on every repaint of the workspace panel so the
+  // memory count and routine start counts never show a stale point-in-time
+  // snapshot from the last workspace action (e.g. an external delete, or a
+  // routine started from another shell/CLI invocation).
+  workspace.syncLiveCountersForRender();
   return createFullscreenCompositeFromLines(renderAgentWorkspace(workspace, width, height), width, height);
 }

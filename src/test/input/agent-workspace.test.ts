@@ -18,6 +18,7 @@ import { readSetupWizardCheckpoint } from '../../agent/setup-wizard-checkpoint.t
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { createAgentRuntimeProfile, getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, readAgentRuntimeProfileSelection, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
+import { createAgentWorkspaceFullscreenComposite } from '../../shell/agent-workspace-fullscreen.ts';
 import { parseSlashCommand } from '../../input/slash-command-parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { readOnboardingCheckMarker, readOnboardingCompletionMarker, writeOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
@@ -4367,5 +4368,129 @@ describe('AgentWorkspace', () => {
     // proving the index was resolved against the FRESH categories list.
     expect(workspace.selectedCategory.id).toBe('account-model');
     expect(workspace.status).toContain('Signed in.');
+  });
+});
+
+// W4-A6: LIVE DISK MIRROR. Before this fix, `runtimeSnapshot` was built once
+// at open()/action-completion time and cached on the AgentWorkspace instance;
+// an external mutation (another shell deleting a memory, a CLI `routines
+// start` invocation bumping a start count) left the in-UI counters showing a
+// stale point-in-time snapshot until the user happened to trigger a workspace
+// action. These tests reproduce the dogfood repro against the REAL render
+// entry point (createAgentWorkspaceFullscreenComposite, the only production
+// call site for renderAgentWorkspace — see src/main.ts) rather than only unit
+// testing the new method in isolation.
+describe('AgentWorkspace live disk-mirror counters (W4-A6)', () => {
+  test('memory count mirrors an external delete on the next repaint, not just after a workspace action', () => {
+    const records = [
+      memoryRecord({ id: 'mem-a', summary: 'First fact' }),
+      memoryRecord({ id: 'mem-b', summary: 'Second fact' }),
+    ];
+    const ctx = {
+      ...commandContext(),
+      clients: { agentKnowledgeApi: { memory: memoryApi(records) } },
+    } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'memory');
+    expect(workspace.runtimeSnapshot?.localMemoryCount).toBe(2);
+    expect(linesText(renderAgentWorkspace(workspace, 160, 40))).toContain('Memory: 2;');
+
+    // Simulate an external process (another shell, another Agent session)
+    // deleting a memory record on disk. No workspace action is taken here —
+    // the cached runtimeSnapshot on this instance is untouched.
+    records.length = 1;
+
+    // The real render entry point must mirror disk on this repaint.
+    createAgentWorkspaceFullscreenComposite(workspace, 160, 40);
+    expect(workspace.runtimeSnapshot?.localMemoryCount).toBe(1);
+    const output = linesText(renderAgentWorkspace(workspace, 160, 40));
+    expect(output).toContain('Memory: 1;');
+    expect(output).not.toContain('Memory: 2;');
+  });
+
+  test('routine start count mirrors an external `routines start` bump (reproduces, then fixes, the routine-starts sub-claim)', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-live-routine-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const created = AgentRoutineRegistry.fromShellPaths(shellPaths).create({
+      name: 'Morning Brief',
+      description: 'Summarize overnight activity.',
+      steps: 'Check the queue, then report.',
+      enabled: true,
+    });
+    const ctx = { ...commandContext(), workspace: { shellPaths } } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+
+    const beforeExternalStart = workspace.runtimeSnapshot?.localRoutines.find((item) => item.id === created.id);
+    expect(beforeExternalStart?.startCount).toBe(0);
+
+    // REPRO: a separate process (the CLI `routines start` path, or another
+    // Agent session) marks the routine started directly against the on-disk
+    // store — this workspace instance's cached runtimeSnapshot is untouched.
+    AgentRoutineRegistry.fromShellPaths(shellPaths).markStarted(created.id);
+    const stillCachedAtZero = workspace.runtimeSnapshot?.localRoutines.find((item) => item.id === created.id);
+    expect(stillCachedAtZero?.startCount).toBe(0);
+
+    // FIX: the real render entry point mirrors disk on the next repaint —
+    // no manual refresh action required.
+    createAgentWorkspaceFullscreenComposite(workspace, 160, 40);
+    const afterRepaint = workspace.runtimeSnapshot?.localRoutines.find((item) => item.id === created.id);
+    expect(afterRepaint?.startCount).toBe(1);
+    expect(linesText(renderAgentWorkspace(workspace, 160, 40))).toContain('starts 1');
+  });
+
+  test('an external routine deletion is also mirrored, and clampSelection keeps the selected index in range', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-live-routine-delete-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    const registry = AgentRoutineRegistry.fromShellPaths(shellPaths);
+    const first = registry.create({ name: 'Alpha', description: 'A.', steps: 'Do A.', enabled: true });
+    registry.create({ name: 'Beta', description: 'B.', steps: 'Do B.', enabled: true });
+    const ctx = { ...commandContext(), workspace: { shellPaths } } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    expect(workspace.runtimeSnapshot?.localRoutineCount).toBe(2);
+
+    // External delete of both routines (simulating another process/CLI).
+    registry.deleteRoutine(first.id);
+    registry.deleteRoutine('beta');
+
+    expect(() => createAgentWorkspaceFullscreenComposite(workspace, 160, 40)).not.toThrow();
+    expect(workspace.runtimeSnapshot?.localRoutineCount).toBe(0);
+    expect(workspace.selectedLibraryItemIndexes.routine).toBe(0);
+  });
+
+  test('a live-read failure keeps the previous counters and labels them honestly as refreshing, instead of asserting a wrong number', () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-live-routine-failure-'));
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    AgentRoutineRegistry.fromShellPaths(shellPaths).create({
+      name: 'Morning Brief',
+      description: 'Summarize overnight activity.',
+      steps: 'Check the queue, then report.',
+      enabled: true,
+    });
+    const ctx = { ...commandContext(), workspace: { shellPaths } } as unknown as CommandContext;
+    const workspace = new AgentWorkspace();
+    workspace.open(ctx, () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'routines');
+    expect(workspace.runtimeSnapshot?.localRoutineCount).toBe(1);
+    expect(workspace.runtimeSnapshot?.liveCountersStale).toBe(false);
+
+    // Corrupt the on-disk routine store to force the live re-read to throw
+    // (AgentRoutineRegistry.readStore() throws on a JSON parse failure)
+    // instead of silently returning an empty/zero count.
+    const storePath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'routines', 'routines.json');
+    writeFileSync(storePath, '{ not valid json', 'utf-8');
+
+    expect(() => createAgentWorkspaceFullscreenComposite(workspace, 160, 40)).not.toThrow();
+
+    // The previous, still-accurate count is kept -- NOT silently zeroed --
+    // and the snapshot is flagged stale so the render path can say so.
+    expect(workspace.runtimeSnapshot?.localRoutineCount).toBe(1);
+    expect(workspace.runtimeSnapshot?.liveCountersStale).toBe(true);
+    const output = linesText(renderAgentWorkspace(workspace, 160, 40));
+    expect(output).toContain('Routines: 1; enabled: 1 (refreshing...)');
   });
 });
