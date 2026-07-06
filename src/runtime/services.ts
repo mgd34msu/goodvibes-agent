@@ -50,6 +50,9 @@ import { ModeManager } from '@pellux/goodvibes-sdk/platform/state';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
 import { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+// W6-C2 (E6): one canonical cross-surface memory store + no-loss legacy fold.
+import { resolveCanonicalMemoryDbPath, foldMemoryStores } from '@pellux/goodvibes-sdk/platform/state';
+import type { LegacyMemorySource, MemoryFoldReport } from '@pellux/goodvibes-sdk/platform/state';
 import type { RuntimeEventBus } from '@/runtime/index.ts';
 import { createDomainDispatch } from './store/index.ts';
 import type { DomainDispatch, RuntimeStore } from './store/index.ts';
@@ -636,7 +639,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const artifactStore = new ArtifactStore({ configManager });
   const memoryEmbeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
-  const memoryDbPath = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
+  // W6-C2 (E6): the agent no longer owns a private per-surface memory.sqlite. It opens
+  // the ONE canonical cross-surface store so a fact learned here recalls in the TUI (and
+  // vice-versa). The old agent-global path is folded in at boot with no loss (see
+  // foldAgentLegacyMemory), then left in place — migration never deletes.
+  const memoryDbPath = resolveCanonicalMemoryDbPath(shellPaths.homeDirectory);
   const memoryStore = new MemoryStore(memoryDbPath, {
     embeddingRegistry: memoryEmbeddingRegistry,
   });
@@ -1010,4 +1017,23 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       await projectIndex.reroot(newWorkingDir);
     },
   };
+}
+
+/**
+ * W6-C2 (E6): fold the agent's legacy per-surface memory store into the canonical
+ * cross-surface store. Called once at boot AFTER `memoryStore.init()` so any records
+ * written before unification survive. Id-keyed and idempotent — a re-run imports
+ * nothing new and never deletes the legacy file. Returns the report so boot can log
+ * exactly what moved (nothing is silently dropped).
+ */
+export async function foldAgentLegacyMemory(
+  memoryStore: MemoryStore,
+  memoryEmbeddingRegistry: MemoryEmbeddingProviderRegistry,
+  shellPaths: ShellPathService,
+): Promise<MemoryFoldReport> {
+  const legacyAgentGlobal = shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
+  const sources: LegacyMemorySource[] = [
+    { label: 'agent-global (pre-E6)', dbPath: legacyAgentGlobal },
+  ];
+  return foldMemoryStores(memoryStore, sources, { embeddingRegistry: memoryEmbeddingRegistry });
 }
