@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 import { homedir } from 'node:os';
 import { Compositor } from './renderer/compositor.ts';
-import { installBackgroundThemeProbe } from './renderer/terminal-bg-probe.ts';
-import { setActiveThemeMode } from './renderer/theme.ts';
+import { installStartupThemeProbe } from './renderer/startup-theme-probe.ts';
+import { ThinkingStallClock, buildThinkingOverlay } from './core/thinking-overlay.ts';
 import { UIFactory } from './renderer/ui-factory.ts';
 import { Orchestrator } from './core/orchestrator';
 import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
@@ -159,13 +159,7 @@ async function main() {
 
   let streamTokenSpeed = 0;
 
-  // W4-R4 honest waiting states: a per-turn last-delta clock for the thinking
-  // indicator. The SDK orchestrator surfaces no lastDeltaAtMs / reconnect signal
-  // directly, so we derive the clock from streaming output-token advances — a
-  // real, honest proxy that degrades gracefully with zero new SDK events.
-  let thinkingStreamStartedAt: number | null = null;
-  let thinkingLastDeltaAt = 0;
-  let thinkingLastOutputTokens = 0;
+  const thinkingClock = new ThinkingStallClock(); // W4-R4 thinking-indicator stall clock
 
   let scrollTop = 0;
   let scrollLocked = true;
@@ -604,46 +598,11 @@ async function main() {
     scrollTop = conversationViewport.nextScrollTop;
     let viewport = conversationViewport.viewport;
 
-    if (orchestrator.isThinking) {
-      const showSpeed = configManager.get('display.showTokenSpeed') as boolean;
-      const showPreview = configManager.get('display.showToolPreview') as boolean;
-      const partialToolPreview = showPreview ? sessionSnapshot.streamToolPreview : undefined;
-      // Advance the last-delta clock: seed it at turn start, then push it forward
-      // every time the streaming output-token count actually advances.
-      const now = Date.now();
-      if (thinkingStreamStartedAt === null) {
-        thinkingStreamStartedAt = now;
-        thinkingLastDeltaAt = now;
-        thinkingLastOutputTokens = orchestrator.streamingOutputTokens;
-      } else if (orchestrator.streamingOutputTokens > thinkingLastOutputTokens) {
-        thinkingLastDeltaAt = now;
-        thinkingLastOutputTokens = orchestrator.streamingOutputTokens;
-      }
-      // A tool preview means a tool is executing — suppress stall detection then
-      // (the model isn't producing tokens during tool execution; a "Stalled"
-      // label there would be a false positive). Read the raw snapshot preview,
-      // not the display-gated one, so the suppression is independent of config.
-      const stallInfo = UIFactory.computeRenderStallInfo({
-        toolActive: !!sessionSnapshot.streamToolPreview,
-        lastDeltaAtMs: thinkingLastDeltaAt,
-        nowMs: now,
-      });
-      const thinking = UIFactory.createThinkingFragment(
-        conversationWidth,
-        orchestrator.getSpinner(),
-        orchestrator.thinkingFrame,
-        showSpeed ? streamTokenSpeed : undefined,
-        showPreview ? partialToolPreview : undefined,
-        orchestrator.streamingInputTokens > 0 ? orchestrator.streamingInputTokens : undefined,
-        orchestrator.streamingOutputTokens > 0 ? orchestrator.streamingOutputTokens : undefined,
-        stallInfo,
-        pendingPermission !== null,
-      );
-      viewport.push(...thinking);
-    } else {
-      // Turn ended (or not started) — reset the clock so the next turn re-seeds.
-      thinkingStreamStartedAt = null;
-    }
+    viewport.push(...buildThinkingOverlay({ // honest waiting state; [] when not thinking
+      orchestrator, configManager, streamTokenSpeed, clock: thinkingClock,
+      streamToolPreview: sessionSnapshot.streamToolPreview,
+      approvalPending: pendingPermission !== null, width: conversationWidth,
+    }));
 
     if (pendingPermission) {
       viewport.push(...PermissionPromptUI.createPromptLines(conversationWidth, pendingPermission));
@@ -733,17 +692,10 @@ async function main() {
   stdin.setEncoding('utf8');
   allowTerminalWrite(() => stdout.write((cli.flags.noAltScreen ? '' : ALT_SCREEN_ENTER) + CLEAR_SCREEN + CURSOR_HIDE + MOUSE_ENABLE + KEYBOARD_EXT_ENABLE + PASTE_ENABLE + FOCUS_ENABLE));
 
-  // W4-R4: forced dark/light applies before first paint; auto (TTY only) fires
-  // the OSC 11 background probe (R2's terminal-bg-probe) and repaints once if
-  // light wins. applyThemeMode is wired to the ported theme.ts setActiveThemeMode.
-  // filterInput strips the OSC 11 reply from stdin so it never reaches the tokenizer.
-  const themeProbe = installBackgroundThemeProbe({
-    configManager,
-    applyThemeMode: setActiveThemeMode,
-    isTTY: Boolean(stdout.isTTY),
-    env: process.env,
-    writeQuery: (b) => allowTerminalWrite(() => stdout.write(b)),
-    requestRepaint: () => { compositor.resetDiff(); render(); },
+  // W4-R4: forced dark/light before first paint; auto (TTY) probes + repaints once if light.
+  const themeProbe = installStartupThemeProbe({
+    configManager, stdout, writeAllowed: allowTerminalWrite,
+    resetDiff: () => compositor.resetDiff(), render,
   });
 
   applyInitialTuiCliState({
@@ -756,8 +708,7 @@ async function main() {
   });
 
   stdin.on('data', (raw: string) => {
-    // Strip any OSC 11 background-probe reply before the bytes reach the input
-    // pipeline (passthrough for every other byte; no-op once the probe resolves).
+    // Strip any OSC 11 background-probe reply before the input pipeline sees it.
     const data = themeProbe.filterInput(raw);
     if (data.length === 0) return;
     const blocking = handleBlockingShellInput({
