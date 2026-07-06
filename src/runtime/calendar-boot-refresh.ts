@@ -16,11 +16,14 @@
  * feed costs one conditional 304 round trip.
  *
  * Honest reporting: ONE aggregate activity line, emitted only when something
- * was actually refreshed or failed — e.g.
- *   [Calendar] refreshed 2 subscriptions; 'work' unreachable — will retry next refresh
- * An all-skipped (nothing due) boot stays silent. Failures keep the last-good
- * cached events, and /calendar subscriptions still shows the honest per-feed
- * health (unreachable / parse-error / stale with age).
+ * was actually checked or failed — e.g.
+ *   [Calendar] checked 2 subscriptions (1 updated); 'work' unreachable — will retry next refresh
+ * A conditional-GET 304 ("not-modified") means the feed WAS checked but had
+ * nothing new — F6 fix: that no longer counts toward "updated", so the line
+ * never claims something changed when the round trip only confirmed nothing
+ * did. An all-skipped (nothing due) boot stays silent. Failures keep the
+ * last-good cached events, and /calendar subscriptions still shows the honest
+ * per-feed health (unreachable / parse-error / stale with age).
  */
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ShellPathService } from '@/runtime/index.ts';
@@ -47,15 +50,23 @@ export interface CalendarBootRefreshOptions {
 /**
  * Build the single aggregate line from refresh outcomes, or null when nothing
  * user-visible happened (everything skipped as not-due).
+ *
+ * F6 fix: a 304-not-modified round trip is a genuine check (it counts toward
+ * "checked N subscriptions"), but it is NOT a change — only outcome ===
+ * 'updated' counts toward "(M updated)". The old wording ("refreshed N")
+ * counted both the same, so an all-304 boot ("nothing changed anywhere")
+ * still read as "refreshed 2 subscriptions", which claims an update that
+ * never happened.
  */
 export function formatCalendarBootRefreshLine(outcomes: readonly RefreshOutcome[]): string | null {
-  const refreshed = outcomes.filter((o) => o.outcome === 'updated' || o.outcome === 'not-modified');
+  const checked = outcomes.filter((o) => o.outcome === 'updated' || o.outcome === 'not-modified');
+  const updated = checked.filter((o) => o.outcome === 'updated');
   const failed = outcomes.filter((o) => o.outcome === 'unreachable' || o.outcome === 'parse-error');
-  if (refreshed.length === 0 && failed.length === 0) return null;
+  if (checked.length === 0 && failed.length === 0) return null;
 
   const parts: string[] = [];
-  if (refreshed.length > 0) {
-    parts.push(`refreshed ${refreshed.length} subscription${refreshed.length === 1 ? '' : 's'}`);
+  if (checked.length > 0) {
+    parts.push(`checked ${checked.length} subscription${checked.length === 1 ? '' : 's'} (${updated.length} updated)`);
   }
   for (const f of failed) {
     const label = f.outcome === 'unreachable' ? 'unreachable' : 'parse error';

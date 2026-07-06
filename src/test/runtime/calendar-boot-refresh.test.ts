@@ -88,18 +88,26 @@ describe('formatCalendarBootRefreshLine', () => {
     expect(formatCalendarBootRefreshLine([])).toBeNull();
   });
 
-  test('refreshed + failure compose one honest line', () => {
+  test('checked + failure compose one honest line, only the genuinely-updated one counted as updated', () => {
     const line = formatCalendarBootRefreshLine([
       { name: 'a', outcome: 'updated', eventCount: 3 },
       { name: 'b', outcome: 'not-modified' },
       { name: 'work', outcome: 'unreachable', detail: 'HTTP 503' },
     ]);
-    expect(line).toBe("[Calendar] refreshed 2 subscriptions; 'work' unreachable — will retry next refresh");
+    expect(line).toBe("[Calendar] checked 2 subscriptions (1 updated); 'work' unreachable — will retry next refresh");
   });
 
   test('parse error is named as such', () => {
     const line = formatCalendarBootRefreshLine([{ name: 'bad', outcome: 'parse-error' }]);
     expect(line).toBe("[Calendar] 'bad' parse error — will retry next refresh");
+  });
+
+  test('F6: an all-304 (not-modified) batch is checked but never claims an update', () => {
+    const line = formatCalendarBootRefreshLine([
+      { name: 'a', outcome: 'not-modified' },
+      { name: 'b', outcome: 'not-modified' },
+    ]);
+    expect(line).toBe('[Calendar] checked 2 subscriptions (0 updated)');
   });
 });
 
@@ -110,7 +118,7 @@ describe('scheduleCalendarSubscriptionBootRefresh', () => {
     h.advance(HOUR + 1); // past the interval -> due
     await h.run();
     expect(h.calls()).toBe(before + 1); // exactly one fetch
-    expect(h.lines).toEqual(['[Calendar] refreshed 1 subscription']);
+    expect(h.lines).toEqual(['[Calendar] checked 1 subscription (1 updated)']);
     expect(h.renders()).toBe(1);
   });
 
@@ -181,6 +189,6 @@ describe('scheduleCalendarSubscriptionBootRefresh', () => {
     expect(lines).toEqual([]); // ...but is parked, not completed
     releaseFetch?.();
     await pending;
-    expect(lines).toEqual(['[Calendar] refreshed 1 subscription']);
+    expect(lines).toEqual(['[Calendar] checked 1 subscription (1 updated)']);
   });
 });
