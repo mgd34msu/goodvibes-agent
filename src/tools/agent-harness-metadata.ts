@@ -86,6 +86,14 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Provider selection and custom provider files belong to Agent provider configuration. Adding, removing, or switching providers requires explicit user intent.',
     };
   }
+  if (root === 'network-scan' || root === 'discover-lan') {
+    return {
+      effect: 'local-state',
+      confirmation,
+      preferredModelTool: settingsActions('get', 'set'),
+      boundary: 'Turns the local-network model-server scan on or off and persists that decision to a local consent file; it never probes the network itself. Enabling it requires the user\'s explicit request — do not turn it on unprompted.',
+    };
+  }
   if (root === 'refresh-models') {
     return {
       effect: 'external-network',

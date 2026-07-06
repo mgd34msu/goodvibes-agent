@@ -19,6 +19,7 @@ import { registerLocalRuntimeCommands } from './commands/local-runtime.ts';
 import { registerExperienceRuntimeCommands } from './commands/experience-runtime.ts';
 import { registerTasksRuntimeCommands } from './commands/tasks-runtime.ts';
 import { registerLocalProviderRuntimeCommands } from './commands/local-provider-runtime.ts';
+import { registerNetworkScanRuntimeCommands } from './commands/network-scan-runtime.ts';
 import { registerHealthRuntimeCommands } from './commands/health-runtime.ts';
 import { registerProviderAccountsRuntimeCommands } from './commands/provider-accounts-runtime.ts';
 import { registerConversationRuntimeCommands } from './commands/conversation-runtime.ts';
@@ -85,6 +86,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerExperienceRuntimeCommands(registry);
   registerTasksRuntimeCommands(registry);
   registerLocalProviderRuntimeCommands(registry);
+  registerNetworkScanRuntimeCommands(registry);
   registerHealthRuntimeCommands(registry);
   registerProviderAccountsRuntimeCommands(registry);
   registerConversationRuntimeCommands(registry);

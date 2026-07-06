@@ -290,6 +290,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/memory` | Add, search, review, stale, or delete Agent-local memory records. |
 | `/mode` | Manage Agent interaction mode and per-domain verbosity. |
 | `/model` | Select or display the current LLM model. |
+| `/network-scan` | Turn local-network scanning for model servers on or off, or check its status. Off until explicitly turned on; never scans silently on first run. |
 | `/next-error` | Jump to the next error message in the conversation. |
 | `/notes` | Open Agent-local scratchpad notes in the operator workspace. |
 | `/notify` | Manage and send configured Agent webhook notifications. |

@@ -27,8 +27,9 @@ import {
   loadLastConversation,
   writeLastSessionPointer,
 } from '@/runtime/index.ts';
-import { scheduleBackgroundMcpDiscovery, startBackgroundProviderRegistration } from '@/runtime/index.ts';
+import { scheduleBackgroundMcpDiscovery } from '@/runtime/index.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
+import { runGatedLanScan } from './lan-scan-consent.ts';
 import type { ExternalServicesHandle, HostServiceStatus, TurnEvent } from '@/runtime/index.ts';
 import type { UiRuntimeServices } from './ui-services.ts';
 import { createDeferredStartupCoordinator } from '@/runtime/index.ts';
@@ -514,8 +515,14 @@ export async function bootstrapRuntime(
 
   // ── Phase 8: Background provider registration (non-blocking) ────────────
   // These run after the initial render so they don't delay startup.
+  //
+  // Gated: the SDK's discovery pass probes every host on the local subnet
+  // unconditionally, so it is only ever invoked through runGatedLanScan,
+  // which requires an explicit, persisted consent decision first and reframes
+  // whatever the SDK emits into a single honest summary line. See
+  // src/runtime/lan-scan-consent.ts.
 
-  startBackgroundProviderRegistration({
+  runGatedLanScan({
     configManager,
     providerRegistry,
     runtime,
