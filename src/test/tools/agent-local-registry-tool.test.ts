@@ -106,6 +106,82 @@ describe('agent_local_registry tool', () => {
     expect(shown.output).toContain('provenance:');
   });
 
+  test('recall action defaults to semantic: a fact stored with different wording than the query still recalls', async () => {
+    const { tool } = await toolFixture();
+    await tool.execute({
+      domain: 'memory',
+      action: 'create',
+      cls: 'fact',
+      summary: 'User prefers concise morning operator briefings under five bullets.',
+      tags: ['briefing'],
+    });
+
+    // The exact dogfood repro: the query is natural language that does NOT appear as a
+    // literal substring in the stored summary, so a plain LIKE scan (the old default)
+    // would never find it. The default recall action must still surface it.
+    const naturalLanguageQuery = 'how long should morning briefings be';
+    const semantic = await tool.execute({ domain: 'memory', action: 'search', query: naturalLanguageQuery });
+    expect(semantic.success).toBe(true);
+    expect(semantic.output).toContain('operator briefings');
+    expect(semantic.output).toContain('semantic');
+
+    // Prove the literal path really would have missed it — this is the bug being fixed,
+    // not an assumption about it.
+    const literal = await tool.execute({ domain: 'memory', action: 'search', query: naturalLanguageQuery, semantic: false });
+    expect(literal.success).toBe(true);
+    expect(literal.output).toContain('No Agent-local memory records matched');
+    expect(literal.output).toContain('literal');
+  });
+
+  test('recall action reports a score/similarity with each semantic match, never a bare unexplained list', async () => {
+    const { tool } = await toolFixture();
+    await tool.execute({
+      domain: 'memory',
+      action: 'create',
+      cls: 'fact',
+      summary: 'The deploy pipeline requires a green typecheck before merge.',
+    });
+
+    const result = await tool.execute({ domain: 'memory', action: 'search', query: 'deploy pipeline typecheck' });
+    expect(result.success).toBe(true);
+    expect(result.output).toMatch(/match \d+% \(score -?\d+\)/);
+  });
+
+  test('an unhealthy semantic index falls back to literal search with a stated reason, never a silent empty result', async () => {
+    const { paths } = await toolFixture();
+    const configManager = new ConfigManager({
+      surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+      configDir: paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT),
+      workingDir: paths.workingDirectory,
+    });
+    const embeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
+    const store = new MemoryStore(
+      paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory-disabled-index.sqlite'),
+      { embeddingRegistry, enableVectorIndex: false },
+    );
+    await store.init();
+    const disabledIndexRegistry = new MemoryRegistry(store);
+    const tool = createAgentLocalRegistryTool(paths, disabledIndexRegistry);
+    await tool.execute({
+      domain: 'memory',
+      action: 'create',
+      cls: 'fact',
+      summary: 'Recorded while the semantic index is disabled.',
+    });
+
+    const result = await tool.execute({ domain: 'memory', action: 'search', query: 'semantic index disabled' });
+
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('literal fallback');
+    expect(result.output).toContain('disabled');
+    // The stated reason must appear even though the query matched nothing (empty result
+    // must still say WHY, not just "no records matched").
+    const emptyResult = await tool.execute({ domain: 'memory', action: 'search', query: 'no match at all here' });
+    expect(emptyResult.success).toBe(true);
+    expect(emptyResult.output).toContain('literal fallback');
+    await store.close();
+  });
+
   test('deletes Agent-local records only after explicit confirmation', async () => {
     const { paths, tool } = await toolFixture();
     const created = await tool.execute({

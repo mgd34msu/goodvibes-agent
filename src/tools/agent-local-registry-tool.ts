@@ -1,54 +1,35 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { ShellPathService } from '@/runtime/index.ts';
-import { MemoryRegistry, type MemoryClass, type MemoryRecord, type MemoryScope } from '@pellux/goodvibes-sdk/platform/state';
+import { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { AgentPersonaRegistry, type AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { AgentNoteRegistry, type AgentNoteRecord } from '../agent/note-registry.ts';
 import { AgentRoutineRegistry, type AgentRoutineRecord } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, type AgentSkillBundleRecord, type AgentSkillRecord } from '../agent/skill-registry.ts';
-import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
-import { formatAgentRecordOrigin, formatAgentRecordReference, formatAgentRecordReviewState } from '../agent/record-labels.ts';
+import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import { buildAgentLocalRequirements } from './agent-local-registry-requirements.ts';
+import {
+  AGENT_TOOL_PROVENANCE,
+  type AgentLocalRegistryToolArgs,
+  readAffirmative,
+  readString,
+  readStringList,
+  registryError,
+  registryOutput,
+  requireConfirmedDelete,
+  requireDescription,
+  requireId,
+  requireName,
+  requireTextField,
+} from './agent-local-registry-args.ts';
+import { handleMemory, MEMORY_CLASSES, MEMORY_SCOPES } from './agent-local-registry-memory.ts';
 
 export type AgentLocalRegistryDomain = 'memory' | 'note' | 'persona' | 'skill' | 'skill_bundle' | 'routine';
 export type AgentLocalRegistryAction = 'list' | 'search' | 'get' | 'create' | 'update' | 'enable' | 'disable' | 'review' | 'stale' | 'use' | 'clear_active' | 'start' | 'delete';
-
-export interface AgentLocalRegistryToolArgs {
-  readonly domain?: unknown;
-  readonly action?: unknown;
-  readonly id?: unknown;
-  readonly query?: unknown;
-  readonly cls?: unknown;
-  readonly scope?: unknown;
-  readonly summary?: unknown;
-  readonly detail?: unknown;
-  readonly confidence?: unknown;
-  readonly title?: unknown;
-  readonly name?: unknown;
-  readonly description?: unknown;
-  readonly body?: unknown;
-  readonly sourceUrl?: unknown;
-  readonly procedure?: unknown;
-  readonly steps?: unknown;
-  readonly skills?: unknown;
-  readonly skillIds?: unknown;
-  readonly requiresEnv?: unknown;
-  readonly requiresCommands?: unknown;
-  readonly triggers?: unknown;
-  readonly tags?: unknown;
-  readonly reason?: unknown;
-  readonly enabled?: unknown;
-  readonly activate?: unknown;
-  readonly provenance?: unknown;
-  readonly confirm?: unknown;
-  readonly explicitUserRequest?: unknown;
-}
+export type { AgentLocalRegistryToolArgs } from './agent-local-registry-args.ts';
 
 const DOMAINS: readonly AgentLocalRegistryDomain[] = ['memory', 'note', 'persona', 'skill', 'skill_bundle', 'routine'];
 const ACTIONS: readonly AgentLocalRegistryAction[] = ['list', 'search', 'get', 'create', 'update', 'enable', 'disable', 'review', 'stale', 'use', 'clear_active', 'start', 'delete'];
-const MEMORY_CLASSES: readonly MemoryClass[] = ['decision', 'constraint', 'incident', 'pattern', 'fact', 'risk', 'runbook', 'architecture', 'ownership'];
-const MEMORY_SCOPES: readonly MemoryScope[] = ['session', 'project', 'team'];
-const AGENT_TOOL_PROVENANCE = 'agent-local-registry-tool';
 
 function isDomain(value: unknown): value is AgentLocalRegistryDomain {
   return typeof value === 'string' && DOMAINS.includes(value as AgentLocalRegistryDomain);
@@ -56,206 +37,6 @@ function isDomain(value: unknown): value is AgentLocalRegistryDomain {
 
 function isAction(value: unknown): value is AgentLocalRegistryAction {
   return typeof value === 'string' && ACTIONS.includes(value as AgentLocalRegistryAction);
-}
-
-function readString(value: unknown): string {
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function readAffirmative(value: unknown): boolean {
-  const normalized = readString(value).toLowerCase(); return value === true || (typeof value === 'string' && (normalized === '' || normalized === 'yes' || normalized === 'y' || normalized === 'true' || normalized === 'on'));
-}
-
-function readStringList(value: unknown): readonly string[] {
-  if (typeof value === 'string') {
-    return value.split(',').map((entry) => entry.trim()).filter(Boolean);
-  }
-  if (!Array.isArray(value)) return [];
-  return value.filter((entry): entry is string => typeof entry === 'string').map((entry) => entry.trim()).filter(Boolean);
-}
-
-function readOptionalNumber(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value !== 'string' || !value.trim()) return undefined;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function readOptionalConfidence(value: unknown): number | undefined {
-  const confidence = readOptionalNumber(value);
-  if (confidence === undefined) return undefined;
-  if (confidence < 0 || confidence > 100) throw new Error('confidence must be between 0 and 100.');
-  return confidence;
-}
-
-function isMemoryClass(value: unknown): value is MemoryClass {
-  return typeof value === 'string' && MEMORY_CLASSES.includes(value as MemoryClass);
-}
-
-function isMemoryScope(value: unknown): value is MemoryScope {
-  return typeof value === 'string' && MEMORY_SCOPES.includes(value as MemoryScope);
-}
-
-function registryError(message: string): { readonly success: false; readonly error: string } {
-  return { success: false, error: message };
-}
-
-function registryOutput(output: string): { readonly success: true; readonly output: string } {
-  return { success: true, output };
-}
-
-function requireId(args: AgentLocalRegistryToolArgs): string {
-  const id = readString(args.id);
-  if (!id) throw new Error('id is required.');
-  return id;
-}
-
-function requireConfirmedDelete(args: AgentLocalRegistryToolArgs, label: string): void {
-  const explicitUserRequest = readString(args.explicitUserRequest);
-  if (!explicitUserRequest) throw new Error(`${label} deletion requires explicitUserRequest with the user's exact request or a short faithful summary.`);
-  if (args.confirm !== true) throw new Error(`${label} deletion requires confirm:true after an explicit user request.`);
-}
-
-function requireName(args: AgentLocalRegistryToolArgs): string {
-  const name = readString(args.name);
-  if (!name) throw new Error('name is required.');
-  return name;
-}
-
-function requireDescription(args: AgentLocalRegistryToolArgs): string {
-  const description = readString(args.description);
-  if (!description) throw new Error('description is required.');
-  return description;
-}
-
-function requireTextField(value: unknown, fieldName: string): string {
-  const text = readString(value);
-  if (!text) throw new Error(`${fieldName} is required.`);
-  return text;
-}
-
-function requireSummary(args: AgentLocalRegistryToolArgs): string {
-  const summary = readString(args.summary || args.description);
-  if (!summary) throw new Error('summary is required.');
-  return summary;
-}
-
-function requireMemoryClass(args: AgentLocalRegistryToolArgs): MemoryClass {
-  const cls = args.cls || 'fact';
-  if (!isMemoryClass(cls)) throw new Error(`Invalid memory class. Valid values ${MEMORY_CLASSES.join(', ')}.`);
-  return cls;
-}
-
-function readMemoryScope(args: AgentLocalRegistryToolArgs): MemoryScope {
-  const scope = args.scope || 'project';
-  if (!isMemoryScope(scope)) throw new Error(`Invalid memory scope. Valid values ${MEMORY_SCOPES.join(', ')}.`);
-  return scope;
-}
-
-function formatMemory(record: MemoryRecord): string {
-  const tags = record.tags.length > 0 ? ` tags ${record.tags.join(', ')}` : '';
-  return `${record.id}  ${record.scope}/${record.cls}  ${formatAgentRecordReviewState(record.reviewState)}  ${record.confidence}%${tags}  ${record.summary}`;
-}
-
-async function handleMemory(registry: MemoryRegistry, action: AgentLocalRegistryAction, args: AgentLocalRegistryToolArgs): Promise<string> {
-    if (action === 'list') {
-      const records = registry.getAll();
-      return records.length === 0
-        ? 'Agent-local memory\nNo Agent-local memory records.'
-        : ['Agent-local memory', ...records.map(formatMemory)].join('\n');
-    }
-    if (action === 'search') {
-      const query = readString(args.query);
-      const records = registry.search({ query, limit: 10 });
-      return records.length === 0
-        ? `Agent-local memory search\nNo Agent-local memory records matched "${query}".`
-        : ['Agent-local memory search', `query ${query || '(all)'}`, ...records.map(formatMemory)].join('\n');
-    }
-    if (action === 'get') {
-      const record = registry.get(requireId(args));
-      if (!record) return `Unknown Agent-local memory ${readString(args.id)}`;
-      return [
-        formatMemory(record),
-        `created ${new Date(record.createdAt).toISOString()}`,
-        `updated ${new Date(record.updatedAt).toISOString()}`,
-        `origin ${record.provenance.map((entry) => formatAgentRecordReference({ kind: String(entry.kind), ref: String(entry.ref) })).join(', ') || '(none)'}`,
-        `provenance: ${record.provenance.map((entry) => `${String(entry.kind)}:${String(entry.ref)}`).join(',') || '(none)'}`,
-        '',
-        record.detail || '(no detail)',
-      ].join('\n');
-    }
-    if (action === 'create') {
-      const summary = requireSummary(args);
-      const detail = readString(args.detail || args.body);
-      const tags = readStringList(args.tags);
-      const confidence = readOptionalConfidence(args.confidence);
-      assertNoSecretLikeMemoryText([summary, detail, ...tags]);
-      const record = await registry.add({
-        scope: readMemoryScope(args),
-        cls: requireMemoryClass(args),
-        summary,
-        detail,
-        tags: [...tags],
-        ...(confidence === undefined ? {} : { review: { state: 'fresh' as const, confidence } }),
-        provenance: [{ kind: 'event', ref: readString(args.provenance) || AGENT_TOOL_PROVENANCE }],
-      });
-      return [
-        'Created Agent-local memory',
-        `  id ${record.id}`,
-        `  summary ${record.summary}`,
-      ].join('\n');
-    }
-    if (action === 'update') {
-      const summary = readString(args.summary || args.description);
-      const detail = readString(args.detail || args.body);
-      const tags = args.tags === undefined ? undefined : [...readStringList(args.tags)];
-      assertNoSecretLikeMemoryText([summary, detail, ...(tags ?? [])]);
-      const record = registry.update(requireId(args), {
-        summary: summary || undefined,
-        detail: detail || undefined,
-        tags,
-        scope: args.scope === undefined ? undefined : readMemoryScope(args),
-      });
-      if (!record) return `Unknown Agent-local memory ${readString(args.id)}`;
-      return [
-        'Updated Agent-local memory',
-        `  id ${record.id}`,
-        `  summary ${record.summary}`,
-      ].join('\n');
-    }
-    if (action === 'review') {
-      const record = registry.review(requireId(args), {
-        state: 'reviewed',
-        confidence: readOptionalConfidence(args.confidence),
-        reviewedBy: 'agent',
-      });
-      if (!record) return `Unknown Agent-local memory ${readString(args.id)}`;
-      return [
-        'Reviewed Agent-local memory',
-        `  id ${record.id}`,
-      ].join('\n');
-    }
-    if (action === 'stale') {
-      const record = registry.review(requireId(args), {
-        state: 'stale',
-        staleReason: readString(args.reason) || 'Marked stale by Agent.',
-      });
-      if (!record) return `Unknown Agent-local memory ${readString(args.id)}`;
-      return [
-        'Marked Agent-local memory stale',
-        `  id ${record.id}`,
-      ].join('\n');
-    }
-    if (action === 'delete') {
-      const id = requireId(args);
-      requireConfirmedDelete(args, 'Agent-local memory');
-      if (!registry.delete(id)) return `Unknown Agent-local memory ${id}`;
-      return [
-        'Deleted Agent-local memory',
-        `  id ${id}`,
-      ].join('\n');
-    }
-    throw new Error(`Action ${action} is not valid for memory.`);
 }
 
 function formatNote(note: AgentNoteRecord): string {
@@ -743,6 +524,7 @@ export function createAgentLocalRegistryTool(shellPaths: ShellPathService, memor
           action: { type: 'string', enum: [...ACTIONS] },
           id: { type: 'string' },
           query: { type: 'string' },
+          semantic: { type: 'boolean', description: 'Memory search only: defaults to true (semantic recall). Pass false to force a literal substring search instead.' },
           cls: { type: 'string', enum: [...MEMORY_CLASSES], description: 'Memory class when domain is memory.' },
           scope: { type: 'string', enum: [...MEMORY_SCOPES], description: 'Memory scope when domain is memory.' },
           summary: { type: 'string', description: 'Memory summary when domain is memory.' },

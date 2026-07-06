@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ShellPathService } from '@/runtime/index.ts';
-import { buildReviewedMemoryPrompt, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE } from './memory-prompt.ts';
+import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory } from './memory-prompt.ts';
 import { AgentPersonaRegistry, buildActivePersonaPrompt } from './persona-registry.ts';
 import { buildProjectContextPrompt, discoverProjectContextFiles } from './project-context-files.ts';
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from './routine-registry.ts';
@@ -231,17 +231,29 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       suppressedCount: suppressedMemory.length,
       promptChars: memoryPrompt.length,
       promptText: memoryPrompt,
-      selected: activeMemory.map((record) => ({ id: record.id, scope: record.scope, class: record.cls, confidence: record.confidence })),
-      suppressed: suppressedMemory.slice(0, 12).map((record) => ({
+      selected: activeMemory.map((record) => ({
         id: record.id,
-        reviewState: record.reviewState,
+        scope: record.scope,
+        class: record.cls,
         confidence: record.confidence,
-        reason: record.reviewState !== 'reviewed'
-          ? 'not reviewed'
-          : record.confidence < MIN_PROMPT_MEMORY_CONFIDENCE
-            ? `confidence below ${MIN_PROMPT_MEMORY_CONFIDENCE}`
-            : 'outside prompt limit',
+        reason: describeMemoryPromptEligibility(record).reason,
       })),
+      suppressed: suppressedMemory.slice(0, 12).map((record) => {
+        // Honest, per-record reason (confidence + reviewState + provenance) — never a
+        // blanket "not reviewed"/"outside prompt limit" guess. A record lands in
+        // "suppressed" either because it genuinely failed eligibility, or because it
+        // passed eligibility but the top-10 prompt slice cut it off — those are
+        // different situations and must read differently.
+        const eligibility = describeMemoryPromptEligibility(record);
+        return {
+          id: record.id,
+          reviewState: record.reviewState,
+          confidence: record.confidence,
+          reason: eligibility.eligible
+            ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice — budget-limited, not a trust problem`
+            : eligibility.reason,
+        };
+      }),
     }),
     receiptSegment({
       id: 'routines',

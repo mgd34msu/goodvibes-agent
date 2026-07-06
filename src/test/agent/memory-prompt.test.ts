@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
-import { buildReviewedMemoryPrompt } from '../../agent/memory-prompt.ts';
+import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE } from '../../agent/memory-prompt.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 async function withMemoryRegistry<T>(fn: (registry: MemoryRegistry) => Promise<T>): Promise<T> {
@@ -25,6 +25,16 @@ async function withMemoryRegistry<T>(fn: (registry: MemoryRegistry) => Promise<T
     store.close();
   }
 }
+
+describe('MIN_PROMPT_MEMORY_CONFIDENCE', () => {
+  test('matches the SDK MemoryStore store-time default confidence (60), not an arbitrary higher floor', () => {
+    // This is the crux of the W4-A1 fix: the SDK stores every new record at confidence
+    // 60 by default. A floor above that (the old value was 70) makes fresh recall
+    // structurally impossible without an explicit confidence bump — starvation, not a
+    // trust filter.
+    expect(MIN_PROMPT_MEMORY_CONFIDENCE).toBe(60);
+  });
+});
 
 describe('buildReviewedMemoryPrompt', () => {
   test('renders reviewed Agent-local memory in confidence order', async () => {
@@ -54,40 +64,91 @@ describe('buildReviewedMemoryPrompt', () => {
     });
   });
 
-  test('excludes fresh stale and low-confidence memory', async () => {
+  test('a genuinely-stored fresh fact (store-default confidence, never reviewed) recalls in a fresh session', async () => {
+    // The dogfood repro from the W4-A1 brief: store a fact with no explicit confidence
+    // (so it lands at the SDK's own default of 60, reviewState 'fresh'), then build a
+    // brand-new prompt (as a fresh session would) and confirm it shows up. Before this
+    // fix, a fresh record's confidence (60) could never clear a 70 floor, so a fact
+    // stored in one session silently never recalled in the next.
     await withMemoryRegistry(async (registry) => {
-      const fresh = await registry.add({
+      const fact = await registry.add({
         scope: 'project',
         cls: 'fact',
-        summary: 'Fresh records should wait for review.',
-        provenance: [{ kind: 'event', ref: 'fresh' }],
+        summary: 'User prefers dark mode in the editor.',
+        provenance: [{ kind: 'event', ref: 'fresh-session-repro' }],
       });
+      expect(fact.reviewState).toBe('fresh');
+      expect(fact.confidence).toBe(60);
+
+      const prompt = buildReviewedMemoryPrompt(registry);
+
+      expect(prompt).not.toBeNull();
+      expect(prompt).toContain('User prefers dark mode in the editor.');
+      expect(isPromptActiveMemory(fact)).toBe(true);
+    });
+  });
+
+  test('excludes stale and contradicted memory regardless of confidence, and explicitly low-confidence memory', async () => {
+    await withMemoryRegistry(async (registry) => {
       const stale = await registry.add({
         scope: 'project',
         cls: 'fact',
-        summary: 'Stale records should stay out.',
+        summary: 'Stale records should stay out no matter how confident they once were.',
         provenance: [{ kind: 'event', ref: 'stale' }],
       });
       const low = await registry.add({
         scope: 'project',
         cls: 'fact',
-        summary: 'Low confidence records should stay out.',
+        summary: 'Explicitly low-confidence records should stay out.',
         provenance: [{ kind: 'event', ref: 'low' }],
       });
-      const borderline = await registry.add({
-        scope: 'project',
-        cls: 'fact',
-        summary: 'Borderline records should stay out too.',
-        provenance: [{ kind: 'event', ref: 'borderline' }],
-      });
-      registry.review(stale.id, { state: 'stale', staleReason: 'Outdated' });
-      registry.review(low.id, { state: 'reviewed', confidence: 49, reviewedBy: 'test' });
-      registry.review(borderline.id, { state: 'reviewed', confidence: 69, reviewedBy: 'test' });
+      registry.review(stale.id, { state: 'stale', staleReason: 'Outdated', confidence: 95 });
+      registry.review(low.id, { state: 'reviewed', confidence: 40, reviewedBy: 'test' });
 
       const prompt = buildReviewedMemoryPrompt(registry);
 
       expect(prompt).toBeNull();
-      expect(fresh.reviewState).toBe('fresh');
+      const staleEligibility = describeMemoryPromptEligibility({ ...stale, reviewState: 'stale', confidence: 95 });
+      expect(staleEligibility.eligible).toBe(false);
+      expect(staleEligibility.reason).toContain('stale');
+      const lowEligibility = describeMemoryPromptEligibility({ ...low, reviewState: 'reviewed', confidence: 40 });
+      expect(lowEligibility.eligible).toBe(false);
+      expect(lowEligibility.reason).toContain('confidence');
     });
+  });
+});
+
+describe('describeMemoryPromptEligibility', () => {
+  test('never returns a blanket-boosted confidence — the reported reason always reflects the record’s own stored confidence and reviewState', async () => {
+    await withMemoryRegistry(async (registry) => {
+      const record = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'Some fact.',
+        provenance: [{ kind: 'session', ref: 'session-123' }],
+      });
+      const decision = describeMemoryPromptEligibility(record);
+      expect(decision.eligible).toBe(true);
+      expect(decision.reason).toContain('60%');
+      expect(decision.reason).toContain('fresh');
+      expect(decision.reason).toContain('session:session-123');
+    });
+  });
+
+  test('surfaces "no provenance recorded" honestly instead of hiding it', () => {
+    const decision = describeMemoryPromptEligibility({
+      id: 'mem-no-provenance',
+      scope: 'project',
+      cls: 'fact',
+      summary: 'No provenance.',
+      tags: [],
+      provenance: [],
+      reviewState: 'fresh',
+      confidence: 60,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    expect(decision.eligible).toBe(true);
+    expect(decision.reason).toContain('no provenance recorded');
   });
 });
