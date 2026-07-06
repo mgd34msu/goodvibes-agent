@@ -30,6 +30,7 @@ import {
 import { scheduleBackgroundMcpDiscovery } from '@/runtime/index.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
 import { runGatedLanScan } from './lan-scan-consent.ts';
+import { scheduleCalendarSubscriptionBootRefresh } from './calendar-boot-refresh.ts';
 import type { ExternalServicesHandle, HostServiceStatus, TurnEvent } from '@/runtime/index.ts';
 import type { UiRuntimeServices } from './ui-services.ts';
 import { createDeferredStartupCoordinator } from '@/runtime/index.ts';
@@ -549,6 +550,17 @@ export async function bootstrapRuntime(
     systemMessageRouter,
     shellPaths: services.shellPaths,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+  });
+  // W4-A9: refresh explicitly-subscribed external calendar feeds that are DUE
+  // per their own bounded interval (conditional 304 requests keep it cheap).
+  // Consent was given at subscribe time ("now and on each refresh"); with no
+  // subscriptions this touches nothing. Non-blocking — boot never waits on it;
+  // one honest aggregate line only when something refreshed or failed.
+  void scheduleCalendarSubscriptionBootRefresh({
+    shellPaths: services.shellPaths,
+    secretsManager: services.secretsManager,
+    systemMessageRouter,
+    requestRender,
   });
   const mcpDiscovery = scheduleBackgroundMcpDiscovery({
     mcpRegistry: services.mcpRegistry,
