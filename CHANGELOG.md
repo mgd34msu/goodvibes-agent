@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.9 - 2026-07-06
+
+- Fixed spoken output (text-to-speech) so playback no longer clips at the start: the Agent now waits until the audio player has actually started before sending it audio, instead of writing into a player that hasn't opened yet.
+- Fixed responses getting cut off at the end: playback now waits for the audio to fully drain before counting a response as finished, and quitting while the last bit of audio is still playing waits briefly for it to finish instead of killing it mid-sentence. A deliberate interrupt (stopping playback on purpose) still stops instantly.
+- Synthesis requests to the voice provider are now batched into as few requests as possible and capped at two running at the same time, so the Agent stays within the provider's concurrent-request limits (for example, an ElevenLabs plan's allowance) instead of firing one request per sentence.
+- Transient rate-limit errors from the voice provider now retry quietly in the background instead of stopping playback. If a piece of speech still fails after retrying, that piece is skipped with a single notice and the rest of the response keeps playing normally.
+
 ## 1.5.8 - 2026-07-06
 
 - The `memory` CLI command (`goodvibes-agent memory ...`) now writes to the same shared cross-surface memory store that the runtime, the terminal UI, and the SDK already read and write. Previously the CLI opened its own private database, so a memory added from the CLI was invisible everywhere else; a memory added from the CLI is now visible in the Agent runtime, the TUI, and the SDK, and vice versa.
