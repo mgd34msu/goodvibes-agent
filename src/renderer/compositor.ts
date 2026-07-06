@@ -4,6 +4,7 @@ import { type Line, createEmptyCell, createEmptyLine, createStyledCell } from '.
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import type { SearchManager } from '../input/search.ts';
 import { allowTerminalWrite } from '../runtime/terminal-output-guard.ts';
+import { probeTermCaps, type TermColorCaps } from './term-caps.ts';
 
 export interface SelectionInfo {
   isCellSelected: (col: number, absoluteRow: number) => boolean;
@@ -43,9 +44,24 @@ export class Compositor {
   /** Double-buffer reuse: back is written, front is the last-rendered reference. */
   private frontBuffer: TerminalBuffer | null = null;
   private backBuffer: TerminalBuffer | null = null;
-  private diffEngine = new DiffEngine();
+  private readonly caps: TermColorCaps;
+  private diffEngine: DiffEngine;
 
-  constructor(private stdout: NodeJS.WriteStream) {}
+  constructor(private stdout: NodeJS.WriteStream) {
+    // Probe terminal color capabilities once at construction time so the
+    // DiffEngine downsamples every emitted SGR to the terminal's real level.
+    // The hardcoded truecolor search-highlight hex below (and any future theme
+    // colors) is therefore cap-gated — no raw #rrggbb leaks on a non-truecolor
+    // terminal. (R4 later replaces the hardcoded hex with live activeTheme()
+    // reads in its tone-read region; this R2 region owns only the caps wiring.)
+    this.caps = probeTermCaps(stdout);
+    this.diffEngine = new DiffEngine(this.caps);
+  }
+
+  /** Exposed for unit tests — returns the detected color capability. */
+  public get termCapsForTest(): TermColorCaps {
+    return this.caps;
+  }
 
   /** Exposed for unit tests — returns the last composited buffer. */
   public get lastBufferForTest(): TerminalBuffer | null {
