@@ -229,6 +229,14 @@ function memorySegment(memory: PromptMemoryApi | undefined, includeParameters: b
     suppressedCount: suppressed.length,
     promptChars: promptText.length,
     promptText,
+    // F7c: this segment orders the eligible set by stored confidence/recency
+    // (memorySort), NOT by relevance to the current turn. The `context
+    // action:"receipt"` surface (prompt-context-receipts.ts) additionally
+    // ranks the same eligible set by per-turn semantic relevance when that
+    // scoring succeeds. Stating the ordering basis here up front keeps the
+    // two memory surfaces from reading as contradictory when their orders
+    // differ for the same eligible records.
+    note: 'Ordered by stored confidence/recency, not by relevance to the current turn — see context action:"receipt" for per-turn relevance scoring.',
     route: 'memory action:"status"',
     selected: active.map((record) => ({
       id: record.id,

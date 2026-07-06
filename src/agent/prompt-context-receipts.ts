@@ -4,7 +4,7 @@ import { dirname } from 'node:path';
 import type { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ShellPathService } from '@/runtime/index.ts';
-import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, rankMemoryForTurn } from './memory-prompt.ts';
+import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, rankMemoryForTurn, relevanceBand } from './memory-prompt.ts';
 import { AgentPersonaRegistry, buildActivePersonaPrompt } from './persona-registry.ts';
 import { buildProjectContextPrompt, discoverProjectContextFiles } from './project-context-files.ts';
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from './routine-registry.ts';
@@ -244,7 +244,9 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
         confidence: record.confidence,
         reason: describeMemoryPromptEligibility(record).reason,
         // Per-turn relevance (W4-A1B): honest wording, only present when actually scored.
-        ...(memoryRanking.scored ? { relevance: `relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}%` } : {}),
+        // F7a: the raw percent is paired with a qualitative band (see relevanceBand)
+        // so a genuinely-lower-but-real score like "28%" doesn't read as noise.
+        ...(memoryRanking.scored ? { relevance: `relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}% (${relevanceBand(memoryRanking.relevanceById.get(record.id) ?? 0)})` } : {}),
       })),
       suppressed: suppressedMemory.slice(0, 12).map((record) => {
         // Honest, per-record reason (confidence + reviewState + provenance) — never a
@@ -256,7 +258,7 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
         // budget-limited cut reads as "less relevant than the other ten", not arbitrary.
         const eligibility = describeMemoryPromptEligibility(record);
         const relevanceSuffix = memoryRanking.scored
-          ? ` (relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}%)`
+          ? ` (relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}% — ${relevanceBand(memoryRanking.relevanceById.get(record.id) ?? 0)})`
           : '';
         return {
           id: record.id,

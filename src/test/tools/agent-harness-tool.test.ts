@@ -2142,6 +2142,10 @@ describe('agent_harness tool', () => {
       // mem-unreviewed (confidence 91) is now ACTIVE: autonomous-learning change dropped the reviewState gate.
       expect(memory?.selected?.some((record) => record.id === 'mem-unreviewed')).toBe(true);
       expect(memory?.preview).toContain('Reviewed GoodVibes Agent Memory');
+      // F7c: the memory segment states its own ordering basis so it never reads
+      // as contradicting the separately-ranked context action:"receipt" surface.
+      expect((memory as unknown as { readonly note?: string })?.note).toContain('confidence/recency');
+      expect((memory as unknown as { readonly note?: string })?.note).toContain('not by relevance to the current turn');
 
       const vibe = promptContext.segments.find((segment) => segment.id === 'vibe');
       expect(vibe?.selected?.[0]?.path).toBe(join(fixture.root, 'VIBE.md'));

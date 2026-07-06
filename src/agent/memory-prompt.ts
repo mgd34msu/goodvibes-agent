@@ -117,6 +117,26 @@ function describeTurnRelevanceIndexUnavailable(stats: MemoryVectorStats): string
   return null;
 }
 
+/**
+ * Qualitative band for a 0-100 relevance-to-turn percent (F7a).
+ *
+ * A raw cosine-similarity percent like "28%" reads as misleadingly low out of
+ * context — it can still be the single best match among the eligible set, or
+ * a genuinely useful match on an absolute basis, but a bare number invites
+ * "only 28%? that's barely relevant." Choice made here: add a qualitative
+ * band NEXT TO the raw percent rather than normalizing against the turn's
+ * top score. Normalizing would make every record but the single best one
+ * read as comparatively weak even when several are strong matches in
+ * absolute terms, and would make a genuinely weak top match look like a
+ * confident 100%. A fixed absolute band keeps the number honest while
+ * making it readable at a glance.
+ */
+export function relevanceBand(percent: number): 'high match' | 'moderate match' | 'low match' {
+  if (percent >= 60) return 'high match';
+  if (percent >= 35) return 'moderate match';
+  return 'low match';
+}
+
 export function rankMemoryForTurn(
   memoryRegistry: MemoryRegistry,
   eligible: readonly MemoryRecord[],

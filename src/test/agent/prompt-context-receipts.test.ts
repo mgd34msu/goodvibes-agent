@@ -154,8 +154,10 @@ describe('prompt context receipts', () => {
       expect(memorySegment?.note).toBeUndefined();
       const onTopicSelected = memorySegment?.selected?.find((entry) => entry.id === onTopic.id);
       const offTopicSelected = memorySegment?.selected?.find((entry) => entry.id === offTopic.id);
-      expect(String(onTopicSelected?.relevance ?? '')).toMatch(/^relevance to this turn: \d+%$/);
-      expect(String(offTopicSelected?.relevance ?? '')).toMatch(/^relevance to this turn: \d+%$/);
+      // F7a: the raw percent is paired with a qualitative band so a genuinely-lower
+      // score doesn't read as noise on its own.
+      expect(String(onTopicSelected?.relevance ?? '')).toMatch(/^relevance to this turn: \d+% \((high|moderate|low) match\)$/);
+      expect(String(offTopicSelected?.relevance ?? '')).toMatch(/^relevance to this turn: \d+% \((high|moderate|low) match\)$/);
       const onTopicPercent = Number(String(onTopicSelected?.relevance).match(/(\d+)%/)?.[1] ?? '0');
       const offTopicPercent = Number(String(offTopicSelected?.relevance).match(/(\d+)%/)?.[1] ?? '0');
       expect(onTopicPercent).toBeGreaterThan(offTopicPercent);

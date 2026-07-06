@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
-import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE, rankMemoryForTurn } from '../../agent/memory-prompt.ts';
+import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE, rankMemoryForTurn, relevanceBand } from '../../agent/memory-prompt.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 async function withMemoryRegistry<T>(fn: (registry: MemoryRegistry) => Promise<T>): Promise<T> {
@@ -279,5 +279,18 @@ describe('rankMemoryForTurn (Wave-4 W4-A1B: per-turn semantic scoring)', () => {
 
       expect(prompt).toBeNull();
     });
+  });
+});
+
+describe('relevanceBand (F7a)', () => {
+  test('bands a raw relevance percent so a genuinely-lower-but-real score does not read as noise', () => {
+    expect(relevanceBand(0)).toBe('low match');
+    expect(relevanceBand(28)).toBe('low match');
+    expect(relevanceBand(34)).toBe('low match');
+    expect(relevanceBand(35)).toBe('moderate match');
+    expect(relevanceBand(50)).toBe('moderate match');
+    expect(relevanceBand(59)).toBe('moderate match');
+    expect(relevanceBand(60)).toBe('high match');
+    expect(relevanceBand(100)).toBe('high match');
   });
 });

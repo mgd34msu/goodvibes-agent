@@ -33,6 +33,20 @@ function withSubscribedSection(localBlock: string, subscribed: string): string {
   return subscribed ? `${localBlock}\n\n${subscribed}` : localBlock;
 }
 
+/**
+ * F7b: the old unknown-subcommand usage line was one 13-verb run-on
+ * ("list|upcoming ...|connect ...|disconnect ...|accounts|import ...|export
+ * ...|add ...|delete ...|subscribe ...|unsubscribe ...|subscriptions|refresh
+ * ..."), unreadable at a glance. Grouped by what each verb is FOR instead.
+ */
+const CALENDAR_USAGE_MESSAGE = [
+  'Usage: /calendar <command>',
+  '  Viewing         list | upcoming [--days N]',
+  '  Connecting      connect <google|outlook> [--device] | disconnect <google|outlook> | accounts',
+  '  Subscriptions   subscribe <ics-url> [--name N] [--every MIN] [--yes] | unsubscribe <name> --yes | subscriptions | refresh [name]',
+  '  Local events    add --title <title> --start <ISO> --yes | delete <id> --yes | import <path> [--yes] | export [--dest <path>] [--yes]',
+].join('\n');
+
 const CALENDAR_VALUE_FLAGS = ['title', 'start', 'end', 'location', 'notes', 'dest', 'path', 'days'] as const;
 
 function parseCalendarArgs(args: readonly string[]) {
@@ -273,7 +287,7 @@ export async function runCalendarRuntimeCommand(args: readonly string[], ctx: Co
       return;
     }
 
-    ctx.print('Usage: /calendar [list|upcoming [--days N]|connect <google|outlook> [--device]|disconnect <google|outlook>|accounts|import <path> [--yes]|export [--dest <path>] [--yes]|add --title <title> --start <ISO> --yes|delete <id> --yes|subscribe <ics-url> [--name N] [--every MIN] [--yes]|unsubscribe <name> --yes|subscriptions|refresh [name]]');
+    ctx.print(CALENDAR_USAGE_MESSAGE);
   } catch (error) {
     printError(ctx, error);
   }
