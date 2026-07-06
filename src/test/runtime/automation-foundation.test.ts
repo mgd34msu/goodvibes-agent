@@ -59,8 +59,12 @@ describe('automation/control-plane foundation', () => {
   test('feature flag manager registers automation and gateway cutover flags', () => {
     const flags = createFeatureFlagManager();
 
+    // `control-plane-gateway` is the one tier-10 flag that defaults ON (One-Platform
+    // Wave 1): a stock daemon must be able to stream companion chat over SSE without
+    // any config, so this flag is enabled out of the box while its automation/routing
+    // siblings stay off until individually validated.
     expect(flags.isEnabled('automation-domain')).toBe(false);
-    expect(flags.isEnabled('control-plane-gateway')).toBe(false);
+    expect(flags.isEnabled('control-plane-gateway')).toBe(true);
 
     flags.loadFromConfig({
       flags: {
