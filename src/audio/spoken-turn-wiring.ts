@@ -1,13 +1,17 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { UiRuntimeEvents } from '@/runtime/index.ts';
 import type { VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
+import type { StreamingAudioPlayer } from './player.ts';
 import { LocalStreamingAudioPlayer } from './player.ts';
 import { SpokenTurnController } from './spoken-turn-controller.ts';
 
 export interface SpokenTurnRuntime {
   readonly unsubs: readonly (() => void)[];
   submitNextTurn(prompt: string): boolean;
-  stop(message?: string): void;
+  /** Returns whether speech was actually active (see controller.stop). */
+  stop(message?: string): boolean;
+  /** Exit-path stop: lets the audio already playing drain, bounded (see controller.stopForExit). */
+  stopForExit(drainTimeoutMs?: number): Promise<void>;
 }
 
 export interface WireSpokenTurnRuntimeOptions {
@@ -15,13 +19,19 @@ export interface WireSpokenTurnRuntimeOptions {
   readonly configManager: ConfigManager;
   readonly events: UiRuntimeEvents;
   readonly notify: (message: string) => void;
+  /**
+   * Optional player factory — injected in tests to avoid spawning real
+   * subprocesses. Defaults to LocalStreamingAudioPlayer.
+   */
+  readonly playerFactory?: () => StreamingAudioPlayer;
 }
 
 export function wireSpokenTurnRuntime(options: WireSpokenTurnRuntimeOptions): SpokenTurnRuntime {
+  const player = options.playerFactory ? options.playerFactory() : new LocalStreamingAudioPlayer();
   const controller = new SpokenTurnController({
     voiceService: options.voiceService,
     configManager: options.configManager,
-    player: new LocalStreamingAudioPlayer(),
+    player,
     notify: options.notify,
   });
 
@@ -40,5 +50,6 @@ export function wireSpokenTurnRuntime(options: WireSpokenTurnRuntimeOptions): Sp
     unsubs,
     submitNextTurn: (prompt) => controller.submitNextTurn(prompt),
     stop: (message) => controller.stop(message),
+    stopForExit: (drainTimeoutMs) => controller.stopForExit(drainTimeoutMs),
   };
 }

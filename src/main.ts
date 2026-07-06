@@ -53,6 +53,7 @@ import { FOCUS_ENABLE, FOCUS_DISABLE, installFocusModeExitGuard, markFocusModeEn
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
+import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
@@ -221,43 +222,34 @@ async function main() {
 
   const unsubs: Array<() => void> = [];
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
-  let stopSpokenOutputForExit: (() => void) | null = null;
+  let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   let recoveryPending = false;
 
   const sigintHandler = (): void => input.feed('\x03');
-  let _unhandledRejectionCount = 0;
-  let _unhandledRejectionWindowStart = Date.now();
-  const unhandledRejectionHandler = (reason: unknown): void => {
-    const now = Date.now();
-    if (now - _unhandledRejectionWindowStart > 10000) {
-      _unhandledRejectionCount = 0;
-      _unhandledRejectionWindowStart = now;
-    }
-    _unhandledRejectionCount++;
-    const msg = reason instanceof Error ? reason.message : String(reason);
-    if (_unhandledRejectionCount > 3) {
-      logger.error('CRITICAL: cascading unhandled rejections — consider restarting', {
-        count: _unhandledRejectionCount,
-        windowMs: now - _unhandledRejectionWindowStart,
-        error: String(reason),
-      });
-      systemMessageRouter.high(
-        `[Critical] Multiple errors detected (${_unhandledRejectionCount} in 10s). If the issue persists, please restart. Latest: ${msg}`
-      );
-    } else {
-      systemMessageRouter.high(`[Error] ${msg}`);
-      logger.error('unhandledRejection', { error: String(reason) });
-    }
-    render();
-  };
+  const unhandledRejectionHandler = createUnhandledRejectionHandler({
+    notifyHigh: (message) => systemMessageRouter.high(message),
+    render: () => render(),
+  });
   const resizeHandler = (): void => {
     input.setContentWidth(getPromptContentWidth());
     compositor.resetDiff();
     render();
   };
 
+  let exiting = false;
   const exitApp = (): void => {
-    stopSpokenOutputForExit?.();
+    // Reentrancy guard: a second /exit or keypress during the bounded
+    // spoken-audio drain below must not re-run teardown.
+    if (exiting) return;
+    exiting = true;
+    // Exit lets the spoken audio the user is already hearing finish inside a
+    // short bounded window (capped inside stopForExit) instead of killing the
+    // player mid-drain; queued-but-unplayed speech is dropped. Deliberate
+    // interrupts (Ctrl+C, /tts stop) still cut instantly via spokenTurns.stop().
+    let spokenOutputDrain: Promise<void> = Promise.resolve();
+    try {
+      spokenOutputDrain = Promise.resolve(stopSpokenOutputForExit?.()).then(() => undefined);
+    } catch { /* non-fatal to exit */ }
     unsubs.forEach(fn => fn());
     // Persist last-seen before shutdown so the next launch can compute the digest.
     autonomy.stop();
@@ -275,7 +267,9 @@ async function main() {
     allowTerminalWrite(() => stdout.write(PASTE_DISABLE + KEYBOARD_EXT_DISABLE + MOUSE_DISABLE + FOCUS_DISABLE + CURSOR_SHOW + exitScreen));
     terminalOutputGuard.dispose();
     stdin.setRawMode(false);
-    process.exit(0);
+    // The terminal is already restored above; only the process exit waits for
+    // the (internally capped, ~2s max) audio drain.
+    void spokenOutputDrain.catch(() => undefined).then(() => process.exit(0));
   };
 
   commandContext.exit = exitApp;
@@ -286,7 +280,8 @@ async function main() {
     events: uiServices.events,
     notify: (message) => { systemMessageRouter.high(message); render(); },
   });
-  stopSpokenOutputForExit = () => spokenTurns.stop();
+  // Exit-path stop: bounded drain of the audio already playing (see stopForExit).
+  stopSpokenOutputForExit = () => spokenTurns.stopForExit();
   unsubs.push(...spokenTurns.unsubs);
   unsubs.push(attachSpokenTurnModelRouting({
     orchestrator,
