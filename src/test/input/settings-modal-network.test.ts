@@ -161,4 +161,50 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     expect(text).not.toContain('Danger');
     expect(text).not.toContain('danger.daemon');
   });
+
+  test('daemon.enabled carries no override note when the legacy danger.daemon alias is unset', () => {
+    openSettings();
+    const daemonEntries = modal.groups.get('daemon') ?? [];
+    const enabledEntry = daemonEntries.find((entry) => entry.setting.key === 'daemon.enabled');
+    expect(enabledEntry?.overrideNote).toBeUndefined();
+
+    modal.selectTarget('daemon.enabled');
+    const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
+    expect(text).not.toContain('Overridden');
+    expect(text).not.toContain('danger.daemon');
+  });
+
+  test('daemon.enabled surfaces a plain-language note when danger.daemon=false overrides it (resolveDaemonEnabled precedence)', () => {
+    cm.set('danger.daemon', false);
+    openSettings();
+    const daemonEntries = modal.groups.get('daemon') ?? [];
+    const enabledEntry = daemonEntries.find((entry) => entry.setting.key === 'daemon.enabled');
+    expect(enabledEntry?.overrideNote).toContain('danger.daemon=false');
+    expect(enabledEntry?.overrideNote).toContain('deprecated');
+    // daemon.enabled itself defaults to true — the modal shows it unchanged,
+    // but the note explains the alias silently wins over it.
+    expect(enabledEntry?.currentValue).toBe(true);
+
+    modal.selectTarget('daemon.enabled');
+    const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
+    expect(text).toContain('Overridden by legacy danger.daemon=false');
+  });
+
+  test('daemon.enabled surfaces a note for an explicit danger.daemon=true override too', () => {
+    cm.set('danger.daemon', true);
+    openSettings();
+    const daemonEntries = modal.groups.get('daemon') ?? [];
+    const enabledEntry = daemonEntries.find((entry) => entry.setting.key === 'daemon.enabled');
+    expect(enabledEntry?.overrideNote).toContain('danger.daemon=true');
+  });
+
+  test('other daemon-category settings never carry the daemon.enabled override note', () => {
+    cm.set('danger.daemon', false);
+    openSettings();
+    const daemonEntries = modal.groups.get('daemon') ?? [];
+    for (const entry of daemonEntries) {
+      if (entry.setting.key === 'daemon.enabled') continue;
+      expect(entry.overrideNote).toBeUndefined();
+    }
+  });
 });

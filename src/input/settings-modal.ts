@@ -53,6 +53,26 @@ export {
 export { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, isExternalHostOwnedSettingKey } from './settings-modal-agent-policy.ts';
 export { isAgentHiddenSettingKey } from './settings-modal-agent-policy.ts';
 
+/**
+ * When a setting's displayed value would not match what the runtime
+ * actually does, because a separate key takes precedence over it, surface
+ * that here rather than let the modal show a silently misleading value.
+ *
+ * Currently only daemon.enabled vs. the deprecated danger.daemon alias:
+ * resolveDaemonEnabled() (SDK platform/config) gives danger.daemon
+ * precedence whenever it is explicitly set, regardless of daemon.enabled.
+ * danger.daemon itself is hidden from this modal (isAgentHiddenSettingKey)
+ * and host-owned/locked (isExternalHostOwnedSettingKey), so a user with
+ * danger.daemon set has no way to see or fix the real cause here without
+ * this note.
+ */
+function buildSettingOverrideNote(key: string, configManager: ConfigManager): string | undefined {
+  if (key !== 'daemon.enabled') return undefined;
+  const alias = configManager.get('danger.daemon' as ConfigKey);
+  if (typeof alias !== 'boolean') return undefined;
+  return `Overridden by legacy danger.daemon=${alias} (deprecated) — the daemon actually stays ${alias ? 'on' : 'off'} regardless of this value. Remove danger.daemon from config to let this setting take effect.`;
+}
+
 // ---------------------------------------------------------------------------
 // SettingsModal
 // ---------------------------------------------------------------------------
@@ -630,6 +650,7 @@ export class SettingsModal {
         conflict: resolved?.conflict,
         sourceLabel: resolved?.sourceLabel,
         lockReason: hostOwned ? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON : resolved?.lockReason,
+        overrideNote: buildSettingOverrideNote(setting.key, configManager),
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
     }

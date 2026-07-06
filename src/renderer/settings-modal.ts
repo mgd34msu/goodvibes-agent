@@ -128,6 +128,7 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
 
   if (entry.locked) lines.push(`Locked: ${entry.lockReason ?? 'This setting is locked by a higher-priority layer.'}`);
   if (entry.conflict) lines.push(`Conflict: inspect with /settings and resolve host-owned sync state in the owning host.`);
+  if (entry.overrideNote) lines.push(`Note: ${entry.overrideNote}`);
 
   lines.push('', entry.setting.description);
 
