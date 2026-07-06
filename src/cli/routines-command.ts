@@ -496,6 +496,29 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
       exitCode: 0,
     };
   }
+  if (normalized === 'delete' || normalized === 'remove') {
+    const options = parseRoutineOptions(rest);
+    const id = options.positionals[0];
+    if (!id) return { output: 'Usage: goodvibes-agent routines delete <id> --yes', exitCode: 2 };
+    if (!options.yes) {
+      return { output: `Refusing to delete Agent routine ${id} without --yes.`, exitCode: 2 };
+    }
+    try {
+      const routine = registry.deleteRoutine(id);
+      const value: RoutinesCommandSuccess<AgentRoutineRecord> = { ok: true, kind: 'agent.routines.delete', data: routine };
+      return {
+        output: jsonOrText(runtime, value, `Deleted Agent routine ${routine.id}: ${routine.name}`),
+        exitCode: 0,
+      };
+    } catch (error) {
+      return commandFailure(
+        runtime,
+        'routine_not_found',
+        error instanceof Error ? error.message : String(error),
+        1,
+      );
+    }
+  }
   if (normalized === 'receipts' || normalized === 'history') {
     const snapshot = routineReceiptStore(runtime).snapshot();
     const value: RoutinesCommandSuccess<typeof snapshot> = {
@@ -544,7 +567,7 @@ export async function handleRoutinesCommand(runtime: CliCommandRuntime): Promise
     return handleRoutinePromotion(runtime, rest);
   }
   return {
-    output: `Usage: goodvibes-agent routines [list|enabled|attention|discover|import-discovered <name> --yes|create --name <name> --description <summary> --steps <steps>|show <id>|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]`,
+    output: `Usage: goodvibes-agent routines [list|enabled|attention|discover|import-discovered <name> --yes|create --name <name> --description <summary> --steps <steps>|show <id>|delete <id> --yes|receipts|reconcile|receipt <id>|promote <id> (--cron <expr>|--every <interval>|--at <iso-time>) [--delivery-channel <channel>|--delivery-route <route>|--delivery-webhook <url>] --yes]`,
     exitCode: 2,
   };
 }

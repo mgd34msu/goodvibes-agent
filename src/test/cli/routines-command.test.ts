@@ -210,6 +210,45 @@ describe('routines CLI command', () => {
     expect(payload.data?.provenance).toBe('cli');
   });
 
+  test('deletes local routines from the CLI as parity with TUI /routines delete', async () => {
+    const baseRuntime = runtime(['show', 'daily-operations-sweep']);
+
+    const withoutYes = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'delete', 'daily-operations-sweep']) });
+    expect(withoutYes.exitCode).toBe(2);
+    expect(withoutYes.output).toContain('Refusing to delete Agent routine daily-operations-sweep without --yes.');
+
+    const stillThere = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'daily-operations-sweep']) });
+    expect(stillThere.exitCode).toBe(0);
+
+    const deleted = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'delete', 'daily-operations-sweep', '--yes', '--json']) });
+    expect(deleted.exitCode).toBe(0);
+    const payload = JSON.parse(deleted.output) as { readonly kind?: unknown; readonly data?: { readonly id?: unknown; readonly name?: unknown } };
+    expect(payload.kind).toBe('agent.routines.delete');
+    expect(payload.data?.id).toBe('daily-operations-sweep');
+    expect(payload.data?.name).toBe('Daily Operations Sweep');
+
+    const afterDelete = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'show', 'daily-operations-sweep']) });
+    expect(afterDelete.exitCode).toBe(1);
+    expect(afterDelete.output).toContain('Unknown Agent routine: daily-operations-sweep');
+  });
+
+  test('reports an honest error deleting a nonexistent routine from the CLI', async () => {
+    const baseRuntime = runtime(['delete', 'never-existed', '--yes']);
+    const result = await handleRoutinesCommand({ ...baseRuntime, cli: parseGoodVibesCli(['routines', 'delete', 'never-existed', '--yes', '--json']) });
+
+    expect(result.exitCode).toBe(1);
+    const payload = JSON.parse(result.output) as { readonly ok?: unknown; readonly kind?: unknown; readonly error?: unknown };
+    expect(payload.ok).toBe(false);
+    expect(payload.kind).toBe('routine_not_found');
+    expect(String(payload.error)).toContain('Unknown routine never-existed');
+  });
+
+  test('requires a routine id to delete', async () => {
+    const result = await handleRoutinesCommand(runtime(['delete']));
+    expect(result.exitCode).toBe(2);
+    expect(result.output).toBe('Usage: goodvibes-agent routines delete <id> --yes');
+  });
+
   test('returns structured errors for invalid routine create input', async () => {
     const result = await handleRoutinesCommand({
       ...runtime(['create', '--name', 'Incomplete', '--json']),

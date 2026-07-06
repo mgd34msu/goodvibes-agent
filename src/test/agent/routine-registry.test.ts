@@ -38,6 +38,23 @@ describe('AgentRoutineRegistry', () => {
     expect(registry.list()).toHaveLength(0);
   });
 
+  test('pins delete/get behavior: get is absent after delete, and deleting a nonexistent routine fails honestly', () => {
+    const { registry } = tempRegistry();
+    registry.create({
+      name: 'Weekly Review',
+      description: 'Review the week before planning ahead.',
+      steps: 'Check work plan, approvals, and unresolved reminders. Summarize only.',
+    });
+
+    expect(registry.get('weekly-review')).not.toBeNull();
+    const deleted = registry.deleteRoutine('weekly-review');
+    expect(deleted.id).toBe('weekly-review');
+    expect(registry.get('weekly-review')).toBeNull();
+
+    expect(() => registry.deleteRoutine('weekly-review')).toThrow('Unknown routine weekly-review');
+    expect(() => registry.deleteRoutine('never-existed')).toThrow('Unknown routine never-existed');
+  });
+
   test('rejects duplicates and secret-looking routine steps', () => {
     const { registry } = tempRegistry();
     registry.create({
