@@ -17,6 +17,7 @@ interface OperatorContractMethod {
     readonly method?: string;
     readonly path?: string;
   };
+  readonly invokable?: boolean;
 }
 
 interface OperatorMethodToolArgs {
@@ -560,6 +561,18 @@ export function createAgentOperatorMethodTool(
         return {
           success: false,
           error: `Unknown GoodVibes operator method '${methodId}'. Inspect host action:"methods" first.`,
+        };
+      }
+      // W4-A3 (capability-advertisement honesty): the operator contract marks a
+      // cataloged-but-not-route-backed method invokable:false (email.inbox.list,
+      // email.send, etc. — see @pellux/goodvibes-sdk's method-catalog-route-reconcile).
+      // Refuse here, before prepareOperatorRoute/fetch, rather than letting the
+      // model discover a bare 404 from a route that was never wired up. The ad
+      // must degrade at the source, not rely on the model coping with a 404.
+      if (method.invokable === false) {
+        return {
+          success: false,
+          error: `operator method '${method.id}' is unavailable (route not served by this daemon). Do not retry it; the daemon has not wired this capability up.`,
         };
       }
 

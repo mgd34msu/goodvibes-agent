@@ -43,7 +43,33 @@ interface OperatorMethodDescriptor {
   readonly category: string;
   readonly access: string;
   readonly scopes: readonly string[];
+  readonly available: boolean;
   readonly parameters?: readonly Record<string, unknown>[];
+}
+
+/**
+ * W4-A3 (capability-advertisement honesty): the SDK operator contract marks
+ * a method `invokable: false` when it is cataloged but not backed by a real
+ * daemon route (see @pellux/goodvibes-sdk's method-catalog-route-reconcile —
+ * email.inbox.list/read, email.draft.create, email.send are the dogfood
+ * case: they advertise /api/email/* paths no router dispatch chain serves).
+ * Before this, `invokable` was declared on the local contract-method shape
+ * but never read — an unavailable method looked identical to a live one in
+ * this catalog, so the model (or a human skimming host action:"methods")
+ * had no way to tell the ad from the reality short of trying the call and
+ * getting a 404. Degrading the listing here means the ad itself — not just
+ * the eventual answer — tells the truth.
+ */
+function methodIsAvailable(method: OperatorContractMethod): boolean {
+  return method.invokable !== false;
+}
+
+const UNAVAILABLE_MODEL_TOOL = 'none — unavailable; do not call this method';
+const UNAVAILABLE_CONFIRMATION = 'Unavailable: cataloged by the daemon but not backed by a served route. Do not call it; it will not succeed.';
+const UNAVAILABLE_BOUNDARY = 'This method is advertised in the operator contract but the daemon does not currently serve its route (invokable:false). Treat it as absent — do not attempt to call it, and tell the user the capability is not wired up rather than guessing at a workaround.';
+
+function unavailableLabel(method: OperatorContractMethod): string {
+  return `${method.id} — unavailable (route not served by this daemon)`;
 }
 
 type OperatorMethodResolution =
@@ -121,22 +147,26 @@ function toDescriptor(method: OperatorContractMethod): OperatorMethodDescriptor 
   const httpMethod = method.http?.method?.toUpperCase() ?? 'GET';
   const path = method.http?.path ?? '/';
   const effect = methodEffect(method);
-  const label = method.title ?? method.description ?? method.id;
+  const available = methodIsAvailable(method);
+  const label = available ? (method.title ?? method.description ?? method.id) : unavailableLabel(method);
   return {
     id: method.id,
     label,
     route: `${httpMethod} ${path}`,
     effect,
     owner: 'goodvibes-daemon',
-    preferredModelTool: preferredToolFor(effect),
-    confirmation: confirmationFor(effect),
-    boundary: effect === 'read-only-network'
-      ? 'Reads the connected GoodVibes daemon operator route and returns a redacted response.'
-      : 'Runs a confirmed connected GoodVibes daemon operator route. The model must keep the action visible, reversible when possible, and tied to the user request.',
+    preferredModelTool: available ? preferredToolFor(effect) : UNAVAILABLE_MODEL_TOOL,
+    confirmation: available ? confirmationFor(effect) : UNAVAILABLE_CONFIRMATION,
+    boundary: available
+      ? (effect === 'read-only-network'
+        ? 'Reads the connected GoodVibes daemon operator route and returns a redacted response.'
+        : 'Runs a confirmed connected GoodVibes daemon operator route. The model must keep the action visible, reversible when possible, and tied to the user request.')
+      : UNAVAILABLE_BOUNDARY,
     category: method.category ?? 'uncategorized',
     access: method.access ?? 'authenticated',
     scopes: method.scopes ?? [],
-    parameters: parametersFromInputSchema(method),
+    available,
+    parameters: available ? parametersFromInputSchema(method) : [],
   };
 }
 
@@ -170,6 +200,7 @@ function describeMethod(
     effect: method.effect,
     owner: method.owner,
     route: method.route,
+    available: method.available,
     modelRoute: previewHarnessText(method.preferredModelTool),
     scopes: method.scopes,
     confirmation: method.confirmation,
@@ -190,6 +221,7 @@ function describeCandidate(method: OperatorMethodDescriptor): Record<string, unk
     category: method.category,
     effect: method.effect,
     route: method.route,
+    available: method.available,
     modelRoute: previewHarnessText(method.preferredModelTool),
   };
 }
@@ -209,14 +241,18 @@ export function operatorMethodCatalogStatus(): Record<string, unknown> {
     acc[method.category] = (acc[method.category] ?? 0) + 1;
     return acc;
   }, {});
+  const unavailableMethods = methods.filter((method) => !method.available).length;
   return {
     modes: ['operator_methods', 'operator_method'],
     methods: methods.length,
     readOnlyMethods: methods.filter((method) => method.effect === 'read-only-network').length,
     confirmedMethods: methods.filter((method) => method.effect !== 'read-only-network').length,
     adminMethods: methods.filter((method) => method.effect === 'confirmed-admin-connected-host-state').length,
+    unavailableMethods,
     categories,
-    policy: 'Full GoodVibes SDK operator contract. Read-only routes can run through agent_operator_method; write/admin routes require confirm:true and explicitUserRequest.',
+    policy: unavailableMethods > 0
+      ? `Full GoodVibes SDK operator contract. Read-only routes can run through agent_operator_method; write/admin routes require confirm:true and explicitUserRequest. ${unavailableMethods} cataloged method(s) are currently unavailable (no served route) — check each method's "available" field before treating it as callable.`
+      : 'Full GoodVibes SDK operator contract. Read-only routes can run through agent_operator_method; write/admin routes require confirm:true and explicitUserRequest.',
   };
 }
 
