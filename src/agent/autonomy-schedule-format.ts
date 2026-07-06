@@ -90,7 +90,7 @@ export function formatAutonomyScheduleFailure(failure: AutonomyScheduleFailure):
       ? '  next make the connected GoodVibes host available outside Agent, then retry.'
       : null,
     failure.kind === 'connected_host_incompatible' || failure.kind === 'connected_host_route_unavailable'
-      ? '  next update the connected GoodVibes host so public schedules.create is available.'
+      ? '  next update the connected GoodVibes host so public automation.schedules.create is available.'
       : null,
   ].filter((line): line is string => Boolean(line)).join('\n');
 }

@@ -8,11 +8,11 @@ import { formatAgentRecordReviewState } from './record-labels.ts';
 import type { AgentRoutineRecord } from './routine-registry.ts';
 
 export const ROUTINE_SCHEDULE_ROUTE = '/api/automation/schedules';
-export const ROUTINE_SCHEDULE_METHOD = 'schedules.create';
-export const ROUTINE_SCHEDULE_LIST_METHOD = 'schedules.list';
+export const ROUTINE_SCHEDULE_METHOD = 'automation.schedules.create';
+export const ROUTINE_SCHEDULE_LIST_METHOD = 'automation.schedules.list';
 
-type ScheduleCreateInput = OperatorMethodInput<'schedules.create'>;
-type ScheduleCreateOutput = OperatorMethodOutput<'schedules.create'>;
+type ScheduleCreateInput = OperatorMethodInput<'automation.schedules.create'>;
+type ScheduleCreateOutput = OperatorMethodOutput<'automation.schedules.create'>;
 type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
 type ScheduleDeliveryTargetInput = ScheduleDeliveryInput['targets'] extends readonly (infer T)[] ? T : never;
 
@@ -388,7 +388,7 @@ async function classifyScheduleError(
       return {
         ok: false,
         kind: 'connected_host_incompatible',
-        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; schedules.create is unavailable.',
+        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; automation.schedules.create is unavailable.',
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
       };

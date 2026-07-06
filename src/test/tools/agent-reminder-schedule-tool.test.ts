@@ -165,7 +165,7 @@ describe('agent_reminder_schedule tool', () => {
     }
   });
 
-  test('creates a connected reminder through schedules.create after explicit confirmation', async () => {
+  test('creates a connected reminder through automation.schedules.create after explicit confirmation', async () => {
     const paths = shellPaths();
     const tool = createAgentReminderScheduleTool(paths, configManager(paths));
     const requests: ScheduleRequest[] = [];

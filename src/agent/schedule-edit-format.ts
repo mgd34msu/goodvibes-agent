@@ -123,7 +123,7 @@ export function formatScheduleEditFailure(failure: ScheduleEditFailure): string 
       ? '  next pair or start the connected GoodVibes host so an operator token is available.'
       : '',
     failure.kind === 'connected_host_incompatible'
-      ? '  next update the connected GoodVibes host so automation.jobs.patch is available.'
+      ? '  next update the connected GoodVibes host so automation.jobs.update is available.'
       : '',
   ].filter((line) => line !== '').join('\n');
 }

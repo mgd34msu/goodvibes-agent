@@ -384,7 +384,7 @@ describe('routines CLI command', () => {
       ]));
       expect(result.exitCode).toBe(0);
       expect(result.output).toContain('GoodVibes schedule preview');
-      expect(result.output).toContain('schedules.create /api/automation/schedules');
+      expect(result.output).toContain('automation.schedules.create /api/automation/schedules');
       expect(result.output).toContain('delivery: webhook (1 target)');
       expect(result.output).not.toContain('secret-token');
       expect(calls).toBe(0);
@@ -393,7 +393,7 @@ describe('routines CLI command', () => {
     }
   });
 
-  test('confirmed promotion posts schedules.create with Agent-only knowledge policy and delivery target', async () => {
+  test('confirmed promotion posts automation.schedules.create with Agent-only knowledge policy and delivery target', async () => {
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
     globalThis.fetch = mockFetch(async (input, init) => {
@@ -549,7 +549,7 @@ describe('routines CLI command', () => {
           routineId: 'daily-operations-sweep',
           routineName: 'Daily Operations Sweep',
           route: '/api/automation/schedules',
-          method: 'schedules.create',
+          method: 'automation.schedules.create',
           status: 'failed',
           daemonBaseUrl: 'http://127.0.0.1:3421',
           scheduleName: 'Agent routine: Daily Operations Sweep',

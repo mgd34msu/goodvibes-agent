@@ -1754,7 +1754,7 @@ describe('renderAgentWorkspace', () => {
           routineId: 'daily-brief',
           routineName: 'Daily Brief',
           route: '/api/automation/schedules',
-          method: 'schedules.create',
+          method: 'automation.schedules.create',
           status: 'created',
           daemonBaseUrl: 'http://127.0.0.1:3421',
           scheduleId: 'schedule-1',

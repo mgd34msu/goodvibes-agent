@@ -271,7 +271,7 @@ describe('/routines command', () => {
 
       const text = out.join('\n');
       expect(text).toContain('GoodVibes schedule preview for Agent routine');
-      expect(text).toContain('schedules.create /api/automation/schedules');
+      expect(text).toContain('automation.schedules.create /api/automation/schedules');
       expect(text).toContain('isolated Agent Knowledge only');
       expect(text).toContain('confirmationRoutes');
       expect(text).toContain('workspace action:"run" actionId:"schedule-promote-routine" confirm:true explicitUserRequest:"..."');
@@ -282,7 +282,7 @@ describe('/routines command', () => {
     }
   });
 
-  test('confirmed routine promotion uses schedules.create and preserves Agent policy', async () => {
+  test('confirmed routine promotion uses automation.schedules.create and preserves Agent policy', async () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
@@ -418,7 +418,7 @@ describe('/routines command', () => {
 
       const text = out.join('\n');
       expect(text).toContain('GoodVibes schedule preview for Agent reminder');
-      expect(text).toContain('schedules.create /api/automation/schedules');
+      expect(text).toContain('automation.schedules.create /api/automation/schedules');
       expect(text).toContain('isolated Agent Knowledge only');
       expect(text).toContain('confirmationRoutes');
       expect(text).toContain('schedule action:"remind" message:"Follow up on the report" scheduleKind:"at" scheduleValue:"2026-06-01T09:00:00-05:00" confirm:true explicitUserRequest:"..."');
@@ -428,7 +428,7 @@ describe('/routines command', () => {
     }
   });
 
-  test('confirmed reminder schedule uses schedules.create and preserves Agent reminder policy', async () => {
+  test('confirmed reminder schedule uses automation.schedules.create and preserves Agent reminder policy', async () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;
@@ -509,9 +509,9 @@ describe('/routines command', () => {
 
       const text = out.join('\n');
       expect(text).toContain('GoodVibes schedule edit preview');
-      expect(text).toContain('automation.jobs.patch');
+      expect(text).toContain('automation.jobs.update');
       expect(text).toContain('changes name, schedule');
-      expect(text).toContain('current source schedules.list GET /api/automation/schedules');
+      expect(text).toContain('current source automation.schedules.list GET /api/automation/schedules');
       expect(text).toContain('name Agent routine: Inbox Sweep -> Daily queue review');
       expect(text).toContain('confirmationRoutes');
       expect(text).toContain('schedule action:"edit" scheduleId:"sched-1" name:"Daily queue review" scheduleKind:"every" scheduleValue:"1d" confirm:true explicitUserRequest:"..."');
@@ -521,7 +521,7 @@ describe('/routines command', () => {
     }
   });
 
-  test('confirmed schedule edits use automation.jobs.patch', async () => {
+  test('confirmed schedule edits use automation.jobs.update', async () => {
     const { registry, out, ctx } = commandHarness();
     const requests: Array<{ readonly url: string; readonly method: string; readonly body: string }> = [];
     const originalFetch = globalThis.fetch;

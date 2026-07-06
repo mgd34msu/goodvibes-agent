@@ -16,7 +16,7 @@
  *    refuse to call an unavailable method with an honest error, before ever
  *    attempting a network request — the model must not be handed a tool it
  *    cannot call as if it were live.
- * 3. Regression guard: a genuinely-served method (schedules.create) must
+ * 3. Regression guard: a genuinely-served method (automation.schedules.create) must
  *    still render as available and stay callable through the same paths —
  *    the degradation must not cry wolf on live capabilities.
  *
@@ -66,8 +66,8 @@ describe('W4-A3 capability-advertisement honesty (agent side)', () => {
     expect(String(resolution.method.confirmation)).toContain('Unavailable');
   });
 
-  test('discovery: a genuinely-served method (schedules.create) still renders as available', () => {
-    const resolution = describeHarnessOperatorMethod({ methodId: 'schedules.create' });
+  test('discovery: a genuinely-served method (automation.schedules.create) still renders as available', () => {
+    const resolution = describeHarnessOperatorMethod({ methodId: 'automation.schedules.create' });
     expect(resolution.status).toBe('found');
     if (resolution.status !== 'found') throw new Error('expected found');
     expect(resolution.method.available).toBe(true);

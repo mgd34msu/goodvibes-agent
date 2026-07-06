@@ -216,12 +216,12 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
           return;
         }
         const action = sub === 'run'
-          ? 'schedules.run'
+          ? 'automation.schedules.run'
           : sub === 'enable'
-            ? 'schedules.enable'
+            ? 'automation.schedules.enable'
             : sub === 'disable'
-              ? 'schedules.disable'
-              : 'schedules.delete';
+              ? 'automation.schedules.disable'
+              : 'automation.schedules.delete';
         await executeConfirmedOperatorAction(ctx, action, 'scheduleId', scheduleId, args.slice(2), `/schedule ${sub} <schedule-id> --yes`);
         return;
       }

@@ -15,8 +15,8 @@ import {
   type RoutineScheduleSpec,
 } from './routine-schedule-promotion.ts';
 
-type ScheduleCreateInput = OperatorMethodInput<'schedules.create'>;
-type ScheduleCreateOutput = OperatorMethodOutput<'schedules.create'>;
+type ScheduleCreateInput = OperatorMethodInput<'automation.schedules.create'>;
+type ScheduleCreateOutput = OperatorMethodOutput<'automation.schedules.create'>;
 type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
 type ScheduleDeliveryTargetInput = ScheduleDeliveryInput['targets'] extends readonly (infer T)[] ? T : never;
 
@@ -466,7 +466,7 @@ async function classifyAutonomyScheduleError(
       return {
         ok: false,
         kind: 'connected_host_incompatible',
-        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; schedules.create is unavailable.',
+        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; automation.schedules.create is unavailable.',
         route: AUTONOMY_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
       };
