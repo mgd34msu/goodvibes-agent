@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.8 - 2026-07-06
+
+- The `memory` CLI command (`goodvibes-agent memory ...`) now writes to the same shared cross-surface memory store that the runtime, the terminal UI, and the SDK already read and write. Previously the CLI opened its own private database, so a memory added from the CLI was invisible everywhere else; a memory added from the CLI is now visible in the Agent runtime, the TUI, and the SDK, and vice versa.
+- Memory records written by older CLI versions are not lost: the runtime's existing startup memory merge already reads from the exact path the old CLI wrote to, so those older records are folded into the shared store automatically the next time the runtime starts. No manual migration step is needed.
+- Documentation and code-comment hygiene: internal planning shorthand was replaced with plain language in comments, test names, and past changelog entries. No behavior change.
+
 ## 1.5.7 - 2026-07-06
 
 - v1.5.7 is a patch on the 1.5 line that completes the platform-SDK adoption started in 1.5.6. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; the bundled 1.0.0 GoodVibes platform SDK is unchanged.
