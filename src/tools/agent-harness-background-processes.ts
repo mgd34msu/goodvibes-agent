@@ -104,7 +104,8 @@ function matchingOperatorMethodRoutes(tokens: readonly string[]): readonly Recor
   return operatorContractMethods()
     .filter((method) => {
       const text = operatorMethodSearchText(method);
-      return tokens.some((token) => text.includes(token));
+      // \b-anchored: a raw text.includes(token) false-matches short tokens like 'pty' inside an unrelated word ('empty').
+      return tokens.some((token) => new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(text));
     })
     .map((method) => ({
       methodId: method.id,
