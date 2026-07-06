@@ -202,9 +202,17 @@ export async function bootstrapRuntime(
     services.shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'prompt-context-receipts.jsonl'),
   );
   let activePromptTurnId: string | null = null;
+  // The current turn's raw text (Wave-4 W4-A1B): the injection seam
+  // (composeRuntimePromptWithReceipt, invoked from getSystemPrompt below) needs the
+  // active turn's intent to rank the already-eligible memory set by relevance. This is
+  // the real seam W4-A1 left unthreaded — TURN_SUBMITTED already carries `prompt`, it
+  // was just never captured. Mirrors activePromptTurnId's lifecycle exactly: set on
+  // TURN_SUBMITTED, cleared on every terminal event for that turn.
+  let activePromptTurnText: string | null = null;
   runtimeUnsubs.push(
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
       activePromptTurnId = event.payload.turnId;
+      activePromptTurnText = event.payload.prompt;
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_COMPLETED' }>>('TURN_COMPLETED', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -213,7 +221,10 @@ export async function bootstrapRuntime(
         terminalEvent: 'TURN_COMPLETED',
         stopReason: event.payload.stopReason,
       });
-      if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
+      if (activePromptTurnId === event.payload.turnId) {
+        activePromptTurnId = null;
+        activePromptTurnText = null;
+      }
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -223,7 +234,10 @@ export async function bootstrapRuntime(
         stopReason: event.payload.stopReason,
         detail: event.payload.error,
       });
-      if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
+      if (activePromptTurnId === event.payload.turnId) {
+        activePromptTurnId = null;
+        activePromptTurnText = null;
+      }
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_CANCEL' }>>('TURN_CANCEL', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -233,7 +247,10 @@ export async function bootstrapRuntime(
         stopReason: event.payload.stopReason,
         detail: event.payload.reason,
       });
-      if (activePromptTurnId === event.payload.turnId) activePromptTurnId = null;
+      if (activePromptTurnId === event.payload.turnId) {
+        activePromptTurnId = null;
+        activePromptTurnText = null;
+      }
     }),
   );
   const {
@@ -272,6 +289,7 @@ export async function bootstrapRuntime(
         operatorPolicy: GOODVIBES_AGENT_OPERATOR_POLICY,
         shellPaths: services.shellPaths,
         memoryRegistry: services.memoryRegistry,
+        turnText: activePromptTurnText,
       });
       promptContextReceipts.record(composed.receipt);
       return composed.prompt;

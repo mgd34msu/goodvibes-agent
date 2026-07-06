@@ -118,4 +118,82 @@ describe('prompt context receipts', () => {
       expect(reloaded.latest()?.turnOutcome?.terminalEvent).toBe('TURN_COMPLETED');
     });
   });
+
+  test('ranks the memory segment by relevance to the current turn text, with honest per-record wording (W4-A1B)', async () => {
+    await withReceiptFixture(async ({ shellPaths, memoryRegistry }) => {
+      const onTopic = await memoryRegistry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'The deploy pipeline requires a green typecheck before merge.',
+        provenance: [{ kind: 'event', ref: 'on-topic' }],
+      });
+      const offTopic = await memoryRegistry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'User prefers herbal tea over coffee in the afternoon.',
+        provenance: [{ kind: 'event', ref: 'off-topic' }],
+      });
+      memoryRegistry.review(onTopic.id, { state: 'reviewed', confidence: 61, reviewedBy: 'test' });
+      memoryRegistry.review(offTopic.id, { state: 'reviewed', confidence: 95, reviewedBy: 'test' });
+
+      const composed = composeRuntimePromptWithReceipt({
+        sessionId: 'session-relevance',
+        turnId: 'turn-relevance',
+        source: 'turn',
+        provider: 'openai',
+        model: { registryKey: 'openai:gpt-4.1', id: 'gpt-4.1' },
+        contextWindow: 128_000,
+        runtimePrompt: 'Base runtime prompt.',
+        operatorPolicy: 'Operator policy prompt.',
+        shellPaths,
+        memoryRegistry,
+        turnText: 'what does the deploy pipeline require before merge',
+      });
+
+      const memorySegment = composed.receipt.segments.find((segment) => segment.id === 'memory');
+      expect(memorySegment?.note).toBeUndefined();
+      const onTopicSelected = memorySegment?.selected?.find((entry) => entry.id === onTopic.id);
+      const offTopicSelected = memorySegment?.selected?.find((entry) => entry.id === offTopic.id);
+      expect(String(onTopicSelected?.relevance ?? '')).toMatch(/^relevance to this turn: \d+%$/);
+      expect(String(offTopicSelected?.relevance ?? '')).toMatch(/^relevance to this turn: \d+%$/);
+      const onTopicPercent = Number(String(onTopicSelected?.relevance).match(/(\d+)%/)?.[1] ?? '0');
+      const offTopicPercent = Number(String(offTopicSelected?.relevance).match(/(\d+)%/)?.[1] ?? '0');
+      expect(onTopicPercent).toBeGreaterThan(offTopicPercent);
+
+      // The actual injected prompt (not just the receipt) is ranked the same way — the
+      // real seam this closes is the injected content, not only what gets reported.
+      expect(composed.prompt.indexOf('deploy pipeline')).toBeLessThan(composed.prompt.indexOf('herbal tea'));
+    });
+  });
+
+  test('degrades the memory segment honestly (stated reason, no relevance field) when no turn text is supplied', async () => {
+    await withReceiptFixture(async ({ shellPaths, memoryRegistry }) => {
+      const fact = await memoryRegistry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'A fact recorded with no active turn to rank against.',
+        provenance: [{ kind: 'event', ref: 'no-turn' }],
+      });
+      memoryRegistry.review(fact.id, { state: 'reviewed', confidence: 80, reviewedBy: 'test' });
+
+      const composed = composeRuntimePromptWithReceipt({
+        sessionId: 'session-no-turn-text',
+        turnId: null,
+        source: 'follow_up',
+        provider: 'openai',
+        model: 'openai:gpt-4.1',
+        contextWindow: 128_000,
+        runtimePrompt: 'Base runtime prompt.',
+        operatorPolicy: 'Operator policy prompt.',
+        shellPaths,
+        memoryRegistry,
+      });
+
+      const memorySegment = composed.receipt.segments.find((segment) => segment.id === 'memory');
+      expect(memorySegment?.note).toContain('no current-turn text');
+      const selected = memorySegment?.selected?.find((entry) => entry.id === fact.id);
+      expect(selected).toBeDefined();
+      expect(selected?.relevance).toBeUndefined();
+    });
+  });
 });

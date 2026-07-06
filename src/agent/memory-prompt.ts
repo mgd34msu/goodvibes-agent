@@ -1,4 +1,4 @@
-import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryRecord, MemoryRegistry, MemoryVectorStats } from '@pellux/goodvibes-sdk/platform/state';
 
 const DEFAULT_LIMIT = 10;
 
@@ -82,11 +82,111 @@ function formatMemoryLine(record: MemoryRecord): string {
   return `- [${record.scope}/${record.cls} ${record.confidence}%${tags}${provenance}] ${record.summary}`;
 }
 
-export function buildReviewedMemoryPrompt(memoryRegistry: MemoryRegistry, limit = DEFAULT_LIMIT): string | null {
-  const records = memoryRegistry.getAll()
-    .filter(isPromptActiveMemory)
-    .sort(sortMemoryForPrompt)
-    .slice(0, Math.max(0, limit));
+/**
+ * Per-turn semantic ranking of an already-eligible memory set (Wave-4 W4-A1B).
+ *
+ * W4-A1 shipped eligibility (confidence + reviewState + provenance) as the hard trust
+ * gate but had no per-turn query to rank WITHIN that eligible set — records were only
+ * ever ordered by stored confidence/recency, regardless of whether they had anything to
+ * do with what the user actually just asked. `rankMemoryForTurn` never touches the gate
+ * itself: it only reorders the records that already cleared describeMemoryPromptEligibility,
+ * so a budget-limited cut (the top-N prompt slice) drops the least relevant record to
+ * THIS turn instead of an arbitrary one.
+ *
+ * Degrades honestly and says why whenever it can't score: no turn text supplied, the
+ * semantic index disabled/unavailable/empty, or a real query that the index has zero
+ * vector matches for. In every degraded case the eligible set still gets the prior
+ * confidence/recency order — never silently dropped, never silently reordered on data
+ * that isn't there.
+ */
+export interface MemoryTurnRankingResult {
+  /** The eligible records, ranked — by relevance when `scored` is true, else by the prior confidence/recency order. */
+  readonly records: readonly MemoryRecord[];
+  /** Relevance percent (0-100) per record id. Only populated when `scored` is true. */
+  readonly relevanceById: ReadonlyMap<string, number>;
+  /** True when semantic relevance to the current turn actually drove the ranking above. */
+  readonly scored: boolean;
+  /** Honest reason for the degrade when `scored` is false; null when scoring succeeded or there was nothing to rank. */
+  readonly degradedReason: string | null;
+}
+
+function describeTurnRelevanceIndexUnavailable(stats: MemoryVectorStats): string | null {
+  if (!stats.enabled) return 'the semantic memory index is disabled for this store';
+  if (!stats.available) return `the semantic memory index is unavailable${stats.error ? `: ${stats.error}` : ''}`;
+  if (stats.indexedRecords === 0) return 'the semantic memory index has no indexed records yet';
+  return null;
+}
+
+export function rankMemoryForTurn(
+  memoryRegistry: MemoryRegistry,
+  eligible: readonly MemoryRecord[],
+  turnText: string | null | undefined,
+): MemoryTurnRankingResult {
+  const fallbackOrder = (): readonly MemoryRecord[] => [...eligible].sort(sortMemoryForPrompt);
+  if (eligible.length === 0) {
+    return { records: [], relevanceById: new Map(), scored: false, degradedReason: null };
+  }
+  const trimmedTurnText = turnText?.trim() ?? '';
+  if (!trimmedTurnText) {
+    return {
+      records: fallbackOrder(),
+      relevanceById: new Map(),
+      scored: false,
+      degradedReason: 'no current-turn text available for this composition — using stored confidence/recency order',
+    };
+  }
+  const stats = memoryRegistry.vectorStats();
+  const indexUnavailable = describeTurnRelevanceIndexUnavailable(stats);
+  if (indexUnavailable) {
+    return {
+      records: fallbackOrder(),
+      relevanceById: new Map(),
+      scored: false,
+      degradedReason: `semantic index unavailable (${indexUnavailable}) — using stored confidence/recency order`,
+    };
+  }
+  // Request enough candidates back that every eligible record has a real chance to
+  // appear with its similarity score (searchSemantic slices its return to this limit
+  // after scoring, not before) — the SDK's vector store caps the underlying KNN search
+  // at 500 candidates regardless, so there is no point asking for more than that.
+  const requestLimit = Math.min(500, Math.max(eligible.length, 50));
+  const results = memoryRegistry.searchSemantic({ query: trimmedTurnText, limit: requestLimit });
+  const consultedSemanticIndex = results.some((entry) => entry.similarity > 0);
+  if (!consultedSemanticIndex) {
+    return {
+      records: fallbackOrder(),
+      relevanceById: new Map(),
+      scored: false,
+      degradedReason: "no semantic match for this turn's text — using stored confidence/recency order",
+    };
+  }
+  const eligibleIds = new Set(eligible.map((record) => record.id));
+  const relevanceById = new Map<string, number>();
+  for (const entry of results) {
+    if (!eligibleIds.has(entry.record.id)) continue;
+    relevanceById.set(entry.record.id, Math.round(Math.max(0, Math.min(1, entry.similarity)) * 100));
+  }
+  const ranked = [...eligible].sort((left, right) => {
+    const rightScore = relevanceById.get(right.id) ?? 0;
+    const leftScore = relevanceById.get(left.id) ?? 0;
+    if (rightScore !== leftScore) return rightScore - leftScore;
+    return sortMemoryForPrompt(left, right);
+  });
+  return { records: ranked, relevanceById, scored: true, degradedReason: null };
+}
+
+export interface BuildReviewedMemoryPromptOptions {
+  readonly limit?: number;
+  /** The current turn's raw text (the seam this comes from: TURN_SUBMITTED's `prompt`).
+   *  Used only to RANK the already-eligible set — never to admit an otherwise-ineligible record. */
+  readonly turnText?: string | null;
+}
+
+export function buildReviewedMemoryPrompt(memoryRegistry: MemoryRegistry, options: BuildReviewedMemoryPromptOptions = {}): string | null {
+  const limit = options.limit ?? DEFAULT_LIMIT;
+  const eligible = memoryRegistry.getAll().filter(isPromptActiveMemory);
+  const ranking = rankMemoryForTurn(memoryRegistry, eligible, options.turnText);
+  const records = ranking.records.slice(0, Math.max(0, limit));
 
   if (records.length === 0) return null;
   return [

@@ -1,10 +1,10 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname } from 'node:path';
-import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ShellPathService } from '@/runtime/index.ts';
-import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory } from './memory-prompt.ts';
+import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, rankMemoryForTurn } from './memory-prompt.ts';
 import { AgentPersonaRegistry, buildActivePersonaPrompt } from './persona-registry.ts';
 import { buildProjectContextPrompt, discoverProjectContextFiles } from './project-context-files.ts';
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from './routine-registry.ts';
@@ -73,6 +73,10 @@ export interface RuntimePromptCompositionInput {
   readonly operatorPolicy: string;
   readonly shellPaths: ShellPathService;
   readonly memoryRegistry: MemoryRegistry;
+  /** The active turn's raw text (TURN_SUBMITTED's `prompt`), used only to rank the
+   *  already-eligible memory set by relevance to this turn — see rankMemoryForTurn.
+   *  Null/undefined when there is no active turn (e.g. a follow-up composition). */
+  readonly turnText?: string | null;
 }
 
 const RECEIPT_STORE_LIMIT = 200;
@@ -117,11 +121,6 @@ function statusFor(active: number, suppressed: number): PromptContextReceiptStat
   return 'empty';
 }
 
-function memorySort(left: MemoryRecord, right: MemoryRecord): number {
-  if (right.confidence !== left.confidence) return right.confidence - left.confidence;
-  return right.updatedAt - left.updatedAt;
-}
-
 function receiptSegment(input: Omit<PromptContextReceiptSegment, 'approxTokens'> & { readonly promptText?: string }): PromptContextReceiptSegment {
   const promptChars = input.promptText?.length ?? input.promptChars;
   return {
@@ -145,10 +144,12 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
   const projectContext = discoverProjectContextFiles(input.shellPaths);
   const projectContextPrompt = buildProjectContextPrompt(input.shellPaths) ?? '';
   const memoryRecords = input.memoryRegistry.getAll();
-  const activeMemory = memoryRecords.filter(isPromptActiveMemory).sort(memorySort).slice(0, 10);
+  const eligibleMemory = memoryRecords.filter(isPromptActiveMemory);
+  const memoryRanking = rankMemoryForTurn(input.memoryRegistry, eligibleMemory, input.turnText);
+  const activeMemory = memoryRanking.records.slice(0, 10);
   const activeMemoryIds = new Set(activeMemory.map((record) => record.id));
   const suppressedMemory = memoryRecords.filter((record) => !activeMemoryIds.has(record.id));
-  const memoryPrompt = buildReviewedMemoryPrompt(input.memoryRegistry) ?? '';
+  const memoryPrompt = buildReviewedMemoryPrompt(input.memoryRegistry, { turnText: input.turnText }) ?? '';
   const routineSnapshot = AgentRoutineRegistry.fromShellPaths(input.shellPaths).snapshot();
   const activeRoutines = routineSnapshot.enabledRoutines.filter((routine) => routine.reviewState === 'reviewed' && evaluateAgentRoutineReadiness(routine).ready);
   const suppressedRoutines = routineSnapshot.enabledRoutines.filter((routine) => !activeRoutines.some((active) => active.id === routine.id));
@@ -231,26 +232,38 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       suppressedCount: suppressedMemory.length,
       promptChars: memoryPrompt.length,
       promptText: memoryPrompt,
+      // Honest degrade note (Wave-4 W4-A1B): when per-turn relevance scoring did not
+      // run — no active-turn text, semantic index unavailable, or no vector match —
+      // say so instead of silently presenting the fallback confidence/recency order as
+      // if it were a relevance ranking.
+      note: memoryRanking.scored ? undefined : (memoryRanking.degradedReason ?? undefined),
       selected: activeMemory.map((record) => ({
         id: record.id,
         scope: record.scope,
         class: record.cls,
         confidence: record.confidence,
         reason: describeMemoryPromptEligibility(record).reason,
+        // Per-turn relevance (W4-A1B): honest wording, only present when actually scored.
+        ...(memoryRanking.scored ? { relevance: `relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}%` } : {}),
       })),
       suppressed: suppressedMemory.slice(0, 12).map((record) => {
         // Honest, per-record reason (confidence + reviewState + provenance) — never a
         // blanket "not reviewed"/"outside prompt limit" guess. A record lands in
         // "suppressed" either because it genuinely failed eligibility, or because it
         // passed eligibility but the top-10 prompt slice cut it off — those are
-        // different situations and must read differently.
+        // different situations and must read differently. When the slice was
+        // relevance-ranked, say what this record's relevance to the turn was too, so a
+        // budget-limited cut reads as "less relevant than the other ten", not arbitrary.
         const eligibility = describeMemoryPromptEligibility(record);
+        const relevanceSuffix = memoryRanking.scored
+          ? ` (relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}%)`
+          : '';
         return {
           id: record.id,
           reviewState: record.reviewState,
           confidence: record.confidence,
           reason: eligibility.eligible
-            ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice — budget-limited, not a trust problem`
+            ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice${relevanceSuffix} — budget-limited, not a trust problem`
             : eligibility.reason,
         };
       }),
@@ -329,7 +342,7 @@ export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionI
     buildVibePrompt(input.shellPaths),
     buildProjectContextPrompt(input.shellPaths),
     input.operatorPolicy,
-    buildReviewedMemoryPrompt(input.memoryRegistry),
+    buildReviewedMemoryPrompt(input.memoryRegistry, { turnText: input.turnText }),
     buildEnabledRoutinesPrompt(input.shellPaths),
     buildEnabledSkillsPrompt(input.shellPaths),
     buildActivePersonaPrompt(input.shellPaths),

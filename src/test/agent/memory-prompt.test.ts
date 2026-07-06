@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
-import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE } from '../../agent/memory-prompt.ts';
+import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE, rankMemoryForTurn } from '../../agent/memory-prompt.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 
 async function withMemoryRegistry<T>(fn: (registry: MemoryRegistry) => Promise<T>): Promise<T> {
@@ -150,5 +150,134 @@ describe('describeMemoryPromptEligibility', () => {
     });
     expect(decision.eligible).toBe(true);
     expect(decision.reason).toContain('no provenance recorded');
+  });
+});
+
+describe('rankMemoryForTurn (Wave-4 W4-A1B: per-turn semantic scoring)', () => {
+  test('ranks the eligible set by relevance to the current turn, not by stored confidence alone', async () => {
+    await withMemoryRegistry(async (registry) => {
+      const lowerConfidenceButOnTopic = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'The deploy pipeline requires a green typecheck before merge.',
+        provenance: [{ kind: 'event', ref: 'on-topic' }],
+      });
+      const higherConfidenceOffTopic = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'User prefers herbal tea over coffee in the afternoon.',
+        provenance: [{ kind: 'event', ref: 'off-topic' }],
+      });
+      registry.review(lowerConfidenceButOnTopic.id, { state: 'reviewed', confidence: 61, reviewedBy: 'test' });
+      registry.review(higherConfidenceOffTopic.id, { state: 'reviewed', confidence: 95, reviewedBy: 'test' });
+
+      const eligible = registry.getAll().filter(isPromptActiveMemory);
+      const ranking = rankMemoryForTurn(registry, eligible, 'what does the deploy pipeline require before merge');
+
+      expect(ranking.scored).toBe(true);
+      expect(ranking.degradedReason).toBeNull();
+      expect(ranking.records[0]?.id).toBe(lowerConfidenceButOnTopic.id);
+      const onTopicRelevance = ranking.relevanceById.get(lowerConfidenceButOnTopic.id) ?? 0;
+      const offTopicRelevance = ranking.relevanceById.get(higherConfidenceOffTopic.id) ?? 0;
+      expect(onTopicRelevance).toBeGreaterThan(offTopicRelevance);
+    });
+  });
+
+  test('degrades honestly (stated reason, prior confidence/recency order) when there is no current-turn text', async () => {
+    await withMemoryRegistry(async (registry) => {
+      const fact = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'A fact with no active turn to rank against.',
+        provenance: [{ kind: 'event', ref: 'no-turn-text' }],
+      });
+      const eligible = registry.getAll().filter(isPromptActiveMemory);
+
+      const noTurnText = rankMemoryForTurn(registry, eligible, undefined);
+      expect(noTurnText.scored).toBe(false);
+      expect(noTurnText.degradedReason).toContain('no current-turn text');
+      expect(noTurnText.records.map((record) => record.id)).toEqual([fact.id]);
+
+      const blankTurnText = rankMemoryForTurn(registry, eligible, '   ');
+      expect(blankTurnText.scored).toBe(false);
+      expect(blankTurnText.degradedReason).toContain('no current-turn text');
+    });
+  });
+
+  test('degrades honestly when the semantic index is disabled, stating why', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-prompt-disabled-index-'));
+    const configManager = new ConfigManager({
+      surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+      configDir: join(root, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT),
+      workingDir: root,
+    });
+    const embeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
+    const store = new MemoryStore(join(root, 'memory.sqlite'), { embeddingRegistry, enableVectorIndex: false });
+    await store.init();
+    const registry = new MemoryRegistry(store);
+    try {
+      const fact = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'Recorded while the semantic index is disabled.',
+        provenance: [{ kind: 'event', ref: 'disabled-index' }],
+      });
+      const eligible = registry.getAll().filter(isPromptActiveMemory);
+
+      const ranking = rankMemoryForTurn(registry, eligible, 'a real query about something');
+
+      expect(ranking.scored).toBe(false);
+      expect(ranking.degradedReason).toContain('semantic index unavailable');
+      expect(ranking.degradedReason).toContain('disabled');
+      expect(ranking.records.map((record) => record.id)).toEqual([fact.id]);
+    } finally {
+      await store.save();
+      store.close();
+    }
+  });
+
+  test('buildReviewedMemoryPrompt with turnText: a budget-limited cut keeps the most relevant record, not an arbitrary one', async () => {
+    await withMemoryRegistry(async (registry) => {
+      const onTopic = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'The deploy pipeline requires a green typecheck before merge.',
+        provenance: [{ kind: 'event', ref: 'on-topic' }],
+      });
+      const offTopic = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'User prefers herbal tea over coffee in the afternoon.',
+        provenance: [{ kind: 'event', ref: 'off-topic' }],
+      });
+      registry.review(onTopic.id, { state: 'reviewed', confidence: 61, reviewedBy: 'test' });
+      registry.review(offTopic.id, { state: 'reviewed', confidence: 95, reviewedBy: 'test' });
+
+      const prompt = buildReviewedMemoryPrompt(registry, {
+        limit: 1,
+        turnText: 'what does the deploy pipeline require before merge',
+      });
+
+      expect(prompt).toContain('deploy pipeline');
+      expect(prompt).not.toContain('herbal tea');
+    });
+  });
+
+  test('buildReviewedMemoryPrompt with turnText never admits a record the confidence/reviewState gate already excluded', async () => {
+    await withMemoryRegistry(async (registry) => {
+      const relevantButLowConfidence = await registry.add({
+        scope: 'project',
+        cls: 'fact',
+        summary: 'The deploy pipeline requires a green typecheck before merge.',
+        provenance: [{ kind: 'event', ref: 'low-confidence-on-topic' }],
+      });
+      registry.review(relevantButLowConfidence.id, { state: 'reviewed', confidence: 40, reviewedBy: 'test' });
+
+      const prompt = buildReviewedMemoryPrompt(registry, {
+        turnText: 'what does the deploy pipeline require before merge',
+      });
+
+      expect(prompt).toBeNull();
+    });
   });
 });
