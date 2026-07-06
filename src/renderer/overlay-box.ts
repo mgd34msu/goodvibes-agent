@@ -1,6 +1,7 @@
 import { createStyledCell, type Line } from '../types/grid.ts';
 import { getOverlayMaxWidth } from './overlay-viewport.ts';
-import { GLYPHS, UI_TONES } from './ui-primitives.ts';
+import { GLYPHS } from './ui-primitives.ts';
+import { activeUiTones, registerThemeRefresh } from './theme.ts';
 import { fillWidth, makeLine, writeText } from './fullscreen-primitives.ts';
 
 export interface OverlayBoxPalette {
@@ -15,17 +16,27 @@ export interface OverlayBoxPalette {
   readonly bodyBg: string;
 }
 
-export const DEFAULT_OVERLAY_PALETTE: Readonly<OverlayBoxPalette> = {
-  borderFg: UI_TONES.fg.secondary,
-  titleFg: UI_TONES.fg.primary,
-  bodyFg: UI_TONES.fg.primary,
-  mutedFg: UI_TONES.fg.dim,
-  selectedBg: UI_TONES.bg.selected,
-  titleBg: UI_TONES.bg.title,
-  sectionBg: UI_TONES.bg.section,
-  inputBg: UI_TONES.bg.input,
-  bodyBg: UI_TONES.bg.surface,
-} as const;
+// Built from the mode-resolved chrome tones (activeUiTones) and rebuilt IN PLACE
+// on a mode flip via the registered refresher (read by reference across the
+// overlay call sites). Opaque dark overlay surface → fg/bg roles stay dark in
+// the SDK light tones; dark is byte-identical to the prior static reads.
+function buildOverlayPalette(): OverlayBoxPalette {
+  const t = activeUiTones();
+  return {
+    borderFg: t.fg.secondary,
+    titleFg: t.fg.primary,
+    bodyFg: t.fg.primary,
+    mutedFg: t.fg.dim,
+    selectedBg: t.bg.selected,
+    titleBg: t.bg.title,
+    sectionBg: t.bg.section,
+    inputBg: t.bg.input,
+    bodyBg: t.bg.surface,
+  };
+}
+
+export const DEFAULT_OVERLAY_PALETTE: Readonly<OverlayBoxPalette> = buildOverlayPalette();
+registerThemeRefresh(() => Object.assign(DEFAULT_OVERLAY_PALETTE as OverlayBoxPalette, buildOverlayPalette()));
 
 export interface OverlayBoxLayout {
   readonly margin: number;

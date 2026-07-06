@@ -4,12 +4,12 @@
  * Covers the active-mode accessors, the flip + reversibility of the live token
  * layers, and the display.themeMode config coercion.
  *
- * NOTE: the agent DEFERS the opaque-surface chrome-palette rebuild (polish
- * DEFAULT_PANEL_PALETTE / modal / overlay / fullscreen paint OPAQUE dark boxes
- * whose fg/state tokens stay dark in both modes — see the trio deferral). So
- * registerThemeRefresh has no registrations this wave; the flip is proven
- * through the LIVE read accessors (activeTheme/activeUiTones), which is what the
- * agent's transcript + chrome call sites actually use.
+ * The opaque-surface chrome palettes (modal DEFAULT_STYLE, overlay
+ * DEFAULT_OVERLAY_PALETTE, FULLSCREEN_PALETTE) register an in-place rebuild via
+ * registerThemeRefresh, so setActiveThemeMode rebuilds them without replacing
+ * the object reference (read by reference across many call sites). These paint
+ * OPAQUE dark surfaces, so in the SDK light tones only state.* roles flip
+ * (fg/bg stay dark) — dark is byte-identical and reversible.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
@@ -28,6 +28,8 @@ import {
   THEME_MODE_VALUES,
 } from '../../renderer/theme-mode-config.ts';
 import { installBackgroundThemeProbe } from '../../renderer/terminal-bg-probe.ts';
+import { DEFAULT_OVERLAY_PALETTE } from '../../renderer/overlay-box.ts';
+import { FULLSCREEN_PALETTE } from '../../renderer/fullscreen-primitives.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 
 /** Minimal ConfigManager-shaped stub whose get() returns a fixed value. */
@@ -60,6 +62,34 @@ describe('active mode accessors', () => {
     setActiveThemeMode('dark');
     expect(activeTheme()).toBe(resolveTheme('dark'));
     expect(activeUiTones()).toBe(resolveUiTones('dark'));
+  });
+});
+
+describe('opaque-surface chrome palettes rebuild in place (the trio port)', () => {
+  test('overlay palette identity is stable across flips and restores byte-identically', () => {
+    const ref = DEFAULT_OVERLAY_PALETTE;
+    const darkSnapshot = { ...DEFAULT_OVERLAY_PALETTE };
+    setActiveThemeMode('light');
+    setActiveThemeMode('dark');
+    expect(DEFAULT_OVERLAY_PALETTE).toBe(ref);              // never replaced, only rebuilt
+    expect({ ...DEFAULT_OVERLAY_PALETTE }).toEqual(darkSnapshot);
+  });
+
+  test('fullscreen palette flips its info role in light and restores in dark', () => {
+    const darkInfo = FULLSCREEN_PALETTE.info;
+    expect(darkInfo).toBe(resolveUiTones('dark').state.info);
+    setActiveThemeMode('light');
+    expect(FULLSCREEN_PALETTE.info).toBe(resolveUiTones('light').state.info);
+    expect(FULLSCREEN_PALETTE.info).not.toBe(darkInfo);
+    setActiveThemeMode('dark');
+    expect(FULLSCREEN_PALETTE.info).toBe(darkInfo);
+  });
+
+  test('fullscreen agent-local opaque bg forks stay dark in both modes', () => {
+    const darkCategoryBg = FULLSCREEN_PALETTE.categoryBg;
+    setActiveThemeMode('light');
+    expect(FULLSCREEN_PALETTE.categoryBg).toBe(darkCategoryBg); // opaque panel bg never flips
+    expect(FULLSCREEN_PALETTE.title).toBe('#67e8f9');
   });
 });
 

@@ -1,25 +1,44 @@
 import type { Line } from '../types/grid.ts';
 import { createEmptyLine, createStyledCell } from '../types/grid.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
-import { GLYPHS, UI_TONES } from './ui-primitives.ts';
+import { GLYPHS } from './ui-primitives.ts';
+import { activeUiTones, registerThemeRefresh } from './theme.ts';
 
-export const FULLSCREEN_PALETTE = {
-  border: '#64748b',
-  title: '#67e8f9',
-  subtitle: '#93c5fd',
-  text: '#e2e8f0',
-  muted: '#94a3b8',
-  dim: '#64748b',
-  selectedBg: '#223049',
-  categoryBg: '#141b25',
-  contextBg: '#121923',
-  controlsBg: '#0f141d',
-  footerBg: '#111827',
-  good: UI_TONES.state.good,
-  warn: UI_TONES.state.warn,
-  bad: UI_TONES.state.bad,
-  info: UI_TONES.state.info,
-} as const;
+// Built from the mode-resolved chrome tones (activeUiTones) and rebuilt IN PLACE
+// on a mode flip via the registered refresher (read by reference across the
+// fullscreen workspace surfaces). This is an OPAQUE dark panel: fg/bg roles stay
+// dark in the SDK light tones (only state.* flips), so dark is byte-identical.
+// title / categoryBg / contextBg / controlsBg are agent-local fullscreen values
+// with no shared tone equivalent — kept as-is (opaque dark panel surfaces).
+function buildFullscreenPalette(): Record<string, string> {
+  const t = activeUiTones();
+  return {
+    border: t.border,
+    title: '#67e8f9',
+    subtitle: t.accent.conversation,
+    text: t.fg.primary,
+    muted: t.fg.muted,
+    dim: t.border,
+    selectedBg: t.bg.selected,
+    categoryBg: '#141b25',
+    contextBg: '#121923',
+    controlsBg: '#0f141d',
+    footerBg: t.bg.footer,
+    good: t.state.good,
+    warn: t.state.warn,
+    bad: t.state.bad,
+    info: t.state.info,
+  };
+}
+
+export const FULLSCREEN_PALETTE = buildFullscreenPalette() as {
+  readonly border: string; readonly title: string; readonly subtitle: string;
+  readonly text: string; readonly muted: string; readonly dim: string;
+  readonly selectedBg: string; readonly categoryBg: string; readonly contextBg: string;
+  readonly controlsBg: string; readonly footerBg: string; readonly good: string;
+  readonly warn: string; readonly bad: string; readonly info: string;
+};
+registerThemeRefresh(() => Object.assign(FULLSCREEN_PALETTE as Record<string, string>, buildFullscreenPalette()));
 
 export type FullscreenTextStyle = Partial<Omit<Line[number], 'char'>>;
 

@@ -8,7 +8,8 @@ import {
   putOverlayText,
 } from './overlay-box.ts';
 import { getOverlayMaxWidth } from './overlay-viewport.ts';
-import { GLYPHS, UI_TONES } from './ui-primitives.ts';
+import { GLYPHS } from './ui-primitives.ts';
+import { activeUiTones, registerThemeRefresh } from './theme.ts';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -90,20 +91,29 @@ export interface ModalConfig {
 
 // ── Defaults ─────────────────────────────────────────────────────────────────
 
-const DEFAULT_STYLE: Required<ModalStyle> = {
-  titleFg: UI_TONES.fg.primary,
-  borderFg: UI_TONES.fg.dim,
-  hintFg: UI_TONES.fg.muted,
-  selectedFg: UI_TONES.fg.primary,
-  selectedBg: UI_TONES.bg.selected,
-  textFg: UI_TONES.fg.primary,
-  accentFg: UI_TONES.state.info,
-  titleRowFg: UI_TONES.fg.secondary,
-  titleBg: UI_TONES.bg.title,
-  sectionBg: UI_TONES.bg.section,
-  inputBg: UI_TONES.bg.input,
-  surfaceBg: UI_TONES.bg.surface,
-};
+// Built from the mode-resolved chrome tones (activeUiTones) and rebuilt IN PLACE
+// on a mode flip via the registered refresher (read by reference across modal
+// call sites). These paint the OPAQUE dark modal surface, so in the SDK light
+// tones the fg/bg roles stay dark (only state.info flips) — dark is byte-identical.
+function buildModalStyle(): Required<ModalStyle> {
+  const t = activeUiTones();
+  return {
+    titleFg: t.fg.primary,
+    borderFg: t.fg.dim,
+    hintFg: t.fg.muted,
+    selectedFg: t.fg.primary,
+    selectedBg: t.bg.selected,
+    textFg: t.fg.primary,
+    accentFg: t.state.info,
+    titleRowFg: t.fg.secondary,
+    titleBg: t.bg.title,
+    sectionBg: t.bg.section,
+    inputBg: t.bg.input,
+    surfaceBg: t.bg.surface,
+  };
+}
+const DEFAULT_STYLE: Required<ModalStyle> = buildModalStyle();
+registerThemeRefresh(() => Object.assign(DEFAULT_STYLE, buildModalStyle()));
 
 // ── ModalFactory ─────────────────────────────────────────────────────────────
 
