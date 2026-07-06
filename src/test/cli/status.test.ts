@@ -37,7 +37,7 @@ function makeOptions(overrides: ConfigValues = {}): CliStatusOptions {
     'service.enabled': true,
     'service.autostart': true,
     'service.restartOnFailure': true,
-    'danger.daemon': true,
+    'daemon.enabled': true,
     'danger.httpListener': false,
     'web.enabled': false,
     'controlPlane.enabled': true,

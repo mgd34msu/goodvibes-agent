@@ -127,11 +127,11 @@ describe('/config fullscreen workspace command', () => {
         for (const entry of entries) workspaceKeys.add(entry.setting.key);
       }
 
-      expect(isAgentHiddenSettingKey('danger.daemon')).toBe(true);
+      expect(isAgentHiddenSettingKey('danger.httpListener')).toBe(true);
       expect(isAgentHiddenSettingKey('controlPlane.port')).toBe(false);
       expect(isAgentHiddenSettingKey('runtime.eventBus.maxListeners')).toBe(false);
       expect(isAgentHiddenSettingKey('ui.wrfcMessages')).toBe(true);
-      expect(workspaceKeys.has('danger.daemon')).toBe(false);
+      expect(workspaceKeys.has('danger.httpListener')).toBe(false);
       expect(workspaceKeys.has('controlPlane.port')).toBe(true);
       expect(workspaceKeys.has('runtime.eventBus.maxListeners')).toBe(true);
       expect(workspaceKeys.has('ui.wrfcMessages')).toBe(false);

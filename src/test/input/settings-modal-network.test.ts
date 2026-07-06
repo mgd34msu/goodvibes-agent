@@ -101,7 +101,6 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
 
   test('only raw danger toggles and internal WRFC message setting are policy-hidden', () => {
     for (const key of [
-      'danger.daemon',
       'danger.httpListener',
       'ui.wrfcMessages',
     ]) {
@@ -137,7 +136,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
       expect(keys.has(key)).toBe(true);
     }
     for (const key of [
-      'danger.daemon',
+      'danger.httpListener',
       'ui.wrfcMessages',
     ]) {
       expect(keys.has(key)).toBe(false);
@@ -149,7 +148,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     modal.selectTarget('controlPlane.port');
     expect(modal.getSelected()?.setting.key).toBe('controlPlane.port');
     const before = modal.getSelected()?.setting.key;
-    modal.selectTarget('danger.daemon');
+    modal.selectTarget('danger.httpListener');
     expect(modal.getSelected()?.setting.key).toBe(before);
     modal.selectTarget('ui.wrfcMessages');
     expect(modal.getSelected()?.setting.key).toBe(before);
@@ -159,52 +158,13 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     openSettings();
     const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
     expect(text).not.toContain('Danger');
-    expect(text).not.toContain('danger.daemon');
+    expect(text).not.toContain('danger.httpListener');
   });
 
-  test('daemon.enabled carries no override note when the legacy danger.daemon alias is unset', () => {
-    openSettings();
-    const daemonEntries = modal.groups.get('daemon') ?? [];
-    const enabledEntry = daemonEntries.find((entry) => entry.setting.key === 'daemon.enabled');
-    expect(enabledEntry?.overrideNote).toBeUndefined();
-
-    modal.selectTarget('daemon.enabled');
-    const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
-    expect(text).not.toContain('Overridden');
-    expect(text).not.toContain('danger.daemon');
-  });
-
-  test('daemon.enabled surfaces a plain-language note when danger.daemon=false overrides it (resolveDaemonEnabled precedence)', () => {
-    cm.set('danger.daemon', false);
-    openSettings();
-    const daemonEntries = modal.groups.get('daemon') ?? [];
-    const enabledEntry = daemonEntries.find((entry) => entry.setting.key === 'daemon.enabled');
-    expect(enabledEntry?.overrideNote).toContain('danger.daemon=false');
-    expect(enabledEntry?.overrideNote).toContain('deprecated');
-    // daemon.enabled itself defaults to true — the modal shows it unchanged,
-    // but the note explains the alias silently wins over it.
-    expect(enabledEntry?.currentValue).toBe(true);
-
-    modal.selectTarget('daemon.enabled');
-    const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
-    expect(text).toContain('Overridden by legacy danger.daemon=false');
-  });
-
-  test('daemon.enabled surfaces a note for an explicit danger.daemon=true override too', () => {
-    cm.set('danger.daemon', true);
-    openSettings();
-    const daemonEntries = modal.groups.get('daemon') ?? [];
-    const enabledEntry = daemonEntries.find((entry) => entry.setting.key === 'daemon.enabled');
-    expect(enabledEntry?.overrideNote).toContain('danger.daemon=true');
-  });
-
-  test('other daemon-category settings never carry the daemon.enabled override note', () => {
-    cm.set('danger.daemon', false);
-    openSettings();
-    const daemonEntries = modal.groups.get('daemon') ?? [];
-    for (const entry of daemonEntries) {
-      if (entry.setting.key === 'daemon.enabled') continue;
-      expect(entry.overrideNote).toBeUndefined();
-    }
-  });
+  // The deprecated danger.daemon alias (and the settings-modal override-note
+  // machinery it drove — SettingEntry.overrideNote, buildSettingOverrideNote)
+  // was removed from the schema in Wave 6; see
+  // docs/decisions/2026-07-05-daemon-by-default.md in the SDK. daemon.enabled
+  // is now the single source of truth for this setting, so there is no longer
+  // a precedence case for the modal to explain.
 });

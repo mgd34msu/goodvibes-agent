@@ -745,6 +745,6 @@ export function settingsPolicySummary(): Record<string, unknown> {
     mutation: 'Use settings action:"set" or action:"reset" with key, target, or query plus confirm:true and explicitUserRequest; ambiguous setting lookups are refused.',
     secretHandling: 'Raw secret values are persisted through the secret manager; config receives only a secret reference and tool output is redacted.',
     writablePolicy: 'Each setting descriptor includes writable, visibleInWorkspace, and lockReason when applicable.',
-    protectedRawDangerKeys: ['danger.daemon', 'danger.httpListener'],
+    protectedRawDangerKeys: ['danger.httpListener'],
   };
 }

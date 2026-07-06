@@ -176,7 +176,7 @@ describe('SettingsModal', () => {
       expect(visibleKeys.has(key)).toBe(true);
     }
     for (const key of [
-      'danger.daemon',
+      'danger.httpListener',
       'ui.wrfcMessages',
     ]) {
       expect(isAgentHiddenSettingKey(key)).toBe(true);

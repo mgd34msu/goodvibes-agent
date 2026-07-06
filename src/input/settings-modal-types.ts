@@ -78,17 +78,6 @@ export interface SettingEntry {
   conflict?: boolean;
   sourceLabel?: string;
   lockReason?: string;
-  /**
-   * Plain-language note when this setting's displayed value does not match
-   * what actually takes effect at runtime, because a separate (often hidden
-   * or locked) key takes precedence over it. Currently only populated for
-   * daemon.enabled when the deprecated danger.daemon alias is explicitly
-   * set — resolveDaemonEnabled() (SDK platform/config) gives danger.daemon
-   * precedence whenever it is set, so a user could see daemon.enabled: true
-   * here while the daemon actually stays off, with no way to edit
-   * danger.daemon from this modal (it is hidden and host-owned/locked).
-   */
-  overrideNote?: string;
 }
 
 export interface FlagEntry {

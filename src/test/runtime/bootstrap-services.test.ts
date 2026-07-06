@@ -14,14 +14,14 @@ function createConfig(overrides: {
   return {
     get(
       key:
-        | 'danger.daemon'
+        | 'daemon.enabled'
         | 'danger.httpListener'
         | 'controlPlane.host'
         | 'controlPlane.port'
         | 'httpListener.host'
         | 'httpListener.port',
     ): boolean | string | number {
-      if (key === 'danger.daemon') return overrides.daemon ?? false;
+      if (key === 'daemon.enabled') return overrides.daemon ?? false;
       if (key === 'danger.httpListener') return overrides.httpListener ?? false;
       if (key === 'controlPlane.host') return overrides.controlPlaneHost ?? '127.0.0.1';
       if (key === 'controlPlane.port') return overrides.controlPlanePort ?? 3421;

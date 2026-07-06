@@ -1,6 +1,7 @@
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import net from 'node:net';
 import { isAbsolute, join } from 'node:path';
+import { resolveDaemonEnabled } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigKey, ConfigManager } from '../config/index.ts';
 import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { RuntimeEndpointBinding, RuntimeEndpointId } from './endpoints.ts';
@@ -178,7 +179,7 @@ export async function buildCliServicePosture(
     enabled: runtime.configManager.get('service.enabled') === true,
     autostart: runtime.configManager.get('service.autostart') === true,
     restartOnFailure: runtime.configManager.get('service.restartOnFailure') === true,
-    daemonEnabled: runtime.configManager.get('danger.daemon') === true,
+    daemonEnabled: resolveDaemonEnabled(runtime.configManager),
   };
   const serverBackedEnabled = config.daemonEnabled || endpoints.some((endpoint) => endpoint.enabled);
   const issues: string[] = [];
@@ -228,7 +229,7 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
     '  Agent starts connected host: no',
     `  external host config present: ${yesNo(posture.config.enabled)}`,
     '  external host lifecycle config: ignored by Agent',
-    `  legacy host switch present: ${yesNo(posture.config.daemonEnabled)}`,
+    `  daemon considered enabled: ${yesNo(posture.config.daemonEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),
     '',

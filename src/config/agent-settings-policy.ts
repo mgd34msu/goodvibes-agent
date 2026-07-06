@@ -12,7 +12,6 @@ const EXTERNAL_HOST_SETTING_PREFIXES = [
 ] as const;
 
 const EXTERNAL_HOST_SETTING_KEYS = new Set<string>([
-  'danger.daemon',
   'danger.httpListener',
 ]);
 

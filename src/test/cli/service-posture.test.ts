@@ -50,7 +50,7 @@ describe('CLI service posture', () => {
     expect(text).toContain('lifecycle owner: outside goodvibes-agent');
     expect(text).toContain('Agent starts connected host: no');
     expect(text).toContain('external host lifecycle config: ignored by Agent');
-    expect(text).toContain('legacy host switch present: no');
+    expect(text).toContain('daemon considered enabled: yes');
     expect(text).not.toContain('installed:');
     expect(text).not.toContain('running:');
     expect(text).not.toContain('platform:');
@@ -102,7 +102,7 @@ describe('CLI service posture', () => {
 
   test('json output preserves endpoint and connected-host ownership structure', async () => {
     const config = createConfig();
-    config.setDynamic('danger.daemon', true);
+    config.setDynamic('daemon.enabled', true);
     config.setDynamic('service.enabled', false);
 
     const posture = await buildCliServicePosture({
