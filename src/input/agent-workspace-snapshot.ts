@@ -19,7 +19,7 @@ import {
   type AgentSkillRecord,
 } from '../agent/skill-registry.ts';
 import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
-import { isPromptActiveMemory } from '../agent/memory-prompt.ts';
+import { describeMemoryPromptEligibility, isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import type { PromptContextReceipt } from '../agent/prompt-context-receipts.ts';
 import { discoverProjectContextFiles } from '../agent/project-context-files.ts';
 import { getAgentRuntimeProfilesRoot, listAgentRuntimeProfiles, listAgentRuntimeProfileTemplates, readAgentRuntimeProfileSelection } from '../agent/runtime-profile.ts';
@@ -132,7 +132,15 @@ export function readLiveAgentMemoryCounters(context: CommandContext): AgentWorks
     count: records.length,
     reviewQueueCount: memory.reviewQueue(100).length,
     promptActiveCount: records.filter(isPromptActiveMemory).length,
-    items: records.map(summarizeMemoryItem),
+    // Each item carries the honest, per-record eligibility reason straight from
+    // describeMemoryPromptEligibility (Wave-4 W4-A1B) — the same wording source
+    // prompt-context-receipts.ts and agent-harness-prompt-context.ts use for prompt
+    // recall. No locally invented "not reviewed"/"outside prompt limit" paraphrase here.
+    items: records.map((record) => ({
+      ...summarizeMemoryItem(record),
+      promptEligible: isPromptActiveMemory(record),
+      promptEligibilityReason: describeMemoryPromptEligibility(record).reason,
+    })),
   };
 }
 

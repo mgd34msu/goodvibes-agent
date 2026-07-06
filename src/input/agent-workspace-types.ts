@@ -367,6 +367,13 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly missingRequirementCount?: number;
   readonly missingRequirements?: readonly string[];
   readonly startCount?: number;
+  /** Memory-only (Wave-4 W4-A1B): whether this record currently clears the prompt-injection
+   *  recall floor, per describeMemoryPromptEligibility. */
+  readonly promptEligible?: boolean;
+  /** Memory-only: the honest, per-record reason from describeMemoryPromptEligibility —
+   *  the same wording source prompt-context-receipts.ts and agent-harness-prompt-context.ts
+   *  use, so this workspace snapshot never has to invent its own paraphrase. */
+  readonly promptEligibilityReason?: string;
 }
 
 export interface AgentWorkspaceRecentReviewerHandoffArtifact {

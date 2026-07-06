@@ -2207,6 +2207,56 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('prompt context memory suppressed reasons come straight from describeMemoryPromptEligibility — no "not reviewed"/"outside prompt limit" paraphrase (W4-A1B)', async () => {
+    const fixture = makeFixture();
+    try {
+      // 11 eligible records (confidence 100 down to 90, all reviewed) so the top-10
+      // prompt slice cuts exactly one — that one must read as "eligible ... but outside
+      // the top-10 prompt slice ... budget-limited, not a trust problem", never the old
+      // coarse "outside prompt limit". A genuinely low-confidence record must still read
+      // as ineligible via describeMemoryPromptEligibility's own reason, never "not
+      // reviewed" (its reviewState here IS reviewed — confidence is why it fails).
+      const eligibleRecords = Array.from({ length: 11 }, (_, index) => makeMemoryRecord({
+        id: `mem-eligible-${index}`,
+        confidence: 100 - index,
+        reviewState: 'reviewed',
+        summary: `Eligible memory record ${index}`,
+      }));
+      const ineligibleRecord = makeMemoryRecord({
+        id: 'mem-below-floor',
+        confidence: 40,
+        reviewState: 'reviewed',
+        summary: 'Explicitly below the recall floor',
+      });
+      attachMemoryApi(fixture, [...eligibleRecords, ineligibleRecord]);
+
+      const promptContext = await executeHarnessJson<{
+        readonly segments: readonly {
+          readonly id: string;
+          readonly selected?: readonly { readonly id?: string }[];
+          readonly suppressed?: readonly { readonly id?: string; readonly reason?: string }[];
+        }[];
+      }>(fixture, { mode: 'prompt_context', includeParameters: true });
+
+      const memory = promptContext.segments.find((segment) => segment.id === 'memory');
+      expect(memory?.selected?.length).toBe(10);
+      // The 11th-ranked eligible record (lowest confidence, mem-eligible-10) is the one
+      // the top-10 slice cuts.
+      const sliceCut = memory?.suppressed?.find((record) => record.id === 'mem-eligible-10');
+      expect(sliceCut?.reason).toContain('eligible (');
+      expect(sliceCut?.reason).toContain('outside the top-10 prompt slice');
+      expect(sliceCut?.reason).toContain('budget-limited, not a trust problem');
+      expect(sliceCut?.reason).not.toBe('outside prompt limit');
+
+      const belowFloor = memory?.suppressed?.find((record) => record.id === 'mem-below-floor');
+      expect(belowFloor?.reason).toContain('confidence');
+      expect(belowFloor?.reason).not.toBe('not reviewed');
+      expect(belowFloor?.reason).not.toBe(`confidence below ${60}`);
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
   test('exposes visible Agent orchestration without spawning hidden work', async () => {
     const artifacts = createHarnessArtifactStore();
     const fixture = makeFixture({ artifactStore: artifacts.store });

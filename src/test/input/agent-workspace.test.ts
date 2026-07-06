@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { CONFIG_SCHEMA, SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
+import { readLiveAgentMemoryCounters } from '../../input/agent-workspace-snapshot.ts';
+import { describeMemoryPromptEligibility } from '../../agent/memory-prompt.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
 import { SETTINGS_CATEGORIES } from '../../input/settings-modal-types.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
@@ -920,6 +922,41 @@ describe('AgentWorkspace', () => {
     expect(output).toContain('Never fallback to non-Agent knowledge segments');
     expect(output).toContain('project/constraint');
     expect(output).not.toContain('default knowledge');
+  });
+
+  test('memory items carry describeMemoryPromptEligibility\'s own reason — no locally invented "not reviewed"/"outside prompt limit" paraphrase (W4-A1B)', () => {
+    const eligible = memoryRecord({
+      id: 'mem-eligible',
+      reviewState: 'fresh',
+      confidence: 60,
+      summary: 'Eligible at the store-default confidence floor.',
+    });
+    const ineligible = memoryRecord({
+      id: 'mem-ineligible',
+      reviewState: 'reviewed',
+      confidence: 40,
+      summary: 'Explicitly below the recall floor.',
+    });
+    const ctx = {
+      ...commandContext(),
+      clients: {
+        agentKnowledgeApi: { memory: memoryApi([eligible, ineligible]) },
+      },
+    } as unknown as CommandContext;
+
+    const counters = readLiveAgentMemoryCounters(ctx);
+    const eligibleItem = counters.items.find((item) => item.id === 'mem-eligible');
+    const ineligibleItem = counters.items.find((item) => item.id === 'mem-ineligible');
+
+    expect(eligibleItem?.promptEligible).toBe(true);
+    expect(eligibleItem?.promptEligibilityReason).toBe(describeMemoryPromptEligibility(eligible).reason);
+    expect(ineligibleItem?.promptEligible).toBe(false);
+    expect(ineligibleItem?.promptEligibilityReason).toBe(describeMemoryPromptEligibility(ineligible).reason);
+    // Neither the old coarse wording nor a locally re-derived guess — the exact honest
+    // reason string, same wording source as prompt-context-receipts.ts.
+    expect(ineligibleItem?.promptEligibilityReason).toContain('confidence');
+    expect(ineligibleItem?.promptEligibilityReason).not.toBe('not reviewed');
+    expect(ineligibleItem?.promptEligibilityReason).not.toBe('outside prompt limit');
   });
 
   test('library workspace actions open editors and dispatch only concrete commands', () => {

@@ -1,7 +1,7 @@
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
-import { isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE } from '../agent/memory-prompt.ts';
+import { describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE } from '../agent/memory-prompt.ts';
 import { AgentPersonaRegistry, buildActivePersonaPrompt } from '../agent/persona-registry.ts';
 import { buildProjectContextPrompt, discoverProjectContextFiles } from '../agent/project-context-files.ts';
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from '../agent/routine-registry.ts';
@@ -237,17 +237,23 @@ function memorySegment(memory: PromptMemoryApi | undefined, includeParameters: b
       confidence: record.confidence,
       inspectRoute: `agent_local_registry domain:"memory" action:"get" recordId:"${record.id}"`,
     })),
-    suppressed: suppressed.slice(0, 12).map((record) => ({
-      id: record.id,
-      reviewState: record.reviewState,
-      confidence: record.confidence,
-      reason: record.reviewState !== 'reviewed'
-        ? 'not reviewed'
-        : record.confidence < MIN_PROMPT_MEMORY_CONFIDENCE
-          ? `confidence below ${MIN_PROMPT_MEMORY_CONFIDENCE}`
-          : 'outside prompt limit',
-      inspectRoute: `agent_local_registry domain:"memory" action:"get" recordId:"${record.id}"`,
-    })),
+    suppressed: suppressed.slice(0, 12).map((record) => {
+      // Honest, per-record reason straight from describeMemoryPromptEligibility (Wave-4
+      // W4-A1B) — the same wording source prompt-context-receipts.ts uses, never a
+      // locally invented "not reviewed"/"outside prompt limit" guess. A record here
+      // either genuinely failed eligibility, or passed it but was cut by the top-10
+      // prompt slice — those read differently.
+      const eligibility = describeMemoryPromptEligibility(record);
+      return {
+        id: record.id,
+        reviewState: record.reviewState,
+        confidence: record.confidence,
+        reason: eligibility.eligible
+          ? `eligible (${eligibility.reason}) but outside the top-10 prompt slice — budget-limited, not a trust problem`
+          : eligibility.reason,
+        inspectRoute: `agent_local_registry domain:"memory" action:"get" recordId:"${record.id}"`,
+      };
+    }),
   }, includeParameters);
 }
 
