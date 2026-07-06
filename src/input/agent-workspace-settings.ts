@@ -3,6 +3,7 @@ import type { ConfigKey, ConfigSetting } from '@pellux/goodvibes-sdk/platform/co
 import type { PendingSubscriptionLogin, ProviderSubscription } from '@pellux/goodvibes-sdk/platform/config';
 import { setHarnessSetting } from '../agent/harness-control.ts';
 import { isExternalHostOwnedSettingKey } from '../config/agent-settings-policy.ts';
+import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY, THEME_MODE_SYNTHETIC_SETTING } from '../renderer/theme-mode-config.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { CommandContext } from './command-registry.ts';
 import type {
@@ -325,9 +326,15 @@ function applyTuiSubscriptions(context: CommandContext, parseErrors: string[]): 
 }
 
 export function agentWorkspaceSettingSchema(context: CommandContext | null, key: string): ConfigSetting | null {
-  return context?.platform?.configManager
+  const fromSchema = context?.platform?.configManager
     ?.getSchema()
     .find((setting) => setting.key === key) ?? null;
+  if (fromSchema) return fromSchema;
+  // display.themeMode is a TUI-local synthetic setting (W4-R4) that never
+  // joined the SDK ConfigKey schema — the classic settings-modal injects the
+  // same descriptor into its own groups map rather than the schema. Mirror
+  // that fallback here so the workspace surface can discover and cycle it too.
+  return key === THEME_MODE_CONFIG_KEY ? THEME_MODE_SYNTHETIC_SETTING : null;
 }
 
 export function isAgentWorkspaceActionVisible(context: CommandContext | null, action: AgentWorkspaceAction): boolean {
@@ -431,6 +438,38 @@ export async function applyAgentWorkspaceSettingValue(
         safety: 'safe',
       },
     };
+  }
+  if (String(setting.key) === THEME_MODE_CONFIG_KEY) {
+    try {
+      // display.themeMode is agent-local and never joined the SDK ConfigKey
+      // schema, so setHarnessSetting's schema lookup would reject it. Persist
+      // directly (the same setDynamic round-trip the classic settings-modal
+      // uses for this key), then run the ONE shared apply hook — forced
+      // dark/light flips the active mode now with a full repaint; auto only
+      // re-probes at startup, stated honestly in the returned message.
+      configManager.setDynamic(setting.key as ConfigKey, value);
+      const { message } = applyThemeModeSettingChange(value, () => context?.clearScreen?.());
+      return {
+        status: message,
+        result: {
+          kind: 'refreshed',
+          title: `${setting.key} updated`,
+          detail: message,
+          safety: 'safe',
+        },
+      };
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      return {
+        status: detail,
+        result: {
+          kind: 'error',
+          title: `${setting.key} update failed`,
+          detail,
+          safety: 'safe',
+        },
+      };
+    }
   }
   try {
     const result = await setHarnessSetting(configManager, context?.platform?.secretsManager, setting.key, value);

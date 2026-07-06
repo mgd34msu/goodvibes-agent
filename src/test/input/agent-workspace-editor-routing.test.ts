@@ -405,10 +405,17 @@ describe('settingKey exhaustiveness against CONFIG_SCHEMA', () => {
    * live ConfigManager, not part of the static CONFIG_SCHEMA. They are not
    * used as settingActions in workspace categories today. If that changes,
    * document each key with its source module (agent/email/email-service.ts).
+   *
+   * display.themeMode: the TUI-local synthetic appearance setting (W4-R4,
+   * renderer/theme-mode-config.ts). It is agent-local — stored under the
+   * existing `display` section via ConfigManager.setDynamic/get, never
+   * registered in the SDK's static CONFIG_SCHEMA. Both the classic
+   * settings-modal (settings-modal.ts's _loadGroups) and the workspace
+   * settingAction path (agent-workspace-categories.ts's 'display-theme-mode'
+   * action) resolve it through THEME_MODE_SYNTHETIC_SETTING instead.
    */
   const RUNTIME_EXTENDED_ALLOWLIST = new Set<string>([
-    // None currently. Add entries here with their source module comment
-    // if runtime-extended keys are ever used as settingActions.
+    'display.themeMode',
   ]);
 
   function collectSettingKeys(

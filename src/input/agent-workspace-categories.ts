@@ -2,6 +2,7 @@ import type { AgentWorkspaceCategory } from './agent-workspace-types.ts';
 import { settingAction } from './agent-workspace-category-actions.ts';
 import { AGENT_WORKSPACE_HOST_CATEGORY } from './agent-workspace-host-category.ts';
 import { AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES } from './agent-workspace-onboarding-categories.ts';
+import { THEME_MODE_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
 
 export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
   {
@@ -134,6 +135,7 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     actions: [
       settingAction({ id: 'display-stream', label: 'Stream tokens', detail: 'Toggle streaming assistant tokens as they arrive.', key: 'display.stream' }),
       settingAction({ id: 'display-theme', label: 'Theme', detail: 'Set the color theme name.', key: 'display.theme' }),
+      settingAction({ id: 'display-theme-mode', label: 'Theme mode', detail: 'Cycle auto, dark, or light for the terminal background. Forced dark/light apply immediately; switching to auto takes effect on the next launch, when it re-probes the terminal.', key: THEME_MODE_CONFIG_KEY }),
       settingAction({ id: 'display-line-numbers', label: 'Line numbers', detail: 'Cycle all, code-only, or off for assistant output line numbers.', key: 'display.lineNumbers' }),
       settingAction({ id: 'display-collapse-threshold', label: 'Collapse threshold', detail: 'Set the line count threshold for collapsed tool output.', key: 'display.collapseThreshold' }),
       settingAction({ id: 'display-token-speed', label: 'Token speed counter', detail: 'Toggle tokens-per-second while generating.', key: 'display.showTokenSpeed' }),

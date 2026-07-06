@@ -4,7 +4,7 @@ import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { CONFIG_SCHEMA, SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
+import { CONFIG_SCHEMA, SubscriptionManager, type ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspaceToken } from '../../input/agent-workspace.ts';
 import { readLiveAgentMemoryCounters } from '../../input/agent-workspace-snapshot.ts';
@@ -26,6 +26,8 @@ import { createShellPathService } from '@/runtime/index.ts';
 import { readOnboardingCheckMarker, readOnboardingCompletionMarker, writeOnboardingCheckMarker } from '../../runtime/onboarding/index.ts';
 import { connectedHostOperatorTokenPath } from '../../runtime/connected-host-auth.ts';
 import { ConfigManager } from '../../config/index.ts';
+import { THEME_MODE_CONFIG_KEY } from '../../renderer/theme-mode-config.ts';
+import { getActiveThemeMode, setActiveThemeMode } from '../../renderer/theme.ts';
 import { isAgentHiddenSettingKey } from '../../config/agent-settings-policy.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
@@ -682,6 +684,46 @@ describe('AgentWorkspace', () => {
     expect(configManager.get('surfaces.ntfy.enabled')).toBe(true);
     expect(savedAgentSetting(shellPaths, 'surfaces.ntfy.enabled')).toBe(true);
     expect(workspace.actions.some((action) => action.id === 'channel-ntfy-base-url')).toBe(true);
+  });
+
+  test('workspace Interface page discovers and cycles the shared theme-mode setting', async () => {
+    const { context, configManager } = persistentConfigContext();
+    const workspace = new AgentWorkspace();
+    workspace.open(context, () => undefined);
+
+    try {
+      workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-display');
+      expect(workspace.selectedCategory.label).toBe('Interface');
+      const action = workspace.actions.find((entry) => entry.id === 'display-theme-mode');
+      expect(action).toBeDefined();
+      expect(action!.kind).toBe('setting');
+      expect(action!.settingKey).toBe(THEME_MODE_CONFIG_KEY);
+
+      workspace.selectedActionIndex = workspace.actions.findIndex((entry) => entry.id === 'display-theme-mode');
+
+      workspace.activateSelected(); // auto -> dark, applied now through the shared apply hook
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(configManager.get(THEME_MODE_CONFIG_KEY as ConfigKey)).toBe('dark');
+      expect(getActiveThemeMode()).toBe('dark');
+      expect(workspace.status).toContain('applied now');
+
+      workspace.activateSelected(); // dark -> light
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(configManager.get(THEME_MODE_CONFIG_KEY as ConfigKey)).toBe('light');
+      expect(getActiveThemeMode()).toBe('light');
+      expect(workspace.status).toContain('applied now');
+
+      workspace.activateSelected(); // light -> auto (wraps); only takes effect at next launch
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(configManager.get(THEME_MODE_CONFIG_KEY as ConfigKey)).toBe('auto');
+      expect(getActiveThemeMode()).toBe('light'); // unchanged now — auto only re-probes at startup
+      expect(workspace.status).toContain('next startup');
+    } finally {
+      setActiveThemeMode('dark'); // restore the shared test-process default
+    }
   });
 
   test('import GoodVibes settings imports provider subscriptions into Agent state', async () => {
