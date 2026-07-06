@@ -2,6 +2,7 @@ import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { SelectionResult, SelectionAction } from './selection-modal.ts';
 import type { CommandContext } from './command-registry.ts';
 import { openTtsProviderPicker, openTtsVoicePicker } from './tts-settings-actions.ts';
+import { isTextBackspace } from './delete-key-policy.ts';
 
 type SelectionRouteState = {
   selectionModal: {
@@ -136,7 +137,11 @@ export function handleSelectionModalToken(state: SelectionRouteState, token: Inp
           getAdjustmentStep(selected, token.shift),
         );
       }
-    } else if (token.logicalName === 'backspace') {
+    } else if (isTextBackspace(token.logicalName ?? '')) {
+      // delete-key-policy (R3 port, ported from goodvibes-tui): this end-anchored
+      // search filter has no cursor, so 'delete' (isTextForwardDelete) is correctly
+      // a no-op here — it simply falls through this else-if chain untouched, same
+      // as the TUI's identical SelectionModal search-filter route.
       if (state.selectionModal.allowSearch && state.selectionModal.searchFocused && state.selectionModal.query.length > 0) {
         state.selectionModal.setQuery(state.selectionModal.query.slice(0, -1));
       }
