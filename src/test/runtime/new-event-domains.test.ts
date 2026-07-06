@@ -128,7 +128,10 @@ describe('new runtime event domains', () => {
       'matrix',
       'service',
     ]);
-    expect([...SURFACE_KINDS]).toEqual([...ROUTE_SURFACE_KINDS]);
+    // SURFACE_KINDS is a superset of ROUTE_SURFACE_KINDS: One-Platform Wave 1 added
+    // first-class platform surfaces (agent, webui, companion, automation) that are
+    // not externally routable message channels, so they live in SURFACE_KINDS only.
+    expect([...SURFACE_KINDS]).toEqual([...ROUTE_SURFACE_KINDS, 'agent', 'webui', 'companion', 'automation']);
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('daemon');
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('service');
     expect([...CONTROL_PLANE_CLIENT_KINDS]).toContain('telegram');
