@@ -5,6 +5,10 @@ import type { SecretScope, SecretStorageMedium } from './secrets.ts';
 export const SECRET_CONFIG_KEYS = new Set<ConfigKey>([
   // email section (app-layer extension, key is string-cast for ConfigKey compatibility)
   'email.passwordRef' as unknown as ConfigKey,
+  // calendar OAuth advanced overrides — only the client SECRET is secret-backed; the
+  // client id is not a secret (RFC 8252) and stays a plain config value.
+  'calendar.google.clientSecretRef' as unknown as ConfigKey,
+  'calendar.microsoft.clientSecretRef' as unknown as ConfigKey,
   'surfaces.slack.signingSecret',
   'surfaces.slack.botToken',
   'surfaces.slack.appToken',

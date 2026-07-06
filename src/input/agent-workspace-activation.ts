@@ -12,6 +12,7 @@ import { createReminderScheduleEditor } from './agent-workspace-reminder-schedul
 import { createEmailConnectWizardEditor } from './agent-workspace-email-connect-editor.ts';
 import { createCalendarConnectEditor } from './agent-workspace-calendar-connect-editor.ts';
 import { createCalendarSubscribeWizardEditor } from './agent-workspace-calendar-subscribe-editor.ts';
+import { createCalendarOAuthEditor } from './agent-workspace-calendar-oauth-editor.ts';
 import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
 import { createAgentWorkspaceWebResearchEditor } from './agent-workspace-web-research-editor.ts';
 import { parseSlashCommand } from './slash-command-parser.ts';
@@ -207,6 +208,8 @@ export function createAgentWorkspaceEditor(
   if (editorKind === 'email-connect-wizard') return createEmailConnectWizardEditor(options.emailConnectStatus ?? null);
   if (editorKind === 'calendar-connect') return createCalendarConnectEditor();
   if (editorKind === 'calendar-subscribe-wizard') return createCalendarSubscribeWizardEditor();
+  if (editorKind === 'calendar-oauth-google') return createCalendarOAuthEditor('google');
+  if (editorKind === 'calendar-oauth-outlook') return createCalendarOAuthEditor('microsoft');
   if (editorKind === 'profile') return createProfileEditor(options.runtimeStarterTemplates ?? []);
   if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
   if (editorKind === 'web-research') return createAgentWorkspaceWebResearchEditor('research');

@@ -47,6 +47,19 @@ describe('W4-A5: inbox/calendar workspace cards are real actions, not dead guida
     expect(createAgentWorkspaceEditor(action!.editorKind!)).not.toBeNull();
   });
 
+  test('the advanced Google/Outlook OAuth cards are real, dispatchable editors that name the default connect route (W4-A10)', () => {
+    for (const [id, editorKind, route] of [
+      ['personal-ops-calendar-google', 'calendar-oauth-google', '/calendar connect google'],
+      ['personal-ops-calendar-outlook', 'calendar-oauth-outlook', '/calendar connect outlook'],
+    ] as const) {
+      const action = findAction(id);
+      expect(action?.kind).toBe('editor');
+      expect(action?.editorKind).toBe(editorKind);
+      expect(action?.detail.toLowerCase()).toContain(route);
+      expect(createAgentWorkspaceEditor(action!.editorKind!)).not.toBeNull();
+    }
+  });
+
   test('the inbox card names the real, dispatchable mechanism (a connect wizard), not just a description', () => {
     const action = findAction('personal-ops-inbox');
     expect(action?.detail.toLowerCase()).toContain('connect wizard');

@@ -244,7 +244,9 @@ export type AgentWorkspaceEditorKind =
   | 'reminder-schedule'
   | 'email-connect-wizard'
   | 'calendar-connect'
-  | 'calendar-subscribe-wizard';
+  | 'calendar-subscribe-wizard'
+  | 'calendar-oauth-google'
+  | 'calendar-oauth-outlook';
 
 export type AgentWorkspaceLocalOperation =
   | 'memory-edit'

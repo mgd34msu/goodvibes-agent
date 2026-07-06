@@ -11,6 +11,13 @@ import {
   runCalendarSubscriptionCommand,
   subscriptionRegistryForRead,
 } from './calendar-subscription-runtime.ts';
+import {
+  fetchProviderUpcoming,
+  runCalendarAccounts,
+  runCalendarConnect,
+  runCalendarDisconnect,
+  sourceLabel,
+} from './calendar-connect-runtime.ts';
 
 /** Today's date as 'YYYY-MM-DD' (UTC), for windowed occurrence expansion. */
 function todayIsoDate(): string {
@@ -64,8 +71,22 @@ function renderEventList(events: readonly Parameters<typeof formatEventLine>[0][
   ].join('\n');
 }
 
-export function runCalendarRuntimeCommand(args: readonly string[], ctx: CommandContext): void {
+export async function runCalendarRuntimeCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
   const sub = (args[0] ?? 'list').toLowerCase();
+
+  // Connected-provider verbs (OAuth). Handled before the local-store registry so a
+  // connect/accounts call never touches the local .ics file.
+  if (sub === 'connect' || sub === 'disconnect' || sub === 'accounts') {
+    try {
+      if (sub === 'connect') await runCalendarConnect(args, ctx);
+      else if (sub === 'disconnect') await runCalendarDisconnect(args, ctx);
+      else await runCalendarAccounts(ctx);
+    } catch (error) {
+      printError(ctx, error);
+    }
+    return;
+  }
+
   const registry = registryFromContext(ctx);
   // A read-only subscription registry merges subscribed feed events into the
   // views below. Tolerant of a missing secret manager (seeds/occurrences read
@@ -93,8 +114,23 @@ export function runCalendarRuntimeCommand(args: readonly string[], ctx: CommandC
       const snap = registry.snapshot();
       const events = registry.upcoming(days);
       const local = renderEventList([...events], snap.path);
+      // A9's subscribed-feed section (ics-feed source), merged read-only.
       const subscribed = subs ? renderSubscribedSection(subs.occurrencesInWindow(todayIsoDate(), addDaysIsoDate(days))) : '';
-      ctx.print(withSubscribedSection(local, subscribed));
+      // A10: connected-provider events (google-api / microsoft-graph), best-effort.
+      const now = new Date();
+      const to = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+      const { events: providerEvents, notes } = await fetchProviderUpcoming(ctx, {
+        timeMin: now.toISOString(),
+        timeMax: to.toISOString(),
+      });
+      const providerLines = providerEvents.map((e) =>
+        `  [${sourceLabel(e.source)}] ${e.start.value.slice(0, 16).replace('T', ' ')}  ${e.summary}${e.calendarLabel ? `  (${e.calendarLabel})` : ''}`,
+      );
+      const providerBlock = providerEvents.length > 0
+        ? [`Connected calendars (${providerEvents.length})`, ...providerLines].join('\n')
+        : '';
+      const notesBlock = notes.length > 0 ? ['Notes', ...notes].join('\n') : '';
+      ctx.print([withSubscribedSection(local, subscribed), providerBlock, notesBlock].filter(Boolean).join('\n\n'));
       return;
     }
 
@@ -237,7 +273,7 @@ export function runCalendarRuntimeCommand(args: readonly string[], ctx: CommandC
       return;
     }
 
-    ctx.print('Usage: /calendar [list|upcoming [--days N]|import <path> [--yes]|export [--dest <path>] [--yes]|add --title <title> --start <ISO> --yes|delete <id> --yes|subscribe <ics-url> [--name N] [--every MIN] [--yes]|unsubscribe <name> --yes|subscriptions|refresh [name]]');
+    ctx.print('Usage: /calendar [list|upcoming [--days N]|connect <google|outlook> [--device]|disconnect <google|outlook>|accounts|import <path> [--yes]|export [--dest <path>] [--yes]|add --title <title> --start <ISO> --yes|delete <id> --yes|subscribe <ics-url> [--name N] [--every MIN] [--yes]|unsubscribe <name> --yes|subscriptions|refresh [name]]');
   } catch (error) {
     printError(ctx, error);
   }
@@ -247,16 +283,16 @@ export function registerCalendarRuntimeCommands(registry: CommandRegistry): void
   registry.register({
     name: 'calendar',
     aliases: ['cal'],
-    description: 'Manage local calendar events and external calendar subscriptions',
+    description: 'Manage local calendar events, external calendar subscriptions, and connected calendar accounts',
     hidden: true,
-    usage: '[list|upcoming [--days N]|import <path> [--yes]|export [--dest <path>] [--yes]|add --title <title> --start <ISO> [--end <ISO>] [--location <loc>] [--notes <notes>] --yes|delete <id> --yes|subscribe <ics-url> [--name N] [--every MIN] [--yes]|unsubscribe <name> --yes|subscriptions|refresh [name]]',
+    usage: '[list|upcoming [--days N]|connect <google|outlook> [--device]|disconnect <google|outlook>|accounts|import <path> [--yes]|export [--dest <path>] [--yes]|add --title <title> --start <ISO> [--end <ISO>] [--location <loc>] [--notes <notes>] --yes|delete <id> --yes|subscribe <ics-url> [--name N] [--every MIN] [--yes]|unsubscribe <name> --yes|subscriptions|refresh [name]]',
     handler: async (args: readonly string[], ctx: CommandContext) => {
       const sub = (args[0] ?? 'list').toLowerCase();
       if (CALENDAR_SUBSCRIPTION_VERBS.has(sub)) {
         await runCalendarSubscriptionCommand(sub, args.slice(1), ctx);
         return;
       }
-      runCalendarRuntimeCommand(args, ctx);
+      await runCalendarRuntimeCommand(args, ctx);
     },
   });
 }
