@@ -3,6 +3,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
+import { FocusTracker } from '../core/focus-tracker.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { AutomationDeliveryManager, AutomationManager, AutomationRouteStore } from '@pellux/goodvibes-sdk/platform/automation';
@@ -452,6 +453,8 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly worktreeRegistry: WorktreeRegistry;
   readonly sandboxSessionRegistry: SandboxSessionRegistry;
   readonly webhookNotifier: WebhookNotifier;
+  /** W4-R3 — OS-level terminal focus tracker, ported from goodvibes-tui's W2.3 (core/focus-tracker.ts). */
+  readonly focusTracker: FocusTracker;
   readonly replayEngine: DeterministicReplayEngine;
   readonly providerOptimizer: ProviderOptimizer;
   readonly providerCapabilityRegistry: ProviderCapabilityRegistry;
@@ -769,6 +772,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const worktreeRegistry = createDisabledAgentWorktreeRegistry(workingDirectory);
   // Configured and attached to the runtime bus during bootstrap when webhook URLs are present.
   const webhookNotifier = new WebhookNotifier();
+  // W4-R3 — one shared instance for the process lifetime (mirrors goodvibes-tui's
+  // runtime/services.ts); fed from 'focus' tokens in handler-feed.ts and read by
+  // the approval-alert wiring in main.ts.
+  const focusTracker = new FocusTracker();
   const replayEngine = new DeterministicReplayEngine(workingDirectory);
   const providerOptimizer = new ProviderOptimizer(providerRegistry, providerCapabilityRegistry, false);
   const sessionMemoryStore = new SessionMemoryStore();
@@ -968,6 +975,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     worktreeRegistry,
     sandboxSessionRegistry,
     webhookNotifier,
+    focusTracker,
     replayEngine,
     providerOptimizer,
     providerCapabilityRegistry,

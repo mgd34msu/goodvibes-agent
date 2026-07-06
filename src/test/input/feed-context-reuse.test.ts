@@ -7,6 +7,7 @@
 import { describe, test, expect, mock, spyOn } from 'bun:test';
 import type { InputFeedContext } from '../../input/handler-feed.ts';
 import * as handlerFeedModule from '../../input/handler-feed.ts';
+import { FocusTracker } from '../../core/focus-tracker.ts';
 
 describe('InputFeedContext reuse (α1)', () => {
   test('feedInputTokens receives the same context object on every feed() call', () => {
@@ -56,6 +57,8 @@ describe('InputFeedContext reuse (α1)', () => {
       sessions: {
         sessionManager: { getAll: () => [] } as unknown,
       },
+      // W4-R3: focusTracker is the only field this handler reads off uiServices.platform.
+      platform: { focusTracker: new FocusTracker() },
       shell: {
         processManager: { getAll: () => [] } as unknown,
         bookmarkManager: { getAll: () => [] } as unknown,
@@ -133,6 +136,8 @@ describe('InputFeedContext reuse (α1)', () => {
         providerRegistry: { getAll: () => [] } as unknown,
       },
       sessions: { sessionManager: { getAll: () => [] } as unknown },
+      // W4-R3: focusTracker is the only field this handler reads off uiServices.platform.
+      platform: { focusTracker: new FocusTracker() },
       shell: {
         processManager: { getAll: () => [] } as unknown,
         bookmarkManager: { getAll: () => [] } as unknown,

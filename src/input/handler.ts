@@ -67,6 +67,7 @@ import { feedInputTokens } from './handler-feed.ts';
 import { buildInitialFeedContext, syncFeedContextMutableFields } from './feed-context-factory.ts';
 import type { UiRuntimeServices } from '../runtime/ui-services.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
+import type { PanelBurstGuardState } from './panel-paste-flood-guard.ts';
 
 type SelectionModalCallback = (result: SelectionResult | null) => void;
 
@@ -93,6 +94,8 @@ export class InputHandler {
   public pasteRegistry = new Map<string, string>();
   public nextPasteId = 1;
   public lastCtrlCTime = 0;
+  /** W4-R3 (ported from goodvibes-tui DEBT-5 item 5) — unbracketed-paste-flood guard state, mutated in place. */
+  public burstGuard: PanelBurstGuardState = { timestamps: [], suspended: false, hintShown: false };
   /** Long-lived feed context — reused across every feed() call to avoid per-keystroke allocation. */
   public feedContext!: import('./handler-feed.ts').InputFeedContext;
   public commandRegistry: CommandRegistry | null = null;
@@ -207,6 +210,8 @@ export class InputHandler {
         selection: this.selection,
         pasteRegistry: this.pasteRegistry,
         imageRegistry: this.imageRegistry,
+        burstGuard: this.burstGuard,
+        focusTracker: this.uiServices.platform.focusTracker,
         projectRoot: this.uiServices.environment.shellPaths.workingDirectory,
         selectionModal: this.selectionModal,
         bookmarkModal: this.bookmarkModal,

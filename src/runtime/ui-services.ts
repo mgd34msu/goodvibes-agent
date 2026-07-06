@@ -54,6 +54,8 @@ export interface UiPlatformServices {
   readonly tokenAuditor: RuntimeServices['tokenAuditor'];
   readonly replayEngine: RuntimeServices['replayEngine'];
   readonly webhookNotifier: RuntimeServices['webhookNotifier'];
+  /** W4-R3 — OS-level terminal focus tracker, ported from goodvibes-tui's W2.3. */
+  readonly focusTracker: RuntimeServices['focusTracker'];
   readonly policyRuntimeState: RuntimeServices['policyRuntimeState'];
   readonly externalServices?: {
     inspect(): {
@@ -165,6 +167,7 @@ export function createUiRuntimeServices(
       tokenAuditor: runtimeServices.tokenAuditor,
       replayEngine: runtimeServices.replayEngine,
       webhookNotifier: runtimeServices.webhookNotifier,
+      focusTracker: runtimeServices.focusTracker,
       policyRuntimeState: runtimeServices.policyRuntimeState,
     },
     planning: {

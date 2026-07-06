@@ -47,6 +47,7 @@ import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { FOCUS_ENABLE, FOCUS_DISABLE, installFocusModeExitGuard, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
@@ -64,6 +65,7 @@ const KEYBOARD_EXT_ENABLE = '\x1b[>4;2m' + '\x1b[?1u', KEYBOARD_EXT_DISABLE = '\
 async function main() {
   const stdout = process.stdout;
   const stdin = process.stdin;
+  installFocusModeExitGuard(stdout); // W4-R3 — see shell/terminal-focus-mode.ts
   const { cli, configManager, bootstrapWorkingDir, bootstrapHomeDirectory } = await prepareShellCliRuntime(process.argv.slice(2), {
     defaultWorkingDirectory: process.env['GOODVIBES_WORKING_DIR'] ?? process.cwd(),
     homeDirectory: process.env['GOODVIBES_AGENT_HOME'] ?? homedir(),
@@ -266,7 +268,7 @@ async function main() {
     process.removeListener('SIGINT', sigintHandler);
     process.removeListener('unhandledRejection', unhandledRejectionHandler);
     const exitScreen = cli.flags.noAltScreen ? CLEAR_SCREEN : CLEAR_SCREEN + ALT_SCREEN_EXIT;
-    allowTerminalWrite(() => stdout.write(PASTE_DISABLE + KEYBOARD_EXT_DISABLE + MOUSE_DISABLE + CURSOR_SHOW + exitScreen));
+    allowTerminalWrite(() => stdout.write(PASTE_DISABLE + KEYBOARD_EXT_DISABLE + MOUSE_DISABLE + FOCUS_DISABLE + CURSOR_SHOW + exitScreen));
     terminalOutputGuard.dispose();
     stdin.setRawMode(false);
     process.exit(0);
@@ -395,14 +397,11 @@ async function main() {
     sidebarOverride = !(sidebarWidthFor(width) > 0);
     render();
   };
-  permissionPromptRef.requestPermission = (request) =>
-    new Promise((resolve) => {
-      pendingPermission = {
-        ...request,
-        resolve: (approved: boolean, remember = false) => resolve({ approved, remember }),
-      };
-      render();
-    });
+  const rawRequestPermission: typeof permissionPromptRef.requestPermission = (request) => new Promise((resolve) => { // W4-R3: see shell/terminal-focus-mode.ts
+    pendingPermission = { ...request, resolve: (approved: boolean, remember = false) => resolve({ approved, remember }) };
+    render();
+  });
+  permissionPromptRef.requestPermission = wrapRequestPermissionWithApprovalAlert(rawRequestPermission, { focusTracker: ctx.services.focusTracker });
 
   const input: InputHandler = new InputHandler(
     () => render(),
@@ -429,6 +428,7 @@ async function main() {
         tokenAuditor: ctx.services.tokenAuditor,
         replayEngine: ctx.services.replayEngine,
         webhookNotifier: ctx.services.webhookNotifier,
+        focusTracker: ctx.services.focusTracker,
         policyRuntimeState: ctx.services.policyRuntimeState,
         externalServices: uiServices.platform.externalServices,
       },
@@ -696,7 +696,7 @@ async function main() {
   stdin.setRawMode(true);
   stdin.resume();
   stdin.setEncoding('utf8');
-  allowTerminalWrite(() => stdout.write((cli.flags.noAltScreen ? '' : ALT_SCREEN_ENTER) + CLEAR_SCREEN + CURSOR_HIDE + MOUSE_ENABLE + KEYBOARD_EXT_ENABLE + PASTE_ENABLE));
+  allowTerminalWrite(() => stdout.write((cli.flags.noAltScreen ? '' : ALT_SCREEN_ENTER) + CLEAR_SCREEN + CURSOR_HIDE + MOUSE_ENABLE + KEYBOARD_EXT_ENABLE + PASTE_ENABLE + FOCUS_ENABLE));
 
   applyInitialTuiCliState({
     cli,
