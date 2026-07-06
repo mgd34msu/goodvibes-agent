@@ -59,6 +59,26 @@ function scriptedFetcher(responses: FeedFetchResult[]): FeedFetcher {
   return async () => responses[Math.min(i++, responses.length - 1)]!;
 }
 
+/**
+ * A fetcher where one specific call (by 0-based call index across the
+ * fetcher's whole lifetime) parks on a gate until `release()` is called; every
+ * other call resolves immediately. Used to land a concurrent
+ * subscribe/unsubscribe precisely while a refresh()'s network fetch for one
+ * target is still in flight (F2).
+ */
+function gatedFetcher(responses: FeedFetchResult[], gatedCallIndex: number): { fetcher: FeedFetcher; release: () => void; calls: () => number } {
+  let calls = 0;
+  let releaseFn: (() => void) | undefined;
+  const gate = new Promise<void>((resolve) => { releaseFn = resolve; });
+  const fetcher: FeedFetcher = async () => {
+    const idx = calls;
+    calls += 1;
+    if (idx === gatedCallIndex) await gate;
+    return responses[Math.min(idx, responses.length - 1)]!;
+  };
+  return { fetcher, release: () => releaseFn?.(), calls: () => calls };
+}
+
 describe('CalendarSubscriptionRegistry', () => {
   test('subscribe caches events and stores the URL as a secret, never in the JSON', async () => {
     const storePath = tmpStore();
@@ -163,6 +183,97 @@ describe('CalendarSubscriptionRegistry', () => {
     expect(res.ok).toBe(false);
     if (res.ok) return;
     expect(res.stage).toBe('parse');
+  });
+});
+
+/**
+ * F2: refresh() snapshots the store, awaits network for as long as the fetch
+ * takes, then used to blind-write the whole file from that stale snapshot —
+ * so a concurrent subscribe/unsubscribe landing during that window was
+ * silently reverted. Fixed by serializing every mutation's WRITE through one
+ * in-process queue and having refresh() re-read the store fresh and merge
+ * per-record right before it writes. These tests park a refresh mid-fetch
+ * (via gatedFetcher), land a concurrent mutation while it's parked, then
+ * release the fetch and assert the concurrent mutation survived.
+ */
+describe('CalendarSubscriptionRegistry: concurrent-mutation safety (F2)', () => {
+  test('a subscribe that lands while a refresh is mid-fetch survives the refresh\'s write', async () => {
+    const { secrets } = memorySecrets();
+    const storePath = tmpStore();
+    // Fetcher call order is by ACTUAL invocation, not by which statement is
+    // written first: refresh() awaits secrets.get() before it ever reaches
+    // the fetcher, while subscribe()'s store.add() reaches the fetcher with
+    // no intervening await. So the concurrent second subscribe's fetch
+    // (call 1) actually lands before refresh's own fetch (call 2) — call 0
+    // is the initial (fully-awaited) subscribe that seeds the registry.
+    const { fetcher, release } = gatedFetcher([{ kind: 'ok', body: ICS }, { kind: 'ok', body: ICS }, { kind: 'ok', body: ICS }], 2);
+    const reg = new CalendarSubscriptionRegistry({ storePath, secrets, fetcher, clock: () => 1000, defaultRefreshIntervalMs: 60_000 });
+    await reg.subscribe('https://cal.example/work.ics');
+    expect(reg.names()).toEqual(['Work Calendar']);
+
+    const refreshPromise = reg.refresh('Work Calendar', { force: true });
+    // The refresh's fetch is now parked on the gate. Land a subscribe for a
+    // second, differently-named feed while it's stuck there.
+    const subscribeResult = await reg.subscribe('https://cal.example/second.ics', 'Second Feed');
+    expect(subscribeResult.ok).toBe(true);
+    expect([...reg.names()].sort()).toEqual(['Second Feed', 'Work Calendar']);
+
+    release();
+    const [outcome] = await refreshPromise;
+    expect(outcome?.outcome).toBe('updated');
+
+    // The subscribe that landed mid-refresh must still be there afterward —
+    // the old bug reverted it via a blind full-file overwrite.
+    expect([...reg.names()].sort()).toEqual(['Second Feed', 'Work Calendar']);
+    const onDisk = JSON.parse(readFileSync(storePath, 'utf-8')) as { subscriptions: readonly { name: string }[] };
+    expect(onDisk.subscriptions.map((s) => s.name).sort()).toEqual(['Second Feed', 'Work Calendar']);
+  });
+
+  test('an unsubscribe of the very subscription being refreshed stays removed after the refresh completes', async () => {
+    const { secrets } = memorySecrets();
+    const storePath = tmpStore();
+    const { fetcher, release } = gatedFetcher([{ kind: 'ok', body: ICS }, { kind: 'ok', body: ICS }], 1);
+    const reg = new CalendarSubscriptionRegistry({ storePath, secrets, fetcher, clock: () => 1000, defaultRefreshIntervalMs: 60_000 });
+    await reg.subscribe('https://cal.example/work.ics');
+    expect(reg.hasAny()).toBe(true);
+
+    const refreshPromise = reg.refresh('Work Calendar', { force: true });
+    // The refresh is parked mid-fetch for 'Work Calendar'. Unsubscribe it
+    // right now, before the fetch (and the refresh's eventual write) lands.
+    const unsubscribed = await reg.unsubscribe('Work Calendar');
+    expect(unsubscribed).toBe(true);
+    expect(reg.hasAny()).toBe(false);
+
+    release();
+    await refreshPromise;
+
+    // The old bug: refresh's blind full-file write would resurrect the
+    // subscription it had snapshotted before the unsubscribe landed.
+    expect(reg.hasAny()).toBe(false);
+    expect(reg.names()).toEqual([]);
+    const onDisk = JSON.parse(readFileSync(storePath, 'utf-8')) as { subscriptions: readonly unknown[] };
+    expect(onDisk.subscriptions).toEqual([]);
+  });
+
+  test('two concurrent refreshes of the same subscription do not double-write or corrupt the store', async () => {
+    const { secrets } = memorySecrets();
+    const storePath = tmpStore();
+    const reg = new CalendarSubscriptionRegistry({ storePath, secrets, fetcher: scriptedFetcher([{ kind: 'ok', body: ICS }, { kind: 'ok', body: ICS }, { kind: 'ok', body: ICS }]), clock: () => 1000, defaultRefreshIntervalMs: 60_000 });
+    await reg.subscribe('https://cal.example/work.ics');
+
+    const [first, second] = await Promise.all([
+      reg.refresh('Work Calendar', { force: true }),
+      reg.refresh('Work Calendar', { force: true }),
+    ]);
+    expect(first[0]?.outcome).toBe('updated');
+    expect(second[0]?.outcome).toBe('updated');
+
+    // Exactly one subscription, not duplicated, and the on-disk file is valid JSON.
+    expect(reg.names()).toEqual(['Work Calendar']);
+    const onDisk = JSON.parse(readFileSync(storePath, 'utf-8')) as { subscriptions: readonly { name: string; eventCount: number }[] };
+    expect(onDisk.subscriptions).toHaveLength(1);
+    expect(onDisk.subscriptions[0]?.name).toBe('Work Calendar');
+    expect(onDisk.subscriptions[0]?.eventCount).toBe(2);
   });
 });
 

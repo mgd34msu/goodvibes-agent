@@ -172,6 +172,17 @@ export class CalendarSubscriptionRegistry {
   private readonly fetcher: FeedFetcher;
   private readonly clock: () => number;
   private readonly defaultInterval: number;
+  /**
+   * F2 fix: every store WRITE (the read-merge-write critical section of
+   * subscribe/unsubscribe/refresh) is serialized through this single
+   * in-process promise chain, one instance per registry. Network calls
+   * (feed fetch, secret-store reads) are NOT held behind this queue — only
+   * the final read-fresh/merge/write section is — so a slow refresh never
+   * blocks a concurrent subscribe/unsubscribe from making progress; it only
+   * ensures the two operations' WRITES never race each other and neither
+   * ever blind-overwrites a change the other just made.
+   */
+  private mutationQueue: Promise<unknown> = Promise.resolve();
 
   public constructor(options: CalendarSubscriptionRegistryOptions) {
     this.storePath = options.storePath;
@@ -179,6 +190,21 @@ export class CalendarSubscriptionRegistry {
     this.fetcher = options.fetcher;
     this.clock = options.clock ?? (() => Date.now());
     this.defaultInterval = options.defaultRefreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
+  }
+
+  /**
+   * Runs `fn` after every previously queued mutation has settled, chaining
+   * this call onto the queue regardless of whether earlier calls resolved or
+   * rejected (a failed mutation must never wedge the queue for the ones
+   * behind it). Returns `fn`'s own result/rejection to its caller.
+   */
+  private withMutationLock<T>(fn: () => Promise<T> | T): Promise<T> {
+    const run = this.mutationQueue.then(fn, fn);
+    this.mutationQueue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
   }
 
   public static create(shellPaths: AgentLocalStorePaths, secrets: SubscriptionSecretStore, fetcher?: FeedFetcher): CalendarSubscriptionRegistry {
@@ -193,52 +219,86 @@ export class CalendarSubscriptionRegistry {
     return { ok: true, derivedName: res.derivedName, eventCount: res.eventCount, ...(res.calendarName !== undefined ? { calendarName: res.calendarName } : {}) };
   }
 
-  /** Subscribe: fetch once, derive the name, store the URL as a secret, and cache events. */
+  /**
+   * Subscribe: fetch once, derive the name, store the URL as a secret, and cache
+   * events. The network fetch/validate (`store.add`) runs unlocked — it is the
+   * slow part and does not need exclusive access to the store — but the
+   * duplicate-name check, the secret write, and the file write all happen
+   * inside one locked read-merge-write section (F2) so a concurrent refresh
+   * finishing its own write in between can never cause this subscribe to be
+   * silently reverted: the section always re-reads the store fresh right
+   * before writing.
+   */
   public async subscribe(url: string, requestedName?: string, refreshIntervalMs?: number): Promise<SubscribeResult> {
-    const file = this.readStore();
     const store = new SubscriptionStore({ fetcher: this.fetcher, clock: this.clock, ...(refreshIntervalMs !== undefined ? { defaultRefreshIntervalMs: refreshIntervalMs } : { defaultRefreshIntervalMs: this.defaultInterval }) });
     const result = await store.add({ url, ...(requestedName !== undefined ? { name: requestedName } : {}), ...(refreshIntervalMs !== undefined ? { refreshIntervalMs } : {}) });
     if (!result.ok) return { ok: false, stage: result.stage, detail: result.detail };
-
     const sub = result.subscription;
-    if (file.subscriptions.some((s) => s.name === sub.name)) {
-      return { ok: false, stage: 'duplicate', detail: `A subscription named '${sub.name}' already exists — unsubscribe first or pass a different --name.` };
-    }
-
-    const secretKey = secretKeyForName(sub.name);
-    await this.secrets.set(secretKey, url);
-
     const events = store.events(sub.name);
-    const meta: SubscriptionMeta = {
-      name: sub.name,
-      secretKey,
-      refreshIntervalMs: sub.refreshIntervalMs,
-      ...(sub.lastFetchedAt !== undefined ? { lastFetchedAt: sub.lastFetchedAt } : {}),
-      ...(sub.lastSucceededAt !== undefined ? { lastSucceededAt: sub.lastSucceededAt } : {}),
-      ...(sub.etag !== undefined ? { etag: sub.etag } : {}),
-      ...(sub.lastModified !== undefined ? { lastModified: sub.lastModified } : {}),
-      lastResult: 'ok',
-      ...(sub.detail !== undefined ? { lastDetail: sub.detail } : {}),
-      eventCount: events.length,
-      events: [...events],
-    };
-    this.writeStore({ version: STORE_VERSION, subscriptions: [...file.subscriptions, meta] });
-    return { ok: true, name: sub.name, eventCount: events.length, ...(refreshIntervalMs !== undefined ? {} : {}), refreshIntervalMs: sub.refreshIntervalMs };
+
+    return this.withMutationLock(async () => {
+      const file = this.readStore();
+      if (file.subscriptions.some((s) => s.name === sub.name)) {
+        return { ok: false, stage: 'duplicate', detail: `A subscription named '${sub.name}' already exists — unsubscribe first or pass a different --name.` };
+      }
+      const secretKey = secretKeyForName(sub.name);
+      await this.secrets.set(secretKey, url);
+      const meta: SubscriptionMeta = {
+        name: sub.name,
+        secretKey,
+        refreshIntervalMs: sub.refreshIntervalMs,
+        ...(sub.lastFetchedAt !== undefined ? { lastFetchedAt: sub.lastFetchedAt } : {}),
+        ...(sub.lastSucceededAt !== undefined ? { lastSucceededAt: sub.lastSucceededAt } : {}),
+        ...(sub.etag !== undefined ? { etag: sub.etag } : {}),
+        ...(sub.lastModified !== undefined ? { lastModified: sub.lastModified } : {}),
+        lastResult: 'ok',
+        ...(sub.detail !== undefined ? { lastDetail: sub.detail } : {}),
+        eventCount: events.length,
+        events: [...events],
+      };
+      this.writeStore({ version: STORE_VERSION, subscriptions: [...file.subscriptions, meta] });
+      return { ok: true as const, name: sub.name, eventCount: events.length, refreshIntervalMs: sub.refreshIntervalMs };
+    });
   }
 
-  /** Remove a subscription, its cached events, and its stored URL secret. */
+  /**
+   * Remove a subscription, its cached events, and its stored URL secret. The
+   * whole read-find-delete-write body is one locked section (F2): small and
+   * fast, so there is no benefit to splitting it, and it guarantees the write
+   * is always based on a store read taken after every earlier queued mutation
+   * (including a refresh's write) has already landed.
+   */
   public async unsubscribe(name: string): Promise<boolean> {
-    const file = this.readStore();
-    const target = file.subscriptions.find((s) => s.name.toLowerCase() === name.trim().toLowerCase());
-    if (!target) return false;
-    if (this.secrets.delete) {
-      try { await this.secrets.delete(target.secretKey); } catch { /* best-effort secret cleanup */ }
-    }
-    this.writeStore({ version: STORE_VERSION, subscriptions: file.subscriptions.filter((s) => s !== target) });
-    return true;
+    return this.withMutationLock(async () => {
+      const file = this.readStore();
+      const target = file.subscriptions.find((s) => s.name.toLowerCase() === name.trim().toLowerCase());
+      if (!target) return false;
+      if (this.secrets.delete) {
+        try { await this.secrets.delete(target.secretKey); } catch { /* best-effort secret cleanup */ }
+      }
+      this.writeStore({ version: STORE_VERSION, subscriptions: file.subscriptions.filter((s) => s !== target) });
+      return true;
+    });
   }
 
-  /** Refresh one named subscription (or all when name omitted). Network, on demand / on boot. */
+  /**
+   * Refresh one named subscription (or all when name omitted). Network, on
+   * demand / on boot.
+   *
+   * F2 fix: the per-target network fetches run unlocked (so a concurrent
+   * subscribe/unsubscribe is never blocked behind them), but the write is a
+   * single locked section that re-reads the store fresh and merges each
+   * refreshed record onto that fresh read — never onto the stale snapshot
+   * this method started with. Concretely: `merged = freshRead.map(record =>
+   * refreshedByName.get(record.name) ?? record)`. Because the merge maps
+   * over the FRESH list rather than over this call's original target list, a
+   * record removed by a concurrent unsubscribe is simply absent from the
+   * fresh list and is never resurrected, and a record added by a concurrent
+   * subscribe is already present in the fresh list and passes through
+   * untouched. Two concurrent refresh() calls still only ever commit through
+   * this same locked section one at a time, so neither can double-write or
+   * clobber the other's result.
+   */
   public async refresh(name?: string, opts: { force?: boolean } = {}): Promise<RefreshOutcome[]> {
     const file = this.readStore();
     const targets = name
@@ -246,7 +306,7 @@ export class CalendarSubscriptionRegistry {
       : file.subscriptions;
     if (targets.length === 0) return [];
 
-    const updated: SubscriptionMeta[] = [...file.subscriptions];
+    const refreshedByName = new Map<string, SubscriptionMeta>();
     const outcomes: RefreshOutcome[] = [];
     for (const target of targets) {
       const url = await this.secrets.get(target.secretKey);
@@ -259,8 +319,7 @@ export class CalendarSubscriptionRegistry {
       const report = (await store.refresh(target.name, { force: opts.force ?? true }))!;
       const sub = store.get(target.name)!;
       const events = report.outcome === 'updated' ? store.events(target.name) : target.events;
-      const idx = updated.findIndex((s) => s === target);
-      updated[idx] = {
+      refreshedByName.set(target.name, {
         name: target.name,
         secretKey: target.secretKey,
         refreshIntervalMs: sub.refreshIntervalMs,
@@ -272,10 +331,16 @@ export class CalendarSubscriptionRegistry {
         ...(report.detail !== undefined ? { lastDetail: report.detail } : {}),
         eventCount: events.length,
         events: [...events],
-      };
+      });
       outcomes.push({ name: target.name, outcome: report.outcome, ...(report.detail !== undefined ? { detail: report.detail } : {}), eventCount: events.length });
     }
-    this.writeStore({ version: STORE_VERSION, subscriptions: updated });
+    if (refreshedByName.size === 0) return outcomes;
+
+    await this.withMutationLock(() => {
+      const fresh = this.readStore();
+      const merged = fresh.subscriptions.map((s) => refreshedByName.get(s.name) ?? s);
+      this.writeStore({ version: STORE_VERSION, subscriptions: merged });
+    });
     return outcomes;
   }
 
