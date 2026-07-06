@@ -6,7 +6,7 @@ import { CommandRegistry, type CommandContext } from '../../input/command-regist
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { registerOperatorRuntimeCommands } from '../../input/commands/operator-runtime.ts';
 import { registerSessionContentCommands } from '../../input/commands/session-content.ts';
-import { registerSessionWorkflowCommands } from '../../input/commands/session-workflow.ts';
+import { sessionCommand } from '../../input/commands/session.ts';
 import type { ShellModeManagerService } from '../../runtime/index.ts';
 
 function makeShellPaths(root: string) {
@@ -74,7 +74,7 @@ describe('write/export command confirmation', () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-delete-confirm-'));
     try {
       const registry = new CommandRegistry();
-      registerSessionWorkflowCommands(registry);
+      registry.register(sessionCommand);
       registerSessionContentCommands(registry);
       const out: string[] = [];
       let deletedSession = '';

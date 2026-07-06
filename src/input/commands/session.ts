@@ -152,7 +152,7 @@ export const sessionCommand: SlashCommand = {
   aliases: ['sess'],
   description: 'Session continuity and read-only cross-session graph inspection.',
   usage: '<subcommand> [args]',
-  argsHint: 'list|resume|save|graph',
+  argsHint: 'list|resume|save|events|groups|hotspots|graph',
   handler: async (args: string[], context: CommandContext): Promise<void> => {
     const [sub, ...rest] = args;
 
@@ -183,6 +183,8 @@ export const sessionCommand: SlashCommand = {
             'Usage: /session <subcommand>',
             '  list | rename <name> | resume <id|name> | fork [name] | save [name] | info [id] | export <id> [format] | search <query> | delete <id> --yes',
             '                                 — Session continuity, export, resume, and pruning',
+            '  events [kind] | groups [kind] | hotspots',
+            '                                 — Transcript structure: event log, grouped view, hotspot summary',
             '  graph [--session <sid>] [--format text|json]',
             '                                 — Display the cross-session task dependency graph',
             '  link-task | handoff | cancel',

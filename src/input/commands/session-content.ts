@@ -6,6 +6,7 @@ import type { SelectionItem } from '../selection-modal.ts';
 import type { SessionMeta } from '@pellux/goodvibes-sdk/platform/sessions';
 import { exportToMarkdown, extractText } from '@pellux/goodvibes-sdk/platform/export';
 import { requireSessionManager, requireShellPaths } from './runtime-services.ts';
+import { sessionCommand } from './session.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import { readConversationMessageSnapshots } from '../../core/conversation-message-snapshot.ts';
@@ -250,8 +251,19 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
   registry.register({
     name: 'sessions',
     description: 'List saved sessions',
-    hidden: true,
+    usage: '[resume <id|name>]',
+    argsHint: '[resume <id|name>]',
     async handler(_args, ctx) {
+      // Matches the TUI's /sessions (W6-C3, worst-class collision #5): this
+      // was `hidden: true` here — invisible in help/autocomplete — even
+      // though it is a fully working command identical in behavior to the
+      // TUI's visible one. Also forward args to /session (the TUI's fix for
+      // the `/sessions resume <id>` muscle-memory case), instead of silently
+      // listing and dropping the subcommand+id on the floor.
+      if (_args.length > 0) {
+        await sessionCommand.handler(_args, ctx);
+        return;
+      }
       const sessionManager = requireSessionManager(ctx);
       const sessions = sessionManager.list();
       if (ctx.openSelection) {

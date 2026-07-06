@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-import type { CommandContext, CommandRegistry } from '../command-registry.ts';
+import type { CommandContext } from '../command-registry.ts';
 import { type SessionMeta } from '@pellux/goodvibes-sdk/platform/sessions';
 import type { TranscriptEventKind } from '@pellux/goodvibes-sdk/platform/core';
 import type { SessionReturnContextSummary } from '@/runtime/index.ts';
@@ -479,22 +479,17 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
   return false;
 }
 
-export function registerSessionWorkflowCommands(registry: CommandRegistry): void {
-  registry.register({
-    name: 'session',
-    aliases: ['sess'],
-    description: 'Manage sessions, resume posture, and transcript structure',
-    usage: '[list | rename <name> | resume <id|name> | fork | save | info <id> | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id> --yes]',
-    argsHint: '<list|rename|resume|fork|save|info|events|groups|hotspots|export|search|delete>',
-    async handler(args, ctx) {
-      const handled = await handleSessionWorkflowCommand(args, ctx);
-      if (!handled) {
-        ctx.print([
-          'Unknown session subcommand',
-          `  subcommand ${args[0] ?? ''}`,
-          'Usage: /session [list | rename <name> | resume <id> | fork [name] | save [name] | info [id] | events [kind] | groups [kind] | hotspots | export <id> [format] | search <query> | delete <id> --yes]',
-        ].join('\n'));
-      }
-    },
-  });
-}
+// NOTE (W6-C3, Wave 6 core-verb pass): this file used to also export
+// registerSessionWorkflowCommands(), a second top-level `/session` (alias
+// `sess`) registration with its own usage text. It was NEVER called from
+// startup — commands.ts only registers `sessionCommand` from ./session.ts —
+// so it was dead code (would throw a CommandRegistry collision error if
+// anyone ever did call it, since sessionCommand already owns the name). It
+// has been deleted; there is no functional change, because sessionCommand's
+// own default-branch fallback already calls handleSessionWorkflowCommand
+// above for every subcommand this dead registrar advertised, including
+// events/groups/hotspots — see ./session.ts's usage text, which now documents
+// them too. See docs/decisions/2026-07-06-core-verb-spec.md (agent /session
+// orphan, worst-class collision #4) and
+// src/test/input/session-single-registration.test.ts for the regression
+// guard.
