@@ -10,6 +10,7 @@ import { buildAgentResearchReportPromptSubmission } from './agent-workspace-rese
 import { buildAgentResearchRunPromptSubmission } from './agent-workspace-research-run-editor.ts';
 import { buildAgentResearchSourcePromptSubmission } from './agent-workspace-research-source-editor.ts';
 import { buildAgentReminderScheduleEditorSubmission } from './agent-workspace-reminder-schedule-editor.ts';
+import { buildAgentWorkspaceCalendarConnectEditorSubmission } from './agent-workspace-calendar-connect-editor.ts';
 import { buildAgentRoutineScheduleEditorSubmission } from './agent-workspace-routine-schedule-editor.ts';
 import { buildAgentWorkspaceWebResearchSubmission } from './agent-workspace-web-research-editor.ts';
 import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
@@ -69,6 +70,7 @@ type AgentWorkspaceCommandEditorKind = AgentWorkspaceBasicCommandEditorKind | Ex
   | 'secret-delete'
   | 'routine-schedule'
   | 'reminder-schedule'
+  | 'calendar-connect'
   | 'knowledge-bookmarks'
   | 'tts-prompt'
   | 'image-input'
@@ -166,6 +168,7 @@ export function isAgentWorkspaceCommandEditorKind(kind: AgentWorkspaceEditorKind
     || kind === 'model-compare-analytics'
     || kind === 'routine-schedule'
     || kind === 'reminder-schedule'
+    || kind === 'calendar-connect'
     || isAgentWorkspaceBasicCommandEditorKind(kind);
 }
 
@@ -263,5 +266,6 @@ export function buildAgentWorkspaceCommandEditorSubmission(
     return buildAgentWorkspaceBasicCommandEditorSubmission(editor, readField, commandDispatchAvailable);
   }
   if (editor.kind === 'reminder-schedule') return buildAgentReminderScheduleEditorSubmission(editor, readField, commandDispatchAvailable);
+  if (editor.kind === 'calendar-connect') return buildAgentWorkspaceCalendarConnectEditorSubmission(editor, readField, commandDispatchAvailable);
   return buildAgentRoutineScheduleEditorSubmission(editor, readField, commandDispatchAvailable);
 }

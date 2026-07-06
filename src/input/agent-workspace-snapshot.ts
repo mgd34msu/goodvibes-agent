@@ -56,7 +56,8 @@ import { buildReviewPacketDefaults, buildReviewPacketTimeline, buildReviewPacket
 import { isReviewerHandoffArtifact, summarizeReviewerHandoffArtifact } from './agent-workspace-review-packet-utils.ts';
 import { buildSetupSmokeHistory, buildSetupWizardCheckpoint, buildWorkspaceSetupWizard, setupCompletionMarkerExists } from './agent-workspace-setup-snapshot.ts';
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
-import type { AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
+import { ensureEmailConfigDefaults, readEmailConfig, validateEmailConfig } from '../agent/email/email-service.ts';
+import type { AgentWorkspaceEmailConnectStatus, AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
 function readConfigString(context: CommandContext, key: string, fallback: string): string {
   try {
@@ -181,6 +182,28 @@ export function buildAgentWorkspaceRoutineCounters(context: CommandContext): Age
     return readLiveAgentRoutineCounters(context);
   } catch {
     return { count: 0, enabled: 0, items: [] };
+  }
+}
+
+/**
+ * Honest email-connect status for the inbox connect wizard's entry state
+ * (W4-A5) — config validation only, no network I/O. Best-effort: never
+ * throws, returns null on any read failure.
+ */
+export function buildAgentWorkspaceEmailConnectStatus(context: CommandContext): AgentWorkspaceEmailConnectStatus | null {
+  try {
+    ensureEmailConfigDefaults(context.platform.configManager);
+    const cm = context.platform.configManager as unknown as { get: (key: string) => unknown };
+    const config = readEmailConfig((key) => cm.get(key));
+    const errors = validateEmailConfig(config);
+    return {
+      connected: errors.length === 0 && config.enabled,
+      username: config.username,
+      imapHost: config.imapHost,
+      errors,
+    };
+  } catch {
+    return null;
   }
 }
 
@@ -699,5 +722,6 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     setupWizard,
     warnings,
     liveCountersStale: false,
+    emailConnectStatus: buildAgentWorkspaceEmailConnectStatus(context),
   };
 }

@@ -28,6 +28,12 @@ export interface OperatorContractMethod {
   readonly title?: string;
   readonly description?: string;
   readonly category?: string;
+  /**
+   * W4-A3 capability-advertisement honesty: false means the method is
+   * cataloged but NOT dispatchable (no route/handler serves it). Absent
+   * means invokable (older contracts predate the flag).
+   */
+  readonly invokable?: boolean;
   readonly http?: {
     readonly method?: string;
     readonly path?: string;

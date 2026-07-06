@@ -3356,10 +3356,15 @@ describe('agent_harness tool', () => {
         readonly personalOps?: { readonly lanes: number; readonly gap: number; readonly ready: number; readonly workflows: number; readonly setupWorkflows: number };
       }>(fixture, { mode: 'summary' });
       expect(summary.personalOps?.lanes).toBe(7);
-      expect(summary.personalOps?.gap).toBe(0);
+      // W4-A5/W4-A3 honesty: with no real connectors configured and every
+      // email.*/calendar.* operator-contract method marked invokable:false
+      // (advertised but not served by any daemon route), the inbox and
+      // calendar lanes honestly read as gaps instead of claiming
+      // method-backed readiness, and their workflows read needs-setup.
+      expect(summary.personalOps?.gap).toBe(2);
       expect(summary.personalOps?.ready).toBeGreaterThan(0);
       expect(summary.personalOps?.workflows).toBeGreaterThan(0);
-      expect(summary.personalOps?.setupWorkflows).toBe(0);
+      expect(summary.personalOps?.setupWorkflows).toBe(5);
 
       const ops = await executeHarnessJson<{
         readonly workflowSummary: { readonly workflows: number; readonly needsSetup: number };
@@ -3393,7 +3398,7 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'personal_ops', includeParameters: true });
       expect(ops.policy).toContain('Missing email/calendar connectors');
       expect(ops.nextActions.join('\n')).toContain('Inbox');
-      expect(ops.workflowSummary.needsSetup).toBe(0);
+      expect(ops.workflowSummary.needsSetup).toBe(5);
 
       const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
       const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
@@ -3401,15 +3406,19 @@ describe('agent_harness tool', () => {
       const tasks = ops.lanes.find((lane) => lane.id === 'tasks');
       const reminders = ops.lanes.find((lane) => lane.id === 'reminders');
       const delivery = ops.lanes.find((lane) => lane.id === 'delivery');
-      expect(inbox?.status).toBe('partial');
-      expect(inbox?.current).toContain('The daemon contract exposes email-like methods');
+      // Honest gap: the advertised email.*/calendar.* methods are
+      // invokable:false (no serving route), so neither lane may claim
+      // method-backed readiness; the degraded-ad wording names the reason.
+      expect(inbox?.status).toBe('gap');
+      expect(inbox?.current).toContain('unavailable (route not served by this daemon)');
       expect(inbox?.workflows?.[0]?.id).toBe('inbox-triage-briefing');
-      expect(inbox?.workflows?.[0]?.status).toBe('ready');
-      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('host action:"method"');
+      expect(inbox?.workflows?.[0]?.status).toBe('needs-setup');
+      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('personal_ops action:"lane"');
+      expect(inbox?.workflows?.[0]?.prerequisites?.join('\n')).toContain('unavailable (route not served by this daemon)');
       expect(inbox?.workflows?.[0]?.runBoundary).toContain('confirmation');
-      expect(calendar?.status).toBe('partial');
+      expect(calendar?.status).toBe('gap');
       expect(calendar?.workflows?.[0]?.id).toBe('calendar-agenda-briefing');
-      expect(calendar?.workflows?.[0]?.status).toBe('ready');
+      expect(calendar?.workflows?.[0]?.status).toBe('needs-setup');
       expect(notes?.status).toBe('ready');
       expect(notes?.current).toContain('1 note');
       expect(notes?.liveRecords?.[0]?.id).toBe('follow-up-queue');
@@ -3461,10 +3470,12 @@ describe('agent_harness tool', () => {
       expect(missingIntake.status).toBe('ready');
       expect(missingIntake.preferred.id).toBe('inbox-triage-briefing');
       expect(missingIntake.preferred.laneId).toBe('inbox');
-      expect(missingIntake.preferred.status).toBe('ready');
+      // Honest intake: the matched workflow reports needs-setup (no
+      // dispatchable email method or connector exists), not a faked 'ready'.
+      expect(missingIntake.preferred.status).toBe('needs-setup');
       expect(missingIntake.preferred.modelRoute).toContain('host action:"methods"');
-      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('host action:"method"');
-      expect(missingIntake.preferred.missingFields).toBeUndefined();
+      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('personal_ops action:"lane"');
+      expect(missingIntake.preferred.missingFields).toEqual(['configured email connector or daemon method']);
       expect(missingIntake.preferred.safetyBoundary).toContain('confirmation');
       expect(missingIntake.laneRoute).toContain('laneId:"inbox"');
       expect(missingIntake.policy).toContain('read-only');

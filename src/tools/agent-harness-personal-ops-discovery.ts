@@ -35,15 +35,54 @@ export function methodSearchText(method: OperatorContractMethod): string {
   ].filter(Boolean).join('\n').toLowerCase();
 }
 
-export function methodIdsMatching(tokens: readonly string[]): readonly string[] {
+/**
+ * W4-A3/W4-A5 capability honesty: a method whose contract entry carries
+ * invokable:false is cataloged but NOT dispatchable — no daemon route or
+ * handler serves it. Counting it toward "workflow ready" would repeat the
+ * dogfood finding (a lane card claiming readiness backed only by methods a
+ * caller cannot actually invoke). Absent flag = invokable (older contracts).
+ */
+export function isInvokableContractMethod(method: OperatorContractMethod): boolean {
+  return method.invokable !== false;
+}
+
+function matchingContractMethods(tokens: readonly string[]): readonly OperatorContractMethod[] {
   if (tokens.length === 0) return [];
-  return operatorContractMethods()
-    .filter((method) => {
-      const text = methodSearchText(method);
-      return tokens.some((token) => text.includes(token));
-    })
+  return operatorContractMethods().filter((method) => {
+    const text = methodSearchText(method);
+    return tokens.some((token) => text.includes(token));
+  });
+}
+
+/**
+ * Method ids matching the tokens that are actually DISPATCHABLE. Readiness
+ * (workflowStatus, lane status, capability counts) must be computed from
+ * this list only — advertised-but-unavailable methods are returned
+ * separately by unavailableMethodIdsMatching for honest degraded wording.
+ */
+export function methodIdsMatching(tokens: readonly string[]): readonly string[] {
+  return matchingContractMethods(tokens)
+    .filter(isInvokableContractMethod)
     .map((method) => method.id)
     .sort((left, right) => left.localeCompare(right));
+}
+
+/** Method ids matching the tokens that are cataloged but NOT dispatchable (invokable:false). */
+export function unavailableMethodIdsMatching(tokens: readonly string[]): readonly string[] {
+  return matchingContractMethods(tokens)
+    .filter((method) => !isInvokableContractMethod(method))
+    .map((method) => method.id)
+    .sort((left, right) => left.localeCompare(right));
+}
+
+/**
+ * One honest line naming advertised-but-undispatchable methods, matching the
+ * W4-A3 degraded-ad pattern ("unavailable (route not served by this daemon)").
+ * Returns null when nothing is degraded.
+ */
+export function unavailableMethodsNote(unavailableMethodIds: readonly string[]): string | null {
+  if (unavailableMethodIds.length === 0) return null;
+  return `${unavailableMethodIds.length} advertised method(s) are unavailable (route not served by this daemon) and cannot be dispatched: ${unavailableMethodIds.join(', ')}.`;
 }
 
 export function mcpServerRecords(context: CommandContext): readonly {
@@ -337,14 +376,18 @@ export function workflowInspectRoutes(methodIds: readonly string[], connectors: 
   return routes.length > 0 ? routes : [`personal_ops action:"lane" laneId:"${fallbackQuery}"`];
 }
 
-export function inboxWorkflows(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): readonly PersonalOpsWorkflow[] {
+export function inboxWorkflows(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[], unavailableMethodIds: readonly string[] = []): readonly PersonalOpsWorkflow[] {
   const status = workflowStatus(methodIds, connectors);
   const inspectRoutes = workflowInspectRoutes(methodIds, connectors, 'inbox');
   const modelRoute = workflowModelRoute('email', connectors);
   const readToolCount = connectorToolCount(connectors, 'read-only');
   const writeToolCount = connectorToolCount(connectors, 'confirmed-effect');
+  const degradedAdNote = unavailableMethodsNote(unavailableMethodIds);
   const setupPrerequisite = status === 'needs-setup'
-    ? ['Install or configure an email-capable daemon method, MCP server, or plugin first.']
+    ? [
+      'Install or configure an email-capable daemon method, MCP server, or plugin first.',
+      ...(degradedAdNote ? [degradedAdNote] : []),
+    ]
     : status === 'attention'
       ? ['Review connector trust/schema freshness before reading inbox data.']
       : [
@@ -389,14 +432,18 @@ export function inboxWorkflows(methodIds: readonly string[], connectors: readonl
   ];
 }
 
-export function calendarWorkflows(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[]): readonly PersonalOpsWorkflow[] {
+export function calendarWorkflows(methodIds: readonly string[], connectors: readonly PersonalOpsConnectorSignal[], unavailableMethodIds: readonly string[] = []): readonly PersonalOpsWorkflow[] {
   const status = workflowStatus(methodIds, connectors);
   const inspectRoutes = workflowInspectRoutes(methodIds, connectors, 'calendar');
   const modelRoute = workflowModelRoute('calendar', connectors);
   const readToolCount = connectorToolCount(connectors, 'read-only');
   const writeToolCount = connectorToolCount(connectors, 'confirmed-effect');
+  const degradedAdNote = unavailableMethodsNote(unavailableMethodIds);
   const setupPrerequisite = status === 'needs-setup'
-    ? ['Install or configure a calendar-capable daemon method, CalDAV MCP server, or plugin first.']
+    ? [
+      'Install or configure a calendar-capable daemon method, CalDAV MCP server, or plugin first.',
+      ...(degradedAdNote ? [degradedAdNote] : []),
+    ]
     : status === 'attention'
       ? ['Review connector trust/schema freshness before reading calendar data.']
       : [

@@ -246,6 +246,22 @@ export class SmtpClient {
   }
 
   /**
+   * Connect, negotiate EHLO, and authenticate — then QUIT without sending any
+   * mail. Used to verify SMTP credentials/host reachability (a connect-wizard
+   * "test connection" step) without the side effect of an actual send.
+   * Throws with a plain-language message on any failure stage.
+   */
+  async verifyAuth(): Promise<void> {
+    const { hostname, username, password } = this.options;
+    const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+    const session = new SmtpSession(this.options.socket, timeoutMs);
+    const { capabilities } = await this.greetAndEhlo(session, hostname);
+    await this.authenticate(session, capabilities, username, password);
+    await session.send('QUIT');
+    session.destroy();
+  }
+
+  /**
    * Send a plain-text email.
    * Callers must ensure the caller-side confirms the send before calling this.
    */
@@ -253,16 +269,7 @@ export class SmtpClient {
     const { hostname, username, password } = this.options;
     const timeoutMs = this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const session = new SmtpSession(this.options.socket, timeoutMs);
-
-    // Read server greeting
-    const greeting = await session.readResponse();
-    if (greeting.code !== 220) {
-      throw new Error(`SMTP unexpected greeting: ${greeting.lines.join(' | ')}`);
-    }
-
-    // EHLO
-    const ehlo = await session.cmd(`EHLO ${hostname}`, 250);
-    const capabilities = ehlo.lines.map((l) => l.slice(4).trim().toUpperCase());
+    const { capabilities } = await this.greetAndEhlo(session, hostname);
 
     // AUTH
     await this.authenticate(session, capabilities, username, password);
@@ -306,6 +313,19 @@ export class SmtpClient {
   // -------------------------------------------------------------------------
   // Private
   // -------------------------------------------------------------------------
+
+  /** Read the server greeting and negotiate EHLO. Shared by sendMail and verifyAuth. */
+  private async greetAndEhlo(
+    session: SmtpSession,
+    hostname: string,
+  ): Promise<{ capabilities: readonly string[] }> {
+    const greeting = await session.readResponse();
+    if (greeting.code !== 220) {
+      throw new Error(`SMTP unexpected greeting: ${greeting.lines.join(' | ')}`);
+    }
+    const ehlo = await session.cmd(`EHLO ${hostname}`, 250);
+    return { capabilities: ehlo.lines.map((l) => l.slice(4).trim().toUpperCase()) };
+  }
 
   private async authenticate(
     session: SmtpSession,

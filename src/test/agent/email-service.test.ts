@@ -3,14 +3,14 @@
  * No real network connections are made.
  */
 
-import { describe, expect, test } from 'bun:test';
+import { afterEach, describe, expect, test } from 'bun:test';
 import {
   EmailService,
   readEmailConfig,
   validateEmailConfig,
   resolveEmailPassword,
 } from '../../agent/email/email-service.ts';
-import type { Socket } from 'node:net';
+import { createServer, connect, type Server, type Socket } from 'node:net';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -302,6 +302,192 @@ describe('EmailService smtpSecurity — MIN-2: socket factory selection', () => 
       service.sendMail({ to: 'a@b.test', subject: 'Hi', body: 'Body', confirm: true }),
     ).rejects.toThrow();
     // If we reach here, the factory selection itself didn’t throw — wiring is correct
+  });
+});
+
+// ---------------------------------------------------------------------------
+// EmailService.testConnection — W4-A5 connect-wizard "test connection" step.
+// Uses real in-process fake TCP servers (no real network) to exercise a
+// genuine success path, not just a wiring-rejection path.
+// ---------------------------------------------------------------------------
+
+interface FakeServer {
+  readonly address: { port: number };
+  close(): void;
+}
+
+function makeFakeServer(script: (socket: Socket) => void): Promise<FakeServer> {
+  return new Promise<FakeServer>((resolve) => {
+    const server: Server = createServer((socket) => script(socket));
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address();
+      resolve({ address: { port: (addr as { port: number }).port }, close: () => server.close() });
+    });
+  });
+}
+
+function write(socket: Socket, line: string): void {
+  socket.write(`${line}\r\n`);
+}
+
+function fakeImapSuccessScript(socket: Socket): void {
+  write(socket, '* OK IMAP4rev1 Fake Server ready');
+  socket.setEncoding('utf8');
+  let buffer = '';
+  socket.on('data', (chunk) => {
+    buffer += chunk;
+    let pos: number;
+    while ((pos = buffer.indexOf('\n')) !== -1) {
+      const line = buffer.slice(0, pos).replace(/\r$/, '');
+      buffer = buffer.slice(pos + 1);
+      if (!line.trim()) continue;
+      const tag = line.split(' ')[0] ?? 'A0001';
+      if (line.includes('LOGIN')) write(socket, `${tag} OK LOGIN completed`);
+      else if (line.includes('EXAMINE')) write(socket, `${tag} OK [READ-ONLY] EXAMINE completed`);
+      else if (line.includes('LOGOUT')) {
+        write(socket, '* BYE logging out');
+        write(socket, `${tag} OK LOGOUT completed`);
+      }
+    }
+  });
+}
+
+function fakeSmtpSuccessScript(socket: Socket): void {
+  write(socket, '220 fake.smtp.example.test ESMTP ready');
+  socket.setEncoding('utf8');
+  let buffer = '';
+  socket.on('data', (chunk) => {
+    buffer += chunk;
+    let pos: number;
+    while ((pos = buffer.indexOf('\n')) !== -1) {
+      const line = buffer.slice(0, pos).replace(/\r$/, '');
+      buffer = buffer.slice(pos + 1);
+      const upper = line.trim().toUpperCase();
+      if (upper.startsWith('EHLO')) {
+        write(socket, '250-fake.smtp.example.test Hello');
+        write(socket, '250 AUTH PLAIN LOGIN');
+      } else if (upper.startsWith('AUTH PLAIN')) {
+        write(socket, '235 2.7.0 Authentication successful');
+      }
+    }
+  });
+}
+
+describe('EmailService.testConnection', () => {
+  let servers: FakeServer[] = [];
+
+  afterEach(() => {
+    for (const s of servers) s.close();
+    servers = [];
+  });
+
+  async function connectFake(script: (socket: Socket) => void): Promise<{ host: string; port: number }> {
+    const server = await makeFakeServer(script);
+    servers.push(server);
+    return { host: '127.0.0.1', port: server.address.port };
+  }
+
+  test('returns ok:true when both IMAP and SMTP verify — real success path, no send/fetch side effects', async () => {
+    const imap = await connectFake(fakeImapSuccessScript);
+    const smtp = await connectFake(fakeSmtpSuccessScript);
+
+    const service = new EmailService({
+      getConfig: (k) => makeConfig({
+        'email.imapHost': imap.host,
+        'email.imapPort': imap.port,
+        'email.smtpHost': smtp.host,
+        'email.smtpPort': smtp.port,
+      })[k],
+      secretsManager: makeSecretsManager({ GOODVIBES_EMAIL_PASSWORD: 'correct-password' }),
+      imapSocketFactory: async (host, port) => connect({ host, port }),
+      smtpSocketFactory: async (host, port) => connect({ host, port }),
+    });
+
+    const result = await service.testConnection();
+    expect(result).toEqual({ ok: true });
+  });
+
+  test('returns ok:false stage:config when config is invalid — no connection attempted', async () => {
+    const service = new EmailService({
+      getConfig: (k) => makeConfig({ 'email.imapHost': '' })[k],
+      secretsManager: makeSecretsManager({}),
+    });
+    const result = await service.testConnection();
+    expect(result.ok).toBe(false);
+    expect(result.stage).toBe('config');
+  });
+
+  test('returns ok:false stage:imap when IMAP auth fails; SMTP is never attempted', async () => {
+    const imap = await connectFake((socket) => {
+      write(socket, '* OK IMAP4rev1 Fake Server ready');
+      socket.on('data', (chunk) => {
+        const line = chunk.toString().trim();
+        if (line.includes('LOGIN')) {
+          const tag = line.split(' ')[0] ?? 'A0001';
+          write(socket, `${tag} NO [AUTHENTICATIONFAILED] Invalid credentials`);
+        }
+      });
+    });
+    let smtpAttempted = false;
+
+    const service = new EmailService({
+      getConfig: (k) => makeConfig({
+        'email.imapHost': imap.host,
+        'email.imapPort': imap.port,
+      })[k],
+      secretsManager: makeSecretsManager({ GOODVIBES_EMAIL_PASSWORD: 'wrong-password' }),
+      imapSocketFactory: async (host, port) => connect({ host, port }),
+      smtpSocketFactory: async () => {
+        smtpAttempted = true;
+        return {} as Socket;
+      },
+    });
+
+    const result = await service.testConnection();
+    expect(result.ok).toBe(false);
+    expect(result.stage).toBe('imap');
+    expect(smtpAttempted).toBe(false);
+  });
+
+  test('returns ok:false stage:smtp when SMTP auth fails after a successful IMAP check', async () => {
+    const imap = await connectFake(fakeImapSuccessScript);
+    const smtp = await connectFake((socket) => {
+      write(socket, '220 fake.smtp.example.test ESMTP ready');
+      socket.on('data', (chunk) => {
+        const line = chunk.toString().trim().toUpperCase();
+        if (line.startsWith('EHLO')) {
+          write(socket, '250-fake.smtp.example.test Hello');
+          write(socket, '250 AUTH PLAIN');
+        } else if (line.startsWith('AUTH PLAIN')) {
+          write(socket, '535 5.7.8 Authentication failed');
+        }
+      });
+    });
+
+    const service = new EmailService({
+      getConfig: (k) => makeConfig({
+        'email.imapHost': imap.host,
+        'email.imapPort': imap.port,
+        'email.smtpHost': smtp.host,
+        'email.smtpPort': smtp.port,
+      })[k],
+      secretsManager: makeSecretsManager({ GOODVIBES_EMAIL_PASSWORD: 'correct-password' }),
+      imapSocketFactory: async (host, port) => connect({ host, port }),
+      smtpSocketFactory: async (host, port) => connect({ host, port }),
+    });
+
+    const result = await service.testConnection();
+    expect(result.ok).toBe(false);
+    expect(result.stage).toBe('smtp');
+  });
+
+  test('never returns the raw password in a failure result', async () => {
+    const service = new EmailService({
+      getConfig: (k) => makeConfig({ 'email.imapHost': '' })[k],
+      secretsManager: makeSecretsManager({}),
+    });
+    const result = await service.testConnection();
+    expect(JSON.stringify(result)).not.toContain('correct-password');
   });
 });
 

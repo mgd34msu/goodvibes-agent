@@ -9,6 +9,8 @@ import { createAgentResearchReportEditor } from './agent-workspace-research-repo
 import { createAgentResearchRunEditor } from './agent-workspace-research-run-editor.ts';
 import { createAgentResearchSourceEditor } from './agent-workspace-research-source-editor.ts';
 import { createReminderScheduleEditor } from './agent-workspace-reminder-schedule-editor.ts';
+import { createEmailConnectWizardEditor } from './agent-workspace-email-connect-editor.ts';
+import { createCalendarConnectEditor } from './agent-workspace-calendar-connect-editor.ts';
 import { createRoutineScheduleEditor } from './agent-workspace-routine-schedule-editor.ts';
 import { createAgentWorkspaceWebResearchEditor } from './agent-workspace-web-research-editor.ts';
 import { parseSlashCommand } from './slash-command-parser.ts';
@@ -17,6 +19,7 @@ import type {
   AgentWorkspaceCategory,
   AgentWorkspaceCommandDispatcher,
   AgentWorkspaceEditorKind,
+  AgentWorkspaceEmailConnectStatus,
   AgentWorkspaceFocusPane,
   AgentWorkspaceLocalEditor,
   AgentWorkspaceLocalEditorKind,
@@ -97,6 +100,7 @@ export function activateAgentWorkspaceSelection(
       selectedRoutine: workspace.selectedLocalLibraryItem('routine'),
       recentReviewerHandoffArtifacts: workspace.runtimeSnapshot?.recentReviewerHandoffArtifacts ?? [],
       reviewPacketDefaults: workspace.runtimeSnapshot?.reviewPacketDefaults ?? null,
+      emailConnectStatus: workspace.runtimeSnapshot?.emailConnectStatus ?? null,
     });
     if (!editor) {
       workspace.status = `Editor unavailable: ${action.editorKind}.`;
@@ -196,8 +200,11 @@ export function createAgentWorkspaceEditor(
     readonly selectedRoutine?: AgentWorkspaceLocalLibraryItem | null;
     readonly recentReviewerHandoffArtifacts?: readonly AgentWorkspaceRecentReviewerHandoffArtifact[];
     readonly reviewPacketDefaults?: AgentWorkspaceReviewPacketDefaults | null;
+    readonly emailConnectStatus?: AgentWorkspaceEmailConnectStatus | null;
   } = {},
 ): AgentWorkspaceLocalEditor | null {
+  if (editorKind === 'email-connect-wizard') return createEmailConnectWizardEditor(options.emailConnectStatus ?? null);
+  if (editorKind === 'calendar-connect') return createCalendarConnectEditor();
   if (editorKind === 'profile') return createProfileEditor(options.runtimeStarterTemplates ?? []);
   if (editorKind === 'learned-behavior') return createLearnedBehaviorEditor();
   if (editorKind === 'web-research') return createAgentWorkspaceWebResearchEditor('research');

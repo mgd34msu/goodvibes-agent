@@ -103,6 +103,18 @@ export interface EmailSummary {
   readonly bodyPreview: string;
 }
 
+/**
+ * Result of a connection verification pass (a connect-wizard "test connection"
+ * step). Never includes the raw password; `error` messages come from the
+ * underlying client's plain-language exceptions.
+ */
+export interface EmailConnectionTestResult {
+  readonly ok: boolean;
+  /** Which stage failed, when ok is false. 'config' means validation failed before any connection was attempted. */
+  readonly stage?: 'config' | 'imap' | 'smtp';
+  readonly error?: string;
+}
+
 export interface SendMailOptions {
   readonly to: string;
   readonly subject: string;
@@ -282,6 +294,51 @@ export class EmailService {
       try { await client.logout(); } catch { /* best-effort */ }
       throw err;
     }
+  }
+
+  /**
+   * Verify the configured IMAP and SMTP connections without sending mail or
+   * reading the inbox — a real connectivity + authentication check for a
+   * connect-wizard "test connection" step. Does not require config.enabled;
+   * callers that want to gate readiness on enabled should check separately.
+   *
+   * Never throws — returns a result describing which stage (if any) failed,
+   * with a plain-language error message. Never includes the raw password.
+   */
+  async testConnection(): Promise<EmailConnectionTestResult> {
+    const config = readEmailConfig(this.deps.getConfig);
+    const errors = validateEmailConfig(config);
+    if (errors.length > 0) {
+      return { ok: false, stage: 'config', error: errors.join('; ') };
+    }
+
+    let password: string;
+    try {
+      password = await resolveEmailPassword(config.passwordRef, this.deps.secretsManager);
+    } catch (err) {
+      return { ok: false, stage: 'config', error: err instanceof Error ? err.message : String(err) };
+    }
+
+    try {
+      const socketFactory = this.deps.imapSocketFactory ?? createImapTlsSocket;
+      const socket = await socketFactory(config.imapHost, config.imapPort);
+      const client = new ImapClient({ socket, username: config.username, password });
+      await client.open();
+      await client.logout();
+    } catch (err) {
+      return { ok: false, stage: 'imap', error: err instanceof Error ? err.message : String(err) };
+    }
+
+    try {
+      const socketFactory = this.deps.smtpSocketFactory ?? this.defaultSmtpSocketFactory(config.smtpPort, config.smtpSecurity);
+      const socket = await socketFactory(config.smtpHost, config.smtpPort);
+      const client = new SmtpClient({ socket, hostname: config.smtpHost, username: config.username, password });
+      await client.verifyAuth();
+    } catch (err) {
+      return { ok: false, stage: 'smtp', error: err instanceof Error ? err.message : String(err) };
+    }
+
+    return { ok: true };
   }
 
   /**

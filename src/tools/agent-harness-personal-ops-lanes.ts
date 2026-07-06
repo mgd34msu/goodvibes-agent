@@ -1,6 +1,6 @@
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
-import { calendarWorkflows, connectorSignalsMatching, inboxWorkflows, methodIdsMatching, reminderWorkflows, taskWorkflows } from './agent-harness-personal-ops-discovery.ts';
+import { calendarWorkflows, connectorSignalsMatching, inboxWorkflows, methodIdsMatching, reminderWorkflows, taskWorkflows, unavailableMethodIdsMatching } from './agent-harness-personal-ops-discovery.ts';
 import { providerBackedQueueRecords } from './agent-harness-personal-ops-provider-records.ts';
 import { providerBackedReminderRecords, providerBackedTaskRecords } from './agent-harness-personal-ops-provider-task-records.ts';
 import { channelRecords, connectorRecords, localRecord, refreshableSavedRecordCount, reminderOperationRecords, routineReceiptRecord, savedProviderEffectReceiptRecords, savedReviewArtifactRecords, savedReviewQueueRecords, taskOperationRecords } from './agent-harness-personal-ops-records.ts';
@@ -15,8 +15,14 @@ export function buildLanes(
   } = {},
 ): readonly PersonalOpsLane[] {
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
+  // Readiness counts only DISPATCHABLE methods (W4-A3/W4-A5 honesty): a
+  // method the contract marks invokable:false has no serving route, so it
+  // must not make a lane read "ready"/"partial". The unavailable lists feed
+  // honest degraded wording instead.
   const emailMethods = methodIdsMatching(['email', 'mail', 'imap', 'smtp']);
+  const unavailableEmailMethods = unavailableMethodIdsMatching(['email', 'mail', 'imap', 'smtp']);
   const calendarMethods = methodIdsMatching(['calendar', 'caldav', 'agenda']);
+  const unavailableCalendarMethods = unavailableMethodIdsMatching(['calendar', 'caldav', 'agenda']);
   const toolsByName = options.toolsByServer ?? new Map<string, readonly McpToolRecord[]>();
   const schemasByQualifiedName = options.schemasByQualifiedName ?? new Map<string, McpToolSchema>();
   const emailConnectors = connectorSignalsMatching(context, ['email', 'mail', 'imap', 'smtp', 'gmail'], { lane: 'inbox', toolsByServer: toolsByName, schemasByQualifiedName });
@@ -66,6 +72,8 @@ export function buildLanes(
             ? 'Saved inbox review artifacts and thread queue items are available for recap, local draft review, or promotion; no fresh email connector is currently ready.'
             : inboxEffectReceiptRecords.length > 0
               ? 'Saved inbox provider-effect receipts are available for audit and follow-up; no fresh email connector is currently ready.'
+        : unavailableEmailMethods.length > 0
+          ? `The operator contract advertises ${unavailableEmailMethods.length} email method(s), but they are unavailable (route not served by this daemon) and cannot be dispatched.`
         : 'No email/IMAP/SMTP methods are present in the current GoodVibes SDK operator contract.',
       next: inboxProviderRecords.length > 0
         ? 'Inspect one fresh thread record, summarize or draft locally, and use only the published confirmed follow-up routes for replies, sends, labels, or archive.'
@@ -82,7 +90,8 @@ export function buildLanes(
       modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'host action:"methods" query:"email"',
       signals: [
         `${inboxProviderRecords.length} fresh provider-backed inbox thread record(s)`,
-        `${emailMethods.length} email-like daemon method(s)`,
+        `${emailMethods.length} dispatchable email-like daemon method(s)`,
+        ...(unavailableEmailMethods.length > 0 ? [`${unavailableEmailMethods.length} advertised-but-unavailable email method(s) (route not served by this daemon)`] : []),
         `${emailConnectors.length} email-like MCP connector(s)`,
         `${inboxArtifactRecords.length} saved inbox review artifact(s)`,
         `${inboxReviewQueueRecords.length} saved inbox thread queue item(s)`,
@@ -92,7 +101,7 @@ export function buildLanes(
       ],
       methodIds: emailMethods,
       connectorSignals: emailConnectors,
-      workflows: [...inboxWorkflows(emailMethods, emailConnectors), styleReplyAdditions.workflow],
+      workflows: [...inboxWorkflows(emailMethods, emailConnectors, unavailableEmailMethods), styleReplyAdditions.workflow],
       liveRecords: [
         ...inboxProviderRecords,
         ...inboxReviewQueueRecords,
@@ -119,6 +128,8 @@ export function buildLanes(
             ? 'Saved calendar review artifacts and event queue items are available for agenda recap, reminder creation, or follow-up planning; no fresh calendar connector is currently ready.'
             : calendarEffectReceiptRecords.length > 0
               ? 'Saved calendar provider-effect receipts are available for audit and follow-up; no fresh calendar connector is currently ready.'
+        : unavailableCalendarMethods.length > 0
+          ? `The operator contract advertises ${unavailableCalendarMethods.length} calendar method(s), but they are unavailable (route not served by this daemon) and cannot be dispatched. The local Agent calendar (/calendar) remains available.`
         : 'No calendar/CalDAV/agenda methods are present in the current GoodVibes SDK operator contract.',
       next: calendarProviderRecords.length > 0
         ? 'Inspect one fresh event record, brief the agenda or conflicts locally, and use only the published confirmed follow-up routes for edits, RSVP, reschedule, or delete.'
@@ -135,7 +146,8 @@ export function buildLanes(
       modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'host action:"methods" query:"calendar"',
       signals: [
         `${calendarProviderRecords.length} fresh provider-backed calendar event record(s)`,
-        `${calendarMethods.length} calendar-like daemon method(s)`,
+        `${calendarMethods.length} dispatchable calendar-like daemon method(s)`,
+        ...(unavailableCalendarMethods.length > 0 ? [`${unavailableCalendarMethods.length} advertised-but-unavailable calendar method(s) (route not served by this daemon)`] : []),
         `${calendarConnectors.length} calendar-like MCP connector(s)`,
         `${calendarArtifactRecords.length} saved calendar review artifact(s)`,
         `${calendarReviewQueueRecords.length} saved calendar event queue item(s)`,
@@ -145,7 +157,7 @@ export function buildLanes(
       ],
       methodIds: calendarMethods,
       connectorSignals: calendarConnectors,
-      workflows: calendarWorkflows(calendarMethods, calendarConnectors),
+      workflows: calendarWorkflows(calendarMethods, calendarConnectors, unavailableCalendarMethods),
       liveRecords: [
         ...calendarProviderRecords,
         ...calendarReviewQueueRecords,

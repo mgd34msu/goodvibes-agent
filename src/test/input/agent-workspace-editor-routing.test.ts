@@ -248,6 +248,10 @@ describe('editor routing exhaustiveness: no kind reaches routine fallback unexpe
     'model-compare-analytics',
     // Scheduling (command-editor)
     'routine-schedule', 'reminder-schedule',
+    // Connect wizards (command-editor) — email-connect-wizard is NOT here:
+    // it is a direct host-action kind (like subscription-login-*), handled by
+    // trySubmitDirectHostActionEditor before this exhaustiveness path.
+    'calendar-connect',
   ];
 
   /**

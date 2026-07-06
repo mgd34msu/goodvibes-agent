@@ -473,3 +473,85 @@ describe('SmtpClient protocol', () => {
     ).rejects.toThrow('does not advertise AUTH PLAIN or AUTH LOGIN');
   });
 });
+
+// ---------------------------------------------------------------------------
+// SmtpClient.verifyAuth — W4-A5 connect-wizard "test connection" step.
+// Must authenticate and QUIT WITHOUT ever sending MAIL FROM/RCPT TO/DATA.
+// ---------------------------------------------------------------------------
+
+describe('SmtpClient.verifyAuth', () => {
+  let fakeServer: FakeServer | null = null;
+
+  afterEach(() => {
+    fakeServer?.close();
+    fakeServer = null;
+  });
+
+  test('succeeds on AUTH PLAIN and never sends mail commands', async () => {
+    const commands: string[] = [];
+    fakeServer = await makeFakeSmtpServer((sock) => happyPathScript(sock, commands));
+
+    const socket = await connectSocket(fakeServer.address.port);
+    const client = new SmtpClient({
+      socket,
+      hostname: 'client.test',
+      username: 'user@example.test',
+      password: 'mypassword',
+      timeoutMs: 5000,
+    });
+
+    await client.verifyAuth();
+
+    expect(commands.some((c) => c.toUpperCase().startsWith('AUTH PLAIN'))).toBe(true);
+    expect(commands.some((c) => c.toUpperCase().startsWith('MAIL FROM'))).toBe(false);
+    expect(commands.some((c) => c.toUpperCase().startsWith('RCPT TO'))).toBe(false);
+    expect(commands.some((c) => c.toUpperCase() === 'DATA')).toBe(false);
+  });
+
+  test('rejects a bad greeting', async () => {
+    fakeServer = await makeFakeSmtpServer((sock) => {
+      serverWrite(sock, '554 fake.smtp.example.test rejected');
+    });
+    const socket = await connectSocket(fakeServer.address.port);
+    const client = new SmtpClient({
+      socket,
+      hostname: 'client.test',
+      username: 'user@example.test',
+      password: 'mypassword',
+      timeoutMs: 5000,
+    });
+    await expect(client.verifyAuth()).rejects.toThrow('SMTP unexpected greeting');
+  });
+
+  test('rejects a failed AUTH', async () => {
+    fakeServer = await makeFakeSmtpServer((sock) => {
+      serverWrite(sock, '220 fake.smtp.example.test ESMTP ready');
+      sock.setEncoding('utf8');
+      let buffer = '';
+      sock.on('data', (chunk) => {
+        buffer += chunk;
+        let pos: number;
+        while ((pos = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, pos).replace(/\r$/, '');
+          buffer = buffer.slice(pos + 1);
+          const upper = line.trim().toUpperCase();
+          if (upper.startsWith('EHLO')) {
+            serverWrite(sock, '250-fake.smtp.example.test Hello');
+            serverWrite(sock, '250 AUTH PLAIN');
+          } else if (upper.startsWith('AUTH PLAIN')) {
+            serverWrite(sock, '535 5.7.8 Authentication failed');
+          }
+        }
+      });
+    });
+    const socket = await connectSocket(fakeServer.address.port);
+    const client = new SmtpClient({
+      socket,
+      hostname: 'client.test',
+      username: 'user@example.test',
+      password: 'wrongpassword',
+      timeoutMs: 5000,
+    });
+    await expect(client.verifyAuth()).rejects.toThrow();
+  });
+});

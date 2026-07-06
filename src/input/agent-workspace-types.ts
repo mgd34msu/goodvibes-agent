@@ -241,7 +241,9 @@ export type AgentWorkspaceEditorKind =
   | 'workplan-delete'
   | 'workplan-clear-completed'
   | 'routine-schedule'
-  | 'reminder-schedule';
+  | 'reminder-schedule'
+  | 'email-connect-wizard'
+  | 'calendar-connect';
 
 export type AgentWorkspaceLocalOperation =
   | 'memory-edit'
@@ -628,6 +630,14 @@ export interface AgentWorkspaceCompanionAccessSummary {
   readonly nextStep: string;
 }
 
+/** Honest, no-I/O email-connect status (config validation only) for the inbox connect card/wizard (W4-A5). */
+export interface AgentWorkspaceEmailConnectStatus {
+  readonly connected: boolean;
+  readonly username: string;
+  readonly imapHost: string;
+  readonly errors: readonly string[];
+}
+
 export interface AgentWorkspaceRuntimeSnapshot {
   readonly provider: string;
   readonly model: string;
@@ -774,4 +784,6 @@ export interface AgentWorkspaceRuntimeSnapshot {
    * instead of asserting a number the disk might already contradict.
    */
   readonly liveCountersStale: boolean;
+  /** Honest email-connect status for the connect wizard's entry state (W4-A5). Null when unavailable in this runtime. */
+  readonly emailConnectStatus: AgentWorkspaceEmailConnectStatus | null;
 }

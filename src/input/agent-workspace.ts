@@ -22,7 +22,7 @@ import { applyAgentWorkspaceSetupCheckpointAction } from './agent-workspace-setu
 import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgentWorkspaceSettingActionDisplay, buildAgentWorkspaceSettingActionEffect, importAgentWorkspaceTuiSettings, isAgentWorkspaceActionVisible, type AgentWorkspaceSettingActionDisplay } from './agent-workspace-settings.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import { syncAgentWorkspaceLiveCounters } from './agent-workspace-live-counters.ts';
-import { submitAgentWorkspaceSubscriptionLoginFinishEditor, submitAgentWorkspaceSubscriptionLoginStartEditor, submitAgentWorkspaceSubscriptionLogoutEditor } from './agent-workspace-subscription-editor.ts';
+import { trySubmitDirectHostActionEditor } from './agent-workspace-direct-editor-submission.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryGroup, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, shouldShowOnboardingFinishFooter } from './agent-workspace-onboarding-finish.ts';
 import { completeOnboardingAction, onSubscriptionLoginSuccessAction } from './agent-workspace-onboarding-actions.ts';
@@ -557,19 +557,7 @@ export class AgentWorkspace {
       this.status = `${missing.label} is required.`;
       return;
     }
-    if (editor.kind === 'subscription-login-start') {
-      void submitAgentWorkspaceSubscriptionLoginStartEditor(this, editor, this.context, (id) => this.editorField(id)).finally(() => requestRender?.());
-      return;
-    }
-    if (editor.kind === 'subscription-login-finish') {
-      void submitAgentWorkspaceSubscriptionLoginFinishEditor(this, editor, this.context, (id) => this.editorField(id)).finally(() => requestRender?.());
-      return;
-    }
-    if (editor.kind === 'subscription-logout') {
-      submitAgentWorkspaceSubscriptionLogoutEditor(this, editor, this.context, (id) => this.editorField(id));
-      requestRender?.();
-      return;
-    }
+    if (trySubmitDirectHostActionEditor(this, editor, this.context, (id) => this.editorField(id), requestRender)) return;
     if (isAgentWorkspaceCommandEditorKind(editor.kind)) {
       this.submitCommandEditor(editor);
       requestRender?.();

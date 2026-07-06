@@ -61,6 +61,93 @@ function getConfigManager(ctx: CommandContext): { get: (key: string) => unknown 
   return ctx.platform.configManager as unknown as { get: (key: string) => unknown };
 }
 
+/** Config manager surface needed to persist one email field. Matches ctx.platform.configManager. */
+export interface EmailConfigManagerLike {
+  get: (key: string) => unknown;
+  setDynamic: (key: string, value: unknown) => void;
+}
+
+/**
+ * SecretsManager surface needed to store the raw password. The real
+ * ctx.platform.secretsManager (SDK SecretsManager) has more methods;
+ * persistSecretBackedConfigValue is called through an opaque cast, matching
+ * the existing /email set pattern.
+ */
+export interface EmailSecretsManagerLike {
+  readonly get: (key: string) => Promise<string | null>;
+}
+
+export interface PersistEmailConfigFieldResult {
+  readonly ok: boolean;
+  readonly error?: string;
+  readonly configKey?: string;
+  /** Set only for the passwordRef field — the stored goodvibes:// reference (never the raw value). */
+  readonly secretRef?: string;
+}
+
+/**
+ * Persist one `email.<field>` config value through the single reviewed path:
+ * non-secret fields go through cm.setDynamic after per-field validation; the
+ * password field (fieldName 'passwordRef', rawValue is the RAW password) is
+ * routed through persistSecretBackedConfigValue so only a goodvibes:// secret
+ * reference ever reaches settings.json. Never logs or returns the raw value.
+ *
+ * Reused by both the /email set CLI subcommand (handleSet, below) and the
+ * Agent workspace connect wizard editor — one persistence path, no fork.
+ */
+export async function persistEmailConfigField(
+  cm: EmailConfigManagerLike,
+  secretsManager: EmailSecretsManagerLike,
+  fieldName: string,
+  rawValue: string,
+): Promise<PersistEmailConfigFieldResult> {
+  if (!KNOWN_EMAIL_FIELDS.has(fieldName)) {
+    return { ok: false, error: `Unknown email config key: ${fieldName}` };
+  }
+  const configKey = `email.${fieldName}`;
+
+  if (fieldName === 'passwordRef') {
+    const storedRef = await persistSecretBackedConfigValue(
+      cm as unknown as Parameters<typeof persistSecretBackedConfigValue>[0],
+      secretsManager as unknown as Parameters<typeof persistSecretBackedConfigValue>[1],
+      configKey as unknown as ConfigKey,
+      rawValue,
+      { scope: 'user' },
+    );
+    return { ok: true, configKey, secretRef: storedRef };
+  }
+
+  let coerced: unknown = rawValue;
+  if (fieldName === 'imapPort' || fieldName === 'smtpPort') {
+    const n = parseInt(rawValue, 10);
+    if (!isFinite(n) || n < 1 || n > 65535) {
+      return { ok: false, error: `Invalid port number: ${rawValue}. Must be an integer between 1 and 65535.`, configKey };
+    }
+    coerced = n;
+  } else if (fieldName === 'smtpSecurity') {
+    if (rawValue !== 'tls' && rawValue !== 'starttls' && rawValue !== 'auto') {
+      return {
+        ok: false,
+        error: `Invalid smtpSecurity value: "${rawValue}". Valid values: tls, starttls, auto.`,
+        configKey,
+      };
+    }
+    coerced = rawValue;
+  } else if (fieldName === 'enabled') {
+    const lower = rawValue.toLowerCase();
+    if (lower === 'true' || lower === '1' || lower === 'yes') {
+      coerced = true;
+    } else if (lower === 'false' || lower === '0' || lower === 'no') {
+      coerced = false;
+    } else {
+      return { ok: false, error: `Invalid boolean value: ${rawValue}. Use true or false.`, configKey };
+    }
+  }
+
+  cm.setDynamic(configKey, coerced);
+  return { ok: true, configKey };
+}
+
 function buildEmailService(ctx: CommandContext): EmailService {
   const secretsManager = requireSecretsManager(ctx);
   const cm = getConfigManager(ctx);
@@ -247,58 +334,31 @@ async function handleSet(
     }
 
     const secretsManager = requireSecretsManager(ctx);
-    const configKeyTyped = configKey as unknown as ConfigKey;
-    const storedRef = await persistSecretBackedConfigValue(
-      cm as unknown as Parameters<typeof persistSecretBackedConfigValue>[0],
-      secretsManager,
-      configKeyTyped,
-      rawValue,
-      { scope: 'user' },
-    );
+    const result = await persistEmailConfigField(cm, secretsManager, fieldName, rawValue);
+    if (!result.ok) {
+      ctx.print(result.error ?? `Could not store ${configKey}.`);
+      return;
+    }
     cm.save();
     ctx.print(
       `Email config updated\n` +
       `  key:  ${configKey}\n` +
-      `  value: [stored as secret; reference: ${storedRef.slice(0, 40)}...]\n` +
+      `  value: [stored as secret; reference: ${(result.secretRef ?? '').slice(0, 40)}...]\n` +
       '  policy: raw password stored in secrets manager; settings.json contains only the goodvibes:// ref',
     );
     return;
   }
 
-  // Non-secret path: coerce value and persist
-  let coerced: unknown = rawValue;
-  if (fieldName === 'imapPort' || fieldName === 'smtpPort') {
-    const n = parseInt(rawValue, 10);
-    if (!isFinite(n) || n < 1 || n > 65535) {
-      ctx.print(`Invalid port number: ${rawValue}. Must be an integer between 1 and 65535.`);
-      return;
-    }
-    coerced = n;
-  } else if (fieldName === 'smtpSecurity') {
-    // MIN-2: validate at set time so invalid values never reach the socket factory
-    if (rawValue !== 'tls' && rawValue !== 'starttls' && rawValue !== 'auto') {
-      ctx.print(
-        `Invalid smtpSecurity value: "${rawValue}".\n` +
-        'Valid values: tls (direct TLS, e.g. port 465), starttls (STARTTLS upgrade, e.g. port 587), auto (port-based default).',
-      );
-      return;
-    }
-    coerced = rawValue;
-  } else if (fieldName === 'enabled') {
-    const lower = rawValue.toLowerCase();
-    if (lower === 'true' || lower === '1' || lower === 'yes') {
-      coerced = true;
-    } else if (lower === 'false' || lower === '0' || lower === 'no') {
-      coerced = false;
-    } else {
-      ctx.print(`Invalid boolean value: ${rawValue}. Use true or false.`);
-      return;
-    }
+  // Non-secret path: coerce, validate, and persist through the shared field helper
+  const secretsManager = requireSecretsManager(ctx);
+  const result = await persistEmailConfigField(cm, secretsManager, fieldName, rawValue);
+  if (!result.ok) {
+    ctx.print(result.error ?? `Could not update ${configKey}.`);
+    return;
   }
 
-  cm.setDynamic(configKey as unknown as ConfigKey, coerced);
   cm.save();
-  ctx.print(`Email config updated\n  key:   ${configKey}\n  value: ${String(coerced)}`);
+  ctx.print(`Email config updated\n  key:   ${configKey}\n  value: ${String(cm.get(configKey))}`);
 }
 
 async function handleSend(
