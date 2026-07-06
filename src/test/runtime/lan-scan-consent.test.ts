@@ -9,7 +9,6 @@ import {
   loadLanScanConsent,
   runGatedLanScan,
   saveLanScanConsent,
-  OFF_STATE_REMINDER,
   NETWORK_SCAN_ENABLE_COMMAND,
   type LanScanGateOptions,
 } from '../../runtime/lan-scan-consent.ts';
@@ -126,7 +125,7 @@ describe('runGatedLanScan: consent gate (test doubles only — never a real netw
     expect(loadLanScanConsent(shellPaths, SURFACE_ROOT)?.decision).toBe('declined');
   });
 
-  test('declining -> no scan, no IP dump, an honest "off" state naming how to enable it', () => {
+  test('declining (already decided, i.e. a relaunch) -> no scan, and no repeated reminder (F3): silent, discoverable via /network-scan status', () => {
     const root = makeProjectTempDir('gv-lan-consent');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     saveLanScanConsent(shellPaths, SURFACE_ROOT, 'declined');
@@ -136,12 +135,29 @@ describe('runGatedLanScan: consent gate (test doubles only — never a real netw
     });
     const { router, low } = makeRouterSpy();
 
-    runGatedLanScan(makeGateOptions(root, { systemMessageRouter: router, startDiscovery: discovery.fn }));
+    const handle = runGatedLanScan(makeGateOptions(root, { systemMessageRouter: router, startDiscovery: discovery.fn }));
 
     expect(discovery.calls).toBe(0);
-    expect(low).toEqual([OFF_STATE_REMINDER]);
-    expect(low[0]).not.toMatch(/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/);
-    expect(low[0]).toContain(NETWORK_SCAN_ENABLE_COMMAND);
+    expect(handle.stopped).toBe(false);
+    expect(low).toEqual([]);
+  });
+
+  test('declining stays silent across many relaunches in a row (never nags forever)', () => {
+    const root = makeProjectTempDir('gv-lan-consent');
+    const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
+    saveLanScanConsent(shellPaths, SURFACE_ROOT, 'declined');
+
+    const discovery = fakeDiscovery(() => {
+      throw new Error('must never be called while declined');
+    });
+    const { router, low } = makeRouterSpy();
+
+    for (let i = 0; i < 5; i += 1) {
+      runGatedLanScan(makeGateOptions(root, { systemMessageRouter: router, startDiscovery: discovery.fn }));
+    }
+
+    expect(discovery.calls).toBe(0);
+    expect(low).toEqual([]);
   });
 
   test('the decision persists across relaunches: a granted decision keeps scanning without re-asking', () => {

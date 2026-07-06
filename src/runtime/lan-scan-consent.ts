@@ -115,10 +115,16 @@ export function firstRunConsentMessage(roots: ConsentRoots, surfaceRoot: string)
   );
 }
 
-/** Shown on every subsequent start while the decision is still "declined" (the ongoing honest state). */
-export const OFF_STATE_REMINDER =
-  `[Scan] Local network scanning for model servers is off. Turn it on with ${NETWORK_SCAN_ENABLE_COMMAND} ` +
-  'to look for model servers on your local network.';
+/**
+ * F3 fix: the first-run explanation (firstRunConsentMessage) already told the
+ * user this is off and how to turn it on. Printing that reminder again on
+ * EVERY subsequent boot forever — with no way to quiet it short of turning
+ * the feature on — was the friction: an indefinitely repeating notice for a
+ * state the user already chose. The off state is still fully discoverable on
+ * demand via `/network-scan status`; boot itself stays silent about it from
+ * the second run onward. The granted-path behavior (framed scan summary) is
+ * unchanged.
+ */
 
 // ── Output framing ───────────────────────────────────────────────────────
 
@@ -216,8 +222,10 @@ export interface LanScanGateOptions extends BackgroundProviderDiscoveryOptions {
  * - No decision recorded (first run): shows the full consent explanation,
  *   persists "declined" as the honest first-run default, and returns without
  *   scanning.
- * - Decision is "declined": shows the short off-state reminder and returns
- *   without scanning.
+ * - Decision is "declined" (F3): stays silent and returns without scanning —
+ *   the first-run boot already explained the off state and how to turn it
+ *   on; the ongoing state is discoverable on demand via `/network-scan
+ *   status`, not repeated on every boot.
  * - Decision is "granted": runs the SDK discovery pass through a framing
  *   wrapper that replaces the raw per-server feed dump with a single summary
  *   line.
@@ -233,7 +241,6 @@ export function runGatedLanScan(options: LanScanGateOptions): BackgroundRuntimeT
   }
 
   if (existing.decision === 'declined') {
-    systemMessageRouter.low(OFF_STATE_REMINDER);
     return noopHandle();
   }
 
