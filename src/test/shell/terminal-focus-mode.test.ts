@@ -40,9 +40,12 @@ describe('installFocusModeExitGuard — ?1004h teardown proof', () => {
     }
   });
 
-  function installAndCapture(stdout: Pick<NodeJS.WriteStream, 'write'>): () => void {
+  function installAndCapture(
+    stdout: Pick<NodeJS.WriteStream, 'write'>,
+    isFocusModeEnabled: () => boolean = () => true,
+  ): () => void {
     const before = new Set(process.listeners('exit'));
-    installFocusModeExitGuard(stdout);
+    installFocusModeExitGuard(stdout, isFocusModeEnabled);
     const after = process.listeners('exit');
     const installed = after.find((fn) => !before.has(fn)) as (() => void) | undefined;
     if (!installed) throw new Error('installFocusModeExitGuard did not register an exit listener');
@@ -86,12 +89,21 @@ describe('installFocusModeExitGuard — ?1004h teardown proof', () => {
     expect(() => listener()).not.toThrow();
   });
 
-  test('is idempotent/harmless to call even when ?1004h was never enabled (e.g. the terminal-launch-error exit path, before terminal mode is entered)', () => {
+  test('writes NOTHING when ?1004h was never enabled (blocked/scriptable command, or the terminal-launch-error path before terminal mode is entered) — a stray ?1004l on stdout is escape garbage that would corrupt e.g. `status --json`', () => {
     const written: string[] = [];
     const stub = { write: (s: string) => { written.push(s); return true; } };
-    const listener = installAndCapture(stub);
+    const listener = installAndCapture(stub, () => false); // focus mode never enabled this run
     listener();
-    listener(); // calling twice must not throw or double up in a harmful way
+    listener(); // calling twice still writes nothing
+    expect(written.length).toBe(0);
+  });
+
+  test('once ?1004h WAS enabled, the guard still fires idempotently on repeated exit-listener invocations', () => {
+    const written: string[] = [];
+    const stub = { write: (s: string) => { written.push(s); return true; } };
+    const listener = installAndCapture(stub, () => true);
+    listener();
+    listener();
     expect(written.filter((s) => s === FOCUS_DISABLE).length).toBe(2);
   });
 });

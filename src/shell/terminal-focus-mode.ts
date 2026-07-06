@@ -23,9 +23,13 @@
  * main.ts registers no explicit uncaughtException/SIGTERM handler of its own.
  * Named top-5 risk (W4-R1 matrix): ?1004h MUST be disabled on every exit path
  * or the user's shell inherits focus-reporting escape garbage. The write is
- * idempotent/harmless even on the terminal-launch-error exit path (before
- * terminal mode is ever entered) and even if exitApp() already disabled it
- * moments earlier.
+ * harmless even if exitApp() already disabled it moments earlier (?1004l is
+ * idempotent). It is GATED on focus mode having actually been enabled
+ * (markFocusModeEnabled, called at the TUI's ?1004h-enable site): only the
+ * interactive TUI launch turns focus reporting on, so a blocked/scriptable
+ * command (serve/status/--help/…) that exits before that must leave stdout
+ * pristine — a stray ?1004l on such a command's stdout is escape garbage that
+ * would, e.g., corrupt `status --json` for a machine consumer.
  *
  * wrapRequestPermissionWithApprovalAlert(): fires an unfocused-user alert the
  * moment a tool call becomes a real, user-blocking permission prompt. Ported
@@ -57,9 +61,31 @@ export { FOCUS_ENABLE, FOCUS_DISABLE } from '../renderer/terminal-escapes.ts';
  */
 export const FORCE_APPROVAL_NOTIFY_DURATION_MS = 30_001;
 
-/** Registers the process-wide, idempotent ?1004h teardown safety net. Call once at startup. */
-export function installFocusModeExitGuard(stdout: Pick<NodeJS.WriteStream, 'write'> = process.stdout): void {
+/**
+ * Whether the TUI actually enabled OS focus reporting (DECSET ?1004h) this run.
+ * Set once, at the TUI launch site that writes FOCUS_ENABLE; the process exits
+ * without ever clearing it, so the teardown guard fires on every abnormal-exit
+ * path once focus mode is on. Left false by every blocked/scriptable command.
+ */
+let focusModeEnabled = false;
+
+/** Record that OS focus reporting was enabled; call at the same site that writes FOCUS_ENABLE. */
+export function markFocusModeEnabled(): void {
+  focusModeEnabled = true;
+}
+
+/**
+ * Registers the process-wide ?1004h teardown safety net. Call once at startup.
+ * The write only fires when focus mode was actually enabled (isFocusModeEnabled),
+ * so non-TUI commands never leak ?1004l onto stdout. The predicate is injectable
+ * so tests can drive both branches deterministically without module-global state.
+ */
+export function installFocusModeExitGuard(
+  stdout: Pick<NodeJS.WriteStream, 'write'> = process.stdout,
+  isFocusModeEnabled: () => boolean = () => focusModeEnabled,
+): void {
   process.on('exit', () => {
+    if (!isFocusModeEnabled()) return; // never enabled (blocked/scriptable command) — keep stdout clean
     try { stdout.write(FOCUS_DISABLE); } catch { /* stdout may already be torn down */ }
   });
 }

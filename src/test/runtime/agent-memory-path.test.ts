@@ -46,8 +46,13 @@ describe('Agent memory storage path', () => {
 
   test('runtime memory store is Agent-home owned instead of workspace owned', async () => {
     const { services, workingDir, homeDir } = makeRuntimeServices();
-    const homeMemoryPath = join(homeDir, '.goodvibes', 'agent', 'memory.sqlite');
-    const workspaceMemoryPath = join(workingDir, '.goodvibes', 'agent', 'memory.sqlite');
+    // W6-C2 (E6): the agent opens the ONE canonical cross-surface store under the
+    // Agent home (~/.goodvibes/shared/memory.sqlite) rather than a private per-surface
+    // agent/memory.sqlite — a fact learned here must recall in the TUI and vice-versa.
+    // The invariant this test guards is unchanged: the store is Agent-home owned, never
+    // workspace owned.
+    const homeMemoryPath = join(homeDir, '.goodvibes', 'shared', 'memory.sqlite');
+    const workspaceMemoryPath = join(workingDir, '.goodvibes', 'shared', 'memory.sqlite');
 
     try {
       await services.memoryStore.init();
