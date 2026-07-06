@@ -65,4 +65,65 @@ describe('/help command', () => {
     expect(ids).toContain('/model');
     expect(ids).not.toContain('/agent setup');
   });
+
+  test('/help filters hidden commands out of both the picker and the plain-text fallback', async () => {
+    const registry = new CommandRegistry();
+    registerShellCoreCommands(registry);
+    registry.register({
+      name: 'secret-tool',
+      description: 'A hidden diagnostic-only command.',
+      hidden: true,
+      handler: () => {},
+    });
+
+    let capturedItems: readonly SelectionItem[] = [];
+    const interactiveContext = {
+      openSelection: (_title: string, items: readonly SelectionItem[]) => {
+        capturedItems = items;
+      },
+      print: () => {},
+    } as unknown as CommandContext;
+    await registry.execute('help', [], interactiveContext);
+    const interactiveIds = capturedItems.map((item) => item.id);
+    expect(interactiveIds).not.toContain('/secret-tool');
+    expect(interactiveIds).not.toContain('/shortcuts');
+    expect(interactiveIds).not.toContain('/keybindings');
+    expect(interactiveIds).toContain('/help');
+    expect(interactiveIds).toContain('/model');
+
+    let printed = '';
+    const plainContext = {
+      print: (text: string) => { printed = text; },
+    } as unknown as CommandContext;
+    await registry.execute('help', [], plainContext);
+    expect(printed).not.toContain('/secret-tool');
+    expect(printed).not.toContain('(hidden)');
+    expect(printed).toContain('/help');
+  });
+
+  test('/commands lists hidden commands too, labeled "(hidden)"', async () => {
+    const registry = new CommandRegistry();
+    registerShellCoreCommands(registry);
+    registry.register({
+      name: 'secret-tool',
+      description: 'A hidden diagnostic-only command.',
+      hidden: true,
+      handler: () => {},
+    });
+
+    let capturedItems: readonly SelectionItem[] = [];
+    const context = {
+      openSelection: (_title: string, items: readonly SelectionItem[]) => {
+        capturedItems = items;
+      },
+      print: () => {},
+    } as unknown as CommandContext;
+
+    await registry.execute('commands', [], context);
+
+    const secret = capturedItems.find((item) => item.id === '/secret-tool');
+    expect(secret?.label).toBe('/secret-tool (hidden)');
+    const shortcuts = capturedItems.find((item) => item.id === '/shortcuts');
+    expect(shortcuts?.label).toBe('/shortcuts (hidden)');
+  });
 });

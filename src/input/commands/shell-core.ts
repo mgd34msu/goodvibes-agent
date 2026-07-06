@@ -99,9 +99,18 @@ function commandDetail(command: SlashCommand): string {
   return parts.join(' | ');
 }
 
-function listRegisteredCommandItems(registry: CommandRegistry): SelectionItem[] {
+/**
+ * List registered commands as selection items.
+ *
+ * Hidden commands (`SlashCommand.hidden`) still run when typed and stay
+ * discoverable via `/commands`, which lists everything labeled "(hidden)".
+ * `/help` (both the interactive picker and the plain-text fallback) filters
+ * them out per the doc contract on `SlashCommand.hidden`.
+ */
+function listRegisteredCommandItems(registry: CommandRegistry, options: { includeHidden: boolean }): SelectionItem[] {
   return registry.list()
     .slice()
+    .filter((command) => options.includeHidden || !command.hidden)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((command) => ({
       id: `/${command.name}`,
@@ -114,7 +123,7 @@ function listRegisteredCommandItems(registry: CommandRegistry): SelectionItem[] 
 }
 
 function registeredCommandListText(registry: CommandRegistry): string {
-  const commands = listRegisteredCommandItems(registry);
+  const commands = listRegisteredCommandItems(registry, { includeHidden: false });
   return [
     'Open the Agent workspace first, then press / inside it to search every product action.',
     '',
@@ -123,8 +132,13 @@ function registeredCommandListText(registry: CommandRegistry): string {
   ].join('\n');
 }
 
-function openRegisteredCommandSelection(registry: CommandRegistry, ctx: CommandContext): void {
-  ctx.openSelection?.('Help  -  Commands', listRegisteredCommandItems(registry), { allowSearch: true }, (result) => {
+function openRegisteredCommandSelection(
+  registry: CommandRegistry,
+  ctx: CommandContext,
+  options: { includeHidden: boolean },
+): void {
+  const items = listRegisteredCommandItems(registry, options);
+  ctx.openSelection?.('Help  -  Commands', items, { allowSearch: true }, (result) => {
     if (!result) return;
     const command = result.item.id;
     if (command.startsWith('/')) {
@@ -184,7 +198,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     description: 'Browse all commands in a scrollable list',
     handler(_args, ctx) {
       if (ctx.openSelection) {
-        openRegisteredCommandSelection(registry, ctx);
+        openRegisteredCommandSelection(registry, ctx, { includeHidden: true });
         return;
       }
       if (ctx.openHelpOverlay) {
@@ -256,7 +270,7 @@ export function registerShellCoreCommands(registry: CommandRegistry): void {
     argsHint: '[command]',
     handler(_args, ctx) {
       if (ctx.openSelection) {
-        openRegisteredCommandSelection(registry, ctx);
+        openRegisteredCommandSelection(registry, ctx, { includeHidden: false });
         return;
       }
       ctx.print(registeredCommandListText(registry));
