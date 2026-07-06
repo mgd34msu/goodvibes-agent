@@ -9,12 +9,12 @@
  * inline version; this is purely a line-count extraction plus the one new
  * behavior (the approval alert) this work order adds.
  *
- * FOCUS_ENABLE/FOCUS_DISABLE: this agent inlines its other terminal-mode
- * sequences (ALT_SCREEN_*, MOUSE_*, PASTE_*, KEYBOARD_EXT_*) directly in
- * main.ts rather than in a dedicated terminal-escapes.ts module — the W4-R1
- * parity matrix's R3 row notes this ("ABSENT (mode sequences inlined)") and
- * says these two constants converge into W4-R2's terminal-escapes.ts port at
- * integrate time; no behavior change, just a relocation of the literals.
+ * FOCUS_ENABLE/FOCUS_DISABLE: sourced from W4-R2's terminal-escapes.ts (the
+ * shared home for the DECSET ?1004 literals — its own docstring names R3 as
+ * the importer) and re-exported here so the focus-mode callers (main.ts and
+ * the tests) keep one import site for the whole focus-mode surface. This is
+ * the R2/R3 convergence the W4-R1 parity matrix pre-ruled: a relocation of
+ * the literals, no behavior change.
  *
  * installFocusModeExitGuard(): a last-resort safety net. Node/Bun fire 'exit'
  * listeners synchronously for every process-termination path this app can
@@ -43,8 +43,8 @@ import { logger, notifyCompletion, summarizeError } from '@pellux/goodvibes-sdk/
 import type { PermissionRequestHandler, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { FocusTracker } from '../core/focus-tracker.ts';
 
-export const FOCUS_ENABLE = '\x1b[?1004h';
-export const FOCUS_DISABLE = '\x1b[?1004l';
+import { FOCUS_DISABLE } from '../renderer/terminal-escapes.ts';
+export { FOCUS_ENABLE, FOCUS_DISABLE } from '../renderer/terminal-escapes.ts';
 
 /**
  * notifyCompletion (SDK platform/utils) only rings the bell above 5s of
