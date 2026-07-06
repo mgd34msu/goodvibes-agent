@@ -1,5 +1,5 @@
 /**
- * Calendar subscribe wizard editor tests (W4-A9).
+ * Calendar subscribe wizard editor tests.
  *
  * The wizard is a DIRECT host action (like the email connect wizard) because the
  * feed URL is secrets-adjacent. These tests inject a registry built over a FAKE

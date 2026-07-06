@@ -116,7 +116,7 @@ export function applyInitialTuiCliState(options: {
     // Normal relaunch: onboarding is done and the user didn't ask for
     // onboarding or an explicit `sessions resume`. Surface an honest,
     // non-blocking resume affordance instead of silently starting fresh
-    // (the W4-A4 dogfood finding) — never auto-resume, declining is
+    // (a dogfood finding) — never auto-resume, declining is
     // frictionless (just start typing).
     surfaceResumeRelaunchNotice({
       getLastSessionPointer: () => readLastSessionPointer({

@@ -4,7 +4,7 @@
  * generic command-editor dispatch pipeline (agent-workspace-command-editor.ts).
  * Centralizing the dispatch here keeps AgentWorkspace.submitLocalEditor()
  * under the architecture line cap as new direct-action editor kinds are
- * added (W4-A5 added email-connect-wizard alongside the existing
+ * added (email-connect-wizard alongside the existing
  * subscription-login-start/finish/logout kinds).
  */
 import type { CommandContext } from './command-registry.ts';

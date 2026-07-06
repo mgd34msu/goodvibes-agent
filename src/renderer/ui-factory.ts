@@ -259,7 +259,7 @@ export class UIFactory {
     if (inp > 0 || out > 0) {
       statusTokens.push({ text: `↑${fmtNum(inp)} ↓${fmtNum(out)}`, fg: '240' });
     }
-    // W4-R4: the disconnected footer 'waiting for your approval' token is retired
+    // The disconnected footer 'waiting for your approval' token is retired
     // here — the approval-wait truth now lives in the unified waiting state of the
     // thinking indicator (createThinkingFragment's approvalPending path) and in the
     // permission prompt itself, so the footer no longer carries a separate,

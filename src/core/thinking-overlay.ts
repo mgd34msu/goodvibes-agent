@@ -1,5 +1,5 @@
 /**
- * thinking-overlay.ts (W4-R4) — the thinking-indicator overlay + its honest
+ * thinking-overlay.ts — the thinking-indicator overlay + its honest
  * stall clock, extracted from main.ts's render loop.
  *
  * The SDK orchestrator surfaces no lastDeltaAtMs / reconnect signal directly, so

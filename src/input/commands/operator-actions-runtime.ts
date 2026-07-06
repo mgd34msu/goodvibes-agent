@@ -93,7 +93,7 @@ function automationActionFromParts(scope: string, verb: string): {
   readonly targetField: 'jobId' | 'runId' | 'scheduleId';
 } | null {
   if ((scope === 'job' || scope === 'jobs') && verb === 'run') return { action: 'automation.jobs.run', targetField: 'jobId' };
-  // W6-C3: automation.jobs.pause/resume retired (redundant with
+  // automation.jobs.pause/resume retired (redundant with
   // disable/enable) — the user-facing "pause"/"resume" verb is unchanged,
   // it now maps onto the canonical disable/enable wire actions.
   if ((scope === 'job' || scope === 'jobs') && verb === 'pause') return { action: 'automation.jobs.disable', targetField: 'jobId' };

@@ -7,7 +7,7 @@ import type { CliCommandRuntime } from './management.ts';
 /**
  * Shared prelude for the Agent-local library CLI commands (personas, skills,
  * skill bundles): option parsing, success/failure envelopes, and registry
- * accessors. Split out of local-library-command.ts (W4-H1 ruling: the file
+ * accessors. Split out of local-library-command.ts (the file
  * cleanly contained three independent command handlers glued together) so
  * personas-command.ts, skills-command.ts, and skill-bundle-command.ts can
  * share one option-parsing/output prelude without duplicating it.

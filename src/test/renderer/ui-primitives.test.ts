@@ -20,7 +20,7 @@ describe('ui primitives', () => {
     expect(GLYPHS.meter.empty).toBe('░');
   });
 
-  // W4-R4: the status glyphs converge on the TUI reference via the SDK
+  // The status glyphs converge on the TUI reference via the SDK
   // presentation contract. idle ○ -> ◌, info • -> ○, and a new warn ⚠ key —
   // a deliberate, visible convergence (per S1's divergence ruling), asserted
   // here so a future drift is caught.

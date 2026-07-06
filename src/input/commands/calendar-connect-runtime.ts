@@ -1,6 +1,6 @@
 /**
  * calendar-connect-runtime.ts — the /calendar connect|disconnect|accounts subcommands
- * and the provider-event merge for /calendar upcoming (W4-A10).
+ * and the provider-event merge for /calendar upcoming.
  *
  * The OAuth network dance lives here (not in the workspace card) because a command
  * handler can print the authorization URL / device user-code IMMEDIATELY, then await

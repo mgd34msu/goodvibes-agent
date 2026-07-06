@@ -29,7 +29,7 @@ export interface OperatorContractMethod {
   readonly description?: string;
   readonly category?: string;
   /**
-   * W4-A3 capability-advertisement honesty: false means the method is
+   * Capability-advertisement honesty: false means the method is
    * cataloged but NOT dispatchable (no route/handler serves it). Absent
    * means invokable (older contracts predate the flag).
    */

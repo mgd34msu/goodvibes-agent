@@ -137,7 +137,7 @@ describe('SettingsModal', () => {
         .filter((entry) => !isAgentHiddenSettingKey(entry.key))
         .filter((entry) => entry.key.split('.')[0] === cat)
         .map((entry) => entry.key);
-      // W4-R4: display additionally carries the synthetic display.themeMode
+      // display additionally carries the synthetic display.themeMode
       // entry (agent-local key, not in the SDK CONFIG_SCHEMA).
       if (cat === 'display') expectedKeys.push('display.themeMode');
       expect(specialCategories.has(cat)).toBe(false);

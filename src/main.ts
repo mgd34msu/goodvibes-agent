@@ -67,7 +67,7 @@ const KEYBOARD_EXT_ENABLE = '\x1b[>4;2m' + '\x1b[?1u', KEYBOARD_EXT_DISABLE = '\
 async function main() {
   const stdout = process.stdout;
   const stdin = process.stdin;
-  installFocusModeExitGuard(stdout); // W4-R3 — see shell/terminal-focus-mode.ts
+  installFocusModeExitGuard(stdout); // see shell/terminal-focus-mode.ts
   const { cli, configManager, bootstrapWorkingDir, bootstrapHomeDirectory } = await prepareShellCliRuntime(process.argv.slice(2), {
     defaultWorkingDirectory: process.env['GOODVIBES_WORKING_DIR'] ?? process.cwd(),
     homeDirectory: process.env['GOODVIBES_AGENT_HOME'] ?? homedir(),
@@ -159,7 +159,7 @@ async function main() {
 
   let streamTokenSpeed = 0;
 
-  const thinkingClock = new ThinkingStallClock(); // W4-R4 thinking-indicator stall clock
+  const thinkingClock = new ThinkingStallClock(); // thinking-indicator stall clock
 
   let scrollTop = 0;
   let scrollLocked = true;
@@ -401,7 +401,7 @@ async function main() {
     sidebarOverride = !(sidebarWidthFor(width) > 0);
     render();
   };
-  const rawRequestPermission: typeof permissionPromptRef.requestPermission = (request) => new Promise((resolve) => { // W4-R3: see shell/terminal-focus-mode.ts
+  const rawRequestPermission: typeof permissionPromptRef.requestPermission = (request) => new Promise((resolve) => { // see shell/terminal-focus-mode.ts
     pendingPermission = { ...request, resolve: (approved: boolean, remember = false) => resolve({ approved, remember }) };
     render();
   });
@@ -692,7 +692,7 @@ async function main() {
   stdin.setEncoding('utf8');
   allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write((cli.flags.noAltScreen ? '' : ALT_SCREEN_ENTER) + CLEAR_SCREEN + CURSOR_HIDE + MOUSE_ENABLE + KEYBOARD_EXT_ENABLE + PASTE_ENABLE + FOCUS_ENABLE); });
 
-  // W4-R4: forced dark/light before first paint; auto (TTY) probes + repaints once if light.
+  // Forced dark/light before first paint; auto (TTY) probes + repaints once if light.
   const themeProbe = installStartupThemeProbe({
     configManager, stdout, writeAllowed: allowTerminalWrite,
     resetDiff: () => compositor.resetDiff(), render,

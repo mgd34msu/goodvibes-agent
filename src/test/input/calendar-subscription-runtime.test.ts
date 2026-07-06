@@ -1,5 +1,5 @@
 /**
- * /calendar subscription verb + merged-view tests (W4-A9).
+ * /calendar subscription verb + merged-view tests.
  *
  * Drives the real command surface with a fake CommandContext (tmp shellPaths +
  * in-memory secrets) and an injected FAKE fetcher — no real network. Covers the

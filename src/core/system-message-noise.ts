@@ -9,7 +9,7 @@
  * Ported from the TUI (src/core/system-message-noise.ts). The TUI regexes are
  * kept VERBATIM (provider-replay fold / agents-snapshot drop / stale-replay
  * drop); the only agent-specific addition is the `[Terminal] Captured …` rule
- * (W4-R2, absorbing A8 papercut #3 — the stdout-capture leak). Dropped noise is
+ * (the stdout-capture leak). Dropped noise is
  * drop-from-the-feed, NOT delete: the captured-write detail stays reachable via
  * the activity log (the terminal-output guard logs each intercept + the count).
  */
@@ -46,7 +46,7 @@ const REPLAY_CHAIN_RE = /WRFC chain (\S+) transitioned .* waiting for action/;
 
 /**
  * Matches the terminal-output guard's aggregate captured-write notice
- * (W4-R2, agent-specific). First-run plumbing writes a burst of direct stdout
+ * (agent-specific). First-run plumbing writes a burst of direct stdout
  * that the guard intercepts and would otherwise summarize into the Recent feed;
  * the count stays reachable in the activity log, so the feed copy is dropped.
  */
@@ -57,7 +57,7 @@ const TERMINAL_CAPTURED_RE = /^\[Terminal\] Captured \d+ direct /;
  * lookup, so it is trivially testable.
  */
 export function classifyNoise(message: string, deps: NoiseGateDeps): NoiseVerdict {
-  // agent (W4-R2) — the terminal-output guard's aggregate captured-write notice.
+  // Agent-specific — the terminal-output guard's aggregate captured-write notice.
   // Kept out of the Recent feed; the detail stays in the activity log.
   if (TERMINAL_CAPTURED_RE.test(message)) {
     return DROP;

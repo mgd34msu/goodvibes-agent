@@ -1,5 +1,5 @@
 /**
- * Calendar subscription boot refresh (W4-A9 completion).
+ * Calendar subscription boot refresh.
  *
  * Fires once from bootstrap's Phase-8 area (after first render, like the gated
  * LAN scan and MCP discovery), fully async and non-blocking: boot never waits on

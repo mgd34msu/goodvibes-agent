@@ -1,5 +1,5 @@
 /**
- * Calendar connect card editor tests (W4-A5).
+ * Calendar connect card editor tests.
  *
  * Unlike email, there is no external calendar credential path anywhere in
  * this codebase (grounded: no CalDAV config schema, no connector, only the

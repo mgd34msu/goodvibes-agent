@@ -86,7 +86,7 @@ export interface SessionRecordSummary {
 }
 
 /**
- * Honest outcome discriminator. 'still_closed' is the Wave-1 heartbeat-resurrection
+ * Honest outcome discriminator. 'still_closed' is the heartbeat-resurrection
  * guard: a 200 that carries conflict:{status:'closed'} with reopened:false MUST NOT
  * be read as 'registered' or 'reopened'.
  */

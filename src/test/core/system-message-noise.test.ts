@@ -45,7 +45,7 @@ describe('system-message noise classifier', () => {
   });
 });
 
-describe('terminal captured-write notice (W4-R2, agent-specific)', () => {
+describe('terminal captured-write notice (agent-specific)', () => {
   test('the aggregate captured-write notice is dropped from the feed', () => {
     const msg = '[Terminal] Captured 4 direct stdout writes that would have corrupted the TUI: some plumbing';
     expect(classifyNoise(msg, {}).action).toBe('drop');

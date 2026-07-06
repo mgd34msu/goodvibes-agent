@@ -246,8 +246,8 @@ function memorySegment(memory: PromptMemoryApi | undefined, includeParameters: b
       inspectRoute: `agent_local_registry domain:"memory" action:"get" recordId:"${record.id}"`,
     })),
     suppressed: suppressed.slice(0, 12).map((record) => {
-      // Honest, per-record reason straight from describeMemoryPromptEligibility (Wave-4
-      // W4-A1B) — the same wording source prompt-context-receipts.ts uses, never a
+      // Honest, per-record reason straight from describeMemoryPromptEligibility —
+      // the same wording source prompt-context-receipts.ts uses, never a
       // locally invented "not reviewed"/"outside prompt limit" guess. A record here
       // either genuinely failed eligibility, or passed it but was cut by the top-10
       // prompt slice — those read differently.
@@ -399,7 +399,7 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
   }
 
   const vibe = discoverVibeFiles(shellPaths);
-  // W6-C2 (E6): mirror the runtime — the VIBE prompt is a PROJECTION of persona records,
+  // Mirror the runtime — the VIBE prompt is a PROJECTION of persona records,
   // not a file re-read (discoverVibeFiles stays for the file-discovery receipt below).
   const vibeMemory = promptMemoryApi(context.clients?.agentKnowledgeApi?.memory);
   const vibePrompt = (vibeMemory ? buildVibeProjectionPrompt(vibeMemory) : null) ?? '';

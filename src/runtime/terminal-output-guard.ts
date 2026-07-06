@@ -232,7 +232,7 @@ export function installTuiTerminalOutputGuard(options: TuiTerminalOutputGuardOpt
       const notice = `[Terminal] Captured ${count} direct ${event.source} write${plural} that would have corrupted the TUI: ${event.preview}`;
       // Keep the aggregate count reachable in the activity log even though the
       // noise gate (system-message-noise.ts) drops the notice from the Recent
-      // feed — drop-from-the-feed, not delete. (W4-R2 honest degraded state.)
+      // feed — drop-from-the-feed, not delete. (Honest degraded state.)
       logger.info(notice, { source: event.source, count });
       options.notify(notice);
     },

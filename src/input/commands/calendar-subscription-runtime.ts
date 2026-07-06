@@ -11,8 +11,8 @@ import { parseAgentLocalLibraryArgs } from './agent-local-library-args.ts';
 import { requireShellPaths } from './runtime-services.ts';
 
 /**
- * External-calendar SUBSCRIPTION verbs for /calendar — the no-OAuth read path
- * (W4-A9). Subscriptions are iCalendar feeds (Google secret address, Outlook
+ * External-calendar SUBSCRIPTION verbs for /calendar — the no-OAuth read path.
+ * Subscriptions are iCalendar feeds (Google secret address, Outlook
  * published .ics, or any .ics URL). The parse/RRULE/fetch-status engine is the
  * SDK's platform/calendar; this file is the /calendar command surface over the
  * agent-side CalendarSubscriptionRegistry.

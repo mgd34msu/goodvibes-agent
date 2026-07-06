@@ -1,5 +1,5 @@
 /**
- * Calendar subscription registry tests (W4-A9).
+ * Calendar subscription registry tests.
  *
  * Exercises the agent-side registry that wraps the SDK's platform/calendar
  * SubscriptionStore: real JSON persistence to a tmp store, an in-memory secret

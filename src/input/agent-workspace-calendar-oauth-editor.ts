@@ -1,5 +1,5 @@
 /**
- * Calendar OAuth advanced-credentials wizard (W4-A10).
+ * Calendar OAuth advanced-credentials wizard.
  *
  * The DEFAULT connect experience needs no card at all: `/calendar connect google`
  * (or `outlook`) uses the bundled project client id + PKCE and opens the browser.

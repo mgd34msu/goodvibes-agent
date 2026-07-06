@@ -83,7 +83,7 @@ type FakeSavedSession = { readonly name: string; readonly title: string; readonl
 
 /**
  * Runs startup with a fully-wired fake CommandContext (print + a stub
- * session-manager) so the resume-on-relaunch notice (W4-A4) can be observed
+ * session-manager) so the resume-on-relaunch notice can be observed
  * end to end, the same way the real commandContext.print/session.sessionManager
  * are wired in main.ts.
  */
@@ -195,7 +195,7 @@ describe('initial TUI onboarding startup check', () => {
   });
 });
 
-describe('resume-on-relaunch notice (W4-A4)', () => {
+describe('resume-on-relaunch notice', () => {
   function completeOnboarding(shellPaths: ReturnType<typeof makeShellPaths>): void {
     writeOnboardingCompletionMarker(shellPaths, {
       scope: 'user',

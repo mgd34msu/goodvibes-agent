@@ -1,7 +1,7 @@
 /**
  * credential-status.ts — client-side, secret-FREE credential STATUS read.
  *
- * W6-C1 (E7 config sharing). When GoodVibes Agent acts as a CLIENT of an adopted
+ * When GoodVibes Agent acts as a CLIENT of an adopted
  * external daemon, it reads credential *status* (configured / usable) from the
  * daemon's shared store over the wire — the `credentials.get` operator method
  * (GET /config/credentials, admin + read:config). It NEVER receives raw secret

@@ -36,7 +36,7 @@ export function methodSearchText(method: OperatorContractMethod): string {
 }
 
 /**
- * W4-A3/W4-A5 capability honesty: a method whose contract entry carries
+ * Capability honesty: a method whose contract entry carries
  * invokable:false is cataloged but NOT dispatchable — no daemon route or
  * handler serves it. Counting it toward "workflow ready" would repeat the
  * dogfood finding (a lane card claiming readiness backed only by methods a
@@ -77,7 +77,7 @@ export function unavailableMethodIdsMatching(tokens: readonly string[]): readonl
 
 /**
  * One honest line naming advertised-but-undispatchable methods, matching the
- * W4-A3 degraded-ad pattern ("unavailable (route not served by this daemon)").
+ * degraded-ad pattern ("unavailable (route not served by this daemon)").
  * Returns null when nothing is degraded.
  */
 export function unavailableMethodsNote(unavailableMethodIds: readonly string[]): string | null {

@@ -140,7 +140,7 @@ function receiptSegment(input: Omit<PromptContextReceiptSegment, 'approxTokens'>
 
 function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput): readonly PromptContextReceiptSegment[] {
   const vibe = discoverVibeFiles(input.shellPaths);
-  // W6-C2 (E6): the VIBE prompt is a PROJECTION of persona/constraint records, not a
+  // The VIBE prompt is a PROJECTION of persona/constraint records, not a
   // re-read of the files (discoverVibeFiles above stays for the file-discovery receipt).
   const vibePrompt = buildVibeProjectionPrompt(input.memoryRegistry) ?? '';
   const projectContext = discoverProjectContextFiles(input.shellPaths);
@@ -234,7 +234,7 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       suppressedCount: suppressedMemory.length,
       promptChars: memoryPrompt.length,
       promptText: memoryPrompt,
-      // Honest degrade note (Wave-4 W4-A1B): when per-turn relevance scoring did not
+      // Honest degrade note: when per-turn relevance scoring did not
       // run — no active-turn text, semantic index unavailable, or no vector match —
       // say so instead of silently presenting the fallback confidence/recency order as
       // if it were a relevance ranking.
@@ -245,7 +245,7 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
         class: record.cls,
         confidence: record.confidence,
         reason: describeMemoryPromptEligibility(record).reason,
-        // Per-turn relevance (W4-A1B): honest wording, only present when actually scored.
+        // Per-turn relevance: honest wording, only present when actually scored.
         // F7a: the raw percent is paired with a qualitative band (see relevanceBand)
         // so a genuinely-lower-but-real score like "28%" doesn't read as noise.
         ...(memoryRanking.scored ? { relevance: `relevance to this turn: ${memoryRanking.relevanceById.get(record.id) ?? 0}% (${relevanceBand(memoryRanking.relevanceById.get(record.id) ?? 0)})` } : {}),

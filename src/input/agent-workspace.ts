@@ -219,7 +219,7 @@ export class AgentWorkspace {
     this.lastActionResult = { kind: 'refreshed', title: 'Runtime context refreshed', detail: 'Provider, model, session, local memory, runtime endpoint, and Agent knowledge route posture were re-read from the live command context.' };
   }
 
-  /** W4-A6 render-path live counter mirror (see syncAgentWorkspaceLiveCounters). */ syncLiveCountersForRender(): void { syncAgentWorkspaceLiveCounters({ context: this.context, runtimeSnapshot: this.runtimeSnapshot, setRuntimeSnapshot: (snapshot) => { this.runtimeSnapshot = snapshot; }, clampSelection: () => this.clampSelection() }); }
+  /** Render-path live counter mirror (see syncAgentWorkspaceLiveCounters). */ syncLiveCountersForRender(): void { syncAgentWorkspaceLiveCounters({ context: this.context, runtimeSnapshot: this.runtimeSnapshot, setRuntimeSnapshot: (snapshot) => { this.runtimeSnapshot = snapshot; }, clampSelection: () => this.clampSelection() }); }
 
   cancelLocalEditor(): void {
     if (!this.localEditor) return;

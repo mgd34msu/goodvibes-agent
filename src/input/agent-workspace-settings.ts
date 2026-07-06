@@ -330,7 +330,7 @@ export function agentWorkspaceSettingSchema(context: CommandContext | null, key:
     ?.getSchema()
     .find((setting) => setting.key === key) ?? null;
   if (fromSchema) return fromSchema;
-  // display.themeMode is a TUI-local synthetic setting (W4-R4) that never
+  // display.themeMode is a TUI-local synthetic setting that never
   // joined the SDK ConfigKey schema — the classic settings-modal injects the
   // same descriptor into its own groups map rather than the schema. Mirror
   // that fallback here so the workspace surface can discover and cycle it too.

@@ -1,5 +1,5 @@
 /**
- * theme.ts — Semantic colour token layer (W4-R4 port of the TUI theme system).
+ * theme.ts — Semantic colour token layer (port of the TUI theme system).
  *
  * Two token layers, resolved per background mode:
  *
@@ -16,7 +16,7 @@
  *
  * Dark mode values are the historically used colours. Light mode values exist
  * for correctness parity and are consumed once the terminal-bg-probe
- * (terminal-escapes / OSC 11, W4-R2) resolves the mode and setActiveThemeMode
+ * (terminal-escapes / OSC 11) resolves the mode and setActiveThemeMode
  * is called. Callers that do not yet have mode detection get 'dark' — the safe
  * default (activeMode starts dark).
  *
@@ -162,7 +162,7 @@ export const DARK_THEME: Readonly<ThemeTokens> = DARK;
 //
 // The dark table is the SDK's TONE_TOKENS (re-exported here as UI_TONES); the
 // light variant is the SDK's resolveTones('light'). The agent does NOT mint its
-// own light chrome variant — that duplication is exactly what W4-S1 ended.
+// own light chrome variant — that duplication is exactly what the SDK extraction ended.
 // ---------------------------------------------------------------------------
 
 /** The chrome tone-token shape (the SDK ToneTokens contract). */
@@ -189,7 +189,7 @@ export function resolveUiTones(mode: ThemeMode): Readonly<UiToneTokens> {
 //
 // registerThemeRefresh exists for owners that BAKE tone values into
 // module-level constants (which cannot be re-resolved per call). Nothing
-// registers this wave — the agent's opaque panel palettes (polish.ts
+// registers currently — the agent's opaque panel palettes (polish.ts
 // DEFAULT_PANEL_PALETTE and the modal/overlay/fullscreen surfaces built from
 // it) paint OPAQUE dark boxes whose fg/state tokens stay dark in both modes, so
 // they need no rebuild for dark parity (the opaque-surface trio deferral). The

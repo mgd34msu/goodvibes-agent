@@ -1,5 +1,5 @@
 /**
- * W4-A5 dogfood-finding regression test: the "Inbox workflows" and
+ * Dogfood-finding regression test: the "Inbox workflows" and
  * "Calendar workflows" personal-ops cards must be real, dispatchable actions
  * — not the dead kind:'guidance' cards the dogfood audit found (workspace
  * cards implying connect flows that don't exist or dead-end).
@@ -16,7 +16,7 @@ function findAction(id: string) {
   return undefined;
 }
 
-describe('W4-A5: inbox/calendar workspace cards are real actions, not dead guidance', () => {
+describe('inbox/calendar workspace cards are real actions, not dead guidance', () => {
   test('personal-ops-inbox is a real editor action, not kind:guidance', () => {
     const action = findAction('personal-ops-inbox');
     expect(action).toBeDefined();
@@ -25,7 +25,7 @@ describe('W4-A5: inbox/calendar workspace cards are real actions, not dead guida
     expect(createAgentWorkspaceEditor(action!.editorKind!)).not.toBeNull();
   });
 
-  test('personal-ops-calendar is the real external-calendar subscribe wizard (W4-A9)', () => {
+  test('personal-ops-calendar is the real external-calendar subscribe wizard', () => {
     const action = findAction('personal-ops-calendar');
     expect(action).toBeDefined();
     expect(action?.kind).toBe('editor');
@@ -40,14 +40,14 @@ describe('W4-A5: inbox/calendar workspace cards are real actions, not dead guida
     expect(action?.detail.toLowerCase()).toContain('secret manager');
   });
 
-  test('personal-ops-calendar-add stays a real local add-event editor (W4-A5 preserved)', () => {
+  test('personal-ops-calendar-add stays a real local add-event editor', () => {
     const action = findAction('personal-ops-calendar-add');
     expect(action?.kind).toBe('editor');
     expect(action?.editorKind).toBe('calendar-connect');
     expect(createAgentWorkspaceEditor(action!.editorKind!)).not.toBeNull();
   });
 
-  test('the advanced Google/Outlook OAuth cards are real, dispatchable editors that name the default connect route (W4-A10)', () => {
+  test('the advanced Google/Outlook OAuth cards are real, dispatchable editors that name the default connect route', () => {
     for (const [id, editorKind, route] of [
       ['personal-ops-calendar-google', 'calendar-oauth-google', '/calendar connect google'],
       ['personal-ops-calendar-outlook', 'calendar-oauth-outlook', '/calendar connect outlook'],

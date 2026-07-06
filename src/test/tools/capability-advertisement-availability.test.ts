@@ -1,7 +1,7 @@
 /**
- * w4-a3-capability-availability.test.ts
+ * capability-advertisement-availability.test.ts
  *
- * W4-A3 (capability-advertisement honesty, agent side): proves the two
+ * Capability-advertisement honesty, agent side: proves the two
  * capability-surfacing seams degrade honestly for a method the SDK's
  * operator contract marks `invokable: false` (email.inbox.list / read,
  * email.draft.create, email.send — advertised /api/email/* paths with no
@@ -46,7 +46,7 @@ function makeConfigManager(overrides: Record<string, unknown> = {}) {
   return { get: (key: string) => overrides[key] };
 }
 
-describe('W4-A3 capability-advertisement honesty (agent side)', () => {
+describe('capability-advertisement honesty (agent side)', () => {
   test('discovery: email.inbox.list (invokable:false) renders degraded, not as a live capability', () => {
     const summary = operatorMethodSummary({ query: 'email.inbox.list' });
     const methods = summary.methods as readonly Record<string, unknown>[];
@@ -75,7 +75,7 @@ describe('W4-A3 capability-advertisement honesty (agent side)', () => {
   });
 
   test('execution: agent_operator_method refuses an unavailable method honestly, without attempting a network call', async () => {
-    const shellPaths = makeShellPaths('/tmp/w4-a3-capability-availability-test-root');
+    const shellPaths = makeShellPaths('/tmp/capability-advertisement-availability-test-root');
     const configManager = makeConfigManager({ 'controlPlane.host': '127.0.0.1', 'controlPlane.port': 4444 });
     const tool = createAgentOperatorMethodTool(shellPaths as never, configManager);
 
@@ -99,7 +99,7 @@ describe('W4-A3 capability-advertisement honesty (agent side)', () => {
   });
 
   test('execution: dryRun preview for an unavailable method still refuses before building a route preview', async () => {
-    const shellPaths = makeShellPaths('/tmp/w4-a3-capability-availability-test-root-2');
+    const shellPaths = makeShellPaths('/tmp/capability-advertisement-availability-test-root-2');
     const configManager = makeConfigManager();
     const tool = createAgentOperatorMethodTool(shellPaths as never, configManager);
 

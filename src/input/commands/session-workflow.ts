@@ -479,7 +479,7 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
   return false;
 }
 
-// NOTE (W6-C3, Wave 6 core-verb pass): this file used to also export
+// NOTE (core-verb pass): this file used to also export
 // registerSessionWorkflowCommands(), a second top-level `/session` (alias
 // `sess`) registration with its own usage text. It was NEVER called from
 // startup — commands.ts only registers `sessionCommand` from ./session.ts —

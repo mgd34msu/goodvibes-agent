@@ -370,7 +370,7 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly missingRequirementCount?: number;
   readonly missingRequirements?: readonly string[];
   readonly startCount?: number;
-  /** Memory-only (Wave-4 W4-A1B): whether this record currently clears the prompt-injection
+  /** Memory-only: whether this record currently clears the prompt-injection
    *  recall floor, per describeMemoryPromptEligibility. */
   readonly promptEligible?: boolean;
   /** Memory-only: the honest, per-record reason from describeMemoryPromptEligibility —
@@ -640,7 +640,7 @@ export interface AgentWorkspaceCompanionAccessSummary {
   readonly nextStep: string;
 }
 
-/** Honest, no-I/O email-connect status (config validation only) for the inbox connect card/wizard (W4-A5). */
+/** Honest, no-I/O email-connect status (config validation only) for the inbox connect card/wizard. */
 export interface AgentWorkspaceEmailConnectStatus {
   readonly connected: boolean;
   readonly username: string;
@@ -785,7 +785,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly warnings: readonly string[];
   /**
    * True when the most recent render-path attempt to re-derive the live
-   * counters (memory count, routine counts + start counts — W4-A6) failed
+   * counters (memory count, routine counts + start counts) failed
    * and the previous values below had to be kept. A fresh
    * buildAgentWorkspaceRuntimeSnapshot() call is never stale (it just read
    * everything); this only flips true from
@@ -794,7 +794,7 @@ export interface AgentWorkspaceRuntimeSnapshot {
    * instead of asserting a number the disk might already contradict.
    */
   readonly liveCountersStale: boolean;
-  /** Honest email-connect status for the connect wizard's entry state (W4-A5). Null when unavailable in this runtime. */
+  /** Honest email-connect status for the connect wizard's entry state. Null when unavailable in this runtime. */
   readonly emailConnectStatus: AgentWorkspaceEmailConnectStatus | null;
   readonly calendarOAuthConfigStatus: { readonly google: boolean; readonly microsoft: boolean } | null; // F1c: per-provider client-id-configured state for the advanced cards
 }

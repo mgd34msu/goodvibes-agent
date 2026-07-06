@@ -1,5 +1,5 @@
 /**
- * Calendar connect card (W4-A5) — promotes the "Calendar workflows" workspace
+ * Calendar connect card — promotes the "Calendar workflows" workspace
  * card from a dead guidance card into a real, dispatchable action.
  *
  * GROUNDED: unlike email, there is no external calendar account/CalDAV

@@ -475,7 +475,7 @@ describe('SmtpClient protocol', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SmtpClient.verifyAuth — W4-A5 connect-wizard "test connection" step.
+// SmtpClient.verifyAuth — connect-wizard "test connection" step.
 // Must authenticate and QUIT WITHOUT ever sending MAIL FROM/RCPT TO/DATA.
 // ---------------------------------------------------------------------------
 

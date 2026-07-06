@@ -1,9 +1,9 @@
 // ---------------------------------------------------------------------------
 // ui-primitives.ts — glyph registry + tone-token table.
 //
-// W4-R4: these four tables (GLYPHS, UI_TONES, DIFF_TONES, SPINNER_FRAMES) are
+// These four tables (GLYPHS, UI_TONES, DIFF_TONES, SPINNER_FRAMES) are
 // no longer minted locally. They are the SDK presentation contract
-// (@pellux/goodvibes-sdk/platform/presentation, landed by W4-S1), consumed here
+// (@pellux/goodvibes-sdk/platform/presentation), consumed here
 // so the agent and the TUI share ONE source (Mike's move-to-SDK ruling —
 // machinery needed by 2+ surfaces => SDK). See
 // docs/decisions/2026-07-05-presentation-contract-sdk-extraction.md in the SDK.

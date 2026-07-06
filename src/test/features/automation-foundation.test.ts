@@ -132,8 +132,8 @@ describe('automation foundation feature flags', () => {
       'service-management',
     ] as const;
 
-    // `control-plane-gateway` is the one tier-10 flag that defaults ON (One-Platform
-    // Wave 1): a stock daemon must be able to stream companion chat over SSE without
+    // `control-plane-gateway` is the one tier-10 flag that defaults ON (One-Platform):
+    // a stock daemon must be able to stream companion chat over SSE without
     // config, so leaving it off left a fresh daemon returning 503 on the live-stream
     // path. It remains runtimeToggleable, so an operator can still flip it off.
     const expectedDefaultState: Record<string, 'enabled' | 'disabled'> = {

@@ -28,7 +28,7 @@ function formatMegabytes(bytes: number): string {
   return `${Math.round(bytes / (1024 * 1024))} MB`;
 }
 
-// W4-A6: the memory/routine counts below are re-derived live on every
+// The memory/routine counts below are re-derived live on every
 // repaint (AgentWorkspace.syncLiveCountersForRender). If that live read
 // fails, liveCountersStale flags it so we say so instead of asserting a
 // number the disk might already contradict.

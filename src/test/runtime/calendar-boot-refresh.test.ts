@@ -1,5 +1,5 @@
 /**
- * Calendar subscription boot refresh tests (W4-A9 completion).
+ * Calendar subscription boot refresh tests.
  *
  * Uses the real CalendarSubscriptionRegistry over a tmp store with an injected
  * FAKE fetcher and fake clock — no real network. Proves the boot contract:

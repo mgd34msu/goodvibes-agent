@@ -1,5 +1,5 @@
 /**
- * W6-C1 (E7): the daemon-client credential STATUS read must degrade honestly and never
+ * The daemon-client credential STATUS read must degrade honestly and never
  * fabricate "configured" nor surface a secret byte. Hermetic — a fake fetch stands in for
  * the daemon (no real daemon, no ports); the pure deriver is exercised directly.
  */
@@ -15,7 +15,7 @@ function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 }
 
-describe('deriveCredentialAvailability (W6-C1 honest degrade)', () => {
+describe('deriveCredentialAvailability (honest degrade)', () => {
   test('a healthy credentials.get result yields status metadata, never bytes', () => {
     const out = deriveCredentialAvailability({
       ok: true,
@@ -59,7 +59,7 @@ describe('deriveCredentialAvailability (W6-C1 honest degrade)', () => {
   });
 });
 
-describe('fetchDaemonCredentialAvailability (W6-C1 client status read)', () => {
+describe('fetchDaemonCredentialAvailability (client status read)', () => {
   test('a 200 status body maps to available credentials, never bytes', async () => {
     const fetchImpl = async () => jsonResponse(200, {
       available: true,

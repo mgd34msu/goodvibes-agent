@@ -1,5 +1,5 @@
 /**
- * Calendar OAuth agent-side tests (W4-A10).
+ * Calendar OAuth agent-side tests.
  *
  * The deep OAuth + provider-API flow is proven at the SDK level against fake servers
  * (goodvibes-sdk/test/platform-calendar-oauth.test.ts). Here we prove the AGENT half:

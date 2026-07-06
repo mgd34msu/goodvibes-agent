@@ -10,7 +10,7 @@ export function renderThinkingBlock(text: string, width: number): Line[] {
   // light terminal. In dark mode the accent adopts the shared reasoning purple
   // (state.reasoning) and the body adopts chrome.faint (== fg.dim) — a small,
   // deliberate convergence to the reference tokens from the agent's prior local
-  // BORDERS.THINKING.color / COLORS.DIM_TEXT (see the W4-R4 visible-changes note).
+  // BORDERS.THINKING.color / COLORS.DIM_TEXT (see the visible-changes note).
   const t = activeUiTones();
   return renderConversationNotice(
     text,

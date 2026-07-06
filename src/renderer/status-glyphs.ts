@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // status-glyphs.ts — canonical glyph map for status states.
 //
-// W4-R4: STATE_GLYPHS is no longer hardcoded here. It is the SDK presentation
-// contract (@pellux/goodvibes-sdk/platform/presentation, landed by W4-S1),
+// STATE_GLYPHS is no longer hardcoded here. It is the SDK presentation
+// contract (@pellux/goodvibes-sdk/platform/presentation),
 // aliased to GLYPHS.status so the four semantic glyphs are spelled out in
 // exactly one place and can never drift from the registry again. Re-exported
 // under the historical names so status-token.ts and polish.ts import unchanged.

@@ -1,5 +1,5 @@
 import type { MemoryRecord, MemoryRegistry, MemoryVectorStats } from '@pellux/goodvibes-sdk/platform/state';
-// W6-C2 (E6): the recall-honesty floor + eligibility receipt now live in the SDK as
+// The recall-honesty floor + eligibility receipt now live in the SDK as
 // the ONE cross-surface contract (memory-recall-contract.ts) instead of being defined
 // per surface. This file re-exports them unchanged so every existing agent consumer
 // keeps importing from './memory-prompt.ts', while the SDK is the single source of the
@@ -32,9 +32,9 @@ function formatMemoryLine(record: MemoryRecord): string {
 }
 
 /**
- * Per-turn semantic ranking of an already-eligible memory set (Wave-4 W4-A1B).
+ * Per-turn semantic ranking of an already-eligible memory set.
  *
- * W4-A1 shipped eligibility (confidence + reviewState + provenance) as the hard trust
+ * Eligibility (confidence + reviewState + provenance) shipped as the hard trust
  * gate but had no per-turn query to rank WITHIN that eligible set — records were only
  * ever ordered by stored confidence/recency, regardless of whether they had anything to
  * do with what the user actually just asked. `rankMemoryForTurn` never touches the gate

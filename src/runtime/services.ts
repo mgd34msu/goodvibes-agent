@@ -50,7 +50,7 @@ import { ModeManager } from '@pellux/goodvibes-sdk/platform/state';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
 import { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
-// W6-C2 (E6): one canonical cross-surface memory store + no-loss legacy fold.
+// One canonical cross-surface memory store + no-loss legacy fold.
 import { resolveCanonicalMemoryDbPath, foldMemoryStores } from '@pellux/goodvibes-sdk/platform/state';
 import type { LegacyMemorySource, MemoryFoldReport } from '@pellux/goodvibes-sdk/platform/state';
 import type { RuntimeEventBus } from '@/runtime/index.ts';
@@ -456,7 +456,7 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly worktreeRegistry: WorktreeRegistry;
   readonly sandboxSessionRegistry: SandboxSessionRegistry;
   readonly webhookNotifier: WebhookNotifier;
-  /** W4-R3 — OS-level terminal focus tracker, ported from goodvibes-tui's W2.3 (core/focus-tracker.ts). */
+  /** OS-level terminal focus tracker, ported from goodvibes-tui's W2.3 (core/focus-tracker.ts). */
   readonly focusTracker: FocusTracker;
   readonly replayEngine: DeterministicReplayEngine;
   readonly providerOptimizer: ProviderOptimizer;
@@ -613,7 +613,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     agentStatusProvider: agentManager,
     messageSender: agentMessageBus,
   });
-  // W3-A1: the SDK's extracted session-spine core, consumed via this surface's
+  // The SDK's extracted session-spine core, consumed via this surface's
   // own REST transport adapter (session-spine-rest-transport.ts) — version-
   // tolerant, since the agent may compile against a pinned SDK predating the
   // typed sessions.register client. Live-immediately mode: passing `transport`
@@ -639,7 +639,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const artifactStore = new ArtifactStore({ configManager });
   const memoryEmbeddingRegistry = new MemoryEmbeddingProviderRegistry({ configManager });
-  // W6-C2 (E6): the agent no longer owns a private per-surface memory.sqlite. It opens
+  // The agent no longer owns a private per-surface memory.sqlite. It opens
   // the ONE canonical cross-surface store so a fact learned here recalls in the TUI (and
   // vice-versa). The old agent-global path is folded in at boot with no loss (see
   // foldAgentLegacyMemory), then left in place — migration never deletes.
@@ -779,7 +779,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const worktreeRegistry = createDisabledAgentWorktreeRegistry(workingDirectory);
   // Configured and attached to the runtime bus during bootstrap when webhook URLs are present.
   const webhookNotifier = new WebhookNotifier();
-  // W4-R3 — one shared instance for the process lifetime (mirrors goodvibes-tui's
+  // One shared instance for the process lifetime (mirrors goodvibes-tui's
   // runtime/services.ts); fed from 'focus' tokens in handler-feed.ts and read by
   // the approval-alert wiring in main.ts.
   const focusTracker = new FocusTracker();
@@ -866,7 +866,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     workflowServices: workflow,
   });
 
-  // ── One-Platform Wave 0: RuntimeServices members required by SDK 0.38 ──────
+  // ── One-Platform: RuntimeServices members required by SDK 0.38 ──────
   // The Agent is delegation-only: it does not own local build/worktree work.
   // These are constructed as real-but-inert SDK services purely to satisfy the
   // RuntimeServices contract — none auto-start:
@@ -1020,7 +1020,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
 }
 
 /**
- * W6-C2 (E6): fold the agent's legacy per-surface memory store into the canonical
+ * Fold the agent's legacy per-surface memory store into the canonical
  * cross-surface store. Called once at boot AFTER `memoryStore.init()` so any records
  * written before unification survive. Id-keyed and idempotent — a re-run imports
  * nothing new and never deletes the legacy file. Returns the report so boot can log

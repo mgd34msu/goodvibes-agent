@@ -1,7 +1,7 @@
 /**
- * W4-R3 integration tests — the paste-flood guard and the OS-focus tracker as
+ * Integration tests — the paste-flood guard and the OS-focus tracker as
  * wired into feedInputTokens (handler-feed.ts). This agent has no
- * `src/panels/` directory (see the W4-R1 parity matrix's R3 row), so unlike
+ * `src/panels/` directory (see the porting parity matrix's focus-tracking row), so unlike
  * the TUI (which guards a focused PANEL via handlePanelFocusToken), this
  * guard sits above command-mode's key-driven dispatch (handleCommandModeToken)
  * — never the composer's free-text capture (handlePromptTextToken), which
@@ -83,7 +83,7 @@ describe('feedInputTokens — the composer\'s free-text capture is NEVER guarded
   });
 });
 
-describe('feedInputTokens — command-mode key-dispatch flood guard (W4-R3)', () => {
+describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
   let realNow: typeof Date.now;
   let clock = 1_000_000;
 
@@ -156,7 +156,7 @@ describe('feedInputTokens — command-mode key-dispatch flood guard (W4-R3)', ()
   });
 });
 
-describe('feedInputTokens — OS focus tokens (W4-R3, ported from goodvibes-tui W2.3)', () => {
+describe('feedInputTokens — OS focus tokens (ported from goodvibes-tui W2.3)', () => {
   test('a focus-in/focus-out escape sequence updates the shared FocusTracker and never reaches the composer', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);

@@ -424,7 +424,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     input.modalOpened('settings');
     input.settingsModal.open(configManager, featureFlags, subscriptionManager, serviceRegistry, mcpRegistry, secretsManager, {
       onSettingApplied: (change) => {
-        // W4-R4: forced dark/light applies immediately (mode flip + full
+        // Forced dark/light applies immediately (mode flip + full
         // repaint via clearScreen's resetDiff); auto only re-probes at startup,
         // so it takes effect next launch (stated honestly).
         if (String(change.key) === THEME_MODE_CONFIG_KEY) {

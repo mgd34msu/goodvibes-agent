@@ -1,5 +1,5 @@
 // Sub-builders extracted out of the single ~516-line `buildAgentWorkspaceRuntimeSnapshot`
-// function in agent-workspace-snapshot.ts (W4-H2, per the W4-H1 design ruling's
+// function in agent-workspace-snapshot.ts (per the design ruling's
 // giant-single-function-assembler verdict: "splitting into cohesive sub-builders...
 // would reduce single-function size without changing behavior"). Each function here
 // is the verbatim body of one of that function's local IIFEs or local variable blocks,
@@ -273,7 +273,7 @@ export function buildAgentWorkspaceCompanionAccessSnapshot(context: CommandConte
 
 /**
  * Honest email-connect status for the inbox connect wizard's entry state
- * (W4-A5) — config validation only, no network I/O. Best-effort: never
+ * — config validation only, no network I/O. Best-effort: never
  * throws, returns null on any read failure.
  */
 export function buildAgentWorkspaceEmailConnectStatus(context: CommandContext): AgentWorkspaceEmailConnectStatus | null {

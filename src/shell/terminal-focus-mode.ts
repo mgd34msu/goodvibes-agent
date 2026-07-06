@@ -1,5 +1,5 @@
 /**
- * terminal-focus-mode.ts — W4-R3: DECSET ?1004h OS window-focus reporting +
+ * terminal-focus-mode.ts — DECSET ?1004h OS window-focus reporting +
  * the approval-alert wiring that consumes it.
  *
  * Extracted from main.ts (architecture line-count gate: MAX_SOURCE_LINES=800
@@ -7,13 +7,13 @@
  * extracting terminal-mode literals out of its entry file (see that repo's
  * src/renderer/terminal-escapes.ts docstring). Behavior is unchanged from an
  * inline version; this is purely a line-count extraction plus the one new
- * behavior (the approval alert) this work order adds.
+ * behavior added here (the approval alert).
  *
- * FOCUS_ENABLE/FOCUS_DISABLE: sourced from W4-R2's terminal-escapes.ts (the
- * shared home for the DECSET ?1004 literals — its own docstring names R3 as
- * the importer) and re-exported here so the focus-mode callers (main.ts and
- * the tests) keep one import site for the whole focus-mode surface. This is
- * the R2/R3 convergence the W4-R1 parity matrix pre-ruled: a relocation of
+ * FOCUS_ENABLE/FOCUS_DISABLE: sourced from terminal-escapes.ts (the
+ * shared home for the DECSET ?1004 literals — its own docstring names this
+ * module as the importer) and re-exported here so the focus-mode callers (main.ts and
+ * the tests) keep one import site for the whole focus-mode surface. This
+ * convergence was pre-ruled by the port's parity matrix: a relocation of
  * the literals, no behavior change.
  *
  * installFocusModeExitGuard(): a last-resort safety net. Node/Bun fire 'exit'
@@ -21,7 +21,7 @@
  * take — explicit process.exit() calls (normal /exit, double-Ctrl+C via
  * exitApp()) AND the default uncaughtException termination — even though
  * main.ts registers no explicit uncaughtException/SIGTERM handler of its own.
- * Named top-5 risk (W4-R1 matrix): ?1004h MUST be disabled on every exit path
+ * Named a top-5 risk in the port's parity matrix: ?1004h MUST be disabled on every exit path
  * or the user's shell inherits focus-reporting escape garbage. The write is
  * harmless even if exitApp() already disabled it moments earlier (?1004l is
  * idempotent). It is GATED on focus mode having actually been enabled
@@ -37,7 +37,7 @@
  * module's config-gated alert-class system (alert-gating.ts's
  * behavior.notifyOnApprovalPending / notifyOnlyWhenUnfocused settings, shared
  * with budget-breach/long-task/chain-failure notifiers) is TUI-specific
- * infrastructure the W4-R1 parity matrix does not list as a PORT item — only
+ * infrastructure the port's parity matrix does not list as a PORT item — only
  * core/focus-tracker.ts is. This is the minimal, self-contained wiring the
  * matrix's own text calls for ("route focus in/out events ... to drive
  * awaiting-approval alerts"). PRIVACY: message content is tool name + category

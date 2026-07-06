@@ -2211,7 +2211,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('prompt context memory suppressed reasons come straight from describeMemoryPromptEligibility — no "not reviewed"/"outside prompt limit" paraphrase (W4-A1B)', async () => {
+  test('prompt context memory suppressed reasons come straight from describeMemoryPromptEligibility — no "not reviewed"/"outside prompt limit" paraphrase', async () => {
     const fixture = makeFixture();
     try {
       // 11 eligible records (confidence 100 down to 90, all reviewed) so the top-10
@@ -3410,7 +3410,7 @@ describe('agent_harness tool', () => {
         readonly personalOps?: { readonly lanes: number; readonly gap: number; readonly ready: number; readonly workflows: number; readonly setupWorkflows: number };
       }>(fixture, { mode: 'summary' });
       expect(summary.personalOps?.lanes).toBe(7);
-      // W4-A5/W4-A3 honesty: with no real connectors configured and every
+      // Capability-advertisement honesty: with no real connectors configured and every
       // email.*/calendar.* operator-contract method marked invokable:false
       // (advertised but not served by any daemon route), the inbox and
       // calendar lanes honestly read as gaps instead of claiming

@@ -103,7 +103,7 @@ export const OPERATOR_ACTIONS: Record<OperatorActionId, OperatorActionDescriptor
     pathTemplate: '/api/automation/jobs/{jobId}/run',
     targetField: 'jobId',
   },
-  // W6-C3: automation.jobs.pause/resume were retired (redundant with
+  // automation.jobs.pause/resume were retired (redundant with
   // disable/enable — same {id,enabled} output, same semantics). The
   // user-facing "pause"/"resume" verb is unchanged; only the wire action +
   // path moved to the canonical disable/enable methods.

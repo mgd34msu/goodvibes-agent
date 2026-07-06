@@ -563,7 +563,7 @@ export function createAgentOperatorMethodTool(
           error: `Unknown GoodVibes operator method '${methodId}'. Inspect host action:"methods" first.`,
         };
       }
-      // W4-A3 (capability-advertisement honesty): the operator contract marks a
+      // Capability-advertisement honesty: the operator contract marks a
       // cataloged-but-not-route-backed method invokable:false (email.inbox.list,
       // email.send, etc. — see @pellux/goodvibes-sdk's method-catalog-route-reconcile).
       // Refuse here, before prepareOperatorRoute/fetch, rather than letting the

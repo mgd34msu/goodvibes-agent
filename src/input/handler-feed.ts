@@ -64,13 +64,13 @@ import type { FocusTracker } from '../core/focus-tracker.ts';
  *   - `inputHistory`, `conversationManager` — late-wired service handles; synced at
  *     feed() entry only since no in-feed action rewires them
  *   - `pasteRegistry`, `imageRegistry` — owned Maps, never replaced
- *   - `burstGuard` (W4-R3, ported from goodvibes-tui's DEBT-5 item 5) — the
+ *   - `burstGuard` (ported from goodvibes-tui's DEBT-5 item 5) — the
  *     unbracketed-paste-flood guard's sliding-window state, mutated in place
  *     across tokens by trackPanelPasteFloodGuard (see panel-paste-flood-guard.ts).
  *     Never reallocated. `burstSuppressedCount` is this wiring layer's own
  *     bookkeeping (not part of the ported module) for the honest resolution
  *     notice — see feedInputTokens below.
- *   - `focusTracker` (W4-R3, ported from goodvibes-tui's W2.3) — tracks OS-level
+ *   - `focusTracker` (ported from goodvibes-tui's W2.3) — tracks OS-level
  *     terminal focus from `\x1b[I`/`\x1b[O` tokens (DECSET ?1004h, enabled in
  *     main.ts). Shared instance from RuntimeServices, threaded via
  *     uiServices.platform.focusTracker (mirrors the TUI's own wiring).
@@ -105,11 +105,11 @@ export interface InputFeedContext {
   contentWidth: number;
   readonly pasteRegistry: Map<string, string>;
   readonly imageRegistry: Map<string, { data: string; mediaType: string }>;
-  /** W4-R3 (ported from goodvibes-tui DEBT-5 item 5) — mutated in place, never reallocated. */
+  /** Ported from goodvibes-tui DEBT-5 item 5 — mutated in place, never reallocated. */
   readonly burstGuard: PanelBurstGuardState;
-  /** W4-R3 wiring-layer bookkeeping (not part of the ported module) for the honest suppressed-count notice. */
+  /** Wiring-layer bookkeeping (not part of the ported module) for the honest suppressed-count notice. */
   burstSuppressedCount: number;
-  /** W4-R3 (ported from goodvibes-tui W2.3) — OS-level terminal focus, fed from 'focus' tokens below. */
+  /** Ported from goodvibes-tui W2.3 — OS-level terminal focus, fed from 'focus' tokens below. */
   readonly focusTracker: FocusTracker;
   readonly projectRoot: string;
   readonly selection: SelectionManager;
@@ -176,13 +176,13 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
   const scrollTop = context.getScrollTop();
   const lineCount = history.getLineCount();
   const keybindings = context.keybindingsManager;
-  // W4-R3: one `now` per feed() call (not per token) — a genuine unbracketed-paste
+  // One `now` per feed() call (not per token) — a genuine unbracketed-paste
   // flood delivers many tokens in one drain, and they should all measure as
   // arriving "at once" (mirrors goodvibes-tui's handler-feed.ts DEBT-5 item 5 doc).
   const now = Date.now();
 
   for (const token of tokens) {
-    // W4-R3 (ported from goodvibes-tui W2.3): focus-reporting tokens (CSI ?1004h)
+    // Ported from goodvibes-tui W2.3: focus-reporting tokens (CSI ?1004h)
     // never reach the composer or any modal route — consumed here, first,
     // unconditionally. No render needed.
     if (token.type === 'focus') {
@@ -294,8 +294,8 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       }
     }
 
-    // W4-R3 (ported from goodvibes-tui's panel-paste-flood-guard.ts, DEBT-5 item
-    // 5): guards command-mode's key-driven dispatch (handleCommandModeToken,
+    // Ported from goodvibes-tui's panel-paste-flood-guard.ts, DEBT-5 item
+    // 5: guards command-mode's key-driven dispatch (handleCommandModeToken,
     // below) from an unbracketed-paste-replay or control-character-injection
     // burst.
     //

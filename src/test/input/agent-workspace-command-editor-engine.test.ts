@@ -1,13 +1,13 @@
 /**
  * Spec-pin tests for the agent-workspace "command editor" domains consolidated onto
- * the shared engine (agent-workspace-command-editor-engine.ts) in W4-H2.
+ * the shared engine (agent-workspace-command-editor-engine.ts).
  *
  * These pin a representative sample of each of the 12 domains' rendered editor
  * fields/defaults and dispatched command strings so a future change to the shared
  * engine or a domain's data table cannot silently change what gets rendered or what
  * command gets dispatched. Full before/after byte-identity across every kind in every
  * domain (98 kinds x 2 field scenarios) was additionally verified against the
- * pre-consolidation implementation during the W4-H2 migration; this file is the
+ * pre-consolidation implementation during the migration to the shared engine; this file is the
  * permanent regression guard that lands with it.
  */
 import { describe, expect, test } from 'bun:test';

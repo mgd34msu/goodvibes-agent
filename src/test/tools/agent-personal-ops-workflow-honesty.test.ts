@@ -1,14 +1,15 @@
 /**
- * W4-A5 (+W4-A3 follow-through) workflow-readiness honesty tests.
+ * Workflow-readiness honesty tests.
  *
  * The dogfood defect class: personal-ops lane/workflow cards computed
  * "ready" from methodIds.length > 0, counting operator-contract methods
- * that are advertised but NOT dispatchable (invokable:false — W4-A3 marked
- * email.* so after proving no daemon route serves them). A lane card must
+ * that are advertised but NOT dispatchable (invokable:false — the email.*
+ * methods were marked so after proving no daemon route serves them). A lane
+ * card must
  * never claim readiness backed only by methods a caller cannot invoke.
  *
  * These tests run against the REAL operator contract (the vendored
- * @pellux/goodvibes-sdk contract, which post-W4-A3 carries
+ * @pellux/goodvibes-sdk contract, which carries
  * email.*: invokable:false), plus pure-function checks that hold no matter
  * which method families are marked unavailable later (calendar.* is being
  * marked by a parallel fix — the generic invokable filter must degrade it
@@ -53,7 +54,7 @@ describe('methodIdsMatching excludes advertised-but-undispatchable methods', () 
     }
   });
 
-  test('the W4-A3-marked email.* methods are NOT counted toward readiness', () => {
+  test('the invokable:false-marked email.* methods are NOT counted toward readiness', () => {
     // Grounded against the real contract: these four were proven route-less
     // and marked invokable:false SDK-side (commit 5634dfad).
     const markedUnavailable = contractMethods()
@@ -98,7 +99,7 @@ describe('workflowStatus honesty', () => {
   });
 });
 
-describe('degraded-ad wording (matches the W4-A3 pattern)', () => {
+describe('degraded-ad wording (matches the route-not-served pattern)', () => {
   test('unavailableMethodsNote names the methods and the route-not-served reason', () => {
     const note = unavailableMethodsNote(['email.inbox.list', 'email.send']);
     expect(note).toContain('unavailable (route not served by this daemon)');

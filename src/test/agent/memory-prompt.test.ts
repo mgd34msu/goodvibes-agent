@@ -28,7 +28,7 @@ async function withMemoryRegistry<T>(fn: (registry: MemoryRegistry) => Promise<T
 
 describe('MIN_PROMPT_MEMORY_CONFIDENCE', () => {
   test('matches the SDK MemoryStore store-time default confidence (60), not an arbitrary higher floor', () => {
-    // This is the crux of the W4-A1 fix: the SDK stores every new record at confidence
+    // This is the crux of the fix: the SDK stores every new record at confidence
     // 60 by default. A floor above that (the old value was 70) makes fresh recall
     // structurally impossible without an explicit confidence bump — starvation, not a
     // trust filter.
@@ -65,7 +65,7 @@ describe('buildReviewedMemoryPrompt', () => {
   });
 
   test('a genuinely-stored fresh fact (store-default confidence, never reviewed) recalls in a fresh session', async () => {
-    // The dogfood repro from the W4-A1 brief: store a fact with no explicit confidence
+    // The dogfood repro that motivated this fix: store a fact with no explicit confidence
     // (so it lands at the SDK's own default of 60, reviewState 'fresh'), then build a
     // brand-new prompt (as a fresh session would) and confirm it shows up. Before this
     // fix, a fresh record's confidence (60) could never clear a 70 floor, so a fact
@@ -153,7 +153,7 @@ describe('describeMemoryPromptEligibility', () => {
   });
 });
 
-describe('rankMemoryForTurn (Wave-4 W4-A1B: per-turn semantic scoring)', () => {
+describe('rankMemoryForTurn (per-turn semantic scoring)', () => {
   test('ranks the eligible set by relevance to the current turn, not by stored confidence alone', async () => {
     await withMemoryRegistry(async (registry) => {
       const lowerConfidenceButOnTopic = await registry.add({

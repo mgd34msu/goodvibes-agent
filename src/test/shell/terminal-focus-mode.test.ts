@@ -1,8 +1,8 @@
 /**
- * terminal-focus-mode.ts tests (W4-R3) — the ?1004h teardown safety net and
+ * terminal-focus-mode.ts tests — the ?1004h teardown safety net and
  * the approval-alert wiring that consumes the ported FocusTracker.
  *
- * TEARDOWN PROOF (named top-5 risk, W4-R1 matrix): ?1004h MUST be disabled on
+ * TEARDOWN PROOF (named top-5 risk in the risk matrix): ?1004h MUST be disabled on
  * every exit path or the user's shell inherits focus-reporting escape
  * garbage. installFocusModeExitGuard registers a real `process.on('exit', ...)`
  * listener — Node/Bun fire 'exit' listeners synchronously for EVERY process

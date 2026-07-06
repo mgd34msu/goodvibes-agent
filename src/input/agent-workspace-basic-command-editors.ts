@@ -127,7 +127,7 @@ function modelPinUnpinSpec(kind: AgentWorkspaceBasicOwnCommandEditorKind): Agent
 
 /**
  * The field-spec data table for the kinds this module builds itself (the rest are
- * delegated to sibling domain modules above). W4-H2: split out of the single
+ * delegated to sibling domain modules above). Split out of the single
  * ~600-line `createAgentWorkspaceBasicCommandEditor` if-chain into a data table, the
  * same shape used by every other agent-workspace command-editor domain.
  */

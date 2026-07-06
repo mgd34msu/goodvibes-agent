@@ -1,5 +1,5 @@
 /**
- * theme-call-sites.test.ts (W4-R4) — the transcript/chrome call sites read the
+ * theme-call-sites.test.ts — the transcript/chrome call sites read the
  * theme instead of hardcoded hex.
  *
  *  (1) A lint-style guard: the moved hex literals no longer appear in the

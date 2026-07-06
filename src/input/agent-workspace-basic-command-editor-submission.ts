@@ -42,7 +42,7 @@ function unconfirmed(editor: AgentWorkspaceLocalEditor, message: string, status:
 /**
  * The submission data table for the kinds this module builds itself (delegate-task and
  * workplan/notify/secret/profile kinds keep dispatching to their own sibling submission
- * modules below, unchanged). W4-H2: split out of the single ~570-line
+ * modules below, unchanged). Split out of the single ~570-line
  * `buildAgentWorkspaceBasicCommandEditorSubmission` if-chain, mirroring the
  * construction-side split in agent-workspace-basic-command-editors.ts.
  */

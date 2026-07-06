@@ -348,7 +348,7 @@ export async function initializeBootstrapCore(
     memoryStore.close();
   });
 
-  // W6-C2 (E6): fold the agent's legacy per-surface memory into the canonical
+  // Fold the agent's legacy per-surface memory into the canonical
   // cross-surface store (id-keyed, idempotent, never deletes the legacy file) and
   // SURFACE the fold report — migration honesty requires that what moved is visible,
   // not silently swallowed. Non-fatal: a fold failure must never block startup.
@@ -363,7 +363,7 @@ export async function initializeBootstrapCore(
     logger.warn('agent legacy memory fold failed (non-fatal)', { error: summarizeError(err) });
   }
 
-  // W6-C2 (E6): ONE-TIME migration of discovered VIBE.md files into persona/constraint
+  // ONE-TIME migration of discovered VIBE.md files into persona/constraint
   // records, guarded by a persisted path→hash marker so it never re-imports the same
   // file (which would create near-duplicate persona records). After this, the VIBE
   // prompt is a PROJECTION of those records (buildVibeProjectionPrompt).

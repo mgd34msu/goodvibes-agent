@@ -1,7 +1,7 @@
 // ---------------------------------------------------------------------------
 // sdk-dev.test.ts
 //
-// scripts/sdk-dev.ts is now a thin alias (consolidated by W6-DEV, Wave 6):
+// scripts/sdk-dev.ts is now a thin alias (consolidated from several near-duplicate scripts):
 // the overlay lifecycle logic (status states, the devDependencies-first pin
 // reader, the restore version-agreement check, workspace-package
 // enumeration incl. contracts) moved to the SDK checkout's own
@@ -27,7 +27,7 @@ const REPO_ROOT = resolve(import.meta.dir, '..', '..', '..');
 const DEFAULT_SDK_ROOT = resolve(process.env.GOODVIBES_SDK_PATH ?? resolve(homedir(), 'Projects/goodvibes-sdk'));
 // Forwarding only succeeds once the checkout HAS the canonical tool (this
 // brief's own deliverable) — a checkout dir existing without it (e.g. an
-// SDK main that hasn't landed W6-DEV yet) must gate the same as "no
+// SDK main that hasn't landed the canonical tool yet) must gate the same as "no
 // checkout" for these assertions.
 const SDK_TOOL_AVAILABLE = existsSync(join(DEFAULT_SDK_ROOT, 'scripts/sdk-dev.ts'));
 

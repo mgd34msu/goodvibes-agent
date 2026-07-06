@@ -1,5 +1,5 @@
 /**
- * Email connect wizard editor tests (W4-A5).
+ * Email connect wizard editor tests.
  *
  * Uses a real ConfigManager against a tmp dir (mirrors email-command.test.ts)
  * plus an in-memory SecretsManager stub, so persistence assertions are

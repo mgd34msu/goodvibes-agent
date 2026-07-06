@@ -1,5 +1,5 @@
 /**
- * Email connect wizard (W4-A5) — promotes the "Inbox workflows" workspace
+ * Email connect wizard — promotes the "Inbox workflows" workspace
  * card from a dead guidance card into a real, stepped connect flow.
  *
  * Security: the raw password NEVER travels through the generic slash-command

@@ -1,5 +1,5 @@
 /**
- * W6-C2 (E6): the VIBE.md → memory migration is strictly ONE-TIME (a persisted marker
+ * The VIBE.md → memory migration is strictly ONE-TIME (a persisted marker
  * prevents re-import, which would create near-duplicate persona records), and the VIBE
  * prompt is a PROJECTION of those persona records that preserves the precedence caveat.
  * Hermetic — temp home/workspace + a throwaway MemoryStore; no daemon, no network.
@@ -24,7 +24,7 @@ function tempShellPaths() {
   return { root, shellPaths: createShellPathService({ workingDirectory: workspace, homeDirectory: home }) };
 }
 
-describe('VIBE.md persona migration (W6-C2)', () => {
+describe('VIBE.md persona migration', () => {
   let store: MemoryStore;
   let dbPath: string;
   let configRoot: string;

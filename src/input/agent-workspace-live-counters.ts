@@ -10,7 +10,7 @@ export interface SyncAgentWorkspaceLiveCountersOptions {
 }
 
 /**
- * Quiet, render-path refresh of the two counters the W4-A6 dogfood finding
+ * Quiet, render-path refresh of the two counters a dogfood finding
  * named as stale: the memory count and the routine counts (incl. each
  * routine's live start count). Call this once per repaint, before rendering,
  * so an external disk mutation (another shell deleting a memory, a CLI

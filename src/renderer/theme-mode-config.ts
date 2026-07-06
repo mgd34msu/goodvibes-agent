@@ -1,5 +1,5 @@
 /**
- * theme-mode-config — the appearance/theme-mode preference surface (W4-R4).
+ * theme-mode-config — the appearance/theme-mode preference surface.
  *
  * The preference lives at the config key `display.themeMode` (auto | dark |
  * light, default auto). It is stored under the existing SDK `display` section
@@ -8,7 +8,7 @@
  * display.* toggles.
  *
  * DIVERGENCE FROM THE W4 BRIEF (recorded): the brief listed theme-mode-config.ts
- * as the NEW home for the config-read helpers, but W4-R2 landed FIRST and
+ * as the NEW home for the config-read helpers, but the terminal-bg-probe.ts change landed FIRST and
  * inlined resolveConfiguredThemeMode / coerceThemeModeSetting /
  * THEME_MODE_CONFIG_KEY / ThemeModeSetting into terminal-bg-probe.ts (so R2
  * could ship the probe before this file existed). Rather than duplicate those

@@ -203,10 +203,10 @@ export async function bootstrapRuntime(
     services.shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'prompt-context-receipts.jsonl'),
   );
   let activePromptTurnId: string | null = null;
-  // The current turn's raw text (Wave-4 W4-A1B): the injection seam
+  // The current turn's raw text: the injection seam
   // (composeRuntimePromptWithReceipt, invoked from getSystemPrompt below) needs the
   // active turn's intent to rank the already-eligible memory set by relevance. This is
-  // the real seam W4-A1 left unthreaded — TURN_SUBMITTED already carries `prompt`, it
+  // the real seam that was left unthreaded — TURN_SUBMITTED already carries `prompt`, it
   // was just never captured. Mirrors activePromptTurnId's lifecycle exactly: set on
   // TURN_SUBMITTED, cleared on every terminal event for that turn.
   let activePromptTurnText: string | null = null;
@@ -551,7 +551,7 @@ export async function bootstrapRuntime(
     shellPaths: services.shellPaths,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
   });
-  // W4-A9: refresh explicitly-subscribed external calendar feeds that are DUE
+  // Refresh explicitly-subscribed external calendar feeds that are DUE
   // per their own bounded interval (conditional 304 requests keep it cheap).
   // Consent was given at subscribe time ("now and on each refresh"); with no
   // subscriptions this touches nothing. Non-blocking — boot never waits on it;

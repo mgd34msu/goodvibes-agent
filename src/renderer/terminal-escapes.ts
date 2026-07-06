@@ -5,8 +5,9 @@
  * and the entry file stays within the source-file line-count gate.
  *
  * FOCUS_ENABLE / FOCUS_DISABLE (DECSET ?1004) are the shared home for the OS
- * window-focus reporting mode consumed by the focus-tracker (W4-R3): R3 imports
- * FOCUS_ENABLE from here rather than redefining it.
+ * window-focus reporting mode consumed by the focus-tracker: the focus-mode
+ * module (shell/terminal-focus-mode.ts) imports FOCUS_ENABLE from here rather
+ * than redefining it.
  */
 
 export const ALT_SCREEN_ENTER = '\x1b[?1049h';

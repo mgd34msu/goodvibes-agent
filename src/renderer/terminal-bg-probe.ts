@@ -26,7 +26,7 @@
  * is enabled; otherwise the query is swallowed and the timeout fallback (dark)
  * covers it silently.
  *
- * W4-R2 adaptation (agent): the theme-application coupling is INJECTED rather
+ * Adaptation for this agent: the theme-application coupling is INJECTED rather
  * than imported from theme.ts. R2 owns this module; R4 owns the theme system
  * (theme.ts / theme-mode-config.ts) and wires installBackgroundThemeProbe with
  * `applyThemeMode: setActiveThemeMode`. Keeping the coupling injected lets R2

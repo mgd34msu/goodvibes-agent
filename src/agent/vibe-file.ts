@@ -5,7 +5,7 @@ import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { assertNoSecretLikeText } from './persona-registry.ts';
 import { parseMarkdownFrontmatter, stripMarkdownFrontmatter } from './markdown-frontmatter.ts';
-// W6-C2 (E6): VIBE.md is now a PROJECTION of persona/constraint records in the
+// VIBE.md is now a PROJECTION of persona/constraint records in the
 // canonical memory store, not a separate source of truth. renderVibeProjection emits
 // the same '## VIBE.md' block from those records (caveat preserved); the file is
 // demoted to an import/export FORMAT folded in via vibeBodyToConstraintOptions.
@@ -213,7 +213,7 @@ export function buildVibePrompt(shellPaths: AgentVibePaths): string | null {
 }
 
 /**
- * W6-C2 (E6): the VIBE.md prompt block as a PROJECTION of persona/constraint records.
+ * The VIBE.md prompt block as a PROJECTION of persona/constraint records.
  *
  * This is the store-sourced replacement for buildVibePrompt (which reads the file
  * directly). It renders the same '## GoodVibes Agent VIBE.md' block — including the
@@ -226,7 +226,7 @@ export function buildVibeProjectionPrompt(memoryRecords: { getAll(): readonly Me
 }
 
 /**
- * W6-C2 (E6): fold discovered VIBE.md files into the store as persona/constraint
+ * Fold discovered VIBE.md files into the store as persona/constraint
  * records — the file demoted to an IMPORT FORMAT. Each bullet becomes one record so a
  * later single-record edit changes exactly one projected line. Secret-like content is
  * already rejected by discoverVibeFiles (readVibeCandidate → assertNoSecretLikeText),
@@ -257,7 +257,7 @@ export async function importVibeFilesIntoMemory(
 }
 
 /**
- * W6-C2 (E6): the persisted marker that makes the VIBE.md → memory import a strictly
+ * The persisted marker that makes the VIBE.md → memory import a strictly
  * ONE-TIME migration. Keyed by absolute file path → content hash, so importing the same
  * VIBE.md twice is a no-op (re-import would create near-duplicate persona records), while
  * a NEW project's VIBE.md still migrates exactly once. Mirrors the sessions.spine-folded
@@ -300,7 +300,7 @@ function hashVibeBody(body: string): string {
 }
 
 /**
- * W6-C2 (E6): fold discovered VIBE.md files into persona/constraint records ONCE.
+ * Fold discovered VIBE.md files into persona/constraint records ONCE.
  * Guarded by a persisted path→hash marker so it never re-imports the same file (which
  * would create near-duplicate persona records). Called at boot AFTER memoryStore.init().
  * Returns the number of records created this run (0 when everything is already migrated).

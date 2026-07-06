@@ -1,5 +1,5 @@
 /**
- * thinking.test.ts (W4-R4) — the thinking block reads live tones.
+ * thinking.test.ts — the thinking block reads live tones.
  *
  * The ▌ marker accent and italic body paint on the transparent terminal bg, so
  * they must resolve through activeUiTones() per render (not a frozen dark

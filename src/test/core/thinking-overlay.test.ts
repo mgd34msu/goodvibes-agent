@@ -1,5 +1,5 @@
 /**
- * thinking-overlay.test.ts (W4-R4) — the extracted stall clock + overlay builder.
+ * thinking-overlay.test.ts — the extracted stall clock + overlay builder.
  */
 
 import { describe, expect, test } from 'bun:test';

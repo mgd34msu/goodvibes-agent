@@ -48,7 +48,7 @@ interface OperatorMethodDescriptor {
 }
 
 /**
- * W4-A3 (capability-advertisement honesty): the SDK operator contract marks
+ * Capability-advertisement honesty: the SDK operator contract marks
  * a method `invokable: false` when it is cataloged but not backed by a real
  * daemon route (see @pellux/goodvibes-sdk's method-catalog-route-reconcile —
  * email.inbox.list/read, email.draft.create, email.send are the dogfood

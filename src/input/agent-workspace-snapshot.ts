@@ -36,8 +36,8 @@ import {
 } from './agent-workspace-snapshot-builders.ts';
 import type { AgentWorkspaceLocalLibraryItem, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 
-// Re-exported so this module's public surface matches the pre-split file (W4-A5
-// added and exported this builder here before the W4-H2 split moved its body to
+// Re-exported so this module's public surface matches the pre-split file (this
+// builder was originally exported here, before a later split moved its body to
 // agent-workspace-snapshot-builders.ts).
 export { buildAgentWorkspaceEmailConnectStatus } from './agent-workspace-snapshot-builders.ts';
 
@@ -65,16 +65,16 @@ export interface AgentWorkspaceLiveMemoryCounters {
  * mid-call) rather than swallowing it — callers that need a best-effort,
  * never-throws default (the full runtime snapshot builder below) should use
  * buildAgentWorkspaceMemorySnapshot instead. The render-path live-counter
- * refresh (AgentWorkspace.syncLiveCountersForRender, W4-A6) calls this
+ * refresh (AgentWorkspace.syncLiveCountersForRender) calls this
  * directly so a genuine read failure can be surfaced as "stale" instead of
  * being silently rewritten to a fabricated 0.
  *
- * NOTE (W4-H1 observability flag): these live process/state counters are
+ * NOTE (observability flag): these live process/state counters are
  * flagged as observability-shaped content whose eventual surface home is the
  * fleet/observability layer, not this admin-console snapshot builder. Nothing
  * moves today (no observability layer exists yet); this function is kept
  * intact and separate rather than folded into the sibling sub-builders in
- * agent-workspace-snapshot-builders.ts extracted alongside it in W4-H2.
+ * agent-workspace-snapshot-builders.ts extracted alongside it.
  */
 export function readLiveAgentMemoryCounters(context: CommandContext): AgentWorkspaceLiveMemoryCounters {
   const memory = context.clients?.agentKnowledgeApi?.memory;
@@ -85,7 +85,7 @@ export function readLiveAgentMemoryCounters(context: CommandContext): AgentWorks
     reviewQueueCount: memory.reviewQueue(100).length,
     promptActiveCount: records.filter(isPromptActiveMemory).length,
     // Each item carries the honest, per-record eligibility reason straight from
-    // describeMemoryPromptEligibility (Wave-4 W4-A1B) — the same wording source
+    // describeMemoryPromptEligibility — the same wording source
     // prompt-context-receipts.ts and agent-harness-prompt-context.ts use for prompt
     // recall. No locally invented "not reviewed"/"outside prompt limit" paraphrase here.
     items: records.map((record) => ({
@@ -120,9 +120,9 @@ export interface AgentWorkspaceLiveRoutineCounters {
  * if the store read fails (e.g. a corrupt/unreadable routines.json —
  * AgentRoutineRegistry.snapshot() itself throws in that case) rather than
  * swallowing it; see readLiveAgentMemoryCounters above for why the
- * render-path live-counter refresh (W4-A6) wants that.
+ * render-path live-counter refresh wants that.
  *
- * NOTE (W4-H1 observability flag): see readLiveAgentMemoryCounters above —
+ * NOTE (observability flag): see readLiveAgentMemoryCounters above —
  * the same flag applies to these routine counters.
  */
 export function readLiveAgentRoutineCounters(context: CommandContext): AgentWorkspaceLiveRoutineCounters {
@@ -150,7 +150,7 @@ export function buildAgentWorkspaceRoutineCounters(context: CommandContext): Age
 
 /**
  * Assembles the full Agent workspace runtime snapshot. Composes the
- * sub-builders in agent-workspace-snapshot-builders.ts (W4-H2 split of what
+ * sub-builders in agent-workspace-snapshot-builders.ts (split out of what
  * was previously one ~516-line function) plus the two live-counter builders
  * above, then maps everything onto the AgentWorkspaceRuntimeSnapshot shape.
  */

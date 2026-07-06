@@ -1,5 +1,5 @@
 /**
- * LAN-scan consent gate (Wave-4 A7).
+ * LAN-scan consent gate.
  *
  * The SDK's background provider-discovery pass (`startBackgroundProviderDiscovery`
  * in `@pellux/goodvibes-sdk/platform/runtime`) probes every host on this

@@ -76,7 +76,7 @@ describe('classifyPriority (via routeAuto)', () => {
     expect(panel._pushed[0]!.priority).toBe('low');
   });
 
-  test('[Agents] periodic running-snapshot is dropped by the noise gate (W4-R2)', () => {
+  test('[Agents] periodic running-snapshot is dropped by the noise gate', () => {
     // The 30s "[Agents] N running:" churn is dropped from the feed; the live
     // detail stays on the fleet/agents surface + footer count.
     router.routeAuto('[Agents] 3 running:\n  abc12345: working');
@@ -276,10 +276,10 @@ describe('SystemMessagesPanel integration', () => {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Noise gate (W4-R2) — router integration
+// Noise gate — router integration
 // ---------------------------------------------------------------------------
 
-describe('noise gate (W4-R2)', () => {
+describe('noise gate', () => {
   test('the terminal captured-write notice reaches neither the feed nor the conversation', () => {
     const conv = makeConversation();
     const panel = makePanel();

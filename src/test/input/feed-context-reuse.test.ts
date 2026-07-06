@@ -1,5 +1,5 @@
 /**
- * α1: InputFeedContext reuse across keystrokes.
+ * InputFeedContext reuse across keystrokes.
  *
  * Verifies that the feedContext object reference is the same across multiple
  * feed() calls, confirming that no per-keystroke context allocation occurs.
@@ -9,7 +9,7 @@ import type { InputFeedContext } from '../../input/handler-feed.ts';
 import * as handlerFeedModule from '../../input/handler-feed.ts';
 import { FocusTracker } from '../../core/focus-tracker.ts';
 
-describe('InputFeedContext reuse (α1)', () => {
+describe('InputFeedContext reuse', () => {
   test('feedInputTokens receives the same context object on every feed() call', () => {
     // We spy on feedInputTokens to capture the context object passed to it.
     const capturedContextRefs: InputFeedContext[] = [];
@@ -57,7 +57,7 @@ describe('InputFeedContext reuse (α1)', () => {
       sessions: {
         sessionManager: { getAll: () => [] } as unknown,
       },
-      // W4-R3: focusTracker is the only field this handler reads off uiServices.platform.
+      // focusTracker is the only field this handler reads off uiServices.platform.
       platform: { focusTracker: new FocusTracker() },
       shell: {
         processManager: { getAll: () => [] } as unknown,
@@ -136,7 +136,7 @@ describe('InputFeedContext reuse (α1)', () => {
         providerRegistry: { getAll: () => [] } as unknown,
       },
       sessions: { sessionManager: { getAll: () => [] } as unknown },
-      // W4-R3: focusTracker is the only field this handler reads off uiServices.platform.
+      // focusTracker is the only field this handler reads off uiServices.platform.
       platform: { focusTracker: new FocusTracker() },
       shell: {
         processManager: { getAll: () => [] } as unknown,

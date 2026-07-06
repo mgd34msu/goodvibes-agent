@@ -123,8 +123,8 @@ export function renderConversationAssistantMessage(
     // `numWidth=6` (fits 999,999 lines, but wastes 3-4 gutter columns on typical
     // messages) or rendering the numbered output into a scratch buffer and trimming.
     // Neither is clearly better than the current two-pass measurement approach.
-    // The 4α commit message claim that this "eliminates double-parse when line
-    // numbers are enabled" was inaccurate: 4α eliminated the legacy
+    // An earlier commit message's claim that this "eliminates double-parse when line
+    // numbers are enabled" was inaccurate: that commit eliminated the legacy
     // `renderMarkdown()` duplicate used for code-block line-number mode ('code').
     // The 'all' mode double-call is a deliberate design choice and remains unchanged.
     const measureWidth = showAllLineNumbers ? width : 0;

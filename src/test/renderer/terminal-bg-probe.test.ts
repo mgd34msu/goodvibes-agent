@@ -8,7 +8,7 @@
  * consumed), timeout → dark, tmux passthrough wrapping, and garbage → dark. Also
  * the config forcing paths via installBackgroundThemeProbe.
  *
- * W4-R2 note: the install tests assert the INJECTED applyThemeMode callback
+ * Note: the install tests assert the INJECTED applyThemeMode callback
  * (R2 owns the probe; R4 owns theme.ts and wires applyThemeMode:setActiveThemeMode)
  * rather than a global active-theme singleton — the behaviour under test is
  * identical (which mode is applied, and when).

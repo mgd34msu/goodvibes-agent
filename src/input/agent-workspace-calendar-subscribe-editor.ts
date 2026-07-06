@@ -1,5 +1,5 @@
 /**
- * Calendar subscribe wizard (W4-A9) — the "Calendar workflows" card's real
+ * Calendar subscribe wizard — the "Calendar workflows" card's real
  * connect flow. Subscribes to an external calendar by its iCalendar feed URL
  * (Google "secret address", Outlook published .ics, or any .ics URL), READ-ONLY.
  *

@@ -15,7 +15,7 @@ export function buildLanes(
   } = {},
 ): readonly PersonalOpsLane[] {
   const snapshot = buildAgentWorkspaceRuntimeSnapshot(context);
-  // Readiness counts only DISPATCHABLE methods (W4-A3/W4-A5 honesty): a
+  // Readiness counts only DISPATCHABLE methods (capability-advertisement honesty): a
   // method the contract marks invokable:false has no serving route, so it
   // must not make a lane read "ready"/"partial". The unavailable lists feed
   // honest degraded wording instead.

@@ -1,5 +1,5 @@
 // Small config-read helpers shared by agent-workspace-snapshot.ts and
-// agent-workspace-snapshot-builders.ts (W4-H2 split of the runtime-snapshot giant
+// agent-workspace-snapshot-builders.ts (split out of the runtime-snapshot giant
 // assembler). Each never throws: config reads fall back to the given default on any
 // error, matching the original inline behavior exactly.
 import type { CommandContext } from './command-registry.ts';

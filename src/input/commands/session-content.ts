@@ -254,7 +254,7 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
     usage: '[resume <id|name>]',
     argsHint: '[resume <id|name>]',
     async handler(_args, ctx) {
-      // Matches the TUI's /sessions (W6-C3, worst-class collision #5): this
+      // Matches the TUI's /sessions (worst-class collision #5): this
       // was `hidden: true` here — invisible in help/autocomplete — even
       // though it is a fully working command identical in behavior to the
       // TUI's visible one. Also forward args to /session (the TUI's fix for

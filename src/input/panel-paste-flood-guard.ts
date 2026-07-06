@@ -1,13 +1,13 @@
 // ---------------------------------------------------------------------------
 // panel-paste-flood-guard.ts — ported from goodvibes-tui (commit 90eb3a26,
-// DEBT-5 item 5), W4-R3.
+// DEBT-5 item 5).
 //
 // A terminal WITHOUT bracketed paste delivers a pasted block as a burst of
 // discrete 1-char 'text' tokens (isPasteToken stays false for every one of
 // them, since that flag only fires for a single token whose value.length > 1).
 //
-// AGENT ADAPTATION (this repo has no `src/panels/` — see the W4-R1 parity
-// matrix's R3 row): the TUI wires this guard inside handlePanelFocusToken,
+// AGENT ADAPTATION (this repo has no `src/panels/` — see the parity
+// matrix's corresponding row): the TUI wires this guard inside handlePanelFocusToken,
 // where it protects a focused PANEL from having each replayed character
 // dispatched as a real hotkey (K arms kill, etc). This agent has no panel
 // focus concept at all — every token that isn't consumed by a modal route or

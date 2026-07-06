@@ -2,7 +2,7 @@
  * Delete-key policy unit tests — ported from goodvibes-tui (commit 33033717,
  * 2026-06-11; TUI anchor: src/input/delete-key-policy.ts). Its TUI commit
  * predates this repo's Jun 13 renderer/input file-stamp freeze, yet the file
- * was absent here — it simply never reached this fork (see the W4-R1 parity
+ * was absent here — it simply never reached this fork (see the porting parity
  * matrix's "divergences from the brief" note #3). This port stands.
  *
  * Covers:

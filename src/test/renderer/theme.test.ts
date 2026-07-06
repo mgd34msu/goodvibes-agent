@@ -1,5 +1,5 @@
 /**
- * theme.test.ts (W4-R4) — the ported theme system.
+ * theme.test.ts — the ported theme system.
  *
  * Covers:
  *   - resolveTheme() returns the correct transcript token set per mode

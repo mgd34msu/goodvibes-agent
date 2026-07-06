@@ -51,7 +51,7 @@ describe('prompt context receipts', () => {
       ].join('\n'));
       writeFileSync(join(shellPaths.workingDirectory, 'AGENTS.md'), 'Prefer visible autonomous work and reviewable local records.');
 
-      // W6-C2 (E6): VIBE.md is now a PROJECTION of persona records — migrate the file into
+      // VIBE.md is now a PROJECTION of persona records — migrate the file into
       // the store (as boot does) so the projected '## GoodVibes Agent VIBE.md' block renders.
       await importVibeFilesIntoMemoryOnce(memoryRegistry, shellPaths);
 
@@ -124,7 +124,7 @@ describe('prompt context receipts', () => {
     });
   });
 
-  test('ranks the memory segment by relevance to the current turn text, with honest per-record wording (W4-A1B)', async () => {
+  test('ranks the memory segment by relevance to the current turn text, with honest per-record wording', async () => {
     await withReceiptFixture(async ({ shellPaths, memoryRegistry }) => {
       const onTopic = await memoryRegistry.add({
         scope: 'project',

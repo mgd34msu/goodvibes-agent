@@ -1,5 +1,5 @@
 /**
- * theme-runtime.test.ts (W4-R4) — the active-mode runtime.
+ * theme-runtime.test.ts — the active-mode runtime.
  *
  * Covers the active-mode accessors, the flip + reversibility of the live token
  * layers, and the display.themeMode config coercion.

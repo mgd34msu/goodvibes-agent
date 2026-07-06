@@ -406,8 +406,8 @@ describe('settingKey exhaustiveness against CONFIG_SCHEMA', () => {
    * used as settingActions in workspace categories today. If that changes,
    * document each key with its source module (agent/email/email-service.ts).
    *
-   * display.themeMode: the TUI-local synthetic appearance setting (W4-R4,
-   * renderer/theme-mode-config.ts). It is agent-local — stored under the
+   * display.themeMode: the TUI-local synthetic appearance setting
+   * (renderer/theme-mode-config.ts). It is agent-local — stored under the
    * existing `display` section via ConfigManager.setDynamic/get, never
    * registered in the SDK's static CONFIG_SCHEMA. Both the classic
    * settings-modal (settings-modal.ts's _loadGroups) and the workspace

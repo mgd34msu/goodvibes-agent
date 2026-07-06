@@ -640,7 +640,7 @@ export class SettingsModal {
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
     }
 
-    // W4-R4: inject the synthetic display.themeMode enum (auto|dark|light) —
+    // Inject the synthetic display.themeMode enum (auto|dark|light) —
     // agent-local key stored under the existing `display` section (not in the
     // SDK ConfigKey union; setDynamic/get round-trip it), the TUI's
     // settings-modal-data.ts synthetic-setting pattern. Cycles like any other

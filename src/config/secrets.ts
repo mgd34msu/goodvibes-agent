@@ -16,7 +16,7 @@ import {
 import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from './surface.ts';
 
-// W6-C1 host-vs-client split (E7 config sharing): this SecretsManager is the LOCAL-HOST
+// Host-vs-client split: this SecretsManager is the LOCAL-HOST
 // read path — pinned to GOODVIBES_AGENT_SURFACE_ROOT, it resolves secret VALUES from the
 // surface store/env for provider auth, unchanged. When the Agent acts as a CLIENT of an
 // adopted external daemon, credential *status* (configured/usable — never bytes) is read

@@ -495,7 +495,7 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toBe('Action search cleared.');
   });
 
-  test('canceling action search resets the action highlight instead of misreading a stale cross-category index (W4-A8)', () => {
+  test('canceling action search resets the action highlight instead of misreading a stale cross-category index', () => {
     // Repro: begin search from "setup", move the highlight to a result that
     // belongs to a DIFFERENT category ("account-model"), then cancel with
     // Escape. Before the fix, clearAgentWorkspaceActionSearch reinterpreted
@@ -966,7 +966,7 @@ describe('AgentWorkspace', () => {
     expect(output).not.toContain('default knowledge');
   });
 
-  test('memory items carry describeMemoryPromptEligibility\'s own reason — no locally invented "not reviewed"/"outside prompt limit" paraphrase (W4-A1B)', () => {
+  test('memory items carry describeMemoryPromptEligibility\'s own reason — no locally invented "not reviewed"/"outside prompt limit" paraphrase', () => {
     const eligible = memoryRecord({
       id: 'mem-eligible',
       reviewState: 'fresh',
@@ -4481,7 +4481,7 @@ describe('AgentWorkspace', () => {
   });
 });
 
-// W4-A6: LIVE DISK MIRROR. Before this fix, `runtimeSnapshot` was built once
+// LIVE DISK MIRROR. Before this fix, `runtimeSnapshot` was built once
 // at open()/action-completion time and cached on the AgentWorkspace instance;
 // an external mutation (another shell deleting a memory, a CLI `routines
 // start` invocation bumping a start count) left the in-UI counters showing a
@@ -4490,7 +4490,7 @@ describe('AgentWorkspace', () => {
 // entry point (createAgentWorkspaceFullscreenComposite, the only production
 // call site for renderAgentWorkspace — see src/main.ts) rather than only unit
 // testing the new method in isolation.
-describe('AgentWorkspace live disk-mirror counters (W4-A6)', () => {
+describe('AgentWorkspace live disk-mirror counters', () => {
   test('memory count mirrors an external delete on the next repaint, not just after a workspace action', () => {
     const records = [
       memoryRecord({ id: 'mem-a', summary: 'First fact' }),

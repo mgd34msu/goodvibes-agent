@@ -9,8 +9,8 @@
 // one place. Each domain keeps its own field content and command-building logic
 // (real product value, not boilerplate) as entries in a `Record<Kind, ...>` table.
 //
-// W4-H2 (Wave 4): consolidates the ~26 near-identical editor+submission file pairs
-// identified by the W4-H1 design ruling into this engine + per-domain data tables.
+// Consolidates the ~26 near-identical editor+submission file pairs
+// identified by an earlier design ruling into this engine + per-domain data tables.
 import type { AgentWorkspaceActionResult, AgentWorkspaceEditorField, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
 

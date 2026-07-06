@@ -1,7 +1,7 @@
 /**
  * feed-context-factory.ts — Construction and mutable-field sync for InputFeedContext.
  *
- * Extracted from handler.ts (Wave 4α review, 0.18.23) to keep handler.ts under the
+ * Extracted from handler.ts (0.18.23) to keep handler.ts under the
  * 800-line architecture cap.
  *
  * Two exported functions:
@@ -95,9 +95,9 @@ export interface FeedContextStableRefs {
   selection: SelectionManager;
   pasteRegistry: Map<string, string>;
   imageRegistry: Map<string, { data: string; mediaType: string }>;
-  /** W4-R3 — ported from goodvibes-tui's DEBT-5 item 5; mutated in place, never reallocated. */
+  /** Ported from goodvibes-tui's DEBT-5 item 5; mutated in place, never reallocated. */
   burstGuard: PanelBurstGuardState;
-  /** W4-R3 — OS-level terminal focus tracker, ported from goodvibes-tui's W2.3. */
+  /** OS-level terminal focus tracker, ported from goodvibes-tui's W2.3. */
   focusTracker: FocusTracker;
   projectRoot: string;
   selectionModal: SelectionModal;
@@ -182,7 +182,7 @@ export function buildInitialFeedContext(
     ...mutable,
     // --- requestRender: placeholder, swapped per-feed to buffered version ---
     requestRender: noop,
-    // W4-R3: wiring-layer-only bookkeeping for the paste-flood guard's honest
+    // Wiring-layer-only bookkeeping for the paste-flood guard's honest
     // resolution notice (not part of the ported panel-paste-flood-guard.ts
     // module itself; see handler-feed.ts's feedInputTokens).
     burstSuppressedCount: 0,

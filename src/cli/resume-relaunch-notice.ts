@@ -1,7 +1,7 @@
 import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 
 /**
- * RESUME-ON-RELAUNCH (W4-A4).
+ * RESUME-ON-RELAUNCH.
  *
  * The dogfood finding: relaunching the agent after a normal (non-crash) exit
  * silently starts fresh with no offer or notice about the prior session — the

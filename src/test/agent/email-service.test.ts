@@ -306,7 +306,7 @@ describe('EmailService smtpSecurity — MIN-2: socket factory selection', () => 
 });
 
 // ---------------------------------------------------------------------------
-// EmailService.testConnection — W4-A5 connect-wizard "test connection" step.
+// EmailService.testConnection — connect-wizard "test connection" step.
 // Uses real in-process fake TCP servers (no real network) to exercise a
 // genuine success path, not just a wiring-rejection path.
 // ---------------------------------------------------------------------------

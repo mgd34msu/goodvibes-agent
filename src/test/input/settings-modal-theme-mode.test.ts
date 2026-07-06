@@ -1,5 +1,5 @@
 /**
- * settings-modal-theme-mode.test.ts (W4-R4) — the synthetic display.themeMode
+ * settings-modal-theme-mode.test.ts — the synthetic display.themeMode
  * settings-modal entry.
  *
  * Proves: (1) the display group carries the synthetic enum entry (auto|dark|

@@ -1,5 +1,5 @@
 /**
- * Agent-local memory domain handler (W4-A1: memory honesty).
+ * Agent-local memory domain handler (memory honesty).
  *
  * Split out of agent-local-registry-tool.ts to stay under the 800-line
  * architecture cap. Owns the `memory` domain of the agent_local_registry

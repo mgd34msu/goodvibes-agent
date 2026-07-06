@@ -163,7 +163,7 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
 
   // The deprecated danger.daemon alias (and the settings-modal override-note
   // machinery it drove — SettingEntry.overrideNote, buildSettingOverrideNote)
-  // was removed from the schema in Wave 6; see
+  // was removed from the schema; see
   // docs/decisions/2026-07-05-daemon-by-default.md in the SDK. daemon.enabled
   // is now the single source of truth for this setting, so there is no longer
   // a precedence case for the modal to explain.
