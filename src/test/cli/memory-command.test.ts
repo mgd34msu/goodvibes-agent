@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { renderGoodVibesCommandHelp, renderGoodVibesHelp } from '../../cli/help.ts';
+import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 
 const roots: string[] = [];
 
@@ -80,7 +81,7 @@ describe('Agent memory CLI command', () => {
     expect(listed.exitCode).toBe(0);
     expect(listed.output).toContain('Agent memory (1)');
     expect(listed.output).toContain('Prefers concise morning briefings');
-    expect(listed.output).toContain('.goodvibes/agent/memory.sqlite');
+    expect(listed.output).toContain('.goodvibes/shared/memory.sqlite');
 
     const searched = await runCli(['memory', 'search', 'morning'], root);
     expect(searched.exitCode).toBe(0);
@@ -149,8 +150,33 @@ describe('Agent memory CLI command', () => {
     const listed = await runCli(['memory', 'list'], workspace, home);
 
     expect(listed.exitCode).toBe(0);
-    expect(listed.output).toContain(`${home}/.goodvibes/agent/memory.sqlite`);
-    expect(listed.output).not.toContain(`${workspace}/.goodvibes/agent/memory.sqlite`);
+    expect(listed.output).toContain(`${home}/.goodvibes/shared/memory.sqlite`);
+    expect(listed.output).not.toContain(`${workspace}/.goodvibes/shared/memory.sqlite`);
+  });
+
+  test('CLI-added memory lands in the canonical cross-surface store, not a private agent-only store', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-canonical-'));
+    roots.push(home);
+
+    const created = await runCli(['memory', 'add', 'fact', 'Canonical store cross-surface fact', '--json'], home, home);
+    expect(created.exitCode).toBe(0);
+
+    // The CLI must write to the same store identity the runtime and TUI read from
+    // (resolveCanonicalMemoryDbPath), never to a private agent-only memory.sqlite.
+    expect(existsSync(join(home, '.goodvibes', 'shared', 'memory.sqlite'))).toBe(true);
+    expect(existsSync(join(home, '.goodvibes', 'agent', 'memory.sqlite'))).toBe(false);
+
+    const canonicalStore = new MemoryStore(join(home, '.goodvibes', 'shared', 'memory.sqlite'), {
+      embeddingRegistry: new MemoryEmbeddingProviderRegistry({ configManager: new ConfigManager({ workingDir: home, homeDir: home, surfaceRoot: 'agent' }) }),
+    });
+    const registry = new MemoryRegistry(canonicalStore);
+    await canonicalStore.init();
+    try {
+      const records = registry.search({});
+      expect(records.some((record) => record.summary === 'Canonical store cross-surface fact')).toBe(true);
+    } finally {
+      canonicalStore.close();
+    }
   });
 
   test('rejects secret-looking memory content', async () => {

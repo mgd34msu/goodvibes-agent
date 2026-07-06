@@ -1,10 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { createShellPathService } from '@/runtime/index.ts';
 import {
   MemoryEmbeddingProviderRegistry,
   MemoryRegistry,
   MemoryStore,
+  resolveCanonicalMemoryDbPath,
   type MemoryBundle,
   type MemoryClass,
   type MemoryLink,
@@ -18,7 +18,6 @@ import {
 } from '@pellux/goodvibes-sdk/platform/state';
 import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 import { formatAgentRecordReference, formatAgentRecordReviewState } from '../agent/record-labels.ts';
-import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 
@@ -196,11 +195,15 @@ function timestamp(value: number): string {
   return new Date(value).toISOString().slice(0, 19).replace('T', ' ');
 }
 
+// The CLI no longer opens a private per-surface agent/memory.sqlite. It opens the
+// ONE canonical cross-surface store (~/.goodvibes/shared/memory.sqlite) so a memory
+// added via `goodvibes-agent memory add` is visible to the runtime, the TUI, and the
+// SDK — and vice-versa. The old CLI-written store is folded into the canonical store
+// (loss-free, idempotent) by the runtime's foldAgentLegacyMemory at boot, since that
+// fold already sources shellPaths.resolveUserPath('agent', 'memory.sqlite') — the exact
+// path this function used to write to.
 function memoryDbPath(runtime: CliCommandRuntime): string {
-  return createShellPathService({
-    workingDirectory: runtime.workingDirectory,
-    homeDirectory: runtime.homeDirectory,
-  }).resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory.sqlite');
+  return resolveCanonicalMemoryDbPath(runtime.homeDirectory);
 }
 
 async function withMemory<T>(runtime: CliCommandRuntime, fn: (context: MemoryContext) => Promise<T> | T): Promise<T> {
