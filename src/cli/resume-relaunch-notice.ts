@@ -42,16 +42,27 @@ export interface ResumeRelaunchNoticeInput {
   readonly now?: number;
 }
 
-/** Formats an elapsed duration the way a human would describe "how long ago". */
+/**
+ * Formats an elapsed duration the way a human would describe "how long ago".
+ *
+ * F4 fix: this used Math.round at every tier, which rounds UP near a
+ * boundary — a session from 45 minutes ago (2,700,000ms) rounded to "1h ago"
+ * (round(45/60) = 1), which reads as roughly twice as stale as it really is.
+ * Every tier below now floors instead, so a duration is never described as
+ * further in the past than it actually is: 45m through 59m59s all read as
+ * "Nm ago", and the "1h" label only appears once a full hour has actually
+ * elapsed. Minutes are floored to at least 1 once past the 45s "moments"
+ * cutoff, so a duration just past that cutoff never reads as "0m ago".
+ */
 export function formatRelaunchAge(elapsedMs: number): string {
   const elapsed = Math.max(0, elapsedMs);
-  const seconds = Math.round(elapsed / 1000);
+  const seconds = Math.floor(elapsed / 1000);
   if (seconds < 45) return 'moments';
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 45) return `${minutes}m`;
-  const hours = Math.round(minutes / 60);
+  const minutes = Math.max(1, Math.floor(seconds / 60));
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
   if (hours < 36) return `${hours}h`;
-  const days = Math.round(hours / 24);
+  const days = Math.floor(hours / 24);
   return `${days}d`;
 }
 
@@ -69,6 +80,13 @@ export function buildResumeRelaunchNotice(input: ResumeRelaunchNoticeInput): str
       '  Starting fresh. Run /session list to see any sessions that are still on disk.',
     ].join('\n');
   }
+
+  // F5: a 0-message session has nothing to resume into — offering a resume
+  // action for it is a dead-end same as a stale pointer, but less honest,
+  // since the session itself does resolve. Stay silent, exactly like the
+  // no-pointer (clean first run) case above, rather than dangle a resume
+  // command in front of an empty conversation.
+  if (input.session.messageCount <= 0) return null;
 
   const { session } = input;
   const age = formatRelaunchAge((input.now ?? Date.now()) - session.timestamp);

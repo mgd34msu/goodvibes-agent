@@ -29,6 +29,29 @@ describe('formatRelaunchAge', () => {
   test('never goes negative on a clock skew', () => {
     expect(formatRelaunchAge(-5000)).toBe('moments');
   });
+
+  // F4: Math.round used to bump 45m up to "1h ago" (round(45/60) = 1). Floor
+  // semantics keep 45m through 59m59s reading as "Nm", and the "1h" label
+  // only appears once a full hour has genuinely elapsed.
+  describe('F4: floor semantics at the minutes/hours boundary', () => {
+    test('45 minutes exactly reads as "45m", not "1h"', () => {
+      expect(formatRelaunchAge(45 * 60_000)).toBe('45m');
+    });
+
+    test('59 minutes 59 seconds still reads as "59m", not "1h"', () => {
+      expect(formatRelaunchAge(59 * 60_000 + 59_000)).toBe('59m');
+    });
+
+    test('60 minutes exactly rolls over to "1h"', () => {
+      expect(formatRelaunchAge(60 * 60_000)).toBe('1h');
+    });
+
+    test('every minute from 45 through 59 reads as its own exact "Nm"', () => {
+      for (let minute = 45; minute <= 59; minute += 1) {
+        expect(formatRelaunchAge(minute * 60_000)).toBe(`${minute}m`);
+      }
+    });
+  });
 });
 
 describe('buildResumeRelaunchNotice', () => {
@@ -71,6 +94,18 @@ describe('buildResumeRelaunchNotice', () => {
     expect(notice).toContain('"user-abc123"');
     expect(notice).toContain('1 message');
     expect(notice).not.toContain('1 messages');
+  });
+
+  // F5: a 0-message session has nothing to resume into. Offering a resume
+  // action for it is a dead end like the stale-pointer case, so it is
+  // treated the same as "no pointer at all" — silent, not even the honest
+  // stale-pointer wording.
+  test('stays silent for a resolvable but 0-message session (nothing to resume into)', () => {
+    const notice = buildResumeRelaunchNotice({
+      pointerSessionId: 'user-empty',
+      session: { sessionId: 'user-empty', title: 'Untitled', timestamp: Date.now(), messageCount: 0 },
+    });
+    expect(notice).toBeNull();
   });
 });
 
@@ -129,6 +164,17 @@ describe('surfaceResumeRelaunchNotice', () => {
     });
     expect(printed).toHaveLength(1);
     expect(printed[0]).toContain('/session resume user-abc123');
+  });
+
+  test('F5: says nothing for a resolvable 0-message session', () => {
+    const printed: string[] = [];
+    surfaceResumeRelaunchNotice({
+      getLastSessionPointer: () => 'user-empty',
+      isRecoveryPending: () => false,
+      findSession: (id) => ({ sessionId: id, title: 'Untitled', timestamp: Date.now(), messageCount: 0 }),
+      print: (text) => printed.push(text),
+    });
+    expect(printed).toEqual([]);
   });
 
   test('prints the honest stale-pointer notice without a resume action', () => {
