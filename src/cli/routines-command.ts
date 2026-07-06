@@ -290,7 +290,7 @@ async function handleRoutinePromotion(runtime: CliCommandRuntime, args: readonly
   if (!parsed.yes) {
     const value: RoutinesCommandSuccess<typeof preview> = {
       ok: true,
-      kind: 'schedules.create.preview',
+      kind: 'automation.schedules.create.preview',
       data: preview,
     };
     return {

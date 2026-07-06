@@ -28,7 +28,7 @@ import {
 
 type ScheduleCreateInput = RoutineSchedulePromotionPreview['payload'];
 type ScheduleDeliveryInput = NonNullable<ScheduleCreateInput['delivery']>;
-type ScheduleListOutput = OperatorMethodOutput<'schedules.list'>;
+type ScheduleListOutput = OperatorMethodOutput<'automation.schedules.list'>;
 
 interface RoutineScheduleReceiptStoreFile {
   readonly version: 1;
@@ -453,7 +453,7 @@ async function classifyScheduleListError(
       return {
         ok: false,
         kind: 'connected_host_incompatible',
-        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; schedules.list is unavailable.',
+        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule requirements; automation.schedules.list is unavailable.',
         route: ROUTINE_SCHEDULE_ROUTE,
         baseUrl: connection.baseUrl,
       };

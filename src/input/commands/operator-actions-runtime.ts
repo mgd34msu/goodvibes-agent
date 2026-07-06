@@ -93,14 +93,17 @@ function automationActionFromParts(scope: string, verb: string): {
   readonly targetField: 'jobId' | 'runId' | 'scheduleId';
 } | null {
   if ((scope === 'job' || scope === 'jobs') && verb === 'run') return { action: 'automation.jobs.run', targetField: 'jobId' };
-  if ((scope === 'job' || scope === 'jobs') && verb === 'pause') return { action: 'automation.jobs.pause', targetField: 'jobId' };
-  if ((scope === 'job' || scope === 'jobs') && verb === 'resume') return { action: 'automation.jobs.resume', targetField: 'jobId' };
+  // W6-C3: automation.jobs.pause/resume retired (redundant with
+  // disable/enable) — the user-facing "pause"/"resume" verb is unchanged,
+  // it now maps onto the canonical disable/enable wire actions.
+  if ((scope === 'job' || scope === 'jobs') && verb === 'pause') return { action: 'automation.jobs.disable', targetField: 'jobId' };
+  if ((scope === 'job' || scope === 'jobs') && verb === 'resume') return { action: 'automation.jobs.enable', targetField: 'jobId' };
   if ((scope === 'run' || scope === 'runs') && verb === 'cancel') return { action: 'automation.runs.cancel', targetField: 'runId' };
   if ((scope === 'run' || scope === 'runs') && verb === 'retry') return { action: 'automation.runs.retry', targetField: 'runId' };
-  if ((scope === 'schedule' || scope === 'schedules') && verb === 'run') return { action: 'schedules.run', targetField: 'scheduleId' };
-  if ((scope === 'schedule' || scope === 'schedules') && verb === 'enable') return { action: 'schedules.enable', targetField: 'scheduleId' };
-  if ((scope === 'schedule' || scope === 'schedules') && verb === 'disable') return { action: 'schedules.disable', targetField: 'scheduleId' };
-  if ((scope === 'schedule' || scope === 'schedules') && (verb === 'delete' || verb === 'remove')) return { action: 'schedules.delete', targetField: 'scheduleId' };
+  if ((scope === 'schedule' || scope === 'schedules') && verb === 'run') return { action: 'automation.schedules.run', targetField: 'scheduleId' };
+  if ((scope === 'schedule' || scope === 'schedules') && verb === 'enable') return { action: 'automation.schedules.enable', targetField: 'scheduleId' };
+  if ((scope === 'schedule' || scope === 'schedules') && verb === 'disable') return { action: 'automation.schedules.disable', targetField: 'scheduleId' };
+  if ((scope === 'schedule' || scope === 'schedules') && (verb === 'delete' || verb === 'remove')) return { action: 'automation.schedules.delete', targetField: 'scheduleId' };
   return null;
 }
 

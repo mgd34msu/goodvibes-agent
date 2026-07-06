@@ -21,11 +21,11 @@ import {
   type RoutineScheduleSpec,
 } from './routine-schedule-promotion.ts';
 
-type SchedulePatchInput = OperatorMethodInput<'automation.jobs.patch'>;
-type SchedulePatchOutput = OperatorMethodOutput<'automation.jobs.patch'>;
-type ScheduleListOutput = OperatorMethodOutput<'schedules.list'>;
+type SchedulePatchInput = OperatorMethodInput<'automation.jobs.update'>;
+type SchedulePatchOutput = OperatorMethodOutput<'automation.jobs.update'>;
+type ScheduleListOutput = OperatorMethodOutput<'automation.schedules.list'>;
 
-export const SCHEDULE_EDIT_METHOD = 'automation.jobs.patch';
+export const SCHEDULE_EDIT_METHOD = 'automation.jobs.update';
 export const SCHEDULE_EDIT_ROUTE = '/api/automation/jobs/{jobId}';
 
 export interface ParsedScheduleEditArgs {
@@ -442,7 +442,7 @@ async function classifyScheduleEditError(
       return {
         ok: false,
         kind: 'connected_host_incompatible',
-        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule edit requirements; automation.jobs.patch is unavailable.',
+        error: 'Connected GoodVibes host compatibility does not satisfy Agent schedule edit requirements; automation.jobs.update is unavailable.',
         route: SCHEDULE_EDIT_ROUTE,
         baseUrl: connection.baseUrl,
       };

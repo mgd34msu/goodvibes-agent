@@ -107,7 +107,7 @@ export function reminderOperationRecords(methodIds: readonly string[], deliveryC
     {
       id: 'reminder-create',
       label: 'Create confirmed reminder',
-      status: hasMethod(methodIds, 'schedules.create') ? deliveryConfigured ? 'ready' : 'attention' : 'needs-setup',
+      status: hasMethod(methodIds, 'automation.schedules.create') ? deliveryConfigured ? 'ready' : 'attention' : 'needs-setup',
       summary: deliveryConfigured
         ? 'Create one connected reminder schedule with real timing and a visible delivery path.'
         : 'Create one reminder only after confirming timing and delivery scope; no configured delivery target was detected.',
@@ -123,7 +123,7 @@ export function reminderOperationRecords(methodIds: readonly string[], deliveryC
     {
       id: 'autonomous-schedule-create',
       label: 'Create autonomous schedule',
-      status: hasMethod(methodIds, 'schedules.create') ? 'ready' : 'needs-setup',
+      status: hasMethod(methodIds, 'automation.schedules.create') ? 'ready' : 'needs-setup',
       summary: 'Create one visible autonomous schedule only when task, cadence, success criteria, and user request provenance are explicit.',
       userRoute: 'Agent Workspace -> Automation -> Create schedule',
       modelRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',
@@ -134,7 +134,7 @@ export function reminderOperationRecords(methodIds: readonly string[], deliveryC
       confirmationRequired: true,
     },
   ];
-  if (hasMethod(methodIds, 'schedules.list')) {
+  if (hasMethod(methodIds, 'automation.schedules.list')) {
     records.push({
       id: 'schedule-list',
       label: 'List connected schedules',
@@ -161,7 +161,7 @@ export function reminderOperationRecords(methodIds: readonly string[], deliveryC
       confirmationRequired: true,
     });
   }
-  if (hasMethod(methodIds, 'schedules.run')) {
+  if (hasMethod(methodIds, 'automation.schedules.run')) {
     records.push({
       id: 'schedule-run-now',
       label: 'Run schedule now',
@@ -176,7 +176,7 @@ export function reminderOperationRecords(methodIds: readonly string[], deliveryC
       confirmationRequired: true,
     });
   }
-  if (hasMethod(methodIds, 'schedules.disable')) {
+  if (hasMethod(methodIds, 'automation.schedules.disable')) {
     records.push({
       id: 'schedule-pause',
       label: 'Pause connected schedule',
@@ -191,7 +191,7 @@ export function reminderOperationRecords(methodIds: readonly string[], deliveryC
       confirmationRequired: true,
     });
   }
-  if (hasMethod(methodIds, 'schedules.enable')) {
+  if (hasMethod(methodIds, 'automation.schedules.enable')) {
     records.push({
       id: 'schedule-resume',
       label: 'Resume connected schedule',
@@ -206,7 +206,7 @@ export function reminderOperationRecords(methodIds: readonly string[], deliveryC
       confirmationRequired: true,
     });
   }
-  if (hasMethod(methodIds, 'schedules.delete')) {
+  if (hasMethod(methodIds, 'automation.schedules.delete')) {
     records.push({
       id: 'schedule-delete',
       label: 'Delete connected schedule',

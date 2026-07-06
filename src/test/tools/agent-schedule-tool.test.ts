@@ -121,7 +121,7 @@ function schedulesListResponse(): Response {
 }
 
 describe('schedule adapter tool', () => {
-  test('lists schedules through the read-only schedules.list operator method', async () => {
+  test('lists schedules through the read-only automation.schedules.list operator method', async () => {
     const paths = shellPaths();
     const tool = createAgentScheduleTool(paths, configManager(paths));
     const requests: CapturedRequest[] = [];
@@ -139,7 +139,7 @@ describe('schedule adapter tool', () => {
       const result = await tool.execute({ action: 'list' });
 
       expect(result.success).toBe(true);
-      expect(result.output).toContain('"methodId": "schedules.list"');
+      expect(result.output).toContain('"methodId": "automation.schedules.list"');
       expect(result.output).toContain('"sched-1"');
       expect(requests).toEqual([{ url: 'http://127.0.0.1:3421/api/automation/schedules', method: 'GET', body: '' }]);
     } finally {
@@ -234,7 +234,7 @@ describe('schedule adapter tool', () => {
 
       expect(result.success).toBe(false);
       expect(result.error).toContain('GoodVibes schedule edit preview');
-      expect(result.error).toContain('current source schedules.list GET /api/automation/schedules');
+      expect(result.error).toContain('current source automation.schedules.list GET /api/automation/schedules');
       expect(result.error).toContain('0 8 * * * [America/Chicago] -> 0 9 * * * [America/Chicago]');
       expect(calls).toBe(1);
     } finally {
@@ -268,7 +268,7 @@ describe('schedule adapter tool', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(result.output).toContain('method: schedules.disable');
+      expect(result.output).toContain('method: automation.schedules.disable');
       expect(result.output).toContain('nextRoutes');
       expect(result.output).toContain('schedule action:"list" query:"sched-1"');
       expect(result.output).toContain('schedule action:"resume" scheduleId:"sched-1" confirm:true explicitUserRequest:"..."');

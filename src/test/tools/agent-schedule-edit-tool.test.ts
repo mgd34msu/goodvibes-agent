@@ -175,7 +175,7 @@ describe('agent_schedule_edit tool', () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain('GoodVibes schedule edit preview');
       expect(result.error).toContain('confirmation required');
-      expect(result.error).toContain('current source schedules.list GET /api/automation/schedules');
+      expect(result.error).toContain('current source automation.schedules.list GET /api/automation/schedules');
       expect(result.error).toContain('schedule 0 8 * * * [America/Chicago] -> 0 9 * * * [America/Chicago]');
       expect(result.error).toContain('confirmationRoutes');
       expect(result.error).toContain('schedule action:"edit" scheduleId:"sched-edit-1"');

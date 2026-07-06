@@ -3491,7 +3491,7 @@ describe('agent_harness tool', () => {
       expect(workPlanStatus?.modelRoute).toContain('action:"set_status"');
       expect(tasks?.liveRecords?.find((record) => record.id === 'host-tasks-list')?.effect).toBe('read-only');
       expect(tasks?.liveRecords?.find((record) => record.id === 'host-task-cancel')?.modelRoute).toContain('agent_operator_method');
-      expect(reminders?.methodIds).toContain('schedules.create');
+      expect(reminders?.methodIds).toContain('automation.schedules.create');
       expect(reminders?.workflows?.map((workflow) => workflow.id)).toEqual(expect.arrayContaining([
         'confirmed-reminder-request',
         'connected-schedule-review',
@@ -9108,7 +9108,7 @@ describe('agent_harness tool', () => {
 
       const operatorMethods = await executeHarnessJson<{
         readonly methods: readonly Record<string, unknown>[];
-      }>(fixture, { mode: 'operator_methods', query: 'schedules.create' });
+      }>(fixture, { mode: 'operator_methods', query: 'automation.schedules.create' });
       expectRowsHaveCompactModelRoutes(operatorMethods.methods);
       expect(operatorMethods.methods[0]?.preferredModelTool).toBeUndefined();
 
@@ -9131,7 +9131,7 @@ describe('agent_harness tool', () => {
       const expandedOperatorMethod = await executeHarnessJson<{
         readonly modelRoute?: string;
         readonly preferredModelTool?: string;
-      }>(fixture, { mode: 'operator_method', methodId: 'schedules.create' });
+      }>(fixture, { mode: 'operator_method', methodId: 'automation.schedules.create' });
       expectCompactModelRoute(expandedOperatorMethod.modelRoute);
       expect(expandedOperatorMethod.preferredModelTool).toContain('agent_operator_method');
     } finally {
@@ -10731,7 +10731,7 @@ describe('agent_harness tool', () => {
       expect(catalogJson.methods.map((method) => method.route)).toContain('GET /api/knowledge/connectors/{id}/doctor');
       expect(catalogJson.methods.find((method) => method.id === 'knowledge.ingest.url')?.parameters?.length).toBeGreaterThan(0);
 
-      const schedule = await fixture.tool.execute({ mode: 'operator_method', methodId: 'schedules.create' });
+      const schedule = await fixture.tool.execute({ mode: 'operator_method', methodId: 'automation.schedules.create' });
       expect(schedule.success).toBe(true);
       if (!schedule.success) throw new Error(schedule.error);
       const scheduleJson = JSON.parse(schedule.output!) as {
@@ -10739,7 +10739,7 @@ describe('agent_harness tool', () => {
         readonly preferredModelTool: string;
         readonly parameters: readonly { readonly name: string; readonly required: boolean }[];
       };
-      expect(scheduleJson.id).toBe('schedules.create');
+      expect(scheduleJson.id).toBe('automation.schedules.create');
       expect(scheduleJson.preferredModelTool).toContain('agent_operator_method');
       expect(scheduleJson.parameters.map((parameter) => parameter.name)).toEqual(expect.arrayContaining([
         'prompt',

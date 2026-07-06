@@ -381,7 +381,7 @@ function buildQueueItems(context: CommandContext): readonly AutonomyQueueItem[] 
       current: `${scheduleMethods.length} schedule/reminder daemon method(s); autonomous schedules require explicit task, cadence, success criteria, and user request provenance.`,
       next: scheduleMethods.length > 0
         ? 'Create one visible autonomous schedule only after the user gives exact timing and success criteria.'
-        : 'Update the connected GoodVibes host until schedules.create is available.',
+        : 'Update the connected GoodVibes host until automation.schedules.create is available.',
       inspectRoute: 'autonomy action:"intake" query:"..."',
       modelRoute: 'schedule action:"create"',
       createRoute: 'schedule action:"create" task:"..." successCriteria:"..." scheduleKind:"..." scheduleValue:"..." confirm:true explicitUserRequest:"..."',

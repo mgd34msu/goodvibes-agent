@@ -417,8 +417,8 @@ function asksForEventTrigger(lower: string): boolean {
 
 function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): readonly TriggerWorkflow[] {
   const methodIds = operatorMethodIds();
-  const schedulesCreatePublished = methodIds.has('schedules.create');
-  const schedulesListPublished = methodIds.has('schedules.list');
+  const schedulesCreatePublished = methodIds.has('automation.schedules.create');
+  const schedulesListPublished = methodIds.has('automation.schedules.list');
   const watcherCreatePublished = methodIds.has('watchers.create');
   const watcherListPublished = methodIds.has('watchers.list');
   const watcherRunPublished = methodIds.has('watchers.run');
@@ -437,10 +437,10 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
       status: scheduleReady ? 'ready' : schedulesCreatePublished ? 'attention' : 'setup-needed',
       userOutcome: 'Run autonomous work on an exact at/every/cron cadence without making the user understand scheduler internals.',
       summary: scheduleReady
-        ? 'The request includes an exact cadence and the connected host publishes schedules.create.'
+        ? 'The request includes an exact cadence and the connected host publishes automation.schedules.create.'
         : schedulesCreatePublished
           ? 'The schedule route is published, but this request still needs an exact cadence before creation.'
-          : 'The connected host does not publish schedules.create in the current SDK contract.',
+          : 'The connected host does not publish automation.schedules.create in the current SDK contract.',
       nextStep: scheduleReady
         ? 'Create through schedule action:"create" with confirm:true and explicit success criteria.'
         : 'Ask for the exact ISO time, every interval, or cron expression before offering schedule creation.',
@@ -449,7 +449,7 @@ function buildTriggerWorkflows(request: string, schedule: ScheduleDetection): re
       modelRoute: `schedule action:"create" task:"${shortRequest}" successCriteria:"..." scheduleKind:"${schedule.kind ?? 'at|every|cron'}" scheduleValue:"${schedule.value ?? '...'}" confirm:true explicitUserRequest:"..."`,
       inspectRoute: 'autonomy action:"item" queueItemId:"connected-schedules"',
       setupRoutes: [
-        'host action:"method" methodId:"schedules.create"',
+        'host action:"method" methodId:"automation.schedules.create"',
         'autonomy action:"item" queueItemId:"connected-schedules"',
       ],
       evidence: {

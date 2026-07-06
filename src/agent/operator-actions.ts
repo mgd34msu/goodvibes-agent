@@ -6,14 +6,14 @@ export type JsonRecord = Record<string, unknown>;
 export type ApprovalActionId = 'approvals.approve' | 'approvals.deny' | 'approvals.cancel';
 export type AutomationActionId =
   | 'automation.jobs.run'
-  | 'automation.jobs.pause'
-  | 'automation.jobs.resume'
+  | 'automation.jobs.disable'
+  | 'automation.jobs.enable'
   | 'automation.runs.cancel'
   | 'automation.runs.retry'
-  | 'schedules.delete'
-  | 'schedules.disable'
-  | 'schedules.enable'
-  | 'schedules.run';
+  | 'automation.schedules.delete'
+  | 'automation.schedules.disable'
+  | 'automation.schedules.enable'
+  | 'automation.schedules.run';
 export type OperatorActionId = ApprovalActionId | AutomationActionId;
 export type OperatorActionHttpMethod = 'POST' | 'DELETE';
 
@@ -103,16 +103,20 @@ export const OPERATOR_ACTIONS: Record<OperatorActionId, OperatorActionDescriptor
     pathTemplate: '/api/automation/jobs/{jobId}/run',
     targetField: 'jobId',
   },
-  'automation.jobs.pause': {
-    action: 'automation.jobs.pause',
+  // W6-C3: automation.jobs.pause/resume were retired (redundant with
+  // disable/enable — same {id,enabled} output, same semantics). The
+  // user-facing "pause"/"resume" verb is unchanged; only the wire action +
+  // path moved to the canonical disable/enable methods.
+  'automation.jobs.disable': {
+    action: 'automation.jobs.disable',
     label: 'pause automation job',
-    pathTemplate: '/api/automation/jobs/{jobId}/pause',
+    pathTemplate: '/api/automation/jobs/{jobId}/disable',
     targetField: 'jobId',
   },
-  'automation.jobs.resume': {
-    action: 'automation.jobs.resume',
+  'automation.jobs.enable': {
+    action: 'automation.jobs.enable',
     label: 'resume automation job',
-    pathTemplate: '/api/automation/jobs/{jobId}/resume',
+    pathTemplate: '/api/automation/jobs/{jobId}/enable',
     targetField: 'jobId',
   },
   'automation.runs.cancel': {
@@ -127,26 +131,26 @@ export const OPERATOR_ACTIONS: Record<OperatorActionId, OperatorActionDescriptor
     pathTemplate: '/api/automation/runs/{runId}/retry',
     targetField: 'runId',
   },
-  'schedules.run': {
-    action: 'schedules.run',
+  'automation.schedules.run': {
+    action: 'automation.schedules.run',
     label: 'run schedule',
     pathTemplate: '/api/automation/schedules/{scheduleId}/run',
     targetField: 'scheduleId',
   },
-  'schedules.enable': {
-    action: 'schedules.enable',
+  'automation.schedules.enable': {
+    action: 'automation.schedules.enable',
     label: 'enable schedule',
     pathTemplate: '/api/automation/schedules/{scheduleId}/enable',
     targetField: 'scheduleId',
   },
-  'schedules.disable': {
-    action: 'schedules.disable',
+  'automation.schedules.disable': {
+    action: 'automation.schedules.disable',
     label: 'disable schedule',
     pathTemplate: '/api/automation/schedules/{scheduleId}/disable',
     targetField: 'scheduleId',
   },
-  'schedules.delete': {
-    action: 'schedules.delete',
+  'automation.schedules.delete': {
+    action: 'automation.schedules.delete',
     label: 'delete schedule',
     pathTemplate: '/api/automation/schedules/{scheduleId}',
     targetField: 'scheduleId',
@@ -340,14 +344,14 @@ function scheduleIdFromActionPath(path: string): string {
 }
 
 export function formatOperatorActionSuccess(baseUrl: string, result: OperatorActionSuccess): string {
-  const scheduleId = result.methodId.startsWith('schedules.') ? scheduleIdFromActionPath(result.path) : '';
+  const scheduleId = result.methodId.startsWith('automation.schedules.') ? scheduleIdFromActionPath(result.path) : '';
   return [
     'Agent operator action completed',
     `  method: ${result.methodId}`,
     `  route: ${result.httpMethod} ${result.path}`,
     `  connected host: ${baseUrl}`,
     `  status: ${statusFromOperatorActionBody(result.body)}`,
-    ...(scheduleId ? scheduleNextRouteLines(scheduleId, { deleted: result.methodId === 'schedules.delete' }) : []),
+    ...(scheduleId ? scheduleNextRouteLines(scheduleId, { deleted: result.methodId === 'automation.schedules.delete' }) : []),
   ].join('\n');
 }
 

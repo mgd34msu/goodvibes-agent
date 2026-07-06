@@ -30,7 +30,7 @@ const OPERATOR_BRIEFING_ROUTES: readonly OperatorRouteDescriptor[] = [
   { id: 'projectPlanning.workPlan.snapshot', path: '/api/projects/planning/work-plan' },
   { id: 'approvals.list', path: '/api/approvals' },
   { id: 'automation.integration.snapshot', path: '/api/automation' },
-  { id: 'schedules.list', path: '/api/automation/schedules' },
+  { id: 'automation.schedules.list', path: '/api/automation/schedules' },
   { id: 'scheduler.capacity', path: '/api/runtime/scheduler' },
 ] as const;
 
@@ -149,7 +149,7 @@ function formatRoute(result: OperatorRouteResult): string {
   if (result.route.id === 'projectPlanning.workPlan.snapshot') return formatWorkPlan(result.body);
   if (result.route.id === 'approvals.list') return formatApprovals(result.body);
   if (result.route.id === 'automation.integration.snapshot') return formatAutomation(result.body);
-  if (result.route.id === 'schedules.list') return formatSchedules(result.body);
+  if (result.route.id === 'automation.schedules.list') return formatSchedules(result.body);
   return formatCapacity(result.body);
 }
 

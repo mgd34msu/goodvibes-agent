@@ -52,10 +52,10 @@ interface AgentScheduleToolArgs {
 }
 
 const LIFECYCLE_ACTIONS: Readonly<Record<'run' | 'pause' | 'resume' | 'delete', string>> = {
-  run: 'schedules.run',
-  pause: 'schedules.disable',
-  resume: 'schedules.enable',
-  delete: 'schedules.delete',
+  run: 'automation.schedules.run',
+  pause: 'automation.schedules.disable',
+  resume: 'automation.schedules.enable',
+  delete: 'automation.schedules.delete',
 };
 
 function readString(value: unknown): string {
@@ -248,7 +248,7 @@ export function createAgentScheduleTool(
       const action = readAction(args);
       if (action === 'list') {
         return operatorMethodTool.execute({
-          methodId: 'schedules.list',
+          methodId: 'automation.schedules.list',
           input: listInput(args),
         });
       }
