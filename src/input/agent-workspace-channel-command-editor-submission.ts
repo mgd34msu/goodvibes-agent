@@ -1,39 +1,20 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import type { AgentWorkspaceChannelCommandEditorKind } from './agent-workspace-channel-command-editors.ts';
 import { isAgentWorkspaceChannelCommandEditorKind } from './agent-workspace-channel-command-editors.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
+import type { AgentWorkspaceCommandEditorSubmission, AgentWorkspaceCommandSubmissionHandler, AgentWorkspaceFieldReader } from './agent-workspace-command-editor-engine.ts';
+import { buildCommandEditorSubmissionFromTable, dispatchCommandEditorSubmission, editorMessageSubmission, isAffirmative } from './agent-workspace-command-editor-engine.ts';
 
-type AgentWorkspaceFieldReader = (fieldId: string) => string;
-
-export type AgentWorkspaceChannelCommandEditorSubmission =
-  | {
-    readonly kind: 'editor';
-    readonly editor: AgentWorkspaceLocalEditor;
-    readonly status: string;
-    readonly actionResult?: AgentWorkspaceActionResult;
-  }
-  | {
-    readonly kind: 'dispatch';
-    readonly command: string;
-    readonly status: string;
-    readonly actionResult: AgentWorkspaceActionResult;
-  };
+export type AgentWorkspaceChannelCommandEditorSubmission = AgentWorkspaceCommandEditorSubmission;
 
 export function isAgentWorkspaceChannelCommandSubmissionKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceChannelCommandEditorKind {
   return isAgentWorkspaceChannelCommandEditorKind(kind);
 }
 
-export function buildAgentWorkspaceChannelCommandEditorSubmission(
-  editor: AgentWorkspaceLocalEditor,
-  readField: AgentWorkspaceFieldReader,
-): AgentWorkspaceChannelCommandEditorSubmission {
-  if (editor.kind === 'channel-send') {
-    if (!/^(y|yes|true)$/i.test(readField('confirm').trim())) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Channel delivery not confirmed. Type yes, then press Enter.' },
-        status: 'Channel delivery not confirmed.',
-      };
+const CHANNEL_COMMAND_SUBMISSION_HANDLERS: Readonly<Record<AgentWorkspaceChannelCommandEditorKind, AgentWorkspaceCommandSubmissionHandler>> = {
+  'channel-send': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return editorMessageSubmission(editor, 'Channel delivery not confirmed. Type yes, then press Enter.', 'Channel delivery not confirmed.');
     }
     const parts = ['/channels', 'send'];
     const title = readField('title');
@@ -47,20 +28,19 @@ export function buildAgentWorkspaceChannelCommandEditorSubmission(
     if (webhook) parts.push('--webhook', quoteSlashCommandArg(webhook));
     if (link) parts.push('--link', quoteSlashCommandArg(link));
     parts.push('--message', quoteSlashCommandArg(readField('message')), '--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening channel delivery.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening channel delivery',
-        detail: 'The workspace handed a confirmed channel delivery command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening channel delivery',
+      'The workspace handed a confirmed channel delivery command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'channel-doctor': (editor, readField) => channelInspection(editor, readField),
+  'channel-setup': (editor, readField) => channelInspection(editor, readField),
+  'channel-show': (editor, readField) => channelInspection(editor, readField),
+};
+
+function channelInspection(editor: AgentWorkspaceLocalEditor, readField: AgentWorkspaceFieldReader): AgentWorkspaceCommandEditorSubmission {
   const subcommand = editor.kind === 'channel-doctor' ? 'doctor' : editor.kind === 'channel-setup' ? 'setup' : 'show';
   const command = `/channels ${subcommand} ${quoteSlashCommandArg(readField('channel'))}`;
   const title = editor.kind === 'channel-doctor'
@@ -68,16 +48,22 @@ export function buildAgentWorkspaceChannelCommandEditorSubmission(
     : editor.kind === 'channel-setup'
       ? 'Opening channel setup guidance'
       : 'Opening channel detail';
-  return {
-    kind: 'dispatch',
+  return dispatchCommandEditorSubmission(
     command,
-    status: `${title}.`,
-    actionResult: {
-      kind: 'dispatched',
-      title,
-      detail: 'The workspace handed read-only channel inspection to the shell-owned command router.',
-      command,
-      safety: 'read-only',
-    },
-  };
+    title,
+    'The workspace handed read-only channel inspection to the shell-owned command router.',
+    'read-only',
+  );
+}
+
+export function buildAgentWorkspaceChannelCommandEditorSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+): AgentWorkspaceCommandEditorSubmission {
+  return buildCommandEditorSubmissionFromTable(
+    editor.kind as AgentWorkspaceChannelCommandEditorKind,
+    editor,
+    readField,
+    CHANNEL_COMMAND_SUBMISSION_HANDLERS,
+  );
 }

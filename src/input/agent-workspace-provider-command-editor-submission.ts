@@ -1,110 +1,54 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import type { AgentWorkspaceProviderCommandEditorKind } from './agent-workspace-provider-command-editors.ts';
 import { isAgentWorkspaceProviderCommandEditorKind } from './agent-workspace-provider-command-editors.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
+import type { AgentWorkspaceCommandEditorSubmission, AgentWorkspaceCommandSubmissionHandler, AgentWorkspaceFieldReader } from './agent-workspace-command-editor-engine.ts';
+import { buildCommandEditorSubmissionFromTable, dispatchCommandEditorSubmission, editorMessageSubmission, isAffirmative } from './agent-workspace-command-editor-engine.ts';
 
-type AgentWorkspaceFieldReader = (fieldId: string) => string;
+export type AgentWorkspaceProviderCommandEditorSubmission = AgentWorkspaceCommandEditorSubmission;
 
-export type AgentWorkspaceProviderCommandEditorSubmission =
-  | {
-    readonly kind: 'editor';
-    readonly editor: AgentWorkspaceLocalEditor;
-    readonly status: string;
-    readonly actionResult?: AgentWorkspaceActionResult;
-  }
-  | {
-    readonly kind: 'dispatch';
-    readonly command: string;
-    readonly status: string;
-    readonly actionResult: AgentWorkspaceActionResult;
-  };
-
-function isAffirmative(value: string): boolean {
-  return /^(y|yes|true)$/i.test(value.trim());
-}
-
-function unconfirmed(editor: AgentWorkspaceLocalEditor, label: string): AgentWorkspaceProviderCommandEditorSubmission {
-  return {
-    kind: 'editor',
-    editor: { ...editor, message: `${label} not confirmed. Type yes, then press Enter.` },
-    status: `${label} not confirmed.`,
-  };
+function unconfirmed(editor: AgentWorkspaceLocalEditor, label: string): AgentWorkspaceCommandEditorSubmission {
+  return editorMessageSubmission(editor, `${label} not confirmed. Type yes, then press Enter.`, `${label} not confirmed.`);
 }
 
 export function isAgentWorkspaceProviderCommandSubmissionKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceProviderCommandEditorKind {
   return isAgentWorkspaceProviderCommandEditorKind(kind);
 }
 
-export function buildAgentWorkspaceProviderCommandEditorSubmission(
-  editor: AgentWorkspaceLocalEditor,
-  readField: AgentWorkspaceFieldReader,
-): AgentWorkspaceProviderCommandEditorSubmission {
-  if (editor.kind === 'provider-use') {
+const PROVIDER_COMMAND_SUBMISSION_HANDLERS: Readonly<Record<AgentWorkspaceProviderCommandEditorKind, AgentWorkspaceCommandSubmissionHandler>> = {
+  'provider-use': (_editor, readField) => {
     const model = readField('model');
     const command = [
       '/provider',
       quoteSlashCommandArg(readField('provider')),
       ...(model.length > 0 ? [quoteSlashCommandArg(model)] : []),
     ].join(' ');
-    return {
-      kind: 'dispatch',
+    return dispatchCommandEditorSubmission(
       command,
-      status: 'Opening provider selection.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider selection',
-        detail: 'The workspace handed provider selection to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'provider-inspect') {
-    const command = `/accounts show ${quoteSlashCommandArg(readField('provider'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening provider inspection.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider inspection',
-        detail: 'The workspace handed read-only provider inspection to the shell-owned command router.',
-        command,
-        safety: 'read-only',
-      },
-    };
-  }
-  if (editor.kind === 'provider-routes') {
-    const command = `/accounts routes ${quoteSlashCommandArg(readField('provider'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening provider route inspection.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider route inspection',
-        detail: 'The workspace handed read-only provider route inspection to the shell-owned command router.',
-        command,
-        safety: 'read-only',
-      },
-    };
-  }
-  if (editor.kind === 'provider-account-repair') {
-    const command = `/accounts repair ${quoteSlashCommandArg(readField('provider'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening provider account repair review.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider account repair review',
-        detail: 'The workspace handed read-only provider account repair guidance to the shell-owned command router.',
-        command,
-        safety: 'read-only',
-      },
-    };
-  }
-  if (editor.kind === 'provider-add') {
+      'Opening provider selection',
+      'The workspace handed provider selection to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'provider-inspect': (_editor, readField) => dispatchCommandEditorSubmission(
+    `/accounts show ${quoteSlashCommandArg(readField('provider'))}`,
+    'Opening provider inspection',
+    'The workspace handed read-only provider inspection to the shell-owned command router.',
+    'read-only',
+  ),
+  'provider-routes': (_editor, readField) => dispatchCommandEditorSubmission(
+    `/accounts routes ${quoteSlashCommandArg(readField('provider'))}`,
+    'Opening provider route inspection',
+    'The workspace handed read-only provider route inspection to the shell-owned command router.',
+    'read-only',
+  ),
+  'provider-account-repair': (_editor, readField) => dispatchCommandEditorSubmission(
+    `/accounts repair ${quoteSlashCommandArg(readField('provider'))}`,
+    'Opening provider account repair review',
+    'The workspace handed read-only provider account repair guidance to the shell-owned command router.',
+    'read-only',
+  ),
+  'provider-add': (editor, readField) => {
     if (!isAffirmative(readField('confirm'))) {
       return unconfirmed(editor, 'Custom provider add');
     }
@@ -122,6 +66,10 @@ export function buildAgentWorkspaceProviderCommandEditorSubmission(
     }
     parts.push('--yes');
     redactedParts.push('--yes');
+    // The dispatched command carries the real key; the actionResult.command shown
+    // in the transcript is redacted. This is the one submission in this domain that
+    // cannot use dispatchCommandEditorSubmission, whose actionResult.command always
+    // matches the dispatched command.
     return {
       kind: 'dispatch',
       command: parts.join(' '),
@@ -134,22 +82,28 @@ export function buildAgentWorkspaceProviderCommandEditorSubmission(
         safety: 'safe',
       },
     };
-  }
+  },
+  'provider-remove': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Custom provider removal');
+    }
+    return dispatchCommandEditorSubmission(
+      `/provider remove ${quoteSlashCommandArg(readField('name'))} --yes`,
+      'Opening custom provider removal',
+      'The workspace handed a confirmed custom provider removal command to the shell-owned command router.',
+      'safe',
+    );
+  },
+};
 
-  if (!isAffirmative(readField('confirm'))) {
-    return unconfirmed(editor, 'Custom provider removal');
-  }
-  const command = `/provider remove ${quoteSlashCommandArg(readField('name'))} --yes`;
-  return {
-    kind: 'dispatch',
-    command,
-    status: 'Opening custom provider removal.',
-    actionResult: {
-      kind: 'dispatched',
-      title: 'Opening custom provider removal',
-      detail: 'The workspace handed a confirmed custom provider removal command to the shell-owned command router.',
-      command,
-      safety: 'safe',
-    },
-  };
+export function buildAgentWorkspaceProviderCommandEditorSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+): AgentWorkspaceCommandEditorSubmission {
+  return buildCommandEditorSubmissionFromTable(
+    editor.kind as AgentWorkspaceProviderCommandEditorKind,
+    editor,
+    readField,
+    PROVIDER_COMMAND_SUBMISSION_HANDLERS,
+  );
 }

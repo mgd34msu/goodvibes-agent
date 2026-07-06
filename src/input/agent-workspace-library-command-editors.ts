@@ -1,4 +1,6 @@
 import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceEditorSpec } from './agent-workspace-command-editor-engine.ts';
+import { createAgentWorkspaceEditorFromTable } from './agent-workspace-command-editor-engine.ts';
 
 export type AgentWorkspaceLibraryCommandEditorKind = Extract<
   AgentWorkspaceEditorKind,
@@ -14,12 +16,11 @@ export function isAgentWorkspaceLibraryCommandEditorKind(kind: AgentWorkspaceEdi
     || kind === 'routine-show';
 }
 
-export function createAgentWorkspaceLibraryCommandEditor(kind: AgentWorkspaceLibraryCommandEditorKind): AgentWorkspaceLocalEditor {
+function librarySpec(kind: AgentWorkspaceLibraryCommandEditorKind): AgentWorkspaceEditorSpec {
   const target = kind.startsWith('persona') ? 'persona' : kind.startsWith('skill') ? 'skill' : 'routine';
   const search = kind.endsWith('search');
   const label = target === 'persona' ? 'Persona' : target === 'skill' ? 'Skill' : 'Routine';
   return {
-    kind,
     mode: 'create',
     title: search ? `Search ${label}s` : `Show ${label}`,
     selectedFieldIndex: 0,
@@ -32,4 +33,17 @@ export function createAgentWorkspaceLibraryCommandEditor(kind: AgentWorkspaceLib
         : { id: 'id', label: `${label} id`, value: '', required: true, multiline: false, hint: `Existing local ${target} id.` },
     ],
   };
+}
+
+const LIBRARY_COMMAND_EDITOR_SPECS: Readonly<Record<AgentWorkspaceLibraryCommandEditorKind, typeof librarySpec>> = {
+  'persona-search': librarySpec,
+  'persona-show': librarySpec,
+  'skill-search': librarySpec,
+  'skill-show': librarySpec,
+  'routine-search': librarySpec,
+  'routine-show': librarySpec,
+};
+
+export function createAgentWorkspaceLibraryCommandEditor(kind: AgentWorkspaceLibraryCommandEditorKind): AgentWorkspaceLocalEditor {
+  return createAgentWorkspaceEditorFromTable(kind, LIBRARY_COMMAND_EDITOR_SPECS);
 }

@@ -1,23 +1,11 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import type { AgentWorkspaceLibraryCommandEditorKind } from './agent-workspace-library-command-editors.ts';
 import { isAgentWorkspaceLibraryCommandEditorKind } from './agent-workspace-library-command-editors.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
+import type { AgentWorkspaceCommandEditorSubmission, AgentWorkspaceFieldReader } from './agent-workspace-command-editor-engine.ts';
+import { dispatchCommandEditorSubmission } from './agent-workspace-command-editor-engine.ts';
 
-type AgentWorkspaceFieldReader = (fieldId: string) => string;
-
-export type AgentWorkspaceLibraryCommandEditorSubmission =
-  | {
-    readonly kind: 'editor';
-    readonly editor: AgentWorkspaceLocalEditor;
-    readonly status: string;
-    readonly actionResult?: AgentWorkspaceActionResult;
-  }
-  | {
-    readonly kind: 'dispatch';
-    readonly command: string;
-    readonly status: string;
-    readonly actionResult: AgentWorkspaceActionResult;
-  };
+export type AgentWorkspaceLibraryCommandEditorSubmission = AgentWorkspaceCommandEditorSubmission;
 
 export function isAgentWorkspaceLibraryCommandSubmissionKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceLibraryCommandEditorKind {
   return isAgentWorkspaceLibraryCommandEditorKind(kind);
@@ -26,7 +14,7 @@ export function isAgentWorkspaceLibraryCommandSubmissionKind(kind: AgentWorkspac
 export function buildAgentWorkspaceLibraryCommandEditorSubmission(
   editor: AgentWorkspaceLocalEditor,
   readField: AgentWorkspaceFieldReader,
-): AgentWorkspaceLibraryCommandEditorSubmission {
+): AgentWorkspaceCommandEditorSubmission {
   const target = editor.kind.startsWith('persona') ? 'persona' : editor.kind.startsWith('skill') ? 'skill' : 'routine';
   const root = target === 'persona' ? '/personas' : target === 'skill' ? '/skills' : '/routines';
   const search = editor.kind.endsWith('search');
@@ -35,16 +23,10 @@ export function buildAgentWorkspaceLibraryCommandEditorSubmission(
     : `${root} show ${quoteSlashCommandArg(readField('id'))}`;
   const label = target === 'persona' ? 'persona' : target === 'skill' ? 'skill' : 'routine';
   const title = search ? `Opening ${label} search` : `Opening ${label} detail`;
-  return {
-    kind: 'dispatch',
+  return dispatchCommandEditorSubmission(
     command,
-    status: `${title}.`,
-    actionResult: {
-      kind: 'dispatched',
-      title,
-      detail: `The workspace handed read-only local ${label} ${search ? 'search' : 'detail inspection'} to the shell-owned command router.`,
-      command,
-      safety: 'read-only',
-    },
-  };
+    title,
+    `The workspace handed read-only local ${label} ${search ? 'search' : 'detail inspection'} to the shell-owned command router.`,
+    'read-only',
+  );
 }

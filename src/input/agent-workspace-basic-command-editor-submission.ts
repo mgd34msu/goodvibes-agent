@@ -1,4 +1,4 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import { buildAgentWorkspaceAccessCommandEditorSubmission, isAgentWorkspaceAccessCommandSubmissionKind } from './agent-workspace-access-command-editor-submission.ts';
 import { buildAgentWorkspaceChannelCommandEditorSubmission, isAgentWorkspaceChannelCommandSubmissionKind } from './agent-workspace-channel-command-editor-submission.ts';
 import { buildAgentWorkspaceDelegationEditorSubmission, isAgentWorkspaceDelegationEditorKind } from './agent-workspace-delegation-editor-submission.ts';
@@ -17,73 +17,50 @@ import { buildAgentWorkspaceTaskCommandEditorSubmission, isAgentWorkspaceTaskCom
 import { buildAgentWorkspaceWorkPlanEditorSubmission, isAgentWorkspaceWorkPlanEditorKind } from './agent-workspace-workplan-editor-submission.ts';
 import { buildAgentWorkspaceProfileEditorSubmission, isAgentWorkspaceProfileEditorSubmissionKind } from './agent-workspace-profile-editor-submission.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
+import type { AgentWorkspaceCommandEditorSubmission, AgentWorkspaceCommandSubmissionHandler, AgentWorkspaceFieldReader } from './agent-workspace-command-editor-engine.ts';
+import { buildCommandEditorSubmissionFromTable, dispatchCommandEditorSubmission, editorMessageSubmission, isAffirmative } from './agent-workspace-command-editor-engine.ts';
 
-type AgentWorkspaceFieldReader = (fieldId: string) => string;
+export type AgentWorkspaceBasicCommandEditorSubmission = AgentWorkspaceCommandEditorSubmission;
 
-export type AgentWorkspaceBasicCommandEditorSubmission =
-  | {
-    readonly kind: 'editor';
-    readonly editor: AgentWorkspaceLocalEditor;
-    readonly status: string;
-    readonly actionResult?: AgentWorkspaceActionResult;
-  }
-  | {
-    readonly kind: 'dispatch';
-    readonly command: string;
-    readonly status: string;
-    readonly actionResult: AgentWorkspaceActionResult;
-  };
+/** The kinds this module builds a submission for itself (the rest delegate to sibling submission modules). */
+type AgentWorkspaceBasicOwnCommandEditorKind = Extract<
+  AgentWorkspaceEditorKind,
+  'knowledge-file' | 'knowledge-urls' | 'knowledge-bookmarks' | 'knowledge-browser-history' | 'knowledge-connector-ingest' | 'knowledge-reindex' | 'tts-prompt' | 'image-input' | 'skill-bundle' | 'skill-discovery-import'
+  | 'support-bundle-export' | 'support-bundle-inspect' | 'support-bundle-import'
+  | 'subscription-inspect' | 'subscription-login-start' | 'subscription-login-finish' | 'subscription-logout'
+  | 'model-pin' | 'model-unpin'
+  | 'persona-discovery-import'
+  | 'routine-discovery-import'
+  | 'skill-standard-import'
+  | 'skill-standard-export'
+>;
 
-function isAffirmative(value: string): boolean {
-  return /^(y|yes|true)$/i.test(value.trim());
+function unconfirmed(editor: AgentWorkspaceLocalEditor, message: string, status: string): AgentWorkspaceCommandEditorSubmission {
+  return editorMessageSubmission(editor, message, status);
 }
 
-export function buildAgentWorkspaceBasicCommandEditorSubmission(
-  editor: AgentWorkspaceLocalEditor,
-  readField: AgentWorkspaceFieldReader,
-  commandDispatchAvailable: boolean,
-): AgentWorkspaceBasicCommandEditorSubmission {
-  if (!commandDispatchAvailable) {
-    return {
-      kind: 'editor',
-      editor: { ...editor, message: 'Command dispatch is unavailable; this action cannot run from this workspace.' },
-      status: 'Command dispatch unavailable.',
-      actionResult: {
-        kind: 'error',
-        title: 'Command dispatch unavailable',
-        detail: 'The Agent workspace cannot hand this action to the shell-owned command router.',
-      },
-    };
-  }
-  if (editor.kind === 'knowledge-bookmarks') {
+/**
+ * The submission data table for the kinds this module builds itself (delegate-task and
+ * workplan/notify/secret/profile kinds keep dispatching to their own sibling submission
+ * modules below, unchanged). W4-H2: split out of the single ~570-line
+ * `buildAgentWorkspaceBasicCommandEditorSubmission` if-chain, mirroring the
+ * construction-side split in agent-workspace-basic-command-editors.ts.
+ */
+const BASIC_OWN_COMMAND_SUBMISSION_HANDLERS: Readonly<Record<AgentWorkspaceBasicOwnCommandEditorKind, AgentWorkspaceCommandSubmissionHandler>> = {
+  'knowledge-bookmarks': (editor, readField) => {
     if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Bookmark import not confirmed. Type yes, then press Enter.' },
-        status: 'Agent Knowledge bookmark import not confirmed.',
-      };
+      return unconfirmed(editor, 'Bookmark import not confirmed. Type yes, then press Enter.', 'Agent Knowledge bookmark import not confirmed.');
     }
-    const command = `/knowledge import-bookmarks ${quoteSlashCommandArg(readField('path'))} --yes`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent Knowledge bookmark import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent Knowledge bookmark import',
-        detail: 'The workspace handed a confirmed bookmark import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'knowledge-file') {
+    return dispatchCommandEditorSubmission(
+      `/knowledge import-bookmarks ${quoteSlashCommandArg(readField('path'))} --yes`,
+      'Opening Agent Knowledge bookmark import',
+      'The workspace handed a confirmed bookmark import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'knowledge-file': (editor, readField) => {
     if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'File ingest not confirmed. Type yes, then press Enter.' },
-        status: 'Agent Knowledge file ingest not confirmed.',
-      };
+      return unconfirmed(editor, 'File ingest not confirmed. Type yes, then press Enter.', 'Agent Knowledge file ingest not confirmed.');
     }
     const parts = ['/knowledge', 'ingest-file', quoteSlashCommandArg(readField('path'))];
     const title = readField('title');
@@ -93,52 +70,30 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
     if (tags.length > 0) parts.push('--tags', quoteSlashCommandArg(tags));
     if (folder.length > 0) parts.push('--folder', quoteSlashCommandArg(folder));
     parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent Knowledge file ingest.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent Knowledge file ingest',
-        detail: 'The workspace handed a confirmed file ingest command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'knowledge-urls') {
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening Agent Knowledge file ingest',
+      'The workspace handed a confirmed file ingest command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'knowledge-urls': (editor, readField) => {
     if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'URL list import not confirmed. Type yes, then press Enter.' },
-        status: 'Agent Knowledge URL list import not confirmed.',
-      };
+      return unconfirmed(editor, 'URL list import not confirmed. Type yes, then press Enter.', 'Agent Knowledge URL list import not confirmed.');
     }
     const parts = ['/knowledge', 'import-urls', quoteSlashCommandArg(readField('path'))];
     if (isAffirmative(readField('allowPrivateHosts'))) parts.push('--allow-private-hosts');
     parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent Knowledge URL list import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent Knowledge URL list import',
-        detail: 'The workspace handed a confirmed URL list import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'knowledge-browser-history') {
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening Agent Knowledge URL list import',
+      'The workspace handed a confirmed URL list import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'knowledge-browser-history': (editor, readField) => {
     if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Browser history import not confirmed. Type yes, then press Enter.' },
-        status: 'Agent Knowledge browser history import not confirmed.',
-      };
+      return unconfirmed(editor, 'Browser history import not confirmed. Type yes, then press Enter.', 'Agent Knowledge browser history import not confirmed.');
     }
     const parts = ['/knowledge', 'import-browser-history'];
     const browsers = readField('browsers');
@@ -150,27 +105,16 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
     if (limit.length > 0) parts.push('--limit', quoteSlashCommandArg(limit));
     if (sinceDays.length > 0) parts.push('--since-days', quoteSlashCommandArg(sinceDays));
     parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent Knowledge browser history import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent Knowledge browser history import',
-        detail: 'The workspace handed a confirmed browser-history import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'knowledge-connector-ingest') {
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening Agent Knowledge browser history import',
+      'The workspace handed a confirmed browser-history import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'knowledge-connector-ingest': (editor, readField) => {
     if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Connector ingest not confirmed. Type yes, then press Enter.' },
-        status: 'Agent Knowledge connector ingest not confirmed.',
-      };
+      return unconfirmed(editor, 'Connector ingest not confirmed. Type yes, then press Enter.', 'Agent Knowledge connector ingest not confirmed.');
     }
     const connectorId = readField('connectorId');
     const input = readField('input');
@@ -182,39 +126,233 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
     if (content.length > 0) parts.push('--content', quoteSlashCommandArg(content));
     if (isAffirmative(readField('allowPrivateHosts'))) parts.push('--allow-private-hosts');
     parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent Knowledge connector ingest.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent Knowledge connector ingest',
-        detail: 'The workspace handed a confirmed connector ingest command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'knowledge-reindex') {
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening Agent Knowledge connector ingest',
+      'The workspace handed a confirmed connector ingest command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'knowledge-reindex': (editor, readField) => {
     if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Agent Knowledge reindex not confirmed. Type yes, then press Enter.' },
-        status: 'Agent Knowledge reindex not confirmed.',
-      };
+      return unconfirmed(editor, 'Agent Knowledge reindex not confirmed. Type yes, then press Enter.', 'Agent Knowledge reindex not confirmed.');
     }
-    const command = '/knowledge reindex --yes';
-    return {
-      kind: 'dispatch',
+    return dispatchCommandEditorSubmission(
+      '/knowledge reindex --yes',
+      'Opening Agent Knowledge reindex',
+      'The workspace handed a confirmed reindex command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'tts-prompt': (_editor, readField) => dispatchCommandEditorSubmission(
+    `/tts ${quoteSlashCommandArg(readField('prompt'))}`,
+    'Opening spoken assistant prompt',
+    'The workspace handed a spoken prompt to the shell-owned command router.',
+    'safe',
+  ),
+  'image-input': (_editor, readField) => {
+    const prompt = readField('prompt');
+    const command = prompt.length > 0
+      ? `/image ${quoteSlashCommandArg(readField('path'))} ${quoteSlashCommandArg(prompt)}`
+      : `/image ${quoteSlashCommandArg(readField('path'))}`;
+    return dispatchCommandEditorSubmission(
       command,
-      status: 'Opening Agent Knowledge reindex.',
+      'Opening image input',
+      'The workspace handed an image attachment command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'model-pin': (editor, readField) => modelPinUnpin(editor, readField),
+  'model-unpin': (editor, readField) => modelPinUnpin(editor, readField),
+  'support-bundle-export': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Agent support bundle export not confirmed. Type yes, then press Enter.', 'Agent support bundle export not confirmed.');
+    }
+    return dispatchCommandEditorSubmission(
+      `/bundle export ${quoteSlashCommandArg(readField('path'))} --yes`,
+      'Opening Agent support bundle export',
+      'The workspace handed a confirmed support bundle export command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'support-bundle-inspect': (_editor, readField) => dispatchCommandEditorSubmission(
+    `/bundle inspect ${quoteSlashCommandArg(readField('path'))}`,
+    'Opening Agent support bundle inspection',
+    'The workspace handed a support bundle inspect command to the shell-owned command router.',
+    'read-only',
+  ),
+  'support-bundle-import': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Agent support bundle import not confirmed. Type yes, then press Enter.', 'Agent support bundle import not confirmed.');
+    }
+    return dispatchCommandEditorSubmission(
+      `/bundle import ${quoteSlashCommandArg(readField('path'))} --yes`,
+      'Opening Agent support bundle import',
+      'The workspace handed a confirmed support bundle import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'subscription-inspect': (_editor, readField) => dispatchCommandEditorSubmission(
+    `/subscription inspect ${quoteSlashCommandArg(readField('provider'))}`,
+    'Opening provider subscription inspection',
+    'The workspace handed a read-only provider subscription inspection command to the shell-owned command router.',
+    'read-only',
+  ),
+  'subscription-login-start': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Provider subscription login start not confirmed. Type yes, then press Enter.', 'Provider subscription login start not confirmed.');
+    }
+    const parts = [
+      '/subscription',
+      'login',
+      quoteSlashCommandArg(readField('provider')),
+      'start',
+    ];
+    if (!isAffirmative(readField('openBrowser'))) parts.push('--no-browser');
+    parts.push('--manual');
+    parts.push('--yes');
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening provider subscription login start',
+      'The workspace handed a confirmed subscription-login start command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'subscription-login-finish': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Provider subscription login finish not confirmed. Type yes, then press Enter.', 'Provider subscription login finish not confirmed.');
+    }
+    return dispatchCommandEditorSubmission(
+      `/subscription login ${quoteSlashCommandArg(readField('provider'))} finish ${quoteSlashCommandArg(readField('code'))} --yes`,
+      'Opening provider subscription login finish',
+      'The workspace handed a confirmed subscription-login finish command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'subscription-logout': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Provider subscription logout not confirmed. Type yes, then press Enter.', 'Provider subscription logout not confirmed.');
+    }
+    return dispatchCommandEditorSubmission(
+      `/subscription logout ${quoteSlashCommandArg(readField('provider'))} --yes`,
+      'Opening provider subscription logout',
+      'The workspace handed a confirmed provider subscription logout command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'skill-discovery-import': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Discovered skill import not confirmed. Type yes, then press Enter.', 'Agent skill import not confirmed.');
+    }
+    const parts = ['/skills', 'import-discovered', quoteSlashCommandArg(readField('name'))];
+    if (isAffirmative(readField('enabled'))) parts.push('--enabled');
+    parts.push('--yes');
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening discovered skill import',
+      'The workspace handed a confirmed local skill import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'persona-discovery-import': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Discovered persona import not confirmed. Type yes, then press Enter.', 'Agent persona import not confirmed.');
+    }
+    const parts = ['/personas', 'import-discovered', quoteSlashCommandArg(readField('name'))];
+    if (isAffirmative(readField('use'))) parts.push('--use');
+    parts.push('--yes');
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening discovered persona import',
+      'The workspace handed a confirmed local persona import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'skill-standard-import': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Shared skill import not confirmed. Type yes, then press Enter.', 'Shared skill import not confirmed.');
+    }
+    const parts = ['/skills', 'import-standard', quoteSlashCommandArg(readField('path')), '--yes'];
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening shared skill import',
+      'The workspace handed a confirmed shared skill import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'skill-standard-export': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Skill export not confirmed. Type yes, then press Enter.', 'Skill export not confirmed.');
+    }
+    const parts = ['/skills', 'export-standard', quoteSlashCommandArg(readField('id')), quoteSlashCommandArg(readField('dest')), '--yes'];
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening skill export',
+      'The workspace handed a confirmed skill export command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'routine-discovery-import': (editor, readField) => {
+    if (!isAffirmative(readField('confirm'))) {
+      return unconfirmed(editor, 'Discovered routine import not confirmed. Type yes, then press Enter.', 'Agent routine import not confirmed.');
+    }
+    const parts = ['/routines', 'import-discovered', quoteSlashCommandArg(readField('name'))];
+    if (isAffirmative(readField('enabled'))) parts.push('--enabled');
+    parts.push('--yes');
+    return dispatchCommandEditorSubmission(
+      parts.join(' '),
+      'Opening discovered routine import',
+      'The workspace handed a confirmed local routine import command to the shell-owned command router.',
+      'safe',
+    );
+  },
+  'skill-bundle': (_editor, readField) => skillBundleCreate(_editor, readField),
+};
+
+function modelPinUnpin(editor: AgentWorkspaceLocalEditor, readField: AgentWorkspaceFieldReader): AgentWorkspaceCommandEditorSubmission {
+  const pinning = editor.kind === 'model-pin';
+  const command = `/${pinning ? 'pin' : 'unpin'} ${quoteSlashCommandArg(readField('model'))}`;
+  return dispatchCommandEditorSubmission(
+    command,
+    pinning ? 'Opening model pin action' : 'Opening model unpin action',
+    'The workspace handed model favorites maintenance to the shell-owned command router.',
+    'safe',
+  );
+}
+
+function skillBundleCreate(_editor: AgentWorkspaceLocalEditor, readField: AgentWorkspaceFieldReader): AgentWorkspaceCommandEditorSubmission {
+  const commandParts = [
+    '/skills bundle create',
+    '--name',
+    quoteSlashCommandArg(readField('name')),
+    '--description',
+    quoteSlashCommandArg(readField('description')),
+    '--skills',
+    quoteSlashCommandArg(readField('skills')),
+  ];
+  if (isAffirmative(readField('enabled'))) commandParts.push('--enabled');
+  return dispatchCommandEditorSubmission(
+    commandParts.join(' '),
+    'Opening skill bundle creation',
+    'The workspace handed a concrete local skill bundle command to the shell-owned command router.',
+    'safe',
+  );
+}
+
+export function buildAgentWorkspaceBasicCommandEditorSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+  commandDispatchAvailable: boolean,
+): AgentWorkspaceCommandEditorSubmission {
+  if (!commandDispatchAvailable) {
+    return {
+      kind: 'editor',
+      editor: { ...editor, message: 'Command dispatch is unavailable; this action cannot run from this workspace.' },
+      status: 'Command dispatch unavailable.',
       actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent Knowledge reindex',
-        detail: 'The workspace handed a confirmed reindex command to the shell-owned command router.',
-        command,
-        safety: 'safe',
+        kind: 'error',
+        title: 'Command dispatch unavailable',
+        detail: 'The Agent workspace cannot hand this action to the shell-owned command router.',
       },
     };
   }
@@ -258,374 +396,15 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
   if (isAgentWorkspaceSecretEditorKind(editor.kind)) {
     return buildAgentWorkspaceSecretEditorSubmission(editor, readField);
   }
-  if (editor.kind === 'tts-prompt') {
-    const command = `/tts ${quoteSlashCommandArg(readField('prompt'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening spoken assistant prompt.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening spoken assistant prompt',
-        detail: 'The workspace handed a spoken prompt to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'image-input') {
-    const prompt = readField('prompt');
-    const command = prompt.length > 0
-      ? `/image ${quoteSlashCommandArg(readField('path'))} ${quoteSlashCommandArg(prompt)}`
-      : `/image ${quoteSlashCommandArg(readField('path'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening image input.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening image input',
-        detail: 'The workspace handed an image attachment command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'model-pin' || editor.kind === 'model-unpin') {
-    const pinning = editor.kind === 'model-pin';
-    const command = `/${pinning ? 'pin' : 'unpin'} ${quoteSlashCommandArg(readField('model'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: pinning ? 'Opening model pin action.' : 'Opening model unpin action.',
-      actionResult: {
-        kind: 'dispatched',
-        title: pinning ? 'Opening model pin action' : 'Opening model unpin action',
-        detail: 'The workspace handed model favorites maintenance to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
   if (isAgentWorkspaceProfileEditorSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceProfileEditorSubmission(editor, readField);
   }
-  if (editor.kind === 'support-bundle-export') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Agent support bundle export not confirmed. Type yes, then press Enter.' },
-        status: 'Agent support bundle export not confirmed.',
-      };
-    }
-    const command = `/bundle export ${quoteSlashCommandArg(readField('path'))} --yes`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent support bundle export.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent support bundle export',
-        detail: 'The workspace handed a confirmed support bundle export command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'support-bundle-inspect') {
-    const command = `/bundle inspect ${quoteSlashCommandArg(readField('path'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent support bundle inspection.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent support bundle inspection',
-        detail: 'The workspace handed a support bundle inspect command to the shell-owned command router.',
-        command,
-        safety: 'read-only',
-      },
-    };
-  }
-  if (editor.kind === 'support-bundle-import') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Agent support bundle import not confirmed. Type yes, then press Enter.' },
-        status: 'Agent support bundle import not confirmed.',
-      };
-    }
-    const command = `/bundle import ${quoteSlashCommandArg(readField('path'))} --yes`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening Agent support bundle import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening Agent support bundle import',
-        detail: 'The workspace handed a confirmed support bundle import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'subscription-inspect') {
-    const command = `/subscription inspect ${quoteSlashCommandArg(readField('provider'))}`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening provider subscription inspection.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider subscription inspection',
-        detail: 'The workspace handed a read-only provider subscription inspection command to the shell-owned command router.',
-        command,
-        safety: 'read-only',
-      },
-    };
-  }
-  if (editor.kind === 'subscription-login-start') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Provider subscription login start not confirmed. Type yes, then press Enter.' },
-        status: 'Provider subscription login start not confirmed.',
-      };
-    }
-    const parts = [
-      '/subscription',
-      'login',
-      quoteSlashCommandArg(readField('provider')),
-      'start',
-    ];
-    if (!isAffirmative(readField('openBrowser'))) parts.push('--no-browser');
-    parts.push('--manual');
-    parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening provider subscription login start.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider subscription login start',
-        detail: 'The workspace handed a confirmed subscription-login start command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'subscription-login-finish') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Provider subscription login finish not confirmed. Type yes, then press Enter.' },
-        status: 'Provider subscription login finish not confirmed.',
-      };
-    }
-    const command = `/subscription login ${quoteSlashCommandArg(readField('provider'))} finish ${quoteSlashCommandArg(readField('code'))} --yes`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening provider subscription login finish.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider subscription login finish',
-        detail: 'The workspace handed a confirmed subscription-login finish command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'subscription-logout') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Provider subscription logout not confirmed. Type yes, then press Enter.' },
-        status: 'Provider subscription logout not confirmed.',
-      };
-    }
-    const command = `/subscription logout ${quoteSlashCommandArg(readField('provider'))} --yes`;
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening provider subscription logout.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening provider subscription logout',
-        detail: 'The workspace handed a confirmed provider subscription logout command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
   if (isAgentWorkspaceDelegationEditorKind(editor.kind)) return buildAgentWorkspaceDelegationEditorSubmission(editor, readField);
   if (isAgentWorkspaceWorkPlanEditorKind(editor.kind)) return buildAgentWorkspaceWorkPlanEditorSubmission(editor, readField);
-  if (editor.kind === 'skill-discovery-import') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Discovered skill import not confirmed. Type yes, then press Enter.' },
-        status: 'Agent skill import not confirmed.',
-      };
-    }
-    const parts = [
-      '/skills',
-      'import-discovered',
-      quoteSlashCommandArg(readField('name')),
-    ];
-    if (isAffirmative(readField('enabled'))) parts.push('--enabled');
-    parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening discovered skill import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening discovered skill import',
-        detail: 'The workspace handed a confirmed local skill import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'persona-discovery-import') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Discovered persona import not confirmed. Type yes, then press Enter.' },
-        status: 'Agent persona import not confirmed.',
-      };
-    }
-    const parts = [
-      '/personas',
-      'import-discovered',
-      quoteSlashCommandArg(readField('name')),
-    ];
-    if (isAffirmative(readField('use'))) parts.push('--use');
-    parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening discovered persona import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening discovered persona import',
-        detail: 'The workspace handed a confirmed local persona import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'skill-standard-import') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Shared skill import not confirmed. Type yes, then press Enter.' },
-        status: 'Shared skill import not confirmed.',
-      };
-    }
-    const parts = [
-      '/skills',
-      'import-standard',
-      quoteSlashCommandArg(readField('path')),
-      '--yes',
-    ];
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening shared skill import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening shared skill import',
-        detail: 'The workspace handed a confirmed shared skill import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'skill-standard-export') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Skill export not confirmed. Type yes, then press Enter.' },
-        status: 'Skill export not confirmed.',
-      };
-    }
-    const parts = [
-      '/skills',
-      'export-standard',
-      quoteSlashCommandArg(readField('id')),
-      quoteSlashCommandArg(readField('dest')),
-      '--yes',
-    ];
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening skill export.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening skill export',
-        detail: 'The workspace handed a confirmed skill export command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  if (editor.kind === 'routine-discovery-import') {
-    if (!isAffirmative(readField('confirm'))) {
-      return {
-        kind: 'editor',
-        editor: { ...editor, message: 'Discovered routine import not confirmed. Type yes, then press Enter.' },
-        status: 'Agent routine import not confirmed.',
-      };
-    }
-    const parts = [
-      '/routines',
-      'import-discovered',
-      quoteSlashCommandArg(readField('name')),
-    ];
-    if (isAffirmative(readField('enabled'))) parts.push('--enabled');
-    parts.push('--yes');
-    const command = parts.join(' ');
-    return {
-      kind: 'dispatch',
-      command,
-      status: 'Opening discovered routine import.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening discovered routine import',
-        detail: 'The workspace handed a confirmed local routine import command to the shell-owned command router.',
-        command,
-        safety: 'safe',
-      },
-    };
-  }
-  const commandParts = [
-    '/skills bundle create',
-    '--name',
-    quoteSlashCommandArg(readField('name')),
-    '--description',
-    quoteSlashCommandArg(readField('description')),
-    '--skills',
-    quoteSlashCommandArg(readField('skills')),
-  ];
-  if (isAffirmative(readField('enabled'))) commandParts.push('--enabled');
-  const command = commandParts.join(' ');
-  return {
-    kind: 'dispatch',
-    command,
-    status: 'Opening skill bundle creation.',
-    actionResult: {
-      kind: 'dispatched',
-      title: 'Opening skill bundle creation',
-      detail: 'The workspace handed a concrete local skill bundle command to the shell-owned command router.',
-      command,
-      safety: 'safe',
-    },
-  };
+  return buildCommandEditorSubmissionFromTable(
+    editor.kind as AgentWorkspaceBasicOwnCommandEditorKind,
+    editor,
+    readField,
+    BASIC_OWN_COMMAND_SUBMISSION_HANDLERS,
+  );
 }

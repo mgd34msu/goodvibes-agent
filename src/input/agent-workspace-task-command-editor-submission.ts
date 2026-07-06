@@ -1,61 +1,51 @@
-import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 import type { AgentWorkspaceTaskCommandEditorKind } from './agent-workspace-task-command-editors.ts';
 import { isAgentWorkspaceTaskCommandEditorKind } from './agent-workspace-task-command-editors.ts';
 import { quoteSlashCommandArg } from './slash-command-parser.ts';
+import type { AgentWorkspaceCommandEditorSubmission, AgentWorkspaceCommandSubmissionHandler, AgentWorkspaceFieldReader } from './agent-workspace-command-editor-engine.ts';
+import { buildCommandEditorSubmissionFromTable, dispatchCommandEditorSubmission } from './agent-workspace-command-editor-engine.ts';
 
-type AgentWorkspaceFieldReader = (fieldId: string) => string;
-
-export type AgentWorkspaceTaskCommandEditorSubmission =
-  | {
-    readonly kind: 'editor';
-    readonly editor: AgentWorkspaceLocalEditor;
-    readonly status: string;
-    readonly actionResult?: AgentWorkspaceActionResult;
-  }
-  | {
-    readonly kind: 'dispatch';
-    readonly command: string;
-    readonly status: string;
-    readonly actionResult: AgentWorkspaceActionResult;
-  };
+export type AgentWorkspaceTaskCommandEditorSubmission = AgentWorkspaceCommandEditorSubmission;
 
 export function isAgentWorkspaceTaskCommandSubmissionKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceTaskCommandEditorKind {
   return isAgentWorkspaceTaskCommandEditorKind(kind);
 }
 
-export function buildAgentWorkspaceTaskCommandEditorSubmission(
-  editor: AgentWorkspaceLocalEditor,
-  readField: AgentWorkspaceFieldReader,
-): AgentWorkspaceTaskCommandEditorSubmission {
-  if (editor.kind === 'task-list-filter') {
+const TASK_COMMAND_SUBMISSION_HANDLERS: Readonly<Record<AgentWorkspaceTaskCommandEditorKind, AgentWorkspaceCommandSubmissionHandler>> = {
+  'task-list-filter': (_editor, readField) => {
     const filter = readField('filter');
     const command = filter.length > 0 ? `/tasks list ${quoteSlashCommandArg(filter)}` : '/tasks list';
-    return {
-      kind: 'dispatch',
+    return dispatchCommandEditorSubmission(
       command,
-      status: 'Opening filtered task list.',
-      actionResult: {
-        kind: 'dispatched',
-        title: 'Opening filtered task list',
-        detail: 'The workspace handed read-only connected-host task listing to the shell-owned command router.',
-        command,
-        safety: 'read-only',
-      },
-    };
-  }
+      'Opening filtered task list',
+      'The workspace handed read-only connected-host task listing to the shell-owned command router.',
+      'read-only',
+    );
+  },
+  'task-output': (editor, readField) => taskInspection(editor, readField),
+  'task-show': (editor, readField) => taskInspection(editor, readField),
+};
+
+function taskInspection(editor: AgentWorkspaceLocalEditor, readField: AgentWorkspaceFieldReader): AgentWorkspaceCommandEditorSubmission {
   const subcommand = editor.kind === 'task-output' ? 'output' : 'show';
   const command = `/tasks ${subcommand} ${quoteSlashCommandArg(readField('taskId'))}`;
   const title = editor.kind === 'task-output' ? 'Opening task output' : 'Opening task inspection';
-  return {
-    kind: 'dispatch',
+  return dispatchCommandEditorSubmission(
     command,
-    status: `${title}.`,
-    actionResult: {
-      kind: 'dispatched',
-      title,
-      detail: 'The workspace handed read-only connected-host task inspection to the shell-owned command router.',
-      command,
-      safety: 'read-only',
-    },
-  };
+    title,
+    'The workspace handed read-only connected-host task inspection to the shell-owned command router.',
+    'read-only',
+  );
+}
+
+export function buildAgentWorkspaceTaskCommandEditorSubmission(
+  editor: AgentWorkspaceLocalEditor,
+  readField: AgentWorkspaceFieldReader,
+): AgentWorkspaceCommandEditorSubmission {
+  return buildCommandEditorSubmissionFromTable(
+    editor.kind as AgentWorkspaceTaskCommandEditorKind,
+    editor,
+    readField,
+    TASK_COMMAND_SUBMISSION_HANDLERS,
+  );
 }
