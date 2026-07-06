@@ -491,6 +491,37 @@ describe('AgentWorkspace', () => {
     expect(workspace.status).toBe('Action search cleared.');
   });
 
+  test('canceling action search resets the action highlight instead of misreading a stale cross-category index (W4-A8)', () => {
+    // Repro: begin search from "setup", move the highlight to a result that
+    // belongs to a DIFFERENT category ("account-model"), then cancel with
+    // Escape. Before the fix, clearAgentWorkspaceActionSearch reinterpreted
+    // the leftover search-result index against "setup"'s own (unrelated)
+    // action list, silently landing the highlight on setup.actions[4]
+    // ("Import GoodVibes settings") — an action the user never looked at.
+    // The honest fix resets to the top of the list on cancel.
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined);
+    workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'setup');
+    workspace.focusPane = 'actions';
+    expect(workspace.selectedCategory.id).toBe('setup');
+    expect(workspace.actions[0]?.id).toBe('use-local-model');
+    expect(workspace.actions[4]?.id).toBe('import-goodvibes-tui-settings');
+
+    feedText(workspace, '/');
+    feedText(workspace, 'model');
+    expect(workspace.actionSearchActive).toBe(true);
+    workspace.selectedActionIndex = 4;
+    expect(workspace.selectedActionSearchResult?.category.id).toBe('account-model');
+    expect(workspace.selectedActionSearchResult?.action.id).toBe('account-tts-llm-provider');
+
+    feedKey(workspace, 'escape');
+
+    expect(workspace.actionSearchActive).toBe(false);
+    expect(workspace.selectedCategory.id).toBe('setup');
+    expect(workspace.selectedActionIndex).toBe(0);
+    expect(workspace.selectedAction?.id).toBe('use-local-model');
+  });
+
   test('opens host task inspection from workspace forms without mutating tasks', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
