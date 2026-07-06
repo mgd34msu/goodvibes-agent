@@ -2,6 +2,15 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.5.6 - 2026-07-06
+
+- v1.5.6 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release picks up the 1.0.0 GoodVibes platform SDK.
+- Updated the bundled GoodVibes platform SDK to 1.0.0 (the 1.0 platform milestone).
+- Adopted the platform's renamed operator method ids across the Agent's scheduling and operator surfaces (for example the schedule/reminder/routine edit and pause/resume verbs), so operator actions keep invoking the exact current routes.
+- Unified Agent memory onto the single cross-surface store: a fact you teach the Agent is now the same durable memory the GoodVibes TUI reads, and vice versa. Existing per-surface Agent memory is folded into the shared store at startup with no loss, and the VIBE projection renders from the same records.
+- Fixed a terminal focus-reporting escape (DECSET ?1004l) that leaked onto standard output when a non-interactive command exited before the TUI started, so scriptable output such as `status --json` stays clean for machine consumers.
+- No change to your conversations, skills, routines, or operator confirmation gates beyond the memory unification above; this is a platform-SDK refresh with the accompanying Agent adoption.
+
 ## 1.5.5 - 2026-06-30
 
 - v1.5.5 is a patch on the 1.5 line. The fullscreen Agent workspace, Agent-local behavior, isolated Agent Knowledge, connected-host operator integration, and explicit side-effect boundaries all stay in force; this release picks up the latest bundled platform SDK.
