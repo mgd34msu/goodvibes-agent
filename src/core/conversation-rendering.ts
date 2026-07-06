@@ -11,7 +11,13 @@ import { LAYOUT } from '../renderer/layout.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { renderConversationCollapsedFragment, renderConversationEventLine } from '../renderer/conversation-surface.ts';
 import { GLYPHS } from '../renderer/ui-primitives.ts';
+import { activeTheme } from '../renderer/theme.ts';
 import type { BlockMeta, ConversationMessageSnapshot } from './conversation';
+
+// Transcript tokens are read live per render (const T = activeTheme() at the top
+// of each render function that styles content) so a dark→light repaint
+// re-resolves with no module reload. Dark values are byte-identical to the
+// agent's prior static reads.
 import { parseDiffForApply } from '@pellux/goodvibes-sdk/platform/core';
 import { extractUserDisplayText } from '@pellux/goodvibes-sdk/platform/core';
 
@@ -39,9 +45,10 @@ export function renderConversationUserMessage(
   message: Extract<Message, { role: 'user' }>,
   width: number,
 ): void {
+  const T = activeTheme();
   const displayText = extractUserDisplayText(message.content);
   if (message.cancelled) {
-    context.history.addLines(UIFactory.createMessageBar(width, displayText, '#3a1a1a', '196', ' x ', true));
+    context.history.addLines(UIFactory.createMessageBar(width, displayText, T.errorBarBg, '196', ' x ', true));
     return;
   }
   context.history.addLines(UIFactory.createMessageBar(width, displayText));
@@ -55,22 +62,23 @@ export function renderConversationAssistantMessage(
   collapseThreshold: number,
   msgIdx: number,
 ): void {
+  const T = activeTheme();
   const assistantHeaderDetails = [];
   if (message.model) {
-    assistantHeaderDetails.push({ text: ` ${message.model}${message.provider ? ` (${message.provider})` : ''} `, fg: '#94a3b8', dim: true });
+    assistantHeaderDetails.push({ text: ` ${message.model}${message.provider ? ` (${message.provider})` : ''} `, fg: T.modelNameDim, dim: true });
   }
   if (message.toolCalls && message.toolCalls.length > 0) {
-    assistantHeaderDetails.push({ text: ` ${GLYPHS.status.pending} tools:${message.toolCalls.length} `, fg: '#38bdf8' });
+    assistantHeaderDetails.push({ text: ` ${GLYPHS.status.pending} tools:${message.toolCalls.length} `, fg: T.toolAccent });
   }
   if (message.reasoningContent || message.reasoningSummary) {
-    assistantHeaderDetails.push({ text: ` ${GLYPHS.status.active} reasoning `, fg: '#a855f7', dim: true });
+    assistantHeaderDetails.push({ text: ` ${GLYPHS.status.active} reasoning `, fg: T.reasoningAccent, dim: true });
   }
   if (assistantHeaderDetails.length > 0) {
     context.history.addLine(renderConversationEventLine(width, {
       marker: GLYPHS.status.active,
-      markerFg: '#22d3ee',
+      markerFg: T.assistantHeader,
       label: 'assistant',
-      labelFg: '#22d3ee',
+      labelFg: T.assistantHeader,
       detailFg: '244',
     }, assistantHeaderDetails));
   }
@@ -198,6 +206,7 @@ export function renderConversationToolMessage(
   width: number,
   msgIdx: number,
 ): void {
+  const T = activeTheme();
   const collapseKey = `msg_${msgIdx}`;
   const blockIdx = context.blockRegistry.length;
   const startLine = context.history.getLineCount();
@@ -221,13 +230,13 @@ export function renderConversationToolMessage(
 
   context.history.addLine(renderConversationEventLine(width, {
     marker: blockType === 'diff' ? GLYPHS.status.dualPane : GLYPHS.status.active,
-    markerFg: blockType === 'diff' ? '#f59e0b' : '#38bdf8',
+    markerFg: blockType === 'diff' ? T.diffAccent : T.toolAccent,
     label: blockType === 'diff' ? 'diff' : 'tool result',
-    labelFg: blockType === 'diff' ? '#f59e0b' : '#38bdf8',
+    labelFg: blockType === 'diff' ? T.diffAccent : T.toolAccent,
     detailFg: '244',
   }, [
     ...(message.toolName
-      ? [{ text: ` ${friendlyToolLabel(message.toolName)} `, fg: '#e2e8f0' as const }]
+      ? [{ text: ` ${friendlyToolLabel(message.toolName)} `, fg: T.toolNameFg }]
       : [{ text: ` ${summarizeCallId(message.callId || 'standalone')} `, fg: '244' as const, dim: true }]),
     { text: ` ${isCollapsed ? GLYPHS.navigation.collapsed : GLYPHS.navigation.expanded} ${lineCount} line${lineCount === 1 ? '' : 's'} `, fg: '244', dim: true },
   ]));
@@ -242,9 +251,9 @@ export function renderConversationToolMessage(
       : preview;
     const rendered = renderConversationCollapsedFragment(collapsedText, width, {
       prefix: blockType === 'diff' ? ` ${GLYPHS.status.dualPane} ` : ` ${GLYPHS.navigation.collapsed} `,
-      prefixFg: blockType === 'diff' ? '#f59e0b' : '#38bdf8',
+      prefixFg: blockType === 'diff' ? T.diffAccent : T.toolAccent,
       text: '244',
-      bodyBg: '#1a1a1a',
+      bodyBg: T.collapsedBodyBg,
       dim: true,
     });
     context.history.addLines(rendered);

@@ -87,7 +87,7 @@ describe('shell surface', () => {
     expect(lineToString(result.lines[2])).toContain('▀');
   });
 
-  test('status line stays compact and only surfaces approval waits in plain language', () => {
+  test('status line stays compact; approval-wait no longer mints a separate footer token (W4-R4)', () => {
     const result = buildShellFooter({
       width: 100,
       promptText: 'hello',
@@ -110,7 +110,11 @@ describe('shell surface', () => {
     });
     const text = result.lines.map(lineToString).join('\n');
     expect(text).toContain('gpt-test · openai');
-    expect(text).toContain('waiting for your approval');
+    // W4-R4: the disconnected footer 'waiting for your approval' token is retired.
+    // The approval-wait truth now lives in the unified thinking indicator
+    // (createThinkingFragment's approvalPending path) and the permission prompt —
+    // the footer no longer carries an easily-desynced second copy.
+    expect(text).not.toContain('waiting for your approval');
     expect(text).not.toContain('risk:');
     expect(text).not.toContain('state:');
     expect(text).not.toContain('flags:');

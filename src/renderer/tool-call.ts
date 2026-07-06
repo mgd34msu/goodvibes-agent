@@ -4,6 +4,7 @@ import { getDisplayWidth, truncateDisplay } from '../utils/terminal-width.ts';
 import type { ToolCall } from '@pellux/goodvibes-sdk/platform/types';
 import { stripDangerousAnsi } from './ansi-sanitize.ts';
 import { friendlyToolLabel } from './tool-labels.ts';
+import { activeUiTones } from './theme.ts';
 
 const TOOL_NAME_MIN_WIDTH = 8;
 const TOOL_NAME_MAX_WIDTH = 30;
@@ -55,6 +56,9 @@ function buildLeftSegments(
 ): Array<{ text: string; fg: string; bold?: boolean; dim?: boolean }> {
   if (leftBudget <= 0) return [];
 
+  // Read live tones so the tool-call row is legible in light mode. Dark values
+  // are byte-identical (t.fg.primary == #e2e8f0, t.chrome.bad == #ef4444).
+  const t = activeUiTones();
   const segments: Array<{ text: string; fg: string; bold?: boolean; dim?: boolean }> = [];
   const suffixBudget = suffixText ? Math.min(Math.max(12, Math.floor(leftBudget * 0.3)), 20) : 0;
   const suffixDisplay = suffixBudget > 0 ? truncateDisplay(suffixText, suffixBudget) : '';
@@ -83,14 +87,14 @@ function buildLeftSegments(
     segments.push({ text: toolNameDisplay, fg: '#00ffcc', bold: true });
   }
   if (keyArgDisplay) {
-    segments.push({ text: '  ', fg: '#e2e8f0' });
+    segments.push({ text: '  ', fg: t.fg.primary });
     segments.push({ text: keyArgDisplay, fg: '252' });
   }
   if (suffixDisplay) {
-    segments.push({ text: '  ', fg: '#e2e8f0' });
+    segments.push({ text: '  ', fg: t.fg.primary });
     segments.push({
       text: suffixDisplay,
-      fg: suffixText.startsWith('- ') ? '#ef4444' : '244',
+      fg: suffixText.startsWith('- ') ? t.chrome.bad : '244',
       dim: true,
     });
   }

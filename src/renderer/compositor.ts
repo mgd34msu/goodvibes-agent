@@ -5,6 +5,7 @@ import { getDisplayWidth } from '../utils/terminal-width.ts';
 import type { SearchManager } from '../input/search.ts';
 import { allowTerminalWrite } from '../runtime/terminal-output-guard.ts';
 import { probeTermCaps, type TermColorCaps } from './term-caps.ts';
+import { activeTheme } from './theme.ts';
 
 export interface SelectionInfo {
   isCellSelected: (col: number, absoluteRow: number) => boolean;
@@ -102,6 +103,12 @@ export class Compositor {
     const lineCount = selection?.lineCount ?? 0;
     const offset = Math.max(0, vHeight - lineCount);
 
+    // R4 tone-read region (the compositor is the pre-ruled R2→R4 shared file;
+    // R2 owns the DiffEngine caps wiring above, R4 owns these live theme reads).
+    // Read the search-highlight tones live per frame so they flip in light mode;
+    // dark is byte-identical (the searchCurrent/searchMatch tones resolve to the
+    // prior hardcoded yellow/gold pair). The separator stays a neutral dim grey.
+    const T = activeTheme();
     const sepFg = '238';
 
     viewport.forEach((line, i) => {
@@ -163,9 +170,9 @@ export class Compositor {
           const isCurrent = search.manager.isCurrentMatch(absoluteRow, match.col);
           for (let x = match.col; x < match.col + match.length && x < leftWidth; x++) {
             if (isCurrent) {
-              newBuffer.setCell(x, screenY, { bg: '#ffff00', fg: '#000000', bold: true, dim: false });
+              newBuffer.setCell(x, screenY, { bg: T.searchCurrentBg, fg: T.searchCurrentFg, bold: true, dim: false });
             } else {
-              newBuffer.setCell(x, screenY, { bg: '#806600', fg: '#ffffff', bold: false, dim: false });
+              newBuffer.setCell(x, screenY, { bg: T.searchMatchBg, fg: T.searchMatchFg, bold: false, dim: false });
             }
           }
         }

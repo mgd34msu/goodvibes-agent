@@ -3,6 +3,13 @@ import { UIFactory } from './ui-factory.ts';
 import { renderCodeBlock } from './code-block.ts';
 import { getDisplayWidth } from '../utils/terminal-width.ts';
 import { LAYOUT } from './layout.ts';
+import { activeTheme } from './theme.ts';
+
+// Transcript tokens are read live per render (const T = activeTheme() at the top
+// of each render function below) so a dark→light repaint re-resolves with no
+// module reload. Dark values are byte-identical to the agent's prior static
+// reads; the only dark change is inline code losing its dark background box (it
+// gains bold instead — the near-black box was unreadable on a light terminal).
 
 export interface MarkdownRenderOptions {
   codeBlockLineNumbers?: boolean;
@@ -56,6 +63,7 @@ export function renderMarkdownTracked(
   width: number,
   options: MarkdownRenderOptions = {},
 ): { lines: ReturnType<typeof renderMarkdown>; codeBlocks: CodeBlockSpan[] } {
+  const T = activeTheme();
   const lines: ReturnType<typeof renderMarkdown> = [];
   const codeBlocks: CodeBlockSpan[] = [];
   const rawLines = text.split('\n');
@@ -106,17 +114,17 @@ export function renderMarkdownTracked(
     const h2 = raw.match(/^## (.+)/);
     const h1 = raw.match(/^# (.+)/);
     if (h1) {
-      lines.push(UIFactory.stringToLine(' '.repeat(indent) + h1[1].toUpperCase(), width, { fg: '#00ffff', bold: true }));
+      lines.push(UIFactory.stringToLine(' '.repeat(indent) + h1[1].toUpperCase(), width, { fg: T.heading1, bold: true }));
       lines.push(UIFactory.stringToLine(' '.repeat(indent) + '━'.repeat(Math.min(getDisplayWidth(h1[1]), contentWidth)), width, { fg: '244' }));
       continue;
     }
     if (h2) {
-      lines.push(UIFactory.stringToLine(' '.repeat(indent) + h2[1], width, { fg: '#00ffff', bold: true }));
+      lines.push(UIFactory.stringToLine(' '.repeat(indent) + h2[1], width, { fg: T.heading2, bold: true }));
       lines.push(UIFactory.stringToLine(' '.repeat(indent) + '─'.repeat(Math.min(getDisplayWidth(h2[1]), contentWidth)), width, { fg: '240' }));
       continue;
     }
     if (h3) {
-      lines.push(UIFactory.stringToLine(' '.repeat(indent) + h3[1], width, { fg: '111', bold: true }));
+      lines.push(UIFactory.stringToLine(' '.repeat(indent) + h3[1], width, { fg: T.heading3, bold: true }));
       continue;
     }
 
@@ -130,7 +138,7 @@ export function renderMarkdownTracked(
       const rendered = renderInlineMarkdown(taskMatch[3]);
       const prefix = ' '.repeat(bulletX) + checkbox;
       const style = checked ? { fg: '244', strikethrough: true } : {};
-      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: checked ? '#22c55e' : '252', ...style }, textStartX));
+      lines.push(...compositeInlineLine(prefix, rendered, width, { fg: checked ? T.checkboxChecked : '252', ...style }, textStartX));
       continue;
     }
 
@@ -220,6 +228,7 @@ function stripMarkdown(text: string): string {
  * truncates long content, and renders with proper styling.
  */
 function renderTable(rows: string[], width: number, indent: number): Line[] {
+  const T = activeTheme();
   const lines: Line[] = [];
 
   // Parse rows into cells, skip separator
@@ -300,14 +309,14 @@ function renderTable(rows: string[], width: number, indent: number): Line[] {
         }
         let style: Partial<Cell> = {};
         if (token.type === 'code') {
-          style = { fg: '#ffcc00', bg: '#1a1a1a' };
+          style = { fg: T.inlineCodeFg, bold: true };
         } else if (token.type === 'link') {
-          style = { fg: '#00aaff', underline: true };
+          style = { fg: T.link, underline: true };
         } else {
           style = { ...token.style };
         }
         if (isHdr) {
-          style.fg = style.fg || '#00ffff';
+          style.fg = style.fg || T.heading1;
           style.bold = true;
         } else {
           style.fg = style.fg || '252';
@@ -320,7 +329,7 @@ function renderTable(rows: string[], width: number, indent: number): Line[] {
 
     // Pad remaining space
     while (w < maxW) {
-      cells.push(createStyledCell(' ', isHdr ? { fg: '#00ffff' } : { fg: '252' }));
+      cells.push(createStyledCell(' ', isHdr ? { fg: T.heading1 } : { fg: '252' }));
       w++;
     }
     return cells;
@@ -518,6 +527,7 @@ function compositeInlineLine(
   prefixStyle: Partial<Cell>,
   textStartX: number
 ): Line[] {
+  const T = activeTheme();
   const lines: Line[] = [];
 
   // Flatten tokens to [char, style] pairs
@@ -528,14 +538,14 @@ function compositeInlineLine(
     if (token.type === 'text') {
       for (const ch of token.text) chars.push({ char: ch, style: token.style });
     } else if (token.type === 'code') {
-      for (const ch of token.text) chars.push({ char: ch, style: { fg: '#ffcc00', bg: '#1a1a1a' } });
+      for (const ch of token.text) chars.push({ char: ch, style: { fg: T.inlineCodeFg, bold: true } });
     } else if (token.type === 'link') {
       // Resolve URL: if url is empty or relative, treat as text; if it's a file path, use file:// protocol
       let resolvedUrl = token.url;
       if (resolvedUrl && !resolvedUrl.startsWith('http') && !resolvedUrl.startsWith('file://') && resolvedUrl.startsWith('/')) {
         resolvedUrl = `file://${resolvedUrl}`;
       }
-      for (const ch of token.text) chars.push({ char: ch, style: { fg: '#00aaff', underline: true, link: resolvedUrl || undefined } });
+      for (const ch of token.text) chars.push({ char: ch, style: { fg: T.link, underline: true, link: resolvedUrl || undefined } });
     }
   }
 
