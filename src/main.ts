@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 import { homedir } from 'node:os';
 import { Compositor } from './renderer/compositor.ts';
+import { installBackgroundThemeProbe } from './renderer/terminal-bg-probe.ts';
+import { setActiveThemeMode } from './renderer/theme.ts';
 import { UIFactory } from './renderer/ui-factory.ts';
 import { Orchestrator } from './core/orchestrator';
 import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
@@ -731,6 +733,19 @@ async function main() {
   stdin.setEncoding('utf8');
   allowTerminalWrite(() => stdout.write((cli.flags.noAltScreen ? '' : ALT_SCREEN_ENTER) + CLEAR_SCREEN + CURSOR_HIDE + MOUSE_ENABLE + KEYBOARD_EXT_ENABLE + PASTE_ENABLE + FOCUS_ENABLE));
 
+  // W4-R4: forced dark/light applies before first paint; auto (TTY only) fires
+  // the OSC 11 background probe (R2's terminal-bg-probe) and repaints once if
+  // light wins. applyThemeMode is wired to the ported theme.ts setActiveThemeMode.
+  // filterInput strips the OSC 11 reply from stdin so it never reaches the tokenizer.
+  const themeProbe = installBackgroundThemeProbe({
+    configManager,
+    applyThemeMode: setActiveThemeMode,
+    isTTY: Boolean(stdout.isTTY),
+    env: process.env,
+    writeQuery: (b) => allowTerminalWrite(() => stdout.write(b)),
+    requestRepaint: () => { compositor.resetDiff(); render(); },
+  });
+
   applyInitialTuiCliState({
     cli,
     input,
@@ -740,7 +755,11 @@ async function main() {
     render,
   });
 
-  stdin.on('data', (data: string) => {
+  stdin.on('data', (raw: string) => {
+    // Strip any OSC 11 background-probe reply before the bytes reach the input
+    // pipeline (passthrough for every other byte; no-op once the probe resolves).
+    const data = themeProbe.filterInput(raw);
+    if (data.length === 0) return;
     const blocking = handleBlockingShellInput({
       data,
       pendingPermission,

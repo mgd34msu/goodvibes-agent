@@ -27,6 +27,7 @@ import {
   THEME_MODE_DEFAULT,
   THEME_MODE_VALUES,
 } from '../../renderer/theme-mode-config.ts';
+import { installBackgroundThemeProbe } from '../../renderer/terminal-bg-probe.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 
 /** Minimal ConfigManager-shaped stub whose get() returns a fixed value. */
@@ -80,5 +81,34 @@ describe('theme-mode config', () => {
     expect(resolveConfiguredThemeMode(fakeConfig('light'))).toBe('light');
     expect(resolveConfiguredThemeMode(fakeConfig(undefined))).toBe('auto');
     expect(resolveConfiguredThemeMode(throwingConfig())).toBe('auto');
+  });
+});
+
+describe('installBackgroundThemeProbe wired to setActiveThemeMode (R4 startup path)', () => {
+  const noop = () => {};
+
+  test('forced light applies the mode before first paint (no probe)', () => {
+    installBackgroundThemeProbe({
+      configManager: fakeConfig('light'),
+      applyThemeMode: setActiveThemeMode,
+      isTTY: false,
+      env: {},
+      writeQuery: noop,
+      requestRepaint: noop,
+    });
+    expect(getActiveThemeMode()).toBe('light');
+  });
+
+  test('auto + non-TTY stays dark (headless/piped — probe cannot run)', () => {
+    setActiveThemeMode('light'); // prove it actively resolves to dark, not just leftover
+    installBackgroundThemeProbe({
+      configManager: fakeConfig('auto'),
+      applyThemeMode: setActiveThemeMode,
+      isTTY: false,
+      env: {},
+      writeQuery: noop,
+      requestRepaint: noop,
+    });
+    expect(getActiveThemeMode()).toBe('dark');
   });
 });
