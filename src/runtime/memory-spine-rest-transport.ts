@@ -31,6 +31,7 @@ import type {
   MemorySemanticSearchResult,
 } from '@pellux/goodvibes-sdk/platform/state';
 import type { HonestMemorySearchOptions, HonestMemorySearchResult } from '@pellux/goodvibes-sdk/platform/state';
+import { foldMemoryWireExtendedError } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import type { MemoryTransport, MemoryUpdatePatch } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import type { SessionRegistrationConnection } from '../agent/session-registration.ts';
 
@@ -76,54 +77,36 @@ function errorDetail(body: unknown): string {
 type WireHttpError = Error & { status?: number; code?: string };
 
 /**
- * Wire `code` the daemon sets on a 404 whose body means the addressed RECORD does
- * not exist (the route ran; the store had no such id). The ONE 404 a consumer may
- * fold to null. Inlined as a stable wire-protocol string (it mirrors the SDK's
- * MEMORY_RECORD_NOT_FOUND_CODE / classifyMemoryWireError) because the SDK build that
- * exports the shared helper is not yet the published dependency this agent pins.
+ * The wire `code` the daemon sets on a 404 whose body means the addressed RECORD
+ * does not exist (the route ran; the store had no such id) is now discriminated by
+ * the SDK's own `foldMemoryWireExtendedError` (platform/runtime/memory-spine), which
+ * classifies a caught wire error from its `.status`/`.code` (stamped onto the error
+ * by {@link wireFetch} below) exactly the way this file used to inline by hand. That
+ * hand-rolled copy is retired in favor of the shared helper — see
+ * wire-verb-availability.ts in the SDK for the record-missing vs. method-unavailable
+ * vs. other classification this delegates to.
+ *
+ * PIN NOTE: `foldMemoryWireExtendedError` ships on the SDK's main branch but is not
+ * yet in a published npm release (the pinned devDependency is 1.2.0, which predates
+ * this export). This file was adopted and proven against the unreleased SDK via the
+ * local sdk-dev overlay; `bun run typecheck` will not pass against the CURRENTLY
+ * PINNED 1.2.0 until the SDK publishes a release containing this export and the
+ * pin in package.json is bumped to it. That bump is a separate, later step.
  */
-const MEMORY_RECORD_NOT_FOUND_CODE = 'MEMORY_RECORD_NOT_FOUND';
-
-type MemoryWire404Disposition = 'record-missing' | 'method-unavailable' | 'other';
-
-/**
- * Decide, from the RUNTIME 404 response code (never the bare status), whether a
- * caught wire error is a genuine record-miss (→ null) or the daemon not serving
- * this verb (→ honest reject). A record-missing 404 carries
- * {@link MEMORY_RECORD_NOT_FOUND_CODE}; a route-not-found 404 from an older daemon
- * carries a different code, or none — and must reject honestly, never silently null.
- */
-function classifyMemoryWire404(error: unknown): MemoryWire404Disposition {
-  if (!(error instanceof Error)) return 'other';
-  const wire = error as WireHttpError;
-  const status = typeof wire.status === 'number'
-    ? wire.status
-    : (error.message.match(/\bHTTP (\d{3})\b/) ? Number(error.message.match(/\bHTTP (\d{3})\b/)![1]) : undefined);
-  if (status !== 404) return 'other';
-  return wire.code === MEMORY_RECORD_NOT_FOUND_CODE ? 'record-missing' : 'method-unavailable';
-}
-
-/** The one honest "the adopted daemon does not serve this verb" rejection. */
-function memoryVerbUnavailableError(verb: string): Error {
-  return new Error(
-    `memory spine: the adopted daemon does not support the '${verb}' memory verb over the wire — `
-    + 'upgrade the daemon to a build that serves it, or run this surface offline (no daemon adopted). '
-    + 'A wire client will not read its own local store for this op, because that would break the '
-    + 'single-writer invariant and report a divergent local copy as if it were the canonical store.',
-  );
-}
 
 /** Fold for a NULLABLE record-scoped verb: record-miss → null; version-skew → honest reject; else rethrow. */
 function foldNullableMemoryWire404(verb: string, error: unknown): null {
-  const kind = classifyMemoryWire404(error);
-  if (kind === 'record-missing') return null;
-  if (kind === 'method-unavailable') throw memoryVerbUnavailableError(verb);
-  throw error;
+  foldMemoryWireExtendedError(verb, error);
+  // foldMemoryWireExtendedError throws for 'method-unavailable' and 'other'; it only
+  // falls through here for a genuine record-miss, which this nullable verb folds to null.
+  return null;
 }
 
 /** Fold for a NON-NULLABLE verb: version-skew → honest reject; else rethrow (incl. a record-missing 404). */
 function rethrowMemoryWire404(verb: string, error: unknown): never {
-  if (classifyMemoryWire404(error) === 'method-unavailable') throw memoryVerbUnavailableError(verb);
+  foldMemoryWireExtendedError(verb, error);
+  // Falls through only for a genuine record-miss; a non-nullable verb has no null to
+  // return, so it rethrows the original error rather than inventing a placeholder.
   throw error;
 }
 
