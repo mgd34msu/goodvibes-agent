@@ -11,6 +11,7 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
+import { createServer as createHttpServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -244,5 +245,64 @@ describe('memory-spine REST transport against a real daemon', () => {
     expect(result.importedRecords).toBe(0);
     expect(result.skippedRecords).toBe(1);
     expect(daemonServices.memoryRegistry.getAll()).toHaveLength(1);
+  });
+});
+
+/**
+ * Version-skew wire honesty: a 404 is disambiguated by its RESPONSE CODE, not the
+ * bare status. A record-missing 404 (MEMORY_RECORD_NOT_FOUND) folds to null on a
+ * nullable verb; a route-not-found 404 from an older daemon that never registered
+ * the route rejects honestly on EVERY verb, never a silent null. Driven by a tiny
+ * canned-response server since the transport calls the global fetch.
+ */
+describe('memory-spine version-skew wire honesty (route-not-found vs record-missing 404)', () => {
+  async function startCannedServer(status: number, body: object): Promise<{ url: string; close: () => Promise<void> }> {
+    const server = createHttpServer((_req, res) => {
+      res.writeHead(status, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
+    const address = server.address();
+    const port = address && typeof address === 'object' ? address.port : 0;
+    return {
+      url: `http://127.0.0.1:${port}`,
+      close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+    };
+  }
+
+  const routeNotFound = { error: 'Route not found', code: 'NOT_FOUND', category: 'not_found', status: 404 };
+  const recordMissing = { error: 'Unknown memory record', code: 'MEMORY_RECORD_NOT_FOUND', category: 'not_found', status: 404 };
+
+  async function withCanned(status: number, body: object, run: (transport: MemoryAccess) => Promise<void>): Promise<void> {
+    const server = await startCannedServer(status, body);
+    try {
+      await run(createFullMemoryAccess({ resolveConnection: () => ({ baseUrl: server.url, token: 'tok' }) }));
+    } finally {
+      await server.close();
+    }
+  }
+
+  test('a NULLABLE verb (update) against an older daemon (route-not-found 404) REJECTS honestly, never nulls', async () => {
+    await withCanned(404, routeNotFound, async (transport) => {
+      await expect(transport.update('mem_x', { summary: 's' })).rejects.toThrow(/does not support the 'update' memory verb/);
+    });
+  });
+
+  test('a NULLABLE verb (update) against a current daemon with a missing record (record-missing 404) resolves null', async () => {
+    await withCanned(404, recordMissing, async (transport) => {
+      await expect(transport.update('mem_x', { summary: 's' })).resolves.toBeNull();
+    });
+  });
+
+  test('a NON-NULLABLE verb (list) against an older daemon (route-not-found 404) REJECTS honestly instead of a raw 404', async () => {
+    await withCanned(404, routeNotFound, async (transport) => {
+      await expect(transport.list({})).rejects.toThrow(/does not support the 'list' memory verb/);
+    });
+  });
+
+  test('a bare legacy 404 with no code is treated as method-unavailable, never a silent null', async () => {
+    await withCanned(404, { error: 'Not found' }, async (transport) => {
+      await expect(transport.update('mem_x', { summary: 's' })).rejects.toThrow(/does not support the 'update' memory verb/);
+    });
   });
 });

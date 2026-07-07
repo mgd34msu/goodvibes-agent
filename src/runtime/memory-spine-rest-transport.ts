@@ -72,6 +72,61 @@ function errorDetail(body: unknown): string {
   return isRecord(body) && typeof body.error === 'string' ? body.error : '';
 }
 
+/** A thrown wire error that carries the HTTP status and the daemon's structured body code. */
+type WireHttpError = Error & { status?: number; code?: string };
+
+/**
+ * Wire `code` the daemon sets on a 404 whose body means the addressed RECORD does
+ * not exist (the route ran; the store had no such id). The ONE 404 a consumer may
+ * fold to null. Inlined as a stable wire-protocol string (it mirrors the SDK's
+ * MEMORY_RECORD_NOT_FOUND_CODE / classifyMemoryWireError) because the SDK build that
+ * exports the shared helper is not yet the published dependency this agent pins.
+ */
+const MEMORY_RECORD_NOT_FOUND_CODE = 'MEMORY_RECORD_NOT_FOUND';
+
+type MemoryWire404Disposition = 'record-missing' | 'method-unavailable' | 'other';
+
+/**
+ * Decide, from the RUNTIME 404 response code (never the bare status), whether a
+ * caught wire error is a genuine record-miss (→ null) or the daemon not serving
+ * this verb (→ honest reject). A record-missing 404 carries
+ * {@link MEMORY_RECORD_NOT_FOUND_CODE}; a route-not-found 404 from an older daemon
+ * carries a different code, or none — and must reject honestly, never silently null.
+ */
+function classifyMemoryWire404(error: unknown): MemoryWire404Disposition {
+  if (!(error instanceof Error)) return 'other';
+  const wire = error as WireHttpError;
+  const status = typeof wire.status === 'number'
+    ? wire.status
+    : (error.message.match(/\bHTTP (\d{3})\b/) ? Number(error.message.match(/\bHTTP (\d{3})\b/)![1]) : undefined);
+  if (status !== 404) return 'other';
+  return wire.code === MEMORY_RECORD_NOT_FOUND_CODE ? 'record-missing' : 'method-unavailable';
+}
+
+/** The one honest "the adopted daemon does not serve this verb" rejection. */
+function memoryVerbUnavailableError(verb: string): Error {
+  return new Error(
+    `memory spine: the adopted daemon does not support the '${verb}' memory verb over the wire — `
+    + 'upgrade the daemon to a build that serves it, or run this surface offline (no daemon adopted). '
+    + 'A wire client will not read its own local store for this op, because that would break the '
+    + 'single-writer invariant and report a divergent local copy as if it were the canonical store.',
+  );
+}
+
+/** Fold for a NULLABLE record-scoped verb: record-miss → null; version-skew → honest reject; else rethrow. */
+function foldNullableMemoryWire404(verb: string, error: unknown): null {
+  const kind = classifyMemoryWire404(error);
+  if (kind === 'record-missing') return null;
+  if (kind === 'method-unavailable') throw memoryVerbUnavailableError(verb);
+  throw error;
+}
+
+/** Fold for a NON-NULLABLE verb: version-skew → honest reject; else rethrow (incl. a record-missing 404). */
+function rethrowMemoryWire404(verb: string, error: unknown): never {
+  if (classifyMemoryWire404(error) === 'method-unavailable') throw memoryVerbUnavailableError(verb);
+  throw error;
+}
+
 /**
  * The one fetch wrapper every memory-wire call goes through. Throws (never
  * returns an ok:false envelope) on a missing token, a non-2xx response, or a
@@ -103,7 +158,15 @@ async function wireFetch(
     const body = await readJsonBody(response);
     if (!response.ok) {
       const detail = errorDetail(body);
-      throw new Error(`memory spine: HTTP ${response.status} on ${path}${detail ? `: ${detail}` : ''}`);
+      // Carry the status AND the structured body code onto the thrown error so the
+      // memory-wire 404 discriminator can tell a record-missing 404 (which folds to
+      // null) apart from a route-not-found 404 from an older daemon (an honest
+      // "verb unavailable" reject) — never on the bare status alone.
+      const error = new Error(`memory spine: HTTP ${response.status} on ${path}${detail ? `: ${detail}` : ''}`) as WireHttpError;
+      error.status = response.status;
+      const code = isRecord(body) && typeof body.code === 'string' ? body.code : undefined;
+      if (code !== undefined) error.code = code;
+      throw error;
     }
     return body;
   } finally {
@@ -157,11 +220,10 @@ export function createMemorySpineRestTransport(options: MemorySpineRestTransport
         const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(id)}`, { method: 'GET' }, timeoutMs);
         return requireRecord(body, '/api/memory/records/{id}');
       } catch (error) {
-        // A 404 (unknown id) is an honest "not found", not a transport failure —
-        // fold it to null exactly like the local store's `get()` does. Every
-        // other failure (network, auth, malformed body) still rejects.
-        if (error instanceof Error && error.message.includes('HTTP 404')) return null;
-        throw error;
+        // A record-missing 404 (MEMORY_RECORD_NOT_FOUND) is an honest "not found" and
+        // folds to null exactly like the local store's `get()`. A route-not-found 404
+        // (older daemon) rejects honestly; every other failure still rejects.
+        return foldNullableMemoryWire404('get', error);
       }
     },
 
@@ -171,8 +233,7 @@ export function createMemorySpineRestTransport(options: MemorySpineRestTransport
         const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(id)}/review`, { method: 'POST', body: patch as unknown as JsonRecord }, timeoutMs);
         return requireRecord(body, '/api/memory/records/{id}/review');
       } catch (error) {
-        if (error instanceof Error && error.message.includes('HTTP 404')) return null;
-        throw error;
+        return foldNullableMemoryWire404('updateReview', error);
       }
     },
 
@@ -188,23 +249,31 @@ export function createMemorySpineRestTransport(options: MemorySpineRestTransport
 
     async list(filter?: MemorySearchFilter): Promise<readonly MemoryRecord[]> {
       const connection = options.resolveConnection();
-      const body = await wireFetch(connection, '/api/memory/records/list', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
-      if (!isRecord(body) || !Array.isArray(body.records)) {
-        throw new Error('memory spine: malformed response from /api/memory/records/list (missing records)');
+      try {
+        const body = await wireFetch(connection, '/api/memory/records/list', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
+        if (!isRecord(body) || !Array.isArray(body.records)) {
+          throw new Error('memory spine: malformed response from /api/memory/records/list (missing records)');
+        }
+        return body.records as unknown as readonly MemoryRecord[];
+      } catch (error) {
+        return rethrowMemoryWire404('list', error);
       }
-      return body.records as unknown as readonly MemoryRecord[];
     },
 
     async searchSemantic(filter?: MemorySearchFilter): Promise<readonly MemorySemanticSearchResult[]> {
       const connection = options.resolveConnection();
-      const body = await wireFetch(connection, '/api/memory/records/search-semantic', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
-      if (!isRecord(body) || !Array.isArray(body.results)) {
-        throw new Error('memory spine: malformed response from /api/memory/records/search-semantic (missing results)');
+      try {
+        const body = await wireFetch(connection, '/api/memory/records/search-semantic', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
+        if (!isRecord(body) || !Array.isArray(body.results)) {
+          throw new Error('memory spine: malformed response from /api/memory/records/search-semantic (missing results)');
+        }
+        // distance is nullable on the wire (Infinity, a no-vector-match fallback,
+        // serializes to null) — an honest signal the row was ranked lexically, not
+        // by vector; forwarded through verbatim, not coerced.
+        return body.results as unknown as readonly MemorySemanticSearchResult[];
+      } catch (error) {
+        return rethrowMemoryWire404('searchSemantic', error);
       }
-      // distance is nullable on the wire (Infinity, a no-vector-match fallback,
-      // serializes to null) — an honest signal the row was ranked lexically, not
-      // by vector; forwarded through verbatim, not coerced.
-      return body.results as unknown as readonly MemorySemanticSearchResult[];
     },
 
     async update(id: string, patch: MemoryUpdatePatch): Promise<MemoryRecord | null> {
@@ -213,8 +282,7 @@ export function createMemorySpineRestTransport(options: MemorySpineRestTransport
         const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(id)}/update`, { method: 'POST', body: patch as unknown as JsonRecord }, timeoutMs);
         return requireRecord(body, '/api/memory/records/{id}/update');
       } catch (error) {
-        if (error instanceof Error && error.message.includes('HTTP 404')) return null;
-        throw error;
+        return foldNullableMemoryWire404('update', error);
       }
     },
 
@@ -227,38 +295,50 @@ export function createMemorySpineRestTransport(options: MemorySpineRestTransport
         }
         return body.link as unknown as MemoryLink;
       } catch (error) {
-        // 404 means either endpoint does not exist — an honest "link not made",
-        // not a transport failure, exactly like the local registry's link().
-        if (error instanceof Error && error.message.includes('HTTP 404')) return null;
-        throw error;
+        // A record-missing 404 means an endpoint id does not exist — an honest "link
+        // not made", folded to null like the local registry's link(). A route-not-found
+        // 404 (older daemon) rejects honestly.
+        return foldNullableMemoryWire404('link', error);
       }
     },
 
     async linksFor(id: string): Promise<readonly MemoryLink[]> {
       const connection = options.resolveConnection();
-      const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(id)}/links`, { method: 'GET' }, timeoutMs);
-      if (!isRecord(body) || !Array.isArray(body.links)) {
-        throw new Error('memory spine: malformed response from /api/memory/records/{id}/links (missing links)');
+      try {
+        const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(id)}/links`, { method: 'GET' }, timeoutMs);
+        if (!isRecord(body) || !Array.isArray(body.links)) {
+          throw new Error('memory spine: malformed response from /api/memory/records/{id}/links (missing links)');
+        }
+        return body.links as unknown as readonly MemoryLink[];
+      } catch (error) {
+        return rethrowMemoryWire404('linksFor', error);
       }
-      return body.links as unknown as readonly MemoryLink[];
     },
 
     async exportBundle(filter?: MemorySearchFilter): Promise<MemoryBundle> {
       const connection = options.resolveConnection();
-      const body = await wireFetch(connection, '/api/memory/records/export', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
-      if (!isRecord(body) || !isRecord(body.bundle)) {
-        throw new Error('memory spine: malformed response from /api/memory/records/export (missing bundle)');
+      try {
+        const body = await wireFetch(connection, '/api/memory/records/export', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
+        if (!isRecord(body) || !isRecord(body.bundle)) {
+          throw new Error('memory spine: malformed response from /api/memory/records/export (missing bundle)');
+        }
+        return body.bundle as unknown as MemoryBundle;
+      } catch (error) {
+        return rethrowMemoryWire404('exportBundle', error);
       }
-      return body.bundle as unknown as MemoryBundle;
     },
 
     async importBundle(bundle: MemoryBundle): Promise<MemoryImportResult> {
       const connection = options.resolveConnection();
-      const body = await wireFetch(connection, '/api/memory/records/import', { method: 'POST', body: { bundle } as unknown as JsonRecord }, timeoutMs);
-      if (!isRecord(body) || !isRecord(body.result)) {
-        throw new Error('memory spine: malformed response from /api/memory/records/import (missing result)');
+      try {
+        const body = await wireFetch(connection, '/api/memory/records/import', { method: 'POST', body: { bundle } as unknown as JsonRecord }, timeoutMs);
+        if (!isRecord(body) || !isRecord(body.result)) {
+          throw new Error('memory spine: malformed response from /api/memory/records/import (missing result)');
+        }
+        return body.result as unknown as MemoryImportResult;
+      } catch (error) {
+        return rethrowMemoryWire404('importBundle', error);
       }
-      return body.result as unknown as MemoryImportResult;
     },
   };
 }

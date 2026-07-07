@@ -191,6 +191,12 @@ async function handlePromoteWire(runtime: CliCommandRuntime, memorySpine: Memory
   if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to promote memory record ${id} without --yes.`, 2);
   // "Promote" is not a distinct wire verb — it is a scope edit, per the SDK's
   // full-detach ruling (a scope promotion is update({ scope })).
+  //
+  // `update` now returns null ONLY for a genuine record-miss (a
+  // MEMORY_RECORD_NOT_FOUND 404); a daemon that does not serve the update verb
+  // (an older daemon, a route-not-found 404) makes it THROW an honest
+  // "verb unavailable" error that surfaces via handleMemoryCommand's errorOutput —
+  // it is no longer folded to null here and mislabelled as "record not found".
   const record = await memorySpine.update(id, { scope: requireScope(scopeRaw) });
   if (!record) return failure(runtime, 'memory_not_found', `Memory record not found ${id}`, 1);
   return success(runtime, 'agent.memory.promote', record, [
