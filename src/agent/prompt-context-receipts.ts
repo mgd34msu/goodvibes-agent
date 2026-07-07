@@ -1,7 +1,8 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname } from 'node:path';
-import type { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import type { MemoryRecallSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, rankMemoryForTurn, relevanceBand } from './memory-prompt.ts';
@@ -78,25 +79,25 @@ export interface RuntimePromptCompositionInput {
    *  Null/undefined when there is no active turn (e.g. a follow-up composition). */
   readonly turnText?: string | null;
   /**
-   * The memory spine's current access posture ('local' | 'client'), when known.
+   * The memory spine's cached recall snapshot (SDK 1.2.0 sync-recall seam), when the
+   * caller has one to offer.
    *
-   * STRUCTURAL SCOPE NOTE (memory-spine adoption, SDK 1.1.0): this whole
-   * composition reads memory via `memoryRegistry.getAll()` / `.searchSemantic()` /
-   * `.vectorStats()` — none of which exist on the wire's `MemoryAccess` surface
-   * (only add/honestSearch/get/updateReview/delete do), AND this function is called
-   * synchronously from the SDK's `Orchestrator.getSystemPrompt` callback, which the
-   * SDK defines as non-async. Making this path route over the wire would need
-   * either new SDK wire routes for getAll/searchSemantic/vectorStats or an SDK-level
-   * signature change to an async getSystemPrompt — both out of scope for a
-   * consumer-side adoption. So recall here always reads `memoryRegistry` directly,
-   * even when the agent has adopted a daemon (`memorySpineMode === 'client'`). That is
-   * safe for READS (the daemon is the single WRITER, not the only reader) but it is a
-   * frozen snapshot from whenever this agent process last wrote to/opened its local
-   * copy — it will not see records the daemon writes afterward. `memorySpineMode` is
-   * passed through only so the 'memory' receipt segment can say so honestly instead
-   * of presenting a stale local snapshot as if it were the live canonical store.
+   * SYNC-RECALL SEAM (memory-spine full-detach adoption, SDK 1.2.0): this function is
+   * called synchronously from the SDK's `Orchestrator.getSystemPrompt` callback, which
+   * the SDK defines as non-async, while a wire client's memory reads are async. Rather
+   * than reading `memoryRegistry.getAll()` directly (a frozen local snapshot that would
+   * silently miss whatever the daemon wrote after this process last opened its own
+   * copy — the exact failure the 1.1.0-era `memorySpineMode` degrade note used to flag),
+   * the caller drives an ASYNC pre-turn hook (`MemorySpineClient.refreshRecallSnapshot`)
+   * and passes the resulting freshness-stamped `MemoryRecallSnapshot` in here. When
+   * present, its `records` (captured with `{ recall: false }` — an unfiltered browse
+   * set, matching the old `getAll()` semantics exactly) replace the direct registry
+   * read, and its own honest `stale`/`mode`/`note` fields drive the 'memory' receipt
+   * segment's note instead of the old blanket "client mode is always degraded" note.
+   * `undefined` falls back to reading `memoryRegistry` directly (e.g. a caller that
+   * has not wired the spine, or an existing test) — the pre-1.2.0 behavior, unchanged.
    */
-  readonly memorySpineMode?: 'local' | 'client';
+  readonly memoryRecallSnapshot?: MemoryRecallSnapshot;
 }
 
 const RECEIPT_STORE_LIMIT = 200;
@@ -125,16 +126,20 @@ function joinPromptParts(...parts: Array<string | null | undefined>): string {
 }
 
 /**
- * The honest degrade note for the 'memory' receipt segment when the agent has
- * adopted a daemon: recall here always reads the agent's own local store (see the
- * RuntimePromptCompositionInput.memorySpineMode doc comment for why), which is a
- * frozen snapshot the moment the daemon becomes the store's writer — it will not
- * see records the daemon writes afterward. `undefined` when local (nothing to
- * degrade) or when the mode isn't known to the caller.
+ * The honest freshness note for the 'memory' receipt segment, sourced from the
+ * memory spine's own recall snapshot (see RuntimePromptCompositionInput.
+ * memoryRecallSnapshot). Surfaced only when there is something worth flagging —
+ * the snapshot came from a wire-adopted daemon (worth knowing regardless of
+ * freshness, since the wire's own copy is what was captured, not this process's),
+ * or the snapshot is stale (including "never yet captured", which the snapshot
+ * itself always reports as stale). `undefined` for the boring common case (local
+ * mode, freshly captured) — matching the pre-1.2.0 note's "nothing to degrade"
+ * behavior — or when the caller passed no snapshot at all.
  */
-function memorySpineRecallNote(mode: 'local' | 'client' | undefined): string | undefined {
-  if (mode !== 'client') return undefined;
-  return 'this agent has adopted a connected daemon for memory writes; this recall reads the agent\'s own local snapshot (frozen since adoption), not the daemon\'s live canonical store — the SDK\'s memory wire has no equivalent to the bulk read this recall path needs';
+function memoryRecallSnapshotNote(snapshot: MemoryRecallSnapshot | undefined): string | undefined {
+  if (!snapshot) return undefined;
+  if (snapshot.mode !== 'client' && !snapshot.stale) return undefined;
+  return snapshot.note;
 }
 
 /** Combines up to two optional short notes with a single separator; undefined when both are absent. */
@@ -177,6 +182,18 @@ function receiptSegment(input: Omit<PromptContextReceiptSegment, 'approxTokens'>
   };
 }
 
+/**
+ * Read via the memory spine's cached recall snapshot when the caller has one (SDK
+ * 1.2.0 sync-recall seam — see RuntimePromptCompositionInput.memoryRecallSnapshot);
+ * fall back to the direct registry read otherwise (unchanged pre-1.2.0 behavior).
+ * Shared by the prompt text build and the receipt segment build so both derive
+ * from the exact same record set — the receipt must describe what was actually
+ * injected, never a different snapshot than the prompt text itself used.
+ */
+function resolveMemoryRecords(input: RuntimePromptCompositionInput): readonly MemoryRecord[] {
+  return input.memoryRecallSnapshot ? input.memoryRecallSnapshot.records : input.memoryRegistry.getAll();
+}
+
 function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput): readonly PromptContextReceiptSegment[] {
   const vibe = discoverVibeFiles(input.shellPaths);
   // The VIBE prompt is a PROJECTION of persona/constraint records, not a
@@ -184,13 +201,13 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
   const vibePrompt = buildVibeProjectionPrompt(input.memoryRegistry) ?? '';
   const projectContext = discoverProjectContextFiles(input.shellPaths);
   const projectContextPrompt = buildProjectContextPrompt(input.shellPaths) ?? '';
-  const memoryRecords = input.memoryRegistry.getAll();
+  const memoryRecords = resolveMemoryRecords(input);
   const eligibleMemory = memoryRecords.filter(isPromptActiveMemory);
   const memoryRanking = rankMemoryForTurn(input.memoryRegistry, eligibleMemory, input.turnText);
   const activeMemory = memoryRanking.records.slice(0, 10);
   const activeMemoryIds = new Set(activeMemory.map((record) => record.id));
   const suppressedMemory = memoryRecords.filter((record) => !activeMemoryIds.has(record.id));
-  const memoryPrompt = buildReviewedMemoryPrompt(input.memoryRegistry, { turnText: input.turnText }) ?? '';
+  const memoryPrompt = buildReviewedMemoryPrompt(input.memoryRegistry, { turnText: input.turnText, records: memoryRecords }) ?? '';
   const routineSnapshot = AgentRoutineRegistry.fromShellPaths(input.shellPaths).snapshot();
   const activeRoutines = routineSnapshot.enabledRoutines.filter((routine) => routine.reviewState === 'reviewed' && evaluateAgentRoutineReadiness(routine).ready);
   const suppressedRoutines = routineSnapshot.enabledRoutines.filter((routine) => !activeRoutines.some((active) => active.id === routine.id));
@@ -276,14 +293,16 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       // Honest degrade note: when per-turn relevance scoring did not
       // run — no active-turn text, semantic index unavailable, or no vector match —
       // say so instead of silently presenting the fallback confidence/recency order as
-      // if it were a relevance ranking. Combined with the memory-spine client-mode
-      // note (see memorySpineRecallNote) when the agent has adopted a daemon — this
-      // recall path structurally cannot follow the spine onto the wire (see
-      // RuntimePromptCompositionInput.memorySpineMode), so it says so rather than
-      // presenting a possibly-stale local snapshot as the live canonical store.
+      // if it were a relevance ranking. Combined with the memory spine's own
+      // freshness note (see memoryRecallSnapshotNote) when the recall snapshot is
+      // wire-sourced or stale — the ranking itself still runs against
+      // `input.memoryRegistry` directly (rankMemoryForTurn's per-turn semantic query
+      // needs a live vectorStats/searchSemantic call, which stays local-direct by the
+      // same vector-diagnostics ruling used elsewhere in the 1.2.0 adoption), so this
+      // note is about the RECORD SET's freshness, not the ranking.
       note: combineNotes(
         memoryRanking.scored ? undefined : memoryRanking.degradedReason,
-        memorySpineRecallNote(input.memorySpineMode),
+        memoryRecallSnapshotNote(input.memoryRecallSnapshot),
       ),
       selected: activeMemory.map((record) => ({
         id: record.id,
@@ -392,7 +411,7 @@ export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionI
     buildVibeProjectionPrompt(input.memoryRegistry),
     buildProjectContextPrompt(input.shellPaths),
     input.operatorPolicy,
-    buildReviewedMemoryPrompt(input.memoryRegistry, { turnText: input.turnText }),
+    buildReviewedMemoryPrompt(input.memoryRegistry, { turnText: input.turnText, records: resolveMemoryRecords(input) }),
     buildEnabledRoutinesPrompt(input.shellPaths),
     buildEnabledSkillsPrompt(input.shellPaths),
     buildActivePersonaPrompt(input.shellPaths),

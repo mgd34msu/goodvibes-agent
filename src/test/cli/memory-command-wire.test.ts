@@ -154,4 +154,59 @@ describe('memory CLI — daemon up routes over the wire', () => {
     expect(deleted.exitCode).toBe(0);
     expect(daemonServices.memoryRegistry.get(id)).toBeNull();
   });
+
+  // ── 1.2.0 full-detach subcommands — same real-daemon proof ─────────────────
+
+  test('memory show reads the record and its links over the wire (get + linksFor)', async () => {
+    const from = await runCli(['memory', 'add', 'decision', 'wire decision', '--json'], workingDir, homeDir);
+    const to = await runCli(['memory', 'add', 'constraint', 'wire constraint', '--json'], workingDir, homeDir);
+    const fromId = (JSON.parse(from.output) as { readonly data: { readonly id: string } }).data.id;
+    const toId = (JSON.parse(to.output) as { readonly data: { readonly id: string } }).data.id;
+    await runCli(['memory', 'link', fromId, toId, 'supersedes', '--yes'], workingDir, homeDir);
+
+    const shown = await runCli(['memory', 'show', fromId, '--json'], workingDir, homeDir);
+    expect(shown.exitCode).toBe(0);
+    const parsed = JSON.parse(shown.output) as { readonly data: { readonly record: { readonly id: string }; readonly links: readonly { readonly toId: string; readonly relation: string }[] } };
+    expect(parsed.data.record.id).toBe(fromId);
+    expect(parsed.data.links.some((link) => link.toId === toId && link.relation === 'supersedes')).toBe(true);
+  });
+
+  test('memory promote is a scope update, wire-covered, and lands on the daemon store', async () => {
+    const created = await runCli(['memory', 'add', 'fact', 'promotable wire fact', '--scope', 'project', '--json'], workingDir, homeDir);
+    const id = (JSON.parse(created.output) as { readonly data: { readonly id: string } }).data.id;
+
+    const promoted = await runCli(['memory', 'promote', id, 'team', '--yes'], workingDir, homeDir);
+    expect(promoted.exitCode).toBe(0);
+    expect(daemonServices.memoryRegistry.get(id)?.scope).toBe('team');
+  });
+
+  test('memory search --semantic routes over the wire (searchSemantic) instead of falling back to local', async () => {
+    const created = await runCli(['memory', 'add', 'fact', 'a distinctive wire-searchable phrase about ostriches', '--json'], workingDir, homeDir);
+    const id = (JSON.parse(created.output) as { readonly data: { readonly id: string } }).data.id;
+
+    const searched = await runCli(['memory', 'search', 'distinctive wire-searchable phrase about ostriches', '--semantic', '--json'], workingDir, homeDir);
+    expect(searched.exitCode).toBe(0);
+    const parsed = JSON.parse(searched.output) as { readonly data: { readonly path: string; readonly records: readonly { readonly id: string }[] } };
+    expect(parsed.data.path).toBe('wire:connected-daemon');
+    expect(parsed.data.records.some((record) => record.id === id)).toBe(true);
+  });
+
+  test('memory export/import round-trip a bundle over the wire against the daemon store', async () => {
+    await runCli(['memory', 'add', 'fact', 'bundled wire fact', '--json'], workingDir, homeDir);
+    const bundlePath = join(root, 'bundle.json');
+
+    const exported = await runCli(['memory', 'export', bundlePath, '--yes', '--json'], workingDir, homeDir);
+    expect(exported.exitCode).toBe(0);
+    const exportedParsed = JSON.parse(exported.output) as { readonly data: { readonly bundle: { readonly recordCount: number } } };
+    expect(exportedParsed.data.bundle.recordCount).toBe(1);
+
+    // Re-importing the bundle that was just exported from this same daemon store
+    // is an idempotent union — the record already exists there, so it is skipped.
+    const imported = await runCli(['memory', 'import', bundlePath, '--yes', '--json'], workingDir, homeDir);
+    expect(imported.exitCode).toBe(0);
+    const importedParsed = JSON.parse(imported.output) as { readonly data: { readonly result: { readonly importedRecords: number; readonly skippedRecords: number } } };
+    expect(importedParsed.data.result.importedRecords).toBe(0);
+    expect(importedParsed.data.result.skippedRecords).toBe(1);
+    expect(daemonServices.memoryRegistry.getAll()).toHaveLength(1);
+  });
 });

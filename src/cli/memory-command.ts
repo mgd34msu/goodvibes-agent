@@ -179,7 +179,7 @@ export function requireClass(value: string | undefined): MemoryClass {
   return value;
 }
 
-function requireScope(value: string | undefined): MemoryScope {
+export function requireScope(value: string | undefined): MemoryScope {
   if (!value || !isMemoryScope(value)) throw new Error(`Invalid memory scope "${value ?? ''}". Valid values ${VALID_SCOPES.join(', ')}`);
   return value;
 }
@@ -245,7 +245,7 @@ export function renderRecordList(title: string, path: string, records: readonly 
   ].join('\n');
 }
 
-function renderRecord(record: MemoryRecord, links: readonly MemoryLink[]): string {
+export function renderRecord(record: MemoryRecord, links: readonly MemoryLink[]): string {
   return [
     `Memory ${record.id}`,
     `  scope: ${record.scope}`,
@@ -372,7 +372,7 @@ function isMemoryBundle(value: unknown): value is MemoryBundle {
     && value.links.every(isMemoryLink);
 }
 
-function readBundle(path: string): MemoryBundle {
+export function readBundle(path: string): MemoryBundle {
   const parsed: unknown = JSON.parse(readFileSync(path, 'utf-8'));
   if (!isMemoryBundle(parsed)) throw new Error('Invalid Agent memory bundle.');
   for (const record of parsed.records) {
@@ -386,11 +386,11 @@ function readBundle(path: string): MemoryBundle {
   return parsed;
 }
 
-function resolvePath(runtime: CliCommandRuntime, path: string): string {
+export function resolvePath(runtime: CliCommandRuntime, path: string): string {
   return resolve(runtime.workingDirectory, path);
 }
 
-function writeBundle(path: string, bundle: MemoryBundle): void {
+export function writeBundle(path: string, bundle: MemoryBundle): void {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, `${JSON.stringify(bundle, null, 2)}\n`);
 }

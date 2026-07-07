@@ -149,11 +149,22 @@ export interface BuildReviewedMemoryPromptOptions {
   /** The current turn's raw text (the seam this comes from: TURN_SUBMITTED's `prompt`).
    *  Used only to RANK the already-eligible set — never to admit an otherwise-ineligible record. */
   readonly turnText?: string | null;
+  /**
+   * Pre-fetched record set to use instead of `memoryRegistry.getAll()` — e.g. a
+   * memory-spine recall snapshot's records (SDK 1.2.0 sync-recall seam; see
+   * prompt-context-receipts.ts's `resolveMemoryRecords`). `memoryRegistry` is still
+   * used for the per-turn semantic ranking query (`rankMemoryForTurn`'s
+   * `vectorStats`/`searchSemantic` calls stay local-direct regardless of where the
+   * record set came from) — only the raw eligible set that ranking runs OVER is
+   * swappable, so the injected prompt text and any receipt describing it are always
+   * derived from the exact same record set instead of two independent reads.
+   */
+  readonly records?: readonly MemoryRecord[];
 }
 
 export function buildReviewedMemoryPrompt(memoryRegistry: MemoryRegistry, options: BuildReviewedMemoryPromptOptions = {}): string | null {
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const eligible = memoryRegistry.getAll().filter(isPromptActiveMemory);
+  const eligible = (options.records ?? memoryRegistry.getAll()).filter(isPromptActiveMemory);
   const ranking = rankMemoryForTurn(memoryRegistry, eligible, options.turnText);
   const records = ranking.records.slice(0, Math.max(0, limit));
 

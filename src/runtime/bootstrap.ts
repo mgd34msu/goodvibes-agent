@@ -215,6 +215,16 @@ export async function bootstrapRuntime(
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
       activePromptTurnId = event.payload.turnId;
       activePromptTurnText = event.payload.prompt;
+      // Per-turn recall refresh (SDK 1.2.0 sync-recall seam): the ASYNC
+      // pre-turn hook. getSystemPrompt below is SYNCHRONOUS and cannot await
+      // this, so it is fired here (not awaited) and read back via the cached
+      // recallSnapshot() a moment later when the orchestrator actually builds
+      // the prompt. A miss (this turn's prompt reads last turn's snapshot, or
+      // the still-empty boot snapshot on a very first turn) is surfaced
+      // honestly by the snapshot's own staleness note, never silently hidden.
+      services.memorySpineClient.refreshRecallSnapshot(undefined, { recall: false }).catch((error: unknown) => {
+        logger.debug('Per-turn memory recall snapshot refresh failed', { error: summarizeError(error) });
+      });
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_COMPLETED' }>>('TURN_COMPLETED', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -292,7 +302,7 @@ export async function bootstrapRuntime(
         shellPaths: services.shellPaths,
         memoryRegistry: services.memoryRegistry,
         turnText: activePromptTurnText,
-        memorySpineMode: services.memorySpineClient.mode(),
+        memoryRecallSnapshot: services.memorySpineClient.recallSnapshot(),
       });
       promptContextReceipts.record(composed.receipt);
       return composed.prompt;
@@ -549,6 +559,17 @@ export async function bootstrapRuntime(
     label: 'memory-spine',
     run: async () => {
       await reconcileMemorySpine();
+      // Prime the recall snapshot (SDK 1.2.0 sync-recall seam) so the FIRST
+      // system prompt built after boot already has a real snapshot to read
+      // instead of the honest-but-empty "not yet captured" one — see
+      // recallSnapshot's doc comment on prompt-context-receipts.ts's
+      // memoryRecallSnapshot field. { recall: false } captures an unfiltered
+      // browse set: the receipt's own eligibility/suppression logic (not the
+      // snapshot) decides what is prompt-active, so this must mirror the old
+      // memoryRegistry.getAll() read exactly, not the recall-floor-filtered set.
+      await services.memorySpineClient.refreshRecallSnapshot(undefined, { recall: false }).catch((error: unknown) => {
+        logger.debug('Initial memory recall snapshot refresh failed', { error: summarizeError(error) });
+      });
       if (configManager.get('watchers.enabled')) {
         const intervalMs = Number(configManager.get('watchers.heartbeatIntervalMs') ?? 30_000);
         memorySpineHeartbeatTimer = setInterval(() => {

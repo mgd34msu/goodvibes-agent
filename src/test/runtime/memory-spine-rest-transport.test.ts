@@ -18,10 +18,24 @@ import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
 import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
+import type { MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
-import { createMemorySpineRestTransport } from '../../runtime/memory-spine-rest-transport.ts';
+import { createMemorySpineRestTransport, type MemorySpineRestTransportOptions } from '../../runtime/memory-spine-rest-transport.ts';
 import type { SessionRegistrationConnection } from '../../agent/session-registration.ts';
+
+/**
+ * `createMemorySpineRestTransport` returns `MemoryTransport`, whose EXTENDED verbs
+ * (list/update/link/linksFor/searchSemantic/exportBundle/importBundle) are typed
+ * optional so an older transport still satisfies the type (see the SDK's version-
+ * tolerance ruling). This concrete transport implements every one of them, so
+ * these tests — which exercise the raw transport directly rather than routing
+ * through a MemorySpineClient — assert that structurally instead of null-checking
+ * each call.
+ */
+function createFullMemoryAccess(options: MemorySpineRestTransportOptions): MemoryAccess {
+  return createMemorySpineRestTransport(options) as MemoryAccess;
+}
 
 const TEST_TOKEN = 'memory-spine-transport-token-xyz789';
 
@@ -167,5 +181,68 @@ describe('memory-spine REST transport against a real daemon', () => {
     await expect(transport.add({ cls: 'fact', summary: 'daemon is down' })).rejects.toThrow();
     await expect(transport.get('any-id')).rejects.toThrow();
     await expect(transport.honestSearch({})).rejects.toThrow();
+  });
+
+  // ── Extended verbs (1.2.0 full-detach catalog) — same real-daemon proof ────
+
+  test('list() returns every record from the DAEMON store — an empty filter is getAll semantics', async () => {
+    const transport = createFullMemoryAccess({ resolveConnection: () => connection });
+    const first = await transport.add({ cls: 'fact', scope: 'project', summary: 'list me one' });
+    const second = await transport.add({ cls: 'fact', scope: 'team', summary: 'list me two' });
+    const listed = await transport.list();
+    expect(listed.map((record) => record.id).sort()).toEqual([first.id, second.id].sort());
+  });
+
+  test('update() edits a record\'s content fields on the DAEMON store and returns null for an unknown id', async () => {
+    const transport = createFullMemoryAccess({ resolveConnection: () => connection });
+    const added = await transport.add({ cls: 'fact', scope: 'project', summary: 'before promotion' });
+    const updated = await transport.update(added.id, { scope: 'team', summary: 'after promotion' });
+    expect(updated?.scope).toBe('team');
+    expect(updated?.summary).toBe('after promotion');
+    // Proves this genuinely reached the daemon's own store, not a client-side echo.
+    expect(daemonServices.memoryRegistry.get(added.id)?.scope).toBe('team');
+
+    await expect(transport.update('mem_missing', { scope: 'team' })).resolves.toBeNull();
+  });
+
+  test('link() creates a directed relation on the DAEMON store; linksFor() reads it back; an unknown endpoint folds to null', async () => {
+    const transport = createFullMemoryAccess({ resolveConnection: () => connection });
+    const from = await transport.add({ cls: 'decision', scope: 'project', summary: 'the decision' });
+    const to = await transport.add({ cls: 'constraint', scope: 'project', summary: 'the constraint' });
+    const link = await transport.link(from.id, to.id, 'supersedes');
+    expect(link?.fromId).toBe(from.id);
+    expect(link?.toId).toBe(to.id);
+    expect(link?.relation).toBe('supersedes');
+
+    const links = await transport.linksFor(from.id);
+    expect(links.map((entry) => `${entry.fromId}->${entry.toId}:${entry.relation}`)).toContain(`${from.id}->${to.id}:supersedes`);
+
+    await expect(transport.link(from.id, 'mem_missing', 'supersedes')).resolves.toBeNull();
+  });
+
+  test('searchSemantic() ranks by relevance against the DAEMON\'s index and returns the honest scored envelope', async () => {
+    const transport = createFullMemoryAccess({ resolveConnection: () => connection });
+    const added = await transport.add({ cls: 'fact', scope: 'project', summary: 'a very distinctive searchable phrase about llamas' });
+    const results = await transport.searchSemantic({ query: 'distinctive searchable phrase about llamas', limit: 10 });
+    expect(Array.isArray(results)).toBe(true);
+    const match = results.find((entry) => entry.record.id === added.id);
+    expect(match).toBeDefined();
+    expect(typeof match?.similarity).toBe('number');
+    expect(typeof match?.score).toBe('number');
+  });
+
+  test('exportBundle()/importBundle() round-trip through the DAEMON store as a no-loss, idempotent bundle', async () => {
+    const transport = createFullMemoryAccess({ resolveConnection: () => connection });
+    const added = await transport.add({ cls: 'fact', scope: 'project', summary: 'export me' });
+    const bundle = await transport.exportBundle({});
+    expect(bundle.recordCount).toBe(1);
+    expect(bundle.records.map((record) => record.id)).toContain(added.id);
+
+    // Re-importing the exact same bundle is an idempotent union: the id already
+    // exists on the daemon's store, so it is skipped, never duplicated or overwritten.
+    const result = await transport.importBundle(bundle);
+    expect(result.importedRecords).toBe(0);
+    expect(result.skippedRecords).toBe(1);
+    expect(daemonServices.memoryRegistry.getAll()).toHaveLength(1);
   });
 });

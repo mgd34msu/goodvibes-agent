@@ -24,17 +24,26 @@
 
 import type {
   MemoryAddOptions,
+  MemoryBundle,
+  MemoryLink,
   MemoryRecord,
   MemorySearchFilter,
+  MemorySemanticSearchResult,
 } from '@pellux/goodvibes-sdk/platform/state';
 import type { HonestMemorySearchOptions, HonestMemorySearchResult } from '@pellux/goodvibes-sdk/platform/state';
-import type { MemoryTransport } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
+import type { MemoryTransport, MemoryUpdatePatch } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import type { SessionRegistrationConnection } from '../agent/session-registration.ts';
 
 // MemoryReviewPatch is not part of the public `platform/state` barrel export (only
 // the SDK's internal memory-store module has it), so its shape is derived from the
 // MemoryTransport method signature itself rather than importing an unexported type.
 type MemoryReviewPatch = Parameters<MemoryTransport['updateReview']>[1];
+
+// MemoryImportResult is likewise internal-only; derived from importBundle's return
+// type rather than importing an unexported type from the store module. importBundle
+// is an EXTENDED (optional-on-the-type) verb, so NonNullable strips the `| undefined`
+// before ReturnType can apply.
+type MemoryImportResult = Awaited<ReturnType<NonNullable<MemoryTransport['importBundle']>>>;
 
 const DEFAULT_MEMORY_WIRE_TIMEOUT_MS = 2_000;
 
@@ -109,10 +118,18 @@ function requireRecord(body: unknown, path: string): MemoryRecord {
 
 /**
  * Builds the wire `MemoryTransport` the agent injects into `MemorySpineClient` once
- * it has confirmed a daemon is adopted. Mirrors the five daemon-owned
- * `memory.records.*` routes exactly (see method-catalog-runtime.ts in the SDK):
- * POST /api/memory/records, POST /api/memory/records/search,
+ * it has confirmed a daemon is adopted. Mirrors the daemon-owned `memory.records.*`
+ * routes exactly (see method-catalog-runtime.ts in the SDK):
+ *
+ * CORE (1.1.0): POST /api/memory/records, POST /api/memory/records/search,
  * GET/DELETE /api/memory/records/{id}, POST /api/memory/records/{id}/review.
+ *
+ * EXTENDED (1.2.0 full-detach catalog): POST /api/memory/records/list,
+ * POST /api/memory/records/search-semantic, POST /api/memory/records/{id}/update,
+ * GET/POST /api/memory/records/{id}/links, POST /api/memory/records/export,
+ * POST /api/memory/records/import. Deliberately NOT implemented here —
+ * reviewQueue and vectorStats/doctor — see the CLI ruling in
+ * memory-command-wire.ts for why those stay local-direct rather than wired.
  */
 export function createMemorySpineRestTransport(options: MemorySpineRestTransportOptions): MemoryTransport {
   const timeoutMs = options.timeoutMs ?? DEFAULT_MEMORY_WIRE_TIMEOUT_MS;
@@ -165,6 +182,83 @@ export function createMemorySpineRestTransport(options: MemorySpineRestTransport
       // The route always answers 200 with an honest { id, deleted } boolean (never a
       // 200 that pretends a phantom row was removed) — see integration-routes.ts.
       return isRecord(body) && body.deleted === true;
+    },
+
+    // ── Extended verbs (1.2.0 full-detach catalog) ──────────────────────────
+
+    async list(filter?: MemorySearchFilter): Promise<readonly MemoryRecord[]> {
+      const connection = options.resolveConnection();
+      const body = await wireFetch(connection, '/api/memory/records/list', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
+      if (!isRecord(body) || !Array.isArray(body.records)) {
+        throw new Error('memory spine: malformed response from /api/memory/records/list (missing records)');
+      }
+      return body.records as unknown as readonly MemoryRecord[];
+    },
+
+    async searchSemantic(filter?: MemorySearchFilter): Promise<readonly MemorySemanticSearchResult[]> {
+      const connection = options.resolveConnection();
+      const body = await wireFetch(connection, '/api/memory/records/search-semantic', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
+      if (!isRecord(body) || !Array.isArray(body.results)) {
+        throw new Error('memory spine: malformed response from /api/memory/records/search-semantic (missing results)');
+      }
+      // distance is nullable on the wire (Infinity, a no-vector-match fallback,
+      // serializes to null) — an honest signal the row was ranked lexically, not
+      // by vector; forwarded through verbatim, not coerced.
+      return body.results as unknown as readonly MemorySemanticSearchResult[];
+    },
+
+    async update(id: string, patch: MemoryUpdatePatch): Promise<MemoryRecord | null> {
+      const connection = options.resolveConnection();
+      try {
+        const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(id)}/update`, { method: 'POST', body: patch as unknown as JsonRecord }, timeoutMs);
+        return requireRecord(body, '/api/memory/records/{id}/update');
+      } catch (error) {
+        if (error instanceof Error && error.message.includes('HTTP 404')) return null;
+        throw error;
+      }
+    },
+
+    async link(fromId: string, toId: string, relation: string): Promise<MemoryLink | null> {
+      const connection = options.resolveConnection();
+      try {
+        const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(fromId)}/links`, { method: 'POST', body: { toId, relation } }, timeoutMs);
+        if (!isRecord(body) || !isRecord(body.link)) {
+          throw new Error('memory spine: malformed response from /api/memory/records/{id}/links (missing link)');
+        }
+        return body.link as unknown as MemoryLink;
+      } catch (error) {
+        // 404 means either endpoint does not exist — an honest "link not made",
+        // not a transport failure, exactly like the local registry's link().
+        if (error instanceof Error && error.message.includes('HTTP 404')) return null;
+        throw error;
+      }
+    },
+
+    async linksFor(id: string): Promise<readonly MemoryLink[]> {
+      const connection = options.resolveConnection();
+      const body = await wireFetch(connection, `/api/memory/records/${encodeURIComponent(id)}/links`, { method: 'GET' }, timeoutMs);
+      if (!isRecord(body) || !Array.isArray(body.links)) {
+        throw new Error('memory spine: malformed response from /api/memory/records/{id}/links (missing links)');
+      }
+      return body.links as unknown as readonly MemoryLink[];
+    },
+
+    async exportBundle(filter?: MemorySearchFilter): Promise<MemoryBundle> {
+      const connection = options.resolveConnection();
+      const body = await wireFetch(connection, '/api/memory/records/export', { method: 'POST', body: (filter ?? {}) as unknown as JsonRecord }, timeoutMs);
+      if (!isRecord(body) || !isRecord(body.bundle)) {
+        throw new Error('memory spine: malformed response from /api/memory/records/export (missing bundle)');
+      }
+      return body.bundle as unknown as MemoryBundle;
+    },
+
+    async importBundle(bundle: MemoryBundle): Promise<MemoryImportResult> {
+      const connection = options.resolveConnection();
+      const body = await wireFetch(connection, '/api/memory/records/import', { method: 'POST', body: { bundle } as unknown as JsonRecord }, timeoutMs);
+      if (!isRecord(body) || !isRecord(body.result)) {
+        throw new Error('memory spine: malformed response from /api/memory/records/import (missing result)');
+      }
+      return body.result as unknown as MemoryImportResult;
     },
   };
 }

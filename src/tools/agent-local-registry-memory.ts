@@ -13,17 +13,19 @@
  * fallback) instead of silently returning zero matches that read as "nothing
  * was ever stored."
  *
- * MEMORY-SPINE WIRING (SDK 1.1.0). get/create/review/stale/delete and the
- * literal `search` path all have a wire-covered equivalent on `MemoryAccess`
- * (get/add/updateReview/updateReview/delete/honestSearch), so they route
- * through `memorySpine` — local by default, or over the wire the moment the
- * agent has adopted a daemon (see services.ts's memorySpineClient). `list`,
- * `update`, and the SEMANTIC search path have NO wire equivalent in this SDK
- * version (no getAll/update/searchSemantic/vectorStats route exists yet), so
- * those three stay on the raw local `registry` — a known, honest scope limit
- * of the wire surface as shipped, not an oversight. Whenever one of them runs
- * while a daemon IS adopted, it reads/writes the agent's own local snapshot of
- * the store directly, out of band from the daemon's canonical copy.
+ * MEMORY-SPINE WIRING (SDK 1.2.0 full-detach catalog). Every action below now
+ * routes through `memorySpine` — local by default, or over the wire the moment
+ * the agent has adopted a daemon (see services.ts's memorySpineClient).
+ * get/create/review/stale/delete and the literal `search` path use the five
+ * 1.1.0 core verbs (get/add/updateReview/updateReview/delete/honestSearch);
+ * `list` and `update` use the 1.2.0 extended verbs of the same name
+ * (list/update); the SEMANTIC search path uses the 1.2.0 `searchSemantic`
+ * extended verb. Only the index-health check (`registry.vectorStats()`) stays
+ * on the raw local `registry` — vector-index diagnostics are maintenance a
+ * store performs on its OWN index, so reporting them honestly means reading
+ * this process's own index, not a wire-forwarded view of the daemon's (see the
+ * CLI's identical ruling in memory-command-wire.ts). That is a deliberate,
+ * stated scope limit, not an oversight.
  */
 import {
   HASHED_MEMORY_EMBEDDING_PROVIDER,
@@ -125,9 +127,9 @@ export async function handleMemory(
   args: AgentLocalRegistryToolArgs,
 ): Promise<string> {
   if (action === 'list') {
-    // No wire equivalent to getAll() in this SDK version — stays local (see the
-    // file-header scope note).
-    const records = registry.getAll();
+    // list() is a 1.2.0 extended verb — routes through the spine (no filter =
+    // getAll semantics, matching the previous registry.getAll() call exactly).
+    const records = await memorySpine.list();
     return records.length === 0
       ? 'Agent-local memory\nNo Agent-local memory records.'
       : ['Agent-local memory', ...records.map(formatMemory)].join('\n');
@@ -145,16 +147,18 @@ export async function handleMemory(
     // SEMANTIC BY DEFAULT: natural-language recall must not depend on the query text
     // appearing as a literal substring in the stored summary/detail. Check index
     // health FIRST so an unavailable index degrades honestly instead of silently
-    // returning zero matches that read as "nothing was ever stored." No wire
-    // equivalent for searchSemantic/vectorStats exists yet, so this path stays on
-    // the raw local registry regardless of spine mode (see the file-header note).
+    // returning zero matches that read as "nothing was ever stored." The health
+    // check itself stays on the raw local registry (vector-index diagnostics are
+    // this process's own — see the file-header note); the actual search, once the
+    // index is known healthy, is the 1.2.0 searchSemantic extended verb and
+    // routes through the spine.
     const stats = registry.vectorStats();
     const unavailable = describeMemoryIndexUnavailable(stats);
     if (unavailable) {
       const records = registry.search({ query, limit: 10 });
       return renderMemorySearch(`literal fallback — ${unavailable}`, query, records.map(formatMemory));
     }
-    const results = registry.searchSemantic({ query, limit: 10 });
+    const results = await memorySpine.searchSemantic({ query, limit: 10 });
     const consultedSemanticIndex = query.length > 0 && results.some((entry) => entry.similarity > 0);
     const caveat = describeMemoryIndexCaveat(stats);
     const mode = !consultedSemanticIndex && query.length > 0
@@ -199,13 +203,13 @@ export async function handleMemory(
     ].join('\n');
   }
   if (action === 'update') {
-    // No wire equivalent to update() (summary/detail/tags/scope patch) in this SDK
-    // version — stays local (see the file-header scope note).
+    // update() is a 1.2.0 extended verb (summary/detail/tags/scope patch) — routes
+    // through the spine.
     const summary = readString(args.summary || args.description);
     const detail = readString(args.detail || args.body);
     const tags = args.tags === undefined ? undefined : [...readStringList(args.tags)];
     assertNoSecretLikeMemoryText([summary, detail, ...(tags ?? [])]);
-    const record = registry.update(requireId(args), {
+    const record = await memorySpine.update(requireId(args), {
       summary: summary || undefined,
       detail: detail || undefined,
       tags,

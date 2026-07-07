@@ -2,11 +2,13 @@
  * memory-command-wire.ts
  *
  * Split out of memory-command.ts to stay under the 800-line architecture cap.
- * Owns the CLI's wire-first path onto the memory spine (SDK 1.1.0) — see the CLI
- * ruling below for why this exists and what it deliberately does NOT cover.
+ * Owns the CLI's wire-first path onto the memory spine (SDK 1.2.0 full-detach
+ * catalog) — see the CLI ruling below for why this exists and what it
+ * deliberately still does NOT cover.
  */
 import type { MemoryReviewState } from '@pellux/goodvibes-sdk/platform/state';
-import type { MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
+import type { LocalMemoryStore, MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
+import { MemorySpineClient, createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 import { formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import { createSpineConnectionResolver, createSpineRestProbe } from '../runtime/session-spine-rest-transport.ts';
@@ -25,15 +27,20 @@ import {
   parseConfidence,
   parseOptions,
   provenanceFromOptions,
+  readBundle,
+  renderRecord,
   renderRecordList,
   requireClass,
+  requireScope,
+  resolvePath,
   success,
+  writeBundle,
   type MemoryListData,
   type MemorySearchData,
 } from './memory-command.ts';
 
 /**
- * CLI RULING (memory-spine adoption, SDK 1.1.0).
+ * CLI RULING (memory-spine adoption, SDK 1.2.0 full-detach catalog).
  *
  * The CLI is a one-shot process invoked by `goodvibes-agent memory ...` with no
  * lasting daemon context — it doesn't get to sit through a boot-time reachability
@@ -47,21 +54,25 @@ import {
  * mode, not the exception).
  *
  * So the honest resolution: for every subcommand that has a wire-covered
- * equivalent on `MemoryAccess` (add/honestSearch/get/updateReview/delete — see
+ * equivalent on `MemoryAccess` (the five 1.1.0 core verbs plus the 1.2.0 extended
+ * verbs list/update/link/linksFor/searchSemantic/exportBundle/importBundle — see
  * memory-spine-rest-transport.ts), the CLI probes for a reachable daemon FIRST and,
  * when one answers, runs the ENTIRE command over the wire and never opens the local
  * store file at all. Only when the probe finds no daemon does it fall back to the
  * existing direct-local path.
  *
- * A real, stated gap: not every subcommand maps onto the wire's five-method
- * surface. `list`'s all-scope browse semantics, `show`'s links, `queue`, `promote`
- * (scope update), `link`, `export`/`import` (bulk bundle), and `vector` diagnostics
- * have no wire equivalent in this SDK version, so they always run local-direct —
- * even while a daemon is adopted and actively writing the same file. That is the
- * exact single-writer race this ruling exists to prevent, and it is NOT closed for
- * those subcommands; it is a known scope limit of the wire surface as shipped, not
- * a silent oversight. Closing it fully needs the SDK to grow wire routes for the
- * remaining registry operations — out of scope for this work order.
+ * 1.2.0 closes most of the prior gap: `show` (get + linksFor), `link`, `export`,
+ * `import`, and the `search --semantic`/`--vector` path, plus `promote` (which is
+ * not a distinct wire verb — it is `update({ scope })`, per the SDK's full-detach
+ * ruling) now all run over the wire when a daemon is adopted.
+ *
+ * A real, stated gap remains: `queue` (reviewQueue) and `vector` (vectorStats /
+ * doctor / rebuild) have no route on this CLI's wire transport by deliberate
+ * choice — vector-index diagnostics are maintenance a store performs on its OWN
+ * index, so they stay local-direct honestly rather than reporting a daemon's index
+ * health as if it were this process's own. Those two subcommands still run
+ * local-direct even while a daemon is adopted; that is a known, named scope limit,
+ * not a silent oversight.
  */
 const WIRE_STORE_LABEL = 'wire:connected-daemon';
 const CLI_PROBE_TIMEOUT_MS = 800;
@@ -69,20 +80,53 @@ const CLI_PROBE_TIMEOUT_MS = 800;
 const WIRE_ELIGIBLE_SUBCOMMANDS = new Set([
   'list', 'ls',
   'add', 'create',
+  'show', 'get',
   'review',
   'stale',
   'contradict', 'contradicted',
+  'promote',
+  'link',
   'delete', 'remove', 'rm',
+  'export', 'handoff-export', 'share',
+  'import', 'handoff-import',
 ]);
 
-/** `search`/`find` is wire-eligible only for a literal query — `--semantic`/`--vector` has no wire equivalent (searchSemantic/vectorStats aren't part of MemoryAccess). */
-function isWireEligibleMemorySubcommand(normalized: string, args: readonly string[]): boolean {
-  if (WIRE_ELIGIBLE_SUBCOMMANDS.has(normalized)) return true;
-  if (normalized === 'search' || normalized === 'find') {
-    const options = parseOptions(args);
-    return !(hasFlag(options, 'semantic') || hasFlag(options, 'vector'));
-  }
-  return false;
+/** `search`/`find` covers both the literal path (honestSearch) and, since 1.2.0, the `--semantic`/`--vector` path (searchSemantic) — both are wire-covered verbs. */
+function isWireEligibleMemorySubcommand(normalized: string): boolean {
+  return WIRE_ELIGIBLE_SUBCOMMANDS.has(normalized) || normalized === 'search' || normalized === 'find';
+}
+
+/**
+ * A `LocalMemoryStore` stub that must never actually run. `MemorySpineClient`
+ * routes EVERY op to the transport once constructed with one attached (mode is
+ * 'client' immediately — see the SDK's one-writer enforcement ruling in
+ * client.ts), so this stub exists only to satisfy the constructor's required
+ * `local` argument without opening the CLI's own copy of the store file — the
+ * exact single-writer race the whole wire-first path exists to avoid. A call
+ * that somehow reached it would be a bug in that routing guarantee, so it fails
+ * loudly rather than silently reading/writing a file this process must not touch.
+ */
+function neverReachedLocalMemoryStore(): LocalMemoryStore {
+  const unreachable = (): never => {
+    throw new Error('memory spine: CLI wire mode reached the local store stub — this must never happen while a transport is attached.');
+  };
+  return {
+    add: unreachable,
+    honestSearch: unreachable,
+    get: unreachable,
+    review: unreachable,
+    delete: unreachable,
+    search: unreachable,
+    searchSemantic: unreachable,
+    update: unreachable,
+    link: unreachable,
+    linksFor: unreachable,
+    reviewQueue: unreachable,
+    exportBundle: unreachable,
+    importBundle: unreachable,
+    vectorStats: unreachable,
+    doctor: unreachable,
+  };
 }
 
 /** Probes for a reachable connected daemon and, only when one answers, returns the wire MemoryAccess. Returns null (never throws) so the caller can fall back to local. */
@@ -91,7 +135,14 @@ async function resolveWireMemoryAccess(runtime: CliCommandRuntime): Promise<Memo
   const probe = createSpineRestProbe({ resolveConnection, probeTimeoutMs: CLI_PROBE_TIMEOUT_MS });
   const reachable = await probe();
   if (!reachable) return null;
-  return createMemorySpineRestTransport({ resolveConnection });
+  const transport = createMemorySpineRestTransport({ resolveConnection });
+  // MemorySpineClient (not the raw transport) is the MemoryAccess: the raw
+  // REST transport's type permits missing extended verbs (MemoryTransport =
+  // MemoryCoreAccess & Partial<MemoryExtendedAccess>) even though this specific
+  // transport implements every one the CLI calls; routing through the client
+  // gets full MemoryAccess typing plus its honest-rejection behavior for any
+  // verb a future older daemon doesn't support.
+  return new MemorySpineClient({ local: createLocalMemoryAccess(neverReachedLocalMemoryStore()), transport });
 }
 
 async function handleListWire(runtime: CliCommandRuntime, memorySpine: MemoryAccess, args: readonly string[]): Promise<CliCommandOutput> {
@@ -110,9 +161,91 @@ async function handleSearchWire(runtime: CliCommandRuntime, memorySpine: MemoryA
   if (!query) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory search <query> [--semantic] [--cls <class>] [--scope <scope>] [--limit <n>]', 2);
   const filter = filterFromOptions(options, 20);
   filter.query = query;
+  const semantic = hasFlag(options, 'semantic') || hasFlag(options, 'vector');
+  if (semantic) filter.semantic = true;
+  if (semantic) {
+    // 1.2.0: searchSemantic is a wire-covered extended verb (memory.records.search-semantic).
+    const semanticResults = await memorySpine.searchSemantic(filter);
+    const records = semanticResults.map((entry) => entry.record);
+    const data: MemorySearchData = { path: WIRE_STORE_LABEL, records, filter, semantic: true, semanticResults };
+    return success(runtime, 'agent.memory.search', data, renderRecordList(`Agent memory matching "${query}"`, WIRE_STORE_LABEL, records, semanticResults));
+  }
   const { records } = await memorySpine.honestSearch(filter);
   const data: MemorySearchData = { path: WIRE_STORE_LABEL, records, filter, semantic: false, semanticResults: [] };
   return success(runtime, 'agent.memory.search', data, renderRecordList(`Agent memory matching "${query}"`, WIRE_STORE_LABEL, records));
+}
+
+async function handleShowWire(runtime: CliCommandRuntime, memorySpine: MemoryAccess, args: readonly string[]): Promise<CliCommandOutput> {
+  const id = args[0];
+  if (!id) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory show <id>', 2);
+  const record = await memorySpine.get(id);
+  if (!record) return failure(runtime, 'memory_not_found', `Memory record not found ${id}`, 1);
+  const links = await memorySpine.linksFor(id);
+  return success(runtime, 'agent.memory.show', { record, links }, renderRecord(record, links));
+}
+
+async function handlePromoteWire(runtime: CliCommandRuntime, memorySpine: MemoryAccess, args: readonly string[]): Promise<CliCommandOutput> {
+  const options = parseOptions(args);
+  const [id, scopeRaw] = options.positionals;
+  if (!id || !scopeRaw) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory promote <id> <session|project|team> --yes', 2);
+  if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to promote memory record ${id} without --yes.`, 2);
+  // "Promote" is not a distinct wire verb — it is a scope edit, per the SDK's
+  // full-detach ruling (a scope promotion is update({ scope })).
+  const record = await memorySpine.update(id, { scope: requireScope(scopeRaw) });
+  if (!record) return failure(runtime, 'memory_not_found', `Memory record not found ${id}`, 1);
+  return success(runtime, 'agent.memory.promote', record, [
+    'Agent memory promoted',
+    `  id ${record.id}`,
+    `  scope ${record.scope}`,
+  ].join('\n'));
+}
+
+async function handleLinkWire(runtime: CliCommandRuntime, memorySpine: MemoryAccess, args: readonly string[]): Promise<CliCommandOutput> {
+  const options = parseOptions(args);
+  const [fromId, toId, relation] = options.positionals;
+  if (!fromId || !toId || !relation) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory link <fromId> <toId> <relation> --yes', 2);
+  if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to link memory records ${fromId} and ${toId} without --yes.`, 2);
+  const link = await memorySpine.link(fromId, toId, relation);
+  if (!link) return failure(runtime, 'memory_link_failed', 'Memory link failed; check that both records exist.', 1);
+  return success(runtime, 'agent.memory.link', link, [
+    'Agent memory linked',
+    `  from ${fromId}`,
+    `  to ${toId}`,
+    `  relation ${relation}`,
+  ].join('\n'));
+}
+
+async function handleExportWire(runtime: CliCommandRuntime, memorySpine: MemoryAccess, args: readonly string[]): Promise<CliCommandOutput> {
+  const options = parseOptions(args);
+  const pathArg = options.positionals[0];
+  if (!pathArg) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory export <path> [--scope <scope>] [--cls <class>] --yes', 2);
+  if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to export Agent memory bundle to ${pathArg} without --yes.`, 2);
+  const filter = filterFromOptions(options, 200);
+  const path = resolvePath(runtime, pathArg);
+  const bundle = await memorySpine.exportBundle(filter);
+  writeBundle(path, bundle);
+  return success(runtime, 'agent.memory.export', { path, bundle }, [
+    'Agent memory exported',
+    `  records ${bundle.recordCount}`,
+    `  links ${bundle.linkCount}`,
+    `  path ${path}`,
+  ].join('\n'));
+}
+
+async function handleImportWire(runtime: CliCommandRuntime, memorySpine: MemoryAccess, args: readonly string[]): Promise<CliCommandOutput> {
+  const options = parseOptions(args);
+  const pathArg = options.positionals[0];
+  if (!pathArg) return failure(runtime, 'invalid_memory_command', 'Usage: goodvibes-agent memory import <path> --yes', 2);
+  if (!hasFlag(options, 'yes')) return failure(runtime, 'confirmation_required', `Refusing to import Agent memory bundle from ${pathArg} without --yes.`, 2);
+  const path = resolvePath(runtime, pathArg);
+  const bundle = readBundle(path);
+  const result = await memorySpine.importBundle(bundle);
+  return success(runtime, 'agent.memory.import', { path, result }, [
+    `Agent memory imported: ${result.importedRecords} record${result.importedRecords === 1 ? '' : 's'}`,
+    `  records: ${result.importedRecords}`,
+    `  links: ${result.importedLinks}`,
+    `  skipped: ${result.skippedRecords}`,
+  ].join('\n'));
 }
 
 async function handleAddWire(runtime: CliCommandRuntime, memorySpine: MemoryAccess, args: readonly string[]): Promise<CliCommandOutput> {
@@ -215,15 +348,20 @@ export async function tryWireMemoryCommand(
   normalized: string,
   rest: readonly string[],
 ): Promise<CliCommandOutput | null> {
-  if (!isWireEligibleMemorySubcommand(normalized, rest)) return null;
+  if (!isWireEligibleMemorySubcommand(normalized)) return null;
   const memorySpine = await resolveWireMemoryAccess(runtime);
   if (!memorySpine) return null;
   if (normalized === 'list' || normalized === 'ls') return handleListWire(runtime, memorySpine, rest);
   if (normalized === 'search' || normalized === 'find') return handleSearchWire(runtime, memorySpine, rest);
   if (normalized === 'add' || normalized === 'create') return handleAddWire(runtime, memorySpine, rest);
+  if (normalized === 'show' || normalized === 'get') return handleShowWire(runtime, memorySpine, rest);
   if (normalized === 'review') return handleReviewWire(runtime, memorySpine, rest);
   if (normalized === 'stale') return handleReviewShortcutWire(runtime, memorySpine, 'stale', rest);
   if (normalized === 'contradict' || normalized === 'contradicted') return handleReviewShortcutWire(runtime, memorySpine, 'contradicted', rest);
+  if (normalized === 'promote') return handlePromoteWire(runtime, memorySpine, rest);
+  if (normalized === 'link') return handleLinkWire(runtime, memorySpine, rest);
   if (normalized === 'delete' || normalized === 'remove' || normalized === 'rm') return handleDeleteWire(runtime, memorySpine, rest);
+  if (normalized === 'export' || normalized === 'handoff-export' || normalized === 'share') return handleExportWire(runtime, memorySpine, rest);
+  if (normalized === 'import' || normalized === 'handoff-import') return handleImportWire(runtime, memorySpine, rest);
   return null;
 }
