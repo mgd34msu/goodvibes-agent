@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.6.1 - 2026-07-07
+
+- Updated to SDK 1.3.2: a platform that cannot load SQLite extensions (macOS system SQLite in a compiled binary) now reports an honest capability limit instead of an error; semantic memory search states its literal fallback.
+
 ## 1.6.0 - 2026-07-07
 
 - Spoken output now uses the SDK's shared speech engine — the same sentence batching, bounded concurrency, retry, and drain behavior as every other GoodVibes surface, from one implementation.
