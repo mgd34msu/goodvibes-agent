@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.6.3 - 2026-07-07
+
+- SDK 1.4.0 pin: the shared daemon contracts gain server-side companion-chat turn control — a true stop verb (provider stream aborted, honest partial persisted), queue-when-busy sends, and steer (interrupt-and-send-now). No agent-side behavior changes; agent session turns already had lifecycle control on the operator wire.
+
 ## 1.6.2 - 2026-07-07
 
 - Updated to SDK 1.3.3: the macOS capability-limit classification now matches Apple SQLite's exact refusal message, so compiled binaries report the honest limit instead of an error.
