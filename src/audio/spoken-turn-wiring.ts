@@ -1,9 +1,9 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { UiRuntimeEvents } from '@/runtime/index.ts';
 import type { VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
+import { SpokenTurnController } from '@pellux/goodvibes-sdk/platform/voice';
 import type { StreamingAudioPlayer } from './player.ts';
 import { LocalStreamingAudioPlayer } from './player.ts';
-import { SpokenTurnController } from './spoken-turn-controller.ts';
 
 export interface SpokenTurnRuntime {
   readonly unsubs: readonly (() => void)[];
@@ -31,8 +31,9 @@ export function wireSpokenTurnRuntime(options: WireSpokenTurnRuntimeOptions): Sp
   const controller = new SpokenTurnController({
     voiceService: options.voiceService,
     configManager: options.configManager,
-    player,
+    sink: player,
     notify: options.notify,
+    source: 'goodvibes-agent',
   });
 
   const turns = options.events.turns;

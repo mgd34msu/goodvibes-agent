@@ -8,8 +8,10 @@
  * that could silently drift out of shape.
  *
  * This suite locks that in three ways:
- *  1. The tts.* keys the Agent's audio pipeline actually reads
- *     (spoken-turn-controller.ts, spoken-turn-model-routing.ts,
+ *  1. The tts.* keys the Agent's audio pipeline actually reads (tts.provider,
+ *     tts.voice, and tts.speed inside the SDK-owned SpokenTurnController that
+ *     spoken-turn-wiring.ts constructs, plus tts.llmProvider/tts.llmModel in
+ *     spoken-turn-model-routing.ts and tts.provider/tts.voice in
  *     tts-settings-actions.ts) exist in the SDK's shared CONFIG_SCHEMA with
  *     the shared defaults — not a schema the Agent invented for itself.
  *  2. A real ConfigManager, constructed the exact way the Agent's entrypoint
@@ -42,9 +44,14 @@ const AGENT_VOICE_CONFIG_KEYS = [
   'tts.llmModel',
 ] as const;
 
-/** Source files in the Agent that read or write tts.* config. */
+/**
+ * Source files in the Agent that read or write tts.* config, or that carry a
+ * ConfigManager down into the SDK-owned SpokenTurnController (which reads
+ * tts.provider/tts.voice/tts.speed itself — see @pellux/goodvibes-sdk's own
+ * voice-config coverage for that half of the contract).
+ */
 const AGENT_VOICE_CONFIG_READERS = [
-  'src/audio/spoken-turn-controller.ts',
+  'src/audio/spoken-turn-wiring.ts',
   'src/audio/spoken-turn-model-routing.ts',
   'src/input/tts-settings-actions.ts',
 ] as const;
