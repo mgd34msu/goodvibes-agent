@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.6.0 - 2026-07-07
+
+- Spoken output now uses the SDK's shared speech engine — the same sentence batching, bounded concurrency, retry, and drain behavior as every other GoodVibes surface, from one implementation.
+- Voice settings are shared across surfaces: the provider, voice, and speed configured anywhere (terminal UI, desktop web app, or here) now resolve from one shared configuration file, with the Agent's local setting as fallback.
+- Memory operations against an adopted daemon now cover the full record surface (list, edit, link, semantic search, export/import) over the daemon's API, and an older daemon that doesn't serve an operation says so plainly instead of pretending a record doesn't exist.
+- Per-turn memory recall reads a freshness-stamped snapshot that states its age and whether the recall floor was applied — the receipt's numbers and its note now tell one coherent story.
+
 ## 1.5.9 - 2026-07-06
 
 - Fixed spoken output (text-to-speech) so playback no longer clips at the start: the Agent now waits until the audio player has actually started before sending it audio, instead of writing into a player that hasn't opened yet.
