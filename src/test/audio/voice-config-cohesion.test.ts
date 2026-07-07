@@ -29,7 +29,7 @@
  * web UI owns mic input per the VOICE-WEBUI brief).
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager, CONFIG_SCHEMA, DEFAULT_CONFIG, isValidConfigKey } from '@pellux/goodvibes-sdk/platform/config';
@@ -146,6 +146,73 @@ describe('Voice config cohesion — Agent reads the shared tts.* contract, not a
         const window = lines.slice(index, index + 6).join('\n');
         expect(window.includes('default:')).toBe(false);
       });
+    }
+  });
+});
+
+describe('Voice config cohesion — cross-surface proof (2026-07-06 shared config tier)', () => {
+  // Mike's label is "one voice across terminal, desktop, and agent." Schema
+  // cohesion (above) only proves the Agent reads the same KEYS everyone else
+  // does; it says nothing about whether a VALUE set on one surface is the
+  // value another surface actually sees. Before the shared tier
+  // (docs/decisions/2026-07-06-shared-voice-config-tier.md), each surfaceRoot
+  // wrote its own `~/.goodvibes/<surface>/settings.json` silo, so a voice set
+  // in the TUI never reached the Agent even though both claimed "tts.*". This
+  // is the test that actually proves the label true: two independently
+  // constructed ConfigManagers, one per surfaceRoot, sharing nothing but a
+  // home directory.
+
+  test('a tts.voice value set under surfaceRoot "tui" resolves in a fresh ConfigManager built under surfaceRoot "agent"', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-voice-cross-surface-'));
+    try {
+      // The TUI/daemon surface — same construction shape as the TUI's own
+      // entrypoint (surfaceRoot: 'tui'), sharing this test's temp homeDir.
+      const tuiConfigManager = new ConfigManager({ homeDir, surfaceRoot: 'tui' });
+      tuiConfigManager.set('tts.voice', 'shimmer');
+
+      // A brand-new Agent ConfigManager, constructed AFTER the TUI-side write
+      // and loading from disk for the first time — nothing is shared in
+      // memory between the two instances, only the shared-tier file on disk.
+      const agentConfigManager = new ConfigManager({ homeDir, surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT });
+
+      expect(agentConfigManager.get('tts.voice')).toBe('shimmer');
+      // Confirm it actually resolved from the shared tier, not a coincidental
+      // default or a stray Agent-local settings.json — the whole point of
+      // the proof is which TIER carried the value across surfaces.
+      expect(agentConfigManager.describeConfigKeySource('tts.voice').tier).toBe('shared');
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
+  test('a tts.* write from the Agent surface routes to the shared tier file, not the Agent-local settings silo', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-voice-cross-surface-'));
+    try {
+      const agentConfigManager = new ConfigManager({ homeDir, surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT });
+      agentConfigManager.set('tts.voice', 'onyx');
+
+      const sharedTierPath = agentConfigManager.getSharedTierPath();
+      expect(sharedTierPath).not.toBeNull();
+      const sharedTierRaw = JSON.parse(readFileSync(sharedTierPath!, 'utf-8')) as { tts?: { voice?: string } };
+      expect(sharedTierRaw.tts?.voice).toBe('onyx');
+
+      // The Agent's own surface-local settings.json must NOT carry the value
+      // — a value present in both places would still pass the read-side
+      // assertion above by accident while quietly keeping the old per-surface
+      // silo alive underneath.
+      const agentLocalSettingsPath = join(homeDir, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json');
+      if (existsSync(agentLocalSettingsPath)) {
+        const agentLocalRaw = JSON.parse(readFileSync(agentLocalSettingsPath, 'utf-8')) as { tts?: { voice?: string } };
+        expect(agentLocalRaw.tts?.voice).toBeUndefined();
+      }
+
+      // And a second surface (e.g. the TUI) constructed fresh against the
+      // same homeDir sees the Agent-originated write too — the sharing is
+      // bidirectional, not an Agent-reads-TUI-writes one-way street.
+      const tuiConfigManager = new ConfigManager({ homeDir, surfaceRoot: 'tui' });
+      expect(tuiConfigManager.get('tts.voice')).toBe('onyx');
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
     }
   });
 });
