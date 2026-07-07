@@ -88,10 +88,14 @@ function operatorContractMethods(): readonly OperatorContractMethod[] {
 }
 
 function operatorMethodSearchText(method: OperatorContractMethod): string {
+  // Deliberately EXCLUDES title/description prose: capability discovery must
+  // key off what a method IS (id, route, category, scopes), not how its docs
+  // read. SDK 1.4.0's companion turn-control descriptions legitimately say
+  // "the terminal turn.cancelled event" (terminal as in final) and were
+  // false-discovered as terminal/TTY capabilities. A real PTY/terminal daemon
+  // method would carry the token in its id or path.
   return [
     method.id,
-    method.title,
-    method.description,
     method.category,
     method.http?.method,
     method.http?.path,
