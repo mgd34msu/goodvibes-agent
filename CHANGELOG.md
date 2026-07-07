@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.6.2 - 2026-07-07
+
+- Updated to SDK 1.3.3: the macOS capability-limit classification now matches Apple SQLite's exact refusal message, so compiled binaries report the honest limit instead of an error.
+
 ## 1.6.1 - 2026-07-07
 
 - Updated to SDK 1.3.2: a platform that cannot load SQLite extensions (macOS system SQLite in a compiled binary) now reports an honest capability limit instead of an error; semantic memory search states its literal fallback.
