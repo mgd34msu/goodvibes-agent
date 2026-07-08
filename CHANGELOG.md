@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.6.4 - 2026-07-07
+
+- The exec tool no longer denies destructive- or escalation-class commands (kill, docker, sudo) that the permission configuration allows — class-level risk is decided by permission settings alone. The only remaining unconditional block is a small frozen catastrophic list (root filesystem deletion, raw disk destruction, fork bombs).
+
 ## 1.6.3 - 2026-07-07
 
 - SDK 1.4.0 pin: the shared daemon contracts gain server-side companion-chat turn control — a true stop verb (provider stream aborted, honest partial persisted), queue-when-busy sends, and steer (interrupt-and-send-now). No agent-side behavior changes; agent session turns already had lifecycle control on the operator wire.
