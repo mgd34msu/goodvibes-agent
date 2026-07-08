@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.7.0 - 2026-07-08
+
+- Adopts platform SDK 1.5.0.
+- When the model itself reports that its context window filled up while
+- producing a response, the agent now compacts its conversation immediately —
+- before the next model call — instead of waiting for local token estimates
+- to cross a threshold. The model's own report is treated as authoritative.
+- Custom per-model context windows configured on this machine now apply to
+- agent runs too, and persist across restarts.
+
 ## 1.6.4 - 2026-07-07
 
 - The exec tool no longer denies destructive- or escalation-class commands (kill, docker, sudo) that the permission configuration allows — class-level risk is decided by permission settings alone. The only remaining unconditional block is a small frozen catastrophic list (root filesystem deletion, raw disk destruction, fork bombs).
