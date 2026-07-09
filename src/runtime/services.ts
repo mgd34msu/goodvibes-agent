@@ -9,7 +9,7 @@ import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { AutomationDeliveryManager, AutomationManager, AutomationRouteStore } from '@pellux/goodvibes-sdk/platform/automation';
 import { ChannelPluginRegistry, ChannelPolicyManager, RouteBindingManager, SurfaceRegistry } from '@pellux/goodvibes-sdk/platform/channels';
 import { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
-import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
+import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker, registerGatewayVerbGroups } from '@pellux/goodvibes-sdk/platform/control-plane';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
@@ -950,6 +950,21 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   }));
   const workspaceCheckpointManager = new WorkspaceCheckpointManager({
     workspaceRoot: workingDirectory,
+  });
+
+  // Attach handlers for every ws-only gateway verb group (fleet.* including
+  // the archive verbs, checkpoints.*, sessions.search, push.*). Without this
+  // call the catalog carries descriptors but no handlers, and every one of
+  // those verbs answers 501 "Gateway method is not invokable" — the same gap
+  // the companion app found on the TUI-vendored daemon. Mirrors the SDK
+  // runtime's composition root (goodvibes-sdk platform/runtime/services.ts).
+  registerGatewayVerbGroups(gatewayMethods, {
+    processRegistry,
+    workspaceCheckpointManager,
+    sessionBroker,
+    secretsManager,
+    approvalBroker,
+    shellPaths,
   });
 
   return {
