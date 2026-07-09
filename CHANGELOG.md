@@ -2,6 +2,14 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.8.0 - 2026-07-09
+
+- Adopts platform SDK 1.6.1.
+- When a provider rejects a request as exceeding the model's context window, the agent now compacts immediately and retries once — and learns that endpoint's real context ceiling so future window math, compaction thresholds, and meters stop trusting over-stated catalog values.
+- Agent-completion notices are delivered to the conversation exactly once; they no longer repeat with escalating urgency tags turns after the agent finished.
+- Finished agent/swarm process subtrees can be archived out of the live fleet view into a session archive (and restored), on this machine and over the wire for remote surfaces.
+- Release live verification: a doctor exit whose only findings are operator-configuration risk advisories no longer fails the strict gate; real errors still do.
+
 ## 1.7.0 - 2026-07-08
 
 - Adopts platform SDK 1.5.0.
