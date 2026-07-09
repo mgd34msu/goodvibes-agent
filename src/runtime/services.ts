@@ -45,7 +45,7 @@ import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
-import { createProcessRegistry } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
+import { createProcessRegistry, withFleetArchive } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import { createOrchestrationEngine } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
@@ -932,7 +932,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     workingDirectory,
     isEnabled: () => false,
   });
-  const processRegistry = createProcessRegistry({
+  // Archive-aware: finished agent/swarm subtrees can be moved out of the
+  // live fleet view into a session-scoped archive (SDK fleet/archive.ts).
+  const processRegistry = withFleetArchive(createProcessRegistry({
     agentManager,
     wrfcController,
     orchestrationEngine,
@@ -945,7 +947,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     messageBus: agentMessageBus,
     automationManager,
     runtimeBus: options.runtimeBus,
-  });
+  }));
   const workspaceCheckpointManager = new WorkspaceCheckpointManager({
     workspaceRoot: workingDirectory,
   });

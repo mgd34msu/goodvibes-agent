@@ -93,7 +93,8 @@ export interface ModelPickerEntry {
   /**
    * How `contextWindow` was determined.
    * - `provider_api`   — reported by the provider's /v1/models endpoint
-   * - `configured_cap` — set explicitly in the provider config file
+   * - `configured_cap` — set explicitly by the user (config file or context-cap surface)
+   * - `observed_limit` — learned from a provider rejecting a longer request
    * - `fallback`       — default constant (no config or API source)
    * - `openrouter`     — sourced from OpenRouter model data (built-in catalog models)
    * - `registry`       — static value in the built-in model registry
@@ -101,6 +102,7 @@ export interface ModelPickerEntry {
   readonly contextWindowSource:
     | 'provider_api'
     | 'configured_cap'
+    | 'observed_limit'
     | 'fallback'
     | 'openrouter'
     | 'registry';
