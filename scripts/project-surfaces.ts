@@ -46,6 +46,26 @@ export function syncVersionSurfaces(root = ROOT): string {
     console.log('prebuild: README.md - not found, skipping');
   }
 
+  // docs/README.md pins the `X.Y.x` release line and is gated against
+  // package.json's major.minor (agent-boundary-docs test). Every minor/major
+  // release used to trip that gate because nothing bumped it — sync it here
+  // alongside the badge so a release commit can never ship a stale line.
+  const docsReadmePath = join(root, 'docs', 'README.md');
+  try {
+    let docsReadme = readFileSync(docsReadmePath, 'utf8');
+    const lineRe = /`[0-9]+\.[0-9]+\.x` release line/;
+    const majorMinor = version.split('.').slice(0, 2).join('.');
+    if (lineRe.test(docsReadme)) {
+      docsReadme = docsReadme.replace(lineRe, `\`${majorMinor}.x\` release line`);
+      writeFileSync(docsReadmePath, docsReadme);
+      console.log(`prebuild: docs/README.md release line -> ${majorMinor}.x`);
+    } else {
+      console.log('prebuild: docs/README.md - no release line found, skipping');
+    }
+  } catch {
+    console.log('prebuild: docs/README.md - not found, skipping');
+  }
+
   return version;
 }
 
