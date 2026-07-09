@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.8.1 - 2026-07-09
+
+- Fixes every ws-only control-plane verb (fleet, checkpoints, session search, push) answering 501 'Gateway method is not invokable' on the vendored daemon — handlers are now attached at runtime construction, with a release gate that invokes them end-to-end.
+
 ## 1.8.0 - 2026-07-09
 
 - Adopts platform SDK 1.6.1.
