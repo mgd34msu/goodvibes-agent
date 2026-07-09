@@ -357,3 +357,46 @@ describe('live verification report', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// doctorRiskAdvisoryOnlyCount — advisory-only doctor exits must not block a
+// strict release verification; real errors and crashes still must.
+// ---------------------------------------------------------------------------
+
+import { doctorRiskAdvisoryOnlyCount } from '../../verification/live-verifier.ts';
+
+describe('doctorRiskAdvisoryOnlyCount', () => {
+  const advisoryOutput = [
+    'GoodVibes Agent doctor',
+    '  provider openai',
+    'Warnings',
+    '  - [risk:security:auto-approve-enabled] Auto-approve is on: tool calls never prompt.',
+    '    cause: behavior.autoApprove is true.',
+  ].join('\n');
+
+  it('exit 0 → zero advisories (clean pass)', () => {
+    expect(doctorRiskAdvisoryOnlyCount({ exitCode: 0, stdout: advisoryOutput })).toBe(0);
+  });
+
+  it('exit 1 with only [risk:*] advisories → advisory count (acceptable)', () => {
+    expect(doctorRiskAdvisoryOnlyCount({ exitCode: 1, stdout: advisoryOutput })).toBe(1);
+  });
+
+  it('exit 1 with an Errors section → null (real problem, still blocks)', () => {
+    const out = `${advisoryOutput}\nErrors\n  - [config:invalid] provider block malformed.`;
+    expect(doctorRiskAdvisoryOnlyCount({ exitCode: 1, stdout: out })).toBeNull();
+  });
+
+  it('exit 1 with a non-risk finding → null', () => {
+    const out = ['Warnings', '  - [config:missing-model] No model configured.'].join('\n');
+    expect(doctorRiskAdvisoryOnlyCount({ exitCode: 1, stdout: out })).toBeNull();
+  });
+
+  it('exit 1 with no parseable findings (crash-ish output) → null', () => {
+    expect(doctorRiskAdvisoryOnlyCount({ exitCode: 1, stdout: 'TypeError: boom' })).toBeNull();
+  });
+
+  it('other exit codes → null regardless of output', () => {
+    expect(doctorRiskAdvisoryOnlyCount({ exitCode: 2, stdout: advisoryOutput })).toBeNull();
+  });
+});

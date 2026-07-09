@@ -47,6 +47,25 @@ const STATUS_RELEASE_DETAIL = 'Status JSON command completed; provider/model ide
 const PROVIDERS_RELEASE_DETAIL = 'Provider inventory command completed; provider names and credential posture omitted from release artifact.';
 const DOCTOR_RELEASE_DETAIL = 'Doctor command completed without findings; provider/model identifiers and credential posture omitted from release artifact.';
 
+/**
+ * The doctor exits non-zero for ANY finding, including `[risk:*]` advisories
+ * that describe the operator's own intentional configuration (e.g.
+ * behavior.autoApprove on a trusted machine). Those advisories are honest and
+ * must keep printing — but they are not release defects, so a doctor run
+ * whose ONLY findings are risk advisories (no Errors section) must not turn a
+ * strict live verification red. Returns the advisory count when the non-zero
+ * exit is advisory-only, or null when the exit signals a real problem
+ * (errors present, no parseable findings, crash).
+ */
+export function doctorRiskAdvisoryOnlyCount(result: { exitCode: number | null; stdout: string }): number | null {
+  if (result.exitCode === 0) return 0;
+  if (result.exitCode !== 1) return null;
+  if (/^Errors\b/m.test(result.stdout)) return null;
+  const findings = [...result.stdout.matchAll(/^\s*- \[([a-z]+):/gm)].map((m) => m[1]);
+  if (findings.length === 0) return null;
+  return findings.every((kind) => kind === 'risk') ? findings.length : null;
+}
+
 export type LiveVerificationStatus = 'pass' | 'warn' | 'fail' | 'skip';
 
 export interface LiveVerificationCheck {
@@ -509,11 +528,15 @@ export async function buildLiveVerificationReport(options: LiveVerificationOptio
       'Provider inventory rendered successfully.',
       { passDetail: PROVIDERS_RELEASE_DETAIL },
     ));
+    const doctorResult = await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'doctor', '--output', 'text'], projectRoot, { env: commandEnv });
+    const doctorAdvisories = doctorRiskAdvisoryOnlyCount(doctorResult);
     checks.push(commandCheck(
       'cli-doctor',
       'CLI doctor command',
-      await runCommand(binaryPath, ['--runtime-url', connectedHostBaseUrl, 'doctor', '--output', 'text'], projectRoot, { env: commandEnv }),
-      'Doctor completed without findings.',
+      doctorAdvisories !== null ? { ...doctorResult, exitCode: 0 } : doctorResult,
+      doctorAdvisories !== null && doctorAdvisories > 0
+        ? `Doctor completed; ${doctorAdvisories} operator-configuration risk advisory(ies) noted (intentional trust posture, not a release defect).`
+        : 'Doctor completed without findings.',
       { warnOnNonZero: true, passDetail: DOCTOR_RELEASE_DETAIL },
     ));
   }
