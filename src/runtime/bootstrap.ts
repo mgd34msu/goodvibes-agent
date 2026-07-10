@@ -42,6 +42,7 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
+import { createMemoryConsolidationScheduler } from './memory-consolidation-wiring.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
 import { registerAgentChannelsTool } from '../tools/agent-channels-tool.ts';
@@ -211,6 +212,15 @@ export async function bootstrapRuntime(
   // was just never captured. Mirrors activePromptTurnId's lifecycle exactly: set on
   // TURN_SUBMITTED, cleared on every terminal event for that turn.
   let activePromptTurnText: string | null = null;
+  // Idle-time memory consolidation: reviews stored memory when the agent is
+  // genuinely idle (no active turn) and no sooner than the configured interval,
+  // off by default. Every run leaves a receipt of what it merged/archived/proposed.
+  const memoryConsolidationScheduler = createMemoryConsolidationScheduler({
+    configManager,
+    memoryRegistry: services.memoryRegistry,
+    shellPaths: services.shellPaths,
+    isIdle: () => activePromptTurnId === null,
+  });
   runtimeUnsubs.push(
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
       activePromptTurnId = event.payload.turnId;
@@ -237,6 +247,7 @@ export async function bootstrapRuntime(
         activePromptTurnId = null;
         activePromptTurnText = null;
       }
+      memoryConsolidationScheduler.onTurnSettled();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -250,6 +261,7 @@ export async function bootstrapRuntime(
         activePromptTurnId = null;
         activePromptTurnText = null;
       }
+      memoryConsolidationScheduler.onTurnSettled();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_CANCEL' }>>('TURN_CANCEL', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -263,6 +275,7 @@ export async function bootstrapRuntime(
         activePromptTurnId = null;
         activePromptTurnText = null;
       }
+      memoryConsolidationScheduler.onTurnSettled();
     }),
   );
   const {
