@@ -43,6 +43,31 @@ const AGENT_KNOWLEDGE_READ_ROUTE_CHECKS = [
     route: '/api/goodvibes-agent/knowledge/connectors',
   },
 ] as const;
+/**
+ * Canonical set of live-verification scenario ids this verifier emits. Kept
+ * next to the checks that produce them so a capability declared `certified` in
+ * the capability registry can be pinned against a real scenario id. The
+ * Agent-Knowledge read-route ids are derived from their check specs so the two
+ * cannot drift apart.
+ */
+export const LIVE_VERIFICATION_SCENARIO_IDS: readonly string[] = [
+  'verification-ledger',
+  'compiled-cli-present',
+  'cli-version',
+  'cli-status-json',
+  'cli-compat-json',
+  'cli-agent-knowledge-status',
+  'cli-providers',
+  'cli-doctor',
+  'connected-host-status',
+  'connected-host-health',
+  'openai-compatible-models',
+  'agent-knowledge-status',
+  'agent-knowledge-ask-isolated',
+  'agent-knowledge-search-isolated',
+  ...AGENT_KNOWLEDGE_READ_ROUTE_CHECKS.map((check) => check.id),
+];
+
 const STATUS_RELEASE_DETAIL = 'Status JSON command completed; provider/model identifiers omitted from release artifact.';
 const PROVIDERS_RELEASE_DETAIL = 'Provider inventory command completed; provider names and credential posture omitted from release artifact.';
 const DOCTOR_RELEASE_DETAIL = 'Doctor command completed without findings; provider/model identifiers and credential posture omitted from release artifact.';

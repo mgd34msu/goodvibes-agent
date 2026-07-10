@@ -1,7 +1,8 @@
 import type { AgentWorkspaceCategory } from './agent-workspace-types.ts';
 import { settingAction } from './agent-workspace-category-actions.ts';
+import { renderCapabilityReadinessLine } from '../agent/capability-registry.ts';
 
-export const AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES: readonly AgentWorkspaceCategory[] = [
+const ONBOARDING_DETAIL_CATEGORIES_BASE: readonly AgentWorkspaceCategory[] = [
   {
     id: 'onboarding-channels',
     group: 'ONBOARDING',
@@ -142,3 +143,16 @@ export const AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES: readonly AgentWorkspa
     ],
   },
 ];
+
+/**
+ * Each onboarding category shows the readiness of the capabilities it
+ * advertises, appended to its detail and sourced entirely from the capability
+ * registry. No category hand-writes a maturity claim; the registry is the one
+ * source of truth, so onboarding copy and the enforcement tests can never
+ * drift from a capability's declared level.
+ */
+export const AGENT_WORKSPACE_ONBOARDING_DETAIL_CATEGORIES: readonly AgentWorkspaceCategory[] =
+  ONBOARDING_DETAIL_CATEGORIES_BASE.map((category) => {
+    const readinessLine = renderCapabilityReadinessLine(category.id);
+    return readinessLine ? { ...category, detail: `${category.detail} ${readinessLine}` } : category;
+  });
