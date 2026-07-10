@@ -202,7 +202,11 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
   const projectContext = discoverProjectContextFiles(input.shellPaths);
   const projectContextPrompt = buildProjectContextPrompt(input.shellPaths) ?? '';
   const memoryRecords = resolveMemoryRecords(input);
-  const eligibleMemory = memoryRecords.filter(isPromptActiveMemory);
+  // Bound to one arg: Array.filter passes (element, index, array), and
+  // isPromptActiveMemory's second param is `now` — passing the callback bare
+  // would leak the array index in as `now`, breaking the temporal-validity
+  // check for every record past index 0.
+  const eligibleMemory = memoryRecords.filter((record) => isPromptActiveMemory(record));
   const memoryRanking = rankMemoryForTurn(input.memoryRegistry, eligibleMemory, input.turnText);
   const activeMemory = memoryRanking.records.slice(0, 10);
   const activeMemoryIds = new Set(activeMemory.map((record) => record.id));

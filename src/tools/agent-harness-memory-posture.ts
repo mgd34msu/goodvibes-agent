@@ -584,6 +584,10 @@ export async function memoryPostureCatalogStatus(context: CommandContext): Promi
     localMemories: snapshot.localMemoryCount,
     reviewQueue: snapshot.localMemoryReviewQueueCount,
     promptActive: snapshot.localMemoryPromptActiveCount,
+    // Visible expiry: still stored (counted in localMemories), never deleted,
+    // but outside their temporal validity window so not prompt-injected.
+    temporallyPending: snapshot.localMemoryTemporallyPendingCount,
+    temporallyExpired: snapshot.localMemoryTemporallyExpiredCount,
     vector: vectorState,
     embeddingProviders: doctor?.embeddings.providers.length ?? 0,
     externalProviders: externalMemoryProviderCatalog(liveRecords, receiptEvidence).length,
@@ -614,8 +618,13 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
       total: snapshot.localMemoryCount,
       reviewQueue: snapshot.localMemoryReviewQueueCount,
       promptActive: snapshot.localMemoryPromptActiveCount,
+      // Visible expiry (temporal validity window): still stored and counted in
+      // `total`, never deleted, but outside [validFrom, validUntil) so not
+      // prompt-injected — see memoryRecordTemporalStatus.
+      temporallyPending: snapshot.localMemoryTemporallyPendingCount,
+      temporallyExpired: snapshot.localMemoryTemporallyExpiredCount,
       sessionMemory: snapshot.sessionMemoryCount,
-      policy: 'Only reviewed, high-confidence Agent-local memories are prompt-active. Fresh/stale/setup-blocked behavior stays visible for review.',
+      policy: 'Only reviewed, high-confidence, temporally-active Agent-local memories are prompt-active. Fresh/stale/setup-blocked/pending/expired behavior stays visible for review.',
       routes: {
         list: 'memory action:"list"',
         search: 'memory action:"search" query:"..."',

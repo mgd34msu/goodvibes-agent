@@ -1008,6 +1008,36 @@ describe('AgentWorkspace', () => {
     expect(ineligibleItem?.promptEligibilityReason).not.toBe('outside prompt limit');
   });
 
+  test('temporal validity (validFrom/validUntil) is visible, not silent — expired/pending records stay stored but stop counting as prompt-active', () => {
+    const now = Date.now();
+    const active = memoryRecord({ id: 'mem-active', reviewState: 'reviewed', confidence: 90 });
+    const pending = memoryRecord({ id: 'mem-pending', reviewState: 'reviewed', confidence: 90, validFrom: now + 60_000 });
+    const expired = memoryRecord({ id: 'mem-expired', reviewState: 'reviewed', confidence: 90, validUntil: now - 60_000 });
+    const ctx = {
+      ...commandContext(),
+      clients: {
+        agentKnowledgeApi: { memory: memoryApi([active, pending, expired]) },
+      },
+    } as unknown as CommandContext;
+
+    const counters = readLiveAgentMemoryCounters(ctx);
+
+    // Still stored (counted in `count`), just not prompt-injected.
+    expect(counters.count).toBe(3);
+    expect(counters.temporallyPendingCount).toBe(1);
+    expect(counters.temporallyExpiredCount).toBe(1);
+    expect(counters.promptActiveCount).toBe(1);
+
+    expect(counters.items.find((item) => item.id === 'mem-active')?.temporalStatus).toBe('active');
+    expect(counters.items.find((item) => item.id === 'mem-pending')?.temporalStatus).toBe('pending');
+    expect(counters.items.find((item) => item.id === 'mem-expired')?.temporalStatus).toBe('expired');
+
+    // The catalog/status surfaces pass the same counts through, not a re-derived guess.
+    const snapshot = buildAgentWorkspaceRuntimeSnapshot(ctx);
+    expect(snapshot.localMemoryTemporallyPendingCount).toBe(1);
+    expect(snapshot.localMemoryTemporallyExpiredCount).toBe(1);
+  });
+
   test('library workspace actions open editors and dispatch only concrete commands', () => {
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();

@@ -370,13 +370,11 @@ export interface AgentWorkspaceLocalLibraryItem {
   readonly missingRequirementCount?: number;
   readonly missingRequirements?: readonly string[];
   readonly startCount?: number;
-  /** Memory-only: whether this record currently clears the prompt-injection
-   *  recall floor, per describeMemoryPromptEligibility. */
+  /** Memory-only: whether this record currently clears the prompt-injection recall floor, per describeMemoryPromptEligibility. */
   readonly promptEligible?: boolean;
-  /** Memory-only: the honest, per-record reason from describeMemoryPromptEligibility —
-   *  the same wording source prompt-context-receipts.ts and agent-harness-prompt-context.ts
-   *  use, so this workspace snapshot never has to invent its own paraphrase. */
+  /** Memory-only: the honest, per-record reason from describeMemoryPromptEligibility — the same wording source prompt-context-receipts.ts and agent-harness-prompt-context.ts use. */
   readonly promptEligibilityReason?: string;
+  readonly temporalStatus?: 'active' | 'pending' | 'expired'; // memoryRecordTemporalStatus; pending/expired stay stored, just not prompt-injected
 }
 
 export interface AgentWorkspaceRecentReviewerHandoffArtifact {
@@ -699,6 +697,8 @@ export interface AgentWorkspaceRuntimeSnapshot {
   readonly localMemoryCount: number;
   readonly localMemoryReviewQueueCount: number;
   readonly localMemoryPromptActiveCount: number;
+  readonly localMemoryTemporallyPendingCount: number;
+  readonly localMemoryTemporallyExpiredCount: number;
   readonly localMemories: readonly AgentWorkspaceLocalLibraryItem[];
   readonly localNoteCount: number;
   readonly localNoteReviewQueueCount: number;

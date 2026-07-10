@@ -171,7 +171,7 @@ describe('rankMemoryForTurn (per-turn semantic scoring)', () => {
       registry.review(lowerConfidenceButOnTopic.id, { state: 'reviewed', confidence: 61, reviewedBy: 'test' });
       registry.review(higherConfidenceOffTopic.id, { state: 'reviewed', confidence: 95, reviewedBy: 'test' });
 
-      const eligible = registry.getAll().filter(isPromptActiveMemory);
+      const eligible = registry.getAll().filter((record) => isPromptActiveMemory(record));
       const ranking = rankMemoryForTurn(registry, eligible, 'what does the deploy pipeline require before merge');
 
       expect(ranking.scored).toBe(true);
@@ -191,7 +191,7 @@ describe('rankMemoryForTurn (per-turn semantic scoring)', () => {
         summary: 'A fact with no active turn to rank against.',
         provenance: [{ kind: 'event', ref: 'no-turn-text' }],
       });
-      const eligible = registry.getAll().filter(isPromptActiveMemory);
+      const eligible = registry.getAll().filter((record) => isPromptActiveMemory(record));
 
       const noTurnText = rankMemoryForTurn(registry, eligible, undefined);
       expect(noTurnText.scored).toBe(false);
@@ -222,7 +222,7 @@ describe('rankMemoryForTurn (per-turn semantic scoring)', () => {
         summary: 'Recorded while the semantic index is disabled.',
         provenance: [{ kind: 'event', ref: 'disabled-index' }],
       });
-      const eligible = registry.getAll().filter(isPromptActiveMemory);
+      const eligible = registry.getAll().filter((record) => isPromptActiveMemory(record));
 
       const ranking = rankMemoryForTurn(registry, eligible, 'a real query about something');
 

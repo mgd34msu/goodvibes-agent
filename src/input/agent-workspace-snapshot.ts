@@ -1,6 +1,7 @@
 import { basename, sep } from 'node:path';
 import type { CommandContext } from './command-registry.ts';
 import { AgentRoutineRegistry } from '../agent/routine-registry.ts';
+import { memoryRecordTemporalStatus } from '@pellux/goodvibes-sdk/platform/state';
 import { describeMemoryPromptEligibility, isPromptActiveMemory } from '../agent/memory-prompt.ts';
 import { summarizeAgentBehaviorDiscovery } from '../agent/behavior-discovery-summary.ts';
 import { buildSetupWizardDurableReceipts } from '../agent/setup-wizard-artifact-receipts.ts';
@@ -56,6 +57,10 @@ export interface AgentWorkspaceLiveMemoryCounters {
   readonly count: number;
   readonly reviewQueueCount: number;
   readonly promptActiveCount: number;
+  /** Stored but not yet valid (now < validFrom). Still counted in `count`. */
+  readonly temporallyPendingCount: number;
+  /** Stored but past validUntil. Still counted in `count`, never deleted. */
+  readonly temporallyExpiredCount: number;
   readonly items: readonly AgentWorkspaceLocalLibraryItem[];
 }
 
@@ -78,12 +83,27 @@ export interface AgentWorkspaceLiveMemoryCounters {
  */
 export function readLiveAgentMemoryCounters(context: CommandContext): AgentWorkspaceLiveMemoryCounters {
   const memory = context.clients?.agentKnowledgeApi?.memory;
-  if (!memory) return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
+  if (!memory) {
+    return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, temporallyPendingCount: 0, temporallyExpiredCount: 0, items: [] };
+  }
   const records = [...memory.getAll()].sort((left, right) => right.updatedAt - left.updatedAt);
+  let temporallyPendingCount = 0;
+  let temporallyExpiredCount = 0;
+  for (const record of records) {
+    const temporalStatus = memoryRecordTemporalStatus(record);
+    if (temporalStatus === 'pending') temporallyPendingCount += 1;
+    else if (temporalStatus === 'expired') temporallyExpiredCount += 1;
+  }
   return {
     count: records.length,
     reviewQueueCount: memory.reviewQueue(100).length,
-    promptActiveCount: records.filter(isPromptActiveMemory).length,
+    // Bound to one arg — a bare `.filter(isPromptActiveMemory)` leaks the
+    // array index in as Array.filter's second (index) argument, which lands
+    // in isPromptActiveMemory's `now` param and silently breaks the
+    // temporal-validity check for every record past index 0.
+    promptActiveCount: records.filter((record) => isPromptActiveMemory(record)).length,
+    temporallyPendingCount,
+    temporallyExpiredCount,
     // Each item carries the honest, per-record eligibility reason straight from
     // describeMemoryPromptEligibility — the same wording source
     // prompt-context-receipts.ts and agent-harness-prompt-context.ts use for prompt
@@ -104,7 +124,7 @@ export function buildAgentWorkspaceMemorySnapshot(context: CommandContext): Agen
   try {
     return readLiveAgentMemoryCounters(context);
   } catch {
-    return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, items: [] };
+    return { count: 0, reviewQueueCount: 0, promptActiveCount: 0, temporallyPendingCount: 0, temporallyExpiredCount: 0, items: [] };
   }
 }
 
@@ -326,6 +346,8 @@ export function buildAgentWorkspaceRuntimeSnapshot(context: CommandContext): Age
     localMemoryCount: memorySnapshot.count,
     localMemoryReviewQueueCount: memorySnapshot.reviewQueueCount,
     localMemoryPromptActiveCount: memorySnapshot.promptActiveCount,
+    localMemoryTemporallyPendingCount: memorySnapshot.temporallyPendingCount,
+    localMemoryTemporallyExpiredCount: memorySnapshot.temporallyExpiredCount,
     localMemories: memorySnapshot.items,
     localNoteCount: noteSnapshot.count,
     localNoteReviewQueueCount: noteSnapshot.reviewQueueCount,

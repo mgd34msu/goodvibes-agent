@@ -164,7 +164,9 @@ export interface BuildReviewedMemoryPromptOptions {
 
 export function buildReviewedMemoryPrompt(memoryRegistry: MemoryRegistry, options: BuildReviewedMemoryPromptOptions = {}): string | null {
   const limit = options.limit ?? DEFAULT_LIMIT;
-  const eligible = (options.records ?? memoryRegistry.getAll()).filter(isPromptActiveMemory);
+  // Bound to one arg — see prompt-context-receipts.ts's resolveMemoryRecords
+  // filter for why a bare `.filter(isPromptActiveMemory)` is unsafe here.
+  const eligible = (options.records ?? memoryRegistry.getAll()).filter((record) => isPromptActiveMemory(record));
   const ranking = rankMemoryForTurn(memoryRegistry, eligible, options.turnText);
   const records = ranking.records.slice(0, Math.max(0, limit));
 

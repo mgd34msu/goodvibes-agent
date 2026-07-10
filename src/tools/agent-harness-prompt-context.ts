@@ -190,7 +190,9 @@ function formatMemoryLine(record: MemoryRecord): string {
 
 function promptMemoryRecords(memory: PromptMemoryApi | undefined): readonly MemoryRecord[] {
   if (!memory) return [];
-  return memory.getAll().filter(isPromptActiveMemory).sort(memorySort).slice(0, 10);
+  // Bound to one arg — see prompt-context-receipts.ts for why a bare
+  // `.filter(isPromptActiveMemory)` leaks the array index in as `now`.
+  return memory.getAll().filter((record) => isPromptActiveMemory(record)).sort(memorySort).slice(0, 10);
 }
 
 function buildMemoryPromptFromRecords(records: readonly MemoryRecord[]): string {

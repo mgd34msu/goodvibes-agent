@@ -1,4 +1,4 @@
-import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
+import { memoryRecordTemporalStatus, type MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { AgentNoteRecord } from '../agent/note-registry.ts';
 import type { AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { formatAgentRecordOrigin } from '../agent/record-labels.ts';
@@ -125,6 +125,10 @@ export function summarizeMemoryItem(record: MemoryRecord): AgentWorkspaceLocalLi
     scope: record.scope,
     cls: record.cls,
     confidence: record.confidence,
+    // Visible expiry: a record outside its [validFrom, validUntil) window is
+    // still stored (not deleted) but not prompt-injected — see
+    // memoryRecordTemporalStatus / describeMemoryPromptEligibility.
+    temporalStatus: memoryRecordTemporalStatus(record),
   };
 }
 
