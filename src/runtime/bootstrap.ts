@@ -43,6 +43,7 @@ import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/ses
 import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { createMemoryConsolidationScheduler } from './memory-consolidation-wiring.ts';
+import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
 import { registerAgentChannelsTool } from '../tools/agent-channels-tool.ts';
@@ -215,11 +216,16 @@ export async function bootstrapRuntime(
   // Idle-time memory consolidation: reviews stored memory when the agent is
   // genuinely idle (no active turn) and no sooner than the configured interval,
   // off by default. Every run leaves a receipt of what it merged/archived/proposed.
+  // Usage-outcome instrumentation: records which memories were injected and, at
+  // turn completion, whether the model output plausibly referenced them (honest
+  // heuristic overlap). Feeds consolidation's never-referenced-first decay.
+  const memoryUsageTracker = createMemoryUsageTracker(services.shellPaths, services.memoryRegistry);
   const memoryConsolidationScheduler = createMemoryConsolidationScheduler({
     configManager,
     memoryRegistry: services.memoryRegistry,
     shellPaths: services.shellPaths,
     isIdle: () => activePromptTurnId === null,
+    usageLookup: (id) => memoryUsageTracker.lookup(id),
   });
   runtimeUnsubs.push(
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
@@ -247,6 +253,7 @@ export async function bootstrapRuntime(
         activePromptTurnId = null;
         activePromptTurnText = null;
       }
+      memoryUsageTracker.onTurnCompleted(event.payload.turnId, event.payload.response);
       memoryConsolidationScheduler.onTurnSettled();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
@@ -261,6 +268,7 @@ export async function bootstrapRuntime(
         activePromptTurnId = null;
         activePromptTurnText = null;
       }
+      memoryUsageTracker.onTurnAborted(event.payload.turnId);
       memoryConsolidationScheduler.onTurnSettled();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_CANCEL' }>>('TURN_CANCEL', (event) => {
@@ -275,6 +283,7 @@ export async function bootstrapRuntime(
         activePromptTurnId = null;
         activePromptTurnText = null;
       }
+      memoryUsageTracker.onTurnAborted(event.payload.turnId);
       memoryConsolidationScheduler.onTurnSettled();
     }),
   );
@@ -318,6 +327,7 @@ export async function bootstrapRuntime(
         memoryRecallSnapshot: services.memorySpineClient.recallSnapshot(),
       });
       promptContextReceipts.record(composed.receipt);
+      memoryUsageTracker.onComposed(activePromptTurnId, composed.receipt);
       return composed.prompt;
     },
     hookDispatcher,

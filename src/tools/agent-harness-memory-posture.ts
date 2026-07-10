@@ -1,6 +1,8 @@
 import type { MemoryDoctorReport, MemoryEmbeddingProviderStatus, MemoryVectorStats } from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
+import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { MemoryUsageStatsStore, type MemoryUsageSummary } from '../agent/memory-usage-stats.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { EXTERNAL_MEMORY_RECEIPT_FIELDS, EXTERNAL_MEMORY_REQUIRED_CONTRACTS, aggregateExternalProviderLiveRecord, aggregateExternalProviderSetupStatus, externalMemoryLiveProviderRecords, externalMemoryProviderCatalog, externalMemoryReceiptEvidence, externalProviderLiveReady, liveRecordForProvider, receiptEvidenceForProvider, setupStatusFromLiveRecord } from './agent-harness-memory-external-providers.ts';
 import type { ExternalMemoryProviderCatalogEntry, MemoryExternalProviderContractCheck, MemoryExternalProviderContractStatus, MemoryExternalProviderLiveRecord, MemoryExternalProviderReceiptContract, MemoryExternalProviderReceiptEvidence, MemoryExternalProviderRoute, MemoryExternalProviderSetupGuide, MemoryExternalProviderStatus, MemoryPostureProvider, MemoryProviderResolution } from './agent-harness-memory-external-providers.ts';
@@ -30,6 +32,40 @@ function memoryApi(context: CommandContext): {
   readonly doctor?: () => Promise<MemoryDoctorReport>;
 } | null {
   return context.clients?.agentKnowledgeApi?.memory ?? null;
+}
+
+/**
+ * Per-memory usage counters (injected/referenced) from the honest usage-outcome
+ * instrumentation. Read-only view built from the same durable sidecar the runtime
+ * writes; null when there is no active workspace to resolve the path from.
+ */
+function readMemoryUsageSummary(context: CommandContext): MemoryUsageSummary | null {
+  const shellPaths = context.workspace?.shellPaths;
+  if (!shellPaths) return null;
+  try {
+    const store = new MemoryUsageStatsStore(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'learning', 'memory-usage.json'));
+    return store.summary();
+  } catch {
+    return null;
+  }
+}
+
+function buildUsageSection(summary: MemoryUsageSummary | null): Record<string, unknown> {
+  if (!summary) {
+    return { status: 'unavailable', signal: 'heuristic-overlap', note: 'No usage instrumentation available in this runtime.' };
+  }
+  return {
+    status: summary.everInjected > 0 ? 'tracked' : 'empty',
+    signal: 'heuristic-overlap',
+    signalNote: summary.signalNote,
+    totalTracked: summary.totalTracked,
+    everInjected: summary.everInjected,
+    everReferenced: summary.everReferenced,
+    neverReferenced: summary.neverReferenced,
+    mostReferenced: summary.mostReferenced.map((entry) => ({ id: entry.id, injectedCount: entry.injectedCount, referencedCount: entry.referencedCount, lastReferencedAt: entry.lastReferencedAt })),
+    neverReferencedSample: summary.neverReferencedSample.map((entry) => ({ id: entry.id, injectedCount: entry.injectedCount, lastInjectedAt: entry.lastInjectedAt })),
+    policy: 'Referenced means the model output overlapped this memory\'s distinctive content (heuristic, not ground truth). Never-referenced injected memories decay first during idle consolidation.',
+  };
 }
 
 async function readMemoryDoctor(context: CommandContext): Promise<MemoryDoctorReport | null> {
@@ -532,8 +568,12 @@ export async function memoryPostureCatalogStatus(context: CommandContext): Promi
   const liveRecords = await externalMemoryLiveProviderRecords(context);
   const status = memoryStatus(snapshot, Boolean(memoryApi(context)));
   const vectorState = vectorStatus(vector);
+  const usageSummary = readMemoryUsageSummary(context);
   return {
     modes: ['memory_posture', 'memory_provider'],
+    usageTracked: usageSummary?.everInjected ?? 0,
+    usageReferenced: usageSummary?.everReferenced ?? 0,
+    usageNeverReferenced: usageSummary?.neverReferenced ?? 0,
     modelRoute: 'memory action:"status"',
     status,
     localMemories: snapshot.localMemoryCount,
@@ -579,6 +619,7 @@ export async function memoryPostureSummary(context: CommandContext, args: AgentH
         curator: 'memory action:"curator"',
       },
     },
+    usage: buildUsageSection(readMemoryUsageSummary(context)),
     vector: compactVector(vector),
     embeddings: {
       activeProviderId: doctor?.embeddings.activeProviderId ?? vector?.embeddingProviderId ?? snapshot.embeddingProvider,
