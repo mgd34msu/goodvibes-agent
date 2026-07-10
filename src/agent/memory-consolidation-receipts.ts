@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import type { MemoryConsolidationRunReceipt } from './memory-consolidation.ts';
+import type { MemoryConsolidationRunReceipt } from '@pellux/goodvibes-sdk/platform/state';
 
 /**
  * Durable, capped store of idle-consolidation run receipts. Same visible-receipt

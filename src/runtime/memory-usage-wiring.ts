@@ -1,10 +1,13 @@
-import type { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import {
+  MemoryUsageStatsStore,
+  detectReferencedMemoryIds,
+  type MemoryRegistry,
+  type MemoryConsolidationUsageSignal,
+  type MemoryReferenceInput,
+} from '@pellux/goodvibes-sdk/platform/state';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { PromptContextReceiptDraft } from '../agent/prompt-context-receipts.ts';
-import { MemoryUsageStatsStore } from '../agent/memory-usage-stats.ts';
-import type { MemoryConsolidationUsageSignal } from '../agent/memory-consolidation.ts';
-import { detectReferencedMemoryIds, type MemoryReferenceInput } from '../agent/memory-usage-detection.ts';
 
 /**
  * Ties the two ends of a turn together for usage-outcome instrumentation:

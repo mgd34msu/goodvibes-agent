@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MemoryUsageStatsStore } from '../../agent/memory-usage-stats.ts';
+import { MemoryUsageStatsStore } from '@pellux/goodvibes-sdk/platform/state';
 
 const roots: string[] = [];
 afterEach(() => { while (roots.length > 0) rmSync(roots.pop()!, { recursive: true, force: true }); });

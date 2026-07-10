@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'bun:test';
 import { MemoryConsolidationScheduler } from '../../runtime/memory-consolidation-scheduler.ts';
-import type { MemoryConsolidationRunReceipt } from '../../agent/memory-consolidation.ts';
+import type { MemoryConsolidationRunReceipt } from '@pellux/goodvibes-sdk/platform/state';
 
 function fakeReceipt(): MemoryConsolidationRunReceipt {
   return {

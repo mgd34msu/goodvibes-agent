@@ -2,15 +2,17 @@ import { describe, it, expect, afterEach } from 'bun:test';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
+import {
+  MemoryEmbeddingProviderRegistry,
+  MemoryRegistry,
+  MemoryStore,
+  DEFAULT_MEMORY_CONSOLIDATION_CONFIG,
+  runMemoryConsolidation,
+  type MemoryConsolidationUsageLookup,
+} from '@pellux/goodvibes-sdk/platform/state';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
-import { DEFAULT_MEMORY_CONSOLIDATION_CONFIG } from '../../agent/memory-consolidation-config.ts';
-import {
-  runMemoryConsolidation,
-  type MemoryConsolidationUsageLookup,
-} from '../../agent/memory-consolidation.ts';
 import { MemoryConsolidationReceiptStore } from '../../agent/memory-consolidation-receipts.ts';
 
 const roots: string[] = [];

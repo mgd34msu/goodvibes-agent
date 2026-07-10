@@ -1,4 +1,4 @@
-import type { MemoryConsolidationRunReceipt, MemoryConsolidationTrigger } from '../agent/memory-consolidation.ts';
+import type { MemoryConsolidationRunReceipt, MemoryConsolidationTrigger } from '@pellux/goodvibes-sdk/platform/state';
 
 /**
  * Decides WHEN idle-time consolidation runs, keeping the real-state idleness

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { detectReferencedMemoryIds } from '../../agent/memory-usage-detection.ts';
+import { detectReferencedMemoryIds } from '@pellux/goodvibes-sdk/platform/state';
 
 describe('detectReferencedMemoryIds', () => {
   it('flags a memory as referenced when the output overlaps its distinctive tokens', () => {

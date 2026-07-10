@@ -1,9 +1,12 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import type { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
+import {
+  resolveMemoryConsolidationConfig,
+  runMemoryConsolidation,
+  type MemoryRegistry,
+  type MemoryConsolidationUsageLookup,
+} from '@pellux/goodvibes-sdk/platform/state';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ShellPathService } from '@/runtime/index.ts';
-import { resolveMemoryConsolidationConfig } from '../agent/memory-consolidation-config.ts';
-import { runMemoryConsolidation, type MemoryConsolidationUsageLookup } from '../agent/memory-consolidation.ts';
 import { MemoryConsolidationReceiptStore } from '../agent/memory-consolidation-receipts.ts';
 import { MemoryConsolidationScheduler } from './memory-consolidation-scheduler.ts';
 

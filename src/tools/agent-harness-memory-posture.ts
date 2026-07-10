@@ -1,8 +1,13 @@
-import type { MemoryDoctorReport, MemoryEmbeddingProviderStatus, MemoryVectorStats } from '@pellux/goodvibes-sdk/platform/state';
+import {
+  MemoryUsageStatsStore,
+  type MemoryDoctorReport,
+  type MemoryEmbeddingProviderStatus,
+  type MemoryVectorStats,
+  type MemoryUsageSummary,
+} from '@pellux/goodvibes-sdk/platform/state';
 import type { CommandContext } from '../input/command-registry.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from '../input/agent-workspace-snapshot.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import { MemoryUsageStatsStore, type MemoryUsageSummary } from '../agent/memory-usage-stats.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { EXTERNAL_MEMORY_RECEIPT_FIELDS, EXTERNAL_MEMORY_REQUIRED_CONTRACTS, aggregateExternalProviderLiveRecord, aggregateExternalProviderSetupStatus, externalMemoryLiveProviderRecords, externalMemoryProviderCatalog, externalMemoryReceiptEvidence, externalProviderLiveReady, liveRecordForProvider, receiptEvidenceForProvider, setupStatusFromLiveRecord } from './agent-harness-memory-external-providers.ts';
 import type { ExternalMemoryProviderCatalogEntry, MemoryExternalProviderContractCheck, MemoryExternalProviderContractStatus, MemoryExternalProviderLiveRecord, MemoryExternalProviderReceiptContract, MemoryExternalProviderReceiptEvidence, MemoryExternalProviderRoute, MemoryExternalProviderSetupGuide, MemoryExternalProviderStatus, MemoryPostureProvider, MemoryProviderResolution } from './agent-harness-memory-external-providers.ts';
