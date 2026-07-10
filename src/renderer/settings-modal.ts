@@ -35,6 +35,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
+  checkin: 'Proactive check-in: off by default. When enabled, on a cadence the Agent assembles a compact briefing of current state, asks the model to judge whether anything warrants contacting you, and delivers a message through the configured channel only when the judgment says yes. Every run — delivered, quiet, skipped for quiet hours, or errored — leaves a receipt (checkin.receipts.list) so this automatic behavior stays accountable even when it decides to say nothing.',
   service: 'GoodVibes daemon service posture and restart/autostart preferences.',
   controlPlane: 'Control-plane endpoint, stream, remote access, and TLS settings used by daemon-backed operator routes.',
   httpListener: 'HTTP listener binding, trust proxy, and TLS settings for inbound companion/channel routes.',

@@ -86,6 +86,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   helper: 'Helper',
   tts: 'TTS',
   automation: 'Automation',
+  checkin: 'Check-in',
   service: 'Service',
   controlPlane: 'Control Plane',
   httpListener: 'HTTP Listener',
