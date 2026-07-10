@@ -5,7 +5,13 @@ import { providerBackedQueueRecords } from './agent-harness-personal-ops-provide
 import { providerBackedReminderRecords, providerBackedTaskRecords } from './agent-harness-personal-ops-provider-task-records.ts';
 import { channelRecords, connectorRecords, localRecord, refreshableSavedRecordCount, reminderOperationRecords, routineReceiptRecord, savedProviderEffectReceiptRecords, savedReviewArtifactRecords, savedReviewQueueRecords, taskOperationRecords } from './agent-harness-personal-ops-records.ts';
 import type { McpToolRecord, McpToolSchema, PersonalOpsLane, PersonalOpsLiveRecord } from './agent-harness-personal-ops-types.ts';
-import { buildStyleReplyLaneAdditions } from '../agent/email/style-reply-lane.ts';
+// Capability-honesty note: the writing-style-matched draft-reply composer
+// (src/agent/email/style-reply.ts + style-reply-lane.ts) is NOT wired into the
+// advertised inbox lane. The Agent has no reader for the user's own sent-message
+// corpus, so it cannot honestly claim a style match, and competitive-feature-
+// inventory.ts records writing-style-matched draft replies as "not yet shipped".
+// The composer stays as tested internal code; do not re-advertise it here until
+// the sent-corpus input and a real compose route ship together.
 
 export function buildLanes(
   context: CommandContext,
@@ -51,9 +57,6 @@ export function buildLanes(
     && routine.reviewState === 'reviewed'
     && (routine.missingRequirementCount ?? 0) === 0
   )).length;
-  const hasEmailCapability = emailMethods.length > 0 || emailConnectors.length > 0;
-  const styleReplyAdditions = buildStyleReplyLaneAdditions(hasEmailCapability);
-
   return [
     {
       id: 'inbox',
@@ -101,14 +104,13 @@ export function buildLanes(
       ],
       methodIds: emailMethods,
       connectorSignals: emailConnectors,
-      workflows: [...inboxWorkflows(emailMethods, emailConnectors, unavailableEmailMethods), styleReplyAdditions.workflow],
+      workflows: inboxWorkflows(emailMethods, emailConnectors, unavailableEmailMethods),
       liveRecords: [
         ...inboxProviderRecords,
         ...inboxReviewQueueRecords,
         ...inboxArtifactRecords,
         ...inboxEffectReceiptRecords,
         ...connectorRecords(emailConnectors, 'Inbox', 'inbox'),
-        styleReplyAdditions.liveRecord,
       ],
     },
     {

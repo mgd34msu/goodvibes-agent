@@ -1,11 +1,20 @@
 /**
  * Personal Ops lane descriptor for the writing-style-matched draft-reply flow.
  *
+ * NOT SHIPPED / NOT WIRED (capability-honesty, 2026-07)
+ * ──────────────────────────────────────────────────────────────────────
+ * These descriptors are intentionally NOT wired into the advertised Personal
+ * Ops inbox lane (see agent-harness-personal-ops-lanes.ts). The Agent has no
+ * reader for the user's own sent-message corpus, so it cannot honestly claim a
+ * writing-style match, and competitive-feature-inventory.ts records
+ * writing-style-matched draft replies as "not yet shipped". The pure composer
+ * (style-reply.ts) and these descriptors stay as tested internal code for when
+ * the sent-corpus input and a real compose route ship together. Do not re-add
+ * buildStyleReplyLaneAdditions to buildLanes() until then.
+ *
  * This module defines the PersonalOpsWorkflow and PersonalOpsLiveRecord objects
- * that surface the style-reply capability inside the existing Personal Ops
- * 'inbox' lane.  It is integrated into buildLanes() in
- * agent-harness-personal-ops-lanes.ts by appending the exported items to the
- * inbox lane's workflows and liveRecords arrays.
+ * that would surface the style-reply capability inside the Personal Ops 'inbox'
+ * lane once the capability is genuinely shipped.
  *
  * BEFORE-SEND REVIEW BOUNDARY (enforced here and in style-reply.ts)
  * ──────────────────────────────────────────────────────────────────────

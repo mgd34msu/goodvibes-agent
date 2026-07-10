@@ -3419,7 +3419,11 @@ describe('agent_harness tool', () => {
       expect(summary.personalOps?.gap).toBe(2);
       expect(summary.personalOps?.ready).toBeGreaterThan(0);
       expect(summary.personalOps?.workflows).toBeGreaterThan(0);
-      expect(summary.personalOps?.setupWorkflows).toBe(5);
+      // 4 needs-setup workflows. The writing-style-matched draft-reply workflow was
+      // pulled from the advertised inbox lane (capability-honesty, 2026-07): it has no
+      // sent-corpus reader and is recorded "not yet shipped", so it is no longer
+      // advertised as a needs-setup workflow.
+      expect(summary.personalOps?.setupWorkflows).toBe(4);
 
       const ops = await executeHarnessJson<{
         readonly workflowSummary: { readonly workflows: number; readonly needsSetup: number };
@@ -3453,7 +3457,9 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'personal_ops', includeParameters: true });
       expect(ops.policy).toContain('Missing email/calendar connectors');
       expect(ops.nextActions.join('\n')).toContain('Inbox');
-      expect(ops.workflowSummary.needsSetup).toBe(5);
+      // 4 needs-setup workflows after the unshipped writing-style draft-reply workflow
+      // was pulled from the advertised inbox lane (capability-honesty, 2026-07).
+      expect(ops.workflowSummary.needsSetup).toBe(4);
 
       const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
       const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
