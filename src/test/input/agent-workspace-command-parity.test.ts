@@ -206,7 +206,11 @@ describe('Agent workspace command parity', () => {
     // workspaces (owner ruling, 2026-07-10) is a narrow, rarely-used admin
     // surface — register/unregister the checkpoint-gating workspace list — with
     // no TUI workspace editor yet, same shape as compat/doctor/pair above.
-    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'help', 'import', 'pair', 'tui', 'unknown', 'version', 'workspaces']);
+    // fleet (SDK 1.6.1 best-of-N attempts: list/pick/judge held-merge groups)
+    // is the same kind of narrow admin surface — this Agent's own
+    // orchestration engine state, not a connected-host call — with no TUI
+    // workspace editor yet.
+    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'pair', 'tui', 'unknown', 'version', 'workspaces']);
     const requirements: Record<string, CoverageRequirement> = {
       ask: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-ask'] },
       auth: { editorPrefixes: ['auth-'] },

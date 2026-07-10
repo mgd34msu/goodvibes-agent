@@ -13,6 +13,7 @@ const COMMANDS = [
   'principals',
   'channel-profiles',
   'workspaces',
+  'fleet',
   'auth',
   'compat',
   'knowledge',

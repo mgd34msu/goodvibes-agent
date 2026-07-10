@@ -15,6 +15,7 @@ export type GoodVibesCliCommand =
   | 'principals'
   | 'channel-profiles'
   | 'workspaces'
+  | 'fleet'
   | 'auth'
   | 'compat'
   | 'knowledge'

@@ -22,6 +22,13 @@ const WS_ONLY_METHOD_IDS = [
   'fleet.unarchive',
   'fleet.archiveFinished',
   'fleet.archived.list',
+  // Best-of-N surface (SDK 1.6.1): the orchestration engine's held-merge
+  // methods, wired as the attemptsController dep in services.ts — without
+  // that dep these three stay cataloged-but-unhandled like every other
+  // graceful-degrade gateway verb group.
+  'fleet.attempts.list',
+  'fleet.attempts.pick',
+  'fleet.attempts.judge',
   'checkpoints.list',
   'checkpoints.create',
   'checkpoints.diff',
@@ -29,6 +36,14 @@ const WS_ONLY_METHOD_IDS = [
   'sessions.search',
   'push.vapid.get',
   'push.subscriptions.list',
+  // Shared workspace registration store (SDK 1.6.1): the SDK's own
+  // registerGatewayVerbGroups constructs and wires this store internally
+  // (over shellPaths), so these are always registered once
+  // attachWsOnlyGatewayVerbHandlers runs — no extra dep threading needed.
+  'workspaces.registrations.list',
+  'workspaces.registrations.add',
+  'workspaces.registrations.remove',
+  'workspaces.resolve',
 ] as const;
 
 describe('ws-only gateway verbs are invokable on the vendored runtime', () => {
@@ -72,5 +87,32 @@ describe('ws-only gateway verbs are invokable on the vendored runtime', () => {
     } as never) as { capturedAt: number; nodes: unknown[] };
     expect(Array.isArray(result.nodes)).toBe(true);
     expect(result.nodes).toHaveLength(0);
+  });
+
+  test('fleet.attempts.list invokes end-to-end (no held-merge groups on a fresh runtime)', async () => {
+    const result = await services.gatewayMethods.invoke('fleet.attempts.list', {
+      methodId: 'fleet.attempts.list',
+      body: {},
+    } as never) as { groups: unknown[] };
+    expect(Array.isArray(result.groups)).toBe(true);
+    expect(result.groups).toHaveLength(0);
+  });
+
+  test('fleet.attempts.pick refuses an unknown group honestly rather than a phantom success', async () => {
+    await expect(
+      services.gatewayMethods.invoke('fleet.attempts.pick', {
+        methodId: 'fleet.attempts.pick',
+        body: { groupId: 'no-such-group', winnerItemId: 'no-such-item' },
+      } as never),
+    ).rejects.toThrow();
+  });
+
+  test('workspaces.registrations.list invokes end-to-end (no registrations on a fresh runtime)', async () => {
+    const result = await services.gatewayMethods.invoke('workspaces.registrations.list', {
+      methodId: 'workspaces.registrations.list',
+      body: {},
+    } as never) as { workspaces: unknown[]; declines: unknown[] };
+    expect(Array.isArray(result.workspaces)).toBe(true);
+    expect(Array.isArray(result.declines)).toBe(true);
   });
 });

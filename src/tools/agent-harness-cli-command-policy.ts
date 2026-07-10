@@ -68,14 +68,16 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       boundary: 'Diagnostics and posture commands are readable from Agent-owned settings, provider, model, and connected-host capability surfaces without taking connected-host lifecycle ownership.',
     };
   }
-  if (root === 'profiles' || root === 'personas' || root === 'skills' || root === 'memory' || root === 'routines' || root === 'sessions' || root === 'bundle' || root === 'import' || root === 'workspaces') {
+  if (root === 'profiles' || root === 'personas' || root === 'skills' || root === 'memory' || root === 'routines' || root === 'sessions' || root === 'bundle' || root === 'import' || root === 'workspaces' || root === 'fleet') {
     return {
       effect: 'local-state',
       confirmation,
-      preferredModelTool: root === 'profiles' || root === 'workspaces' ? agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action') : 'agent_local_registry',
+      preferredModelTool: root === 'profiles' || root === 'workspaces' || root === 'fleet' ? agentHarnessModes('workspace_actions', 'workspace_action', 'run_workspace_action') : 'agent_local_registry',
       boundary: root === 'workspaces'
         ? 'The registered-workspace list that gates automatic checkpoints (owner ruling, 2026-07-10) is Agent-local, user-scoped state. There is no dedicated model tool yet; registration/unregistration is a mutating action and requires explicit user intent (the CLI itself requires --yes).'
-        : 'Local library/profile/session/bundle/import CLI commands operate on Agent-local data. Mutations require explicit user intent and should use first-class Agent-local tools where available.',
+        : root === 'fleet'
+          ? 'Best-of-N held-merge attempt groups (SDK 1.6.1) are this Agent\'s own orchestration engine state, not a connected-host call — fleet.attempts.* is ws-only with no HTTP binding, so agent_operator_method cannot reach it either. There is no dedicated model tool yet; picking a winner is a mutating, worktree-cleaning action and requires explicit user intent (the CLI itself requires --yes).'
+          : 'Local library/profile/session/bundle/import CLI commands operate on Agent-local data. Mutations require explicit user intent and should use first-class Agent-local tools where available.',
     };
   }
   if (root === 'ci' || root === 'principals' || root === 'channel-profiles') {

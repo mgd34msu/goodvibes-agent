@@ -1085,6 +1085,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     providerRegistry,
     automationManager,
     sessionLister: sessionBroker,
+    // The best-of-N surface (fleet.attempts.list/pick/judge): the
+    // orchestration engine already implements FleetAttemptsController
+    // (listHeldMergeGroups/pickAttemptWinner/proposeAttemptWinner) — wiring
+    // it here is what turns those verbs from cataloged-but-unhandled into
+    // real handlers (see src/test/daemon/gateway-ws-only-invokable.test.ts).
+    attemptsController: orchestrationEngine,
   });
   // Turn the fleet registry's coalesced snapshot tick into poll-free
   // spawn/progress/attention/completion events on the runtime event bus's
