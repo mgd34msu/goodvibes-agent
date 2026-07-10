@@ -31,6 +31,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   behavior: 'Day-to-day shell behavior: approval posture, compaction, history, guidance, notifications, stale-context warnings, return context, and Human-in-the-Loop mode.',
   storage: 'Local storage posture, including secret storage policy and maximum artifact size for Agent Knowledge, artifacts, and document ingestion.',
   permissions: 'Permission mode and tool-class policy. These settings decide whether the shell prompts before read/write/exec/network/agent actions.',
+  diagnostics: 'Post-edit diagnostics behavior: whether a successful file write/edit gets cheap, in-process syntax diagnostics appended to the tool result so the model sees a broken edit immediately. Syntax-level only — not type-checking.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
@@ -72,6 +73,16 @@ const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
     prompt: 'Ask before powerful or risky actions according to tool policy.',
     'allow-all': 'Allow actions without prompting. This is fast but removes an important safety gate.',
     custom: 'Use per-tool-class permission settings from the rows below.',
+    plan: 'Read-only: every write, execute, or delegate tool call is refused outright (never asked) so the model presents a plan instead of acting.',
+    'accept-edits': 'File write/edit tool calls auto-approve without asking; execute and every other risky class still prompt for approval.',
+  },
+  'permissions.backgroundAgents': {
+    inherit: 'Background/subagent tool calls consult the same session permission mode as the foreground turn — prompt/plan/accept-edits/custom apply their matrices, and any resulting ask still brokers through the normal approval prompt with subagent attribution.',
+    'allow-all': 'Background/subagent tool calls are exempt from the session permission mode and auto-approve regardless of it.',
+  },
+  'diagnostics.postEdit': {
+    on: 'After a successful file write/edit, append cheap, in-process syntax diagnostics (errors only) to the tool result. Syntax-level only — not type-checking.',
+    off: 'Never append post-edit diagnostics to write/edit tool results.',
   },
   'storage.secretPolicy': {
     preferred_secure: 'Use secure secret storage when available, with supported fallback behavior.',

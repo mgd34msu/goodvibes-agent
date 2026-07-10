@@ -82,6 +82,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   behavior: 'Behavior',
   storage: 'Storage',
   permissions: 'Permissions',
+  diagnostics: 'Diagnostics',
   helper: 'Helper',
   tts: 'TTS',
   automation: 'Automation',

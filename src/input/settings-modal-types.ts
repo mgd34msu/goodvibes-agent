@@ -27,6 +27,7 @@ export type SettingsCategory =
   | 'behavior'
   | 'storage'
   | 'permissions'
+  | 'diagnostics'
   | 'tools'
   | 'helper'
   | 'tts'
@@ -58,7 +59,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   readonly label: string;
   readonly categories: readonly SettingsCategory[];
 }> = [
-  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'permissions'] },
+  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'permissions', 'diagnostics'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation'] },
