@@ -33,6 +33,8 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   principal: 'principals',
   'channel-profiles': 'channel-profiles',
   'channel-profile': 'channel-profiles',
+  workspaces: 'workspaces',
+  workspace: 'workspaces',
   auth: 'auth',
   compat: 'compat',
   compatibility: 'compat',

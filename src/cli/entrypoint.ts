@@ -25,6 +25,8 @@ import {
 import { buildCliServicePosture } from './service-posture.ts';
 import { inspectCliExternalRuntime } from './external-runtime.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
+import { isWorkspaceRegistered } from '../config/workspace-registry.ts';
 import { resolveAgentRuntimeProfileHome, resolveSelectedAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
 
 type ShellEntrypointOwnership = {
@@ -189,11 +191,16 @@ export async function prepareShellCliRuntime(
     const effectiveOperatorTokenPath = externalRuntime.operatorToken.present
       ? externalRuntime.operatorToken.path
       : operatorTokenPath;
+    const checkpoints = {
+      workspaceRegistered: isWorkspaceRegistered(shellPaths, bootstrapWorkingDir),
+      unregisteredWorkspaceMode: readCheckpointRegistrationSetting(configManager),
+    };
     const statusOptions = {
       configManager,
       workingDirectory: bootstrapWorkingDir,
       homeDirectory: bootstrapHomeDirectory,
       onboardingMarkers,
+      checkpoints,
       auth: {
         userStorePath,
         userStorePresent: existsSync(userStorePath),

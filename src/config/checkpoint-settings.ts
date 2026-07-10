@@ -18,6 +18,11 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
  *   - `checkpoints.autoRetention` (boolean, SDK default true) — run a retention
  *     sweep automatically after each successful create and once at init.
  *
+ * A sixth key, `checkpoints.unregisteredWorkspaces`, is read separately by
+ * `readCheckpointRegistrationSetting` below (kept out of `CheckpointGuardSettings`
+ * because it is an Agent-owned enforcement switch, not an SDK manager
+ * constructor option, and must never be spread into the manager's options).
+ *
  * The shared SDK config schema (GoodVibesConfig) has no `checkpoints` category,
  * so these are read directly from a user-supplied `checkpoints` block in
  * settings.json. The SDK ConfigManager deep-merges loaded settings onto the
@@ -32,7 +37,8 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
  *     "allowBroadRoot": false,
  *     "allowLargeFirstSnapshot": false,
  *     "maxFirstSnapshotFiles": 20000,
- *     "autoRetention": true
+ *     "autoRetention": true,
+ *     "unregisteredWorkspaces": "off"
  *   }
  */
 export interface CheckpointGuardSettings {
@@ -78,4 +84,29 @@ export function readCheckpointGuardSettings(
   if (typeof cp.autoRetention === 'boolean') out.autoRetention = cp.autoRetention;
 
   return out;
+}
+
+/**
+ * The registered-workspaces-only override (owner ruling, 2026-07-10):
+ *
+ *   - `checkpoints.unregisteredWorkspaces` (`'off' | 'guarded'`, default `'off'`)
+ *     — `'off'` is the ruling's default: automatic (turn-end/lifecycle)
+ *     checkpoints, and explicit checkpoint creation through the ws-only
+ *     `checkpoints.create` gateway verb, both refuse when the resolved
+ *     workspace root is not in the registry (../config/workspace-registry.ts).
+ *     `'guarded'` opts back into the pre-ruling behavior for an unregistered
+ *     workspace: automatic snapshots subscribe and explicit create proceeds,
+ *     subject only to the SDK's own root/size guards above — never a silent
+ *     re-enable, an explicit per-workspace opt-out of the registration gate.
+ *
+ * Any other value (including absence) reads as `'off'`.
+ */
+export function readCheckpointRegistrationSetting(
+  configManager: Pick<ConfigManager, 'getRaw'>,
+): 'off' | 'guarded' {
+  const raw = configManager.getRaw() as unknown as Record<string, unknown>;
+  const block = raw.checkpoints;
+  if (block === null || typeof block !== 'object' || Array.isArray(block)) return 'off';
+  const value = (block as Record<string, unknown>).unregisteredWorkspaces;
+  return value === 'guarded' ? 'guarded' : 'off';
 }

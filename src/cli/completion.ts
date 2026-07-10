@@ -12,6 +12,7 @@ const COMMANDS = [
   'ci',
   'principals',
   'channel-profiles',
+  'workspaces',
   'auth',
   'compat',
   'knowledge',

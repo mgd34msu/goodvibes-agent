@@ -283,6 +283,51 @@ describe('CLI status and doctor output', () => {
     expect(findings.map((finding) => finding.id)).not.toContain('network-endpoint-with-bootstrap-credential');
   });
 
+  test('status honestly reports "checkpoints off: workspace not registered" for an unregistered workspace', () => {
+    const text = renderCliStatus({
+      ...makeOptions(),
+      checkpoints: { workspaceRegistered: false, unregisteredWorkspaceMode: 'off' },
+    });
+
+    expect(text).toContain('checkpoints off: workspace not registered');
+    expect(text).toContain('next goodvibes-agent workspaces register --yes');
+  });
+
+  test('status reports checkpoints on for a registered workspace', () => {
+    const text = renderCliStatus({
+      ...makeOptions(),
+      checkpoints: { workspaceRegistered: true, unregisteredWorkspaceMode: 'off' },
+    });
+
+    expect(text).toContain('checkpoints on: workspace registered');
+    expect(text).not.toContain('checkpoints off');
+  });
+
+  test('status reports the guarded override honestly for an unregistered workspace', () => {
+    const text = renderCliStatus({
+      ...makeOptions(),
+      checkpoints: { workspaceRegistered: false, unregisteredWorkspaceMode: 'guarded' },
+    });
+
+    expect(text).toContain('checkpoints on: unregistered workspace allowed via checkpoints.unregisteredWorkspaces="guarded"');
+  });
+
+  test('checkpoint posture never renders silently when the caller supplies nothing', () => {
+    const text = renderCliStatus(makeOptions());
+    expect(text).toContain('checkpoint posture unknown');
+  });
+
+  test('status JSON contract includes the checkpoints block', () => {
+    const text = renderCliStatus({
+      ...makeOptions(),
+      outputFormat: 'json',
+      checkpoints: { workspaceRegistered: false, unregisteredWorkspaceMode: 'off' },
+    });
+    const parsed = JSON.parse(text) as { checkpoints: { statusLine: string; automaticCheckpointsActive: boolean } };
+    expect(parsed.checkpoints.statusLine).toBe('checkpoints off: workspace not registered');
+    expect(parsed.checkpoints.automaticCheckpointsActive).toBe(false);
+  });
+
   test('status can render a stable JSON contract with connected-host details', () => {
     const text = renderCliStatus({
       ...makeOptions(),

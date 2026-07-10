@@ -17,8 +17,20 @@ export interface CliStatusOptions {
   readonly auth?: CliAuthStatus;
   readonly service?: CliServicePosture;
   readonly externalRuntime?: CliExternalRuntimeSnapshot;
+  readonly checkpoints?: CliCheckpointsStatus;
   readonly doctor?: boolean;
   readonly outputFormat?: GoodVibesCliOutputFormat;
+}
+
+/**
+ * Registered-workspaces-only checkpoint posture (owner ruling, 2026-07-10; see
+ * ../config/workspace-registry.ts and ../runtime/services.ts). Computed by the
+ * caller (entrypoint.ts already builds a ShellPathService for status/doctor)
+ * and passed in here so this module stays a pure renderer.
+ */
+export interface CliCheckpointsStatus {
+  readonly workspaceRegistered: boolean;
+  readonly unregisteredWorkspaceMode: 'off' | 'guarded';
 }
 
 export interface CliAuthStatus {
@@ -75,7 +87,29 @@ export interface CliStatusSnapshot {
     readonly scope: string;
     readonly updatedAt: number | null;
   };
+  readonly checkpoints: {
+    readonly automaticCheckpointsActive: boolean;
+    readonly workspaceRegistered: boolean;
+    readonly unregisteredWorkspaceMode: 'off' | 'guarded';
+    readonly statusLine: string;
+  } | null;
   readonly findings: readonly CliDoctorFinding[];
+}
+
+/**
+ * The one honest line this surface must never omit or soften (owner ruling,
+ * 2026-07-10): whether automatic checkpoints are active for THIS working
+ * directory, and why. `"checkpoints off: workspace not registered"` is the
+ * literal wording the ruling calls for the default (unregistered, `"off"`) case.
+ */
+function checkpointsStatusLine(checkpoints: CliCheckpointsStatus): { active: boolean; line: string } {
+  if (checkpoints.workspaceRegistered) {
+    return { active: true, line: 'checkpoints on: workspace registered' };
+  }
+  if (checkpoints.unregisteredWorkspaceMode === 'guarded') {
+    return { active: true, line: 'checkpoints on: unregistered workspace allowed via checkpoints.unregisteredWorkspaces="guarded"' };
+  }
+  return { active: false, line: 'checkpoints off: workspace not registered' };
 }
 
 function yesNo(value: unknown): string {
@@ -278,6 +312,14 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
       scope: marker?.scope ?? 'none',
       updatedAt: marker?.payload?.updatedAt ?? null,
     },
+    checkpoints: options.checkpoints
+      ? {
+        automaticCheckpointsActive: checkpointsStatusLine(options.checkpoints).active,
+        workspaceRegistered: options.checkpoints.workspaceRegistered,
+        unregisteredWorkspaceMode: options.checkpoints.unregisteredWorkspaceMode,
+        statusLine: checkpointsStatusLine(options.checkpoints).line,
+      }
+      : null,
     findings,
   };
 }
@@ -338,6 +380,16 @@ export function renderCliStatus(options: CliStatusOptions): string {
     `  checked ${marker?.exists ? 'yes' : 'no'}`,
     `  scope ${marker?.scope ?? 'none'}`,
     `  updated ${marker?.payload ? new Date(marker.payload.updatedAt).toISOString() : 'n/a'}`,
+    '',
+    'Checkpoints',
+    ...(snapshot.checkpoints ? [
+      `  ${snapshot.checkpoints.statusLine}`,
+      `  unregisteredWorkspaces mode: ${snapshot.checkpoints.unregisteredWorkspaceMode}`,
+      '  next goodvibes-agent workspaces list',
+      ...(snapshot.checkpoints.workspaceRegistered ? [] : ['  next goodvibes-agent workspaces register --yes']),
+    ] : [
+      '  checkpoint posture unknown',
+    ]),
   ];
 
   if (options.doctor) {

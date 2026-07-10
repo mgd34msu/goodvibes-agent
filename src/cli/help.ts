@@ -59,6 +59,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  ci                         Check connected-host CI status and manage standing CI watches',
     '  principals                 Manage the connected-host cross-channel principal identity registry',
     '  channel-profiles           Manage per-channel model/provider/permission-mode defaults',
+    '  workspaces                 Manage which workspaces get automatic checkpoints',
     '  auth                       Inspect Agent auth posture and connection token state',
     '  compat                     Inspect connected-host compatibility and Agent Knowledge route readiness',
     '  knowledge                  Use isolated Agent Knowledge routes',
@@ -348,6 +349,20 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'channel-profiles delete slack --yes',
     ],
   },
+  workspaces: {
+    usage: [
+      'workspaces list',
+      'workspaces register [path] [--label <label>] --yes',
+      'workspaces unregister [path] --yes',
+    ],
+    summary: 'Manage the registered-workspace list that gates automatic (turn-end/lifecycle) checkpoints. A workspace not in this list gets no automatic checkpoints; path defaults to the current working directory.',
+    examples: [
+      'workspaces list',
+      'workspaces register --yes',
+      'workspaces register /home/mike/Projects/goodvibes-agent --label agent --yes',
+      'workspaces unregister --yes',
+    ],
+  },
   auth: {
     usage: ['auth', 'auth status', 'auth review', 'auth users', 'auth sessions'],
     summary: 'Inspect Agent auth posture and connection token state. Runtime user/session administration stays outside Agent.',
@@ -470,6 +485,7 @@ const HELP_ALIASES: Record<string, string> = {
   routine: 'routines',
   principal: 'principals',
   'channel-profile': 'channel-profiles',
+  workspace: 'workspaces',
   know: 'knowledge',
   kb: 'knowledge',
   find: 'search',

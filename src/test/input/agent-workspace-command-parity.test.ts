@@ -203,7 +203,10 @@ describe('Agent workspace command parity', () => {
     // compat/doctor/pair have no workspace actions in the current build.
     // import is a one-shot CLI migration utility (goodvibes-agent import openclaw)
     // with no TUI workspace editor; it writes through the existing registries.
-    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'help', 'import', 'pair', 'tui', 'unknown', 'version']);
+    // workspaces (owner ruling, 2026-07-10) is a narrow, rarely-used admin
+    // surface — register/unregister the checkpoint-gating workspace list — with
+    // no TUI workspace editor yet, same shape as compat/doctor/pair above.
+    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'help', 'import', 'pair', 'tui', 'unknown', 'version', 'workspaces']);
     const requirements: Record<string, CoverageRequirement> = {
       ask: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-ask'] },
       auth: { editorPrefixes: ['auth-'] },

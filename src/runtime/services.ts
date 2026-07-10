@@ -3,7 +3,8 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
-import { readCheckpointGuardSettings } from '../config/checkpoint-settings.ts';
+import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
+import { isWorkspaceRegistered } from '../config/workspace-registry.ts';
 import { FocusTracker } from '../core/focus-tracker.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -919,9 +920,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   //                            never fires for the Agent.
   //   • processRegistry      — fleet observability over the managers the Agent
   //                            already owns (agents, wrfc, processes, watchers).
-  //   • workspaceCheckpointManager — constructed without a runtimeBus so it
-  //                            never auto-subscribes to turn events / snapshots
-  //                            the workspace; inert unless explicitly invoked.
+  //   • workspaceCheckpointManager — a runtimeBus (hence automatic turn/agent-
+  //                            lifecycle snapshots) is only passed when
+  //                            `workingDirectory` is a registered workspace (or
+  //                            the unregistered-workspaces override is
+  //                            "guarded"); otherwise it stays inert unless
+  //                            explicitly invoked. See the construction site
+  //                            below for the full registered-workspaces-only
+  //                            rule (owner ruling, 2026-07-10).
   const orchestrationEngine = createOrchestrationEngine({
     agentManager,
     configManager,
@@ -959,13 +965,76 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   // Root/retention guard options come from the user's `checkpoints.*` settings
   // (see config/checkpoint-settings.ts); any key the user did not set is omitted
-  // so the SDK manager applies its own default. The registered-workspaces-only
-  // semantics are intentionally NOT wired here — that ruling is still pending;
-  // this is the guard-key passthrough only.
+  // so the SDK manager applies its own default. These guards are defense in
+  // depth UNDER the registered-workspaces-only rule below, not replaced by it:
+  // even a registered root can still be refused as too broad or too large.
+  //
+  // Registered-workspaces-only (owner ruling, 2026-07-10): the SDK's
+  // WorkspaceCheckpointManager only takes automatic turn/agent-lifecycle
+  // snapshots when constructed WITH a runtimeBus (see the SDK's own
+  // platform/runtime/services.ts, which always passes one). This composition
+  // root instead passes runtimeBus conditionally: only when `workingDirectory`
+  // is in the owner's workspace registry (config/workspace-registry.ts), or the
+  // owner has explicitly opted an unregistered workspace back in via
+  // `checkpoints.unregisteredWorkspaces: "guarded"` (config/checkpoint-settings.ts;
+  // default "off"). Unregistered + default "off" -> no runtimeBus -> the
+  // manager never auto-subscribes and stays inert until explicitly invoked,
+  // same as before this ruling. This check runs once, at daemon-process
+  // construction time, against the process's fixed workingDirectory — it does
+  // not track workspace swaps at runtime (WorkspaceSwapManager's rerootStores
+  // does not re-root this manager either; a swap needs a restart to pick up a
+  // new root's registration either way, an existing limitation this change
+  // does not widen).
+  const checkpointsWorkspaceRegistered = isWorkspaceRegistered(shellPaths, workingDirectory);
+  const checkpointsUnregisteredMode = readCheckpointRegistrationSetting(configManager);
+  const checkpointsAllowedForWorkspace = checkpointsWorkspaceRegistered || checkpointsUnregisteredMode === 'guarded';
   const workspaceCheckpointManager = new WorkspaceCheckpointManager({
     workspaceRoot: workingDirectory,
     ...readCheckpointGuardSettings(configManager),
+    ...(checkpointsAllowedForWorkspace ? { runtimeBus: options.runtimeBus } : {}),
   });
+  if (checkpointsAllowedForWorkspace) {
+    // Eagerly initialize so automatic snapshot subscriptions are wired up
+    // immediately (mirrors the SDK's own default runtime services) rather than
+    // only on first explicit checkpoints.* call — otherwise the very first
+    // TURN_COMPLETED could arrive before anything has touched the manager.
+    // Left un-inited when checkpoints are not allowed for this workspace: the
+    // manager stays inert on disk until an explicit checkpoints.* call lazily
+    // inits it (each public method does `await this.init()` itself).
+    void workspaceCheckpointManager.init().catch((err) => {
+      logger.warn('WorkspaceCheckpointManager.init failed', { error: err instanceof Error ? err.message : String(err) });
+    });
+  }
+  // Explicit user-invoked checkpoint creation (the ws-only `checkpoints.create`
+  // gateway verb) is gated the SAME way: refuse with an actionable hint rather
+  // than silently registering the workspace on the caller's behalf. This is
+  // the chosen policy for the pending owner ruling (the alternative —
+  // register-and-proceed — was NOT chosen, to keep "create a checkpoint" from
+  // having a side effect the caller did not ask for). list/diff/restore/
+  // sessionChanges are read/restore operations over checkpoints that may
+  // already exist (e.g. from a since-unregistered workspace) and are left
+  // unrestricted here.
+  const checkpointsGatewayManager: Pick<WorkspaceCheckpointManager, 'list' | 'create' | 'diff' | 'restore' | 'sessionChanges'> = {
+    list: workspaceCheckpointManager.list.bind(workspaceCheckpointManager),
+    diff: workspaceCheckpointManager.diff.bind(workspaceCheckpointManager),
+    restore: workspaceCheckpointManager.restore.bind(workspaceCheckpointManager),
+    sessionChanges: workspaceCheckpointManager.sessionChanges.bind(workspaceCheckpointManager),
+    create: (opts) => {
+      // Re-reads the registry and setting live (not the `checkpointsAllowedForWorkspace`
+      // captured above) so registering the workspace via `goodvibes-agent workspaces
+      // register` takes effect for the NEXT explicit create call without a restart,
+      // even though the automatic-subscription decision above is still fixed for
+      // this process's lifetime.
+      if (!isWorkspaceRegistered(shellPaths, workingDirectory) && readCheckpointRegistrationSetting(configManager) !== 'guarded') {
+        throw new Error(
+          `Checkpoints are off for this workspace: ${workingDirectory} is not registered. `
+          + 'Register it first, then retry: goodvibes-agent workspaces register --yes '
+          + '(or set checkpoints.unregisteredWorkspaces to "guarded" to opt this workspace out of the registration gate).',
+        );
+      }
+      return workspaceCheckpointManager.create(opts);
+    },
+  };
 
   // Attach handlers for every ws-only gateway verb group (fleet.* including
   // the archive verbs, checkpoints.*, sessions.search, push.*, principals.*,
@@ -990,7 +1059,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // default via checkin.enabled (see config/schema-domain-runtime.ts).
   attachWsOnlyGatewayVerbHandlers(gatewayMethods, {
     processRegistry,
-    workspaceCheckpointManager,
+    workspaceCheckpointManager: checkpointsGatewayManager,
     sessionBroker,
     secretsManager,
     approvalBroker,

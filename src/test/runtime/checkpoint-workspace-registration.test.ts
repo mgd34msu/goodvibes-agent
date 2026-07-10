@@ -1,0 +1,165 @@
+/**
+ * Owner ruling (2026-07-10): automatic (turn-end/lifecycle) workspace
+ * checkpoints run ONLY when the resolved workspace root is registered
+ * (../../config/workspace-registry.ts), and explicit checkpoint creation
+ * through the ws-only `checkpoints.create` gateway verb is refused with an
+ * honest hint for an unregistered workspace. This exercises the real wiring
+ * in ../../runtime/services.ts end to end — a fresh RuntimeServices instance
+ * per case, not the shared test-helper singleton, so each case controls its
+ * own workspace root and registration state independently.
+ */
+import { afterEach, describe, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { createEventEnvelope } from '@pellux/goodvibes-transport-core';
+import { RuntimeEventBus } from '@/runtime/index.ts';
+import { createShellPathService } from '@/runtime/index.ts';
+import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
+import { createRuntimeStore } from '../../runtime/store/index.ts';
+import { registerWorkspace } from '../../config/workspace-registry.ts';
+import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
+
+const tempDirs: string[] = [];
+
+function makeTempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  tempDirs.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    const dir = tempDirs.pop()!;
+    try {
+      rmSync(dir, { recursive: true, force: true });
+    } catch {
+      // best-effort cleanup
+    }
+  }
+});
+
+function buildServices(opts: { registered: boolean }): { services: RuntimeServices; runtimeBus: RuntimeEventBus; workingDir: string } {
+  const workingDir = makeTempDir('gv-checkpoint-reg-work-');
+  const homeDir = makeTempDir('gv-checkpoint-reg-home-');
+  const configDir = makeTempDir('gv-checkpoint-reg-config-');
+  mkdirSync(configDir, { recursive: true });
+  // `run-tests.ts` sets TMPDIR to a directory INSIDE this repo, so `workingDir`
+  // (built from `os.tmpdir()`) resolves inside the real goodvibes-agent git
+  // tree. With the SDK's `preferGitRoot` default (true), the checkpoint
+  // manager would walk up and resolve the REAL repo root as the snapshot
+  // root — cross-test pollution at best, real commits into this repo's own
+  // `.goodvibes/checkpoints` at worst. `preferGitRoot: false` here keeps every
+  // case strictly scoped to its own isolated `workingDir`.
+  writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ checkpoints: { preferGitRoot: false } }));
+
+  if (opts.registered) {
+    const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
+    registerWorkspace(shellPaths, workingDir);
+  }
+
+  const runtimeBus = new RuntimeEventBus();
+  const services = createRuntimeServices({
+    configManager: new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir, homeDir }),
+    runtimeBus,
+    runtimeStore: createRuntimeStore(),
+    workingDir,
+    homeDirectory: homeDir,
+    getConversationTitle: () => 'checkpoint-registration-test',
+  });
+  return { services, runtimeBus, workingDir };
+}
+
+function emitTurnCompleted(bus: RuntimeEventBus, turnId: string): void {
+  bus.emit('agents', createEventEnvelope('TURN_COMPLETED', { turnId, response: 'done', stopReason: 'completed' }, {
+    sessionId: 'checkpoint-registration-test',
+    source: 'checkpoint-registration-test',
+    turnId,
+  }));
+}
+
+async function pollUntil(predicate: () => Promise<boolean>, timeoutMs = 5000, intervalMs = 100): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return true;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
+
+describe('registered-workspaces-only automatic checkpoints', () => {
+  test('an unregistered workspace takes no automatic checkpoint on TURN_COMPLETED', async () => {
+    const { services, runtimeBus } = buildServices({ registered: false });
+    await services.workspaceCheckpointManager.init();
+
+    emitTurnCompleted(runtimeBus, 'turn-1');
+
+    // Give any (unexpected) async subscription a real chance to fire before
+    // asserting the negative — a bounded wait, not a race.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const checkpoints = await services.workspaceCheckpointManager.list();
+    expect(checkpoints).toHaveLength(0);
+  }, 10000);
+
+  test('a registered workspace takes an automatic checkpoint on TURN_COMPLETED', async () => {
+    const { services, runtimeBus, workingDir } = buildServices({ registered: true });
+    // A real file to snapshot: an empty workspace's tree matches the implicit
+    // empty-tree parent, so `create()` would otherwise return its honest
+    // no-op (null) even on the very first checkpoint (manager.ts's "current
+    // tree is identical to the parent checkpoint's tree" case) — not a
+    // registration-gate bug, just nothing to snapshot.
+    writeFileSync(join(workingDir, 'note.txt'), 'hello');
+    await services.workspaceCheckpointManager.init();
+
+    emitTurnCompleted(runtimeBus, 'turn-1');
+
+    const created = await pollUntil(async () => (await services.workspaceCheckpointManager.list()).length > 0);
+    expect(created).toBe(true);
+    const checkpoints = await services.workspaceCheckpointManager.list();
+    expect(checkpoints[0]?.kind).toBe('turn');
+  }, 10000);
+
+  test('explicit checkpoints.create is refused with a registration hint for an unregistered workspace', async () => {
+    const { services } = buildServices({ registered: false });
+
+    await expect(
+      services.gatewayMethods.invoke('checkpoints.create', {
+        methodId: 'checkpoints.create',
+        body: { kind: 'manual' },
+      } as never),
+    ).rejects.toThrow(/not registered/);
+  });
+
+  test('explicit checkpoints.create succeeds for a registered workspace', async () => {
+    const { services, workingDir } = buildServices({ registered: true });
+    writeFileSync(join(workingDir, 'note.txt'), 'hello');
+
+    const result = await services.gatewayMethods.invoke('checkpoints.create', {
+      methodId: 'checkpoints.create',
+      body: { kind: 'manual' },
+    } as never) as { checkpoint: { id: string } | null; noop: boolean };
+    expect(result.checkpoint).not.toBeNull();
+  });
+
+  test('defense in depth: the SDK root guard still refuses a broad root even when registered', async () => {
+    const workingDir = makeTempDir('gv-checkpoint-broad-root-');
+    const homeDir = makeTempDir('gv-checkpoint-broad-root-home-');
+    const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
+    registerWorkspace(shellPaths, workingDir);
+
+    // Construct the SDK manager directly (not through createRuntimeServices) so
+    // `homeDir` can be forced to equal `workingDir` — deterministically
+    // triggering the SDK's "this root looks like a home directory" broad-root
+    // refusal, independent of this repo's registration wiring. Proves the
+    // registration gate this change adds is a layer ON TOP of the guard, never
+    // a bypass of it.
+    const manager = new WorkspaceCheckpointManager({
+      workspaceRoot: workingDir,
+      preferGitRoot: false,
+      homeDir: workingDir,
+    });
+
+    await expect(manager.create({ kind: 'manual' })).rejects.toThrow(/broad|home|refus/i);
+  });
+});
