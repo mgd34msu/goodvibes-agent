@@ -35,6 +35,9 @@ import { handleSkillsCommand } from './skills-command.ts';
 import { handleMemoryCommand } from './memory-command.ts';
 import { handleProfilesCommand } from './profiles-command.ts';
 import { handleRoutinesCommand } from './routines-command.ts';
+import { handleCiCommand } from './ci-command.ts';
+import { handlePrincipalsCommand } from './principals-command.ts';
+import { handleChannelProfilesCommand } from './channel-profiles-command.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export interface CliCommandRuntime {
@@ -618,6 +621,21 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
       }
       case 'routines': {
         const result = await handleRoutinesCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'ci': {
+        const result = await handleCiCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'principals': {
+        const result = await handlePrincipalsCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'channel-profiles': {
+        const result = await handleChannelProfilesCommand(runtime);
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

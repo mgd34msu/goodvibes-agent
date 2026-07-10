@@ -76,6 +76,14 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       boundary: 'Local library/profile/session/bundle/import CLI commands operate on Agent-local data. Mutations require explicit user intent and should use first-class Agent-local tools where available.',
     };
   }
+  if (root === 'ci' || root === 'principals' || root === 'channel-profiles') {
+    return {
+      effect: 'connected-host-state',
+      confirmation,
+      preferredModelTool: 'agent_operator_action',
+      boundary: 'CI status/watches, principal identity mappings, and per-channel profile defaults live on the connected host. Only explicit allowlisted operator actions should read or mutate this state from the model; mutating CLI subcommands require --yes.',
+    };
+  }
   if (root === 'knowledge' || root === 'ask' || root === 'search') {
     return {
       effect: 'mixed',
