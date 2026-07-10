@@ -108,6 +108,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   release: 'Update Channel',
   tools: 'Tools',
   flags: 'Feature Controls',
+  atRest: 'At-Rest Protection',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {
