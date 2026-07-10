@@ -49,7 +49,8 @@ import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import { FOCUS_ENABLE, FOCUS_DISABLE, installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
+import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
+import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
@@ -62,8 +63,7 @@ import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProp
 import { startHardwareProbe } from './core/hardware-profile.ts';
 import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
 
-const ALT_SCREEN_ENTER = '\x1b[?1049h', ALT_SCREEN_EXIT = '\x1b[?1049l', MOUSE_ENABLE = '\x1b[?1000h\x1b[?1002h\x1b[?1006h', MOUSE_DISABLE = '\x1b[?1006l\x1b[?1002l\x1b[?1000l', CURSOR_HIDE = '\x1b[?25l', CURSOR_SHOW = '\x1b[?25h', CLEAR_SCREEN = '\x1b[2J\x1b[3J\x1b[H';
-const KEYBOARD_EXT_ENABLE = '\x1b[>4;2m' + '\x1b[?1u', KEYBOARD_EXT_DISABLE = '\x1b[>4;0m' + '\x1b[?1l', PASTE_ENABLE = '\x1b[?2004h', PASTE_DISABLE = '\x1b[?2004l';
+// Escape bytes and enter/exit sequencing live in renderer/terminal-escapes.ts (re-exported from @pellux/goodvibes-terminal-shell) so this file never holds its own drifting copy.
 
 async function main() {
   const stdout = process.stdout;
@@ -224,6 +224,8 @@ async function main() {
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
   let recoveryPending = false;
+  // Set by exitApp before the terminal-restore write; render() checks this so no late frame can paint over the screen after the terminal has been handed back.
+  let terminalRestored = false;
 
   const sigintHandler = (): void => input.feed('\x03');
   const unhandledRejectionHandler = createUnhandledRejectionHandler({
@@ -242,6 +244,8 @@ async function main() {
     // spoken-audio drain below must not re-run teardown.
     if (exiting) return;
     exiting = true;
+    // Gate render() before anything else so no late frame follows the terminal-restore write below.
+    terminalRestored = true;
     // Exit lets the spoken audio the user is already hearing finish inside a
     // short bounded window (capped inside stopForExit) instead of killing the
     // player mid-drain; queued-but-unplayed speech is dropped. Deliberate
@@ -263,8 +267,7 @@ async function main() {
     stdout.removeListener('resize', resizeHandler);
     process.removeListener('SIGINT', sigintHandler);
     process.removeListener('unhandledRejection', unhandledRejectionHandler);
-    const exitScreen = cli.flags.noAltScreen ? CLEAR_SCREEN : CLEAR_SCREEN + ALT_SCREEN_EXIT;
-    allowTerminalWrite(() => stdout.write(PASTE_DISABLE + KEYBOARD_EXT_DISABLE + MOUSE_DISABLE + FOCUS_DISABLE + CURSOR_SHOW + exitScreen));
+    allowTerminalWrite(() => stdout.write(buildExitSequence(cli.flags.noAltScreen)));
     terminalOutputGuard.dispose();
     stdin.setRawMode(false);
     // The terminal is already restored above; only the process exit waits for
@@ -388,7 +391,7 @@ async function main() {
   commandContext.scrollToLine = scrollToLine;
   commandContext.clearScreen = () => {
     compositor.resetDiff();
-    allowTerminalWrite(() => stdout.write(CLEAR_SCREEN));
+    allowTerminalWrite(() => stdout.write(CLEAR_VIEWPORT_HOME));
     render();
   };
   commandContext.toggleActivitySidebar = () => {
@@ -472,6 +475,8 @@ async function main() {
   };
 
   const render = () => {
+    // The terminal has already been handed back to the shell; never paint another frame over it.
+    if (terminalRestored) return;
     const { width, height } = getTerminalSize(stdout);
 
     // Fire-and-forget refresh for the 'Coming up' sidebar section.
@@ -685,7 +690,7 @@ async function main() {
   stdin.setRawMode(true);
   stdin.resume();
   stdin.setEncoding('utf8');
-  allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write((cli.flags.noAltScreen ? '' : ALT_SCREEN_ENTER) + CLEAR_SCREEN + CURSOR_HIDE + MOUSE_ENABLE + KEYBOARD_EXT_ENABLE + PASTE_ENABLE + FOCUS_ENABLE); });
+  allowTerminalWrite(() => { markFocusModeEnabled(); return stdout.write(buildEnterSequence(cli.flags.noAltScreen)); });
 
   // Forced dark/light before first paint; auto (TTY) probes + repaints once if light.
   const themeProbe = installStartupThemeProbe({
