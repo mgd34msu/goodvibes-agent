@@ -57,9 +57,11 @@ describe('new runtime event domains', () => {
       'knowledge',
       'workspace',
       // SDK 1.6.1 adds the fleet domain (runtime/fleet/*) — background-agent
-      // fleet lifecycle events. Not adopted by this agent yet (out of scope
-      // for the current SDK-surface adoption round); this golden list is
-      // updated only to track the SDK's actual vocabulary honestly.
+      // fleet lifecycle events. Adopted: runtime/services.ts attaches the
+      // SDK's attachFleetEmitBridge onto the runtime bus so orchestrator-
+      // spawned agents' spawn/progress/attention/completion deltas publish on
+      // this domain (see src/test/runtime/fleet-attention.test.ts for the
+      // needs-input attention behavior this enables).
       'fleet',
     ]);
     expect(isRuntimeEventDomain('agents')).toBe(true);

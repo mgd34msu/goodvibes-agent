@@ -12,6 +12,11 @@ import { ChannelPluginRegistry, ChannelPolicyManager, RouteBindingManager, Surfa
 import { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { attachWsOnlyGatewayVerbHandlers, createArchivableFleetRegistry } from '@pellux/goodvibes-terminal-shell';
+// Not re-exported by @pellux/goodvibes-terminal-shell (only the gateway-verb
+// composition and the registry factory are) — reached directly per the SDK
+// adoption convention of going straight to the platform package for whatever
+// terminal-shell does not already wrap, rather than hand-rolling the bridge.
+import { attachFleetEmitBridge } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
@@ -979,6 +984,21 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     approvalBroker,
     shellPaths,
   });
+  // Turn the fleet registry's coalesced snapshot tick into poll-free
+  // spawn/progress/attention/completion events on the runtime event bus's
+  // 'fleet' domain (SDK 1.6.1, runtime/fleet/emit-bridge.ts) — the SDK's own
+  // doc note on this bridge: "The control-plane gateway already fans every
+  // runtime-bus domain out to subscribed SSE/WebSocket clients, so no
+  // gateway/channel change is needed once the fleet domain exists." Without
+  // this call the fleet.* gateway verbs above still answer pull queries
+  // (fleet.snapshot/fleet.list), but nothing pushes live deltas — a webui
+  // FleetView watching this agent's orchestrator-spawned sub-agents would see
+  // them only on manual refresh, never their attention state flipping to
+  // needs-input in real time. No unsubscribe is kept: the bridge is meant to
+  // live for the registry's lifetime (same non-disposed pattern as the
+  // fleet/push verb registrations just above; see the SDK's own doc comment
+  // on attachFleetEmitBridge).
+  attachFleetEmitBridge({ registry: processRegistry, bus: options.runtimeBus });
 
   return {
     workingDirectory,
