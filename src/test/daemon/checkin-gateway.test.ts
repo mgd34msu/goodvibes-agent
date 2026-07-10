@@ -24,6 +24,14 @@ interface CheckinReceipt {
 
 async function invoke<T>(methodId: string, body: Record<string, unknown> = {}): Promise<T> {
   const services = getTestRuntimeServices();
+  // Pin the current chat route to the instant mock model the test helper
+  // seeds. The check-in judge makes one provider.chat call against the
+  // registry's CURRENT model; left at the default route it can stall toward
+  // the judge's own 20s timeout (no credentials, real provider) and blow
+  // bun's 5s per-test budget under full-suite load. setCurrentModel, not a
+  // config write: the registry reads its configured model key once at
+  // construction, so config writes after construction do not retarget it.
+  services.providerRegistry.setCurrentModel('mock:mock-model');
   return services.gatewayMethods.invoke(methodId, { methodId, body } as never) as Promise<T>;
 }
 

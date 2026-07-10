@@ -267,7 +267,9 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/brief` | Show a concise Agent operator briefing and next actions. |
 | `/bundle` | Export, inspect, or import redacted Agent support bundles from the TUI. |
 | `/calendar` | Manage a local calendar: list upcoming events, import or export .ics files, and add or remove events. |
+| `/channel-profiles` | List, set, or delete per-channel session profile bindings (model, provider, permission mode) on the connected host; mutations require `--yes`. |
 | `/channels` | Inspect channel readiness, delivery receipts, or send one explicitly confirmed delivery message. |
+| `/ci` | Check a repo or PR's CI with per-job conclusions and manage standing CI watches with channel delivery; mutations require `--yes`. |
 | `/clear` | Clear the conversation display while keeping LLM context. |
 | `/collapse` | Collapse rendered blocks by type. |
 | `/commands` | Browse all commands in a scrollable list. |
@@ -300,6 +302,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/personas` | Manage Agent-local personas. |
 | `/pin` | Pin a model to the favorites list. |
 | `/prev-error` | Jump to the previous error message in the conversation. |
+| `/principals` | Manage the connected host's cross-channel principal identity registry; unmapped senders show as "unknown principal" in session attribution. |
 | `/provider` | Switch provider or manage custom providers. |
 | `/qrcode` | Print companion pairing details and a QR code. |
 | `/quit` | Exit the application. |

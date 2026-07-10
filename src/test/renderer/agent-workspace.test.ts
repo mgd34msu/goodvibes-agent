@@ -1963,7 +1963,11 @@ describe('renderAgentWorkspace', () => {
       safety: 'read-only',
     };
 
-    const output = text(renderAgentWorkspace(workspace, 132, 34));
+    // Height 36 (was 34): the Work & Approvals category gained a "CI watches"
+    // row, which pushed the Action Result panel below a 34-row viewport. This
+    // test is about feedback + refresh affordance rendering, not the exact
+    // viewport budget; the sibling render tests in this file use 44.
+    const output = text(renderAgentWorkspace(workspace, 132, 36));
 
     expect(output).toContain('Action Result');
     expect(output).toContain('Autonomy queue');
