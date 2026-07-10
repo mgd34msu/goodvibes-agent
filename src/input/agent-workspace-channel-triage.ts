@@ -1,9 +1,16 @@
 import { createHash } from 'node:crypto';
 import { formatAgentChannelDeliveryReceiptLine, readAgentChannelDeliveryReceipts } from '../agent/channel-delivery-receipts.ts';
 import type { CommandContext } from './command-registry.ts';
-import { fetchConnectedHostReadOnlyRoute, type ConnectedHostRouteFailure, type ConnectedHostRouteResult } from './connected-host-routes.ts';
+import {
+  fetchConnectedHostReadOnlyRoute,
+  resolveConnectedHostConnection,
+  type ConnectedHostConnection,
+  type ConnectedHostRouteFailure,
+  type ConnectedHostRouteResult,
+} from './connected-host-routes.ts';
 import type { AgentWorkspaceChannelStatus } from './agent-workspace-channels.ts';
 import { buildAgentWorkspaceChannels } from './agent-workspace-channels.ts';
+import { resolveChannelPrincipalAttribution, UNKNOWN_PRINCIPAL_LABEL } from '../agent/principal-attribution.ts';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -249,15 +256,20 @@ function surfaceMessageTriage(result: ConnectedHostRouteResult, limit: number): 
   };
 }
 
-function routeBindingView(binding: JsonRecord): Record<string, unknown> {
+async function routeBindingView(binding: JsonRecord, connection: ConnectedHostConnection): Promise<Record<string, unknown>> {
   const externalId = readString(binding, 'externalId');
+  const surfaceKind = readString(binding, 'surfaceKind', 'unknown');
+  const attribution = await resolveChannelPrincipalAttribution(connection, surfaceKind, externalId);
   return {
     id: readString(binding, 'id', 'binding'),
     kind: readString(binding, 'kind', 'unknown'),
-    surfaceKind: readString(binding, 'surfaceKind', 'unknown'),
+    surfaceKind,
     surfaceId: readString(binding, 'surfaceId') || null,
     title: redactText(readString(binding, 'title'), 100) || null,
     externalIdDigest: externalId ? `sha256:${digest(externalId)}` : null,
+    principal: attribution.principal,
+    principalLabel: attribution.label,
+    ...(attribution.error ? { principalResolutionError: attribution.error } : {}),
     sessionPolicy: readString(binding, 'sessionPolicy') || null,
     threadPolicy: readString(binding, 'threadPolicy') || null,
     deliveryGuarantee: readString(binding, 'deliveryGuarantee') || null,
@@ -268,7 +280,11 @@ function routeBindingView(binding: JsonRecord): Record<string, unknown> {
   };
 }
 
-function routeBindingTriage(result: ConnectedHostRouteResult, limit: number): Record<string, unknown> {
+async function routeBindingTriage(
+  result: ConnectedHostRouteResult,
+  limit: number,
+  connection: ConnectedHostConnection,
+): Promise<Record<string, unknown>> {
   if (!result.ok) {
     return {
       route: result.route,
@@ -280,12 +296,14 @@ function routeBindingTriage(result: ConnectedHostRouteResult, limit: number): Re
   }
   const root = isRecord(result.body) ? result.body : {};
   const bindings = readRecordArray(root, 'bindings');
+  const sliced = bindings.slice(0, limit);
+  const bindingViews = await Promise.all(sliced.map((binding) => routeBindingView(binding, connection)));
   return {
     route: result.route,
     state: routeState(result, bindings.length === 0),
     totalBindings: bindings.length,
-    bindings: bindings.slice(0, limit).map(routeBindingView),
-    policy: 'Read-only route continuity. External ids are digested so channel identifiers are not printed into chat.',
+    bindings: bindingViews,
+    policy: `Read-only route continuity. External ids are digested so channel identifiers are not printed into chat. Sender attribution shows the resolved principal when the channel identity maps to one, and "${UNKNOWN_PRINCIPAL_LABEL}" otherwise.`,
   };
 }
 
@@ -338,6 +356,7 @@ export async function buildAgentWorkspaceChannelTriage(
 ): Promise<AgentWorkspaceChannelTriage> {
   const limit = readLimit(args.limit, 12);
   const channels = buildAgentWorkspaceChannels(context);
+  const connection = resolveConnectedHostConnection(context);
   const [deliveriesResult, messagesResult, bindingsResult] = await Promise.all([
     fetchConnectedHostReadOnlyRoute(context, '/api/deliveries'),
     fetchConnectedHostReadOnlyRoute(context, '/api/control-plane/messages'),
@@ -346,7 +365,7 @@ export async function buildAgentWorkspaceChannelTriage(
   const readiness = channelTriageReadiness(channels, limit);
   const deliveries = deliveryTriage(deliveriesResult, limit);
   const surfaceMessages = surfaceMessageTriage(messagesResult, limit);
-  const routeBindings = routeBindingTriage(bindingsResult, limit);
+  const routeBindings = await routeBindingTriage(bindingsResult, limit, connection);
   const receipts = receiptTriage(context, limit);
   const routeFailures = routeFailureCount([deliveriesResult, messagesResult, bindingsResult]);
   const readinessAttention = typeof readiness.attention === 'number' ? readiness.attention : 0;
@@ -457,7 +476,7 @@ export function formatAgentWorkspaceChannelTriage(triage: AgentWorkspaceChannelT
     lines.push(`  state: ${bindings.state}; total: ${bindings.totalBindings}`);
     const routeRows = Array.isArray(bindings.bindings) ? bindings.bindings.filter(isRecord) : [];
     for (const binding of routeRows.slice(0, 5)) {
-      lines.push(`  - ${readString(binding, 'id')}: ${readString(binding, 'surfaceKind')} ${readString(binding, 'kind')} external=${readString(binding, 'externalIdDigest')}`);
+      lines.push(`  - ${readString(binding, 'id')}: ${readString(binding, 'surfaceKind')} ${readString(binding, 'kind')} external=${readString(binding, 'externalIdDigest')} sender=${readString(binding, 'principalLabel', UNKNOWN_PRINCIPAL_LABEL)}`);
     }
     if (routeRows.length === 0) lines.push('  no route bindings reported');
   }
