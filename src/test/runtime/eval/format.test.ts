@@ -43,6 +43,8 @@ function makeGateResult(overrides: Partial<EvalGateResult> = {}): EvalGateResult
     fresh: makeSuiteResult(),
     baseline: undefined,
     regressions: [],
+    floorFailures: [],
+    unbaselined: [],
     ...overrides,
   };
 }
