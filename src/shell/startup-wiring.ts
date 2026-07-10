@@ -3,6 +3,7 @@ import type { HookDispatcher, HookEventPath, HookPhase, HookCategory } from '@pe
 import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import {
   checkRecoveryFile,
+  createShellPathService,
   formatReturnContextForDisplay,
   persistConversation,
   writeRecoveryFile,
@@ -14,6 +15,8 @@ import {
 } from '../runtime/onboarding/index.ts';
 import { deriveOnboardingState } from '../runtime/onboarding/onboarding-state.ts';
 import { buildSetupIncompleteHint } from '../core/setup-incomplete-hint.ts';
+import { isBroadWorkspaceRoot, normalizeWorkspaceRoot, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
+import type { PendingWorkspaceRegistrationState } from './blocking-input.ts';
 
 export interface SessionPersistenceAndRecoveryDeps {
   readonly buildCurrentSessionSnapshot: () => SessionSnapshot;
@@ -41,6 +44,8 @@ export interface SessionPersistenceAndRecoveryResult {
   recoveryInterval: ReturnType<typeof setInterval>;
   /** True if an unsaved recovery session was found and the user prompt was shown. */
   recoveryPending: boolean;
+  /** Set when the first-start registration prompt was shown this launch (see below). */
+  pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
 }
 
 /**
@@ -69,6 +74,7 @@ export function wireSessionPersistenceAndRecovery(
     sessionManager,
     onStreamSpeedUpdate,
   } = deps;
+  const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory });
 
   // --- Streaming speed + tool preview wiring ---
   let streamStartTime = 0;
@@ -125,7 +131,26 @@ export function wireSessionPersistenceAndRecovery(
     );
   }, 60_000);
 
-  return { recoveryInterval, recoveryPending };
+  // First-start registration prompt (owner-approved design): only when this
+  // directory resolves to unknown (not covered, not declined) AND it isn't a
+  // broad root the store would refuse anyway (see isBroadWorkspaceRoot's own
+  // doc comment on why an "offer" check is safe to keep separate from the
+  // store's authoritative write-time guard). Skipped when a recovery prompt
+  // already claimed this launch's ambient attention, and while onboarding is
+  // still incomplete — the full-screen onboarding wizard would otherwise
+  // compete with this prompt for the very next keypress the owner types.
+  let pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
+  const onboardingDone = Boolean(readOnboardingCompletionMarker(shellPaths, 'user').payload);
+  if (!recoveryPending && onboardingDone) {
+    const resolution = resolveWorkspaceRegistrationSync(shellPaths, workingDir);
+    if (resolution.status === 'unknown' && !isBroadWorkspaceRoot(shellPaths, workingDir)) {
+      systemMessageRouter.high(`[Workspace] "${workingDir}" is not a registered workspace, so automatic (turn-end) checkpoints are off here. Register it? Press "y" to register, any other key to decline (won't ask again for this location).`);
+      render();
+      pendingWorkspaceRegistration = { root: normalizeWorkspaceRoot(workingDir), shellPaths };
+    }
+  }
+
+  return { recoveryInterval, recoveryPending, pendingWorkspaceRegistration };
 }
 
 /**

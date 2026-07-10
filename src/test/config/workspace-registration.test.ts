@@ -4,7 +4,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
+  answerWorkspaceRegistrationPrompt,
   createWorkspaceRegistrationStore,
+  isBroadWorkspaceRoot,
   migrateLegacyWorkspaceRegistryIfNeeded,
   normalizeWorkspaceRoot,
   resolveWorkspaceRegistrationSync,
@@ -180,3 +182,55 @@ describe('workspace-registration: legacy registry migration', () => {
     expect(second).toBeNull();
   });
 });
+
+describe('workspace-registration: first-start prompt support', () => {
+  test('isBroadWorkspaceRoot refuses the home directory', () => {
+    const { shellPaths, home } = makeShellPaths();
+    expect(isBroadWorkspaceRoot(shellPaths, home)).toBe(true);
+  });
+
+  test('isBroadWorkspaceRoot refuses the filesystem root', () => {
+    const { shellPaths } = makeShellPaths();
+    expect(isBroadWorkspaceRoot(shellPaths, '/')).toBe(true);
+  });
+
+  test('isBroadWorkspaceRoot refuses the daemon state directory (~/.goodvibes)', () => {
+    const { shellPaths, home } = makeShellPaths();
+    expect(isBroadWorkspaceRoot(shellPaths, join(home, '.goodvibes'))).toBe(true);
+  });
+
+  test('isBroadWorkspaceRoot allows an ordinary project directory', () => {
+    const { shellPaths, work } = makeShellPaths();
+    expect(isBroadWorkspaceRoot(shellPaths, work)).toBe(false);
+  });
+
+  test('answerWorkspaceRegistrationPrompt(accepted:true) registers the root', async () => {
+    const { shellPaths, work } = makeShellPaths();
+    answerWorkspaceRegistrationPrompt(shellPaths, work, true);
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    const resolved = await pollUntilResolved(store, work, 'covered');
+    expect(resolved).toBe(true);
+  });
+
+  test('answerWorkspaceRegistrationPrompt(accepted:false) declines the root', async () => {
+    const { shellPaths, work } = makeShellPaths();
+    answerWorkspaceRegistrationPrompt(shellPaths, work, false);
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    const resolved = await pollUntilResolved(store, work, 'declined');
+    expect(resolved).toBe(true);
+  });
+});
+
+async function pollUntilResolved(
+  store: ReturnType<typeof createWorkspaceRegistrationStore>,
+  path: string,
+  status: 'covered' | 'declined',
+  timeoutMs = 5000,
+): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if ((await store.resolve(path)).status === status) return true;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  return false;
+}

@@ -41,7 +41,7 @@ import {
   loadRecoveryConversation,
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
-import { handleBlockingShellInput, type PendingPermissionState } from './shell/blocking-input.ts';
+import { handleBlockingShellInput, type PendingPermissionState, type PendingWorkspaceRegistrationState } from './shell/blocking-input.ts';
 import { createAgentWorkspaceFullscreenComposite, createFullscreenCompositeFromLines } from './shell/agent-workspace-fullscreen.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
 import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
@@ -223,7 +223,7 @@ async function main() {
   const unsubs: Array<() => void> = [];
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
-  let recoveryPending = false;
+  let recoveryPending = false, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
   // Set by exitApp before the terminal-restore write; render() checks this so no late frame can paint over the screen after the terminal has been handed back.
   let terminalRestored = false;
 
@@ -715,6 +715,7 @@ async function main() {
       data,
       pendingPermission,
       recoveryPending,
+      pendingWorkspaceRegistration,
       abortTurn: () => orchestrator.abort(),
       conversation,
       systemMessageRouter,
@@ -722,8 +723,7 @@ async function main() {
       loadRecoveryConversation: () => loadRecoveryConversation({ homeDirectory }),
       deleteRecoveryFile: () => deleteRecoveryFile({ homeDirectory }),
     });
-    pendingPermission = blocking.pendingPermission;
-    recoveryPending = blocking.recoveryPending;
+    ({ pendingPermission, recoveryPending, pendingWorkspaceRegistration } = blocking);
     if (blocking.handled) {
       return;
     }
@@ -765,7 +765,7 @@ async function main() {
 
   // Wire streaming-speed metrics, auto-save, and recovery — all run after the
   // first render so they land as ambient context, never startup blockers.
-  ({ recoveryInterval, recoveryPending } = wireSessionPersistenceAndRecovery({
+  ({ recoveryInterval, recoveryPending, pendingWorkspaceRegistration } = wireSessionPersistenceAndRecovery({
     buildCurrentSessionSnapshot,
     runtime,
     conversation,

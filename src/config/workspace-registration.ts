@@ -1,6 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, parse, resolve } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import {
   WorkspaceRegistrationStore,
   resolveWorkspaceRegistration,
@@ -44,7 +45,7 @@ export type {
  * Both read the exact same on-disk file, so there is only ever one registry.
  */
 
-type StoreShellPaths = Pick<ShellPathService, 'resolveUserPath' | 'homeDirectory'>;
+export type StoreShellPaths = Pick<ShellPathService, 'resolveUserPath' | 'homeDirectory'>;
 
 /** Path of the shared store's JSON document — the SAME path the SDK's registerGatewayVerbGroups uses internally to construct its own store instance. */
 export function sharedWorkspaceRegistrationStorePath(shellPaths: StoreShellPaths): string {
@@ -229,4 +230,46 @@ export function migrateLegacyWorkspaceRegistryIfNeeded(
   };
   atomicWriteJson(receiptPath, result);
   return result;
+}
+
+// ---------------------------------------------------------------------------
+// First-start registration prompt support
+// ---------------------------------------------------------------------------
+
+function canonicalPath(path: string): string {
+  try {
+    return existsSync(path) ? realpathSync(path) : resolve(path);
+  } catch {
+    return resolve(path);
+  }
+}
+
+/**
+ * Would the shared store refuse to register `root` as too broad? Mirrors the
+ * SDK's broadRootReason (checkpoint/root-guard.ts — not part of the public
+ * platform/workspace export, so replicated here at the same single-purpose
+ * level as this module's other store-internal-logic mirrors) closely enough
+ * for a PRE-registration "would this be refused?" check. Used only to decide
+ * whether to OFFER registration in the first-start prompt; the store's own
+ * add() remains the authoritative guard at write time, never bypassed here.
+ */
+export function isBroadWorkspaceRoot(shellPaths: StoreShellPaths, root: string): boolean {
+  const canonicalRoot = canonicalPath(root);
+  if (parse(canonicalRoot).root === canonicalRoot) return true;
+  if (canonicalRoot === canonicalPath(shellPaths.homeDirectory)) return true;
+  if (canonicalRoot === canonicalPath(shellPaths.resolveUserPath())) return true;
+  return false;
+}
+
+/**
+ * Resolve a first-start registration prompt's answer against the shared
+ * store: fire-and-forget (the caller is a keypress handler, not an async
+ * context) but never a silent failure — a write error is logged, not lost.
+ */
+export function answerWorkspaceRegistrationPrompt(shellPaths: StoreShellPaths, root: string, accepted: boolean): void {
+  const store = createWorkspaceRegistrationStore(shellPaths);
+  const outcome = accepted ? store.add(root) : store.decline(root);
+  void outcome.catch((error: unknown) => {
+    logger.error('Failed to persist workspace registration prompt answer', { root, accepted, error: summarizeError(error) });
+  });
 }

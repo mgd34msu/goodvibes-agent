@@ -1,6 +1,26 @@
 import { describe, expect, test } from 'bun:test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createShellPathService } from '@/runtime/index.ts';
+import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 
 import { handleBlockingShellInput, type PendingPermissionState } from '../../shell/blocking-input.ts';
+
+function makeWorkspaceRegistrationShellPaths() {
+  const home = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-'));
+  const work = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-work-'));
+  return { shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }), work };
+}
+
+async function pollUntil(predicate: () => Promise<boolean>, timeoutMs = 5000, intervalMs = 25): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return true;
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
 
 function makeConversation() {
   const restored: Array<Record<string, unknown>>[] = [];
@@ -45,6 +65,7 @@ describe('shell/blocking-input', () => {
       data: 'y',
       pendingPermission,
       recoveryPending: false,
+      pendingWorkspaceRegistration: null,
       abortTurn: () => { aborted++; },
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -80,6 +101,7 @@ describe('shell/blocking-input', () => {
       data: '\x1b',
       pendingPermission,
       recoveryPending: false,
+      pendingWorkspaceRegistration: null,
       abortTurn: () => { aborted++; },
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -105,6 +127,7 @@ describe('shell/blocking-input', () => {
       data: '\x12',
       pendingPermission: null,
       recoveryPending: true,
+      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -133,6 +156,7 @@ describe('shell/blocking-input', () => {
       data: 'h',
       pendingPermission: null,
       recoveryPending: true,
+      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -161,6 +185,7 @@ describe('shell/blocking-input', () => {
       data: '\x1b',
       pendingPermission: null,
       recoveryPending: true,
+      pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
@@ -177,5 +202,63 @@ describe('shell/blocking-input', () => {
     expect(messages).toContain('[Recovery] Discarded recovery data.');
     expect(deleted).toBe(1);
     expect(rendered).toBe(1);
+  });
+
+  test('registers the workspace on y and clears the pending prompt', async () => {
+    const { conversation } = makeConversation();
+    const { router, messages } = makeRouter();
+    const { shellPaths, work } = makeWorkspaceRegistrationShellPaths();
+    let rendered = 0;
+
+    const result = handleBlockingShellInput({
+      data: 'y',
+      pendingPermission: null,
+      recoveryPending: false,
+      pendingWorkspaceRegistration: { root: work, shellPaths },
+      abortTurn: () => {},
+      conversation: conversation as never,
+      systemMessageRouter: router as never,
+      render: () => { rendered++; },
+      loadRecoveryConversation: () => null,
+      deleteRecoveryFile: () => {},
+    });
+
+    expect(result.handled).toBe(true);
+    expect(result.pendingWorkspaceRegistration).toBeNull();
+    expect(messages.some((m) => m.includes('Registered') && m.includes(work))).toBe(true);
+    expect(rendered).toBe(1);
+
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    const registered = await pollUntil(async () => (await store.resolve(work)).status === 'covered');
+    expect(registered).toBe(true);
+  });
+
+  test('declines the workspace on any key other than y (default no), including Escape', async () => {
+    const { conversation } = makeConversation();
+    const { router, messages } = makeRouter();
+    const { shellPaths, work } = makeWorkspaceRegistrationShellPaths();
+    let rendered = 0;
+
+    const result = handleBlockingShellInput({
+      data: '\x1b',
+      pendingPermission: null,
+      recoveryPending: false,
+      pendingWorkspaceRegistration: { root: work, shellPaths },
+      abortTurn: () => {},
+      conversation: conversation as never,
+      systemMessageRouter: router as never,
+      render: () => { rendered++; },
+      loadRecoveryConversation: () => null,
+      deleteRecoveryFile: () => {},
+    });
+
+    expect(result.handled).toBe(true);
+    expect(result.pendingWorkspaceRegistration).toBeNull();
+    expect(messages.some((m) => m.includes('Not registered'))).toBe(true);
+    expect(rendered).toBe(1);
+
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    const declined = await pollUntil(async () => (await store.resolve(work)).status === 'declined');
+    expect(declined).toBe(true);
   });
 });
