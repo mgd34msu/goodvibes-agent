@@ -10,7 +10,8 @@ import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { AutomationDeliveryManager, AutomationManager, AutomationRouteStore } from '@pellux/goodvibes-sdk/platform/automation';
 import { ChannelPluginRegistry, ChannelPolicyManager, RouteBindingManager, SurfaceRegistry } from '@pellux/goodvibes-sdk/platform/channels';
 import { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
-import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker, registerGatewayVerbGroups } from '@pellux/goodvibes-sdk/platform/control-plane';
+import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
+import { attachWsOnlyGatewayVerbHandlers, createArchivableFleetRegistry } from '@pellux/goodvibes-terminal-shell';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
@@ -46,7 +47,6 @@ import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
-import { createProcessRegistry, withFleetArchive } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import { createOrchestrationEngine } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
@@ -935,7 +935,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   // Archive-aware: finished agent/swarm subtrees can be moved out of the
   // live fleet view into a session-scoped archive (SDK fleet/archive.ts).
-  const processRegistry = withFleetArchive(createProcessRegistry({
+  // createArchivableFleetRegistry is the shared terminal-shell wrapper over the
+  // SDK's withFleetArchive(createProcessRegistry(...)) — one named seam both
+  // daemon front-ends build the registry through so it cannot drift.
+  const processRegistry = createArchivableFleetRegistry({
     agentManager,
     wrfcController,
     orchestrationEngine,
@@ -948,7 +951,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     messageBus: agentMessageBus,
     automationManager,
     runtimeBus: options.runtimeBus,
-  }));
+  });
   // Root/retention guard options come from the user's `checkpoints.*` settings
   // (see config/checkpoint-settings.ts); any key the user did not set is omitted
   // so the SDK manager applies its own default. The registered-workspaces-only
@@ -965,7 +968,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // those verbs answers 501 "Gateway method is not invokable" — the same gap
   // the companion app found on the TUI-vendored daemon. Mirrors the SDK
   // runtime's composition root (goodvibes-sdk platform/runtime/services.ts).
-  registerGatewayVerbGroups(gatewayMethods, {
+  // attachWsOnlyGatewayVerbHandlers is the shared terminal-shell wrapper over the
+  // SDK's registerGatewayVerbGroups — the single named call site both front-ends
+  // bind these handlers through, gated by the package's conformance check.
+  attachWsOnlyGatewayVerbHandlers(gatewayMethods, {
     processRegistry,
     workspaceCheckpointManager,
     sessionBroker,
