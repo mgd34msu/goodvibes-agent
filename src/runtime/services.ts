@@ -4,7 +4,7 @@ import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
-import { isWorkspaceRegistered } from '../config/workspace-registry.ts';
+import { migrateLegacyWorkspaceRegistryIfNeeded, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
 import { FocusTracker } from '../core/focus-tracker.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -974,18 +974,28 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // snapshots when constructed WITH a runtimeBus (see the SDK's own
   // platform/runtime/services.ts, which always passes one). This composition
   // root instead passes runtimeBus conditionally: only when `workingDirectory`
-  // is in the owner's workspace registry (config/workspace-registry.ts), or the
-  // owner has explicitly opted an unregistered workspace back in via
-  // `checkpoints.unregisteredWorkspaces: "guarded"` (config/checkpoint-settings.ts;
-  // default "off"). Unregistered + default "off" -> no runtimeBus -> the
-  // manager never auto-subscribes and stays inert until explicitly invoked,
-  // same as before this ruling. This check runs once, at daemon-process
-  // construction time, against the process's fixed workingDirectory — it does
-  // not track workspace swaps at runtime (WorkspaceSwapManager's rerootStores
-  // does not re-root this manager either; a swap needs a restart to pick up a
-  // new root's registration either way, an existing limitation this change
-  // does not widen).
-  const checkpointsWorkspaceRegistered = isWorkspaceRegistered(shellPaths, workingDirectory);
+  // resolves as COVERED by the shared registration store (SDK 1.6.1
+  // platform/workspace/registration, via config/workspace-registration.ts —
+  // the successor to this fork's local per-user registry, migrated in once
+  // below), or the owner has explicitly opted an unregistered workspace back
+  // in via `checkpoints.unregisteredWorkspaces: "guarded"`
+  // (config/checkpoint-settings.ts; default "off"). Unregistered + default
+  // "off" -> no runtimeBus -> the manager never auto-subscribes and stays
+  // inert until explicitly invoked, same as before this ruling. Coverage now
+  // flows down a registered root's subtree AND through the git
+  // worktree→main-repo link, so an orchestration-spawned worktree of a
+  // registered repo checkpoints automatically without being registered
+  // itself. This check runs once, at daemon-process construction time,
+  // against the process's fixed workingDirectory — it does not track
+  // workspace swaps at runtime (WorkspaceSwapManager's rerootStores does not
+  // re-root this manager either; a swap needs a restart to pick up a new
+  // root's registration either way, an existing limitation this change does
+  // not widen).
+  const registrationMigration = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
+  if (registrationMigration) {
+    logger.info('Migrated the local workspace registry into the shared registration store', { ...registrationMigration });
+  }
+  const checkpointsWorkspaceRegistered = resolveWorkspaceRegistrationSync(shellPaths, workingDirectory).status === 'covered';
   const checkpointsUnregisteredMode = readCheckpointRegistrationSetting(configManager);
   const checkpointsAllowedForWorkspace = checkpointsWorkspaceRegistered || checkpointsUnregisteredMode === 'guarded';
   const workspaceCheckpointManager = new WorkspaceCheckpointManager({
@@ -1025,8 +1035,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       // captured above) so registering the workspace via `goodvibes-agent workspaces
       // register` takes effect for the NEXT explicit create call without a restart,
       // even though the automatic-subscription decision above is still fixed for
-      // this process's lifetime.
-      if (!isWorkspaceRegistered(shellPaths, workingDirectory) && readCheckpointRegistrationSetting(configManager) !== 'guarded') {
+      // this process's lifetime. Same coverage semantics as the automatic-checkpoint
+      // decision above: subtree coverage and worktree-link inheritance both apply.
+      if (
+        resolveWorkspaceRegistrationSync(shellPaths, workingDirectory).status !== 'covered'
+        && readCheckpointRegistrationSetting(configManager) !== 'guarded'
+      ) {
         throw new Error(
           `Checkpoints are off for this workspace: ${workingDirectory} is not registered. `
           + 'Register it first, then retry: goodvibes-agent workspaces register --yes '

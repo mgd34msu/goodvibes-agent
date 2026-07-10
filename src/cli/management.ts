@@ -641,7 +641,7 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
         return { handled: true, exitCode: result.exitCode };
       }
       case 'workspaces': {
-        const result = handleWorkspacesCommand(runtime);
+        const result = await handleWorkspacesCommand(runtime);
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

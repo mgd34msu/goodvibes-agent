@@ -24,7 +24,7 @@ export interface CliStatusOptions {
 
 /**
  * Registered-workspaces-only checkpoint posture (owner ruling, 2026-07-10; see
- * ../config/workspace-registry.ts and ../runtime/services.ts). Computed by the
+ * ../config/workspace-registration.ts and ../runtime/services.ts). Computed by the
  * caller (entrypoint.ts already builds a ShellPathService for status/doctor)
  * and passed in here so this module stays a pure renderer.
  */

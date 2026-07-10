@@ -5,7 +5,7 @@ import { formatProviderModel, getModelIdFromProviderModel, getProviderIdFromMode
 import { readOnboardingCheckMarkers } from '../runtime/onboarding/index.ts';
 import { GlobalNetworkTransportInstaller } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
-import { configureActivityLogger } from '@pellux/goodvibes-sdk/platform/utils';
+import { configureActivityLogger, logger } from '@pellux/goodvibes-sdk/platform/utils';
 import {
   applyRuntimeCommandEndpointFlagOverrides,
   applyRuntimeConfigOverrides,
@@ -26,7 +26,7 @@ import { buildCliServicePosture } from './service-posture.ts';
 import { inspectCliExternalRuntime } from './external-runtime.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
-import { isWorkspaceRegistered } from '../config/workspace-registry.ts';
+import { migrateLegacyWorkspaceRegistryIfNeeded, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
 import { resolveAgentRuntimeProfileHome, resolveSelectedAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
 
 type ShellEntrypointOwnership = {
@@ -191,8 +191,12 @@ export async function prepareShellCliRuntime(
     const effectiveOperatorTokenPath = externalRuntime.operatorToken.present
       ? externalRuntime.operatorToken.path
       : operatorTokenPath;
+    const registrationMigration = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
+    if (registrationMigration) {
+      logger.info('Migrated the local workspace registry into the shared registration store', { ...registrationMigration });
+    }
     const checkpoints = {
-      workspaceRegistered: isWorkspaceRegistered(shellPaths, bootstrapWorkingDir),
+      workspaceRegistered: resolveWorkspaceRegistrationSync(shellPaths, bootstrapWorkingDir).status === 'covered',
       unregisteredWorkspaceMode: readCheckpointRegistrationSetting(configManager),
     };
     const statusOptions = {

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
-import { isWorkspaceRegistered } from '../../config/workspace-registry.ts';
+import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 
 async function runWorkspacesCli(args: readonly string[], workingDirectory: string, homeDirectory: string) {
   const output: string[] = [];
@@ -53,7 +53,8 @@ describe('workspaces CLI command', () => {
     expect(registered.output).toContain('Workspace registered');
 
     const shellPaths = createShellPathService({ workingDirectory: work, homeDirectory: home });
-    expect(isWorkspaceRegistered(shellPaths, work)).toBe(true);
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    expect((await store.resolve(work)).status).toBe('covered');
 
     const listed = await runWorkspacesCli(['workspaces', 'list'], work, home);
     expect(listed.output).toContain(work);
@@ -74,7 +75,8 @@ describe('workspaces CLI command', () => {
     expect(unregistered.output).toContain('unregistered');
 
     const shellPaths = createShellPathService({ workingDirectory: work, homeDirectory: home });
-    expect(isWorkspaceRegistered(shellPaths, work)).toBe(false);
+    const store = createWorkspaceRegistrationStore(shellPaths);
+    expect((await store.resolve(work)).status).toBe('unknown');
 
     const again = await runWorkspacesCli(['workspaces', 'unregister', '--yes'], work, home);
     expect(again.result.exitCode).toBe(1);

@@ -93,7 +93,8 @@ export function readCheckpointGuardSettings(
  *     — `'off'` is the ruling's default: automatic (turn-end/lifecycle)
  *     checkpoints, and explicit checkpoint creation through the ws-only
  *     `checkpoints.create` gateway verb, both refuse when the resolved
- *     workspace root is not in the registry (../config/workspace-registry.ts).
+ *     workspace root is not covered by the shared registration store
+ *     (../config/workspace-registration.ts).
  *     `'guarded'` opts back into the pre-ruling behavior for an unregistered
  *     workspace: automatic snapshots subscribe and explicit create proceeds,
  *     subject only to the SDK's own root/size guards above — never a silent

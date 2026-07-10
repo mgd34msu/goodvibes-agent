@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
+import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../../config/checkpoint-settings.ts';
 
-function configManagerWithRaw(raw: Record<string, unknown>): { getRaw: () => unknown } {
-  return { getRaw: () => raw };
+function configManagerWithRaw(raw: Record<string, unknown>): Pick<ConfigManager, 'getRaw'> {
+  return { getRaw: () => raw } as unknown as Pick<ConfigManager, 'getRaw'>;
 }
 
 describe('readCheckpointRegistrationSetting', () => {

@@ -1,21 +1,30 @@
 import { createShellPathService } from '@/runtime/index.ts';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { WorkspaceRegistrationError } from '@pellux/goodvibes-sdk/platform/workspace';
 import {
-  isWorkspaceRegistered,
+  createWorkspaceRegistrationStore,
+  migrateLegacyWorkspaceRegistryIfNeeded,
   normalizeWorkspaceRoot,
-  readWorkspaceRegistry,
-  registerWorkspace,
-  unregisterWorkspace,
-} from '../config/workspace-registry.ts';
+} from '../config/workspace-registration.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 
 /**
- * `goodvibes-agent workspaces` — manage the registered-workspace list that
- * gates automatic checkpoints (owner ruling, 2026-07-10; see
- * ../runtime/services.ts and ../config/workspace-registry.ts). A workspace
- * root not in this list gets no automatic turn/agent-lifecycle checkpoints,
- * and explicit `checkpoints.create` gateway calls against it are refused with
- * this command's registration hint (see services.ts's checkpointsGatewayManager).
+ * `goodvibes-agent workspaces` — manage the shared registered-workspace store
+ * (SDK 1.6.1 platform/workspace/registration) that gates automatic checkpoints
+ * (owner ruling, 2026-07-10; see ../runtime/services.ts and
+ * ../config/workspace-registration.ts). A workspace root not covered by this
+ * store gets no automatic turn/agent-lifecycle checkpoints, and explicit
+ * `checkpoints.create` gateway calls against it are refused with this
+ * command's registration hint (see services.ts's checkpointsGatewayManager).
+ *
+ * Coverage flows down a registered root's subtree and is inherited through
+ * the git worktree→main-repo link (an orchestration worktree of a registered
+ * repo is covered without being registered itself) — the CLI UX below (the
+ * list/register/unregister subcommands, their flags, and their exit codes) is
+ * unchanged from the local-registry predecessor this now reads/writes
+ * through instead.
  */
 
 function hasYes(args: readonly string[]): boolean {
@@ -54,19 +63,33 @@ function usage(runtime: CliCommandRuntime, error: string): CliCommandOutput {
   return { output: jsonOrText(runtime, { ok: false, error: message }, message), exitCode: 2 };
 }
 
-export function handleWorkspacesCommand(runtime: CliCommandRuntime): CliCommandOutput {
+export async function handleWorkspacesCommand(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
   const shellPaths = createShellPathService({
     workingDirectory: runtime.workingDirectory,
     homeDirectory: runtime.homeDirectory,
   });
+
+  // Idempotent, receipt-gated: a no-op after the first successful migration on
+  // this machine, from any entry point. See workspace-registration.ts.
+  const migration = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
+  if (migration) {
+    logger.info('Migrated the local workspace registry into the shared registration store', { ...migration });
+  }
+
+  const store = createWorkspaceRegistrationStore(shellPaths);
   const [sub = 'list', ...rawRest] = runtime.cli.commandArgs;
   const values = commandValues(rawRest);
 
   if (sub === 'list' || sub === 'ls') {
-    const snapshot = readWorkspaceRegistry(shellPaths);
+    const snapshot = await store.snapshot();
     const current = normalizeWorkspaceRoot(runtime.workingDirectory);
+    const currentResolution = await store.resolve(current);
+    const currentWorkspaceRegistered = currentResolution.status === 'covered';
     if (runtime.cli.flags.outputFormat === 'json') {
-      return { output: JSON.stringify({ ok: true, ...snapshot, currentWorkspaceRegistered: isWorkspaceRegistered(shellPaths, current) }, null, 2), exitCode: 0 };
+      return {
+        output: JSON.stringify({ ok: true, ...snapshot, currentWorkspaceRegistered }, null, 2),
+        exitCode: 0,
+      };
     }
     const lines = snapshot.workspaces.length === 0
       ? ['No registered workspaces', '  automatic checkpoints are off everywhere until a workspace is registered']
@@ -74,7 +97,7 @@ export function handleWorkspacesCommand(runtime: CliCommandRuntime): CliCommandO
         `Registered workspaces (${snapshot.workspaces.length})`,
         ...snapshot.workspaces.map((entry) => `  ${entry.root}${entry.label ? ` (${entry.label})` : ''} — registered ${entry.registeredAt}`),
       ];
-    lines.push('', `current workspace ${current}`, `  registered ${isWorkspaceRegistered(shellPaths, current) ? 'yes' : 'no'}`);
+    lines.push('', `current workspace ${current}`, `  registered ${currentWorkspaceRegistered ? 'yes' : 'no'}`);
     return { output: lines.join('\n'), exitCode: 0 };
   }
 
@@ -84,11 +107,16 @@ export function handleWorkspacesCommand(runtime: CliCommandRuntime): CliCommandO
       return usage(runtime, `Refusing to register workspace ${normalizeWorkspaceRoot(target)} for automatic checkpoints without --yes.`);
     }
     const label = flagValue(rawRest, ['--label']) ?? undefined;
-    const result = registerWorkspace(shellPaths, target, label ? { label } : undefined);
-    const text = result.alreadyRegistered
-      ? `Workspace already registered: ${result.record.root}`
-      : `Workspace registered: ${result.record.root}\n  automatic checkpoints are now allowed for this workspace`;
-    return { output: jsonOrText(runtime, { ok: true, ...result }, text), exitCode: 0 };
+    try {
+      const result = await store.add(target, label ? { label } : undefined);
+      const text = result.alreadyRegistered
+        ? `Workspace already registered: ${result.record.root}`
+        : `Workspace registered: ${result.record.root}\n  automatic checkpoints are now allowed for this workspace`;
+      return { output: jsonOrText(runtime, { ok: true, ...result }, text), exitCode: 0 };
+    } catch (error) {
+      const message = error instanceof WorkspaceRegistrationError ? error.message : summarizeError(error);
+      return { output: jsonOrText(runtime, { ok: false, error: message }, message), exitCode: 2 };
+    }
   }
 
   if (sub === 'unregister' || sub === 'remove' || sub === 'rm') {
@@ -96,7 +124,7 @@ export function handleWorkspacesCommand(runtime: CliCommandRuntime): CliCommandO
     if (!hasYes(rawRest)) {
       return usage(runtime, `Refusing to unregister workspace ${normalizeWorkspaceRoot(target)} without --yes.`);
     }
-    const result = unregisterWorkspace(shellPaths, target);
+    const result = await store.remove(target);
     const text = result.removed
       ? `Workspace unregistered: ${normalizeWorkspaceRoot(target)}\n  automatic checkpoints are now off for this workspace`
       : `Workspace was not registered: ${normalizeWorkspaceRoot(target)}`;
