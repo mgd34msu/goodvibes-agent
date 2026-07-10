@@ -968,14 +968,26 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
 
   // Attach handlers for every ws-only gateway verb group (fleet.* including
-  // the archive verbs, checkpoints.*, sessions.search, push.*). Without this
-  // call the catalog carries descriptors but no handlers, and every one of
-  // those verbs answers 501 "Gateway method is not invokable" — the same gap
-  // the companion app found on the TUI-vendored daemon. Mirrors the SDK
-  // runtime's composition root (goodvibes-sdk platform/runtime/services.ts).
-  // attachWsOnlyGatewayVerbHandlers is the shared terminal-shell wrapper over the
-  // SDK's registerGatewayVerbGroups — the single named call site both front-ends
-  // bind these handlers through, gated by the package's conformance check.
+  // the archive verbs, checkpoints.*, sessions.search, push.*, principals.*,
+  // channels.profiles.*, ci.*, and — when the deps below are all present —
+  // checkin.*). Without this call the catalog carries descriptors but no
+  // handlers, and every one of those verbs answers 501 "Gateway method is not
+  // invokable" — the same gap the companion app found on the TUI-vendored
+  // daemon. Mirrors the SDK runtime's composition root (goodvibes-sdk
+  // platform/runtime/services.ts). attachWsOnlyGatewayVerbHandlers is the
+  // shared terminal-shell wrapper over the SDK's registerGatewayVerbGroups —
+  // the single named call site both front-ends bind these handlers through,
+  // gated by the package's conformance check.
+  //
+  // configManager and runtimeStore are required (SDK 1.6.1): they back
+  // sessions.permissionMode.get/set and sessions.contextUsage.get. The four
+  // check-in deps (channelDeliveryRouter, providerRegistry, automationManager,
+  // sessionLister) are each optional individually, but the check-in verb
+  // group (checkin.config.get/set, checkin.run, checkin.receipts.list) is
+  // registered ONLY when all four are present — every one of them is already
+  // constructed above in this composition root, so the Agent wires all four:
+  // the proactive check-in loop runs for real here, not as a facade. Off by
+  // default via checkin.enabled (see config/schema-domain-runtime.ts).
   attachWsOnlyGatewayVerbHandlers(gatewayMethods, {
     processRegistry,
     workspaceCheckpointManager,
@@ -983,6 +995,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     secretsManager,
     approvalBroker,
     shellPaths,
+    configManager,
+    runtimeStore: options.runtimeStore,
+    channelDeliveryRouter,
+    providerRegistry,
+    automationManager,
+    sessionLister: sessionBroker,
   });
   // Turn the fleet registry's coalesced snapshot tick into poll-free
   // spawn/progress/attention/completion events on the runtime event bus's
