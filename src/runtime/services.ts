@@ -3,6 +3,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
+import { readCheckpointGuardSettings } from '../config/checkpoint-settings.ts';
 import { FocusTracker } from '../core/focus-tracker.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -948,8 +949,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     automationManager,
     runtimeBus: options.runtimeBus,
   }));
+  // Root/retention guard options come from the user's `checkpoints.*` settings
+  // (see config/checkpoint-settings.ts); any key the user did not set is omitted
+  // so the SDK manager applies its own default. The registered-workspaces-only
+  // semantics are intentionally NOT wired here — that ruling is still pending;
+  // this is the guard-key passthrough only.
   const workspaceCheckpointManager = new WorkspaceCheckpointManager({
     workspaceRoot: workingDirectory,
+    ...readCheckpointGuardSettings(configManager),
   });
 
   // Attach handlers for every ws-only gateway verb group (fleet.* including
