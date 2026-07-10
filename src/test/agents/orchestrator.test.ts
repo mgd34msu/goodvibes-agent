@@ -9,6 +9,9 @@ import { FileStateCache } from '@pellux/goodvibes-sdk/platform/state';
 import { MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { ProjectIndex } from '@pellux/goodvibes-sdk/platform/state';
 import { randomUUID } from 'node:crypto';
+import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
+import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
+import { PolicyRuntimeState } from '@/runtime/index.ts';
 import { getTestRuntimeServices, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
 
 // ---------------------------------------------------------------------------
@@ -679,6 +682,145 @@ describe('AgentOrchestrator', () => {
         turnCount: 2,
         reasoningSummaryCount: 1,
       });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Background-agent permission gating (SDK 1.6.1: permissions.backgroundAgents)
+  // -------------------------------------------------------------------------
+
+  describe('background agent permission gating', () => {
+    test('ask-mode background tool call brokers the ask instead of silently proceeding', async () => {
+      const requestPermission = mock(async (_request: Parameters<PermissionRequestHandler>[0]) => (
+        { approved: false, remember: false }
+      ));
+      const policyRuntimeState = new PolicyRuntimeState();
+      orchestratorRuntime.configManager.set('permissions.mode', 'prompt');
+      orchestratorRuntime.configManager.set('behavior.autoApprove', false);
+      const permissionManager = new PermissionManager(
+        requestPermission,
+        createPermissionConfigReader(orchestratorRuntime.configManager),
+        policyRuntimeState,
+        null,
+        orchestratorRuntime.featureFlags,
+      );
+
+      // Re-issue setDependencies with the SAME deps beforeEach already wired,
+      // adding permissionManager — proves the agent's own composition (not
+      // just the SDK in isolation) brokers the ask when one is present.
+      orchestrator.setDependencies({
+        surfaceRoot: 'tui',
+        fileCache,
+        projectIndex,
+        fileUndoManager: orchestratorRuntime.fileUndoManager,
+        modeManager: orchestratorRuntime.modeManager,
+        processManager: orchestratorRuntime.processManager,
+        agentMessageBus: orchestratorRuntime.agentMessageBus,
+        webSearchService: orchestratorRuntime.webSearchService,
+        channelRegistry: orchestratorRuntime.channelPlugins,
+        remoteRunnerRegistry: orchestratorRuntime.remoteRunnerRegistry,
+        knowledgeService: orchestratorRuntime.knowledgeService,
+        memoryRegistry,
+        archetypeLoader: orchestratorRuntime.archetypeLoader,
+        configManager: orchestratorRuntime.configManager,
+        providerRegistry: orchestratorRuntime.providerRegistry,
+        providerOptimizer: orchestratorRuntime.providerOptimizer,
+        toolLLM: orchestratorRuntime.toolLLM,
+        serviceRegistry: orchestratorRuntime.serviceRegistry,
+        sessionOrchestration: orchestratorRuntime.sessionOrchestration,
+        featureFlags: orchestratorRuntime.featureFlags,
+        overflowHandler: orchestratorRuntime.overflowHandler,
+        sandboxSessionRegistry: orchestratorRuntime.sandboxSessionRegistry,
+        workflowServices: orchestratorRuntime.workflow,
+        workingDirectory: repoRoot,
+        permissionManager,
+      });
+
+      const provider = makeMockProvider([
+        {
+          content: '',
+          toolCalls: [{ id: 'call-write-1', name: 'write', arguments: { path: 'gate-test.txt', content: 'x' } }],
+        },
+        { content: 'Understood, the write was not approved.' },
+      ]);
+
+      const record = makeRecord({ tools: ['write'] });
+      await withMockProvider(provider, () => orchestrator.runAgent(record));
+
+      // The gate brokered the ask — it did not silently approve or silently
+      // skip the permission layer.
+      expect(requestPermission).toHaveBeenCalledTimes(1);
+      const askedRequest = requestPermission.mock.calls[0]![0];
+      expect(askedRequest.tool).toBe('write');
+      // Subagent attribution rides on the brokered ask (background-permission-gate.js).
+      expect(askedRequest.attribution).toEqual({ kind: 'background-agent', agentId: record.id, template: record.template });
+
+      // The denial was honored — the tool did not run — and the agent still
+      // completes cleanly (denial becomes a tool result fed back to the model).
+      expect(record.status).toBe('completed');
+      expect(record.toolCallCount).toBe(1);
+    });
+
+    test('allow-all backgroundAgents mode exempts background tool calls from the ask', async () => {
+      const requestPermission = mock(async (_request: Parameters<PermissionRequestHandler>[0]) => (
+        { approved: false, remember: false }
+      ));
+      const policyRuntimeState = new PolicyRuntimeState();
+      orchestratorRuntime.configManager.set('permissions.mode', 'prompt');
+      orchestratorRuntime.configManager.set('behavior.autoApprove', false);
+      orchestratorRuntime.configManager.set('permissions.backgroundAgents', 'allow-all');
+      const permissionManager = new PermissionManager(
+        requestPermission,
+        createPermissionConfigReader(orchestratorRuntime.configManager),
+        policyRuntimeState,
+        null,
+        orchestratorRuntime.featureFlags,
+      );
+
+      orchestrator.setDependencies({
+        surfaceRoot: 'tui',
+        fileCache,
+        projectIndex,
+        fileUndoManager: orchestratorRuntime.fileUndoManager,
+        modeManager: orchestratorRuntime.modeManager,
+        processManager: orchestratorRuntime.processManager,
+        agentMessageBus: orchestratorRuntime.agentMessageBus,
+        webSearchService: orchestratorRuntime.webSearchService,
+        channelRegistry: orchestratorRuntime.channelPlugins,
+        remoteRunnerRegistry: orchestratorRuntime.remoteRunnerRegistry,
+        knowledgeService: orchestratorRuntime.knowledgeService,
+        memoryRegistry,
+        archetypeLoader: orchestratorRuntime.archetypeLoader,
+        configManager: orchestratorRuntime.configManager,
+        providerRegistry: orchestratorRuntime.providerRegistry,
+        providerOptimizer: orchestratorRuntime.providerOptimizer,
+        toolLLM: orchestratorRuntime.toolLLM,
+        serviceRegistry: orchestratorRuntime.serviceRegistry,
+        sessionOrchestration: orchestratorRuntime.sessionOrchestration,
+        featureFlags: orchestratorRuntime.featureFlags,
+        overflowHandler: orchestratorRuntime.overflowHandler,
+        sandboxSessionRegistry: orchestratorRuntime.sandboxSessionRegistry,
+        workflowServices: orchestratorRuntime.workflow,
+        workingDirectory: repoRoot,
+        permissionManager,
+      });
+
+      const provider = makeMockProvider([
+        {
+          content: '',
+          toolCalls: [{ id: 'call-noop-1', name: 'noop', arguments: {} }],
+        },
+        { content: 'Done.' },
+      ]);
+
+      const record = makeRecord({ tools: ['noop'] });
+      await withMockProvider(provider, () => orchestrator.runAgent(record));
+
+      // permissions.backgroundAgents:'allow-all' exempts background agents from
+      // the session mode entirely — the ask is never brokered.
+      expect(requestPermission).not.toHaveBeenCalled();
+      expect(record.status).toBe('completed');
+      orchestratorRuntime.configManager.set('permissions.backgroundAgents', 'inherit');
     });
   });
 

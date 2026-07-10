@@ -309,7 +309,12 @@ export async function initializeBootstrapCore(
   });
   installToolExecutionSafetyGuard(toolRegistry);
   compactRegisteredToolDefinitions(toolRegistry);
-  services.agentOrchestrator.setDependencies({
+  // Captured so the permissionManager-bearing follow-up call below (issued once
+  // permissionManager exists, further down this function) can replay every
+  // field — AgentOrchestrator.setDependencies() fully replaces its stored
+  // toolDeps rather than merging, so a partial second call would silently drop
+  // everything set here.
+  const agentOrchestratorToolDeps = {
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     fileCache,
     projectIndex,
@@ -334,7 +339,8 @@ export async function initializeBootstrapCore(
     memoryRegistry: services.memoryRegistry,
     sandboxSessionRegistry: services.sandboxSessionRegistry,
     workflowServices: services.workflow,
-  });
+  };
+  services.agentOrchestrator.setDependencies(agentOrchestratorToolDeps);
 
   const bootstrapUnsubs: Array<() => void> = [];
   // D5 fix: stop the heartbeat watcher on shutdown so the setInterval is cleared.
@@ -526,6 +532,15 @@ export async function initializeBootstrapCore(
     featureFlags,
   );
   installPermissionManagerSafetyGuard(permissionManager);
+  // Wire permissionManager into the SAME AgentOrchestrator instance that runs
+  // spawned/background agent tool calls (services.agentOrchestrator, set up
+  // above with agentOrchestratorToolDeps before permissionManager existed).
+  // Without this, the SDK's gateBackgroundToolCall() sees no permissionManager
+  // on context and leaves every background tool call ungated — spawned agents
+  // would run with no permission check at all, regardless of permissions.mode
+  // or permissions.backgroundAgents. Replays the full toolDeps object because
+  // setDependencies() replaces rather than merges.
+  services.agentOrchestrator.setDependencies({ ...agentOrchestratorToolDeps, permissionManager });
   await hookWorkbench.loadAndApplyManagedHooks();
 
   const runtime: MutableRuntimeState = {
@@ -540,7 +555,13 @@ export async function initializeBootstrapCore(
   void sharedSessionBroker.createSession({
     id: runtime.sessionId,
     title: 'GoodVibes Agent session',
-    metadata: { source: 'goodvibes-agent' },
+    // Declares the session permission mode at creation time in the shared
+    // metadata bag (SDK 1.6.1 permissions.mode: prompt/allow-all/custom/
+    // plan/accept-edits). Read-only declaration — the permission layer
+    // itself always reads permissions.mode live off configManager, so this
+    // does not change enforcement; it lets cross-session tooling see which
+    // mode a session started under without re-deriving it.
+    metadata: { source: 'goodvibes-agent', permissionMode: configManager.get('permissions.mode') },
     participant: {
       surfaceKind: 'service',
       surfaceId: 'surface:goodvibes-agent',
