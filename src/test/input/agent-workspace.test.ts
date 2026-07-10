@@ -184,7 +184,14 @@ const ALLOWED_ONBOARDING_READONLY_GUIDANCE = new Set([
   'account-advanced-separator',
 ]);
 
-const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set<string>();
+const ALLOWED_ONBOARDING_READONLY_COMMANDS = new Set<string>([
+  // Read-only connected-host admin listings on the Messaging page: the
+  // principal identity registry and per-channel session profile bindings.
+  // Both dispatch list-only slash commands; mutations go through the same
+  // commands' --yes-gated subcommands, never from a workspace row.
+  'principals-list',
+  'channel-profiles-list',
+]);
 
 function memoryApi(records: MemoryRecord[] = [memoryRecord()]): MemoryApi {
   return {

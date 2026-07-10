@@ -38,6 +38,7 @@ import { registerBriefRuntimeCommands } from './commands/brief-runtime.ts';
 import { registerSupportBundleRuntimeCommands } from './commands/support-bundle-runtime.ts';
 import { registerCompatRuntimeCommands } from './commands/compat-runtime.ts';
 import { registerOperatorActionRuntimeCommands } from './commands/operator-actions-runtime.ts';
+import { registerConnectedHostAdminCommands } from './commands/connected-host-admin-runtime.ts';
 import { registerEmailRuntimeCommands } from './commands/email-runtime.ts';
 import { registerCalendarRuntimeCommands } from './commands/calendar-runtime.ts';
 
@@ -65,6 +66,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerSupportBundleRuntimeCommands(registry);
   registerCompatRuntimeCommands(registry);
   registerOperatorActionRuntimeCommands(registry);
+  registerConnectedHostAdminCommands(registry);
   registerCalendarRuntimeCommands(registry);
   registerAgentRuntimeProfileRuntimeCommands(registry);
   registerVibeRuntimeCommands(registry);
