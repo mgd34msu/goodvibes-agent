@@ -9,7 +9,7 @@ import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvib
 import { Notifier, WebhookNotifier } from '@pellux/goodvibes-sdk/platform/integrations';
 
 import { Compositor } from '../renderer/compositor.ts';
-import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
+import type { PermissionRequestHandler, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import type { ConversationFollowUpItem } from '@pellux/goodvibes-sdk/platform/core';
 import type { OrchestratorUserInputOptions } from '../core/orchestrator.ts';
@@ -133,6 +133,28 @@ export function companionMessageToOrchestratorInputOptions(
       ...(metadata ? { metadata } : {}),
     },
   };
+}
+
+/**
+ * Fleet-attention wiring: derive the shared-approval metadata for a
+ * permission ask. Background/subagent asks carry
+ * `request.attribution` (kind: 'background-agent', agentId, template — set by
+ * AgentOrchestrator's gateBackgroundToolCall once permissionManager is wired
+ * into it, see the `services.agentOrchestrator.setDependencies(...)` call
+ * below and orchestrator.test.ts's "background agent permission gating"
+ * suite). Forwarding `attribution.agentId` into the shared approval's
+ * `metadata.agentId` is what lets the SDK's fleet ProcessRegistry
+ * (runtime/fleet/registry.js, collectPendingApprovals) attribute the pending
+ * ask to that agent's ProcessNode — deriving
+ * `state: 'awaiting-approval'` / `needsAttention: { reason: 'approval' }` on
+ * the spawned agent itself, rather than leaving the ask an anonymous approval
+ * entry the fleet plane cannot attach to anything. Foreground asks (no
+ * attribution) return undefined, preserving today's un-attributed shape.
+ */
+export function approvalMetadataForRequest(
+  request: Pick<PermissionPromptRequest, 'attribution'>,
+): Record<string, unknown> | undefined {
+  return request.attribution ? { agentId: request.attribution.agentId } : undefined;
 }
 
 export async function initializeBootstrapCore(
@@ -521,11 +543,15 @@ export async function initializeBootstrapCore(
   await syncConfiguredServices(domainDispatch.syncIntegration, services.serviceRegistry);
 
   const permissionManager = new PermissionManager(
-    (request) => approvalBroker.requestApproval({
-      request,
-      sessionId: runtimeSessionIdRef.value,
-      localPrompt: permissionPromptRef.requestPermission,
-    }),
+    (request) => {
+      const metadata = approvalMetadataForRequest(request);
+      return approvalBroker.requestApproval({
+        request,
+        sessionId: runtimeSessionIdRef.value,
+        localPrompt: permissionPromptRef.requestPermission,
+        ...(metadata ? { metadata } : {}),
+      });
+    },
     createPermissionConfigReader(configManager),
     policyRuntimeState,
     services.hookDispatcher,
