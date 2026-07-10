@@ -204,6 +204,18 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Only explicit allowlisted approval and automation operator actions should be performed from the model.',
     };
   }
+  if (root === 'ci' || root === 'principals' || root === 'principal' || root === 'channel-profiles' || root === 'channel-profile') {
+    return {
+      effect: 'connected-host-state',
+      confirmation,
+      // agent_operator_method, NOT agent_operator_action: the action tool's
+      // allowlist covers only approvals.* and automation.* and cannot invoke
+      // ci.*/principals.*/channels.profiles.* — pointing the model there would
+      // dead-end in "unknown action".
+      preferredModelTool: 'agent_operator_method (methodId "ci.status", "ci.watches.*", "principals.*", "channels.profiles.*")',
+      boundary: 'CI status/watches, principal identity mappings, and per-channel profile defaults live on the connected host. Reads run through agent_operator_method without confirmation; writes require confirm + explicitUserRequest there, and mutating slash/CLI subcommands require --yes.',
+    };
+  }
   if (root === 'schedule' || root === 'remind' || root === 'reminder') {
     return {
       effect: 'connected-host-state',

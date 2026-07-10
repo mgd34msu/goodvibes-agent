@@ -80,8 +80,14 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
     return {
       effect: 'connected-host-state',
       confirmation,
-      preferredModelTool: 'agent_operator_action',
-      boundary: 'CI status/watches, principal identity mappings, and per-channel profile defaults live on the connected host. Only explicit allowlisted operator actions should read or mutate this state from the model; mutating CLI subcommands require --yes.',
+      // agent_operator_method, NOT agent_operator_action: the action tool's
+      // allowlist covers only approvals.* and automation.* and cannot invoke
+      // ci.*/principals.*/channels.profiles.* — pointing the model there would
+      // dead-end in "unknown action". The generic operator-method tool routes
+      // these directly (read-only methods run without confirmation; writes
+      // require confirm + explicitUserRequest).
+      preferredModelTool: 'agent_operator_method (methodId "ci.status", "ci.watches.*", "principals.*", "channels.profiles.*")',
+      boundary: 'CI status/watches, principal identity mappings, and per-channel profile defaults live on the connected host. Reads run through agent_operator_method without confirmation; writes require confirm + explicitUserRequest there, and mutating CLI subcommands require --yes.',
     };
   }
   if (root === 'knowledge' || root === 'ask' || root === 'search') {
