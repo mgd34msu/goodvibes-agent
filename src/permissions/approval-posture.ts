@@ -15,6 +15,13 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
  *      automatically, before permissions.mode is even read.
  *   2. permissions.mode === 'allow-all' -> every tool call is approved
  *      automatically.
+ *   2a. permissions.mode === 'plan' -> read-only tools are allowed; every
+ *       write, execute, or delegate tool call is REFUSED outright (not
+ *       asked) with a structured plan-mode denial, steering the model to
+ *       present a plan instead of acting.
+ *   2b. permissions.mode === 'accept-edits' -> read and file write/edit
+ *       tool calls are approved automatically; execute and every other
+ *       risky class still fall through to the prompt/cache path below.
  *   3. permissions.mode === 'custom' -> each tool category is allowed,
  *      prompted, or denied per its own configured rule; bypassesPrompts is
  *      true only when EVERY configured tool category resolves to 'allow'
@@ -26,10 +33,16 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
  * computeApprovalPosture (or the config-reading convenience below) rather
  * than re-deriving the precedence locally — that re-derivation is exactly
  * how cli/status.ts drifted from the gate (it read permissions.mode alone
- * and never looked at behavior.autoApprove).
+ * and never looked at behavior.autoApprove). It is also how 'plan' and
+ * 'accept-edits' modes previously drifted: normalizeMode used to fold any
+ * mode it did not recognize into 'prompt', so a surface reading the posture
+ * label for those two modes silently mislabeled them as "Ask before
+ * powerful actions" — wrong for plan mode (which never asks; it refuses)
+ * and wrong for accept-edits mode (which auto-approves file writes without
+ * asking).
  */
 
-export type ApprovalPostureKind = 'auto-approve' | 'allow-all' | 'custom' | 'prompt';
+export type ApprovalPostureKind = 'auto-approve' | 'allow-all' | 'custom' | 'prompt' | 'plan' | 'accept-edits';
 
 export interface ApprovalPostureInput {
   /** behavior.autoApprove, read via the SDK's isAutoApproveEnabled (or an equivalent duck-typed read). */
@@ -48,7 +61,7 @@ export interface ApprovalPosture {
   /** Which precedence branch produced this posture. */
   readonly kind: ApprovalPostureKind;
   /** The raw permissions.mode value, normalized to a known mode string (defaults to 'prompt'). */
-  readonly mode: 'prompt' | 'allow-all' | 'custom';
+  readonly mode: 'prompt' | 'allow-all' | 'custom' | 'plan' | 'accept-edits';
   /** The raw behavior.autoApprove value that drove this posture. */
   readonly autoApprove: boolean;
   /**
@@ -63,8 +76,8 @@ export interface ApprovalPosture {
   readonly detail: string;
 }
 
-function normalizeMode(mode: unknown): 'prompt' | 'allow-all' | 'custom' {
-  if (mode === 'allow-all' || mode === 'custom') return mode;
+function normalizeMode(mode: unknown): 'prompt' | 'allow-all' | 'custom' | 'plan' | 'accept-edits' {
+  if (mode === 'allow-all' || mode === 'custom' || mode === 'plan' || mode === 'accept-edits') return mode;
   return 'prompt';
 }
 
@@ -95,6 +108,28 @@ export function computeApprovalPosture(input: ApprovalPostureInput): ApprovalPos
       bypassesPrompts: true,
       label: 'Allow everything',
       detail: 'permissions.mode is allow-all: every tool call is approved automatically.',
+    };
+  }
+
+  if (mode === 'plan') {
+    return {
+      kind: 'plan',
+      mode,
+      autoApprove: false,
+      bypassesPrompts: false,
+      label: 'Plan mode — read-only, nothing prompts because nothing mutates',
+      detail: 'permissions.mode is plan: read-only tool calls are approved automatically; every write, execute, or delegate tool call is refused outright (never asked) so the model presents a plan instead of acting.',
+    };
+  }
+
+  if (mode === 'accept-edits') {
+    return {
+      kind: 'accept-edits',
+      mode,
+      autoApprove: false,
+      bypassesPrompts: false,
+      label: 'Accept edits — file writes auto-approve, execute/delegate still ask',
+      detail: 'permissions.mode is accept-edits: read and file write/edit tool calls are approved automatically without asking; execute and every other risky class still prompt for approval.',
     };
   }
 

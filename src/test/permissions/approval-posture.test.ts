@@ -32,7 +32,7 @@ function allToolsAs(action: ToolAction): Record<(typeof PERMISSION_TOOL_KEYS)[nu
 interface Scenario {
   readonly name: string;
   readonly autoApprove: boolean;
-  readonly mode: 'prompt' | 'allow-all' | 'custom';
+  readonly mode: 'prompt' | 'allow-all' | 'custom' | 'plan' | 'accept-edits';
   readonly tools?: Partial<Record<(typeof PERMISSION_TOOL_KEYS)[number], ToolAction>>;
 }
 
@@ -152,5 +152,67 @@ describe('approval posture: shared helper agrees with the real permission gate',
       expect(posture.bypassesPrompts).toBe(true);
       expect(posture.label.toLowerCase()).toContain('auto-approve');
     }
+  });
+
+  // The plan/accept-edits modes are excluded from the shared SCENARIOS loop
+  // above: that loop's assertion only distinguishes "fully bypasses" from
+  // "reaches the user prompt or an explicit config_deny" — but plan mode
+  // introduces a THIRD outcome (refused outright, via reasonCode 'plan_mode',
+  // never asked and never a custom-config deny) and accept-edits mode splits
+  // outcomes by category (write auto-approves, execute still asks). Both get
+  // dedicated tests instead of being forced into that generalization.
+
+  test('plan mode: read tools auto-allow; write/execute/delegate tools are refused outright, never asked', async () => {
+    configManager.set('behavior.autoApprove', false);
+    configManager.set('permissions.mode', 'plan');
+
+    const posture = readApprovalPostureFromConfig(configManager);
+    expect(posture.kind).toBe('plan');
+    expect(posture.mode).toBe('plan');
+    expect(posture.autoApprove).toBe(false);
+    expect(posture.bypassesPrompts).toBe(false);
+    expect(posture.label.toLowerCase()).toContain('plan');
+
+    requests.length = 0;
+    const readResult = await manager.checkDetailed('read', {});
+    expect(readResult.approved).toBe(true);
+    expect(requests).toHaveLength(0);
+
+    for (const tool of ['write', 'exec', 'agent'] as const) {
+      requests.length = 0;
+      const result = await manager.checkDetailed(tool, {});
+      expect(result.approved).toBe(false);
+      expect(result.reasonCode).toBe('plan_mode');
+      expect(result.sourceLayer).not.toBe('user_prompt');
+      // Refused, not asked — the model must present a plan instead of acting.
+      expect(requests).toHaveLength(0);
+    }
+  });
+
+  test('accept-edits mode: read/write tools auto-approve without asking; execute still asks', async () => {
+    configManager.set('behavior.autoApprove', false);
+    configManager.set('permissions.mode', 'accept-edits');
+
+    const posture = readApprovalPostureFromConfig(configManager);
+    expect(posture.kind).toBe('accept-edits');
+    expect(posture.mode).toBe('accept-edits');
+    expect(posture.autoApprove).toBe(false);
+    expect(posture.bypassesPrompts).toBe(false);
+    expect(posture.label.toLowerCase()).toContain('accept edits');
+
+    for (const tool of ['read', 'write'] as const) {
+      requests.length = 0;
+      const result = await manager.checkDetailed(tool, { path: 'demo.ts' });
+      expect(result.approved).toBe(true);
+      expect(requests).toHaveLength(0);
+    }
+
+    requests.length = 0;
+    const execResult = await manager.checkDetailed('exec', {});
+    // The mock requestPermission (beforeEach) always denies — proving this
+    // reached the ask rather than silently auto-approving.
+    expect(requests).toHaveLength(1);
+    expect(execResult.sourceLayer).toBe('user_prompt');
+    expect(execResult.approved).toBe(false);
   });
 });

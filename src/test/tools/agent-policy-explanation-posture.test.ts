@@ -85,4 +85,38 @@ describe('agent-policy-explanation: approval posture agreement', () => {
     expect(posture.bypassesPrompts).toBe(true);
     expect(posture.label).toBe('Allow everything');
   });
+
+  test('plan mode — write is predicted denied outright (plan_mode), never "prompt"', () => {
+    const context = fakeContext({ 'behavior.autoApprove': false, 'permissions.mode': 'plan' });
+    const resolved = explainAgentPolicyDecision(context, registryWithWriteTool(), { toolName: 'write' });
+
+    expect(resolved.status).toBe('found');
+    if (resolved.status !== 'found') return;
+    const posture = resolved.explanation.posture as { label: string; bypassesPrompts: boolean; mode: string };
+    expect(posture.mode).toBe('plan');
+    expect(posture.bypassesPrompts).toBe(false);
+    expect(posture.label.toLowerCase()).toContain('plan');
+
+    const permissionLayer = (resolved.explanation.policyLayers as readonly { layer: string; outcome: string; reason?: string }[])
+      .find((layer) => layer.layer === 'Permission mode');
+    expect(permissionLayer?.outcome).toBe('denied');
+    expect(resolved.explanation.status).toBe('denied');
+  });
+
+  test('accept-edits mode — write is predicted allowed (auto-approves), matching the shared helper', () => {
+    const context = fakeContext({ 'behavior.autoApprove': false, 'permissions.mode': 'accept-edits' });
+    const resolved = explainAgentPolicyDecision(context, registryWithWriteTool(), { toolName: 'write' });
+
+    expect(resolved.status).toBe('found');
+    if (resolved.status !== 'found') return;
+    const posture = resolved.explanation.posture as { label: string; bypassesPrompts: boolean; mode: string };
+    expect(posture.mode).toBe('accept-edits');
+    expect(posture.bypassesPrompts).toBe(false);
+    expect(posture.label.toLowerCase()).toContain('accept edits');
+
+    const permissionLayer = (resolved.explanation.policyLayers as readonly { layer: string; outcome: string }[])
+      .find((layer) => layer.layer === 'Permission mode');
+    expect(permissionLayer?.outcome).toBe('allowed');
+    expect(resolved.explanation.status).toBe('allowed');
+  });
 });

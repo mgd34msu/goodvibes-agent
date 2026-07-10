@@ -233,6 +233,46 @@ function predictPermission(context: CommandContext, toolName: string, category: 
     };
   }
 
+  if (mode === 'plan') {
+    if (category === 'read') {
+      return {
+        outcome: 'allowed',
+        sourceLayer: 'runtime_mode',
+        reasonCode: 'mode_allow_all',
+        mode,
+        reason: 'Plan mode auto-allows read-only actions.',
+      };
+    }
+    return {
+      outcome: 'denied',
+      sourceLayer: 'runtime_mode',
+      reasonCode: 'plan_mode',
+      mode,
+      reason: `Plan mode refuses ${category} actions outright — it never asks; the model presents a plan instead of acting.`,
+    };
+  }
+
+  if (mode === 'accept-edits') {
+    if (category === 'read' || category === 'write') {
+      return {
+        outcome: 'allowed',
+        sourceLayer: 'runtime_mode',
+        reasonCode: category === 'write' ? 'mode_accept_edits' : 'mode_allow_all',
+        mode,
+        reason: category === 'write'
+          ? 'Accept-edits mode auto-approves file write/edit actions.'
+          : 'Accept-edits mode auto-allows read-only actions.',
+      };
+    }
+    return {
+      outcome: 'prompt',
+      sourceLayer: 'user_prompt_pending',
+      reasonCode: 'prompt_required',
+      mode,
+      reason: `Accept-edits mode still asks before ${category} actions.`,
+    };
+  }
+
   if (mode === 'custom') {
     const toolConfigKey = TOOL_CONFIG_KEYS[toolName];
     if (!toolConfigKey) {
