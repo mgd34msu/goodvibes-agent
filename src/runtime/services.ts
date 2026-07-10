@@ -1014,7 +1014,8 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // sessionChanges are read/restore operations over checkpoints that may
   // already exist (e.g. from a since-unregistered workspace) and are left
   // unrestricted here.
-  const checkpointsGatewayManager: Pick<WorkspaceCheckpointManager, 'list' | 'create' | 'diff' | 'restore' | 'sessionChanges'> = {
+  const checkpointsGatewayManager: Pick<WorkspaceCheckpointManager, 'list' | 'create' | 'diff' | 'restore' | 'sessionChanges' | 'workspaceRoot'> = {
+    workspaceRoot: workspaceCheckpointManager.workspaceRoot,
     list: workspaceCheckpointManager.list.bind(workspaceCheckpointManager),
     diff: workspaceCheckpointManager.diff.bind(workspaceCheckpointManager),
     restore: workspaceCheckpointManager.restore.bind(workspaceCheckpointManager),

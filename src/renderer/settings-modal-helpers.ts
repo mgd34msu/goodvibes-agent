@@ -109,6 +109,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   tools: 'Tools',
   flags: 'Feature Controls',
   atRest: 'At-Rest Protection',
+  learning: 'Memory Consolidation',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {

@@ -58,6 +58,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Feature controls for optional behavior that can be enabled or disabled separately from normal configuration.',
   atRest: 'Data-at-rest protection: whether stored content is redacted, and retention limits by age and total size.',
+  learning: 'Idle-time memory consolidation: dedupe merges, confidence decay of never-referenced records, and review proposals. Off by default.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
