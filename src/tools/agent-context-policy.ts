@@ -147,7 +147,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       {
         area: 'Project and computer work',
         can: 'Read, search, analyze, edit, and write workspace files; run bounded shell commands; inspect diffs and project structure; recover recent file edit/write snapshots.',
-        tools: ['read', 'find', 'analyze', 'inspect', 'edit', 'write', 'exec', optionalTool('execution'), optionalTool('delegation')].filter(has),
+        tools: ['read', 'find', 'analyze', 'inspect', 'edit', 'write', 'exec', optionalTool('repo_map'), optionalTool('execution'), optionalTool('delegation')].filter(has),
         inspect: 'execution action:"status"; delegation action:"status"',
       },
       {

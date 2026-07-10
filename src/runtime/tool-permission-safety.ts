@@ -19,6 +19,7 @@ const READ_TOOL_NAMES = new Set([
   'state',
   'registry',
   'route',
+  'repo_map',
   'goodvibes_context',
   'autonomy',
   'channels',

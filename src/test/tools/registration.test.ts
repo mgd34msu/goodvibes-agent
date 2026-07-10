@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
@@ -19,7 +19,7 @@ import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-co
 import { installAgentToolPolicyGuard } from '../../tools/agent-tool-policy-guard.ts';
 import { installToolExecutionSafetyGuard } from '../../tools/tool-execution-safety.ts';
 
-function registerTools(registry: ToolRegistry): void {
+function registerTools(registry: ToolRegistry): string {
   const services = createTestManagers();
   const workingDirectory = mkdtempSync(join(tmpdir(), 'gv-tool-registry-'));
   const agentManager = new AgentManager({
@@ -56,6 +56,7 @@ function registerTools(registry: ToolRegistry): void {
       list: () => [],
     } as never,
   });
+  return workingDirectory;
 }
 
 describe('registerAllTools', () => {
@@ -82,6 +83,7 @@ describe('registerAllTools', () => {
       'registry',
       'remote',
       'repl',
+      'repo_map',
       'state',
       'task',
       'team',
@@ -164,5 +166,50 @@ describe('registerAllTools', () => {
       expect(typeof result.success, tool.definition.name).toBe('boolean');
       expect(result.success || typeof result.error === 'string' || typeof result.output === 'string', tool.definition.name).toBe(true);
     }
+  });
+
+  test('post-edit diagnostics (SDK 1.6.1 diagnostics.postEdit) reach the write tool result untouched', async () => {
+    const registry = new ToolRegistry();
+    const workingDirectory = registerTools(registry);
+    // Install the SAME guard layers production bootstrap installs
+    // (installAgentToolPolicyGuard, installToolExecutionSafetyGuard) —
+    // neither wraps the write tool's execute function, but this proves that
+    // rather than assumes it: diagnostics must still reach the result.
+    installAgentToolPolicyGuard(registry);
+    installToolExecutionSafetyGuard(registry);
+    // hasTsProjectContext() walks up from the written file looking for
+    // tsconfig.json/jsconfig.json — without one, the provider honestly
+    // returns [] rather than fabricating "no errors".
+    writeFileSync(join(workingDirectory, 'tsconfig.json'), '{}\n');
+
+    const result = await registry.execute('write-diagnostics-smoke', 'write', {
+      files: [{
+        path: 'broken.ts',
+        // Deliberately unbalanced — a real syntax error, not a type error.
+        content: 'export function broken( {\n  return 1\n',
+      }],
+    });
+
+    expect(result.success).toBe(true);
+    expect(typeof result.output).toBe('string');
+    const parsed = JSON.parse(result.output ?? '{}') as { diagnostics?: readonly { file: string; message: string }[] };
+    expect(Array.isArray(parsed.diagnostics)).toBe(true);
+    expect(parsed.diagnostics!.length).toBeGreaterThan(0);
+    expect(parsed.diagnostics![0]!.file).toContain('broken.ts');
+  });
+
+  test('repo_map (SDK 1.6.1 model-invoked tool) responds with a real map of a sample workspace', async () => {
+    const registry = new ToolRegistry();
+    const workingDirectory = registerTools(registry);
+    writeFileSync(
+      join(workingDirectory, 'sample-module.ts'),
+      'export function sampleExportedFunction(): string {\n  return "hi";\n}\n',
+    );
+
+    expect(registry.has('repo_map')).toBe(true);
+    const result = await registry.execute('repo-map-smoke', 'repo_map', {});
+    expect(result.success).toBe(true);
+    expect(typeof result.output).toBe('string');
+    expect(result.output ?? '').toContain('sample-module.ts');
   });
 });
