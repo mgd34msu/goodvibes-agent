@@ -31,9 +31,10 @@ import { scheduleBackgroundMcpDiscovery } from '@/runtime/index.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
 import { runGatedLanScan } from './lan-scan-consent.ts';
 import { scheduleCalendarSubscriptionBootRefresh } from './calendar-boot-refresh.ts';
-import type { ExternalServicesHandle, HostServiceStatus, TurnEvent } from '@/runtime/index.ts';
+import type { TurnEvent } from '@/runtime/index.ts';
 import type { UiRuntimeServices } from './ui-services.ts';
 import { createDeferredStartupCoordinator } from '@/runtime/index.ts';
+import { wireAgentExternalServices } from './bootstrap-external-services.ts';
 import { initializeBootstrapCore } from './bootstrap-core.ts';
 import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
@@ -443,74 +444,20 @@ export async function bootstrapRuntime(
 
   const deferredStartup = createDeferredStartupCoordinator();
 
-  const formatHostServiceBaseUrl = (host: string, port: number): string => {
-    const normalized = host.trim().toLowerCase();
-    const probeHost = normalized === '0.0.0.0'
-      ? '127.0.0.1'
-      : normalized === '::' || normalized === '[::]'
-        ? '::1'
-        : host;
-    const urlHost = probeHost.includes(':') && !probeHost.startsWith('[') ? `[${probeHost}]` : probeHost;
-    return `http://${urlHost}:${port}`;
-  };
+  // GoodVibes Agent never owns the connected daemon's (or HTTP listener's)
+  // lifecycle — see bootstrap-external-services.ts for the adopt-only wiring
+  // and the deferred discovery probe it schedules.
+  const agentExternalServices = wireAgentExternalServices({
+    configManager,
+    runtimeBus,
+    hookDispatcher,
+    services,
+    uiServices,
+    deferredStartup,
+    systemMessageRouter,
+    requestRender,
+  });
 
-  const createAgentDependencyStatus = (
-    service: 'daemon' | 'httpListener',
-  ): HostServiceStatus => {
-    const host = String(configManager.get(service === 'daemon' ? 'controlPlane.host' : 'httpListener.host') ?? '127.0.0.1');
-    const port = Number(configManager.get(service === 'daemon' ? 'controlPlane.port' : 'httpListener.port') ?? (service === 'daemon' ? 3421 : 3422));
-    return {
-      mode: service === 'daemon' ? 'external' : 'disabled',
-      host,
-      port,
-      baseUrl: formatHostServiceBaseUrl(host, port),
-      reason: service === 'daemon'
-        ? 'GoodVibes Agent connects to a GoodVibes host owned outside this product and does not start or restart it.'
-        : 'GoodVibes Agent does not own listener lifecycle.',
-    };
-  };
-
-  const hostServiceIsActive = (status: HostServiceStatus): boolean => status.mode === 'embedded' || status.mode === 'external';
-
-  const hostServiceIsBlocked = (status: HostServiceStatus): boolean => status.mode === 'blocked';
-
-  const inspectAgentDependencies = () => {
-    const daemonStatus = externalServices.daemonStatus;
-    const httpListenerStatus = externalServices.httpListenerStatus;
-    return {
-      connectedHostRunning: hostServiceIsActive(daemonStatus),
-      connectedHostPortInUse: hostServiceIsBlocked(daemonStatus),
-      httpListenerRunning: hostServiceIsActive(httpListenerStatus),
-      httpListenerPortInUse: hostServiceIsBlocked(httpListenerStatus),
-      connectedHostStatus: daemonStatus,
-      httpListenerStatus,
-    };
-  };
-
-  let externalServices: ExternalServicesHandle = {
-    daemonServer: null,
-    httpListener: null,
-    daemonStatus: createAgentDependencyStatus('daemon'),
-    httpListenerStatus: createAgentDependencyStatus('httpListener'),
-    listRecentControlPlaneEvents: () => [],
-    async stop(): Promise<void> {},
-  };
-  const platformExternalServices = uiServices.platform as typeof uiServices.platform & {
-    externalServices: NonNullable<typeof uiServices.platform.externalServices>;
-  };
-  platformExternalServices.externalServices = {
-    inspect: inspectAgentDependencies,
-    restart: async () => {
-      externalServices = {
-        ...externalServices,
-        daemonStatus: createAgentDependencyStatus('daemon'),
-        httpListenerStatus: createAgentDependencyStatus('httpListener'),
-      };
-      systemMessageRouter.high('[Startup] GoodVibes Agent does not start or restart the connected GoodVibes host. Start it from GoodVibes TUI or the owning host, then refresh status.');
-      requestRender();
-      return inspectAgentDependencies();
-    },
-  };
   deferredStartup.schedule({
     label: 'plugins',
     run: async () => {
@@ -759,7 +706,7 @@ export async function bootstrapRuntime(
       forensicsCollector.dispose();
       services.executionLedger.dispose();
       await deferredStartup.drain(100);
-      await externalServices.stop();
+      await agentExternalServices.stop();
       // Clear agent status interval via ref (consistent with agentStatusIntervalRef usage)
       if (agentStatusIntervalRef.value !== null) {
         clearInterval(agentStatusIntervalRef.value);

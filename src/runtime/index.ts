@@ -98,34 +98,14 @@ export const restoreSavedModel = bootstrap.restoreRuntimeModel;
 export const synchronizeConfiguredServices = bootstrap.synchronizeConfiguredServices;
 export const syncConfiguredServices = bootstrap.synchronizeConfiguredServices;
 export const registerHostRuntimeEvents = bootstrap.registerHostRuntimeEvents;
-function agentExternalHostStatus(
-  config: Bootstrap.HostServicesConfig,
-  service: 'daemon' | 'httpListener',
-): Bootstrap.HostServiceStatus {
-  const hostKey = service === 'daemon' ? 'controlPlane.host' : 'httpListener.host';
-  const portKey = service === 'daemon' ? 'controlPlane.port' : 'httpListener.port';
-  const host = String(config.get(hostKey) ?? '127.0.0.1');
-  const port = Number(config.get(portKey) ?? (service === 'daemon' ? 3421 : 3422));
-  return {
-    mode: service === 'daemon' ? 'external' : 'disabled',
-    host,
-    port,
-    baseUrl: `http://${host}:${port}`,
-    reason: service === 'daemon'
-      ? 'GoodVibes Agent connects to a GoodVibes host owned outside this product and does not start or restart it.'
-      : 'GoodVibes Agent does not own listener lifecycle.',
-  };
-}
-
-export const startHostServices: typeof bootstrap.startHostServices = async (config) => ({
-  daemonServer: null,
-  httpListener: null,
-  daemonStatus: agentExternalHostStatus(config, 'daemon'),
-  httpListenerStatus: agentExternalHostStatus(config, 'httpListener'),
-  listRecentControlPlaneEvents: () => [],
-  async stop(): Promise<void> {},
-});
-export const startExternalServices = startHostServices;
+// Shared adopt-or-spawn policy (daemon-adoption-policy.ts): probes the
+// configured host/port, band-checks any GoodVibes daemon found there, and
+// only ever ADOPTS a compatible one — Agent passes `adoptOnly: true` at the
+// call site (bootstrap.ts) so it never spawns or embeds a daemon itself. This
+// replaces a local stub that hard-declared every daemon 'external' without
+// probing or version-checking it (an unsafe divergence, resolved SDK-side).
+export const startHostServices = bootstrap.startHostServices;
+export const startExternalServices = bootstrap.startHostServices;
 export const registerBootstrapHookBridge = bootstrap.registerBootstrapHookBridge;
 export const createDeferredStartupCoordinator = bootstrap.createDeferredStartupCoordinator;
 export const shutdownRuntime = bootstrap.shutdownRuntime;

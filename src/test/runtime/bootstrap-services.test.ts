@@ -15,6 +15,7 @@ function createConfig(overrides: {
     get(
       key:
         | 'daemon.enabled'
+        | 'daemon.embedInProcess'
         | 'danger.httpListener'
         | 'controlPlane.host'
         | 'controlPlane.port'
@@ -22,6 +23,12 @@ function createConfig(overrides: {
         | 'httpListener.port',
     ): boolean | string | number {
       if (key === 'daemon.enabled') return overrides.daemon ?? false;
+      // Agent's call site (bootstrap.ts) passes adoptOnly:true, which already
+      // rules out spawn/embed — daemon.embedInProcess is irrelevant there, but
+      // these tests call startExternalServices directly and must still force it
+      // false so a bug that ignores adoptOnly is caught by these assertions,
+      // not silently swallowed by the embed path.
+      if (key === 'daemon.embedInProcess') return false;
       if (key === 'danger.httpListener') return overrides.httpListener ?? false;
       if (key === 'controlPlane.host') return overrides.controlPlaneHost ?? '127.0.0.1';
       if (key === 'controlPlane.port') return overrides.controlPlanePort ?? 3421;
@@ -31,7 +38,7 @@ function createConfig(overrides: {
   };
 }
 
-describe('startExternalServices', () => {
+describe('startExternalServices (Agent: adopt-only)', () => {
   let runtimeBus: RuntimeEventBus;
   let hookDispatcher: HookDispatcher;
   let runtimeServices: ReturnType<typeof getTestRuntimeServices>;
@@ -42,76 +49,123 @@ describe('startExternalServices', () => {
     runtimeServices = getTestRuntimeServices();
   });
 
-  test('does not start embedded daemon or listener even when legacy flags are enabled', async () => {
+  test('never spawns or embeds a daemon even when legacy flags are enabled', async () => {
     const daemonFactory = mock(() => ({
       enable: mock(() => true),
       start: mock(async () => {}),
       stop: mock(async () => {}),
       listRecentControlPlaneEvents: mock(() => []),
     }));
-    const listenerFactory = mock(() => ({
-      enable: mock(() => true),
-      start: mock(async () => {}),
-      stop: mock(async () => {}),
-    }));
     const probeDaemonPortInUse = mock(async () => false);
-    const probeHttpListenerPortInUse = mock(async () => false);
 
+    // httpListener stays at its default (disabled) here so this test never
+    // reaches the (unrelated) real HTTP-listener embed path.
     const services = await startExternalServices(
-      createConfig({ daemon: true, httpListener: true }),
+      createConfig({ daemon: true }),
       runtimeBus,
       hookDispatcher,
       runtimeServices,
       {
+        adoptOnly: true,
         createDaemonServer: daemonFactory,
-        createHttpListener: listenerFactory,
         probeDaemonPortInUse,
-        probeHttpListenerPortInUse,
       },
     );
 
+    // adoptOnly never spawns/embeds the daemon regardless of daemon.enabled.
     expect(daemonFactory).not.toHaveBeenCalled();
-    expect(listenerFactory).not.toHaveBeenCalled();
-    expect(probeDaemonPortInUse).not.toHaveBeenCalled();
-    expect(probeHttpListenerPortInUse).not.toHaveBeenCalled();
+    expect(probeDaemonPortInUse).toHaveBeenCalledTimes(1);
     expect(services.daemonServer).toBeNull();
     expect(services.httpListener).toBeNull();
-    expect(services.daemonStatus.mode).toBe('external');
+    expect(services.daemonStatus.mode).toBe('unavailable');
+    expect(services.daemonStatus.reason).toContain('adopt-only');
     expect(services.httpListenerStatus.mode).toBe('disabled');
-    expect(services.daemonStatus.reason).toContain('a GoodVibes host owned outside this product');
-    expect(services.httpListenerStatus.reason).toContain('does not own listener lifecycle');
 
     await services.stop();
     expect(services.listRecentControlPlaneEvents(100)).toEqual([]);
   });
 
-  test('reports configured external daemon endpoint without binding ports', async () => {
+  test('adopts a reachable, version-compatible daemon on the configured endpoint', async () => {
+    const probeDaemonIdentity = mock(async () => ({
+      kind: 'goodvibes' as const,
+      status: 'running',
+      version: '1.0.0',
+    }));
+
     const services = await startExternalServices(
       createConfig({
         daemon: true,
-        httpListener: true,
         controlPlaneHost: '0.0.0.0',
         controlPlanePort: 4444,
-        httpListenerHost: '0.0.0.0',
-        httpListenerPort: 5555,
       }),
       runtimeBus,
       hookDispatcher,
       runtimeServices,
+      {
+        adoptOnly: true,
+        probeDaemonPortInUse: async () => true,
+        probeDaemonIdentity,
+        localDaemonVersion: '1.0.0',
+        isDaemonVersionCompatible: (local, remote) => local === remote,
+      },
     );
 
+    expect(probeDaemonIdentity).toHaveBeenCalledTimes(1);
     expect(services.daemonStatus).toMatchObject({
       mode: 'external',
       host: '0.0.0.0',
       port: 4444,
-      baseUrl: 'http://0.0.0.0:4444',
+      // 0.0.0.0 (bind-all) normalizes to a reachable loopback address in the
+      // probe/report base URL — see formatBaseUrl's normalizeProbeHost.
+      baseUrl: 'http://127.0.0.1:4444',
+      version: '1.0.0',
     });
-    expect(services.httpListenerStatus).toMatchObject({
-      mode: 'disabled',
-      host: '0.0.0.0',
-      port: 5555,
-      baseUrl: 'http://0.0.0.0:5555',
-    });
+  });
+
+  test('refuses to adopt a daemon reporting an incompatible wire version', async () => {
+    // Deliberately unrelated fixture strings (not the live SDK VERSION) so
+    // this assertion never drifts with a real version bump — the injected
+    // isDaemonVersionCompatible predicate is the sole source of truth here.
+    const probeDaemonIdentity = mock(async () => ({
+      kind: 'goodvibes' as const,
+      status: 'running',
+      version: 'incompatible-fixture-version',
+    }));
+
+    const services = await startExternalServices(
+      createConfig({ daemon: true }),
+      runtimeBus,
+      hookDispatcher,
+      runtimeServices,
+      {
+        adoptOnly: true,
+        probeDaemonPortInUse: async () => true,
+        probeDaemonIdentity,
+        localDaemonVersion: 'local-fixture-version',
+        isDaemonVersionCompatible: () => false,
+      },
+    );
+
+    expect(services.daemonServer).toBeNull();
+    expect(services.daemonStatus.mode).toBe('incompatible');
+    expect(services.daemonStatus.version).toBe('incompatible-fixture-version');
+  });
+
+  test('reports a blocked port when the occupant does not verify as a GoodVibes daemon', async () => {
+    const services = await startExternalServices(
+      createConfig({ daemon: true }),
+      runtimeBus,
+      hookDispatcher,
+      runtimeServices,
+      {
+        adoptOnly: true,
+        probeDaemonPortInUse: async () => true,
+        probeDaemonIdentity: async () => ({ kind: 'unknown', reason: 'connection reset' }),
+      },
+    );
+
+    expect(services.daemonServer).toBeNull();
+    expect(services.daemonStatus.mode).toBe('blocked');
   });
 
   test('runtime hook dispatcher does not configure local agent hook spawning', async () => {
