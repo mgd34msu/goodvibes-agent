@@ -56,6 +56,11 @@ describe('new runtime event domains', () => {
       'surfaces',
       'knowledge',
       'workspace',
+      // SDK 1.6.1 adds the fleet domain (runtime/fleet/*) — background-agent
+      // fleet lifecycle events. Not adopted by this agent yet (out of scope
+      // for the current SDK-surface adoption round); this golden list is
+      // updated only to track the SDK's actual vocabulary honestly.
+      'fleet',
     ]);
     expect(isRuntimeEventDomain('agents')).toBe(true);
     expect(isRuntimeEventDomain('not-a-domain')).toBe(false);
