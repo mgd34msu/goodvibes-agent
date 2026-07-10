@@ -201,7 +201,9 @@ describe('Agent workspace command parity', () => {
     const coverage = collectWorkspaceCoverage();
     // Shell-only: no TUI workspace action makes sense for these.
     // compat/doctor/pair have no workspace actions in the current build.
-    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'help', 'pair', 'tui', 'unknown', 'version']);
+    // import is a one-shot CLI migration utility (goodvibes-agent import openclaw)
+    // with no TUI workspace editor; it writes through the existing registries.
+    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'help', 'import', 'pair', 'tui', 'unknown', 'version']);
     const requirements: Record<string, CoverageRequirement> = {
       ask: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-ask'] },
       auth: { editorPrefixes: ['auth-'] },

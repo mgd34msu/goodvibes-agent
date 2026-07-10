@@ -67,6 +67,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  pair|qrcode                Print companion pairing payload and QR code',
     '  bundle export|inspect|import',
     '                             Move setup/profile/trust/support bundles',
+    '  import openclaw [path]     Migrate an OpenClaw workspace (dry-run default, --apply to write)',
     '  completion <shell>         Generate shell completion script',
     '  help [command]             Print this help or command-specific help',
     '  version                    Print version',
@@ -381,6 +382,15 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
     summary: 'Print companion pairing connection details and a QR code.',
     examples: ['pair', 'qrcode'],
   },
+  import: {
+    usage: ['import openclaw [path] [--apply]'],
+    summary: 'Migrate an OpenClaw workspace into the Agent registries. Dry-run is the default; it prints the personas, memory records, skills, and permission allowlist categories that would be created, plus any skipped files with reasons. Re-run with --apply to write through the persona registry, the canonical memory store, the skill registry, and the permission settings. Reads ~/.openclaw by default, or a supplied path.',
+    examples: [
+      'import openclaw',
+      'import openclaw ~/.openclaw',
+      'import openclaw ~/.openclaw --apply',
+    ],
+  },
   completion: {
     usage: ['completion <bash|zsh|fish>'],
     summary: 'Generate shell completion scripts.',
@@ -412,6 +422,7 @@ const HELP_ALIASES: Record<string, string> = {
   bundles: 'bundle',
   qrcode: 'pair',
   qr: 'pair',
+  migrate: 'import',
   completions: 'completion',
 };
 

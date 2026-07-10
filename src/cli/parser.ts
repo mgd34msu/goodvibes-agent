@@ -52,6 +52,8 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   qr: 'pair',
   bundle: 'bundle',
   bundles: 'bundle',
+  import: 'import',
+  migrate: 'import',
   completion: 'completion',
   completions: 'completion',
   help: 'help',

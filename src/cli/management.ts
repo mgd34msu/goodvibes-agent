@@ -27,6 +27,7 @@ import type { GoodVibesCliParseResult } from './types.ts';
 import { formatProviderAuthRoute, summarizeProviderAuthRoutes } from './provider-auth-routes.ts';
 import { classifyProviderSetup } from './provider-classification.ts';
 import { handleBundleCommand } from './bundle-command.ts';
+import { handleImportCommand } from './import-command.ts';
 import { handleSecrets, handleSessions, handleTasks, renderPairing, renderSubscriptions } from './management-commands.ts';
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand, handleCompatCommand, handleDelegateCommand } from './agent-knowledge-command.ts';
 import { handlePersonasCommand } from './personas-command.ts';
@@ -662,6 +663,11 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
         return { handled: true, exitCode: 0 };
       case 'bundle': {
         const result = await handleBundleCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'import': {
+        const result = await handleImportCommand(runtime);
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

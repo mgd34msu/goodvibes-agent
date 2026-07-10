@@ -23,6 +23,7 @@ export type GoodVibesCliCommand =
   | 'tasks'
   | 'pair'
   | 'bundle'
+  | 'import'
   | 'completion'
   | 'help'
   | 'version'
