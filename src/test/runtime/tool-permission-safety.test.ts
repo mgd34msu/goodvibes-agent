@@ -46,7 +46,18 @@ describe('Agent tool permission safety guard', () => {
     const manager = delegatingPermissionManager();
     installPermissionManagerSafetyGuard(manager);
 
-    expect(manager.getCategory('agent_harness')).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'summary' })).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'learning_curator' })).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'settings' })).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'daemon' })).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'learning_auto_promote' })).toBe('write');
+    expect(manager.getCategory('agent_harness', { mode: 'set_setting' })).toBe('write');
+    expect(manager.getCategory('agent_harness', { mode: 'run_memory_refinement' })).toBe('write');
+    expect(manager.getCategory('agent_harness', { mode: 'propose_skill_drafts' })).toBe('write');
+    expect(manager.getCategory('agent_harness', { mode: 'run_command' })).toBe('write');
+    // A missing or unrecognized mode is never auto-approved.
+    expect(manager.getCategory('agent_harness')).toBe('write');
+    expect(manager.getCategory('agent_harness', { mode: 'not_a_real_mode' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'list' })).toBe('read');
     expect(manager.getCategory('agent_artifacts', { mode: 'show' })).toBe('read');
     expect(manager.getCategory('agent_artifacts', { mode: 'export' })).toBe('write');
@@ -148,7 +159,13 @@ describe('Agent tool permission safety guard', () => {
     installPermissionManagerSafetyGuard(manager);
 
     expect(manager.getCategory('goodvibes_context')).toBe('read');
-    expect(manager.getCategory('agent_harness')).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'summary' })).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'learning_candidate' })).toBe('read');
+    expect(manager.getCategory('agent_harness', { mode: 'learning_auto_promote' })).toBe('write');
+    expect(manager.getCategory('agent_harness', { mode: 'reset_setting' })).toBe('write');
+    // A missing or unrecognized mode is never auto-approved.
+    expect(manager.getCategory('agent_harness')).toBe('write');
+    expect(manager.getCategory('agent_harness', { mode: 'not_a_real_mode' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'list' })).toBe('read');
     expect(manager.getCategory('agent_artifacts', { mode: 'export' })).toBe('write');
     expect(manager.getCategory('agent_artifacts', { mode: 'package' })).toBe('write');
@@ -274,9 +291,27 @@ describe('Agent tool permission safety guard', () => {
     await expect(manager.check('exec', { commands: [] })).resolves.toBe(false);
     await expect(manager.check('terminal', { background: true })).resolves.toBe(false);
 
+    // Read-only harness modes are still approved when the underlying check throws.
+    await expect(manager.check('agent_harness', { mode: 'summary' })).resolves.toBe(true);
+    await expect(manager.check('agent_harness', { mode: 'learning_curator' })).resolves.toBe(true);
+    // Mutating harness modes are denied when the underlying check throws, and a
+    // missing/unknown mode is denied too.
+    await expect(manager.check('agent_harness', { mode: 'learning_auto_promote' })).resolves.toBe(false);
+    await expect(manager.check('agent_harness', { mode: 'run_memory_refinement' })).resolves.toBe(false);
+    await expect(manager.check('agent_harness', { mode: 'set_setting' })).resolves.toBe(false);
+    await expect(manager.check('agent_harness', {})).resolves.toBe(false);
+    await expect(manager.check('agent_harness', { mode: 'not_a_real_mode' })).resolves.toBe(false);
+
     const detailed = await manager.checkDetailed('agent_harness', { mode: 'summary' });
     expect(detailed.approved).toBe(true);
     expect(detailed.analysis.reasons).toContain('permission-manager-exception');
+
+    // A mutating harness mode must be DENIED when checkDetailed's underlying check throws.
+    const detailedMutating = await manager.checkDetailed('agent_harness', { mode: 'learning_auto_promote' });
+    expect(detailedMutating.approved).toBe(false);
+    expect(detailedMutating.reasonCode).toBe('config_deny');
+    expect(detailedMutating.analysis.riskLevel).toBe('high');
+    expect(detailedMutating.analysis.reasons).toContain('permission-manager-exception');
   });
 
   test('keeps fallback category mapping explicit for registered tool families', () => {

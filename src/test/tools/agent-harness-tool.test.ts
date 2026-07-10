@@ -7954,7 +7954,30 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('learning_auto_promote promotes eligible candidates without a confirm gate', async () => {
+  test('learning_auto_promote refuses to run without an explicit user request and confirm', async () => {
+    const fixture = makeFixture();
+    try {
+      const memoryRegistry = await createMemoryRegistry(fixture.paths, fixture.configManager);
+      (fixture.context.clients as Record<string, unknown>).agentKnowledgeApi = { memory: memoryRegistry };
+
+      // No explicitUserRequest / confirm at all.
+      const bare = await fixture.tool.execute({ mode: 'learning_auto_promote' });
+      expect(bare.success).toBe(false);
+      if (!bare.success) expect(bare.error).toContain('explicitUserRequest');
+
+      // Explicit request but confirm not set.
+      const unconfirmed = await fixture.tool.execute({
+        mode: 'learning_auto_promote',
+        explicitUserRequest: 'Promote the reviewed learnings.',
+      });
+      expect(unconfirmed.success).toBe(false);
+      if (!unconfirmed.success) expect(unconfirmed.error).toContain('confirm:true');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('learning_auto_promote promotes eligible candidates after confirmation', async () => {
     const fixture = makeFixture();
     try {
       // Wire up a real MemoryRegistry as the memoryApi (has .add())
@@ -7998,7 +8021,11 @@ describe('agent_harness tool', () => {
         readonly log: readonly string[];
         readonly message: string;
         readonly policy: string;
-      }>(fixture, { mode: 'learning_auto_promote' });
+      }>(fixture, {
+        mode: 'learning_auto_promote',
+        confirm: true,
+        explicitUserRequest: 'Promote the reviewed learnings from this session.',
+      });
 
       // Shape assertions — the mode must always return these fields.
       expect(typeof result.eligible).toBe('number');

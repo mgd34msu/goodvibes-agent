@@ -173,9 +173,13 @@ function tryConsolidateNonMemoryCandidate(
 // ---------------------------------------------------------------------------
 
 /**
- * Run the autonomous promotion pass. Promotes `ready-to-promote` candidates
- * and resolves `needs-consolidation` duplicates (non-memory domains) without
- * requiring confirm:true / explicitUserRequest.
+ * Run the promotion pass. Promotes `ready-to-promote` candidates and resolves
+ * `needs-consolidation` duplicates (non-memory domains).
+ *
+ * The caller (agent_harness mode:"learning_auto_promote") gates this pass behind
+ * an explicit user request plus confirm:true, because it creates and deletes
+ * memory records, personas, and routines. This function assumes that gate has
+ * already been cleared.
  *
  * Secret scanning is enforced by each registry's create() method — this
  * function does NOT bypass it.

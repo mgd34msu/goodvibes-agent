@@ -493,6 +493,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'learning_curator') return output(learningCuratorSummary(deps.commandContext, args));
         if (args.mode === 'learning_auto_promote') {
+          const confirmationError = requireConfirmedAction(args, 'Learning promotion'); if (confirmationError) return error(confirmationError);
           const shellPaths = deps.commandContext.workspace?.shellPaths;
           if (!shellPaths) return error('learning_auto_promote requires an active workspace.');
           const memoryApi = deps.commandContext.clients?.agentKnowledgeApi?.memory;
@@ -503,8 +504,8 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             ...result,
             message: result.promoted > 0
               ? `Promoted ${result.promoted} item(s); consolidated ${result.consolidated} duplicate(s).`
-              : 'No items eligible for autonomous promotion this pass.',
-            policy: 'Autonomous promotion. Skills are created via the skill-draft runner. Memory, persona, routine creates call registry directly. Consolidation runs the full merge-stale-delete pipeline. Secret scanning enforced by each registry create().',
+              : 'No items eligible for promotion this pass.',
+            policy: 'Confirmed promotion. Skills are created via the skill-draft runner. Memory, persona, routine creates call registry directly. Consolidation runs the full merge-stale-delete pipeline. Secret scanning enforced by each registry create().',
           });
         }
         if (args.mode === 'learning_candidate') {

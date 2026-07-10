@@ -14,14 +14,12 @@ describe('agent_harness mode catalog', () => {
     expect(new Set(catalogModes).size).toBe(catalogModes.length);
     expect(catalogModes).toEqual(schemaModes);
 
-    // Intentionally unconfirmed effect modes: the fully-autonomous learning loop
-    // promotes/consolidates learnings without a confirm gate by design. These are
-    // the ONLY effect modes allowed to skip confirmation — every other effect must
-    // remain confirmation-gated.
-    const AUTONOMOUS_UNCONFIRMED_EFFECTS = new Set(['learning_auto_promote']);
+    // Every effect mode must be confirmation-gated: it declares
+    // requiresConfirmation and exposes the confirm + explicitUserRequest
+    // parameters. There are no carve-outs — the learning promotion pass is gated
+    // like the rest because it creates and deletes memory, personas, and routines.
     const unsafeEffects = HARNESS_MODE_DESCRIPTORS
       .filter((descriptor) => descriptor.kind === 'effect')
-      .filter((descriptor) => !AUTONOMOUS_UNCONFIRMED_EFFECTS.has(descriptor.id))
       .filter((descriptor) => (
         descriptor.requiresConfirmation !== true
         || !descriptor.parameters?.includes('confirm')

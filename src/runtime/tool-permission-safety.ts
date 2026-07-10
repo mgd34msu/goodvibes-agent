@@ -1,5 +1,6 @@
 import type { PermissionCategory, PermissionCheckResult } from '@pellux/goodvibes-sdk/platform/permissions';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { HARNESS_MODE_DESCRIPTORS } from '../tools/agent-harness-mode-catalog.ts';
 
 type PermissionManagerLike = {
   check(toolName: string, args: Record<string, unknown>): Promise<boolean>;
@@ -36,7 +37,6 @@ const READ_TOOL_NAMES = new Set([
   'settings',
   'vibe',
   'workspace',
-  'agent_harness',
   'agent_knowledge',
   'agent_operator_briefing',
 ]);
@@ -75,6 +75,18 @@ const READ_ONLY_WORKSPACE_ACTIONS = new Set(['', 'status', 'summary', 'home', 'w
 const READ_ONLY_AUTONOMY_ACTIONS = new Set(['', 'intake', 'request', 'route', 'plan', 'triage', 'autonomy_intake', 'queue', 'list', 'work', 'ongoing', 'autonomy_queue', 'item', 'card', 'show', 'inspect', 'autonomy_queue_item', 'status', 'summary', 'overview']);
 const READ_ONLY_DELEGATION_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'policy', 'decision', 'decisions', 'delegation_posture', 'routes', 'list', 'catalog', 'posture', 'route', 'item', 'card', 'show', 'inspect', 'delegation_route']);
 const READ_ONLY_EXECUTION_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'routes', 'posture', 'execution_posture', 'route', 'show_route', 'inspect_route', 'execution_route', 'history', 'activity', 'records', 'execution_history', 'record', 'item', 'show', 'inspect', 'execution_history_item', 'processes', 'background', 'backgrounds', 'background_processes', 'capabilities', 'process_capabilities', 'process', 'background_process', 'recovery', 'file_recovery', 'undo_redo']);
+
+// The agent_harness tool takes a `mode`. Every mode whose catalog kind is not
+// 'effect' only inspects, lists, or aliases read-only state, so it classifies as
+// 'read'. Every 'effect' mode changes settings, memory, skills, personas,
+// routines, keybindings, drafts, or runs a promotion/consolidation/command pass,
+// so it classifies as a write. A mode string that is absent from the catalog
+// (unknown or misspelled) is deliberately treated as a write, never a read.
+const READ_ONLY_HARNESS_MODES: ReadonlySet<string> = new Set(
+  HARNESS_MODE_DESCRIPTORS
+    .filter((descriptor) => descriptor.kind !== 'effect')
+    .map((descriptor) => descriptor.id),
+);
 
 type MarkedPermissionManager = PermissionManagerLike & { [SAFETY_MARKER]?: true };
 
@@ -274,6 +286,10 @@ export function fallbackPermissionCategoryForArgs(toolName: string, args: Record
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_EXECUTION_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'agent_harness') {
+    const mode = typeof args.mode === 'string' ? args.mode.trim() : '';
+    return READ_ONLY_HARNESS_MODES.has(mode) ? 'read' : 'write';
   }
   if (toolName === 'agent_artifacts') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';
