@@ -13,6 +13,7 @@ import { ChannelPluginRegistry, ChannelPolicyManager, RouteBindingManager, Surfa
 import { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import { ApprovalBroker, GatewayMethodCatalog, SharedSessionBroker } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { attachWsOnlyGatewayVerbHandlers, createArchivableFleetRegistry } from '@pellux/goodvibes-terminal-shell';
+import { createSessionConversationRewindPort } from './conversation-rewind-port.ts';
 // Not re-exported by @pellux/goodvibes-terminal-shell (only the gateway-verb
 // composition and the registry factory are) — reached directly per the SDK
 // adoption convention of going straight to the platform package for whatever
@@ -1101,6 +1102,20 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // already in scope in this composition root (see
     // checkpointsGatewayManager above).
     workingDirectory,
+    // Conversation half of the unified rewind (rewind.plan/apply with scope
+    // 'conversation' or 'both'): this Agent's own ConversationManager (see
+    // src/core/conversation.ts) IS a genuine in-process mutable conversation
+    // store — the exact shape RewindConversationPort assumes ("a daemon-hosted
+    // mutable conversation store") — so it is wired here rather than left
+    // null, ported from goodvibes-tui's identical seam
+    // (conversation-rewind-port.ts, registerSessionConversation at bootstrap;
+    // see bootstrap-core.ts). createSessionConversationRewindPort() reads the
+    // live per-session registry lazily (no conversation reference needed at
+    // construction time), so it can be called here even though bootstrap
+    // wires the actual session registration separately. See
+    // src/test/daemon/gateway-rewind-conversation-scope.test.ts for the live
+    // proof this resolves a real conversation, not a stub.
+    conversationRewindPort: createSessionConversationRewindPort(),
   });
   // Turn the fleet registry's coalesced snapshot tick into poll-free
   // spawn/progress/attention/completion events on the runtime event bus's

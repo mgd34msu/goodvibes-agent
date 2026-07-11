@@ -1,4 +1,5 @@
 import { ConversationManager } from '../core/conversation';
+import { registerSessionConversation } from './conversation-rewind-port.ts';
 import { SelectionManager } from '../input/selection.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { ConfigManager, getConfiguredSystemPrompt } from '../config/index.ts';
@@ -578,6 +579,11 @@ export async function initializeBootstrapCore(
     sessionId: userSessionId,
   };
   runtimeSessionIdRef.value = runtime.sessionId;
+  // Register this process's live conversation so the composed daemon's
+  // rewind.plan/apply verbs can serve conversation scope for this session
+  // (see conversation-rewind-port.ts and services.ts's conversationRewindPort
+  // wiring). Ported from goodvibes-tui's identical bootstrap-time call.
+  registerSessionConversation(runtime.sessionId, conversation);
   void sharedSessionBroker.createSession({
     id: runtime.sessionId,
     title: 'GoodVibes Agent session',

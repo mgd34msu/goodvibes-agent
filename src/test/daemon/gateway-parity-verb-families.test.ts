@@ -182,15 +182,20 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
     expect(Array.isArray(result.skills)).toBe(true);
   });
 
-  test('rewind.plan invokes end-to-end and honestly reports the conversation scope as unavailable', async () => {
+  test('rewind.plan invokes end-to-end; conversation scope is wired but honestly reports nothing to drop for an unregistered session', async () => {
     const result = await services.gatewayMethods.invoke('rewind.plan', {
       methodId: 'rewind.plan',
       body: { sessionId: 'no-such-session', scope: 'both' },
-    } as never) as { conversation: { available: boolean } | null; warnings: readonly string[] };
-    // No conversationRewindPort is threaded in this fork yet (see
-    // gateway-rewind-conversation-scope.test.ts for why) — the conversation
-    // half of a 'both'-scope plan must say so honestly, not silently succeed.
-    expect(result.conversation === null || result.conversation.available === false).toBe(true);
+    } as never) as { conversation: { available: boolean; messagesToDrop: number; messagesRemaining: number } | null; warnings: readonly string[] };
+    // A conversationRewindPort IS threaded in this fork (see
+    // gateway-rewind-conversation-scope.test.ts) — a real conversation store
+    // is wired on this runtime, so available reports true. This session was
+    // never registered (see registerSessionConversation), so the port
+    // resolves no live conversation for it and honestly reports zero
+    // messages to drop rather than fabricating a count.
+    expect(result.conversation?.available).toBe(true);
+    expect(result.conversation?.messagesToDrop).toBe(0);
+    expect(result.conversation?.messagesRemaining).toBe(0);
   });
 
   test('worktrees.setup.run has a real handler attached (not a 501 wiring gap)', async () => {

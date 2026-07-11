@@ -44,6 +44,7 @@ import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/ses
 import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { createMemoryConsolidationScheduler } from './memory-consolidation-wiring.ts';
+import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
@@ -250,6 +251,24 @@ export async function bootstrapRuntime(
         terminalEvent: 'TURN_COMPLETED',
         stopReason: event.payload.stopReason,
       });
+      // Record this turn's rewind anchor: pair the turnId (shared with the
+      // workspace checkpoint the turn engine snapshots for this same turn)
+      // with the live conversation message count, so a later message-anchored
+      // rewind.plan/apply (scope 'conversation' or 'both') can truncate the
+      // conversation to exactly this boundary — the join key between
+      // conversation and files rewind (see core/rewind-turn-anchors.ts and
+      // services.ts's conversationRewindPort wiring).
+      try {
+        recordTurnAnchor(runtimeSessionIdRef.value, {
+          turnId: event.payload.turnId,
+          label: summarizeTurnLabel(conversation.getLastUserMessage()),
+          messageCount: conversation.getMessageCount(),
+          at: Date.now(),
+        });
+      } catch (error) {
+        // Best-effort; a rewind-anchor miss must never break the turn.
+        logger.debug('rewind turn-anchor recording failed', { error: summarizeError(error) });
+      }
       if (activePromptTurnId === event.payload.turnId) {
         activePromptTurnId = null;
         activePromptTurnText = null;
