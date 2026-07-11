@@ -60,6 +60,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  principals                 Manage the connected-host cross-channel principal identity registry',
     '  channel-profiles           Manage per-channel model/provider/permission-mode defaults',
     '  workspaces                 Manage which workspaces get automatic checkpoints',
+    '  relay                      Report the connected host\'s outbound relay configuration (status|pair)',
     '  fleet                      Review and resolve this Agent\'s best-of-N attempt groups',
     '  auth                       Inspect Agent auth posture and connection token state',
     '  compat                     Inspect connected-host compatibility and Agent Knowledge route readiness',
@@ -363,6 +364,17 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'workspaces register --yes',
       'workspaces register /home/mike/Projects/goodvibes-agent --label agent --yes',
       'workspaces unregister --yes',
+    ],
+  },
+  relay: {
+    usage: [
+      'relay status',
+      'relay pair',
+    ],
+    summary: 'Report the connected GoodVibes host\'s imported relay.* configuration and the relay-connect feature flag. Agent hosts no daemon itself, so this is not a live check, and relay pair honestly refuses — pairing payloads are minted by whichever daemon holds the relay identity key.',
+    examples: [
+      'relay status',
+      'relay pair',
     ],
   },
   fleet: {

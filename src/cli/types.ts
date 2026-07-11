@@ -26,6 +26,7 @@ export type GoodVibesCliCommand =
   | 'secrets'
   | 'sessions'
   | 'tasks'
+  | 'relay'
   | 'pair'
   | 'bundle'
   | 'import'

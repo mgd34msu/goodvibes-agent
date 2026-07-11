@@ -77,6 +77,12 @@ export interface CliStatusSnapshot {
     readonly lifecycle?: CliServicePosture;
   };
   readonly externalRuntime: CliExternalRuntimeSnapshot | null;
+  readonly relay: {
+    readonly enabled: boolean;
+    readonly url: string;
+    readonly requireStepUpForMutations: boolean;
+    readonly liveVerified: false;
+  };
   readonly runtimeEndpoints: {
     readonly controlPlane: ReturnType<typeof resolveRuntimeEndpointBinding> & { readonly enabled: unknown };
     readonly httpListener: ReturnType<typeof resolveRuntimeEndpointBinding> & { readonly enabled: unknown };
@@ -302,6 +308,12 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
       ...(options.service ? { lifecycle: options.service } : {}),
     },
     externalRuntime: options.externalRuntime ?? null,
+    relay: {
+      enabled: config.get('relay.enabled') === true,
+      url: String(config.get('relay.url') ?? ''),
+      requireStepUpForMutations: config.get('relay.requireStepUpForMutations') === true,
+      liveVerified: false,
+    },
     runtimeEndpoints: {
       controlPlane: { enabled: config.get('controlPlane.enabled'), ...controlPlaneBinding },
       httpListener: { enabled: config.get('danger.httpListener'), ...httpListenerBinding },
@@ -368,6 +380,11 @@ export function renderCliStatus(options: CliStatusOptions): string {
     ] : [
       '  live check unavailable',
     ]),
+    '',
+    'Relay (connected host\'s imported config; not live-verified — see goodvibes-agent relay status):',
+    `  relay.enabled: ${yesNo(snapshot.relay.enabled)}`,
+    `  relay.url: ${snapshot.relay.url || '(empty)'}`,
+    `  relay.requireStepUpForMutations: ${yesNo(snapshot.relay.requireStepUpForMutations)}`,
     '',
     'Agent role:',
     '  product: interactive operator TUI',

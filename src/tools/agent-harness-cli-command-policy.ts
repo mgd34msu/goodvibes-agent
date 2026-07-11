@@ -110,6 +110,14 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
     };
   }
+  if (root === 'relay') {
+    return {
+      effect: 'read-only',
+      confirmation,
+      preferredModelTool: `${settingsActions('list', 'get')} (category "relay") or ${agentHarnessModes('tools')}`,
+      boundary: 'relay status reports the connected host\'s imported relay.* configuration and the relay-connect feature flag only — it is not a live check (Agent hosts no daemon and the SDK has no remote relay-status route). relay pair always honestly refuses: minting a pairing payload needs the relay identity private key, which only the daemon actually holding the relay identity has.',
+    };
+  }
   if (root === 'subscription' || root === 'secrets' || root === 'pair') {
     return {
       effect: root === 'pair' ? 'external-network' : 'mixed',

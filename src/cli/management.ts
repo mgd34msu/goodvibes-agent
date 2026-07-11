@@ -39,6 +39,7 @@ import { handleCiCommand } from './ci-command.ts';
 import { handlePrincipalsCommand } from './principals-command.ts';
 import { handleChannelProfilesCommand } from './channel-profiles-command.ts';
 import { handleWorkspacesCommand } from './workspaces-command.ts';
+import { handleRelayCommand } from './relay-command.ts';
 import { handleFleetCommand } from './fleet-command.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
@@ -643,6 +644,11 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
       }
       case 'workspaces': {
         const result = await handleWorkspacesCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'relay': {
+        const result = handleRelayCommand(runtime);
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }
