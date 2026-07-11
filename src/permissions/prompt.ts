@@ -30,10 +30,35 @@ export class PermissionPromptUI {
     };
   }
 
+  /**
+   * "Who is asking" line for the two attribution kinds (SDK 1.6.1) that have
+   * no OTHER rendered channel for it. `background-agent` attribution is
+   * deliberately excluded here: it already flows into the fleet
+   * ProcessRegistry via `metadata.agentId` (see
+   * bootstrap-core.ts's approvalMetadataForRequest), so a spawned agent's
+   * pending ask is attributed on its own ProcessNode. An MCP server
+   * elicitation or a sandbox host-access escalation has no ProcessNode to
+   * attach to — this prompt is the ONLY place a user learns who/what is
+   * asking, so those two kinds render an explicit line. Returns null for
+   * `background-agent` and for no-attribution (foreground) requests.
+   */
+  private static attributionLine(request: PermissionPromptRequest): string | null {
+    const attribution = request.attribution;
+    if (!attribution) return null;
+    if (attribution.kind === 'mcp-server') {
+      return `MCP server: ${attribution.serverName}`;
+    }
+    if (attribution.kind === 'sandbox-escalation') {
+      return `Sandbox ${attribution.sandbox}: ${attribution.escalations.join(', ')}`;
+    }
+    return null;
+  }
+
   static getPromptHeight(request: PermissionPromptRequest): number {
     const analysis = this.fallbackAnalysis(request);
     const reasonLines = Math.min(2, Math.max(1, analysis.reasons.length));
-    const extraLines = (analysis.host ? 1 : 0) + (analysis.surface ? 1 : 0) + (analysis.sideEffects && analysis.sideEffects.length > 0 ? 1 : 0);
+    const extraLines = (analysis.host ? 1 : 0) + (analysis.surface ? 1 : 0) + (analysis.sideEffects && analysis.sideEffects.length > 0 ? 1 : 0)
+      + (this.attributionLine(request) ? 1 : 0);
     return 12 + reasonLines + extraLines;
   }
 
@@ -88,6 +113,15 @@ export class PermissionPromptUI {
     // Tool name row
     const toolLine = `   Tool      : ${tool}`;
     lines.push(UIFactory.stringToLine(toolLine.padEnd(width), width, { fg: TEXT }));
+
+    // Attribution row (mcp-server / sandbox-escalation only — see attributionLine's doc comment)
+    const attributionText = this.attributionLine(request);
+    if (attributionText) {
+      const maxAttrLen = Math.max(10, width - 16);
+      const truncatedAttr = attributionText.length > maxAttrLen ? `${attributionText.slice(0, maxAttrLen - 3)}...` : attributionText;
+      const attributionRow = `   Asked by  : ${truncatedAttr}`;
+      lines.push(UIFactory.stringToLine(attributionRow.padEnd(width), width, { fg: DIM }));
+    }
 
     // Key argument row - truncate if too long
     const maxArgLen = Math.max(10, width - 16);

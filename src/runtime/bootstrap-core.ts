@@ -478,6 +478,7 @@ export async function initializeBootstrapCore(
     requestRender,
     configManager,
     agentManager: services.agentManager,
+    toolRegistry,
   });
 
   // Subscribe to companion main-chat messages received from the connected host's HTTP layer.

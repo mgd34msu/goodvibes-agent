@@ -200,6 +200,25 @@ describe('SettingsModal', () => {
     }
   });
 
+  test('behavior.compactionStrategy / telemetry.decisionOtlp* / sandbox.judgmentAutoApprove surface with honest, non-empty descriptions (SDK 1.6.1)', () => {
+    modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
+    const byKey = new Map<string, string>();
+    for (const entries of modal.groups.values()) {
+      for (const entry of entries) byKey.set(entry.setting.key, entry.setting.description);
+    }
+    for (const key of [
+      'behavior.compactionStrategy',
+      'telemetry.decisionOtlpEnabled',
+      'telemetry.decisionOtlpEndpoint',
+      'telemetry.decisionOtlpSignal',
+      'sandbox.judgmentAutoApprove',
+    ]) {
+      const description = byKey.get(key);
+      expect(description, `${key} should have a settings entry`).toBeTruthy();
+      expect(description!.length).toBeGreaterThan(10);
+    }
+  });
+
   test('currentCategory returns correct category', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     expect(modal.currentCategory).toBe(SETTINGS_CATEGORIES[0]);

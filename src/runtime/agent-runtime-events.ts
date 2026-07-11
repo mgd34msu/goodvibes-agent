@@ -1,8 +1,10 @@
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConversationFollowUpItem } from '@pellux/goodvibes-sdk/platform/core';
-import type { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
+import type { AgentManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type {
   AgentEvent,
+  CompactionEvent,
   ProviderEvent,
   RuntimeEventBus,
 } from '@/runtime/index.ts';
@@ -23,6 +25,7 @@ export interface AgentRuntimeEventBridgeOptions {
   readonly requestRender: () => void;
   readonly configManager: ConfigManager;
   readonly agentManager: AgentManager;
+  readonly toolRegistry: Pick<ToolRegistry, 'execute'>;
 }
 
 function withRouter(
@@ -37,6 +40,55 @@ function formatAgentTask(task: string): string {
   return task.length > 50 ? `${task.slice(0, 50)}...` : task;
 }
 
+/** Renders a COMPACTION_RECEIPT payload as a one-line honest summary: strategy, trigger, and outcome — with the fallback reason (`detail`) named when the compaction did not apply. */
+function formatCompactionReceipt(payload: Extract<CompactionEvent, { type: 'COMPACTION_RECEIPT' }>): string {
+  const { strategy, trigger, outcome, tokensBefore, tokensAfter, detail } = payload;
+  if (outcome === 'applied') {
+    const saved = Math.max(0, tokensBefore - tokensAfter);
+    return `${strategy} (${trigger}) applied — ${saved.toLocaleString()} tokens reclaimed`;
+  }
+  const reason = detail ? `: ${detail}` : '';
+  return `${strategy} (${trigger}) ${outcome}${reason}`;
+}
+
+interface ChildFailureEnvelopeLike {
+  readonly phase?: string;
+  readonly reason?: { readonly code?: string };
+  readonly partialOutputs?: { readonly note?: string; readonly turnsCompleted?: number };
+}
+
+/**
+ * Fetches the structured child-failure envelope the SDK's own `agent` tool
+ * attaches to its `status` action result (SDK 1.6.1, child-failure
+ * envelopes on the agent tool's status/get/wait results) and renders it as a
+ * compact suffix: `reason: <code>, phase: <phase>[, N turns completed][, note]`.
+ * Goes through `toolRegistry.execute` — the SAME tool the model calls —
+ * rather than re-deriving the classification locally: `classifyChildFailureReason`
+ * and `describeChildPhase` are internal to the SDK's tool module, not part of
+ * its public API, so calling the tool is the only faithful way to surface
+ * the real classification instead of guessing at it. Read-only, no side
+ * effects (see ToolRegistry.execute's own doc comment); returns null on any
+ * failure to look up the record or parse the result, so a fetch problem never
+ * blocks the (already-informative) base failure message.
+ */
+async function fetchChildFailureSummary(toolRegistry: Pick<ToolRegistry, 'execute'>, agentId: string): Promise<string | null> {
+  try {
+    const result = await toolRegistry.execute('agent-runtime-events:child-failure-envelope', 'agent', { mode: 'status', agentId });
+    if (!result.success || !result.output) return null;
+    const parsed = JSON.parse(result.output) as { failure?: ChildFailureEnvelopeLike };
+    const failure = parsed.failure;
+    if (!failure) return null;
+    const parts = [`reason: ${failure.reason?.code ?? 'error'}`];
+    if (failure.phase) parts.push(`phase: ${failure.phase}`);
+    if (failure.partialOutputs?.turnsCompleted !== undefined) parts.push(`${failure.partialOutputs.turnsCompleted} turns completed`);
+    if (failure.partialOutputs?.note) parts.push(failure.partialOutputs.note);
+    return parts.join(', ');
+  } catch (err) {
+    logger.debug('agent-runtime-events: child-failure envelope fetch failed (non-fatal)', { agentId, error: String(err) });
+    return null;
+  }
+}
+
 export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptions): {
   unsubs: Array<() => void>;
   agentStatusIntervalRef: { value: ReturnType<typeof setInterval> | null };
@@ -48,6 +100,7 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
     queueConversationFollowUp,
     requestRender,
     agentManager,
+    toolRegistry,
   } = options;
   const unsubs: Array<() => void> = [];
 
@@ -65,6 +118,22 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
   }));
   unsubs.push(runtimeBus.onDomain('compaction', (env) => {
     domainDispatch.dispatchCompactionEvent(env.payload);
+  }));
+  // The mandatory post-compaction receipt (SDK 1.6.1, emitted after every
+  // automatic and manual compaction path — see the SDK's own doc comment on
+  // emitCompactionReceipt) is the one compaction signal a user should never
+  // miss: system-message-router.ts's own tiering doc already names
+  // "compaction events" as 'high' priority (conversation + activity feed),
+  // but nothing routed COMPACTION_RECEIPT there before this — the domain
+  // subscription above only ever updated runtime-store session state, not a
+  // user-visible message. Surfaces strategy + outcome; when the compaction
+  // did not apply (kept-original/failed), `detail` carries the fallback
+  // reason so a silent revert is never actually silent.
+  unsubs.push(runtimeBus.on<Extract<CompactionEvent, { type: 'COMPACTION_RECEIPT' }>>('COMPACTION_RECEIPT', ({ payload }) => {
+    withRouter(getSystemMessageRouter, (router) => {
+      router.high(`[Compaction] ${formatCompactionReceipt(payload)}`);
+    });
+    requestRender();
   }));
   unsubs.push(runtimeBus.onDomain('transport', (env) => {
     domainDispatch.dispatchTransportEvent(env.payload);
@@ -102,8 +171,16 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
     if (record && record.status !== 'cancelled') {
       const durationSeconds = record.completedAt !== undefined ? Math.round((record.completedAt - record.startedAt) / 1000) : 0;
       const taskSnippet = formatAgentTask(record.task);
-      withRouter(getSystemMessageRouter, (router) => {
-        router.low(`[Delegated task] ${record.template} ${payload.agentId.slice(-8)} failed in ${durationSeconds}s ${payload.error.slice(0, 80)}`);
+      // Compact child-failure envelope enrichment (SDK 1.6.1) — fetched via
+      // the SAME 'agent' tool the model calls, then appended to the base
+      // message. Deferred (async) rather than blocking this handler; no test
+      // or downstream consumer depends on this message landing synchronously
+      // with the AGENT_FAILED event.
+      void fetchChildFailureSummary(toolRegistry, payload.agentId).then((envelopeSummary) => {
+        withRouter(getSystemMessageRouter, (router) => {
+          router.low(`[Delegated task] ${record.template} ${payload.agentId.slice(-8)} failed in ${durationSeconds}s ${payload.error.slice(0, 80)}${envelopeSummary ? ` (${envelopeSummary})` : ''}`);
+        });
+        requestRender();
       });
       queueConversationFollowUp?.({
         key: `agent:${payload.agentId}:failed`,
