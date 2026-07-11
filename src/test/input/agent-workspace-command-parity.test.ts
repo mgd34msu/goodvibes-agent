@@ -210,7 +210,12 @@ describe('Agent workspace command parity', () => {
     // is the same kind of narrow admin surface — this Agent's own
     // orchestration engine state, not a connected-host call — with no TUI
     // workspace editor yet.
-    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'pair', 'tui', 'unknown', 'version', 'workspaces']);
+    // relay (SDK 1.6.1 outbound zero-knowledge relay): reports the connected
+    // host's imported relay.* configuration and always honestly refuses to
+    // mint a pairing payload (see relay-command.ts) — a diagnostics/refusal
+    // surface with no mutating action a TUI workspace editor would expose,
+    // same shape as compat/doctor/pair above.
+    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'pair', 'relay', 'tui', 'unknown', 'version', 'workspaces']);
     const requirements: Record<string, CoverageRequirement> = {
       ask: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-ask'] },
       auth: { editorPrefixes: ['auth-'] },
