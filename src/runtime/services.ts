@@ -1091,6 +1091,16 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // it here is what turns those verbs from cataloged-but-unhandled into
     // real handlers (see src/test/daemon/gateway-ws-only-invokable.test.ts).
     attemptsController: orchestrationEngine,
+    // worktrees.setup.run (SDK 1.6.1): the rerun affordance for worktree
+    // cold-start setup, registered over a WorktreeRegistry rooted at this
+    // daemon's own working directory (matching worktrees.snapshot's reader)
+    // only when workingDirectory is present. It already is here — this was a
+    // real cataloged-but-unhandled gap (found by the gateway parity pin
+    // sweep, see src/test/daemon/gateway-parity-verb-families.test.ts) with
+    // no reason to leave unfixed: the daemon's own working directory was
+    // already in scope in this composition root (see
+    // checkpointsGatewayManager above).
+    workingDirectory,
   });
   // Turn the fleet registry's coalesced snapshot tick into poll-free
   // spawn/progress/attention/completion events on the runtime event bus's
