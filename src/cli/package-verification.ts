@@ -111,8 +111,9 @@ const REQUIRED_PACKAGE_SCRIPTS: Readonly<Record<string, string>> = {
   'publish:check': 'bun run scripts/publish-check.ts',
   'package:install-check': 'bun run scripts/package-install-check.ts',
   'architecture:check': 'bun run scripts/check-architecture.ts',
+  'workflows:check': 'bun run scripts/check-workflows.ts',
   'perf:check': 'bun run scripts/perf-check.ts',
-  'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run test && bun run coverage:gate && bun run architecture:check && bun run perf:check && bun run build && bun run publish:check && bun run package:install-check && bun run verification:ledger',
+  'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run test && bun run coverage:gate && bun run architecture:check && bun run workflows:check && bun run perf:check && bun run build && bun run publish:check && bun run package:install-check && bun run verification:ledger',
   'build:prod': 'bun run scripts/build.ts',
   'build:all': 'bun run scripts/build.ts --all',
   'verification:ledger': 'bun run scripts/verification-ledger.ts',
@@ -123,6 +124,7 @@ const REQUIRED_CI_GATE_COMMANDS: readonly { readonly command: RegExp; readonly l
   { command: /\bbun\s+run\s+test\b/, label: 'bun run test' },
   { command: /\bbun\s+run\s+coverage:gate\b/, label: 'coverage:gate' },
   { command: /\bbun\s+run\s+architecture:check\b/, label: 'architecture:check' },
+  { command: /\bbun\s+run\s+workflows:check\b/, label: 'workflows:check' },
   { command: /\bbun\s+run\s+perf:check\b/, label: 'perf:check' },
   { command: /\bbun\s+run\s+build\b(?!:)/, label: 'bun run build' },
   { command: /\bbun\s+run\s+scripts\/post-build-smoke\.ts\b/, label: 'compiled binary smoke' },
@@ -1477,18 +1479,41 @@ function verifyGithubReleaseWorkflowPolicy(root: string): readonly string[] {
     { marker: 'Expected exactly one package tarball in dist', label: 'single tarball assertion' },
     { marker: 'Upload package tarball', label: 'package tarball upload' },
     { marker: 'name: npm-tarball', label: 'package tarball artifact name' },
-    { marker: 'Download package tarball', label: 'package tarball download' },
+    { marker: 'Download all release artifacts', label: 'release artifact download' },
     { marker: 'Extract changelog excerpt', label: 'release changelog excerpt' },
     { marker: 'awk -v version="$VERSION"', label: 'version-specific changelog extraction' },
     { marker: 'softprops/action-gh-release@', label: 'GitHub Release creation action' },
     { marker: 'body_path: ${{ steps.changelog.outputs.excerpt_file }}', label: 'GitHub Release changelog body' },
-    { marker: 'files: dist/*.tgz', label: 'GitHub Release tarball attachment' },
+    { marker: 'dist/*.tgz', label: 'GitHub Release tarball attachment' },
     { marker: 'draft: false', label: 'non-draft GitHub Release' },
     { marker: 'prerelease: false', label: 'non-prerelease GitHub Release' },
   ];
   for (const { marker, label } of requiredPackReleaseMarkers) {
     if (!source.includes(marker)) {
       issues.push(`GitHub release workflow must keep package tarball/GitHub Release policy: missing ${label}.`);
+    }
+  }
+  // Binary release lane: the curl installer is pure-binary, so the release must
+  // build every platform binary, exec-smoke the compiled binary, generate a
+  // SHA256SUMS manifest over all four, and attach the binaries + manifest to the
+  // GitHub Release under the names the installer parses.
+  const requiredBinaryLaneMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+    { marker: 'name: Build ${{ matrix.target }}', label: 'per-platform binary build matrix job' },
+    { marker: 'bun run scripts/build.ts --target ${{ matrix.target }}', label: 'per-target compiled binary build' },
+    { marker: 'bun run scripts/post-build-smoke.ts --binary', label: 'compiled binary exec smoke' },
+    { marker: 'Binary smoke (macos-arm64)', label: 'native macOS arm64 binary smoke job' },
+    { marker: 'runs-on: macos-14', label: 'macOS arm64 runner for native binary smoke' },
+    { marker: 'sha256sum \\', label: 'SHA256 manifest generation' },
+    { marker: 'SHA256SUMS.txt', label: 'SHA256SUMS manifest' },
+    { marker: 'dist/goodvibes-agent-linux-x64', label: 'linux x64 binary release asset' },
+    { marker: 'dist/goodvibes-agent-linux-arm64', label: 'linux arm64 binary release asset' },
+    { marker: 'dist/goodvibes-agent-macos-x64', label: 'macOS x64 binary release asset' },
+    { marker: 'dist/goodvibes-agent-macos-arm64', label: 'macOS arm64 binary release asset' },
+    { marker: 'needs: [pack, build, smoke-macos]', label: 'release gated on binary build and smoke' },
+  ];
+  for (const { marker, label } of requiredBinaryLaneMarkers) {
+    if (!source.includes(marker)) {
+      issues.push(`GitHub release workflow must ship platform binaries: missing ${label}.`);
     }
   }
   const requiredPublishMarkers: readonly { readonly marker: string; readonly label: string }[] = [

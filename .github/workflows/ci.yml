@@ -37,6 +37,8 @@ jobs:
         run: bun run coverage:gate
       - name: Architecture check
         run: bun run architecture:check
+      - name: Workflow structure check
+        run: bun run workflows:check
       - name: Performance budget evaluation (committed fixture)
         run: bun run perf:check
       - name: Build
