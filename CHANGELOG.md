@@ -2,6 +2,14 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.9.1 - 2026-07-11
+
+- Every GitHub release now attaches the sqlite-vec native extension as a per-platform archive (`sqlite-vec-<os>-<arch>.tar.gz`) next to the compiled binaries, so a directly-downloaded standalone binary can restore the semantic memory vector index by co-locating the addon. The npm/Bun package channel is unchanged.
+- Each addon archive carries the exact `lib/sqlite-vec-<os>-<arch>/vec0.<suffix>` layout the runtime resolves, so it extracts in place next to the binary with no renaming, and all four archives are checksummed in `SHA256SUMS.txt` under the same missing-entry-fatal rule as the platform binaries.
+- The release build fetches each target platform's sqlite-vec addon from the npm registry during cross-target builds, so every platform's addon ships regardless of which host built the binaries.
+- README and the release docs describe how to place the addon next to a downloaded binary and confirm it with `goodvibes-agent memory vector status`, which reports `available: yes` once the addon is co-located.
+- On macOS the system SQLite refuses to load extensions, so the darwin addon archives ship for parity but the vector index stays unavailable there and memory search falls back to literal matching; this is a platform limitation, not a packaging defect.
+
 ## 1.9.0 - 2026-07-11
 
 - GoodVibes Agent now publishes self-contained compiled binaries for Linux and macOS (x64 and arm64) on every GitHub release, each verified against a SHA256SUMS manifest, so the public installer can set the agent up as a single binary with no separate Bun runtime step. The npm/Bun package channel is unchanged.
