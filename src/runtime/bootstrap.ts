@@ -36,6 +36,7 @@ import type { UiRuntimeServices } from './ui-services.ts';
 import { createDeferredStartupCoordinator } from '@/runtime/index.ts';
 import { wireAgentExternalServices } from './bootstrap-external-services.ts';
 import { initializeBootstrapCore } from './bootstrap-core.ts';
+import { bindOrchestratorContextAccounting } from './context-accounting-source.ts';
 import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
@@ -378,6 +379,20 @@ export async function bootstrapRuntime(
     idempotencyStore: services.idempotencyStore,
   });
   conversation.setSessionLineageTracker(services.sessionLineageTracker);
+
+  // Bind the context_accounting tool (SDK 1.6.1) to THIS Orchestrator so it
+  // reports real session data instead of the unbound-holder honesty message.
+  // Must run after setCoreServices (nothing here depends on it, but this
+  // keeps every orchestrator.* wiring call grouped) and before the first
+  // turn — see context-accounting-source.ts for what each facet reads.
+  runtimeUnsubs.push(bindOrchestratorContextAccounting({
+    orchestrator,
+    holder: services.contextAccountingHolder,
+    runtimeBus,
+    runtimeStore: store,
+    sessionId: runtime.sessionId,
+    getContextWindow: () => providerRegistry.getContextWindowForModel(providerRegistry.getCurrentModel()),
+  }));
 
   const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId);
   const opsControlPlane = services.featureFlags.isEnabled('operator-control-plane')

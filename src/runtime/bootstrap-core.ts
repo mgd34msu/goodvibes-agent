@@ -301,6 +301,13 @@ export async function initializeBootstrapCore(
     serviceRegistry: services.serviceRegistry,
     overflowHandler: services.overflowHandler,
     changeTracker: services.sessionChangeTracker,
+    // Same holder instance `services.contextAccountingHolder` exposes — the
+    // context_accounting tool registered here and the bind call bootstrap.ts
+    // makes after constructing the Orchestrator (see
+    // context-accounting-source.ts) must share ONE holder, otherwise the tool
+    // would read an unbound holder of its own while the real source sits on a
+    // different instance nothing reads.
+    contextAccountingHolder: services.contextAccountingHolder,
   });
   registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
   registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
