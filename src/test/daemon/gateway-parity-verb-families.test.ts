@@ -112,6 +112,18 @@ const VERB_FAMILIES: ReadonlyArray<{ readonly family: string; readonly reason: s
     reason: 'Always registered (the gh-CLI source and watch store need no dep); notifier/fix-session enrich when channelDeliveryRouter/automationManager are present (both are here). Deeper round-trip: ci-principals-channel-profiles-gateway.test.ts.',
     methodIds: ['ci.status', 'ci.watches.create', 'ci.watches.list', 'ci.watches.delete', 'ci.watches.run'],
   },
+  {
+    // Found by the SDK 1.6.1 repack sweep (2026-07-10): registerSessionRuntimeGatewayMethods
+    // (platform/control-plane/routes/session-runtime.ts) was landed unconditionally in
+    // register-gateway-verb-groups.ts but never added to this pin — the "no family ...
+    // deliberately leaves unregistered" claim above was inaccurate for this one family. Not a
+    // wiring gap (it needs only configManager/runtimeStore, both always present), just a
+    // pre-existing gap in THIS TEST's coverage. Closed here rather than left for a future sweep
+    // to rediscover.
+    family: 'sessions.permissionMode.* / sessions.contextUsage.get',
+    reason: "Always registered — the SDK's createSessionRuntimeControls is built internally from configManager + runtimeStore, both always present in this fork's composition.",
+    methodIds: ['sessions.permissionMode.get', 'sessions.permissionMode.set', 'sessions.contextUsage.get'],
+  },
 ];
 
 const ALL_METHOD_IDS = VERB_FAMILIES.flatMap((entry) => entry.methodIds);
@@ -224,5 +236,34 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
       if (/gateway method is not invokable/i.test(message)) wiringGapMessage = message;
     }
     expect(wiringGapMessage).toBeNull();
+  });
+
+  test('sessions.contextUsage.get invokes end-to-end against the local runtime alias', async () => {
+    const result = await services.gatewayMethods.invoke('sessions.contextUsage.get', {
+      methodId: 'sessions.contextUsage.get',
+      // 'runtime' is the stable local-session alias createSessionRuntimeControls
+      // accepts for the daemon's own runtime, addressable before a surface knows
+      // the real store session id (see session-runtime.js's own doc comment).
+      body: { sessionId: 'runtime' },
+    } as never) as { sessionId: string; estimated: boolean; contextWindow: number | null };
+    expect(result.sessionId).toBe('runtime');
+    // The estimator's own honesty flag — never claims a provider-measured count.
+    expect(result.estimated).toBe(true);
+  });
+
+  test('sessions.permissionMode.get/set round-trip against the local runtime alias', async () => {
+    const before = await services.gatewayMethods.invoke('sessions.permissionMode.get', {
+      methodId: 'sessions.permissionMode.get',
+      body: { sessionId: 'runtime' },
+    } as never) as { sessionId: string; mode: string };
+    expect(before.sessionId).toBe('runtime');
+    expect(['normal', 'auto', 'plan', 'accept-edits', 'custom']).toContain(before.mode);
+
+    const set = await services.gatewayMethods.invoke('sessions.permissionMode.set', {
+      methodId: 'sessions.permissionMode.set',
+      body: { sessionId: 'runtime', mode: 'plan' },
+    } as never) as { sessionId: string; mode: string; previousMode: string };
+    expect(set.mode).toBe('plan');
+    expect(set.previousMode).toBe(before.mode);
   });
 });
