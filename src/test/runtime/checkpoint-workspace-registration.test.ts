@@ -144,6 +144,54 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     expect(result.checkpoint).not.toBeNull();
   });
 
+  test('registering the workspace mid-launch starts automatic checkpoints without a restart', async () => {
+    // Build services UNREGISTERED (mirrors a launch in a workspace nobody has
+    // registered yet), confirm no automatic checkpoint fires, THEN register
+    // the workspace through the same shared store `goodvibes-agent workspaces
+    // register` writes to — all against the SAME long-running services
+    // instance, no new createRuntimeServices call (no restart). A second
+    // TURN_COMPLETED on that unchanged instance must now produce a checkpoint.
+    const { services, runtimeBus, workingDir } = await buildServices({ registered: false });
+    const homeDir = services.shellPaths.homeDirectory;
+    writeFileSync(join(workingDir, 'note.txt'), 'hello');
+    await services.workspaceCheckpointManager.init();
+
+    emitTurnCompleted(runtimeBus, 'turn-before-registration');
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(await services.workspaceCheckpointManager.list()).toHaveLength(0);
+
+    const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
+    await createWorkspaceRegistrationStore(shellPaths).add(workingDir);
+
+    emitTurnCompleted(runtimeBus, 'turn-after-registration');
+    const created = await pollUntil(async () => (await services.workspaceCheckpointManager.list()).length > 0);
+    expect(created).toBe(true);
+    const checkpoints = await services.workspaceCheckpointManager.list();
+    expect(checkpoints[0]?.kind).toBe('turn');
+  }, 10000);
+
+  test('explicit checkpoints.create also succeeds mid-launch once the workspace is registered, without a restart', async () => {
+    const { services, workingDir } = await buildServices({ registered: false });
+    const homeDir = services.shellPaths.homeDirectory;
+    writeFileSync(join(workingDir, 'note.txt'), 'hello');
+
+    await expect(
+      services.gatewayMethods.invoke('checkpoints.create', {
+        methodId: 'checkpoints.create',
+        body: { kind: 'manual' },
+      } as never),
+    ).rejects.toThrow(/not registered/);
+
+    const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
+    await createWorkspaceRegistrationStore(shellPaths).add(workingDir);
+
+    const result = await services.gatewayMethods.invoke('checkpoints.create', {
+      methodId: 'checkpoints.create',
+      body: { kind: 'manual' },
+    } as never) as { checkpoint: { id: string } | null; noop: boolean };
+    expect(result.checkpoint).not.toBeNull();
+  });
+
   test('defense in depth: the SDK root guard still refuses a broad root even when registered', async () => {
     const workingDir = makeTempDir('gv-checkpoint-broad-root-');
     // Deliberately equal to workingDir, to trigger the SDK's "this root looks

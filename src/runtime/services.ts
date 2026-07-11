@@ -5,7 +5,7 @@ import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
-import { migrateLegacyWorkspaceRegistryIfNeeded, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
+import { createWorkspaceRegistrationLiveChecker, migrateLegacyWorkspaceRegistryIfNeeded } from '../config/workspace-registration.ts';
 import { FocusTracker } from '../core/focus-tracker.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -1000,39 +1000,45 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // depth UNDER the registered-workspaces-only rule below, not replaced by it:
   // even a registered root can still be refused as too broad or too large.
   //
-  // Registered-workspaces-only (owner ruling, 2026-07-10): the SDK's
-  // WorkspaceCheckpointManager only takes automatic turn/agent-lifecycle
-  // snapshots when constructed WITH a runtimeBus (see the SDK's own
+  // Registered-workspaces-only (owner ruling, 2026-07-10; live-gating extended
+  // 2026-07-11 so registering mid-launch takes effect without a restart — the
+  // same stale-until-restart defect class fixed for permission-mode metadata).
+  // The SDK's WorkspaceCheckpointManager only takes automatic turn/agent-
+  // lifecycle snapshots when constructed WITH a runtimeBus (see the SDK's own
   // platform/runtime/services.ts, which always passes one). This composition
-  // root instead passes runtimeBus conditionally: only when `workingDirectory`
-  // resolves as COVERED by the shared registration store (SDK 1.6.1
-  // platform/workspace/registration, via config/workspace-registration.ts —
-  // the successor to this fork's local per-user registry, migrated in once
-  // below), or the owner has explicitly opted an unregistered workspace back
-  // in via `checkpoints.unregisteredWorkspaces: "guarded"`
-  // (config/checkpoint-settings.ts; default "off"). Unregistered + default
-  // "off" -> no runtimeBus -> the manager never auto-subscribes and stays
-  // inert until explicitly invoked, same as before this ruling. Coverage now
-  // flows down a registered root's subtree AND through the git
-  // worktree→main-repo link, so an orchestration-spawned worktree of a
-  // registered repo checkpoints automatically without being registered
-  // itself. This check runs once, at daemon-process construction time,
-  // against the process's fixed workingDirectory — it does not track
-  // workspace swaps at runtime (WorkspaceSwapManager's rerootStores does not
-  // re-root this manager either; a swap needs a restart to pick up a new
-  // root's registration either way, an existing limitation this change does
-  // not widen).
+  // root ALWAYS passes runtimeBus now (so the automatic-snapshot subscription
+  // is live from process start regardless of boot-time registration state),
+  // and instead gates each individual automatic snapshot attempt through a
+  // LIVE re-check via `checkpointsCurrentlyAllowed` below — patched onto this
+  // one manager instance's own `create` method, since the SDK has no built-in
+  // predicate hook for this. `checkpointsCurrentlyAllowed` is cheap to call on
+  // every event: `createWorkspaceRegistrationLiveChecker` probes the git
+  // worktree link ONCE (a `git` subprocess spawn) and every call after that
+  // only re-reads the shared registration JSON file. "Allowed" means
+  // `workingDirectory` resolves as COVERED by the shared registration store
+  // (SDK 1.6.1 platform/workspace/registration, via
+  // config/workspace-registration.ts — the successor to this fork's local
+  // per-user registry, migrated in once below), or the owner has explicitly
+  // opted an unregistered workspace back in via
+  // `checkpoints.unregisteredWorkspaces: "guarded"` (config/checkpoint-settings.ts;
+  // default "off"). Coverage flows down a registered root's subtree AND
+  // through the git worktree→main-repo link, so an orchestration-spawned
+  // worktree of a registered repo checkpoints automatically without being
+  // registered itself. A workspace SWAP at runtime is still not tracked here
+  // (WorkspaceSwapManager's rerootStores does not re-root this manager; a swap
+  // needs a restart to pick up a new root's registration) — only the
+  // registration STATE of this fixed workingDirectory is now live.
   const registrationMigration = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
   if (registrationMigration) {
     logger.info('Migrated the local workspace registry into the shared registration store', { ...registrationMigration });
   }
-  const checkpointsWorkspaceRegistered = resolveWorkspaceRegistrationSync(shellPaths, workingDirectory).status === 'covered';
-  const checkpointsUnregisteredMode = readCheckpointRegistrationSetting(configManager);
-  const checkpointsAllowedForWorkspace = checkpointsWorkspaceRegistered || checkpointsUnregisteredMode === 'guarded';
+  const checkpointsRegistrationStatus = createWorkspaceRegistrationLiveChecker(shellPaths, workingDirectory);
+  const checkpointsCurrentlyAllowed = (): boolean =>
+    checkpointsRegistrationStatus() === 'covered' || readCheckpointRegistrationSetting(configManager) === 'guarded';
   const workspaceCheckpointManager = new WorkspaceCheckpointManager({
     workspaceRoot: workingDirectory,
     ...readCheckpointGuardSettings(configManager),
-    ...(checkpointsAllowedForWorkspace ? { runtimeBus: options.runtimeBus } : {}),
+    runtimeBus: options.runtimeBus,
     // Stamp automatic snapshots with the live session id so a checkpoint created
     // during this launch is found by the session-scoped restore/rewind lookup —
     // the fix that makes same-launch activation work without a restart. The
@@ -1040,18 +1046,36 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // session even though the id is finalized after this manager is built.
     ...(options.resolveSessionId ? { resolveSessionId: options.resolveSessionId } : {}),
   });
-  if (checkpointsAllowedForWorkspace) {
-    // Eagerly initialize so automatic snapshot subscriptions are wired up
-    // immediately (mirrors the SDK's own default runtime services) rather than
-    // only on first explicit checkpoints.* call — otherwise the very first
-    // TURN_COMPLETED could arrive before anything has touched the manager.
-    // Left un-inited when checkpoints are not allowed for this workspace: the
-    // manager stays inert on disk until an explicit checkpoints.* call lazily
-    // inits it (each public method does `await this.init()` itself).
-    void workspaceCheckpointManager.init().catch((err) => {
-      logger.warn('WorkspaceCheckpointManager.init failed', { error: err instanceof Error ? err.message : String(err) });
-    });
-  }
+  // Gate AUTOMATIC snapshots (kind 'turn' | 'agent-run', fired internally by
+  // the manager's own bus subscription via `this.create(...)`) on the live
+  // registration check, by overriding this instance's own `create` method —
+  // the manager has no predicate-hook option, and this is the one seam that
+  // every automatic-snapshot call and every explicit caller both go through.
+  // 'manual' (explicit, gateway-invoked) creates are NOT re-gated here: they
+  // already go through checkpointsGatewayManager.create's own live check
+  // below, which throws an actionable message BEFORE ever reaching this
+  // method — this override would just be a silent, redundant pass for that
+  // path. For an automatic snapshot there is no caller to throw to (the
+  // manager's own subscription callbacks only `.catch()`-log a rejection), so
+  // an automatic attempt against an unregistered/un-guarded workspace resolves
+  // to `null` quietly — the same "cheap no-op" contract `create()` already
+  // documents for an unchanged tree, not a new error path.
+  const originalCreateCheckpoint = workspaceCheckpointManager.create.bind(workspaceCheckpointManager);
+  workspaceCheckpointManager.create = ((opts) => {
+    if (opts.kind !== 'manual' && !checkpointsCurrentlyAllowed()) return Promise.resolve(null);
+    return originalCreateCheckpoint(opts);
+  }) as typeof workspaceCheckpointManager.create;
+  // Eagerly initialize so the automatic snapshot subscription is wired up
+  // immediately (mirrors the SDK's own default runtime services) rather than
+  // only on first explicit checkpoints.* call — otherwise the very first
+  // TURN_COMPLETED could arrive before anything has touched the manager. Now
+  // unconditional (previously skipped for an unregistered-at-boot workspace):
+  // the subscription itself is inert-by-gate rather than inert-by-absence, so
+  // a workspace registered mid-launch starts producing automatic snapshots on
+  // the very next eligible event, with no restart needed to (re)wire the bus.
+  void workspaceCheckpointManager.init().catch((err) => {
+    logger.warn('WorkspaceCheckpointManager.init failed', { error: err instanceof Error ? err.message : String(err) });
+  });
   // Explicit user-invoked checkpoint creation (the ws-only `checkpoints.create`
   // gateway verb) is gated the SAME way: refuse with an actionable hint rather
   // than silently registering the workspace on the caller's behalf. This is
@@ -1068,16 +1092,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     restore: workspaceCheckpointManager.restore.bind(workspaceCheckpointManager),
     sessionChanges: workspaceCheckpointManager.sessionChanges.bind(workspaceCheckpointManager),
     create: (opts) => {
-      // Re-reads the registry and setting live (not the `checkpointsAllowedForWorkspace`
-      // captured above) so registering the workspace via `goodvibes-agent workspaces
-      // register` takes effect for the NEXT explicit create call without a restart,
-      // even though the automatic-subscription decision above is still fixed for
-      // this process's lifetime. Same coverage semantics as the automatic-checkpoint
-      // decision above: subtree coverage and worktree-link inheritance both apply.
-      if (
-        resolveWorkspaceRegistrationSync(shellPaths, workingDirectory).status !== 'covered'
-        && readCheckpointRegistrationSetting(configManager) !== 'guarded'
-      ) {
+      // Re-reads the registry and setting live via the same cheap checker the
+      // automatic-snapshot gate above uses, so registering the workspace via
+      // `goodvibes-agent workspaces register` takes effect for the NEXT
+      // explicit create call (same as it always has) — and, as of the live
+      // gate above, for automatic snapshots too, without a restart either way.
+      if (!checkpointsCurrentlyAllowed()) {
         throw new Error(
           `Checkpoints are off for this workspace: ${workingDirectory} is not registered. `
           + 'Register it first, then retry: goodvibes-agent workspaces register --yes '

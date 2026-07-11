@@ -9,6 +9,7 @@ import {
   probeWorktreeLink,
   type RegisteredWorkspaceRecord,
   type DeclinedWorkspaceRecord,
+  type WorkspaceCoverageStatus,
   type WorkspaceGitMetadata,
   type WorkspaceResolution,
 } from '@pellux/goodvibes-sdk/platform/workspace';
@@ -139,6 +140,29 @@ export function resolveWorkspaceRegistrationSync(
     registrations: snapshot.workspaces,
     declines: snapshot.declines,
   });
+}
+
+/**
+ * Build a cheap, repeatable live-registration checker for one fixed workspace
+ * root. `probeWorktreeLink` (a `git` subprocess spawn) runs ONCE here, since a
+ * long-running process's working directory and its git-worktree relationship
+ * do not change mid-launch; every subsequent call only re-reads the shared
+ * registration JSON file (a small synchronous fs read) — cheap enough to call
+ * on every turn/agent-lifecycle event, unlike calling
+ * `resolveWorkspaceRegistrationSync` directly (which re-probes git every time).
+ *
+ * This is what makes registering a workspace mid-launch (writing to the shared
+ * store from a separate `goodvibes-agent workspaces register` invocation) take
+ * effect on the very next automatic-checkpoint-eligible event in an
+ * already-running process, without a restart: a caller that re-runs the
+ * returned function on each event always reads current on-disk state.
+ */
+export function createWorkspaceRegistrationLiveChecker(
+  shellPaths: StoreShellPaths,
+  path: string,
+): () => WorkspaceCoverageStatus {
+  const git = probeWorktreeLink(path);
+  return () => resolveWorkspaceRegistrationSync(shellPaths, path, git).status;
 }
 
 // ---------------------------------------------------------------------------
