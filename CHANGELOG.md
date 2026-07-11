@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.9.0 - 2026-07-11
+
+- GoodVibes Agent now publishes self-contained compiled binaries for Linux and macOS (x64 and arm64) on every GitHub release, each verified against a SHA256SUMS manifest, so the public installer can set the agent up as a single binary with no separate Bun runtime step. The npm/Bun package channel is unchanged.
+- Standalone binaries resolve plugins, hooks, and configuration from your filesystem exactly as the Bun runtime does; the semantic vector memory index additionally needs its native extension co-located with the binary and otherwise falls back to literal memory matching, reported plainly by the memory vector status command.
+
 ## 1.8.2 - 2026-07-11
 
 - Adopts platform SDK 1.7.1.
