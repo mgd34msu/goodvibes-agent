@@ -14,6 +14,7 @@ import { extractAuthorizationCode, formatJsonOrText, hasCommandFlag, openBrowser
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { connectedHostTokenRequiredMessage, readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { formatAgentRecordSource } from '../agent/record-labels.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 function resolveManualSubscriptionConfig(config: OAuthProviderConfig): OAuthProviderConfig {
   return config.manualRedirectUri
@@ -268,7 +269,7 @@ export async function handleSessions(runtime: CliCommandRuntime): Promise<string
       const value = sessions;
       return formatJsonOrText(runtime.cli)(value, [
         `GoodVibes sessions (${sessions.length})`,
-        ...sessions.slice(0, 50).map((session) => `  ${session.name}  messages ${session.messageCount}  ${new Date(session.timestamp).toISOString()}  ${session.title || '(untitled)'}`),
+        ...sessions.slice(0, 50).map((session) => `  ${session.name}  messages ${session.messageCount}  ${appendTemporalLabel(new Date(session.timestamp).toISOString(), session.timestamp)}  ${session.title || '(untitled)'}`),
       ].join('\n'));
     }
     if (sub === 'show' || sub === 'info') {
@@ -281,7 +282,7 @@ export async function handleSessions(runtime: CliCommandRuntime): Promise<string
         `  title ${found.title || '(untitled)'}`,
         `  messages ${found.messageCount}`,
         `  provider/model ${found.provider}/${found.model}`,
-        `  updated ${new Date(found.timestamp).toISOString()}`,
+        `  updated ${appendTemporalLabel(new Date(found.timestamp).toISOString(), found.timestamp)}`,
         `  file ${found.filePath}`,
       ].join('\n'));
     }

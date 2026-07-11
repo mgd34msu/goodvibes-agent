@@ -50,6 +50,7 @@ describe('registerAgentRuntimeEvents — compaction receipt routing (SDK 1.6.1)'
       lowQuality: false,
       instructionsReinjected: true,
       validationPassed: true,
+      sectionsIncluded: [],
       outcome: 'applied',
     }, { sessionId: 'session-1', source: 'test-suite' }));
     await flushMicrotasks();
@@ -77,6 +78,7 @@ describe('registerAgentRuntimeEvents — compaction receipt routing (SDK 1.6.1)'
       lowQuality: true,
       instructionsReinjected: false,
       validationPassed: false,
+      sectionsIncluded: [],
       outcome: 'kept-original',
       detail: 'quality score below floor; reverted to the pre-compaction conversation',
     }, { sessionId: 'session-1', source: 'test-suite' }));

@@ -18,8 +18,8 @@ import type { ControlPlaneRecentEvent } from '@pellux/goodvibes-sdk/platform/con
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { BootstrapOptions } from './context.ts';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
-import { RuntimeEventBus } from '@/runtime/index.ts';
-import type { SessionEvent } from '@/runtime/index.ts';
+import { RuntimeEventBus, createEventEnvelope } from '@/runtime/index.ts';
+import type { PermissionEvent, SessionEvent } from '@/runtime/index.ts';
 import { createRuntimeStore, createDomainDispatch, type RuntimeStore } from './store/index.ts';
 import { ForensicsCollector, ForensicsRegistry } from '@/runtime/index.ts';
 import {
@@ -183,6 +183,15 @@ export async function initializeBootstrapCore(
   });
 
   const userSessionId = `user-${generateUserSessionId()}`;
+  // Declared here, before createRuntimeServices, so the checkpoint manager can be
+  // handed a live session-id resolver at construction time. Its value starts as
+  // the bootstrap user session id and is advanced to the real runtime session id
+  // below (see runtimeSessionIdRef.value = runtime.sessionId). Because the
+  // resolver is consulted at the moment each automatic snapshot fires — not at
+  // subscription time — reading .value through this closure keeps same-launch
+  // checkpoints stamped with whatever session id is current when the turn ends,
+  // which is exactly the id the restore/rewind lookup filters on.
+  const runtimeSessionIdRef = { value: userSessionId };
   const runtimeBus = new RuntimeEventBus();
   const store = createRuntimeStore();
   const domainDispatch = createDomainDispatch(store);
@@ -193,6 +202,7 @@ export async function initializeBootstrapCore(
     runtimeBus,
     runtimeStore: store,
     getConversationTitle: () => getConversationTitle(),
+    resolveSessionId: () => runtimeSessionIdRef.value || undefined,
     workingDir,
     homeDirectory,
   });
@@ -467,7 +477,6 @@ export async function initializeBootstrapCore(
   };
   void approvalBroker.start();
   void sharedSessionBroker.start();
-  const runtimeSessionIdRef = { value: userSessionId };
   const systemMessageRouterRef: { value: SystemMessageRouter | null } = { value: null };
   const conversationFollowUpRef: { value: ((item: ConversationFollowUpItem) => void) | null } = { value: null };
   const { unsubs: runtimeUnsubs, agentStatusIntervalRef } = registerAgentRuntimeEvents({
@@ -633,6 +642,30 @@ export async function initializeBootstrapCore(
   runtimeUnsubs.push(
     uiServices.events.turns.on('TURN_SUBMITTED', () => services.sessionSpineClient.heartbeat(runtimeSessionIdRef.value)),
     uiServices.events.turns.on('TURN_COMPLETED', () => services.sessionSpineClient.heartbeat(runtimeSessionIdRef.value)),
+  );
+
+  // Producer half of the live mode-metadata refresh. permissions.mode can change
+  // mid-session (the Permission mode setting cycles it via configManager), and
+  // the SDK models that as a PERMISSION_MODE_CHANGED wire event — but nothing
+  // emitted it, so the runtime store's permission domain (and any surface built
+  // off it) stayed frozen at the boot-time value until restart. Bridging the
+  // config-key subscription onto the runtime bus makes every mode mutation, from
+  // any path that goes through configManager.set, publish the event; the
+  // consumer half in agent-runtime-events.ts folds it into the store and shows a
+  // system message. Guarded on an actual change so a no-op re-set stays silent.
+  runtimeUnsubs.push(
+    configManager.subscribe('permissions.mode', (newValue, oldValue) => {
+      if (newValue === oldValue) return;
+      const payload: Extract<PermissionEvent, { type: 'PERMISSION_MODE_CHANGED' }> = {
+        type: 'PERMISSION_MODE_CHANGED',
+        mode: String(newValue),
+        previousMode: String(oldValue),
+      };
+      runtimeBus.emit('permissions', createEventEnvelope(payload.type, payload, {
+        sessionId: runtimeSessionIdRef.value,
+        source: 'goodvibes-agent',
+      }));
+    }),
   );
 
   domainDispatch.syncSessionState({

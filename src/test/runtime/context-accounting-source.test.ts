@@ -113,6 +113,7 @@ describe('bindOrchestratorContextAccounting (SDK 1.6.1 context_accounting tool)'
       lowQuality: false,
       instructionsReinjected: true,
       validationPassed: true,
+      sectionsIncluded: [],
       outcome: 'applied',
     }, { sessionId: 'session-ctx-2', source: 'test-suite' }));
     // A kept-original receipt for a DIFFERENT session must not inflate this count.
@@ -130,6 +131,7 @@ describe('bindOrchestratorContextAccounting (SDK 1.6.1 context_accounting tool)'
       lowQuality: false,
       instructionsReinjected: true,
       validationPassed: true,
+      sectionsIncluded: [],
       outcome: 'applied',
     }, { sessionId: 'session-other', source: 'test-suite' }));
     await flushMicrotasks();

@@ -9,6 +9,7 @@ import {
   resolveAgentConnectedHostConnection,
 } from '../agent/routine-schedule-promotion.ts';
 import { parseRoutineSchedulePromotionArgs } from '../agent/routine-schedule-args.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 import {
   formatRoutineScheduleCorrelation,
   formatRoutineScheduleFailure,
@@ -245,9 +246,9 @@ function renderRoutine(routine: AgentRoutineRecord): string {
     `  origin ${formatAgentRecordOrigin(routine.source, routine.provenance)}`,
     `  tags ${routine.tags.join(', ') || '(none)'}`,
     `  triggers ${routine.triggers.join(', ') || '(manual)'}`,
-    `  started ${routine.startCount}${routine.lastStartedAt ? `; last ${routine.lastStartedAt}` : ''}`,
-    `  created ${routine.createdAt}`,
-    `  updated ${routine.updatedAt}`,
+    `  started ${routine.startCount}${routine.lastStartedAt ? `; last ${appendTemporalLabel(routine.lastStartedAt, routine.lastStartedAt)}` : ''}`,
+    `  created ${appendTemporalLabel(routine.createdAt, routine.createdAt)}`,
+    `  updated ${appendTemporalLabel(routine.updatedAt, routine.updatedAt)}`,
     routine.staleReason ? `  stale reason ${routine.staleReason}` : '',
     '',
     routine.description,

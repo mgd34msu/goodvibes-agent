@@ -5,6 +5,7 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type {
   AgentEvent,
   CompactionEvent,
+  PermissionEvent,
   ProviderEvent,
   RuntimeEventBus,
 } from '@/runtime/index.ts';
@@ -137,6 +138,27 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
   }));
   unsubs.push(runtimeBus.onDomain('transport', (env) => {
     domainDispatch.dispatchTransportEvent(env.payload);
+  }));
+  // Keep the session's stored permission-mode metadata live. The SDK emits
+  // PERMISSION_MODE_CHANGED on the 'permissions' domain whenever the
+  // permissions.mode config value changes (see emitPermissionModeChanged), but
+  // nothing consumed it before: the runtime store's permission domain was seeded
+  // once at boot and never advanced, so any surface reading the stored mode went
+  // stale until restart. Forwarding the domain event into the store reducer
+  // (dispatchPermissionEvent -> updatePermissionState) refreshes that stored
+  // metadata live from the wire event, and re-emitting it onto a remote surface's
+  // bus keeps cross-surface readers current too.
+  unsubs.push(runtimeBus.onDomain('permissions', (env) => {
+    domainDispatch.dispatchPermissionEvent(env.payload);
+  }));
+  // Make the mode change visible in-session the moment it lands, rather than
+  // only reflecting it the next time a surface happens to rebuild. The precise
+  // previous/next mode values ride the event, so the message states both.
+  unsubs.push(runtimeBus.on<Extract<PermissionEvent, { type: 'PERMISSION_MODE_CHANGED' }>>('PERMISSION_MODE_CHANGED', ({ payload }) => {
+    withRouter(getSystemMessageRouter, (router) => {
+      router.high(`[Permissions] Permission mode changed: ${payload.previousMode} -> ${payload.mode}.`);
+    });
+    requestRender();
   }));
 
   unsubs.push(runtimeBus.on<Extract<ProviderEvent, { type: 'MODEL_FALLBACK' }>>('MODEL_FALLBACK', ({ payload }) => {

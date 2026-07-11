@@ -24,6 +24,7 @@ import {
 } from './index.ts';
 import { buildCliServicePosture } from './service-posture.ts';
 import { inspectCliExternalRuntime } from './external-runtime.ts';
+import { inspectConnectedHostMetrics } from './connected-host-metrics.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
 import { migrateLegacyWorkspaceRegistryIfNeeded, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
@@ -188,6 +189,17 @@ export async function prepareShellCliRuntime(
       configManager,
       homeDirectory: bootstrapHomeDirectory,
     });
+    // Only probe host metrics when the host is actually reachable — otherwise
+    // the unreachability is already reported in the connected-host block above,
+    // and skipping the call avoids a second connect-timeout wait. When reachable,
+    // the probe classifies token/scope/route state honestly (including the
+    // read:telemetry scope-missing case) rather than rendering zeros.
+    const connectedHostMetrics = externalRuntime.reachable
+      ? await inspectConnectedHostMetrics({
+        configManager,
+        homeDirectory: bootstrapHomeDirectory,
+      })
+      : undefined;
     const effectiveOperatorTokenPath = externalRuntime.operatorToken.present
       ? externalRuntime.operatorToken.path
       : operatorTokenPath;
@@ -215,6 +227,7 @@ export async function prepareShellCliRuntime(
       },
       service,
       externalRuntime,
+      connectedHostMetrics,
       doctor: cli.command === 'doctor',
       outputFormat: cli.flags.outputFormat,
     };

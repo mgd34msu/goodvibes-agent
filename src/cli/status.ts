@@ -4,6 +4,7 @@ import { resolveRuntimeEndpointBinding } from './endpoints.ts';
 import type { GoodVibesCliOutputFormat } from './types.ts';
 import type { CliServicePosture } from './service-posture.ts';
 import type { CliExternalRuntimeSnapshot } from './external-runtime.ts';
+import type { CliConnectedHostMetricsSnapshot } from './connected-host-metrics.ts';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { formatAgentRecordSource } from '../agent/record-labels.ts';
 import { formatAgentKnowledgeFailureKind } from './agent-knowledge-format.ts';
@@ -17,6 +18,7 @@ export interface CliStatusOptions {
   readonly auth?: CliAuthStatus;
   readonly service?: CliServicePosture;
   readonly externalRuntime?: CliExternalRuntimeSnapshot;
+  readonly connectedHostMetrics?: CliConnectedHostMetricsSnapshot;
   readonly checkpoints?: CliCheckpointsStatus;
   readonly doctor?: boolean;
   readonly outputFormat?: GoodVibesCliOutputFormat;
@@ -77,6 +79,7 @@ export interface CliStatusSnapshot {
     readonly lifecycle?: CliServicePosture;
   };
   readonly externalRuntime: CliExternalRuntimeSnapshot | null;
+  readonly connectedHostMetrics: CliConnectedHostMetricsSnapshot | null;
   readonly relay: {
     readonly enabled: boolean;
     readonly url: string;
@@ -120,6 +123,41 @@ function checkpointsStatusLine(checkpoints: CliCheckpointsStatus): { active: boo
 
 function yesNo(value: unknown): string {
   return value === true ? 'yes' : 'no';
+}
+
+/**
+ * The connected-host runtime-metrics lines. Each non-ok state is rendered as a
+ * plain sentence naming exactly why there are no numbers to show — most
+ * importantly, a token without the read:telemetry scope reads as "not
+ * permitted", never as a wall of zeros that would misrepresent an unauthorized
+ * token as a healthy idle host.
+ */
+function connectedHostMetricsLines(snapshot: CliConnectedHostMetricsSnapshot | null): string[] {
+  if (!snapshot) return ['  live check unavailable'];
+  switch (snapshot.status) {
+    case 'ok': {
+      const m = snapshot.metrics!;
+      return [
+        `  http requests total: ${m.httpRequestsTotal}`,
+        `  llm requests total: ${m.llmRequestsTotal}`,
+        `  auth success/failure: ${m.authSuccessTotal}/${m.authFailureTotal}`,
+        `  transport retries total: ${m.transportRetriesTotal}`,
+        `  sessions active: ${m.sessionsActive}`,
+        `  sse subscribers: ${m.sseSubscribers}`,
+        `  telemetry buffer fill: ${m.telemetryBufferFill}`,
+      ];
+    }
+    case 'scope_missing':
+      return [`  not shown: the connected-host token does not include the ${snapshot.requiredScope} scope required by ${snapshot.methodId}.`];
+    case 'auth_required':
+      return ['  not shown: connected-host operator token is missing or unauthenticated.'];
+    case 'route_unavailable':
+      return [`  not shown: this connected host does not expose ${snapshot.route} (incompatible or older daemon).`];
+    case 'unavailable':
+      return [`  not shown: connected host is not reachable${snapshot.error ? ` (${snapshot.error})` : '.'}`];
+    default:
+      return [`  not shown: ${snapshot.error ?? 'runtime metrics could not be read.'}`];
+  }
 }
 
 /** permissions.tools.* keys — mirrors PermissionsToolConfig in the SDK config schema. */
@@ -308,6 +346,7 @@ export function buildCliStatusSnapshot(options: CliStatusOptions): CliStatusSnap
       ...(options.service ? { lifecycle: options.service } : {}),
     },
     externalRuntime: options.externalRuntime ?? null,
+    connectedHostMetrics: options.connectedHostMetrics ?? null,
     relay: {
       enabled: config.get('relay.enabled') === true,
       url: String(config.get('relay.url') ?? ''),
@@ -380,6 +419,9 @@ export function renderCliStatus(options: CliStatusOptions): string {
     ] : [
       '  live check unavailable',
     ]),
+    '',
+    'Connected host metrics (runtime.metrics.get; read:telemetry):',
+    ...connectedHostMetricsLines(snapshot.connectedHostMetrics),
     '',
     'Relay (connected host\'s imported config; not live-verified — see goodvibes-agent relay status):',
     `  relay.enabled: ${yesNo(snapshot.relay.enabled)}`,

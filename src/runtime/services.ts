@@ -1,4 +1,5 @@
 import { join } from 'node:path';
+import { createStepUpService } from './step-up-service-bridge.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
@@ -56,6 +57,15 @@ import { CodeIndexStore } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
 import { createOrchestrationEngine } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
+
+/**
+ * Structural mirror of the SDK's CheckpointSessionResolver (checkpoint/manager):
+ * maps a triggering turn/agent lifecycle event to its owning session id. Declared
+ * locally because the type is re-exported only from the deep checkpoint subpath,
+ * not the `platform/workspace` barrel this module already imports; the shape is
+ * exact, so a resolver typed against it is assignable to the constructor option.
+ */
+type CheckpointSessionResolver = (ctx: { readonly turnId?: string | undefined; readonly agentId?: string | undefined }) => string | undefined;
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { ModeManager } from '@pellux/goodvibes-sdk/platform/state';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
@@ -406,6 +416,16 @@ export interface RuntimeServicesOptions {
   readonly localUserAuthManager?: UserAuthManager;
   readonly featureFlags?: FeatureFlagManager;
   readonly getConversationTitle?: () => string | undefined;
+  /**
+   * Maps a triggering turn/agent lifecycle event to the owning session id so the
+   * WorkspaceCheckpointManager can stamp automatic (and defaulted explicit)
+   * checkpoints with it. Without this, same-launch checkpoints are written with
+   * an undefined session id and the session-scoped restore/rewind lookup filters
+   * them out — so a checkpoint made this launch could not be activated until a
+   * restart. Consulted live at each event, so a resolver reading a mutable
+   * session-id ref reflects the current session without re-wiring.
+   */
+  readonly resolveSessionId?: CheckpointSessionResolver;
   readonly workingDir: string;
   readonly homeDirectory: string;
 }
@@ -1013,6 +1033,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     workspaceRoot: workingDirectory,
     ...readCheckpointGuardSettings(configManager),
     ...(checkpointsAllowedForWorkspace ? { runtimeBus: options.runtimeBus } : {}),
+    // Stamp automatic snapshots with the live session id so a checkpoint created
+    // during this launch is found by the session-scoped restore/rewind lookup —
+    // the fix that makes same-launch activation work without a restart. The
+    // resolver is consulted at each lifecycle event, so it tracks the current
+    // session even though the id is finalized after this manager is built.
+    ...(options.resolveSessionId ? { resolveSessionId: options.resolveSessionId } : {}),
   });
   if (checkpointsAllowedForWorkspace) {
     // Eagerly initialize so automatic snapshot subscriptions are wired up
@@ -1058,7 +1084,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
           + '(or set checkpoints.unregisteredWorkspaces to "guarded" to opt this workspace out of the registration gate).',
         );
       }
-      return workspaceCheckpointManager.create(opts);
+      // Default the session stamp from the live resolver when the caller omits it
+      // (the resolveSessionId hook only auto-stamps AUTOMATIC snapshots, not
+      // explicit create calls). Without this, an explicit checkpoint made this
+      // launch would be written unstamped and excluded by the session-scoped
+      // restore lookup — the same same-launch activation gap the resolver closes
+      // for automatic snapshots. An explicitly supplied sessionId always wins.
+      const sessionId = opts.sessionId ?? options.resolveSessionId?.({});
+      return workspaceCheckpointManager.create(sessionId ? { ...opts, sessionId } : opts);
     },
   };
 
@@ -1143,7 +1176,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // on attachFleetEmitBridge).
   attachFleetEmitBridge({ registry: processRegistry, bus: options.runtimeBus });
 
+  // The relay step-up ceremony service the repacked SDK's RuntimeServices now
+  // requires (and the daemon facade dereferences at start). Constructed exactly
+  // as the SDK composition root does; see step-up-service-bridge.ts for why the
+  // class is reached through a bridge rather than a public SDK export.
+  const stepUpService = createStepUpService(secretsManager);
+
   return {
+    stepUpService,
     workingDirectory,
     homeDirectory,
     shellPaths,
