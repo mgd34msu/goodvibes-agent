@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { createStepUpService } from './step-up-service-bridge.ts';
+import { StepUpService } from '@pellux/goodvibes-sdk/daemon';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
@@ -1196,11 +1196,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // on attachFleetEmitBridge).
   attachFleetEmitBridge({ registry: processRegistry, bus: options.runtimeBus });
 
-  // The relay step-up ceremony service the repacked SDK's RuntimeServices now
-  // requires (and the daemon facade dereferences at start). Constructed exactly
-  // as the SDK composition root does; see step-up-service-bridge.ts for why the
-  // class is reached through a bridge rather than a public SDK export.
-  const stepUpService = createStepUpService(secretsManager);
+  // The relay step-up ceremony service the SDK's RuntimeServices requires (and
+  // the daemon facade dereferences at start). Constructed exactly as the SDK
+  // composition root does, from the public @pellux/goodvibes-sdk/daemon export.
+  const stepUpService = new StepUpService({ secrets: secretsManager });
 
   return {
     stepUpService,

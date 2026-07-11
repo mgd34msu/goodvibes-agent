@@ -18,6 +18,7 @@ import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { enrichModelEntries } from '@/runtime/index.ts';
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
 import { createInitialProviderHealthState } from '@/runtime/index.ts';
 import { createInitialModelState } from '@/runtime/index.ts';
 import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
@@ -90,7 +91,7 @@ function createEnrichmentHarness(): EnrichmentHarness {
   );
   benchmarkStore.initBenchmarks();
 
-  const providerRegistry = new ProviderRegistry({
+  const providerRegistry = createLaunchTolerantProviderRegistry({
     configManager: new ConfigManager({ surfaceRoot: 'tui',  configDir }),
     subscriptionManager,
     secretsManager,

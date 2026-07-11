@@ -20,7 +20,7 @@ import type { BootstrapOptions } from './context.ts';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import type { SessionEvent } from '@/runtime/index.ts';
-import { emitPermissionModeChanged } from './permission-events-bridge.ts';
+import { emitPermissionModeChanged } from '@pellux/goodvibes-sdk/platform/runtime/emitters';
 import { createRuntimeStore, createDomainDispatch, type RuntimeStore } from './store/index.ts';
 import { ForensicsCollector, ForensicsRegistry } from '@/runtime/index.ts';
 import {

@@ -60,6 +60,12 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   flags: 'Feature controls for optional behavior that can be enabled or disabled separately from normal configuration.',
   atRest: 'Data-at-rest protection: whether stored content is redacted, and retention limits by age and total size.',
   learning: 'Idle-time memory consolidation: dedupe merges, confidence decay of never-referenced records, and review proposals. Off by default.',
+  agents: 'Agent runtime tuning: the context-window fraction that triggers sub-agent conversation compaction, and the token budget, relevance floor, and code-chunk limit for per-turn passive knowledge/code injection.',
+  notifications: 'Adaptive notification-burst suppression: the observation window, trip threshold, and cooldown that collapse a rapid run of same-domain notifications to panel-only. Critical/milestone/alert notifications are always exempt.',
+  policy: 'Policy-as-code bundle loading: where the policy registry loads its initial bundle from at startup, and the file path when loading from disk. A loaded bundle is a candidate subject to the divergence gate before promotion.',
+  fetch: 'Fetch-tool response sanitization: the default sanitize mode, and default trusted/blocked host lists layered under any per-call overrides. The built-in SSRF-risk block applies independently.',
+  security: 'Credential rotation-audit defaults: how often tokens should rotate, how much lead time a warning gets, and whether overdue or over-scoped tokens are blocked from use rather than only reported.',
+  integrations: 'Integration delivery reliability: retry ceiling and exponential-backoff bounds for Slack/Discord/webhook delivery, dead-letter queue size, and whether dead-letter events log at error level.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {

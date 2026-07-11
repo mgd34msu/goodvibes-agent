@@ -12,6 +12,7 @@ import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { OpenAIProvider } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
 import { getProviderRuntimeSnapshot, getProviderUsageSnapshot } from '@pellux/goodvibes-sdk/platform/providers';
 
 function goodVibesRef(source: string, id: string): string {
@@ -41,7 +42,7 @@ describe('provider runtime snapshots', () => {
     const benchmarkStore = new BenchmarkStore({ dir: join(root, '.goodvibes', 'tui') });
     const configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir: join(root, '.goodvibes', 'tui') });
     configManager.setDynamic('provider.model', 'openai:gpt-5-test');
-    providerRegistry = new ProviderRegistry({
+    providerRegistry = createLaunchTolerantProviderRegistry({
       configManager,
       subscriptionManager: subscriptions,
       secretsManager: secrets,

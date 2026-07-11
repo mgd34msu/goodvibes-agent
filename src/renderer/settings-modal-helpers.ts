@@ -111,6 +111,12 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   flags: 'Feature Controls',
   atRest: 'At-Rest Protection',
   learning: 'Memory Consolidation',
+  agents: 'Agent Runtime',
+  notifications: 'Notifications',
+  policy: 'Policy Bundles',
+  fetch: 'Fetch Safety',
+  security: 'Token Rotation',
+  integrations: 'Delivery Reliability',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {

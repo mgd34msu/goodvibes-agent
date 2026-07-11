@@ -133,8 +133,6 @@ describe('renderSettingsModal', () => {
     const texts = linesToText(lines).join('\n');
     expect(modal.focusPane).toBe('categories');
     expect(texts).toContain('AGENT EXPERIENCE');
-    expect(texts).toContain('MODELS AND PROVIDERS');
-    expect(texts).toContain('CHANNELS AND TOOLS');
     expect(texts).toContain('  ▸ Display (9)');
     expect(texts).not.toContain('EXTERNAL RUNTIME CONNECTION');
     expect(texts).not.toContain('DELEGATION COMPATIBILITY');
@@ -144,6 +142,20 @@ describe('renderSettingsModal', () => {
     ]);
     const interfaceIndex = lineToString(interfaceLines[0]!).indexOf('AGENT EXPERIENCE');
     expect(interfaceLines[0]?.[interfaceIndex]).toEqual(expect.objectContaining({ bold: true }));
+  });
+
+  // The Agent Experience group alone (display/ui/behavior/agents/notifications/
+  // permissions/policy/fetch/diagnostics) now exceeds a default 24-row terminal's
+  // rail viewport, so later groups scroll out of view until the selection reaches
+  // them — this exercises that the rail still reaches every group via scrolling.
+  test('category rail scrolls to reveal later groups as selection moves down', () => {
+    modal.categoryIndex = SETTINGS_CATEGORIES.indexOf('provider');
+    let texts = linesToText(renderSettingsModal(modal, W)).join('\n');
+    expect(texts).toContain('MODELS AND PROVIDERS');
+
+    modal.categoryIndex = SETTINGS_CATEGORIES.indexOf('surfaces');
+    texts = linesToText(renderSettingsModal(modal, W)).join('\n');
+    expect(texts).toContain('CHANNELS AND TOOLS');
   });
 
   test('exposes daemon runtime settings while hiding raw danger toggles', () => {

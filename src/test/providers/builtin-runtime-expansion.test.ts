@@ -11,6 +11,7 @@ import { BenchmarkStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
 
 const CLEAN_ENV_KEYS = [
   'AWS_BEARER_TOKEN_BEDROCK',
@@ -57,7 +58,7 @@ describe('provider runtime expansion', () => {
     });
     const favoritesStore = new FavoritesStore({ dir: join(tempHome, '.goodvibes', 'tui') });
     const benchmarkStore = new BenchmarkStore({ dir: join(tempHome, '.goodvibes', 'tui') });
-    providerRegistry = new ProviderRegistry({
+    providerRegistry = createLaunchTolerantProviderRegistry({
       configManager,
       subscriptionManager,
       secretsManager,

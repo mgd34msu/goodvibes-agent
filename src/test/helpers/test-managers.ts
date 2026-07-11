@@ -12,6 +12,7 @@ import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/provi
 import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { LLMProvider, ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
+import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
 
 export interface TestManagers {
   readonly configManager: ConfigManager;
@@ -76,7 +77,12 @@ export function createTestManagers(): TestManagers {
   });
   const favoritesStore = new FavoritesStore({ dir: providerDataDir });
   const benchmarkStore = new BenchmarkStore({ dir: providerDataDir });
-  const providerRegistry = new ProviderRegistry({
+  // Construct through the same launch-tolerant path production uses: the SDK's
+  // ProviderRegistry eagerly instantiates each builtin provider's OpenAI client
+  // at construction, and that client throws on an empty apiKey. The tolerant
+  // wrapper injects placeholder keys for unconfigured providers so a
+  // no-credentials test environment can still build the registry.
+  const providerRegistry = createLaunchTolerantProviderRegistry({
     configManager,
     subscriptionManager,
     secretsManager,

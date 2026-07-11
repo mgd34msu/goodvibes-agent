@@ -15,6 +15,7 @@ import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/provi
 import { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { BenchmarkStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
 
 interface PickerHarness {
   readonly favoritesStore: FavoritesStore;
@@ -47,7 +48,7 @@ function createPickerHarness(): PickerHarness {
   );
   benchmarkStore.initBenchmarks();
 
-  const providerRegistry = new ProviderRegistry({
+  const providerRegistry = createLaunchTolerantProviderRegistry({
     configManager: new ConfigManager({ surfaceRoot: 'tui',
       configDir,
       workingDir: rootDir,

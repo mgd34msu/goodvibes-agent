@@ -14,6 +14,7 @@ import { renderModelPickerOverlay } from '../../renderer/model-picker-overlay.ts
 import { lineToString, linesToText } from '../setup.ts';
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
 import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
@@ -90,7 +91,7 @@ function createPickerHarness(): PickerHarness {
   writeBenchmarks([], benchmarkStore);
   benchmarkStore.initBenchmarks();
 
-  const providerRegistry = new ProviderRegistry({
+  const providerRegistry = createLaunchTolerantProviderRegistry({
     configManager: new ConfigManager({ surfaceRoot: 'tui',
       configDir,
       workingDir: rootDir,

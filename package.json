@@ -92,8 +92,8 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "@pellux/goodvibes-sdk": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-sdk-1.6.1.tgz",
-    "@pellux/goodvibes-terminal-shell": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-terminal-shell-1.6.1.tgz",
+    "@pellux/goodvibes-sdk": "1.7.1",
+    "@pellux/goodvibes-terminal-shell": "1.7.1",
     "sql.js": "^1.14.1",
     "sqlite-vec": "^0.1.9",
     "zustand": "^5.0.12",
@@ -101,16 +101,6 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "minimatch": "^10.2.5",
-    "@pellux/goodvibes-sdk": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-sdk-1.6.1.tgz",
-    "@pellux/goodvibes-contracts": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-contracts-1.6.1.tgz",
-    "@pellux/goodvibes-errors": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-errors-1.6.1.tgz",
-    "@pellux/goodvibes-transport-core": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-transport-core-1.6.1.tgz",
-    "@pellux/goodvibes-transport-http": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-transport-http-1.6.1.tgz",
-    "@pellux/goodvibes-transport-realtime": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-transport-realtime-1.6.1.tgz",
-    "@pellux/goodvibes-daemon-sdk": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-daemon-sdk-1.6.1.tgz",
-    "@pellux/goodvibes-operator-sdk": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-operator-sdk-1.6.1.tgz",
-    "@pellux/goodvibes-peer-sdk": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-peer-sdk-1.6.1.tgz",
-    "@pellux/goodvibes-terminal-shell": "file:/home/buzzkill/Projects/.gv-dev-tarballs/pellux-goodvibes-terminal-shell-1.6.1.tgz"
+    "minimatch": "^10.2.5"
   }
 }
