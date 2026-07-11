@@ -24,6 +24,22 @@ goodvibes-agent --help
 
 On a fresh Agent home, `goodvibes-agent` opens setup first. After setup is applied, it opens directly into the Agent workspace.
 
+### Standalone binary and the semantic vector index
+
+Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) plus a `SHA256SUMS.txt` manifest. The supported install path remains the Bun global command above; the standalone binary is for environments that download it directly.
+
+The semantic (embedding-backed) memory vector index depends on the sqlite-vec native addon, which Bun cannot embed inside the compiled binary. Each release therefore attaches the addon as a separate per-platform archive named `sqlite-vec-<os>-<arch>.tar.gz` (for example `sqlite-vec-linux-x64.tar.gz`), also checksummed in `SHA256SUMS.txt`. A binary with no co-located addon still runs and reports `available: no` for the vector index; memory search falls back to literal matching.
+
+To restore the vector index for a directly-downloaded binary, place the matching addon archive in the same directory as the binary and extract it there. The archive already carries the exact layout the runtime resolves — `lib/sqlite-vec-<os>-<arch>/vec0.<suffix>` relative to the binary — so no renaming is needed:
+
+```sh
+# In the directory that holds the downloaded goodvibes-agent binary:
+tar -xzf sqlite-vec-linux-x64.tar.gz     # creates ./lib/sqlite-vec-linux-x64/vec0.so
+./goodvibes-agent memory vector status   # available: yes
+```
+
+macOS note: the system SQLite that the runtime links on macOS refuses to load extensions, so the darwin archives are shipped for parity but the vector index stays unavailable on macOS regardless of co-location. This is a macOS platform limitation, not a packaging defect, and memory search there uses literal matching.
+
 ## Source Usage
 
 ```sh

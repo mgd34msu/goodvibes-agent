@@ -16,7 +16,12 @@
  *     GitHub Release job, and the npm publish job;
  *   - the release lane covers all four platform binaries in the SHA256SUMS
  *     manifest and attaches them (plus SHA256SUMS.txt and the npm tarball) to
- *     the GitHub Release, matching the naming the curl installer parses.
+ *     the GitHub Release, matching the naming the curl installer parses;
+ *   - the release lane also covers all four per-platform sqlite-vec native
+ *     addon archives (sqlite-vec-<os>-<arch>.tar.gz) in the SHA256SUMS manifest
+ *     and attaches them, so a directly-downloaded binary can co-locate the addon
+ *     and restore the semantic vector index (missing-entry-fatal, same as the
+ *     binaries).
  *
  * Exit code 0 = green (0 problems), non-zero = the count of structural problems.
  */
@@ -61,6 +66,19 @@ const PLATFORM_BINARIES: ReadonlyArray<string> = [
   'goodvibes-agent-linux-arm64',
   'goodvibes-agent-macos-x64',
   'goodvibes-agent-macos-arm64',
+];
+
+/**
+ * The four per-platform sqlite-vec native addon archives. Each is checksummed in
+ * SHA256SUMS.txt and attached to the release; an installer downloads the one that
+ * matches the binary's platform and extracts it in place next to the binary
+ * (interior layout: lib/sqlite-vec-<os>-<arch>/vec0.<suffix>).
+ */
+const PLATFORM_ADDON_ARCHIVES: ReadonlyArray<string> = [
+  'sqlite-vec-linux-x64.tar.gz',
+  'sqlite-vec-linux-arm64.tar.gz',
+  'sqlite-vec-darwin-x64.tar.gz',
+  'sqlite-vec-darwin-arm64.tar.gz',
 ];
 
 function stepsContinueOnError(job: Json): boolean {
@@ -129,6 +147,19 @@ for (const file of files) {
         fail(
           file,
           `binary "${binary}" must appear in both the checksum manifest and the release upload (found ${occurrences} reference(s))`,
+        );
+      }
+    }
+    // Every per-platform sqlite-vec addon archive must appear in both the
+    // checksum manifest and the release upload — a directly-downloaded binary
+    // depends on the matching addon to restore the semantic vector index, so a
+    // dropped archive is missing-entry-fatal, exactly like a dropped binary.
+    for (const archive of PLATFORM_ADDON_ARCHIVES) {
+      const occurrences = raw.split(archive).length - 1;
+      if (occurrences < 2) {
+        fail(
+          file,
+          `sqlite-vec addon archive "${archive}" must appear in both the checksum manifest and the release upload (found ${occurrences} reference(s))`,
         );
       }
     }

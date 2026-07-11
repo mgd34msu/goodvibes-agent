@@ -182,10 +182,17 @@ jobs:
           HOME="$SMOKE_HOME" "$PWD/dist/${{ matrix.artifact }}" status --json > "$SMOKE_HOME/status.json"
           grep -q 'GoodVibes Agent status' "$SMOKE_HOME/status.json"
       - name: Upload binary artifact
+        # Uploads the compiled binary plus the target's sqlite-vec native addon
+        # tree (dist/lib/sqlite-vec-<os>-<arch>/vec0.<suffix>). scripts/build.ts
+        # fetches the target-platform addon from the npm registry on cross-target
+        # builds, so every matrix leg contributes its own addon; the release job
+        # merges all four and packages them as per-platform release assets.
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.target }}-binary
-          path: dist/${{ matrix.artifact }}
+          path: |
+            dist/${{ matrix.artifact }}
+            dist/lib/
           retention-days: 7
 
   smoke-macos:
@@ -236,9 +243,31 @@ jobs:
         with:
           path: dist/
           merge-multiple: true
+      - name: Package sqlite-vec native addons
+        # Ships the per-platform sqlite-vec native addon as a release asset so a
+        # directly-downloaded binary can restore the semantic vector index by
+        # co-locating the addon. Each archive preserves the exact layout the
+        # runtime resolver expects — lib/sqlite-vec-<os>-<arch>/vec0.<suffix>
+        # relative to the binary's directory — so an installer (or a user)
+        # extracts it in place next to the binary with no renaming. A missing
+        # addon tree is a hard failure: every platform binary must ship its addon.
+        run: |
+          set -euo pipefail
+          cd dist
+          for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            addon_dir="lib/sqlite-vec-${platform}"
+            if [ ! -d "${addon_dir}" ] || [ -z "$(ls -A "${addon_dir}" 2>/dev/null)" ]; then
+              echo "Missing sqlite-vec native addon for ${platform} at dist/${addon_dir}" >&2
+              exit 1
+            fi
+            tar -czf "sqlite-vec-${platform}.tar.gz" "${addon_dir}"
+            echo "Packaged sqlite-vec-${platform}.tar.gz:"
+            tar -tzf "sqlite-vec-${platform}.tar.gz"
+          done
       - name: Generate release checksums
-        # Pure-binary curl installers verify each binary against this manifest;
-        # a missing entry is a hard failure for the installer, never a skip.
+        # Pure-binary curl installers verify each binary AND each sqlite-vec
+        # addon archive against this manifest; a missing entry is a hard failure
+        # for the installer, never a skip.
         run: |
           set -euo pipefail
           cd dist
@@ -247,6 +276,10 @@ jobs:
             goodvibes-agent-linux-arm64 \
             goodvibes-agent-macos-x64 \
             goodvibes-agent-macos-arm64 \
+            sqlite-vec-linux-x64.tar.gz \
+            sqlite-vec-linux-arm64.tar.gz \
+            sqlite-vec-darwin-x64.tar.gz \
+            sqlite-vec-darwin-arm64.tar.gz \
             > SHA256SUMS.txt
           cat SHA256SUMS.txt
       - name: Extract version
@@ -286,6 +319,10 @@ jobs:
             dist/goodvibes-agent-linux-arm64
             dist/goodvibes-agent-macos-x64
             dist/goodvibes-agent-macos-arm64
+            dist/sqlite-vec-linux-x64.tar.gz
+            dist/sqlite-vec-linux-arm64.tar.gz
+            dist/sqlite-vec-darwin-x64.tar.gz
+            dist/sqlite-vec-darwin-arm64.tar.gz
             dist/SHA256SUMS.txt
             dist/*.tgz
 
