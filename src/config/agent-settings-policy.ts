@@ -9,6 +9,14 @@ const AGENT_HIDDEN_SETTING_KEYS = new Set<string>([
 ]);
 
 const EXTERNAL_HOST_SETTING_PREFIXES = [
+  // Outbound relay reachability is a daemon lifecycle concern (dial-out,
+  // identity custody, WebAuthn step-up enforcement) owned by whichever
+  // GoodVibes host Agent is connected to. Agent's own copy of these keys is
+  // an imported/local snapshot (see README's "shared GoodVibes settings
+  // import"), not a live-shared file — toggling relay.enabled here would not
+  // actually start or stop the connected daemon's relay registration, so the
+  // whole domain is locked exactly like danger.httpListener below.
+  'relay.',
 ] as const;
 
 const EXTERNAL_HOST_SETTING_KEYS = new Set<string>([

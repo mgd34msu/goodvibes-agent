@@ -184,6 +184,22 @@ describe('SettingsModal', () => {
     }
   });
 
+  test('relay.* settings are visible but locked as connected-host-owned (SDK 1.6.1)', () => {
+    modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
+    const relayEntries = modal.groups.get('relay') ?? [];
+    const relayKeys = relayEntries.map((entry) => entry.setting.key);
+    expect(relayKeys).toContain('relay.enabled');
+    expect(relayKeys).toContain('relay.url');
+    expect(relayKeys).toContain('relay.requireStepUpForMutations');
+    // Toggling these from Agent would not actually start/stop the connected
+    // daemon's relay registration (Agent's copy is imported, not live-shared) —
+    // same reasoning as danger.httpListener, so every relay.* entry is locked.
+    for (const entry of relayEntries) {
+      expect(entry.locked, `${entry.setting.key} should be locked (external-host-owned)`).toBe(true);
+      expect(entry.lockReason).toBeTruthy();
+    }
+  });
+
   test('currentCategory returns correct category', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     expect(modal.currentCategory).toBe(SETTINGS_CATEGORIES[0]);

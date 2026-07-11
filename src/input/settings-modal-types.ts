@@ -39,6 +39,7 @@ export type SettingsCategory =
   | 'httpListener'
   | 'web'
   | 'watchers'
+  | 'relay'
   | 'network'
   | 'orchestration'
   | 'planner'
@@ -66,7 +67,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'learning'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation', 'checkin'] },
-  { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network'] },
+  { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network', 'relay'] },
   { label: 'Advanced Runtime', categories: ['orchestration', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];
