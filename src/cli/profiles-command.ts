@@ -18,6 +18,7 @@ import {
 } from '../agent/runtime-profile.ts';
 import { formatAgentRecordSource } from '../agent/record-labels.ts';
 import type { CliCommandOutput, GoodVibesCliParseResult } from './types.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 interface ProfilesCommandRuntime {
   readonly cli: GoodVibesCliParseResult;
@@ -67,7 +68,7 @@ function parseCsvFlag(args: readonly string[], names: readonly string[]): readon
 }
 
 function profileLine(profile: AgentRuntimeProfileInfo): string {
-  const created = profile.createdAt ? ` created ${profile.createdAt}` : '';
+  const created = profile.createdAt ? ` created ${appendTemporalLabel(profile.createdAt, profile.createdAt)}` : '';
   const starter = profile.starterTemplateId ? ` starter=${profile.starterTemplateId}` : '';
   return `  ${profile.id}  home ${profile.homeDirectory}${created}${starter}`;
 }

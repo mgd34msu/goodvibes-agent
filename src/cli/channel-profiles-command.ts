@@ -10,6 +10,7 @@ import {
 } from './operator-command-args.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 const CHANNEL_PROFILES_ROUTE = '/api/channels/profiles';
 const CHANNEL_PROFILE_ROUTE = '/api/channels/profiles/{surfaceKind}';
@@ -49,7 +50,7 @@ function renderChannelProfile(binding: ChannelProfile): string {
     `  model ${binding.model ?? '(default)'}`,
     `  provider ${binding.provider ?? '(default)'}`,
     `  permission mode ${binding.permissionMode ?? '(default)'}`,
-    `  updated ${new Date(binding.updatedAt).toISOString()}`,
+    `  updated ${appendTemporalLabel(new Date(binding.updatedAt).toISOString(), binding.updatedAt)}`,
   ].join('\n');
 }
 

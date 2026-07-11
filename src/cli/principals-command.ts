@@ -12,6 +12,7 @@ import {
 } from './operator-command-args.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 const PRINCIPALS_ROUTE = '/api/principals';
 const PRINCIPAL_ROUTE = '/api/principals/{principalId}';
@@ -55,8 +56,8 @@ function renderPrincipal(principal: Principal): string {
     `  name ${principal.name}`,
     `  kind ${principal.kind}`,
     `  identities ${identities}`,
-    `  created ${new Date(principal.createdAt).toISOString()}`,
-    `  updated ${new Date(principal.updatedAt).toISOString()}`,
+    `  created ${appendTemporalLabel(new Date(principal.createdAt).toISOString(), principal.createdAt)}`,
+    `  updated ${appendTemporalLabel(new Date(principal.updatedAt).toISOString(), principal.updatedAt)}`,
   ].join('\n');
 }
 

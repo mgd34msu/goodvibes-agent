@@ -59,7 +59,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
         ] : []),
         ...(stored ? [
           `  token type ${stored.tokenType}`,
-          `  expires ${stored.expiresAt ? new Date(stored.expiresAt).toISOString() : 'n/a'}`,
+          `  expires ${stored.expiresAt ? appendTemporalLabel(new Date(stored.expiresAt).toISOString(), stored.expiresAt) : 'n/a'}`,
           `  refresh token ${stored.refreshToken ? 'present' : 'absent'}`,
           `  override ambient ${yesNo(stored.overrideAmbientApiKeys)}`,
         ] : ['  stored no']),
@@ -137,7 +137,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
         return [
           `Subscription stored ${provider}`,
           `  token type ${record.tokenType}`,
-          `  expires ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`,
+          `  expires ${record.expiresAt ? appendTemporalLabel(new Date(record.expiresAt).toISOString(), record.expiresAt) : 'n/a'}`,
         ].join('\n');
       }
       const activeConfig = resolveManualSubscriptionConfig(resolved.oauth);
@@ -145,7 +145,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
       return [
         `Subscription stored ${provider}`,
         `  token type ${record.tokenType}`,
-        `  expires ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`,
+        `  expires ${record.expiresAt ? appendTemporalLabel(new Date(record.expiresAt).toISOString(), record.expiresAt) : 'n/a'}`,
       ].join('\n');
     }
     if (sub === 'refresh') {
@@ -156,7 +156,7 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
       const record = await services.subscriptionManager.refreshOAuthToken(provider, resolved.oauth);
       return [
         `Subscription refreshed ${provider}`,
-        `  expires ${record.expiresAt ? new Date(record.expiresAt).toISOString() : 'n/a'}`,
+        `  expires ${record.expiresAt ? appendTemporalLabel(new Date(record.expiresAt).toISOString(), record.expiresAt) : 'n/a'}`,
       ].join('\n');
     }
     if (sub === 'logout' || sub === 'remove') {
@@ -180,9 +180,9 @@ export async function renderSubscriptions(runtime: CliCommandRuntime): Promise<s
     return formatJsonOrText(runtime.cli)(value, [
       'GoodVibes subscriptions',
       subscriptions.length === 0 ? '  active none' : '  active',
-      ...subscriptions.map((sub) => `    ${sub.provider} token ${sub.tokenType} expires ${sub.expiresAt ? new Date(sub.expiresAt).toISOString() : 'n/a'} override ambient ${yesNo(sub.overrideAmbientApiKeys)}`),
+      ...subscriptions.map((sub) => `    ${sub.provider} token ${sub.tokenType} expires ${sub.expiresAt ? appendTemporalLabel(new Date(sub.expiresAt).toISOString(), sub.expiresAt) : 'n/a'} override ambient ${yesNo(sub.overrideAmbientApiKeys)}`),
       pending.length === 0 ? '  pending none' : '  pending',
-      ...pending.map((sub) => `    ${sub.provider} created ${new Date(sub.createdAt).toISOString()}`),
+      ...pending.map((sub) => `    ${sub.provider} created ${appendTemporalLabel(new Date(sub.createdAt).toISOString(), sub.createdAt)}`),
     ].join('\n'));
   });
 }

@@ -9,6 +9,7 @@ import {
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 import { handleSkillBundleCommand, renderBundleList } from './skill-bundle-command.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 import {
   csvOption,
   errorOutput,
@@ -114,8 +115,8 @@ function renderSkill(skill: AgentSkillRecord): string {
     `  origin: ${formatAgentRecordOrigin(skill.source, skill.provenance)}`,
     `  tags: ${skill.tags.join(', ') || '(none)'}`,
     `  triggers: ${skill.triggers.join(', ') || '(manual)'}`,
-    `  created: ${skill.createdAt}`,
-    `  updated: ${skill.updatedAt}`,
+    `  created: ${appendTemporalLabel(skill.createdAt, skill.createdAt)}`,
+    `  updated: ${appendTemporalLabel(skill.updatedAt, skill.updatedAt)}`,
     skill.staleReason ? `  stale reason: ${skill.staleReason}` : '',
     '',
     skill.description,

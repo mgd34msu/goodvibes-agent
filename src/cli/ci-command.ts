@@ -13,6 +13,7 @@ import {
 } from './operator-command-args.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 const CI_STATUS_ROUTE = '/api/ci/status';
 const CI_WATCHES_ROUTE = '/api/ci/watches';
@@ -57,7 +58,7 @@ function renderCiReport(report: CiReport): string {
     `  overall ${report.overall}`,
     ...renderCiJobs(report),
     report.violations.length > 0 ? `  violations: ${report.violations.join('; ')}` : '  violations: none',
-    `  checked at ${new Date(report.checkedAt).toISOString()}`,
+    `  checked at ${appendTemporalLabel(new Date(report.checkedAt).toISOString(), report.checkedAt)}`,
   ].join('\n');
 }
 

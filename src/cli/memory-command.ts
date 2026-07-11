@@ -23,6 +23,7 @@ import type { CliCommandRuntime } from './management.ts';
 // Split out to stay under the architecture line cap; see its file header for the
 // CLI ruling on when a memory subcommand goes over the wire vs local-direct.
 import { tryWireMemoryCommand } from './memory-command-wire.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 const VALID_CLASSES: readonly MemoryClass[] = ['decision', 'constraint', 'incident', 'pattern', 'fact', 'risk', 'runbook', 'architecture', 'ownership'];
 const VALID_SCOPES: readonly MemoryScope[] = ['session', 'project', 'team'];
@@ -253,9 +254,9 @@ export function renderRecord(record: MemoryRecord, links: readonly MemoryLink[])
     `  review: ${formatAgentRecordReviewState(record.reviewState)}`,
     `  confidence: ${record.confidence}`,
     `  tags: ${record.tags.join(', ') || '(none)'}`,
-    `  created: ${timestamp(record.createdAt)}`,
-    `  updated: ${timestamp(record.updatedAt)}`,
-    record.reviewedAt ? `  reviewed: ${timestamp(record.reviewedAt)}${record.reviewedBy ? ` by ${record.reviewedBy}` : ''}` : '',
+    `  created: ${appendTemporalLabel(timestamp(record.createdAt), record.createdAt)}`,
+    `  updated: ${appendTemporalLabel(timestamp(record.updatedAt), record.updatedAt)}`,
+    record.reviewedAt ? `  reviewed: ${appendTemporalLabel(timestamp(record.reviewedAt), record.reviewedAt)}${record.reviewedBy ? ` by ${record.reviewedBy}` : ''}` : '',
     record.staleReason ? `  stale reason: ${record.staleReason}` : '',
     '',
     record.summary,

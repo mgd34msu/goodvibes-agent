@@ -16,6 +16,7 @@ import { classifyProviderSetup } from './provider-classification.ts';
 import { buildCliServicePosture } from './service-posture.ts';
 import { REDACTED_VALUE, collectSensitiveConfigValues, isRedactedValue, redactConfig, redactSerializedSecrets } from './redaction.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 interface BundleInspectSummary {
   readonly type: string;
@@ -142,7 +143,7 @@ export async function handleBundleCommand(runtime: CliCommandRuntime): Promise<C
         `  type: ${summary.type}`,
         `  version: ${summary.version}`,
         `  path: ${summary.path}`,
-        `  capturedAt: ${summary.capturedAt === null ? 'n/a' : new Date(summary.capturedAt).toISOString()}`,
+        `  capturedAt: ${summary.capturedAt === null ? 'n/a' : appendTemporalLabel(new Date(summary.capturedAt).toISOString(), summary.capturedAt)}`,
         `  configKeys: ${summary.configKeys}`,
         `  redactedConfigKeys: ${summary.redactedConfigPaths.length}`,
         `  diagnostics: ${summary.hasDiagnostics ? 'present' : 'missing'}`,

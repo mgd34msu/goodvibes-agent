@@ -9,6 +9,7 @@ import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { formatAgentRecordSource } from '../agent/record-labels.ts';
 import { formatAgentKnowledgeFailureKind } from './agent-knowledge-format.ts';
 import { computeApprovalPosture, type ApprovalPosture } from '../permissions/approval-posture.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 
 export interface CliStatusOptions {
   readonly configManager: Pick<ConfigManager, 'get'>;
@@ -438,7 +439,7 @@ export function renderCliStatus(options: CliStatusOptions): string {
     'Onboarding',
     `  checked ${marker?.exists ? 'yes' : 'no'}`,
     `  scope ${marker?.scope ?? 'none'}`,
-    `  updated ${marker?.payload ? new Date(marker.payload.updatedAt).toISOString() : 'n/a'}`,
+    `  updated ${marker?.payload ? appendTemporalLabel(new Date(marker.payload.updatedAt).toISOString(), marker.payload.updatedAt) : 'n/a'}`,
     '',
     'Checkpoints',
     ...(snapshot.checkpoints ? [
@@ -486,7 +487,7 @@ export function renderOnboardingCliStatus(options: CliStatusOptions): string {
     `  scope ${marker?.scope ?? 'none'}`,
     `  origin ${marker?.payload?.source ? formatAgentRecordSource(marker.payload.source) : 'n/a'}`,
     `  mode ${marker?.payload?.mode ?? 'n/a'}`,
-    `  updated ${marker?.payload ? new Date(marker.payload.updatedAt).toISOString() : 'n/a'}`,
+    `  updated ${marker?.payload ? appendTemporalLabel(new Date(marker.payload.updatedAt).toISOString(), marker.payload.updatedAt) : 'n/a'}`,
     `  working directory ${options.workingDirectory}`,
   ].join('\n');
 }

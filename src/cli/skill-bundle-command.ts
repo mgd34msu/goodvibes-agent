@@ -7,6 +7,7 @@ import {
 } from '../agent/skill-registry.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 import {
   csvOption,
   errorOutput,
@@ -60,8 +61,8 @@ function renderBundle(bundle: AgentSkillBundleRecord, skills: readonly AgentSkil
     `  review: ${formatAgentRecordReviewState(bundle.reviewState)}`,
     `  origin: ${formatAgentRecordOrigin(bundle.source, bundle.provenance)}`,
     `  skills: ${bundle.skillIds.join(', ')}`,
-    `  created: ${bundle.createdAt}`,
-    `  updated: ${bundle.updatedAt}`,
+    `  created: ${appendTemporalLabel(bundle.createdAt, bundle.createdAt)}`,
+    `  updated: ${appendTemporalLabel(bundle.updatedAt, bundle.updatedAt)}`,
     bundle.staleReason ? `  stale reason: ${bundle.staleReason}` : '',
     '',
     bundle.description,

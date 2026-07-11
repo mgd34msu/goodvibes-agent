@@ -3,6 +3,7 @@ import type { AgentPersonaRecord } from '../agent/persona-registry.ts';
 import { formatAgentRecordOrigin, formatAgentRecordReviewState } from '../agent/record-labels.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
+import { appendTemporalLabel } from './temporal-label.ts';
 import {
   csvOption,
   errorOutput,
@@ -45,8 +46,8 @@ function renderPersona(persona: AgentPersonaRecord, activePersonaId: string | nu
     `  origin: ${formatAgentRecordOrigin(persona.source, persona.provenance)}`,
     `  tags: ${persona.tags.join(', ') || '(none)'}`,
     `  triggers: ${persona.triggers.join(', ') || '(manual)'}`,
-    `  created: ${persona.createdAt}`,
-    `  updated: ${persona.updatedAt}`,
+    `  created: ${appendTemporalLabel(persona.createdAt, persona.createdAt)}`,
+    `  updated: ${appendTemporalLabel(persona.updatedAt, persona.updatedAt)}`,
     persona.staleReason ? `  stale reason: ${persona.staleReason}` : '',
     '',
     persona.description,
