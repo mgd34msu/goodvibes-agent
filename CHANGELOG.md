@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.8.2 - 2026-07-11
+
+- Adopts platform SDK 1.7.1.
+- Exposes 20 previously SDK-only settings in the settings modal: adaptive notification-burst suppression, fetch-tool response sanitization and trusted/blocked host defaults, credential rotation-audit policy, integration delivery retry/backoff/dead-letter behavior, policy-as-code bundle loading, and per-turn passive knowledge/code injection and context-compaction tuning.
+
 ## 1.8.1 - 2026-07-09
 
 - Fixes every ws-only control-plane verb (fleet, checkpoints, session search, push) answering 501 'Gateway method is not invokable' on the vendored daemon — handlers are now attached at runtime construction, with a release gate that invokes them end-to-end.
