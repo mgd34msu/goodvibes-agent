@@ -103,6 +103,7 @@ import { FileStateCache } from '@pellux/goodvibes-sdk/platform/state';
 import { ProjectIndex } from '@pellux/goodvibes-sdk/platform/state';
 import { IdempotencyStore } from '@/runtime/index.ts';
 import { OverflowHandler } from '@pellux/goodvibes-sdk/platform/tools';
+import { ContextAccountingHolder } from '@pellux/goodvibes-sdk/platform/tools';
 import { ToolLLM } from '@pellux/goodvibes-sdk/platform/config';
 import { ComponentHealthMonitor } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
@@ -557,6 +558,15 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     secretsManager,
     subscriptionManager,
   });
+  // Settable holder for the context_accounting tool's session source (SDK
+  // 1.6.1). Constructed here (unbound) so it exists for the whole runtime
+  // services lifetime and every consumer of `services.contextAccountingHolder`
+  // sees the SAME instance the tool roster is registered against — bootstrap.ts
+  // binds an Orchestrator-backed ContextAccountingSource onto it once the
+  // interactive Orchestrator exists (see bindOrchestratorContextAccounting in
+  // context-accounting-source.ts). Left unbound here: the tool honestly
+  // reports "no live session context bound" until that bind call runs.
+  const contextAccountingHolder = new ContextAccountingHolder();
   const providerCapabilityRegistry = new ProviderCapabilityRegistry();
   const cacheHitTracker = new CacheHitTracker();
   const favoritesStore = new FavoritesStore({ dir: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT) });
@@ -1139,6 +1149,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     shellPaths,
     configManager,
     featureFlags,
+    contextAccountingHolder,
     orchestrationEngine,
     codeIndexStore,
     codeIndexReindexScheduler,

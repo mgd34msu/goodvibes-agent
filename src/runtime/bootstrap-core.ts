@@ -151,11 +151,21 @@ export function companionMessageToOrchestratorInputOptions(
  * the spawned agent itself, rather than leaving the ask an anonymous approval
  * entry the fleet plane cannot attach to anything. Foreground asks (no
  * attribution) return undefined, preserving today's un-attributed shape.
+ *
+ * PermissionAttribution is a discriminated union (SDK 1.6.1 added
+ * `mcp-server` and `sandbox-escalation` alongside the original
+ * `background-agent`); only `background-agent` carries an `agentId` the
+ * fleet ProcessRegistry can attach a pending approval to, so only that kind
+ * populates `metadata.agentId` here. The other two kinds are surfaced in the
+ * permission-prompt UI itself (see src/permissions/prompt.ts), not through
+ * fleet attribution metadata — an MCP server or a sandbox escalation is not
+ * a spawned agent's ProcessNode.
  */
 export function approvalMetadataForRequest(
   request: Pick<PermissionPromptRequest, 'attribution'>,
 ): Record<string, unknown> | undefined {
-  return request.attribution ? { agentId: request.attribution.agentId } : undefined;
+  const attribution = request.attribution;
+  return attribution?.kind === 'background-agent' ? { agentId: attribution.agentId } : undefined;
 }
 
 export async function initializeBootstrapCore(

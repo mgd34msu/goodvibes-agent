@@ -13,6 +13,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   computer: 'Inspect/open browser, desktop, and computer routes.',
   context: 'Inspect project instructions and prompt context.',
   delegation: 'Inspect build delegation routes and policy.',
+  context_accounting: 'Report live session context: usage and compaction.',
   control: 'Inspect commands, panels, and runtime posture.',
   device: 'Inspect/open device, voice, and browser routes.',
   execution: 'Inspect local work routes, history, and recovery.',

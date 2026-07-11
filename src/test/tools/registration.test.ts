@@ -68,6 +68,7 @@ describe('registerAllTools', () => {
       'agent',
       'analyze',
       'channel',
+      'context_accounting',
       'control',
       'edit',
       'exec',
