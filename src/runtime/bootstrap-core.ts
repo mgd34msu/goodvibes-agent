@@ -18,8 +18,9 @@ import type { ControlPlaneRecentEvent } from '@pellux/goodvibes-sdk/platform/con
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { BootstrapOptions } from './context.ts';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
-import { RuntimeEventBus, createEventEnvelope } from '@/runtime/index.ts';
-import type { PermissionEvent, SessionEvent } from '@/runtime/index.ts';
+import { RuntimeEventBus } from '@/runtime/index.ts';
+import type { SessionEvent } from '@/runtime/index.ts';
+import { emitPermissionModeChanged } from './permission-events-bridge.ts';
 import { createRuntimeStore, createDomainDispatch, type RuntimeStore } from './store/index.ts';
 import { ForensicsCollector, ForensicsRegistry } from '@/runtime/index.ts';
 import {
@@ -656,15 +657,11 @@ export async function initializeBootstrapCore(
   runtimeUnsubs.push(
     configManager.subscribe('permissions.mode', (newValue, oldValue) => {
       if (newValue === oldValue) return;
-      const payload: Extract<PermissionEvent, { type: 'PERMISSION_MODE_CHANGED' }> = {
-        type: 'PERMISSION_MODE_CHANGED',
-        mode: String(newValue),
-        previousMode: String(oldValue),
-      };
-      runtimeBus.emit('permissions', createEventEnvelope(payload.type, payload, {
-        sessionId: runtimeSessionIdRef.value,
-        source: 'goodvibes-agent',
-      }));
+      emitPermissionModeChanged(
+        runtimeBus,
+        { sessionId: runtimeSessionIdRef.value, source: 'goodvibes-agent', traceId: `perm-mode-${generateUserSessionId()}` },
+        { mode: String(newValue), previousMode: String(oldValue) },
+      );
     }),
   );
 
