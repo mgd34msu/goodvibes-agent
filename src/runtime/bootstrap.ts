@@ -11,6 +11,7 @@
  */
 import { Orchestrator, type OrchestratorUserInputOptions } from '../core/orchestrator.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { collectStartupAnnouncements } from './feature-announcements.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHistory } from '../input/input-history.ts';
@@ -427,6 +428,17 @@ export async function bootstrapRuntime(
   });
   const systemMessageRouter = shell.systemMessageRouter;
   systemMessageRouterRef.value = systemMessageRouter;
+  // Announce-once receipts due at boot (e.g. the web surface URL when
+  // web.enabled). The store is shared per install, so whichever process of
+  // this install boots first (daemon, TUI, or this Agent) announces; every
+  // other process stays silent. Mirrors the SDK daemon boot's collection.
+  for (const announcement of collectStartupAnnouncements({
+    configManager,
+    store: services.featureAnnouncementStore,
+  })) {
+    logger.info(announcement.text, { announcement: announcement.id });
+    systemMessageRouter.low(`[Startup] ${announcement.text}`);
+  }
   const commandRegistry = shell.commandRegistry;
   const commandContext = shell.commandContext;
   const inputHistory = shell.inputHistory;

@@ -1,4 +1,4 @@
-import { FEATURE_FLAG_MAP } from '@pellux/goodvibes-sdk/platform/runtime/state';
+import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 
@@ -35,11 +35,11 @@ function jsonOrText(runtime: CliCommandRuntime, value: unknown, text: string): s
 }
 
 function relayConnectFlagSummary(): { readonly id: string; readonly name: string; readonly defaultState: string } {
-  const flag = FEATURE_FLAG_MAP.get('relay-connect');
+  const feature = FEATURE_SETTINGS.find((entry) => entry.id === 'relay-connect');
   return {
     id: 'relay-connect',
-    name: flag?.name ?? 'Outbound Zero-Knowledge Relay',
-    defaultState: flag?.defaultState ?? 'disabled',
+    name: feature?.name ?? 'Outbound Zero-Knowledge Relay',
+    defaultState: feature === undefined ? 'disabled' : feature.defaultEnabled ? 'enabled' : 'disabled',
   };
 }
 

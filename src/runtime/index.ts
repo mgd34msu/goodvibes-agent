@@ -13,10 +13,6 @@ import {
   shell,
   transport,
 } from '@pellux/goodvibes-sdk/platform/runtime';
-import {
-  createFeatureFlagManager as createSdkFeatureFlagManager,
-  FEATURE_FLAG_MAP,
-} from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { existsSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type {
@@ -26,7 +22,6 @@ import type {
   shell as Shell,
   transport as Transport,
 } from '@pellux/goodvibes-sdk/platform/runtime';
-import type { FeatureFlagManager, FlagConfig } from '@pellux/goodvibes-sdk/platform/runtime/state';
 
 // Local runtime entry points.
 export { bootstrapRuntime } from './bootstrap.ts';
@@ -35,22 +30,10 @@ export type { BootstrapContext } from './bootstrap.ts';
 export { createUiRuntimeServices } from './ui-services.ts';
 export type { UiRuntimeServices } from './ui-services.ts';
 
-export function createFeatureFlagManager(): FeatureFlagManager {
-  const manager = createSdkFeatureFlagManager();
-  const originalLoadFromConfig = manager.loadFromConfig.bind(manager);
-
-  manager.loadFromConfig = (config: FlagConfig): void => {
-    originalLoadFromConfig({
-      flags: Object.fromEntries(
-        Object.entries(config.flags).filter(([id]) => FEATURE_FLAG_MAP.has(id)),
-      ) as FlagConfig['flags'],
-    });
-  };
-
-  return manager;
-}
-
-// Public runtime exports.
+// Public runtime exports. createFeatureFlagManager comes straight from the
+// SDK state surface below: gate states are seeded from domain settings keys
+// via deriveFeatureStates (exported there too), so the old local wrapper that
+// filtered unknown persisted featureFlags-category ids has nothing to filter.
 export * from '@pellux/goodvibes-sdk/platform/runtime/state';
 export * from '@pellux/goodvibes-sdk/platform/runtime/store';
 export * from '@pellux/goodvibes-sdk/platform/runtime/ui';

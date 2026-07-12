@@ -17,7 +17,7 @@ import type { OrchestratorUserInputOptions } from '../core/orchestrator.ts';
 import type { ControlPlaneRecentEvent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { BootstrapOptions } from './context.ts';
-import { createFeatureFlagManager } from '@/runtime/index.ts';
+import { createFeatureFlagManager, deriveFeatureStates, bindFeatureSettingsBridge } from '@/runtime/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import type { SessionEvent } from '@/runtime/index.ts';
 import { emitPermissionModeChanged } from '@pellux/goodvibes-sdk/platform/runtime/emitters';
@@ -178,10 +178,12 @@ export async function initializeBootstrapCore(
   const homeDirectory = options.homeDirectory;
   const configManager = options.configManager;
 
+  // Gate states derive from domain settings keys (behavior.*, sandbox.*, ...);
+  // the featureFlags config category no longer exists. The live bridge keeps
+  // config.set changes on those keys flowing into the manager afterwards.
   const featureFlags = createFeatureFlagManager();
-  featureFlags.loadFromConfig({
-    flags: (configManager.getCategory('featureFlags') as Record<string, import('@/runtime/index.ts').FlagState>) ?? {},
-  });
+  featureFlags.loadFromConfig({ flags: deriveFeatureStates(configManager) });
+  bindFeatureSettingsBridge(configManager, featureFlags);
 
   const userSessionId = `user-${generateUserSessionId()}`;
   // Declared here, before createRuntimeServices, so the checkpoint manager can be
@@ -367,6 +369,11 @@ export async function initializeBootstrapCore(
   // everything set here.
   const agentOrchestratorToolDeps = {
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    // Same instances services.ts wired at construction — setDependencies()
+    // fully replaces, so the localhost fetch ask and the announce-once
+    // containment receipt must be replayed here or they silently vanish.
+    localhostFetchApproval: services.localhostFetchApproval,
+    onSandboxedRun: services.onSandboxedRun,
     fileCache,
     projectIndex,
     workingDirectory: services.workingDirectory,

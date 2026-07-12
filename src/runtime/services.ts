@@ -120,7 +120,13 @@ import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createShellPathService, type ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { FeatureFlagManager, RuntimeFoundationClientsOptions } from '@/runtime/index.ts';
-import { createFeatureFlagManager } from '@/runtime/index.ts';
+import { createFeatureFlagManager, deriveFeatureStates, bindFeatureSettingsBridge } from '@/runtime/index.ts';
+import {
+  FeatureAnnouncementStore,
+  createSandboxContainmentAnnouncer,
+  featureAnnouncementsPath,
+} from './feature-announcements.ts';
+import { buildLocalhostFetchApproval, type LocalhostFetchApproval } from './localhost-fetch-approval.ts';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import {
   createWorkflowServices,
@@ -169,23 +175,121 @@ function buildFallbackModelDefinition(provider: string, modelId: string): ModelD
   };
 }
 
-function normalizeSharedSessionModelId(modelId: string | undefined, providerId: string | undefined): string | undefined {
+/** The three candidate fields bare-id resolution reads (ModelDefinition satisfies this). */
+interface SpawnRoutingModelCandidate {
+  readonly id: string;
+  readonly provider: string;
+  readonly registryKey: string;
+}
+
+/** Closest model ids by Levenshtein edit distance, nearest first (mirrors the SDK's resolver). */
+function findClosestModelIds(input: string, candidateIds: readonly string[], limit = 3): string[] {
+  const target = input.toLowerCase();
+  return [...candidateIds]
+    .map((id) => ({ id, distance: levenshteinDistance(target, id.toLowerCase()) }))
+    .sort((a, b) => a.distance - b.distance || a.id.localeCompare(b.id))
+    .slice(0, limit)
+    .map((entry) => entry.id);
+}
+
+/** Classic O(n*m) edit-distance DP. Inputs here are short model ids, so this stays cheap. */
+function levenshteinDistance(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a.length === 0) return b.length;
+  if (b.length === 0) return a.length;
+
+  let previousRow = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const currentRow = [i];
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      currentRow.push(Math.min(
+        currentRow[j - 1]! + 1,
+        previousRow[j]! + 1,
+        previousRow[j - 1]! + cost,
+      ));
+    }
+    previousRow = currentRow;
+  }
+  return previousRow[b.length]!;
+}
+
+/**
+ * Resolve a BARE model id against the live registry's candidates — mirrors
+ * the SDK's shared resolver (platform/providers/model-id-resolution.ts, not
+ * publicly exported): unique across the registry -> auto-qualify;
+ * ambiguous/unknown -> a rich error naming real candidates.
+ */
+function resolveSpawnRoutingModelReference(input: string, candidates: readonly SpawnRoutingModelCandidate[]): string {
+  const trimmed = input.trim();
+  if (trimmed.includes(':')) return trimmed;
+
+  const matches = candidates.filter((candidate) => candidate.id === trimmed);
+  if (matches.length === 1) return matches[0]!.registryKey;
+  if (matches.length > 1) {
+    const registryKeys = matches.map((candidate) => candidate.registryKey).sort((a, b) => a.localeCompare(b));
+    throw new Error(
+      `Model id '${trimmed}' is ambiguous — it is available on multiple providers: ${registryKeys.join(', ')}. `
+      + `Specify one explicitly, e.g. '${registryKeys[0]}'.`,
+    );
+  }
+
+  const uniqueIds = [...new Set(candidates.map((candidate) => candidate.id))];
+  const suggestionKeys = findClosestModelIds(trimmed, uniqueIds, 3)
+    .map((id) => candidates.find((candidate) => candidate.id === id)?.registryKey)
+    .filter((key): key is string => key !== undefined);
+  const example = suggestionKeys[0] ?? candidates[0]?.registryKey;
+  const parts = [`Unknown model '${trimmed}'.`];
+  if (suggestionKeys.length > 0) parts.push(`Did you mean: ${suggestionKeys.join(', ')}?`);
+  if (example) parts.push(`Example of a valid model reference: '${example}'.`);
+  throw new Error(parts.join(' '));
+}
+
+/**
+ * When `modelCandidates` (the live registry's model list) is supplied, a bare
+ * id with no provider hint resolves via the registry (unique -> auto-qualify;
+ * ambiguous/unknown -> a rich error naming real candidates) — mirroring the
+ * SDK composition root. Without candidates the historical Agent behavior
+ * (bare-id passthrough) is preserved for callers that have no registry.
+ */
+function normalizeSharedSessionModelId(
+  modelId: string | undefined,
+  providerId: string | undefined,
+  modelCandidates?: readonly SpawnRoutingModelCandidate[],
+): string | undefined {
   const trimmedModelId = modelId?.trim();
   if (!trimmedModelId) return undefined;
   const trimmedProviderId = providerId?.trim();
   const separatorIndex = trimmedModelId.indexOf(':');
   if (separatorIndex > 0) return trimmedModelId;
   if (trimmedProviderId) return `${trimmedProviderId}:${trimmedModelId}`;
+  if (modelCandidates) {
+    try {
+      return resolveSpawnRoutingModelReference(trimmedModelId, modelCandidates);
+    } catch (err) {
+      throw new Error(`Shared-session routing model: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
   return trimmedModelId;
 }
 
-function normalizeSharedSessionFallbackModels(models: readonly string[] | undefined): string[] {
+function normalizeSharedSessionFallbackModels(
+  models: readonly string[] | undefined,
+  modelCandidates?: readonly SpawnRoutingModelCandidate[],
+): string[] {
   return (models ?? [])
     .filter((model): model is string => typeof model === 'string' && model.trim().length > 0)
     .map((model) => {
       const trimmed = model.trim();
       const separatorIndex = trimmed.indexOf(':');
       if (separatorIndex <= 0 || separatorIndex === trimmed.length - 1) {
+        if (modelCandidates) {
+          try {
+            return resolveSpawnRoutingModelReference(trimmed, modelCandidates);
+          } catch (err) {
+            throw new Error(`Shared-session fallback model: ${err instanceof Error ? err.message : String(err)}`);
+          }
+        }
         throw new Error(`Shared-session fallback model '${model}' must be provider-qualified.`);
       }
       return trimmed;
@@ -194,15 +298,19 @@ function normalizeSharedSessionFallbackModels(models: readonly string[] | undefi
 
 function buildAgentSpawnRoutingFromSharedSession(
   routing: SharedSessionRoutingIntent | undefined,
-  options: { readonly restrictTools?: boolean | undefined } = {},
+  options: {
+    readonly restrictTools?: boolean | undefined;
+    /** The live registry's model candidates — enables bare model id resolution when supplied. */
+    readonly modelCandidates?: readonly SpawnRoutingModelCandidate[] | undefined;
+  } = {},
 ): Partial<Parameters<AgentManager['spawn']>[0]> {
   if (!routing) return options.restrictTools ? { restrictTools: true } : {};
   const provider = routing.providerId?.trim();
-  const model = normalizeSharedSessionModelId(routing.modelId, provider);
+  const model = normalizeSharedSessionModelId(routing.modelId, provider, options.modelCandidates);
   if (provider && !model) {
     throw new Error('Shared-session provider routing requires a provider-qualified model when provider is supplied.');
   }
-  const fallbackModels = normalizeSharedSessionFallbackModels(routing.fallbackModels);
+  const fallbackModels = normalizeSharedSessionFallbackModels(routing.fallbackModels, options.modelCandidates);
   const providerFailurePolicy = routing.providerFailurePolicy ?? (
     fallbackModels.length ? 'ordered-fallbacks' : 'fail'
   );
@@ -446,6 +554,22 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly channelDeliveryRouter: ChannelDeliveryRouter;
   readonly watcherRegistry: WatcherRegistry;
   readonly approvalBroker: ApprovalBroker;
+  /**
+   * Localhost dev-server fetch approval (ask once, persist
+   * fetch.allowLocalhost for the project) — same instance wired into the
+   * orchestrator's tool deps; bootstrap-core must replay it there.
+   */
+  readonly localhostFetchApproval: LocalhostFetchApproval;
+  /**
+   * Announce-once store for default-on feature receipts (shared per-install
+   * file under the control-plane config dir).
+   */
+  readonly featureAnnouncementStore: FeatureAnnouncementStore;
+  /**
+   * First-contained-exec-run announcer — same instance wired into the
+   * orchestrator's tool deps; bootstrap-core must replay it there.
+   */
+  readonly onSandboxedRun: () => void;
   readonly sessionBroker: SharedSessionBroker;
   readonly sessionSpineClient: SessionSpineClient;
   readonly deliveryManager: AutomationDeliveryManager;
@@ -553,6 +677,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const configManager = options.configManager;
   const featureFlags = options.featureFlags ?? createFeatureFlagManager();
+  if (options.featureFlags === undefined) {
+    // Gate states derive from domain settings keys; the bridge keeps live
+    // config.set changes flowing. Wired only for a manager this call owns —
+    // an injected manager (bootstrap-core's) is the caller's to seed/bridge.
+    featureFlags.loadFromConfig({ flags: deriveFeatureStates(configManager) });
+    bindFeatureSettingsBridge(configManager, featureFlags);
+  }
   const runtimeDispatch = createDomainDispatch(options.runtimeStore);
   const gatewayMethods = new GatewayMethodCatalog();
   const keybindingsManager = new KeybindingsManager({
@@ -609,9 +740,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   ensureConfiguredModelIsRoutable(providerRegistry, configManager);
   providerRegistry.initCustomProviders();
+  providerRegistry.initProviderModelDiscovery();
   const toolLLM = new ToolLLM({
     configManager,
     providerRegistry,
+    runtimeBus: options.runtimeBus,
   });
   const localUserAuthManager = options.localUserAuthManager ?? new UserAuthManager({
     bootstrapFilePath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'auth-users.json'),
@@ -643,6 +776,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     messageBus: agentMessageBus,
     executor: agentOrchestrator,
     configManager,
+    providerRegistry,
   });
   agentManager.setRuntimeBus(options.runtimeBus);
   const wrfcController = Reflect.construct(WrfcController, [options.runtimeBus, agentMessageBus, {
@@ -687,7 +821,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     const record = agentManager.spawn({
       mode: 'spawn',
       task,
-      ...buildAgentSpawnRoutingFromSharedSession(input.routing, { restrictTools: true }),
+      ...buildAgentSpawnRoutingFromSharedSession(input.routing, { restrictTools: true, modelCandidates: providerRegistry.listModels() }),
       context: `shared-session:${input.sessionId}`,
     });
     return { agentId: record.id };
@@ -733,6 +867,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     runtimeStore: options.runtimeStore,
     runtimeBus: options.runtimeBus,
     deliveryManager,
+    providerRegistry,
     spawnTask: (input) => {
       const record = agentManager.spawn({
         mode: 'spawn',
@@ -908,8 +1043,22 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     subscriptionManager,
     secretsManager,
   });
+  // Localhost dev-server fetches ride the same broker: ask once, one-tap
+  // "allow for this project", persisted as fetch.allowLocalhost.
+  const localhostFetchApproval = buildLocalhostFetchApproval({
+    requestApproval: (input) => approvalBroker.requestApproval(input),
+    configManager,
+  });
+  // Announce-once receipts for default-on features: the first contained exec
+  // run yields the one-time containment line (persisted, once per install).
+  const announcementStore = new FeatureAnnouncementStore(featureAnnouncementsPath(configManager));
+  const onSandboxedRun = createSandboxContainmentAnnouncer(announcementStore, (announcement) => {
+    logger.info(announcement.text, { announcement: announcement.id });
+  });
   agentOrchestrator.setDependencies({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    localhostFetchApproval,
+    onSandboxedRun,
     fileCache,
     projectIndex,
     workingDirectory,
@@ -1225,6 +1374,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     channelDeliveryRouter,
     watcherRegistry,
     approvalBroker,
+    localhostFetchApproval,
+    featureAnnouncementStore: announcementStore,
+    onSandboxedRun,
     sessionBroker,
     sessionSpineClient,
     deliveryManager,

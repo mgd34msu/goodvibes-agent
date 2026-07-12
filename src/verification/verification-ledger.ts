@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
-import { FEATURE_FLAG_MAP } from '@pellux/goodvibes-sdk/platform/runtime/state';
+import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
 import {
@@ -144,7 +144,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   const cliCommandNames = listCliCommands(root);
   const slashCommands = slashCommandNames.length;
   const cliCommands = cliCommandNames.length;
-  const featureFlags = FEATURE_FLAG_MAP.size;
+  const featureFlags = FEATURE_SETTINGS.length;
   const settings = CONFIG_SCHEMA.length;
   const externalSlashCommands = slashCommandNames.filter((command) => EXTERNAL_SLASH_COMMANDS.has(command)).length;
   const externalCliCommands = cliCommandNames.filter((command) => EXTERNAL_CLI_COMMANDS.has(command)).length;
@@ -181,14 +181,14 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       notes: 'Every schema setting can be validated for schema/default/load/write/location; external side effects remain separate. localBehaviorVerified uses a documented estimate (SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE); update the constant when coverage evidence changes.',
     },
     {
-      area: 'Feature flags',
+      area: 'Feature settings',
       total: featureFlags,
       localSignalVerified: featureFlags,
       // localBehaviorVerified uses FEATURE_FLAGS_EXTERNAL_ESTIMATE — a documented estimate,
       // not a precise derivation. See backlog I1.
       localBehaviorVerified: Math.max(0, featureFlags - FEATURE_FLAGS_EXTERNAL_ESTIMATE),
       externalOutcomeRequired: Math.min(FEATURE_FLAGS_EXTERNAL_ESTIMATE, featureFlags),
-      notes: 'All flags can be loaded/toggled; a small external runtime subset still requires live behavior. localBehaviorVerified uses a documented estimate (FEATURE_FLAGS_EXTERNAL_ESTIMATE); update the constant when flag semantics change.',
+      notes: 'Every feature is enabled through its domain settings key (FEATURE_SETTINGS binding) and can be derived/toggled locally; a small external runtime subset still requires live behavior. localBehaviorVerified uses a documented estimate (FEATURE_FLAGS_EXTERNAL_ESTIMATE); update the constant when feature semantics change.',
     },
     {
       area: 'Slash commands',
