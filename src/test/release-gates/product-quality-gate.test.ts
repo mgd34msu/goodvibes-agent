@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { FEATURE_FLAGS, NotificationRouter, createFeatureFlagManager } from '@/runtime/index.ts';
+import { FEATURE_SETTINGS, NotificationRouter, createFeatureFlagManager } from '@/runtime/index.ts';
 import type { Notification, NotificationLevel } from '@/runtime/index.ts';
 
 const REQUIRED_PRODUCT_FLAGS = [
@@ -25,31 +25,40 @@ function productNotification(domain: string, level: NotificationLevel, timestamp
 }
 
 describe('product quality gate', () => {
-  test('declares the current product flags with valid runtime metadata', () => {
-    const ids = FEATURE_FLAGS.map((flag) => flag.id);
+  test('declares the current product features with valid settings metadata', () => {
+    const ids = FEATURE_SETTINGS.map((feature) => feature.id);
     expect(new Set(ids).size).toBe(ids.length);
 
-    for (const flag of FEATURE_FLAGS) {
-      expect(flag.id).toMatch(/^[a-z0-9-]+$/);
-      expect(flag.name.trim()).not.toBe('');
-      expect(flag.description.trim()).not.toBe('');
-      expect(flag.tier).toBeGreaterThan(0);
-      expect(typeof flag.runtimeToggleable).toBe('boolean');
-      expect(['enabled', 'disabled', 'killed']).toContain(flag.defaultState);
+    for (const feature of FEATURE_SETTINGS) {
+      expect(feature.id).toMatch(/^[a-z0-9-]+$/);
+      expect(feature.name.trim()).not.toBe('');
+      expect(feature.description.trim()).not.toBe('');
+      // Every feature lives in a real settings domain, switched by a
+      // first-class domain key (the enablement key leads its settings list).
+      expect(feature.domain.trim()).not.toBe('');
+      expect(feature.enablement.key.startsWith(`${feature.domain}.`)).toBe(true);
+      expect(feature.settings[0]).toBe(feature.enablement.key);
+      expect(['boolean', 'enum', 'constant']).toContain(feature.enablement.kind);
+      expect(typeof feature.restartRequired).toBe('boolean');
+      expect(typeof feature.defaultEnabled).toBe('boolean');
     }
 
     for (const id of REQUIRED_PRODUCT_FLAGS) {
       expect(ids).toContain(id);
     }
-    expect(FEATURE_FLAGS.find((flag) => flag.id === 'fetch-sanitization')).toMatchObject({
-      defaultState: 'disabled',
-      runtimeToggleable: true,
-      tier: 8,
+    // Default-on posture pins (dissolved feature model): sanitization and
+    // compaction ship active with honest off-switch settings keys.
+    expect(FEATURE_SETTINGS.find((feature) => feature.id === 'fetch-sanitization')).toMatchObject({
+      defaultEnabled: true,
+      restartRequired: false,
+      domain: 'fetch',
+      enablement: { key: 'fetch.sanitizeMode', kind: 'constant' },
     });
-    expect(FEATURE_FLAGS.find((flag) => flag.id === 'session-compaction')).toMatchObject({
-      defaultState: 'disabled',
-      runtimeToggleable: true,
-      tier: 6,
+    expect(FEATURE_SETTINGS.find((feature) => feature.id === 'session-compaction')).toMatchObject({
+      defaultEnabled: true,
+      restartRequired: false,
+      domain: 'behavior',
+      enablement: { key: 'behavior.compactionStrategy', kind: 'enum' },
     });
   });
 
@@ -58,19 +67,20 @@ describe('product quality gate', () => {
     const events: string[] = [];
     const unsubscribe = manager.subscribe((id, state) => events.push(`${id}:${state}`));
 
-    expect([...manager.getAll().keys()].sort()).toEqual([...FEATURE_FLAGS.map((flag) => flag.id)].sort());
-    expect(manager.isEnabled('fetch-sanitization')).toBe(false);
-
-    manager.enable('fetch-sanitization');
+    expect([...manager.getAll().keys()].sort()).toEqual([...FEATURE_SETTINGS.map((feature) => feature.id)].sort());
+    // fetch-sanitization defaults ON now (default-on posture).
     expect(manager.isEnabled('fetch-sanitization')).toBe(true);
 
     manager.disable('fetch-sanitization');
     expect(manager.isEnabled('fetch-sanitization')).toBe(false);
+
+    manager.enable('fetch-sanitization');
+    expect(manager.isEnabled('fetch-sanitization')).toBe(true);
     expect(manager.getTransitions().map((entry) => `${entry.flagId}:${entry.next}`)).toEqual([
-      'fetch-sanitization:enabled',
       'fetch-sanitization:disabled',
+      'fetch-sanitization:enabled',
     ]);
-    expect(events).toEqual(['fetch-sanitization:enabled', 'fetch-sanitization:disabled']);
+    expect(events).toEqual(['fetch-sanitization:disabled', 'fetch-sanitization:enabled']);
 
     manager.kill('fetch-sanitization', 'emergency disable');
     expect(manager.isKilled('fetch-sanitization')).toBe(true);

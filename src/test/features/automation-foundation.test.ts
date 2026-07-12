@@ -4,7 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { CONFIG_SCHEMA, DEFAULT_CONFIG, isValidConfigKey } from '@pellux/goodvibes-sdk/platform/config';
-import { FEATURE_FLAGS } from '@/runtime/index.ts';
+import { FEATURE_SETTINGS } from '@/runtime/index.ts';
 
 function makeTmpDir(): string {
   const dir = join(tmpdir(), `gv-automation-foundation-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -18,16 +18,18 @@ describe('automation foundation config surface', () => {
     const configDir = join(tmpDir, '.goodvibes', 'tui');
     const mgr = new ConfigManager({ surfaceRoot: 'tui',  workingDir: tmpDir, configDir });
 
-    expect(mgr.get('automation.enabled')).toBe(false);
+    // Default-on posture: the automation domain, web surface, and watcher
+    // framework ship active; channel adapters stay off until credentialed.
+    expect(mgr.get('automation.enabled')).toBe(true);
     expect(mgr.get('automation.maxConcurrentRuns')).toBe(DEFAULT_CONFIG.automation.maxConcurrentRuns);
     expect(mgr.get('controlPlane.enabled')).toBe(false);
     expect(mgr.get('controlPlane.streamMode')).toBe('sse');
-    expect(mgr.get('web.enabled')).toBe(false);
+    expect(mgr.get('web.enabled')).toBe(true);
     expect(mgr.get('surfaces.slack.enabled')).toBe(false);
     expect(mgr.get('surfaces.discord.enabled')).toBe(false);
     expect(mgr.get('surfaces.ntfy.baseUrl')).toBe('https://ntfy.sh');
     expect(mgr.get('surfaces.webhook.timeoutMs')).toBe(10_000);
-    expect(mgr.get('watchers.enabled')).toBe(false);
+    expect(mgr.get('watchers.enabled')).toBe(true);
     expect(mgr.get('service.autostart')).toBe(false);
 
     rmSync(tmpDir, { recursive: true, force: true });
@@ -117,7 +119,7 @@ describe('automation foundation config surface', () => {
 });
 
 describe('automation foundation feature flags', () => {
-  test('new automation and omnichannel flags are declared and default disabled', () => {
+  test('automation and omnichannel features are declared with their domain switches', () => {
     const expected = [
       'automation-domain',
       'control-plane-gateway',
@@ -132,20 +134,30 @@ describe('automation foundation feature flags', () => {
       'service-management',
     ] as const;
 
-    // `control-plane-gateway` is the one tier-10 flag that defaults ON (One-Platform):
-    // a stock daemon must be able to stream companion chat over SSE without
-    // config, so leaving it off left a fresh daemon returning 503 on the live-stream
-    // path. It remains runtimeToggleable, so an operator can still flip it off.
-    const expectedDefaultState: Record<string, 'enabled' | 'disabled'> = {
-      'control-plane-gateway': 'enabled',
+    // Dissolved feature model, default-on posture: every one of these ships
+    // active out of the box (surfaces still need their own credentials to do
+    // anything), each switched through a first-class domain settings key.
+    const expectedEnablementKey: Record<string, string> = {
+      'automation-domain': 'automation.enabled',
+      'control-plane-gateway': 'controlPlane.gateway',
+      'route-binding': 'integrations.routeBinding',
+      'delivery-engine': 'integrations.deliveryTracking',
+      'slack-surface': 'surfaces.slack.enabled',
+      'discord-surface': 'surfaces.discord.enabled',
+      'ntfy-surface': 'surfaces.ntfy.enabled',
+      'webhook-surface': 'surfaces.webhook.enabled',
+      'web-surface': 'web.enabled',
+      'watcher-framework': 'watchers.enabled',
+      'service-management': 'service.enabled',
     };
 
     for (const id of expected) {
-      const flag = FEATURE_FLAGS.find((entry) => entry.id === id);
-      expect(flag).toEqual(expect.objectContaining({
+      const feature = FEATURE_SETTINGS.find((entry) => entry.id === id);
+      expect(feature).toEqual(expect.objectContaining({
         id,
-        defaultState: expectedDefaultState[id] ?? 'disabled',
+        defaultEnabled: true,
       }));
+      expect(String(feature?.enablement.key)).toBe(expectedEnablementKey[id]!);
     }
   });
 });

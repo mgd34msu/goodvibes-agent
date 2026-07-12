@@ -70,6 +70,7 @@ function createProviderApiStub(overrides: Partial<ProviderApi> = {}): ProviderAp
     listModels: async () => [currentModel],
     selectModel: async () => currentModel,
     registerDiscoveredProviders: async (_servers: readonly DiscoveredServer[]) => {},
+    refreshLiveModelDiscovery: async () => [],
     refreshCatalog: async (): Promise<ProviderApiCatalogRefreshResult> => ({
       modelCount: 1,
       providerCount: 1,

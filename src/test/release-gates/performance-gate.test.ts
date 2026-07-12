@@ -18,7 +18,7 @@ import {
 } from '@/runtime/index.ts';
 import { SloCollector } from '@/runtime/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
-import { FEATURE_FLAGS } from '@/runtime/index.ts';
+import { FEATURE_SETTINGS } from '@/runtime/index.ts';
 import { applyAgentPerfBudgetPolicy } from '../../../scripts/perf-check.ts';
 import type { ProviderMessage } from '@pellux/goodvibes-sdk/platform/providers';
 import type { PerfReport } from '@/runtime/index.ts';
@@ -288,21 +288,23 @@ describe('performance gate: SLO collector', () => {
 // ---------------------------------------------------------------------------
 
 describe('performance gate: budget enforcement flag', () => {
-  test('runtime-tools-budget-enforcement feature flag is declared', () => {
-    const flag = FEATURE_FLAGS.find(f => f.id === 'runtime-tools-budget-enforcement');
-    expect(flag).toMatchObject({
-      defaultState: 'disabled',
-      runtimeToggleable: true,
-      tier: 8,
+  test('runtime-tools-budget-enforcement feature is declared', () => {
+    const feature = FEATURE_SETTINGS.find(f => f.id === 'runtime-tools-budget-enforcement');
+    expect(feature).toMatchObject({
+      defaultEnabled: false,
+      restartRequired: false,
+      enablement: { key: 'runtime.toolBudget.enforced', kind: 'boolean' },
     });
   });
 
-  test('compaction feature flags are declared', () => {
-    const compactionFlag = FEATURE_FLAGS.find(f => f.id === 'session-compaction');
-    expect(compactionFlag).toMatchObject({
-      defaultState: 'disabled',
-      runtimeToggleable: true,
-      tier: 6,
+  test('compaction feature is declared', () => {
+    const compactionFeature = FEATURE_SETTINGS.find(f => f.id === 'session-compaction');
+    // Default-on: long sessions compact out of the box; the honest off switch
+    // is behavior.compactionStrategy = 'off'.
+    expect(compactionFeature).toMatchObject({
+      defaultEnabled: true,
+      restartRequired: false,
+      enablement: { key: 'behavior.compactionStrategy', kind: 'enum' },
     });
   });
 });

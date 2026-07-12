@@ -7,7 +7,7 @@ import {
   applyRuntimeConfigOverrides,
   applyRuntimeConfigValue,
   applyRuntimeCommandEndpointFlagOverrides,
-  applyRuntimeFeatureFlagOverrides,
+  applyRuntimeFeatureOverrides,
   applyRuntimeUrlOverride,
   handleGoodVibesCliCommand,
   parseCliFlags,
@@ -273,26 +273,30 @@ describe('parseCliFlags', () => {
       'behavior.autoApprove=true',
     ]);
     applyRuntimeConfigValue(configManager, 'provider.model', 'openai:gpt-5.2');
-    applyRuntimeFeatureFlagOverrides(configManager, {
+    // Feature overrides write the features' domain settings keys (dissolved
+    // feature model). fetch-sanitization is always-available (constant), so
+    // disabling it reports an honest error naming its real settings keys.
+    const featureErrors = applyRuntimeFeatureOverrides(configManager, {
       enableFeatures: ['output-schema-fingerprint'],
-      disableFeatures: ['fetch-sanitization'],
+      disableFeatures: ['exec-sandbox'],
     });
 
     expect(errors).toEqual([]);
+    expect(featureErrors).toEqual([]);
     expect(configManager.get('controlPlane.port')).toBe(4567);
     expect(configManager.get('behavior.autoApprove')).toBe(true);
     expect(configManager.get('provider.model')).toBe('openai:gpt-5.2');
-    expect(configManager.getCategory('featureFlags')).toEqual({
-      'output-schema-fingerprint': 'enabled',
-      'fetch-sanitization': 'disabled',
-    });
+    expect(configManager.get('tools.outputSchemaFingerprints')).toBe(true);
+    expect(configManager.get('sandbox.enabled')).toBe(false);
     expect(existsSync(join(configDir, 'settings.json'))).toBe(false);
 
     const reloaded = new ConfigManager({ surfaceRoot: 'tui', configDir, workingDir: root });
     expect(reloaded.get('controlPlane.port')).toBe(3421);
     expect(reloaded.get('behavior.autoApprove')).toBe(false);
     expect(reloaded.get('provider.model')).not.toBe('openai:gpt-5.2');
-    expect(reloaded.getCategory('featureFlags')).toEqual({});
+    // Runtime-only: the domain-key writes never persisted.
+    expect(reloaded.get('tools.outputSchemaFingerprints')).toBe(false);
+    expect(reloaded.get('sandbox.enabled')).toBe(true);
   });
 
   test('applies runtime URL overrides to connected-host connection without persisting settings', () => {

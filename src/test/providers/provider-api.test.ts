@@ -213,6 +213,7 @@ function createHarness() {
         return provider;
       },
       tryGet: (id: string) => providers.get(id),
+      refreshLiveModelDiscovery: async () => [],
     },
     favoritesStore: {
       load: async () => cloneFavorites(favoritesState),
