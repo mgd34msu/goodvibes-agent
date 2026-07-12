@@ -1,6 +1,6 @@
 /**
  * panel-paste-flood-guard.ts unit tests — ported from goodvibes-tui (commit
- * 90eb3a26, DEBT-5 item 5). The module itself is UI-framework-agnostic (a pure
+ * 90eb3a26). The module itself is UI-framework-agnostic (a pure
  * sliding-window rate guard); these tests exercise trackPanelPasteFloodGuard
  * directly, independent of either product's dispatch wiring (the TUI wires it
  * through handlePanelFocusToken; this agent wires it through feedInputTokens

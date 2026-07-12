@@ -79,7 +79,7 @@ describe('provider account snapshot', () => {
     }));
   });
 
-  test('D7: no fallbackRisk when activeRoute equals preferredRoute (healthy subscription)', async () => {
+  test('no fallbackRisk when activeRoute equals preferredRoute (healthy subscription)', async () => {
     testManagers.subscriptionManager.saveSubscription({
       provider: 'openai',
       accessToken: 'header.payload.signature',

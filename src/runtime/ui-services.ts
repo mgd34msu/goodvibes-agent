@@ -54,7 +54,7 @@ export interface UiPlatformServices {
   readonly tokenAuditor: RuntimeServices['tokenAuditor'];
   readonly replayEngine: RuntimeServices['replayEngine'];
   readonly webhookNotifier: RuntimeServices['webhookNotifier'];
-  /** OS-level terminal focus tracker, ported from goodvibes-tui's W2.3. */
+  /** OS-level terminal focus tracker, ported from goodvibes-tui's core/focus-tracker.ts. */
   readonly focusTracker: RuntimeServices['focusTracker'];
   readonly policyRuntimeState: RuntimeServices['policyRuntimeState'];
   readonly externalServices?: {

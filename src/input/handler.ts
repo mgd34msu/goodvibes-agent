@@ -94,7 +94,7 @@ export class InputHandler {
   public pasteRegistry = new Map<string, string>();
   public nextPasteId = 1;
   public lastCtrlCTime = 0;
-  /** Ported from goodvibes-tui DEBT-5 item 5 — unbracketed-paste-flood guard state, mutated in place. */
+  /** Ported from goodvibes-tui — unbracketed-paste-flood guard state, mutated in place. */
   public burstGuard: PanelBurstGuardState = { timestamps: [], suspended: false, hintShown: false };
   /** Long-lived feed context — reused across every feed() call to avoid per-keystroke allocation. */
   public feedContext!: import('./handler-feed.ts').InputFeedContext;

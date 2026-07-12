@@ -1,6 +1,6 @@
 // ---------------------------------------------------------------------------
 // panel-paste-flood-guard.ts — ported from goodvibes-tui (commit 90eb3a26,
-// DEBT-5 item 5).
+// src/input/panel-paste-flood-guard.ts).
 //
 // A terminal WITHOUT bracketed paste delivers a pasted block as a burst of
 // discrete 1-char 'text' tokens (isPasteToken stays false for every one of

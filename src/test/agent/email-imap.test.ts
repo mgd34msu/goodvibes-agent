@@ -91,7 +91,7 @@ describe('ImapClient protocol', () => {
 
     await client.open();
 
-    // SEC-2: credentials are now RFC 3501 quoted strings
+    // credentials are now RFC 3501 quoted strings
     expect(events.some((e) => e.includes('LOGIN "user@example.test" "supersecret"'))).toBe(true);
     expect(events.some((e) => e.includes('EXAMINE INBOX'))).toBe(true);
   });
@@ -374,10 +374,10 @@ describe('imapQuoteCredential — direct unit tests', () => {
 });
 
 // ---------------------------------------------------------------------------
-// SEC-2: IMAP LOGIN injection / credential quoting tests
+// IMAP LOGIN injection / credential quoting tests
 // ---------------------------------------------------------------------------
 
-describe('ImapClient SEC-2: credential quoting and injection prevention', () => {
+describe('ImapClient credential quoting and injection prevention', () => {
   let fakeServer: FakeServer | null = null;
 
   afterEach(() => {
@@ -513,10 +513,10 @@ describe('ImapClient SEC-2: credential quoting and injection prevention', () => 
 });
 
 // ---------------------------------------------------------------------------
-// SEC-3: Unbounded IMAP literal tests
+// Unbounded IMAP literal tests
 // ---------------------------------------------------------------------------
 
-describe('ImapClient SEC-3: literal size cap', () => {
+describe('ImapClient literal size cap', () => {
   let fakeServer: FakeServer | null = null;
 
   afterEach(() => {

@@ -95,9 +95,9 @@ export interface FeedContextStableRefs {
   selection: SelectionManager;
   pasteRegistry: Map<string, string>;
   imageRegistry: Map<string, { data: string; mediaType: string }>;
-  /** Ported from goodvibes-tui's DEBT-5 item 5; mutated in place, never reallocated. */
+  /** Ported from goodvibes-tui's unbracketed-paste-flood guard; mutated in place, never reallocated. */
   burstGuard: PanelBurstGuardState;
-  /** OS-level terminal focus tracker, ported from goodvibes-tui's W2.3. */
+  /** OS-level terminal focus tracker, ported from goodvibes-tui's core/focus-tracker.ts. */
   focusTracker: FocusTracker;
   projectRoot: string;
   selectionModal: SelectionModal;

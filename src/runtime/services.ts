@@ -502,7 +502,7 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly worktreeRegistry: WorktreeRegistry;
   readonly sandboxSessionRegistry: SandboxSessionRegistry;
   readonly webhookNotifier: WebhookNotifier;
-  /** OS-level terminal focus tracker, ported from goodvibes-tui's W2.3 (core/focus-tracker.ts). */
+  /** OS-level terminal focus tracker, ported from goodvibes-tui's core/focus-tracker.ts. */
   readonly focusTracker: FocusTracker;
   readonly replayEngine: DeterministicReplayEngine;
   readonly providerOptimizer: ProviderOptimizer;

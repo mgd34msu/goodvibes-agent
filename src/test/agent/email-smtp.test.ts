@@ -103,10 +103,10 @@ function happyPathScript(socket: Socket, collectedData: string[]): void {
 import { validateSmtpAddress, validateSmtpSubject } from '../../agent/email/smtp-client.ts';
 
 // ---------------------------------------------------------------------------
-// SEC-1: SMTP header/command injection prevention
+// SMTP header/command injection prevention
 // ---------------------------------------------------------------------------
 
-describe('validateSmtpAddress / validateSmtpSubject — SEC-1 injection prevention', () => {
+describe('validateSmtpAddress / validateSmtpSubject — injection prevention', () => {
   test('rejects from address with \\r\\n in it', () => {
     expect(() => validateSmtpAddress('evil\r\nBCC: victim@example.test', 'from'))
       .toThrow(/must not contain control characters/);
@@ -151,7 +151,7 @@ describe('validateSmtpAddress / validateSmtpSubject — SEC-1 injection preventi
   });
 });
 
-describe('SmtpClient sendMail — SEC-1: hostile from/to/subject blocked before envelope write', () => {
+describe('SmtpClient sendMail — hostile from/to/subject blocked before envelope write', () => {
   let fakeServer: FakeServer | null = null;
 
   afterEach(() => {
@@ -208,12 +208,12 @@ describe('SmtpClient sendMail — SEC-1: hostile from/to/subject blocked before 
 });
 
 // ---------------------------------------------------------------------------
-// SEC-4: STARTTLS pipelined data guard
+// STARTTLS pipelined data guard
 // (Testing the guard embedded in createSmtpStartTlsSocket via a fake server
 //  that sends extra bytes after the 220 STARTTLS response.)
 // ---------------------------------------------------------------------------
 
-describe('createSmtpStartTlsSocket SEC-4: pipelined data after 220 rejected', () => {
+describe('createSmtpStartTlsSocket: pipelined data after 220 rejected', () => {
   // We test this by verifying that the validation logic fires correctly.
   // The actual socket factory creates a real TCP connection, so we test the
   // detection logic via a unit-level extract.

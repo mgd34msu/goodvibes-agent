@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import ts from 'typescript';
+import { checkNoInternalIdentifiers } from './internal-identifier-rule.ts';
 
 const ROOT = join(import.meta.dir, '..');
 const SRC_ROOT = join(ROOT, 'src');
@@ -404,6 +405,38 @@ for (const method of catalog.list()) {
   if (isGenericObjectSchema(method.outputSchema)) {
     violations.push(`operator-contract: ${method.id} still exposes a generic object output schema`);
   }
+}
+
+// ─── No internal planning identifiers ─────────────────────────────────────────
+// Plain language only in tracked text; provenance via decision-record paths,
+// file paths, commit hashes, or versions. See internal-identifier-rule.ts
+// (ported from goodvibes-tui/scripts/internal-identifier-rule.ts).
+
+function walkMarkdown(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  const entries = readdirSync(dir, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    const abs = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...walkMarkdown(abs));
+      continue;
+    }
+    if (entry.isFile() && abs.endsWith('.md')) {
+      files.push(abs);
+    }
+  }
+  return files;
+}
+
+const internalIdentifierCandidates = [
+  ...allSourceFiles,
+  ...scriptFiles,
+  ...walkMarkdown(join(ROOT, 'docs')),
+].map((file) => ({ relPath: relative(ROOT, file).split('\\').join('/'), text: readFileSync(file, 'utf-8') }));
+
+for (const v of checkNoInternalIdentifiers(internalIdentifierCandidates)) {
+  violations.push(v);
 }
 
 if (violations.length > 0) {

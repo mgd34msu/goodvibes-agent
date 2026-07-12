@@ -53,15 +53,15 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const CRLF = '\r\n';
 
 // ---------------------------------------------------------------------------
-// Input validation (SEC-1: SMTP header/command injection prevention)
+// Input validation: SMTP header/command injection prevention
 // ---------------------------------------------------------------------------
 
-/** Control-character pattern: CR, LF, and other C0/C1 control characters. */
+/** Control-character pattern: CR, LF, and the other C0 and C1 control characters. */
 const CONTROL_CHAR_RE = /[\x00-\x1f\x7f-\x9f]/;
 
 /**
  * Validate a single SMTP envelope address (MAIL FROM / RCPT TO value).
- * Rejects: control characters (\r, \n, any C0/C1), spaces, angle brackets,
+ * Rejects: control characters (\r, \n, any C0 or C1), spaces, angle brackets,
  * comma-separated lists. Only a single bare address is accepted.
  *
  * @throws Error with a plain-language message on invalid input.
@@ -274,7 +274,7 @@ export class SmtpClient {
     // AUTH
     await this.authenticate(session, capabilities, username, password);
 
-    // Validate envelope fields before writing to the protocol stream (SEC-1)
+    // Validate envelope fields before writing to the protocol stream (injection prevention)
     validateSmtpAddress(opts.from, 'from');
     validateSmtpAddress(opts.to, 'to');
     validateSmtpSubject(opts.subject);
@@ -427,7 +427,7 @@ export function createSmtpStartTlsSocket(
                   return;
                 }
 
-                // SEC-4: assert no pipelined data arrived after the 220 STARTTLS reply.
+                // STARTTLS guard: assert no pipelined data arrived after the 220 reply.
                 // Any bytes beyond the \n of the 220 line indicate a hostile server
                 // injecting data before TLS negotiation begins.
                 const newlineIdx = stBuffer.indexOf('\n');

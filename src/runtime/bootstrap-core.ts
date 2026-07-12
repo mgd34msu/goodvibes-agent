@@ -630,7 +630,7 @@ export async function initializeBootstrapCore(
     },
   }).catch((err) => { logger.debug('session broker create session failed at bootstrap', { err }); });
 
-  // W2A: mirror the create into the daemon spine (fire-and-forget; the local
+  // Mirror the create into the daemon spine (fire-and-forget; the local
   // broker above stays the source of truth). kind:'agent' is the canonical record
   // identity; participant.surfaceKind stays 'service' (the TRANSPORT axis).
   services.sessionSpineClient.register({

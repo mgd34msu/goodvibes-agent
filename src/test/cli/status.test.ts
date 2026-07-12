@@ -120,7 +120,7 @@ describe('CLI status and doctor output', () => {
     expect(text).toContain('secretPolicy: Require secure storage (require_secure)');
   });
 
-  test('A2: autoApprove=true with mode=prompt (the reproduced disagreement bug) — status honestly says auto-approve is on', () => {
+  test('autoApprove=true with mode=prompt (the reproduced disagreement bug) — status honestly says auto-approve is on', () => {
     const text = renderCliStatus(makeOptions({
       'permissions.mode': 'prompt',
       'behavior.autoApprove': true,
@@ -135,7 +135,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('permissions: Ask before powerful actions');
   });
 
-  test('A2: doctor flags auto-approve as a distinct risk finding, independent of permissions.mode', () => {
+  test('doctor flags auto-approve as a distinct risk finding, independent of permissions.mode', () => {
     const text = renderCliStatus({
       ...makeOptions({
         'permissions.mode': 'prompt',
@@ -149,7 +149,7 @@ describe('CLI status and doctor output', () => {
     expect(text).not.toContain('[risk:security:allow-all-permissions]');
   });
 
-  test('A2: default posture (autoApprove=false, mode=prompt) still reads "prompt" everywhere', () => {
+  test('default posture (autoApprove=false, mode=prompt) still reads "prompt" everywhere', () => {
     const text = renderCliStatus(makeOptions({ 'permissions.mode': 'prompt' }));
 
     expect(text).toContain('permissions: Ask before powerful actions (prompt)');

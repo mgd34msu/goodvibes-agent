@@ -363,7 +363,7 @@ export class EmailService {
       password,
     });
 
-    // SEC-1: validate at the service boundary so injection is blocked regardless of
+    // Validate at the service boundary so injection is blocked regardless of
     // which client implementation is used.
     validateSmtpAddress(config.fromAddress, 'from');
     validateSmtpAddress(opts.to, 'to');

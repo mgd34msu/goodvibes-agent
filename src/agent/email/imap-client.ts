@@ -80,7 +80,7 @@ function buildXOAuth2Token(username: string, bearerToken: string): string {
  * Owns a single shared read cursor; callers must not interleave awaits.
  */
 // ---------------------------------------------------------------------------
-// IMAP credential quoting (SEC-2: LOGIN injection prevention)
+// IMAP credential quoting: LOGIN injection prevention
 // ---------------------------------------------------------------------------
 
 /**
@@ -248,7 +248,7 @@ class ImapSession {
           const literalMatch = /\{(\d+)\}$/.exec(line);
           if (literalMatch) {
             const requested = parseInt(literalMatch[1] ?? '0', 10);
-            // SEC-3: cap server-supplied literal size to prevent memory DoS
+            // Cap server-supplied literal size to prevent memory exhaustion
             if (requested > this.literalCap) {
               cleanup();
               reject(new Error(
@@ -538,7 +538,7 @@ export class ImapClient {
 
   private session(): ImapSession {
     const maxBodyBytes = this.options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES;
-    // SEC-3: cap literal size at the larger of 1 MB or 4× the configured body preview limit
+    // Cap literal size at the larger of 1 MB or 4× the configured body preview limit
     const literalCap = Math.max(1_048_576, 4 * maxBodyBytes);
     return new ImapSession(
       this.options.socket,
@@ -554,7 +554,7 @@ export class ImapClient {
       const token = buildXOAuth2Token(username, password.slice(7));
       await session.command(`AUTHENTICATE XOAUTH2 ${token}`);
     } else {
-      // LOGIN — credentials are quoted per RFC 3501 to prevent injection (SEC-2).
+      // LOGIN — credentials are quoted per RFC 3501 to prevent injection.
       // Credentials are not logged anywhere in this module.
       const quotedUser = imapQuoteCredential(username, 'username');
       const quotedPass = imapQuoteCredential(password, 'password');
