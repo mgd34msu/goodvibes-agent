@@ -6,7 +6,7 @@ import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { readAgentRuntimeProfileSelection, resolveAgentRuntimeProfileHome } from '../../agent/runtime-profile.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
-import { isFeatureFlagConfigKey, readFeatureFlagConfigValue } from '../surface-feature-flags.ts';
+import { isFeatureEnabledInConfig, isLegacyFeatureConfigKey, legacyFeatureConfigTargets } from '../feature-enablement.ts';
 import { readOnboardingRuntimeState } from './state.ts';
 import type {
   OnboardingApplyOperation,
@@ -51,9 +51,27 @@ function verifyConfigOperation(
   deps: OnboardingVerificationDependencies,
   operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>,
 ): OnboardingVerificationItem {
-  const actual = isFeatureFlagConfigKey(operation.key)
-    ? readFeatureFlagConfigValue(deps.config, operation.key)
-    : deps.config.get(operation.key);
+  if (isLegacyFeatureConfigKey(operation.key)) {
+    // Legacy featureFlags keys dissolved onto domain settings keys: verify the
+    // DERIVED enablement of every addressed feature, not a category readback.
+    const targets = legacyFeatureConfigTargets(operation.key, operation.value);
+    const mismatched = targets.filter((target) => (
+      (isFeatureEnabledInConfig(deps.config, target.featureId) ? 'enabled' : 'disabled') !== target.desired
+    ));
+    const ok = targets.length > 0 && mismatched.length === 0;
+    return {
+      id: `config:${operation.key}`,
+      status: ok ? 'pass' : 'fail',
+      message: ok
+        ? `${operation.key} matches the requested onboarding value (derived from the domain settings keys).`
+        : `${operation.key} does not match the requested onboarding value${
+          mismatched.length > 0 ? ` (mismatched: ${mismatched.map((target) => target.featureId).join(', ')})` : ''
+        }.`,
+      target: operation.key,
+    };
+  }
+
+  const actual = deps.config.get(operation.key);
   const ok = isDeepEqual(actual, operation.value);
 
   return {

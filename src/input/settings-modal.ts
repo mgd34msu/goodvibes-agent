@@ -1,6 +1,6 @@
 /** SettingsModal state for the /settings and /config fullscreen workspace. */
 
-import { CONFIG_SCHEMA, type ConfigKey, type PersistedFlagState } from '@pellux/goodvibes-sdk/platform/config';
+import { CONFIG_SCHEMA, type ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { ModelPickerTarget } from './model-picker.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -24,7 +24,9 @@ import {
   THEME_MODE_SYNTHETIC_SETTING,
 } from '../renderer/theme-mode-config.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
-import type { FeatureFlag, FlagState } from '@/runtime/index.ts';
+import type { FlagState } from '@/runtime/index.ts';
+import { FEATURE_SETTINGS } from '@/runtime/index.ts';
+import { isFeatureEnabledInConfig, resolveFeatureEnablementWrite } from '../runtime/feature-enablement.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
@@ -98,7 +100,7 @@ export class SettingsModal {
   /** Settings grouped by category. */
   public groups: Map<SettingsCategory, SettingEntry[]> = new Map();
 
-  /** Feature flag entries (populated when flags tab is active). */
+  /** Feature entries grouped by settings domain (populated when the features tab is active). */
   public flagEntries: FlagEntry[] = [];
   /** MCP server trust entries (populated when mcp tab is active). */
   public mcpEntries: McpEntry[] = [];
@@ -393,7 +395,7 @@ export class SettingsModal {
 
     if (this.currentCategory === 'flags') {
       const flagEntry = this.getSelectedFlag();
-      if (!flagEntry || flagEntry.state === 'killed' || !this.featureFlagManager || !this.configManager) return;
+      if (!flagEntry || flagEntry.state === 'killed' || !this.configManager) return;
       const targetState: FlagState = direction === 'right' ? 'enabled' : 'disabled';
       if (flagEntry.state !== targetState) this._setSelectedFlagState(flagEntry, targetState);
       return;
@@ -448,47 +450,41 @@ export class SettingsModal {
   }
 
   /**
-   * Toggle the currently selected feature flag.
+   * Toggle the currently selected feature by writing its enablement domain
+   * settings key (there is no separate enablement namespace). The live
+   * settings bridge propagates the change into the gate manager; features
+   * that require a restart record an honest pending-restart state instead.
    *
-   * Killed flags cannot be toggled. Non-runtimeToggleable flags are saved as
-   * overrides for the next Agent launch or owning-host reload; runtimeToggleable
-   * flags toggle immediately.
+   * Killed features cannot be toggled. Always-available features (constant
+   * enablement) refuse with guidance naming their real settings keys.
    */
   toggleSelectedFlag(): void {
     const flagEntry = this.getSelectedFlag();
-    if (!flagEntry || !this.featureFlagManager || !this.configManager) return;
+    if (!flagEntry || !this.configManager) return;
 
-    const { flag, state } = flagEntry;
+    // Killed features are blocked
+    if (flagEntry.state === 'killed') return;
 
-    // Killed flags are blocked
-    if (state === 'killed') return;
-
-    const newState: FlagState = state === 'enabled' ? 'disabled' : 'enabled';
+    const newState: FlagState = flagEntry.state === 'enabled' ? 'disabled' : 'enabled';
 
     this._setSelectedFlagState(flagEntry, newState);
   }
 
   private _setSelectedFlagState(flagEntry: FlagEntry, newState: FlagState): void {
-    if (!this.featureFlagManager || !this.configManager) return;
-    const { flag } = flagEntry;
+    if (!this.configManager) return;
+    if (newState === 'killed') return;
+    const feature = flagEntry.feature;
 
-    if (!flag.runtimeToggleable) {
-      // Persist to config only; the flag owner applies it on the next run.
-      this._persistFlagState(flag.id, newState, flag.defaultState as FlagState);
-      flagEntry.state = newState;
-    } else {
-      // Toggle immediately in manager
-      try {
-        if (newState === 'enabled') {
-          this.featureFlagManager.enable(flag.id);
-        } else {
-          this.featureFlagManager.disable(flag.id);
-        }
-        this._persistFlagState(flag.id, newState, flag.defaultState as FlagState);
-        flagEntry.state = newState;
-      } catch (e) {
-        logger.error('SettingsModal: failed to toggle feature flag', { flag: flag.id, error: summarizeError(e) });
-      }
+    try {
+      const write = resolveFeatureEnablementWrite(feature.id, newState === 'enabled' ? 'enabled' : 'disabled');
+      this.configManager.setDynamic(write.key, write.value);
+      this._loadFlagEntries();
+      this.lastSettingEffectMessage = feature.restartRequired
+        ? `${write.key} = ${String(write.value)} saved; takes effect on the next launch.`
+        : `${write.key} = ${String(write.value)}`;
+    } catch (e) {
+      logger.error('SettingsModal: failed to set feature enablement', { feature: feature.id, error: summarizeError(e) });
+      this.lastSettingEffectMessage = `Save failed: ${summarizeError(e)}`;
     }
   }
 
@@ -666,16 +662,37 @@ export class SettingsModal {
     }
   }
 
-  /** Load or refresh the flags tab entries from the feature flag manager. */
+  /**
+   * Load or refresh the features tab from FEATURE_SETTINGS, grouped by
+   * settings domain. State prefers the live gate manager (kill-switch and
+   * pending-restart aware); without a manager it derives from the feature's
+   * bound domain settings key.
+   */
   private _loadFlagEntries(): void {
-    if (!this.featureFlagManager) {
+    if (!this.configManager) {
       this.flagEntries = [];
       return;
     }
-    this.flagEntries = Array.from(this.featureFlagManager.getAll().values()).map(({ flag, state }) => ({
-      flag,
-      state,
-    }));
+    const configManager = this.configManager;
+    const managerStates = this.featureFlagManager?.getAll() ?? null;
+    this.flagEntries = FEATURE_SETTINGS
+      .map((feature, declarationIndex) => {
+        const managed = managerStates?.get(feature.id);
+        const derivedState: FlagState = isFeatureEnabledInConfig(configManager, feature.id) ? 'enabled' : 'disabled';
+        return {
+          entry: {
+            feature,
+            state: managed?.state ?? derivedState,
+            enablementValue: String(configManager.get(feature.enablement.key)),
+          },
+          declarationIndex,
+        };
+      })
+      .sort((left, right) => (
+        left.entry.feature.domain.localeCompare(right.entry.feature.domain)
+        || left.declarationIndex - right.declarationIndex
+      ))
+      .map(({ entry }) => entry);
   }
 
   private _loadMcpEntries(): void {
@@ -695,28 +712,6 @@ export class SettingsModal {
 
   private _loadSubscriptionEntries(): void {
     this.subscriptionEntries = buildSubscriptionEntries(this.subscriptionManager, this.serviceRegistry);
-  }
-
-  /**
-   * Persist a flag state override to config.
-   * Deletes the entry when reverting to defaultState. Skips killed state.
-   */
-  private _persistFlagState(flagId: string, newState: FlagState, defaultState: FlagState): void {
-    if (!this.configManager) return;
-    if (newState === 'killed') return; // never persist killed state
-
-    try {
-      const current = (this.configManager.getCategory('featureFlags') as Record<string, PersistedFlagState>) ?? {};
-      if (newState === defaultState) {
-        // Revert to default — remove override
-        delete current[flagId];
-      } else {
-        current[flagId] = newState;
-      }
-      this.configManager.mergeCategory('featureFlags', current);
-    } catch (e) {
-      logger.error('SettingsModal: failed to persist flag state', { flagId, error: summarizeError(e) });
-    }
   }
 
   /** Returns [] for the flags category (flags use flagEntries instead). */

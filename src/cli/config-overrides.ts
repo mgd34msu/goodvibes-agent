@@ -1,5 +1,6 @@
-import type { ConfigKey, ConfigManager, ConfigSetting, PersistedFlagState } from '../config/index.ts';
+import type { ConfigKey, ConfigManager, ConfigSetting } from '../config/index.ts';
 import { CONFIG_SCHEMA, ConfigError } from '../config/index.ts';
+import { resolveFeatureEnablementWrite } from '../runtime/feature-enablement.ts';
 import type { GoodVibesCliCommand, GoodVibesCliFlags } from './types.ts';
 import { RUNTIME_ENDPOINT_CONFIG_KEYS, hostModeForHostname } from './endpoints.ts';
 import type { RuntimeEndpointId } from './endpoints.ts';
@@ -150,24 +151,38 @@ export function applyRuntimeUrlOverride(
   }
 }
 
-export function applyRuntimeFeatureFlagOverrides(
+/**
+ * Apply --enable-feature/--disable-feature as RUNTIME-ONLY writes to the
+ * feature's domain settings key (the dissolved feature model has no separate
+ * enablement namespace). Nothing is persisted: the write lands on the
+ * in-memory config just like --config overrides, and the settings-derived
+ * gate seeding in bootstrap picks it up. Returns honest per-feature errors
+ * (unknown ids, always-available features) instead of silently accepting
+ * anything, matching applyRuntimeConfigOverrides' contract.
+ */
+export function applyRuntimeFeatureOverrides(
   configManager: ConfigManager,
   options: {
     readonly enableFeatures: readonly string[];
     readonly disableFeatures: readonly string[];
   },
-): void {
-  if (options.enableFeatures.length === 0 && options.disableFeatures.length === 0) return;
-  const flags = { ...configManager.getCategory('featureFlags') };
-  for (const feature of options.enableFeatures) {
-    flags[feature] = 'enabled' satisfies PersistedFlagState;
+): readonly string[] {
+  const errors: string[] = [];
+  const requests = [
+    ...options.enableFeatures.map((featureId) => ({ featureId, desired: 'enabled' as const, flag: '--enable-feature' })),
+    ...options.disableFeatures.map((featureId) => ({ featureId, desired: 'disabled' as const, flag: '--disable-feature' })),
+  ];
+  for (const request of requests) {
+    try {
+      const write = resolveFeatureEnablementWrite(request.featureId, request.desired);
+      setRuntimeOnlyConfigValue(configManager, write.key, write.value);
+    } catch (error) {
+      errors.push(error instanceof Error
+        ? `Invalid ${request.flag} ${request.featureId}. ${error.message}`
+        : `Invalid ${request.flag} ${request.featureId}`);
+    }
   }
-  for (const feature of options.disableFeatures) {
-    flags[feature] = 'disabled' satisfies PersistedFlagState;
-  }
-  // Write the entire featureFlags category at once to preserve the exact shape getCategory expects.
-  // mutableConfig() validates the 'config' field exists and throws loudly if the SDK renames it.
-  mutableConfig(configManager).featureFlags = flags;
+  return errors;
 }
 
 export function applyRuntimeEndpointFlagOverrides(

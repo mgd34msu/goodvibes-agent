@@ -1,7 +1,7 @@
 import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { ProviderAuthFreshness, ProviderAuthRoute } from '@/runtime/index.ts';
-import type { FeatureFlag, FlagState } from '@/runtime/index.ts';
+import type { FeatureSetting, FlagState } from '@/runtime/index.ts';
 
 export interface SettingsModalChange {
   readonly key: ConfigKey;
@@ -92,8 +92,12 @@ export interface SettingEntry {
 }
 
 export interface FlagEntry {
-  flag: FeatureFlag;
+  /** The feature as FEATURE_SETTINGS describes it: domain, enablement shape, settings keys, real description. */
+  feature: FeatureSetting;
+  /** Live gate state from the manager (kill-switch aware); config-derived when no manager is attached. */
   state: FlagState;
+  /** The enablement settings key's current config value, rendered on the row. */
+  enablementValue: string;
 }
 
 export interface McpEntry {

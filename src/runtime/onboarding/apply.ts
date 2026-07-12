@@ -14,11 +14,9 @@ import { AgentPersonaRegistry, assertNoSecretLikeText } from '../../agent/person
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import {
-  isFeatureFlagConfigKey,
-  mergeFeatureFlagConfigValue,
-  readFeatureFlagConfigValue,
-  type FeatureFlagConfigKey,
-} from '../surface-feature-flags.ts';
+  expandLegacyFeatureConfigValue,
+  isLegacyFeatureConfigKey,
+} from '../feature-enablement.ts';
 import {
   getOnboardingRuntimeStatePath,
   readOnboardingRuntimeState,
@@ -50,25 +48,13 @@ function isMalformedGoodVibesSecretReferenceValue(value: string): boolean {
   return normalized.startsWith('goodvibes://') && !isGoodVibesSecretReferenceValue(normalized);
 }
 
-function validateFeatureFlagConfigValue(operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>): boolean {
-  if (!isFeatureFlagConfigKey(operation.key)) return false;
-
-  if (operation.key === 'featureFlags') {
-    if (!isPlainObject(operation.value)) throw new Error('featureFlags expects an object value.');
-    for (const [flagId, state] of Object.entries(operation.value)) {
-      if (flagId.trim().length === 0) throw new Error('featureFlags cannot contain an empty feature id.');
-      if (state !== 'enabled' && state !== 'disabled') {
-        throw new Error(`featureFlags.${flagId} expects enabled or disabled.`);
-      }
-    }
-    return true;
-  }
-
-  const flagId = operation.key.slice('featureFlags.'.length);
-  if (flagId.trim().length === 0) throw new Error('featureFlags requires a feature id.');
-  if (operation.value !== 'enabled' && operation.value !== 'disabled') {
-    throw new Error(`Config key ${operation.key} expects enabled or disabled.`);
-  }
+function validateLegacyFeatureConfigValue(operation: Extract<OnboardingApplyOperation, { kind: 'set-config' }>): boolean {
+  if (!isLegacyFeatureConfigKey(operation.key)) return false;
+  // Throws with real guidance on malformed shapes, unknown feature ids, and
+  // always-available (constant-binding) features. The legacy featureFlags
+  // namespace dissolved onto domain settings keys; the expansion below is
+  // exactly what apply will write.
+  expandLegacyFeatureConfigValue(operation.key, operation.value);
   return true;
 }
 
@@ -77,7 +63,7 @@ function validateConfigValue(operation: Extract<OnboardingApplyOperation, { kind
     throw new Error(`Config key ${operation.key} only accepts goodvibes://secrets/... secret references.`);
   }
 
-  if (validateFeatureFlagConfigValue(operation)) return;
+  if (validateLegacyFeatureConfigValue(operation)) return;
 
   const schema = CONFIG_SCHEMA.find((entry) => entry.key === operation.key);
   if (!schema) {
@@ -252,6 +238,21 @@ function applyConfigOperation(
   if ((operation.scope ?? 'global') === 'project') {
     const path = deps.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'settings.json');
     const existing = readJsonObject(path);
+    if (isLegacyFeatureConfigKey(operation.key)) {
+      // Legacy featureFlags keys dissolved onto domain settings keys: persist
+      // the translated domain-key writes, never a featureFlags record.
+      const writes = expandLegacyFeatureConfigValue(operation.key, operation.value);
+      let updated = existing;
+      for (const write of writes) {
+        updated = setNestedValue(updated, write.key, write.value);
+      }
+      writeJsonObject(path, updated);
+      deps.config.load();
+      return {
+        kind: operation.kind,
+        summary: `Persisted ${writes.map((write) => write.key).join(', ')} (legacy ${operation.key}) in project onboarding settings.`,
+      };
+    }
     const updated = setNestedValue(existing, operation.key, operation.value);
     writeJsonObject(path, updated);
     deps.config.load();
@@ -262,11 +263,17 @@ function applyConfigOperation(
     };
   }
 
-  if (isFeatureFlagConfigKey(operation.key)) {
-    mergeFeatureFlagConfigValue(deps.config, operation.key, operation.value);
-  } else {
-    deps.config.setDynamic(operation.key, operation.value);
+  if (isLegacyFeatureConfigKey(operation.key)) {
+    const writes = expandLegacyFeatureConfigValue(operation.key, operation.value);
+    for (const write of writes) {
+      deps.config.setDynamic(write.key, write.value);
+    }
+    return {
+      kind: operation.kind,
+      summary: `Updated ${writes.map((write) => write.key).join(', ')} (legacy ${operation.key}) in global onboarding settings.`,
+    };
   }
+  deps.config.setDynamic(operation.key, operation.value);
   return {
     kind: operation.kind,
     summary: `Updated ${operation.key} in global onboarding settings.`,
@@ -319,15 +326,21 @@ async function buildRollbackAction(
       );
     }
 
-    const previous = isFeatureFlagConfigKey(operation.key)
-      ? readFeatureFlagConfigValue(deps.config, operation.key)
-      : deps.config.get(operation.key);
+    const operationKey = operation.key;
+    if (isLegacyFeatureConfigKey(operationKey)) {
+      // Snapshot the domain settings keys the translated writes will touch and
+      // restore those exact values — no featureFlags category exists to merge.
+      const writes = expandLegacyFeatureConfigValue(operationKey, operation.value);
+      const previousValues = writes.map((write) => ({ key: write.key, previous: deps.config.get(write.key) }));
+      return () => {
+        for (const entry of previousValues) {
+          deps.config.setDynamic(entry.key, entry.previous);
+        }
+      };
+    }
+    const previous = deps.config.get(operationKey);
     return () => {
-      if (isFeatureFlagConfigKey(operation.key)) {
-        mergeFeatureFlagConfigValue(deps.config, operation.key, previous ?? 'disabled');
-      } else {
-        deps.config.setDynamic(operation.key, previous);
-      }
+      deps.config.setDynamic(operationKey, previous);
     };
   }
 

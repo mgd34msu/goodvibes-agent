@@ -1,6 +1,6 @@
 import type { ConfigManager, ConfigKey, GoodVibesConfig } from '../../config/index.ts';
 import type { SecretsManager, SecretRecord, SecretStorageReview } from '../../config/secrets.ts';
-import type { FeatureFlagConfigKey } from '../surface-feature-flags.ts';
+import type { LegacyFeatureConfigKey } from '../feature-enablement.ts';
 import type { LocalAuthSnapshot, UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
 import type { ShellPathService } from '@/runtime/index.ts';
 import type {
@@ -226,7 +226,7 @@ export interface OnboardingStepDerivationState {
 export type OnboardingApplyOperation =
   | {
       readonly kind: 'set-config';
-      readonly key: ConfigKey | FeatureFlagConfigKey;
+      readonly key: ConfigKey | LegacyFeatureConfigKey;
       readonly value: unknown;
       readonly scope?: 'global' | 'project';
     }

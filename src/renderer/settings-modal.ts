@@ -42,7 +42,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   web: 'Web companion surface settings including host, port, public URL, and static asset path.',
   watchers: 'Polling watcher and heartbeat behavior for runtime recovery and periodic checks.',
   network: 'Outbound TLS and remote fetch network policy.',
-  relay: 'Outbound zero-knowledge relay reachability for the connected GoodVibes daemon: an end-to-end encrypted tunnel (ECDH P-256 -> HKDF -> AES-256-GCM) that terminates INSIDE the daemon, so the relay operator only ever sees ciphertext plus connection metadata (who paired with whom, byte counts, timing) — never plaintext requests, responses, or the operator token. Default off, and gated by the relay-connect feature flag in addition to relay.enabled. These are the connected daemon\'s own settings (imported here, not live-shared): changing them in Agent does not itself start or stop the daemon\'s relay registration.',
+  relay: 'Outbound zero-knowledge relay reachability for the connected GoodVibes daemon: an end-to-end encrypted tunnel (ECDH P-256 -> HKDF -> AES-256-GCM) that terminates INSIDE the daemon, so the relay operator only ever sees ciphertext plus connection metadata (who paired with whom, byte counts, timing) — never plaintext requests, responses, or the operator token. Default off; relay.enabled is the relay-connect feature\'s switch. These are the connected daemon\'s own settings (imported here, not live-shared): changing them in Agent does not itself start or stop the daemon\'s relay registration.',
   orchestration: 'Visible agent orchestration limits such as recursion and active-agent caps.',
   planner: 'Planning-decomposition agent limits: decomposition strategy, max turns, token ceiling, and wall-clock timeout before falling back to the deterministic heuristic path.',
   daemon: 'Whether the local session daemon runs, and whether it is embedded in this surface process instead of spawned as a detached background service.',
@@ -57,7 +57,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
   release: 'Update-channel preference.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
-  flags: 'Feature controls for optional behavior that can be enabled or disabled separately from normal configuration.',
+  flags: 'Every optional capability grouped by its settings domain: each feature is switched through a first-class domain settings key (shown per row), with its full description and related settings under the cursor.',
   atRest: 'Data-at-rest protection: whether stored content is redacted, and retention limits by age and total size.',
   learning: 'Idle-time memory consolidation: dedupe merges, confidence decay of never-referenced records, and review proposals. Off by default.',
   agents: 'Agent runtime tuning: the context-window fraction that triggers sub-agent conversation compaction, and the token budget, relevance floor, and code-chunk limit for per-turn passive knowledge/code injection.',
@@ -197,22 +197,32 @@ function formatSubscriptionRoute(route: SubscriptionEntry['activeRoute'] | Subsc
   return route ? formatProviderAuthRouteId(route) : 'n/a';
 }
 
+function describeFeatureEnablement(entry: FlagEntry): string {
+  const { key, kind, enabledValues } = entry.feature.enablement;
+  if (kind === 'boolean') return `Switch: ${key} (true/false).`;
+  if (kind === 'enum') return `Switch: ${key} — active while set to ${(enabledValues ?? []).join(' or ')}.`;
+  return `Always available; its settings (${entry.feature.settings.join(', ')}) govern runtime activation directly.`;
+}
+
 function buildFlagContext(entry: FlagEntry | null): string[] {
   if (!entry) return ['Feature Controls', 'No feature control is selected.'];
   return [
-    entry.flag.name,
-    `ID: ${entry.flag.id}`,
+    entry.feature.name,
+    `ID: ${entry.feature.id}`,
+    `Domain: ${entry.feature.domain}`,
     `State: ${entry.state}`,
-    `Default: ${entry.flag.defaultState}`,
-    `Tier: ${entry.flag.tier}`,
-    `Live toggleable: ${entry.flag.runtimeToggleable ? 'yes' : 'no'}`,
+    `Default: ${entry.feature.defaultEnabled ? 'enabled' : 'disabled'}`,
+    `Current value: ${entry.feature.enablement.key} = ${entry.enablementValue}`,
+    `Live toggleable: ${entry.feature.restartRequired ? 'no' : 'yes'}`,
     '',
-    entry.flag.description,
-    ...(entry.state === 'killed' && entry.flag.killReason ? ['', `Kill reason: ${entry.flag.killReason}`] : []),
+    entry.feature.description,
     '',
-    entry.flag.runtimeToggleable
-      ? 'Impact: changes apply immediately and are also persisted as an override when they differ from the default.'
-      : 'Impact: this override is saved for the next Agent launch or owning-host reload, depending on who owns the flag.',
+    describeFeatureEnablement(entry),
+    `Settings: ${entry.feature.settings.join(', ')}`,
+    '',
+    entry.feature.restartRequired
+      ? 'Impact: the domain settings key is saved now and takes effect on the next Agent launch or owning-host reload.'
+      : 'Impact: changes to the domain settings key apply immediately through the live settings bridge.',
   ];
 }
 
@@ -388,25 +398,25 @@ function renderSettingRows(modal: SettingsModal, width: number, height: number):
 function renderFlagRows(modal: SettingsModal, width: number, height: number): string[] {
   const rows: string[] = [];
   const items = modal.flagEntries;
-  if (items.length === 0) return ['No feature flags registered.'];
+  if (items.length === 0) return ['No features registered.'];
   const selectedIndex = clamp(modal.selectedIndex, 0, items.length - 1);
-  const nameWidth = clamp(Math.floor(width * 0.40), 24, 58);
+  const nameWidth = clamp(Math.floor(width * 0.34), 22, 52);
   const stateWidth = 10;
-  const tierWidth = 6;
+  const domainWidth = 13;
   const runtimeWidth = 10;
   const defaultWidth = 9;
-  const idWidth = Math.max(12, width - nameWidth - stateWidth - tierWidth - runtimeWidth - defaultWidth - 14);
-  rows.push(`  ${padDisplay('Feature Flag', nameWidth)}  ${padDisplay('State', stateWidth)}  ${padDisplay('Tier', tierWidth)}  ${padDisplay('Applies', runtimeWidth)}  ${padDisplay('Default', defaultWidth)}  ${padDisplay('ID', idWidth)}`);
+  const settingWidth = Math.max(16, width - nameWidth - stateWidth - domainWidth - runtimeWidth - defaultWidth - 14);
+  rows.push(`  ${padDisplay('Feature', nameWidth)}  ${padDisplay('State', stateWidth)}  ${padDisplay('Domain', domainWidth)}  ${padDisplay('Applies', runtimeWidth)}  ${padDisplay('Default', defaultWidth)}  ${padDisplay('Setting', settingWidth)}`);
   const visibleCount = Math.max(1, height - 2);
   const window = stableWindow(items.length, selectedIndex, visibleCount);
-  if (window.start > 0) rows.push(`${GLYPHS.navigation.moreAbove} ${window.start} more flag(s) above`);
+  if (window.start > 0) rows.push(`${GLYPHS.navigation.moreAbove} ${window.start} more feature(s) above`);
   for (let index = window.start; index < window.end; index += 1) {
     const entry = items[index]!;
     const selected = index === selectedIndex;
     const marker = selected ? (modal.focusPane === 'settings' ? GLYPHS.navigation.selected : '•') : ' ';
-    rows.push(`${marker} ${padDisplay(entry.flag.name, nameWidth)}  ${padDisplay(entry.state, stateWidth)}  ${padDisplay(String(entry.flag.tier), tierWidth)}  ${padDisplay(entry.flag.runtimeToggleable ? 'now' : 'next run', runtimeWidth)}  ${padDisplay(entry.flag.defaultState, defaultWidth)}  ${padDisplay(entry.flag.id, idWidth)}`);
+    rows.push(`${marker} ${padDisplay(entry.feature.name, nameWidth)}  ${padDisplay(entry.state, stateWidth)}  ${padDisplay(entry.feature.domain, domainWidth)}  ${padDisplay(entry.feature.restartRequired ? 'next run' : 'now', runtimeWidth)}  ${padDisplay(entry.feature.defaultEnabled ? 'enabled' : 'disabled', defaultWidth)}  ${padDisplay(`${entry.feature.enablement.key}=${entry.enablementValue}`, settingWidth)}`);
   }
-  if (window.end < items.length) rows.push(`${GLYPHS.navigation.moreBelow} ${items.length - window.end} more flag(s) below`);
+  if (window.end < items.length) rows.push(`${GLYPHS.navigation.moreBelow} ${items.length - window.end} more feature(s) below`);
   return rows.slice(0, height);
 }
 
@@ -478,7 +488,7 @@ function footerText(modal: SettingsModal): string {
   if (modal.focusPane === 'categories') return 'Focus categories · Up/Down choose · Right/Enter settings · Tab pane · Esc close';
   if (modal.currentCategory === 'subscriptions') return 'Focus settings · Up/Down provider · Left categories · Tab pane · Enter review/sign out · Esc close';
   if (modal.currentCategory === 'mcp') return 'Focus settings · Up/Down server · Left categories · Tab pane · Enter edit trust · Esc close';
-  if (modal.currentCategory === 'flags') return 'Focus feature flags · Up/Down flag · Left categories · Tab pane · Enter/Space toggle · Esc close';
+  if (modal.currentCategory === 'flags') return 'Focus features · Up/Down feature · Left categories · Tab pane · Enter/Space toggle · Esc close';
   const selected = modal.getSelected();
   if (selected && isExternalHostOwnedSettingKey(selected.setting.key)) {
     return 'Read-only connected-host setting · Change from GoodVibes TUI or the owning host · Esc close';
@@ -495,9 +505,9 @@ export function renderSettingsModalPackageText(): string {
     'Type',
     'Source',
     'Default',
-    'Feature Flag',
+    'Feature',
     'State',
-    'Tier',
+    'Domain',
     'Applies',
     'Server',
     'Trust',
@@ -509,7 +519,7 @@ export function renderSettingsModalPackageText(): string {
     'OAuth',
     'Note',
     'No settings in this category.',
-    'No feature flags registered.',
+    'No features registered.',
     'No MCP servers registered.',
     'No provider subscriptions available or configured.',
     'No setting is selected in this category.',
@@ -531,7 +541,7 @@ export function renderSettingsModalPackageText(): string {
     'Focus categories · Up/Down choose · Right/Enter settings · Tab pane · Esc close',
     'Focus settings · Up/Down provider · Left categories · Tab pane · Enter review/sign out · Esc close',
     'Focus settings · Up/Down server · Left categories · Tab pane · Enter edit trust · Esc close',
-    'Focus feature flags · Up/Down flag · Left categories · Tab pane · Enter/Space toggle · Esc close',
+    'Focus features · Up/Down feature · Left categories · Tab pane · Enter/Space toggle · Esc close',
     'Read-only connected-host setting · Change from GoodVibes TUI or the owning host · Esc close',
     'Focus settings · Up/Down setting · Left categories · Tab pane · Enter/Space edit/toggle · R reset · Esc close',
   ];

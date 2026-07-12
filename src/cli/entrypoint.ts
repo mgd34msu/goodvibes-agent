@@ -10,7 +10,7 @@ import {
   applyRuntimeCommandEndpointFlagOverrides,
   applyRuntimeConfigOverrides,
   applyRuntimeConfigValue,
-  applyRuntimeFeatureFlagOverrides,
+  applyRuntimeFeatureOverrides,
   applyRuntimeUrlOverride,
   buildCliStatusSnapshot,
   handleGoodVibesCliCommand,
@@ -147,10 +147,14 @@ export async function prepareShellCliRuntime(
     console.error(overrideErrors.join('\n'));
     process.exit(2);
   }
-  applyRuntimeFeatureFlagOverrides(configManager, {
+  const featureOverrideErrors = applyRuntimeFeatureOverrides(configManager, {
     enableFeatures: cli.flags.enableFeatures,
     disableFeatures: cli.flags.disableFeatures,
   });
+  if (featureOverrideErrors.length > 0) {
+    console.error(featureOverrideErrors.join('\n'));
+    process.exit(2);
+  }
 
   if (cli.flags.provider !== undefined || cli.flags.model !== undefined) {
     const currentModel = configManager.get('provider.model');
