@@ -17,7 +17,5 @@ export type { PolicyDiagnosticsSnapshot } from './policy.ts';
 export { ToolContractsPanel } from '@/runtime/index.ts';
 export { TransportPanel } from '@/runtime/index.ts';
 export type { TransportPanelSnapshot } from '@/runtime/index.ts';
-export { OpsPanel } from './ops.ts';
-export type { OpsAuditEntry } from './ops.ts';
 export { SecurityPanel } from '@/runtime/index.ts';
 export type { SecurityPanelSnapshot } from '@/runtime/index.ts';

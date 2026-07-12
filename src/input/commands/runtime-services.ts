@@ -16,7 +16,6 @@ import type { KnowledgeApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { HookApi } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { McpApi } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { OperatorClient } from '@/runtime/index.ts';
-import type { OpsApi } from '@/runtime/index.ts';
 import type { PeerClient } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { ProviderApi } from '@pellux/goodvibes-sdk/platform/providers';
@@ -237,10 +236,6 @@ export function requireHookApi(context: CommandContext): HookApi {
 
 export function requireMcpApi(context: CommandContext): McpApi {
   return requireContextValue(context.clients?.mcpApi, 'clients.mcpApi');
-}
-
-export function requireOpsApi(context: CommandContext): OpsApi {
-  return requireContextValue(context.clients?.opsApi, 'clients.opsApi');
 }
 
 export function requireDirectTransport(context: CommandContext): DirectTransport {

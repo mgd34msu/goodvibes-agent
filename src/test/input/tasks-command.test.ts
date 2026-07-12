@@ -6,7 +6,6 @@ import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeOpsApi } from '@/runtime/index.ts';
 import { createTaskManager } from '@/runtime/index.ts';
-import { OpsControlPlane } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { createTasksReadModel } from '../helpers/ui-read-models.ts';
 import type { OperatorClient } from '@/runtime/index.ts';
@@ -112,10 +111,12 @@ describe('tasks command', () => {
     taskManager.completeTask(task.id, { ok: true, artifactId: 'artifact-1' });
 
     const out: string[] = [];
+    // No opsControlPlane: the Agent never constructs the ops intervention
+    // plane (read-only tasks policy), and the read paths under test do not
+    // need one.
     const opsApi = createRuntimeOpsApi({
       tasksReadModel: createTasksReadModel(store),
       taskManager,
-      opsControlPlane: new OpsControlPlane(taskManager, bus, store, 'sess-tasks'),
     });
     const readModels = {
       tasks: createTasksReadModel(store),
@@ -143,6 +144,28 @@ describe('tasks command', () => {
     out.length = 0;
     await tasksCommand!.handler(['output', task.id], ctx);
     expect(out.join('\n')).toContain('artifact-1');
+  });
+
+  test('the agent-shaped ops api refuses intervention verbs with the honest unavailability reason', () => {
+    // bootstrap-shell builds opsApi WITHOUT an ops control plane — the Agent
+    // never constructs one (connected-host tasks are read-only by product
+    // policy). Anything that does reach the intervention verbs must get the
+    // real reason, not a silent no-op.
+    const store = createRuntimeStore();
+    const bus = new RuntimeEventBus();
+    const taskManager = createTaskManager(store, bus, 'sess-ops-honesty');
+    const opsApi = createRuntimeOpsApi({
+      tasksReadModel: createTasksReadModel(store),
+      taskManager,
+    });
+    const task = taskManager.createTask({ kind: 'exec', title: 'held task', owner: 'shell' });
+    taskManager.startTask(task.id);
+
+    expect(() => opsApi.tasks.cancel(task.id)).toThrow('Ops control plane is not available in this runtime.');
+    expect(() => opsApi.tasks.pause(task.id)).toThrow('Ops control plane is not available in this runtime.');
+    expect(() => opsApi.agents.cancel('agent-1')).toThrow('Ops control plane is not available in this runtime.');
+    // Read paths stay fully functional without a plane.
+    expect(opsApi.tasks.get(task.id)?.status).toBe('running');
   });
 
   test('blocks copied task panel routing in Agent', async () => {
@@ -173,7 +196,6 @@ describe('tasks command', () => {
     const store = createRuntimeStore();
     const bus = new RuntimeEventBus();
     const taskManager = createTaskManager(store, bus, 'sess-tasks');
-    const plane = new OpsControlPlane(taskManager, bus, store, 'sess-tasks');
     const task = taskManager.createTask({
       kind: 'exec',
       title: 'Run verification',
@@ -182,10 +204,11 @@ describe('tasks command', () => {
     taskManager.startTask(task.id);
 
     const out: string[] = [];
+    // Even without any ops intervention plane the command must refuse the
+    // mutation itself — the policy block runs before any client is touched.
     const opsApi = createRuntimeOpsApi({
       tasksReadModel: createTasksReadModel(store),
       taskManager,
-      opsControlPlane: plane,
     });
     const readModels = {
       tasks: createTasksReadModel(store),
@@ -226,10 +249,11 @@ describe('tasks command', () => {
     const taskManager = createTaskManager(store, bus, 'sess-task-crud');
 
     const out: string[] = [];
+    // No opsControlPlane: the policy block must refuse CRUD mutations before
+    // any client is touched, plane or not.
     const opsApi = createRuntimeOpsApi({
       tasksReadModel: createTasksReadModel(store),
       taskManager,
-      opsControlPlane: new OpsControlPlane(taskManager, bus, store, 'sess-task-crud'),
     });
     const readModels = {
       tasks: createTasksReadModel(store),

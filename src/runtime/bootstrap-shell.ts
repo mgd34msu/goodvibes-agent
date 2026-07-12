@@ -8,7 +8,6 @@ import type { RuntimeStore } from './store/index.ts';
 import type { RuntimeServices } from './services.ts';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
-import type { OpsControlPlane } from '@/runtime/index.ts';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
 import { InputHistory } from '../input/input-history.ts';
@@ -58,7 +57,6 @@ export interface BootstrapShellOptions {
   readonly policyRuntimeState: PolicyRuntimeState;
   readonly uiServices: UiRuntimeServices;
   readonly taskManager: TaskManager;
-  readonly opsControlPlane?: OpsControlPlane;
   readonly completeModelSelectionSideEffect?: () => void;
 }
 
@@ -119,7 +117,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     policyRuntimeState,
     uiServices,
     taskManager,
-    opsControlPlane,
     completeModelSelectionSideEffect,
   } = options;
 
@@ -156,11 +153,14 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
 
   const commandRegistry = new CommandRegistry();
   registerBuiltinCommands(commandRegistry);
+  // No opsControlPlane: the Agent's product boundary keeps connected-host
+  // tasks read-only (see /tasks: every mutation subcommand is blocked and
+  // routed to /workplan or /delegate), so the opsApi intervention verbs
+  // honestly report the control plane as unavailable.
   const foundationClients = createRuntimeFoundationClients({
     runtimeServices: services,
     tasksReadModel: uiServices.readModels.tasks,
     taskManager,
-    opsControlPlane,
   });
   const {
     directTransport,

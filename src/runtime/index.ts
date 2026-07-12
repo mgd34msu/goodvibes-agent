@@ -207,10 +207,10 @@ export type RemoteRuntimeEventsOptions = Transport.RemoteRuntimeEventsOptions;
 export type RemoteRuntimeEvents = Transport.RemoteRuntimeEvents;
 export type SerializedRuntimeEnvelope = Transport.SerializedRuntimeEnvelope;
 
-// Operations compatibility aliases.
-export const OpsControlPlane = operations.OpsControlPlane;
-export const OpsIllegalActionError = operations.OpsIllegalActionError;
-export const OpsTargetNotFoundError = operations.OpsTargetNotFoundError;
+// Operations compatibility aliases. (OpsControlPlane and its error classes
+// are deliberately NOT re-exported: the Agent never constructs the ops
+// intervention plane — connected-host tasks are read-only by product policy,
+// with mutations routed to /workplan and /delegate.)
 export const ToolContractVerifier = operations.ToolContractVerifier;
 export const McpLifecycleManager = operations.McpLifecycleManager;
 export const McpPermissionManager = operations.McpPermissionManager;
@@ -338,7 +338,6 @@ export type DistributedRuntimeSnapshotStore = Operations.DistributedRuntimeSnaps
 export type RemoteRunnerRegistry = Operations.RemoteRunnerRegistry;
 export type RemoteSupervisor = Operations.RemoteSupervisor;
 export type DistributedRuntimeManager = Operations.DistributedRuntimeManager;
-export type OpsControlPlane = Operations.OpsControlPlane;
 export type RuntimeTransitionResult = Operations.RuntimeTransitionResult;
 export type RetentionClass = Operations.RetentionClass;
 export type RetentionClassConfig = Operations.RetentionClassConfig;

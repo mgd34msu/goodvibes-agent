@@ -21,7 +21,6 @@ import type { Compositor } from '../renderer/compositor.ts';
 import type { RuntimeContext, BootstrapOptions } from './context.ts';
 import { shutdownRuntime, fireSessionStart, saveSession } from '@/runtime/index.ts';
 import { createTaskManager } from '@/runtime/index.ts';
-import { OpsControlPlane } from '@/runtime/index.ts';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import { emitSessionReady, emitSessionStarted } from '@/runtime/index.ts';
 import {
@@ -396,9 +395,6 @@ export async function bootstrapRuntime(
   }));
 
   const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId);
-  const opsControlPlane = services.featureFlags.isEnabled('operator-control-plane')
-    ? new OpsControlPlane(opsTaskManager, runtimeBus, store, userSessionId)
-    : undefined;
 
   const shell = createBootstrapShell({
     configManager,
@@ -421,7 +417,6 @@ export async function bootstrapRuntime(
     policyRuntimeState: services.policyRuntimeState,
     uiServices,
     taskManager: opsTaskManager,
-    opsControlPlane,
     completeModelSelectionSideEffect: () => {
       compositor.resetDiff();
     },

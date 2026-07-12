@@ -31,7 +31,13 @@ import {
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createTaskManager } from '@/runtime/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
-import { OpsControlPlane } from '@/runtime/index.ts';
+// The Agent's runtime barrel no longer re-exports OpsControlPlane (the Agent
+// never constructs the ops intervention plane — read-only tasks policy).
+// These tests exercise the SDK-owned diagnostics-action wiring, so they take
+// the class straight from the SDK's public operations namespace.
+import { operations } from '@pellux/goodvibes-sdk/platform/runtime';
+
+const { OpsControlPlane } = operations;
 import { DeterministicReplayEngine } from '@pellux/goodvibes-sdk/platform/core';
 
 // ---------------------------------------------------------------------------
