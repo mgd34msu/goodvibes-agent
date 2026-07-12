@@ -226,9 +226,9 @@ export function formatCliServicePosture(posture: CliServicePosture, json = false
   return [
     'GoodVibes Agent connected-host diagnostics',
     '  lifecycle owner: outside goodvibes-agent',
-    '  Agent starts connected host: no',
+    '  Agent starts connected host: only at boot, when it is installed but stopped',
     `  external host config present: ${yesNo(posture.config.enabled)}`,
-    '  external host lifecycle config: ignored by Agent',
+    '  external host lifecycle config: only the service name is read, for the boot start check',
     `  daemon considered enabled: ${yesNo(posture.config.daemonEnabled)}`,
     `  log: ${posture.log.path ?? 'n/a'} (${posture.log.exists ? 'present' : 'missing'})`,
     ...(posture.log.readError ? [`  log read error: ${posture.log.readError}`] : []),

@@ -77,7 +77,7 @@ const GOODVIBES_AGENT_OPERATOR_POLICY = [
   '## GoodVibes Agent Operator Policy',
   '- Act as one user-facing autonomous assistant. Prefer the lowest-friction safe path that completes the user outcome; do not expose internal package or host ownership unless it is needed for diagnosis, setup, or safety.',
   '- Work serially in the main conversation by default for ordinary chat, research, planning, setup, local context, and short tool work. Use visible schedules, work plans, operator actions, or delegated/remote routes for durable or long-running autonomy.',
-  '- Connected-host lifecycle is not ambient. If the host is unavailable, explain the shortest user action to make the assistant reachable; do not pretend a missing host route worked.',
+  '- Connected-host lifecycle is not ambient beyond one bounded boot behavior: at startup the runtime starts an installed-but-stopped host through the platform service manager and reports it. If the host is unavailable after that, explain the shortest user action to make the assistant reachable; do not pretend a missing host route worked.',
   '- Read tools: `route action:"plan|status"`, `schedule action:"list"`, `setup action:"status|item|repair|checkpoint"`, `settings action:"list|get"`, `vibe action:"status|show"`, `context action:"status|files|file|prompt|receipts|receipt"`, `memory action:"status|provider|curator|candidate|list|search|get"`, `channels action:"status|channel|setup|triage|deliveries"`, `models action:"status|route|local|providers|provider"`, `personal_ops action:"briefing|status|queue|intake|lane"`, `autonomy action:"intake|queue|item|status"`, `delegation action:"status|routes|route"`, `execution action:"status|route|history|record|processes|process_capabilities|process|recovery"`, `security action:"status|finding|explain"`, `support action:"status|bundle"`, `sessions action:"list|get"`, `audit action:"readiness|item|evidence|artifact"`, `computer action:"status|plan|control|browser|setup|mcp"`, `research action:"plan|search|runner|runs|run|sources|source|bundle|reports|report_artifact"`, `device action:"status|capability|browser|control|voice|provider"`, `workspace action:"status|actions|action|surfaces|surface|shortcuts|keybindings|keybinding|commands|command|cli_commands|cli_command"`, `host action:"status|capabilities|capability|services|service|methods|method"`, `import_goodvibes_settings action:"preview"`, and `agent_operator_briefing` for connected work/approvals/automation/schedules, `agent_knowledge` for isolated Agent Knowledge, and `agent_harness` for harness catalogs/status/capability discovery. Use `agent_artifacts` for saved artifact list/preview/export/package/archive; write modes are confirmation-gated.',
   '- Harness access: use `settings action:"set|reset|import"` and `workspace action:"run|run_command|open|run_keybinding|set_keybinding|reset_keybinding"` to use the same surfaces the user can use; lower-level `agent_harness` modes remain for detail inspection and compatibility.',
   '- State tools: `agent_work_plan` for visible local work items; `agent_local_registry` for Agent-local notes, memory, personas, skills, bundles, and routines; `agent_learning_consolidation` for confirmed duplicate cleanup phases; `agent_documents` for versioned Agent document drafts. Keep records non-secret, sourced, and reviewable.',
@@ -478,9 +478,11 @@ export async function bootstrapRuntime(
 
   const deferredStartup = createDeferredStartupCoordinator();
 
-  // GoodVibes Agent never owns the connected daemon's (or HTTP listener's)
+  // GoodVibes Agent does not own the connected daemon's (or HTTP listener's)
   // lifecycle — see bootstrap-external-services.ts for the adopt-only wiring
-  // and the deferred discovery probe it schedules.
+  // and the deferred discovery probe it schedules. One bounded exception at
+  // boot: a host that is INSTALLED on this machine but stopped is started
+  // once through the platform service manager, with an honest receipt.
   const agentExternalServices = wireAgentExternalServices({
     configManager,
     runtimeBus,
@@ -519,13 +521,15 @@ export async function bootstrapRuntime(
       requestRender();
     },
   });
-  // W2A: probe the daemon spine OFF the interactive path. On a reachable daemon,
+  // Probe the daemon spine OFF the interactive path. On a reachable daemon,
   // fold the agent's own per-cwd legacy session store into it (once; marked
-  // migrated). Never starts the daemon; a down/absent daemon leaves the agent
-  // local-only with an honest offline status.
+  // migrated). Waits for connected-host discovery (which may have just started
+  // an installed-but-stopped daemon) so this probe sees the settled state; a
+  // down/absent daemon leaves the agent local-only with an honest offline status.
   deferredStartup.schedule({
     label: 'session-spine',
     run: async () => {
+      await agentExternalServices.whenDiscovered();
       const reachability = await services.sessionSpineClient.probeReachability();
       if (reachability !== 'online') return;
       foldLegacySpineStore(services.sessionSpineClient, {
@@ -562,6 +566,11 @@ export async function bootstrapRuntime(
   deferredStartup.schedule({
     label: 'memory-spine',
     run: async () => {
+      // Wait for connected-host discovery (which may have just started an
+      // installed-but-stopped daemon) so the first adoption decision sees the
+      // settled daemon state instead of racing it; the heartbeat below keeps
+      // reconciling for the rest of the process lifetime either way.
+      await agentExternalServices.whenDiscovered();
       await reconcileMemorySpine();
       // Prime the recall snapshot (SDK 1.2.0 sync-recall seam) so the FIRST
       // system prompt built after boot already has a real snapshot to read
@@ -721,7 +730,7 @@ export async function bootstrapRuntime(
     commandRegistry,
     systemMessageRouter,
     shutdown: async (sessionData) => {
-      // W2A: best-effort spine close (short timeout, fire-and-forget) then stop
+      // Best-effort spine close (short timeout, fire-and-forget) then stop
       // the heartbeat timer. Tolerates a racing daemon stop; never blocks teardown.
       services.sessionSpineClient.close(runtime.sessionId);
       services.sessionSpineClient.dispose();

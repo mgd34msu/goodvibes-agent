@@ -92,7 +92,7 @@ export async function setupRepairSummary(context: CommandContext, args: AgentHar
       effect: 'read-only-repair-decision',
       boundary: 'This route chooses the safest next setup repair route only. It never starts, installs, restarts, writes tokens, imports settings, or opens UI by itself.',
       confirmation: 'Any returned confirmed-effect route still requires confirm:true and explicitUserRequest tied to the user request.',
-      hostOwnership: 'GoodVibes Agent does not take ambient ownership of the GoodVibes host lifecycle; disconnected hosts use user-run bootstrap guidance, and reachable hosts use daemon receipts before lifecycle mutation.',
+      hostOwnership: 'GoodVibes Agent does not take ambient ownership of the GoodVibes host lifecycle. At boot it starts an installed-but-stopped host once through the platform service manager and reports it; beyond that, disconnected hosts use user-run bootstrap guidance, and reachable hosts use daemon receipts before lifecycle mutation.',
     },
   };
 }

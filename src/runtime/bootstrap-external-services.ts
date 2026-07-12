@@ -2,18 +2,28 @@
  * Connected-host (daemon + HTTP listener) discovery for GoodVibes Agent.
  *
  * Split out of bootstrap.ts (which is near the 800-line architecture cap) to
- * keep this concern — and its "GoodVibes Agent never owns the daemon
- * lifecycle" framing — in one small, readable place.
+ * keep this concern — and the Agent's daemon-lifecycle boundary — in one
+ * small, readable place.
  *
- * GoodVibes Agent never starts or restarts the connected daemon: every call
- * routes through the SDK-shared adopt-or-spawn policy
+ * Discovery routes through the SDK-shared adopt-or-spawn policy
  * (decideDaemonAdoption/classifyDaemonProbe) with `adoptOnly: true`, so a
  * reachable, version-compatible daemon is adopted and anything else (absent,
- * blocked, or on an incompatible wire version) is reported honestly. This
- * replaces a local stub that hard-declared every daemon 'external' without
- * probing or version-checking it.
+ * blocked, or on an incompatible wire version) is reported honestly. The
+ * Agent never spawns or embeds a daemon of its own and never restarts a
+ * running one. One bounded exception at boot: when discovery finds nothing
+ * on the configured port but the host's service entry IS installed on this
+ * machine, the Agent issues a single start through the platform service
+ * manager, waits a bounded time for the daemon to answer, re-probes, and
+ * reports what it did (see connected-host-autostart.ts). A machine with the
+ * host installed but stopped must not hand the user homework.
  */
 import { startExternalServices } from '@/runtime/index.ts';
+import {
+  autostartInstalledConnectedHost,
+  createConnectedHostServiceControl,
+  type ConnectedHostServiceControl,
+} from './connected-host-autostart.ts';
+import type { SpineReachability } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import type {
   DeferredStartupCoordinator,
   ExternalServicesHandle,
@@ -65,7 +75,23 @@ const hostServiceIsBlocked = (status: HostServiceStatus): boolean => status.mode
 export interface AgentExternalServicesController {
   /** The most recently resolved (or pending) connected-host status. */
   getStatus(): ExternalServicesHandle;
+  /**
+   * Resolves once the deferred boot discovery (including any boot-time start
+   * of an installed-but-stopped host) has settled. Later probes that reuse
+   * the daemon's reachability (session/memory spine adoption) await this so
+   * they see the post-discovery daemon state instead of racing it.
+   */
+  whenDiscovered(): Promise<void>;
   stop(): Promise<void>;
+}
+
+/** Test seams for the boot-time start of an installed-but-stopped host. */
+export interface ConnectedHostAutostartSeams {
+  readonly control?: ConnectedHostServiceControl;
+  readonly probeReachability?: () => Promise<SpineReachability>;
+  readonly waitTimeoutMs?: number;
+  readonly pollIntervalMs?: number;
+  readonly sleep?: (ms: number) => Promise<void>;
 }
 
 export function wireAgentExternalServices(options: {
@@ -77,8 +103,12 @@ export function wireAgentExternalServices(options: {
   readonly deferredStartup: DeferredStartupCoordinator;
   readonly systemMessageRouter: SystemMessageRouter;
   readonly requestRender: () => void;
+  /** Injectable discovery implementation (tests); defaults to the SDK-shared policy. */
+  readonly startServices?: typeof startExternalServices;
+  readonly connectedHostAutostart?: ConnectedHostAutostartSeams;
 }): AgentExternalServicesController {
   const { configManager, runtimeBus, hookDispatcher, services, uiServices, deferredStartup, systemMessageRouter, requestRender } = options;
+  const startServices = options.startServices ?? startExternalServices;
 
   const inspectAgentDependencies = () => {
     const daemonStatus = externalServices.daemonStatus;
@@ -104,7 +134,53 @@ export function wireAgentExternalServices(options: {
   let externalServicesPromise: Promise<ExternalServicesHandle> | null = null;
 
   const startAgentExternalServices = (): Promise<ExternalServicesHandle> =>
-    startExternalServices(configManager, runtimeBus, hookDispatcher, services, { adoptOnly: true });
+    startServices(configManager, runtimeBus, hookDispatcher, services, { adoptOnly: true });
+
+  // Boot-time start of an installed-but-stopped host: when discovery found
+  // nothing on the configured port, check the platform service manager for an
+  // installed host entry, start it once, wait a bounded time, and re-probe.
+  // Every skip/failure path is honest; errors here never break discovery.
+  const maybeStartInstalledConnectedHost = async (): Promise<void> => {
+    const seams = options.connectedHostAutostart ?? {};
+    try {
+      const outcome = await autostartInstalledConnectedHost({
+        daemonStatus: externalServices.daemonStatus,
+        control: seams.control ?? createConnectedHostServiceControl({
+          configManager: services.configManager,
+          workingDirectory: services.workingDirectory,
+          homeDirectory: services.homeDirectory,
+        }),
+        probeReachability: seams.probeReachability ?? (() => services.sessionSpineClient.probeReachability()),
+        waitTimeoutMs: seams.waitTimeoutMs,
+        pollIntervalMs: seams.pollIntervalMs,
+        sleep: seams.sleep,
+      });
+      switch (outcome.action) {
+        case 'started':
+        case 'came-online': {
+          externalServicesPromise = startAgentExternalServices();
+          externalServices = await externalServicesPromise;
+          const adopted = externalServices.daemonStatus.mode === 'external';
+          const suffix = adopted
+            ? ''
+            : ` — but adopting it still failed: ${externalServices.daemonStatus.reason ?? externalServices.daemonStatus.mode}`;
+          systemMessageRouter.low(outcome.action === 'started'
+            ? `[Startup] Connected host was installed but stopped; started it (service "${outcome.serviceName}")${suffix}.`
+            : `[Startup] Connected host service "${outcome.serviceName}" was already starting; connected once it answered${suffix}.`);
+          break;
+        }
+        case 'start-failed': {
+          systemMessageRouter.high(`[Startup] Connected host is installed but not answering, and starting it did not succeed: ${outcome.reason}. Start it manually with: goodvibes service start`);
+          break;
+        }
+        case 'not-installed':
+        case 'none':
+          break;
+      }
+    } catch (error) {
+      logger.debug('Boot-time connected-host start check failed', { error: summarizeError(error) });
+    }
+  };
 
   const platformExternalServices = uiServices.platform as typeof uiServices.platform & {
     externalServices: NonNullable<typeof uiServices.platform.externalServices>;
@@ -122,7 +198,7 @@ export function wireAgentExternalServices(options: {
       await externalServices.stop();
       externalServicesPromise = startAgentExternalServices();
       externalServices = await externalServicesPromise;
-      systemMessageRouter.high('[Startup] GoodVibes Agent does not start or restart the connected GoodVibes host — it adopted the current status from a fresh probe.');
+      systemMessageRouter.high('[Startup] GoodVibes Agent re-probed the connected GoodVibes host and adopted its current status; this route never starts or restarts the host itself.');
       requestRender();
       return inspectAgentDependencies();
     },
@@ -131,12 +207,14 @@ export function wireAgentExternalServices(options: {
   // Connected-host discovery OFF the interactive path: probe the configured
   // host/port through the shared adopt-or-spawn policy (adoptOnly — Agent
   // never spawns or embeds) and replace the pending status with an honest
-  // one (adopted, incompatible, blocked, or unavailable).
-  deferredStartup.schedule({
+  // one (adopted, incompatible, blocked, or unavailable). An unavailable
+  // daemon then gets the one bounded installed-but-stopped start check.
+  const discoveryComplete = deferredStartup.schedule({
     label: 'external-services',
     run: async () => {
       externalServicesPromise = startAgentExternalServices();
       externalServices = await externalServicesPromise;
+      await maybeStartInstalledConnectedHost();
       requestRender();
     },
     onError: (error) => {
@@ -149,6 +227,7 @@ export function wireAgentExternalServices(options: {
 
   return {
     getStatus: () => externalServices,
+    whenDiscovered: () => discoveryComplete,
     stop: async () => {
       await externalServices.stop();
     },

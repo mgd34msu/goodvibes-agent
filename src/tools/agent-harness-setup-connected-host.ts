@@ -496,6 +496,6 @@ export function connectedHostBootstrapPlan(
       serviceDiagnostics: 'host action:"services" includeParameters:true',
       setupItem: 'setup action:"item" setupItemId:"connected-host-readiness"',
     },
-    policy: 'Bootstrap commands are user-run setup guidance. Agent does not run host install/start commands implicitly; once the host is reachable, exact service mutations stay on confirmed operator methods.',
+    policy: 'Bootstrap commands are user-run setup guidance. At boot the Agent runtime starts an already-installed host whose service is stopped, through the platform service manager, and reports it; beyond that one bounded boot behavior the Agent does not run host install/start commands implicitly, and once the host is reachable exact service mutations stay on confirmed operator methods.',
   };
 }

@@ -48,8 +48,8 @@ describe('CLI service posture', () => {
     expect(posture.issues).not.toContain('Connected-host config is enabled, but no platform service definition is installed.');
     expect(text).toContain('GoodVibes Agent connected-host diagnostics');
     expect(text).toContain('lifecycle owner: outside goodvibes-agent');
-    expect(text).toContain('Agent starts connected host: no');
-    expect(text).toContain('external host lifecycle config: ignored by Agent');
+    expect(text).toContain('Agent starts connected host: only at boot, when it is installed but stopped');
+    expect(text).toContain('external host lifecycle config: only the service name is read, for the boot start check');
     expect(text).toContain('daemon considered enabled: yes');
     expect(text).not.toContain('installed:');
     expect(text).not.toContain('running:');

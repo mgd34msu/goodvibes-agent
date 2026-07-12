@@ -101,9 +101,10 @@ export const registerHostRuntimeEvents = bootstrap.registerHostRuntimeEvents;
 // Shared adopt-or-spawn policy (daemon-adoption-policy.ts): probes the
 // configured host/port, band-checks any GoodVibes daemon found there, and
 // only ever ADOPTS a compatible one — Agent passes `adoptOnly: true` at the
-// call site (bootstrap.ts) so it never spawns or embeds a daemon itself. This
-// replaces a local stub that hard-declared every daemon 'external' without
-// probing or version-checking it (an unsafe divergence, resolved SDK-side).
+// call site (bootstrap-external-services.ts) so it never spawns or embeds a
+// daemon itself. A daemon that is INSTALLED on this machine but stopped is
+// handled separately at boot: one start through the platform service manager,
+// then a fresh adopt-only probe (see runtime/connected-host-autostart.ts).
 export const startHostServices = bootstrap.startHostServices;
 export const startExternalServices = bootstrap.startHostServices;
 export const registerBootstrapHookBridge = bootstrap.registerBootstrapHookBridge;
