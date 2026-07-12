@@ -213,8 +213,10 @@ describe('getModelRegistry — catalog-sourced models', () => {
       // At minimum the registry should not be completely disjoint from the catalog
       // (This is a soft check — full catalog coverage depends on Stage 1 completion)
       if (inRegistry) {
-        // Verify the registry entry has the expected provider (catalog model not hijacked)
-        const registryEntry = registry.find((m) => m.id === def.id);
+        // Verify the registry entry has the expected provider (catalog model
+        // not hijacked). A bare id may exist on several providers now (dated
+        // static fallbacks), so match on the provider-qualified registryKey.
+        const registryEntry = registry.find((m) => m.registryKey === def.registryKey);
         expect(registryEntry).toEqual(expect.objectContaining({
           id: def.id,
           provider: def.provider,
@@ -240,11 +242,14 @@ describe('getModelRegistry — catalog-sourced models', () => {
     }
   });
 
-  it('registry contains no duplicate model IDs', () => {
+  it('registry contains no duplicate registry keys', () => {
+    // Bare model ids may legitimately repeat across providers (dated static
+    // fallbacks ship the same id on several adapters); the uniqueness
+    // invariant lives on the provider-qualified registryKey.
     const models = providerRegistry.listModels();
-    const ids = models.map((m) => m.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
+    const keys = models.map((m) => m.registryKey);
+    const uniqueKeys = new Set(keys);
+    expect(keys.length).toBe(uniqueKeys.size);
   });
 
   it('selectable models are filterable', () => {
@@ -278,11 +283,11 @@ describe('getModelRegistry — discovered servers', () => {
 
   it('discovered servers are excluded when they conflict with catalog models', () => {
     const models = providerRegistry.listModels();
-    // Catalog model IDs should appear only once — not duplicated by a hypothetical
-    // discovered server with the same ID
-    const ids = models.map((m) => m.id);
-    const uniqueIds = new Set(ids);
-    expect(ids.length).toBe(uniqueIds.size);
+    // Catalog registry keys should appear only once — not duplicated by a
+    // hypothetical discovered server with the same provider-qualified key.
+    const keys = models.map((m) => m.registryKey);
+    const uniqueKeys = new Set(keys);
+    expect(keys.length).toBe(uniqueKeys.size);
   });
 });
 
@@ -305,9 +310,16 @@ describe('getModelRegistry — empty catalog fallback', () => {
     expect(() => providerRegistry.listModels()).not.toThrow();
   });
 
-  it('registry returns an array even when catalog is empty', () => {
+  it('registry returns the dated static fallback models when catalog is empty', () => {
+    // Live model discovery ships dated static fallbacks per adapter, so an
+    // empty catalog no longer means an empty registry — every listed entry
+    // must still be provider-qualified and well-formed.
     const result = providerRegistry.listModels();
-    expect(result).toEqual([]);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBeGreaterThan(0);
+    for (const model of result) {
+      expect(model.registryKey).toBe(`${model.provider}:${model.id}`);
+    }
   });
 
   it('getCatalogModelDefinitions returns empty array when catalog is empty', () => {
@@ -357,7 +369,10 @@ describe('Structural verification', () => {
     const catalogDefs = getCatalogModelDefinitions();
 
     for (const def of catalogDefs) {
-      const inRegistry = models.find((m) => m.id === def.id);
+      // Match on the provider-qualified registryKey: bare ids may exist on
+      // several providers (dated static fallbacks), so an id-only lookup can
+      // legitimately land on a different provider's entry.
+      const inRegistry = models.find((m) => m.registryKey === def.registryKey);
       if (inRegistry) {
         // Provider should match the catalog definition
         expect(inRegistry.provider).toBe(def.provider);
@@ -454,10 +469,13 @@ describe('ProviderRegistry.getForModel() — explicit provider lock', () => {
   });
 
   it('throws instead of falling through to a different provider when the pinned provider does not offer the model', () => {
+    // mercury-2 no longer works as the foreign model here: the inceptionlabs
+    // adapter now ships it as a dated static fallback, so it genuinely offers
+    // the model. Use a model only venice carries.
     loadCatalog([
       {
-        id: 'mercury-2',
-        name: 'Mercury 2',
+        id: 'venice-only-model',
+        name: 'Venice Only',
         provider: 'Venice AI',
         providerId: 'venice',
         providerEnvVars: ['VENICE_API_KEY'],
@@ -466,8 +484,8 @@ describe('ProviderRegistry.getForModel() — explicit provider lock', () => {
       },
     ]);
 
-    expect(() => providerRegistry.getForModel('mercury-2', 'inceptionlabs')).toThrow(
-      "No model 'mercury-2' for provider 'inceptionlabs' in registry.",
+    expect(() => providerRegistry.getForModel('venice-only-model', 'inceptionlabs')).toThrow(
+      "No model 'venice-only-model' for provider 'inceptionlabs' in registry.",
     );
   });
 });

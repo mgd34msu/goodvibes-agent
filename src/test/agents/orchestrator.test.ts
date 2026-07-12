@@ -265,11 +265,15 @@ describe('AgentOrchestrator', () => {
       }
     });
 
-    test('fails when an agent model override is not provider-qualified', async () => {
+    test('fails with a rich resolver error when a bare model override matches nothing in the registry', async () => {
+      // Bare model ids now resolve through the shared registry resolver:
+      // a unique bare id auto-qualifies, and an unknown one fails with real
+      // candidates instead of the old provider-qualification lecture.
       const record = makeRecord({ model: 'some-other-model' });
       await orchestrator.runAgent(record);
       expect(record.status).toBe('failed');
-      expect(record.error).toContain("Agent model overrides must be provider-qualified registry keys");
+      expect(record.error).toContain("Unknown model 'some-other-model'");
+      expect(record.error).toContain('Did you mean');
     });
 
     test('injects agent context and reasoning effort into provider requests', async () => {

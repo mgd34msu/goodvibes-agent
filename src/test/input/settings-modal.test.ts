@@ -200,7 +200,7 @@ describe('SettingsModal', () => {
     }
   });
 
-  test('behavior.compactionStrategy / telemetry.decisionOtlp* / sandbox.judgmentAutoApprove surface with honest, non-empty descriptions (SDK 1.6.1)', () => {
+  test('behavior.compactionStrategy / telemetry.decisionOtlp* / sandbox.judgment surface with honest, non-empty descriptions', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     const byKey = new Map<string, string>();
     for (const entries of modal.groups.values()) {
@@ -211,7 +211,7 @@ describe('SettingsModal', () => {
       'telemetry.decisionOtlpEnabled',
       'telemetry.decisionOtlpEndpoint',
       'telemetry.decisionOtlpSignal',
-      'sandbox.judgmentAutoApprove',
+      'sandbox.judgment',
     ]) {
       const description = byKey.get(key);
       expect(description, `${key} should have a settings entry`).toBeTruthy();

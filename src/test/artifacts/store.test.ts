@@ -100,8 +100,11 @@ describe('ArtifactStore', () => {
     const root = mkdtempSync(join(tmpdir(), 'gv-artifacts-'));
     roots.push(root);
     const store = new ArtifactStore({ rootDir: root });
+    // Plainly-written loopback now classifies as the approvable 'localhost'
+    // tier (dev servers), so the SSRF assertion uses a private-range address —
+    // those are never fetchable without the explicit private-hosts opt-in.
     await expect(store.create({
-      uri: 'http://127.0.0.1:12345/private',
+      uri: 'http://10.255.255.1:12345/private',
     })).rejects.toThrow('Artifact URI blocked by SSRF policy');
   });
 

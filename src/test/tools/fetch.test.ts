@@ -94,7 +94,7 @@ beforeAll(() => {
 });
 
 beforeAll(() => {
-  fetchTool = createFetchTool();
+  fetchTool = createFetchTool({ isLocalhostAllowed: () => true });
 });
 
 afterAll(() => {

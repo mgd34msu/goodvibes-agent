@@ -6,7 +6,7 @@ import {
   SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE,
 } from '../../verification/verification-ledger.ts';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
-import { FEATURE_FLAG_MAP } from '@pellux/goodvibes-sdk/platform/runtime/state';
+import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { join, resolve } from 'node:path';
 import { readFileSync } from 'node:fs';
 
@@ -116,13 +116,13 @@ describe('verification ledger', () => {
     expect(settingsArea.localBehaviorVerified).toBe(Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settingsArea.total));
     expect(settingsArea.externalOutcomeRequired).toBe(Math.max(0, settingsArea.total - SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE));
 
-    // (c) Mirror the same pattern for feature flags.
-    const flagCount = FEATURE_FLAG_MAP.size;
+    // (c) Mirror the same pattern for feature settings.
+    const flagCount = FEATURE_SETTINGS.length;
     // Feature-flags external estimate is an upper bound on externally-required flags.
     // This assertion FAILS if the total flag count somehow drops below the external estimate,
     // which would imply a data error (can't have more external flags than total flags).
     expect(flagCount).toBeGreaterThanOrEqual(FEATURE_FLAGS_EXTERNAL_ESTIMATE);
-    const featureFlagsArea = ledger.areas.find((area) => area.area === 'Feature flags')!;
+    const featureFlagsArea = ledger.areas.find((area) => area.area === 'Feature settings')!;
     expect(featureFlagsArea).toBeDefined();
     // externalOutcomeRequired must equal min(FEATURE_FLAGS_EXTERNAL_ESTIMATE, flagCount).
     expect(featureFlagsArea.externalOutcomeRequired).toBe(

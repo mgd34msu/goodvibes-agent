@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { FEATURE_FLAG_MAP } from '@pellux/goodvibes-sdk/platform/runtime/state';
+import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 
@@ -28,13 +28,14 @@ describe('relay CLI command', () => {
     expect(parseGoodVibesCli(['relay', 'status']).command).toBe('relay');
   });
 
-  test('status reports config off by default and is explicit that it is not a live check', async () => {
+  test('status reports the stock default-on config and is explicit that it is not a live check', async () => {
     const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-'));
     const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-work-'));
 
     const { result, output } = await runRelayCli(['relay', 'status'], work, home);
     expect(result.exitCode).toBe(0);
-    expect(output).toContain('relay.enabled: false');
+    // relay.enabled defaults true now (dissolved feature model, default-on).
+    expect(output).toContain('relay.enabled: true');
     expect(output).toContain('not live-verified');
   });
 
@@ -45,8 +46,10 @@ describe('relay CLI command', () => {
     const { result, output } = await runRelayCli(['relay', 'status', '--output-format=json'], work, home);
     expect(result.exitCode).toBe(0);
     const parsed = JSON.parse(output) as { liveVerified: boolean; config: { enabled: boolean }; flag: { id: string } };
+    // Config state is honestly reported, but never presented as live relay
+    // registration — that belongs to the daemon holding the relay identity.
     expect(parsed.liveVerified).toBe(false);
-    expect(parsed.config.enabled).toBe(false);
+    expect(parsed.config.enabled).toBe(true);
     expect(parsed.flag.id).toBe('relay-connect');
   });
 
@@ -68,17 +71,19 @@ describe('relay CLI command', () => {
     expect(output).toContain('Unknown relay subcommand');
   });
 
-  test('the relay-connect feature flag is present in the vendored flag registry (SDK 1.6.1)', () => {
-    // Pin for "the relay-connect flag flows through this fork's flags surface": Agent's
-    // createFeatureFlagManager (src/runtime/index.ts) filters persisted config against
-    // FEATURE_FLAG_MAP, so any SDK-registered flag — including relay-connect — is
-    // automatically part of this fork's flags surface with no per-flag repo change
-    // needed. This test pins that the flag genuinely exists in the vendored SDK so a
-    // future SDK downgrade or rename would fail loudly here instead of silently
-    // dropping relay-connect from Settings > Feature Controls.
-    const flag = FEATURE_FLAG_MAP.get('relay-connect');
-    expect(flag).toBeTruthy();
-    expect(flag?.defaultState).toBe('disabled');
-    expect(flag?.runtimeToggleable).toBe(true);
+  test('the relay-connect feature is present in the SDK feature settings surface', () => {
+    // Pin for "relay-connect flows through this fork's features surface": the
+    // dissolved feature model derives every gate from FEATURE_SETTINGS, so any
+    // SDK-described feature — including relay-connect — is automatically part
+    // of this fork's features surface with no per-feature repo change needed.
+    // This test pins that the feature genuinely exists in the linked SDK so a
+    // future SDK downgrade or rename would fail loudly here instead of
+    // silently dropping relay-connect from Settings > Feature Controls.
+    const feature = FEATURE_SETTINGS.find((entry) => entry.id === 'relay-connect');
+    expect(feature).toBeTruthy();
+    // Default-on with announce-once receipts; enabled through relay.enabled.
+    expect(feature?.defaultEnabled).toBe(true);
+    expect(feature?.enablement.key).toBe('relay.enabled');
+    expect(feature?.restartRequired).toBe(false);
   });
 });

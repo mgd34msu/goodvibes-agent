@@ -147,7 +147,10 @@ describe('WebSearchService', () => {
       },
     });
 
-    const service = new WebSearchService(registry);
+    // Evidence pages are served from a loopback fixture; grant the
+    // per-project localhost approval so the fetch policy layer stays out
+    // of the way of what this test exercises (evidence shaping).
+    const service = new WebSearchService(registry, { isLocalhostAllowed: () => true });
     const urlsOnly = await service.search({
       query: 'test query',
       providerId: 'test-search',

@@ -2134,7 +2134,7 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
     ].join('\n');
     const requiredSourceMarkers: readonly { readonly marker: string; readonly label: string }[] = [
       { marker: 'CONFIG_SCHEMA', label: 'settings schema inventory source' },
-      { marker: 'FEATURE_FLAG_MAP', label: 'feature flag inventory source' },
+      { marker: 'FEATURE_SETTINGS', label: 'feature settings inventory source' },
       { marker: 'CommandRegistry', label: 'slash command registry inventory source' },
       { marker: 'registerBuiltinCommands', label: 'builtin slash command registration source' },
       { marker: 'listCliCommands(root)', label: 'top-level CLI command inventory source' },
@@ -2197,7 +2197,7 @@ function verifyVerificationLedgerPolicy(root: string): readonly string[] {
       { marker: 'countHarnessModeCatalogSurface(root)', label: 'model-visible harness mode catalog ledger source' },
       { marker: 'countQualityReadinessDimensions(root)', label: 'release quality readiness ledger source' },
       { marker: 'Settings schema and persistence', label: 'settings ledger area' },
-      { marker: 'Feature flags', label: 'feature flag ledger area' },
+      { marker: 'Feature settings', label: 'feature settings ledger area' },
       { marker: 'Slash commands', label: 'slash command ledger area' },
       { marker: 'Top-level CLI commands', label: 'CLI ledger area' },
       { marker: 'External surfaces', label: 'external surface ledger area' },

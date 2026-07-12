@@ -10940,7 +10940,11 @@ describe('agent_harness tool', () => {
       const browserSurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'browser cockpit pwa' });
       expect(browserSurfaces.success).toBe(true);
       expect(browserSurfaces.output).toContain('"id": "connected-browser-cockpit"');
-      expect(browserSurfaces.output).toContain('"available": false');
+      // web.enabled now defaults true (dissolved feature model, default-on
+      // with announce-once receipts), so a stock config reports the cockpit
+      // route as available/ready instead of unavailable.
+      expect(browserSurfaces.output).toContain('"available": true');
+      expect(browserSurfaces.output).toContain('"readiness": "ready"');
 
       const activitySurfaces = await fixture.tool.execute({ mode: 'ui_surfaces', query: 'activity' });
       expect(activitySurfaces.success).toBe(true);
@@ -10965,6 +10969,10 @@ describe('agent_harness tool', () => {
       expect(settingsJson.preferredModelRoute).not.toContain('settings/get_setting/set_setting/reset_setting');
       expectModelFacingText(settings.output!);
 
+      // web.enabled defaults true now (dissolved feature model, default-on);
+      // disable it explicitly so this phase still exercises the honest
+      // setup-needed reporting before the enabled phase below.
+      fixture.configManager.setDynamic('web.enabled', false);
       const browserCockpit = await fixture.tool.execute({ mode: 'ui_surface', surfaceId: 'connected-browser-cockpit' });
       expect(browserCockpit.success).toBe(true);
       const browserCockpitJson = JSON.parse(browserCockpit.output ?? '{}') as {

@@ -180,6 +180,7 @@ describe('foundation surface stability gate', () => {
       'recordModelUsage',
       'refreshBenchmarks',
       'refreshCatalog',
+      'refreshLiveModelDiscovery',
       'refreshModelLimits',
       'registerDiscoveredProviders',
       'selectModel',
