@@ -94,9 +94,12 @@ describe('fleet CLI command', () => {
     expect(result.output).toContain('Usage: goodvibes-agent fleet attempts judge');
   });
 
-  test('attempts judge surfaces an honest error when no judge model is configured', async () => {
+  // The composition root now always wires the provider-backed attempt judge
+  // (mirroring the SDK's runtime services), so "no judge is configured" can
+  // no longer occur — the honest refusal for this call is the unknown group.
+  test('attempts judge refuses an unknown group honestly', async () => {
     const result = await handleFleetCommand(runtime(['attempts', 'judge', 'group-1']));
     expect(result.exitCode).toBe(1);
-    expect(result.output).toContain('no judge is configured');
+    expect(result.output).toContain('unknown or already-resolved best-of-N group: group-1');
   }, 15000);
 });

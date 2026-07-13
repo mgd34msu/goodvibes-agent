@@ -252,6 +252,10 @@ rl.on('line', (line) => {
     process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, result: { tools: [] } }) + '\\n');
   } else if (msg.method === 'notifications/initialized') {
     // no-op
+  } else if (id !== undefined) {
+    // Legacy servers answer unknown methods (e.g. the server/discover probe)
+    // with method-not-found so negotiation falls back to initialize fast.
+    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } }) + '\\n');
   }
 });
 `;

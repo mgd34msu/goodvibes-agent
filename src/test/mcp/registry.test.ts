@@ -29,6 +29,12 @@ rl.on('line', (line) => {
     process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, result: {} }) + '\\n');
   } else if (msg.method === 'notifications/initialized') {
     // no-op
+  } else if (id !== undefined) {
+    // A legacy server answers unknown methods (e.g. the modern-era
+    // server/discover probe) with method-not-found so the client falls back
+    // to the initialize handshake immediately instead of waiting out the
+    // probe timeout.
+    process.stdout.write(JSON.stringify({ jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } }) + '\\n');
   }
 });
 `;
@@ -256,9 +262,12 @@ describe('McpRegistry — with stub server', () => {
     await registry.connectServer(stubServerConfig('x'));
     await registry.connectServer(stubServerConfig('y'));
     await registry.disconnectAll();
+    // listServers() rows also carry transport/protocolEra/protocolVersion
+    // since the protocol-negotiation work; era/version are undefined once
+    // disconnected, so pin only the fields this test is about.
     expect(registry.listServers()).toEqual([
-      { name: 'x', connected: false },
-      { name: 'y', connected: false },
+      expect.objectContaining({ name: 'x', connected: false }),
+      expect.objectContaining({ name: 'y', connected: false }),
     ]);
     registry = createRegistry(); // avoid double-disconnect in afterEach
   });

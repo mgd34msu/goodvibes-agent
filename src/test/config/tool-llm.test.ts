@@ -13,6 +13,7 @@ function makeProvider(name: string, response: string = 'ok'): LLMProvider & { ca
   return {
     name,
     models: ['test-model'],
+    credentialAuthority: 'anonymous',
     async chat(params: ChatRequest): Promise<ChatResponse> {
       calls.push(params);
       return {
@@ -31,6 +32,7 @@ function makeErrorProvider(name: string): LLMProvider {
   return {
     name,
     models: ['bad-model'],
+    credentialAuthority: 'anonymous',
     async chat(_params: ChatRequest): Promise<ChatResponse> {
       throw new Error('API key missing or invalid');
     },

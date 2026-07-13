@@ -19,6 +19,7 @@ describe('provider account snapshot', () => {
     testManagers.providerRegistry.register({
       name: 'openai',
       models: ['gpt-5'],
+      credentialAuthority: 'resolver',
       async chat() {
         return {
           content: '',

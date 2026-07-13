@@ -27,6 +27,7 @@ import {
   type ConnectedHostServiceSnapshot,
 } from '../../runtime/connected-host-autostart.ts';
 import { wireAgentExternalServices } from '../../runtime/bootstrap-external-services.ts';
+import { AgentDaemonReceiptFeed } from '../../runtime/daemon-receipts.ts';
 import type { SystemMessageRouter } from '../../core/system-message-router.ts';
 import type { RuntimeServices } from '../../runtime/services.ts';
 import type { UiRuntimeServices } from '../../runtime/ui-services.ts';
@@ -459,8 +460,9 @@ function wireFixture(options: {
     runtimeBus: {} as RuntimeEventBus,
     hookDispatcher: {} as HookDispatcher,
     // The injected control + probe below keep the wiring off every real
-    // services field, so a bare object is an honest stand-in here.
-    services: {} as RuntimeServices,
+    // services field except the receipt feed (attached unconditionally at
+    // wire time), so a feed plus a bare object is an honest stand-in here.
+    services: { daemonReceiptFeed: new AgentDaemonReceiptFeed() } as RuntimeServices,
     uiServices,
     deferredStartup: immediateCoordinator(),
     systemMessageRouter: router,

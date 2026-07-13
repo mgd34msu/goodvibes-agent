@@ -117,6 +117,8 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   fetch: 'Fetch Safety',
   security: 'Token Rotation',
   integrations: 'Delivery Reliability',
+  update: 'Daemon Updates',
+  pricing: 'Model Pricing',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {

@@ -56,6 +56,8 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
   surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
   release: 'Update-channel preference.',
+  update: "Connected-host self-update posture: whether the daemon checks for, verifies, and swaps in new releases on its own, how often it checks, and where releases are resolved from. The daemon applies these itself; the Agent only edits the shared keys.",
+  pricing: 'Manual model prices (USD per 1M tokens, keyed provider:model). A manual price outranks registration, provider-served, and catalog prices in the one pricing resolver; unknown models stay honestly unpriced.',
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Every optional capability grouped by its settings domain: each feature is switched through a first-class domain settings key (shown per row), with its full description and related settings under the cursor.',
   atRest: 'Data-at-rest protection: whether stored content is redacted, and retention limits by age and total size.',

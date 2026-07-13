@@ -41,7 +41,9 @@ export function getProviderCachePaths(cacheDir: string): ProviderCachePaths {
 export function writeModelCatalogCache(models: CatalogModel[], cacheDir: string, fetchedAt = Date.now(), ttlMs = 86_400_000): void {
   const { catalogPath } = getProviderCachePaths(cacheDir);
   mkdirSync(cacheDir, { recursive: true });
-  const payload = { version: 1 as const, fetchedAt, ttlMs, models };
+  // Catalog cache version 2: `pricing` is nullable (honestly unpriced, never
+  // a coerced $0); version-1 caches are discarded by the SDK loader.
+  const payload = { version: 2 as const, fetchedAt, ttlMs, models };
   writeFileSync(catalogPath, JSON.stringify(payload, null, 2), 'utf-8');
 }
 
