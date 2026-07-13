@@ -53,7 +53,7 @@ import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionW
 import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
 import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
-import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
+import { applyInitialTuiCliState, getInteractiveTerminalLaunchError, reportFatalStartupError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
@@ -788,20 +788,12 @@ async function main() {
   }));
 }
 main().catch((err: unknown) => {
-  const detail = formatFatalStartupErrorForLog(err);
-  try {
-    logger.error('Fatal error', { error: detail });
-  } catch {
-    // Startup diagnostics must never hide the original launch failure.
-  }
-  const userDetail = formatFatalStartupErrorForUser(err, {
+  reportFatalStartupError(err, {
     binary: 'goodvibes-agent',
     debug: process.env['GOODVIBES_AGENT_DEBUG'] === '1',
+  }, {
+    logError: (message, context) => logger.error(message, context),
+    writeStderr: (chunk) => process.stderr.write(chunk),
+    exit: (code) => process.exit(code),
   });
-  try {
-    process.stderr.write(`goodvibes-agent failed to launch:\n${userDetail}\n`);
-  } catch {
-    // Ignore secondary stderr failures during process teardown.
-  }
-  process.exit(1);
 });

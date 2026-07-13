@@ -45,6 +45,37 @@ export function formatFatalStartupErrorForLog(error: unknown): string {
   return fatalStartupStack(error);
 }
 
+/**
+ * The one fatal-startup exit path for main(): log the full detail, print the
+ * user-facing explanation to stderr, and exit 1. Lives beside the two
+ * formatters it composes so main.ts carries no error-formatting plumbing of
+ * its own. Both writes are individually best-effort — a failing logger or a
+ * torn-down stderr must never hide the original launch failure.
+ */
+export function reportFatalStartupError(
+  err: unknown,
+  options: FatalStartupFormatOptions,
+  sinks: {
+    readonly logError: (message: string, context: Record<string, unknown>) => void;
+    readonly writeStderr: (chunk: string) => void;
+    readonly exit: (code: number) => void;
+  },
+): void {
+  const detail = formatFatalStartupErrorForLog(err);
+  try {
+    sinks.logError('Fatal error', { error: detail });
+  } catch {
+    // Startup diagnostics must never hide the original launch failure.
+  }
+  const userDetail = formatFatalStartupErrorForUser(err, options);
+  try {
+    sinks.writeStderr(`${options.binary} failed to launch:\n${userDetail}\n`);
+  } catch {
+    // Ignore secondary stderr failures during process teardown.
+  }
+  sinks.exit(1);
+}
+
 export function formatFatalStartupErrorForUser(error: unknown, options: FatalStartupFormatOptions): string {
   if (options.debug === true) return fatalStartupStack(error);
 
