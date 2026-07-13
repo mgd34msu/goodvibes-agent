@@ -125,8 +125,11 @@ import {
   FeatureAnnouncementStore,
   createSandboxContainmentAnnouncer,
   featureAnnouncementsPath,
-} from './feature-announcements.ts';
-import { buildLocalhostFetchApproval, type LocalhostFetchApproval } from './localhost-fetch-approval.ts';
+} from '@pellux/goodvibes-sdk/platform/runtime/feature-announcements';
+import {
+  buildLocalhostFetchApproval,
+  type LocalhostFetchApproval,
+} from '@pellux/goodvibes-sdk/platform/runtime/permissions/localhost-fetch-approval';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import {
   createWorkflowServices,

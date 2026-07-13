@@ -30,7 +30,7 @@ import {
   createSandboxContainmentAnnouncer,
   featureAnnouncementsPath,
   type FeatureAnnouncement,
-} from '../../runtime/feature-announcements.ts';
+} from '@pellux/goodvibes-sdk/platform/runtime/feature-announcements';
 
 const MIGRATION_RECEIPT_PREFIX =
   'Settings migrated: legacy featureFlags entries now live on their domain settings keys';

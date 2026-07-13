@@ -11,7 +11,7 @@
  */
 import { Orchestrator, type OrchestratorUserInputOptions } from '../core/orchestrator.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
-import { collectStartupAnnouncements } from './feature-announcements.ts';
+import { collectStartupAnnouncements } from '@pellux/goodvibes-sdk/platform/runtime/feature-announcements';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHistory } from '../input/input-history.ts';
