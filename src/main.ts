@@ -52,6 +52,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
 import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
+import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForLog, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
@@ -83,6 +84,10 @@ async function main() {
     process.stderr.write(`${terminalLaunchError}\n`);
     process.exit(2);
   }
+
+  // Launch-time self-update, before any bootstrap or terminal mode change; on
+  // an installed update this restarts onto the swapped binary and never returns.
+  const launchUpdateLines = await selfUpdateAtLaunch({ configManager, stdout });
 
   const ctx: BootstrapContext = await bootstrapRuntime(stdout, {
     configManager,
@@ -126,6 +131,10 @@ async function main() {
   });
   let activeConversationWidth = getTerminalSize(stdout).width;
   conversation.setWidthProvider(() => activeConversationWidth);
+
+  // Re-surface pre-bootstrap launch-update lines in-session (the alternate
+  // screen wipes the stdout copies written before the renderer existed).
+  for (const line of launchUpdateLines) systemMessageRouter.high(`[Update] ${line}`);
   {
     const hitlMode = configManager.get('behavior.hitlMode') as HITLMode | undefined;
     if (hitlMode && (hitlMode === 'quiet' || hitlMode === 'balanced' || hitlMode === 'operator')) {

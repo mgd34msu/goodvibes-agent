@@ -40,6 +40,17 @@ tar -xzf sqlite-vec-linux-x64.tar.gz     # creates ./lib/sqlite-vec-linux-x64/ve
 
 macOS note: the system SQLite that the runtime links on macOS refuses to load extensions, so the darwin archives are shipped for parity but the vector index stays unavailable on macOS regardless of co-location. This is a macOS platform limitation, not a packaging defect, and memory search there uses literal matching.
 
+### Self-update for standalone binaries
+
+A directly-downloaded release binary keeps itself current: at launch it checks the latest GitHub release (a short, bounded check — an offline or slow network skips it with one line and starts the current version), and when a newer release exists it downloads the new binary and the matching sqlite-vec addon archive, verifies both against `SHA256SUMS.txt` before touching anything, swaps them atomically, and restarts onto the new version with the original arguments. The restarted session prints a receipt naming both versions, so an update is never silent. Every swap keeps the replaced file beside the live one as `<file>.previous`.
+
+- `/update` or `/update check` — report whether a newer release exists.
+- `/update apply` — install the latest release now (same verified path as the launch check).
+- `/update rollback` — one command back to the previously installed version (and one more forward again).
+- `update.autoUpdateAtLaunch: false` in settings.json turns the launch check off; `update.launchCheckTimeoutMs` tunes its budget (250–30000 ms, default 2500).
+
+Package-managed installs (`bun add -g @pellux/goodvibes-agent`) and source checkouts never self-swap — they say so at launch and defer to the package manager or checkout instead.
+
 ## Source Usage
 
 ```sh

@@ -41,6 +41,7 @@ import { registerOperatorActionRuntimeCommands } from './commands/operator-actio
 import { registerConnectedHostAdminCommands } from './commands/connected-host-admin-runtime.ts';
 import { registerEmailRuntimeCommands } from './commands/email-runtime.ts';
 import { registerCalendarRuntimeCommands } from './commands/calendar-runtime.ts';
+import { registerUpdateCommand } from './commands/update-runtime.ts';
 
 function registerAgentMemoryCommand(registry: CommandRegistry): void {
   registry.register({
@@ -90,6 +91,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerLocalProviderRuntimeCommands(registry);
   registerNetworkScanRuntimeCommands(registry);
   registerHealthRuntimeCommands(registry);
+  registerUpdateCommand(registry);
   registerProviderAccountsRuntimeCommands(registry);
   registerConversationRuntimeCommands(registry);
   registerQrcodeRuntimeCommands(registry);
