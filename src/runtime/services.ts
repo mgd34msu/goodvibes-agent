@@ -21,6 +21,7 @@ import { createSessionConversationRewindPort } from './conversation-rewind-port.
 // terminal-shell does not already wrap, rather than hand-rolling the bridge.
 import { attachFleetEmitBridge } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
+import { resolveModelReference, type ModelIdCandidate } from '@pellux/goodvibes-sdk/platform/providers';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import {
@@ -178,133 +179,70 @@ function buildFallbackModelDefinition(provider: string, modelId: string): ModelD
   };
 }
 
-/** The three candidate fields bare-id resolution reads (ModelDefinition satisfies this). */
-interface SpawnRoutingModelCandidate {
-  readonly id: string;
-  readonly provider: string;
-  readonly registryKey: string;
-}
-
-/** Closest model ids by Levenshtein edit distance, nearest first (mirrors the SDK's resolver). */
-function findClosestModelIds(input: string, candidateIds: readonly string[], limit = 3): string[] {
-  const target = input.toLowerCase();
-  return [...candidateIds]
-    .map((id) => ({ id, distance: levenshteinDistance(target, id.toLowerCase()) }))
-    .sort((a, b) => a.distance - b.distance || a.id.localeCompare(b.id))
-    .slice(0, limit)
-    .map((entry) => entry.id);
-}
-
-/** Classic O(n*m) edit-distance DP. Inputs here are short model ids, so this stays cheap. */
-function levenshteinDistance(a: string, b: string): number {
-  if (a === b) return 0;
-  if (a.length === 0) return b.length;
-  if (b.length === 0) return a.length;
-
-  let previousRow = Array.from({ length: b.length + 1 }, (_, j) => j);
-  for (let i = 1; i <= a.length; i++) {
-    const currentRow = [i];
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      currentRow.push(Math.min(
-        currentRow[j - 1]! + 1,
-        previousRow[j]! + 1,
-        previousRow[j - 1]! + cost,
-      ));
-    }
-    previousRow = currentRow;
-  }
-  return previousRow[b.length]!;
-}
-
 /**
- * Resolve a BARE model id against the live registry's candidates — mirrors
- * the SDK's shared resolver (platform/providers/model-id-resolution.ts, not
- * publicly exported): unique across the registry -> auto-qualify;
- * ambiguous/unknown -> a rich error naming real candidates.
- */
-function resolveSpawnRoutingModelReference(input: string, candidates: readonly SpawnRoutingModelCandidate[]): string {
-  const trimmed = input.trim();
-  if (trimmed.includes(':')) return trimmed;
-
-  const matches = candidates.filter((candidate) => candidate.id === trimmed);
-  if (matches.length === 1) return matches[0]!.registryKey;
-  if (matches.length > 1) {
-    const registryKeys = matches.map((candidate) => candidate.registryKey).sort((a, b) => a.localeCompare(b));
-    throw new Error(
-      `Model id '${trimmed}' is ambiguous — it is available on multiple providers: ${registryKeys.join(', ')}. `
-      + `Specify one explicitly, e.g. '${registryKeys[0]}'.`,
-    );
-  }
-
-  const uniqueIds = [...new Set(candidates.map((candidate) => candidate.id))];
-  const suggestionKeys = findClosestModelIds(trimmed, uniqueIds, 3)
-    .map((id) => candidates.find((candidate) => candidate.id === id)?.registryKey)
-    .filter((key): key is string => key !== undefined);
-  const example = suggestionKeys[0] ?? candidates[0]?.registryKey;
-  const parts = [`Unknown model '${trimmed}'.`];
-  if (suggestionKeys.length > 0) parts.push(`Did you mean: ${suggestionKeys.join(', ')}?`);
-  if (example) parts.push(`Example of a valid model reference: '${example}'.`);
-  throw new Error(parts.join(' '));
-}
-
-/**
- * When `modelCandidates` (the live registry's model list) is supplied, a bare
- * id with no provider hint resolves via the registry (unique -> auto-qualify;
- * ambiguous/unknown -> a rich error naming real candidates) — mirroring the
- * SDK composition root. Without candidates the historical Agent behavior
- * (bare-id passthrough) is preserved for callers that have no registry.
+ * Fork-mirror of the SDK's buildSharedSessionAgentSpawnRoutingInput
+ * (platform/control-plane/session-intents.ts — the builder itself has no
+ * public export path; only its intent types do). Bare model ids resolve
+ * through the SDK's PUBLIC shared resolver (resolveModelReference from
+ * platform/providers): unique across the registry auto-qualifies, an
+ * ambiguous id throws the real candidate registryKeys, an unknown id throws
+ * closest-match suggestions plus a concrete valid example. Keep the body
+ * faithful to the SDK's; any deliberate divergence gets its own comment.
  */
 function normalizeSharedSessionModelId(
   modelId: string | undefined,
   providerId: string | undefined,
-  modelCandidates?: readonly SpawnRoutingModelCandidate[],
+  modelCandidates?: readonly ModelIdCandidate[],
 ): string | undefined {
   const trimmedModelId = modelId?.trim();
   if (!trimmedModelId) return undefined;
   const trimmedProviderId = providerId?.trim();
   const separatorIndex = trimmedModelId.indexOf(':');
-  if (separatorIndex > 0) return trimmedModelId;
+  if (separatorIndex > 0) {
+    const modelProviderId = trimmedModelId.slice(0, separatorIndex);
+    if (trimmedProviderId && trimmedProviderId !== modelProviderId) {
+      throw new Error(`Shared-session routing model '${trimmedModelId}' conflicts with provider '${trimmedProviderId}'.`);
+    }
+    return trimmedModelId;
+  }
   if (trimmedProviderId) return `${trimmedProviderId}:${trimmedModelId}`;
   if (modelCandidates) {
     try {
-      return resolveSpawnRoutingModelReference(trimmedModelId, modelCandidates);
+      return resolveModelReference(trimmedModelId, modelCandidates);
     } catch (err) {
       throw new Error(`Shared-session routing model: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
-  return trimmedModelId;
+  throw new Error(`Shared-session routing model '${trimmedModelId}' must be provider-qualified.`);
 }
 
 function normalizeSharedSessionFallbackModels(
   models: readonly string[] | undefined,
-  modelCandidates?: readonly SpawnRoutingModelCandidate[],
+  modelCandidates?: readonly ModelIdCandidate[],
 ): string[] {
   return (models ?? [])
     .filter((model): model is string => typeof model === 'string' && model.trim().length > 0)
     .map((model) => {
       const trimmed = model.trim();
-      const separatorIndex = trimmed.indexOf(':');
-      if (separatorIndex <= 0 || separatorIndex === trimmed.length - 1) {
-        if (modelCandidates) {
-          try {
-            return resolveSpawnRoutingModelReference(trimmed, modelCandidates);
-          } catch (err) {
-            throw new Error(`Shared-session fallback model: ${err instanceof Error ? err.message : String(err)}`);
-          }
+      if (trimmed.includes(':')) return trimmed;
+      if (modelCandidates) {
+        try {
+          return resolveModelReference(trimmed, modelCandidates);
+        } catch (err) {
+          throw new Error(`Shared-session fallback model: ${err instanceof Error ? err.message : String(err)}`);
         }
-        throw new Error(`Shared-session fallback model '${model}' must be provider-qualified.`);
       }
-      return trimmed;
+      throw new Error(`Shared-session fallback model '${model}' must be provider-qualified.`);
     });
 }
 
-function buildAgentSpawnRoutingFromSharedSession(
+/** Exported for the spawn-routing contract tests; the composition root below is the only live caller. */
+export function buildAgentSpawnRoutingFromSharedSession(
   routing: SharedSessionRoutingIntent | undefined,
   options: {
     readonly restrictTools?: boolean | undefined;
     /** The live registry's model candidates — enables bare model id resolution when supplied. */
-    readonly modelCandidates?: readonly SpawnRoutingModelCandidate[] | undefined;
+    readonly modelCandidates?: readonly ModelIdCandidate[] | undefined;
   } = {},
 ): Partial<Parameters<AgentManager['spawn']>[0]> {
   if (!routing) return options.restrictTools ? { restrictTools: true } : {};
@@ -824,6 +762,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     const record = agentManager.spawn({
       mode: 'spawn',
       task,
+      // Spawn routing resolves through the SDK's shared model-reference
+      // resolver contract (unique-across-registry auto-qualifies; ambiguous
+      // and unknown ids throw errors naming real candidates) — the live
+      // registry's models are the candidate list.
       ...buildAgentSpawnRoutingFromSharedSession(input.routing, { restrictTools: true, modelCandidates: providerRegistry.listModels() }),
       context: `shared-session:${input.sessionId}`,
     });
