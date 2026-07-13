@@ -28,10 +28,29 @@ export interface ActivitySidebarNow {
   readonly busy: boolean;
   /** Short human label for the current work, e.g. "Searching the web…". */
   readonly label?: string;
-  /** Background agents with their latest progress lines. */
-  readonly agents: ReadonlyArray<{ readonly label: string; readonly progress?: string }>;
+  /**
+   * Background agents with their latest progress lines. `headline` is the
+   * fleet read-model's per-node headline (derived from task/phase identity
+   * only, replaced in place — never a feed) and wins over the raw progress
+   * line when present; `quietForMs` is the fleet stall tell (pure timestamp
+   * comparison), rendered as a quiet-duration marker.
+   */
+  readonly agents: ReadonlyArray<{
+    readonly label: string;
+    readonly progress?: string;
+    readonly headline?: string;
+    readonly quietForMs?: number;
+  }>;
   /** Count of running background processes. */
   readonly processes: number;
+}
+
+/** Compact quiet-duration text for the stall tell, e.g. "quiet 4m". */
+function fmtQuietFor(quietForMs: number): string {
+  const minutes = Math.floor(quietForMs / 60_000);
+  if (minutes < 60) return `quiet ${Math.max(1, minutes)}m`;
+  const hours = Math.floor(minutes / 60);
+  return `quiet ${hours}h${minutes % 60 > 0 ? ` ${minutes % 60}m` : ''}`;
 }
 
 export interface ActivitySidebarView {
@@ -124,10 +143,14 @@ export function buildActivitySidebarLines(
       ]));
     }
     for (const agent of view.now.agents.slice(0, 3)) {
-      const text = agent.progress ? `${agent.label} — ${agent.progress}` : agent.label;
+      const detail = agent.headline ?? agent.progress;
+      const text = detail ? `${agent.label} — ${detail}` : agent.label;
+      const quiet = agent.quietForMs !== undefined ? ` ${fmtQuietFor(agent.quietForMs)}` : '';
+      const room = Math.max(4, width - 4 - getDisplayWidth(quiet));
       push(buildPanelLine(width, [
         [' » ', C.info],
-        [truncateDisplay(text, Math.max(4, width - 4)), C.dim],
+        [truncateDisplay(text, room), C.dim],
+        ...(quiet ? [[quiet, C.warn] as [string, string]] : []),
       ]));
     }
     if (view.now.processes > 0) {

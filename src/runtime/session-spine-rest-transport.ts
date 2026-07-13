@@ -34,6 +34,7 @@ import {
   type SessionRegistrationInput,
 } from '../agent/session-registration.ts';
 import { readConnectedHostOperatorToken } from './connected-host-auth.ts';
+import { extractDaemonReceipts, type DaemonReceipt } from './daemon-receipts.ts';
 
 const DEFAULT_REGISTER_TIMEOUT_MS = 1_500;
 const DEFAULT_CLOSE_TIMEOUT_MS = 500;
@@ -122,16 +123,32 @@ export function createSpineRestTransport(options: SpineRestTransportOptions): Sp
   };
 }
 
-async function defaultProbe(connection: SessionRegistrationConnection, timeoutMs: number): Promise<boolean> {
+async function defaultProbe(
+  connection: SessionRegistrationConnection,
+  timeoutMs: number,
+  onReceipts?: (receipts: readonly DaemonReceipt[]) => void,
+): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     // Any HTTP response (even 401) means the host answered -> reachable. Auth is
     // a separate concern surfaced by register/close results, not the probe.
-    await fetch(`${connection.baseUrl}/status`, {
+    const response = await fetch(`${connection.baseUrl}/status`, {
       headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
       signal: controller.signal,
     });
+    // The daemon serves its undelivered honesty receipts ("updated from X to
+    // Y", "restarted after a crash") to the FIRST authenticated /status
+    // reader and marks them delivered — this probe is that reader for the
+    // agent, so discarding the body here would silently destroy them.
+    if (onReceipts && response.ok) {
+      try {
+        const receipts = extractDaemonReceipts(await response.json());
+        if (receipts.length > 0) onReceipts(receipts);
+      } catch {
+        // A non-JSON body still proves reachability; nothing to capture.
+      }
+    }
     return true;
   } catch {
     return false;
@@ -143,8 +160,17 @@ async function defaultProbe(connection: SessionRegistrationConnection, timeoutMs
 export interface SpineRestProbeOptions {
   readonly resolveConnection: () => SessionRegistrationConnection;
   readonly probeTimeoutMs?: number;
+  /**
+   * Receives any daemon honesty receipts the /status probe body carried
+   * (delivery at the daemon is destructive — see daemon-receipts.ts).
+   */
+  readonly onReceipts?: (receipts: readonly DaemonReceipt[]) => void;
   /** Override for tests; default does a short GET {baseUrl}/status. */
-  readonly probeImpl?: (connection: SessionRegistrationConnection, timeoutMs: number) => Promise<boolean>;
+  readonly probeImpl?: (
+    connection: SessionRegistrationConnection,
+    timeoutMs: number,
+    onReceipts?: (receipts: readonly DaemonReceipt[]) => void,
+  ) => Promise<boolean>;
 }
 
 /**
@@ -156,5 +182,5 @@ export interface SpineRestProbeOptions {
 export function createSpineRestProbe(options: SpineRestProbeOptions): () => Promise<boolean> {
   const probeTimeoutMs = options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const probeImpl = options.probeImpl ?? defaultProbe;
-  return () => probeImpl(options.resolveConnection(), probeTimeoutMs);
+  return () => probeImpl(options.resolveConnection(), probeTimeoutMs, options.onReceipts);
 }

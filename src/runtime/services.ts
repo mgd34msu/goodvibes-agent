@@ -60,6 +60,7 @@ import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state'
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { AgentStoreSnapshotScheduler } from './store-snapshots.ts';
 import { buildAgentExecPromptAnswerHandler } from './exec-prompt-wiring.ts';
+import { AgentDaemonReceiptFeed } from './daemon-receipts.ts';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
 
 /**
@@ -516,6 +517,12 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly onSandboxedRun: () => void;
   readonly sessionBroker: SharedSessionBroker;
   readonly sessionSpineClient: SessionSpineClient;
+  /**
+   * Connected-host honesty receipts ("updated from X to Y", "restarted after
+   * a crash") captured off the spine probe's /status reads; the renderer
+   * attaches at bootstrap and every receipt is delivered exactly once.
+   */
+  readonly daemonReceiptFeed: AgentDaemonReceiptFeed;
   readonly deliveryManager: AutomationDeliveryManager;
   readonly automationManager: AutomationManager;
   readonly gatewayMethods: GatewayMethodCatalog;
@@ -766,10 +773,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // starts the daemon. All calls are fire-and-forget; a down daemon degrades to
   // an honest offline queue while the local broker keeps rendering.
   const spineResolveConnection = createSpineConnectionResolver(configManager, homeDirectory);
+  const daemonReceiptFeed = new AgentDaemonReceiptFeed();
   const sessionSpineClient = new SessionSpineClient({
     participant: AGENT_SPINE_PARTICIPANT,
     transport: createSpineRestTransport({ resolveConnection: spineResolveConnection }),
-    probe: createSpineRestProbe({ resolveConnection: spineResolveConnection }),
+    // The probe is the agent's authenticated /status reader — the daemon
+    // serves undelivered honesty receipts to the first such reader and marks
+    // them delivered, so the probe must capture them or they are lost.
+    probe: createSpineRestProbe({ resolveConnection: spineResolveConnection, onReceipts: (receipts) => daemonReceiptFeed.push(receipts) }),
     log: logger,
   });
   sessionBroker.setContinuationRunner(async ({ task, input }) => {
@@ -1394,6 +1405,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     onSandboxedRun,
     sessionBroker,
     sessionSpineClient,
+    daemonReceiptFeed,
     deliveryManager,
     automationManager,
     gatewayMethods,

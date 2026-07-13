@@ -622,17 +622,28 @@ async function main() {
       contextWindow: currentModel.contextWindow,
     });
 
-    // Activity sidebar (ambient status on wide terminals)
+    // Activity sidebar (ambient status on wide terminals). Agent rows are
+    // enriched from the fleet read-model's snapshot: the per-node headline
+    // (task/phase identity only — replaced in place, never a feed) wins over
+    // the raw progress line, and the stall tell renders as a quiet marker.
+    const fleetNodesById = sidebarWidth > 0
+      ? new Map(ctx.services.processRegistry.query().nodes.map((node) => [node.id, node]))
+      : null;
     const sidebar = sidebarWidth > 0
       ? {
           lines: buildActivitySidebarLines({
             now: {
               busy: orchestrator.isThinking,
               label: sessionSnapshot.streamToolPreview?.trim() || undefined,
-              agents: activeAgents.slice(0, 3).map((agent) => ({
-                label: agent.label,
-                progress: agent.latestProgress?.trim() || undefined,
-              })),
+              agents: activeAgents.slice(0, 3).map((agent) => {
+                const node = fleetNodesById?.get(agent.id);
+                return {
+                  label: agent.label,
+                  progress: agent.latestProgress?.trim() || undefined,
+                  headline: node?.headline?.text,
+                  quietForMs: node?.stall?.quietForMs,
+                };
+              }),
               processes: runningProcessCount,
             },
             needsYou: pendingPermission

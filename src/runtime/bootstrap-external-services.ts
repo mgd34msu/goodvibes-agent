@@ -110,6 +110,16 @@ export function wireAgentExternalServices(options: {
   const { configManager, runtimeBus, hookDispatcher, services, uiServices, deferredStartup, systemMessageRouter, requestRender } = options;
   const startServices = options.startServices ?? startExternalServices;
 
+  // Connected-host honesty receipts ("updated from X to Y", "restarted after
+  // a crash at HH:MM", settings migrations) captured off the spine probe's
+  // /status reads: delivery at the daemon is destructive (served once, to the
+  // first authenticated reader), so every captured receipt renders here —
+  // buffered ones from before this attach flush immediately.
+  services.daemonReceiptFeed.attach((receipt) => {
+    systemMessageRouter.high(`[Connected host] ${receipt.text}`);
+    requestRender();
+  });
+
   const inspectAgentDependencies = () => {
     const daemonStatus = externalServices.daemonStatus;
     const httpListenerStatus = externalServices.httpListenerStatus;
