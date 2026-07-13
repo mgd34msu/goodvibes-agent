@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.10.0 - 2026-07-13
+
+- Agent updates itself at launch: the standalone binary lands on the newest release at startup, keeps a rollback binary, and /update is a first-class Agent command.
+- Model picker re-checks live model discovery when opened, so newly available models appear without a restart.
+- At boot the Agent starts a connected host that is installed on this machine but stopped: one start through the platform service manager, a bounded wait for it to answer, and an honest receipt.
+- Connected-host honesty receipts reach the agent surfaces through an explicit once-per-attach read, and fleet views gain per-node headlines with a quiet-stall marker.
+- Checkpoints are gated on explicit workspace eligibility using the typed origin and checkpoint-eligibility registration fields, not mere shared-store registration.
+- Feature availability is settings-derived with a default-on posture across the CLI, onboarding, and the settings workspace.
+- Adopted the published platform SDK 1.8.0 from the registry: the public store-snapshot scheduler and exec prompt wiring, the shared model-reference resolver for shared-session spawn routing, and the SDK public announcement and loopback-approval modules replacing vendored mirrors.
+
 ## 1.9.1 - 2026-07-11
 
 - Every GitHub release now attaches the sqlite-vec native extension as a per-platform archive (`sqlite-vec-<os>-<arch>.tar.gz`) next to the compiled binaries, so a directly-downloaded standalone binary can restore the semantic memory vector index by co-locating the addon. The npm/Bun package channel is unchanged.
