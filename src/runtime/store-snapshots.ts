@@ -20,7 +20,7 @@
  * retention engine, because RetentionPolicy/SnapshotPruner are unexported.
  * The bounds and the on-disk layout are identical; only the engine is local.
  */
-import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync, statSync, utimesSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 
@@ -116,6 +116,16 @@ function snapshotStoreFile(dbPath: string, reason: string, now: () => number): s
       copyFileSync(`${dbPath}${sidecar}`, `${snapshotPath}${sidecar}`);
     }
   }
+  // Stamp the snapshot's mtime with the LOGICAL creation time (`at`), not the
+  // real wall-clock mtime copyFileSync leaves. The "one daily copy per day"
+  // decision below reads this mtime back as the snapshot's createdAt, so it must
+  // reflect the scheduler's injected clock — otherwise a real-vs-injected clock
+  // skew (e.g. an injected time on the same real calendar day) makes the day
+  // boundary compare against the filesystem's wall clock instead of the
+  // scheduler's, which is both wrong in principle and time-of-day-flaky in tests.
+  // In production `at` is real `now`, so this is a no-op there.
+  const stampSeconds = at / 1000;
+  utimesSync(snapshotPath, stampSeconds, stampSeconds);
   logger.info('store snapshot written', { store: basename(dbPath), reason, snapshotPath });
   return snapshotPath;
 }

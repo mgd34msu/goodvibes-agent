@@ -5,7 +5,7 @@ import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
-import { createWorkspaceRegistrationLiveChecker, migrateLegacyWorkspaceRegistryIfNeeded } from '../config/workspace-registration.ts';
+import { backfillCheckpointEligibilityIfNeeded, createWorkspaceRegistrationLiveChecker, migrateLegacyWorkspaceRegistryIfNeeded } from '../config/workspace-registration.ts';
 import { FocusTracker } from '../core/focus-tracker.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -27,6 +27,7 @@ import { UserPermissionRuleStore } from '@pellux/goodvibes-sdk/platform/permissi
 import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import {
   createSpineConnectionResolver,
+  createSpineReceiptConsumer,
   createSpineRestProbe,
   createSpineRestTransport,
 } from './session-spine-rest-transport.ts';
@@ -523,6 +524,15 @@ export interface RuntimeServices extends SdkRuntimeServices {
    * attaches at bootstrap and every receipt is delivered exactly once.
    */
   readonly daemonReceiptFeed: AgentDaemonReceiptFeed;
+  /**
+   * Performs ONE receipt-consuming /status read (`?receipts=consume`) and pushes
+   * whatever the daemon delivered into {@link daemonReceiptFeed}. A current
+   * daemon delivers its one-shot honesty receipts only to a consuming read (a
+   * plain liveness /status read is receipt-neutral), so bootstrap invokes this
+   * exactly once per attach — see the memory-spine adoption reconciler's
+   * `onAttach`. Best-effort: it never throws and yields nothing on failure.
+   */
+  readonly consumeDaemonReceipts: () => Promise<void>;
   readonly deliveryManager: AutomationDeliveryManager;
   readonly automationManager: AutomationManager;
   readonly gatewayMethods: GatewayMethodCatalog;
@@ -774,13 +784,21 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // an honest offline queue while the local broker keeps rendering.
   const spineResolveConnection = createSpineConnectionResolver(configManager, homeDirectory);
   const daemonReceiptFeed = new AgentDaemonReceiptFeed();
+  // The daemon's one-shot honesty receipts are delivered ONLY to an explicit
+  // `?receipts=consume` read (a plain /status read is receipt-neutral), so the
+  // liveness probe below stays plain and a SEPARATE consuming read runs once
+  // per attach (bootstrap wires this to the memory-spine reconciler's onAttach).
+  const spineReceiptConsumer = createSpineReceiptConsumer({ resolveConnection: spineResolveConnection });
+  const consumeDaemonReceipts = async (): Promise<void> => {
+    const receipts = await spineReceiptConsumer();
+    if (receipts.length > 0) daemonReceiptFeed.push(receipts);
+  };
   const sessionSpineClient = new SessionSpineClient({
     participant: AGENT_SPINE_PARTICIPANT,
     transport: createSpineRestTransport({ resolveConnection: spineResolveConnection }),
-    // The probe is the agent's authenticated /status reader — the daemon
-    // serves undelivered honesty receipts to the first such reader and marks
-    // them delivered, so the probe must capture them or they are lost.
-    probe: createSpineRestProbe({ resolveConnection: spineResolveConnection, onReceipts: (receipts) => daemonReceiptFeed.push(receipts) }),
+    // Liveness only: a plain /status read that never consumes receipts. The
+    // once-per-attach consuming read above is the agent's receipt reader.
+    probe: createSpineRestProbe({ resolveConnection: spineResolveConnection }),
     log: logger,
   });
   sessionBroker.setContinuationRunner(async ({ task, input }) => {
@@ -1184,6 +1202,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   if (registrationMigration) {
     logger.info('Migrated the local workspace registry into the shared registration store', { ...registrationMigration });
   }
+  // After the import migration (records now in the shared store), stamp the ones
+  // that came from the agent's OWN explicit list as checkpoint-eligible, so the
+  // eligibility boundary below does not retroactively drop workspaces the owner
+  // had already opted into checkpoints. Runs once (receipt-gated); derives the
+  // explicit set from the still-present legacy registry file. Records lacking the
+  // flag (a TUI first-open self-record) stay ineligible — the boundary the owner
+  // ruled stays explicit.
+  const eligibilityBackfill = backfillCheckpointEligibilityIfNeeded(shellPaths);
+  if (eligibilityBackfill && eligibilityBackfill.recordsStamped > 0) {
+    logger.info('Marked the agent\'s explicitly-registered workspaces checkpoint-eligible', { ...eligibilityBackfill });
+  }
   const checkpointsRegistrationStatus = createWorkspaceRegistrationLiveChecker(shellPaths, workingDirectory);
   const checkpointsCurrentlyAllowed = (): boolean =>
     checkpointsRegistrationStatus() === 'covered' || readCheckpointRegistrationSetting(configManager) === 'guarded';
@@ -1406,6 +1435,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     sessionBroker,
     sessionSpineClient,
     daemonReceiptFeed,
+    consumeDaemonReceipts,
     deliveryManager,
     automationManager,
     gatewayMethods,
