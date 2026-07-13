@@ -19,6 +19,9 @@ describe('provider account snapshot', () => {
     testManagers.providerRegistry.register({
       name: 'openai',
       models: ['gpt-5'],
+      // Hand-maintained fixture list; the SDK's registration-time model-source
+      // contract requires every register()-ed provider to declare its source.
+      modelSource: { kind: 'dated-static', asOf: '2026-07-13' },
       credentialAuthority: 'resolver',
       async chat() {
         return {

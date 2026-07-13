@@ -13,6 +13,9 @@ function makeProvider(name: string, response: string = 'ok'): LLMProvider & { ca
   return {
     name,
     models: ['test-model'],
+    // Hand-maintained fixture list; the SDK's registration-time model-source
+    // contract requires every register()-ed provider to declare its source.
+    modelSource: { kind: 'dated-static', asOf: '2026-07-13' },
     credentialAuthority: 'anonymous',
     async chat(params: ChatRequest): Promise<ChatResponse> {
       calls.push(params);
@@ -32,6 +35,9 @@ function makeErrorProvider(name: string): LLMProvider {
   return {
     name,
     models: ['bad-model'],
+    // Hand-maintained fixture list; the SDK's registration-time model-source
+    // contract requires every register()-ed provider to declare its source.
+    modelSource: { kind: 'dated-static', asOf: '2026-07-13' },
     credentialAuthority: 'anonymous',
     async chat(_params: ChatRequest): Promise<ChatResponse> {
       throw new Error('API key missing or invalid');
