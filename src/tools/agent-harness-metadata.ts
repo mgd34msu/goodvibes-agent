@@ -144,6 +144,14 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Diagnostics and review commands inspect Agent, provider, MCP, security, and connected-host readiness without taking lifecycle ownership.',
     };
   }
+  if (root === 'update' || root === 'upgrade') {
+    return {
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: agentHarnessModes('run_command'),
+      boundary: 'Check is a read-only release lookup; apply downloads, checksum-verifies, and atomically swaps the installed binary (and vector addon) keeping the previous version beside it, and rollback exchanges the kept previous version back in. Apply and rollback change the installed program and require explicit user intent.',
+    };
+  }
   if (root === 'trust' || root === 'auth' || root === 'bundle') {
     return {
       effect: 'mixed',

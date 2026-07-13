@@ -332,6 +332,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/tts` | Submit a normal prompt and play the assistant response through live TTS. |
 | `/undo` | Undo the last conversation turn. |
 | `/unpin` | Unpin a model from the favorites list. |
+| `/update` | Check for a newer release; for binary installs, verify and apply it or roll back to the kept previous version. |
 | `/vibe` | Inspect, create, show, or import VIBE.md personality files. |
 | `/voice` | Review voice posture and portable voice metadata. |
 | `/welcome` | Open or print the Agent setup guide. |

@@ -61,7 +61,9 @@ const hiddenCopiedCommands = [
   'template',
   'tools',
   'tunnel',
-  'update',
+  // 'update' left this list when the Agent shipped its own real self-update
+  // (/update check|apply|rollback over the SDK's verified swap path) — it is
+  // a first-class Agent command now, not a copied TUI surface.
   'web',
   'webhook',
   'worker-pool',
