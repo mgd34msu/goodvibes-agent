@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import ts from 'typescript';
-import { checkNoInternalIdentifiers } from './internal-identifier-rule.ts';
+import { checkNoInternalIdentifiers, listTrackedGoodvibesTextFiles } from './internal-identifier-rule.ts';
 
 const ROOT = join(import.meta.dir, '..');
 const SRC_ROOT = join(ROOT, 'src');
@@ -411,6 +411,10 @@ for (const method of catalog.list()) {
 // Plain language only in tracked text; provenance via decision-record paths,
 // file paths, commit hashes, or versions. See internal-identifier-rule.ts
 // (ported from goodvibes-tui/scripts/internal-identifier-rule.ts).
+// Scope: src, scripts, docs markdown, and TRACKED text under .goodvibes/
+// (git-tracked .md/.json only — runtime state there is untracked and
+// machine-local). The .goodvibes/audit/ decision records are scanned but
+// exempted inside the rule itself, a documented reviewed exemption.
 
 function walkMarkdown(dir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -434,6 +438,12 @@ const internalIdentifierCandidates = [
   ...scriptFiles,
   ...walkMarkdown(join(ROOT, 'docs')),
 ].map((file) => ({ relPath: relative(ROOT, file).split('\\').join('/'), text: readFileSync(file, 'utf-8') }));
+internalIdentifierCandidates.push(
+  ...listTrackedGoodvibesTextFiles(ROOT).map((relPath) => ({
+    relPath,
+    text: readFileSync(join(ROOT, relPath), 'utf-8'),
+  })),
+);
 
 for (const v of checkNoInternalIdentifiers(internalIdentifierCandidates)) {
   violations.push(v);

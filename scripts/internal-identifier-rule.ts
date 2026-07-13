@@ -44,6 +44,8 @@
  * C spell the web-standards body's own acronym, a genuine technical token.
  */
 
+import { spawnSync } from 'node:child_process';
+
 const OWNER_DOCTRINE =
   'never put wave/work-order/register ids in outward-facing or in-code text; ' +
   'plain language only; provenance via decision-record paths or versions';
@@ -69,9 +71,58 @@ export interface InternalIdentifierCandidate {
   readonly text: string;
 }
 
+/**
+ * Reviewed exemptions. Everything here is a DELIBERATE, documented decision,
+ * not a scan-scope hole — the doctrine ("never put wave/work-order/register
+ * ids in outward-facing or in-code text; plain language only; provenance via
+ * decision-record paths or versions") names decision-record paths as the one
+ * sanctioned home for that shorthand, matching the sibling exemptions in
+ * goodvibes-tui (docs/releases/**) and the SDK
+ * (goodvibes-sdk/scripts/check-internal-identifiers.ts, docs/decisions/**):
+ *
+ *  - docs/releases/** — dated, self-contained historical release records,
+ *    should that directory ever exist here (ported exemption).
+ *  - .goodvibes/audit/** — this repo's dated historical decision records
+ *    (audit rulings and parity matrices). They are the provenance the
+ *    doctrine points AT, written before the identifier sweep and kept
+ *    verbatim on purpose: rewriting a historical record to satisfy a later
+ *    rule would falsify it. Reviewed exemption; new coordination shorthand
+ *    still cannot land anywhere else under .goodvibes/ (see
+ *    listTrackedGoodvibesTextFiles below and the architecture gate).
+ */
 function isExempt(relPath: string): boolean {
   const normalized = relPath.split('\\').join('/');
-  return normalized.startsWith('docs/releases/');
+  return normalized.startsWith('docs/releases/') || normalized.startsWith('.goodvibes/audit/');
+}
+
+/**
+ * The tracked text files under `.goodvibes/` the architecture gate must scan.
+ *
+ * GIT-TRACKED ONLY, deliberately: at runtime this directory also holds
+ * machine-local state (control-plane stores, checkpoints, session files) that
+ * is untracked, differs per machine, and can legitimately contain arbitrary
+ * text — walking the filesystem here would make the gate nondeterministic.
+ * `git ls-files` scopes the scan to exactly what the doctrine governs:
+ * tracked text. Extensions are limited to the hand-authored text kinds that
+ * exist here (.md, .json). The `.goodvibes/audit/` decision records are
+ * INCLUDED in this listing and exempted inside checkNoInternalIdentifiers
+ * (see isExempt) — one exemption surface, not two.
+ *
+ * Returns repo-relative paths. A missing git binary or a non-repo root fails
+ * loudly: the architecture gate must never silently scan nothing.
+ */
+export function listTrackedGoodvibesTextFiles(root: string): string[] {
+  const result = spawnSync('git', ['-C', root, 'ls-files', '-z', '--', '.goodvibes'], {
+    encoding: 'utf-8',
+    maxBuffer: 16 * 1024 * 1024,
+  });
+  if (result.status !== 0) {
+    throw new Error(`git ls-files failed for ${root}: ${result.stderr || `exit ${result.status}`}`);
+  }
+  return result.stdout
+    .split('\0')
+    .filter((path) => path.length > 0)
+    .filter((path) => path.endsWith('.md') || path.endsWith('.json'));
 }
 
 export function checkNoInternalIdentifiers(
