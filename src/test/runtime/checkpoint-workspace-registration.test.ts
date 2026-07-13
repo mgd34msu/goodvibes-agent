@@ -20,7 +20,7 @@ import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
-import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
+import { createWorkspaceRegistrationStore, registerWorkspaceForCheckpoints } from '../../config/workspace-registration.ts';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
 
 const tempDirs: string[] = [];
@@ -58,7 +58,9 @@ async function buildServices(opts: { registered: boolean; workingDir?: string; h
 
   if (opts.registered) {
     const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
-    await createWorkspaceRegistrationStore(shellPaths).add(workingDir);
+    // Explicit checkpoint registration (registers AND stamps eligibility) — a
+    // plain store.add is a TUI-shaped self-record and is NOT checkpoint-eligible.
+    await registerWorkspaceForCheckpoints(shellPaths, workingDir);
   }
 
   const runtimeBus = new RuntimeEventBus();
@@ -161,7 +163,7 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     expect(await services.workspaceCheckpointManager.list()).toHaveLength(0);
 
     const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
-    await createWorkspaceRegistrationStore(shellPaths).add(workingDir);
+    await registerWorkspaceForCheckpoints(shellPaths, workingDir);
 
     emitTurnCompleted(runtimeBus, 'turn-after-registration');
     const created = await pollUntil(async () => (await services.workspaceCheckpointManager.list()).length > 0);
@@ -183,7 +185,7 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     ).rejects.toThrow(/not registered/);
 
     const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
-    await createWorkspaceRegistrationStore(shellPaths).add(workingDir);
+    await registerWorkspaceForCheckpoints(shellPaths, workingDir);
 
     const result = await services.gatewayMethods.invoke('checkpoints.create', {
       methodId: 'checkpoints.create',
@@ -251,7 +253,7 @@ describe('registered-workspaces-only automatic checkpoints: worktree-link inheri
     git(mainRepo, ['worktree', 'add', '--quiet', '-b', 'orchestration-branch', worktreeDir]);
 
     const shellPaths = createShellPathService({ workingDirectory: mainRepo, homeDirectory: homeDir });
-    await createWorkspaceRegistrationStore(shellPaths).add(mainRepo);
+    await registerWorkspaceForCheckpoints(shellPaths, mainRepo);
 
     // The worktree lives OUTSIDE mainRepo's subtree entirely, so only the
     // git worktree-link inheritance — not path ancestry — makes it covered.

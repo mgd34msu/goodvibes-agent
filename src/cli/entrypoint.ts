@@ -27,7 +27,7 @@ import { inspectCliExternalRuntime } from './external-runtime.ts';
 import { inspectConnectedHostMetrics } from './connected-host-metrics.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
-import { migrateLegacyWorkspaceRegistryIfNeeded, resolveWorkspaceRegistrationSync } from '../config/workspace-registration.ts';
+import { backfillCheckpointEligibilityIfNeeded, migrateLegacyWorkspaceRegistryIfNeeded, resolveCheckpointEligibilitySync } from '../config/workspace-registration.ts';
 import { resolveAgentRuntimeProfileHome, resolveSelectedAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
 
 type ShellEntrypointOwnership = {
@@ -211,8 +211,12 @@ export async function prepareShellCliRuntime(
     if (registrationMigration) {
       logger.info('Migrated the local workspace registry into the shared registration store', { ...registrationMigration });
     }
+    backfillCheckpointEligibilityIfNeeded(shellPaths);
     const checkpoints = {
-      workspaceRegistered: resolveWorkspaceRegistrationSync(shellPaths, bootstrapWorkingDir).status === 'covered',
+      // Honest to the checkpoint boundary: a workspace is "registered" for
+      // checkpoints only when it is checkpoint-ELIGIBLE (an explicit owner
+      // opt-in), not merely present in the shared store as a TUI self-record.
+      workspaceRegistered: resolveCheckpointEligibilitySync(shellPaths, bootstrapWorkingDir).status === 'covered',
       unregisteredWorkspaceMode: readCheckpointRegistrationSetting(configManager),
     };
     const statusOptions = {

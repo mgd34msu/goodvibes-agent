@@ -5,10 +5,13 @@ import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
   answerWorkspaceRegistrationPrompt,
+  backfillCheckpointEligibilityIfNeeded,
   createWorkspaceRegistrationStore,
   isBroadWorkspaceRoot,
   migrateLegacyWorkspaceRegistryIfNeeded,
   normalizeWorkspaceRoot,
+  registerWorkspaceForCheckpoints,
+  resolveCheckpointEligibilitySync,
   resolveWorkspaceRegistrationSync,
   sharedWorkspaceRegistrationStorePath,
 } from '../../config/workspace-registration.ts';
@@ -180,6 +183,113 @@ describe('workspace-registration: legacy registry migration', () => {
 
     const second = migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
     expect(second).toBeNull();
+  });
+});
+
+describe('workspace-registration: checkpoint-eligibility boundary', () => {
+  function backfillReceiptPath(home: string): string {
+    return join(home, '.goodvibes', 'control-plane', 'workspace-checkpoint-eligibility-backfill-receipt.json');
+  }
+
+  test('a TUI-shaped self-record (plain store.add, no flag) is registered but NOT checkpoint-eligible', async () => {
+    const { shellPaths, work } = makeShellPaths();
+    // The TUI's first-open self-recording is a plain SDK store.add — no flag.
+    await createWorkspaceRegistrationStore(shellPaths).add(work);
+
+    // Registered in the shared store...
+    expect(resolveWorkspaceRegistrationSync(shellPaths, work, {}).status).toBe('covered');
+    // ...but the checkpoint boundary does not consume it.
+    expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('unknown');
+  });
+
+  test('explicit agent registration IS checkpoint-eligible', async () => {
+    const { shellPaths, work } = makeShellPaths();
+    await registerWorkspaceForCheckpoints(shellPaths, work);
+
+    expect(resolveWorkspaceRegistrationSync(shellPaths, work, {}).status).toBe('covered');
+    expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('covered');
+  });
+
+  test('a TUI self-record and an explicit registration coexist; only the explicit one is eligible', async () => {
+    const { shellPaths, work } = makeShellPaths();
+    const tuiDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-tui-'));
+    await createWorkspaceRegistrationStore(shellPaths).add(tuiDir);
+    await registerWorkspaceForCheckpoints(shellPaths, work);
+
+    expect(resolveCheckpointEligibilitySync(shellPaths, tuiDir, {}).status).toBe('unknown');
+    expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('covered');
+  });
+
+  test('a later SDK store write (a TUI self-record of another dir) does not wipe an explicit record\'s eligibility', async () => {
+    const { shellPaths, work } = makeShellPaths();
+    await registerWorkspaceForCheckpoints(shellPaths, work);
+    // A subsequent plain SDK add (as the TUI does) rewrites the shared file; the
+    // SDK preserves existing records' extra fields, so `work` stays eligible.
+    const otherDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-other-'));
+    await createWorkspaceRegistrationStore(shellPaths).add(otherDir);
+
+    expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('covered');
+    expect(resolveCheckpointEligibilitySync(shellPaths, otherDir, {}).status).toBe('unknown');
+  });
+
+  test('coverage still flows down an eligible root\'s subtree and inherits through the worktree link', async () => {
+    const { shellPaths, work } = makeShellPaths();
+    await registerWorkspaceForCheckpoints(shellPaths, work);
+
+    const nested = join(work, 'packages', 'app');
+    expect(resolveCheckpointEligibilitySync(shellPaths, nested, {}).status).toBe('covered');
+
+    const siblingWorktree = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-eligible-worktree-'));
+    const inherited = resolveCheckpointEligibilitySync(shellPaths, siblingWorktree, { mainWorktreeRoot: work });
+    expect(inherited.status).toBe('covered');
+    expect(inherited.viaWorktreeLink).toBe(true);
+  });
+
+  test('backfill stamps the agent\'s legacy explicit-list records eligible, once', async () => {
+    const { shellPaths, work, home } = makeShellPaths();
+    // An already-migrated shared store WITHOUT the flag, plus the still-present
+    // legacy explicit-list file (the earlier-migration-then-added-flag case).
+    const legacyPath = legacyRegistryPath(home);
+    mkdirSync(join(home, '.goodvibes', 'agent', 'checkpoints'), { recursive: true });
+    writeFileSync(legacyPath, JSON.stringify({
+      version: 1,
+      workspaces: [{ root: work, registeredAt: '2026-01-01T00:00:00.000Z' }],
+    }));
+    migrateLegacyWorkspaceRegistryIfNeeded(shellPaths);
+
+    // Before backfill: registered, but not yet checkpoint-eligible.
+    expect(resolveWorkspaceRegistrationSync(shellPaths, work, {}).status).toBe('covered');
+    expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('unknown');
+
+    const result = backfillCheckpointEligibilityIfNeeded(shellPaths);
+    expect(result?.recordsStamped).toBe(1);
+    expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('covered');
+
+    // Idempotent: a second call is a receipt-gated no-op.
+    expect(backfillCheckpointEligibilityIfNeeded(shellPaths)).toBeNull();
+  });
+
+  test('backfill with no legacy file is a no-op and writes no receipt', () => {
+    const { shellPaths, home } = makeShellPaths();
+    expect(backfillCheckpointEligibilityIfNeeded(shellPaths)).toBeNull();
+    expect(existsSync(backfillReceiptPath(home))).toBe(false);
+  });
+
+  test('backfill does NOT stamp a record absent from the legacy explicit list (a TUI self-record)', async () => {
+    const { shellPaths, work, home } = makeShellPaths();
+    // A TUI self-record in the shared store, and a legacy file that does NOT
+    // list it — so backfill must leave it ineligible.
+    await createWorkspaceRegistrationStore(shellPaths).add(work);
+    const legacyPath = legacyRegistryPath(home);
+    mkdirSync(join(home, '.goodvibes', 'agent', 'checkpoints'), { recursive: true });
+    writeFileSync(legacyPath, JSON.stringify({
+      version: 1,
+      workspaces: [{ root: join(home, 'some-other-explicit-project'), registeredAt: '2026-01-01T00:00:00.000Z' }],
+    }));
+
+    const result = backfillCheckpointEligibilityIfNeeded(shellPaths);
+    expect(result?.recordsStamped).toBe(0);
+    expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('unknown');
   });
 });
 

@@ -6,6 +6,7 @@ import {
   createWorkspaceRegistrationStore,
   migrateLegacyWorkspaceRegistryIfNeeded,
   normalizeWorkspaceRoot,
+  registerWorkspaceForCheckpoints,
 } from '../config/workspace-registration.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
@@ -108,7 +109,10 @@ export async function handleWorkspacesCommand(runtime: CliCommandRuntime): Promi
     }
     const label = flagValue(rawRest, ['--label']) ?? undefined;
     try {
-      const result = await store.add(target, label ? { label } : undefined);
+      // Explicit registration: registers AND stamps checkpoint-eligibility, so
+      // this workspace becomes an owner-opted checkpoint boundary (a plain
+      // store.add would register without enabling automatic checkpoints).
+      const result = await registerWorkspaceForCheckpoints(shellPaths, target, label ? { label } : undefined);
       const text = result.alreadyRegistered
         ? `Workspace already registered: ${result.record.root}`
         : `Workspace registered: ${result.record.root}\n  automatic checkpoints are now allowed for this workspace`;
