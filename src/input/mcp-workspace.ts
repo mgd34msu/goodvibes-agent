@@ -150,7 +150,11 @@ function serverConfigToForm(server?: McpServerConfig): McpWorkspaceForm {
   };
 }
 
-function formToServerConfig(form: McpWorkspaceForm): McpServerConfig {
+// The workspace form edits stdio (command-launched) servers only, so the
+// converted config always carries a command; streamable-HTTP (url) servers
+// from the SDK's widened McpServerConfig appear in the list but are managed
+// through the /mcp command line.
+function formToServerConfig(form: McpWorkspaceForm): McpServerConfig & { command: string } {
   const name = form.name.trim();
   const command = form.command.trim();
   if (!name) throw new Error('Server name is required.');

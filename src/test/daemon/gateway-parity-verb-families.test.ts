@@ -124,6 +124,11 @@ const VERB_FAMILIES: ReadonlyArray<{ readonly family: string; readonly reason: s
     reason: "Always registered — the SDK's createSessionRuntimeControls is built internally from configManager + runtimeStore, both always present in this fork's composition.",
     methodIds: ['sessions.permissionMode.get', 'sessions.permissionMode.set', 'sessions.contextUsage.get'],
   },
+  {
+    family: 'permissions.rules.*',
+    reason: 'Registered because userPermissionRuleStore is threaded in services.ts (durable remembered-approval rules; the same store feeds the PermissionManager in bootstrap-core). Deeper round-trip: gateway-ws-only-invokable.test.ts.',
+    methodIds: ['permissions.rules.list', 'permissions.rules.delete'],
+  },
 ];
 
 const ALL_METHOD_IDS = VERB_FAMILIES.flatMap((entry) => entry.methodIds);

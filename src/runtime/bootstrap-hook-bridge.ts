@@ -28,7 +28,7 @@ export interface ResumeSessionOptions {
   readonly hookDispatcher: HookDispatcher;
   readonly sessionManager: SessionManager;
   readonly configManager: Pick<ConfigManager, 'get' | 'getCategory'>;
-  readonly providerRegistry: Pick<ProviderRegistry, 'get' | 'getCurrentModel' | 'getForModel' | 'require'>;
+  readonly providerRegistry: Pick<ProviderRegistry, 'get' | 'getCurrentModel' | 'getForModel' | 'require' | 'resolveModelPricing'>;
 }
 
 export function createResumeSessionHandler(options: ResumeSessionOptions): (sessionId: string) => void {

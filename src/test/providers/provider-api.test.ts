@@ -185,7 +185,7 @@ function createHarness() {
         : null,
       describeRuntime: async (providerId: string) => providers.get(providerId)?.describeRuntime
         ? await providers.get(providerId)!.describeRuntime!({
-            secretsManager: { listDetailed: async () => [] },
+            secretsManager: { get: async () => null, listDetailed: async () => [] },
             serviceRegistry: {
               getAll: () => ({}),
               inspect: async () => null,
@@ -202,6 +202,12 @@ function createHarness() {
         return provider;
       },
       getCostFromCatalog: (modelId: string) => pricing.get(modelId) ?? { input: 0, output: 0 },
+      resolveModelPricing: (modelRef: string) => {
+        const rates = pricing.get(modelRef);
+        return rates
+          ? { status: 'priced' as const, source: 'catalog' as const, rates: { inputPerMTok: rates.input, outputPerMTok: rates.output } }
+          : { status: 'unknown' as const };
+      },
       getPricingForModel: (modelId: string) => {
         const cost = pricing.get(modelId);
         return cost ? { prompt: cost.input, completion: cost.output } : null;

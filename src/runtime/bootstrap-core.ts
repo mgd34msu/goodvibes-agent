@@ -592,6 +592,10 @@ export async function initializeBootstrapCore(
     policyRuntimeState,
     services.hookDispatcher,
     featureFlags,
+    // Durable user-origin permission rules (remembered approvals), mirroring
+    // the SDK composition root: "always allow" style decisions persist across
+    // restarts and are listable/deletable via permissions.rules.*.
+    services.userPermissionRuleStore,
   );
   installPermissionManagerSafetyGuard(permissionManager);
   // Wire permissionManager into the SAME AgentOrchestrator instance that runs

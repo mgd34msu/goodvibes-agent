@@ -44,6 +44,12 @@ const WS_ONLY_METHOD_IDS = [
   'workspaces.registrations.add',
   'workspaces.registrations.remove',
   'workspaces.resolve',
+  // Durable remembered-approval rules: registered only when the
+  // userPermissionRuleStore dep is threaded in services.ts — the SDK
+  // registrar registers this group's descriptors and handlers together, so
+  // without the dep these two are entirely absent from the catalog.
+  'permissions.rules.list',
+  'permissions.rules.delete',
 ] as const;
 
 describe('ws-only gateway verbs are invokable on the vendored runtime', () => {
@@ -105,6 +111,23 @@ describe('ws-only gateway verbs are invokable on the vendored runtime', () => {
         body: { groupId: 'no-such-group', winnerItemId: 'no-such-item' },
       } as never),
     ).rejects.toThrow();
+  });
+
+  test('permissions.rules.list invokes end-to-end (no remembered rules on a fresh runtime)', async () => {
+    const result = await services.gatewayMethods.invoke('permissions.rules.list', {
+      methodId: 'permissions.rules.list',
+      body: {},
+    } as never) as { rules: unknown[] };
+    expect(Array.isArray(result.rules)).toBe(true);
+    expect(result.rules).toHaveLength(0);
+  });
+
+  test('permissions.rules.delete answers an unknown rule honestly (deleted: false), never a phantom success', async () => {
+    const result = await services.gatewayMethods.invoke('permissions.rules.delete', {
+      methodId: 'permissions.rules.delete',
+      body: { ruleId: 'no-such-rule' },
+    } as never) as { deleted: boolean };
+    expect(result.deleted).toBe(false);
   });
 
   test('workspaces.registrations.list invokes end-to-end (no registrations on a fresh runtime)', async () => {

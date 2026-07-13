@@ -21,8 +21,9 @@ import { createSessionConversationRewindPort } from './conversation-rewind-port.
 // terminal-shell does not already wrap, rather than hand-rolling the bridge.
 import { attachFleetEmitBridge } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
-import { resolveModelReference, type ModelIdCandidate } from '@pellux/goodvibes-sdk/platform/providers';
-import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { computeUsageCostUsd, resolveModelReference, type ModelIdCandidate } from '@pellux/goodvibes-sdk/platform/providers';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { UserPermissionRuleStore } from '@pellux/goodvibes-sdk/platform/permissions';
 import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import {
   createSpineConnectionResolver,
@@ -54,9 +55,11 @@ import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
 import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
-import { CodeIndexStore } from '@pellux/goodvibes-sdk/platform/state';
+import { CodeIndexStore, resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
-import { createOrchestrationEngine } from '@pellux/goodvibes-sdk/platform/orchestration';
+import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
+import { AgentStoreSnapshotScheduler } from './store-snapshots.ts';
+import { buildAgentExecPromptAnswerHandler } from './exec-prompt-wiring.ts';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
 
 /**
@@ -682,6 +685,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   ensureConfiguredModelIsRoutable(providerRegistry, configManager);
   providerRegistry.initCustomProviders();
   providerRegistry.initProviderModelDiscovery();
+  // ONE credential chain (env -> secrets -> subscription), mirroring the SDK
+  // composition root: boot applies secrets-backed keys; every secrets
+  // write/delete re-registers builtin providers LIVE (no restart needed).
+  secretsManager.onDidChange(() => void providerRegistry.refreshProviderCredentials().catch((error) => logger.warn('live credential refresh failed', { error: summarizeError(error) })));
+  void providerRegistry.refreshProviderCredentials().catch((error) => logger.warn('boot credential refresh failed', { error: summarizeError(error) }));
   const toolLLM = new ToolLLM({
     configManager,
     providerRegistry,
@@ -737,6 +745,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const approvalBroker = new ApprovalBroker({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'approvals.json'),
   });
+  // Durable user-origin permission rules (remembered approvals), mirroring the
+  // SDK composition root: one store per project, consumed by the permission
+  // manager (bootstrap-core) and the permissions.rules.* gateway verbs below.
+  // Background init is fail-safe: a broken store means asks keep prompting.
+  const userPermissionRuleStore = new UserPermissionRuleStore(join(configManager.getControlPlaneConfigDir(), 'permission-rules.json'));
+  void userPermissionRuleStore.init().catch((error) => logger.warn('user permission rule store init failed; asks will prompt', { error: summarizeError(error) }));
   const sessionBroker = new SharedSessionBroker({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'sessions.json'),
     routeBindings,
@@ -990,6 +1004,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   // Localhost dev-server fetches ride the same broker: ask once, one-tap
   // "allow for this project", persisted as fetch.allowLocalhost.
+  // An exec command blocked on a terminal prompt (host-key confirmation,
+  // credential ask) rides the same broker: the pending prompt surfaces through
+  // every surface's approval machinery and the typed answer feeds the same
+  // continuing run. (Fork-mirror wiring: see exec-prompt-wiring.ts.)
+  const execPromptAnswerHandler = buildAgentExecPromptAnswerHandler({
+    requestApproval: (input) => approvalBroker.requestApproval(input),
+  });
   const localhostFetchApproval = buildLocalhostFetchApproval({
     requestApproval: (input) => approvalBroker.requestApproval(input),
     configManager,
@@ -1002,6 +1023,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   agentOrchestrator.setDependencies({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    execPromptAnswerHandler,
     localhostFetchApproval,
     onSandboxedRun,
     fileCache,
@@ -1053,17 +1075,41 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   //                            explicitly invoked. See the construction site
   //                            below for the full registered-workspaces-only
   //                            rule (owner ruling, 2026-07-10).
+  // Honest-unpriced: usage prices through the ONE model pricing resolver
+  // (manual -> registration -> provider-served -> catalog -> unknown; any
+  // resolvable model). Unknown/subscription yields null (costState
+  // 'unpriced'), never $0. SHARED by fleet + orchestration so totals never
+  // double-count — mirrors the SDK composition root.
+  const priceUsage = (model: string | undefined, usage: { inputTokens: number; outputTokens: number }): number | null => (model ? computeUsageCostUsd(providerRegistry.resolveModelPricing(model), usage) : null);
+
   const orchestrationEngine = createOrchestrationEngine({
     agentManager,
     configManager,
     runtimeBus: options.runtimeBus,
     projectRoot: workingDirectory,
+    priceUsage,
+    judgeAttempts: createProviderBackedAttemptJudge(providerRegistry),
   });
   const codeIndexStore = new CodeIndexStore(
     workingDirectory,
     join(workingDirectory, '.goodvibes', 'agent', 'code-index.sqlite'),
     memoryEmbeddingRegistry,
   );
+  // Data safety with no discipline: a daily snapshot of every SQLite store
+  // this runtime writes, bounded retention, unref'd timers (mirrors the SDK
+  // composition root; fork-mirror class — see store-snapshots.ts). The
+  // canonical memory db is shared with the daemon/TUI; the shared snapshot
+  // layout means whichever process sweeps first writes that day's copy. The
+  // agent's code index is deliberately inert (see the block comment above) —
+  // its entry is a no-op until a file actually exists.
+  const storeSnapshotScheduler = new AgentStoreSnapshotScheduler({
+    stores: [
+      { name: 'memory store', dbPath: memoryDbPath },
+      { name: 'memory vector index', dbPath: resolveMemoryVectorDbPath(memoryDbPath) },
+      { name: 'code index store', dbPath: join(workingDirectory, '.goodvibes', 'agent', 'code-index.sqlite') },
+    ],
+  });
+  storeSnapshotScheduler.start();
   const codeIndexReindexScheduler = new CodeIndexReindexScheduler({
     target: codeIndexStore,
     workingDirectory,
@@ -1087,6 +1133,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     messageBus: agentMessageBus,
     automationManager,
     runtimeBus: options.runtimeBus,
+    priceUsage,
   });
   // Root/retention guard options come from the user's `checkpoints.*` settings
   // (see config/checkpoint-settings.ts); any key the user did not set is omitted
@@ -1236,6 +1283,23 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     sessionBroker,
     secretsManager,
     approvalBroker,
+    // The generic broker ask seam (rounds 4-6): CI-watch red runs raise a
+    // "fix this?" offer through the same approval machinery as every ask.
+    requestApproval: (input) => approvalBroker.requestApproval(input),
+    // Recurring CI polling over the same watcher framework the fleet rows
+    // already observe; degrades honestly to the manual verb when watchers
+    // are disabled (the SDK registrar checks watchers.enabled itself).
+    watcherRegistry,
+    // permissions.rules.list/.delete over the durable remembered-approval
+    // rules constructed above.
+    userPermissionRuleStore,
+    // Completion push source (rounds 4-6) plus the needs-input source ride
+    // the runtime bus's fleet domain. DELIBERATE DIVERGENCE from the SDK
+    // composition root: no sessionPresence is passed — the SDK builds its
+    // isAttached check from hasFreshSurfaceParticipant, which has no public
+    // export path. Absent presence means every needs-input block pushes
+    // (the SDK-documented fallback), never a missed notification.
+    runtimeBus: options.runtimeBus,
     shellPaths,
     configManager,
     runtimeStore: options.runtimeStore,
@@ -1306,6 +1370,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     orchestrationEngine,
     codeIndexStore,
     codeIndexReindexScheduler,
+    // Fork-mirror scheduler (see store-snapshots.ts): the SDK's class has no
+    // public export path, so the contract member is satisfied by the
+    // behaviorally-identical mirror. The cast is nominal-only — same public
+    // surface (start/stop/tick/pruneRegisteredSnapshots).
+    storeSnapshotScheduler: storeSnapshotScheduler as unknown as NonNullable<SdkRuntimeServices>['storeSnapshotScheduler'],
+    userPermissionRuleStore,
     processRegistry,
     workspaceCheckpointManager,
     runtimeBus: options.runtimeBus,

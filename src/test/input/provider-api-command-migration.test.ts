@@ -122,6 +122,7 @@ function createProviderApiStub(overrides: Partial<ProviderApi> = {}): ProviderAp
             stopReason: 'completed',
           }),
         }),
+        resolveModelPricing: () => ({ status: 'unknown' as const }),
       },
     }),
     ...overrides,

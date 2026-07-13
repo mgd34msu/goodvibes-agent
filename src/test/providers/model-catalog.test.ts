@@ -117,19 +117,21 @@ describe('getCostFromPricingCatalog', () => {
   });
   it('returns correct pricing for exact-match paid model', () => {
     const cost = getCostFromPricingCatalog('claude-sonnet-4-6', COST_FIXTURE);
-    expect(cost.input).toBe(3);
-    expect(cost.output).toBe(15);
+    expect(cost).not.toBeNull();
+    expect(cost?.input).toBe(3);
+    expect(cost?.output).toBe(15);
   });
   it('returns zero cost for free-tier models in catalog', () => {
     expect(getCostFromPricingCatalog('gpt-oss-120b', COST_FIXTURE)).toEqual({ input: 0, output: 0 });
   });
-  it('returns zero cost for unknown models (fallback)', () => {
-    expect(getCostFromPricingCatalog('unknown-model-xyz-9999', COST_FIXTURE)).toEqual({ input: 0, output: 0 });
+  it('returns null for unknown models — honestly unpriced, never $0', () => {
+    expect(getCostFromPricingCatalog('unknown-model-xyz-9999', COST_FIXTURE)).toBeNull();
   });
   it('handles prefix/substring match for versioned model IDs', () => {
     const cost = getCostFromPricingCatalog('claude-sonnet-4-6-20250101', COST_FIXTURE);
-    expect(cost.input).toBe(3);
-    expect(cost.output).toBe(15);
+    expect(cost).not.toBeNull();
+    expect(cost?.input).toBe(3);
+    expect(cost?.output).toBe(15);
   });
   it('respects an explicit catalog rewrite', () => {
     const customCatalog: PricingCatalog = {
@@ -137,17 +139,18 @@ describe('getCostFromPricingCatalog', () => {
       models: [{ id: 'test-model', name: 'Test Model', provider: 'test', providerId: 'test', providerEnvVars: [], pricing: { input: 42, output: 84 }, tier: 'paid' }],
     };
     const cost = getCostFromPricingCatalog('test-model', customCatalog);
-    expect(cost.input).toBe(42);
-    expect(cost.output).toBe(84);
+    expect(cost).not.toBeNull();
+    expect(cost?.input).toBe(42);
+    expect(cost?.output).toBe(84);
   });
 
-  it('falls back to zero after rewriting the catalog with no models', () => {
+  it('goes null after rewriting the catalog with no models — absent never looks free', () => {
     const customCatalog: PricingCatalog = {
       fetchedAt: Date.now(),
       models: [{ id: 'test-model', name: 'Test Model', provider: 'test', providerId: 'test', providerEnvVars: [], pricing: { input: 99, output: 99 }, tier: 'paid' }],
     };
-    expect(getCostFromPricingCatalog('test-model', customCatalog).input).toBe(99);
-    expect(getCostFromPricingCatalog('test-model', { models: [] })).toEqual({ input: 0, output: 0 });
+    expect(getCostFromPricingCatalog('test-model', customCatalog)?.input).toBe(99);
+    expect(getCostFromPricingCatalog('test-model', { models: [] })).toBeNull();
   });
 });
 
