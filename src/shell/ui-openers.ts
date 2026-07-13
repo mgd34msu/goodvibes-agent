@@ -187,6 +187,14 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
   };
 
   commandContext.openModelPicker = () => {
+    // Picker-open re-check: re-verify each provider's live model list (TTL-
+    // respecting) so a freshly-opened picker reflects models the provider
+    // started or stopped serving. Fire-and-forget; a completed refresh re-renders
+    // so the list updates in place without blocking the open. (Same wiring as
+    // the TUI's picker — the fix-everywhere convention for this defect class.)
+    void providerRegistry.refreshLiveModelDiscovery?.().then((reports) => {
+      if (reports.some((report) => report.added.length > 0 || report.removed.length > 0)) render();
+    }).catch(() => {});
     void (async () => {
       const catalogModels = providerRegistry.getSelectableModels();
       const configuredIds = new Set(getConfiguredProviderIds());

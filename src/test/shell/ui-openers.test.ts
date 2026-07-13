@@ -64,4 +64,80 @@ describe('wireShellUiOpeners', () => {
     expect(input.openAgentWorkspace).toHaveBeenCalledWith(commandContext, undefined);
     expect(render).toHaveBeenCalled();
   });
+
+  // Fix-everywhere convention: the TUI's picker re-checks each provider's live
+  // model list on open (goodvibes-tui ui-openers), and the agent's picker must
+  // do exactly the same — a freshly-opened picker reflects models the provider
+  // started or stopped serving, without blocking the open.
+  describe('live model discovery re-check on picker open', () => {
+    function wirePickerWithRegistry(refreshLiveModelDiscovery: ReturnType<typeof mock>): void {
+      input = {
+        indicatorFocused: false,
+        modelPicker: {
+          target: 'main',
+          getSelectedTargetInfo: () => undefined,
+          loadRecentModels: mock(async () => {}),
+          setTargetInfos: mock(() => {}),
+          openAllModels: mock(() => {}),
+        },
+        modalOpened: mock(() => {}),
+        openAgentWorkspace: mock(() => {}),
+      };
+      wireShellUiOpeners({
+        commandContext: commandContext as never,
+        input: input as never,
+        conversation: conversation as never,
+        configManager: testManagers.configManager,
+        providerRegistry: {
+          getSelectableModels: () => [],
+          refreshLiveModelDiscovery,
+        } as never,
+        runtime: { model: 'm', provider: 'p' } as never,
+        featureFlags: {} as never,
+        mcpRegistry: {} as never,
+        subscriptionManager: testManagers.subscriptionManager,
+        serviceRegistry: testManagers.serviceRegistry,
+        // A configured provider keeps the picker on the plain catalog path (no
+        // synthetic local-fit probing in this unit test).
+        getConfiguredProviderIds: () => ['openai'],
+        getPinned: async () => [],
+        workingDirectory: process.cwd(),
+        homeDirectory: process.env['HOME'] ?? process.cwd(),
+        render,
+      });
+    }
+
+    test('openModelPicker triggers the registry live-model re-check hook', async () => {
+      const refreshLiveModelDiscovery = mock(async () => []);
+      wirePickerWithRegistry(refreshLiveModelDiscovery);
+      (commandContext.openModelPicker as () => void)();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(refreshLiveModelDiscovery).toHaveBeenCalledTimes(1);
+    });
+
+    test('a re-check that changes any provider list re-renders; an unchanged one does not re-render again', async () => {
+      const changed = mock(async () => [{ providerId: 'openai', models: ['a'], source: 'live' as const, added: ['a'], removed: [] }]);
+      wirePickerWithRegistry(changed);
+      (commandContext.openModelPicker as () => void)();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const rendersAfterChanged = render.mock.calls.length;
+      expect(rendersAfterChanged).toBeGreaterThanOrEqual(2); // picker-open render + refresh re-render
+
+      render.mockClear();
+      const unchanged = mock(async () => [{ providerId: 'openai', models: ['a'], source: 'live' as const, added: [], removed: [] }]);
+      wirePickerWithRegistry(unchanged);
+      (commandContext.openModelPicker as () => void)();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(render.mock.calls.length).toBe(1); // only the picker-open render
+    });
+
+    test('a rejecting re-check never breaks the picker open', async () => {
+      const failing = mock(async () => { throw new Error('discovery route down'); });
+      wirePickerWithRegistry(failing);
+      (commandContext.openModelPicker as () => void)();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(failing).toHaveBeenCalledTimes(1);
+      expect((input.modelPicker as { openAllModels: ReturnType<typeof mock> }).openAllModels).toHaveBeenCalled();
+    });
+  });
 });
