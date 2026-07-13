@@ -36,25 +36,14 @@ export type {
  * checkpoint boundary must therefore consume ONLY records the owner EXPLICITLY
  * registered for checkpoints, marked by `checkpointEligible === true`.
  *
- * The SDK is adding `origin` and `checkpointEligible` to its record schema this
- * round; until then the agent carries them as agent-local extra fields on the
- * SAME record objects (this is safe: the SDK store's read/validate passes each
- * record object through unchanged and its writes spread existing records
- * verbatim, so extra fields survive every SDK add/remove/decline; only a
- * newly-added record — a TUI self-record, or an agent add before it is stamped —
- * lacks the flag, which is exactly the intended "absent = not eligible").
+ * The SDK record schema natively carries both fields (typed on
+ * {@link RegisteredWorkspaceRecord}): `origin` — which flow wrote/stamped the
+ * record, provenance only — and `checkpointEligible`, where ABSENT MEANS FALSE.
+ * The store's `add` stamps/upgrades them typed, and absent options never strip
+ * an existing stamp, so one surface's plain self-recording cannot demote
+ * another consumer's eligibility.
  */
 export const AGENT_EXPLICIT_REGISTRATION_ORIGIN = 'agent-explicit-registration';
-
-/**
- * A registration record plus the agent-local checkpoint-eligibility fields.
- * `checkpointEligible` absent (or not strictly `true`) means NOT eligible.
- * `origin` records which flow wrote/stamped the record (provenance only).
- */
-export interface AgentRegisteredWorkspaceRecord extends RegisteredWorkspaceRecord {
-  readonly origin?: string;
-  readonly checkpointEligible?: boolean;
-}
 
 /**
  * Shared registered-workspace registry (SDK 1.6.1 platform/workspace/registration),
@@ -103,7 +92,7 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function parseRegisteredRecord(value: unknown): AgentRegisteredWorkspaceRecord | null {
+function parseRegisteredRecord(value: unknown): RegisteredWorkspaceRecord | null {
   if (!isRecord(value)) return null;
   const root = readString(value.root);
   const registeredAt = readString(value.registeredAt);
@@ -129,7 +118,7 @@ function parseDeclinedRecord(value: unknown): DeclinedWorkspaceRecord | null {
 }
 
 interface SharedRegistrationSnapshot {
-  readonly workspaces: readonly AgentRegisteredWorkspaceRecord[];
+  readonly workspaces: readonly RegisteredWorkspaceRecord[];
   readonly declines: readonly DeclinedWorkspaceRecord[];
 }
 
@@ -148,7 +137,7 @@ export function readSharedWorkspaceRegistrationSnapshotSync(shellPaths: StoreShe
     }
     const workspaces = parsed.workspaces
       .map(parseRegisteredRecord)
-      .filter((entry): entry is AgentRegisteredWorkspaceRecord => entry !== null);
+      .filter((entry): entry is RegisteredWorkspaceRecord => entry !== null);
     const declineList = Array.isArray(parsed.declines) ? parsed.declines : [];
     const declines = declineList
       .map(parseDeclinedRecord)
@@ -262,9 +251,10 @@ interface RawSharedStoreDoc {
 /**
  * Raw read of the shared store document that preserves EVERY field on EVERY
  * record verbatim — unlike {@link readSharedWorkspaceRegistrationSnapshotSync},
- * which strips each record to the known shape. Used by the eligibility-stamping
- * writers below so they never drop the SDK's own fields (or a future one) when
- * they rewrite the file. A missing/unparsable file reads as an empty document.
+ * which strips each record to the known shape. Used by the synchronous
+ * eligibility backfill below so it never drops another surface's fields (or a
+ * future one) when it rewrites the file. A missing/unparsable file reads as an
+ * empty document.
  */
 function readSharedStoreRawDoc(path: string): RawSharedStoreDoc {
   if (!existsSync(path)) return { version: 1, workspaces: [], declines: [] };
@@ -284,35 +274,15 @@ function readSharedStoreRawDoc(path: string): RawSharedStoreDoc {
 }
 
 /**
- * Stamp the shared-store record for `root` as checkpoint-eligible, with an
- * `origin` recording the flow that opted it in. A no-op when the record already
- * carries the same flag+origin, or when no record for `root` exists yet (callers
- * persist the record first, then stamp). Preserves every other record and field.
- */
-function stampCheckpointEligibility(shellPaths: StoreShellPaths, root: string, origin: string): void {
-  const path = sharedWorkspaceRegistrationStorePath(shellPaths);
-  const target = normalizeWorkspaceRoot(root);
-  const doc = readSharedStoreRawDoc(path);
-  let changed = false;
-  const workspaces = doc.workspaces.map((entry) => {
-    if (!isRecord(entry)) return entry;
-    if (normalizeWorkspaceRoot(readString(entry.root)) !== target) return entry;
-    if (entry.checkpointEligible === true && entry.origin === origin) return entry;
-    changed = true;
-    return { ...entry, checkpointEligible: true, origin };
-  });
-  if (!changed) return;
-  atomicWriteJson(path, { version: 1, workspaces, declines: doc.declines });
-}
-
-/**
- * The agent's EXPLICIT checkpoint-registration path: register `root` in the
- * shared store (the SDK's own root-guarded `add`), then stamp it
- * `checkpointEligible: true` with the agent-explicit origin. This is the ONLY
- * way a record becomes checkpoint-eligible at write time — a plain SDK `add`
- * (the TUI's first-open self-recording) never sets the flag, so opening a
- * directory in the TUI cannot widen the agent's checkpoint boundary. Returns the
- * SDK's register result unchanged so callers keep their existing messaging.
+ * The agent's EXPLICIT checkpoint-registration path: one typed store `add` that
+ * registers `root` (the SDK's own root-guarded write) AND stamps it
+ * `checkpointEligible: true` with the agent-explicit origin — the store's `add`
+ * carries both fields natively, upgrading an already-present record's stamp in
+ * the same call. This is the ONLY way a record becomes checkpoint-eligible at
+ * write time — a plain SDK `add` (the TUI's first-open self-recording) never
+ * sets the flag, so opening a directory in the TUI cannot widen the agent's
+ * checkpoint boundary. Returns the SDK's register result unchanged so callers
+ * keep their existing messaging.
  */
 export async function registerWorkspaceForCheckpoints(
   shellPaths: StoreShellPaths,
@@ -320,9 +290,11 @@ export async function registerWorkspaceForCheckpoints(
   opts?: { readonly label?: string },
 ): Promise<RegisterWorkspaceResult> {
   const store = createWorkspaceRegistrationStore(shellPaths);
-  const result = await store.add(root, opts?.label ? { label: opts.label } : undefined);
-  stampCheckpointEligibility(shellPaths, result.record.root, AGENT_EXPLICIT_REGISTRATION_ORIGIN);
-  return result;
+  return await store.add(root, {
+    ...(opts?.label ? { label: opts.label } : {}),
+    origin: AGENT_EXPLICIT_REGISTRATION_ORIGIN,
+    checkpointEligible: true,
+  });
 }
 
 function checkpointEligibilityBackfillReceiptPath(shellPaths: StoreShellPaths): string {
@@ -339,7 +311,12 @@ export interface CheckpointEligibilityBackfillResult {
  * One-time boot backfill that stamps `checkpointEligible: true` on the shared-
  * store records that came from the agent's OWN explicit registrations, so the
  * new eligibility boundary does not retroactively drop workspaces the owner had
- * already opted into checkpoints before this flag existed.
+ * already opted into checkpoints before this flag existed. This is exactly the
+ * "the consumer that owns checkpointing re-stamps its own roots on boot" the
+ * SDK's record schema documents for pre-provenance records; it writes the raw
+ * document directly (field-preserving, see readSharedStoreRawDoc) because it
+ * runs inside the synchronous createRuntimeServices path where the async typed
+ * store cannot be awaited.
  *
  * The honest source of "which records were the agent's explicit list" is the
  * legacy per-user registry file (`<surface>/checkpoints/registered-workspaces.json`)
