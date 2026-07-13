@@ -569,6 +569,12 @@ export async function bootstrapRuntime(
     memorySpineClient: services.memorySpineClient,
     transport: services.memorySpineTransport,
     probeReachability: () => services.sessionSpineClient.probeReachability(),
+    // One consuming /status read per attach: a current daemon delivers its
+    // one-shot honesty receipts ("restarted after a crash at HH:MM", "updated
+    // from X to Y") only to a ?receipts=consume read, and this adoption edge is
+    // exactly where the agent (re)attaches to a daemon. The plain liveness probe
+    // stays receipt-neutral.
+    onAttach: () => services.consumeDaemonReceipts(),
   });
   deferredStartup.schedule({
     label: 'memory-spine',

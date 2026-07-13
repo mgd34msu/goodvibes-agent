@@ -111,10 +111,11 @@ export function wireAgentExternalServices(options: {
   const startServices = options.startServices ?? startExternalServices;
 
   // Connected-host honesty receipts ("updated from X to Y", "restarted after
-  // a crash at HH:MM", settings migrations) captured off the spine probe's
-  // /status reads: delivery at the daemon is destructive (served once, to the
-  // first authenticated reader), so every captured receipt renders here —
-  // buffered ones from before this attach flush immediately.
+  // a crash at HH:MM", settings migrations) captured off the once-per-attach
+  // ?receipts=consume /status read (bootstrap.ts's memory-spine onAttach):
+  // delivery at the daemon is destructive (served once, to the consuming
+  // reader), so every captured receipt renders here — buffered ones from before
+  // this sink attaches flush immediately.
   services.daemonReceiptFeed.attach((receipt) => {
     systemMessageRouter.high(`[Connected host] ${receipt.text}`);
     requestRender();

@@ -126,29 +126,23 @@ export function createSpineRestTransport(options: SpineRestTransportOptions): Sp
 async function defaultProbe(
   connection: SessionRegistrationConnection,
   timeoutMs: number,
-  onReceipts?: (receipts: readonly DaemonReceipt[]) => void,
 ): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     // Any HTTP response (even 401) means the host answered -> reachable. Auth is
     // a separate concern surfaced by register/close results, not the probe.
-    const response = await fetch(`${connection.baseUrl}/status`, {
+    //
+    // This is a LIVENESS read only. It fetches PLAIN /status, which a current
+    // daemon treats as receipt-NEUTRAL: it never delivers (or marks delivered)
+    // the daemon's one-shot honesty receipts. Consuming those is a separate,
+    // explicit `?receipts=consume` read done exactly once per attach (see
+    // createSpineReceiptConsumer), so this frequent keepalive poll can never
+    // silently drain them.
+    await fetch(`${connection.baseUrl}/status`, {
       headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
       signal: controller.signal,
     });
-    // The daemon serves its undelivered honesty receipts ("updated from X to
-    // Y", "restarted after a crash") to the FIRST authenticated /status
-    // reader and marks them delivered — this probe is that reader for the
-    // agent, so discarding the body here would silently destroy them.
-    if (onReceipts && response.ok) {
-      try {
-        const receipts = extractDaemonReceipts(await response.json());
-        if (receipts.length > 0) onReceipts(receipts);
-      } catch {
-        // A non-JSON body still proves reachability; nothing to capture.
-      }
-    }
     return true;
   } catch {
     return false;
@@ -160,16 +154,10 @@ async function defaultProbe(
 export interface SpineRestProbeOptions {
   readonly resolveConnection: () => SessionRegistrationConnection;
   readonly probeTimeoutMs?: number;
-  /**
-   * Receives any daemon honesty receipts the /status probe body carried
-   * (delivery at the daemon is destructive — see daemon-receipts.ts).
-   */
-  readonly onReceipts?: (receipts: readonly DaemonReceipt[]) => void;
-  /** Override for tests; default does a short GET {baseUrl}/status. */
+  /** Override for tests; default does a short PLAIN GET {baseUrl}/status. */
   readonly probeImpl?: (
     connection: SessionRegistrationConnection,
     timeoutMs: number,
-    onReceipts?: (receipts: readonly DaemonReceipt[]) => void,
   ) => Promise<boolean>;
 }
 
@@ -177,10 +165,76 @@ export interface SpineRestProbeOptions {
  * Builds the zero-argument `probe` the SDK core calls directly from
  * `probeReachability()` (its injected-probe shape takes no parameters — the
  * core has no connection to hand it). This closure captures the resolver and
- * timeout so the core stays connection-agnostic.
+ * timeout so the core stays connection-agnostic. Liveness only — receipt
+ * consumption is {@link createSpineReceiptConsumer}, not this.
  */
 export function createSpineRestProbe(options: SpineRestProbeOptions): () => Promise<boolean> {
   const probeTimeoutMs = options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const probeImpl = options.probeImpl ?? defaultProbe;
-  return () => probeImpl(options.resolveConnection(), probeTimeoutMs, options.onReceipts);
+  return () => probeImpl(options.resolveConnection(), probeTimeoutMs);
+}
+
+/**
+ * Performs ONE receipt-consuming /status read: it appends `?receipts=consume`,
+ * the only read a current daemon delivers (and then marks delivered) its
+ * undelivered honesty receipts to — "updated from X to Y", "restarted after a
+ * crash at HH:MM", settings-migration notes. A plain /status read (the liveness
+ * probe above) is receipt-neutral, so without this explicit consuming read the
+ * agent would never surface those lines against a current daemon.
+ *
+ * Delivery is destructive at the daemon (served exactly once), so this is issued
+ * exactly once per attach — never on the frequent liveness cadence. Returns []
+ * on any transport failure, a non-2xx status, or a non-JSON body; reachability
+ * is the probe's concern, not this read's.
+ */
+async function defaultConsumeReceipts(
+  connection: SessionRegistrationConnection,
+  timeoutMs: number,
+): Promise<readonly DaemonReceipt[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const url = new URL(`${connection.baseUrl}/status`);
+    url.searchParams.set('receipts', 'consume');
+    const response = await fetch(url, {
+      headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
+      signal: controller.signal,
+    });
+    if (!response.ok) return [];
+    try {
+      return extractDaemonReceipts(await response.json());
+    } catch {
+      return [];
+    }
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export interface SpineReceiptConsumerOptions {
+  readonly resolveConnection: () => SessionRegistrationConnection;
+  readonly consumeTimeoutMs?: number;
+  /** Override for tests; default does a short GET {baseUrl}/status?receipts=consume. */
+  readonly consumeImpl?: (
+    connection: SessionRegistrationConnection,
+    timeoutMs: number,
+  ) => Promise<readonly DaemonReceipt[]>;
+}
+
+/**
+ * Builds the zero-argument receipt consumer the agent invokes once per attach
+ * (see the memory-spine adoption reconciler's `onAttach`). Captures the
+ * connection resolver and timeout; the returned function performs a single
+ * `?receipts=consume` read and yields whatever honesty receipts the daemon
+ * delivered (empty when there are none, the daemon is old/absent, or the read
+ * fails).
+ */
+export function createSpineReceiptConsumer(
+  options: SpineReceiptConsumerOptions,
+): () => Promise<readonly DaemonReceipt[]> {
+  const consumeTimeoutMs = options.consumeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
+  const consumeImpl = options.consumeImpl ?? defaultConsumeReceipts;
+  return () => consumeImpl(options.resolveConnection(), consumeTimeoutMs);
 }

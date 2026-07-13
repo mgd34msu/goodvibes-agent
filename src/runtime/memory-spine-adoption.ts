@@ -22,6 +22,18 @@ export interface MemorySpineAdoptionOptions {
   /** The existing daemon-adoption signal — reuse services.sessionSpineClient.probeReachability() in production. */
   readonly probeReachability: () => Promise<'unknown' | 'online' | 'offline'>;
   readonly deactivateReason?: string;
+  /**
+   * Called exactly on the transition INTO adoption (reachable AND not yet
+   * active) — i.e. once per (re)attach to a daemon, at boot and again whenever a
+   * daemon reappears after a loss. The agent wires this to the single
+   * `?receipts=consume` /status read the daemon delivers its one-shot honesty
+   * receipts to (see services.consumeDaemonReceipts / daemon-receipts.ts):
+   * reusing the existing adoption edge instead of inventing a second signal, per
+   * the same reuse this reconciler already documents for reachability. Best
+   * effort — its rejection is swallowed here so a failed receipt read can never
+   * undo the adoption that just happened.
+   */
+  readonly onAttach?: () => void | Promise<void>;
 }
 
 /**
@@ -42,6 +54,12 @@ export async function reconcileMemorySpineAdoption(options: MemorySpineAdoptionO
   const reachable = (await options.probeReachability()) === 'online';
   if (reachable && !options.memorySpineClient.active) {
     options.memorySpineClient.activate(options.transport);
+    if (options.onAttach) {
+      // Adoption already happened synchronously above; a receipt-read failure
+      // must not propagate and make the caller log a false "reachability
+      // recheck failed", nor undo the adoption.
+      await Promise.resolve().then(() => options.onAttach!()).catch(() => {});
+    }
     return;
   }
   if (!reachable && options.memorySpineClient.active) {

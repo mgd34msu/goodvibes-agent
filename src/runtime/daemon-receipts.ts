@@ -2,16 +2,20 @@
  * Connected-host receipt delivery.
  *
  * The daemon keeps honesty receipts ("updated from X to Y", "restarted
- * after a crash at HH:MM", settings-migration notes) and serves the
- * undelivered ones to the FIRST authenticated `/status` reader — delivery is
- * destructive at the daemon, so whichever reader consumes them must render
- * them or they are lost. The agent's own `/status` reader is the session
- * spine keepalive probe (session-spine-rest-transport.ts); it hands every
- * receipts payload here.
+ * after a crash at HH:MM", settings-migration notes) and delivers the
+ * undelivered ones ONLY to a `/status` read that opts in with
+ * `?receipts=consume` — a plain `/status` read is receipt-neutral. Delivery is
+ * destructive at the daemon (served exactly once to the consuming reader), so
+ * whichever read consumes them must render them or they are lost. The agent's
+ * consuming reader is a single `?receipts=consume` read issued once per attach
+ * (createSpineReceiptConsumer in session-spine-rest-transport.ts, wired through
+ * services.consumeDaemonReceipts); the frequent liveness keepalive probe stays
+ * plain and never touches receipts. Every consumed payload is pushed here.
  *
- * This feed buffers receipts captured before the renderer exists (the probe
- * can fire during boot) and delivers each receipt exactly once (dedupe by
- * id) as soon as — and whenever — a delivery sink is attached.
+ * This feed buffers receipts captured before the renderer exists (the first
+ * consuming read can fire during boot, before the render sink attaches) and
+ * delivers each receipt exactly once (dedupe by id) as soon as — and whenever —
+ * a delivery sink is attached.
  */
 
 /** One daemon honesty receipt, as served on the /status body. */

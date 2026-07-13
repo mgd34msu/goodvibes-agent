@@ -111,6 +111,41 @@ describe('reconcileMemorySpineAdoption', () => {
     expect(client.deactivateCalls).toEqual(['daemon unreachable on periodic reachability check']);
   });
 
+  test('fires onAttach exactly on the adoption edge — once per (re)attach, never on a no-op', async () => {
+    const client = spyClient(false);
+    let attachCount = 0;
+    const opts = {
+      memorySpineClient: client,
+      transport: FAKE_TRANSPORT,
+      onAttach: () => { attachCount += 1; },
+    };
+    // Boot attach: reachable && not active -> activate + onAttach.
+    await reconcileMemorySpineAdoption({ ...opts, probeReachability: async () => 'online' });
+    expect(attachCount).toBe(1);
+    // Already adopted and still reachable: a no-op, so no second consuming read.
+    await reconcileMemorySpineAdoption({ ...opts, probeReachability: async () => 'online' });
+    expect(attachCount).toBe(1);
+    // Daemon drops: deactivate, no onAttach.
+    await reconcileMemorySpineAdoption({ ...opts, probeReachability: async () => 'offline' });
+    expect(attachCount).toBe(1);
+    // Daemon reappears: this is a fresh attach, so onAttach fires again.
+    await reconcileMemorySpineAdoption({ ...opts, probeReachability: async () => 'online' });
+    expect(attachCount).toBe(2);
+  });
+
+  test('an onAttach rejection is swallowed so a failed receipt read never undoes the adoption', async () => {
+    const client = spyClient(false);
+    await reconcileMemorySpineAdoption({
+      memorySpineClient: client,
+      transport: FAKE_TRANSPORT,
+      probeReachability: async () => 'online',
+      onAttach: () => { throw new Error('receipt read exploded'); },
+    });
+    // Adoption still stands; the reconcile resolved without throwing.
+    expect(client.active).toBe(true);
+    expect(client.activateCalls).toEqual([FAKE_TRANSPORT]);
+  });
+
   test('a probe rejection propagates rather than being swallowed', async () => {
     const client = spyClient(false);
     await expect(reconcileMemorySpineAdoption({
