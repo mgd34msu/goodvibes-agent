@@ -45,6 +45,32 @@ export interface ActivitySidebarNow {
   readonly processes: number;
 }
 
+/**
+ * Join active agents with the fleet read-model's nodes (matched by id) into
+ * sidebar rows: the per-node headline (task/phase identity only — replaced
+ * in place, never a feed) wins over the raw progress line, and the stall
+ * tell renders as a quiet-duration marker.
+ */
+export function buildSidebarAgentRows(
+  activeAgents: ReadonlyArray<{ readonly id: string; readonly label: string; readonly latestProgress?: string | undefined }>,
+  fleetNodes: ReadonlyArray<{
+    readonly id: string;
+    readonly headline?: { readonly text: string } | undefined;
+    readonly stall?: { readonly quietForMs: number } | undefined;
+  }>,
+): ActivitySidebarNow['agents'] {
+  const nodesById = new Map(fleetNodes.map((node) => [node.id, node]));
+  return activeAgents.slice(0, 3).map((agent) => {
+    const node = nodesById.get(agent.id);
+    return {
+      label: agent.label,
+      progress: agent.latestProgress?.trim() || undefined,
+      headline: node?.headline?.text,
+      quietForMs: node?.stall?.quietForMs,
+    };
+  });
+}
+
 /** Compact quiet-duration text for the stall tell, e.g. "quiet 4m". */
 function fmtQuietFor(quietForMs: number): string {
   const minutes = Math.floor(quietForMs / 60_000);

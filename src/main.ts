@@ -28,7 +28,7 @@ import { createShellLayout } from './renderer/layout-engine.ts';
 import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-surface.ts';
 import { buildConversationViewport } from './renderer/conversation-layout.ts';
 import { applyConversationOverlays } from './renderer/conversation-overlays.ts';
-import { buildActivitySidebarLines, resolveActivitySidebarWidth } from './renderer/activity-sidebar.ts';
+import { buildActivitySidebarLines, buildSidebarAgentRows, resolveActivitySidebarWidth } from './renderer/activity-sidebar.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
@@ -622,28 +622,15 @@ async function main() {
       contextWindow: currentModel.contextWindow,
     });
 
-    // Activity sidebar (ambient status on wide terminals). Agent rows are
-    // enriched from the fleet read-model's snapshot: the per-node headline
-    // (task/phase identity only — replaced in place, never a feed) wins over
-    // the raw progress line, and the stall tell renders as a quiet marker.
-    const fleetNodesById = sidebarWidth > 0
-      ? new Map(ctx.services.processRegistry.query().nodes.map((node) => [node.id, node]))
-      : null;
+    // Activity sidebar (ambient status on wide terminals). Agent rows carry
+    // the fleet read-model's headline and stall tell (see activity-sidebar.ts).
     const sidebar = sidebarWidth > 0
       ? {
           lines: buildActivitySidebarLines({
             now: {
               busy: orchestrator.isThinking,
               label: sessionSnapshot.streamToolPreview?.trim() || undefined,
-              agents: activeAgents.slice(0, 3).map((agent) => {
-                const node = fleetNodesById?.get(agent.id);
-                return {
-                  label: agent.label,
-                  progress: agent.latestProgress?.trim() || undefined,
-                  headline: node?.headline?.text,
-                  quietForMs: node?.stall?.quietForMs,
-                };
-              }),
+              agents: buildSidebarAgentRows(activeAgents, ctx.services.processRegistry.query().nodes),
               processes: runningProcessCount,
             },
             needsYou: pendingPermission

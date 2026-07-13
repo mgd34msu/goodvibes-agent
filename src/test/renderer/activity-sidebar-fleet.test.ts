@@ -4,7 +4,7 @@
  * stall tell as a quiet-duration marker.
  */
 import { describe, expect, test } from 'bun:test';
-import { buildActivitySidebarLines } from '../../renderer/activity-sidebar.ts';
+import { buildActivitySidebarLines, buildSidebarAgentRows } from '../../renderer/activity-sidebar.ts';
 import type { Line } from '../../types/grid.ts';
 
 function textOf(line: Line): string {
@@ -53,5 +53,22 @@ describe('activity sidebar fleet rows', () => {
     const rows = render([{ label: 'builder', quietForMs: 90 * 60_000 }]);
     const agentRow = rows.find((line) => line.includes('builder'));
     expect(agentRow).toContain('quiet 1h 30m');
+  });
+
+  test('buildSidebarAgentRows joins agents to fleet nodes by id', () => {
+    const rows = buildSidebarAgentRows(
+      [
+        { id: 'a-1', label: 'researcher', latestProgress: ' Turn 3 · Read ' },
+        { id: 'a-2', label: 'builder' },
+      ],
+      [
+        { id: 'a-1', headline: { text: 'Map the audit scope' }, stall: { quietForMs: 120_000 } },
+        { id: 'unrelated-node' },
+      ],
+    );
+    expect(rows).toEqual([
+      { label: 'researcher', progress: 'Turn 3 · Read', headline: 'Map the audit scope', quietForMs: 120_000 },
+      { label: 'builder', progress: undefined, headline: undefined, quietForMs: undefined },
+    ]);
   });
 });
