@@ -1,14 +1,18 @@
 /**
- * Fork-mirror behavior proof for the daily store-snapshot scheduler
- * (src/runtime/store-snapshots.ts): same on-disk layout the SDK's snapshot
- * machinery uses (`<db dir>/snapshots/<db file name>/<slug>.<reason>.snapshot`),
- * one daily copy per day, sidecars included, bounded retention.
+ * Adoption contract proof for the daily store-snapshot scheduler, now consumed
+ * from the SDK's public export (platform/state/store-snapshots — the former
+ * agent-local fork-mirror and its local pruning engine existed only while the
+ * class and RetentionPolicy/SnapshotPruner had no public export path). The
+ * on-disk contract the agent composition relies on is unchanged:
+ * `<db dir>/snapshots/<db file name>/<slug>.<reason>.snapshot`, one daily copy
+ * per day on the scheduler's own (injectable) clock, sidecars included, bounded
+ * retention.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, mkdirSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { AgentStoreSnapshotScheduler } from '../../runtime/store-snapshots.ts';
+import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const roots: string[] = [];
@@ -23,8 +27,8 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
-function makeScheduler(dbPath: string, now: () => number): AgentStoreSnapshotScheduler {
-  return new AgentStoreSnapshotScheduler({
+function makeScheduler(dbPath: string, now: () => number): StoreSnapshotScheduler {
+  return new StoreSnapshotScheduler({
     stores: [{ name: 'test store', dbPath }],
     now,
     // Timers are never armed in these tests: tick() is driven directly.
@@ -36,7 +40,7 @@ function snapshotDir(dbPath: string): string {
   return join(join(dbPath, '..'), 'snapshots', 'store.sqlite');
 }
 
-describe('AgentStoreSnapshotScheduler', () => {
+describe('StoreSnapshotScheduler (SDK public export, agent adoption contract)', () => {
   test('first tick writes a daily snapshot with -wal sidecar in the shared layout', async () => {
     const root = makeStoreDir();
     const dbPath = join(root, 'store.sqlite');

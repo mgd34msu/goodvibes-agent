@@ -144,6 +144,12 @@ export function wireAgentExternalServices(options: {
   };
   let externalServicesPromise: Promise<ExternalServicesHandle> | null = null;
 
+  // Deliberately NOT passing the daemon facade's `updateArtifact` identity
+  // ({version, execPath}): with adoptOnly the agent never constructs or embeds
+  // a DaemonServer, so there is no daemon-side hourly update loop here to feed
+  // — absent means host-managed, which is exactly the agent's stance toward
+  // whichever host it adopts. The agent's OWN binary updates at launch through
+  // its launch auto-update path instead (src/cli/launch-auto-update.ts).
   const startAgentExternalServices = (): Promise<ExternalServicesHandle> =>
     startServices(configManager, runtimeBus, hookDispatcher, services, { adoptOnly: true });
 

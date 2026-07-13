@@ -59,8 +59,8 @@ import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore, resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
-import { AgentStoreSnapshotScheduler } from './store-snapshots.ts';
-import { buildAgentExecPromptAnswerHandler } from './exec-prompt-wiring.ts';
+import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
+import { buildExecPromptAnswerHandler } from '@pellux/goodvibes-sdk/platform/runtime/permissions/exec-prompt-wiring';
 import { AgentDaemonReceiptFeed } from './daemon-receipts.ts';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
 
@@ -1036,8 +1036,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // An exec command blocked on a terminal prompt (host-key confirmation,
   // credential ask) rides the same broker: the pending prompt surfaces through
   // every surface's approval machinery and the typed answer feeds the same
-  // continuing run. (Fork-mirror wiring: see exec-prompt-wiring.ts.)
-  const execPromptAnswerHandler = buildAgentExecPromptAnswerHandler({
+  // continuing run. The SDK's own wiring (public since this SDK round): the
+  // former agent-local mirror existed only because the builder had no public
+  // export path.
+  const execPromptAnswerHandler = buildExecPromptAnswerHandler({
     requestApproval: (input) => approvalBroker.requestApproval(input),
   });
   const localhostFetchApproval = buildLocalhostFetchApproval({
@@ -1125,13 +1127,15 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     memoryEmbeddingRegistry,
   );
   // Data safety with no discipline: a daily snapshot of every SQLite store
-  // this runtime writes, bounded retention, unref'd timers (mirrors the SDK
-  // composition root; fork-mirror class — see store-snapshots.ts). The
-  // canonical memory db is shared with the daemon/TUI; the shared snapshot
-  // layout means whichever process sweeps first writes that day's copy. The
-  // agent's code index is deliberately inert (see the block comment above) —
-  // its entry is a no-op until a file actually exists.
-  const storeSnapshotScheduler = new AgentStoreSnapshotScheduler({
+  // this runtime writes, bounded retention, unref'd timers — the SDK's own
+  // StoreSnapshotScheduler (public since this SDK round; the former agent-local
+  // mirror and its local pruning engine existed only because the class and
+  // RetentionPolicy/SnapshotPruner had no public export path). The canonical
+  // memory db is shared with the daemon/TUI; the shared snapshot layout means
+  // whichever process sweeps first writes that day's copy. The agent's code
+  // index is deliberately inert (see the block comment above) — its entry is a
+  // no-op until a file actually exists.
+  const storeSnapshotScheduler = new StoreSnapshotScheduler({
     stores: [
       { name: 'memory store', dbPath: memoryDbPath },
       { name: 'memory vector index', dbPath: resolveMemoryVectorDbPath(memoryDbPath) },
@@ -1410,11 +1414,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     orchestrationEngine,
     codeIndexStore,
     codeIndexReindexScheduler,
-    // Fork-mirror scheduler (see store-snapshots.ts): the SDK's class has no
-    // public export path, so the contract member is satisfied by the
-    // behaviorally-identical mirror. The cast is nominal-only — same public
-    // surface (start/stop/tick/pruneRegisteredSnapshots).
-    storeSnapshotScheduler: storeSnapshotScheduler as unknown as NonNullable<SdkRuntimeServices>['storeSnapshotScheduler'],
+    storeSnapshotScheduler,
     userPermissionRuleStore,
     processRegistry,
     workspaceCheckpointManager,

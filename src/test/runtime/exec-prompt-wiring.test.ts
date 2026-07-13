@@ -1,13 +1,15 @@
 /**
- * Fork-mirror contract proof for the exec PTY prompt-answer wiring
- * (src/runtime/exec-prompt-wiring.ts): a terminal prompt rides the approval
- * broker as an execute-category ask; approval with a typed answer feeds the
- * run; denial or an answer-less approval declines honestly (nothing is ever
- * fabricated).
+ * Adoption contract proof for the exec PTY prompt-answer wiring, now consumed
+ * from the SDK's public export (platform/runtime/permissions/exec-prompt-wiring
+ * — the former agent-local fork-mirror existed only while the builder had no
+ * public export path). The behavioral contract the agent composition relies on
+ * is unchanged: a terminal prompt rides the approval broker as an
+ * execute-category ask; approval with a typed answer feeds the run; denial or
+ * an answer-less approval declines honestly (nothing is ever fabricated).
  */
 import { describe, expect, test } from 'bun:test';
 import type { PermissionPromptDecision, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
-import { buildAgentExecPromptAnswerHandler } from '../../runtime/exec-prompt-wiring.ts';
+import { buildExecPromptAnswerHandler } from '@pellux/goodvibes-sdk/platform/runtime/permissions/exec-prompt-wiring';
 
 const ASK = {
   command: 'ssh build-host',
@@ -18,7 +20,7 @@ const ASK = {
 
 function makeHandler(decide: (request: PermissionPromptRequest) => PermissionPromptDecision) {
   const seen: { request: PermissionPromptRequest; metadata?: Record<string, unknown> | undefined }[] = [];
-  const handler = buildAgentExecPromptAnswerHandler({
+  const handler = buildExecPromptAnswerHandler({
     requestApproval: async (input) => {
       seen.push(input);
       return decide(input.request);
@@ -27,7 +29,7 @@ function makeHandler(decide: (request: PermissionPromptRequest) => PermissionPro
   return { handler, seen };
 }
 
-describe('buildAgentExecPromptAnswerHandler', () => {
+describe('buildExecPromptAnswerHandler', () => {
   test('routes the prompt through the broker as an execute-category exec-prompt ask', async () => {
     const { handler, seen } = makeHandler(() => ({ approved: false }));
     await handler(ASK);
