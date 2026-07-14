@@ -61,6 +61,8 @@ import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/ter
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProposer } from './shell/autonomy-surfacing.ts';
+import { listAutomationRunsSince } from './agent/automation-runs-source.ts';
+import { resolveAgentConnectedHostConnection } from './agent/routine-schedule-promotion.ts';
 import { startHardwareProbe } from './core/hardware-profile.ts';
 import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
 
@@ -180,6 +182,10 @@ async function main() {
   const autonomy = createAutonomySurfacing({
     shellPaths: ctx.services.shellPaths,
     listAutomationJobs: () => ctx.services.automationManager.listJobs(),
+    listAutomationRunsSince: (since) => listAutomationRunsSince(
+      resolveAgentConnectedHostConnection(configManager, homeDirectory),
+      since,
+    ),
     listApprovals: () => ctx.services.approvalBroker.listApprovals(),
     getTasksSnapshot: () => uiServices.readModels.tasks.getSnapshot().tasks,
     router: {

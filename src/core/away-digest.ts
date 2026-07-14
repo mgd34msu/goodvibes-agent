@@ -23,6 +23,12 @@ export interface AwayDigestDeliveryItem {
   readonly at?: number;
 }
 
+/** A single connected-host automation run outcome (failed or missed) since lastSeenAt. */
+export interface AwayDigestRunItem {
+  readonly name: string;
+  readonly at?: number;
+}
+
 export interface AwayDigestInput {
   /** Epoch ms when the user last used the app. null = first run — digest is suppressed. */
   readonly lastSeenAt: number | null;
@@ -34,6 +40,17 @@ export interface AwayDigestInput {
   readonly pendingApprovals: number;
   /** Optional channel deliveries since lastSeenAt. */
   readonly deliveries?: readonly AwayDigestDeliveryItem[];
+  /**
+   * Connected-host automation runs that failed since lastSeenAt — read from the
+   * host's automation.runs.list outcome, never the agent's local automation
+   * manager (local execution is disabled by design).
+   */
+  readonly failedRuns?: readonly AwayDigestRunItem[];
+  /**
+   * Connected-host automation runs that were missed (the host was asleep past
+   * the scheduled time) since lastSeenAt — same wire source as failedRuns.
+   */
+  readonly missedRuns?: readonly AwayDigestRunItem[];
 }
 
 export interface AwayDigest {
@@ -127,6 +144,26 @@ export function buildAwayDigest(input: AwayDigestInput): AwayDigest | null {
     lines.push(`A task needs attention: ${failedTasks[0]!.title}`);
   } else if (failedTasks.length > 1) {
     lines.push(`${failedTasks.length} tasks need attention since you were away`);
+  }
+
+  // ── Connected-host automation run outcomes (failed / missed) ────────────────
+  const failedRuns = input.failedRuns ?? [];
+  const missedRuns = input.missedRuns ?? [];
+
+  if (failedRuns.length === 1) {
+    const r = failedRuns[0]!;
+    const when = r.at ? ` (${formatDigestTime(r.at, now)})` : '';
+    lines.push(`A scheduled run failed: ${r.name}${when}`);
+  } else if (failedRuns.length > 1) {
+    lines.push(`${failedRuns.length} scheduled runs failed since you were away`);
+  }
+
+  if (missedRuns.length === 1) {
+    const r = missedRuns[0]!;
+    const when = r.at ? ` (${formatDigestTime(r.at, now)})` : '';
+    lines.push(`A scheduled run was missed while asleep: ${r.name}${when}`);
+  } else if (missedRuns.length > 1) {
+    lines.push(`${missedRuns.length} scheduled runs were missed while asleep`);
   }
 
   // ── Schedule runs ─────────────────────────────────────────────────────────

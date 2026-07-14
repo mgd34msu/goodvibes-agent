@@ -12,7 +12,9 @@
  */
 
 import { buildAwayDigest, formatDigestTime, formatRelativeTime } from '../core/away-digest.ts';
+import type { AwayDigestScheduleItem } from '../core/away-digest.ts';
 import { LastSeenStore } from '../core/last-seen-store.ts';
+import type { AutomationRunsSinceResult } from '../agent/automation-runs-source.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { AgentCalendarRegistry } from '../agent/calendar-registry.ts';
 import { AgentSkillRegistry } from '../agent/skill-registry.ts';
@@ -38,7 +40,18 @@ interface AutonomyMessageRouter {
 
 export interface AutonomySurfacingOptions {
   readonly shellPaths: Parameters<typeof LastSeenStore.fromShellPaths>[0];
+  /** Feeds the Coming-up sidebar's next-run entries only — the local automation
+   * manager's job list (local execution is disabled by design; see
+   * src/runtime/bootstrap.ts). The away digest's run OUTCOMES never read this;
+   * see listAutomationRunsSince below. */
   readonly listAutomationJobs: () => readonly AutomationJobLike[];
+  /**
+   * The away digest's automation source of truth: connected-host runs
+   * (completed/failed/missed) since the given epoch-ms timestamp, read over
+   * the wire via automation.runs.list. Never falls back to the local
+   * automation manager.
+   */
+  readonly listAutomationRunsSince: (since: number) => Promise<AutomationRunsSinceResult>;
   readonly listApprovals: () => readonly ApprovalLike[];
   readonly getTasksSnapshot: () => readonly unknown[];
   readonly router: AutonomyMessageRouter;
@@ -60,6 +73,29 @@ export interface AutonomySurfacingOptions {
 const COMING_UP_TTL_MS = 60_000;
 const FETCH_TIMEOUT_MS = 2500;
 const LAST_SEEN_REFRESH_MS = 5 * 60_000;
+
+/**
+ * Group completed connected-host runs by job name into the digest's
+ * { name, lastRunAt, runCount } shape — the same shape the digest previously
+ * derived from the local automation manager's per-job runCount/lastRunAt,
+ * but now counting only runs that actually completed since lastSeenAt on the
+ * connected host.
+ */
+function aggregateFiredSchedules(
+  completedRuns: readonly { readonly jobName: string; readonly endedAt?: number }[],
+): readonly AwayDigestScheduleItem[] {
+  const byJob = new Map<string, { lastRunAt?: number; runCount: number }>();
+  for (const run of completedRuns) {
+    const existing = byJob.get(run.jobName) ?? { lastRunAt: undefined, runCount: 0 };
+    byJob.set(run.jobName, {
+      runCount: existing.runCount + 1,
+      lastRunAt: existing.lastRunAt === undefined
+        ? run.endedAt
+        : run.endedAt === undefined ? existing.lastRunAt : Math.max(existing.lastRunAt, run.endedAt),
+    });
+  }
+  return [...byJob.entries()].map(([name, agg]) => ({ name, lastRunAt: agg.lastRunAt, runCount: agg.runCount }));
+}
 
 /**
  * Ambient autonomy surfacing for the shell: the launch "While you were away"
@@ -133,18 +169,32 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), FETCH_TIMEOUT_MS)),
         ]);
 
-        const [jobsResult, tasksResult] = await Promise.allSettled([
-          withTimeout(options.listAutomationJobs),
+        // The automation source of truth is the connected host's run outcomes,
+        // never the agent's local automation manager (local execution is
+        // disabled by design). Only queried once there's a real lastSeenAt to
+        // query since; first run suppresses the whole digest anyway.
+        const [runsResult, tasksResult] = await Promise.allSettled([
+          lastSeenAt !== null
+            ? withTimeout(() => options.listAutomationRunsSince(lastSeenAt))
+            : Promise.resolve<AutomationRunsSinceResult>({ runs: [], deliveries: [] }),
           withTimeout(options.getTasksSnapshot),
         ]);
-        const jobs = jobsResult.status === 'fulfilled' ? jobsResult.value : [];
+        const runsSince: AutomationRunsSinceResult = runsResult.status === 'fulfilled'
+          ? runsResult.value
+          : { runs: [], deliveries: [] };
         const allTasks = tasksResult.status === 'fulfilled' ? tasksResult.value : [];
 
-        const firedSchedules = lastSeenAt !== null
-          ? jobs
-            .filter((job) => job.lastRunAt !== undefined && job.lastRunAt > lastSeenAt)
-            .map((job) => ({ name: job.name, lastRunAt: job.lastRunAt, runCount: job.runCount ?? 0 }))
-          : [];
+        const firedSchedules = aggregateFiredSchedules(
+          runsSince.runs.filter((run) => run.status === 'completed'),
+        );
+
+        const failedRuns = runsSince.runs
+          .filter((run) => run.status === 'failed')
+          .map((run) => ({ name: run.jobName, at: run.endedAt }));
+
+        const missedRuns = runsSince.runs
+          .filter((run) => run.status === 'missed')
+          .map((run) => ({ name: run.jobName, at: run.endedAt }));
 
         const changedTasks = lastSeenAt !== null
           ? allTasks
@@ -169,6 +219,9 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
           schedules: firedSchedules,
           tasks: changedTasks,
           pendingApprovals,
+          deliveries: runsSince.deliveries,
+          failedRuns,
+          missedRuns,
         });
 
         if (digest !== null) {

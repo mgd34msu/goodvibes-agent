@@ -143,6 +143,48 @@ describe('buildAwayDigest', () => {
     expect(result!.lines[0]).toContain('Morning Brief');
   });
 
+  test('a single failed run renders a distinct failure line', () => {
+    const at = Date.now() - 30 * 60_000;
+    const result = buildAwayDigest({
+      ...baseInput,
+      failedRuns: [{ name: 'Nightly backup', at }],
+    });
+    expect(result!.lines[0]).toContain('scheduled run failed');
+    expect(result!.lines[0]).toContain('Nightly backup');
+  });
+
+  test('multiple failed runs are summarized by count', () => {
+    const result = buildAwayDigest({
+      ...baseInput,
+      failedRuns: [{ name: 'Job A' }, { name: 'Job B' }],
+    });
+    expect(result!.lines[0]).toContain('2 scheduled runs failed');
+  });
+
+  test('a single missed run renders a distinct "missed" line from a failure', () => {
+    const at = Date.now() - 10 * 60_000;
+    const result = buildAwayDigest({
+      ...baseInput,
+      missedRuns: [{ name: 'Weekly digest', at }],
+    });
+    expect(result!.lines[0]).toContain('missed while asleep');
+    expect(result!.lines[0]).toContain('Weekly digest');
+    expect(result!.lines[0]).not.toContain('scheduled run failed');
+  });
+
+  test('a failed run and a missed run both appear as separate lines', () => {
+    const result = buildAwayDigest({
+      ...baseInput,
+      failedRuns: [{ name: 'Overnight sync' }],
+      missedRuns: [{ name: 'Morning brief' }],
+    });
+    const joined = result!.lines.join('\n');
+    expect(joined).toContain('Overnight sync');
+    expect(joined).toContain('Morning brief');
+    expect(result!.lines.some((line) => line.includes('scheduled run failed'))).toBe(true);
+    expect(result!.lines.some((line) => line.includes('missed while asleep'))).toBe(true);
+  });
+
   test('deliveries appear in digest', () => {
     const result = buildAwayDigest({
       ...baseInput,

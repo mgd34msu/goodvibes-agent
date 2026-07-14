@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister } from '../../shell/autonomy-surfacing.ts';
+import { LastSeenStore } from '../../core/last-seen-store.ts';
+import type { AutomationRunOutcome } from '../../agent/automation-runs-source.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -25,6 +27,7 @@ function makeOptions(overrides: Partial<Parameters<typeof createAutonomySurfacin
     options: {
       shellPaths,
       listAutomationJobs: () => [],
+      listAutomationRunsSince: async () => ({ runs: [], deliveries: [] }),
       listApprovals: () => [],
       getTasksSnapshot: () => [],
       router: {
@@ -120,6 +123,129 @@ describe('announceAwayDigest — onAwayDigest wiring', () => {
 });
 
 // ---------------------------------------------------------------------------
+// announceAwayDigest — connected-host run outcomes (failed / missed), never
+// the local automation manager. See src/agent/automation-runs-source.ts.
+// ---------------------------------------------------------------------------
+
+describe('announceAwayDigest — connected-host run outcomes', () => {
+  function makeRun(overrides: Partial<AutomationRunOutcome> & Pick<AutomationRunOutcome, 'status'>): AutomationRunOutcome {
+    return {
+      id: overrides.id ?? 'run-1',
+      jobId: overrides.jobId ?? 'job-1',
+      jobName: overrides.jobName ?? 'Nightly backup',
+      queuedAt: overrides.queuedAt ?? Date.now() - 3_600_000,
+      endedAt: overrides.endedAt,
+      status: overrides.status,
+    };
+  }
+
+  test('a failed wire run renders a failure line in the digest', async () => {
+    const { options, feedPushes } = makeOptions({
+      listAutomationRunsSince: async () => ({
+        runs: [makeRun({ status: 'failed', jobName: 'Nightly backup', endedAt: Date.now() - 1_800_000 })],
+        deliveries: [],
+      }),
+    });
+    LastSeenStore.fromShellPaths(options.shellPaths).save(Date.now() - 3_600_000);
+
+    const autonomy = createAutonomySurfacing(options);
+    autonomy.announceAwayDigest();
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    autonomy.stop();
+
+    const failLine = feedPushes.find((p) => p.text.includes('scheduled run failed'));
+    expect(failLine).toBeDefined();
+    expect(failLine?.text).toContain('Nightly backup');
+  });
+
+  test('a missed wire run renders a distinct "missed" line in the digest', async () => {
+    const { options, feedPushes } = makeOptions({
+      listAutomationRunsSince: async () => ({
+        runs: [makeRun({ status: 'missed', jobName: 'Weekly digest', endedAt: Date.now() - 900_000 })],
+        deliveries: [],
+      }),
+    });
+    LastSeenStore.fromShellPaths(options.shellPaths).save(Date.now() - 3_600_000);
+
+    const autonomy = createAutonomySurfacing(options);
+    autonomy.announceAwayDigest();
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    autonomy.stop();
+
+    const missedLine = feedPushes.find((p) => p.text.includes('missed while asleep'));
+    expect(missedLine).toBeDefined();
+    expect(missedLine?.text).toContain('Weekly digest');
+  });
+
+  test('a failed run and a missed run both surface in the same digest pass', async () => {
+    const { options, feedPushes } = makeOptions({
+      listAutomationRunsSince: async () => ({
+        runs: [
+          makeRun({ id: 'r1', status: 'failed', jobName: 'Overnight sync' }),
+          makeRun({ id: 'r2', status: 'missed', jobName: 'Morning brief' }),
+        ],
+        deliveries: [],
+      }),
+    });
+    LastSeenStore.fromShellPaths(options.shellPaths).save(Date.now() - 3_600_000);
+
+    const autonomy = createAutonomySurfacing(options);
+    autonomy.announceAwayDigest();
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    autonomy.stop();
+
+    const joined = feedPushes.map((p) => p.text).join('\n');
+    expect(joined).toContain('Overnight sync');
+    expect(joined).toContain('Morning brief');
+  });
+
+  test('the local automation manager is never consulted for the digest, even when it would throw', async () => {
+    const { options, feedPushes } = makeOptions({
+      listAutomationJobs: () => {
+        throw new Error('local automation manager must not be read for the digest');
+      },
+      listAutomationRunsSince: async () => ({
+        runs: [makeRun({ status: 'failed', jobName: 'Poison-guard job' })],
+        deliveries: [],
+      }),
+    });
+    LastSeenStore.fromShellPaths(options.shellPaths).save(Date.now() - 3_600_000);
+
+    const autonomy = createAutonomySurfacing(options);
+    // If announceAwayDigest ever called the poisoned listAutomationJobs, the
+    // throw would be caught by the outer try/catch and the whole digest pass
+    // would silently produce zero feed lines — so a rendered line here proves
+    // the local manager path was never exercised.
+    expect(() => autonomy.announceAwayDigest()).not.toThrow();
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    autonomy.stop();
+
+    const failLine = feedPushes.find((p) => p.text.includes('scheduled run failed'));
+    expect(failLine).toBeDefined();
+    expect(failLine?.text).toContain('Poison-guard job');
+  });
+
+  test('completed wire runs still populate the "reminder fired" schedules line', async () => {
+    const { options, feedPushes } = makeOptions({
+      listAutomationRunsSince: async () => ({
+        runs: [makeRun({ status: 'completed', jobName: 'Stand-up reminder', endedAt: Date.now() - 600_000 })],
+        deliveries: [],
+      }),
+    });
+    LastSeenStore.fromShellPaths(options.shellPaths).save(Date.now() - 3_600_000);
+
+    const autonomy = createAutonomySurfacing(options);
+    autonomy.announceAwayDigest();
+    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+    autonomy.stop();
+
+    const firedLine = feedPushes.find((p) => p.text.includes('reminder fired'));
+    expect(firedLine).toBeDefined();
+    expect(firedLine?.text).toContain('Stand-up reminder');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // F7 — comingUpItems returns a defensive copy
 // ---------------------------------------------------------------------------
 
@@ -133,6 +259,7 @@ describe('comingUpItems — defensive copy', () => {
         enabled: true,
         nextRunAt: Date.now() + 3_600_000, // 1 hour from now
       }],
+      listAutomationRunsSince: async () => ({ runs: [], deliveries: [] }),
       listApprovals: () => [],
       getTasksSnapshot: () => [],
       router: { high: () => {}, getFeed: () => null },
