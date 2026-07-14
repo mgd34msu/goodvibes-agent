@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { StepUpService } from '@pellux/goodvibes-sdk/daemon';
+import { PairingTokenManager } from '@pellux/goodvibes-sdk/platform/pairing';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
@@ -768,6 +769,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // Background init is fail-safe: a broken store means asks keep prompting.
   const userPermissionRuleStore = new UserPermissionRuleStore(join(configManager.getControlPlaneConfigDir(), 'permission-rules.json'));
   void userPermissionRuleStore.init().catch((error) => logger.warn('user permission rule store init failed; asks will prompt', { error: summarizeError(error) }));
+  // Per-device revocable pairing tokens (SDK 1.8.0 Wave-2, pairing.tokens.*
+  // gateway verbs). Constructed exactly as the SDK composition root does,
+  // same control-plane config dir as userPermissionRuleStore above, from the
+  // public @pellux/goodvibes-sdk/platform/pairing export.
+  const pairingTokens = new PairingTokenManager(join(configManager.getControlPlaneConfigDir(), 'pairing-tokens.json'));
   const sessionBroker = new SharedSessionBroker({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'sessions.json'),
     routeBindings,
@@ -1405,6 +1411,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
 
   return {
     stepUpService,
+    pairingTokens,
     workingDirectory,
     homeDirectory,
     shellPaths,
