@@ -193,6 +193,32 @@ export function registerAgentRuntimeEvents(options: AgentRuntimeEventBridgeOptio
     if (record && record.status !== 'cancelled') {
       const durationSeconds = record.completedAt !== undefined ? Math.round((record.completedAt - record.startedAt) / 1000) : 0;
       const taskSnippet = formatAgentTask(record.task);
+
+      // The typed turn-budget-exhaustion outcome (SDK 1.8.0, agents/turn-budget.ts):
+      // record.failureReason === 'max_turns' plus record.turnBudget (the applied
+      // limit and which input set it — default / spawn-override / policy-bound)
+      // are stamped on the record at the source, never derived from regex-matching
+      // payload.error. Rendered as an honest budget line, distinct from the
+      // generic infrastructure-failure path below — a spent turn budget is an
+      // expected, nameable outcome, not an error to root-cause.
+      if (record.failureReason === 'max_turns' && record.turnBudget) {
+        const { limit, source } = record.turnBudget;
+        const sourceLabel = source === 'default'
+          ? 'the default agents.maxTurns'
+          : source === 'spawn-override'
+            ? 'a per-spawn override'
+            : 'the agents.maxTurnsCap policy ceiling';
+        withRouter(getSystemMessageRouter, (router) => {
+          router.low(`[Delegated task] ${record.template} ${payload.agentId.slice(-8)} spent its turn budget in ${durationSeconds}s — ${limit} turns (${sourceLabel}) while working on "${taskSnippet}"`);
+        });
+        queueConversationFollowUp?.({
+          key: `agent:${payload.agentId}:failed`,
+          summary: `${record.template} delegated task ${payload.agentId.slice(-8)} spent its ${limit}-turn budget (${sourceLabel}) while working on "${taskSnippet}".`,
+        });
+        requestRender();
+        return;
+      }
+
       // Compact child-failure envelope enrichment (SDK 1.6.1) — fetched via
       // the SAME 'agent' tool the model calls, then appended to the base
       // message. Deferred (async) rather than blocking this handler; no test
