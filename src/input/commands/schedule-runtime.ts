@@ -1,10 +1,5 @@
 import type { CommandRegistry } from '../command-registry.ts';
 import {
-  formatEveryInterval,
-} from '@pellux/goodvibes-sdk/platform/automation';
-import type { AutomationJob } from '@pellux/goodvibes-sdk/platform/automation';
-import type { AutomationScheduleDefinition } from '@pellux/goodvibes-sdk/platform/automation';
-import {
   buildReminderSchedulePreview,
   createReminderSchedule,
   parseReminderScheduleArgs,
@@ -31,9 +26,11 @@ import {
   formatRoutineScheduleSuccess,
 } from '../../agent/routine-schedule-format.ts';
 import {
+  fetchLiveSchedules,
   reconcileRoutineScheduleReceipts,
   RoutineScheduleReceiptStore,
 } from '../../agent/routine-schedule-receipts.ts';
+import { latestRunPerJob, listAutomationRunsSince } from '../../agent/automation-runs-source.ts';
 import {
   buildScheduleEditPreview,
   editConnectedSchedule,
@@ -50,28 +47,57 @@ import type { CommandContext } from '../command-registry.ts';
 import { requireShellPaths } from './runtime-services.ts';
 import { executeConfirmedOperatorAction } from './operator-actions-runtime.ts';
 
-function formatSchedule(schedule: AutomationScheduleDefinition): string {
-  switch (schedule.kind) {
-    case 'cron':
-      return [
-        schedule.expression,
-        schedule.timezone ? `[${schedule.timezone}]` : '',
-        schedule.staggerMs !== undefined ? `[stagger ${schedule.staggerMs}ms]` : '',
-      ].filter(Boolean).join(' ');
-    case 'every':
-      return formatEveryInterval(schedule.intervalMs);
-    case 'at':
-      return new Date(schedule.at).toLocaleString();
-  }
-}
-
 function formatNextRun(nextRunAt?: number): string {
   return nextRunAt ? new Date(nextRunAt).toLocaleString() : 'n/a';
 }
 
-function formatPrompt(job: AutomationJob): string {
-  const prompt = (job.execution.prompt ?? job.description ?? '').trim();
-  return prompt.length > 60 ? `${prompt.slice(0, 60)}...` : prompt;
+/** Runs fetch window used to annotate /schedule list with each schedule's latest outcome. */
+const RECENT_RUN_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * /schedule list's data source: the connected host's live schedules
+ * (automation.schedules.list) annotated with each schedule's latest run
+ * outcome (automation.runs.list) — so a missed or failed run shows up as an
+ * honest outcome line instead of silence. Never reads the agent's local
+ * automation manager (local execution is disabled by design).
+ */
+async function printScheduleList(ctx: CommandContext): Promise<void> {
+  const shellPaths = requireShellPaths(ctx);
+  const connection = resolveAgentConnectedHostConnection(ctx.platform.configManager, shellPaths.homeDirectory);
+  const fetched = await fetchLiveSchedules(connection);
+  if (!fetched.ok) {
+    ctx.print(`Could not reach the connected host for schedules: ${fetched.error ?? 'unknown error'}`);
+    return;
+  }
+  if (fetched.schedules.length === 0) {
+    ctx.print(
+      'No connected-host schedules.\n'
+      + 'Local add/run/enable/disable/remove are blocked. Use /schedule remind --at <time> --message <text> --yes for reminders or /schedule promote-routine <routine> --cron <expr> --yes for explicit connected schedules.'
+    );
+    return;
+  }
+
+  const runsSince = await listAutomationRunsSince(connection, Date.now() - RECENT_RUN_WINDOW_MS);
+  const latestByJob = latestRunPerJob(runsSince.runs);
+
+  const lines = ['Connected-host schedules', ''];
+  for (const schedule of fetched.schedules) {
+    const status = schedule.enabled === false ? '○ paused  ' : '● enabled ';
+    const next = formatNextRun(schedule.nextRunAt);
+    const last = schedule.lastRunAt ? new Date(schedule.lastRunAt).toLocaleString() : 'never';
+    lines.push(`  ${schedule.id.slice(0, 12)}  ${status} runs ${schedule.runCount ?? 0}  next ${next}  last ${last}`);
+    const cadence = schedule.scheduleKind
+      ? `${schedule.scheduleKind} ${schedule.scheduleValue ?? ''}${schedule.timezone ? ` [${schedule.timezone}]` : ''}`.trim()
+      : 'n/a';
+    lines.push(`    name ${schedule.name}  schedule ${cadence}`);
+
+    const latestRun = latestByJob.get(schedule.id);
+    if (latestRun && (latestRun.status === 'missed' || latestRun.status === 'failed')) {
+      const when = latestRun.endedAt ? new Date(latestRun.endedAt).toLocaleString() : 'unknown time';
+      lines.push(`    outcome ${latestRun.status} — last attempt ${when}`);
+    }
+  }
+  ctx.print(lines.join('\n'));
 }
 
 function printReadOnlyScheduleBoundary(print: (text: string) => void, requestedAction: string): void {
@@ -226,31 +252,8 @@ export function registerScheduleRuntimeCommands(registry: CommandRegistry): void
         return;
       }
 
-      const manager = ctx.ops.automationManager;
-      if (!manager) {
-        ctx.print('Automation manager is not available in this runtime.');
-        return;
-      }
-
       if (!sub || sub === 'list') {
-        const jobs = manager.listJobs();
-        if (jobs.length === 0) {
-          ctx.print(
-            'No automation jobs.\n'
-            + 'Local add/run/enable/disable/remove are blocked. Use /schedule remind --at <time> --message <text> --yes for reminders or /schedule promote-routine <routine> --cron <expr> --yes for explicit connected schedules.'
-          );
-          return;
-        }
-        const lines = ['Automation jobs', ''];
-        for (const job of jobs) {
-          const status = job.enabled ? '● enabled ' : '○ paused  ';
-          const next = formatNextRun(job.nextRunAt);
-          const last = job.lastRunAt ? new Date(job.lastRunAt).toLocaleString() : 'never';
-          lines.push(`  ${job.id.slice(0, 12)}  ${status} runs ${job.runCount}  next ${next}  last ${last}`);
-          lines.push(`    name ${job.name}  schedule ${formatSchedule(job.schedule)}`);
-          lines.push(`    prompt ${formatPrompt(job)}`);
-        }
-        ctx.print(lines.join('\n'));
+        await printScheduleList(ctx);
         return;
       }
 

@@ -143,6 +143,48 @@ function schedulesListResponse(): Response {
   });
 }
 
+function runsListResponse(runs: readonly Record<string, unknown>[]): Response {
+  return new Response(JSON.stringify({ runs }), {
+    status: 200,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+function makeRunFixture(overrides: {
+  readonly id?: string;
+  readonly jobId?: string;
+  readonly status?: string;
+  readonly jobName?: string;
+  readonly queuedAt?: number;
+  readonly endedAt?: number;
+}): Record<string, unknown> {
+  return {
+    id: overrides.id ?? 'run-1',
+    jobId: overrides.jobId ?? 'sched-1',
+    labels: [],
+    createdAt: overrides.queuedAt ?? 1,
+    updatedAt: overrides.endedAt ?? overrides.queuedAt ?? 1,
+    status: overrides.status ?? 'completed',
+    triggeredBy: {
+      id: 'trigger-1',
+      kind: 'schedule',
+      label: overrides.jobName ?? 'Agent routine: Inbox Sweep',
+      enabled: true,
+      createdAt: 1,
+      updatedAt: 1,
+      metadata: {},
+    },
+    target: { kind: 'main' },
+    execution: { target: { kind: 'main' } },
+    queuedAt: overrides.queuedAt ?? Date.now() - 3_600_000,
+    endedAt: overrides.endedAt,
+    forceRun: false,
+    dueRun: true,
+    attempt: 1,
+    deliveryIds: [],
+  };
+}
+
 describe('/routines command', () => {
   test('creates, lists, enables, starts, shows, and disables a local routine', async () => {
     const { registry, out, ctx } = commandHarness();
@@ -622,6 +664,94 @@ describe('/routines command', () => {
         url: 'http://127.0.0.1:3421/api/automation/schedules/sched-1/run',
         method: 'POST',
       }]);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('schedule list shows the connected host\'s schedules', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch(async (input) => {
+      const url = inputUrl(input);
+      if (url.includes('/api/automation/runs')) return runsListResponse([]);
+      return schedulesListResponse();
+    });
+
+    try {
+      await registry.execute('schedule', ['list'], ctx);
+      const text = out.join('\n');
+      expect(text).toContain('Connected-host schedules');
+      expect(text).toContain('sched-1');
+      expect(text).toContain('Agent routine: Inbox Sweep');
+      expect(text).toContain('cron 0 9 * * * [America/Chicago]');
+      expect(text).not.toContain('outcome');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('schedule list renders a missed run as an outcome, not silence', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch(async (input) => {
+      const url = inputUrl(input);
+      if (url.includes('/api/automation/runs')) {
+        return runsListResponse([
+          makeRunFixture({ id: 'run-1', jobId: 'sched-1', status: 'missed', endedAt: Date.now() - 600_000 }),
+        ]);
+      }
+      return schedulesListResponse();
+    });
+
+    try {
+      await registry.execute('schedule', ['list'], ctx);
+      const text = out.join('\n');
+      expect(text).toContain('sched-1');
+      expect(text).toContain('outcome missed');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('schedule list renders a failed run as a distinct outcome from missed', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch(async (input) => {
+      const url = inputUrl(input);
+      if (url.includes('/api/automation/runs')) {
+        return runsListResponse([
+          makeRunFixture({ id: 'run-1', jobId: 'sched-1', status: 'failed', endedAt: Date.now() - 300_000 }),
+        ]);
+      }
+      return schedulesListResponse();
+    });
+
+    try {
+      await registry.execute('schedule', ['list'], ctx);
+      const text = out.join('\n');
+      expect(text).toContain('outcome failed');
+      expect(text).not.toContain('outcome missed');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  test('schedule list does not require the local automation manager', async () => {
+    const { registry, out, ctx } = commandHarness();
+    const contextWithoutManager = { ...ctx, ops: {} } as unknown as CommandContext;
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = mockFetch(async (input) => {
+      const url = inputUrl(input);
+      if (url.includes('/api/automation/runs')) return runsListResponse([]);
+      return schedulesListResponse();
+    });
+
+    try {
+      await registry.execute('schedule', ['list'], contextWithoutManager);
+      const text = out.join('\n');
+      expect(text).toContain('Connected-host schedules');
+      expect(text).not.toContain('Automation manager is not available');
     } finally {
       globalThis.fetch = originalFetch;
     }

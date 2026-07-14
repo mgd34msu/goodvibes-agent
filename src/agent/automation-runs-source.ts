@@ -135,3 +135,23 @@ export async function listAutomationRunsSince(
     return EMPTY_RESULT;
   }
 }
+
+/**
+ * Reduce a run list to the single most-recent run per jobId (by endedAt,
+ * falling back to queuedAt for runs that never ended — e.g. a still-running
+ * or missed run). Used by the /schedule list surface to annotate each
+ * schedule with its latest known outcome instead of staying silent about
+ * drift (a missed or failed run) that the schedule record itself doesn't
+ * carry (automation.schedules.list has no missed-run signal of its own —
+ * only automation.runs.list does).
+ */
+export function latestRunPerJob(runs: readonly AutomationRunOutcome[]): ReadonlyMap<string, AutomationRunOutcome> {
+  const byJob = new Map<string, AutomationRunOutcome>();
+  for (const run of runs) {
+    const runAt = run.endedAt ?? run.queuedAt;
+    const existing = byJob.get(run.jobId);
+    const existingAt = existing ? (existing.endedAt ?? existing.queuedAt) : -Infinity;
+    if (!existing || runAt > existingAt) byJob.set(run.jobId, run);
+  }
+  return byJob;
+}

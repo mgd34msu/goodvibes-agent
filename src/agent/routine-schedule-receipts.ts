@@ -497,3 +497,27 @@ export async function reconcileRoutineScheduleReceipts(
     return classifyScheduleListError(error, connection);
   }
 }
+
+export interface LiveSchedulesFetch {
+  readonly ok: boolean;
+  readonly schedules: readonly RoutineScheduleLiveRecord[];
+  readonly error?: string;
+}
+
+/**
+ * Fetch every live schedule from the connected host, with no local-receipt
+ * correlation attached — the plain list the /schedule list surface needs.
+ * Never throws; connection/auth/host failures resolve to { ok: false }.
+ */
+export async function fetchLiveSchedules(connection: AgentConnectedHostConnection): Promise<LiveSchedulesFetch> {
+  if (!connection.token) {
+    return { ok: false, schedules: [], error: `No connected-host operator token found at ${connection.tokenPath}` };
+  }
+  try {
+    const sdk = createBrowserGoodVibesSdk({ baseUrl: connection.baseUrl, authToken: connection.token });
+    const output = await sdk.operator.invoke(ROUTINE_SCHEDULE_LIST_METHOD, {});
+    return { ok: true, schedules: readLiveSchedules(output) };
+  } catch (error) {
+    return { ok: false, schedules: [], error: summarizeError(error) };
+  }
+}
