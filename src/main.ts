@@ -29,7 +29,7 @@ import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-su
 import { buildConversationViewport } from './renderer/conversation-layout.ts';
 import { applyConversationOverlays } from './renderer/conversation-overlays.ts';
 import { buildActivitySidebarLines, buildSidebarAgentRows, resolveActivitySidebarWidth } from './renderer/activity-sidebar.ts';
-import { logger } from '@pellux/goodvibes-sdk/platform/utils';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
 import type { HITLMode } from '@pellux/goodvibes-sdk/platform/state';
@@ -48,7 +48,6 @@ import { buildShellSessionContinuityHints } from './shell/session-continuity-hin
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
 import { buildPersistedSessionContext } from '@/runtime/index.ts';
-import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
 import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
@@ -61,8 +60,7 @@ import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/ter
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProposer } from './shell/autonomy-surfacing.ts';
-import { listAutomationRunsSince } from './agent/automation-runs-source.ts';
-import { resolveAgentConnectedHostConnection } from './agent/routine-schedule-promotion.ts';
+import { buildListAutomationRunsSince } from './agent/automation-runs-source.ts';
 import { startHardwareProbe } from './core/hardware-profile.ts';
 import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
 
@@ -182,10 +180,7 @@ async function main() {
   const autonomy = createAutonomySurfacing({
     shellPaths: ctx.services.shellPaths,
     listAutomationJobs: () => ctx.services.automationManager.listJobs(),
-    listAutomationRunsSince: (since) => listAutomationRunsSince(
-      resolveAgentConnectedHostConnection(configManager, homeDirectory),
-      since,
-    ),
+    listAutomationRunsSince: buildListAutomationRunsSince(configManager, homeDirectory),
     listApprovals: () => ctx.services.approvalBroker.listApprovals(),
     getTasksSnapshot: () => uiServices.readModels.tasks.getSnapshot().tasks,
     router: {

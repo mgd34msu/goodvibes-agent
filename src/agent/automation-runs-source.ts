@@ -20,7 +20,11 @@
  * contract. It never falls back to the local automation manager.
  */
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
-import type { AgentConnectedHostConnection } from './routine-schedule-promotion.ts';
+import {
+  resolveAgentConnectedHostConnection,
+  type AgentConnectedHostConfigReader,
+  type AgentConnectedHostConnection,
+} from './routine-schedule-promotion.ts';
 
 export const AUTOMATION_RUNS_LIST_METHOD = 'automation.runs.list';
 
@@ -134,6 +138,19 @@ export async function listAutomationRunsSince(
   } catch {
     return EMPTY_RESULT;
   }
+}
+
+/**
+ * Build the `listAutomationRunsSince` callback AutonomySurfacingOptions
+ * wants, resolving the connected-host connection fresh on every call (the
+ * token file can rotate). Extracted here (rather than inlined at the
+ * main.ts call site) purely to keep that wiring to one line there.
+ */
+export function buildListAutomationRunsSince(
+  configManager: AgentConnectedHostConfigReader,
+  homeDirectory: string,
+): (since: number) => Promise<AutomationRunsSinceResult> {
+  return (since) => listAutomationRunsSince(resolveAgentConnectedHostConnection(configManager, homeDirectory), since);
 }
 
 /**
