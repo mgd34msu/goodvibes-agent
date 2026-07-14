@@ -29,6 +29,11 @@ const WS_ONLY_METHOD_IDS = [
   'fleet.attempts.list',
   'fleet.attempts.pick',
   'fleet.attempts.judge',
+  // fleet.graph.get (SDK round): the fix workstream's task graph. Gated on
+  // the SAME attemptsController dep as fleet.attempts.* above — the
+  // orchestration engine already implements getGraphSnapshot(workstreamId)
+  // structurally, so no extra dep threading was needed in services.ts.
+  'fleet.graph.get',
   'checkpoints.list',
   'checkpoints.create',
   'checkpoints.diff',
@@ -109,6 +114,15 @@ describe('ws-only gateway verbs are invokable on the vendored runtime', () => {
       services.gatewayMethods.invoke('fleet.attempts.pick', {
         methodId: 'fleet.attempts.pick',
         body: { groupId: 'no-such-group', winnerItemId: 'no-such-item' },
+      } as never),
+    ).rejects.toThrow();
+  });
+
+  test('fleet.graph.get refuses an unknown workstream honestly rather than a phantom empty graph', async () => {
+    await expect(
+      services.gatewayMethods.invoke('fleet.graph.get', {
+        methodId: 'fleet.graph.get',
+        body: { workstreamId: 'no-such-workstream' },
       } as never),
     ).rejects.toThrow();
   });

@@ -1451,6 +1451,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // (listHeldMergeGroups/pickAttemptWinner/proposeAttemptWinner) — wiring
     // it here is what turns those verbs from cataloged-but-unhandled into
     // real handlers (see src/test/daemon/gateway-ws-only-invokable.test.ts).
+    // attemptsController (fleet.attempts.* AND, since the SDK round, fleet.graph.get
+    // — the fix workstream's task graph: nodes/edges/pool/stalled tells) — the
+    // orchestration engine already implements getGraphSnapshot(workstreamId)
+    // structurally, so this ONE line wires both verb families; no local panel
+    // renders the graph (this fork has no TUI-style panel system: no
+    // src/renderer/*panel* files exist), but the verb still serves the real
+    // graph to any remote surface (e.g. a webui FleetView) that queries this
+    // runtime — see src/test/daemon/gateway-fleet-graph-get.test.ts.
     attemptsController: orchestrationEngine,
     // worktrees.setup.run (SDK 1.6.1): the rerun affordance for worktree
     // cold-start setup, registered over a WorktreeRegistry rooted at this

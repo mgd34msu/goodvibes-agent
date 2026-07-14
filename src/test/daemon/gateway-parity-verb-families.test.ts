@@ -129,6 +129,21 @@ const VERB_FAMILIES: ReadonlyArray<{ readonly family: string; readonly reason: s
     reason: 'Registered because userPermissionRuleStore is threaded in services.ts (durable remembered-approval rules; the same store feeds the PermissionManager in bootstrap-core). Deeper round-trip: gateway-ws-only-invokable.test.ts.',
     methodIds: ['permissions.rules.list', 'permissions.rules.delete'],
   },
+  {
+    family: 'fleet.graph.get',
+    reason: 'Registered because attemptsController (the orchestration engine) is threaded in services.ts and already implements getGraphSnapshot(workstreamId) structurally — the SAME dep fleet.attempts.* uses. Deeper round-trip: gateway-ws-only-invokable.test.ts.',
+    methodIds: ['fleet.graph.get'],
+  },
+  {
+    family: 'sessions.toolCalls.cancel / sessions.queuedMessages.*',
+    reason: 'Always registered — createSessionRuntimeControls is built internally from configManager + runtimeStore; the sessionLiveTurnControls holder (bound to this repo\'s Orchestrator in bootstrap.ts) makes the verbs act on the live turn instead of refusing LIVE_TURN_CONTROLS_UNAVAILABLE.',
+    methodIds: ['sessions.toolCalls.cancel', 'sessions.queuedMessages.list', 'sessions.queuedMessages.edit', 'sessions.queuedMessages.delete'],
+  },
+  {
+    family: 'power.status.get / power.keepAwake.set',
+    reason: 'Registered because powerManager is threaded in services.ts (wireRuntimePower — sleep ownership, keep-awake toggle). Deeper round-trip: gateway-power.test.ts.',
+    methodIds: ['power.status.get', 'power.keepAwake.set'],
+  },
 ];
 
 const ALL_METHOD_IDS = VERB_FAMILIES.flatMap((entry) => entry.methodIds);
