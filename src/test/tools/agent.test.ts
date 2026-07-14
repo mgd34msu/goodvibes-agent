@@ -4,7 +4,6 @@ import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { AgentMessageBus, WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { OrchestrationEvent } from '@/runtime/index.ts';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -531,10 +530,7 @@ async function runAgentMayFail(args: Record<string, unknown>) {
 
 beforeEach(() => {
   harness = makeAgentHarness();
-  // fleet.maxSize (renamed from orchestration.maxActiveAgents) is registered
-  // at runtime but not yet in the published ConfigKey union — see
-  // schema-extensions.test.ts for the verified SDK gap this cast stands in for.
-  harness.configManager.set('fleet.maxSize' as unknown as ConfigKey, 8);
+  harness.configManager.set('fleet.maxSize', 8);
   harness.configManager.set('orchestration.maxDepth', 1);
   harness.configManager.set('orchestration.recursionEnabled', true);
 });

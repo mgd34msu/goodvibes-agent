@@ -4,7 +4,6 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DEFAULT_CONFIG } from '@pellux/goodvibes-sdk/platform/config';
-import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -24,23 +23,29 @@ function createConfigManager(workingDir: string): ConfigManager {
   });
 }
 
-// Verified SDK gap (found at a5c63e3b, still present at a03bf218): fleet.maxSize (schema-domain-fleet.ts,
-// the orchestration.maxActiveAgents rename) is registered in CONFIG_SCHEMA and
-// DEFAULT_CONFIG at runtime with real values and real range validation, but
-// its GoodVibesConfig type augmentation never reached the published
-// ConfigKey union (a hardcoded string-literal type in schema-types.ts, so it
-// cannot pick up a new domain without an SDK-side rebuild). Cast at the call
-// sites that reference it by name — the same `as never` precedent this file
-// already uses for out-of-range boundary values below.
-const FLEET_MAX_SIZE = 'fleet.maxSize' as unknown as ConfigKey;
-function fleetMaxSizeOf(cfg: unknown): number {
-  return (cfg as { fleet: { maxSize: number } }).fleet.maxSize;
-}
+// fleet.maxSize (schema-domain-fleet.ts, the orchestration.maxActiveAgents
+// rename) is a first-class member of the published ConfigKey union since sdk
+// 89690d07 completed the union (with a drift gate so a new domain can never
+// fall out of it again) — the ConfigKey cast workaround this file carried
+// while the union lagged the runtime schema is deleted: get/set below use
+// the plain key string, cast-free. These thin helpers remain only to keep
+// the many call sites short.
 function getFleetMaxSize(mgr: ConfigManager): number {
-  return mgr.get(FLEET_MAX_SIZE) as number;
+  return mgr.get('fleet.maxSize');
 }
 function setFleetMaxSize(mgr: ConfigManager, value: number): void {
-  mgr.set(FLEET_MAX_SIZE, value);
+  mgr.set('fleet.maxSize', value);
+}
+// One narrower gap remains at 89690d07, distinct from the ConfigKey union:
+// the GoodVibesConfig INTERFACE gains its `fleet` property only via the
+// `declare module` augmentation in schema-domain-fleet.d.ts, and the public
+// type graph never loads that file (schema.d.ts imports the domain module
+// for VALUES only, so d.ts emission elides the import). A direct
+// DEFAULT_CONFIG.fleet property read therefore still fails to typecheck in
+// consumers even though the value is real at runtime — this one structural
+// view covers exactly that object-shape read and nothing else.
+function fleetMaxSizeOf(cfg: unknown): number {
+  return (cfg as { fleet: { maxSize: number } }).fleet.maxSize;
 }
 
 // ---------------------------------------------------------------------------
@@ -391,12 +396,12 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
     test('fleet.maxSize rejects 0 (below minimum)', () => {
       const mgr = createConfigManager(tmpDir);
-      expect(() => setFleetMaxSize(mgr, 0 as never)).toThrow();
+      expect(() => setFleetMaxSize(mgr, 0)).toThrow();
     });
 
     test('fleet.maxSize rejects 21 (above maximum)', () => {
       const mgr = createConfigManager(tmpDir);
-      expect(() => setFleetMaxSize(mgr, 21 as never)).toThrow();
+      expect(() => setFleetMaxSize(mgr, 21)).toThrow();
     });
 
     test('fleet.maxSize accepts boundary value 1', () => {
