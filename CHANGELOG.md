@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.11.0 - 2026-07-14
+
+- GoodVibes Agent 1.11.0 runs on the current published platform SDK 1.9.0, picking up the latest shared runtime, review, and power-management primitives.
+- Keep-awake and idle-inhibition now hold a real OS-level inhibitor explicitly: the Agent process owns the host sleep edge while it runs, so the always-visible power chip and the keep-awake toggle reflect a genuine hold rather than a no-op. This posture is pinned by a composition test so it cannot silently degrade in a future dependency update.
+- When an external GoodVibes daemon is adopted, the keep-awake toggle still forwards to that daemon over its operator route so the hold survives this Agent closing; that path is unchanged.
+- No change to your conversations, memory, skills, routines, personas, or operator confirmation gates; this is a dependency-refresh and sleep-ownership hardening release.
+
 ## 1.10.0 - 2026-07-13
 
 - Agent updates itself at launch: the standalone binary lands on the newest release at startup, keeps a rollback binary, and /update is a first-class Agent command.
