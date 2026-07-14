@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { StepUpService } from '@pellux/goodvibes-sdk/daemon';
 import { PairingTokenManager } from '@pellux/goodvibes-sdk/platform/pairing';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import { shell as runtimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
+import { shell as runtimeShell, operations as runtimeOperations } from '@pellux/goodvibes-sdk/platform/runtime';
 import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
@@ -1183,6 +1183,30 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     ],
   });
   storeSnapshotScheduler.start();
+  // Start-time janitor: one retention pass over every registered append-only
+  // store (best-effort, mirrors the SDK's own composition root at
+  // platform/runtime/services.ts). Every root this composition knows is
+  // passed — logDir/telemetryDir resolve to THIS repo's actual on-disk
+  // locations (join(workingDirectory, '.goodvibes', 'logs'|'telemetry'), the
+  // same root entrypoint.ts's configureActivityLogger already writes
+  // activity.md into — NOT the home-scoped shellPaths.resolveUserPath('logs')
+  // the SDK's own default composition uses, which would silently sweep a
+  // directory nothing here ever writes to). Omitting logDir/telemetryDir
+  // would leave the registered activity-log and telemetry-ledger entries
+  // skipped on every sweep, same defect class the SDK round fixed at its own
+  // call site.
+  runtimeOperations.runStartupAppendOnlySweep({
+    workingDirectory,
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    homeDirectory,
+    logDir: shellPaths.resolveProjectPath('logs'),
+    telemetryDir: shellPaths.resolveProjectPath('telemetry'),
+  }, (key) => configManager.get(key as never));
+  // External config edits apply LIVE through the same subscribe() pipeline an
+  // in-process set() uses — a hand-edited settings.json needs no restart to
+  // take effect. The underlying file watchers are unref'd (SDK round), so
+  // this can never pin the process open.
+  configManager.watchConfigFiles();
   const codeIndexReindexScheduler = new CodeIndexReindexScheduler({
     target: codeIndexStore,
     workingDirectory,
