@@ -97,6 +97,34 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
     }
   });
 
+  test('the composition root opts into the real host power seam (not the non-spawning unavailable seam)', () => {
+    // SDK 1.9.0 (createHostPowerSeam / the createRuntimeServices non-spawning
+    // default) moved seam selection to an explicit opt-in: the SDK's generic
+    // runtime-services FACTORY now defaults to the "unavailable" no-spawn seam
+    // for test determinism, and only a real host that owns the sleep edge opts
+    // back in (the standalone daemon cli passes powerSeam: createHostPowerSeam()).
+    //
+    // This Agent composes its OWN runtime root (createRuntimeServices here) and
+    // holds a LOCAL OS inhibitor while it runs, so services.ts names
+    // seam: createHostPowerSeam() on its wireRuntimePower call. Pin that: the
+    // composed PowerManager must report the real host platform, never the
+    // unavailable seam — otherwise keep-awake/idle-inhibit would flip state
+    // (the tests above) while silently holding nothing at the OS level. The
+    // seam's platform label is the honest tell: 'linux-logind' on Linux, the
+    // honest 'unavailable (...)' string elsewhere and for the no-spawn seam.
+    const services = makeServices();
+    try {
+      const platform = services.powerManager.getState().platform;
+      expect(platform.startsWith('unavailable')).toBe(false);
+      if (process.platform === 'linux') {
+        expect(platform).toBe('linux-logind');
+      }
+    } finally {
+      services.providerRegistry.stopWatching();
+      services.configManager.stopWatchingConfigFiles();
+    }
+  });
+
   test('an external settings.json edit (no in-process call at all) also reaches the PowerManager, via watchConfigFiles + subscribeConfig', async () => {
     const services = makeServices();
     try {

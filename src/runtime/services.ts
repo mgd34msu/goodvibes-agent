@@ -69,7 +69,7 @@ import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/co
 // Sleep ownership (SDK round: power/*): work inhibition, sleep-edge honesty,
 // the keep-awake toggle. Constructed exactly as the SDK composition root does
 // (wireRuntimePower binds runtimeBus work signals and starts the manager).
-import { wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
+import { createHostPowerSeam, wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
 import { forwardKeepAwakeToAdoptedDaemon } from '../agent/power-keep-awake-remote.ts';
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
@@ -1399,6 +1399,18 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // checkpoint the store snapshots on sleep and catch consolidation + store
   // snapshots + heartbeat back up on wake.
   const powerManager = wireRuntimePower({
+    // Opt into the real host power seam EXPLICITLY, exactly as the SDK's own
+    // standalone daemon cli does (it passes powerSeam: createHostPowerSeam()
+    // into createRuntimeServices). As of SDK 1.9.0 the generic runtime-services
+    // FACTORY defaults to the non-spawning "unavailable" seam for test
+    // determinism, and only a real host that owns the sleep edge opts back in.
+    // This Agent is that host: it composes its own runtime root (this function)
+    // and holds a LOCAL OS inhibitor for keep-awake/idle-inhibit while the
+    // process lives. wireRuntimePower still defaults to the host seam on its
+    // own, but we name it here so this Agent's host posture is explicit and a
+    // future SDK default flip can never silently downgrade the live inhibitor
+    // to a no-op — pinned by power-keep-awake-composition.test.ts.
+    seam: createHostPowerSeam(),
     readConfig: (key) => configManager.get(key as never),
     writeConfig: (key, value) => configManager.setDynamic(key as never, value),
     // Live-apply straight from the SDK's own PowerManager (SDK round: the
