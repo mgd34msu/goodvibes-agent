@@ -59,6 +59,22 @@ import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore, resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
+// Daemon-side idle+schedule memory consolidation driver (SDK round note: this
+// repo's former local scheduler — the old src/runtime/memory-consolidation-
+// scheduler.ts and memory-consolidation-wiring.ts, both retired — is
+// superseded by the SDK's own daemon-side scheduler. That class is not
+// re-exported from the SDK's public `platform/state` barrel as of commit
+// a5c63e3b (verified: only resolveMemoryConsolidationConfig and
+// runMemoryConsolidation are exported there), so this composition root uses
+// a faithful local port of it instead — see
+// ./memory-consolidation-scheduler.ts for the exact gap and behavior parity.
+import { MemoryConsolidationScheduler } from './memory-consolidation-scheduler.ts';
+import type { MemoryConsolidationRunReceipt } from '@pellux/goodvibes-sdk/platform/state';
+import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/control-plane';
+// Sleep ownership (SDK round: power/*): work inhibition, sleep-edge honesty,
+// the keep-awake toggle. Constructed exactly as the SDK composition root does
+// (wireRuntimePower binds runtimeBus work signals and starts the manager).
+import { wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
 import { buildExecPromptAnswerHandler } from '@pellux/goodvibes-sdk/platform/runtime/permissions/exec-prompt-wiring';
@@ -534,6 +550,14 @@ export interface RuntimeServices extends SdkRuntimeServices {
    * `onAttach`. Best-effort: it never throws and yields nothing on failure.
    */
   readonly consumeDaemonReceipts: () => Promise<void>;
+  /**
+   * Local idle-time memory-consolidation run receipts, one honest one-line
+   * summary per run with something to report — rendered through the SAME
+   * attach-time-notice idiom as {@link daemonReceiptFeed} (buffered until a
+   * render sink attaches, delivered exactly once), but on its own feed so a
+   * local consolidation run is never mislabeled "[Connected host]".
+   */
+  readonly memoryConsolidationReceiptFeed: AgentDaemonReceiptFeed;
   readonly deliveryManager: AutomationDeliveryManager;
   readonly automationManager: AutomationManager;
   readonly gatewayMethods: GatewayMethodCatalog;
@@ -628,6 +652,21 @@ export interface RuntimeServices extends SdkRuntimeServices {
    * the old path until the externally owned GoodVibes host restarts with the new --working-dir.
    */
   rerootStores(newWorkingDir: string): Promise<void>;
+}
+
+/**
+ * One honest one-line summary of a consolidation run, or null for a run that
+ * genuinely did nothing (nothing merged, archived, decayed, or proposed) —
+ * a quiet no-op run should not interrupt the user with an empty notice.
+ */
+export function describeMemoryConsolidationReceipt(receipt: MemoryConsolidationRunReceipt): string | null {
+  const parts: string[] = [];
+  if (receipt.merged.length > 0) parts.push(`merged ${receipt.merged.length}`);
+  if (receipt.archived.length > 0) parts.push(`archived ${receipt.archived.length}`);
+  if (receipt.decayed.length > 0) parts.push(`decayed ${receipt.decayed.length}`);
+  if (receipt.proposed.length > 0) parts.push(`${receipt.proposed.length} proposed for review`);
+  if (parts.length === 0) return null;
+  return `Memory consolidation (${receipt.trigger}): ${parts.join(', ')}.`;
 }
 
 export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeServices {
@@ -1306,6 +1345,50 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     },
   };
 
+  // Live-turn controls holder (SDK round: sessions.toolCalls.cancel,
+  // sessions.queuedMessages.list/edit/delete). Empty until an interactive
+  // consumer binds a real Orchestrator into it (see bootstrap.ts, right after
+  // this repo's own Orchestrator is constructed) — until then the verbs
+  // refuse honestly (LIVE_TURN_CONTROLS_UNAVAILABLE), never fake a result.
+  const sessionLiveTurnControls = new SessionLiveTurnControlsHolder();
+
+  // Idle-time + slow-schedule memory consolidation, constructed the way the
+  // SDK's own RuntimeServices composition root constructs it (platform/
+  // runtime/services.ts: `new MemoryConsolidationScheduler({ memoryRegistry,
+  // configSource: configManager, isIdle: ... })`), replacing this repo's
+  // retired local scheduler/wiring/receipt-store trio. Every run's receipt
+  // renders through the SAME attach-time-notice idiom the connected-host
+  // receipts use (daemonReceiptFeed below) — a dedicated feed instance so a
+  // local consolidation run is never mislabeled "[Connected host]".
+  const memoryConsolidationReceiptFeed = new AgentDaemonReceiptFeed();
+  const memoryConsolidationScheduler = new MemoryConsolidationScheduler({
+    memoryRegistry,
+    configSource: configManager,
+    isIdle: () => sessionBroker.countBusySessions() === 0,
+    onReceipt: (receipt: MemoryConsolidationRunReceipt) => {
+      const summary = describeMemoryConsolidationReceipt(receipt);
+      if (summary) memoryConsolidationReceiptFeed.push([{ id: receipt.runId, text: summary, at: Date.now() }]);
+    },
+  });
+  memoryConsolidationScheduler.start();
+
+  // Sleep ownership (SDK round: power/*). Constructed exactly as the SDK
+  // composition root does: readConfig/writeConfig over the live ConfigManager,
+  // runtimeBus bound so real work (a running turn, an active agent, a
+  // due schedule) automatically holds the inhibitor, sleep-edge hooks that
+  // checkpoint the store snapshots on sleep and catch consolidation + store
+  // snapshots + heartbeat back up on wake.
+  const powerManager = wireRuntimePower({
+    readConfig: (key) => configManager.get(key as never),
+    writeConfig: (key, value) => configManager.setDynamic(key as never, value),
+    runtimeBus: options.runtimeBus,
+    sleepCheckpoint: () => storeSnapshotScheduler.tick(),
+    wakeCatchUp: [
+      () => memoryConsolidationScheduler.tick(),
+      () => storeSnapshotScheduler.tick(),
+    ],
+  });
+
   // Attach handlers for every ws-only gateway verb group (fleet.* including
   // the archive verbs, checkpoints.*, sessions.search, push.*, principals.*,
   // channels.profiles.*, ci.*, and — when the deps below are all present —
@@ -1327,8 +1410,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // constructed above in this composition root, so the Agent wires all four:
   // the proactive check-in loop runs for real here, not as a facade. Off by
   // default via checkin.enabled (see config/schema-domain-runtime.ts).
+  //
+  // sessionLiveTurnControls and powerManager (SDK round): register the
+  // session-runtime live-turn verbs and the power.* verbs the same way,
+  // graceful-degrading to cataloged-but-unhandled if either were ever absent.
   attachWsOnlyGatewayVerbHandlers(gatewayMethods, {
     processRegistry,
+    sessionLiveTurnControls,
+    powerManager,
     workspaceCheckpointManager: checkpointsGatewayManager,
     sessionBroker,
     secretsManager,
@@ -1443,6 +1532,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     sessionSpineClient,
     daemonReceiptFeed,
     consumeDaemonReceipts,
+    memoryConsolidationReceiptFeed,
+    // Cast: this repo's local port (see ./memory-consolidation-scheduler.ts)
+    // is a line-for-line behavioral match for the SDK's own daemon-side
+    // MemoryConsolidationScheduler, but TS treats the two as distinct nominal
+    // types (private fields brand them) since the SDK class itself is not
+    // re-exported as a value from `platform/state` at commit a5c63e3b — only
+    // the RuntimeServices TYPE surface leaks its shape. Safe: identical public
+    // API, verified against the SDK source this ports.
+    memoryConsolidationScheduler: memoryConsolidationScheduler as unknown as RuntimeServices['memoryConsolidationScheduler'],
+    powerManager,
+    sessionLiveTurnControls,
     deliveryManager,
     automationManager,
     gatewayMethods,

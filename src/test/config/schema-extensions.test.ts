@@ -4,6 +4,7 @@ import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DEFAULT_CONFIG } from '@pellux/goodvibes-sdk/platform/config';
+import type { ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -21,6 +22,25 @@ function createConfigManager(workingDir: string): ConfigManager {
     homeDir: workingDir,
     configDir: join(workingDir, '.goodvibes', 'global-tui'),
   });
+}
+
+// Verified SDK gap (commit a5c63e3b): fleet.maxSize (schema-domain-fleet.ts,
+// the orchestration.maxActiveAgents rename) is registered in CONFIG_SCHEMA and
+// DEFAULT_CONFIG at runtime with real values and real range validation, but
+// its GoodVibesConfig type augmentation never reached the published
+// ConfigKey union (a hardcoded string-literal type in schema-types.ts, so it
+// cannot pick up a new domain without an SDK-side rebuild). Cast at the call
+// sites that reference it by name — the same `as never` precedent this file
+// already uses for out-of-range boundary values below.
+const FLEET_MAX_SIZE = 'fleet.maxSize' as unknown as ConfigKey;
+function fleetMaxSizeOf(cfg: unknown): number {
+  return (cfg as { fleet: { maxSize: number } }).fleet.maxSize;
+}
+function getFleetMaxSize(mgr: ConfigManager): number {
+  return mgr.get(FLEET_MAX_SIZE) as number;
+}
+function setFleetMaxSize(mgr: ConfigManager, value: number): void {
+  mgr.set(FLEET_MAX_SIZE, value);
 }
 
 // ---------------------------------------------------------------------------
@@ -49,8 +69,15 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
     test('orchestration category fields have correct types when no project config exists', () => {
       const mgr = createConfigManager(tmpDir);
       expect(typeof mgr.get('orchestration.recursionEnabled')).toBe('boolean');
-      expect(typeof mgr.get('orchestration.maxActiveAgents')).toBe('number');
       expect(typeof mgr.get('orchestration.maxDepth')).toBe('number');
+    });
+
+    // orchestration.maxActiveAgents was renamed fleet.maxSize (the one agent
+    // ceiling: native spawned agents, ACP-hosted rows, and elastic fixers all
+    // count against it) — see the SDK's schema-domain-fleet.ts.
+    test('fleet.maxSize has correct type when no project config exists', () => {
+      const mgr = createConfigManager(tmpDir);
+      expect(typeof getFleetMaxSize(mgr)).toBe('number');
     });
 
     test('danger category fields have correct types when no project config exists', () => {
@@ -89,8 +116,11 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
     test('DEFAULT_CONFIG.orchestration has correct default values', () => {
       expect(DEFAULT_CONFIG.orchestration.recursionEnabled).toBe(false);
-      expect(DEFAULT_CONFIG.orchestration.maxActiveAgents).toBe(8);
       expect(DEFAULT_CONFIG.orchestration.maxDepth).toBe(0);
+    });
+
+    test('DEFAULT_CONFIG.fleet.maxSize has the correct default value', () => {
+      expect(fleetMaxSizeOf(DEFAULT_CONFIG)).toBe(8);
     });
 
     test('DEFAULT_CONFIG.danger has correct default values', () => {
@@ -123,16 +153,16 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       expect(DEFAULT_CONFIG.release.channel).toBe('stable');
     });
 
-    test('project config overrides win for orchestration fields', () => {
+    test('project config overrides win for fleet.maxSize', () => {
       const projectSettingsDir = join(tmpDir, '.goodvibes', 'tui');
       mkdirSync(projectSettingsDir, { recursive: true });
       writeFileSync(
         join(projectSettingsDir, 'settings.json'),
-        JSON.stringify({ orchestration: { maxActiveAgents: 4 } }, null, 2),
+        JSON.stringify({ fleet: { maxSize: 4 } }, null, 2),
         'utf-8'
       );
       const mgr = createConfigManager(tmpDir);
-      expect(mgr.get('orchestration.maxActiveAgents')).toBe(4);
+      expect(getFleetMaxSize(mgr)).toBe(4);
     });
   });
 
@@ -178,10 +208,10 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       expect(mgr.get('orchestration.recursionEnabled')).toBe(true);
     });
 
-    test('set and get orchestration.maxActiveAgents with valid value', () => {
+    test('set and get fleet.maxSize with valid value', () => {
       const mgr = createConfigManager(tmpDir);
-      mgr.set('orchestration.maxActiveAgents', 12);
-      expect(mgr.get('orchestration.maxActiveAgents')).toBe(12);
+      setFleetMaxSize(mgr, 12);
+      expect(getFleetMaxSize(mgr)).toBe(12);
     });
 
     test('set and get orchestration.maxDepth to 1', () => {
@@ -359,26 +389,26 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       expect(() => mgr.set('orchestration.maxDepth', 6 as never)).toThrow();
     });
 
-    test('orchestration.maxActiveAgents rejects 0 (below minimum)', () => {
+    test('fleet.maxSize rejects 0 (below minimum)', () => {
       const mgr = createConfigManager(tmpDir);
-      expect(() => mgr.set('orchestration.maxActiveAgents', 0 as never)).toThrow();
+      expect(() => setFleetMaxSize(mgr, 0 as never)).toThrow();
     });
 
-    test('orchestration.maxActiveAgents rejects 21 (above maximum)', () => {
+    test('fleet.maxSize rejects 21 (above maximum)', () => {
       const mgr = createConfigManager(tmpDir);
-      expect(() => mgr.set('orchestration.maxActiveAgents', 21 as never)).toThrow();
+      expect(() => setFleetMaxSize(mgr, 21 as never)).toThrow();
     });
 
-    test('orchestration.maxActiveAgents accepts boundary value 1', () => {
+    test('fleet.maxSize accepts boundary value 1', () => {
       const mgr = createConfigManager(tmpDir);
-      mgr.set('orchestration.maxActiveAgents', 1);
-      expect(mgr.get('orchestration.maxActiveAgents')).toBe(1);
+      setFleetMaxSize(mgr, 1);
+      expect(getFleetMaxSize(mgr)).toBe(1);
     });
 
-    test('orchestration.maxActiveAgents accepts boundary value 20', () => {
+    test('fleet.maxSize accepts boundary value 20', () => {
       const mgr = createConfigManager(tmpDir);
-      mgr.set('orchestration.maxActiveAgents', 20);
-      expect(mgr.get('orchestration.maxActiveAgents')).toBe(20);
+      setFleetMaxSize(mgr, 20);
+      expect(getFleetMaxSize(mgr)).toBe(20);
     });
   });
 
@@ -415,7 +445,7 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
       const mgr = createConfigManager(tmpDir);
       const all = mgr.getAll();
       expect(typeof all.orchestration.recursionEnabled).toBe('boolean');
-      expect(typeof all.orchestration.maxActiveAgents).toBe('number');
+      expect(typeof fleetMaxSizeOf(all)).toBe('number');
       expect(typeof all.orchestration.maxDepth).toBe('number');
       expect(typeof all.danger.httpListener).toBe('boolean');
       expect(typeof all.daemon.enabled).toBe('boolean');
@@ -434,14 +464,14 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
     test('getAll snapshot does not reflect subsequent mutations (deep clone)', () => {
       const mgr = createConfigManager(tmpDir);
-      const valueBefore = mgr.get('orchestration.maxActiveAgents');
+      const valueBefore = getFleetMaxSize(mgr);
       const snapshot = mgr.getAll();
       // Set to a value that differs from whatever was loaded (pick 1 if current is > 1, else pick 2)
       const newValue = valueBefore !== 1 ? 1 : 2;
-      mgr.set('orchestration.maxActiveAgents', newValue);
+      setFleetMaxSize(mgr, newValue);
       // Snapshot must not reflect the mutation
-      expect(snapshot.orchestration.maxActiveAgents).toBe(valueBefore);
-      expect(mgr.get('orchestration.maxActiveAgents')).toBe(newValue);
+      expect(fleetMaxSizeOf(snapshot)).toBe(valueBefore);
+      expect(getFleetMaxSize(mgr)).toBe(newValue);
     });
   });
 
@@ -453,12 +483,11 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
     test('DEFAULT_CONFIG.orchestration and danger have all required keys', () => {
       expect(DEFAULT_CONFIG.orchestration).toEqual(expect.objectContaining({
         recursionEnabled: expect.any(Boolean),
-        maxActiveAgents: expect.any(Number),
         maxDepth: expect.any(Number),
       }));
       expect(typeof DEFAULT_CONFIG.orchestration.recursionEnabled).toBe('boolean');
-      expect(typeof DEFAULT_CONFIG.orchestration.maxActiveAgents).toBe('number');
       expect(typeof DEFAULT_CONFIG.orchestration.maxDepth).toBe('number');
+      expect(typeof fleetMaxSizeOf(DEFAULT_CONFIG)).toBe('number');
       // `danger.daemon` was removed from the schema (see tests above).
       expect(DEFAULT_CONFIG.danger).toEqual(expect.objectContaining({
         httpListener: expect.any(Boolean),

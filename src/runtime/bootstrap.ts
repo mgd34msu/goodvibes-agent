@@ -44,7 +44,6 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
-import { createMemoryConsolidationScheduler } from './memory-consolidation-wiring.ts';
 import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
@@ -216,20 +215,18 @@ export async function bootstrapRuntime(
   // was just never captured. Mirrors activePromptTurnId's lifecycle exactly: set on
   // TURN_SUBMITTED, cleared on every terminal event for that turn.
   let activePromptTurnText: string | null = null;
-  // Idle-time memory consolidation: reviews stored memory when the agent is
-  // genuinely idle (no active turn) and no sooner than the configured interval,
-  // off by default. Every run leaves a receipt of what it merged/archived/proposed.
+  // Idle-time memory consolidation now runs on services.memoryConsolidationScheduler
+  // (constructed in runtime/services.ts, the way the SDK's own RuntimeServices
+  // composition constructs its daemon-side scheduler: a standing 5-minute tick,
+  // not turn-settled events — see that file's construction comment for the SDK
+  // export gap this local port stands in for). This repo's old turn-settled-driven
+  // local wiring is retired.
   // Usage-outcome instrumentation: records which memories were injected and, at
   // turn completion, whether the model output plausibly referenced them (honest
-  // heuristic overlap). Feeds consolidation's never-referenced-first decay.
+  // heuristic overlap). No longer feeds consolidation's decay ranking (the SDK's
+  // own composition root does not wire a usageLookup into its scheduler either —
+  // matched here for parity); still tracked for its own reporting.
   const memoryUsageTracker = createMemoryUsageTracker(services.shellPaths, services.memoryRegistry);
-  const memoryConsolidationScheduler = createMemoryConsolidationScheduler({
-    configManager,
-    memoryRegistry: services.memoryRegistry,
-    shellPaths: services.shellPaths,
-    isIdle: () => activePromptTurnId === null,
-    usageLookup: (id) => memoryUsageTracker.lookup(id),
-  });
   runtimeUnsubs.push(
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
       activePromptTurnId = event.payload.turnId;
@@ -275,7 +272,6 @@ export async function bootstrapRuntime(
         activePromptTurnText = null;
       }
       memoryUsageTracker.onTurnCompleted(event.payload.turnId, event.payload.response);
-      memoryConsolidationScheduler.onTurnSettled();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -290,7 +286,6 @@ export async function bootstrapRuntime(
         activePromptTurnText = null;
       }
       memoryUsageTracker.onTurnAborted(event.payload.turnId);
-      memoryConsolidationScheduler.onTurnSettled();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_CANCEL' }>>('TURN_CANCEL', (event) => {
       promptContextReceipts.recordTurnOutcome({
@@ -305,7 +300,6 @@ export async function bootstrapRuntime(
         activePromptTurnText = null;
       }
       memoryUsageTracker.onTurnAborted(event.payload.turnId);
-      memoryConsolidationScheduler.onTurnSettled();
     }),
   );
   const {
@@ -362,6 +356,13 @@ export async function bootstrapRuntime(
     },
   });
   conversationFollowUpRef.value = (item) => orchestrator.enqueueConversationFollowUp(item);
+  // Bind this repo's live interactive Orchestrator into the SDK's live-turn
+  // controls holder (SDK round: sessions.toolCalls.cancel, sessions.
+  // queuedMessages.list/edit/delete). The Orchestrator's public cancelToolCall/
+  // listQueuedMessages/editQueuedMessage/deleteQueuedMessage methods already
+  // structurally satisfy SessionLiveTurnControls — no adapter needed. Until this
+  // bind call the gateway verbs refuse honestly (LIVE_TURN_CONTROLS_UNAVAILABLE).
+  services.sessionLiveTurnControls.bind(orchestrator);
   // Wire orchestratorHandleUserInputRef so COMPANION_MESSAGE_RECEIVED fires a real LLM turn.
   orchestratorHandleUserInputRef.value = (text: string, options?: OrchestratorUserInputOptions) => {
     orchestrator.handleUserInput(text, undefined, options).catch((err: unknown) => {

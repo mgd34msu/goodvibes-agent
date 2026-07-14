@@ -1,67 +1,151 @@
-import type { MemoryConsolidationRunReceipt, MemoryConsolidationTrigger } from '@pellux/goodvibes-sdk/platform/state';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import {
+  resolveMemoryConsolidationConfig,
+  runMemoryConsolidation,
+  type MemoryConsolidationConfigSource,
+  type MemoryConsolidationRegistry,
+  type MemoryConsolidationRunReceipt,
+  type MemoryConsolidationUsageLookup,
+} from '@pellux/goodvibes-sdk/platform/state';
 
 /**
- * Decides WHEN idle-time consolidation runs, keeping the real-state idleness
- * check and the schedule cadence out of bootstrap wiring.
+ * Local port of the SDK's daemon-side memory-consolidation scheduler
+ * (packages/sdk/src/platform/state/memory-consolidation-scheduler.ts).
  *
- * Idleness is defined from real runtime state: `isIdle()` returns true only when
- * there is no active turn in flight (bootstrap wires it to
- * `activePromptTurnId === null`). The scheduler is poked on every turn-settled
- * event; a run fires only when the job is enabled, the agent is idle, no run is
- * already in flight, and at least `minIntervalMs` has elapsed since the last run.
- * The same `maybeRun` path also serves an explicit trigger.
+ * SDK round note (see the SDK's own commit "memory: consolidation actually
+ * runs — daemon-driven idle + slow schedule"): idle-time consolidation is now
+ * meant to be driven by a single `MemoryConsolidationScheduler` class the SDK
+ * ships in packages/sdk/src/platform/state/memory-consolidation-scheduler.ts
+ * (built into dist/platform/state/memory-consolidation-scheduler.js) — but as
+ * of SDK commit a5c63e3b that class is NOT re-exported from the public
+ * `platform/state` barrel (packages/sdk/src/platform/state/index.ts only
+ * re-exports resolveMemoryConsolidationConfig and runMemoryConsolidation, the
+ * two primitives), so no external consumer can import the class itself. This
+ * is a verified SDK packaging gap, not a design choice on this side.
+ *
+ * This file is a faithful, deliberately narrow port of that class built ONLY
+ * from the two primitives the barrel does export — same dual trigger (idle at
+ * intervalMs cadence once minIdleMs of continuous idleness has accrued, and a
+ * `schedule` fallback once per SCHEDULE_FACTOR x intervalMs so a never-idle
+ * host still consolidates), same bounded receipt ring, same tick() shape (so
+ * the sleep-edge wake catch-up in runtime/services.ts can drive it exactly
+ * like the SDK composition root drives its own instance). Delete this file
+ * and import the real class the moment the SDK re-exports it — see
+ * memory-consolidation-scheduler.test.ts for the behavior this pins.
  */
-export interface MemoryConsolidationSchedulerDeps {
-  /** Master switch — reads the resolved config's `enabled` (default false). */
-  readonly isEnabled: () => boolean;
-  /** Real-state idleness: true only when no turn is in flight. */
+
+const SCHEDULE_FACTOR = 4;
+const RECEIPT_RING_SIZE = 20;
+
+export interface MemoryConsolidationSchedulerOptions {
+  readonly memoryRegistry: MemoryConsolidationRegistry;
+  /** Live config source (ConfigManager.getRaw shape); re-read every tick. */
+  readonly configSource: MemoryConsolidationConfigSource;
+  /** True when the runtime is idle right now (e.g. no busy broker sessions). */
   readonly isIdle: () => boolean;
-  /** Minimum ms between runs (the schedule cadence). */
-  readonly minIntervalMs: () => number;
-  /** Monotonic-enough clock, injected for tests. */
-  readonly now: () => number;
-  /** Performs the work + persists the receipt; returns it, or null when it did nothing. */
-  readonly run: (trigger: MemoryConsolidationTrigger) => MemoryConsolidationRunReceipt | null;
-}
-
-export type MemoryConsolidationSkipReason =
-  | 'disabled'
-  | 'busy'
-  | 'not-idle'
-  | 'interval-not-elapsed';
-
-export interface MemoryConsolidationSchedulerOutcome {
-  readonly ran: boolean;
-  readonly skipped?: MemoryConsolidationSkipReason;
-  readonly receipt?: MemoryConsolidationRunReceipt;
+  readonly usageLookup?: MemoryConsolidationUsageLookup | undefined;
+  readonly now?: (() => number) | undefined;
+  readonly setTimer?: ((fn: () => void, ms: number) => ReturnType<typeof setTimeout>) | undefined;
+  readonly clearTimer?: ((timer: ReturnType<typeof setTimeout>) => void) | undefined;
+  /** Wake cadence for the due-ness check (5 minutes by default). */
+  readonly checkIntervalMs?: number | undefined;
+  /** Optional receipt sink invoked after every run (in addition to the ring). */
+  readonly onReceipt?: ((receipt: MemoryConsolidationRunReceipt) => void) | undefined;
 }
 
 export class MemoryConsolidationScheduler {
+  private timer: ReturnType<typeof setTimeout> | null = null;
+  private stopped = false;
   private lastRunAt = 0;
-  private running = false;
+  private startedAt: number | null = null;
+  private idleSince: number | null = null;
+  private readonly receipts: MemoryConsolidationRunReceipt[] = [];
 
-  public constructor(private readonly deps: MemoryConsolidationSchedulerDeps) {}
+  public constructor(private readonly options: MemoryConsolidationSchedulerOptions) {}
 
-  /** Poke from a turn-settled event — the natural moment the agent becomes idle. */
-  public onTurnSettled(): MemoryConsolidationSchedulerOutcome {
-    return this.maybeRun('idle');
+  private get checkIntervalMs(): number {
+    return this.options.checkIntervalMs ?? 5 * 60 * 1000;
   }
 
-  public maybeRun(trigger: MemoryConsolidationTrigger): MemoryConsolidationSchedulerOutcome {
-    if (!this.deps.isEnabled()) return { ran: false, skipped: 'disabled' };
-    if (this.running) return { ran: false, skipped: 'busy' };
-    if (!this.deps.isIdle()) return { ran: false, skipped: 'not-idle' };
-    const now = this.deps.now();
-    if (this.lastRunAt !== 0 && now - this.lastRunAt < this.deps.minIntervalMs()) {
-      return { ran: false, skipped: 'interval-not-elapsed' };
+  public start(): void {
+    this.stopped = false;
+    this.scheduleNext();
+  }
+
+  public stop(): void {
+    this.stopped = true;
+    if (this.timer) {
+      (this.options.clearTimer ?? clearTimeout)(this.timer);
+      this.timer = null;
     }
-    this.running = true;
+  }
+
+  /** The retained receipts, newest last (bounded ring). */
+  public listReceipts(): readonly MemoryConsolidationRunReceipt[] {
+    return this.receipts;
+  }
+
+  private scheduleNext(): void {
+    if (this.stopped) return;
+    const setTimer = this.options.setTimer ?? setTimeout;
+    this.timer = setTimer(() => {
+      this.tick();
+    }, this.checkIntervalMs);
+    (this.timer as { unref?: () => void }).unref?.();
+  }
+
+  /**
+   * One wake: track continuous idleness, then run when due — the idle
+   * trigger at intervalMs cadence, or the slow schedule fallback when the
+   * runtime has not offered an idle window for SCHEDULE_FACTOR x intervalMs.
+   * Also the sleep-edge wake catch-up hook's entry point.
+   */
+  public tick(): void {
+    if (this.stopped) return;
     try {
-      const receipt = this.deps.run(trigger);
+      const now = (this.options.now ?? Date.now)();
+      if (this.startedAt === null) this.startedAt = now;
+      const config = resolveMemoryConsolidationConfig(this.options.configSource);
+      if (!config.enabled) return;
+
+      const idleNow = this.options.isIdle();
+      if (idleNow && this.idleSince === null) this.idleSince = now;
+      if (!idleNow) this.idleSince = null;
+      const idleLongEnough = idleNow && this.idleSince !== null && now - this.idleSince >= config.minIdleMs;
+
+      const dueForIdleRun = idleLongEnough && now - this.lastRunAt >= config.intervalMs;
+      const dueForScheduleRun = now - Math.max(this.lastRunAt, this.startedAt) >= config.intervalMs * SCHEDULE_FACTOR;
+      if (!dueForIdleRun && !dueForScheduleRun) return;
+
+      const receipt = runMemoryConsolidation({
+        memoryRegistry: this.options.memoryRegistry,
+        config,
+        now,
+        trigger: dueForIdleRun ? 'idle' : 'schedule',
+        idle: idleNow,
+        ...(this.options.usageLookup ? { usageLookup: this.options.usageLookup } : {}),
+      });
       this.lastRunAt = now;
-      return receipt ? { ran: true, receipt } : { ran: true };
+      this.receipts.push(receipt);
+      if (this.receipts.length > RECEIPT_RING_SIZE) this.receipts.splice(0, this.receipts.length - RECEIPT_RING_SIZE);
+      logger.info('[memory] consolidation ran', {
+        runId: receipt.runId,
+        trigger: receipt.trigger,
+        scanned: receipt.scanned,
+        merged: receipt.merged.length,
+        decayed: receipt.decayed.length,
+        archived: receipt.archived.length,
+        proposed: receipt.proposed.length,
+      });
+      try {
+        this.options.onReceipt?.(receipt);
+      } catch (error) {
+        logger.warn('[memory] consolidation receipt sink failed', { error: summarizeError(error) });
+      }
+    } catch (error) {
+      logger.warn('[memory] consolidation run failed', { error: summarizeError(error) });
     } finally {
-      this.running = false;
+      this.scheduleNext();
     }
   }
 }

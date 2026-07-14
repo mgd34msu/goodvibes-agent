@@ -61,7 +61,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   tools: 'Tool LLM and helper model routing. Empty provider/model values inherit the active chat route unless a specific helper/tool route is set.',
   flags: 'Every optional capability grouped by its settings domain: each feature is switched through a first-class domain settings key (shown per row), with its full description and related settings under the cursor.',
   atRest: 'Data-at-rest protection: whether stored content is redacted, and retention limits by age and total size.',
-  learning: 'Idle-time memory consolidation: dedupe merges, confidence decay of never-referenced records, and review proposals. Off by default.',
+  learning: 'Idle-time memory consolidation: dedupe merges, confidence decay of never-referenced records, and review proposals. On by default; runs on this repo\'s own local scheduler, a port of the SDK\'s daemon-side driver (see runtime/memory-consolidation-scheduler.ts).',
   agents: 'Agent runtime tuning: the context-window fraction that triggers sub-agent conversation compaction, and the token budget, relevance floor, and code-chunk limit for per-turn passive knowledge/code injection.',
   notifications: 'Adaptive notification-burst suppression: the observation window, trip threshold, and cooldown that collapse a rapid run of same-domain notifications to panel-only. Critical/milestone/alert notifications are always exempt.',
   policy: 'Policy-as-code bundle loading: where the policy registry loads its initial bundle from at startup, and the file path when loading from disk. A loaded bundle is a candidate subject to the divergence gate before promotion.',

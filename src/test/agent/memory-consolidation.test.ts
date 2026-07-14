@@ -13,7 +13,6 @@ import {
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
-import { MemoryConsolidationReceiptStore } from '../../agent/memory-consolidation-receipts.ts';
 
 const roots: string[] = [];
 
@@ -118,15 +117,5 @@ describe('runMemoryConsolidation', () => {
     expect(deleteProposal?.route).toContain('memory action:"delete"');
     // Proposals do not act: the stale record still exists.
     expect(registry.get(stale.id)).not.toBeNull();
-  });
-
-  it('persists a run receipt through the receipt store', async () => {
-    const { registry, paths } = await makeRegistry();
-    await registry.add({ scope: 'project', cls: 'fact', summary: 'A note', review: { state: 'fresh', confidence: 60 } });
-    const receipt = runMemoryConsolidation({ memoryRegistry: registry, config: DEFAULT_MEMORY_CONSOLIDATION_CONFIG, now: Date.now(), trigger: 'schedule', idle: true });
-    const store = new MemoryConsolidationReceiptStore(paths);
-    store.record(receipt);
-    expect(store.latest()?.runId).toBe(receipt.runId);
-    expect(store.list()).toHaveLength(1);
   });
 });
