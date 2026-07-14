@@ -193,7 +193,10 @@ describe('Recursive orchestration policy — SpawnTokenManager.canSpawn', () => 
       maxActiveAgents: 2,
     }, 2); // already at limit
     expect(result.allowed).toBe(false);
-    expect(result.reason).toContain('maxActiveAgents');
+    // The refusal message names the real settings key, fleet.maxSize
+    // (renamed from orchestration.maxActiveAgents) — the OrchestrationPolicyConfig
+    // field passed above is an unrelated, unchanged internal field name.
+    expect(result.reason).toContain('fleet.maxSize');
   });
 
   test('canSpawn blocks when depth exceeds maxDepth', () => {

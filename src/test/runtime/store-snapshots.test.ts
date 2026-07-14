@@ -12,7 +12,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, mkdirSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
+import { StoreSnapshotScheduler, RetentionPolicy, SnapshotPruner } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const roots: string[] = [];
@@ -27,10 +27,28 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
 
+/**
+ * The scheduler's own `now` (injected below) drives WHEN a new daily copy is
+ * due, but StoreSnapshotScheduler's default retention (defaultStoreSnapshotRetention())
+ * builds a RetentionPolicy with no injected clock, so its age-based pruning
+ * reads the REAL Date.now() — a real-clock dependency that made the
+ * boundary-exact retention test below drift further wrong every day past
+ * this file's 2026-07-13 fixture date. Build the SAME default retention
+ * classes (14 daily / 512MB, 30 forensic / 1GB) with the SAME injected clock
+ * so every test in this file is fully time-decoupled from the real wall clock.
+ */
 function makeScheduler(dbPath: string, now: () => number): StoreSnapshotScheduler {
   return new StoreSnapshotScheduler({
     stores: [{ name: 'test store', dbPath }],
     now,
+    retention: new RetentionPolicy(
+      {
+        standard: { maxAgeMs: 14 * DAY_MS, maxCount: 14, maxSizeBytes: 512 * 1024 * 1024 },
+        forensic: { maxAgeMs: 30 * DAY_MS, maxCount: 30, maxSizeBytes: 1024 * 1024 * 1024 },
+      },
+      now,
+      new SnapshotPruner(),
+    ),
     // Timers are never armed in these tests: tick() is driven directly.
     setTimer: () => setTimeout(() => {}, 0),
   });

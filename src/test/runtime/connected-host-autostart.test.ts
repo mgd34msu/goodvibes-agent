@@ -460,9 +460,13 @@ function wireFixture(options: {
     runtimeBus: {} as RuntimeEventBus,
     hookDispatcher: {} as HookDispatcher,
     // The injected control + probe below keep the wiring off every real
-    // services field except the receipt feed (attached unconditionally at
-    // wire time), so a feed plus a bare object is an honest stand-in here.
-    services: { daemonReceiptFeed: new AgentDaemonReceiptFeed() } as RuntimeServices,
+    // services field except the two receipt feeds (both attached
+    // unconditionally at wire time), so a pair of feeds plus a bare object is
+    // an honest stand-in here.
+    services: {
+      daemonReceiptFeed: new AgentDaemonReceiptFeed(),
+      memoryConsolidationReceiptFeed: new AgentDaemonReceiptFeed(),
+    } as RuntimeServices,
     uiServices,
     deferredStartup: immediateCoordinator(),
     systemMessageRouter: router,
