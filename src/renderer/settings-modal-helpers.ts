@@ -85,6 +85,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   diagnostics: 'Diagnostics',
   helper: 'Helper',
   tts: 'TTS',
+  voice: 'Local Voice',
   automation: 'Automation',
   checkin: 'Check-in',
   service: 'Service',
@@ -95,6 +96,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   network: 'Network',
   relay: 'Relay',
   orchestration: 'Orchestration',
+  fleet: 'Fleet',
   planner: 'Planner',
   daemon: 'Daemon',
   runtime: 'Runtime',
@@ -119,6 +121,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   integrations: 'Delivery Reliability',
   update: 'Daemon Updates',
   pricing: 'Model Pricing',
+  power: 'Sleep and Power',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {

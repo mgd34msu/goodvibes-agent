@@ -121,6 +121,15 @@ export function wireAgentExternalServices(options: {
     requestRender();
   });
 
+  // Idle-time memory-consolidation run receipts (services.ts's local
+  // scheduler): the SAME buffered-until-attach, exactly-once idiom as the
+  // connected-host receipts just above, on its own feed so a local
+  // consolidation run is never mislabeled "[Connected host]".
+  services.memoryConsolidationReceiptFeed.attach((receipt) => {
+    systemMessageRouter.high(`[Memory] ${receipt.text}`);
+    requestRender();
+  });
+
   const inspectAgentDependencies = () => {
     const daemonStatus = externalServices.daemonStatus;
     const httpListenerStatus = externalServices.httpListenerStatus;

@@ -63,7 +63,10 @@ export type SettingsCategory =
   | 'security'
   | 'integrations'
   | 'update'
-  | 'pricing';
+  | 'pricing'
+  | 'power'
+  | 'fleet'
+  | 'voice';
 
 export type SettingsFocusPane = 'categories' | 'settings';
 
@@ -71,12 +74,12 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   readonly label: string;
   readonly categories: readonly SettingsCategory[];
 }> = [
-  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics'] },
-  { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'pricing'] },
+  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power'] },
+  { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation', 'checkin', 'integrations'] },
   { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network', 'relay', 'update'] },
-  { label: 'Advanced Runtime', categories: ['orchestration', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc'] },
+  { label: 'Advanced Runtime', categories: ['orchestration', 'fleet', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];
 
