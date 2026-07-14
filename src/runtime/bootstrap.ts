@@ -216,11 +216,10 @@ export async function bootstrapRuntime(
   // TURN_SUBMITTED, cleared on every terminal event for that turn.
   let activePromptTurnText: string | null = null;
   // Idle-time memory consolidation now runs on services.memoryConsolidationScheduler
-  // (constructed in runtime/services.ts, the way the SDK's own RuntimeServices
-  // composition constructs its daemon-side scheduler: a standing 5-minute tick,
-  // not turn-settled events — see that file's construction comment for the SDK
-  // export gap this local port stands in for). This repo's old turn-settled-driven
-  // local wiring is retired.
+  // (the SDK's own daemon-side MemoryConsolidationScheduler, constructed in
+  // runtime/services.ts the way the SDK's own RuntimeServices composition
+  // constructs it: a standing 5-minute tick, not turn-settled events). This
+  // repo's old turn-settled-driven local wiring is retired.
   // Usage-outcome instrumentation: records which memories were injected and, at
   // turn completion, whether the model output plausibly referenced them (honest
   // heuristic overlap). No longer feeds consolidation's decay ranking (the SDK's

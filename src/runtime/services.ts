@@ -59,16 +59,11 @@ import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore, resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
 import { CodeIndexReindexScheduler } from '@pellux/goodvibes-sdk/platform/state';
-// Daemon-side idle+schedule memory consolidation driver (SDK round note: this
-// repo's former local scheduler — the old src/runtime/memory-consolidation-
-// scheduler.ts and memory-consolidation-wiring.ts, both retired — is
-// superseded by the SDK's own daemon-side scheduler. That class is not
-// re-exported from the SDK's public `platform/state` barrel as of commit
-// a5c63e3b (verified: only resolveMemoryConsolidationConfig and
-// runMemoryConsolidation are exported there), so this composition root uses
-// a faithful local port of it instead — see
-// ./memory-consolidation-scheduler.ts for the exact gap and behavior parity.
-import { MemoryConsolidationScheduler } from './memory-consolidation-scheduler.ts';
+// Daemon-side idle+schedule memory consolidation driver — the SAME class the
+// SDK's own RuntimeServices composition constructs (it superseded this repo's
+// retired turn-settled local wiring), consumed from the public platform/state
+// barrel (re-exported there since sdk a03bf218).
+import { MemoryConsolidationScheduler } from '@pellux/goodvibes-sdk/platform/state';
 import type { MemoryConsolidationRunReceipt } from '@pellux/goodvibes-sdk/platform/state';
 import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/control-plane';
 // Sleep ownership (SDK round: power/*): work inhibition, sleep-edge honesty,
@@ -1541,14 +1536,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     daemonReceiptFeed,
     consumeDaemonReceipts,
     memoryConsolidationReceiptFeed,
-    // Cast: this repo's local port (see ./memory-consolidation-scheduler.ts)
-    // is a line-for-line behavioral match for the SDK's own daemon-side
-    // MemoryConsolidationScheduler, but TS treats the two as distinct nominal
-    // types (private fields brand them) since the SDK class itself is not
-    // re-exported as a value from `platform/state` at commit a5c63e3b — only
-    // the RuntimeServices TYPE surface leaks its shape. Safe: identical public
-    // API, verified against the SDK source this ports.
-    memoryConsolidationScheduler: memoryConsolidationScheduler as unknown as RuntimeServices['memoryConsolidationScheduler'],
+    memoryConsolidationScheduler,
     powerManager,
     sessionLiveTurnControls,
     deliveryManager,

@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'bun:test';
-import { MemoryConsolidationScheduler } from '../../runtime/memory-consolidation-scheduler.ts';
+import { MemoryConsolidationScheduler } from '@pellux/goodvibes-sdk/platform/state';
 import type { MemoryConsolidationRunReceipt } from '@pellux/goodvibes-sdk/platform/state';
 
 /**
- * Behavior parity pin for the local port of the SDK's daemon-side
- * MemoryConsolidationScheduler (see runtime/memory-consolidation-scheduler.ts
- * for why this repo ports it instead of importing the class directly). These
- * tests exercise the SAME dual trigger (idle at intervalMs cadence once
- * minIdleMs of continuous idleness has accrued, and the schedule fallback at
- * SCHEDULE_FACTOR x intervalMs) the SDK's own test suite pins for the class
- * this ports, via the injectable clock/timer/idle seams — no real timers.
- * The scheduler calls the real runMemoryConsolidation engine on every tick
- * (not a stub), against an empty registry so every run is a real, harmless
- * no-op scan.
+ * Adoption proof for the SDK's daemon-side MemoryConsolidationScheduler,
+ * consumed from the public platform/state barrel (re-exported there since
+ * sdk a03bf218 — this file previously pinned a local port that existed only
+ * while the class had no public export path). Exercises the dual trigger this
+ * repo's composition (runtime/services.ts) relies on — idle at intervalMs
+ * cadence once minIdleMs of continuous idleness has accrued, and the schedule
+ * fallback at SCHEDULE_FACTOR x intervalMs — via the injectable
+ * clock/timer/idle seams, no real timers. The scheduler calls the real
+ * runMemoryConsolidation engine on every tick (not a stub), against an empty
+ * registry so every run is a real, harmless no-op scan.
  */
 
 const emptyRegistry = { getAll: () => [], review: () => null, update: () => null };
@@ -63,7 +63,7 @@ function makeHarness(overrides: Partial<Pick<Harness, 'enabled' | 'idle' | 'inte
   return h;
 }
 
-describe('MemoryConsolidationScheduler (local port)', () => {
+describe('MemoryConsolidationScheduler (SDK public export, agent adoption contract)', () => {
   it('does nothing when disabled', () => {
     const h = makeHarness({ enabled: false });
     h.scheduler.tick();

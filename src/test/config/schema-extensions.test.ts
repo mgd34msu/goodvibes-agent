@@ -24,7 +24,7 @@ function createConfigManager(workingDir: string): ConfigManager {
   });
 }
 
-// Verified SDK gap (commit a5c63e3b): fleet.maxSize (schema-domain-fleet.ts,
+// Verified SDK gap (found at a5c63e3b, still present at a03bf218): fleet.maxSize (schema-domain-fleet.ts,
 // the orchestration.maxActiveAgents rename) is registered in CONFIG_SCHEMA and
 // DEFAULT_CONFIG at runtime with real values and real range validation, but
 // its GoodVibesConfig type augmentation never reached the published
