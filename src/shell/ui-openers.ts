@@ -15,7 +15,6 @@ import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { buildLocalFitRecommendations, buildSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';
 import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY } from '../renderer/theme-mode-config.ts';
-import type { PowerManager } from '@pellux/goodvibes-sdk/platform/power';
 
 type WireShellUiOpenersOptions = {
   commandContext: CommandContext;
@@ -29,8 +28,6 @@ type WireShellUiOpenersOptions = {
   subscriptionManager: SubscriptionManager;
   secretsManager?: Pick<SecretsManager, 'delete' | 'get' | 'set'>;
   serviceRegistry: Pick<ServiceInspectionQuery, 'getAll'>;
-  /** Live-applies power.keepAwake when the settings modal changes it (see PowerManager). */
-  powerManager?: Pick<PowerManager, 'setKeepAwake'>;
   workingDirectory: string;
   homeDirectory: string;
   getConfiguredProviderIds: () => string[];
@@ -95,7 +92,6 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     subscriptionManager,
     secretsManager,
     serviceRegistry,
-    powerManager,
     workingDirectory,
     homeDirectory,
     getConfiguredProviderIds,
@@ -442,13 +438,14 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
         if (String(change.key) === THEME_MODE_CONFIG_KEY) {
           return applyThemeModeSettingChange(change.value, () => commandContext.clearScreen?.());
         }
-        // The owner keep-awake toggle: config alone is not enough — the live
-        // PowerManager must actually acquire/release the OS inhibitor.
-        // setDynamic already persisted the value above (the settings modal's
-        // default apply path), so this call is `persist: false`.
-        if (String(change.key) === 'power.keepAwake' && typeof change.value === 'boolean') {
-          void powerManager?.setKeepAwake(change.value, { persist: false });
-        }
+        // The owner keep-awake toggle no longer needs a bespoke live-apply
+        // here: services.ts wires wireRuntimePower's subscribeConfig option
+        // (the SDK's own PowerManager config subscription), so setDynamic's
+        // persist above already flips the real local inhibitor, and a
+        // separate configManager.subscribe('power.keepAwake', ...) in
+        // services.ts forwards the toggle to an adopted daemon over the wire
+        // when one is reachable — both fire from the config change itself,
+        // not from this settings-modal callback.
         return syncServiceSettingToPlatform(
           { configManager, workingDirectory, homeDirectory },
           change,

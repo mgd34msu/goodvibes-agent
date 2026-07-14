@@ -70,6 +70,7 @@ import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/co
 // the keep-awake toggle. Constructed exactly as the SDK composition root does
 // (wireRuntimePower binds runtimeBus work signals and starts the manager).
 import { wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
+import { forwardKeepAwakeToAdoptedDaemon } from '../agent/power-keep-awake-remote.ts';
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
 import { buildExecPromptAnswerHandler } from '@pellux/goodvibes-sdk/platform/runtime/permissions/exec-prompt-wiring';
@@ -1400,12 +1401,45 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const powerManager = wireRuntimePower({
     readConfig: (key) => configManager.get(key as never),
     writeConfig: (key, value) => configManager.setDynamic(key as never, value),
+    // Live-apply straight from the SDK's own PowerManager (SDK round: the
+    // config live-apply is SDK-side now — see manager.ts's
+    // unsubscribeKeepAwakeConfig). A power.keepAwake change from ANY origin
+    // (settings modal, CLI flag, or an external settings.json edit reaching
+    // configManager via watchConfigFiles()) flips this process's real
+    // inhibitor with no bespoke onSettingApplied special case needed —
+    // ui-openers.ts's former manual `powerManager.setKeepAwake(...)` call is
+    // retired in favor of this.
+    subscribeConfig: (key, cb) => configManager.subscribe(key as never, (newValue) => cb(newValue)),
     runtimeBus: options.runtimeBus,
     sleepCheckpoint: () => storeSnapshotScheduler.tick(),
     wakeCatchUp: [
       () => memoryConsolidationScheduler.tick(),
       () => storeSnapshotScheduler.tick(),
     ],
+  });
+  // DAEMON-held reach: this process's own PowerManager above holds a LOCAL
+  // inhibitor that releases the moment this agent exits — the opposite of
+  // "survives surfaces closing". power.keepAwake is a surface-local config
+  // key (see shared-config-tier.ts — only tts.* rides the shared tier), so a
+  // local config write never reaches an externally-adopted daemon's own
+  // config file; the only way to reach a durable, out-of-process hold is to
+  // forward the toggle explicitly over the wire whenever a daemon is
+  // reachable right now (the same adoption signal the memory/session spine
+  // already use). Best-effort and silent on failure beyond a warn log — a
+  // down or incompatible daemon must never break the local settings-modal
+  // apply this rides alongside.
+  configManager.subscribe('power.keepAwake', (newValue, oldValue) => {
+    if (newValue === oldValue) return;
+    void forwardKeepAwakeToAdoptedDaemon(newValue, {
+      probeReachability: () => sessionSpineClient.probeReachability(),
+      resolveConnection: spineResolveConnection,
+    }).then((outcome) => {
+      if (outcome.attempted && !outcome.result.ok) {
+        logger.warn('[power] keep-awake daemon forward failed', { error: outcome.result.error, kind: outcome.result.kind });
+      }
+    }).catch((error) => {
+      logger.warn('[power] keep-awake daemon forward failed', { error: summarizeError(error) });
+    });
   });
 
   // Attach handlers for every ws-only gateway verb group (fleet.* including

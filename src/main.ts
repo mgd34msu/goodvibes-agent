@@ -687,7 +687,7 @@ async function main() {
     mcpRegistry: ctx.services.mcpRegistry,
     subscriptionManager,
     secretsManager,
-    serviceRegistry: ctx.services.serviceRegistry, powerManager: ctx.services.powerManager,
+    serviceRegistry: ctx.services.serviceRegistry,
     workingDirectory: workingDir,
     homeDirectory,
     getConfiguredProviderIds: ctx._getConfiguredProviderIds,
