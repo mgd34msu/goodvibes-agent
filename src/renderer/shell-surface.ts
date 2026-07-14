@@ -29,6 +29,15 @@ export interface ShellFooterBuildOptions {
   readonly composerStatus?: string;
   readonly composerFlags?: readonly string[];
   readonly composerPendingRisk?: 'none' | 'approval-wait' | 'shell' | 'command' | 'remote';
+  /**
+   * The single-slot power status note (see power-status.ts's
+   * describePowerStatus) — "sleep disabled" while the owner keep-awake
+   * toggle holds, or "held: <reasons>" while the automatic work inhibitor
+   * holds. Shares the status line's rightNotice slot with dangerMode/copied,
+   * lowest priority of the three (an always-visible chip that yields to the
+   * transient copy confirmation and the safety-critical auto-approve badge).
+   */
+  readonly powerNote?: string;
 }
 
 export interface ShellFooterBuildResult {
@@ -73,6 +82,7 @@ export function buildShellFooter(
     options.composerStatus,
     options.composerFlags,
     options.composerPendingRisk,
+    options.powerNote,
   );
   const processIndicator = renderProcessIndicator(
     options.width,

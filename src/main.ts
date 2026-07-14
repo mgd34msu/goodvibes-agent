@@ -47,6 +47,7 @@ import { getTerminalSize } from './shell/terminal-size.ts';
 import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
 import { wireShellUiOpeners } from './shell/ui-openers.ts';
 import { deriveComposerState } from './core/composer-state.ts';
+import { describePowerStatus } from './renderer/power-status.ts';
 import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
 import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
@@ -546,12 +547,11 @@ async function main() {
       provider: runtime.provider,
       contextWindow: currentModel.contextWindow,
       compactThreshold: configManager.get('behavior.autoCompactThreshold') as number,
-      // Single source of truth for "will this bypass the approval prompt?" —
-      // computed the same way cli/status.ts and the policy-explain tool
-      // compute it, so the footer can never disagree with them or with the
-      // permission gate itself (behavior.autoApprove first, then
-      // permissions.mode).
+      // Single source of truth for "will this bypass the approval prompt?" — computed
+      // the same way cli/status.ts and the policy-explain tool compute it (behavior.autoApprove
+      // first, then permissions.mode), so the footer can never disagree with them.
       dangerMode: readApprovalPostureFromConfig(configManager).bypassesPrompts,
+      powerNote: describePowerStatus(ctx.services.powerManager.getState()) ?? undefined, // see power-status.ts
       lastInputTokens: orchestrator.lastInputTokens,
       commandArgsHint,
       hitlMode: modeManager.getHITLMode(),
@@ -687,7 +687,7 @@ async function main() {
     mcpRegistry: ctx.services.mcpRegistry,
     subscriptionManager,
     secretsManager,
-    serviceRegistry: ctx.services.serviceRegistry,
+    serviceRegistry: ctx.services.serviceRegistry, powerManager: ctx.services.powerManager,
     workingDirectory: workingDir,
     homeDirectory,
     getConfiguredProviderIds: ctx._getConfiguredProviderIds,

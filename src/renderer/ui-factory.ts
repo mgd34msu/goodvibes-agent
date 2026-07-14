@@ -144,6 +144,7 @@ export class UIFactory {
     composerStatus?: string,
     composerFlags?: readonly string[],
     composerPendingRisk?: 'none' | 'approval-wait' | 'shell' | 'command' | 'remote',
+    powerNote?: string,
   ): Line[] {
     const lines: Line[] = [];
     const promptLines = prompt.split('\n');
@@ -269,7 +270,9 @@ export class UIFactory {
       ? { text: `copied ${GLYPHS.status.success} `, fg: '81', bold: true }
       : dangerMode
         ? { text: '⚠ auto-approve is on ', fg: '#ef4444', bold: true }
-        : null;
+        : powerNote
+          ? { text: `⚡ ${powerNote} `, fg: '#f59e0b', bold: false }
+          : null;
     const statusLine = createBaseLine();
     let sx = 3;
     const writeStatusText = (text: string, fg: string, bold = false) => {
