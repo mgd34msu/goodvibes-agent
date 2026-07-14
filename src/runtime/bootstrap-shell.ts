@@ -245,6 +245,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     directTransport,
     worktreeRegistry: services.worktreeRegistry,
     sandboxSessionRegistry: services.sandboxSessionRegistry,
+    memoryConsolidationScheduler: services.memoryConsolidationScheduler,
     loadSystemPrompt: () => loadBootstrapSystemPrompt(configManager),
     activatePlan: (_planId, task) => {
       setTimeout(() => {

@@ -1,5 +1,6 @@
 import type { CommandContext } from '../command-registry.ts';
 import { formatAgentRecordReviewState } from '../../agent/record-labels.ts';
+import { formatConsolidationProposalForReview } from '../../agent/memory-consolidation-proposals.ts';
 import { VALID_REVIEW_STATES, VALID_SCOPES, isValidReviewState, isValidScope } from './recall-shared.ts';
 import { getMemoryApi } from './recall-query.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
@@ -11,14 +12,29 @@ export function handleRecallQueue(args: string[], context: CommandContext): void
   }
   const limit = Math.max(1, parseInt(args[0] ?? '10', 10) || 10);
   const queue = memory.reviewQueue(limit);
-  if (!queue.length) {
+  const proposals = context.clients?.memoryConsolidation?.listPendingProposals() ?? [];
+  if (!queue.length && !proposals.length) {
     context.print('[memory] Review queue is empty.');
     return;
   }
-  context.print(`[memory] Review queue (${queue.length}):`);
-  for (const record of queue) {
-    const reason = record.staleReason ? ` — ${record.staleReason}` : '';
-    context.print(`  ${record.id} [${record.scope}/${record.cls}] ${formatAgentRecordReviewState(record.reviewState)} ${record.confidence}%  ${record.summary}${reason}`);
+  if (queue.length) {
+    context.print(`[memory] Review queue (${queue.length}):`);
+    for (const record of queue) {
+      const reason = record.staleReason ? ` — ${record.staleReason}` : '';
+      context.print(`  ${record.id} [${record.scope}/${record.cls}] ${formatAgentRecordReviewState(record.reviewState)} ${record.confidence}%  ${record.summary}${reason}`);
+    }
+  } else {
+    context.print('[memory] Review queue is empty.');
+  }
+  // Consolidation judgment proposals (contradictions, cross-scope
+  // duplicates, stale-delete candidates) — the referenced records are already
+  // in the queue above; this is WHY they were flagged, and how to act on
+  // them through the same /memory review command.
+  if (proposals.length) {
+    context.print(`[memory] Pending consolidation proposals (${proposals.length}):`);
+    for (const proposal of proposals) {
+      context.print(formatConsolidationProposalForReview(proposal));
+    }
   }
 }
 

@@ -18,6 +18,7 @@ import type { OperatorClient } from '@/runtime/index.ts';
 import type { PeerClient } from '@/runtime/index.ts';
 import type { DirectTransport } from '@/runtime/index.ts';
 import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
+import type { MemoryConsolidationProposal } from '@pellux/goodvibes-sdk/platform/state';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
@@ -199,6 +200,11 @@ export interface CommandExtensionServices
   readonly agentKnowledgeService?: import('@pellux/goodvibes-sdk/platform/knowledge').KnowledgeService;
 }
 
+/** Read-only handle onto pending memory-consolidation judgment proposals (see agent/memory-consolidation-proposals.ts). */
+export interface ConsolidationProposalsClient {
+  listPendingProposals(): readonly MemoryConsolidationProposal[];
+}
+
 /**
  * CommandContext - Passed to every slash command handler so commands can
  * interact with the shell-facing platform surface without treating every
@@ -223,6 +229,15 @@ export interface CommandContext
     readonly mcpApi?: McpApi;
     readonly opsApi?: OpsApi;
     readonly transport?: DirectTransport;
+    /**
+     * Read-only access to pending memory-consolidation judgment proposals
+     * (contradictions, cross-scope duplicates, stale-delete candidates) —
+     * adopts the SDK's memory.consolidation.receipts verb shape locally
+     * (see agent/memory-consolidation-proposals.ts), since this runtime owns
+     * the consolidation scheduler directly rather than reaching it over the
+     * wire.
+     */
+    readonly memoryConsolidation?: ConsolidationProposalsClient;
   };
 }
 

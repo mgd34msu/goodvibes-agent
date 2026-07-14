@@ -10,6 +10,7 @@ import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
+import type { ConsolidationReceiptSource } from '../agent/memory-consolidation-proposals.ts';
 import type { KeybindingsManager } from '../input/keybindings.ts';
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
@@ -117,6 +118,7 @@ export type CreateBootstrapCommandContextOptions = {
   directTransport?: DirectTransport;
   worktreeRegistry: WorktreeRegistry;
   sandboxSessionRegistry: SandboxSessionRegistry;
+  memoryConsolidationScheduler?: ConsolidationReceiptSource;
   loadSystemPrompt: () => string;
   activatePlan: (planId: string, task: string) => void;
   completeModelSelectionSideEffect?: () => void;
@@ -196,6 +198,7 @@ export function createBootstrapCommandContext(
     activatePlan,
     completeModelSelectionSideEffect,
     componentHealthMonitor,
+    memoryConsolidationScheduler,
   } = options;
 
   const shellServices = createBootstrapCommandShellServices({
@@ -266,6 +269,7 @@ export function createBootstrapCommandContext(
     mcpApi,
     opsApi,
     directTransport,
+    memoryConsolidationScheduler,
   });
   const actions = createBootstrapCommandActions({
     providerRegistry,

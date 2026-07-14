@@ -46,6 +46,8 @@ import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import type { AgentExecutionLedger } from './execution-ledger.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import type { ConsolidationReceiptSource } from '../agent/memory-consolidation-proposals.ts';
+import { listPendingConsolidationProposals } from '../agent/memory-consolidation-proposals.ts';
 
 export type BootstrapCommandSessionSection = CommandContext['session'];
 export type BootstrapCommandProviderSection = CommandContext['provider'];
@@ -132,6 +134,12 @@ export interface BootstrapCommandSectionOptions {
   readonly directTransport?: DirectTransport;
   readonly worktreeRegistry: WorktreeRegistry;
   readonly sandboxSessionRegistry: SandboxSessionRegistry;
+  /**
+   * The runtime's own memory-consolidation scheduler, exposed to the memory
+   * review surface (input/commands/recall-review.ts) as
+   * clients.memoryConsolidation — see agent/memory-consolidation-proposals.ts.
+   */
+  readonly memoryConsolidationScheduler?: ConsolidationReceiptSource;
 }
 
 function unwiredShellAction(name: string): never {
@@ -353,9 +361,10 @@ export function createBootstrapCommandExtensionsSection(
 export function createBootstrapCommandClientsSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'operatorClient' | 'peerClient' | 'providerApi' | 'agentKnowledgeApi' | 'promptContextReceipts' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport'
+    'operatorClient' | 'peerClient' | 'providerApi' | 'agentKnowledgeApi' | 'promptContextReceipts' | 'hookApi' | 'mcpApi' | 'opsApi' | 'directTransport' | 'memoryConsolidationScheduler'
   >,
 ): BootstrapCommandClientSection {
+  const memoryConsolidationScheduler = options.memoryConsolidationScheduler;
   return {
     operator: options.operatorClient,
     peer: options.peerClient,
@@ -365,6 +374,9 @@ export function createBootstrapCommandClientsSection(
     hookApi: options.hookApi,
     mcpApi: options.mcpApi,
     opsApi: options.opsApi,
+    ...(memoryConsolidationScheduler
+      ? { memoryConsolidation: { listPendingProposals: () => listPendingConsolidationProposals(memoryConsolidationScheduler) } }
+      : {}),
     transport: options.directTransport,
   };
 }
