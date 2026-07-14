@@ -190,6 +190,125 @@ describe('shell surface', () => {
     }
   });
 
+  test('dangerMode and powerNote render simultaneously — neither suppresses the other', () => {
+    const result = buildShellFooter({
+      width: 100,
+      promptText: 'hello',
+      promptLineCount: 1,
+      usage: { up: 0, down: 0 },
+      showExitNotice: false,
+      lastCopyTime: 0,
+      model: 'gpt-test',
+      toolCount: 3,
+      workingDir: '/tmp/demo',
+      provider: 'openai',
+      contextWindow: 0,
+      runningAgentCount: 0,
+      runningProcessCount: 0,
+      indicatorFocused: false,
+      dangerMode: true,
+      powerNote: 'sleep disabled',
+    });
+    const text = result.lines.map(lineToString).join('\n');
+    expect(text).toContain('auto-approve');
+    expect(text).toContain('sleep disabled');
+  });
+
+  test('dangerMode alone still renders the auto-approve notice', () => {
+    const result = buildShellFooter({
+      width: 100,
+      promptText: 'hello',
+      promptLineCount: 1,
+      usage: { up: 0, down: 0 },
+      showExitNotice: false,
+      lastCopyTime: 0,
+      model: 'gpt-test',
+      toolCount: 3,
+      workingDir: '/tmp/demo',
+      provider: 'openai',
+      contextWindow: 0,
+      runningAgentCount: 0,
+      runningProcessCount: 0,
+      indicatorFocused: false,
+      dangerMode: true,
+    });
+    const text = result.lines.map(lineToString).join('\n');
+    expect(text).toContain('auto-approve');
+  });
+
+  test('powerNote alone still renders the sleep/power notice', () => {
+    const result = buildShellFooter({
+      width: 100,
+      promptText: 'hello',
+      promptLineCount: 1,
+      usage: { up: 0, down: 0 },
+      showExitNotice: false,
+      lastCopyTime: 0,
+      model: 'gpt-test',
+      toolCount: 3,
+      workingDir: '/tmp/demo',
+      provider: 'openai',
+      contextWindow: 0,
+      runningAgentCount: 0,
+      runningProcessCount: 0,
+      indicatorFocused: false,
+      powerNote: 'sleep disabled',
+    });
+    const text = result.lines.map(lineToString).join('\n');
+    expect(text).toContain('sleep disabled');
+  });
+
+  test('dangerMode and powerNote both active at a narrow width: no line exceeds width and both notices still appear', () => {
+    const WIDTH = 44;
+    const result = buildShellFooter({
+      width: WIDTH,
+      promptText: 'hello',
+      promptLineCount: 1,
+      usage: { up: 0, down: 0 },
+      showExitNotice: false,
+      lastCopyTime: 0,
+      model: 'gpt-test',
+      toolCount: 3,
+      workingDir: '/tmp/demo',
+      provider: 'openai',
+      contextWindow: 0,
+      runningAgentCount: 0,
+      runningProcessCount: 0,
+      indicatorFocused: false,
+      dangerMode: true,
+      powerNote: 'sleep disabled',
+    });
+    for (const line of result.lines) {
+      expect(line.length).toBeLessThanOrEqual(WIDTH);
+    }
+    const text = result.lines.map(lineToString).join('\n');
+    expect(text).toContain('⚠');
+    expect(text).toContain('⚡');
+  });
+
+  test('the transient "copied" flash stays exclusive over dangerMode/powerNote', () => {
+    const result = buildShellFooter({
+      width: 100,
+      promptText: 'hello',
+      promptLineCount: 1,
+      usage: { up: 0, down: 0 },
+      showExitNotice: false,
+      lastCopyTime: Date.now(),
+      model: 'gpt-test',
+      toolCount: 3,
+      workingDir: '/tmp/demo',
+      provider: 'openai',
+      contextWindow: 0,
+      runningAgentCount: 0,
+      runningProcessCount: 0,
+      indicatorFocused: false,
+      dangerMode: true,
+      powerNote: 'sleep disabled',
+    });
+    const text = result.lines.map(lineToString).join('\n');
+    expect(text).toContain('copied');
+  });
+
   test('prompt box borders match the inactive prompt fill when the indicator is focused', () => {
     const result = buildShellFooter({
       width: 80,

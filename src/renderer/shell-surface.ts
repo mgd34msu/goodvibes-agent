@@ -30,12 +30,14 @@ export interface ShellFooterBuildOptions {
   readonly composerFlags?: readonly string[];
   readonly composerPendingRisk?: 'none' | 'approval-wait' | 'shell' | 'command' | 'remote';
   /**
-   * The single-slot power status note (see power-status.ts's
-   * describePowerStatus) — "sleep disabled" while the owner keep-awake
-   * toggle holds, or "held: <reasons>" while the automatic work inhibitor
-   * holds. Shares the status line's rightNotice slot with dangerMode/copied,
-   * lowest priority of the three (an always-visible chip that yields to the
-   * transient copy confirmation and the safety-critical auto-approve badge).
+   * The power status note (see power-status.ts's describePowerStatus) —
+   * "sleep disabled" while the owner keep-awake toggle holds, or
+   * "held: <reasons>" while the automatic work inhibitor holds. Shares the
+   * status line's right-side notice area with dangerMode, but the two are
+   * COMPOSED together (see composeSafetyNoticeSegments in ui-factory.ts),
+   * never suppressing each other — both are safety-relevant and must stay
+   * visible at once. Only the transient 2-second "copied" confirmation is
+   * exclusive (a flash, not a persistent safety state).
    */
   readonly powerNote?: string;
 }

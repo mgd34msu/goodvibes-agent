@@ -33,6 +33,74 @@ export interface ThinkingStallInfo {
   readonly reconnect?: { readonly attempt: number; readonly maxAttempts: number };
 }
 
+/** One colored run within the footer status line's right-side notice area. */
+export interface RightNoticeSegment {
+  readonly text: string;
+  readonly fg: string;
+  readonly bold?: boolean;
+}
+
+const RIGHT_NOTICE_SEPARATOR = ' · ';
+const RIGHT_NOTICE_SEPARATOR_FG = '238';
+const DANGER_MODE_FULL_TEXT = '⚠ auto-approve is on';
+const DANGER_MODE_COMPACT_TEXT = '⚠ auto-approve';
+const DANGER_MODE_ICON_TEXT = '⚠';
+const DANGER_MODE_FG = '#ef4444';
+const POWER_NOTE_FG = '#f59e0b';
+
+/**
+ * Compose the danger-mode (auto-approve) and power (sleep/keep-awake) safety
+ * notices for the footer status line's right-side slot. Both are
+ * safety-relevant and must render SIMULTANEOUSLY — neither ever silently
+ * suppresses the other (the defect this replaces: the two notices shared one
+ * slot with dangerMode always winning, so the sleep-disabled note vanished
+ * exactly when danger mode made it matter most).
+ *
+ * When both are active and full text does not fit `availableWidth`, this
+ * steps down through shorter forms of the danger-mode text (never dropping
+ * the power note, which is already short) so both notices keep SOME visible
+ * text at any reasonable width, rather than one disappearing outright. Only
+ * at pathologically narrow widths does it fall through to a single
+ * ellipsis-truncated combined string (truncateDisplay never overlaps or
+ * cuts a glyph in half — it always ends the string cleanly).
+ */
+export function composeSafetyNoticeSegments(
+  dangerMode: boolean | undefined,
+  powerNote: string | undefined,
+  availableWidth: number,
+): RightNoticeSegment[] {
+  if (availableWidth <= 0) return [];
+  const powerText = powerNote ? `⚡ ${powerNote}` : undefined;
+  if (dangerMode && powerText) {
+    const dangerCandidates = [DANGER_MODE_FULL_TEXT, DANGER_MODE_COMPACT_TEXT, DANGER_MODE_ICON_TEXT];
+    for (const dangerText of dangerCandidates) {
+      const combinedWidth = getDisplayWidth(dangerText) + getDisplayWidth(RIGHT_NOTICE_SEPARATOR) + getDisplayWidth(powerText);
+      if (combinedWidth <= availableWidth) {
+        return [
+          { text: dangerText, fg: DANGER_MODE_FG, bold: true },
+          { text: RIGHT_NOTICE_SEPARATOR, fg: RIGHT_NOTICE_SEPARATOR_FG },
+          { text: powerText, fg: POWER_NOTE_FG },
+        ];
+      }
+    }
+    // Neither the icon-only danger text plus the full power note fits: fall
+    // back to a single truncated string carrying both icons, so both are
+    // still represented rather than one vanishing.
+    const minimal = `${DANGER_MODE_ICON_TEXT}${RIGHT_NOTICE_SEPARATOR}${powerText}`;
+    const fitted = truncateDisplay(minimal, availableWidth);
+    return fitted ? [{ text: fitted, fg: DANGER_MODE_FG, bold: true }] : [];
+  }
+  if (dangerMode) {
+    const fitted = truncateDisplay(DANGER_MODE_FULL_TEXT, availableWidth);
+    return fitted ? [{ text: fitted, fg: DANGER_MODE_FG, bold: true }] : [];
+  }
+  if (powerText) {
+    const fitted = truncateDisplay(powerText, availableWidth);
+    return fitted ? [{ text: fitted, fg: POWER_NOTE_FG }] : [];
+  }
+  return [];
+}
+
 /** Format a number: up to 999, then 1.0k, 1.0M, 1.0B, 1.0T */
 function fmtNum(n: number): string {
   if (n < 1000) return String(n);
@@ -266,13 +334,11 @@ export class UIFactory {
     // permission prompt itself, so the footer no longer carries a separate,
     // easily-desynced copy. composerPendingRisk stays in the signature for the
     // composer flags row; it just no longer mints its own status token.
-    const rightNotice = isRecentlyCopied
-      ? { text: `copied ${GLYPHS.status.success} `, fg: '81', bold: true }
-      : dangerMode
-        ? { text: '⚠ auto-approve is on ', fg: '#ef4444', bold: true }
-        : powerNote
-          ? { text: `⚡ ${powerNote} `, fg: '#f59e0b', bold: false }
-          : null;
+    //
+    // The transient "copied" flash stays exclusive (it is a 2-second
+    // confirmation, not a persistent safety state) — but dangerMode and
+    // powerNote are BOTH safety-relevant and must never suppress each other;
+    // see composeSafetyNoticeSegments.
     const statusLine = createBaseLine();
     let sx = 3;
     const writeStatusText = (text: string, fg: string, bold = false) => {
@@ -286,12 +352,26 @@ export class UIFactory {
       if (index > 0) writeStatusText(`  ${GLYPHS.navigation.pipeSeparator}  `, '238');
       writeStatusText(token.text, token.fg, token.bold ?? false);
     });
-    if (rightNotice) {
-      let col = Math.max(sx + 2, width - getDisplayWidth(rightNotice.text));
-      for (const ch of rightNotice.text) {
-        if (col >= width) break;
-        statusLine[col] = { char: ch, fg: rightNotice.fg, bg: '', bold: rightNotice.bold ?? false, dim: false, underline: false, italic: false, strikethrough: false };
-        col += getDisplayWidth(ch);
+    const rightAreaStart = sx + 2;
+    const availableNoticeWidth = Math.max(0, width - rightAreaStart);
+    const rightNoticeSegments: RightNoticeSegment[] = isRecentlyCopied
+      ? [{ text: `copied ${GLYPHS.status.success} `, fg: '81', bold: true }]
+      : composeSafetyNoticeSegments(dangerMode, powerNote, availableNoticeWidth);
+    if (rightNoticeSegments.length > 0) {
+      const totalWidth = rightNoticeSegments.reduce((sum, seg) => sum + getDisplayWidth(seg.text), 0);
+      // A single trailing space of breathing room against the right border,
+      // when there's spare width for it — purely cosmetic.
+      if (totalWidth < availableNoticeWidth) {
+        const last = rightNoticeSegments[rightNoticeSegments.length - 1]!;
+        rightNoticeSegments[rightNoticeSegments.length - 1] = { ...last, text: `${last.text} ` };
+      }
+      let col = Math.max(rightAreaStart, width - rightNoticeSegments.reduce((sum, seg) => sum + getDisplayWidth(seg.text), 0));
+      for (const seg of rightNoticeSegments) {
+        for (const ch of seg.text) {
+          if (col >= width) break;
+          statusLine[col] = { char: ch, fg: seg.fg, bg: '', bold: seg.bold ?? false, dim: false, underline: false, italic: false, strikethrough: false };
+          col += getDisplayWidth(ch);
+        }
       }
     }
     lines.push(statusLine);
