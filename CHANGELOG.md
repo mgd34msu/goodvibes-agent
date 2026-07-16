@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.12.0 - 2026-07-16
+
+- Memory governor is composed and started by default, with live memory diagnostics surfaced in /health.
+- One-act local voice setup with live install progress.
+- docs and README release-line auto-sync via the prebuild step.
+
 ## 1.11.0 - 2026-07-14
 
 - GoodVibes Agent 1.11.0 runs on the current published platform SDK 1.9.0, picking up the latest shared runtime, review, and power-management primitives.
