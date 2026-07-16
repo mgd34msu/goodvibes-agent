@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.12.1 - 2026-07-16
+
+- SDK 1.10.1 adoption
+- Cleaner runtime typing via the SDK public RuntimeServices type alias
+- Test suite no longer exercises host power integrations
+
 ## 1.12.0 - 2026-07-16
 
 - Memory governor is composed and started by default, with live memory diagnostics surfaced in /health.
