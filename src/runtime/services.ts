@@ -23,7 +23,16 @@ import { createSessionConversationRewindPort } from './conversation-rewind-port.
 import { attachFleetEmitBridge } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { computeUsageCostUsd, resolveModelReference, type ModelIdCandidate } from '@pellux/goodvibes-sdk/platform/providers';
-import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { logger, singleFlight, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+// SDK-owned memory governance (public since sdk 4d5e247b published the
+// composition surface): the same CacheRegistry/PauseController/MemoryGovernor
+// wiring the SDK's own daemon composition constructs and starts.
+import {
+  CacheRegistry,
+  PauseController,
+  wireDaemonMemoryGovernance,
+  type MemoryGovernor,
+} from '@pellux/goodvibes-sdk/platform/runtime/memory';
 import { UserPermissionRuleStore } from '@pellux/goodvibes-sdk/platform/permissions';
 import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import {
@@ -108,6 +117,7 @@ import {
   preconfigureLocalVoiceKeys,
   readVoiceInstallStamp,
   writeVoiceInstallStamp,
+  createVoiceInstallProgressTracker,
   type VoiceRuntimeStatus,
   type VoiceProvisionResult,
 } from '@pellux/goodvibes-sdk/platform/voice';
@@ -149,7 +159,7 @@ import { ComponentHealthMonitor } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createShellPathService, type ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import type { FeatureFlagManager, RuntimeFoundationClientsOptions } from '@/runtime/index.ts';
+import type { FeatureFlagManager } from '@/runtime/index.ts';
 import { createFeatureFlagManager, deriveFeatureStates, bindFeatureSettingsBridge } from '@/runtime/index.ts';
 import {
   FeatureAnnouncementStore,
@@ -169,7 +179,17 @@ import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
 import { AgentExecutionLedger } from './execution-ledger.ts';
 
 type WorktreeRegistry = RuntimeShell.WorktreeRegistry;
-type SdkRuntimeServices = RuntimeFoundationClientsOptions['runtimeServices'];
+// The SDK's FULL runtime-services shape, recovered through a public function
+// signature: startHostServices (platform/runtime/bootstrap-services.ts) takes
+// it as its 4th parameter. Used to be read off
+// RuntimeFoundationClientsOptions['runtimeServices'], but sdk 4d5e247b
+// narrowed that option to RuntimeFoundationServicesSlice (the fields
+// createRuntimeFoundationClients actually consumes) — the right fix for that
+// over-broad option type, which this composition root asked for. This alias
+// deliberately keeps tracking the FULL interface because this repo's
+// RuntimeServices is handed to SDK consumers typed against the whole thing
+// (startHostServices, DaemonServer, createObservabilityReadModels).
+type SdkRuntimeServices = Parameters<typeof import('@/runtime/index.ts').startHostServices>[3];
 type SdkCompanionGraphService = NonNullable<SdkRuntimeServices>['homeGraphService'];
 type KnowledgeServiceConstructor = new (
   store: KnowledgeStore,
@@ -507,153 +527,11 @@ export interface AgentVoiceSetupService {
 }
 
 /**
- * Minimal single-flight join: while an install is in-flight, concurrent
- * callers join the SAME in-flight promise instead of starting parallel
- * multi-hundred-MB downloads. The SDK's own voice-install composition uses an
- * equivalent `singleFlight` helper (packages/sdk/src/platform/utils/single-flight.ts)
- * but that helper is not part of the SDK's public export surface — it is not
- * re-exported from @pellux/goodvibes-sdk/platform/utils (verified: `singleFlight`
- * is absent from that subpath's runtime exports on this pinned SDK build).
- * Reported upstream as a minor SDK export gap; this is a fresh, minimal
- * reimplementation of a generic concurrency idiom, not a fork of SDK-owned
- * policy.
+ * The narrow live-snapshot slice /health memory reads. A Pick over the SDK's
+ * real MemoryGovernor so the command surface can be handed the composed
+ * governor without gaining pause/exit authority.
  */
-function singleFlightJoin<T>(run: () => Promise<T>): () => Promise<T> {
-  let inFlight: Promise<T> | null = null;
-  return (): Promise<T> => {
-    if (inFlight) return inFlight;
-    const started = run().finally(() => {
-      inFlight = null;
-    });
-    inFlight = started;
-    return started;
-  };
-}
-
-interface LocalRegisteredCache {
-  readonly name: string;
-  entryCount(): number;
-  estimateBytes?(): number;
-  trim(level: 'floor' | 'flush'): void;
-}
-
-/**
- * Local, real (not fabricated) reimplementation of the SDK's CacheRegistry —
- * purely mechanical register/footprint bookkeeping, no pressure policy. See
- * the composition-root return statement (createRuntimeServices) for why this
- * exists instead of the SDK's own class.
- */
-class LocalCacheRegistryStandIn {
-  private readonly caches = new Map<string, LocalRegisteredCache>();
-
-  register(id: string, cache: LocalRegisteredCache): () => void {
-    this.caches.set(id, cache);
-    return (): void => {
-      if (this.caches.get(id) === cache) this.caches.delete(id);
-    };
-  }
-
-  registeredIds(): string[] {
-    return [...this.caches.keys()];
-  }
-
-  has(id: string): boolean {
-    return this.caches.has(id);
-  }
-
-  footprints(): Array<{ readonly id: string; readonly name: string; readonly entries: number; readonly estimatedBytes?: number }> {
-    const out: Array<{ id: string; name: string; entries: number; estimatedBytes?: number }> = [];
-    for (const [id, cache] of this.caches) {
-      try {
-        const entries = cache.entryCount();
-        const estimatedBytes = cache.estimateBytes?.();
-        out.push({ id, name: cache.name, entries, ...(estimatedBytes !== undefined ? { estimatedBytes } : {}) });
-      } catch {
-        // A misbehaving cache is skipped, never thrown from here — matches
-        // the SDK's own footprints() contract.
-      }
-    }
-    return out;
-  }
-
-  totalEntries(): number {
-    let total = 0;
-    for (const cache of this.caches.values()) {
-      try {
-        total += cache.entryCount();
-      } catch {
-        // skip a misbehaving cache
-      }
-    }
-    return total;
-  }
-
-  trimAll(level: 'floor' | 'flush'): void {
-    for (const cache of this.caches.values()) {
-      try {
-        cache.trim(level);
-      } catch {
-        // a throwing cache never blocks the rest
-      }
-    }
-  }
-}
-
-/**
- * Local, real reimplementation of the SDK's PauseController — pause-set
- * bookkeeping only. Nothing in this composition ever drives pauseAll/
- * resumeAll (there is no MemoryGovernor to do so), so every registered job
- * honestly stays unpaused; implemented anyway for structural completeness
- * rather than leaving the pause half silently absent.
- */
-class LocalPauseControllerStandIn {
-  private readonly jobIds = new Set<string>();
-  private readonly paused = new Set<string>();
-
-  register(job: { readonly id: string }): () => void {
-    this.jobIds.add(job.id);
-    return (): void => {
-      this.jobIds.delete(job.id);
-      this.paused.delete(job.id);
-    };
-  }
-
-  isPaused(id: string): boolean {
-    return this.paused.has(id);
-  }
-
-  pausedJobs(): string[] {
-    return [...this.paused];
-  }
-
-  states(): Array<{ readonly id: string; readonly paused: boolean }> {
-    return [...this.jobIds].map((id) => ({ id, paused: this.paused.has(id) }));
-  }
-
-  pauseAll(_reason: string): void {
-    for (const id of this.jobIds) this.paused.add(id);
-  }
-
-  resumeAll(_reason: string): void {
-    this.paused.clear();
-  }
-
-  whenResumed(id: string): Promise<void> {
-    return this.paused.has(id) ? new Promise<void>(() => {}) : Promise.resolve();
-  }
-}
-
-/**
- * Local stand-in for the SDK's MemoryGovernor admission check. No sampler
- * runs in this composition (no public export path — see the composition-root
- * note), so there is no pressure signal to refuse against: every request is
- * honestly admitted, never a fabricated tier or refusal.
- */
-class LocalMemoryGovernorStandIn {
-  admitExpensiveWork(_label = 'expensive operation'): { readonly allowed: true; readonly tier: 'normal' } {
-    return { allowed: true, tier: 'normal' };
-  }
-}
+export type AgentMemoryDiagnostics = Pick<MemoryGovernor, 'snapshot'>;
 
 export interface RuntimeServicesOptions {
   readonly runtimeBus: RuntimeEventBus;
@@ -777,12 +655,21 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly voiceService: VoiceService;
   /**
    * Managed local-voice provisioning: status read + one-act install, mirroring
-   * the parts of the SDK's own daemon composition (platform/runtime/services.ts)
-   * that ARE reachable through the SDK's public export surface. See the
-   * memory-governance composition note below (createRuntimeServices) for the
-   * one part of that SDK composition this Agent could NOT mirror and why.
+   * the SDK's own daemon composition (platform/runtime/services.ts).
    */
   readonly voiceSetup: AgentVoiceSetupService;
+  /**
+   * SDK-owned memory governance, composed here exactly as the SDK's own
+   * daemon composition does (constructed and STARTED by default — it is a
+   * safety feature): samples RSS/heap, sheds registered caches by tier,
+   * pauses deferrable background jobs, and trips on a genuine leak before
+   * the OS OOM-kills the process. Serves ops.memory.get and /health memory.
+   */
+  readonly memoryGovernor: MemoryGovernor;
+  /** Registry of every retained cache the governor can observe and shrink. */
+  readonly cacheRegistry: CacheRegistry;
+  /** Backpressure seam the governor drives to pause/resume deferrable background jobs. */
+  readonly pauseController: PauseController;
   readonly webSearchProviders: WebSearchProviderRegistry;
   readonly webSearchService: WebSearchService;
   readonly mediaProviders: MediaProviderRegistry;
@@ -1112,6 +999,25 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     configManager,
     dbFileName: HOME_GRAPH_KNOWLEDGE_DB_FILE,
   });
+  // Memory-governance seams, built EARLY exactly as the SDK's own daemon
+  // composition builds them (platform/runtime/services.ts): the knowledge
+  // background job and the consolidation scheduler consult the pause
+  // controller and the late-bound admission gate below before the
+  // MemoryGovernor (constructed + started at the composition tail via
+  // wireDaemonMemoryGovernance) drives them. `admitExpensiveWork` is a
+  // late-bound closure: until the governor exists, everything is admitted
+  // (the process is still booting).
+  const cacheRegistry = new CacheRegistry();
+  const pauseController = new PauseController();
+  // Same job ids as the SDK composition. This fork runs the first two for
+  // real; 'code-index-reindex' is registered for contract parity even though
+  // this fork's reindex scheduler is permanently disabled (isEnabled: () =>
+  // false below) — a registered-but-never-scheduled job pauses as a no-op.
+  const MEMORY_BACKGROUND_JOB_IDS = ['knowledge-self-improvement', 'memory-consolidation', 'code-index-reindex'];
+  const admitExpensiveWorkRef: { current: ((label: string) => { allowed: boolean; reason?: string | undefined }) | null } = { current: null };
+  const admitExpensiveWork = (label: string): { allowed: boolean; reason?: string | undefined } =>
+    admitExpensiveWorkRef.current?.(label) ?? { allowed: true };
+  const isKnowledgeBackgroundPaused = (): boolean => pauseController.isPaused('knowledge-self-improvement');
   const knowledgeSemanticLlm = createProviderBackedKnowledgeSemanticLlm(providerRegistry, {
     timeoutMs: 20_000,
     maxConcurrent: 1,
@@ -1119,20 +1025,26 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const agentKnowledgeSemanticService = new KnowledgeSemanticService(agentKnowledgeStore, {
     llm: knowledgeSemanticLlm,
     maxLlmSourcesPerReindex: 3,
+    isBackgroundPaused: isKnowledgeBackgroundPaused,
+    admitExpensiveWork,
   });
   const homeGraphSemanticService = new KnowledgeSemanticService(homeGraphKnowledgeStore, {
     llm: knowledgeSemanticLlm,
     maxLlmSourcesPerReindex: 3,
     objectProfiles: HOME_GRAPH_KNOWLEDGE_EXTENSION.objectProfiles,
+    isBackgroundPaused: isKnowledgeBackgroundPaused,
+    admitExpensiveWork,
   });
   const agentKnowledgeService = new KnowledgeService(agentKnowledgeStore, artifactStore, undefined, {
     memoryRegistry,
     runtimeBus: options.runtimeBus,
     semanticService: agentKnowledgeSemanticService,
+    admitExpensiveWork,
   });
   agentKnowledgeService.attachRuntimeBus(options.runtimeBus);
   const homeGraphService = new companionGraphServiceConstructor(homeGraphKnowledgeStore, artifactStore, {
     semanticService: homeGraphSemanticService,
+    admitExpensiveWork,
   });
   const projectPlanningProjectId = projectPlanningProjectIdFromPath(workingDirectory);
   const projectPlanningService = new ProjectPlanningService(agentKnowledgeStore, {
@@ -1149,54 +1061,81 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
 
   // Managed local-voice provisioning (SDK round: voice.local.install/status).
   // Constructed the way the SDK's own daemon composition constructs it
-  // (platform/runtime/services.ts): single-flight install, config
-  // preconfigure that never overwrites a genuinely user-set value, and a
-  // reset of the local engine's tripped failure state on a successful
-  // (re-)install. No admission gate against a MemoryGovernor here — see the
-  // memory-governance note further down (right before `wireRuntimePower`):
-  // there is no governor in this composition to admit against, so install
-  // simply always runs when called.
+  // (platform/runtime/voice-setup.ts — internal there, so mirrored here from
+  // the same public provisioning pieces): single-flight install (the SDK's
+  // own singleFlight helper), config preconfigure that never overwrites a
+  // genuinely user-set value, a reset of the local engine's tripped failure
+  // state on a successful (re-)install, a critical-tier admission gate
+  // against the MemoryGovernor (the late-bound admitExpensiveWork closure
+  // above), and — sdk 5357f09e — a live install-progress tracker folded into
+  // status() as `installInProgress` while (and only while) an install runs,
+  // so surfaces poll status during the multi-hundred-MB provision instead of
+  // rendering busy→receipt.
   const managedVoiceRoot = shellPaths.resolveUserPath('voice');
-  const runVoiceInstall = singleFlightJoin(async () => {
-    const provision = await provisionLocalVoiceRuntime({ managedRoot: managedVoiceRoot });
-    let configured: { set: { key: string; value: string }[]; skipped: { key: string; reason: string }[] } = { set: [], skipped: [] };
-    if (provision.tts.state === 'provisioned' && provision.tts.binaryPath && provision.tts.modelPath) {
-      // Ownership-aware preconfigure: values THIS installer previously wrote
-      // (recorded in the install stamp) update to the new managed paths; a
-      // genuinely user-set value still wins; a user-cleared installer value
-      // is a deliberate disable and stays cleared.
-      const stamp = readVoiceInstallStamp(managedVoiceRoot);
-      const receipt = preconfigureLocalVoiceKeys({
-        getConfig: (k) => String(configManager.get(k as never) ?? ''),
-        setConfig: (k, v) => configManager.setDynamic(k as never, v),
-        ttsEngine: provision.tts.engine,
-        ttsBinary: provision.tts.binaryPath,
-        ttsModelPath: provision.tts.modelPath,
-        ...(provision.stt.state === 'provisioned' && provision.stt.binaryPath && provision.stt.modelPath
-          ? { sttEngine: provision.stt.engine, sttBinary: provision.stt.binaryPath, sttModelPath: provision.stt.modelPath }
-          : {}),
-        priorInstallWrites: stamp?.configWrites,
+  const voiceInstallProgress = createVoiceInstallProgressTracker();
+  const runVoiceInstall = singleFlight(async () => {
+    voiceInstallProgress.begin();
+    try {
+      const provision = await provisionLocalVoiceRuntime({
+        managedRoot: managedVoiceRoot,
+        onProgress: (event) => voiceInstallProgress.onProgress(event),
       });
-      configured = { set: [...receipt.set], skipped: [...receipt.skipped] };
-      if (stamp) {
-        writeVoiceInstallStamp(managedVoiceRoot, { ...stamp, configWrites: { ...stamp.configWrites, ...receipt.installWrites } });
+      let configured: { set: { key: string; value: string }[]; skipped: { key: string; reason: string }[] } = { set: [], skipped: [] };
+      if (provision.tts.state === 'provisioned' && provision.tts.binaryPath && provision.tts.modelPath) {
+        // Ownership-aware preconfigure: values THIS installer previously wrote
+        // (recorded in the install stamp) update to the new managed paths; a
+        // genuinely user-set value still wins; a user-cleared installer value
+        // is a deliberate disable and stays cleared.
+        const stamp = readVoiceInstallStamp(managedVoiceRoot);
+        const receipt = preconfigureLocalVoiceKeys({
+          getConfig: (k) => String(configManager.get(k as never) ?? ''),
+          setConfig: (k, v) => configManager.setDynamic(k as never, v),
+          ttsEngine: provision.tts.engine,
+          ttsBinary: provision.tts.binaryPath,
+          ttsModelPath: provision.tts.modelPath,
+          ...(provision.stt.state === 'provisioned' && provision.stt.binaryPath && provision.stt.modelPath
+            ? { sttEngine: provision.stt.engine, sttBinary: provision.stt.binaryPath, sttModelPath: provision.stt.modelPath }
+            : {}),
+          priorInstallWrites: stamp?.configWrites,
+        });
+        configured = { set: [...receipt.set], skipped: [...receipt.skipped] };
+        if (stamp) {
+          writeVoiceInstallStamp(managedVoiceRoot, { ...stamp, configWrites: { ...stamp.configWrites, ...receipt.installWrites } });
+        }
+        // A successful (re-)install is the recovery act: clear any tripped
+        // local-engine circuit breaker so the next call retries the fresh engine.
+        voiceProviders.get('local')?.resetEngineFailureState?.();
       }
-      // A successful (re-)install is the recovery act: clear any tripped
-      // local-engine circuit breaker so the next call retries the fresh engine.
-      voiceProviders.get('local')?.resetEngineFailureState?.();
+      return {
+        provisioned: provision.tts.state === 'provisioned',
+        platform: provision.platform,
+        tts: provision.tts,
+        stt: provision.stt,
+        components: provision.components,
+        configured,
+      };
+    } finally {
+      voiceInstallProgress.end();
     }
-    return {
-      provisioned: provision.tts.state === 'provisioned',
-      platform: provision.platform,
-      tts: provision.tts,
-      stt: provision.stt,
-      components: provision.components,
-      configured,
-    };
   });
   const voiceSetup: AgentVoiceSetupService = {
-    status: () => localVoiceRuntimeStatus({ managedRoot: managedVoiceRoot }),
-    install: () => runVoiceInstall(),
+    status: () => {
+      const status = localVoiceRuntimeStatus({ managedRoot: managedVoiceRoot });
+      // Present ONLY while an install runs: fold the tracker's live snapshot
+      // in, exactly as the SDK's own composition does.
+      const installInProgress = voiceInstallProgress.snapshot();
+      return installInProgress ? { ...status, installInProgress } : status;
+    },
+    install: async () => {
+      // Critical-tier admission: a provision run allocates archive + model
+      // buffers — refuse honestly instead of piling onto memory pressure.
+      // Mirrors the SDK's own daemon composition of this exact gate.
+      const admission = admitExpensiveWork('voice runtime install');
+      if (!admission.allowed) {
+        throw new Error(admission.reason ?? 'voice runtime install refused: the process is under critical memory pressure.');
+      }
+      return runVoiceInstall();
+    },
   };
 
   const webSearchProviders = new WebSearchProviderRegistry({
@@ -1624,7 +1563,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const memoryConsolidationScheduler = new MemoryConsolidationScheduler({
     memoryRegistry,
     configSource: configManager,
-    isIdle: () => sessionBroker.countBusySessions() === 0,
+    // Idle AND not paused by the governor AND admitted at the current memory
+    // tier — memory pressure defers consolidation (mirrors the SDK's own
+    // daemon composition of this same scheduler).
+    isIdle: () => sessionBroker.countBusySessions() === 0
+      && !pauseController.isPaused('memory-consolidation')
+      && admitExpensiveWork('memory consolidation').allowed,
     onReceipt: (receipt: MemoryConsolidationRunReceipt) => {
       const summary = describeMemoryConsolidationReceipt(receipt);
       if (summary) memoryConsolidationReceiptFeed.push([{ id: receipt.runId, text: summary, at: Date.now() }]);
@@ -1638,53 +1582,6 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // due schedule) automatically holds the inhibitor, sleep-edge hooks that
   // checkpoint the store snapshots on sleep and catch consolidation + store
   // snapshots + heartbeat back up on wake.
-  // Memory governance (SDK round: CacheRegistry/PauseController/MemoryGovernor,
-  // wireDaemonMemoryGovernance, ops.memory.get) — NOT composed here.
-  //
-  // DELIBERATE DIVERGENCE from the SDK's own daemon composition
-  // (packages/sdk/src/platform/runtime/services.ts), unlike every other
-  // "mirror the SDK composition root" seam in this file: the memory-governance
-  // layer has NO public export path on this pinned SDK build. Verified by
-  // direct probe (`import('@pellux/goodvibes-sdk/platform/runtime/memory')`
-  // throws "Cannot find module ..."), by reading the SDK's own
-  // packages/sdk/package.json `exports` map (no `./platform/runtime/memory`
-  // entry among its ~130 subpaths), and by reading
-  // packages/sdk/src/platform/runtime/index.ts (the `platform/runtime` barrel
-  // re-exports only `bootstrap`/`observability`/`operations`/`security`/
-  // `shell`/`state`/`transport`/`ui` namespaces — no `memory` namespace).
-  // CacheRegistry, PauseController, MemoryGovernor, createMemoryGovernance,
-  // and wireDaemonMemoryGovernance are therefore unreachable from any
-  // consumer package outside the SDK's own workspace, even though the SDK's
-  // own daemon composition constructs and starts them.
-  //
-  // Reported upstream as a blocking SDK defect rather than patched around:
-  // this repo does not fork the SDK's governor policy locally, and does not
-  // reach into the installed package's dist/ internals past its declared
-  // exports map (both would defeat the point of the package boundary and
-  // drift from the SDK's own future changes to that policy). Fix on the SDK
-  // side: add a `./platform/runtime/memory` subpath export (or re-export a
-  // `memory` namespace from the `platform/runtime` barrel) pointing at
-  // dist/platform/runtime/memory/index.js, mirroring every sibling subpath
-  // already in that exports map (memory-spine, session-spine, fleet, etc.).
-  //
-  // Consequence, kept honest rather than faked: `attachWsOnlyGatewayVerbHandlers`
-  // below is never passed a `memoryGovernor` dep, so `ops.memory.get` stays
-  // cataloged-but-unhandled (the SDK's own catalog answers 501 for a
-  // descriptor with no registered handler) instead of serving a fabricated
-  // snapshot from a governor that does not exist. `/health memory` (see
-  // input/commands/health-runtime.ts) reports this same unavailable state
-  // honestly, not silently.
-  //
-  // The RuntimeServices return below (createRuntimeServices) still supplies
-  // memoryGovernor/cacheRegistry/pauseController fields — TypeScript requires
-  // them structurally (see that return statement's comment), and one real SDK
-  // call site (facade-composition.ts's resolveDaemonFacadeRuntime, reached
-  // when this repo hands its own RuntimeServices to the SDK's DaemonServer)
-  // genuinely calls methods on them. Those are minimal, REAL local
-  // reimplementations of the purely mechanical register/pause bookkeeping
-  // (LocalCacheRegistryStandIn / LocalPauseControllerStandIn /
-  // LocalMemoryGovernorStandIn, defined above) — never a pressure policy, and
-  // never wired into ops.memory.get.
   const powerManager = wireRuntimePower({
     // Opt into the real host power seam EXPLICITLY, exactly as the SDK's own
     // standalone daemon cli does (it passes powerSeam: createHostPowerSeam()
@@ -1763,6 +1660,46 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // the proactive check-in loop runs for real here, not as a facade. Off by
   // default via checkin.enabled (see config/schema-domain-runtime.ts).
   //
+  // Memory governance: construct + START the MemoryGovernor (default ON — it
+  // is a safety feature) with REAL cache adapters, exactly as the SDK's own
+  // daemon composition does (platform/runtime/services.ts, via the same
+  // public wireDaemonMemoryGovernance — exported since sdk 4d5e247b, which
+  // fixed the export-surface gap this repo previously reported and carried as
+  // an honest divergence). Registered caches: this fork's two knowledge
+  // stores (job-run history pruning is the real reclaim) and the shared
+  // session broker (GC + bucket truncation). Registered pausable jobs:
+  // MEMORY_BACKGROUND_JOB_IDS (declared with the early seams above).
+  const { memoryGovernor } = wireDaemonMemoryGovernance({
+    config: {
+      budgetMb: configManager.get('memory.budgetMb'),
+      elevatedPct: configManager.get('memory.tier.elevatedPct'),
+      highPct: configManager.get('memory.tier.highPct'),
+      criticalPct: configManager.get('memory.tier.criticalPct'),
+      tripwireRateMbPerSec: configManager.get('memory.tripwire.rateMbPerSec'),
+      tripwireSustainSec: configManager.get('memory.tripwire.sustainSec'),
+      hardLimitPct: configManager.get('memory.hardLimitPct'),
+    },
+    runtimeBus: options.runtimeBus,
+    cacheRegistry,
+    pauseController,
+    jobIds: MEMORY_BACKGROUND_JOB_IDS,
+    receiptPath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'memory', 'tripwire-receipt.json'),
+    // This fork's knowledge stores: the compatibility `knowledgeService`
+    // alias points at agent knowledge (no separate regular store exists
+    // here), so the real set is agent + home-graph.
+    knowledgeStores: [agentKnowledgeStore, homeGraphKnowledgeStore],
+    sessionBroker,
+    // Graceful tripwire shutdown flushes in-flight state via ASYNC store
+    // snapshots, same as the SDK composition: sync copies on a stalled disk
+    // would block the event loop and defeat the governor's 10s shutdown
+    // ceiling.
+    onTripwireShutdown: async () => { await storeSnapshotScheduler.snapshotAllAsync('tripwire'); },
+  });
+  // Late-bind the admission gate now that the governor exists: the expensive
+  // entry points (knowledge services, consolidation scheduler, voice install)
+  // captured `admitExpensiveWork` earlier via this holder.
+  admitExpensiveWorkRef.current = (label) => memoryGovernor.admitExpensiveWork(label);
+
   // sessionLiveTurnControls and powerManager (SDK round): register the
   // session-runtime live-turn verbs and the power.* verbs the same way,
   // graceful-degrading to cataloged-but-unhandled if either were ever absent.
@@ -1770,11 +1707,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     processRegistry,
     sessionLiveTurnControls,
     powerManager,
+    // ops.memory.get: the live governor snapshot (tier, budget vs rss,
+    // per-cache footprints, paused jobs, tripwire state) — real now that the
+    // governor above exists; previously left unregistered on the pre-export
+    // SDK build rather than serving a fabricated snapshot.
+    memoryGovernor,
     // voice.local.status/voice.local.install: the SAME instance this
     // repo's /voice slash command reads directly (see RuntimeServices return
     // below) — one voiceSetup, reachable both locally and over the gateway.
-    // No `memoryGovernor` dep here: see the memory-governance divergence note
-    // above (right before `wireRuntimePower`) for why none exists to pass.
     voiceSetup,
     workspaceCheckpointManager: checkpointsGatewayManager,
     sessionBroker,
@@ -1865,40 +1805,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const stepUpService = new StepUpService({ secrets: secretsManager });
 
   return {
-    // Minimal, REAL (not fabricated) local stand-ins for the three
-    // memory-governance seams — required both structurally (this repo's
-    // `RuntimeServices` extends `SdkRuntimeServices` =
-    // `RuntimeFoundationClientsOptions['runtimeServices']`, which is typed as
-    // the SDK's ENTIRE internal daemon RuntimeServices interface rather than a
-    // narrow Pick of what any one consumer needs) AND functionally: verified
-    // that `packages/sdk/src/platform/daemon/facade-composition.ts`'s
-    // `resolveDaemonFacadeRuntime` — reached for real whenever this repo hands
-    // its OWN composed RuntimeServices to the SDK's `DaemonServer` facade (see
-    // src/test/cli/memory-command-wire.test.ts) — unconditionally calls
-    // `runtimeServices.cacheRegistry.register('event-replay-ring', {...})`,
-    // and (when `agentKnowledgeService` is absent, which it never is here)
-    // would also call `.memoryGovernor.admitExpensiveWork` /
-    // `.pauseController.isPaused`. An inert placeholder that throws on touch
-    // (an earlier version of this composition) broke that real call site.
-    //
-    // What these stand-ins are NOT: a reimplementation of the governor's
-    // PRESSURE POLICY (RSS sampling, tier computation, the leak tripwire).
-    // This composition has none of that, honestly, because
-    // CacheRegistry/PauseController/MemoryGovernor have no public export path
-    // on this pinned SDK build (see the composition note above, right before
-    // `wireRuntimePower`, for the full verified defect writeup) — so nothing
-    // here ever claims a real tier or a real refusal. What they ARE: the same
-    // purely mechanical bookkeeping the SDK's own cache-registry.ts /
-    // pause-controller.ts implement (register/footprint accounting; pause-set
-    // bookkeeping), reimplemented locally because the classes themselves
-    // cannot be imported, and — since a MemoryGovernor never runs here to
-    // drive pressure — an honest "nothing is paused, everything is admitted"
-    // MemoryGovernor stand-in. Cast to the SDK's nominal class types
-    // afterward: even a byte-for-byte behavioral match cannot be structurally
-    // assignable to a class with private fields it did not originate from.
-    memoryGovernor: new LocalMemoryGovernorStandIn() as unknown as SdkRuntimeServices['memoryGovernor'],
-    cacheRegistry: new LocalCacheRegistryStandIn() as unknown as SdkRuntimeServices['cacheRegistry'],
-    pauseController: new LocalPauseControllerStandIn() as unknown as SdkRuntimeServices['pauseController'],
+    // The REAL SDK memory-governance instances composed above (governor
+    // constructed + started by wireDaemonMemoryGovernance). The SDK's
+    // DaemonServer facade (facade-composition.ts) genuinely consumes these
+    // when this repo hands its RuntimeServices to it — e.g. it registers the
+    // control-plane event-replay ring onto cacheRegistry.
+    memoryGovernor,
+    cacheRegistry,
+    pauseController,
     stepUpService,
     pairingTokens,
     workingDirectory,

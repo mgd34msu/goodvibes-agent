@@ -1,34 +1,31 @@
 /**
  * voice-setup-and-memory-governance-composition.test.ts
  *
- * Pins two things through the real composition root (createRuntimeServices),
- * in the same style as power-keep-awake-composition.test.ts:
+ * Pins two adopted SDK seams through the real composition root
+ * (createRuntimeServices), in the same style as
+ * power-keep-awake-composition.test.ts:
  *
  *  1. `services.voiceSetup` is real, live wiring over the SDK's own managed
- *     local-voice provisioning (@pellux/goodvibes-sdk/platform/voice) — the
- *     part of the SDK's memory-round composition this repo COULD mirror. Both
+ *     local-voice provisioning (@pellux/goodvibes-sdk/platform/voice). Both
  *     the direct service (what /voice status and /voice setup read) and the
  *     voice.local.status/voice.local.install gateway verbs (what a remote
  *     surface would invoke) are pinned to the SAME instance and produce a
  *     real, non-fabricated answer.
  *
- *  2. The memory-governance layer (CacheRegistry/PauseController/MemoryGovernor/
- *     wireDaemonMemoryGovernance) is honestly ABSENT from this composition —
- *     ops.memory.get is never wired to a fabricated snapshot. See the
- *     composition-root comment in runtime/services.ts (right before
- *     wireRuntimePower) for the full defect writeup: this pinned SDK build
- *     (goodvibes-sdk @ efc1b380) has no public export path for that layer
- *     (verified: `@pellux/goodvibes-sdk/platform/runtime/memory` does not
- *     resolve, and the `platform/runtime` barrel re-exports no `memory`
- *     namespace). If the SDK later adds that export and this repo composes a
- *     real governor, THIS test's second assertion is expected to need
- *     updating — that failure is the intended forcing function, not a
- *     regression to silence.
+ *  2. The SDK memory-governance layer is composed FOR REAL: the MemoryGovernor
+ *     is constructed AND STARTED by default (a safety feature) via the SDK's
+ *     own public wireDaemonMemoryGovernance (exported since sdk 4d5e247b,
+ *     which fixed the export-surface gap this composition previously reported
+ *     and carried as an honest divergence), this fork's caches (knowledge
+ *     stores + shared session broker) and pausable background jobs are
+ *     registered onto the governor's seams, and ops.memory.get serves the
+ *     genuine live snapshot.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { MemoryGovernorSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
@@ -61,6 +58,7 @@ describe('voice-setup + memory-governance composition', () => {
   }
 
   function cleanup(services: RuntimeServices): void {
+    services.memoryGovernor.stop();
     services.providerRegistry.stopWatching();
     services.configManager.stopWatchingConfigFiles();
   }
@@ -108,18 +106,65 @@ describe('voice-setup + memory-governance composition', () => {
     }
   });
 
-  test('ops.memory.get has NO registered handler in this composition — the honest consequence of the SDK export gap, never a fabricated snapshot', async () => {
+  test('the MemoryGovernor is composed, STARTED by default, and its registered members are this fork\'s real caches and jobs', () => {
     const services = makeServices();
     try {
-      // The descriptor itself is still cataloged by the SDK's builtin method
-      // list (ops.memory.get exists as a concept in the contract); what this
-      // repo cannot do is register a REAL handler for it, because there is no
-      // MemoryGovernor to construct. Confirm the descriptor is present but
-      // invoking it fails honestly rather than serving fake data.
-      const descriptor = services.gatewayMethods.get('ops.memory.get');
-      expect(descriptor).toBeDefined();
-      await expect(services.gatewayMethods.invoke('ops.memory.get', { context: {} }))
-        .rejects.toThrow(/no internal handler/i);
+      // Present: the real SDK class instances, not stand-ins.
+      expect(services.memoryGovernor).toBeDefined();
+      expect(services.cacheRegistry).toBeDefined();
+      expect(services.pauseController).toBeDefined();
+
+      // Started by default — a safety feature, like the SDK's own daemon
+      // composition. start() sets the (unref'd) sampling interval; the timer
+      // handle is the only truthful started/stopped tell the class exposes,
+      // so this is a deliberate white-box probe: if the SDK renames the
+      // field, this pin should fail and be re-anchored, not deleted.
+      const timerOf = (): unknown => (services.memoryGovernor as unknown as { timer: unknown }).timer;
+      expect(timerOf()).not.toBeNull();
+
+      // Registered caches: this fork's knowledge stores + the shared session
+      // broker (wired through wireDaemonMemoryGovernance's real adapters).
+      const cacheIds = services.cacheRegistry.registeredIds();
+      expect(cacheIds).toContain('knowledge-store');
+      expect(cacheIds).toContain('session-union');
+
+      // Registered pausable background jobs, all running (nothing paused on
+      // a fresh, unpressured process).
+      const jobStates = services.pauseController.states();
+      const jobIds = jobStates.map((s) => s.id).sort();
+      expect(jobIds).toEqual(['code-index-reindex', 'knowledge-self-improvement', 'memory-consolidation']);
+      expect(jobStates.every((s) => !s.paused)).toBe(true);
+
+      // The admission gate is live and honest for an unpressured process.
+      expect(services.memoryGovernor.admitExpensiveWork('composition pin').allowed).toBe(true);
+
+      // stop() flips the started tell off — pinning that cleanup is real too.
+      services.memoryGovernor.stop();
+      expect(timerOf()).toBeNull();
+    } finally {
+      cleanup(services);
+    }
+  });
+
+  test('ops.memory.get serves the genuine live governor snapshot over the gateway', async () => {
+    const services = makeServices();
+    try {
+      const viaGateway = await services.gatewayMethods.invoke('ops.memory.get', { context: {} }) as MemoryGovernorSnapshot;
+      // Real values from the real sampler — a live process has a nonzero RSS.
+      expect(viaGateway.rssMb).toBeGreaterThan(0);
+      expect(viaGateway.heapUsedMb).toBeGreaterThan(0);
+      expect(viaGateway.budgetMb).toBeGreaterThan(0);
+      expect(['normal', 'elevated', 'high', 'critical']).toContain(viaGateway.tier);
+      expect(viaGateway.caches.map((c) => c.id)).toEqual(
+        expect.arrayContaining(['knowledge-store', 'session-union']),
+      );
+      expect(viaGateway.pausedJobs).toEqual([]);
+      expect(viaGateway.tripwire.armed).toBe(false);
+      // And it is the SAME governor RuntimeServices exposes directly (tier and
+      // budget agree; rss may drift a few KB between two live samples).
+      const direct = services.memoryGovernor.snapshot();
+      expect(direct.tier).toBe(viaGateway.tier);
+      expect(direct.budgetMb).toBe(viaGateway.budgetMb);
     } finally {
       cleanup(services);
     }

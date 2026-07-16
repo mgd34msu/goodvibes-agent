@@ -7,6 +7,7 @@ import { buildProviderAccountSnapshot } from '../../runtime/provider-account-sna
 import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import {
+  requireMemoryGovernor,
   requireProvider,
   requireProviderApi,
   requireReadModels,
@@ -186,19 +187,35 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
       }
 
       if (sub === 'memory') {
-        // Honest 501/unavailable state, not a fabricated snapshot: this pinned
-        // SDK build has no public export path for its memory-governance layer
-        // (CacheRegistry/PauseController/MemoryGovernor/wireDaemonMemoryGovernance;
-        // see runtime/services.ts's composition-root note next to
-        // wireRuntimePower for the verified detail), so this repo has no
-        // MemoryGovernor to construct, no ops.memory.get handler to register,
-        // and therefore no tier/budget/rss/cache/pause/tripwire state to show.
+        // Live MemoryGovernor snapshot — the same data ops.memory.get serves.
+        // The governor is composed and started by this runtime root
+        // (runtime/services.ts, wireDaemonMemoryGovernance); a context without
+        // one (an older host runtime predating memory governance) degrades to
+        // the honest unavailable line below, never a fabricated snapshot.
+        let snapshot: ReturnType<ReturnType<typeof requireMemoryGovernor>['snapshot']>;
+        try {
+          snapshot = requireMemoryGovernor(ctx).snapshot();
+        } catch {
+          ctx.print([
+            'Health Review Memory',
+            '  available: no',
+            '  reason: no memory governor is running in this build (older host runtime without memory governance)',
+          ].join('\n'));
+          return;
+        }
         ctx.print([
           'Health Review Memory',
-          '  available: no',
-          '  reason: memory governance layer unavailable in this build',
-          '  detail: ops.memory.get has no registered handler (CacheRegistry/MemoryGovernor/wireDaemonMemoryGovernance are not part of the pinned SDK build\'s public export surface)',
-          '  reported upstream to the SDK owner; no local repair action exists for this gap',
+          `  tier ${snapshot.tier}`,
+          `  rss ${snapshot.rssMb} MB of ${snapshot.budgetMb} MB budget (${snapshot.usedPct}%)`,
+          `  heap used ${snapshot.heapUsedMb} MB${snapshot.heapTotalMb !== undefined ? ` of ${snapshot.heapTotalMb} MB` : ''}`,
+          `  expensive work ${snapshot.refusingExpensiveWork ? 'refused (critical pressure)' : 'admitted'}`,
+          `  tier thresholds ${snapshot.thresholds.elevatedPct}% elevated, ${snapshot.thresholds.highPct}% high, ${snapshot.thresholds.criticalPct}% critical`,
+          `  leak tripwire ${snapshot.tripwire.armed ? `ARMED (${snapshot.tripwire.rateMbPerSec} MB/s sustained ${snapshot.tripwire.sustainedSec}s)` : 'not armed'}`,
+          `  caches ${snapshot.caches.length}`,
+          ...snapshot.caches.map((cache) => `    ${cache.id} ${cache.entries} entries${cache.estimatedBytes !== undefined ? ` (~${Math.round(cache.estimatedBytes / 1024)} KiB)` : ''} — ${cache.name}`),
+          `  paused background jobs ${snapshot.pausedJobs.length === 0 ? 'none' : snapshot.pausedJobs.join(', ')}`,
+          '  next /config memory.budgetMb',
+          '  next /health maintenance',
         ].join('\n'));
         return;
       }
@@ -319,8 +336,10 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  verify /health mcp');
         } else if (domain === 'memory') {
           lines.push('  domain memory');
-          lines.push('  no local repair action exists: the memory governance layer has no public export path in this pinned SDK build');
-          lines.push('  reported upstream to the SDK owner');
+          lines.push('  /health memory');
+          lines.push('  /config memory.budgetMb');
+          lines.push('  /config memory.hardLimitPct');
+          lines.push('  tier thresholds and the leak tripwire are configurable under settings -> Memory Governance');
           lines.push('  verify /health memory');
         } else if (domain === 'continuity') {
           lines.push('  domain continuity');

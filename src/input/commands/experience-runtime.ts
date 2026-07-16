@@ -9,6 +9,30 @@ function formatVoiceComponentState(state: string): string {
   return state.replace(/[_-]+/g, ' ');
 }
 
+interface VoiceInstallProgressComponentLike {
+  readonly component: string;
+  readonly phase: string;
+  readonly message?: string | undefined;
+  readonly bytesTotal?: number | undefined;
+  readonly bytesDone?: number | undefined;
+}
+
+interface VoiceInstallProgressLike {
+  readonly startedAt: number;
+  readonly components: readonly VoiceInstallProgressComponentLike[];
+}
+
+/** One honest line per install component: phase plus byte sizes where the manifest knows them. */
+function formatVoiceInstallProgressLine(component: VoiceInstallProgressComponentLike): string {
+  const mb = (n: number): string => (n / (1024 * 1024)).toFixed(1);
+  const bytes = component.bytesTotal !== undefined
+    ? (component.bytesDone !== undefined
+      ? ` (${mb(component.bytesDone)} of ${mb(component.bytesTotal)} MB)`
+      : ` (${mb(component.bytesTotal)} MB)`)
+    : '';
+  return `  ${component.component}: ${formatVoiceComponentState(component.phase)}${bytes}${component.message ? ` — ${component.message}` : ''}`;
+}
+
 interface VoiceBundle {
   readonly version: 1;
   readonly exportedAt: number;
@@ -86,6 +110,11 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
       const sub = (commandArgs[0] ?? 'review').toLowerCase();
       if (sub === 'status') {
         const status = requireVoiceSetup(ctx).status();
+        // Live install progress: voice.local.status carries an
+        // installInProgress section only while an install run is active
+        // (sdk 5357f09e); absent means no run (or an older host build) and
+        // nothing renders — never a fabricated progress view.
+        const installInProgress: VoiceInstallProgressLike | undefined = status.installInProgress;
         ctx.print([
           'Managed Local-Voice Status',
           `  platform: ${status.platform ?? 'unknown'}`,
@@ -93,7 +122,12 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           `  tts (${status.tts.engine}): binary ${status.tts.binaryPresent ? 'present' : 'missing'}, voice ${status.tts.voicePresent ? 'present' : 'missing'}`,
           `  stt (${status.stt.engine}): ${status.stt.supported ? formatVoiceComponentState(status.stt.state) : 'not supported on this build'}${status.stt.reason ? ` (${status.stt.reason})` : ''}`,
           ...(status.offerBytes != null ? [`  install size ~${Math.round(status.offerBytes / (1024 * 1024))} MB`] : []),
-          '  next /voice setup --yes',
+          ...(installInProgress
+            ? [
+              `  install in progress (started ${new Date(installInProgress.startedAt).toISOString()})`,
+              ...installInProgress.components.map((component) => `  ${formatVoiceInstallProgressLine(component)}`),
+            ]
+            : ['  next /voice setup --yes']),
         ].join('\n'));
         return;
       }
@@ -102,8 +136,36 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           requireYesFlag(ctx, 'install the managed local-voice runtime (downloads piper TTS + a default voice)', '/voice setup --yes');
           return;
         }
+        const voiceSetup = requireVoiceSetup(ctx);
         ctx.print('Installing managed local-voice runtime...');
-        void requireVoiceSetup(ctx).install().then((result) => {
+        // Poll voice.local.status while the install call is in flight and
+        // render live per-component progress from its installInProgress
+        // section (sdk 5357f09e). Honest fallback: a host build whose status
+        // never carries the section (an older daemon) just keeps the busy
+        // line above until the final receipt — no fabricated progress.
+        let installSettled = false;
+        const renderedProgress = new Map<string, string>();
+        const pollInstallProgress = async (): Promise<void> => {
+          while (!installSettled) {
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            if (installSettled) return;
+            try {
+              const progress: VoiceInstallProgressLike | undefined = voiceSetup.status().installInProgress;
+              if (!progress) continue;
+              for (const component of progress.components) {
+                const line = formatVoiceInstallProgressLine(component);
+                if (renderedProgress.get(component.component) !== line) {
+                  renderedProgress.set(component.component, line);
+                  ctx.print(line);
+                }
+              }
+            } catch {
+              // A failed status read must never break the running install.
+            }
+          }
+        };
+        void pollInstallProgress();
+        void voiceSetup.install().then((result) => {
           const lines = [
             'Managed Local-Voice Setup',
             ...result.components.map((component) => `  ${component.id}: ${formatVoiceComponentState(component.state)}${component.error ? ` (${component.error})` : ''}`),
@@ -120,6 +182,8 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           ctx.print(lines.join('\n'));
         }).catch((error) => {
           ctx.print(`voice setup failed: ${error instanceof Error ? error.message : String(error)}`);
+        }).finally(() => {
+          installSettled = true;
         });
         return;
       }

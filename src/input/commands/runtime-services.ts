@@ -121,6 +121,10 @@ export function requireVoiceSetup(context: CommandContext) {
   return requireContextValue(context.platform.voiceSetup, 'platform.voiceSetup');
 }
 
+export function requireMemoryGovernor(context: CommandContext) {
+  return requireContextValue(context.platform.memoryGovernor, 'platform.memoryGovernor');
+}
+
 export function requireLocalUserAuthManager(context: CommandContext) {
   return requireContextValue(context.platform.localUserAuthManager, 'platform.localUserAuthManager');
 }

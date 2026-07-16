@@ -41,7 +41,7 @@ import type { OperatorClient } from '@/runtime/index.ts';
 import type { PeerClient } from '@/runtime/index.ts';
 import type { DirectTransport } from '@/runtime/index.ts';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
-import type { AgentVoiceSetupService } from './services.ts';
+import type { AgentMemoryDiagnostics, AgentVoiceSetupService } from './services.ts';
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
@@ -84,6 +84,7 @@ export interface BootstrapCommandSectionOptions {
   readonly voiceProviderRegistry?: VoiceProviderRegistry;
   readonly voiceService?: VoiceService;
   readonly voiceSetup?: AgentVoiceSetupService;
+  readonly memoryGovernor?: AgentMemoryDiagnostics;
   readonly mediaProviderRegistry?: MediaProviderRegistry;
   readonly artifactStore?: ArtifactStore;
   readonly channelDeliveryRouter?: ChannelDeliveryRouter;
@@ -318,7 +319,7 @@ export function createBootstrapCommandWorkspaceSection(
 export function createBootstrapCommandPlatformSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'configManager' | 'voiceProviderRegistry' | 'voiceService' | 'voiceSetup' | 'mediaProviderRegistry' | 'artifactStore' | 'channelDeliveryRouter'
+    'configManager' | 'voiceProviderRegistry' | 'voiceService' | 'voiceSetup' | 'memoryGovernor' | 'mediaProviderRegistry' | 'artifactStore' | 'channelDeliveryRouter'
   >,
   shellServices: BootstrapCommandShellServices,
 ): BootstrapCommandPlatformSection {
@@ -328,6 +329,7 @@ export function createBootstrapCommandPlatformSection(
     voiceProviderRegistry: options.voiceProviderRegistry,
     voiceService: options.voiceService,
     voiceSetup: options.voiceSetup,
+    memoryGovernor: options.memoryGovernor,
     mediaProviderRegistry: options.mediaProviderRegistry,
     artifactStore: options.artifactStore,
     channelDeliveryRouter: options.channelDeliveryRouter,

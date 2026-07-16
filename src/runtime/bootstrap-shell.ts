@@ -193,6 +193,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     voiceProviderRegistry: services.voiceProviders,
     voiceService: services.voiceService,
     voiceSetup: services.voiceSetup,
+    memoryGovernor: services.memoryGovernor,
     mediaProviderRegistry: services.mediaProviders,
     artifactStore: services.artifactStore,
     channelDeliveryRouter: services.channelDeliveryRouter,

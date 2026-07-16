@@ -71,7 +71,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   fetch: 'Fetch-tool response sanitization: the default sanitize mode, and default trusted/blocked host lists layered under any per-call overrides. The built-in SSRF-risk block applies independently.',
   security: 'Credential rotation-audit defaults: how often tokens should rotate, how much lead time a warning gets, and whether overdue or over-scoped tokens are blocked from use rather than only reported.',
   integrations: 'Integration delivery reliability: retry ceiling and exponential-backoff bounds for Slack/Discord/webhook delivery, dead-letter queue size, and whether dead-letter events log at error level.',
-  memory: 'A daemon\'s own memory-pressure budget, tier thresholds, and leak-tripwire settings (from the SDK\'s memory-governance layer). Locked here: this Agent build has no memory-governance layer to read these values (the SDK\'s CacheRegistry/MemoryGovernor have no public export path yet), so editing them has no effect in this build — see /health memory.',
+  memory: 'This runtime\'s own memory-pressure defense: the RSS budget (0 = auto: min of 25% of system RAM and 4096 MB), the elevated/high/critical tier thresholds that shed caches and pause deferrable background jobs, the leak tripwire (sustained growth rate that triggers a graceful exit with a receipt), and the absolute hard-limit backstop as a percent of the kill ceiling. Live state under /health memory.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {

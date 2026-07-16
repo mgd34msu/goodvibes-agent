@@ -28,25 +28,6 @@ export function isExternalHostOwnedSettingKey(key: string): boolean {
     || EXTERNAL_HOST_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
 
-export const AGENT_MEMORY_GOVERNANCE_INERT_LOCK_REASON = 'This Agent build has no memory-governance layer (the SDK\'s CacheRegistry/MemoryGovernor have no public export path yet), so no governor reads this value here. Editing it has no effect in this build.';
-
-const MEMORY_GOVERNANCE_SETTING_PREFIXES = [
-  // The SDK's memory-governance layer (CacheRegistry/PauseController/
-  // MemoryGovernor) has no public export path on the pinned SDK build this
-  // Agent composes against (see runtime/services.ts's composition-root note,
-  // right before wireRuntimePower, for the full verified defect writeup), so
-  // this Agent constructs no real governor to read these values. Distinct
-  // from EXTERNAL_HOST_SETTING_PREFIXES above (an ownership decision): this is
-  // an SDK export-surface gap, reported upstream, not an architectural
-  // boundary — these keys stay visible (not hidden) but locked with an
-  // honest reason so the settings UI never implies the toggle does something.
-  'memory.',
-] as const;
-
-export function isMemoryGovernanceInertSettingKey(key: string): boolean {
-  return MEMORY_GOVERNANCE_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix));
-}
-
 export function isAgentHiddenSettingKey(key: string): boolean {
   return AGENT_HIDDEN_SETTING_KEYS.has(key)
     || AGENT_HIDDEN_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix));
