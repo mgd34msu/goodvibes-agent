@@ -29,6 +29,7 @@ import {
 import { loadBootstrapSystemPrompt, syncConfiguredServices } from '@/runtime/index.ts';
 import { registerBootstrapHookBridge } from '@/runtime/index.ts';
 import { createRuntimeServices, foldAgentLegacyMemory, type RuntimeServices } from './services.ts';
+import { createHostPowerSeam } from '@pellux/goodvibes-sdk/platform/power';
 import { formatMemoryFoldReport } from '@pellux/goodvibes-sdk/platform/state';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { importVibeFilesIntoMemoryOnce } from '../agent/vibe-file.ts';
@@ -208,6 +209,12 @@ export async function initializeBootstrapCore(
     resolveSessionId: () => runtimeSessionIdRef.value || undefined,
     workingDir,
     homeDirectory,
+    // The embedded interactive runtime IS the long-lived composition that owns
+    // the sleep edge — it holds a LOCAL OS inhibitor for keep-awake /
+    // idle-inhibit while the process lives. Opt into the real host power seam
+    // here (createRuntimeServices otherwise defaults to the non-spawning
+    // unavailable seam). Pinned by power-keep-awake-composition.test.ts.
+    powerSeam: createHostPowerSeam(),
   });
   const providerRegistry = services.providerRegistry;
   providerRegistry.initModelLimits();

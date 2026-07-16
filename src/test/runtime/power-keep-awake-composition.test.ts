@@ -30,6 +30,7 @@ import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
+import { createHostPowerSeam } from '@pellux/goodvibes-sdk/platform/power';
 
 describe('power.keepAwake local live-apply (config-subscription path)', () => {
   let root = '';
@@ -97,31 +98,36 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
     }
   });
 
-  test('the composition root opts into the real host power seam (not the non-spawning unavailable seam)', () => {
-    // SDK 1.9.0 (createHostPowerSeam / the createRuntimeServices non-spawning
-    // default) moved seam selection to an explicit opt-in: the SDK's generic
-    // runtime-services FACTORY now defaults to the "unavailable" no-spawn seam
-    // for test determinism, and only a real host that owns the sleep edge opts
-    // back in (the standalone daemon cli passes powerSeam: createHostPowerSeam()).
-    //
-    // This Agent composes its OWN runtime root (createRuntimeServices here) and
-    // holds a LOCAL OS inhibitor while it runs, so services.ts names
-    // seam: createHostPowerSeam() on its wireRuntimePower call. Pin that: the
-    // composed PowerManager must report the real host platform, never the
-    // unavailable seam — otherwise keep-awake/idle-inhibit would flip state
-    // (the tests above) while silently holding nothing at the OS level. The
-    // seam's platform label is the honest tell: 'linux-logind' on Linux, the
-    // honest 'unavailable (...)' string elsewhere and for the no-spawn seam.
+  test('a test-constructed runtime (no powerSeam) defaults to the NON-spawning unavailable seam', () => {
+    // SDK 1.9.0 moved seam selection to an explicit opt-in: createRuntimeServices
+    // now defaults an ABSENT powerSeam to the SDK's "unavailable" no-spawn seam,
+    // so a test-constructed runtime never spawns systemd-inhibit inhibitors or a
+    // dbus-monitor sleep-edge watcher. makeServices() passes no powerSeam, so the
+    // composed PowerManager must report the honest 'unavailable (...)' platform —
+    // yet keep-awake state still flips (the live-apply tests above), because the
+    // PowerManager tracks the enabled intent independently of seam availability.
     const services = makeServices();
     try {
-      const platform = services.powerManager.getState().platform;
-      expect(platform.startsWith('unavailable')).toBe(false);
-      if (process.platform === 'linux') {
-        expect(platform).toBe('linux-logind');
-      }
+      expect(services.powerManager.getState().platform.startsWith('unavailable')).toBe(true);
     } finally {
       services.providerRegistry.stopWatching();
       services.configManager.stopWatchingConfigFiles();
+    }
+  });
+
+  test('the host power seam opt-in wires the real platform, and constructing it spawns nothing', () => {
+    // The live-seam WIRING pin: createHostPowerSeam() is exactly what the
+    // embedded interactive runtime (bootstrap-core.ts) passes as powerSeam to
+    // own the sleep edge. Constructing the seam is inert — it spawns nothing
+    // until inhibit()/onPrepareForSleep()/reapOrphans() run — so this asserts
+    // the WIRING (the platform label the opt-in selects), never a spawn. It is
+    // deliberately NOT wired through wireRuntimePower here, so the suite holds
+    // no live inhibitor or sleep-edge watcher on account of this assertion.
+    const seam = createHostPowerSeam();
+    if (process.platform === 'linux') {
+      expect(seam.platform).toBe('linux-logind');
+    } else {
+      expect(seam.platform.startsWith('unavailable')).toBe(true);
     }
   });
 

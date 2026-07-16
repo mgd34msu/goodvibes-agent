@@ -3,7 +3,7 @@ import { StepUpService } from '@pellux/goodvibes-sdk/daemon';
 import { PairingTokenManager } from '@pellux/goodvibes-sdk/platform/pairing';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell, operations as runtimeOperations } from '@pellux/goodvibes-sdk/platform/runtime';
-import type { shell as RuntimeShell } from '@pellux/goodvibes-sdk/platform/runtime';
+import type { shell as RuntimeShell, bootstrap as RuntimeBootstrap } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
 import { backfillCheckpointEligibilityIfNeeded, createWorkspaceRegistrationLiveChecker, migrateLegacyWorkspaceRegistryIfNeeded } from '../config/workspace-registration.ts';
@@ -78,7 +78,7 @@ import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/co
 // Sleep ownership (SDK round: power/*): work inhibition, sleep-edge honesty,
 // the keep-awake toggle. Constructed exactly as the SDK composition root does
 // (wireRuntimePower binds runtimeBus work signals and starts the manager).
-import { createHostPowerSeam, wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
+import { createUnavailablePowerSeam, wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
 import { forwardKeepAwakeToAdoptedDaemon } from '../agent/power-keep-awake-remote.ts';
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
@@ -179,17 +179,23 @@ import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
 import { AgentExecutionLedger } from './execution-ledger.ts';
 
 type WorktreeRegistry = RuntimeShell.WorktreeRegistry;
-// The SDK's FULL runtime-services shape, recovered through a public function
-// signature: startHostServices (platform/runtime/bootstrap-services.ts) takes
-// it as its 4th parameter. Used to be read off
-// RuntimeFoundationClientsOptions['runtimeServices'], but sdk 4d5e247b
-// narrowed that option to RuntimeFoundationServicesSlice (the fields
-// createRuntimeFoundationClients actually consumes) — the right fix for that
-// over-broad option type, which this composition root asked for. This alias
-// deliberately keeps tracking the FULL interface because this repo's
-// RuntimeServices is handed to SDK consumers typed against the whole thing
+// The SDK's FULL runtime-services shape, taken from the runtime bootstrap
+// namespace's public RuntimeServices type alias. This repo's RuntimeServices
+// extends it and is handed to SDK consumers typed against the whole thing
 // (startHostServices, DaemonServer, createObservabilityReadModels).
-type SdkRuntimeServices = Parameters<typeof import('@/runtime/index.ts').startHostServices>[3];
+type SdkRuntimeServices = RuntimeBootstrap.RuntimeServices;
+// Compile-pin: the public RuntimeServices alias must stay exactly the shape
+// startHostServices consumes as its 4th parameter. If the SDK ever diverges
+// its two public runtime surfaces, this mutual-assignability check fails and
+// surfaces the drift here at build time.
+type AssertTrue<T extends true> = T;
+type _SdkRuntimeServicesPin = AssertTrue<
+  SdkRuntimeServices extends Parameters<typeof import('@/runtime/index.ts').startHostServices>[3]
+    ? Parameters<typeof import('@/runtime/index.ts').startHostServices>[3] extends SdkRuntimeServices
+      ? true
+      : false
+    : false
+>;
 type SdkCompanionGraphService = NonNullable<SdkRuntimeServices>['homeGraphService'];
 type KnowledgeServiceConstructor = new (
   store: KnowledgeStore,
@@ -552,6 +558,15 @@ export interface RuntimeServicesOptions {
   readonly resolveSessionId?: CheckpointSessionResolver;
   readonly workingDir: string;
   readonly homeDirectory: string;
+  /**
+   * Host power seam opt-in. Left ABSENT, createRuntimeServices defaults to the
+   * SDK's non-spawning "unavailable" seam so a test-constructed runtime never
+   * spawns systemd-inhibit inhibitors or a dbus-monitor sleep-edge watcher.
+   * Only the real long-lived composition that owns the sleep edge (the embedded
+   * interactive runtime — see bootstrap-core.ts) passes createHostPowerSeam()
+   * to opt into live OS keep-awake / idle-inhibit.
+   */
+  readonly powerSeam?: Parameters<typeof wireRuntimePower>[0]['seam'];
 }
 
 export interface RuntimeServices extends SdkRuntimeServices {
@@ -1583,18 +1598,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // checkpoint the store snapshots on sleep and catch consolidation + store
   // snapshots + heartbeat back up on wake.
   const powerManager = wireRuntimePower({
-    // Opt into the real host power seam EXPLICITLY, exactly as the SDK's own
-    // standalone daemon cli does (it passes powerSeam: createHostPowerSeam()
-    // into createRuntimeServices). As of SDK 1.9.0 the generic runtime-services
-    // FACTORY defaults to the non-spawning "unavailable" seam for test
-    // determinism, and only a real host that owns the sleep edge opts back in.
-    // This Agent is that host: it composes its own runtime root (this function)
-    // and holds a LOCAL OS inhibitor for keep-awake/idle-inhibit while the
-    // process lives. wireRuntimePower still defaults to the host seam on its
-    // own, but we name it here so this Agent's host posture is explicit and a
-    // future SDK default flip can never silently downgrade the live inhibitor
-    // to a no-op — pinned by power-keep-awake-composition.test.ts.
-    seam: createHostPowerSeam(),
+    // Non-spawning default: without an explicit opt-in the seam is the SDK's
+    // honest "unavailable" seam, NOT the spawning host seam that
+    // wireRuntimePower would otherwise pick for an undefined seam. This keeps
+    // every test-constructed runtime (and one-shot CLI subcommands) from
+    // spawning systemd-inhibit inhibitors or a dbus-monitor sleep-edge watcher.
+    // Only the real long-lived composition that owns the sleep edge — the
+    // embedded interactive runtime in bootstrap-core.ts — passes
+    // powerSeam: createHostPowerSeam() to hold a LOCAL OS inhibitor for
+    // keep-awake / idle-inhibit while the process lives. Pinned by
+    // power-keep-awake-composition.test.ts.
+    seam: options.powerSeam ?? createUnavailablePowerSeam('runtime services constructed without a host power seam'),
     readConfig: (key) => configManager.get(key as never),
     writeConfig: (key, value) => configManager.setDynamic(key as never, value),
     // Live-apply straight from the SDK's own PowerManager (SDK round: the
