@@ -1,9 +1,13 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { CommandRegistry } from '../command-registry.ts';
-import { requireShellPaths } from './runtime-services.ts';
+import { requireShellPaths, requireVoiceSetup } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import { handleApprovalOperatorAction } from './operator-actions-runtime.ts';
+
+function formatVoiceComponentState(state: string): string {
+  return state.replace(/[_-]+/g, ' ');
+}
 
 interface VoiceBundle {
   readonly version: 1;
@@ -72,14 +76,53 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
 
   registry.register({
     name: 'voice',
-    description: 'Review voice posture and package portable voice interaction metadata',
-    usage: '[review|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]',
+    description: 'Review voice posture, manage the managed local-voice runtime, and package portable voice interaction metadata',
+    usage: '[review|status|setup --yes|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
       try {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       const sub = (commandArgs[0] ?? 'review').toLowerCase();
+      if (sub === 'status') {
+        const status = requireVoiceSetup(ctx).status();
+        ctx.print([
+          'Managed Local-Voice Status',
+          `  platform: ${status.platform ?? 'unknown'}`,
+          `  state: ${formatVoiceComponentState(status.state)}`,
+          `  tts (${status.tts.engine}): binary ${status.tts.binaryPresent ? 'present' : 'missing'}, voice ${status.tts.voicePresent ? 'present' : 'missing'}`,
+          `  stt (${status.stt.engine}): ${status.stt.supported ? formatVoiceComponentState(status.stt.state) : 'not supported on this build'}${status.stt.reason ? ` (${status.stt.reason})` : ''}`,
+          ...(status.offerBytes != null ? [`  install size ~${Math.round(status.offerBytes / (1024 * 1024))} MB`] : []),
+          '  next /voice setup --yes',
+        ].join('\n'));
+        return;
+      }
+      if (sub === 'setup') {
+        if (!parsed.yes) {
+          requireYesFlag(ctx, 'install the managed local-voice runtime (downloads piper TTS + a default voice)', '/voice setup --yes');
+          return;
+        }
+        ctx.print('Installing managed local-voice runtime...');
+        void requireVoiceSetup(ctx).install().then((result) => {
+          const lines = [
+            'Managed Local-Voice Setup',
+            ...result.components.map((component) => `  ${component.id}: ${formatVoiceComponentState(component.state)}${component.error ? ` (${component.error})` : ''}`),
+            `  tts (${result.tts.engine}): ${formatVoiceComponentState(result.tts.state)}${result.tts.reason ? ` (${result.tts.reason})` : ''}`,
+            // STT (whisper.cpp) provisions only where goodvibes has published a
+            // pinned per-platform bundle; elsewhere (or before that bundle is
+            // published for this platform) it reports its real state honestly
+            // rather than a fabricated success.
+            `  stt (${result.stt.engine}): ${formatVoiceComponentState(result.stt.state)}${result.stt.reason ? ` (${result.stt.reason})` : ''}`,
+            `  result: ${result.provisioned ? 'voice.local.* configured' : 'not provisioned'}`,
+            ...result.configured.set.map((entry) => `  set ${entry.key} = ${entry.value}`),
+            ...result.configured.skipped.map((entry) => `  skipped ${entry.key} (${entry.reason})`),
+          ];
+          ctx.print(lines.join('\n'));
+        }).catch((error) => {
+          ctx.print(`voice setup failed: ${error instanceof Error ? error.message : String(error)}`);
+        });
+        return;
+      }
       if (sub === 'review') {
         const enabled = Boolean(ctx.platform.configManager.get('ui.voiceEnabled') ?? false);
         ctx.print([
@@ -87,6 +130,8 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           `  enabled: ${enabled ? 'yes' : 'no'}`,
           '  posture: optional local companion interaction; disabled by default',
           '  note: voice remains an optional operator convenience, not a required SaaS dependency',
+          '  next /voice status',
+          '  next /voice setup --yes',
         ].join('\n'));
         return;
       }
@@ -141,7 +186,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           return;
         }
       }
-      ctx.print('Usage: /voice [review|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]');
+      ctx.print('Usage: /voice [review|status|setup --yes|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]');
       } catch (error) {
         ctx.print(`voice command failed: ${error instanceof Error ? error.message : String(error)}`);
       }

@@ -99,7 +99,18 @@ import type { DomainDispatch, RuntimeStore } from './store/index.ts';
 import { DistributedRuntimeManager } from '@/runtime/index.ts';
 import { RemoteRunnerRegistry, RemoteSupervisor } from '@/runtime/index.ts';
 import { IntegrationHelperService } from '@/runtime/index.ts';
-import { VoiceProviderRegistry, VoiceService, ensureBuiltinVoiceProviders } from '@pellux/goodvibes-sdk/platform/voice';
+import {
+  VoiceProviderRegistry,
+  VoiceService,
+  ensureBuiltinVoiceProviders,
+  provisionLocalVoiceRuntime,
+  localVoiceRuntimeStatus,
+  preconfigureLocalVoiceKeys,
+  readVoiceInstallStamp,
+  writeVoiceInstallStamp,
+  type VoiceRuntimeStatus,
+  type VoiceProvisionResult,
+} from '@pellux/goodvibes-sdk/platform/voice';
 import { WebSearchProviderRegistry, WebSearchService } from '@pellux/goodvibes-sdk/platform/web-search';
 import { MemoryEmbeddingProviderRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { HookActivityTracker } from '@pellux/goodvibes-sdk/platform/hooks';
@@ -476,6 +487,49 @@ export function createLaunchTolerantProviderRegistry(options: ProviderRegistryCo
   return providerRegistry;
 }
 
+/**
+ * Managed local-voice provisioning: the narrow status/install surface this
+ * Agent exposes both to its own slash commands (/voice setup, /voice status)
+ * and to the voice.local.status/voice.local.install gateway verbs (structurally
+ * matches VoiceSetupGatewayService from the SDK's control-plane routes, which
+ * is not itself exported by name — only the descriptor-driven registration
+ * that accepts an object of this shape is public).
+ */
+export interface AgentVoiceSetupService {
+  status(): VoiceRuntimeStatus;
+  install(): Promise<VoiceProvisionResult & {
+    readonly provisioned: boolean;
+    readonly configured: {
+      readonly set: ReadonlyArray<{ readonly key: string; readonly value: string }>;
+      readonly skipped: ReadonlyArray<{ readonly key: string; readonly reason: string }>;
+    };
+  }>;
+}
+
+/**
+ * Minimal single-flight join: while an install is in-flight, concurrent
+ * callers join the SAME in-flight promise instead of starting parallel
+ * multi-hundred-MB downloads. The SDK's own voice-install composition uses an
+ * equivalent `singleFlight` helper (packages/sdk/src/platform/utils/single-flight.ts)
+ * but that helper is not part of the SDK's public export surface — it is not
+ * re-exported from @pellux/goodvibes-sdk/platform/utils (verified: `singleFlight`
+ * is absent from that subpath's runtime exports on this pinned SDK build).
+ * Reported upstream as a minor SDK export gap; this is a fresh, minimal
+ * reimplementation of a generic concurrency idiom, not a fork of SDK-owned
+ * policy.
+ */
+function singleFlightJoin<T>(run: () => Promise<T>): () => Promise<T> {
+  let inFlight: Promise<T> | null = null;
+  return (): Promise<T> => {
+    if (inFlight) return inFlight;
+    const started = run().finally(() => {
+      inFlight = null;
+    });
+    inFlight = started;
+    return started;
+  };
+}
+
 export interface RuntimeServicesOptions {
   readonly runtimeBus: RuntimeEventBus;
   readonly runtimeStore: RuntimeStore;
@@ -596,6 +650,14 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly workflow: WorkflowServices;
   readonly voiceProviders: VoiceProviderRegistry;
   readonly voiceService: VoiceService;
+  /**
+   * Managed local-voice provisioning: status read + one-act install, mirroring
+   * the parts of the SDK's own daemon composition (platform/runtime/services.ts)
+   * that ARE reachable through the SDK's public export surface. See the
+   * memory-governance composition note below (createRuntimeServices) for the
+   * one part of that SDK composition this Agent could NOT mirror and why.
+   */
+  readonly voiceSetup: AgentVoiceSetupService;
   readonly webSearchProviders: WebSearchProviderRegistry;
   readonly webSearchService: WebSearchService;
   readonly mediaProviders: MediaProviderRegistry;
@@ -959,6 +1021,59 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const voiceProviders = new VoiceProviderRegistry();
   ensureBuiltinVoiceProviders(voiceProviders);
   const voiceService = new VoiceService(voiceProviders);
+
+  // Managed local-voice provisioning (SDK round: voice.local.install/status).
+  // Constructed the way the SDK's own daemon composition constructs it
+  // (platform/runtime/services.ts): single-flight install, config
+  // preconfigure that never overwrites a genuinely user-set value, and a
+  // reset of the local engine's tripped failure state on a successful
+  // (re-)install. No admission gate against a MemoryGovernor here — see the
+  // memory-governance note further down (right before `wireRuntimePower`):
+  // there is no governor in this composition to admit against, so install
+  // simply always runs when called.
+  const managedVoiceRoot = shellPaths.resolveUserPath('voice');
+  const runVoiceInstall = singleFlightJoin(async () => {
+    const provision = await provisionLocalVoiceRuntime({ managedRoot: managedVoiceRoot });
+    let configured: { set: { key: string; value: string }[]; skipped: { key: string; reason: string }[] } = { set: [], skipped: [] };
+    if (provision.tts.state === 'provisioned' && provision.tts.binaryPath && provision.tts.modelPath) {
+      // Ownership-aware preconfigure: values THIS installer previously wrote
+      // (recorded in the install stamp) update to the new managed paths; a
+      // genuinely user-set value still wins; a user-cleared installer value
+      // is a deliberate disable and stays cleared.
+      const stamp = readVoiceInstallStamp(managedVoiceRoot);
+      const receipt = preconfigureLocalVoiceKeys({
+        getConfig: (k) => String(configManager.get(k as never) ?? ''),
+        setConfig: (k, v) => configManager.setDynamic(k as never, v),
+        ttsEngine: provision.tts.engine,
+        ttsBinary: provision.tts.binaryPath,
+        ttsModelPath: provision.tts.modelPath,
+        ...(provision.stt.state === 'provisioned' && provision.stt.binaryPath && provision.stt.modelPath
+          ? { sttEngine: provision.stt.engine, sttBinary: provision.stt.binaryPath, sttModelPath: provision.stt.modelPath }
+          : {}),
+        priorInstallWrites: stamp?.configWrites,
+      });
+      configured = { set: [...receipt.set], skipped: [...receipt.skipped] };
+      if (stamp) {
+        writeVoiceInstallStamp(managedVoiceRoot, { ...stamp, configWrites: { ...stamp.configWrites, ...receipt.installWrites } });
+      }
+      // A successful (re-)install is the recovery act: clear any tripped
+      // local-engine circuit breaker so the next call retries the fresh engine.
+      voiceProviders.get('local')?.resetEngineFailureState?.();
+    }
+    return {
+      provisioned: provision.tts.state === 'provisioned',
+      platform: provision.platform,
+      tts: provision.tts,
+      stt: provision.stt,
+      components: provision.components,
+      configured,
+    };
+  });
+  const voiceSetup: AgentVoiceSetupService = {
+    status: () => localVoiceRuntimeStatus({ managedRoot: managedVoiceRoot }),
+    install: () => runVoiceInstall(),
+  };
+
   const webSearchProviders = new WebSearchProviderRegistry({
     env: process.env,
     serviceRegistry,
@@ -1398,6 +1513,42 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // due schedule) automatically holds the inhibitor, sleep-edge hooks that
   // checkpoint the store snapshots on sleep and catch consolidation + store
   // snapshots + heartbeat back up on wake.
+  // Memory governance (SDK round: CacheRegistry/PauseController/MemoryGovernor,
+  // wireDaemonMemoryGovernance, ops.memory.get) — NOT composed here.
+  //
+  // DELIBERATE DIVERGENCE from the SDK's own daemon composition
+  // (packages/sdk/src/platform/runtime/services.ts), unlike every other
+  // "mirror the SDK composition root" seam in this file: the memory-governance
+  // layer has NO public export path on this pinned SDK build. Verified by
+  // direct probe (`import('@pellux/goodvibes-sdk/platform/runtime/memory')`
+  // throws "Cannot find module ..."), by reading the SDK's own
+  // packages/sdk/package.json `exports` map (no `./platform/runtime/memory`
+  // entry among its ~130 subpaths), and by reading
+  // packages/sdk/src/platform/runtime/index.ts (the `platform/runtime` barrel
+  // re-exports only `bootstrap`/`observability`/`operations`/`security`/
+  // `shell`/`state`/`transport`/`ui` namespaces — no `memory` namespace).
+  // CacheRegistry, PauseController, MemoryGovernor, createMemoryGovernance,
+  // and wireDaemonMemoryGovernance are therefore unreachable from any
+  // consumer package outside the SDK's own workspace, even though the SDK's
+  // own daemon composition constructs and starts them.
+  //
+  // Reported upstream as a blocking SDK defect rather than patched around:
+  // this repo does not fork the SDK's governor policy locally, and does not
+  // reach into the installed package's dist/ internals past its declared
+  // exports map (both would defeat the point of the package boundary and
+  // drift from the SDK's own future changes to that policy). Fix on the SDK
+  // side: add a `./platform/runtime/memory` subpath export (or re-export a
+  // `memory` namespace from the `platform/runtime` barrel) pointing at
+  // dist/platform/runtime/memory/index.js, mirroring every sibling subpath
+  // already in that exports map (memory-spine, session-spine, fleet, etc.).
+  //
+  // Consequence, kept honest rather than faked: `attachWsOnlyGatewayVerbHandlers`
+  // below is never passed a `memoryGovernor` dep, so `ops.memory.get` stays
+  // cataloged-but-unhandled (the SDK's own catalog answers 501 for a
+  // descriptor with no registered handler) instead of serving a fabricated
+  // snapshot from a governor that does not exist. `/health memory` (see
+  // input/commands/health-runtime.ts) reports this same unavailable state
+  // honestly, not silently.
   const powerManager = wireRuntimePower({
     // Opt into the real host power seam EXPLICITLY, exactly as the SDK's own
     // standalone daemon cli does (it passes powerSeam: createHostPowerSeam()
@@ -1483,6 +1634,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     processRegistry,
     sessionLiveTurnControls,
     powerManager,
+    // voice.local.status/voice.local.install: the SAME instance this
+    // repo's /voice slash command reads directly (see RuntimeServices return
+    // below) — one voiceSetup, reachable both locally and over the gateway.
+    // No `memoryGovernor` dep here: see the memory-governance divergence note
+    // above (right before `wireRuntimePower`) for why none exists to pass.
+    voiceSetup,
     workspaceCheckpointManager: checkpointsGatewayManager,
     sessionBroker,
     secretsManager,
@@ -1571,7 +1728,44 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // composition root does, from the public @pellux/goodvibes-sdk/daemon export.
   const stepUpService = new StepUpService({ secrets: secretsManager });
 
+  // Type-satisfaction shim, NOT a functional implementation. This repo's
+  // `RuntimeServices` (below, `extends SdkRuntimeServices`, where
+  // `SdkRuntimeServices = RuntimeFoundationClientsOptions['runtimeServices']`)
+  // structurally requires memoryGovernor/cacheRegistry/pauseController fields
+  // because `RuntimeFoundationClientsOptions.runtimeServices`
+  // (packages/sdk/src/platform/runtime/foundation-clients.ts) is typed as the
+  // SDK's ENTIRE internal daemon `RuntimeServices` interface rather than a
+  // narrow `Pick<...>` of what `createRuntimeFoundationClients` actually
+  // reads — verified: that function's body (same file) never references
+  // `memoryGovernor`, `cacheRegistry`, or `pauseController`. Combined with the
+  // export-surface gap documented above (right before `wireRuntimePower`) —
+  // the concrete classes have no public import path at all — there is no way
+  // to construct real instances, and no way to narrow the SDK's own exported
+  // parameter type from this side of the package boundary. Both are reported
+  // upstream as SDK defects.
+  //
+  // These three fields are therefore inert placeholders that must NEVER be
+  // read or called: any touch throws immediately and loudly (never silently
+  // returns fabricated data) via a Proxy trap, so a future SDK change that
+  // starts actually consuming one of these fields fails a real test instead
+  // of degrading silently.
+  const memoryGovernanceUnavailableMember = new Proxy({}, {
+    get(_target, prop): never {
+      throw new Error(
+        `Memory governance member "${String(prop)}" is unavailable in this build (SDK export gap: `
+        + 'CacheRegistry/PauseController/MemoryGovernor have no public export path in the pinned '
+        + '@pellux/goodvibes-sdk build) and must never be read or called.',
+      );
+    },
+  });
+
   return {
+    // See the memoryGovernanceUnavailableMember comment immediately above:
+    // inert type-satisfaction shims only, never read or called anywhere in
+    // this codebase's real call graph.
+    memoryGovernor: memoryGovernanceUnavailableMember as unknown as SdkRuntimeServices['memoryGovernor'],
+    cacheRegistry: memoryGovernanceUnavailableMember as unknown as SdkRuntimeServices['cacheRegistry'],
+    pauseController: memoryGovernanceUnavailableMember as unknown as SdkRuntimeServices['pauseController'],
     stepUpService,
     pairingTokens,
     workingDirectory,
@@ -1638,6 +1832,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     workflow,
     voiceProviders,
     voiceService,
+    voiceSetup,
     webSearchProviders,
     webSearchService,
     mediaProviders,

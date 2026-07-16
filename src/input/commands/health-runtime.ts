@@ -49,7 +49,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
     aliases: ['doctor'],
     description: 'Health workspace for startup posture, connected host readiness, provider health, and Agent continuity',
     hidden: true,
-    usage: '[review|setup|host|provider|accounts|auth|settings|remote|mcp|continuity|maintenance|repair [domain]]',
+    usage: '[review|setup|host|provider|accounts|auth|settings|remote|mcp|memory|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
       try {
@@ -185,6 +185,24 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         return;
       }
 
+      if (sub === 'memory') {
+        // Honest 501/unavailable state, not a fabricated snapshot: this pinned
+        // SDK build has no public export path for its memory-governance layer
+        // (CacheRegistry/PauseController/MemoryGovernor/wireDaemonMemoryGovernance;
+        // see runtime/services.ts's composition-root note next to
+        // wireRuntimePower for the verified detail), so this repo has no
+        // MemoryGovernor to construct, no ops.memory.get handler to register,
+        // and therefore no tier/budget/rss/cache/pause/tripwire state to show.
+        ctx.print([
+          'Health Review Memory',
+          '  available: no',
+          '  reason: memory governance layer unavailable in this build',
+          '  detail: ops.memory.get has no registered handler (CacheRegistry/MemoryGovernor/wireDaemonMemoryGovernance are not part of the pinned SDK build\'s public export surface)',
+          '  reported upstream to the SDK owner; no local repair action exists for this gap',
+        ].join('\n'));
+        return;
+      }
+
       if (sub === 'mcp') {
         const mcp = readModels.mcp.getSnapshot();
         const issues = mcp.servers.flatMap((server) => {
@@ -299,6 +317,11 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /mcp auth-review');
           lines.push('  /mcp repair [server]');
           lines.push('  verify /health mcp');
+        } else if (domain === 'memory') {
+          lines.push('  domain memory');
+          lines.push('  no local repair action exists: the memory governance layer has no public export path in this pinned SDK build');
+          lines.push('  reported upstream to the SDK owner');
+          lines.push('  verify /health memory');
         } else if (domain === 'continuity') {
           lines.push('  domain continuity');
           lines.push('  /session list');
@@ -312,7 +335,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           lines.push('  /compact');
           lines.push('  verify /health maintenance');
         } else {
-          lines.push('  domains settings, auth, accounts, host, remote, mcp, continuity, maintenance');
+          lines.push('  domains settings, auth, accounts, host, remote, mcp, memory, continuity, maintenance');
           lines.push('  use /health repair <domain>');
         }
         ctx.print(lines.join('\n'));
@@ -369,6 +392,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         '  /health accounts',
         '  /health auth',
         '  /health settings',
+        '  /health memory',
         '  /health maintenance',
         '  /health repair <domain>',
         '  /setup',

@@ -20,6 +20,7 @@ import type { DirectTransport } from '@/runtime/index.ts';
 import type { AgentPromptContextReceiptStore } from '../agent/prompt-context-receipts.ts';
 import type { MemoryConsolidationProposal } from '@pellux/goodvibes-sdk/platform/state';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
+import type { AgentVoiceSetupService } from '../runtime/services.ts';
 import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media';
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
@@ -175,6 +176,7 @@ export interface CommandPlatformConfigServices {
   readonly configManager: ConfigManager;
   readonly voiceProviderRegistry?: VoiceProviderRegistry;
   readonly voiceService?: VoiceService;
+  readonly voiceSetup?: AgentVoiceSetupService;
   readonly mediaProviderRegistry?: MediaProviderRegistry;
   readonly artifactStore?: Pick<ArtifactStore, 'create'> & Partial<Pick<ArtifactStore, 'get' | 'list' | 'readContent'>>;
   readonly channelDeliveryRouter?: Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>;

@@ -117,6 +117,10 @@ export function requireServiceRegistry(context: CommandContext) {
   return requireContextValue(context.platform.serviceRegistry, 'platform.serviceRegistry');
 }
 
+export function requireVoiceSetup(context: CommandContext) {
+  return requireContextValue(context.platform.voiceSetup, 'platform.voiceSetup');
+}
+
 export function requireLocalUserAuthManager(context: CommandContext) {
   return requireContextValue(context.platform.localUserAuthManager, 'platform.localUserAuthManager');
 }
