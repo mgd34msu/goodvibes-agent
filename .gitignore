@@ -29,6 +29,7 @@ docs/uat/
 # Artifacts
 scripts/reset-suite.sh
 .test-tmp/
+.test-suite-tmp/
 .test-edit-tmp*/
 .tmp-tests/
 test-tmp-hooks/

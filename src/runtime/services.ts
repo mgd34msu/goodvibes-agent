@@ -530,6 +530,131 @@ function singleFlightJoin<T>(run: () => Promise<T>): () => Promise<T> {
   };
 }
 
+interface LocalRegisteredCache {
+  readonly name: string;
+  entryCount(): number;
+  estimateBytes?(): number;
+  trim(level: 'floor' | 'flush'): void;
+}
+
+/**
+ * Local, real (not fabricated) reimplementation of the SDK's CacheRegistry —
+ * purely mechanical register/footprint bookkeeping, no pressure policy. See
+ * the composition-root return statement (createRuntimeServices) for why this
+ * exists instead of the SDK's own class.
+ */
+class LocalCacheRegistryStandIn {
+  private readonly caches = new Map<string, LocalRegisteredCache>();
+
+  register(id: string, cache: LocalRegisteredCache): () => void {
+    this.caches.set(id, cache);
+    return (): void => {
+      if (this.caches.get(id) === cache) this.caches.delete(id);
+    };
+  }
+
+  registeredIds(): string[] {
+    return [...this.caches.keys()];
+  }
+
+  has(id: string): boolean {
+    return this.caches.has(id);
+  }
+
+  footprints(): Array<{ readonly id: string; readonly name: string; readonly entries: number; readonly estimatedBytes?: number }> {
+    const out: Array<{ id: string; name: string; entries: number; estimatedBytes?: number }> = [];
+    for (const [id, cache] of this.caches) {
+      try {
+        const entries = cache.entryCount();
+        const estimatedBytes = cache.estimateBytes?.();
+        out.push({ id, name: cache.name, entries, ...(estimatedBytes !== undefined ? { estimatedBytes } : {}) });
+      } catch {
+        // A misbehaving cache is skipped, never thrown from here — matches
+        // the SDK's own footprints() contract.
+      }
+    }
+    return out;
+  }
+
+  totalEntries(): number {
+    let total = 0;
+    for (const cache of this.caches.values()) {
+      try {
+        total += cache.entryCount();
+      } catch {
+        // skip a misbehaving cache
+      }
+    }
+    return total;
+  }
+
+  trimAll(level: 'floor' | 'flush'): void {
+    for (const cache of this.caches.values()) {
+      try {
+        cache.trim(level);
+      } catch {
+        // a throwing cache never blocks the rest
+      }
+    }
+  }
+}
+
+/**
+ * Local, real reimplementation of the SDK's PauseController — pause-set
+ * bookkeeping only. Nothing in this composition ever drives pauseAll/
+ * resumeAll (there is no MemoryGovernor to do so), so every registered job
+ * honestly stays unpaused; implemented anyway for structural completeness
+ * rather than leaving the pause half silently absent.
+ */
+class LocalPauseControllerStandIn {
+  private readonly jobIds = new Set<string>();
+  private readonly paused = new Set<string>();
+
+  register(job: { readonly id: string }): () => void {
+    this.jobIds.add(job.id);
+    return (): void => {
+      this.jobIds.delete(job.id);
+      this.paused.delete(job.id);
+    };
+  }
+
+  isPaused(id: string): boolean {
+    return this.paused.has(id);
+  }
+
+  pausedJobs(): string[] {
+    return [...this.paused];
+  }
+
+  states(): Array<{ readonly id: string; readonly paused: boolean }> {
+    return [...this.jobIds].map((id) => ({ id, paused: this.paused.has(id) }));
+  }
+
+  pauseAll(_reason: string): void {
+    for (const id of this.jobIds) this.paused.add(id);
+  }
+
+  resumeAll(_reason: string): void {
+    this.paused.clear();
+  }
+
+  whenResumed(id: string): Promise<void> {
+    return this.paused.has(id) ? new Promise<void>(() => {}) : Promise.resolve();
+  }
+}
+
+/**
+ * Local stand-in for the SDK's MemoryGovernor admission check. No sampler
+ * runs in this composition (no public export path — see the composition-root
+ * note), so there is no pressure signal to refuse against: every request is
+ * honestly admitted, never a fabricated tier or refusal.
+ */
+class LocalMemoryGovernorStandIn {
+  admitExpensiveWork(_label = 'expensive operation'): { readonly allowed: true; readonly tier: 'normal' } {
+    return { allowed: true, tier: 'normal' };
+  }
+}
+
 export interface RuntimeServicesOptions {
   readonly runtimeBus: RuntimeEventBus;
   readonly runtimeStore: RuntimeStore;
@@ -1549,6 +1674,17 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // snapshot from a governor that does not exist. `/health memory` (see
   // input/commands/health-runtime.ts) reports this same unavailable state
   // honestly, not silently.
+  //
+  // The RuntimeServices return below (createRuntimeServices) still supplies
+  // memoryGovernor/cacheRegistry/pauseController fields — TypeScript requires
+  // them structurally (see that return statement's comment), and one real SDK
+  // call site (facade-composition.ts's resolveDaemonFacadeRuntime, reached
+  // when this repo hands its own RuntimeServices to the SDK's DaemonServer)
+  // genuinely calls methods on them. Those are minimal, REAL local
+  // reimplementations of the purely mechanical register/pause bookkeeping
+  // (LocalCacheRegistryStandIn / LocalPauseControllerStandIn /
+  // LocalMemoryGovernorStandIn, defined above) — never a pressure policy, and
+  // never wired into ops.memory.get.
   const powerManager = wireRuntimePower({
     // Opt into the real host power seam EXPLICITLY, exactly as the SDK's own
     // standalone daemon cli does (it passes powerSeam: createHostPowerSeam()
@@ -1728,44 +1864,41 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // composition root does, from the public @pellux/goodvibes-sdk/daemon export.
   const stepUpService = new StepUpService({ secrets: secretsManager });
 
-  // Type-satisfaction shim, NOT a functional implementation. This repo's
-  // `RuntimeServices` (below, `extends SdkRuntimeServices`, where
-  // `SdkRuntimeServices = RuntimeFoundationClientsOptions['runtimeServices']`)
-  // structurally requires memoryGovernor/cacheRegistry/pauseController fields
-  // because `RuntimeFoundationClientsOptions.runtimeServices`
-  // (packages/sdk/src/platform/runtime/foundation-clients.ts) is typed as the
-  // SDK's ENTIRE internal daemon `RuntimeServices` interface rather than a
-  // narrow `Pick<...>` of what `createRuntimeFoundationClients` actually
-  // reads — verified: that function's body (same file) never references
-  // `memoryGovernor`, `cacheRegistry`, or `pauseController`. Combined with the
-  // export-surface gap documented above (right before `wireRuntimePower`) —
-  // the concrete classes have no public import path at all — there is no way
-  // to construct real instances, and no way to narrow the SDK's own exported
-  // parameter type from this side of the package boundary. Both are reported
-  // upstream as SDK defects.
-  //
-  // These three fields are therefore inert placeholders that must NEVER be
-  // read or called: any touch throws immediately and loudly (never silently
-  // returns fabricated data) via a Proxy trap, so a future SDK change that
-  // starts actually consuming one of these fields fails a real test instead
-  // of degrading silently.
-  const memoryGovernanceUnavailableMember = new Proxy({}, {
-    get(_target, prop): never {
-      throw new Error(
-        `Memory governance member "${String(prop)}" is unavailable in this build (SDK export gap: `
-        + 'CacheRegistry/PauseController/MemoryGovernor have no public export path in the pinned '
-        + '@pellux/goodvibes-sdk build) and must never be read or called.',
-      );
-    },
-  });
-
   return {
-    // See the memoryGovernanceUnavailableMember comment immediately above:
-    // inert type-satisfaction shims only, never read or called anywhere in
-    // this codebase's real call graph.
-    memoryGovernor: memoryGovernanceUnavailableMember as unknown as SdkRuntimeServices['memoryGovernor'],
-    cacheRegistry: memoryGovernanceUnavailableMember as unknown as SdkRuntimeServices['cacheRegistry'],
-    pauseController: memoryGovernanceUnavailableMember as unknown as SdkRuntimeServices['pauseController'],
+    // Minimal, REAL (not fabricated) local stand-ins for the three
+    // memory-governance seams — required both structurally (this repo's
+    // `RuntimeServices` extends `SdkRuntimeServices` =
+    // `RuntimeFoundationClientsOptions['runtimeServices']`, which is typed as
+    // the SDK's ENTIRE internal daemon RuntimeServices interface rather than a
+    // narrow Pick of what any one consumer needs) AND functionally: verified
+    // that `packages/sdk/src/platform/daemon/facade-composition.ts`'s
+    // `resolveDaemonFacadeRuntime` — reached for real whenever this repo hands
+    // its OWN composed RuntimeServices to the SDK's `DaemonServer` facade (see
+    // src/test/cli/memory-command-wire.test.ts) — unconditionally calls
+    // `runtimeServices.cacheRegistry.register('event-replay-ring', {...})`,
+    // and (when `agentKnowledgeService` is absent, which it never is here)
+    // would also call `.memoryGovernor.admitExpensiveWork` /
+    // `.pauseController.isPaused`. An inert placeholder that throws on touch
+    // (an earlier version of this composition) broke that real call site.
+    //
+    // What these stand-ins are NOT: a reimplementation of the governor's
+    // PRESSURE POLICY (RSS sampling, tier computation, the leak tripwire).
+    // This composition has none of that, honestly, because
+    // CacheRegistry/PauseController/MemoryGovernor have no public export path
+    // on this pinned SDK build (see the composition note above, right before
+    // `wireRuntimePower`, for the full verified defect writeup) — so nothing
+    // here ever claims a real tier or a real refusal. What they ARE: the same
+    // purely mechanical bookkeeping the SDK's own cache-registry.ts /
+    // pause-controller.ts implement (register/footprint accounting; pause-set
+    // bookkeeping), reimplemented locally because the classes themselves
+    // cannot be imported, and — since a MemoryGovernor never runs here to
+    // drive pressure — an honest "nothing is paused, everything is admitted"
+    // MemoryGovernor stand-in. Cast to the SDK's nominal class types
+    // afterward: even a byte-for-byte behavioral match cannot be structurally
+    // assignable to a class with private fields it did not originate from.
+    memoryGovernor: new LocalMemoryGovernorStandIn() as unknown as SdkRuntimeServices['memoryGovernor'],
+    cacheRegistry: new LocalCacheRegistryStandIn() as unknown as SdkRuntimeServices['cacheRegistry'],
+    pauseController: new LocalPauseControllerStandIn() as unknown as SdkRuntimeServices['pauseController'],
     stepUpService,
     pairingTokens,
     workingDirectory,

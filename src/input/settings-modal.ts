@@ -42,7 +42,7 @@ import {
   type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
-import { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, isAgentHiddenSettingKey, isExternalHostOwnedSettingKey } from './settings-modal-agent-policy.ts';
+import { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, AGENT_MEMORY_GOVERNANCE_INERT_LOCK_REASON, isAgentHiddenSettingKey, isExternalHostOwnedSettingKey, isMemoryGovernanceInertSettingKey } from './settings-modal-agent-policy.ts';
 
 export {
   SETTINGS_CATEGORIES,
@@ -59,6 +59,7 @@ export {
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
 export { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, isExternalHostOwnedSettingKey } from './settings-modal-agent-policy.ts';
+export { AGENT_MEMORY_GOVERNANCE_INERT_LOCK_REASON, isMemoryGovernanceInertSettingKey } from './settings-modal-agent-policy.ts';
 export { isAgentHiddenSettingKey } from './settings-modal-agent-policy.ts';
 
 // ---------------------------------------------------------------------------
@@ -352,7 +353,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
-    if (this._blockExternalHostOwnedSetting(entry)) return;
+    if (this._blockLockedInertSetting(entry)) return;
 
     const { setting } = entry;
 
@@ -417,7 +418,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
-    if (this._blockExternalHostOwnedSetting(entry)) return;
+    if (this._blockLockedInertSetting(entry)) return;
     const { setting } = entry;
 
     if (setting.type === 'boolean') {
@@ -534,7 +535,7 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return false;
-    if (this._blockExternalHostOwnedSetting(entry)) {
+    if (this._blockLockedInertSetting(entry)) {
       this.editingMode = false;
       this.editBuffer = '';
       return false;
@@ -585,7 +586,7 @@ export class SettingsModal {
     if (this.editingMode || !this.configManager) return null;
     const entry = this.getSelected();
     if (!entry) return null;
-    if (this._blockExternalHostOwnedSetting(entry)) return null;
+    if (this._blockLockedInertSetting(entry)) return null;
     const key = entry.setting.key as ConfigKey;
     this._setValue(key, entry.setting.default);
     if (isSecretConfigKey(key) && this.secretsManager) {
@@ -623,15 +624,20 @@ export class SettingsModal {
       const currentValue = configManager.get(setting.key as ConfigKey);
       const resolved = getResolvedSettingLookup(configManager, setting.key as ConfigKey)?.entry;
       const hostOwned = isExternalHostOwnedSettingKey(setting.key);
+      const memoryGovernanceInert = isMemoryGovernanceInertSettingKey(setting.key);
       const entry: SettingEntry = {
         setting,
         currentValue,
         isDefault: currentValue === setting.default,
         effectiveSource: resolved?.effectiveSource,
-        locked: hostOwned || resolved?.locked,
+        locked: hostOwned || memoryGovernanceInert || resolved?.locked,
         conflict: resolved?.conflict,
         sourceLabel: resolved?.sourceLabel,
-        lockReason: hostOwned ? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON : resolved?.lockReason,
+        lockReason: hostOwned
+          ? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON
+          : memoryGovernanceInert
+            ? AGENT_MEMORY_GOVERNANCE_INERT_LOCK_REASON
+            : resolved?.lockReason,
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
     }
@@ -736,6 +742,10 @@ export class SettingsModal {
       this.lastSettingEffectMessage = AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
       return;
     }
+    if (isMemoryGovernanceInertSettingKey(key)) {
+      this.lastSettingEffectMessage = AGENT_MEMORY_GOVERNANCE_INERT_LOCK_REASON;
+      return;
+    }
     const previousValue = this.configManager.get(key);
     try {
       this.configManager.setDynamic(key, value);
@@ -757,10 +767,16 @@ export class SettingsModal {
     }
   }
 
-  private _blockExternalHostOwnedSetting(entry: SettingEntry): boolean {
-    if (!isExternalHostOwnedSettingKey(entry.setting.key)) return false;
-    this.lastSettingEffectMessage = entry.lockReason ?? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
-    return true;
+  private _blockLockedInertSetting(entry: SettingEntry): boolean {
+    if (isExternalHostOwnedSettingKey(entry.setting.key)) {
+      this.lastSettingEffectMessage = entry.lockReason ?? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
+      return true;
+    }
+    if (isMemoryGovernanceInertSettingKey(entry.setting.key)) {
+      this.lastSettingEffectMessage = entry.lockReason ?? AGENT_MEMORY_GOVERNANCE_INERT_LOCK_REASON;
+      return true;
+    }
+    return false;
   }
 
 }

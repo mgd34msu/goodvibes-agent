@@ -66,7 +66,8 @@ export type SettingsCategory =
   | 'pricing'
   | 'power'
   | 'fleet'
-  | 'voice';
+  | 'voice'
+  | 'memory';
 
 export type SettingsFocusPane = 'categories' | 'settings';
 
@@ -79,7 +80,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation', 'checkin', 'integrations'] },
   { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network', 'relay', 'update'] },
-  { label: 'Advanced Runtime', categories: ['orchestration', 'fleet', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc'] },
+  { label: 'Advanced Runtime', categories: ['orchestration', 'fleet', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc', 'memory'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];
 

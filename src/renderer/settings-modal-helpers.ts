@@ -122,6 +122,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   update: 'Daemon Updates',
   pricing: 'Model Pricing',
   power: 'Sleep and Power',
+  memory: 'Memory Governance',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {
