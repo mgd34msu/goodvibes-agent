@@ -11,17 +11,19 @@
  *   - every job declares `runs-on` and either `steps` or `uses` (reusable call);
  *   - no job carries `continue-on-error: true` (banned across the ecosystem —
  *     a run that reports success over a failing job is a false green);
- *   - the release workflow carries the full binary release lane: the npm pack
- *     job, the per-platform binary build matrix, a compiled-binary smoke, the
- *     GitHub Release job, and the npm publish job;
- *   - the release lane covers all four platform binaries in the SHA256SUMS
- *     manifest and attaches them (plus SHA256SUMS.txt and the npm tarball) to
- *     the GitHub Release, matching the naming the curl installer parses;
- *   - the release lane also covers all four per-platform sqlite-vec native
- *     addon archives (sqlite-vec-<os>-<arch>.tar.gz) in the SHA256SUMS manifest
- *     and attaches them, so a directly-downloaded binary can co-locate the addon
- *     and restore the semantic vector index (missing-entry-fatal, same as the
- *     binaries).
+ *   - the release workflow is wired onto the shared reusable workflows: by-
+ *     reference validation (reusable-release-verify), the binary build matrix
+ *     (reusable-binary-matrix), the GitHub Release (reusable-gh-release), and
+ *     the npm publish (reusable-npm-publish) — no hand-rolled CI poll, no
+ *     throwaway validate build;
+ *   - the release lane still carries every required job: tag/version check,
+ *     by-reference verify, npm pack, the binary matrix, the asset assembly, the
+ *     GitHub Release, the npm publish, and the registry install smoke;
+ *   - the assembled release assets cover all four platform binaries and all four
+ *     per-platform sqlite-vec native addon archives (sqlite-vec-<os>-<arch>.tar.gz),
+ *     each attached to the GitHub Release (whose reusable workflow generates the
+ *     SHA256SUMS manifest, missing-asset-fatal), matching the naming the curl
+ *     installer parses.
  *
  * Exit code 0 = green (0 problems), non-zero = the count of structural problems.
  */
@@ -52,12 +54,22 @@ if (files.length === 0) {
 
 /** Jobs the release workflow must define to ship both the npm channel and binaries. */
 const RELEASE_REQUIRED_JOBS: ReadonlyArray<string> = [
-  'validate-release',
+  'verify-tag-version',
+  'release-verify',
   'pack',
-  'build',
-  'smoke-macos',
-  'release',
+  'binaries',
+  'assemble-release-assets',
+  'github-release',
   'publish-npm',
+  'registry-install-smoke',
+];
+
+/** Shared reusable workflows the release lane must consume (one implementation per concern). */
+const RELEASE_REQUIRED_REUSABLES: ReadonlyArray<string> = [
+  'reusable-release-verify.yml',
+  'reusable-binary-matrix.yml',
+  'reusable-gh-release.yml',
+  'reusable-npm-publish.yml',
 ];
 
 /** The four compiled binaries the curl installer resolves by platform. */
@@ -138,20 +150,28 @@ for (const file of files) {
       }
     }
 
-    // The build matrix must cover all four platform binaries, the checksum
-    // manifest must sum them, and the release must attach them. Assert on the
-    // raw text so a dropped platform cannot slip through a structural pass.
+    // The release lane must consume the shared reusable workflows (one
+    // implementation per concern) rather than a hand-rolled copy.
+    for (const reusable of RELEASE_REQUIRED_REUSABLES) {
+      if (!raw.includes(reusable)) {
+        fail(file, `release workflow does not consume the shared ${reusable} reusable workflow`);
+      }
+    }
+
+    // Every platform binary must appear in both the assembled release-assets
+    // upload and the GitHub Release asset glob. Assert on the raw text so a
+    // dropped platform cannot slip through a structural pass.
     for (const binary of PLATFORM_BINARIES) {
       const occurrences = raw.split(binary).length - 1;
       if (occurrences < 2) {
         fail(
           file,
-          `binary "${binary}" must appear in both the checksum manifest and the release upload (found ${occurrences} reference(s))`,
+          `binary "${binary}" must appear in both the assembled assets and the GitHub Release glob (found ${occurrences} reference(s))`,
         );
       }
     }
     // Every per-platform sqlite-vec addon archive must appear in both the
-    // checksum manifest and the release upload — a directly-downloaded binary
+    // assembled assets and the GitHub Release glob — a directly-downloaded binary
     // depends on the matching addon to restore the semantic vector index, so a
     // dropped archive is missing-entry-fatal, exactly like a dropped binary.
     for (const archive of PLATFORM_ADDON_ARCHIVES) {
@@ -159,16 +179,14 @@ for (const file of files) {
       if (occurrences < 2) {
         fail(
           file,
-          `sqlite-vec addon archive "${archive}" must appear in both the checksum manifest and the release upload (found ${occurrences} reference(s))`,
+          `sqlite-vec addon archive "${archive}" must appear in both the assembled assets and the GitHub Release glob (found ${occurrences} reference(s))`,
         );
       }
     }
-    if (!raw.includes('SHA256SUMS.txt')) {
-      fail(file, 'release workflow does not generate or attach SHA256SUMS.txt');
-    }
-    if (!raw.includes('post-build-smoke.ts')) {
-      fail(file, 'release workflow does not run the compiled-binary smoke (post-build-smoke.ts)');
-    }
+    // SHA256SUMS is generated + attached by the reusable GitHub Release workflow
+    // (missing-asset-fatal, toolchain sha256sums); consuming that reusable is the
+    // structural guarantee. The compiled-binary smoke is likewise owned by the
+    // reusable binary matrix (post-build-smoke on the executable legs).
   }
 }
 

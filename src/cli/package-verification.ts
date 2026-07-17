@@ -1459,57 +1459,58 @@ function verifyGithubReleaseWorkflowPolicy(root: string): readonly string[] {
   if (!existsSync(releaseWorkflowPath)) return [];
   const issues: string[] = [];
   const source = readFileSync(releaseWorkflowPath, 'utf-8');
+  // By-reference validation: the release verifies the push-CI run is per-job
+  // green via the shared reusable-release-verify workflow (the Agent bunx-es the
+  // published toolchain — toolchain-source: registry) instead of re-running gates.
   const requiredMarkers = [
-    'Verify branch CI passed for release SHA',
-    '--workflow ci.yml',
-    'select(.name == "test")',
+    'reusable-release-verify.yml',
+    'workflow: ci.yml',
+    'toolchain-source: registry',
   ] as const;
   for (const marker of requiredMarkers) {
     if (!source.includes(marker)) {
-      issues.push(`GitHub release workflow must verify branch CI and its test job before release: missing ${marker}.`);
+      issues.push(`GitHub release workflow must verify branch CI by reference before release: missing ${marker}.`);
     }
   }
   const requiredPackReleaseMarkers: readonly { readonly marker: string; readonly label: string }[] = [
-    { marker: 'Check tag matches package version', label: 'tag/package version match check' },
+    { marker: 'Check git tag matches package.json version', label: 'tag/package version match check' },
     { marker: 'test "$TAG_VERSION" = "$PACKAGE_VERSION"', label: 'tag/package version assertion' },
     { marker: 'Pack release tarball', label: 'pack job' },
-    { marker: 'needs: validate-release', label: 'pack job CI validation dependency' },
+    { marker: 'needs: [release-verify]', label: 'pack job by-reference validation dependency' },
     { marker: 'bun run build:package-runtime', label: 'package runtime build before packing' },
     { marker: 'bun pm pack --destination dist', label: 'Bun package tarball creation' },
     { marker: 'Expected exactly one package tarball in dist', label: 'single tarball assertion' },
-    { marker: 'Upload package tarball', label: 'package tarball upload' },
     { marker: 'name: npm-tarball', label: 'package tarball artifact name' },
-    { marker: 'Download all release artifacts', label: 'release artifact download' },
-    { marker: 'Extract changelog excerpt', label: 'release changelog excerpt' },
-    { marker: 'awk -v version="$VERSION"', label: 'version-specific changelog extraction' },
-    { marker: 'softprops/action-gh-release@', label: 'GitHub Release creation action' },
-    { marker: 'body_path: ${{ steps.changelog.outputs.excerpt_file }}', label: 'GitHub Release changelog body' },
-    { marker: 'dist/*.tgz', label: 'GitHub Release tarball attachment' },
-    { marker: 'draft: false', label: 'non-draft GitHub Release' },
-    { marker: 'prerelease: false', label: 'non-prerelease GitHub Release' },
+    { marker: 'Assemble release assets', label: 'release asset assembly job' },
+    { marker: 'name: release-assets', label: 'assembled release-assets artifact' },
+    { marker: 'reusable-gh-release.yml', label: 'shared GitHub Release reusable workflow' },
+    { marker: 'artifact-name: release-assets', label: 'GitHub Release consumes assembled assets' },
+    { marker: 'dist/*.tgz', label: 'GitHub Release npm tarball attachment' },
   ];
   for (const { marker, label } of requiredPackReleaseMarkers) {
     if (!source.includes(marker)) {
       issues.push(`GitHub release workflow must keep package tarball/GitHub Release policy: missing ${label}.`);
     }
   }
-  // Binary release lane: the curl installer is pure-binary, so the release must
-  // build every platform binary, exec-smoke the compiled binary, generate a
-  // SHA256SUMS manifest over all four, and attach the binaries + manifest to the
-  // GitHub Release under the names the installer parses.
+  // Binary release lane (curl installer is pure-binary): the release builds every
+  // platform binary via the shared reusable-binary-matrix (which smokes the
+  // executable legs, incl. native darwin-arm64 on macos-14), assembles the four
+  // sqlite-vec addon archives, and attaches the binaries + archives under the
+  // names the installer parses. The reusable GitHub Release generates SHA256SUMS.
   const requiredBinaryLaneMarkers: readonly { readonly marker: string; readonly label: string }[] = [
-    { marker: 'name: Build ${{ matrix.target }}', label: 'per-platform binary build matrix job' },
-    { marker: 'bun run scripts/build.ts --target ${{ matrix.target }}', label: 'per-target compiled binary build' },
-    { marker: 'bun run scripts/post-build-smoke.ts --binary', label: 'compiled binary exec smoke' },
-    { marker: 'Binary smoke (macos-arm64)', label: 'native macOS arm64 binary smoke job' },
-    { marker: 'runs-on: macos-14', label: 'macOS arm64 runner for native binary smoke' },
-    { marker: 'sha256sum \\', label: 'SHA256 manifest generation' },
-    { marker: 'SHA256SUMS.txt', label: 'SHA256SUMS manifest' },
+    { marker: 'reusable-binary-matrix.yml', label: 'shared binary build matrix reusable workflow' },
+    { marker: '"key":"linux-x64","runner":"ubuntu-latest","smoke":true', label: 'linux x64 build+smoke leg' },
+    { marker: '"key":"darwin-arm64","runner":"macos-14","smoke":true', label: 'native macOS arm64 build+smoke leg' },
+    { marker: 'Package sqlite-vec native addons', label: 'per-platform sqlite-vec addon packaging' },
+    { marker: 'sqlite-vec-${platform}.tar.gz', label: 'per-platform sqlite-vec addon archive' },
     { marker: 'dist/goodvibes-agent-linux-x64', label: 'linux x64 binary release asset' },
     { marker: 'dist/goodvibes-agent-linux-arm64', label: 'linux arm64 binary release asset' },
     { marker: 'dist/goodvibes-agent-macos-x64', label: 'macOS x64 binary release asset' },
     { marker: 'dist/goodvibes-agent-macos-arm64', label: 'macOS arm64 binary release asset' },
-    { marker: 'needs: [pack, build, smoke-macos]', label: 'release gated on binary build and smoke' },
+    { marker: 'sqlite-vec-linux-x64.tar.gz', label: 'linux x64 sqlite-vec addon release asset' },
+    { marker: 'sqlite-vec-linux-arm64.tar.gz', label: 'linux arm64 sqlite-vec addon release asset' },
+    { marker: 'sqlite-vec-darwin-x64.tar.gz', label: 'macOS x64 sqlite-vec addon release asset' },
+    { marker: 'sqlite-vec-darwin-arm64.tar.gz', label: 'macOS arm64 sqlite-vec addon release asset' },
   ];
   for (const { marker, label } of requiredBinaryLaneMarkers) {
     if (!source.includes(marker)) {
@@ -1518,9 +1519,9 @@ function verifyGithubReleaseWorkflowPolicy(root: string): readonly string[] {
   }
   const requiredPublishMarkers: readonly { readonly marker: string; readonly label: string }[] = [
     { marker: "vars.PUBLISH_NPM == 'true'", label: 'optional npm publish repository variable guard' },
-    { marker: 'NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}', label: 'npm token secret handoff' },
-    { marker: 'bun run publish:package', label: 'staged package publish script' },
-    { marker: 'npm view "@pellux/goodvibes-agent@${VERSION}" version --registry=https://registry.npmjs.org', label: 'exact registry version verification' },
+    { marker: 'reusable-npm-publish.yml', label: 'shared npm publish reusable workflow' },
+    { marker: 'npm-token: ${{ secrets.NPM_TOKEN }}', label: 'npm token secret handoff' },
+    { marker: 'package-name: "@pellux/goodvibes-agent"', label: 'published package name' },
     { marker: 'Bun registry install smoke', label: 'registry install smoke step' },
     { marker: 'TOKEN_SENTINEL="goodvibes-agent-registry-smoke-token-do-not-print', label: 'connected-host token sentinel' },
     { marker: 'operator-tokens.json', label: 'connected-host token sentinel fixture' },
@@ -1602,14 +1603,12 @@ function verifyReleaseScriptPolicy(root: string): readonly string[] {
     { marker: 'Pre-generated release evidence detected', label: 'release evidence dirty worktree allowance' },
     { marker: 'git rev-parse --abbrev-ref HEAD', label: 'main branch preflight' },
     { marker: 'releases must be cut from main', label: 'main branch release requirement' },
-    { marker: 'bun run typecheck', label: 'release typecheck gate' },
-    { marker: 'bun run architecture:check', label: 'release architecture gate' },
-    { marker: 'bun run perf:check', label: 'release performance gate' },
-    { marker: 'bun run build', label: 'release build gate' },
-    { marker: 'bun run publish:check', label: 'release publish check gate' },
-    { marker: 'bun run package:install-check', label: 'release package install check gate' },
-    { marker: 'bun run verification:ledger', label: 'release verification ledger gate' },
-    { marker: 'bun pm pack --dry-run', label: 'release pack dry-run gate' },
+    // CI owns validation: the release cut NEVER re-runs the gate battery. The old
+    // local [1/5] gate re-run (typecheck/architecture/perf/build/publish:check/
+    // package:install-check/ledger/pack/diff) is intentionally gone; validation
+    // happened once on the push-CI run and is verified by-reference in release.yml.
+    { marker: 'CI owns validation', label: 'CI-owns-validation release posture' },
+    { marker: 'insertChangelogSection', label: 'shared toolchain changelog-section insert' },
     { marker: 'git diff --check', label: 'release diff hygiene gate' },
     { marker: 'bun run scripts/prebuild.ts', label: 'release version fallback sync' },
     { marker: 'formatLocalReleaseDate()', label: 'local release date heading' },
@@ -1768,50 +1767,80 @@ function verifyPackageRuntimeBuildScriptPolicy(root: string): readonly string[] 
   return issues;
 }
 
+/**
+ * Read toolchain.config.json for policy checks. The shared CI/CD toolchain holds
+ * the behavior; this config holds the Agent's repo-specific shapes (build matrix,
+ * addon layout, smoke banner). Returns null when absent/invalid so callers emit a
+ * clear missing-config issue.
+ */
+function readToolchainConfigForPolicy(root: string): Record<string, unknown> | null {
+  const configPath = join(root, 'toolchain.config.json');
+  if (!existsSync(configPath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(configPath, 'utf-8')) as unknown;
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Assert the 4-target binary matrix + sqlite-vec addon layout the Agent build
+ * guarantees are intact in toolchain.config.json (the shared build-binaries tool
+ * reads these). A dropped target or addon is exactly what this policy rejects.
+ */
+function verifyToolchainBuildMatrix(root: string): readonly string[] {
+  const config = readToolchainConfigForPolicy(root);
+  if (!config) return ['toolchain.config.json is missing or invalid (required for the shared build matrix).'];
+  const build = config.build;
+  if (!isRecord(build)) return ['toolchain.config.json is missing a `build` section.'];
+  const issues: string[] = [];
+  if (build.appEntrypoint !== 'src/main.ts') issues.push('toolchain.config build.appEntrypoint must be src/main.ts.');
+  if (build.outDir !== 'dist') issues.push('toolchain.config build.outDir must be dist.');
+  if (build.addonOutDir !== 'dist/lib') issues.push('toolchain.config build.addonOutDir must be dist/lib (sqlite-vec TARBALL layout).');
+  if ('daemonEntrypoint' in build) issues.push('toolchain.config build must not declare a daemonEntrypoint (the Agent has no daemon leg).');
+  const expectedTargets: readonly { key: string; bunTarget: string; appArtifact: string; nativeAddonPackage: string; nativeAddonFile: string }[] = [
+    { key: 'linux-x64', bunTarget: 'bun-linux-x64', appArtifact: 'goodvibes-agent-linux-x64', nativeAddonPackage: 'sqlite-vec-linux-x64', nativeAddonFile: 'vec0.so' },
+    { key: 'linux-arm64', bunTarget: 'bun-linux-arm64', appArtifact: 'goodvibes-agent-linux-arm64', nativeAddonPackage: 'sqlite-vec-linux-arm64', nativeAddonFile: 'vec0.so' },
+    { key: 'darwin-x64', bunTarget: 'bun-darwin-x64', appArtifact: 'goodvibes-agent-macos-x64', nativeAddonPackage: 'sqlite-vec-darwin-x64', nativeAddonFile: 'vec0.dylib' },
+    { key: 'darwin-arm64', bunTarget: 'bun-darwin-arm64', appArtifact: 'goodvibes-agent-macos-arm64', nativeAddonPackage: 'sqlite-vec-darwin-arm64', nativeAddonFile: 'vec0.dylib' },
+  ];
+  const targets = Array.isArray(build.targets) ? build.targets : [];
+  for (const expected of expectedTargets) {
+    const match = targets.find((entry): entry is Record<string, unknown> => isRecord(entry) && entry.key === expected.key);
+    if (!match) {
+      issues.push(`toolchain.config build.targets is missing the ${expected.key} target.`);
+      continue;
+    }
+    if (match.bunTarget !== expected.bunTarget) issues.push(`toolchain.config ${expected.key} bunTarget must be ${expected.bunTarget}.`);
+    if (match.appArtifact !== expected.appArtifact) issues.push(`toolchain.config ${expected.key} appArtifact must be ${expected.appArtifact}.`);
+    if (match.nativeAddonPackage !== expected.nativeAddonPackage) issues.push(`toolchain.config ${expected.key} nativeAddonPackage must be ${expected.nativeAddonPackage}.`);
+    if (match.nativeAddonFile !== expected.nativeAddonFile) issues.push(`toolchain.config ${expected.key} nativeAddonFile must be ${expected.nativeAddonFile}.`);
+  }
+  return issues;
+}
+
 function verifyProductionBuildScriptPolicy(root: string): readonly string[] {
   const buildScriptPath = join(root, 'scripts', 'build.ts');
   if (!existsSync(buildScriptPath)) return ['production build script is missing: scripts/build.ts.'];
   const issues: string[] = [];
   const source = readFileSync(buildScriptPath, 'utf-8');
+  // The compile matrix + sqlite-vec addon copy/cross-fetch + prebuild now live in
+  // the shared @pellux/goodvibes-toolchain build-binaries; scripts/build.ts
+  // forwards to it (bun build --compile, --external addon, dist/lib addon copy,
+  // cross-target npm-pack fetch — all config-driven). This policy asserts the
+  // delegation AND that the matrix/addon layout are intact in toolchain.config.json.
   const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
-    { marker: 'patchBunCompileCompatibility(root)', label: 'Bun compile compatibility patch' },
-    { marker: "execSync('bun run scripts/prebuild.ts'", label: 'project surface prebuild before compile' },
-    { marker: 'TARGETS: Record<string', label: 'typed build target matrix' },
-    { marker: "'linux-x64': { bunTarget: 'bun-linux-x64', outfile: 'goodvibes-agent-linux-x64'", label: 'linux x64 target' },
-    { marker: "'linux-arm64': { bunTarget: 'bun-linux-arm64', outfile: 'goodvibes-agent-linux-arm64'", label: 'linux arm64 target' },
-    { marker: "'darwin-x64': { bunTarget: 'bun-darwin-x64', outfile: 'goodvibes-agent-macos-x64'", label: 'macOS x64 target' },
-    { marker: "'darwin-arm64': { bunTarget: 'bun-darwin-arm64', outfile: 'goodvibes-agent-macos-arm64'", label: 'macOS arm64 target' },
-    { marker: 'SQLITE_VEC_NATIVE_FILENAMES', label: 'sqlite-vec native addon filename map' },
-    { marker: "'sqlite-vec-linux-x64': 'vec0.so'", label: 'linux x64 sqlite-vec addon' },
-    { marker: "'sqlite-vec-linux-arm64': 'vec0.so'", label: 'linux arm64 sqlite-vec addon' },
-    { marker: "'sqlite-vec-darwin-x64': 'vec0.dylib'", label: 'macOS x64 sqlite-vec addon' },
-    { marker: "'sqlite-vec-darwin-arm64': 'vec0.dylib'", label: 'macOS arm64 sqlite-vec addon' },
-    { marker: "const buildAll = args.includes('--all')", label: 'all-target build flag' },
-    { marker: "const targetIdx = args.indexOf('--target')", label: 'specific target build flag' },
-    { marker: "spawnSync('bun', [", label: 'Bun compile spawn' },
-    { marker: "'build', 'src/main.ts'", label: 'Agent source entry build' },
-    { marker: "'--compile'", label: 'compiled binary build flag' },
-    { marker: '`--target=${config.bunTarget}`', label: 'target-specific Bun compile flag' },
-    { marker: "'--outfile', outPath", label: 'target-specific output path' },
-    { marker: "'--external', config.sqliteVecPackage", label: 'native addon externalization' },
-    { marker: "join(distDir, 'lib', config.sqliteVecPackage)", label: 'native addon dist library path' },
-    { marker: 'copyFileSync(srcAddon, join(libDir, nativeFilename))', label: 'native addon copy' },
-    { marker: 'Build failed: native addon not found', label: 'same-platform native addon hard failure' },
-    { marker: 'Cross-target build: fetching', label: 'cross-target native addon registry fetch' },
-    { marker: 'ADDON FETCH FAILED', label: 'cross-target addon fetch hard failure' },
-    { marker: 'ADDON MISSING IN PACKAGE', label: 'cross-target addon missing-in-package failure' },
-    { marker: "Unsupported platform '${platform}'", label: 'unsupported platform failure' },
-    { marker: 'No built-in target for', label: 'unknown native target failure' },
-    { marker: 'Unknown target', label: 'unknown requested target failure' },
-    { marker: 'Build Summary', label: 'build summary output' },
-    { marker: 'process.exit(1)', label: 'build failure exit' },
-    { marker: 'Build complete', label: 'build success summary' },
+    { marker: 'goodvibes-build-binaries', label: 'shared toolchain build-binaries invocation' },
+    { marker: 'process.argv.slice(2)', label: 'argv passthrough to the toolchain build' },
+    { marker: 'process.exit(', label: 'toolchain build exit-code passthrough' },
   ];
   for (const { marker, label } of requiredMarkers) {
     if (!source.includes(marker)) {
-      issues.push(`production build script must keep compiled Agent build policy marker: ${label}.`);
+      issues.push(`production build script must forward to the shared toolchain build: ${label}.`);
     }
   }
+  issues.push(...verifyToolchainBuildMatrix(root));
   return issues;
 }
 
@@ -1862,31 +1891,36 @@ function verifyPostBuildSmokeScriptPolicy(root: string): readonly string[] {
   if (!existsSync(smokeScriptPath)) return ['post-build smoke script is missing: scripts/post-build-smoke.ts.'];
   const issues: string[] = [];
   const source = readFileSync(smokeScriptPath, 'utf-8');
+  // The boot/banner/sentinel smoke policy now lives in the shared
+  // @pellux/goodvibes-toolchain post-build-smoke; scripts/post-build-smoke.ts
+  // resolves the binary and delegates to it, sourcing the banner prefix +
+  // packaging-failure sentinels from toolchain.config.json. This policy asserts
+  // the delegation AND that the smoke config is intact.
   const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
-    { marker: "const binaryIndex = args.indexOf('--binary')", label: 'binary override argument' },
-    { marker: "join(root, 'dist', 'goodvibes-agent')", label: 'default compiled Agent binary path' },
+    { marker: 'runPostBuildSmoke', label: 'shared toolchain post-build-smoke invocation' },
+    { marker: 'loadToolchainConfig', label: 'config-driven smoke policy' },
+    { marker: "args.indexOf('--binary')", label: 'binary override argument' },
+    { marker: 'smoke.binaryDefault', label: 'configured default compiled Agent binary' },
     { marker: 'existsSync(binary)', label: 'compiled binary existence check' },
     { marker: 'Binary not found', label: 'missing binary failure' },
-    { marker: 'tmpdir()', label: 'isolated smoke temp parent' },
-    { marker: 'goodvibes-agent-smoke-${process.pid}', label: 'isolated smoke temp directory' },
-    { marker: 'rmSync(cwd, { recursive: true, force: true })', label: 'smoke temp cleanup' },
-    { marker: 'mkdirSync(cwd, { recursive: true })', label: 'smoke temp setup' },
-    { marker: "spawnSync(binary, ['--version']", label: 'compiled binary version smoke' },
-    { marker: 'encoding: \'utf8\'', label: 'captured text output' },
-    { marker: "stdio: ['ignore', 'pipe', 'pipe']", label: 'captured stdout/stderr' },
-    { marker: 'result.status !== 0', label: 'failed version command detection' },
-    { marker: '--version failed with status', label: 'failed version command diagnostic' },
-    { marker: "output.includes('sqlite-vec')", label: 'sqlite-vec module-resolution leak guard' },
-    { marker: "output.includes('$bunfs/root')", label: '$bunfs module-resolution leak guard' },
-    { marker: 'compiled Agent emitted a sqlite-vec or $bunfs module-resolution error', label: 'module-resolution leak failure' },
-    { marker: "result.stdout.trim().startsWith('goodvibes-agent ')", label: 'Agent version prefix assertion' },
-    { marker: 'unexpected --version output', label: 'unexpected version output failure' },
-    { marker: '[agent-smoke] PASS', label: 'smoke success summary' },
-    { marker: '} finally {', label: 'smoke cleanup finally block' },
   ];
   for (const { marker, label } of requiredMarkers) {
     if (!source.includes(marker)) {
       issues.push(`post-build smoke script must keep compiled binary smoke policy marker: ${label}.`);
+    }
+  }
+  // The banner prefix + module-resolution leak sentinels the smoke enforces are
+  // declared in toolchain.config.json.
+  const config = readToolchainConfigForPolicy(root);
+  const smoke = config && isRecord(config.smoke) ? config.smoke : null;
+  if (!smoke) {
+    issues.push('toolchain.config.json is missing a `smoke` section (required for the compiled-binary smoke).');
+  } else {
+    if (smoke.bannerPrefix !== 'goodvibes-agent ') issues.push('toolchain.config smoke.bannerPrefix must be "goodvibes-agent ".');
+    if (smoke.binaryDefault !== 'dist/goodvibes-agent') issues.push('toolchain.config smoke.binaryDefault must be dist/goodvibes-agent.');
+    const forbidden = Array.isArray(smoke.forbiddenStrings) ? smoke.forbiddenStrings : [];
+    for (const sentinel of ['sqlite-vec', '$bunfs/root']) {
+      if (!forbidden.includes(sentinel)) issues.push(`toolchain.config smoke.forbiddenStrings must include "${sentinel}".`);
     }
   }
   return issues;

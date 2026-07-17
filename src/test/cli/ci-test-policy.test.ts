@@ -30,9 +30,17 @@ describe('CI test execution policy', () => {
     expect(releaseWorkflow).not.toContain('bun test ');
     expect(releaseWorkflow).not.toContain('bun run eval:gate');
     expect(releaseWorkflow).not.toContain('Eval gate');
-    expect(releaseWorkflow).toContain('Verify branch CI passed for release SHA');
-    expect(releaseWorkflow).toContain('--workflow ci.yml');
-    expect(releaseWorkflow).toContain('select(.name == "test")');
+  });
+
+  test('release validation is by-reference (reusable-release-verify), not a re-run', () => {
+    const releaseWorkflow = readProjectFile('.github/workflows/release.yml');
+
+    // The old hand-rolled 30-minute CI poll is gone; validation is verified by
+    // reference against the push-CI run via the shared reusable workflow.
+    expect(releaseWorkflow).not.toContain('Verify branch CI passed for release SHA');
+    expect(releaseWorkflow).toContain('reusable-release-verify.yml');
+    expect(releaseWorkflow).toContain('workflow: ci.yml');
+    expect(releaseWorkflow).toContain('toolchain-source: registry');
   });
 
   test('branch CI does not add a second targeted test job', () => {
