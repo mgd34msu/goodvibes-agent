@@ -2,6 +2,12 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.12.3 - 2026-07-17
+
+- Republishes the Agent with its packaged runtime intact: 1.12.2's npm tarball was missing the bundled runtime because the rewired publish lane packed from a bare checkout; the lane now publishes the pack job's tarball (runtime bundled and now asserted present inside the tarball before staging), and the registry install smoke that caught the defect is unchanged. 1.12.3 supersedes 1.12.2, whose tarball was published without the packaged runtime.
+- Adopted the published platform SDK 1.11.2, which now carries the shared release toolchain as a dependency.
+- Zero-touch releases: a green CI run on a release commit tags and dispatches the release automatically; no manual step between landing the commit and the published release.
+
 ## 1.12.2 - 2026-07-16
 
 - Adopted the published platform SDK 1.11.1 from the registry.
