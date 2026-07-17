@@ -12,8 +12,16 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: "dry-run (default; inspect only, never writes the registry) or release (publish the dispatched tag). The zero-touch auto-release job dispatches this with mode=release at the freshly-created tag."
+        required: false
+        type: choice
+        options:
+          - dry-run
+          - release
+        default: dry-run
       ref:
-        description: "Git ref to inspect (manual dispatch is validation-only; it never publishes)"
+        description: "Git ref to inspect (ignored in release mode, which uses the dispatched tag ref)"
         required: false
         default: "main"
   push:
@@ -35,7 +43,9 @@ permissions:
 jobs:
   verify-tag-version:
     name: Verify tag matches package version
-    if: github.event_name == 'push'
+    # A release-mode dispatch (the zero-touch auto-release path) is a first-class
+    # publish trigger alongside a hand-pushed v* tag.
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -59,7 +69,7 @@ jobs:
   # (it is a consumer of the SDK's toolchain, not its publisher).
   release-verify:
     name: Release verify (by reference)
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
     needs: [verify-tag-version]
     # Caller permissions must be a superset of what the called workflow's jobs
     # request, or GitHub rejects the whole workflow at startup (jobs: []).
@@ -79,7 +89,7 @@ jobs:
   # npm tarball (Agent-specific: bundle the package runtime, then pack).
   pack:
     name: Pack release tarball
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
     needs: [release-verify]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -108,6 +118,18 @@ jobs:
           fi
           echo "tarball=${TARBALLS[0]}" >> "$GITHUB_OUTPUT"
           test -f "dist/${TARBALLS[0]}"
+          # A runtime-less tarball must never even stage. 1.12.2 shipped exactly
+          # this defect: the publish lane packed from a bare checkout, so the
+          # npm tarball was missing the bundled runtime and `bun add -g` exited
+          # with "packaged runtime is missing". Assert the packaged runtime
+          # entrypoint is inside the tarball BEFORE it is uploaded as an artifact.
+          if ! tar -tzf "dist/${TARBALLS[0]}" | grep -q '^package/dist/package/main.js$'; then
+            echo "Packed tarball dist/${TARBALLS[0]} is MISSING package/dist/package/main.js (the bundled runtime). Refusing to stage a runtime-less tarball." >&2
+            echo "Tarball contents (dist/package entries):" >&2
+            tar -tzf "dist/${TARBALLS[0]}" | grep -E '^package/dist/package/' >&2 || echo "  (no package/dist/package/ entries at all)" >&2
+            exit 1
+          fi
+          echo "Verified: dist/${TARBALLS[0]} contains package/dist/package/main.js (bundled runtime present)."
       - name: Upload package tarball
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -123,7 +145,7 @@ jobs:
   # linux-arm64 and darwin-x64 are cross-built and are exercised by SHA256SUMS.
   binaries:
     name: Build binaries
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
     needs: [release-verify]
     uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-binary-matrix.yml@main
     with:
@@ -154,7 +176,7 @@ jobs:
   # directly-downloaded binary co-locates its addon in place.
   assemble-release-assets:
     name: Assemble release assets
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
     needs: [pack, binaries]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -202,7 +224,9 @@ jobs:
   # tarball + SHA256SUMS with a pinned softprops/action-gh-release.
   github-release:
     name: Create GitHub Release
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push'
+    # The tag-ref guard holds for both a hand-pushed v* tag and a release-mode
+    # dispatch (auto-release dispatches release.yml at refs/tags/v<version>).
+    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release'))
     needs: [assemble-release-assets]
     permissions:
       contents: write
@@ -230,7 +254,7 @@ jobs:
   # owns idempotency + poll). Gated on push tags + the PUBLISH_NPM repo variable.
   publish-npm:
     name: Publish to npm
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push' && vars.PUBLISH_NPM == 'true'
+    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')) && vars.PUBLISH_NPM == 'true'
     needs: [github-release]
     # The called workflow's job requests id-token:write (npm provenance).
     permissions:
@@ -240,6 +264,14 @@ jobs:
     with:
       package-name: "@pellux/goodvibes-agent"
       environment: production
+      # Publish the STAGED pack-job tarball (runtime bundled + asserted present
+      # in the pack step), never a bare checkout. 1.12.2 published a runtime-less
+      # tarball precisely because the shared publish workflow packed from a bare
+      # checkout. The reusable downloads this named artifact into
+      # ./release-tarball/ before the publish-command runs; the `ls` in the
+      # command resolves the single staged .tgz.
+      tarball-artifact: npm-tarball
+      publish-command: 'bunx @pellux/goodvibes-toolchain goodvibes-publish-package --poll --tarball "$(ls release-tarball/*.tgz)"'
     secrets:
       npm-token: ${{ secrets.NPM_TOKEN }}
 
@@ -249,7 +281,7 @@ jobs:
   # lane; runs against the real published bytes.
   registry-install-smoke:
     name: Bun registry install smoke
-    if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push' && vars.PUBLISH_NPM == 'true'
+    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')) && vars.PUBLISH_NPM == 'true'
     needs: [publish-npm]
     runs-on: ubuntu-latest
     timeout-minutes: 15

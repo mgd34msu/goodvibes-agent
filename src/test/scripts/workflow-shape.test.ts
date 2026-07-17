@@ -38,6 +38,11 @@ function needsOf(job: Job): string[] {
 function steps(job: Job): Array<Record<string, unknown>> {
   return job.steps ?? [];
 }
+function stepText(job: Job): string {
+  return steps(job)
+    .map((s) => `${String(s.name ?? '')}\n${String(s.run ?? '')}`)
+    .join('\n');
+}
 
 describe('all workflows: baseline hygiene', () => {
   const files = readdirSync(WF_DIR).filter((f) => f.endsWith('.yml'));
@@ -101,6 +106,52 @@ describe('ci.yml: single-job gate on the shared setup', () => {
 
   test('cancel-in-progress is PR-only (a push run on main is never auto-cancelled)', () => {
     expect(String(ci.concurrency?.['cancel-in-progress'])).toContain("github.event_name == 'pull_request'");
+  });
+});
+
+describe('ci.yml: zero-touch auto-release', () => {
+  const ci = load('ci.yml');
+
+  test('auto-release needs EVERY other ci.yml job (only runs when all are green)', () => {
+    const auto = ci.jobs!['auto-release']!;
+    const needs = needsOf(auto);
+    // The agent's CI is a single `test` gate; auto-release must need it so it is
+    // scheduled last and only on a fully green run.
+    expect(needs).toContain('test');
+    // And its needs set is exactly the other jobs — no gate omitted, no self-need.
+    const otherJobs = jobs(ci).map(([n]) => n).filter((n) => n !== 'auto-release');
+    expect([...needs].sort()).toEqual([...otherJobs].sort());
+  });
+
+  test('auto-release is gated to pushes on main', () => {
+    const cond = String(ci.jobs!['auto-release']!.if);
+    expect(cond).toContain("github.ref == 'refs/heads/main'");
+    expect(cond).toContain("github.event_name == 'push'");
+  });
+
+  test('auto-release grants contents:write and actions:write', () => {
+    const perms = (ci.jobs!['auto-release']! as Job & { permissions?: Record<string, string> }).permissions ?? {};
+    expect(perms.contents).toBe('write');
+    expect(perms.actions).toBe('write');
+  });
+
+  test('auto-release checks tag existence BEFORE creating the tag (idempotent)', () => {
+    const text = stepText(ci.jobs!['auto-release']!);
+    const existenceCheck = text.indexOf('git ls-remote --tags origin');
+    const tagCreate = text.indexOf('git tag -a');
+    expect(existenceCheck).toBeGreaterThanOrEqual(0);
+    expect(tagCreate).toBeGreaterThanOrEqual(0);
+    // The idempotent existence check must precede tag creation.
+    expect(existenceCheck).toBeLessThan(tagCreate);
+  });
+
+  test('auto-release dispatches release.yml with mode=release at the tag ref, not a bare tag push', () => {
+    const text = stepText(ci.jobs!['auto-release']!);
+    expect(text).toContain('gh workflow run release.yml');
+    expect(text).toContain('mode=release');
+    // The dispatch uses the tag ref so github.ref/github.sha point at the tag.
+    expect(text).toContain('--ref');
+    expect(text).toContain('refs/tags/');
   });
 });
 
@@ -237,5 +288,77 @@ describe('release.yml: by-reference release on the shared reusables', () => {
 
   test('concurrency never cancels an in-progress release', () => {
     expect(rel.concurrency?.['cancel-in-progress']).toBe(false);
+  });
+});
+
+describe('release.yml: zero-touch release mode + runtime-bundled tarball publish lane', () => {
+  const rel = load('release.yml');
+
+  test('workflow_dispatch exposes a mode input defaulting to dry-run', () => {
+    const inputs = (rel.on as { workflow_dispatch?: { inputs?: Record<string, { default?: string; type?: string; options?: string[] }> } })
+      .workflow_dispatch?.inputs ?? {};
+    expect(inputs.mode).toBeTruthy();
+    expect(inputs.mode?.default).toBe('dry-run');
+    expect(inputs.mode?.type).toBe('choice');
+    expect(inputs.mode?.options).toEqual(expect.arrayContaining(['dry-run', 'release']));
+  });
+
+  test('every release job gates on a plain push AND accepts a release-mode dispatch', () => {
+    // The tag-push path is preserved unchanged (pushing a v* tag by hand releases
+    // exactly as before); the release-mode dispatch is the zero-touch path the
+    // auto-release job drives. Both must satisfy each job's condition.
+    for (const name of [
+      'verify-tag-version',
+      'release-verify',
+      'pack',
+      'binaries',
+      'assemble-release-assets',
+      'github-release',
+      'publish-npm',
+      'registry-install-smoke',
+    ]) {
+      const cond = String(rel.jobs![name]!.if);
+      expect(cond, `${name} must still gate on a plain push`).toContain("github.event_name == 'push'");
+      expect(cond, `${name} must also accept a release-mode dispatch`).toContain("inputs.mode == 'release'");
+    }
+  });
+
+  test('the tag-ref-guarded jobs keep the refs/tags/v guard in both trigger paths', () => {
+    // A release-mode dispatch runs at refs/tags/v<version>, so the existing
+    // startsWith(github.ref, 'refs/tags/v') guard holds for the dispatch too.
+    for (const name of ['github-release', 'publish-npm', 'registry-install-smoke']) {
+      expect(String(rel.jobs![name]!.if)).toContain("startsWith(github.ref, 'refs/tags/v')");
+    }
+  });
+
+  test('publish-npm publishes the STAGED pack tarball (tarball-artifact + --tarball command)', () => {
+    const pub = rel.jobs!['publish-npm']! as Job & { with?: Record<string, unknown> };
+    expect(pub.with?.['tarball-artifact']).toBe('npm-tarball');
+    const cmd = String(pub.with?.['publish-command'] ?? '');
+    expect(cmd).toContain('goodvibes-publish-package');
+    expect(cmd).toContain('--tarball');
+    expect(cmd).toContain('release-tarball/');
+  });
+
+  test('the tarball-artifact name matches exactly what the pack job uploads', () => {
+    const upload = steps(rel.jobs!['pack']!).find((s) => String(s.uses ?? '').includes('upload-artifact'));
+    expect((upload!.with as { name?: string })?.name).toBe('npm-tarball');
+    expect((rel.jobs!['publish-npm']! as Job & { with?: Record<string, unknown> }).with?.['tarball-artifact']).toBe('npm-tarball');
+  });
+
+  test('the pack job asserts the bundled runtime is inside the tarball before staging', () => {
+    // 1.12.2 shipped a runtime-less tarball; the pack job now hard-fails if the
+    // packaged runtime entrypoint is not present in the packed .tgz.
+    const packText = stepText(rel.jobs!['pack']!);
+    expect(packText).toContain('tar -tzf');
+    expect(packText).toContain('package/dist/package/main.js');
+    // registry-install-smoke — the gate that caught the defect — is untouched.
+    expect(needsOf(rel.jobs!['registry-install-smoke']!)).toContain('publish-npm');
+  });
+
+  test('the workflow performs no npm deprecation anywhere (owner policy: never deprecate)', () => {
+    const raw = readFileSync(resolve(WF_DIR, 'release.yml'), 'utf8');
+    expect(raw).not.toContain('npm deprecate');
+    expect(rel.jobs!['deprecate-broken']).toBeUndefined();
   });
 });
