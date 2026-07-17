@@ -42,6 +42,15 @@ function steps(job: Job): Array<Record<string, unknown>> {
 describe('all workflows: baseline hygiene', () => {
   const files = readdirSync(WF_DIR).filter((f) => f.endsWith('.yml'));
 
+  test('composite action metadata never references the vars context', () => {
+    // GitHub template-evaluates the ENTIRE action manifest — including input
+    // descriptions — and the vars context does not exist in composite actions.
+    // A literal vars expression anywhere in the file fails every consuming job
+    // at load time (this took down the TUI's v1.19.2 CI run).
+    const raw = readFileSync(resolve(WF_DIR, '../actions/setup/action.yml'), 'utf8');
+    expect(raw).not.toMatch(/\$\{\{\s*vars\./);
+  });
+
   test('no job or step uses continue-on-error: true', () => {
     for (const f of files) {
       const wf = load(f);

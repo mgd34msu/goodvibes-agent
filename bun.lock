@@ -4,9 +4,6 @@
   "workspaces": {
     "": {
       "name": "@pellux/goodvibes-agent",
-      "dependencies": {
-        "@pellux/goodvibes-sdk": "1.11.0",
-      },
       "devDependencies": {
         "@pellux/goodvibes-sdk": "1.11.0",
         "@pellux/goodvibes-terminal-shell": "1.11.0",
