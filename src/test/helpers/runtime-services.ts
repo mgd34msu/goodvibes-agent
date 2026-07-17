@@ -8,6 +8,7 @@
  * in their own beforeEach — bun:test runs all registered beforeEach hooks.
  */
 import { beforeEach } from 'bun:test';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
@@ -86,6 +87,7 @@ function getTestRoots(): IntelligenceTestRoots {
   const homeDir = join(root, 'intelligence-home');
   mkdirSync(workingDir, { recursive: true });
   mkdirSync(homeDir, { recursive: true });
+  makeStandaloneGitRoot(workingDir);
 
   testRoots = {
     root,
@@ -119,7 +121,20 @@ function nextRuntimeRoots(): { workingDir: string; configDir: string } {
   const configDir = join(rootDir, 'config');
   mkdirSync(workingDir, { recursive: true });
   mkdirSync(configDir, { recursive: true });
+  makeStandaloneGitRoot(workingDir);
   return { workingDir, configDir };
+}
+
+/**
+ * Make a test workspace its own git toplevel. The temp roots live under the
+ * repo checkout (.test-tmp/), and the SDK's WorkspaceCheckpointManager prefers
+ * the ENCLOSING git repo's top level — without this boundary every test
+ * runtime resolves to the checkout itself and they all share one
+ * <repo>/.goodvibes/checkpoints/git side store, racing on git's config lock
+ * the first time two files initialize it concurrently on a fresh runner.
+ */
+function makeStandaloneGitRoot(dir: string): void {
+  execFileSync('git', ['init', '-q'], { cwd: dir, timeout: 30_000 });
 }
 
 function applyExecutorIfPresent(services: RuntimeServices): void {
