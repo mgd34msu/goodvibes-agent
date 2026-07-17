@@ -1,109 +1,73 @@
 #!/usr/bin/env bun
 /**
- * sdk-release-gates — publish-blocking checks that keep the local-SDK dev fast
- * path (scripts/sdk-dev.ts) from ever leaking into a published @pellux/goodvibes-agent.
+ * sdk-release-gates — publish-blocking SDK-pin checks.
  *
- * Ported from the TUI's scripts/publish-check.ts (the reference implementation),
- * adapted for the Agent: the SDK is pinned as a devDependency here (it is bundled
- * into the compiled binary at build time, not shipped as a runtime node_modules
- * dependency), so the pin is read from devDependencies first.
- *
- * Three gates, each a pure function so tests can drive them against fixtures:
- *   1. sdkPinAgreementIssues  — overlay marker absent, pin is exact semver, and
- *      the pin / bun.lock resolution / installed package.json version all agree.
- *      A pin bump whose lockfile never moved ships the OLD SDK silently.
- *   2. nonNpmSdkImportOffenders — no source file imports the SDK by anything but
- *      the npm specifier (relative / absolute / file: local-path imports must
- *      never ship). scripts/sdk-dev.ts is the sole sanctioned local-path holder
- *      and lives outside the swept src tree.
- *   3. sdkReleaseGateIssues   — the two above combined, for one call site.
+ * The pin/lock/installed tri-agreement, overlay-marker hard-fail, and non-npm
+ * import sweep now live in the shared @pellux/goodvibes-toolchain `sdk-pin-gate`
+ * (one implementation across tui/agent/webui). This file is a thin adapter that
+ * drives that gate with the Agent's pin shape (the SDK is a devDependency here —
+ * it is bundled into the compiled binary at build time, not shipped as a runtime
+ * node_modules dependency) and maps the gate results to the issue-string surface
+ * that publish-check and `sdk:gate` already consume.
  */
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { realFsReader, runSdkPinGate, type SdkPinConfig } from '@pellux/goodvibes-toolchain';
 
 export const SDK_PACKAGE = '@pellux/goodvibes-sdk';
 export const OVERLAY_MARKER_REL = 'node_modules/@pellux/goodvibes-sdk/.local-sdk-overlay.json';
 
-/** Read the SDK pin from devDependencies (Agent bundles the SDK), then dependencies. */
-export function readSdkPin(root: string): string | undefined {
+/**
+ * The Agent's sdk-pin shape. Kept inline (rather than read from
+ * toolchain.config.json) so the pure gate stays drivable against the temp-dir
+ * fixtures in sdk-release-gates.test.ts, which never write a config file.
+ */
+export const AGENT_SDK_PIN: SdkPinConfig = {
+  sdkPackage: SDK_PACKAGE,
+  pinSource: 'devDependencies',
+  lockfile: 'bun.lock',
+  overlayMarker: OVERLAY_MARKER_REL,
+  sourceRoots: ['src'],
+  enforceExportsMap: false,
+};
+
+/** Gate ids that concern pin ⇄ lockfile ⇄ installed agreement (not the import sweep). */
+const PIN_AGREEMENT_GATE_IDS = new Set([
+  'local-sdk-overlay-absent',
+  'sdk-pin-exact-semver',
+  'installed-matches-pin',
+  'lockfile-resolves-pin',
+]);
+
+/** Read the SDK pin from the Agent's devDependencies (then dependencies). */
+export function readSdkPin(root: string = process.cwd()): string | undefined {
+  const group = AGENT_SDK_PIN.pinSource;
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
   };
-  return pkg.devDependencies?.[SDK_PACKAGE] ?? pkg.dependencies?.[SDK_PACKAGE];
+  const pin = group === 'devDependencies'
+    ? pkg.devDependencies?.[SDK_PACKAGE] ?? pkg.dependencies?.[SDK_PACKAGE]
+    : pkg.dependencies?.[SDK_PACKAGE] ?? pkg.devDependencies?.[SDK_PACKAGE];
+  return pin;
 }
 
-/**
- * Overlay-marker + exact-pin + pin/lock/installed agreement. Returns a list of
- * human-readable issue strings; empty means the gate passes.
- */
-export function sdkPinAgreementIssues(root: string): string[] {
-  const issues: string[] = [];
-
-  // The local-SDK overlay (scripts/sdk-dev.ts link) is a development-only state.
-  if (existsSync(join(root, OVERLAY_MARKER_REL))) {
-    issues.push('local SDK overlay is active — run `bun scripts/sdk-dev.ts restore` before publishing');
-  }
-
-  const pin = readSdkPin(root);
-  if (typeof pin !== 'string' || !/^\d+\.\d+\.\d+$/.test(pin)) {
-    issues.push(`${SDK_PACKAGE} dependency must be an exact semver to publish (found: ${String(pin)})`);
-    return issues; // agreement is meaningless without a valid pin
-  }
-
-  // The pin, the lockfile resolution, and the installed package must all agree —
-  // a pin bump whose lockfile never moved ships the OLD SDK silently (bun can
-  // serve a cached older resolution; caught live on the TUI's 0.37.2 bump).
-  const installedPkgPath = join(root, 'node_modules/@pellux/goodvibes-sdk/package.json');
-  const installed = existsSync(installedPkgPath)
-    ? (JSON.parse(readFileSync(installedPkgPath, 'utf8')) as { version?: string }).version
-    : undefined;
-  if (installed !== pin) {
-    issues.push(
-      `installed ${SDK_PACKAGE} (${String(installed)}) does not match the pin (${pin}) — run bun update ${SDK_PACKAGE} and commit the lockfile`,
-    );
-  }
-
-  const lockPath = join(root, 'bun.lock');
-  const lock = existsSync(lockPath) ? readFileSync(lockPath, 'utf8') : '';
-  if (!lock.includes(`${SDK_PACKAGE}@${pin}`)) {
-    issues.push(`bun.lock does not resolve ${SDK_PACKAGE}@${pin} — the lockfile lagged the pin bump`);
-  }
-
-  return issues;
-}
-
-/**
- * Sweep a source tree for goodvibes-sdk imports that are not the npm specifier.
- * Returns "relativePath: specifier" strings for every offender; empty passes.
- */
-export function nonNpmSdkImportOffenders(root: string, srcDir = 'src'): string[] {
-  const offenders: string[] = [];
-  const importOfSdk = /(?:from\s+|require\(|import\()\s*['"]([^'"]*goodvibes-sdk[^'"]*)['"]/g;
-  const srcRoot = join(root, srcDir);
-  if (!existsSync(srcRoot)) return offenders;
-  const walk = (dir: string): void => {
-    for (const entry of readdirSync(join(root, dir), { withFileTypes: true })) {
-      const rel = join(dir, entry.name);
-      if (entry.isDirectory()) walk(rel);
-      else if (entry.name.endsWith('.ts')) {
-        const text = readFileSync(join(root, rel), 'utf8');
-        for (const m of text.matchAll(importOfSdk)) {
-          if (!m[1].startsWith(SDK_PACKAGE)) offenders.push(`${rel}: ${m[1]}`);
-        }
-      }
-    }
-  };
-  walk(srcDir);
-  return offenders;
+/** Overlay-marker + exact-pin + pin/lock/installed agreement (the non-import gates). */
+export function sdkPinAgreementIssues(root: string = process.cwd()): string[] {
+  return runSdkPinGate(realFsReader(root), AGENT_SDK_PIN)
+    .filter((result) => !result.ok && PIN_AGREEMENT_GATE_IDS.has(result.id))
+    .map((result) => result.detail);
 }
 
 /** Every SDK release-gate issue combined, for a single publish-check call site. */
-export function sdkReleaseGateIssues(root: string, srcDir = 'src'): string[] {
-  return [
-    ...sdkPinAgreementIssues(root),
-    ...nonNpmSdkImportOffenders(root, srcDir).map((o) => `non-npm goodvibes-sdk import found in source: ${o}`),
-  ];
+export function sdkReleaseGateIssues(root: string = process.cwd()): string[] {
+  return runSdkPinGate(realFsReader(root), AGENT_SDK_PIN)
+    .filter((result) => !result.ok)
+    .map((result) =>
+      result.id === 'npm-specifier-only-imports'
+        ? `non-npm goodvibes-sdk import found in source: ${result.detail}`
+        : result.detail,
+    );
 }
 
 if (import.meta.main) {

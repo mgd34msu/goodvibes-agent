@@ -12,7 +12,6 @@ import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
-  nonNpmSdkImportOffenders,
   readSdkPin,
   sdkPinAgreementIssues,
   sdkReleaseGateIssues,
@@ -82,25 +81,25 @@ describe('sdk-release-gates', () => {
   test('overlay marker present is a publish-blocking issue', () => {
     const root = makeFixture({ marker: true });
     const issues = sdkPinAgreementIssues(root);
-    expect(issues.some((i) => i.includes('local SDK overlay is active'))).toBe(true);
+    expect(issues.some((i) => i.includes('overlay marker present'))).toBe(true);
   });
 
   test('a non-exact pin (caret range) fails the exact-semver gate', () => {
     const root = makeFixture({ pin: '^0.38.0' });
     const issues = sdkPinAgreementIssues(root);
-    expect(issues.some((i) => i.includes('must be an exact semver'))).toBe(true);
+    expect(issues.some((i) => i.includes('must be exact'))).toBe(true);
   });
 
   test('installed version disagreeing with the pin fails', () => {
     const root = makeFixture({ installedVersion: '0.37.2' });
     const issues = sdkPinAgreementIssues(root);
-    expect(issues.some((i) => i.includes('does not match the pin'))).toBe(true);
+    expect(issues.some((i) => i.includes('!= pin'))).toBe(true);
   });
 
   test('lockfile lagging the pin bump fails', () => {
     const root = makeFixture({ lockPin: '0.35.0' });
     const issues = sdkPinAgreementIssues(root);
-    expect(issues.some((i) => i.includes('bun.lock does not resolve'))).toBe(true);
+    expect(issues.some((i) => i.includes('does not resolve'))).toBe(true);
   });
 
   test('a non-npm SDK import injected into source is caught', () => {
@@ -110,14 +109,11 @@ describe('sdk-release-gates', () => {
         // Build the overlay specifier so THIS test file's own source text never
         // contains the contiguous literal "goodvibes-sdk". The written fixture is
         // byte-identical at runtime, but the release gate's source sweep
-        // (publish:check → nonNpmSdkImportOffenders) walks src/ including this
+        // (publish:check → toolchain sdk-pin-gate) walks src/ including this
         // test file, and a raw literal here is flagged as a real offender.
         'bad.ts': `import { evil } from '../../../goodvibes-${'sdk'}/dist/secret.js';\n`,
       },
     });
-    const offenders = nonNpmSdkImportOffenders(root);
-    expect(offenders.length).toBe(1);
-    expect(offenders[0]).toContain('bad.ts');
     expect(sdkReleaseGateIssues(root).some((i) => i.includes('non-npm goodvibes-sdk import'))).toBe(true);
   });
 

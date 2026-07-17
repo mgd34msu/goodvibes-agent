@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { insertChangelogSection, nextVersion as toolchainNextVersion } from '@pellux/goodvibes-toolchain';
 import { packageDocPaths, verifyPackageFacingText, verifyReleaseMetadata } from '../src/cli/package-verification.ts';
 
 /**
@@ -222,17 +223,13 @@ function assertReleaseEvidenceHygiene(label: string, root: string): void {
 }
 
 function nextVersion(current: string, bumpMode: ReleaseOptions['bumpMode']): string {
-  const parts = current.split('.').map(Number);
-  if (parts.length !== 3 || parts.some(isNaN)) {
-    exitWithError(`Error: cannot parse version '${current}' as semver`);
+  // Delegated to the shared @pellux/goodvibes-toolchain release-cut mechanics
+  // (one semver-bump implementation across the estate).
+  try {
+    return toolchainNextVersion(current, bumpMode);
+  } catch {
+    return exitWithError(`Error: cannot parse version '${current}' as semver`);
   }
-
-  const [major, minor, patch] = parts as [number, number, number];
-  return bumpMode === 'major'
-    ? `${major + 1}.0.0`
-    : bumpMode === 'minor'
-      ? `${major}.${minor + 1}.0`
-      : `${major}.${minor}.${patch + 1}`;
 }
 
 export function formatLocalReleaseDate(date = new Date()): string {
@@ -287,28 +284,16 @@ export function main(argv = process.argv.slice(2), root = process.cwd()): void {
   console.log('\n[preflight] Checking release evidence text hygiene...');
   assertReleaseEvidenceHygiene('release evidence text hygiene', root);
 
-  // --- Pre-release validation ---
-
-  if (!options.skipValidation) {
-    console.log('\n[1/5] Running release validation gates...');
-    const validationCommands = [
-      'bun run typecheck',
-      'bun run architecture:check',
-      'bun run perf:check',
-      'bun run build',
-      'bun run publish:check',
-      'bun run package:install-check',
-      'bun run verification:ledger',
-      'bun pm pack --dry-run',
-      'git diff --check',
-    ] as const;
-    for (const command of validationCommands) {
-      console.log(`\n  ${command}`);
-      run(command, options, root);
-    }
-  } else {
-    console.log('\n[1/5] Skipping release validation gates (--skip-validation)');
-  }
+  // --- Pre-release validation: none (CI owns validation) ---
+  //
+  // Per the shared CI/CD design (principle 4) and the toolchain release-cut
+  // contract, a release cut NEVER re-runs the gate battery. Validation happened
+  // exactly once, on the release commit's push-CI run (per-job green); the tag
+  // is cut from that already-green tree and verified by-reference downstream
+  // (release.yml → reusable-release-verify). The old local [1/5] gate re-run
+  // (typecheck/architecture/perf/build/publish:check/package:install-check/
+  // ledger/pack/diff) is intentionally gone. This step only prepares, bumps,
+  // updates the changelog, and tags.
 
   // --- Bump package.json ---
 
@@ -330,24 +315,19 @@ export function main(argv = process.argv.slice(2), root = process.cwd()): void {
   const changelogPath = join(root, 'CHANGELOG.md');
   const today = formatLocalReleaseDate();
 
+  // Agent CHANGELOG format: a plain `## <version> - <date>` heading followed by
+  // the product release notes. The section insertion (prepend above the first
+  // existing `## ` heading) is delegated to the shared toolchain release-cut
+  // mechanics (`insertChangelogSection`, 'top' marker).
   const newSection = [
     `## ${next} - ${today}`,
     '',
     ...readReleaseNotesFromArgOrEnv(options, root),
-    '',
   ].join('\n');
 
   if (!options.dryRun) {
-    let changelog = readFileSync(changelogPath, 'utf8');
-
-    const firstReleaseHeading = changelog.search(/^## /m);
-    if (firstReleaseHeading === -1) {
-      changelog = `${changelog.trimEnd()}\n\n${newSection}\n`;
-    } else {
-      changelog = `${changelog.slice(0, firstReleaseHeading)}${newSection}\n${changelog.slice(firstReleaseHeading)}`;
-    }
-
-    writeFileSync(changelogPath, changelog);
+    const changelog = readFileSync(changelogPath, 'utf8');
+    writeFileSync(changelogPath, insertChangelogSection(changelog, newSection, 'top'));
     console.log(`CHANGELOG.md: prepended section for ${next}`);
   } else {
     console.log('[dry-run] Would prepend to CHANGELOG.md:');
