@@ -95,6 +95,7 @@
   "devDependencies": {
     "@pellux/goodvibes-sdk": "1.10.1",
     "@pellux/goodvibes-terminal-shell": "1.10.1",
+    "@pellux/goodvibes-toolchain": "file:/home/buzzkill/.claude/jobs/e28eaafb/tmp/tarball-toolchain-agent-20093d41/pellux-goodvibes-toolchain-1.10.1.tgz",
     "sql.js": "^1.14.1",
     "sqlite-vec": "^0.1.9",
     "zustand": "^5.0.12",
@@ -102,6 +103,7 @@
     "typescript": "^5.9.3"
   },
   "overrides": {
-    "minimatch": "^10.2.5"
+    "minimatch": "^10.2.5",
+    "@pellux/goodvibes-toolchain": "file:/home/buzzkill/.claude/jobs/e28eaafb/tmp/tarball-toolchain-agent-20093d41/pellux-goodvibes-toolchain-1.10.1.tgz"
   }
 }
