@@ -61,6 +61,12 @@ jobs:
     name: Release verify (by reference)
     if: github.event_name == 'push'
     needs: [verify-tag-version]
+    # Caller permissions must be a superset of what the called workflow's jobs
+    # request, or GitHub rejects the whole workflow at startup (jobs: []).
+    permissions:
+      contents: read
+      actions: read
+      checks: read
     uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-release-verify.yml@main
     with:
       sha: ${{ github.sha }}
@@ -226,6 +232,10 @@ jobs:
     name: Publish to npm
     if: startsWith(github.ref, 'refs/tags/v') && github.event_name == 'push' && vars.PUBLISH_NPM == 'true'
     needs: [github-release]
+    # The called workflow's job requests id-token:write (npm provenance).
+    permissions:
+      contents: read
+      id-token: write
     uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-npm-publish.yml@main
     with:
       package-name: "@pellux/goodvibes-agent"
