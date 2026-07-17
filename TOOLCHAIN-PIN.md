@@ -26,3 +26,7 @@ replace the `file:` dev-link with the published exact version pin:
 3. `bun update @pellux/goodvibes-toolchain` and commit the moved `bun.lock`.
 4. The runtime pins (`@pellux/goodvibes-sdk`, `@pellux/goodvibes-terminal-shell`
    at `1.10.1`, registry) are untouched by this dev-link and stay as-is.
+5. Pre-push guard: `grep -n 'file:/home/buzzkill' package.json bun.lock` must
+   return nothing. A surviving `file:` path is unreachable on any CI runner
+   (and on this machine after the job ends) — the first CI job dies at
+   dependency install.

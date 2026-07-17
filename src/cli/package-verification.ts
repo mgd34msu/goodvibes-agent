@@ -1499,8 +1499,8 @@ function verifyGithubReleaseWorkflowPolicy(root: string): readonly string[] {
   // names the installer parses. The reusable GitHub Release generates SHA256SUMS.
   const requiredBinaryLaneMarkers: readonly { readonly marker: string; readonly label: string }[] = [
     { marker: 'reusable-binary-matrix.yml', label: 'shared binary build matrix reusable workflow' },
-    { marker: '"key":"linux-x64","runner":"ubuntu-latest","smoke":true', label: 'linux x64 build+smoke leg' },
-    { marker: '"key":"darwin-arm64","runner":"macos-14","smoke":true', label: 'native macOS arm64 build+smoke leg' },
+    { marker: '"key":"linux-x64","runner":"ubuntu-latest","smoke":true,"binary":"dist/goodvibes-agent-linux-x64"', label: 'linux x64 build+smoke leg (own artifact)' },
+    { marker: '"key":"darwin-arm64","runner":"macos-14","smoke":true,"binary":"dist/goodvibes-agent-macos-arm64"', label: 'native macOS arm64 build+smoke leg (own artifact)' },
     { marker: 'Package sqlite-vec native addons', label: 'per-platform sqlite-vec addon packaging' },
     { marker: 'sqlite-vec-${platform}.tar.gz', label: 'per-platform sqlite-vec addon archive' },
     { marker: 'dist/goodvibes-agent-linux-x64', label: 'linux x64 binary release asset' },
@@ -1917,7 +1917,10 @@ function verifyPostBuildSmokeScriptPolicy(root: string): readonly string[] {
     issues.push('toolchain.config.json is missing a `smoke` section (required for the compiled-binary smoke).');
   } else {
     if (smoke.bannerPrefix !== 'goodvibes-agent ') issues.push('toolchain.config smoke.bannerPrefix must be "goodvibes-agent ".');
-    if (smoke.binaryDefault !== 'dist/goodvibes-agent') issues.push('toolchain.config smoke.binaryDefault must be dist/goodvibes-agent.');
+    // The binary-matrix fallback: smoke legs name their own artifact via the
+    // per-leg `binary` field; the default must be a file the matrix actually
+    // builds (the unsuffixed dist/goodvibes-agent never exists on a runner).
+    if (smoke.binaryDefault !== 'dist/goodvibes-agent-linux-x64') issues.push('toolchain.config smoke.binaryDefault must be dist/goodvibes-agent-linux-x64.');
     const forbidden = Array.isArray(smoke.forbiddenStrings) ? smoke.forbiddenStrings : [];
     for (const sentinel of ['sqlite-vec', '$bunfs/root']) {
       if (!forbidden.includes(sentinel)) issues.push(`toolchain.config smoke.forbiddenStrings must include "${sentinel}".`);

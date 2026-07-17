@@ -1,4 +1,5 @@
 {
+  "//": "TOOLCHAIN-PIN: @pellux/goodvibes-toolchain is dev-linked from a locally-built tarball (SDK commit 20093d41, packed 1.10.1). It is NOT on npm yet. The next release train must re-pin the PUBLISHED version: (1) set devDependencies['@pellux/goodvibes-toolchain'] in package.json to the published exact semver, (2) remove the '@pellux/goodvibes-toolchain' overrides entry, (3) bun update @pellux/goodvibes-toolchain and commit the moved bun.lock, (4) runtime pins (sdk/terminal-shell 1.10.1 registry) stay untouched; reusable-workflow refs stay at mgd34msu/goodvibes-sdk@main. Full recipe: TOOLCHAIN-PIN.md. This file is the repo-specific contract consumed by @pellux/goodvibes-toolchain CLIs; behavior lives in the package.",
   "packageName": "@pellux/goodvibes-agent",
   "sdkPin": {
     "sdkPackage": "@pellux/goodvibes-sdk",
@@ -52,7 +53,7 @@
   "smoke": {
     "bannerPrefix": "goodvibes-agent ",
     "forbiddenStrings": ["sqlite-vec", "$bunfs/root"],
-    "binaryDefault": "dist/goodvibes-agent"
+    "binaryDefault": "dist/goodvibes-agent-linux-x64"
   },
   "releaseCut": {
     "branch": "main",

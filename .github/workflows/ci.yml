@@ -47,7 +47,10 @@ jobs:
       - name: Build
         run: bun run build
       - name: Compiled binary smoke
-        run: bun run scripts/post-build-smoke.ts
+        # `bun run build` compiles the unsuffixed native binary; name it
+        # explicitly — toolchain.config smoke.binaryDefault points at the
+        # linux-x64 release artifact (the binary-matrix fallback), not this one.
+        run: bun run scripts/post-build-smoke.ts --binary dist/goodvibes-agent
       - name: Publish package check
         run: bun run publish:check
       - name: Package install check

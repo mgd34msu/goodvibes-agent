@@ -121,12 +121,24 @@ jobs:
     needs: [release-verify]
     uses: mgd34msu/goodvibes-sdk/.github/workflows/reusable-binary-matrix.yml@main
     with:
+      # Each smoke leg carries its own suffixed artifact as `binary` so the
+      # matrix smokes the binary that leg actually built (the reusable passes it
+      # to goodvibes-post-build-smoke --binary; toolchain.config smoke.binaryDefault
+      # is only the local-CLI fallback).
       targets: >-
-        [{"key":"linux-x64","runner":"ubuntu-latest","smoke":true},
+        [{"key":"linux-x64","runner":"ubuntu-latest","smoke":true,"binary":"dist/goodvibes-agent-linux-x64"},
          {"key":"linux-arm64","runner":"ubuntu-latest","smoke":false},
          {"key":"darwin-x64","runner":"ubuntu-latest","smoke":false},
-         {"key":"darwin-arm64","runner":"macos-14","smoke":true}]
-      artifact-glob: "dist/goodvibes-agent-linux-x64 dist/goodvibes-agent-linux-arm64 dist/goodvibes-agent-macos-x64 dist/goodvibes-agent-macos-arm64 dist/lib"
+         {"key":"darwin-arm64","runner":"macos-14","smoke":true,"binary":"dist/goodvibes-agent-macos-arm64"}]
+      # NOTE: upload-artifact `path:` splits patterns on NEWLINES only — a
+      # space-separated single line is one literal glob that matches nothing
+      # (if-no-files-found: error would fail every leg). Keep one glob per line.
+      artifact-glob: |
+        dist/goodvibes-agent-linux-x64
+        dist/goodvibes-agent-linux-arm64
+        dist/goodvibes-agent-macos-x64
+        dist/goodvibes-agent-macos-arm64
+        dist/lib
       artifact-prefix: agent-binary
 
   # Merge every binary leg + the npm tarball, package the four per-platform
@@ -192,7 +204,20 @@ jobs:
     with:
       tag: ${{ github.ref_name }}
       artifact-name: release-assets
-      assets-glob: "dist/goodvibes-agent-linux-x64 dist/goodvibes-agent-linux-arm64 dist/goodvibes-agent-macos-x64 dist/goodvibes-agent-macos-arm64 dist/sqlite-vec-linux-x64.tar.gz dist/sqlite-vec-linux-arm64.tar.gz dist/sqlite-vec-darwin-x64.tar.gz dist/sqlite-vec-darwin-arm64.tar.gz dist/*.tgz"
+      # NOTE: softprops/action-gh-release `files:` splits patterns on NEWLINES
+      # only — a space-separated single line is one literal glob that matches
+      # nothing (fail_on_unmatched_files: true would fail the release). Keep one
+      # glob per line.
+      assets-glob: |
+        dist/goodvibes-agent-linux-x64
+        dist/goodvibes-agent-linux-arm64
+        dist/goodvibes-agent-macos-x64
+        dist/goodvibes-agent-macos-arm64
+        dist/sqlite-vec-linux-x64.tar.gz
+        dist/sqlite-vec-linux-arm64.tar.gz
+        dist/sqlite-vec-darwin-x64.tar.gz
+        dist/sqlite-vec-darwin-arm64.tar.gz
+        dist/*.tgz
 
   # npm publish via the shared reusable-npm-publish (staged, provenance,
   # empty-or-complete precheck, propagation poll — the toolchain publish-package
