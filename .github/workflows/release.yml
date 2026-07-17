@@ -276,7 +276,9 @@ jobs:
       # ./release-tarball/ before the publish-command runs; the `ls` in the
       # command resolves the single staged .tgz.
       tarball-artifact: npm-tarball
-      publish-command: 'bunx @pellux/goodvibes-toolchain goodvibes-publish-package --poll --tarball "$(ls release-tarball/*.tgz)"'
+      # The ./ prefix is load-bearing: npm parses a bare relative path like
+      # release-tarball/x.tgz as a GitHub owner/repo spec and tries to clone it.
+      publish-command: 'bunx @pellux/goodvibes-toolchain goodvibes-publish-package --poll --tarball "./$(ls release-tarball/*.tgz)"'
     secrets:
       npm-token: ${{ secrets.NPM_TOKEN }}
 
