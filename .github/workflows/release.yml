@@ -123,10 +123,15 @@ jobs:
           # npm tarball was missing the bundled runtime and `bun add -g` exited
           # with "packaged runtime is missing". Assert the packaged runtime
           # entrypoint is inside the tarball BEFORE it is uploaded as an artifact.
-          if ! tar -tzf "dist/${TARBALLS[0]}" | grep -q '^package/dist/package/main.js$'; then
+          # NOTE: no `tar | grep -q` — under this step's pipefail, grep -q exits
+          # on first match and SIGPIPEs tar mid-listing, failing the pipeline
+          # even when the entry is present (this false-failed the first v1.12.3
+          # release run). List to a file, then grep the file.
+          tar -tzf "dist/${TARBALLS[0]}" > /tmp/tarball-listing.txt
+          if ! grep -q '^package/dist/package/main.js$' /tmp/tarball-listing.txt; then
             echo "Packed tarball dist/${TARBALLS[0]} is MISSING package/dist/package/main.js (the bundled runtime). Refusing to stage a runtime-less tarball." >&2
             echo "Tarball contents (dist/package entries):" >&2
-            tar -tzf "dist/${TARBALLS[0]}" | grep -E '^package/dist/package/' >&2 || echo "  (no package/dist/package/ entries at all)" >&2
+            grep -E '^package/dist/package/' /tmp/tarball-listing.txt >&2 || echo "  (no package/dist/package/ entries at all)" >&2
             exit 1
           fi
           echo "Verified: dist/${TARBALLS[0]} contains package/dist/package/main.js (bundled runtime present)."
