@@ -8,7 +8,7 @@ Product-facing release notes for GoodVibes Agent.
 
 Fixed: selecting a custom-provider model no longer crashes the app at the next startup — boot now waits for custom providers to load before resolving the current model, and falls back to a selectable model (with a logged warning) if the configured provider's file was removed.
 Fixed: after an automatic context compaction, the transcript shows a compact expandable "compaction handoff" block instead of re-printing the entire re-injected instruction text every time.
-Updated: @pellux/goodvibes-sdk and @pellux/goodvibes-terminal-shell to 1.11.3 (quieter startup when no hooks file exists; error summaries no longer mangle redacted paths; npm tarball publishes are path-safe).
+Updated: the bundled GoodVibes platform runtime to 1.11.3 (quieter startup when no hooks file exists; error summaries no longer mangle redacted paths; npm tarball publishes are path-safe).
 
 
 ## 1.12.3 - 2026-07-17
