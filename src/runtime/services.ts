@@ -383,7 +383,7 @@ function createDisabledAgentWrfcWorktreeOps(): AgentWrfcWorktreeOps {
   };
 }
 
-function ensureConfiguredModelIsRoutable(providerRegistry: ProviderRegistry, configManager: ConfigManager): void {
+export function ensureConfiguredModelIsRoutable(providerRegistry: ProviderRegistry, configManager: ConfigManager): void {
   const configuredModel = String(configManager.get('provider.model') ?? '').trim();
   if (!configuredModel.includes(':')) return;
   if (providerRegistry.listModels().some((model) => model.registryKey === configuredModel)) return;

@@ -19,7 +19,7 @@ import type { BlockMeta, ConversationMessageSnapshot } from './conversation';
 // re-resolves with no module reload. Dark values are byte-identical to the
 // agent's prior static reads.
 import { parseDiffForApply } from '@pellux/goodvibes-sdk/platform/core';
-import { extractUserDisplayText } from '@pellux/goodvibes-sdk/platform/core';
+import { extractUserDisplayText, COMPACTION_HANDOFF_HEADER } from '@pellux/goodvibes-sdk/platform/core';
 
 type Message = ConversationMessageSnapshot;
 
@@ -44,6 +44,7 @@ export function renderConversationUserMessage(
   context: ConversationRenderContext,
   message: Extract<Message, { role: 'user' }>,
   width: number,
+  msgIdx?: number,
 ): void {
   const T = activeTheme();
   const displayText = extractUserDisplayText(message.content);
@@ -51,7 +52,72 @@ export function renderConversationUserMessage(
     context.history.addLines(UIFactory.createMessageBar(width, displayText, T.errorBarBg, '196', ' x ', true));
     return;
   }
+  // Compaction-continuation handoff: a user-ROLE message the compactor
+  // authored, not something the user typed. Rendered in full it repeats the
+  // entire re-injected instruction block after every automatic compaction —
+  // a multi-kilobyte wall in the transcript. Fold it like a tool result; the
+  // full payload stays reachable through the normal expand toggle.
+  if (msgIdx !== undefined && displayText.startsWith(COMPACTION_HANDOFF_HEADER)) {
+    renderCompactionContinuationMessage(context, displayText, width, msgIdx);
+    return;
+  }
   context.history.addLines(UIFactory.createMessageBar(width, displayText));
+}
+
+/** Fold a compaction-continuation user message to one header + preview line. */
+function renderCompactionContinuationMessage(
+  context: ConversationRenderContext,
+  content: string,
+  width: number,
+  msgIdx: number,
+): void {
+  const T = activeTheme();
+  const collapseKey = `msg_${msgIdx}`;
+  const blockIdx = context.blockRegistry.length;
+  const startLine = context.history.getLineCount();
+  const lineCount = content.split('\n').length;
+  const isCollapsed = context.collapseState.has(collapseKey)
+    ? context.collapseState.get(collapseKey)!
+    : true;
+  if (!context.collapseState.has(collapseKey)) {
+    context.collapseState.set(collapseKey, true);
+  }
+
+  context.history.addLine(renderConversationEventLine(width, {
+    marker: GLYPHS.status.active,
+    markerFg: T.toolAccent,
+    label: 'compaction handoff',
+    labelFg: T.toolAccent,
+    detailFg: '244',
+  }, [
+    { text: ` ${isCollapsed ? GLYPHS.navigation.collapsed : GLYPHS.navigation.expanded} ${lineCount} line${lineCount === 1 ? '' : 's'} `, fg: '244', dim: true },
+  ]));
+
+  if (isCollapsed) {
+    const rendered = renderConversationCollapsedFragment(
+      'compacted-context handoff (re-injected instructions + session summary)',
+      width,
+      {
+        prefix: ` ${GLYPHS.navigation.collapsed} `,
+        prefixFg: T.toolAccent,
+        text: '244',
+        bodyBg: T.collapsedBodyBg,
+        dim: true,
+      },
+    );
+    context.history.addLines(rendered);
+  } else {
+    context.history.addLines(renderMarkdownTracked(content, width).lines);
+  }
+
+  context.blockRegistry.push({
+    blockIndex: blockIdx,
+    collapseKey,
+    type: 'tool',
+    startLine,
+    lineCount: context.history.getLineCount() - startLine,
+    rawContent: content,
+  });
 }
 
 export function renderConversationAssistantMessage(
@@ -301,7 +367,7 @@ export function appendConversationMessages(
     const message = messages[msgIdx];
     messageLineRegistry[msgIdx] = context.history.getLineCount();
     if (message.role === 'user') {
-      renderConversationUserMessage(context, message, width);
+      renderConversationUserMessage(context, message, width, msgIdx);
     } else if (message.role === 'assistant') {
       renderConversationAssistantMessage(context, message, width, lineNumberMode, collapseThreshold, msgIdx);
     } else if (message.role === 'system') {
