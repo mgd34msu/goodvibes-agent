@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.12.2 - 2026-07-16
+
+- Adopted the published platform SDK 1.11.0 from the registry.
+- Release engineering moved onto the platform's shared CI/CD system: pushes are validated once by CI, and a release verifies that exact run's per-job results instead of re-running gates, so tagged releases cut over in minutes with the same guarantees.
+- Release binaries are built by the shared build matrix and published with npm provenance through the shared publish workflow; the GitHub release asset set (four binaries, four sqlite-vec addon archives, npm tarball, SHA256SUMS) is unchanged.
+- No change to conversations, memory, skills, routines, personas, or confirmation gates; this is a dependency-refresh and release-engineering release.
+
 ## 1.12.1 - 2026-07-16
 
 - SDK 1.10.1 adoption
