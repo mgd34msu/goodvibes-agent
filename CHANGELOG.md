@@ -2,6 +2,15 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.12.4 - 2026-07-17
+
+### Changes
+
+Fixed: selecting a custom-provider model no longer crashes the app at the next startup — boot now waits for custom providers to load before resolving the current model, and falls back to a selectable model (with a logged warning) if the configured provider's file was removed.
+Fixed: after an automatic context compaction, the transcript shows a compact expandable "compaction handoff" block instead of re-printing the entire re-injected instruction text every time.
+Updated: @pellux/goodvibes-sdk and @pellux/goodvibes-terminal-shell to 1.11.3 (quieter startup when no hooks file exists; error summaries no longer mangle redacted paths; npm tarball publishes are path-safe).
+
+
 ## 1.12.3 - 2026-07-17
 
 - Republishes the Agent with its packaged runtime intact: 1.12.2's npm tarball was missing the bundled runtime because the rewired publish lane packed from a bare checkout; the lane now publishes the pack job's tarball (runtime bundled and now asserted present inside the tarball before staging), and the registry install smoke that caught the defect is unchanged. 1.12.3 supersedes 1.12.2, whose tarball was published without the packaged runtime.
