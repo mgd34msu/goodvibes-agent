@@ -2,6 +2,14 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.12.5 - 2026-07-18
+
+### Changes
+
+Fixed: the encrypted secrets store can no longer be silently orphaned by key changes — key generation is race-safe, writes refuse a stale cached key (and restore a missing keyfile), and a mismatched store now reports exactly which key wrote it.
+Updated: the bundled GoodVibes platform runtime to 1.11.4.
+
+
 ## 1.12.4 - 2026-07-17
 
 ### Changes
