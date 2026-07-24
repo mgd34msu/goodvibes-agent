@@ -2,6 +2,10 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.13.0 - 2026-07-24
+
+- /tmp/claude-1000/-home-buzzkill-Projects-goodvibes-tui/e28eaafb-93e7-424b-bdf0-a697efc3d908/scratchpad/agent-1.13.0-notes.md
+
 ## 1.12.5 - 2026-07-18
 
 ### Changes
