@@ -143,6 +143,17 @@ export interface CommandSessionServices {
   readonly sessionMemoryStore?: import('@pellux/goodvibes-sdk/platform/core').SessionMemoryStore;
   readonly sessionLineageTracker?: import('@pellux/goodvibes-sdk/platform/core').SessionLineageTracker;
   readonly changeTracker?: import('@pellux/goodvibes-sdk/platform/sessions').SessionChangeTracker;
+  /**
+   * Writes the surface-scoped last-session pointer file. Bound once at
+   * bootstrap to the runtime's SessionSurface (see
+   * runtime/session-pointer-surface.ts's bindWriteLastSessionPointerToSurface)
+   * so this command layer never has to re-derive the surface itself. Called
+   * at the moment runtime.sessionId changes to a session the user explicitly
+   * homed the live session on (/session resume, /session fork) so the next
+   * launch's "resume last session" reads the session actually in use, not a
+   * stale pointer.
+   */
+  readonly writeLastSessionPointer?: (sessionId: string) => void;
 }
 
 export interface CommandProviderServices {

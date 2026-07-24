@@ -220,6 +220,10 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
           provider: ctx.session.runtime.provider,
           timestamp: Date.now(),
           titleSource: ctx.session.conversationManager.getTitleSource(),
+          // Backfilling a save so /session rename has a file to rename is still
+          // user-directed (the user typed /session rename) — stamp 'user' so
+          // retention never reclaims it. See saveSource's doc comment on SessionMeta.
+          saveSource: 'user',
         });
       }
       sm.rename(ctx.session.runtime.sessionId, newName);
@@ -258,6 +262,10 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       ctx.session.conversationManager.fromJSON({ messages: readConversationMessageSnapshots(messages), title: meta.title, titleSource: meta.titleSource });
       ctx.session.conversationManager.rebuildHistory();
       ctx.session.runtime.sessionId = found.name;
+      // The live session is now homed on the resumed id — write the
+      // last-session pointer through the surface-bound closure so the next
+      // launch's "resume last session" reads this session, not a stale one.
+      ctx.session.writeLastSessionPointer?.(found.name);
       if (meta.model) {
         try {
           const selected = await providerApi.selectModel(meta.model);
@@ -317,10 +325,17 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       provider: ctx.session.runtime.provider,
       timestamp: Date.now(),
       titleSource: ctx.session.conversationManager.getTitleSource(),
+      // /session fork is user-directed — stamp 'user' so retention never
+      // reclaims the forked file. See saveSource's doc comment on SessionMeta.
+      saveSource: 'user',
     };
     try {
       sm.save(newId, messages, meta);
       ctx.session.runtime.sessionId = newId;
+      // Fork re-homes the live session onto the new id — write the
+      // last-session pointer through the surface-bound closure, same as
+      // /session resume, so the next launch resumes the fork, not the source.
+      ctx.session.writeLastSessionPointer?.(newId);
       ctx.session.conversationManager.title = forkName;
       ctx.renderRequest();
       ctx.print([
@@ -345,6 +360,9 @@ export async function handleSessionWorkflowCommand(args: string[], ctx: CommandC
       provider: ctx.session.runtime.provider,
       timestamp: Date.now(),
       titleSource: ctx.session.conversationManager.getTitleSource(),
+      // /session save is user-directed — stamp 'user' so retention never
+      // reclaims it. See saveSource's doc comment on SessionMeta.
+      saveSource: 'user',
     };
     try {
       const { filePath, sanitizedName } = sm.save(rawName, messages, meta);

@@ -145,6 +145,10 @@ export function registerSessionContentCommands(registry: CommandRegistry): void 
         provider: ctx.session.runtime.provider,
         timestamp: Date.now(),
         titleSource: ctx.session.conversationManager.getTitleSource(),
+        // The user explicitly asked for this save (/save), so it is exempt
+        // from the session-conversations retention sweep — unlike the
+        // TURN_COMPLETED auto-save (startup-wiring.ts), which stays 'auto'.
+        saveSource: 'user',
       };
       try {
         const { filePath, sanitizedName } = sessionManager.save(rawName, messages, meta);

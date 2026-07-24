@@ -16,7 +16,6 @@ import { ActivityFeed } from '../core/activity-feed.ts';
 import { createSystemMessageRouter, type SystemMessageRouter } from '../core/system-message-router.ts';
 import { getConfigSnapshot } from '../config/index.ts';
 import { createBootstrapCommandContext } from './bootstrap-command-context.ts';
-import { createResumeSessionHandler } from './bootstrap-hook-bridge.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { loadBootstrapSystemPrompt } from '@/runtime/index.ts';
 import { createShellPlanRuntime, createShellRemoteCommandService } from '@/runtime/index.ts';
@@ -108,7 +107,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     orchestrator,
     requestRender,
     permissionPromptRef,
-    onSessionIdChanged,
     writeLastSessionPointer,
     getControlPlaneRecentEvents,
     toolRegistry,
@@ -121,21 +119,6 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
   } = options;
 
   const activityFeed = new ActivityFeed();
-  const resumeSession = createResumeSessionHandler({
-    runtimeBus,
-    runtime,
-    conversation,
-    requestRender,
-    onSessionIdChanged,
-    sharedSessionBroker: services.sessionBroker,
-    sessionSpineClient: services.sessionSpineClient,
-    projectRoot: services.shellPaths.workingDirectory,
-    writeLastSessionPointer,
-    hookDispatcher: services.hookDispatcher,
-    sessionManager: services.sessionManager,
-    configManager,
-    providerRegistry: services.providerRegistry,
-  });
 
   let commandContextRef: CommandContext | null = null;
 
@@ -258,6 +241,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     },
     completeModelSelectionSideEffect,
     componentHealthMonitor: services.componentHealthMonitor,
+    writeLastSessionPointer,
   });
   commandContextRef = commandContext;
 

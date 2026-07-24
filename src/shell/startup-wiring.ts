@@ -1,6 +1,5 @@
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { HookDispatcher, HookEventPath, HookPhase, HookCategory } from '@pellux/goodvibes-sdk/platform/hooks';
-import type { SessionManager } from '@pellux/goodvibes-sdk/platform/sessions';
 import {
   checkRecoveryFile,
   createShellPathService,
@@ -8,7 +7,7 @@ import {
   persistConversation,
   writeRecoveryFile,
 } from '@/runtime/index.ts';
-import type { SessionSnapshot } from '@/runtime/index.ts';
+import type { SessionSnapshot, SessionSurface } from '@/runtime/index.ts';
 import {
   readOnboardingCheckMarker,
   readOnboardingCompletionMarker,
@@ -24,6 +23,8 @@ export interface SessionPersistenceAndRecoveryDeps {
   readonly conversation: { readonly title?: string | null };
   readonly workingDir: string;
   readonly homeDirectory: string;
+  /** Declare-once session-storage handle (platform/runtime/session-surface.ts); threaded through every persistConversation/checkRecoveryFile/writeRecoveryFile call below instead of loose workingDirectory/homeDirectory options. */
+  readonly surface: SessionSurface;
   readonly systemMessageRouter: { high(message: string): void; low(message: string): void };
   readonly render: () => void;
   readonly unsubs: Array<() => void>;
@@ -31,7 +32,6 @@ export interface SessionPersistenceAndRecoveryDeps {
     on(event: 'TURN_COMPLETED' | 'STREAM_START' | 'STREAM_DELTA', handler: () => void): () => void;
   };
   readonly hookDispatcher: HookDispatcher;
-  readonly sessionManager: SessionManager;
   /**
    * Called whenever the computed stream-token speed changes so that main.ts
    * (which owns the render closure) can keep the value up to date.
@@ -42,8 +42,14 @@ export interface SessionPersistenceAndRecoveryDeps {
 export interface SessionPersistenceAndRecoveryResult {
   /** Interval handle for the periodic recovery-file writer; clear it on exit. */
   recoveryInterval: ReturnType<typeof setInterval>;
-  /** True if an unsaved recovery session was found and the user prompt was shown. */
-  recoveryPending: boolean;
+  /**
+   * The sessionId of the offered recovery snapshot when an unsaved session
+   * was found and the user prompt was shown; null otherwise. Threading the
+   * actual id (not just a found/not-found boolean) lets the caller consume
+   * or remove EXACTLY the snapshot it offered, even when more than one
+   * snapshot exists on disk — see checkRecoveryFile's RecoveryFileInfo.sessionId.
+   */
+  recoveryPending: string | null;
   /** Set when the first-start registration prompt was shown this launch (see below). */
   pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
 }
@@ -66,12 +72,12 @@ export function wireSessionPersistenceAndRecovery(
     conversation,
     workingDir,
     homeDirectory,
+    surface,
     systemMessageRouter,
     render,
     unsubs,
     uiServicesTurns,
     hookDispatcher,
-    sessionManager,
     onStreamSpeedUpdate,
   } = deps;
   const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory });
@@ -90,7 +96,11 @@ export function wireSessionPersistenceAndRecovery(
         runtime.model,
         runtime.provider,
         conversation.title || '',
-        { workingDirectory: workingDir, homeDirectory, sessionManager },
+        { surface },
+        // Automatic post-turn save, not a user-directed one — stays 'auto' so
+        // the retention sweep can reclaim it (see /save's explicit 'user' save
+        // in input/commands/session-content.ts).
+        'auto',
       );
       hookDispatcher.fire({ path: 'Lifecycle:session:save' as HookEventPath, phase: 'Lifecycle' as HookPhase, category: 'session' as HookCategory, specific: 'save', sessionId: runtime.sessionId, timestamp: Date.now(), payload: { sessionId: runtime.sessionId } }).catch((err: unknown) => logger.debug('hook fire error', { error: summarizeError(err) }));
     } catch (e) { logger.debug('auto-save on turn:complete failed', { error: summarizeError(e) }); }
@@ -110,15 +120,18 @@ export function wireSessionPersistenceAndRecovery(
 
   // Recovery file check: display prompt if an unsaved session exists.
   // Runs after the first render so the message lands as ambient context.
-  let recoveryPending = false;
-  const recoveryInfo = checkRecoveryFile({ workingDirectory: workingDir, homeDirectory });
+  let recoveryPending: string | null = null;
+  const recoveryInfo = checkRecoveryFile({ surface });
   if (recoveryInfo) {
     systemMessageRouter.high(`[Recovery] Found unsaved session from ${new Date(recoveryInfo.timestamp).toLocaleString()}. Title: "${recoveryInfo.title}". Press Ctrl+R to restore, Esc to discard, or start typing to ignore it.`);
     for (const line of formatReturnContextForDisplay(recoveryInfo.returnContext)) {
       systemMessageRouter.low(`[Recovery] ${line}`);
     }
     render();
-    recoveryPending = true;
+    // Carry the OFFERED snapshot's sessionId (not just a boolean) so the
+    // Ctrl+R/Esc handlers in blocking-input.ts consume/remove exactly this
+    // snapshot, never a different one that happens to exist on disk.
+    recoveryPending = recoveryInfo.sessionId;
   }
 
   const recoveryInterval = setInterval(() => {
@@ -127,7 +140,7 @@ export function wireSessionPersistenceAndRecovery(
       snapshot,
       runtime.sessionId,
       conversation.title ?? '',
-      { workingDirectory: workingDir, homeDirectory },
+      { surface },
     );
   }, 60_000);
 

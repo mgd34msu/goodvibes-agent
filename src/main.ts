@@ -28,7 +28,7 @@ import { createShellLayout } from './renderer/layout-engine.ts';
 import { buildShellFooter, estimateShellFooterHeight } from './renderer/shell-surface.ts';
 import { buildConversationViewport } from './renderer/conversation-layout.ts';
 import { applyConversationOverlays } from './renderer/conversation-overlays.ts';
-import { buildActivitySidebarLines, buildSidebarAgentRows, resolveActivitySidebarWidth } from './renderer/activity-sidebar.ts';
+import { buildActivitySidebarLines, buildSidebarAgentRows, resolveSidebarWidthWithOverride } from './renderer/activity-sidebar.ts';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
@@ -37,8 +37,8 @@ import { wireSessionPersistenceAndRecovery, wireSetupIncompleteHint } from './sh
 import { localModelCookbook } from './tools/agent-harness-model-routing.ts';
 import { localModelSetupStatus } from './tools/agent-harness-setup-model-helpers.ts';
 import {
-  deleteRecoveryFile,
-  loadRecoveryConversation,
+  consumeRecovery,
+  removeRecoveryPoint,
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState, type PendingWorkspaceRegistrationState } from './shell/blocking-input.ts';
@@ -112,7 +112,6 @@ async function main() {
     orchestratorRefs,
     setRenderRequest,
     permissionPromptRef,
-    _writeLastSessionPointer: writeLastSessionPointer,
     systemMessageRouter,
   } = ctx;
   const workingDir = ctx.services.workingDirectory;
@@ -197,12 +196,7 @@ async function main() {
   // (visible when the terminal is wide enough); the user can toggle it with
   // Ctrl+O, which pins an explicit on/off override for the session.
   let sidebarOverride: boolean | null = null;
-  const sidebarWidthFor = (width: number): number => {
-    const auto = resolveActivitySidebarWidth(width);
-    if (sidebarOverride === null) return auto;
-    if (!sidebarOverride) return 0;
-    return auto > 0 ? auto : Math.min(36, Math.max(28, Math.floor(width * 0.3)));
-  };
+  const sidebarWidthFor = (width: number): number => resolveSidebarWidthWithOverride(width, sidebarOverride);
 
   const getPromptContentWidth = () => {
     const w = getTerminalSize(stdout).width;
@@ -234,7 +228,8 @@ async function main() {
   const unsubs: Array<() => void> = [];
   let recoveryInterval: ReturnType<typeof setInterval> | null = null;
   let stopSpokenOutputForExit: (() => Promise<void>) | null = null;
-  let recoveryPending = false, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
+  // sessionId of the offered recovery snapshot, or null when none is pending.
+  let recoveryPending: string | null = null, pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null = null;
   // Set by exitApp before the terminal-restore write; render() checks this so no late frame can paint over the screen after the terminal has been handed back.
   let terminalRestored = false;
 
@@ -273,7 +268,8 @@ async function main() {
       logger.debug('ctx.shutdown error during exitApp (non-fatal)', { error: summarizeError(err) });
     });
     if (recoveryInterval !== null) { clearInterval(recoveryInterval); recoveryInterval = null; }
-    deleteRecoveryFile({ homeDirectory });
+    // Scoped to this session only — a keyless call would clear every snapshot in the recovery dir.
+    removeRecoveryPoint(ctx.services.surface, runtime.sessionId);
     stdin.removeAllListeners('data');
     stdout.removeListener('resize', resizeHandler);
     process.removeListener('SIGINT', sigintHandler);
@@ -712,6 +708,7 @@ async function main() {
     commandRegistry,
     commandContext,
     shellPaths: ctx.services.shellPaths,
+    surface: ctx.services.surface,
     render,
   });
 
@@ -728,8 +725,10 @@ async function main() {
       conversation,
       systemMessageRouter,
       render,
-      loadRecoveryConversation: () => loadRecoveryConversation({ homeDirectory }),
-      deleteRecoveryFile: () => deleteRecoveryFile({ homeDirectory }),
+      // Keyed to the OFFERED snapshot's sessionId (recoveryPending) so a
+      // second, unrelated recovery snapshot on disk is never touched.
+      consumeRecovery: () => consumeRecovery(ctx.services.surface, recoveryPending ?? undefined).snapshot,
+      removeRecoveryPoint: () => { removeRecoveryPoint(ctx.services.surface, recoveryPending ?? undefined); },
     });
     ({ pendingPermission, recoveryPending, pendingWorkspaceRegistration } = blocking);
     if (blocking.handled) {
@@ -779,12 +778,12 @@ async function main() {
     conversation,
     workingDir,
     homeDirectory,
+    surface: ctx.services.surface,
     systemMessageRouter,
     render,
     unsubs,
     uiServicesTurns: uiServices.events.turns,
     hookDispatcher,
-    sessionManager: ctx.services.sessionManager,
     onStreamSpeedUpdate: (speed) => { streamTokenSpeed = speed; },
   }));
 }

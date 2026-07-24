@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createShellPathService, writeLastSessionPointer } from '@/runtime/index.ts';
+import { createSessionSurface, createShellPathService, writeLastSessionPointer } from '@/runtime/index.ts';
+import type { SessionSurface } from '@/runtime/index.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import { applyInitialTuiCliState, formatFatalStartupErrorForUser, getInteractiveTerminalLaunchError } from '../../cli/tui-startup.ts';
 import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
@@ -14,6 +15,14 @@ function makeShellPaths() {
   return createShellPathService({
     workingDirectory: join(root, 'workspace'),
     homeDirectory: join(root, 'home'),
+  });
+}
+
+function makeSurface(shellPaths: ReturnType<typeof makeShellPaths>): SessionSurface {
+  return createSessionSurface({
+    surfaceRoot: 'agent',
+    workingDirectory: shellPaths.workingDirectory,
+    homeDirectory: shellPaths.homeDirectory,
   });
 }
 
@@ -73,6 +82,7 @@ function runStartup(
     commandRegistry: new CommandRegistry(),
     commandContext: {} as CommandContext,
     shellPaths,
+    surface: makeSurface(shellPaths),
     render: () => {},
   });
 
@@ -113,6 +123,7 @@ function runStartupCapturingResumeNotice(
     commandRegistry: new CommandRegistry(),
     commandContext,
     shellPaths,
+    surface: makeSurface(shellPaths),
     render: () => {},
   });
 
@@ -215,10 +226,7 @@ describe('resume-on-relaunch notice', () => {
   test('surfaces an actionable resume notice when a valid last-session pointer exists', () => {
     const shellPaths = makeShellPaths();
     completeOnboarding(shellPaths);
-    writeLastSessionPointer('user-relaunch-1', {
-      workingDirectory: shellPaths.workingDirectory,
-      homeDirectory: shellPaths.homeDirectory,
-    });
+    writeLastSessionPointer('user-relaunch-1', { surface: makeSurface(shellPaths) });
 
     const { printed } = runStartupCapturingResumeNotice(shellPaths, [
       { name: 'user-relaunch-1', title: 'Investigate the boot race', timestamp: Date.now() - 5 * 60_000, messageCount: 7 },
@@ -233,10 +241,7 @@ describe('resume-on-relaunch notice', () => {
   test('is honest about a stale pointer instead of offering a dead resume button', () => {
     const shellPaths = makeShellPaths();
     completeOnboarding(shellPaths);
-    writeLastSessionPointer('user-deleted-session', {
-      workingDirectory: shellPaths.workingDirectory,
-      homeDirectory: shellPaths.homeDirectory,
-    });
+    writeLastSessionPointer('user-deleted-session', { surface: makeSurface(shellPaths) });
 
     // No matching entry in the session store: the pointer is dangling.
     const { printed } = runStartupCapturingResumeNotice(shellPaths, []);
@@ -248,10 +253,7 @@ describe('resume-on-relaunch notice', () => {
 
   test('does not surface the notice before onboarding is complete', () => {
     const shellPaths = makeShellPaths();
-    writeLastSessionPointer('user-relaunch-1', {
-      workingDirectory: shellPaths.workingDirectory,
-      homeDirectory: shellPaths.homeDirectory,
-    });
+    writeLastSessionPointer('user-relaunch-1', { surface: makeSurface(shellPaths) });
 
     const { printed } = runStartupCapturingResumeNotice(shellPaths, [
       { name: 'user-relaunch-1', title: 'x', timestamp: Date.now(), messageCount: 1 },
@@ -264,10 +266,7 @@ describe('resume-on-relaunch notice', () => {
   test('the explicit `sessions resume` CLI path never also prints the ambient notice', () => {
     const shellPaths = makeShellPaths();
     completeOnboarding(shellPaths);
-    writeLastSessionPointer('user-relaunch-1', {
-      workingDirectory: shellPaths.workingDirectory,
-      homeDirectory: shellPaths.homeDirectory,
-    });
+    writeLastSessionPointer('user-relaunch-1', { surface: makeSurface(shellPaths) });
 
     const printed: string[] = [];
     const input = { prompt: '', cursorPos: 0, openAgentWorkspace: () => {} } as unknown as InputHandler;
@@ -290,6 +289,7 @@ describe('resume-on-relaunch notice', () => {
       commandRegistry,
       commandContext,
       shellPaths,
+      surface: makeSurface(shellPaths),
       render: () => {},
     });
 

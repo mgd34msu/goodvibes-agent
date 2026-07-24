@@ -19,14 +19,12 @@ import type { SelectionManager } from '../input/selection.ts';
 import type { Compositor } from '../renderer/compositor.ts';
 
 import type { RuntimeContext, BootstrapOptions } from './context.ts';
-import { shutdownRuntime, fireSessionStart, saveSession } from '@/runtime/index.ts';
+import { shutdownRuntime, fireSessionStart } from '@/runtime/index.ts';
 import { createTaskManager } from '@/runtime/index.ts';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import { emitSessionReady, emitSessionStarted } from '@/runtime/index.ts';
-import {
-  loadLastConversation,
-  writeLastSessionPointer,
-} from '@/runtime/index.ts';
+import { loadLastConversation } from '@/runtime/index.ts';
+import { bindWriteLastSessionPointerToSurface } from './session-pointer-surface.ts';
 import { scheduleBackgroundMcpDiscovery } from '@/runtime/index.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
 import { runGatedLanScan } from './lan-scan-consent.ts';
@@ -124,8 +122,6 @@ export type BootstrapContext = RuntimeContext & {
   loadLastConversation: () => { messages: Array<Record<string, unknown>> } | null;
   /** Write the last-session pointer file (used after session resume). */
   _writeLastSessionPointer: (sessionId: string) => void;
-  /** Save a conversation snapshot to disk. */
-  _saveSession: typeof saveSession;
   /** Retrieve pinned model IDs for the model picker. */
   _getPinned: () => Promise<string[]>;
   /** Retrieve configured provider IDs for the model picker. */
@@ -399,6 +395,10 @@ export async function bootstrapRuntime(
 
   const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId);
 
+  // Surface-bound closure, not the raw multi-arg SDK function — see
+  // session-pointer-surface.ts for why that distinction is load-bearing.
+  const writeLastSessionPointerForSurface = bindWriteLastSessionPointerToSurface(services.surface);
+
   const shell = createBootstrapShell({
     configManager,
     runtimeBus,
@@ -412,7 +412,7 @@ export async function bootstrapRuntime(
     onSessionIdChanged: (sessionId) => {
       runtimeSessionIdRef.value = sessionId;
     },
-    writeLastSessionPointer,
+    writeLastSessionPointer: writeLastSessionPointerForSurface,
     getControlPlaneRecentEvents: (limit) => controlPlaneRecentEventsRef.value(limit),
     toolRegistry,
     promptContextReceipts,
@@ -731,16 +731,8 @@ export async function bootstrapRuntime(
     orchestratorRefs,
     setRenderRequest,
     permissionPromptRef,
-    loadLastConversation: () => loadLastConversation({
-      workingDirectory: services.workingDirectory,
-      homeDirectory: services.homeDirectory,
-      sessionManager: services.sessionManager,
-    }),
-    _writeLastSessionPointer: (sessionId) => writeLastSessionPointer(sessionId, {
-      workingDirectory: services.workingDirectory,
-      homeDirectory: services.homeDirectory,
-    }),
-    _saveSession: saveSession,
+    loadLastConversation: () => loadLastConversation({ surface: services.surface }),
+    _writeLastSessionPointer: writeLastSessionPointerForSurface,
     _getPinned: () => services.favoritesStore.getPinned(),
     _getConfiguredProviderIds: () => services.providerRegistry.getConfiguredProviderIds(),
     commandRegistry,
@@ -781,11 +773,7 @@ export async function bootstrapRuntime(
         services.hookDispatcher,
         services.providerRegistry,
         services.sessionOrchestration,
-        {
-          workingDirectory: services.workingDirectory,
-          homeDirectory: services.homeDirectory,
-          sessionManager: services.sessionManager,
-        },
+        { surface: services.surface },
       );
     },
   };

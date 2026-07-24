@@ -280,6 +280,15 @@ export const getRecoveryFilePath = operations.getRecoveryFilePath;
 export const getLastSessionPointerPath = operations.getLastSessionPointerPath;
 export const writeLastSessionPointer = operations.writeLastSessionPointer;
 export const readLastSessionPointer = operations.readLastSessionPointer;
+// Declare-once product storage handle (see platform/runtime/session-surface.ts):
+// every session-persistence / SessionManager / checkpoint call site threads
+// this through instead of re-deriving workingDirectory/homeDirectory/surfaceRoot
+// independently. consumeRecovery/removeRecoveryPoint are the prompted
+// resume/discard primitives for a surface-backed recovery flow (load-then-delete,
+// and delete-without-load, respectively).
+export const createSessionSurface = operations.createSessionSurface;
+export const consumeRecovery = operations.consumeRecovery;
+export const removeRecoveryPoint = operations.removeRecoveryPoint;
 export const exportRemoteArtifactForAgent = operations.exportRemoteArtifactForAgent;
 export const importRemoteArtifact = operations.importRemoteArtifact;
 export const RemoteRunnerRegistry = operations.RemoteRunnerRegistry;
@@ -350,6 +359,12 @@ export type Pruner = Operations.Pruner;
 export type RetentionStats = Operations.RetentionStats;
 export type SessionReturnContextSummary = Operations.SessionReturnContextSummary;
 export type SessionSnapshot = Operations.SessionSnapshot;
+export type RecoveryFileInfo = Operations.RecoveryFileInfo;
+export type SessionSurface = Operations.SessionSurface;
+export type SurfaceIdentity = Operations.SurfaceIdentity;
+export type SessionPersistenceOptions = Operations.SessionPersistenceOptions;
+export type RecoveryConsumeResult = Operations.RecoveryConsumeResult;
+export type RecoveryRemoveResult = Operations.RecoveryRemoveResult;
 export type RemoteSupervisorSnapshot = Operations.RemoteSupervisorSnapshot;
 export type DistributedPeerKind = Operations.DistributedPeerKind;
 export type DistributedPairRequestStatus = Operations.DistributedPairRequestStatus;

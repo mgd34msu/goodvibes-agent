@@ -1,8 +1,15 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createShellPathService } from '@/runtime/index.ts';
+import {
+  checkRecoveryFile,
+  consumeRecovery,
+  createSessionSurface,
+  createShellPathService,
+  removeRecoveryPoint,
+  writeRecoveryFile,
+} from '@/runtime/index.ts';
 import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 
 import { handleBlockingShellInput, type PendingPermissionState } from '../../shell/blocking-input.ts';
@@ -11,6 +18,12 @@ function makeWorkspaceRegistrationShellPaths() {
   const home = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-'));
   const work = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-work-'));
   return { shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }), work };
+}
+
+function makeRecoverySurface() {
+  const home = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-recovery-home-'));
+  const work = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-recovery-work-'));
+  return createSessionSurface({ surfaceRoot: 'agent', workingDirectory: work, homeDirectory: home });
 }
 
 async function pollUntil(predicate: () => Promise<boolean>, timeoutMs = 5000, intervalMs = 25): Promise<boolean> {
@@ -64,14 +77,14 @@ describe('shell/blocking-input', () => {
     const result = handleBlockingShellInput({
       data: 'y',
       pendingPermission,
-      recoveryPending: false,
+      recoveryPending: null,
       pendingWorkspaceRegistration: null,
       abortTurn: () => { aborted++; },
       conversation: conversation as never,
       systemMessageRouter: router as never,
       render: () => { rendered++; },
-      loadRecoveryConversation: () => null,
-      deleteRecoveryFile: () => {},
+      consumeRecovery: () => null,
+      removeRecoveryPoint: () => {},
     });
 
     expect(result.handled).toBe(true);
@@ -100,14 +113,14 @@ describe('shell/blocking-input', () => {
     const result = handleBlockingShellInput({
       data: '\x1b',
       pendingPermission,
-      recoveryPending: false,
+      recoveryPending: null,
       pendingWorkspaceRegistration: null,
       abortTurn: () => { aborted++; },
       conversation: conversation as never,
       systemMessageRouter: router as never,
       render: () => { rendered++; },
-      loadRecoveryConversation: () => null,
-      deleteRecoveryFile: () => {},
+      consumeRecovery: () => null,
+      removeRecoveryPoint: () => {},
     });
 
     expect(result.handled).toBe(true);
@@ -120,87 +133,90 @@ describe('shell/blocking-input', () => {
   test('restores recovery snapshot on ctrl-r', () => {
     const { conversation, restored } = makeConversation();
     const { router, messages } = makeRouter();
-    let deleted = 0;
+    let consumed = 0;
     let rendered = 0;
 
     const result = handleBlockingShellInput({
       data: '\x12',
       pendingPermission: null,
-      recoveryPending: true,
+      recoveryPending: 'recovery-session-1',
       pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
       render: () => { rendered++; },
-      loadRecoveryConversation: () => ({
-        messages: [{ role: 'user', content: 'restored' }],
-      }),
-      deleteRecoveryFile: () => { deleted++; },
+      // consumeRecovery (SDK primitive) loads AND retires the snapshot in one
+      // operation — there is no separate delete callback for this branch.
+      consumeRecovery: () => {
+        consumed++;
+        return { messages: [{ role: 'user', content: 'restored' }] };
+      },
+      removeRecoveryPoint: () => {},
     });
 
     expect(result.handled).toBe(true);
-    expect(result.recoveryPending).toBe(false);
+    expect(result.recoveryPending).toBeNull();
     expect(restored).toEqual([[{ role: 'user', content: 'restored' }]]);
     expect(messages).toContain('[Recovery] Session restored.');
-    expect(deleted).toBe(1);
+    expect(consumed).toBe(1);
     expect(rendered).toBe(1);
   });
 
   test('passes normal typing through while dismissing recovery', () => {
     const { conversation, restored } = makeConversation();
     const { router, messages } = makeRouter();
-    let deleted = 0;
+    let removed = 0;
     let rendered = 0;
 
     const result = handleBlockingShellInput({
       data: 'h',
       pendingPermission: null,
-      recoveryPending: true,
+      recoveryPending: 'recovery-session-1',
       pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
       render: () => { rendered++; },
-      loadRecoveryConversation: () => ({
+      consumeRecovery: () => ({
         messages: [{ role: 'user', content: 'restored' }],
       }),
-      deleteRecoveryFile: () => { deleted++; },
+      removeRecoveryPoint: () => { removed++; },
     });
 
     expect(result.handled).toBe(false);
-    expect(result.recoveryPending).toBe(false);
+    expect(result.recoveryPending).toBeNull();
     expect(restored).toEqual([]);
     expect(messages).toContain('[Recovery] Ignored saved session; starting a new prompt.');
-    expect(deleted).toBe(1);
+    expect(removed).toBe(1);
     expect(rendered).toBe(1);
   });
 
   test('discards recovery on escape without passing escape to input', () => {
     const { conversation, restored } = makeConversation();
     const { router, messages } = makeRouter();
-    let deleted = 0;
+    let removed = 0;
     let rendered = 0;
 
     const result = handleBlockingShellInput({
       data: '\x1b',
       pendingPermission: null,
-      recoveryPending: true,
+      recoveryPending: 'recovery-session-1',
       pendingWorkspaceRegistration: null,
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
       render: () => { rendered++; },
-      loadRecoveryConversation: () => ({
+      consumeRecovery: () => ({
         messages: [{ role: 'user', content: 'restored' }],
       }),
-      deleteRecoveryFile: () => { deleted++; },
+      removeRecoveryPoint: () => { removed++; },
     });
 
     expect(result.handled).toBe(true);
-    expect(result.recoveryPending).toBe(false);
+    expect(result.recoveryPending).toBeNull();
     expect(restored).toEqual([]);
     expect(messages).toContain('[Recovery] Discarded recovery data.');
-    expect(deleted).toBe(1);
+    expect(removed).toBe(1);
     expect(rendered).toBe(1);
   });
 
@@ -213,14 +229,14 @@ describe('shell/blocking-input', () => {
     const result = handleBlockingShellInput({
       data: 'y',
       pendingPermission: null,
-      recoveryPending: false,
+      recoveryPending: null,
       pendingWorkspaceRegistration: { root: work, shellPaths },
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
       render: () => { rendered++; },
-      loadRecoveryConversation: () => null,
-      deleteRecoveryFile: () => {},
+      consumeRecovery: () => null,
+      removeRecoveryPoint: () => {},
     });
 
     expect(result.handled).toBe(true);
@@ -242,14 +258,14 @@ describe('shell/blocking-input', () => {
     const result = handleBlockingShellInput({
       data: '\x1b',
       pendingPermission: null,
-      recoveryPending: false,
+      recoveryPending: null,
       pendingWorkspaceRegistration: { root: work, shellPaths },
       abortTurn: () => {},
       conversation: conversation as never,
       systemMessageRouter: router as never,
       render: () => { rendered++; },
-      loadRecoveryConversation: () => null,
-      deleteRecoveryFile: () => {},
+      consumeRecovery: () => null,
+      removeRecoveryPoint: () => {},
     });
 
     expect(result.handled).toBe(true);
@@ -260,5 +276,115 @@ describe('shell/blocking-input', () => {
     const store = createWorkspaceRegistrationStore(shellPaths);
     const declined = await pollUntil(async () => (await store.resolve(work)).status === 'declined');
     expect(declined).toBe(true);
+  });
+});
+
+// ── Real-SDK regression: recovery targets exactly the OFFERED snapshot ──────
+//
+// Reproduces the actual production wiring (see main.ts's stdin 'data' handler):
+// checkRecoveryFile picks the newest snapshot to offer, and the
+// consumeRecovery/removeRecoveryPoint closures must be keyed to THAT
+// sessionId, never a keyless call that would touch every snapshot in the
+// scoped recovery directory. Uses the real SDK session-persistence primitives
+// against real files on disk (no mocks) so the raw filesystem state is the
+// proof.
+describe('shell/blocking-input — recovery targets exactly the offered snapshot', () => {
+  function makeTwoSnapshots() {
+    const surface = makeRecoverySurface();
+    // Two independent sessions each have their own crash-recovery snapshot.
+    writeRecoveryFile({ messages: [{ role: 'user', content: 'older session' }] }, 'session-older', 'Older', { surface });
+    writeRecoveryFile({ messages: [{ role: 'user', content: 'newer session' }] }, 'session-newer', 'Newer', { surface });
+    // checkRecoveryFile offers the newest-by-mtime snapshot; force a
+    // deterministic ordering instead of relying on write-call timing.
+    const olderPath = surface.recoveryFile('session-older');
+    const newerPath = surface.recoveryFile('session-newer');
+    const now = Date.now() / 1000;
+    utimesSync(olderPath, now - 60, now - 60);
+    utimesSync(newerPath, now, now);
+    return { surface, olderPath, newerPath };
+  }
+
+  test('Ctrl+R consumes and retires the offered snapshot only', () => {
+    const { surface, olderPath, newerPath } = makeTwoSnapshots();
+    const offered = checkRecoveryFile({ surface });
+    expect(offered?.sessionId).toBe('session-newer');
+
+    const { conversation, restored } = makeConversation();
+    const { router } = makeRouter();
+
+    const result = handleBlockingShellInput({
+      data: '\x12',
+      pendingPermission: null,
+      recoveryPending: offered!.sessionId,
+      pendingWorkspaceRegistration: null,
+      abortTurn: () => {},
+      conversation: conversation as never,
+      systemMessageRouter: router as never,
+      render: () => {},
+      consumeRecovery: () => consumeRecovery(surface, offered!.sessionId).snapshot,
+      removeRecoveryPoint: () => { removeRecoveryPoint(surface, offered!.sessionId); },
+    });
+
+    expect(result.handled).toBe(true);
+    expect(restored).toEqual([[{ role: 'user', content: 'newer session' }]]);
+    // Raw-disk proof: the offered (newer) snapshot is gone; the other
+    // session's snapshot is untouched.
+    expect(existsSync(newerPath)).toBe(false);
+    expect(existsSync(olderPath)).toBe(true);
+  });
+
+  test('Esc removes the offered snapshot only', () => {
+    const { surface, olderPath, newerPath } = makeTwoSnapshots();
+    const offered = checkRecoveryFile({ surface });
+    expect(offered?.sessionId).toBe('session-newer');
+
+    const { conversation } = makeConversation();
+    const { router } = makeRouter();
+
+    const result = handleBlockingShellInput({
+      data: '\x1b',
+      pendingPermission: null,
+      recoveryPending: offered!.sessionId,
+      pendingWorkspaceRegistration: null,
+      abortTurn: () => {},
+      conversation: conversation as never,
+      systemMessageRouter: router as never,
+      render: () => {},
+      consumeRecovery: () => consumeRecovery(surface, offered!.sessionId).snapshot,
+      removeRecoveryPoint: () => { removeRecoveryPoint(surface, offered!.sessionId); },
+    });
+
+    expect(result.handled).toBe(true);
+    // Raw-disk proof: the offered (newer) snapshot is gone; the other
+    // session's snapshot is untouched.
+    expect(existsSync(newerPath)).toBe(false);
+    expect(existsSync(olderPath)).toBe(true);
+  });
+});
+
+// ── Real-SDK regression: exit retires only the exiting session's snapshot ──
+//
+// main.ts's exitApp calls removeRecoveryPoint(ctx.services.surface,
+// runtime.sessionId) — scoped to the session that is actually exiting. A
+// keyless call (removeRecoveryPoint(surface) with no sessionId) clears every
+// snapshot in the scoped recovery directory, including offers the user never
+// answered and, in a dual-session workdir, the OTHER session's still-live
+// snapshot. This exercises the exact same real SDK primitive main.ts's exit
+// path calls, keyed the same way, against real files on disk.
+describe('shell/blocking-input — exit removes only the exiting session snapshot', () => {
+  test('removeRecoveryPoint(surface, sessionId) retires only that session, leaving a second session snapshot intact', () => {
+    const surface = makeRecoverySurface();
+    writeRecoveryFile({ messages: [{ role: 'user', content: 'exiting session' }] }, 'session-exiting', 'Exiting', { surface });
+    writeRecoveryFile({ messages: [{ role: 'user', content: 'other live session' }] }, 'session-other', 'Other', { surface });
+    const exitingPath = surface.recoveryFile('session-exiting');
+    const otherPath = surface.recoveryFile('session-other');
+    expect(existsSync(exitingPath)).toBe(true);
+    expect(existsSync(otherPath)).toBe(true);
+
+    // The exact call main.ts's exitApp makes: keyed to the exiting session's runtime.sessionId.
+    removeRecoveryPoint(surface, 'session-exiting');
+
+    expect(existsSync(exitingPath)).toBe(false);
+    expect(existsSync(otherPath)).toBe(true);
   });
 });

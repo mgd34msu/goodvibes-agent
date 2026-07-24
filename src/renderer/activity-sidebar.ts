@@ -231,5 +231,19 @@ export function resolveActivitySidebarWidth(terminalWidth: number): number {
   return Math.min(44, Math.max(32, Math.floor(terminalWidth * 0.24)));
 }
 
+/**
+ * Applies the user's Ctrl+O on/off override (see main.ts's `sidebarOverride`)
+ * on top of the automatic width above: `null` defers to automatic sizing,
+ * `false` forces hidden (0), `true` forces visible at the automatic width
+ * (or a sane fallback when the terminal is too narrow for the automatic
+ * threshold to produce one).
+ */
+export function resolveSidebarWidthWithOverride(terminalWidth: number, override: boolean | null): number {
+  const auto = resolveActivitySidebarWidth(terminalWidth);
+  if (override === null) return auto;
+  if (!override) return 0;
+  return auto > 0 ? auto : Math.min(36, Math.max(28, Math.floor(terminalWidth * 0.3)));
+}
+
 /** True when `getDisplayWidth` would matter; exported for tests. */
 export const __test__ = { fmtClock, entryLine, KIND_GLYPHS, getDisplayWidth };

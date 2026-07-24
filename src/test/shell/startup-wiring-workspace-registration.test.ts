@@ -8,7 +8,8 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createShellPathService, writeRecoveryFile } from '@/runtime/index.ts';
+import { createSessionSurface, createShellPathService, writeRecoveryFile } from '@/runtime/index.ts';
+import type { SessionSurface } from '@/runtime/index.ts';
 import { writeOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
 import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 import { wireSessionPersistenceAndRecovery, type SessionPersistenceAndRecoveryDeps } from '../../shell/startup-wiring.ts';
@@ -17,6 +18,10 @@ function makeRoots() {
   const home = mkdtempSync(join(tmpdir(), 'gv-agent-startup-wiring-reg-home-'));
   const work = mkdtempSync(join(tmpdir(), 'gv-agent-startup-wiring-reg-work-'));
   return { home, work, shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }) };
+}
+
+function makeSurface(workingDirectory: string, homeDirectory: string): SessionSurface {
+  return createSessionSurface({ surfaceRoot: 'agent', workingDirectory, homeDirectory });
 }
 
 function markOnboardingDone(shellPaths: ReturnType<typeof createShellPathService>): void {
@@ -35,7 +40,7 @@ function makeDeps(overrides: Partial<SessionPersistenceAndRecoveryDeps> & { work
     unsubs: [],
     uiServicesTurns: { on: () => () => {} },
     hookDispatcher: { fire: async () => {} } as never,
-    sessionManager: {} as never,
+    surface: makeSurface(overrides.workingDir, overrides.homeDirectory),
     onStreamSpeedUpdate: () => {},
     ...overrides,
   };
@@ -114,14 +119,14 @@ describe('wireSessionPersistenceAndRecovery — first-start registration prompt'
     // to write one) so checkRecoveryFile reports one pending on the next call.
     writeRecoveryFile(
       { messages: [{ role: 'user', content: 'hi' } as never], timestamp: Date.now(), title: 'test' },
-      'test-session', 'test', { workingDirectory: work, homeDirectory: home },
+      'test-session', 'test', { surface: makeSurface(work, home) },
     );
 
     const { deps, messages } = makeDeps({ workingDir: work, homeDirectory: home });
     const result = wireSessionPersistenceAndRecovery(deps);
     clearInterval(result.recoveryInterval);
 
-    expect(result.recoveryPending).toBe(true);
+    expect(result.recoveryPending).toBe('test-session');
     expect(result.pendingWorkspaceRegistration).toBeNull();
     expect(messages.some((m) => m.includes('[Workspace]'))).toBe(false);
   });

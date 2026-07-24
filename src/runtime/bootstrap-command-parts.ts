@@ -118,6 +118,7 @@ export interface BootstrapCommandSectionOptions {
   readonly sessionMemoryStore?: import('@pellux/goodvibes-sdk/platform/core').SessionMemoryStore;
   readonly sessionLineageTracker?: import('@pellux/goodvibes-sdk/platform/core').SessionLineageTracker;
   readonly changeTracker?: import('@pellux/goodvibes-sdk/platform/sessions').SessionChangeTracker;
+  readonly writeLastSessionPointer?: (sessionId: string) => void;
   readonly agentManager?: ShellAgentManagerService;
   readonly modeManager?: ShellModeManagerService;
   readonly automationManager?: ShellAutomationManagerRuntimeService;
@@ -268,7 +269,7 @@ export function createBootstrapCommandActions(
 export function createBootstrapCommandSessionSection(
   options: Pick<
     BootstrapCommandSectionOptions,
-    'conversation' | 'runtime' | 'sessionManager' | 'sessionMemoryStore' | 'sessionLineageTracker' | 'changeTracker'
+    'conversation' | 'runtime' | 'sessionManager' | 'sessionMemoryStore' | 'sessionLineageTracker' | 'changeTracker' | 'writeLastSessionPointer'
   >,
 ): BootstrapCommandSessionSection {
   return {
@@ -278,6 +279,7 @@ export function createBootstrapCommandSessionSection(
     sessionMemoryStore: options.sessionMemoryStore,
     sessionLineageTracker: options.sessionLineageTracker,
     changeTracker: options.changeTracker,
+    writeLastSessionPointer: options.writeLastSessionPointer,
   };
 }
 

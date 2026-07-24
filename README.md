@@ -1,11 +1,12 @@
 # GoodVibes Agent
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Version: 1.5.3](https://img.shields.io/badge/version-1.12.5-blue.svg)](#install)
+[![CI](https://github.com/mgd34msu/goodvibes-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/mgd34msu/goodvibes-agent/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/badge/version-1.12.5-blue.svg)](https://github.com/mgd34msu/goodvibes-agent)
 
-GoodVibes Agent is the installable autonomous operator assistant for GoodVibes. It keeps the existing terminal renderer and workspace bones, but the product goal is different from a vibecoding harness: the user should experience one assistant that can chat, plan, remember, research, schedule, send, generate, run visible agents, and operate the GoodVibes daemon contract with clear confirmation gates.
+GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness — route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes — instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
 
-The GoodVibes daemon is Agent's capability runtime. It provides the operator API, schedules, channels, knowledge, media, remote execution, service posture, and long-running automation routes. Those capabilities stay in their owning packages; Agent consumes published SDK/daemon/TUI contracts and presents the user-first harness, route planning, confirmation gates, and receipts. Agent keeps shared GoodVibes settings import so users can reuse provider selections, UI preferences, permissions, subscriptions, surfaces, tools, and daemon endpoint settings from goodvibes-tui and other published GoodVibes platform stores instead of rebuilding setup by hand.
+---
 
 ## Install
 
@@ -15,43 +16,88 @@ goodvibes-agent --help
 goodvibes-agent
 ```
 
-If the command is not on `PATH`, add Bun's global bin directory:
+If `goodvibes-agent` is not on `PATH` after a global install:
 
 ```sh
 export PATH="$(bun pm bin -g):$PATH"
-goodvibes-agent --help
 ```
 
-On a fresh Agent home, `goodvibes-agent` opens setup first. After setup is applied, it opens directly into the Agent workspace.
+On a fresh Agent home, `goodvibes-agent` opens setup first; once setup is applied it opens directly into the Agent workspace.
 
-### Standalone binary and the semantic vector index
+Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) and a `SHA256SUMS.txt` manifest, for environments that download a binary directly rather than through Bun. A directly-downloaded binary self-updates at launch — a bounded check against the latest GitHub release, then a checksum-verified download-and-swap when one is newer, with the replaced file always kept beside it as `<file>.previous` so `/update rollback` can undo it. Package-managed installs never self-swap; they defer to `bun add -g` instead. `update.autoUpdateAtLaunch: false` in `settings.json` turns the launch check off.
 
-Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) plus a `SHA256SUMS.txt` manifest. The supported install path remains the Bun global command above; the standalone binary is for environments that download it directly.
+The semantic (embedding-backed) memory index depends on a native `sqlite-vec` addon that Bun cannot embed in a compiled binary, so each release ships it separately as `sqlite-vec-<os>-<arch>.tar.gz`. A binary with no co-located addon still runs; memory search falls back to literal matching until the matching archive is extracted next to it. This addon stays unavailable on macOS regardless of co-location, because the system SQLite that macOS links refuses to load extensions.
 
-The semantic (embedding-backed) memory vector index depends on the sqlite-vec native addon, which Bun cannot embed inside the compiled binary. Each release therefore attaches the addon as a separate per-platform archive named `sqlite-vec-<os>-<arch>.tar.gz` (for example `sqlite-vec-linux-x64.tar.gz`), also checksummed in `SHA256SUMS.txt`. A binary with no co-located addon still runs and reports `available: no` for the vector index; memory search falls back to literal matching.
+Connect Agent to a GoodVibes daemon before using daemon-backed features — the default target is `http://127.0.0.1:3421`. `goodvibes-agent status --json`, `goodvibes-agent doctor`, and `goodvibes-agent compat` are scriptable checks for that connection and for the install itself. Deeper install notes, the full workspace tour, and CLI diagnostics are in [docs/getting-started.md](docs/getting-started.md) and [docs/connected-host.md](docs/connected-host.md).
 
-To restore the vector index for a directly-downloaded binary, place the matching addon archive in the same directory as the binary and extract it there. The archive already carries the exact layout the runtime resolves — `lib/sqlite-vec-<os>-<arch>/vec0.<suffix>` relative to the binary — so no renaming is needed:
+---
 
-```sh
-# In the directory that holds the downloaded goodvibes-agent binary:
-tar -xzf sqlite-vec-linux-x64.tar.gz     # creates ./lib/sqlite-vec-linux-x64/vec0.so
-./goodvibes-agent memory vector status   # available: yes
-```
+## A short tour
 
-macOS note: the system SQLite that the runtime links on macOS refuses to load extensions, so the darwin archives are shipped for parity but the vector index stays unavailable on macOS regardless of co-location. This is a macOS platform limitation, not a packaging defect, and memory search there uses literal matching.
+**The workspace is the product.** `goodvibes-agent` opens straight into a fullscreen operator workspace (reopen it any time with `/agent`, `/home`, or `/operator`); slash commands and CLI subcommands are power-user and scriptable mirrors of the same actions. Press `/` inside the workspace to search every action by name, category, command, or detail.
 
-### Self-update for standalone binaries
+**One assistant, several jobs.** Beyond normal chat, the workspace gives you read-only web research with explicit hand-off into Agent Knowledge, versioned document drafting with blind model comparison, a Personal Ops area for inbox/agenda/task/reminder/note requests, and an Operator Runtime view of the connected host's own methods and service posture.
 
-A directly-downloaded release binary keeps itself current: at launch it checks the latest GitHub release (a short, bounded check — an offline or slow network skips it with one line and starts the current version), and when a newer release exists it downloads the new binary and the matching sqlite-vec addon archive, verifies both against `SHA256SUMS.txt` before touching anything, swaps them atomically, and restarts onto the new version with the original arguments. The restarted session prints a receipt naming both versions, so an update is never silent. Every swap keeps the replaced file beside the live one as `<file>.previous`.
+**Local behavior is yours to shape.** A friendly `VIBE.md` personality file, separate from project instruction files (`AGENTS.md`, `CLAUDE.md`, and similar), plus local memory, notes, personas, and skills all live under the Agent home and are scanned for secret-looking content before they ever reach a prompt. Personas capture a reusable voice or role; skills capture a reusable capability; routines capture a reusable sequence you can start in chat and, as a separate explicit and confirmation-gated step, promote to a connected schedule.
 
-- `/update` or `/update check` — report whether a newer release exists.
-- `/update apply` — install the latest release now (same verified path as the launch check).
-- `/update rollback` — one command back to the previously installed version (and one more forward again).
-- `update.autoUpdateAtLaunch: false` in settings.json turns the launch check off; `update.launchCheckTimeoutMs` tunes its budget (250–30000 ms, default 2500).
+**Automation stays visible and confirmed.** Reminders, schedules, channel sends, media generation, and visible background agents all show up in one autonomy queue, and every one of them requires an explicit user request plus confirmation before anything actually sends, spends, or runs unattended.
 
-Package-managed installs (`bun add -g @pellux/goodvibes-agent`) and source checkouts never self-swap — they say so at launch and defer to the package manager or checkout instead.
+**The model can plan its own route.** Ask a plain question like "email the team a summary" or "what's blocked in setup" and the underlying model can call a route planner that maps the request to the right tool and confirmation boundary before doing anything — it does not have to guess at internal tool names, and ambiguous requests come back as candidates instead of a wrong guess.
 
-## Source Usage
+**Isolated by design.** Agent Knowledge is its own segment — Agent only talks to `/api/goodvibes-agent/knowledge/*` and never falls back to another product's knowledge store. Named Agent profiles (`goodvibes-agent profiles create ...`) give you separate, isolated config, sessions, memory, and personas per household, project, or role.
+
+---
+
+## What's in the box
+
+Each row links to the page that documents it. The workspace's own `/` search and `/help` are always the current authority.
+
+| Area | What you get | Docs |
+| --- | --- | --- |
+| Getting started | Requirements, install paths, first-run areas, model-visible route table, isolated profiles | [getting-started.md](docs/getting-started.md) |
+| Connected host | The one required daemon dependency, its knowledge routes, override env vars, product-boundary rules | [connected-host.md](docs/connected-host.md) |
+| Providers and routing | Provider/model visibility, local provider definitions, the local model cookbook | [providers-and-routing.md](docs/providers-and-routing.md) |
+| Tools and commands | Workspace actions, slash commands, CLI mirrors, model-tool catalog, settings and keybinding writes | [tools-and-commands.md](docs/tools-and-commands.md) |
+| Knowledge, artifacts, and multimodal | Isolated Agent Knowledge, document/image/media artifacts, ingest and review routes | [knowledge-artifacts-and-multimodal.md](docs/knowledge-artifacts-and-multimodal.md) |
+| Channels, remote access, and API | Slack, Discord, Telegram, Matrix, webhook, and other configured channels; setup/triage/delivery; companion pairing; the operator method catalog | [channels-remote-and-api.md](docs/channels-remote-and-api.md) |
+| Voice and live TTS | Spoken playback, TTS/STT provider setup | [voice-and-live-tts.md](docs/voice-and-live-tts.md) |
+| Release and publishing | Package identity, release asset layout, the publish-check text and metadata gates | [release-and-publishing.md](docs/release-and-publishing.md) |
+
+Full index: [docs/README.md](docs/README.md).
+
+---
+
+## Configuration
+
+Settings live in a layered `settings.json`, editable through the `/settings` workspace or by hand:
+
+- global — `~/.goodvibes/agent/settings.json`
+- project — `.goodvibes/agent/settings.json`
+
+A few keys worth knowing up front:
+
+| Key | Default | What it does |
+| --- | --- | --- |
+| `update.autoUpdateAtLaunch` | `true` | Check for and install a newer release at launch (standalone binaries only) |
+| `update.launchCheckTimeoutMs` | `2500` | How long that launch check may take before it is skipped; clamped to 250–30000 |
+| `checkpoints.preferGitRoot` | `true` | Snapshot the enclosing git repository's root rather than the raw working directory |
+| `checkpoints.allowBroadRoot` | `false` | Opt in to snapshotting a broad root such as the filesystem root or home directory |
+| `checkpoints.autoRetention` | `true` | Run a retention sweep automatically after each checkpoint |
+
+Other useful overrides:
+
+- `GOODVIBES_AGENT_HOME=/path/to/agent-home` — run with an isolated Agent home instead of the default one.
+- `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` (or the `--runtime-url` flag) — point at a GoodVibes host on a different address; `GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias.
+- `~/.goodvibes/agent/providers/*.json` — local, hot-reloaded custom provider definitions.
+- `/settings action:"import"` (or `import_goodvibes_settings`) — preview, then apply, provider/UI/permission/subscription/surface/tool/daemon-endpoint settings already configured for goodvibes-tui or another published GoodVibes platform store, without mutating the source.
+
+The full settings catalog, the checkpoint-guard keys, and the shared-settings-import contract are in [docs/tools-and-commands.md](docs/tools-and-commands.md) and [docs/getting-started.md](docs/getting-started.md).
+
+---
+
+## Development
+
+Agent builds on the existing terminal renderer and workspace foundations of the GoodVibes platform; what differs is the product layer composed on top of them.
 
 ```sh
 git clone https://github.com/mgd34msu/goodvibes-agent.git
@@ -60,188 +106,44 @@ bun install
 bun run dev
 ```
 
-Useful local checks:
-
-```sh
-bun run typecheck
-bun run build
-bun run package:install-check
-bun run publish:check
-```
-
-## Operator Workspace
-
-The fullscreen Agent workspace is the primary product surface. Reopen it with `/agent`, `/home`, or `/operator`.
-
-Workspace areas:
-
-- Home: normal assistant chat, operator briefing, model selection, setup, and health.
-- Conversation: context usage, inline `@file`/`@folder`/`@url` references, compaction, title/session save/load/search/export, bookmarks, paste/image/TTS helpers, undo/redo/retry, clear/reset, shortcuts, and keybindings.
-- Research: read-only web research, URL inspection, source triage, and explicit handoff into Agent Knowledge.
-- Documents & Compare: versioned document drafting, uploads, exports, source checks, generated media artifacts, artifact browsing/export, artifact reuse, and confirmed blind model comparison with delayed reveal, durable JSON comparison artifacts, saved review boards, side-by-side reviewer views, saved judgment artifacts, saved preference analytics/synthesis, markdown report export, reviewer handoff artifacts, one-click reviewer handoff ZIP archives, and confirmed winner route updates.
-- Artifacts: image attachment, conversation/session export, source-file ingest, source lookup, bookmark/browser-history import, and generated media artifacts.
-- Personal Ops: request intake for inbox, agenda, tasks, reminders, notes, routines, and delivery; inbox/calendar connector readiness; saved review queues; notes, work plans, host tasks, task/reminder workflow cards, connected schedule controls, routines, schedules, and delivery readiness in one daily operations area.
-- Setup: provider/model, compatibility, Agent Knowledge readiness, profiles, support bundles, subscriptions, and auth review.
-- Tools & MCP: MCP server setup, tool inventory, trust review, secrets, and settings.
-- Knowledge: isolated Agent Knowledge status, ask/search, source/node/issue libraries, item lookup, map review, connectors, ingest, review queue, and reindex.
-- Memory & Skills: VIBE.md personality, project context files, local memory posture, prompt-active recall, vector/embedding health, scratchpad notes, learned behavior capture, personas, skills, routines, and schedule promotion.
-- Channels: companion pairing, channel readiness, confirmed channel delivery, and confirmed webhook notification management.
-- Voice & Media: voice review, spoken response setup, image input, confirmed image/video generation, browser-tool posture, and provider readiness.
-- Automation: reminders, schedules, visible autonomous agents, routine promotion receipts, reconciliation, and exact confirmed approval/automation/schedule actions.
-- Operator Runtime: full GoodVibes daemon method discovery, read-only status routes, confirmed write/admin routes, and service posture.
-
-Press `/` inside the workspace to search actions by name, category, command, or detail. Slash commands and CLI subcommands remain power-user/scriptable mirrors; the workspace is the first-class user path.
-
-## Model-Visible Harness
-
-The main Agent model can inspect and operate the Agent-controlled harness through Agent-owned tools. The important first-run entrypoint is `setup`; the detailed catalog entrypoint is `agent_harness`.
-
-### Route planning
-
-`route action:"plan" query:"..."` is the first stop when a plain user task could map to several GoodVibes surfaces. It returns the preferred visible route, alternatives, missing fields, confirmation boundary, workspace matches, and harness mode matches without running any tools.
-
-The planner maps task wording to a preferred route:
-
-| When the task sounds like… | Preferred route |
+| Command | Does |
 | --- | --- |
-| Host/daemon health or doctor | `host action:"status"` |
-| Normal settings/configuration | `settings action:"list"` |
-| Model provider, local cookbook, smoke, or route-fit | `models action:"provider\|local\|smoke\|route"` |
-| Personal Ops briefing, queue, fresh-read, or connector | `personal_ops action:"briefing\|queue\|intake\|lane"` |
-| Direct reminders or schedule lifecycle | `schedule action:"list"` + confirmed schedule actions |
-| Command-shaped background work | `execution action:"processes"` + first-class `terminal`/`process` UX |
-| Interactive PTY/stdin/sudo | `execution action:"process_capabilities"` before any start or credential effect |
-| External memory provider, backend, sync, import, or export | `memory action:"provider"` or the provider contract checklist |
-| Browser-backed research runner | `research action:"runner"` |
-| Visual research report rendering | `research action:"plan"` + report artifacts |
-| Voice workflow or TTS provider | `device action:"voice\|provider"` |
-| Browser cockpit/PWA | `computer action:"browser"` before any visible open handoff |
-| Channel setup, triage, delivery receipt, or send | `channels action:"setup\|triage\|deliveries\|channel"` before confirmed external delivery |
-| Security permission, status, finding, or blocked action | `security action:"status\|finding\|explain"` before policy changes or risky work |
-| Support bundle | `support action:"status\|bundle"` before bundle export/import/share effects |
-| Saved session, bookmark, or continuity | `sessions action:"list\|get"` before session lifecycle effects |
-| Release readiness, evidence, or audit | `audit action:"readiness\|evidence\|item\|artifact"` |
-| File undo/redo/recovery | `execution action:"recovery"` |
-| Media generation | provider readiness + confirmed `agent_media_generate` artifacts |
-| Screenshot, browser navigation/control, screen observation, or desktop control | `computer action:"plan"` before any live UI tool is considered |
+| `bun run dev` | Run the Agent TUI from source |
+| `bun test` | Run the test suite |
+| `bun run typecheck` | Type-check the source tree |
+| `bun run build` | Compile `src/main.ts` into `dist/goodvibes-agent` |
+| `bun run package:install-check` | Verify the packaged CLI actually installs and runs |
+| `bun run publish:check` | Run the package-facing text, metadata, and tarball-contents gates |
 
-`setup action:"repair"` is the first stop for setup or host fix requests. It chooses the safest next route — token repair, connected-host status, services.status receipt, user-run bootstrap, or no action — without executing it.
-
-### Inspecting the harness
-
-- `agent_harness mode:"summary"` — compact by default; returns counts, status, and a short mode guide.
-- `mode:"modes"` — searches every harness mode by task, family, effect type, id, alias, or parameter name.
-- `mode:"mode"` — inspects one mode contract.
-- `mode:"route_decision"` — lower-level compatibility route for the same user-task planner.
-- Plural catalog modes are compact by default: they return ids, labels, counts, safe state, effect class, and short route hints.
-
-For everyday discovery and diagnostics, prefer the first-class tools over raw harness modes:
-
-- Workspace, command, UI, shortcut, and keybinding discovery: `workspace action:"status|actions|action|run|surfaces|surface|open|commands|command|run_command|shortcuts|keybindings|keybinding"`.
-- Normal configuration: `settings action:"list|get|set|reset|import"`.
-- Connected-host/daemon diagnostics: `host action:"status|capabilities|capability|services|service|methods|method"`.
-
-Connected-host posture/status/capability and operator/audit rows include compact `modelRoute` or `modelAccess` hints, so the model can pick the right first-class tool or confirmed harness route without expanding every row. Pass `includeParameters:true` or use a singular inspect mode when you need schemas, detailed route hints, full policy blocks, a redacted log tail, operator/audit artifact data, or editor field definitions.
-
-High-value `agent_harness` mode groups:
-
-- Discovery: `modes` and `tools`; use `workspace action:"status|actions|commands|cli_commands|surfaces|shortcuts|keybindings"` for workspace/UI/command/key discovery and `settings action:"list"` for settings.
-- Single-item inspection: `mode` and `tool`; use `workspace action:"action|command|cli_command|surface|keybinding"` and `settings action:"get"` for one item.
-- User-visible effects: use `workspace action:"run|run_command|open|run_keybinding|set_keybinding|reset_keybinding"`, `terminal command:"..." background:true`, `process action:"wait|kill|write"`, and `settings action:"set|reset|import"`; all visible/mutating routes remain confirmation-gated.
-- Product posture: `channels action:"status|channel|setup|triage|deliveries"`, `notifications`, `provider_accounts`, `mcp_servers`, `setup action:"status|repair"` or detailed `setup_posture`, `host action:"status|capabilities|services|methods"`, `context action:"status|files|file|prompt|receipts|receipt"`, `memory action:"status|provider|curator|candidate|list|search|get"`, `agent_orchestration`, `model_routing`, `execution action:"status|route|history|record|processes|process_capabilities|process|recovery"`, `computer action:"status|plan|control|browser|setup|mcp"`, `personal_ops action:"briefing|status|queue|intake|lane|read"`, `document_ops`, `pairing_posture`, `delegation action:"status|routes|route"`, `security action:"status|finding|explain"`, `support action:"status|bundle"`, `media_posture`, `sessions action:"list|get"`.
-- Local long-running commands: `execution action:"processes"` and `execution action:"process"` inspect tracked ProcessManager jobs with bounded redacted output; `execution action:"capabilities"` or `action:"process_capabilities"` reports the same read-only process parity matrix as `process action:"capabilities"` for terminal background start, process list/poll/wait/log/kill/write, PTY, and sudo without overclaiming unsupported interactive routes. Confirmed `terminal command:"..." background:true` starts one visible local process, and `process action:"poll|log|wait|kill|write"` manages it. Lower-level `background_processes`, `background_process`, and confirmed `run_background_process` remain compatibility routes. `setup action:"item" setupItemId:"sudo-execution-posture"` shows SUDO_PASSWORD presence only, blocked background sudo routes, and foreground-supervised escalation guidance without reading or printing raw password values.
-- Visible Agent orchestration: `agent_orchestration` lists the live Agent manager, serial-by-default policy, managed multi-agent plan cards with milestones, work-plan links, dispatch receipts, closeout review routes, remote-runner contracts/artifact trails, auto-attached remote artifact review routes, spawn/batch-spawn decision cards, and safe control routes; `agent_orchestration_agent` inspects one visible subagent with its plan card. Approved work-plan items dispatch through confirmed `agent_work_plan action:"dispatch_agents"` into first-class `agent` spawn or batch-spawn calls with saved receipts. Actual spawn, message, wait, and cancel actions stay on the first-class `agent` tool.
-- Connected host: prefer `setup action:"repair"` for setup/repair decisions and `host action:"status|capabilities|capability|services|service|methods|method"` for diagnostics; lower-level `setup_repair`, `service_posture`, `service_endpoint`, `connected_host`, `connected_host_status`, `connected_host_capability`, `daemon`, and `daemon_status` remain compatibility/detail routes. The connected browser cockpit/PWA is surfaced through `computer action:"browser|open_browser"` and `workspace action:"surface|open"` with confirmation for visible opens; `computer action:"plan"` picks the safest browser, screenshot, or desktop-control workflow before live control tools are considered.
-- Project and prompt context: prefer `context action:"status|files|file|prompt|receipts|receipt"` for secret-scanned `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, `HERMES_HOME/SOUL.md`, `.cursorrules`, `.cursor/rules/*.mdc`, applied prompt composition, and receipt history; lower-level `project_context`, `project_context_file`, and `prompt_context` harness modes remain compatibility/detail routes.
-- Operator/audit inspection: `audit action:"readiness|item|evidence|artifact"`; lower-level `release_evidence`, `release_evidence_artifact`, `release_readiness`, and `release_readiness_item` remain compatibility/detail modes.
-- Operator methods: prefer `host action:"methods|method"` for inspection; exact execution stays on `agent_operator_method`.
-
-Every mutating or externally visible effect requires `confirm:true` plus `explicitUserRequest` unless a narrower first-class tool has its own confirmation contract. Ambiguous lookups return candidates instead of guessing.
-
-First-class model tools cover common workflows directly:
-
-- `route action:"plan|status"` for choosing the best visible Agent route for a plain user task before asking the user to understand Agent, TUI, host, daemon, or SDK ownership.
-- `agent_knowledge` and `agent_knowledge_ingest` for isolated Agent Knowledge reads and confirmed ingest.
-- `memory action:"status|provider|curator|candidate|list|search|get"` for Agent-local memory posture, provider readiness, review queues, and memory records; external-memory providers expose provider-specific next routes, missing setup/status/read/write/sync checklist items, and required receipt fields before Agent claims Honcho, Mem0, Supermemory, or similar backends are connected. `agent_local_registry` and `agent_learning_consolidation` remain the detailed routes for notes, personas, skills, bundles, routines, and confirmed duplicate-consolidation phases. Use `memory action:"status"` first when the user asks what memory knows, whether recall is healthy, or whether an external memory provider is actually connected.
-- `channels` for channel readiness, setup guide, triage, and delivery receipts; `agent_channel_send` remains the confirmed send route.
-- `support`, `sessions`, and `audit` for read-only support-bundle routes, saved-session/bookmark posture, release readiness, and packaged release evidence without requiring harness mode names.
-- `workspace` for Agent workspace categories/actions, slash and CLI command discovery, visible UI navigation, shortcuts, keybindings, and confirmed workspace/command/keybinding effects.
-- `agent_work_plan` for visible local work-plan tracking and confirmed dispatch of approved plan items to visible agents.
-- `personal_ops` for daily briefing, request intake, lane inspection, and one confirmed read-only inbox/calendar connector operation.
-- `autonomy action:"intake|queue|item|status"` for ongoing-work route selection and visible autonomous-work queue inspection without requiring harness mode names.
-- `agent_operator_briefing` and `agent_operator_action` for connected work/approval/automation/schedule posture and exact confirmed actions.
-- `agent_operator_method` for exact GoodVibes daemon contract parity. Read-only routes can run directly; write/admin routes require `confirm:true` and `explicitUserRequest`.
-- `agent_channel_send`, `agent_notify`, `agent_reminder_schedule`, `agent_media_generate`, and `agent_model_compare` for confirmed delivery, notification, reminder, media generation, and blind model comparison review/judgment.
-- `agent` for visible autonomous work: spawn, batch-spawn, inspect, message, wait, cancel, and report tracked agents. Use `agent_harness mode:"agent_orchestration"` first when deciding whether subagents are useful, reviewing managed milestones, or checking existing agent state.
-
-Registered model tool definitions are compact by default. Top-level descriptions are short, nested parameter descriptions are omitted from the default model catalog, and tool catalog rows include direct harness inspection routes. The model can inspect detailed contracts through `agent_harness mode:"tools"` with `includeParameters:true`, `mode:"tool"`, or the owning harness mode.
-
-## Local Behavior
-
-VIBE.md is the friendly personality file for GoodVibes Agent. Project and global VIBE.md files are discovered, scanned for secret-looking content, surfaced in setup and the learning curator when blocked or truncated, and applied to the serial Agent conversation without requiring persona-registry ceremony. The direct `vibe` tool exposes status/show plus confirmed init and persona import, while `/vibe` remains the visible command surface. Formal Agent-local memory, notes, personas, skills, routines, and profiles remain stored under the Agent home and are injected only into the serial Agent conversation unless an explicit Agent workflow promotes or ingests reviewed material elsewhere.
-
-Project context files are separate from personality. GoodVibes Agent loads secret-scanned workspace instructions from `.hermes.md`, `HERMES.md`, `AGENTS.md`, `CLAUDE.md`, optional `HERMES_HOME/SOUL.md`, `.cursorrules`, and `.cursor/rules/*.mdc`, with target-aware discovery for subdirectory `AGENTS.md` files. These instructions can shape project work, but explicit user requests, tool contracts, confirmation gates, and safety rules override them.
-
-Useful workspace paths:
-
-- Memory & Skills -> Memory posture, Create memory, Create note, or Capture learned behavior.
-- Notes -> Create, edit, review, stale, delete, or promote scratchpad notes.
-- Personas -> Inspect, create, show, or import VIBE.md; create, inspect, activate, review, stale, or delete local personas.
-- Skills -> Create skills, import discovered skills, enable/disable, review, delete, and manage skill bundles.
-- Routines -> Create routines, start a routine in chat, review receipts, and explicitly promote one routine to a connected schedule.
-- Profiles -> Create isolated Agent profiles from built-in or imported starter templates, with opt-in VIBE.md portability through `--include-vibe`.
-
-Starting a routine prints its steps in the main conversation. Promotion to a connected schedule or automation job is separate, explicit, confirmation-gated, visible in the autonomy queue, and records a redacted local receipt.
-
-## Knowledge And Artifacts
-
-Agent Knowledge is its own product segment. Agent uses only:
+Source layout, in brief:
 
 ```text
-/api/goodvibes-agent/knowledge/*
+src/
+├── main.ts, core/       terminal entrypoint, orchestrator
+├── agent/               channel, calendar, document, and automation domain logic
+├── tools/               agent-owned model tools (harness, workspace, channels, knowledge, ...)
+├── work-plans/          visible local work-plan tracking
+├── permissions/         approval posture and confirmation prompts
+├── input/               slash commands, workspace actions, command routing
+├── renderer/            terminal UI
+├── cli/, cli-flags.ts   CLI subcommands and flags, package verification
+├── config/              settings, secrets, checkpoint and update policy
+├── runtime/             update checks, release-artifact resolution
+├── audio/               spoken-turn playback and routing
+├── mcp/, plugins/       MCP server discovery, plugin loading
+└── verification/        release-readiness and evidence checks
 ```
 
-Agent does not fall back to default knowledge or other product-specific knowledge routes. Successful connected-host responses normalize public Agent-route scope aliases before checking for non-Agent contamination.
+Tests live under `src/test/`, mirroring the source tree, and cover contracts, release gates, package-facing text policy, security boundaries, and the workspace/tool/CLI surfaces above. `bun run publish:check` and `bun run package:install-check` are the same gates the release pipeline runs before a version is published.
 
-The Knowledge workspace and model tools support status, ask/search, source/node/issue lists, item lookup, map review, connector inspection, URL/file/URL-list/bookmark/browser-history/connector ingest, issue review, prompt packet/explain previews, consolidation, review queue, and reindex.
+The Agent consumes the bundled GoodVibes platform runtime, pinned in `package.json`, for shared contracts, daemon routes, and transports, and keeps the workspace, local behavior library, and Agent Knowledge boundary here. GoodVibes Agent owns the autonomous assistant harness; the connected GoodVibes host owns the platform capabilities Agent presents.
 
-Artifacts are first-class runtime objects for uploaded files, generated media, and delegated outputs. Saved artifacts can be browsed, previewed, attached to drafts, promoted to Agent Knowledge, or exported to workspace files after confirmation. Generated media is stored as GoodVibes artifacts and reported by artifact id and metadata, not inline base64.
+---
 
-## Connected Host
+## Stability
 
-Connect Agent to a GoodVibes daemon before using daemon-backed features. The default connection is:
+Documentation always describes the **current** behavior, not historical behavior. Notable changes are recorded in [CHANGELOG.md](CHANGELOG.md).
 
-```text
-http://127.0.0.1:3421
-```
+## License
 
-Use `--runtime-url http://host:port` for one launch or `GOODVIBES_AGENT_RUNTIME_URL=http://host:port` for a shell/session override. `GOODVIBES_AGENT_BASE_URL` is accepted as a legacy alias. These only change the connection target.
-
-Agent reports unavailable, unauthenticated, or incompatible host state from Agent Workspace -> Home through Host compatibility, Doctor diagnostics, and Review health. Scriptable mirrors are `goodvibes-agent status`, `goodvibes-agent doctor`, and `goodvibes-agent compat`.
-
-Model-visible diagnostics are read-only:
-
-- `host action:"services|service"` exposes endpoint binding, network-facing posture, issues, optional probes, and redacted log tail.
-- `host action:"capabilities|capability"` exposes compact posture maps, allowed capabilities, blocked lifecycle/non-Agent surfaces, route families, and first-class tool availability.
-- `host action:"status"` runs live readiness checks for host status, host compatibility, token posture, endpoint binding, isolated Agent Knowledge readiness, and the model route to inspect or act on findings.
-- `setup action:"repair"` selects the next safe setup repair route without executing it: token repair, connected-host status, services.status receipt, user-run bootstrap commands, or no lifecycle action when the host is reachable.
-
-Service lifecycle and listener changes are available only through explicit setup or confirmed daemon operator routes when the connected daemon supports them. Raw danger toggles stay protected.
-
-## Product Boundary
-
-GoodVibes Agent owns the autonomous assistant harness: the terminal renderer, setup UX, chat, local behavior libraries, Agent Knowledge routes, companion chat, visible agents, work plans, schedules, approvals, channel/media/reminder tools, daemon method access, and user-facing autonomy status.
-
-GoodVibes TUI remains the vibecoding harness and is still useful when the user wants its execution-isolation UX. Agent should use local tools, visible agents, daemon automation, delegation, or remote runners according to what best serves the user, not because package boundaries are exposed as product friction.
-
-## Package Docs
-
-- [Docs Index](docs/README.md)
-- [Getting Started](docs/getting-started.md)
-- [Connected Host](docs/connected-host.md)
-- [Knowledge, Artifacts, and Multimodal](docs/knowledge-artifacts-and-multimodal.md)
-- [Tools and Commands](docs/tools-and-commands.md)
-- [Channels, Remote Access, and API](docs/channels-remote-and-api.md)
-- [Providers and Routing](docs/providers-and-routing.md)
-- [Voice and Live TTS](docs/voice-and-live-tts.md)
-- [Release And Publishing](docs/release-and-publishing.md)
+MIT

@@ -158,6 +158,7 @@ import { ToolLLM } from '@pellux/goodvibes-sdk/platform/config';
 import { ComponentHealthMonitor } from '@/runtime/index.ts';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createShellPathService, type ShellPathService } from '@/runtime/index.ts';
+import { createSessionSurface, type SessionSurface } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import { createFeatureFlagManager, deriveFeatureStates, bindFeatureSettingsBridge } from '@/runtime/index.ts';
@@ -572,6 +573,14 @@ export interface RuntimeServicesOptions {
 export interface RuntimeServices extends SdkRuntimeServices {
   readonly workingDirectory: string;
   readonly homeDirectory: string;
+  /**
+   * The declare-once session-storage handle (platform/runtime/session-surface.ts),
+   * built exactly once here from workingDirectory/homeDirectory/GOODVIBES_AGENT_SURFACE_ROOT.
+   * Every session-persistence, SessionManager, and checkpoint call site threads
+   * this through instead of re-deriving those three values independently, so a
+   * writer and a reader can never disagree about where a file lives.
+   */
+  readonly surface: SessionSurface;
   readonly shellPaths: ShellPathService;
   readonly configManager: ConfigManager;
   readonly featureFlags: FeatureFlagManager;
@@ -761,6 +770,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     workingDirectory,
     homeDirectory,
   });
+  const surface = createSessionSurface({
+    surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    workingDirectory,
+    homeDirectory,
+  });
   const configManager = options.configManager;
   const featureFlags = options.featureFlags ?? createFeatureFlagManager();
   if (options.featureFlags === undefined) {
@@ -843,7 +857,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const profileManager = new ProfileManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'profiles'));
   const bookmarkManager = new BookmarkManager(shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'bookmarks'));
-  const sessionManager = new SessionManager(workingDirectory, { surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT });
+  const sessionManager = new SessionManager(workingDirectory, { surface });
   const sessionOrchestration = new CrossSessionTaskRegistry(
     shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'sessions', 'task-graph.json'),
   );
@@ -1358,7 +1372,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const codeIndexStore = new CodeIndexStore(
     workingDirectory,
-    join(workingDirectory, '.goodvibes', 'agent', 'code-index.sqlite'),
+    join(workingDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'code-index.sqlite'),
     memoryEmbeddingRegistry,
   );
   // Data safety with no discipline: a daily snapshot of every SQLite store
@@ -1374,7 +1388,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     stores: [
       { name: 'memory store', dbPath: memoryDbPath },
       { name: 'memory vector index', dbPath: resolveMemoryVectorDbPath(memoryDbPath) },
-      { name: 'code index store', dbPath: join(workingDirectory, '.goodvibes', 'agent', 'code-index.sqlite') },
+      { name: 'code index store', dbPath: join(workingDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'code-index.sqlite') },
     ],
   });
   storeSnapshotScheduler.start();
@@ -1482,6 +1496,16 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const workspaceCheckpointManager = new WorkspaceCheckpointManager({
     workspaceRoot: workingDirectory,
     ...readCheckpointGuardSettings(configManager),
+    // Resolves the checkpoint git store to surface.checkpointsDir
+    // (<workingDirectory>/.goodvibes/agent/checkpoints) instead of the legacy,
+    // surface-unaware <workspaceRoot>/.goodvibes/checkpoints — which the TUI
+    // and Agent would otherwise SHARE when run against the same working
+    // directory. Fixed to the surface's own workingDirectory regardless of
+    // preferGitRoot; readCheckpointGuardSettings may still override via an
+    // explicit checkpointDir, which the SDK's own resolution order respects
+    // over this surface default. The SDK migrates the legacy checkpoint dir
+    // into this scoped location automatically on first surface use.
+    surface,
     runtimeBus: options.runtimeBus,
     // Stamp automatic snapshots with the live session id so a checkpoint created
     // during this launch is found by the session-scoped restore/rewind lookup —
@@ -1831,6 +1855,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     pairingTokens,
     workingDirectory,
     homeDirectory,
+    surface,
     shellPaths,
     configManager,
     featureFlags,

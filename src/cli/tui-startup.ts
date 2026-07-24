@@ -3,6 +3,7 @@ import type { InputHandler } from '../input/handler.ts';
 import { readOnboardingCompletionMarker } from '../runtime/onboarding/index.ts';
 import type { GoodVibesCliParseResult } from './types.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
+import type { SessionSurface } from '@/runtime/index.ts';
 import { resolveResumableSession, surfaceResumeRelaunchNotice } from './resume-relaunch-notice.ts';
 
 export type InteractiveTerminalCheckInput = {
@@ -129,9 +130,11 @@ export function applyInitialTuiCliState(options: {
   readonly commandRegistry: CommandRegistry;
   readonly commandContext: CommandContext;
   readonly shellPaths: Parameters<typeof readOnboardingCompletionMarker>[0] & { readonly homeDirectory: string };
+  /** Declare-once session-storage handle threaded through the resume-relaunch notice's pointer/recovery reads so they can never diverge from the writer's paths. */
+  readonly surface: SessionSurface;
   readonly render: () => void;
 }): void {
-  const { cli, input, commandRegistry, commandContext, shellPaths, render } = options;
+  const { cli, input, commandRegistry, commandContext, shellPaths, surface, render } = options;
   const onboardingCompletionMarker = readOnboardingCompletionMarker(shellPaths, 'user');
   const seededPrompt = cli.flags.prompt ?? (cli.rawCommand === undefined && cli.positionals.length > 0 ? cli.positionals.join(' ') : undefined);
   if (cli.command === 'onboarding') {
@@ -150,14 +153,8 @@ export function applyInitialTuiCliState(options: {
     // (a dogfood finding) — never auto-resume, declining is
     // frictionless (just start typing).
     surfaceResumeRelaunchNotice({
-      getLastSessionPointer: () => readLastSessionPointer({
-        workingDirectory: shellPaths.workingDirectory,
-        homeDirectory: shellPaths.homeDirectory,
-      }),
-      isRecoveryPending: () => Boolean(checkRecoveryFile({
-        workingDirectory: shellPaths.workingDirectory,
-        homeDirectory: shellPaths.homeDirectory,
-      })),
+      getLastSessionPointer: () => readLastSessionPointer({ surface }),
+      isRecoveryPending: () => Boolean(checkRecoveryFile({ surface })),
       findSession: (sessionId) => {
         const sessionManager = commandContext.session?.sessionManager;
         return sessionManager ? resolveResumableSession(sessionManager, sessionId) : null;

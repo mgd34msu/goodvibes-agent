@@ -127,6 +127,7 @@ export type CreateBootstrapCommandContextOptions = {
   completeModelSelectionSideEffect?: () => void;
   sessionLineageTracker?: import('@pellux/goodvibes-sdk/platform/core').SessionLineageTracker;
   componentHealthMonitor: import('@/runtime/index.ts').ComponentHealthMonitor;
+  writeLastSessionPointer?: (sessionId: string) => void;
 };
 
 export function createBootstrapCommandContext(
@@ -204,6 +205,7 @@ export function createBootstrapCommandContext(
     completeModelSelectionSideEffect,
     componentHealthMonitor,
     memoryConsolidationScheduler,
+    writeLastSessionPointer,
   } = options;
 
   const shellServices = createBootstrapCommandShellServices({
@@ -242,6 +244,7 @@ export function createBootstrapCommandContext(
     sessionMemoryStore,
     sessionLineageTracker,
     changeTracker,
+    writeLastSessionPointer,
   });
   const provider = createBootstrapCommandProviderSection({
     providerRegistry,

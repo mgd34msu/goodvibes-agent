@@ -23,20 +23,23 @@ export type PendingWorkspaceRegistrationState = {
 export type BlockingInputHandlerOptions = {
   data: string;
   pendingPermission: PendingPermissionState | null;
-  recoveryPending: boolean;
+  /** The sessionId of the offered recovery snapshot, or null when none is pending. Callers key consumeRecovery/removeRecoveryPoint to this exact id — see BlockingInputHandlerResult.recoveryPending. */
+  recoveryPending: string | null;
   pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
   abortTurn: () => void;
   conversation: ConversationManager;
   systemMessageRouter: SystemMessageRouter;
   render: () => void;
-  loadRecoveryConversation: () => SessionSnapshot | null;
-  deleteRecoveryFile: () => void;
+  /** The prompted "yes, resume it" primitive (SDK consumeRecovery): loads the recovery snapshot and retires its file in one operation, only once the load actually succeeds. The caller keys this to the offered snapshot's sessionId. */
+  consumeRecovery: () => SessionSnapshot | null;
+  /** The prompted "no, and remove it" primitive (SDK removeRecoveryPoint): clears the recovery snapshot without loading it. The caller keys this to the offered snapshot's sessionId. */
+  removeRecoveryPoint: () => void;
 };
 
 export type BlockingInputHandlerResult = {
   handled: boolean;
   pendingPermission: PendingPermissionState | null;
-  recoveryPending: boolean;
+  recoveryPending: string | null;
   pendingWorkspaceRegistration: PendingWorkspaceRegistrationState | null;
 };
 
@@ -52,8 +55,8 @@ export function handleBlockingShellInput(
     conversation,
     systemMessageRouter,
     render,
-    loadRecoveryConversation,
-    deleteRecoveryFile,
+    consumeRecovery,
+    removeRecoveryPoint,
   } = options;
 
   if (pendingPermission) {
@@ -85,29 +88,31 @@ export function handleBlockingShellInput(
 
   if (recoveryPending) {
     if (data === '\x12') {
-      const recovery = loadRecoveryConversation();
+      // consumeRecovery only retires the snapshot file once the load actually
+      // succeeds — a bad read leaves it on disk instead of silently
+      // destroying data that was never actually recovered.
+      const recovery = consumeRecovery();
       if (recovery) {
         conversation.fromJSON({ messages: readConversationMessageSnapshots(recovery.messages) });
         systemMessageRouter.high('[Recovery] Session restored.');
       } else {
         systemMessageRouter.high('[Recovery] Failed to restore saved data.');
       }
-      deleteRecoveryFile();
       render();
-      return { handled: true, pendingPermission: null, recoveryPending: false, pendingWorkspaceRegistration };
+      return { handled: true, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
     }
 
     if (data === '\x1b' || data === '\x03') {
       systemMessageRouter.high('[Recovery] Discarded recovery data.');
-      deleteRecoveryFile();
+      removeRecoveryPoint();
       render();
-      return { handled: true, pendingPermission: null, recoveryPending: false, pendingWorkspaceRegistration };
+      return { handled: true, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
     }
 
     systemMessageRouter.high('[Recovery] Ignored saved session; starting a new prompt.');
-    deleteRecoveryFile();
+    removeRecoveryPoint();
     render();
-    return { handled: false, pendingPermission: null, recoveryPending: false, pendingWorkspaceRegistration };
+    return { handled: false, pendingPermission: null, recoveryPending: null, pendingWorkspaceRegistration };
   }
 
   // First-start registration prompt: 'y' registers, EVERY other key (Escape,
