@@ -10,7 +10,7 @@ Product-facing release notes for GoodVibes Agent.
 - Fixed: config file changes are no longer silently lost when the write lands while the settings watcher is still starting up.
 - Fixed: saved state now gets real housekeeping when it is recovered — stale entries are reaped, growth is bounded, contents are checked rather than assumed from the file merely existing, and anything removed is disclosed instead of vanishing. An interrupted migration no longer strands your older sessions out of reach.
 - Fixed: published packages no longer silently omit bundled agent and skill content.
-- Updated: bundled GoodVibes platform runtime to 1.13.0, which adds Telegram inbound messaging (polling with a saved cursor or webhook, and /start, /help and /stop handled as commands) and the per-model reasoning effort model behind these changes. Telegram bot tokens now resolve secret references instead of sending the reference text to the API.
+- Updated: bundled GoodVibes platform runtime to 1.13.1, which adds Telegram inbound messaging (polling with a saved cursor or webhook, and /start, /help and /stop handled as commands) and the per-model reasoning effort model behind these changes. Telegram bot tokens now resolve secret references instead of sending the reference text to the API.
 
 ## 1.13.1 - 2026-07-24
 
@@ -18,7 +18,7 @@ Recovery reliability release.
 
 Crash-recovery prompts no longer appear for snapshots that a still-running session is actively maintaining — including sessions running an older build. Consume and remove act on exactly the snapshot that was offered, wherever it lives. Ships against the updated bundled GoodVibes platform runtime.
 
-## 1.13.0 - 2026-07-24
+## 1.13.1 - 2026-07-24
 
 Storage identity and recovery honesty release.
 

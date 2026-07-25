@@ -299,6 +299,12 @@ export async function initializeBootstrapCore(
 
   const toolRegistry = new ToolRegistry();
   const { fileCache, projectIndex } = registerAllTools(toolRegistry, {
+    // Task refs are owned by the REAL runtime session, read fresh on every call:
+    // accepting a recovery snapshot reassigns runtime.sessionId in place, and a
+    // value captured here would keep writing refs under the session the user
+    // just left. Without this the task graph falls back to the shared legacy
+    // namespace and nothing is keyed to a session that can be reaped.
+    resolveSessionId: () => runtimeSessionIdRef.value,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     fileUndoManager: services.fileUndoManager,
     modeManager: services.modeManager,

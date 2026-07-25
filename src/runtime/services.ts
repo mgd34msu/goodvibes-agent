@@ -1405,13 +1405,25 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // would leave the registered activity-log and telemetry-ledger entries
   // skipped on every sweep, same defect class the SDK round fixed at its own
   // call site.
-  runtimeOperations.runStartupAppendOnlySweep({
+  const appendOnlyRetentionRoots = {
     workingDirectory,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     homeDirectory,
     logDir: shellPaths.resolveProjectPath('logs'),
     telemetryDir: shellPaths.resolveProjectPath('telemetry'),
-  }, (key) => configManager.get(key as never));
+  };
+  const appendOnlyRetentionConfigGet = (key: string): unknown => configManager.get(key as never);
+  runtimeOperations.runStartupAppendOnlySweep(appendOnlyRetentionRoots, appendOnlyRetentionConfigGet);
+  // ...and again on a cadence for as long as this process lives. A start-time
+  // sweep alone never prunes a long-lived process again after boot, which is
+  // exactly the window in which these stores grow. Unref'd timers; the host
+  // that tears the runtime down stop()s it, same posture as
+  // storeSnapshotScheduler.
+  const appendOnlyRetentionScheduler = new runtimeOperations.AppendOnlyRetentionScheduler({
+    roots: appendOnlyRetentionRoots,
+    configGet: appendOnlyRetentionConfigGet,
+  });
+  appendOnlyRetentionScheduler.start();
   // External config edits apply LIVE through the same subscribe() pipeline an
   // in-process set() uses — a hand-edited settings.json needs no restart to
   // take effect. The underlying file watchers are unref'd (SDK round), so
@@ -1865,6 +1877,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     codeIndexStore,
     codeIndexReindexScheduler,
     storeSnapshotScheduler,
+    appendOnlyRetentionScheduler,
     userPermissionRuleStore,
     processRegistry,
     workspaceCheckpointManager,
