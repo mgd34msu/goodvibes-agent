@@ -299,8 +299,8 @@ describe('shell/blocking-input — recovery targets exactly the offered snapshot
     const olderPath = surface.recoveryFile('session-older');
     const newerPath = surface.recoveryFile('session-newer');
     const now = Date.now() / 1000;
-    utimesSync(olderPath, now - 60, now - 60);
-    utimesSync(newerPath, now, now);
+    utimesSync(olderPath, now - 700, now - 700);
+    utimesSync(newerPath, now - 600, now - 600);
     return { surface, olderPath, newerPath };
   }
 

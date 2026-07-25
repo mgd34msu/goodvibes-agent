@@ -5,7 +5,7 @@
  * for the keypress-answering half (register on 'y', decline on everything else).
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, utimesSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createSessionSurface, createShellPathService, writeRecoveryFile } from '@/runtime/index.ts';
@@ -121,6 +121,12 @@ describe('wireSessionPersistenceAndRecovery — first-start registration prompt'
       { messages: [{ role: 'user', content: 'hi' } as never], timestamp: Date.now(), title: 'test' },
       'test-session', 'test', { surface: makeSurface(work, home) },
     );
+    // Back-date the snapshot past the live-refresh window: a fresh file reads
+    // as a live writer's and is deliberately never offered.
+    {
+      const aged = (Date.now() - 10 * 60_000) / 1000;
+      utimesSync(makeSurface(work, home).recoveryFile('test-session'), aged, aged);
+    }
 
     const { deps, messages } = makeDeps({ workingDir: work, homeDirectory: home });
     const result = wireSessionPersistenceAndRecovery(deps);

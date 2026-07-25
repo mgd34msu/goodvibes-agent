@@ -15,6 +15,18 @@ import {
   writeRecoveryFile,
 } from '@/runtime/index.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { utimesSync } from 'node:fs';
+
+/**
+ * Back-date a planted snapshot past the platform runtime's live-refresh
+ * window, so the offer path treats it as an orphaned crash rather than a
+ * live writer's file (fresh snapshots are deliberately never offered).
+ */
+function agePastLiveWindow(path: string): void {
+  const t = (Date.now() - 10 * 60_000) / 1000;
+  utimesSync(path, t, t);
+}
+
 
 function makeTmpDir(prefix: string): string {
   return makeProjectTempDir(prefix);
@@ -100,6 +112,7 @@ describe('runtime/session-persistence', () => {
       'Recovered Session',
       { workingDirectory: cwdDir, homeDirectory: homeDir, surfaceRoot: 'tui' },
     );
+    agePastLiveWindow(join(homeDir, '.goodvibes', 'tui', 'recovery', 'recovery-user-recovery.jsonl'));
 
     const info = checkRecoveryFile({ workingDirectory: cwdDir, homeDirectory: homeDir, surfaceRoot: 'tui' });
     expect(info).toEqual(expect.objectContaining({
@@ -151,6 +164,7 @@ describe('runtime/session-persistence', () => {
       'Recovered Session',
       { workingDirectory: cwdDir, homeDirectory: homeDir, surfaceRoot: 'tui' },
     );
+    agePastLiveWindow(join(homeDir, '.goodvibes', 'tui', 'recovery', 'recovery-user-recovery.jsonl'));
 
     const info = checkRecoveryFile({ workingDirectory: cwdDir, homeDirectory: homeDir, surfaceRoot: 'tui' });
     expect(info?.returnContext?.activityLabel).toBe('assistant replied');
