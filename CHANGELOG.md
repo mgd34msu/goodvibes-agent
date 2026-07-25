@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.14.0 - 2026-07-25
+
+- Fixed: the reasoning effort level you choose is no longer lowered permanently by one model. Your configured level is kept as you set it, the runtime uses whatever the current model can actually deliver, and switching back to a capable model restores your level. The display shows both values and says when a model is the reason your level is capped.
+- Fixed: the notice explaining that a failover snapped your reasoning level down was being deleted from the transcript by the retry path on every failover, so nobody ever saw it. The notice now stays.
+- Fixed: markdown tables no longer silently drop trailing columns — including headers — when the terminal is too narrow for the column count. A table that cannot fit is now stacked as "Header: value" records so every column is still readable.
+- Fixed: config file changes are no longer silently lost when the write lands while the settings watcher is still starting up.
+- Fixed: saved state now gets real housekeeping when it is recovered — stale entries are reaped, growth is bounded, contents are checked rather than assumed from the file merely existing, and anything removed is disclosed instead of vanishing. An interrupted migration no longer strands your older sessions out of reach.
+- Fixed: published packages no longer silently omit bundled agent and skill content.
+- Updated: bundled GoodVibes platform runtime to 1.13.0, which adds Telegram inbound messaging (polling with a saved cursor or webhook, and /start, /help and /stop handled as commands) and the per-model reasoning effort model behind these changes. Telegram bot tokens now resolve secret references instead of sending the reference text to the API.
+
 ## 1.13.1 - 2026-07-24
 
 Recovery reliability release.
