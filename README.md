@@ -6,6 +6,8 @@
 
 GoodVibes Agent is an installable autonomous operator assistant. You run `goodvibes-agent` and get one workspace for chat, planning, memory, research, scheduling, and confirmation-gated automation, backed by a connected GoodVibes host that supplies the operator API, schedules, channels, knowledge, media, and remote-execution routes. Agent presents that capability as a user-first harness — route planning, plain-language confirmations, and redacted receipts for anything it sends, spends, or writes — instead of exposing raw daemon plumbing. It can also reuse provider, permission, and other shared settings already configured for goodvibes-tui or another published GoodVibes platform store, so setup does not start from zero.
 
+<img src="docs/assets/operator-workspace.png" alt="The fullscreen GoodVibes Agent operator workspace. A left column lists operator areas under an Onboarding heading, with Start and Models flagged for attention. The right pane is headed Start, 16 actions, and summarises setup state: 3 of 13 done, 4 need attention, the current chat route, a count of local personas, skills, routines, and memories, and a next step reading Connected-host auth, blocked. Below, a Setting / Default / Current table lists the available actions — use a local model with no sign-in, sign in to a provider, choose main model, import GoodVibes settings, reasoning effort medium, save history true, and a Finish setup row. A footer shows the workspace key hints." width="900">
+
 ---
 
 ## Install
@@ -38,11 +40,15 @@ Connect Agent to a GoodVibes daemon before using daemon-backed features — the 
 
 **One assistant, several jobs.** Beyond normal chat, the workspace gives you read-only web research with explicit hand-off into Agent Knowledge, versioned document drafting with blind model comparison, a Personal Ops area for inbox/agenda/task/reminder/note requests, and an Operator Runtime view of the connected host's own methods and service posture.
 
+<img src="docs/assets/chat.png" alt="A chat turn in the Agent workspace. The header carries the user's question, what can you help me do on this machine. The answer renders as markdown with numbered sections — File and Work Management, Research and Discovery, Agent Configuration, and Personal Operations — each with a short bulleted list, followed by three clarifying questions and a closing suggestion to inspect current status before making changes. A Recent panel on the right lists three timestamped activity entries. The footer shows the active route openrouter:openrouter/free, context at 17 percent, and the turn's up and down token counts." width="900">
+
 **Local behavior is yours to shape.** A friendly `VIBE.md` personality file, separate from project instruction files (`AGENTS.md`, `CLAUDE.md`, and similar), plus local memory, notes, personas, and skills all live under the Agent home and are scanned for secret-looking content before they ever reach a prompt. Personas capture a reusable voice or role; skills capture a reusable capability; routines capture a reusable sequence you can start in chat and, as a separate explicit and confirmation-gated step, promote to a connected schedule.
 
 **Automation stays visible and confirmed.** Reminders, schedules, channel sends, media generation, and visible background agents all show up in one autonomy queue, and every one of them requires an explicit user request plus confirmation before anything actually sends, spends, or runs unattended.
 
 **The model can plan its own route.** Ask a plain question like "email the team a summary" or "what's blocked in setup" and the underlying model can call a route planner that maps the request to the right tool and confirmation boundary before doing anything — it does not have to guess at internal tool names, and ambiguous requests come back as candidates instead of a wrong guess.
+
+<img src="docs/assets/model-picker.png" alt="The Model Workspace, headed Providers And Models. A left column lists the routing targets: Main Chat set, Helper Model off, Tool LLM off, and TTS LLM inherit. The right pane shows the selected target with its current route, the highlighted model and its context window and capabilities, and a filter row for search, price, capability, grouping, and availability. Below, a table of 1906 catalogued models lists model key, display name, provider, context window, tier, and capability flags, with a row indicating 1883 more models below and a footer of list shortcuts including search, price, capabilities, availability, benchmark, and grouping." width="900">
 
 **Isolated by design.** Agent Knowledge is its own segment — Agent only talks to `/api/goodvibes-agent/knowledge/*` and never falls back to another product's knowledge store. Named Agent profiles (`goodvibes-agent profiles create ...`) give you separate, isolated config, sessions, memory, and personas per household, project, or role.
 
