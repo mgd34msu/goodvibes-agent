@@ -2,6 +2,17 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.15.0 - 2026-07-25
+
+- v1.15.0 changes what a message means. A message arriving from a connected channel now gets a conversational answer instead of quietly turning into a full workstream with a reviewer, quality gates, and a second agent. When Agent judges that what you asked for warrants real work, it proposes that work and waits for you to agree.
+- You confirm on whatever channel the proposal reached you on, so a proposal made over one channel is accepted over that same channel rather than sending you somewhere else to answer.
+- Work you already authorized is unaffected and never asks twice. Schedules, triggers, on-exit chains, and a proposal you just agreed to were all authorized when they were set up, and they still run on their own.
+- The terminal app is unchanged. You are sitting in front of it and typed the thing, so work starting is the expected outcome there.
+- Fixed: progress notifications now send only what is new instead of resending the whole accumulated log each time, and an identical repeated message is suppressed rather than delivered twice.
+- Fixed: a single incoming message can no longer start two agents. The same message could previously arrive over two different routes and run the whole pipeline on each one.
+- Fixed: links in notifications now point at an address another device can actually reach. When the control plane is set to listen on every interface, the link could carry a listen-only address that went nowhere when tapped on a phone. If no reachable address exists, the link is left out rather than shipped broken.
+- Updated the bundled GoodVibes platform runtime to 1.14.0, which carries the conversation-first gate, the notification delivery fixes, and the duplicate-message protection behind these changes.
+
 ## 1.14.0 - 2026-07-25
 
 - Fixed: the reasoning effort level you choose is no longer lowered permanently by one model. Your configured level is kept as you set it, the runtime uses whatever the current model can actually deliver, and switching back to a capable model restores your level. The display shows both values and says when a model is the reason your level is capped.
