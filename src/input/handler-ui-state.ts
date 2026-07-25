@@ -1,6 +1,7 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { InfiniteBuffer } from '../core/history.ts';
 import type { SearchManager } from './search.ts';
+import type { ConversationManager } from '../core/conversation.ts';
 import type { HistorySearch } from './input-history.ts';
 
 export type ActiveModalState = {
@@ -169,6 +170,9 @@ export function reopenModalByName(name: string, ops: ModalOpenOps): void {
 
 type SearchRouteState = {
   searchManager: SearchManager;
+  /** Supplied so search can look INTO collapsed blocks and folded tool-result
+   *  groups (see search.ts), not just the rendered buffer. */
+  conversationManager?: ConversationManager | null;
   requestRender: () => void;
   scroll: (delta: number) => void;
   getScrollTop: () => number;
@@ -187,13 +191,14 @@ export function handleSearchModeToken(
   if (!searchManager.locked) {
     if (token.type === 'text') {
       const newQuery = searchManager.query + token.value;
-      searchManager.search(newQuery, history);
+      searchManager.search(newQuery, history, state.conversationManager);
     } else if (token.type === 'key') {
       if (token.logicalName === 'escape') {
-        searchManager.close();
+        searchManager.close(state.conversationManager);
       } else if (token.logicalName === 'enter' || token.logicalName === 'tab') {
         if (searchManager.query.length > 0) {
           searchManager.lock();
+          searchManager.revealCurrentMatch(history, state.conversationManager);
           const matchLine = searchManager.getCurrentMatchLine();
           if (matchLine >= 0) {
             state.scroll(matchLine - state.getScrollTop() - Math.floor(state.getViewportHeight() / 2));
@@ -201,23 +206,25 @@ export function handleSearchModeToken(
         }
       } else if (token.logicalName === 'backspace') {
         const newQuery = searchManager.query.slice(0, -1);
-        searchManager.search(newQuery, history);
+        searchManager.search(newQuery, history, state.conversationManager);
       } else if (matchesSearchShortcut) {
-        searchManager.close();
+        searchManager.close(state.conversationManager);
       }
     }
   } else {
     if (token.type === 'key') {
       if (token.logicalName === 'escape' || matchesSearchShortcut) {
-        searchManager.close();
+        searchManager.close(state.conversationManager);
       } else if (token.logicalName === 'right' || token.logicalName === 'down') {
         searchManager.nextMatch();
+        searchManager.revealCurrentMatch(history, state.conversationManager);
         const matchLine = searchManager.getCurrentMatchLine();
         if (matchLine >= 0) {
           state.scroll(matchLine - state.getScrollTop() - Math.floor(state.getViewportHeight() / 2));
         }
       } else if (token.logicalName === 'left' || token.logicalName === 'up') {
         searchManager.prevMatch();
+        searchManager.revealCurrentMatch(history, state.conversationManager);
         const matchLine = searchManager.getCurrentMatchLine();
         if (matchLine >= 0) {
           state.scroll(matchLine - state.getScrollTop() - Math.floor(state.getViewportHeight() / 2));
@@ -228,12 +235,14 @@ export function handleSearchModeToken(
     } else if (token.type === 'text') {
       if (token.value === 'j' || token.value === 'l') {
         searchManager.nextMatch();
+        searchManager.revealCurrentMatch(history, state.conversationManager);
         const matchLine = searchManager.getCurrentMatchLine();
         if (matchLine >= 0) {
           state.scroll(matchLine - state.getScrollTop() - Math.floor(state.getViewportHeight() / 2));
         }
       } else if (token.value === 'k' || token.value === 'h') {
         searchManager.prevMatch();
+        searchManager.revealCurrentMatch(history, state.conversationManager);
         const matchLine = searchManager.getCurrentMatchLine();
         if (matchLine >= 0) {
           state.scroll(matchLine - state.getScrollTop() - Math.floor(state.getViewportHeight() / 2));

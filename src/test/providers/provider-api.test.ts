@@ -5,6 +5,7 @@ import type { ProviderRuntimeMetadata, LLMProvider, ChatResponse } from '@pellux
 import type { FavoritesData } from '@pellux/goodvibes-sdk/platform/providers';
 import {
   createProviderApi,
+  reasoningEffortSpecFromLevels,
   type ProviderApiDependencies,
 } from '@pellux/goodvibes-sdk/platform/providers';
 import type { BenchmarkEntry } from '@pellux/goodvibes-sdk/platform/providers';
@@ -49,7 +50,7 @@ function createHarness() {
       contextWindow: 128_000,
       selectable: true,
       tier: 'premium',
-      reasoningEffort: ['low', 'medium', 'high'],
+      reasoningEffort: reasoningEffortSpecFromLevels(['low', 'medium', 'high']),
     },
     {
       id: 'claude-sonnet',
@@ -61,7 +62,7 @@ function createHarness() {
       contextWindow: 200_000,
       selectable: true,
       tier: 'premium',
-      reasoningEffort: ['instant', 'medium', 'high'],
+      reasoningEffort: reasoningEffortSpecFromLevels(['instant', 'medium', 'high']),
     },
     {
       id: 'best-coder',
@@ -73,7 +74,7 @@ function createHarness() {
       contextWindow: 256_000,
       selectable: true,
       tier: 'standard',
-      reasoningEffort: ['instant', 'low', 'medium', 'high'],
+      reasoningEffort: reasoningEffortSpecFromLevels(['instant', 'low', 'medium', 'high']),
     },
   ];
 
@@ -145,7 +146,7 @@ function createHarness() {
         contextWindow: model.contextWindow,
         selectable: model.selectable,
         tier: model.tier ?? 'standard',
-        ...(model.reasoningEffort ? { reasoningEffort: [...model.reasoningEffort] } : {}),
+        ...(model.reasoningEffort ? { reasoningEffort: model.reasoningEffort } : {}),
       })),
       get: (providerId: string) => {
         const provider = providers.get(providerId);

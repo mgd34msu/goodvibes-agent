@@ -6,6 +6,7 @@ import { ThinkingStallClock, buildThinkingOverlay } from './core/thinking-overla
 import { UIFactory } from './renderer/ui-factory.ts';
 import { Orchestrator } from './core/orchestrator';
 import { conversationMessagesAsSessionRecords } from './core/conversation-message-snapshot.ts';
+import { createTranscriptNavigators } from './shell/transcript-navigation.ts';
 import { InputHandler } from './input/handler.ts';
 import { SelectionManager } from './input/selection.ts';
 import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
@@ -367,26 +368,13 @@ async function main() {
     }
   };
 
-  const jumpToBookmark = (key: string) => {
-    conversation.getDisplayBlocks();
-    const block = conversation.getBlockRegistry().find((entry) => entry.collapseKey === key);
-    if (!block) {
-      systemMessageRouter.high(`[Bookmark] Not found: ${key}`);
-      render();
-      return;
-    }
-    scrollLocked = false;
-    scrollTop = Math.max(0, block.startLine);
-    render();
-  };
-
-  const scrollToLine = (line: number) => {
-    conversation.getDisplayBlocks();
-    const maxScroll = Math.max(0, conversation.history.getLineCount() - getViewportHeight());
-    scrollLocked = false;
-    scrollTop = Math.max(0, Math.min(line, maxScroll));
-    render();
-  };
+  const { jumpToBookmark, scrollToLine } = createTranscriptNavigators({
+    conversation,
+    getViewportHeight,
+    setScrollTop: (line) => { scrollLocked = false; scrollTop = line; },
+    render: () => render(),
+    notify: (message) => systemMessageRouter.high(message),
+  });
 
   commandContext.submitInput = submitInput;
   commandContext.submitSpokenInput = (text, content) => submitInput(text, content, { spokenOutput: true });

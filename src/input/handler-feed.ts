@@ -238,6 +238,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
       blockActionsMenu: context.blockActionsMenu,
       executeBlockAction: context.executeBlockAction,
       searchManager: context.searchManager,
+      conversationManager: context.conversationManager,
       scroll: context.scroll,
       getScrollTop: context.getScrollTop,
       openModelPickerWithTarget: context.openModelPickerWithTarget,

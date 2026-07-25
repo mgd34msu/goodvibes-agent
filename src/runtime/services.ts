@@ -23,6 +23,7 @@ import { createSessionConversationRewindPort } from './conversation-rewind-port.
 import { attachFleetEmitBridge } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
 import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { computeUsageCostUsd, resolveModelReference, type ModelIdCandidate } from '@pellux/goodvibes-sdk/platform/providers';
+import { reasoningEffortSpecFromLevels } from '@pellux/goodvibes-sdk/platform/providers';
 import { logger, singleFlight, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 // SDK-owned memory governance (public since sdk 4d5e247b published the
 // composition surface): the same CacheRegistry/PauseController/MemoryGovernor
@@ -231,7 +232,7 @@ function buildFallbackModelDefinition(provider: string, modelId: string): ModelD
     contextWindowProvenance: 'fallback',
     selectable: true,
     tier: 'standard',
-    ...(isReasoningProvider ? { reasoningEffort: ['instant', 'low', 'medium', 'high'] } : {}),
+    ...(isReasoningProvider ? { reasoningEffort: reasoningEffortSpecFromLevels(['instant', 'low', 'medium', 'high']) } : {}),
   };
 }
 

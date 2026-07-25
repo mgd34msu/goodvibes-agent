@@ -4,11 +4,19 @@ Product-facing release notes for GoodVibes Agent.
 
 ## 1.13.1 - 2026-07-24
 
-- /tmp/claude-1000/-home-buzzkill-Projects-goodvibes-tui/e28eaafb-93e7-424b-bdf0-a697efc3d908/scratchpad/agent-1.13.1-notes.md
+Recovery reliability release.
+
+Crash-recovery prompts no longer appear for snapshots that a still-running session is actively maintaining — including sessions running an older build. Consume and remove act on exactly the snapshot that was offered, wherever it lives. Ships against the updated bundled GoodVibes platform runtime.
 
 ## 1.13.0 - 2026-07-24
 
-- /tmp/claude-1000/-home-buzzkill-Projects-goodvibes-tui/e28eaafb-93e7-424b-bdf0-a697efc3d908/scratchpad/agent-1.13.0-notes.md
+Storage identity and recovery honesty release.
+
+The Agent now declares its storage surface once and derives every session, pointer, recovery, and checkpoint path from that single declaration, backed by the bundled GoodVibes platform runtime's new declare-once storage surfaces. Workspace checkpoints move to the Agent's own scoped store via a one-time migration, ending shared-store races with other products in the same working directory.
+
+Sessions you explicitly save (or fork, or rename) are now marked as user-saved and never expire from retention sweeps. Resuming or forking a session updates the last-session pointer immediately, so a resume followed by a quit no longer points the next launch at the wrong session.
+
+Crash-recovery prompts act on exactly the snapshot they describe: Ctrl+R restores and retires that snapshot, Esc removes that snapshot, and exiting retires only the exiting session's snapshot. The README is rewritten around a short verified tour.
 
 ## 1.12.5 - 2026-07-18
 

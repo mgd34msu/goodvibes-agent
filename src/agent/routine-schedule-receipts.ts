@@ -1,9 +1,9 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
 import type { OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
 import { formatEveryInterval } from '@pellux/goodvibes-sdk/platform/automation';
-import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { isRoutineScheduleDeliverySurfaceKind } from './routine-schedule-args.ts';
@@ -36,6 +36,76 @@ interface RoutineScheduleReceiptStoreFile {
 }
 
 const RECEIPT_STORE_VERSION = 1;
+
+/**
+ * Count cap on stored routine-schedule receipts. These are low volume — one per
+ * promotion attempt, which is a deliberate user action rather than a per-turn
+ * event — so 200 is many months of normal use while still bounding the file to a
+ * few hundred KB. Applied together with the age TTL: a receipt must survive BOTH.
+ */
+const ROUTINE_SCHEDULE_RECEIPT_LIMIT = 200;
+/**
+ * Age TTL on stored routine-schedule receipts. A receipt records a promotion
+ * attempt against the connected host; after a quarter the live schedule (or its
+ * absence) is the authority and the local record is history nobody consults.
+ * 90 days is longer than the prompt-receipt TTL because these are rare, small,
+ * and describe lasting host state rather than one turn.
+ */
+const ROUTINE_SCHEDULE_RECEIPT_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+/**
+ * Grace window before a receipt whose schedule the host does not list may be
+ * reaped. A schedule created seconds ago can legitimately be absent from a list
+ * response that raced it; five minutes is far longer than that window and far
+ * shorter than the TTL, so a genuinely orphaned receipt still retires promptly.
+ */
+const ROUTINE_SCHEDULE_RECEIPT_REAP_GRACE_MS = 5 * 60 * 1000;
+
+/** What a store read/prune had to recover from or reclaim — the disclosure record. */
+export interface RoutineScheduleReceiptMaintenance {
+  readonly path: string;
+  /** How the last read had to degrade, if at all. */
+  readonly recovered: 'none' | 'unreadable' | 'empty-file' | 'quarantined' | 'quarantine-failed';
+  /** Receipts dropped because they aged past the TTL. */
+  readonly expired: number;
+  /** Receipts dropped because they fell outside the count cap. */
+  readonly overflow: number;
+  readonly kept: number;
+}
+
+/** What a reconcile-time reap removed — the disclosure record. */
+export interface RoutineScheduleReceiptReaping {
+  /** False when the connected host was not authoritative (unreachable/auth/route failure): nothing is ever reaped then. */
+  readonly authoritative: boolean;
+  readonly reaped: number;
+  /** Receipts the host did not list but that are too young to reap yet. */
+  readonly withinGrace: number;
+}
+
+interface ReceiptPruneOutcome {
+  readonly kept: readonly RoutineScheduleReceipt[];
+  readonly expired: number;
+  readonly overflow: number;
+}
+
+/**
+ * Apply BOTH bounds: the age TTL first, then the count cap over what is left.
+ * Receipts are ordered oldest-first so the tail is the newest set. A receipt with
+ * an unparseable createdAt is kept — a bad timestamp must never read as "old".
+ */
+function pruneReceipts(
+  receipts: readonly RoutineScheduleReceipt[],
+  now: number,
+  limit: number,
+  maxAgeMs: number,
+): ReceiptPruneOutcome {
+  const ordered = [...receipts].sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+  const fresh = ordered.filter((receipt) => {
+    const created = Date.parse(receipt.createdAt);
+    return !Number.isFinite(created) || now - created <= maxAgeMs;
+  });
+  const kept = fresh.slice(-Math.max(1, limit));
+  return { kept, expired: ordered.length - fresh.length, overflow: fresh.length - kept.length };
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -250,17 +320,53 @@ export function routineScheduleReceiptStorePath(shellPaths: ShellPathService): s
 }
 
 export class RoutineScheduleReceiptStore {
-  public constructor(private readonly storePath: string) {}
+  private lastMaintenanceSummary: RoutineScheduleReceiptMaintenance | null = null;
+
+  public constructor(
+    private readonly storePath: string,
+    private readonly limit = ROUTINE_SCHEDULE_RECEIPT_LIMIT,
+    private readonly maxAgeMs = ROUTINE_SCHEDULE_RECEIPT_MAX_AGE_MS,
+  ) {}
 
   public static fromShellPaths(shellPaths: ShellPathService): RoutineScheduleReceiptStore {
     return new RoutineScheduleReceiptStore(routineScheduleReceiptStorePath(shellPaths));
   }
 
+  public get path(): string {
+    return this.storePath;
+  }
+
+  /** The last read/prune's disclosure record, or null when the store has not been read yet. */
+  public lastMaintenance(): RoutineScheduleReceiptMaintenance | null {
+    return this.lastMaintenanceSummary;
+  }
+
   public snapshot(): RoutineScheduleReceiptSnapshot {
+    // Reading is the recovery point for this store: apply both bounds here and
+    // persist the result when anything was actually dropped, so housekeeping is
+    // not limited to the write path. A second call drops nothing and writes
+    // nothing, which keeps the sweep idempotent.
     const store = this.readStore();
+    const prune = pruneReceipts(store.receipts, Date.now(), this.limit, this.maxAgeMs);
+    if (prune.expired > 0 || prune.overflow > 0) {
+      this.writeStore({ version: RECEIPT_STORE_VERSION, receipts: prune.kept });
+      logger.info('Agent routine schedule receipts pruned', {
+        path: this.storePath,
+        expired: prune.expired,
+        overflow: prune.overflow,
+        kept: prune.kept.length,
+      });
+    }
+    this.lastMaintenanceSummary = {
+      path: this.storePath,
+      recovered: this.lastMaintenanceSummary?.recovered ?? 'none',
+      expired: prune.expired,
+      overflow: prune.overflow,
+      kept: prune.kept.length,
+    };
     return {
       path: this.storePath,
-      receipts: [...store.receipts].sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
+      receipts: [...prune.kept].sort((left, right) => right.createdAt.localeCompare(left.createdAt)),
     };
   }
 
@@ -273,25 +379,157 @@ export class RoutineScheduleReceiptStore {
   public append(connection: AgentConnectedHostConnection, preview: RoutineSchedulePromotionPreview, result: RoutineSchedulePromotionResult): RoutineScheduleReceipt {
     const store = this.readStore();
     const receipt = buildReceipt(store.receipts, connection, preview, result);
-    this.writeStore({ ...store, receipts: [...store.receipts, receipt] });
+    const prune = pruneReceipts([...store.receipts, receipt], Date.now(), this.limit, this.maxAgeMs);
+    this.writeStore({ version: RECEIPT_STORE_VERSION, receipts: prune.kept });
+    if (prune.expired > 0 || prune.overflow > 0) {
+      logger.info('Agent routine schedule receipts pruned on append', {
+        path: this.storePath,
+        expired: prune.expired,
+        overflow: prune.overflow,
+        kept: prune.kept.length,
+      });
+    }
     return receipt;
   }
 
+  /**
+   * Remove receipts by id. Returns how many were actually removed, so a repeat
+   * call over the same ids removes nothing and rewrites nothing.
+   */
+  public remove(receiptIds: readonly string[]): number {
+    const ids = new Set(receiptIds.map((id) => id.trim().toLowerCase()).filter(Boolean));
+    if (ids.size === 0) return 0;
+    const store = this.readStore();
+    const kept = store.receipts.filter((receipt) => !ids.has(receipt.id.toLowerCase()));
+    const removed = store.receipts.length - kept.length;
+    if (removed === 0) return 0;
+    this.writeStore({ version: RECEIPT_STORE_VERSION, receipts: kept });
+    return removed;
+  }
+
+  /**
+   * Read the store, degrading to "no receipts" for anything a crash can leave
+   * behind — an unreadable file, a zero-byte file, a truncated JSON body. A
+   * corrupt (non-empty, unparseable) body is preserved by renaming it aside
+   * rather than being silently discarded; the quarantine slot is a single fixed
+   * name that is overwritten, so it cannot itself accumulate.
+   */
   private readStore(): RoutineScheduleReceiptStoreFile {
-    if (!existsSync(this.storePath)) return { version: RECEIPT_STORE_VERSION, receipts: [] };
+    const empty: RoutineScheduleReceiptStoreFile = { version: RECEIPT_STORE_VERSION, receipts: [] };
+    if (!existsSync(this.storePath)) return empty;
+    let raw = '';
     try {
-      return parseReceiptStore(readFileSync(this.storePath, 'utf-8'));
+      raw = readFileSync(this.storePath, 'utf-8');
     } catch (error) {
-      throw new Error(`Could not read Agent routine schedule receipt store ${summarizeError(error)}`);
+      this.noteRecovery('unreadable');
+      logger.warn('Agent routine schedule receipt store could not be read; continuing with no receipts', {
+        path: this.storePath,
+        error: summarizeError(error),
+      });
+      return empty;
     }
+    if (!raw.trim()) {
+      this.noteRecovery('empty-file');
+      logger.warn('Agent routine schedule receipt store is empty (torn or interrupted write); continuing with no receipts', {
+        path: this.storePath,
+        bytes: Buffer.byteLength(raw, 'utf-8'),
+      });
+      return empty;
+    }
+    try {
+      return parseReceiptStore(raw);
+    } catch (error) {
+      this.quarantine(Buffer.byteLength(raw, 'utf-8'), error);
+      return empty;
+    }
+  }
+
+  private noteRecovery(recovered: RoutineScheduleReceiptMaintenance['recovered']): void {
+    this.lastMaintenanceSummary = {
+      path: this.storePath,
+      recovered,
+      expired: 0,
+      overflow: 0,
+      kept: 0,
+    };
+  }
+
+  private quarantine(bytes: number, error: unknown): void {
+    const quarantinePath = `${this.storePath}.corrupt`;
+    let preserved = false;
+    try {
+      renameSync(this.storePath, quarantinePath);
+      preserved = true;
+    } catch {
+      preserved = false;
+    }
+    this.noteRecovery(preserved ? 'quarantined' : 'quarantine-failed');
+    logger.error('Agent routine schedule receipt store was unreadable; continuing with no receipts', {
+      path: this.storePath,
+      bytes,
+      preserved,
+      ...(preserved ? { quarantinePath } : {}),
+      error: summarizeError(error),
+    });
   }
 
   private writeStore(store: RoutineScheduleReceiptStoreFile): void {
     mkdirSync(dirname(this.storePath), { recursive: true });
-    const tmpPath = `${this.storePath}.tmp`;
-    writeFileSync(tmpPath, formatReceiptStore(store), 'utf-8');
-    renameSync(tmpPath, this.storePath);
+    // The temp name carries the pid (and a timestamp) so two processes writing
+    // this store concurrently cannot clobber each other's temp file; the rename
+    // itself is what makes the swap atomic.
+    const tmpPath = `${this.storePath}.${process.pid}.${Date.now()}.tmp`;
+    try {
+      writeFileSync(tmpPath, formatReceiptStore(store), 'utf-8');
+      renameSync(tmpPath, this.storePath);
+    } catch (error) {
+      try {
+        unlinkSync(tmpPath);
+      } catch {
+        // Absent temp file is the desired end state; ENOENT here is success.
+      }
+      throw error;
+    }
   }
+}
+
+/**
+ * Reap receipts whose schedule the connected host authoritatively does not have.
+ *
+ * Only a successful `automation.schedules.list` is authoritative: when the host
+ * is unreachable, unauthorized, or on an incompatible route, `result.ok` is false
+ * and NOTHING is reaped — an absent list is not evidence of an absent schedule.
+ * Receipts younger than the grace window are also left alone so a schedule created
+ * moments ago is never mistaken for one that vanished. Idempotent: the second run
+ * finds the receipts already gone and removes nothing.
+ */
+export function reapMissingRoutineScheduleReceipts(
+  store: RoutineScheduleReceiptStore,
+  result: RoutineScheduleCorrelationResult,
+  now: number = Date.now(),
+): RoutineScheduleReceiptReaping {
+  if (!result.ok) return { authoritative: false, reaped: 0, withinGrace: 0 };
+  const reapable: string[] = [];
+  let withinGrace = 0;
+  for (const correlation of result.correlations) {
+    if (correlation.liveStatus !== 'missing') continue;
+    const created = Date.parse(correlation.receipt.createdAt);
+    if (Number.isFinite(created) && now - created < ROUTINE_SCHEDULE_RECEIPT_REAP_GRACE_MS) {
+      withinGrace += 1;
+      continue;
+    }
+    reapable.push(correlation.receipt.id);
+  }
+  const reaped = store.remove(reapable);
+  if (reaped > 0) {
+    logger.info('Agent routine schedule receipts reaped: the connected host no longer has these schedules', {
+      path: store.path,
+      reaped,
+      withinGrace,
+      scheduleCount: result.scheduleCount,
+    });
+  }
+  return { authoritative: true, reaped, withinGrace };
 }
 
 function normalizeForMatch(value: string | undefined): string {
@@ -466,9 +704,21 @@ async function classifyScheduleListError(
   return { ok: false, kind: 'connected_host_error', error: message, route: ROUTINE_SCHEDULE_ROUTE, baseUrl: connection.baseUrl };
 }
 
+/**
+ * Correlate local receipts against the connected host's live schedules.
+ *
+ * This is the one place where receipt liveness against the host is actually
+ * known, so it is where orphaned receipts retire: a successful list response
+ * drives reapMissingRoutineScheduleReceipts. A failed response reaps nothing. The
+ * store defaults to the one the snapshot came from (snapshot.path), so every
+ * existing caller gets the housekeeping without passing anything; pass `store`
+ * explicitly to point the reap somewhere else. The returned correlations still
+ * describe what was found missing, so the surface can show it before it is gone.
+ */
 export async function reconcileRoutineScheduleReceipts(
   connection: AgentConnectedHostConnection,
   snapshot: RoutineScheduleReceiptSnapshot,
+  store?: RoutineScheduleReceiptStore,
 ): Promise<RoutineScheduleCorrelationResult> {
   if (!connection.token) {
     return {
@@ -492,6 +742,8 @@ export async function reconcileRoutineScheduleReceipts(
       receiptCount: snapshot.receipts.length,
       correlations: correlateReceipts(snapshot.receipts, schedules),
     };
+    const reapTarget = store ?? (snapshot.path ? new RoutineScheduleReceiptStore(snapshot.path) : null);
+    if (reapTarget) reapMissingRoutineScheduleReceipts(reapTarget, result);
     return result;
   } catch (error) {
     return classifyScheduleListError(error, connection);

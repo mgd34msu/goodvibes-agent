@@ -12,6 +12,8 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { renderConversationCollapsedFragment, renderConversationEventLine } from '../renderer/conversation-surface.ts';
 import { GLYPHS } from '../renderer/ui-primitives.ts';
 import { activeTheme } from '../renderer/theme.ts';
+import { countExpandedToolResultLines, isDiffContent, renderExpandedToolResultLines } from '../renderer/tool-result-expanded-lines.ts';
+import { computeToolGroupMembership, type ToolGroupMembership } from './conversation-tool-groups.ts';
 import type { BlockMeta, ConversationMessageSnapshot } from './conversation';
 
 // Transcript tokens are read live per render (const T = activeTheme() at the top
@@ -27,7 +29,7 @@ function summarizeCallId(callId: string, maxLength = 24): string {
   return callId.length <= maxLength ? callId : `${callId.slice(0, maxLength - 1)}…`;
 }
 
-interface ConversationRenderContext {
+export interface ConversationRenderContext {
   readonly history: {
     addLine: (line: Line) => void;
     addLines: (lines: Line[]) => void;
@@ -38,6 +40,13 @@ interface ConversationRenderContext {
   readonly errorLineRegistry: number[];
   readonly configManager: ConfigManager | null;
   readonly splashOptions: SplashOptions;
+  /**
+   * Per-tool-message group membership for the currently rendered slice (see
+   * conversation-tool-groups.ts). A message index absent from this map (or an
+   * undefined map itself) isn't part of a folded run of tool results and
+   * renders exactly as it always has.
+   */
+  readonly toolGroupMembership?: ReadonlyMap<number, ToolGroupMembership>;
 }
 
 export function renderConversationUserMessage(
@@ -266,6 +275,98 @@ export function renderConversationSystemMessage(
   }
 }
 
+/**
+ * True when `message` is a non-owning member of a folded tool-result group
+ * (see conversation-tool-groups.ts) that is currently collapsed — it rendered
+ * nothing (renderConversationToolMessage returns right after the header-owning
+ * member's header line), so the per-message trailing blank-line separator is
+ * skipped for it too. The header-owning ("first") member always gets its
+ * separator since it always renders at least the header line; any member of
+ * an EXPANDED group renders in full and keeps its separator as well.
+ */
+export function isFoldedGroupMember(
+  membership: ToolGroupMembership | undefined,
+  collapseState: ReadonlyMap<string, boolean>,
+): boolean {
+  return membership !== undefined && !membership.isFirst && (collapseState.get(membership.groupKey) ?? true);
+}
+
+/**
+ * Dedupe a group's per-member tool names into a compact, honest summary —
+ * "Reading files×3 Running a command" rather than either a bare count or a
+ * full repeated list. Truncates with an honest "…+N more" tail rather than
+ * silently dropping names once the list gets long. Names are run through the
+ * same friendlyToolLabel the per-result header uses, so the group header
+ * speaks the transcript's own vocabulary.
+ */
+function summarizeToolNames(names: readonly string[]): string {
+  const counts = new Map<string, number>();
+  const order: string[] = [];
+  for (const rawName of names) {
+    const name = friendlyToolLabel(rawName);
+    if (!counts.has(name)) {
+      counts.set(name, 0);
+      order.push(name);
+    }
+    counts.set(name, counts.get(name)! + 1);
+  }
+  const MAX_SHOWN = 3;
+  const parts = order.map((name) => (counts.get(name)! > 1 ? `${name}×${counts.get(name)}` : name));
+  if (parts.length > MAX_SHOWN) {
+    return `${parts.slice(0, MAX_SHOWN).join(' · ')} …+${parts.length - MAX_SHOWN} more`;
+  }
+  return parts.join(' · ');
+}
+
+/**
+ * Render the synthetic header line for a folded run of >=2 tool-result
+ * messages: one line + one BlockMeta (type 'tool_group'), shared by every
+ * member under `membership.groupKey`. Returns whether the group is currently
+ * collapsed, establishing the collapsed-by-default state on first render —
+ * mirrors the has/set default-establishment idiom used by every other
+ * collapsible block in this file.
+ */
+function renderToolGroupHeader(
+  context: ConversationRenderContext,
+  width: number,
+  membership: ToolGroupMembership,
+): boolean {
+  const T = activeTheme();
+  const isCollapsed = context.collapseState.has(membership.groupKey)
+    ? context.collapseState.get(membership.groupKey)!
+    : true;
+  if (!context.collapseState.has(membership.groupKey)) {
+    context.collapseState.set(membership.groupKey, true);
+  }
+
+  const blockIdx = context.blockRegistry.length;
+  const startLine = context.history.getLineCount();
+  const toolNamesSummary = summarizeToolNames(membership.toolNames);
+  context.history.addLine(renderConversationEventLine(width, {
+    marker: GLYPHS.surface.altCursor,
+    markerFg: T.toolAccent,
+    label: 'tool results',
+    labelFg: T.toolAccent,
+    detailFg: '244',
+  }, [
+    { text: ` ${membership.toolCount} tool${membership.toolCount === 1 ? '' : 's'} `, fg: T.toolAccent },
+    ...(toolNamesSummary ? [{ text: ` ${toolNamesSummary} `, fg: T.toolNameFg }] : []),
+    { text: ` ${isCollapsed ? GLYPHS.navigation.collapsed : GLYPHS.navigation.expanded} ${membership.totalLines} line${membership.totalLines === 1 ? '' : 's'} `, fg: '244', dim: true },
+  ]));
+
+  context.blockRegistry.push({
+    blockIndex: blockIdx,
+    collapseKey: membership.groupKey,
+    type: 'tool_group',
+    startLine,
+    lineCount: 1,
+    rawContent: `${membership.toolCount} tool result${membership.toolCount === 1 ? '' : 's'} folded (${toolNamesSummary}, ${membership.totalLines} line${membership.totalLines === 1 ? '' : 's'} total)`,
+    groupMemberIndexes: membership.memberIndexes,
+  });
+
+  return isCollapsed;
+}
+
 export function renderConversationToolMessage(
   context: ConversationRenderContext,
   message: Extract<Message, { role: 'tool' }>,
@@ -273,15 +374,31 @@ export function renderConversationToolMessage(
   msgIdx: number,
 ): void {
   const T = activeTheme();
+  const groupMembership = context.toolGroupMembership?.get(msgIdx);
+  if (groupMembership) {
+    const collapsed = groupMembership.isFirst
+      ? renderToolGroupHeader(context, width, groupMembership)
+      : (context.collapseState.get(groupMembership.groupKey) ?? true);
+    // Folded: the header (rendered above, once, by the first member) is the
+    // group's entire visible representation while collapsed — no member,
+    // first or not, renders its own header/body/BlockMeta.
+    if (collapsed) return;
+  }
+
   const collapseKey = `msg_${msgIdx}`;
   const blockIdx = context.blockRegistry.length;
   const startLine = context.history.getLineCount();
   const contentLines = message.content.split('\n');
-  const lineCount = contentLines.length;
-  const hasDiffHeader = contentLines.some((l) => l.startsWith('--- ')) && contentLines.some((l) => l.startsWith('+++ '));
-  const hasHunk = contentLines.some((l) => l.startsWith('@@ '));
-  const isDiff = hasDiffHeader && hasHunk;
+  const isDiff = isDiffContent(message.content);
   const blockType: 'diff' | 'tool' = isDiff ? 'diff' : 'tool';
+  // The header's "N lines" badge names what expanding would actually reveal —
+  // a raw JSON blob that pretty-prints to 50 lines must say 50, not 1, even
+  // while it is still folded. The COUNT is memoised (see
+  // countExpandedToolResultLines); the lines themselves are only materialised
+  // on the expanded branch below, because this renderer rebuilds the whole
+  // transcript on every streaming delta and rendering every collapsed result's
+  // full body each time allocates enormously for output nobody sees.
+  const lineCount = countExpandedToolResultLines(message.content, width);
 
   const isShort = message.content.length <= 200;
   const isCollapsed = isShort
@@ -324,17 +441,8 @@ export function renderConversationToolMessage(
     });
     context.history.addLines(rendered);
   } else {
-    let contentToRender = message.content;
-    const trimmed = contentToRender.trimStart();
-    if ((trimmed.startsWith('{') || trimmed.startsWith('[')) && contentToRender.length < 100_000) {
-      try {
-        const parsed = JSON.parse(contentToRender);
-        contentToRender = `\`\`\`json\n${JSON.stringify(parsed, null, 2)}\n\`\`\``;
-      } catch {
-        // Leave invalid JSON as-is.
-      }
-    }
-    context.history.addLines(renderMarkdownTracked(contentToRender, width).lines);
+    // The expanded body — exactly the render the "N lines" badge above counts.
+    context.history.addLines(renderExpandedToolResultLines(message.content, width));
   }
 
   const renderedLineCount = context.history.getLineCount() - startLine;
@@ -359,23 +467,62 @@ export function appendConversationMessages(
   messages: Message[],
   width: number,
   messageLineRegistry: number[],
+  /**
+   * Absolute index of messages[0] in the full (unsliced) conversation
+   * snapshot. Required so slice-relative loop indices line up with the
+   * absolute message indexes stored in messageLineRegistry (which
+   * transcript-event navigation reads by absolute index) and embedded in
+   * every collapseKey. Defaults to 0 when the full snapshot is rendered (no
+   * clearDisplay in effect).
+   */
+  msgIndexOffset = 0,
 ): void {
   const lineNumberMode = context.configManager?.get('display.lineNumbers') ?? 'off';
   const collapseThreshold = context.configManager?.get('display.collapseThreshold') ?? 30;
+  // Fold runs of >=2 consecutive tool-result messages sharing one assistant
+  // turn under a single collapsible header (see conversation-tool-groups.ts),
+  // unless the caller already supplied membership.
+  const toolGroupMembership = context.toolGroupMembership
+    ?? computeToolGroupMembership(messages, msgIndexOffset, width);
+  const groupedContext: ConversationRenderContext = context.toolGroupMembership !== undefined
+    ? context
+    : { ...context, toolGroupMembership };
+
+  // Header line of each currently-open tool-group, keyed by groupKey — the
+  // first member's own registered line, recorded as that member is reached
+  // below so later (non-first) members of the SAME group can resolve to it
+  // instead of whatever position the buffer happens to be at when a folded
+  // (zero-line) member is processed. See isFoldedGroupMember's doc.
+  const groupHeaderLines = new Map<string, number>();
 
   for (let msgIdx = 0; msgIdx < messages.length; msgIdx++) {
     const message = messages[msgIdx];
-    messageLineRegistry[msgIdx] = context.history.getLineCount();
+    const absoluteIdx = msgIndexOffset + msgIdx;
+    const membership = toolGroupMembership.get(absoluteIdx);
+    const currentLine = groupedContext.history.getLineCount();
+    if (membership?.isFirst) groupHeaderLines.set(membership.groupKey, currentLine);
+    // A folded (non-first, currently collapsed) group member renders zero
+    // lines of its own — `currentLine` here is just wherever the buffer
+    // happens to sit after the last member that DID render, which is the
+    // position the NEXT real content starts at, not this message's own
+    // position. Anchor it at the group's header line instead, so
+    // transcript-event navigation lands on the group rather than skipping
+    // past it to the following message.
+    messageLineRegistry[absoluteIdx] = isFoldedGroupMember(membership, groupedContext.collapseState)
+      ? (groupHeaderLines.get(membership!.groupKey) ?? currentLine)
+      : currentLine;
     if (message.role === 'user') {
-      renderConversationUserMessage(context, message, width, msgIdx);
+      renderConversationUserMessage(groupedContext, message, width, absoluteIdx);
     } else if (message.role === 'assistant') {
-      renderConversationAssistantMessage(context, message, width, lineNumberMode, collapseThreshold, msgIdx);
+      renderConversationAssistantMessage(groupedContext, message, width, lineNumberMode, collapseThreshold, absoluteIdx);
     } else if (message.role === 'system') {
-      renderConversationSystemMessage(context, message, width);
+      renderConversationSystemMessage(groupedContext, message, width);
     } else if (message.role === 'tool') {
-      renderConversationToolMessage(context, message, width, msgIdx);
+      renderConversationToolMessage(groupedContext, message, width, absoluteIdx);
     }
-    context.history.addLine(createEmptyLine(width));
+    if (!isFoldedGroupMember(membership, groupedContext.collapseState)) {
+      groupedContext.history.addLine(createEmptyLine(width));
+    }
   }
 }
 

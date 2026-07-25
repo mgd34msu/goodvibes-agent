@@ -286,80 +286,177 @@ describe('foldLegacySpineStore', () => {
   });
 });
 
+/** The keepalive window these tests configure — also the fake clock's step size. */
+const KEEPALIVE_INTERVAL_MS = 15;
+
+interface KeepaliveHarness {
+  readonly client: SessionSpineClient;
+  /** Advance the injected clock one full window and fire exactly one keepalive beat. */
+  readonly beat: () => Promise<void>;
+  /** The interval period the client asked for when it armed the keepalive. */
+  readonly armedIntervalMs: () => number | undefined;
+  /** True once the client cleared the keepalive interval it armed. */
+  readonly keepaliveCleared: () => boolean;
+  /** Restores the real setInterval/clearInterval. Call AFTER dispose(). */
+  readonly restore: () => void;
+}
+
+/**
+ * Deterministic keepalive harness.
+ *
+ * The keepalive used to be driven by a real `setInterval` and observed with
+ * wall-clock sleeps, so under full-suite load a beat that had already fired
+ * could still be mid-flight when `dispose()` ran — the "no further wire calls
+ * after teardown" assertion then saw that straggler and failed (passing solo,
+ * failing in a loaded full run). Here the client's interval is CAPTURED instead
+ * of armed on the event loop and its clock is injected, so a beat happens
+ * exactly when the test says so and never concurrently with teardown. No
+ * assertion in this describe depends on elapsed real time.
+ */
+function startKeepaliveClient(overrides: Partial<SessionSpineClientOptions> = {}): KeepaliveHarness {
+  const realSetInterval = globalThis.setInterval;
+  const realClearInterval = globalThis.clearInterval;
+  const handle = { unref: () => {} };
+  let armed: { readonly fn: () => void; readonly ms: number } | undefined;
+  let cleared = false;
+  globalThis.setInterval = ((fn: (...args: unknown[]) => void, ms?: number, ...rest: unknown[]) => {
+    // Only the keepalive's own cadence is intercepted; anything else in the
+    // process keeps its real timer.
+    if (armed === undefined && ms === KEEPALIVE_INTERVAL_MS) {
+      armed = { fn: () => { fn(); }, ms };
+      return handle as unknown as ReturnType<typeof setInterval>;
+    }
+    return (realSetInterval as (...a: unknown[]) => ReturnType<typeof setInterval>)(fn, ms, ...rest);
+  }) as unknown as typeof globalThis.setInterval;
+  globalThis.clearInterval = ((h?: unknown) => {
+    if (h === handle) {
+      cleared = true;
+      return;
+    }
+    realClearInterval(h as Parameters<typeof clearInterval>[0]);
+  }) as typeof globalThis.clearInterval;
+
+  let clock = 1_000_000;
+  const client = makeClient({ heartbeatMinIntervalMs: KEEPALIVE_INTERVAL_MS, now: () => clock, ...overrides });
+  return {
+    client,
+    beat: async () => {
+      clock += KEEPALIVE_INTERVAL_MS;
+      armed?.fn();
+      await settle();
+    },
+    armedIntervalMs: () => armed?.ms,
+    keepaliveCleared: () => cleared,
+    restore: () => {
+      globalThis.setInterval = realSetInterval;
+      globalThis.clearInterval = realClearInterval;
+    },
+  };
+}
+
 describe('SessionSpineClient timer-driven keepalive (an idle-open session must not go stale — ports goodvibes-tui bda3cf5f)', () => {
+  const registerCalls = (): CapturedRequest[] => requests.filter((r) => r.url.endsWith('/api/sessions/register'));
+
   test('keepalive re-heartbeats on its own cadence with NO turn activity', async () => {
     installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-1', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
-    // Small window so the interval fires quickly in the test.
-    const client = makeClient({ heartbeatMinIntervalMs: 15 });
-    client.register({ sessionId: 'keepalive-1', project: '/p', title: 'T' });
-    await settle();
-    expect(client.keepaliveSessionId).toBe('keepalive-1');
-    const afterRegister = requests.filter((r) => r.url.endsWith('/api/sessions/register')).length;
+    const harness = startKeepaliveClient();
+    try {
+      harness.client.register({ sessionId: 'keepalive-1', project: '/p', title: 'T' });
+      await settle();
+      expect(harness.client.keepaliveSessionId).toBe('keepalive-1');
+      // The keepalive is armed on the configured cadence, by the client itself.
+      expect(harness.armedIntervalMs()).toBe(KEEPALIVE_INTERVAL_MS);
+      const afterRegister = registerCalls().length;
 
-    // Without touching the client again (no register/reopen/heartbeat calls), the
-    // keepalive timer must produce further heartbeats on its own.
-    await new Promise((r) => setTimeout(r, 70));
-    await settle();
-    const afterIdle = requests.filter((r) => r.url.endsWith('/api/sessions/register')).length;
-    expect(afterIdle).toBeGreaterThan(afterRegister);
-    // Every keepalive beat targets the live session id and omits the title.
-    const beats = requests.filter((r) => r.url.endsWith('/api/sessions/register')).slice(afterRegister);
-    for (const beat of beats) {
-      expect((beat.body as { sessionId: string }).sessionId).toBe('keepalive-1');
-      expect('title' in (beat.body as Record<string, unknown>)).toBe(false);
+      // Without touching the client again (no register/reopen/heartbeat calls),
+      // the keepalive timer alone must produce further heartbeats.
+      await harness.beat();
+      await harness.beat();
+
+      const beats = registerCalls().slice(afterRegister);
+      expect(beats).toHaveLength(2);
+      // Every keepalive beat targets the live session id and omits the title.
+      for (const beat of beats) {
+        expect((beat.body as { sessionId: string }).sessionId).toBe('keepalive-1');
+        expect('title' in (beat.body as Record<string, unknown>)).toBe(false);
+      }
+    } finally {
+      harness.client.dispose();
+      harness.restore();
     }
-    client.dispose();
   });
 
   test('dispose() stops the keepalive (no further wire calls after teardown)', async () => {
     installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-2', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
-    const client = makeClient({ heartbeatMinIntervalMs: 15 });
-    client.register({ sessionId: 'keepalive-2', project: '/p', title: 'T' });
-    await settle();
-    client.dispose();
-    const afterDispose = requests.length;
-    await new Promise((r) => setTimeout(r, 70));
-    expect(requests.length).toBe(afterDispose);
+    const harness = startKeepaliveClient();
+    try {
+      harness.client.register({ sessionId: 'keepalive-2', project: '/p', title: 'T' });
+      await settle();
+      // The keepalive is demonstrably live first — otherwise "no calls after
+      // dispose" would also pass on a client that never beat at all.
+      await harness.beat();
+      const whileLive = registerCalls().length;
+      expect(whileLive).toBeGreaterThan(1);
+
+      harness.client.dispose();
+      // Teardown is observable, not inferred from a quiet time window: the
+      // interval the client armed has been cleared, so it can never fire again.
+      expect(harness.keepaliveCleared()).toBe(true);
+
+      const afterDispose = requests.length;
+      await settle(); // nothing already in flight may reach the wire either
+      expect(requests.length).toBe(afterDispose);
+      expect(registerCalls()).toHaveLength(whileLive);
+    } finally {
+      harness.restore();
+    }
   });
 
   test('close() clears the cached record so a subsequent keepalive tick is a no-op', async () => {
     installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-3', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
-    const client = makeClient({ heartbeatMinIntervalMs: 15 });
-    client.register({ sessionId: 'keepalive-3', project: '/p', title: 'T' });
-    await settle();
-    client.close('keepalive-3');
-    await settle();
-    requests.length = 0;
-    await new Promise((r) => setTimeout(r, 40));
-    await settle();
-    // heartbeat() is a no-op for a session whose cached record was deleted by close().
-    expect(requests.filter((r) => r.url.endsWith('/api/sessions/register'))).toHaveLength(0);
-    client.dispose();
+    const harness = startKeepaliveClient();
+    try {
+      harness.client.register({ sessionId: 'keepalive-3', project: '/p', title: 'T' });
+      await settle();
+      harness.client.close('keepalive-3');
+      await settle();
+      requests.length = 0;
+
+      await harness.beat();
+
+      // heartbeat() is a no-op for a session whose cached record was deleted by close().
+      expect(registerCalls()).toHaveLength(0);
+    } finally {
+      harness.client.dispose();
+      harness.restore();
+    }
   });
 
   test('daemon goes offline: keepalive ticks queue (bounded) instead of throwing; a later successful tick flushes and goes back online', async () => {
     installFetch(() => { throw new Error('ECONNREFUSED'); });
-    const client = makeClient({ heartbeatMinIntervalMs: 15 });
-    client.register({ sessionId: 'keepalive-4', project: '/p', title: 'T' });
-    await settle();
-    expect(client.status()).toBe('offline');
+    const harness = startKeepaliveClient();
+    try {
+      harness.client.register({ sessionId: 'keepalive-4', project: '/p', title: 'T' });
+      await settle();
+      expect(harness.client.status()).toBe('offline');
 
-    // Let at least one more keepalive tick land while still offline — it must
-    // ride the existing bounded queue (drop-oldest), never throw, never spin up
-    // a separate faster retry loop.
-    await new Promise((r) => setTimeout(r, 40));
-    await settle();
-    expect(client.status()).toBe('offline');
-    expect(client.pendingOps).toBeGreaterThan(0); // queued for replay, never thrown/dropped-on-the-floor
+      // One more keepalive tick while still offline — it must ride the existing
+      // bounded queue (drop-oldest), never throw, never spin up a separate
+      // faster retry loop.
+      await harness.beat();
+      expect(harness.client.status()).toBe('offline');
+      expect(harness.client.pendingOps).toBeGreaterThan(0); // queued for replay, never thrown/dropped-on-the-floor
 
-    // Daemon comes back: the NEXT keepalive tick (no manual intervention) succeeds
-    // and flushes the queue.
-    installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-4', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
-    await new Promise((r) => setTimeout(r, 40));
-    await settle();
-    expect(client.status()).toBe('online');
-    expect(client.pendingOps).toBe(0);
-    client.dispose();
+      // Daemon comes back: the NEXT keepalive tick (no manual intervention)
+      // succeeds and flushes the queue.
+      installFetch(() => new Response(JSON.stringify({ session: { id: 'keepalive-4', kind: 'agent', status: 'active' }, reopened: false }), { status: 200 }));
+      await harness.beat();
+      expect(harness.client.status()).toBe('online');
+      expect(harness.client.pendingOps).toBe(0);
+    } finally {
+      harness.client.dispose();
+      harness.restore();
+    }
   });
 });
 

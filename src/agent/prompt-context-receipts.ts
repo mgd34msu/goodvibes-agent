@@ -1,6 +1,7 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname } from 'node:path';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import type { MemoryRecallSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
@@ -100,8 +101,31 @@ export interface RuntimePromptCompositionInput {
   readonly memoryRecallSnapshot?: MemoryRecallSnapshot;
 }
 
+/**
+ * Count cap on the receipt journal, in memory AND on disk. 200 is far more than
+ * the ~20 the receipt surfaces ever list, so "why did this turn look like that"
+ * still finds its turn, while the journal stays a few hundred KB instead of a
+ * transcript of every prompt this process ever composed.
+ */
 const RECEIPT_STORE_LIMIT = 200;
+/**
+ * Age TTL on the receipt journal. A receipt's value is diagnostic and decays fast
+ * — nobody audits a prompt built three weeks ago, and receipt segments carry
+ * prompt/context material we do not want lying around indefinitely. 14 days
+ * covers "what happened last week". Applied WITH the cap: a record survives both.
+ */
+const RECEIPT_MAX_AGE_MS = 14 * 24 * 60 * 60 * 1000;
+/**
+ * Appends allowed before the journal is re-compacted mid-run — the file grows once
+ * per turn, so a days-long session would otherwise only be bounded at the next
+ * restart. 250 sits just above RECEIPT_STORE_LIMIT: between compactions the file
+ * holds at most ~(cap + threshold) records, and the rewrite is paid once per 250
+ * turns instead of per turn.
+ */
+const RECEIPT_COMPACT_AFTER_APPENDS = 250;
 const OUTCOME_DETAIL_LIMIT = 240;
+/** Keeps two compactions in the same millisecond (and, with the pid, two processes) off one temp path. */
+let compactionTempCounter = 0;
 
 function approxTokens(text: string): number {
   return Math.ceil(text.length / 4);
@@ -491,15 +515,120 @@ export interface PromptContextTurnOutcomeInput {
   readonly detail?: string;
 }
 
+/** What a single journal compaction reclaimed — the disclosure record for the reap. */
+export interface PromptContextReceiptCompaction {
+  readonly path: string;
+  readonly reason: 'load' | 'append-threshold';
+  /** Receipts dropped for aging past the TTL, and for falling outside the count cap. */
+  readonly expiredReceipts: number; readonly overflowReceipts: number;
+  /** Turn-outcome lines retired because the receipt/turn they describe is gone. */
+  readonly droppedOutcomes: number;
+  /** Unparseable lines (torn tails, zero-filled blocks) dropped by the rewrite. */
+  readonly droppedInvalidLines: number;
+  readonly keptReceipts: number;
+  readonly keptOutcomes: number;
+  readonly bytesBefore: number;
+  readonly bytesAfter: number;
+  readonly bytesReclaimed: number;
+  /** False when nothing needed dropping, so the file was left untouched. */
+  readonly rewritten: boolean;
+}
+
+interface ReceiptJournalContents {
+  readonly receipts: readonly PromptContextReceipt[];
+  readonly outcomes: readonly PromptContextTurnOutcome[];
+  /** Lines that did not parse into an accepted shape — torn tails, zero-filled blocks. */
+  readonly invalidLines: number;
+  readonly bytes: number;
+}
+
+/**
+ * Read the journal, dropping any line that does not parse into a shape the guards
+ * accept — a crash's trailing half-line, a zero-filled block, anything. Never
+ * throws: an unreadable journal degrades to "no receipts".
+ */
+function readReceiptJournal(path: string): ReceiptJournalContents {
+  let raw = '';
+  try {
+    raw = readFileSync(path, 'utf-8');
+  } catch (error) {
+    logger.warn('Prompt context receipt journal could not be read; continuing with no receipts', { path, error: summarizeError(error) });
+    return { receipts: [], outcomes: [], invalidLines: 0, bytes: 0 };
+  }
+  const lines = raw.split('\n').filter(Boolean);
+  const parsed = lines.map(parseReceiptLine)
+    .filter((entry): entry is NonNullable<ReturnType<typeof parseReceiptLine>> => Boolean(entry));
+  return {
+    receipts: parsed.map((entry) => entry.receipt).filter((receipt): receipt is PromptContextReceipt => Boolean(receipt)),
+    outcomes: parsed.map((entry) => entry.outcome).filter((outcome): outcome is PromptContextTurnOutcome => Boolean(outcome)),
+    invalidLines: lines.length - parsed.length,
+    bytes: Buffer.byteLength(raw, 'utf-8'),
+  };
+}
+
+interface ReceiptJournalSurvivors {
+  readonly receipts: readonly PromptContextReceipt[];
+  readonly outcomes: readonly PromptContextTurnOutcome[];
+  readonly expiredReceipts: number;
+  readonly overflowReceipts: number;
+  readonly droppedOutcomes: number;
+}
+
+/**
+ * Apply BOTH bounds — age TTL first, then the count cap — and retire every
+ * turn-outcome line whose receipt/turn no longer survives. Receipts arrive in
+ * append order, so the tail is the newest set.
+ */
+function selectReceiptJournalSurvivors(contents: ReceiptJournalContents, limit: number, maxAgeMs: number, now: number): ReceiptJournalSurvivors {
+  // A non-finite or future createdAt is kept: a clock oddity must never read as "old enough to delete".
+  const fresh = contents.receipts.filter((receipt) => !Number.isFinite(receipt.createdAt) || now - receipt.createdAt <= maxAgeMs);
+  const kept = fresh.slice(-Math.max(1, limit));
+  const keptReceiptIds = new Set(kept.map((receipt) => receipt.receiptId));
+  const keptTurnIds = new Set(kept.map((receipt) => receipt.turnId).filter((turnId): turnId is string => Boolean(turnId)));
+  const keptOutcomes = contents.outcomes.filter((outcome) => (
+    keptTurnIds.has(outcome.turnId) || outcome.receiptIds.some((receiptId) => keptReceiptIds.has(receiptId))
+  ));
+  return {
+    receipts: kept,
+    outcomes: keptOutcomes,
+    expiredReceipts: contents.receipts.length - fresh.length,
+    overflowReceipts: fresh.length - kept.length,
+    droppedOutcomes: contents.outcomes.length - keptOutcomes.length,
+  };
+}
+
+function formatReceiptJournal(survivors: ReceiptJournalSurvivors): string {
+  const lines = [
+    ...survivors.receipts.map((receipt) => JSON.stringify(receipt)),
+    ...survivors.outcomes.map((outcome) => JSON.stringify({ kind: 'turn_outcome', outcome })),
+  ];
+  return lines.length === 0 ? '' : `${lines.join('\n')}\n`;
+}
+
 export class AgentPromptContextReceiptStore {
   private readonly receipts: PromptContextReceipt[] = [];
   private sequence = 0;
+  private appendsSinceCompaction = 0;
+  private lastCompactionSummary: PromptContextReceiptCompaction | null = null;
 
   public constructor(
     private readonly receiptPath?: string,
     private readonly limit = RECEIPT_STORE_LIMIT,
+    private readonly maxAgeMs = RECEIPT_MAX_AGE_MS,
+    private readonly compactAfterAppends = RECEIPT_COMPACT_AFTER_APPENDS,
   ) {
     this.load();
+  }
+
+  /** The most recent compaction's disclosure record, or null when none has run. */
+  public lastCompaction(): PromptContextReceiptCompaction | null {
+    return this.lastCompactionSummary;
+  }
+
+  /** Re-apply both bounds to the on-disk journal now; a no-op when nothing needs dropping, so repeated calls never churn the file. */
+  public compactNow(): PromptContextReceiptCompaction | null {
+    this.compact('append-threshold');
+    return this.lastCompactionSummary;
   }
 
   public record(draft: PromptContextReceiptDraft): PromptContextReceipt {
@@ -559,22 +688,28 @@ export class AgentPromptContextReceiptStore {
     if (!this.receiptPath) return;
     mkdirSync(dirname(this.receiptPath), { recursive: true });
     appendFileSync(this.receiptPath, `${JSON.stringify(receipt)}\n`, 'utf-8');
+    this.noteAppend();
   }
 
   private appendTurnOutcome(outcome: PromptContextTurnOutcome): void {
     if (!this.receiptPath) return;
     mkdirSync(dirname(this.receiptPath), { recursive: true });
     appendFileSync(this.receiptPath, `${JSON.stringify({ kind: 'turn_outcome', outcome })}\n`, 'utf-8');
+    this.noteAppend();
+  }
+
+  /** Bound the journal DURING a long run, not only at the next start: once enough appends pile up since the last compaction, rewrite the file. */
+  private noteAppend(): void {
+    this.appendsSinceCompaction += 1;
+    if (this.appendsSinceCompaction >= Math.max(1, this.compactAfterAppends)) this.compact('append-threshold');
   }
 
   private load(): void {
     if (!this.receiptPath || !existsSync(this.receiptPath)) return;
-    const lines = readFileSync(this.receiptPath, 'utf-8').split('\n').filter(Boolean);
-    const parsed = lines.map(parseReceiptLine).filter((entry): entry is NonNullable<ReturnType<typeof parseReceiptLine>> => Boolean(entry));
-    const receipts = parsed.map((entry) => entry.receipt).filter((receipt): receipt is PromptContextReceipt => Boolean(receipt));
-    const outcomes = parsed.map((entry) => entry.outcome).filter((outcome): outcome is PromptContextTurnOutcome => Boolean(outcome));
-    const recentReceipts = receipts.slice(-this.limit);
-    for (const outcome of outcomes) {
+    const survivors = this.compact('load');
+    if (!survivors) return;
+    const recentReceipts = [...survivors.receipts];
+    for (const outcome of survivors.outcomes) {
       for (const [index, receipt] of recentReceipts.entries()) {
         if (receipt.turnId === outcome.turnId || outcome.receiptIds.includes(receipt.receiptId)) {
           recentReceipts[index] = { ...receipt, turnOutcome: outcome };
@@ -586,6 +721,63 @@ export class AgentPromptContextReceiptStore {
     this.trim();
   }
 
+  /**
+   * Rewrite the journal holding only the records that survive BOTH bounds, and
+   * disclose what that reclaimed. Crash-safe: survivors go to a temp file renamed
+   * into place, so a process dying mid-compaction leaves the original journal
+   * intact (a truncate-then-rewrite would lose the whole journal). The temp name
+   * carries the pid and a per-process counter, so concurrent compactions never
+   * share a temp file and the last rename wins with a bounded, validated journal.
+   * Idempotent: when nothing needs dropping the file is left untouched.
+   */
+  private compact(reason: 'load' | 'append-threshold'): ReceiptJournalSurvivors | null {
+    if (!this.receiptPath) return null;
+    this.appendsSinceCompaction = 0;
+    if (!existsSync(this.receiptPath)) return null;
+    const path = this.receiptPath;
+    const contents = readReceiptJournal(path);
+    const survivors = selectReceiptJournalSurvivors(contents, this.limit, this.maxAgeMs, Date.now());
+    const dropped = survivors.expiredReceipts + survivors.overflowReceipts + survivors.droppedOutcomes + contents.invalidLines;
+    const body = formatReceiptJournal(survivors);
+    const bytesAfter = Buffer.byteLength(body, 'utf-8');
+    let rewritten = false;
+    if (dropped > 0) {
+      compactionTempCounter += 1;
+      const tmpPath = `${path}.${process.pid}.${Date.now()}.${compactionTempCounter}.tmp`;
+      try {
+        mkdirSync(dirname(path), { recursive: true });
+        writeFileSync(tmpPath, body, 'utf-8');
+        renameSync(tmpPath, path);
+        rewritten = true;
+      } catch (error) {
+        try {
+          unlinkSync(tmpPath);
+        } catch {
+          // Absent temp file is the desired end state; ENOENT here is success.
+        }
+        logger.warn('Prompt context receipt journal compaction failed; journal left as-is', { path, error: summarizeError(error) });
+      }
+    }
+    const summary: PromptContextReceiptCompaction = {
+      path,
+      reason,
+      expiredReceipts: survivors.expiredReceipts,
+      overflowReceipts: survivors.overflowReceipts,
+      droppedOutcomes: survivors.droppedOutcomes,
+      droppedInvalidLines: contents.invalidLines,
+      keptReceipts: survivors.receipts.length,
+      keptOutcomes: survivors.outcomes.length,
+      bytesBefore: contents.bytes,
+      bytesAfter: rewritten ? bytesAfter : contents.bytes,
+      bytesReclaimed: rewritten ? Math.max(0, contents.bytes - bytesAfter) : 0,
+      rewritten,
+    };
+    this.lastCompactionSummary = summary;
+    // Disclosure carries counts, byte totals and the path only — receipt segments hold prompt/context material and never go to the log.
+    if (rewritten) logger.info('Prompt context receipt journal compacted', { ...summary });
+    return survivors;
+  }
+
   private applyTurnOutcome(outcome: PromptContextTurnOutcome): void {
     for (const [index, receipt] of this.receipts.entries()) {
       if (receipt.turnId === outcome.turnId || outcome.receiptIds.includes(receipt.receiptId)) {
@@ -594,7 +786,15 @@ export class AgentPromptContextReceiptStore {
     }
   }
 
+  /** Apply the same two bounds in memory that compaction applies on disk, so the surfaces never list what the journal no longer keeps. */
   private trim(): void {
+    const now = Date.now();
+    for (let index = this.receipts.length - 1; index >= 0; index -= 1) {
+      const receipt = this.receipts[index];
+      if (receipt && Number.isFinite(receipt.createdAt) && now - receipt.createdAt > this.maxAgeMs) {
+        this.receipts.splice(index, 1);
+      }
+    }
     this.receipts.splice(this.limit);
   }
 }

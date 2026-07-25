@@ -37,8 +37,18 @@ export type {
 
 export type { SdkBlockMeta };
 
-/** TUI extends the SDK BlockMeta with rendering position fields. */
-export interface BlockMeta extends SdkBlockMeta {
+/**
+ * The app extends the SDK BlockMeta with rendering position fields, plus a
+ * local-only block type: 'tool_group' is the synthetic header block that folds
+ * a run of >=2 consecutive tool-result messages under one collapsible header
+ * (see conversation-tool-groups.ts). Defined as an intersection rather than
+ * `interface X extends SdkBlockMeta` because TypeScript requires an extending
+ * interface's members to be subtypes of the base interface's — widening the
+ * `type` union that way is a compile error. Omit + intersection adds the new
+ * variant without touching the SDK's published type.
+ */
+export type BlockMeta = Omit<SdkBlockMeta, 'type'> & {
+  type: SdkBlockMeta['type'] | 'tool_group';
   /** Index of this block (increments per renderable block). */
   blockIndex: number;
   /** First rendered line index in the history buffer. */
@@ -47,7 +57,15 @@ export interface BlockMeta extends SdkBlockMeta {
   lineCount: number;
   /** Stable key for collapse state persistence across rebuilds (e.g. msg_N). */
   collapseKey: string;
-}
+  /**
+   * Absolute message indexes of every member of a folded tool-result group
+   * (see conversation-tool-groups.ts). Present only on 'tool_group' blocks —
+   * lets /expand also open each member's own collapse key in the same pass,
+   * since a folded member pushes no BlockMeta of its own to toggle
+   * individually while the group stays collapsed.
+   */
+  groupMemberIndexes?: readonly number[];
+};
 
 // Import internal types needed for rendering helpers
 import type { ConversationMessageSnapshot } from '@pellux/goodvibes-sdk/platform/core';
@@ -329,7 +347,7 @@ export class ConversationManager extends SdkConversationManager {
       return;
     }
 
-    this.appendMessages(visibleSnapshot, width);
+    this.appendMessages(visibleSnapshot, width, displayStart);
   }
 
   /**
@@ -380,9 +398,12 @@ export class ConversationManager extends SdkConversationManager {
     renderConversationToolMessage(this.renderingContext(), message, width, msgIdx);
   }
 
-  /** Render a slice of messages into the history buffer. */
-  private appendMessages(messages: Message[], width: number): void {
-    appendConversationMessages(this.renderingContext(), messages, width, this.messageLineRegistry);
+  /** Render a slice of messages into the history buffer. `msgIndexOffset` is
+   *  the absolute index of `messages[0]` in the full snapshot — non-zero after
+   *  clearDisplay(), so collapse keys and messageLineRegistry entries stay on
+   *  absolute message indexes. */
+  private appendMessages(messages: Message[], width: number, msgIndexOffset = 0): void {
+    appendConversationMessages(this.renderingContext(), messages, width, this.messageLineRegistry, msgIndexOffset);
   }
 
   /** Find the nearest block to a given line index, optionally filtered by type. */
@@ -443,8 +464,84 @@ export class ConversationManager extends SdkConversationManager {
     if (!nearest) return -1;
     const current = this.collapseState.get(nearest.collapseKey) ?? false;
     this.collapseState.set(nearest.collapseKey, !current);
+    this.noteUserTouch(nearest.collapseKey);
     this.markDirty();
     return nearest.blockIndex;
+  }
+
+  /**
+   * Collapse keys currently expanded because the user NAVIGATED to a search
+   * match hidden inside them (see search.ts's revealCurrentMatch) — never
+   * because they were expanded by typing, and never keys the user touched
+   * some other way (see noteUserTouch, which removes a key from this set).
+   * restoreSearchExpansions() re-folds everything still in this set when
+   * search closes, so the transcript the user had collapsed comes back
+   * exactly as they left it.
+   */
+  private searchExpandedKeys = new Set<string>();
+
+  /**
+   * Collapse keys the user has explicitly acted on at least once (Tab
+   * toggle via toggleCollapseAtLine, Ctrl+Y copy, Ctrl+B bookmark — see
+   * handler-content-actions.ts). Membership here permanently exempts a key
+   * from restoreSearchExpansions()'s auto-re-collapse, even if search
+   * originally opened it — an explicit user action always outranks search's
+   * own bookkeeping. Grows for the life of the conversation; never pruned,
+   * since membership only ever gates one decision (whether to
+   * auto-re-collapse) and a stale positive is harmless.
+   */
+  private userTouchedKeys = new Set<string>();
+
+  /** Record that `collapseKey` was expanded because the user navigated to a
+   *  search match hidden inside it, so restoreSearchExpansions() knows to
+   *  fold it back up on close (unless the user separately touches it while
+   *  it's open — see noteUserTouch). No-op for a key the user already
+   *  touched explicitly, since that ownership always wins. */
+  public markSearchExpanded(collapseKey: string): void {
+    if (!this.userTouchedKeys.has(collapseKey)) this.searchExpandedKeys.add(collapseKey);
+  }
+
+  /** Record an explicit user action on `collapseKey` (toggle/copy/bookmark).
+   *  Exempts it from restoreSearchExpansions()'s auto-re-collapse for the
+   *  rest of the session — the user's own choice always wins over search's
+   *  bookkeeping, whether they acted on it before search touched it or while
+   *  it was sitting auto-expanded. */
+  public noteUserTouch(collapseKey: string): void {
+    this.userTouchedKeys.add(collapseKey);
+    this.searchExpandedKeys.delete(collapseKey);
+  }
+
+  /**
+   * Re-collapse every key search auto-expanded during the just-closed search
+   * session, except ones the user explicitly touched while they were open —
+   * called from SearchManager.close(). Restores the transcript's pre-search
+   * collapse state without disturbing any collapse state search never
+   * touched in the first place.
+   */
+  public restoreSearchExpansions(): void {
+    if (this.searchExpandedKeys.size === 0) return;
+    for (const key of this.searchExpandedKeys) {
+      this.collapseState.set(key, true);
+    }
+    this.searchExpandedKeys.clear();
+    this.markDirty();
+  }
+
+  /** First rendered line for message `absoluteIdx` (undefined if never
+   *  rendered). For a folded tool-group member this is the group's own
+   *  header line, not the following message's position — see
+   *  messageLineRegistry's doc. Flushes history if dirty. */
+  public getMessageLine(absoluteIdx: number): number | undefined {
+    this.flushHistory();
+    return this.messageLineRegistry[absoluteIdx];
+  }
+
+  /** Set a collapseKey's state directly, bypassing block lookup — needed for
+   *  a key with no BlockMeta yet (a folded tool-group member's own
+   *  `msg_<idx>` key only becomes a real block once its group expands). */
+  public setCollapsed(collapseKey: string, collapsed: boolean): void {
+    this.collapseState.set(collapseKey, collapsed);
+    this.markDirty();
   }
 
   /** Returns a read-only view of the block registry for external consumers. */

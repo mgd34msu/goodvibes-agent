@@ -1,5 +1,6 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { InfiniteBuffer } from '../core/history.ts';
+import type { ConversationManager } from '../core/conversation.ts';
 import type { SelectionResult, SelectionModal } from './selection-modal.ts';
 import type { BookmarkModal } from './bookmark-modal.ts';
 import type { SettingsModal } from './settings-modal.ts';
@@ -74,6 +75,10 @@ export type ModalTokenRouteState = {
   blockActionsMenu: BlockActionsMenu;
   executeBlockAction: (actionId: BlockActionId) => void;
   searchManager: SearchManager;
+  /** Lets in-transcript search look INTO collapsed blocks and folded
+   *  tool-result groups (see search.ts) instead of only scanning the rendered
+   *  buffer. Null before the manager is late-wired. */
+  conversationManager: ConversationManager | null;
   scroll: (delta: number) => void;
   getScrollTop: () => number;
   /** Callback to open the model picker with a specific target (helper or tool). Optional — only wired when available. */
@@ -101,6 +106,7 @@ export function handleModalTokenRoutes(state: ModalTokenRouteState, token: Input
 } {
   if (handleSearchModeToken({
     searchManager: state.searchManager,
+    conversationManager: state.conversationManager,
     requestRender: state.requestRender,
     scroll: state.scroll,
     getScrollTop: state.getScrollTop,

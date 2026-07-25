@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type { PricingCatalog } from '@pellux/goodvibes-sdk/platform/providers';
+import { reasoningEffortLevels } from '@pellux/goodvibes-sdk/platform/providers';
 import type { DiscoveredServer } from '@pellux/goodvibes-sdk/platform/discovery';
 import { createTestManagers } from '../helpers/test-managers.ts';
 import { createProviderCacheFixture, writeModelCatalogCache } from '../helpers/provider-cache.ts';
@@ -46,7 +47,7 @@ describe('discovered model metadata', () => {
     const model = testManagers.providerRegistry.listModels().find((entry) => entry.registryKey === 'LM Studio:qwen3-thinking');
 
     expect(model?.capabilities.reasoning).toBe(true);
-    expect(model?.reasoningEffort).toEqual(['instant', 'low', 'medium', 'high']);
+    expect(reasoningEffortLevels(model?.reasoningEffort)).toEqual(['instant', 'low', 'medium', 'high']);
   });
 
   test('Ollama discovered models advertise reasoning support and OAI compat fallback stays available', () => {
@@ -67,7 +68,7 @@ describe('discovered model metadata', () => {
     if (!provider) throw new Error('Expected discovered Ollama provider');
 
     expect(model?.capabilities.reasoning).toBe(true);
-    expect(model?.reasoningEffort).toEqual(['instant', 'low', 'medium', 'high']);
+    expect(reasoningEffortLevels(model?.reasoningEffort)).toEqual(['instant', 'low', 'medium', 'high']);
     expect(provider.capabilities?.toolCalling).toBe(true);
     expect(provider.capabilities?.reasoningControls).toBe(true);
   });

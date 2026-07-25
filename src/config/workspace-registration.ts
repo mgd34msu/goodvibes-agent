@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, parse, resolve } from 'node:path';
 import type { ShellPathService } from '@/runtime/index.ts';
 import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
@@ -235,11 +235,103 @@ function migrationReceiptPath(shellPaths: StoreShellPaths): string {
   return shellPaths.resolveUserPath('control-plane', 'workspace-registration-migration-receipt.json');
 }
 
+/**
+ * Write `data` as JSON through a temp file and an atomic rename.
+ *
+ * The temp name carries the pid. It used to be a fixed `${path}.tmp`, which two
+ * processes starting at the same moment share: both truncate it, both write
+ * into it, and whichever renames second moves a file holding interleaved bytes
+ * from two writers into the final path. For the receipt files below — whose
+ * whole job is to record that a one-time migration already happened — that
+ * produces exactly the failure this module must not have: an unreadable receipt
+ * that no later boot can interpret. A pid-suffixed temp file cannot be shared,
+ * and `rename` onto the final path is atomic, so a reader sees either the whole
+ * previous file or the whole new one and never a splice of the two.
+ */
 function atomicWriteJson(path: string, data: unknown): void {
   mkdirSync(dirname(path), { recursive: true });
-  const tempPath = `${path}.tmp`;
-  writeFileSync(tempPath, `${JSON.stringify(data, null, 2)}\n`, 'utf-8');
-  renameSync(tempPath, path);
+  const tempPath = `${path}.${process.pid}.tmp`;
+  try {
+    writeFileSync(tempPath, `${JSON.stringify(data, null, 2)}\n`, 'utf-8');
+    renameSync(tempPath, path);
+  } catch (error) {
+    try {
+      rmSync(tempPath, { force: true });
+    } catch {
+      // The temp file is inert; a failed cleanup is not worth masking the real error.
+    }
+    throw error;
+  }
+}
+
+/**
+ * The schema version stamped onto both one-time receipts below, and the
+ * completion flag that makes them verifiable.
+ *
+ * A receipt is the ONLY memory that a one-time migration already ran. Gating on
+ * `existsSync` alone accepts a zero-byte or half-written file as proof of
+ * completion, which is why these are now parsed instead. See
+ * {@link readReceipt} for what each caller does when the parse fails — the two
+ * receipts answer that differently, on purpose.
+ */
+const RECEIPT_SCHEMA_VERSION = 1;
+
+/** A receipt as it is written: the caller's result plus the fields that make it checkable. */
+type StampedReceipt<T> = T & { readonly schemaVersion: number; readonly completed: true };
+
+function stampReceipt<T extends object>(result: T): StampedReceipt<T> {
+  return { ...result, schemaVersion: RECEIPT_SCHEMA_VERSION, completed: true } as StampedReceipt<T>;
+}
+
+/** How a one-time receipt file read. */
+type ReceiptState =
+  /** No receipt on disk: the migration has not run. */
+  | { readonly kind: 'absent' }
+  /** A parseable receipt that asserts its own completion. */
+  | { readonly kind: 'complete' }
+  /** A file is there, but it does not say the migration finished (empty, torn, wrong shape, older schema). */
+  | { readonly kind: 'damaged'; readonly reason: string };
+
+/**
+ * Read a one-time receipt by PARSING it, never by its mere existence.
+ *
+ * A file that exists may be zero bytes, truncated, or a page of nothing that a
+ * filesystem recovered the inode for but not the data. `existsSync` returns
+ * true for every one of those, and the migration it guards is then skipped
+ * forever. A receipt must positively assert completion: an object carrying a
+ * known schema version and `completed: true`.
+ *
+ * A receipt written before this check existed carries neither field, so it
+ * reads as `damaged` rather than `complete`. That is deliberate and the callers
+ * handle it — one re-runs (its work is idempotent), the other does not (its
+ * work is not) — and both say so out loud.
+ */
+function readReceipt(path: string): ReceiptState {
+  let raw: string;
+  try {
+    if (!existsSync(path)) return { kind: 'absent' };
+    raw = readFileSync(path, 'utf-8');
+  } catch (error) {
+    return { kind: 'damaged', reason: `unreadable: ${summarizeError(error)}` };
+  }
+  if (raw.trim().length === 0) return { kind: 'damaged', reason: 'empty file (interrupted write)' };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { kind: 'damaged', reason: 'not parseable JSON (torn write)' };
+  }
+  if (!isRecord(parsed)) return { kind: 'damaged', reason: 'not a JSON object' };
+  if (parsed.completed !== true) return { kind: 'damaged', reason: 'no completion flag (written before receipts were verifiable)' };
+  if (typeof parsed.schemaVersion !== 'number' || !Number.isFinite(parsed.schemaVersion)) {
+    return { kind: 'damaged', reason: 'no usable schema version' };
+  }
+  // A NEWER schema is accepted: a later build already did at least this much,
+  // and a downgrade must not re-run a one-time migration on every boot.
+  if (parsed.schemaVersion < RECEIPT_SCHEMA_VERSION) {
+    return { kind: 'damaged', reason: `older receipt schema (${parsed.schemaVersion} < ${RECEIPT_SCHEMA_VERSION})` };
+  }
+  return { kind: 'complete' };
 }
 
 interface RawSharedStoreDoc {
@@ -332,12 +424,28 @@ export interface CheckpointEligibilityBackfillResult {
  * remembering); records registered afresh through
  * {@link registerWorkspaceForCheckpoints} are already stamped at write time.
  * Returns null when nothing was backfilled this call.
+ *
+ * The receipt is validated by PARSING it, not by its existence, and a damaged
+ * one RE-RUNS the backfill. That is safe here in a way it is not for the
+ * migration below: this pass only ever sets `checkpointEligible: true` on
+ * records whose root is in the owner's own explicit legacy list, and it skips
+ * any record already carrying the flag. Repeating it stamps the same records
+ * with the same value or does nothing at all — it cannot resurrect, duplicate,
+ * or un-remove anything. A crash mid-write therefore must not be allowed to
+ * strand a user's pre-flag checkpoint opt-ins forever.
  */
 export function backfillCheckpointEligibilityIfNeeded(
   shellPaths: StoreShellPaths,
 ): CheckpointEligibilityBackfillResult | null {
   const receiptPath = checkpointEligibilityBackfillReceiptPath(shellPaths);
-  if (existsSync(receiptPath)) return null;
+  const receipt = readReceipt(receiptPath);
+  if (receipt.kind === 'complete') return null;
+  if (receipt.kind === 'damaged') {
+    logger.warn('Checkpoint-eligibility backfill receipt is not usable — re-running the (idempotent) backfill', {
+      receiptPath,
+      reason: receipt.reason,
+    });
+  }
 
   const legacyPath = legacyWorkspaceRegistryPath(shellPaths);
   if (!existsSync(legacyPath)) return null;
@@ -374,7 +482,7 @@ export function backfillCheckpointEligibilityIfNeeded(
     recordsStamped: stamped,
     backfilledAt: new Date().toISOString(),
   };
-  atomicWriteJson(receiptPath, result);
+  atomicWriteJson(receiptPath, stampReceipt(result));
   return result;
 }
 
@@ -399,12 +507,37 @@ export interface WorkspaceRegistrationMigrationResult {
  *
  * Returns null when nothing was migrated this call (already migrated, or no
  * legacy file); a caller logs only a real migration.
+ *
+ * THE RECEIPT IS VALIDATED BY PARSING, AND A DAMAGED ONE DOES NOT RE-RUN THIS.
+ * That is the opposite of {@link backfillCheckpointEligibilityIfNeeded}, and
+ * the difference is not an oversight. This migration is NOT safe to repeat: the
+ * legacy file is deliberately never deleted, so a second pass would re-add
+ * every legacy root — including ones the owner has since unregistered through
+ * the new store. Re-running to recover from a torn receipt would therefore
+ * resurrect workspaces the owner explicitly removed, which is a worse outcome
+ * than skipping a migration that has, in every realistic case, already run
+ * (the receipt is written last, through a pid-unique temp file and an atomic
+ * rename, so a torn one means something outside this code damaged it).
+ *
+ * So a damaged receipt takes the safe branch — treat it as migrated — and says
+ * so LOUDLY at warn level with the path and the reason, because the one thing
+ * that must not happen is this being decided in silence. An operator who sees
+ * that line can delete the receipt to force the migration deliberately.
  */
 export function migrateLegacyWorkspaceRegistryIfNeeded(
   shellPaths: StoreShellPaths,
 ): WorkspaceRegistrationMigrationResult | null {
   const receiptPath = migrationReceiptPath(shellPaths);
-  if (existsSync(receiptPath)) return null;
+  const receipt = readReceipt(receiptPath);
+  if (receipt.kind === 'complete') return null;
+  if (receipt.kind === 'damaged') {
+    logger.warn(
+      'Workspace-registry migration receipt is not usable — treating the migration as already done, because repeating it '
+      + 'would re-add legacy roots the owner may have since unregistered. Delete the receipt to force it.',
+      { receiptPath, reason: receipt.reason },
+    );
+    return null;
+  }
 
   const legacyPath = legacyWorkspaceRegistryPath(shellPaths);
   if (!existsSync(legacyPath)) return null;
@@ -446,7 +579,7 @@ export function migrateLegacyWorkspaceRegistryIfNeeded(
     recordsAlreadyPresent: alreadyPresent,
     migratedAt: new Date().toISOString(),
   };
-  atomicWriteJson(receiptPath, result);
+  atomicWriteJson(receiptPath, stampReceipt(result));
   return result;
 }
 

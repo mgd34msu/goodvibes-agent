@@ -1,5 +1,6 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { REASONING_EFFORT_SEVERITY } from '@pellux/goodvibes-sdk/platform/providers';
 import {
   WORK_PLAN_STATUSES,
   type WorkPlanItem,
@@ -424,7 +425,7 @@ export function createAgentWorkPlanTool(store: WorkPlanStore, options: AgentWork
           template: { type: 'string', description: 'Agent template for dispatch_agents.' },
           model: { type: 'string', description: 'Provider-qualified model for dispatch_agents.' },
           provider: { type: 'string', description: 'Provider id for dispatch_agents when model is provider-qualified.' },
-          reasoningEffort: { type: 'string', enum: ['instant', 'low', 'medium', 'high'], description: 'Reasoning effort for dispatch_agents.' },
+          reasoningEffort: { type: 'string', enum: [...REASONING_EFFORT_SEVERITY], description: 'Reasoning effort for dispatch_agents; unsupported levels snap down.' },
           tools: { type: 'array', items: { type: 'string' }, description: 'Exact tool subset for dispatched agents.' },
           successCriteria: { type: 'array', items: { type: 'string' }, description: 'Success criteria for dispatched agents.' },
           requiredEvidence: { type: 'array', items: { type: 'string' }, description: 'Required evidence for dispatched agents.' },

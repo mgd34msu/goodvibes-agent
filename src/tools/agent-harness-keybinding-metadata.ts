@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { CommandContext } from '../input/command-registry.ts';
 import {
   ACTION_DESCRIPTIONS,
@@ -423,18 +424,87 @@ function keybindingOperationRoute(action: KeyAction): KeybindingOperationRoute {
   }
 }
 
+/**
+ * Preserve an unreadable keybindings file instead of overwriting it: it is
+ * renamed to a single fixed `.corrupt` slot, overwritten each time so the
+ * quarantine cannot accumulate. Paths and byte counts are logged, never contents.
+ */
+function quarantineOverrideFile(configPath: string, bytes: number, reason: string): void {
+  const quarantinePath = `${configPath}.corrupt`;
+  let preserved = false;
+  try {
+    renameSync(configPath, quarantinePath);
+    preserved = true;
+  } catch {
+    preserved = false;
+  }
+  logger.error('Keybindings config was unreadable; continuing with no overrides', {
+    configPath,
+    bytes,
+    preserved,
+    ...(preserved ? { quarantinePath } : {}),
+    reason,
+  });
+}
+
+/**
+ * Read the user's keybinding overrides, degrading to "no overrides" for anything
+ * a crash can leave behind — an unreadable file, a zero-byte file, a truncated
+ * JSON body, or a body that is not a JSON object. Existence is not validity, and
+ * a torn file must not take down every read path that touches keybindings.
+ */
 function readOverrideFile(configPath: string): KeybindingsOverrideFile {
   if (!existsSync(configPath)) return {};
-  const parsed = JSON.parse(readFileSync(configPath, 'utf-8')) as unknown;
+  let raw = '';
+  try {
+    raw = readFileSync(configPath, 'utf-8');
+  } catch (error) {
+    logger.warn('Keybindings config could not be read; continuing with no overrides', {
+      configPath,
+      error: summarizeError(error),
+    });
+    return {};
+  }
+  if (!raw.trim()) {
+    logger.warn('Keybindings config is empty (torn or interrupted write); continuing with no overrides', {
+      configPath,
+      bytes: Buffer.byteLength(raw, 'utf-8'),
+    });
+    return {};
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw) as unknown;
+  } catch (error) {
+    quarantineOverrideFile(configPath, Buffer.byteLength(raw, 'utf-8'), summarizeError(error));
+    return {};
+  }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error(`Keybindings config ${configPath} must contain a JSON object.`);
+    quarantineOverrideFile(configPath, Buffer.byteLength(raw, 'utf-8'), 'keybindings config is not a JSON object');
+    return {};
   }
   return parsed as KeybindingsOverrideFile;
 }
 
+/**
+ * Write overrides through a pid-suffixed temp file and rename it into place, so a
+ * crash mid-write leaves the user's existing keybindings intact rather than a
+ * half-written file, and two processes writing at once cannot share a temp path.
+ */
 function writeOverrideFile(configPath: string, overrides: KeybindingsOverrideFile): void {
   mkdirSync(dirname(configPath), { recursive: true });
-  writeFileSync(configPath, `${JSON.stringify(overrides, null, 2)}\n`, 'utf-8');
+  const tmpPath = `${configPath}.${process.pid}.${Date.now()}.tmp`;
+  try {
+    writeFileSync(tmpPath, `${JSON.stringify(overrides, null, 2)}\n`, 'utf-8');
+    renameSync(tmpPath, configPath);
+  } catch (error) {
+    try {
+      unlinkSync(tmpPath);
+    } catch {
+      // Absent temp file is the desired end state; ENOENT here is success.
+    }
+    throw error;
+  }
 }
 
 export function totalHarnessKeybindings(context: CommandContext): number {

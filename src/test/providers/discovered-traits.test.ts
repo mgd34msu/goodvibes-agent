@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { getDiscoveredTraits } from '@pellux/goodvibes-sdk/platform/providers';
+import { getDiscoveredTraits, reasoningEffortLevels } from '@pellux/goodvibes-sdk/platform/providers';
 
 describe('getDiscoveredTraits', () => {
   test('LM Studio advertises reasoning-aware native capabilities', () => {
     const traits = getDiscoveredTraits('lm-studio');
     expect(traits.adapter).toBe('lm-studio');
     expect(traits.modelCapabilities.reasoning).toBe(true);
-    expect(traits.reasoningEffort).toEqual(['instant', 'low', 'medium', 'high']);
+    expect(reasoningEffortLevels(traits.reasoningEffort)).toEqual(['instant', 'low', 'medium', 'high']);
     expect(traits.providerCapabilities?.reasoningControls).toBe(true);
   });
 

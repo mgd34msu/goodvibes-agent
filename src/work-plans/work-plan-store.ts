@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 
 export const WORK_PLAN_STATUSES = [
@@ -13,6 +14,51 @@ export const WORK_PLAN_STATUSES = [
 ] as const;
 
 export type WorkPlanItemStatus = typeof WORK_PLAN_STATUSES[number];
+
+/**
+ * Statuses that end an item's life. ONLY these are ever aged out or capped —
+ * pending / in_progress / blocked / failed items are work the user still has
+ * open, and open work is never expired out from under them. `failed` is
+ * deliberately excluded: a failed item is usually retried, not finished.
+ */
+const WORK_PLAN_TERMINAL_STATUSES: readonly WorkPlanItemStatus[] = ['done', 'cancelled'];
+/**
+ * Count cap on terminal items. clearCompleted() is a manual action most people
+ * never run, so finished items otherwise accumulate for the life of the project.
+ * 100 keeps a long, browsable "what we finished" tail while bounding the file.
+ */
+const WORK_PLAN_TERMINAL_ITEM_LIMIT = 100;
+/**
+ * Age TTL on terminal items, measured from completedAt (falling back to
+ * updatedAt). 30 days is well past the point where a finished checklist line is
+ * still useful in the live plan, and matches the "recent work" window the plan
+ * surface is read for. Applied together with the count cap: a terminal item must
+ * survive BOTH.
+ */
+const WORK_PLAN_TERMINAL_ITEM_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
+/** What a plan read had to recover from or reclaim — the disclosure record. */
+export interface WorkPlanMaintenance {
+  readonly path: string;
+  /** How the last read had to degrade, if at all. */
+  readonly recovered: 'none' | 'unreadable' | 'empty-file' | 'quarantined' | 'quarantine-failed';
+  /** Terminal items dropped because they aged past the TTL. */
+  readonly expiredItems: number;
+  /** Terminal items dropped because they fell outside the count cap. */
+  readonly overflowItems: number;
+  /** Items still in the plan after the sweep. */
+  readonly keptItems: number;
+  /** Bytes of the file that was quarantined, when one was. */
+  readonly quarantinedBytes?: number;
+}
+
+function isTerminalItem(item: WorkPlanItem): boolean {
+  return WORK_PLAN_TERMINAL_STATUSES.includes(item.status);
+}
+
+function terminalItemTime(item: WorkPlanItem): number {
+  return item.completedAt ?? item.updatedAt;
+}
 
 export interface WorkPlanLinkTargets {
   readonly agentId?: string;
@@ -164,6 +210,7 @@ export function nextWorkPlanStatus(status: WorkPlanItemStatus): WorkPlanItemStat
 
 export class WorkPlanStore {
   readonly filePath: string;
+  private lastMaintenanceSummary: WorkPlanMaintenance | null = null;
 
   constructor(private readonly options: WorkPlanStoreOptions) {
     const fileName = `${safeFileId(options.projectId, options.projectRoot)}.json`;
@@ -291,11 +338,108 @@ export class WorkPlanStore {
     return lines.join('\n');
   }
 
+  /**
+   * Read the stored plan, then sweep terminal items past either bound.
+   *
+   * Existence is never treated as validity: the file a crash left behind may be
+   * zero-byte or half-written, so the body is parsed and shape-checked, and any
+   * failure degrades to an empty plan with the bad file preserved aside rather
+   * than throwing out of every public method.
+   */
   private readPlan(): WorkPlan {
+    return this.reapTerminalItems(this.readStoredPlan());
+  }
+
+  /** The last read's recovery/reclaim disclosure record, or null when none has run. */
+  lastMaintenance(): WorkPlanMaintenance | null {
+    return this.lastMaintenanceSummary;
+  }
+
+  /**
+   * Drop terminal (done/cancelled) items past the age TTL or the count cap, and
+   * persist + disclose when anything was actually dropped. Open work is never
+   * touched. A second call drops nothing and writes nothing, so the sweep is
+   * idempotent and safe to run from more than one process.
+   */
+  private reapTerminalItems(plan: WorkPlan): WorkPlan {
+    const now = nowMs();
+    const terminal = plan.items.filter(isTerminalItem);
+    const fresh = terminal.filter((item) => now - terminalItemTime(item) <= WORK_PLAN_TERMINAL_ITEM_MAX_AGE_MS);
+    const keptTerminal = [...fresh]
+      .sort((left, right) => terminalItemTime(left) - terminalItemTime(right))
+      .slice(-WORK_PLAN_TERMINAL_ITEM_LIMIT);
+    const expiredItems = terminal.length - fresh.length;
+    const overflowItems = fresh.length - keptTerminal.length;
+    if (expiredItems === 0 && overflowItems === 0) {
+      this.lastMaintenanceSummary = {
+        path: this.filePath,
+        recovered: this.lastMaintenanceSummary?.recovered ?? 'none',
+        expiredItems: 0,
+        overflowItems: 0,
+        keptItems: plan.items.length,
+        ...(this.lastMaintenanceSummary?.quarantinedBytes !== undefined ? { quarantinedBytes: this.lastMaintenanceSummary.quarantinedBytes } : {}),
+      };
+      return plan;
+    }
+    const keptIds = new Set(keptTerminal.map((item) => item.id));
+    const items = plan.items.filter((item) => !isTerminalItem(item) || keptIds.has(item.id));
+    const swept: WorkPlan = {
+      ...plan,
+      items,
+      ...(plan.activeItemId && items.some((item) => item.id === plan.activeItemId) ? { activeItemId: plan.activeItemId } : {}),
+    };
+    const next: WorkPlan = plan.activeItemId && !items.some((item) => item.id === plan.activeItemId)
+      ? { ...swept, activeItemId: items[0]?.id }
+      : swept;
+    this.writePlan(next);
+    this.lastMaintenanceSummary = {
+      path: this.filePath,
+      recovered: this.lastMaintenanceSummary?.recovered ?? 'none',
+      expiredItems,
+      overflowItems,
+      keptItems: items.length,
+    };
+    logger.info('Work plan finished items reclaimed', {
+      path: this.filePath,
+      expiredItems,
+      overflowItems,
+      keptItems: items.length,
+    });
+    return next;
+  }
+
+  private readStoredPlan(): WorkPlan {
     if (!existsSync(this.filePath)) return this.createEmptyPlan();
-    const raw = readFileSync(this.filePath, 'utf8');
-    const parsed = JSON.parse(raw) as unknown;
-    if (!isObject(parsed)) return this.createEmptyPlan();
+    let raw = '';
+    try {
+      raw = readFileSync(this.filePath, 'utf8');
+    } catch (error) {
+      this.noteRecovery('unreadable');
+      logger.warn('Work plan could not be read; continuing with an empty plan', {
+        path: this.filePath,
+        error: summarizeError(error),
+      });
+      return this.createEmptyPlan();
+    }
+    if (!raw.trim()) {
+      this.noteRecovery('empty-file');
+      logger.warn('Work plan file is empty (torn or interrupted write); continuing with an empty plan', {
+        path: this.filePath,
+        bytes: Buffer.byteLength(raw, 'utf8'),
+      });
+      return this.createEmptyPlan();
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw) as unknown;
+    } catch (error) {
+      this.quarantine(Buffer.byteLength(raw, 'utf8'), summarizeError(error));
+      return this.createEmptyPlan();
+    }
+    if (!isObject(parsed)) {
+      this.quarantine(Buffer.byteLength(raw, 'utf8'), 'work plan file is not a JSON object');
+      return this.createEmptyPlan();
+    }
     const time = nowMs();
     const createdAt = typeof parsed.createdAt === 'number' ? parsed.createdAt : time;
     const updatedAt = typeof parsed.updatedAt === 'number' ? parsed.updatedAt : createdAt;
@@ -315,6 +459,42 @@ export class WorkPlanStore {
       createdAt,
       updatedAt,
     };
+  }
+
+  private noteRecovery(recovered: WorkPlanMaintenance['recovered'], quarantinedBytes?: number): void {
+    this.lastMaintenanceSummary = {
+      path: this.filePath,
+      recovered,
+      expiredItems: 0,
+      overflowItems: 0,
+      keptItems: 0,
+      ...(quarantinedBytes !== undefined ? { quarantinedBytes } : {}),
+    };
+  }
+
+  /**
+   * Preserve an unreadable plan file instead of discarding the user's work: it is
+   * renamed to a single fixed `.corrupt` slot, which is overwritten each time so
+   * the quarantine itself cannot accumulate. The reason is logged with byte
+   * counts and paths only — never the file's contents.
+   */
+  private quarantine(bytes: number, reason: string): void {
+    const quarantinePath = `${this.filePath}.corrupt`;
+    let preserved = false;
+    try {
+      renameSync(this.filePath, quarantinePath);
+      preserved = true;
+    } catch {
+      preserved = false;
+    }
+    this.noteRecovery(preserved ? 'quarantined' : 'quarantine-failed', bytes);
+    logger.error('Work plan file was unreadable; continuing with an empty plan', {
+      path: this.filePath,
+      bytes,
+      preserved,
+      ...(preserved ? { quarantinePath } : {}),
+      reason,
+    });
   }
 
   private createEmptyPlan(): WorkPlan {

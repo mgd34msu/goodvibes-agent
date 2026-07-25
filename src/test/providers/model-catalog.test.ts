@@ -5,6 +5,7 @@ import {
   getCostFromPricingCatalog,
   createModelCatalog,
   getCatalogModelDefinitionsFrom,
+  reasoningEffortLevels,
 } from '@pellux/goodvibes-sdk/platform/providers';
 import {
   buildSyntheticCanonicalModels,
@@ -213,7 +214,11 @@ describe('getCatalogModelDefinitionsFrom', () => {
     const defs = getCatalogModelDefinitionsFrom(fixture);
     const reasoningModel = defs.find((def) => def.id === 'claude-sonnet-4-6');
     expect(reasoningModel?.capabilities.reasoning).toBe(true);
-    expect(reasoningModel?.reasoningEffort).toEqual(['instant', 'low', 'medium', 'high']);
+    // Claude Sonnet 4.6 has no reasoning_options in this fixture, so the SDK's
+    // curated family table supplies its real levels (low/medium/high/max) —
+    // not the old fixed instant/low/medium/high guess, which Anthropic never
+    // actually accepted for this model.
+    expect(reasoningEffortLevels(reasoningModel?.reasoningEffort)).toEqual(['low', 'medium', 'high', 'max']);
   });
 
   it('uses free and premium tier mapping from pricing', () => {

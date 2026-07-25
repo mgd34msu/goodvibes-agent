@@ -348,6 +348,12 @@ export function handleBlockCopy(
   if (!content) return;
   copyToClipboard(content);
   onCopied();
+  // An explicit action on this block permanently exempts it from the
+  // search-close auto-re-collapse (see ConversationManager.noteUserTouch) —
+  // copying content the user just had search reveal is a deliberate choice
+  // to keep it visible, not an accident of typing a query.
+  const nearest = conversationManager.findNearestBlock(lineIndex);
+  if (nearest) conversationManager.noteUserTouch(nearest.collapseKey);
   requestRender();
   setTimeout(() => requestRender(), 2005);
 }
@@ -368,6 +374,8 @@ export function handleBookmark(
   }
   const label = `${nearest.type}: ${nearest.rawContent.slice(0, 40).replace(/\n/g, ' ')}`;
   const added = bookmarkManager.toggle(nearest.collapseKey, label);
+  // See handleBlockCopy's note — bookmarking is an explicit block action too.
+  conversationManager.noteUserTouch(nearest.collapseKey);
   const msg = added
     ? `[Bookmarked: ${nearest.collapseKey}]`
     : `[Bookmark removed: ${nearest.collapseKey}]`;
@@ -390,6 +398,9 @@ export function handleBlockSave(
     requestRender();
     return;
   }
+  // No noteUserTouch() here, unlike handleBlockCopy/handleBookmark — the
+  // save itself is disabled below (a no-op receipt only), so there is no
+  // real content action to exempt from search's close-time re-collapse.
   conversationManager.log('[Block file save is disabled in GoodVibes Agent: copy the block explicitly or use /export markdown <path> --yes for the conversation.]', { fg: '#f59e0b' });
   requestRender();
 }

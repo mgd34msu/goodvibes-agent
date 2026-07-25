@@ -3,8 +3,8 @@ import { getProviderIdFromModel } from '../config/provider-model.ts';
 import type { ConversationManager } from '../core/conversation';
 import type { CommandContext } from '../input/command-registry.ts';
 import type { InputHandler } from '../input/handler.ts';
-import { EFFORT_DESCRIPTIONS } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { describeServingEffort, effortPresentationForModel, publishActiveEffortOptions, requestedEffortLevel, servingEffortForLevel, toEffortModel } from '../providers/reasoning-effort-surface.ts';
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
@@ -251,32 +251,47 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
 
   commandContext.openReasoningEffortPicker = () => {
     const currentModel = providerRegistry.getCurrentModel();
-    const validLevels = currentModel.reasoningEffort ?? [];
-    if (validLevels.length === 0) {
+    const model = toEffortModel(currentModel);
+    // Only this model's real levels — a fallback-sourced guess does not get an
+    // automatic picker step, since the SDK's OpenAI/Gemini adapters drop the
+    // level entirely for a model nothing recognises.
+    publishActiveEffortOptions(model, runtime.sessionId);
+    const presentation = effortPresentationForModel(model);
+    if (!presentation.configurable) {
       return { opened: false, model: currentModel.displayName, levels: [], reason: 'unsupported' };
     }
 
-    const current = String(runtime.reasoningEffort || configManager.get('provider.reasoningEffort') || 'medium');
-    const descriptions: Record<string, string> = {
-      ...EFFORT_DESCRIPTIONS,
-      medium: 'Balanced speed and quality (default)',
-    };
+    // The user's REQUESTED level, not the session's effective one: this picker
+    // re-chooses the preference, so it must preselect what was asked for even
+    // while a model that caps lower is serving.
+    const requested = requestedEffortLevel(configManager);
+    // Open on the level in EFFECT — the requested level snapped to this model.
+    // A requested level the model caps below is not in the list at all, and
+    // preselecting a missing id lands on the lowest level rather than on what
+    // is actually running.
+    const current = (requested ? servingEffortForLevel(requested, model).effective : undefined)
+      ?? requested
+      ?? presentation.choices[0]?.level
+      ?? '';
     input.openSelection(
       'Reasoning Effort',
-      validLevels.map((level) => ({
-        id: level,
-        label: level,
-        detail: level === current ? `current - ${descriptions[level] ?? level}` : (descriptions[level] ?? level),
+      presentation.choices.map((choice) => ({
+        id: choice.level,
+        label: choice.level,
+        detail: choice.level === current ? `current - ${choice.description}` : choice.description,
       })),
       { preSelectId: current, allowSearch: false },
       (result) => {
         if (!result) return;
-        const level = result.item.id as 'instant' | 'low' | 'medium' | 'high';
-        runtime.reasoningEffort = level;
+        const level = result.item.id;
+        // An explicit user choice — the one kind of write that is allowed to
+        // change the stored preference.
         configManager.set('provider.reasoningEffort', level);
+        const serving = servingEffortForLevel(level, model);
+        runtime.reasoningEffort = serving.effective ?? '';
         commandContext.print([
           'Reasoning effort set',
-          `  level ${level}`,
+          `  level ${describeServingEffort(serving, model)}`,
         ].join('\n'));
         render();
       },
@@ -284,7 +299,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     return {
       opened: true,
       model: currentModel.displayName,
-      levels: validLevels,
+      levels: presentation.choices.map((choice) => choice.level),
     };
   };
 
@@ -340,7 +355,7 @@ export function wireShellUiOpeners(options: WireShellUiOpenersOptions): void {
     input.searchManager.open();
     const searchQuery = query?.trim() ?? '';
     if (searchQuery.length > 0) {
-      input.searchManager.search(searchQuery, input.getHistory());
+      input.searchManager.search(searchQuery, input.getHistory(), conversation);
     }
     render();
   };

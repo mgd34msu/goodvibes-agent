@@ -350,7 +350,7 @@ describe('AutomationManager', () => {
       prompt: string;
       fallbackModels?: readonly string[];
       routing?: SpawnAutomationTaskInput['routing'];
-      reasoningEffort?: 'instant' | 'low' | 'medium' | 'high';
+      reasoningEffort?: string;
       context?: string;
     } | undefined;
     const manager = createManager({

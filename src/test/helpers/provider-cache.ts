@@ -41,9 +41,11 @@ export function getProviderCachePaths(cacheDir: string): ProviderCachePaths {
 export function writeModelCatalogCache(models: CatalogModel[], cacheDir: string, fetchedAt = Date.now(), ttlMs = 86_400_000): void {
   const { catalogPath } = getProviderCachePaths(cacheDir);
   mkdirSync(cacheDir, { recursive: true });
-  // Catalog cache version 2: `pricing` is nullable (honestly unpriced, never
-  // a coerced $0); version-1 caches are discarded by the SDK loader.
-  const payload = { version: 2 as const, fetchedAt, ttlMs, models };
+  // Catalog cache version 3: `reasoningOptions` carries the feed's per-model
+  // `reasoning_options` array (the SDK's per-model reasoning-effort round);
+  // version-2 and earlier caches are discarded and refetched by the SDK
+  // loader, which silently empties this fixture unless the version matches.
+  const payload = { version: 3 as const, fetchedAt, ttlMs, models };
   writeFileSync(catalogPath, JSON.stringify(payload, null, 2), 'utf-8');
 }
 

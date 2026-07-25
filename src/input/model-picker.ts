@@ -1,9 +1,9 @@
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import type { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
-import { EFFORT_DESCRIPTIONS } from '@pellux/goodvibes-sdk/platform/providers';
 import { getQualityTier, getQualityTierFromScore, compositeScore, A_TIER_THRESHOLD } from '@pellux/goodvibes-sdk/platform/providers';
 import type { BenchmarkStore } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { buildEffortPickerItems, resolveEffortPickerState } from './model-picker-effort.ts';
 import { detectFamily, POPULAR_PROVIDERS, tierToCategoryFilter } from './model-picker-types.ts';
 import type { BenchmarkSort, CapabilityFilter, CategoryFilter, FilteredModelsCache, FilteredProvidersCache, GroupByMode, ModelItemsCache, ModelPickerFocusPane, ModelPickerTarget, ModelPickerTargetInfo, PickerItem, PickerMode, ProviderItemsCache } from './model-picker-types.ts';
 import { filterProviders, groupProviders } from './model-picker-provider-filter.ts';
@@ -48,6 +48,7 @@ export class ModelPickerModal {
   public models: ModelDefinition[] = [];
   public providers: string[] = [];
   public effortLevels: string[] = [];
+  public effortDetails: ReadonlyMap<string, string> = new Map();
   /** The model chosen in model-mode, awaiting effort selection. */
   public pendingModel: ModelDefinition | null = null;
   /** The model awaiting context cap input (contextCap mode). */
@@ -252,10 +253,11 @@ export class ModelPickerModal {
     this.previousMode = 'model';
     this.pendingModel = model;
     this.searchFocused = false;
-    this.effortLevels = model.reasoningEffort ?? [];
+    const { levels, details } = resolveEffortPickerState(model);
+    this.effortLevels = levels;
+    this.effortDetails = details;
     this.mode = 'effort';
-    const idx = this.effortLevels.indexOf(currentEffort);
-    this.selectedIndex = idx >= 0 ? idx : 0;
+    this.selectedIndex = Math.max(0, this.effortLevels.indexOf(currentEffort));
     this.scrollOffset = 0;
   }
 
@@ -270,6 +272,7 @@ export class ModelPickerModal {
     this.models = [];
     this.providers = [];
     this.pendingModel = null;
+    this.effortDetails = new Map();
     this.contextCapPendingModel = null;
     this.contextCapQuery = '';
     this.searchFocused = false;
@@ -653,7 +656,7 @@ export class ModelPickerModal {
       return providerItems;
     }
     // effort mode
-    return this.effortLevels.map(e => ({ id: e, label: e, detail: EFFORT_DESCRIPTIONS[e] ?? '' }));
+    return buildEffortPickerItems(this.effortLevels, this.effortDetails);
   }
 
   /** Build a PickerItem for a model, including quality tier and pin status. */

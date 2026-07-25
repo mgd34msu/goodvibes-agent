@@ -18,6 +18,7 @@ import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { BenchmarkStore, type BenchmarkEntry } from '@pellux/goodvibes-sdk/platform/providers';
+import { reasoningEffortSpecFromLevels } from '@pellux/goodvibes-sdk/platform/providers';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -52,7 +53,7 @@ const REASONING_MODEL = makeModel({
   tier: 'premium',
   provider: 'provC',
   capabilities: { toolCalling: true, codeEditing: true, reasoning: true, multimodal: false },
-  reasoningEffort: ['low', 'medium', 'high'],
+  reasoningEffort: reasoningEffortSpecFromLevels(['low', 'medium', 'high']),
 });
 
 const ALL_MODELS = [FREE_MODEL, FREE_MODEL_2, PREMIUM_MODEL, REASONING_MODEL];
