@@ -32,6 +32,7 @@ export type SettingsCategory =
   | 'helper'
   | 'tts'
   | 'surfaces'
+  | 'conversationGate'
   | 'automation'
   | 'checkin'
   | 'service'
@@ -78,7 +79,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
-  { label: 'Channels and Tools', categories: ['surfaces', 'mcp', 'automation', 'checkin', 'integrations'] },
+  { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'mcp', 'automation', 'checkin', 'integrations'] },
   { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network', 'relay', 'update'] },
   { label: 'Advanced Runtime', categories: ['orchestration', 'fleet', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc', 'memory'] },
   { label: 'Advanced', categories: ['flags', 'release'] },

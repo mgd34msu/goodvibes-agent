@@ -108,6 +108,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   cache: 'Cache',
   mcp: 'MCP',
   surfaces: 'Channels',
+  conversationGate: 'Channel Message Handling',
   release: 'Update Channel',
   tools: 'Tools',
   flags: 'Feature Controls',

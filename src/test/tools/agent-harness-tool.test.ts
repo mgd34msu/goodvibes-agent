@@ -10648,7 +10648,11 @@ describe('agent_harness tool', () => {
       expect(notesArtifactJson.lookup.resolvedBy).toBe('id');
       expect(notesArtifactJson.artifact.id).toBe('release-notes');
       expect(notesArtifactJson.artifact.path).toBe('release/release-notes.md');
-      expect(notesArtifactJson.artifact.content).toContain('fullscreen Agent workspace');
+      // Assert the SHAPE of the notes, never their wording: the live
+      // release/release-notes.md is rewritten every release, so pinning a
+      // phrase from one release's copy makes this test fail on the next one.
+      expect(notesArtifactJson.artifact.content).toBeTruthy();
+      expect(notesArtifactJson.artifact.content!.trimStart().startsWith('- ')).toBe(true);
       expect(notesArtifactJson.artifact.summary?.bullets).toBeGreaterThan(0);
 
       const ambiguousArtifact = await fixture.tool.execute({ mode: 'release_evidence_artifact', query: 'live verification' });

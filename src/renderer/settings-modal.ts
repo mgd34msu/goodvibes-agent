@@ -57,6 +57,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   cache: 'Provider and model cache behavior, TTL, and hit-rate monitoring.',
   mcp: 'MCP server trust and scope review. Trust changes can expose local files, tools, databases, browsers, or remote automation depending on the server.',
   surfaces: 'Messaging and notification channel accounts such as Slack, Discord, ntfy, Telegram, chat bridges, and delivery providers.',
+  conversationGate: 'What a message arriving from a channel does. By default it gets a conversational answer, and work is proposed and waits for your agreement rather than starting on its own; you can instead confirm every run, or restore the old behavior where a message starts work immediately. Also how long a pending proposal stays answerable and how many can wait at once. Schedules, triggers, and on-exit chains were authorized when created and are never gated here.',
   release: 'Update-channel preference.',
   update: "Connected-host self-update posture: whether the daemon checks for, verifies, and swaps in new releases on its own, how often it checks, and where releases are resolved from. The daemon applies these itself; the Agent only edits the shared keys.",
   pricing: 'Manual model prices (USD per 1M tokens, keyed provider:model). A manual price outranks registration, provider-served, and catalog prices in the one pricing resolver; unknown models stay honestly unpriced.',

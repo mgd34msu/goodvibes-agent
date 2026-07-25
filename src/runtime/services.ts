@@ -65,6 +65,7 @@ import { MultimodalService } from '@pellux/goodvibes-sdk/platform/multimodal';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
 import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
+import { continuationChainOptions } from './conversation-first-continuation.js';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore, resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
@@ -950,6 +951,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     const record = agentManager.spawn({
       mode: 'spawn',
       task,
+      // Conversation first: a follow-up message in a session gets an answer,
+      // not a write-review-fix-confirm chain with a reviewer, quality gates,
+      // and a second agent. Only an explicit authorization marker — set by the
+      // channel confirmation the owner gave, or by the schedule/trigger that
+      // was confirmed when it was created — opens a chain here.
+      ...continuationChainOptions(input),
       // Spawn routing resolves through the SDK's shared model-reference
       // resolver contract (unique-across-registry auto-qualifies; ambiguous
       // and unknown ids throw errors naming real candidates) — the live
