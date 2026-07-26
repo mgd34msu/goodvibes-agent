@@ -72,7 +72,7 @@ export function createAgentTerminalTool(commandContext: CommandContext): Tool {
   return {
     definition: {
       name: 'terminal',
-      description: 'Start visible tracked background shell commands. A timeout terminates ordinary commands; a long_lived process (browser, editor, server) keeps running past it unless killOnTimeout is set true.',
+      description: 'Start visible tracked background shell commands. A timeout terminates ordinary commands; a long_lived process (an interactive application or a server) keeps running past it unless killOnTimeout is set true.',
       parameters: {
         type: 'object',
         properties: {
@@ -83,7 +83,7 @@ export function createAgentTerminalTool(commandContext: CommandContext): Tool {
           processClass: {
             type: 'string',
             enum: ['command', 'long_lived'],
-            description: 'command: an ordinary job, terminated when timeoutMs expires. long_lived: a browser, editor, or server whose lifetime is the user\'s — it keeps running past timeoutMs and must be stopped explicitly. Inferred from the program name when omitted.',
+            description: 'command: an ordinary job, terminated when timeoutMs expires. long_lived: an interactive application or a server whose lifetime is the user\'s — it keeps running past timeoutMs and must be stopped explicitly. Inferred from the program name when omitted.',
           },
           killOnTimeout: { type: 'boolean', description: 'Overrides processClass: true terminates this process when timeoutMs expires, false leaves it running. Set true deliberately before a timeout may destroy something the user is using.' },
           pty: { type: 'boolean', description: 'Request PTY mode; returns unsupported until the SDK publishes a typed PTY contract.' },
