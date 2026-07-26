@@ -1,26 +1,20 @@
 /**
- * Regression guard for the LAN leader-election boundary: this process
- * (goodvibes-agent) composes NO inbound channel consumer of its own.
+ * Regression guard for this process's adopt-only contract: goodvibes-agent
+ * composes NO inbound channel consumer of its own.
  *
- * Why this matters: the SDK's cluster leadership gate
- * (`@pellux/goodvibes-sdk/platform/cluster`, `ClusterCoordinator.register`)
- * exists so that when several goodvibes nodes run on one LAN, exactly ONE
- * of them polls Telegram's getUpdates, subscribes to ntfy, or otherwise
- * drains an inbox. That gate is wired into the SDK daemon facade and the
- * goodvibes-tui daemon because those two processes actually construct or
- * embed a daemon and actually start those consumers. This process does
- * neither: `src/runtime/bootstrap-external-services.ts` only ever ADOPTS a
- * connected host through the SDK's adopt-or-spawn policy with
- * `adoptOnly: true` — it never constructs, embeds, or restarts a
+ * This process never runs a daemon of its own. `src/runtime/bootstrap-external-services.ts`
+ * only ever ADOPTS a connected host through the SDK's adopt-or-spawn policy
+ * with `adoptOnly: true` — it never constructs, embeds, or restarts a
  * DaemonServer, and there is no getUpdates/ntfy/inbox poll loop anywhere
  * under src/ outside tests.
  *
  * That property is true today by construction, but nothing enforced it.
- * If a future change adds a subscriber here without also wiring the
- * leadership gate, two processes (this one and the connected host it
- * adopted) would consume the same inbound message and answer it twice —
- * the exact double-answer bug leader election exists to prevent. These
- * tests fail loudly, with an explanation, the moment that stops being true.
+ * Constructing a daemon or starting an inbound consumer (a Telegram
+ * getUpdates poll, an ntfy subscription, an inbox poller) here would be an
+ * architectural change to how this process relates to the daemon it
+ * connects to, and must be raised and agreed on deliberately — never made
+ * silently as a side effect of an unrelated change. These tests fail
+ * loudly, with an explanation, the moment that stops being true.
  */
 import { describe, expect, mock, test } from 'bun:test';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -95,19 +89,18 @@ describe('external-services bootstrap stays adopt-only (no daemon construction)'
     expect(
       calls.length,
       'wireAgentExternalServices must call the SDK adopt-or-spawn policy exactly once during boot discovery. ' +
-      'This process is adopt-only: inbound-channel consumption belongs to the connected host it adopts, never to ' +
-      'this process itself. If this count changed, check what boot-time path now bypasses the shared policy call.',
+      'This process is adopt-only: it connects to an existing daemon rather than running one. If this count ' +
+      'changed, check what boot-time path now bypasses the shared policy call.',
     ).toBe(1);
 
     const [, , , , factories] = calls[0] as [unknown, unknown, unknown, unknown, Record<string, unknown> | undefined];
     expect(
       factories,
       'The Agent must pass { adoptOnly: true } (and no daemon-construction factory) to the SDK\'s startHostServices ' +
-      'policy. adoptOnly is what stops this process from ever spawning or embedding its own DaemonServer. Losing this ' +
-      'flag would let the Agent construct a daemon of its own — and a self-constructed daemon with no leadership gate ' +
-      'would consume the same inbound Telegram/ntfy messages as the connected host it also adopts, answering every ' +
-      'message twice. If this process is ever meant to construct a daemon, that change must also wire the SDK\'s ' +
-      'cluster leadership gate (@pellux/goodvibes-sdk/platform/cluster, ClusterCoordinator.register) in the same round.',
+      'policy. adoptOnly is what stops this process from ever spawning or embedding its own DaemonServer, per the ' +
+      'contract in src/runtime/bootstrap-external-services.ts. Losing this flag would let the Agent construct a ' +
+      'daemon of its own — that is an architectural change to how this process relates to the daemon it connects ' +
+      'to, and it must be raised and agreed on deliberately, not land as a side effect of this call site changing.',
     ).toEqual({ adoptOnly: true });
     expect(
       factories && 'createDaemonServer' in factories,
@@ -138,11 +131,11 @@ describe('no inbound channel consumer exists anywhere under src/ (excluding test
     },
     {
       needle: 'ChannelProviderRuntimeManager',
-      why: 'this is the shared multi-provider channel runtime that actually drives inbound consumption; constructing it here would make this process a second, ungated consumer',
+      why: 'this is the shared multi-provider channel runtime that actually drives inbound consumption; constructing it here would make this process an inbound consumer of its own, which is outside its adopt-only contract',
     },
     {
       needle: 'new DaemonServer',
-      why: 'constructing a DaemonServer is exactly what src/runtime/bootstrap-external-services.ts deliberately never does (it only adopts, via adoptOnly: true) — a self-constructed daemon here would have no leadership gate and would double-consume alongside the connected host',
+      why: 'constructing a DaemonServer is exactly what src/runtime/bootstrap-external-services.ts deliberately never does (it only adopts, via adoptOnly: true)',
     },
   ];
 
@@ -156,8 +149,7 @@ describe('no inbound channel consumer exists anywhere under src/ (excluding test
         if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
         // src/test/ is explicitly excluded from this guard: test helpers and
         // fixtures are allowed to reference these names (e.g. to assert their
-        // absence, as this very file does), and this is where the SDK/TUI
-        // side's own leader-election tests live, not this project's.
+        // absence, as this very file does).
         if (relative(SRC_ROOT, fullPath) === 'test') continue;
         collectSourceFiles(fullPath, acc);
         continue;
@@ -190,13 +182,12 @@ describe('no inbound channel consumer exists anywhere under src/ (excluding test
 
     expect(
       violations,
-      'This process (goodvibes-agent) is adopt-only: it never constructs or embeds a daemon and never starts an ' +
-      'inbound channel consumer of its own (no Telegram getUpdates poll, no ntfy subscribe, no inbox poll loop). ' +
-      'Inbound consumption belongs to the connected host this process adopts through startExternalServices({ ' +
-      'adoptOnly: true }, ...). If one of the violations below is a deliberate, intentional change, it must land ' +
-      'together with the SDK\'s cluster leadership gate (@pellux/goodvibes-sdk/platform/cluster, ' +
-      'ClusterCoordinator.register) in the same commit — otherwise this process and the connected host it also ' +
-      'adopts will both consume the same inbound message and answer it twice.',
+      'This process (goodvibes-agent) is adopt-only: it connects to an existing daemon rather than running one, ' +
+      'per the contract in src/runtime/bootstrap-external-services.ts (startExternalServices called with ' +
+      '{ adoptOnly: true }). It never constructs or embeds a daemon and never starts an inbound channel consumer ' +
+      'of its own (no Telegram getUpdates poll, no ntfy subscribe, no inbox poll loop). Adding an inbound consumer ' +
+      'here is an architectural change and must be raised and agreed on deliberately, not made silently — if one ' +
+      'of the violations below is intentional, stop and raise it before landing it.',
     ).toEqual([]);
   });
 });
