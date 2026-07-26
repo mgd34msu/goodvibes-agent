@@ -1044,6 +1044,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const memorySpineTransport = createMemorySpineRestTransport({ resolveConnection: spineResolveConnection });
   const deliveryManager = new AutomationDeliveryManager({
     configManager,
+    // Required: the router this builds resolves goodvibes://secrets/...
+    // surface credentials through it. Omitting it produced a delivery path
+    // that accepted replies and dropped them at send time — see the same fix
+    // in goodvibes-tui and the SDK's now-mandatory parameter.
+    secretsManager,
     serviceRegistry,
     runtimeBus: options.runtimeBus,
     runtimeStore: options.runtimeStore,
