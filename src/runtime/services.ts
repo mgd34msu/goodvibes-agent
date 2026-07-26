@@ -930,6 +930,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     routeBindings,
     agentStatusProvider: agentManager,
     messageSender: agentMessageBus,
+    // Without this the conversation gate runs on DEFAULTS: an inbound channel
+    // message landing in an already-live session takes the live-agent handover
+    // and starts work whatever conversationGate.mode/gatedSurfaces say.
+    conversationGateConfig: configManager,
   });
   // The SDK's extracted session-spine core, consumed via this surface's
   // own REST transport adapter (session-spine-rest-transport.ts) — version-
