@@ -32,7 +32,23 @@ const packRaw = execSync('npm pack --json --dry-run', {
   stdio: ['ignore', 'pipe', 'inherit'],
 });
 
-const [packResult] = JSON.parse(packRaw);
+/**
+ * `npm pack --json` reports one entry per packed package, but not in one
+ * shape: npm 11 and earlier emit an ARRAY of results, npm 12 emits an OBJECT
+ * keyed by package name. Reading only the array shape made this check throw
+ * "{} is not iterable" on npm 12 — a crash before any tarball rule ran, so the
+ * gate reported failure without having actually inspected anything. Accept
+ * either, so the check depends on the tarball rather than on which npm the
+ * machine happens to ship.
+ */
+type PackResult = { files?: Array<{ path: string }>; size?: number };
+const packParsed: unknown = JSON.parse(packRaw);
+const packResult = (Array.isArray(packParsed)
+  ? packParsed[0]
+  : Object.values((packParsed ?? {}) as Record<string, unknown>)[0]) as PackResult | undefined;
+if (packResult === undefined) {
+  throw new Error(`npm pack --json reported no packed package: ${packRaw.slice(0, 400)}`);
+}
 const filePaths = Array.isArray(packResult.files) ? packResult.files.map((entry) => entry.path) : [];
 for (const filePath of filePaths) {
   if (isForbiddenPackageTarballPath(filePath)) {
