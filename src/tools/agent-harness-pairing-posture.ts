@@ -576,7 +576,7 @@ function buildDeviceCapabilityMap(context: CommandContext): DeviceCapabilityMap 
         'execution action:"status" query:"browser desktop" includeParameters:true',
       ],
       evidence: {
-        toolMatches: browserPosture.toolMatches,
+        declaredControlTools: browserPosture.declaredControlTools,
         mcpServers: browserPosture.mcpServers.length,
       },
       policy: browserPosture.policy,

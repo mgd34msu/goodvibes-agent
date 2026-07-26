@@ -1,6 +1,8 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../input/command-registry.ts';
 import { interactiveRuntimeCapabilitySummary, interactiveRuntimeParityStatus } from './agent-harness-interactive-runtime-records.ts';
+import { isAgentMcpCallRouteInstalled } from './agent-mcp-call-route.ts';
+import { toolsDeclaringCapability } from './agent-tool-capability-declarations.ts';
 import type { AgentHarnessInteractiveRuntimeRecord } from './agent-harness-interactive-runtime-records.ts';
 
 type BrowserControlStatus = 'ready' | 'attention' | 'setup-needed';
@@ -43,10 +45,33 @@ interface BrowserControlDecision {
   readonly safety: string;
 }
 
+/**
+ * A route that can actually be called right now.
+ *
+ * Readiness is computed from this list and nothing else. A capability that
+ * reports "ready" while every named route is uninvocable is the exact failure
+ * this file used to have: it advertised availability:"ready" and pointed the
+ * model at MCP browser tools that no tool mode could invoke, and the model
+ * spent a session improvising around a route that did not exist.
+ */
+export interface BrowserControlInvocationRoute {
+  readonly kind: 'first-class-tool' | 'mcp-tool-call' | 'daemon-certified-route';
+  readonly toolName: string;
+  readonly modelRoute: string;
+  readonly summary: string;
+}
+
 export interface BrowserControlPosture {
   readonly status: BrowserControlStatus;
   readonly configured: boolean;
   readonly needsReview: boolean;
+  /** Every route that can be invoked as-is. Empty means nothing can drive a browser. */
+  readonly invocationRoutes: readonly BrowserControlInvocationRoute[];
+  /** Named blockers when nothing is invocable, each with the fix. */
+  readonly blockers: readonly string[];
+  /** Registered tools that DECLARED browser control. Never inferred from text. */
+  readonly declaredControlTools: readonly string[];
+  /** Same list as declaredControlTools, kept for existing readers of this posture. */
   readonly toolMatches: readonly string[];
   readonly mcpServers: readonly BrowserControlMcpServer[];
   readonly certifiedRuntimeRecords: readonly AgentHarnessInteractiveRuntimeRecord[];
@@ -62,8 +87,13 @@ export interface BrowserControlPosture {
 
 type McpServerRecord = ReturnType<NonNullable<NonNullable<CommandContext['clients']>['mcpApi']>['listServerSecurity']>[number];
 
-const BROWSER_CONTROL_TERMS = ['browser', 'desktop', 'computer use', 'screenshot', 'screen recording'];
-const POSTURE_ONLY_TOOL_NAMES = new Set(['agent_harness', 'computer', 'device', 'execution', 'route', 'workspace']);
+/**
+ * MCP server roles that declare browser control. `role` is set deliberately in
+ * the server's configuration, so it is a statement rather than a guess. Server
+ * names and descriptions are never scanned: a server called "browser-notes"
+ * must not become a browser-control provider because of its name.
+ */
+const BROWSER_CONTROL_MCP_ROLES = new Set(['browser']);
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
@@ -71,11 +101,6 @@ function readString(value: unknown): string {
 
 function quoteRouteValue(value: string): string {
   return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-}
-
-function includesBrowserControlTerm(value: string): boolean {
-  const normalized = value.toLowerCase();
-  return BROWSER_CONTROL_TERMS.some((term) => normalized.includes(term));
 }
 
 function safeToolDefinitions(toolRegistry: ToolRegistry | undefined): readonly ReturnType<ToolRegistry['getToolDefinitions']>[number][] {
@@ -123,7 +148,7 @@ function browserControlWorkflows(
   const status = workflowStatus(configured, needsReview);
   const inspectRoute = configured ? recommendedRoute : setupRoute;
   const next = configured
-    ? 'Inspect the configured tool/server, then run the narrowest browser or desktop action needed for the user request.'
+    ? `Call ${recommendedRoute} — this route is invocable now.`
     : needsReview
       ? 'Review trust/schema freshness before treating this browser or desktop connector as usable.'
       : 'Configure a trusted browser/desktop MCP server or first-class tool before attempting live UI control.';
@@ -161,35 +186,92 @@ function browserControlWorkflows(
   ];
 }
 
+/**
+ * The routes that can be invoked, derived from what is registered right now:
+ * the first-class browser tool, and MCP browser tools once the mcp call route
+ * exists to invoke them. Nothing is listed on the strength of a keyword match.
+ */
+function browserInvocationRoutes(
+  registry: ToolRegistry | undefined,
+  mcpServers: readonly BrowserControlMcpServer[],
+  certifiedExecuteRoute: string | null,
+): readonly BrowserControlInvocationRoute[] {
+  const routes: BrowserControlInvocationRoute[] = [];
+  const registeredNames = new Set(safeToolDefinitions(registry).map((tool) => tool.name));
+  const declared = new Set(toolsDeclaringCapability('browser-control'));
+  if (registeredNames.has('browser') && declared.has('browser')) {
+    routes.push({
+      kind: 'first-class-tool',
+      toolName: 'browser',
+      modelRoute: 'browser action:"navigate" url:"https://example.com"',
+      summary: 'Drive a real browser directly: navigate, snapshot, click, type, read the page, screenshot. Provisions its own browser on first use.',
+    });
+  }
+  if (certifiedExecuteRoute) {
+    // A certified daemon record counts only when it declares a route that
+    // RUNS something. A record that offers inspection alone describes browser
+    // control without providing it, which is not readiness.
+    routes.push({
+      kind: 'daemon-certified-route',
+      toolName: certifiedExecuteRoute.split(' ')[0] ?? 'execution',
+      modelRoute: certifiedExecuteRoute,
+      summary: 'Run browser or desktop control through the connected host, using the route its certified record declares.',
+    });
+  }
+  if (registeredNames.has('mcp') && isAgentMcpCallRouteInstalled()) {
+    for (const server of mcpServers) {
+      if (server.readiness !== 'ready') continue;
+      routes.push({
+        kind: 'mcp-tool-call',
+        toolName: 'mcp',
+        modelRoute: `mcp mode:"call" qualifiedName:"mcp:${server.name}:<tool>" input:{...}`,
+        summary: `Call a tool on the connected MCP server "${server.name}". List its tools with mcp mode:"tools" serverName:"${server.name}".`,
+      });
+    }
+  }
+  return routes;
+}
+
 export function browserControlPosture(context: CommandContext, toolRegistry?: ToolRegistry): BrowserControlPosture {
   const registry = toolRegistry ?? context.extensions?.toolRegistry;
-  const toolMatches = safeToolDefinitions(registry)
-    .filter((tool) => !POSTURE_ONLY_TOOL_NAMES.has(tool.name))
-    .filter((tool) => includesBrowserControlTerm(`${tool.name}\n${tool.description}`))
-    .map((tool) => tool.name)
-    .sort((left, right) => left.localeCompare(right));
+  const registeredNames = new Set(safeToolDefinitions(registry).map((tool) => tool.name));
+  const declaredControlTools = toolsDeclaringCapability('browser-control')
+    .filter((toolName) => registeredNames.has(toolName));
 
   const mcpServers = safeMcpServers(context)
-    .filter((server) => includesBrowserControlTerm(`${server.name}\n${server.role}`))
+    .filter((server) => BROWSER_CONTROL_MCP_ROLES.has(server.role))
     .map(describeMcpServer)
     .sort((left, right) => left.name.localeCompare(right.name));
 
-  const readyBrowserMcp = mcpServers.some((server) => server.readiness === 'ready');
   const needsReview = mcpServers.some((server) => server.readiness === 'attention');
   const runtime = interactiveRuntimeCapabilitySummary(context);
   const runtimeParity = interactiveRuntimeParityStatus(context);
-  const configured = runtimeParity.browserDesktopControlContract || toolMatches.length > 0 || readyBrowserMcp;
-  const recommendedRoute = configured
-    ? runtimeParity.browserDesktopRoute ?? 'execution action:"route" id:"browser-or-desktop-control"'
-    : needsReview
-      ? 'agent_harness mode:"mcp_servers" query:"browser desktop"'
-      : 'agent_harness mode:"mcp_servers" query:"browser desktop"';
+  const certifiedExecuteRoute = runtimeParity.browserDesktopRecords[0]?.routes
+    .find((route) => route.id === 'execute')?.modelRoute ?? null;
+  const invocationRoutes = browserInvocationRoutes(registry, mcpServers, certifiedExecuteRoute);
+  // Readiness is invocability. A connected MCP server, a tool whose name looks
+  // browser-shaped, or a certified record that only offers inspection are all
+  // reported below as context; none of them make this capability usable.
+  const configured = invocationRoutes.length > 0;
+  const blockers = configured
+    ? []
+    : [
+      'No browser route can be invoked from this session.',
+      ...(mcpServers.length > 0 && !isAgentMcpCallRouteInstalled()
+        ? ['MCP browser servers are connected but this session has no route that can call them.']
+        : []),
+      'Fix: the first-class browser tool provides browser control with no setup — if it is missing from the tool list, this build did not register it.',
+    ];
+  const recommendedRoute = invocationRoutes[0]?.modelRoute ?? 'agent_harness mode:"mcp_servers" query:"browser desktop"';
   const setupRoute = 'setup action:"item" setupItemId:"browser-desktop-control"';
   return {
     status: configured ? 'ready' : needsReview ? 'attention' : 'setup-needed',
     configured,
     needsReview,
-    toolMatches,
+    invocationRoutes,
+    blockers,
+    declaredControlTools,
+    toolMatches: declaredControlTools,
     mcpServers,
     certifiedRuntimeRecords: runtimeParity.browserDesktopRecords.slice(0, 5),
     runtime,
@@ -275,13 +357,18 @@ function browserControlDecision(
   const firstReadyMcpRoute = readString(mcpRoutes.find((route) => route.readiness === 'ready')?.inspectRoute);
   const firstReviewMcpRoute = readString(mcpRoutes[0]?.inspectRoute);
   if (posture.configured) {
+    const route = posture.invocationRoutes[0];
     return {
       id: 'inspect-configured-browser-control',
       status: 'ready-to-inspect-tool',
-      modelRoute: firstToolRoute || firstReadyMcpRoute || posture.recommendedRoute || posture.executionRoute,
+      modelRoute: route?.modelRoute ?? (firstToolRoute || firstReadyMcpRoute || posture.recommendedRoute || posture.executionRoute),
       userRoute: 'Agent Workspace -> Work & Approvals or Tools & MCP',
-      nextStep: `Inspect the configured ${workflow.label.toLowerCase()} tool/server, then invoke the narrowest live-control tool only if the user request still needs it.`,
-      reason: 'A browser/desktop control tool or fresh trusted MCP server is configured.',
+      nextStep: route
+        ? `Call ${route.modelRoute} directly. ${route.summary}`
+        : `Inspect the configured ${workflow.label.toLowerCase()} tool/server before acting.`,
+      reason: route
+        ? `${route.toolName} is registered and can be invoked from this session.`
+        : 'A browser/desktop control tool or fresh trusted MCP server is configured.',
       safety: workflow.safety,
     };
   }
@@ -325,6 +412,8 @@ export function browserControlRouteSummary(
     status: posture.status,
     configured: posture.configured,
     needsReview: posture.needsReview,
+    invocationRoutes: posture.invocationRoutes,
+    ...(posture.blockers.length > 0 ? { blockers: posture.blockers } : {}),
     workflow,
     decision,
     toolCandidates: toolRoutes,

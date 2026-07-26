@@ -102,5 +102,8 @@
   },
   "overrides": {
     "minimatch": "^10.2.5"
+  },
+  "dependencies": {
+    "playwright-core": "1.62.0"
   }
 }

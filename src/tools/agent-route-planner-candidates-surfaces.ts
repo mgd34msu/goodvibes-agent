@@ -123,6 +123,33 @@ if (browserControlLike(lower)) {
     });
   }
 
+  // Driving a browser is its own route. Before the browser tool existed, these
+  // requests were sent to readiness planners that describe browser control
+  // without performing any, which is how a request to open a page turned into
+  // a hunt for a tool that could open a page.
+  if (hasAny(lower, ['browse', 'browser', 'website', 'web page', 'webpage', 'url', 'navigate', 'click', 'log in', 'login', 'sign in', 'sign-in', 'fill in', 'fill out', 'form', 'screenshot', 'scrape', 'on the site', 'web site'])) {
+    add({
+      id: 'drive-a-browser',
+      label: 'Open and act on a web page',
+      score: 96,
+      userSurface: 'Browser',
+      userOutcome: 'Open the page, read what is on it, and act on it.',
+      why: 'The request needs a real web page opened, read, or acted on.',
+      modelRoute: 'browser action:"navigate" url:"..."',
+      inspectRoute: 'browser action:"status"',
+      userRoute: 'The browser window the agent opens',
+      requiresConfirmation: hasAny(lower, ['buy', 'purchase', 'order', 'pay', 'send', 'delete', 'cancel', 'submit']),
+      supportingRoutes: [
+        'browser action:"snapshot"',
+        'browser action:"click" ref:"..."',
+        'browser action:"type" ref:"..." text:"..."',
+        'browser action:"read_text"',
+        'browser action:"launch" headless:false profileName:"..."',
+      ],
+      policy: 'The browser tool drives a real browser directly and provisions one on first use. Every click and keystroke targets an element from a snapshot of a page it controls. Purchases, sends, and destructive actions need explicit user intent.',
+    });
+  }
+
   if (hasAny(lower, ['browser', 'pwa', 'dashboard', 'desktop', 'screen', 'screenshot', 'camera', 'voice', 'tts', 'phone', 'mobile', 'device'])) {
     const device = hasAny(lower, ['voice', 'tts', 'phone', 'mobile', 'device', 'camera']);
     add({

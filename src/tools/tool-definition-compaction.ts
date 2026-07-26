@@ -9,6 +9,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   analyze: 'Analyze code impact, symbols, and project risk.',
   autonomy: 'Route ongoing work and inspect visible autonomy.',
   channel: 'Inspect or operate configured channel surfaces.',
+  browser: 'Open, read, and act on real web pages.',
   channels: 'Inspect channel readiness, setup, triage, and receipts.',
   computer: 'Inspect/open browser, desktop, and computer routes.',
   context: 'Inspect project instructions and prompt context.',

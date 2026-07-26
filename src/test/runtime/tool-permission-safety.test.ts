@@ -79,6 +79,19 @@ describe('Agent tool permission safety guard', () => {
     expect(manager.getCategory('execution', { action: 'run' })).toBe('write');
     expect(manager.getCategory('channels', { action: 'triage' })).toBe('read');
     expect(manager.getCategory('channels', { action: 'deliveries' })).toBe('read');
+    expect(manager.getCategory('browser', { action: 'status' })).toBe('read');
+    expect(manager.getCategory('browser', { action: 'snapshot' })).toBe('read');
+    expect(manager.getCategory('browser', { action: 'read_text' })).toBe('read');
+    expect(manager.getCategory('browser', { action: 'tabs' })).toBe('read');
+    // Everything that touches the outside world is a write, including the ones
+    // that look passive: a navigation loads a real page and a screenshot puts a
+    // file on disk.
+    expect(manager.getCategory('browser', { action: 'navigate' })).toBe('write');
+    expect(manager.getCategory('browser', { action: 'click' })).toBe('write');
+    expect(manager.getCategory('browser', { action: 'type' })).toBe('write');
+    expect(manager.getCategory('browser', { action: 'screenshot' })).toBe('write');
+    expect(manager.getCategory('browser', { action: 'launch' })).toBe('write');
+    expect(manager.getCategory('browser', { action: 'evaluate' })).toBe('write');
     expect(manager.getCategory('computer', { action: 'status' })).toBe('read');
     expect(manager.getCategory('computer', { action: 'control' })).toBe('read');
     expect(manager.getCategory('computer', { action: 'browser' })).toBe('read');

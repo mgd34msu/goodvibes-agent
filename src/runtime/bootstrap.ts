@@ -46,6 +46,8 @@ import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from 
 import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
+import { shutdownAgentBrowserSessions } from '../tools/agent-browser-tool.ts';
+import { installAgentMcpCallRoute } from '../tools/agent-mcp-call-route.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
 import { registerAgentChannelsTool } from '../tools/agent-channels-tool.ts';
 import { registerAgentComputerTool } from '../tools/agent-computer-tool.ts';
@@ -431,6 +433,8 @@ export async function bootstrapRuntime(
   registerAgentAutonomyTool(toolRegistry, commandRegistry, commandContext);
   registerAgentChannelsTool(toolRegistry, commandRegistry, commandContext);
   registerAgentComputerTool(toolRegistry, commandRegistry, commandContext);
+  // Lets the agent actually invoke tools on MCP servers it can already see.
+  installAgentMcpCallRoute(toolRegistry, commandContext);
   registerAgentContextTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDelegationTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDeviceTool(toolRegistry, commandRegistry, commandContext);
@@ -753,6 +757,9 @@ export async function bootstrapRuntime(
       runtimeUnsubs.length = 0;
       forensicsCollector.dispose();
       services.executionLedger.dispose();
+      // Ends only the browsers this agent launched. A browser the agent
+      // attached to belongs to the person using it and is left running.
+      await shutdownAgentBrowserSessions();
       await deferredStartup.drain(100);
       await agentExternalServices.stop();
       // Clear agent status interval via ref (consistent with agentStatusIntervalRef usage)
