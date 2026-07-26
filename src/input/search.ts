@@ -82,7 +82,7 @@ export class SearchManager {
 
   /**
    * Update query and find matches — honestly counting hits inside collapsed
-   * blocks and folded tool-result groups WITHOUT expanding them. Expansion
+   * blocks and collapsed assistant turns WITHOUT expanding them. Expansion
    * only happens on navigation (see revealCurrentMatch): typing a query must
    * never collapse-destroy the transcript the user folded on purpose, but a
    * "no matches" while text the user watched stream by sits collapsed
@@ -90,11 +90,11 @@ export class SearchManager {
    * hidden until the user actually navigates there.
    *
    * That collapsed corpus is the block's own RAW content, plus — for a
-   * folded tool-result group — the raw content of every one of its member
-   * messages (a group's own rawContent is only its summary header line, and
-   * its members push no BlockMeta of their own while folded — see
-   * conversation-tool-groups.ts — so without the member corpus a needle
-   * living inside a member would count as zero hits for text the user
+   * collapsed assistant turn — the raw content of every tool result hanging
+   * under it (a turn header's own rawContent is only its summary line, and a
+   * hidden result pushes no BlockMeta of its own — see
+   * conversation-turn-structure.ts — so without the member corpus a needle
+   * living inside a result would count as zero hits for text the user
    * watched stream by).
    *
    * Matches are built in one pass over `history.getAllLines()` combined with
@@ -118,7 +118,7 @@ export class SearchManager {
   /**
    * Shared match builder for search() and revealCurrentMatch() — scans the
    * currently-rendered buffer for visible matches and every collapsed
-   * block/folded group for hidden ones, without mutating any collapse
+   * block/collapsed turn for hidden ones, without mutating any collapse
    * state. Kept separate from search() so revealCurrentMatch can rebuild the
    * match list after an expansion without resetting currentMatch back to 0.
    */
@@ -132,9 +132,9 @@ export class SearchManager {
       for (const block of registry) {
         if (!conversationManager.isCollapsed(block.blockIndex)) continue;
 
-        if (block.type === 'tool_group' && block.groupMemberIndexes) {
+        if (block.type === 'assistant_turn' && block.groupMemberIndexes) {
           // The header's own synthetic summary rarely matches, but count it
-          // honestly too — expanding the whole group is the only way to even
+          // honestly too — expanding the whole turn is the only way to even
           // attempt to reveal a header-corpus hit, since there is no single
           // member to isolate it to.
           const headerHits = countOccurrences(block.rawContent.toLowerCase(), lowerQuery);

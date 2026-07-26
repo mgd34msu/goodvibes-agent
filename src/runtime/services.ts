@@ -97,6 +97,8 @@ import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/works
  */
 type CheckpointSessionResolver = (ctx: { readonly turnId?: string | undefined; readonly agentId?: string | undefined }) => string | undefined;
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
+import { TriggerManager } from '@pellux/goodvibes-sdk/platform/triggers';
+import { createBunStreamHost, createProcessManagerTriggerHost, createTriggerActionExecutor } from '@pellux/goodvibes-sdk/platform/triggers';
 import { ModeManager } from '@pellux/goodvibes-sdk/platform/state';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
 import { MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
@@ -180,6 +182,8 @@ import {
 } from '@pellux/goodvibes-sdk/platform/tools';
 import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
 import { AgentExecutionLedger } from './execution-ledger.ts';
+import { VERSION } from '../version.ts';
+import { ClientBuildGuard } from './client-build-compatibility.ts';
 
 type WorktreeRegistry = RuntimeShell.WorktreeRegistry;
 // The SDK's FULL runtime-services shape, taken from the runtime bootstrap
@@ -595,6 +599,13 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly channelPlugins: ChannelPluginRegistry;
   readonly channelDeliveryRouter: ChannelDeliveryRouter;
   readonly watcherRegistry: WatcherRegistry;
+  /**
+   * Trigger family supervisor (stream watchers, model-free condition checks,
+   * on-exit process triggers). Constructed unconditionally so
+   * `watchers.triggers.enabled` is a real runtime toggle; it does no work
+   * while that flag is false. The SDK daemon facade start()/shutdown()s it.
+   */
+  readonly triggerManager: TriggerManager;
   readonly approvalBroker: ApprovalBroker;
   /**
    * Localhost dev-server fetch approval (ask once, persist
@@ -939,24 +950,60 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     const receipts = await spineReceiptConsumer();
     if (receipts.length > 0) daemonReceiptFeed.push(receipts);
   };
+  // A daemon update swaps the daemon binary and leaves this process running the
+  // build it started with. The daemon announces the minimum client build it
+  // accepts on the same /status read the liveness probe already makes; when
+  // this build is below it, the guard latches, the owner is told in the receipt
+  // feed that already renders daemon notices, and the continuation runner below
+  // stops taking shared-session work rather than executing it under superseded
+  // rules. See runtime/client-build-compatibility.ts.
+  const clientBuildGuard = new ClientBuildGuard({
+    clientVersion: VERSION,
+    onRestartRequired: (verdict) => {
+      logger.warn('daemon requires a newer client build; shared-session work is paused', {
+        clientVersion: verdict.clientVersion,
+        floor: verdict.floor,
+      });
+      daemonReceiptFeed.push([{ id: `client-build-floor:${verdict.floor ?? 'unknown'}`, text: verdict.message, at: Date.now() }]);
+    },
+  });
   const sessionSpineClient = new SessionSpineClient({
     participant: AGENT_SPINE_PARTICIPANT,
     transport: createSpineRestTransport({ resolveConnection: spineResolveConnection }),
     // Liveness only: a plain /status read that never consumes receipts. The
     // once-per-attach consuming read above is the agent's receipt reader.
-    probe: createSpineRestProbe({ resolveConnection: spineResolveConnection }),
+    probe: createSpineRestProbe({
+      resolveConnection: spineResolveConnection,
+      onDaemonFloor: (floor) => clientBuildGuard.observeFloor(floor),
+    }),
     log: logger,
   });
   sessionBroker.setContinuationRunner(async ({ task, input }) => {
+    // Too old for the live daemon: refuse the work instead of doing it the old
+    // way. The owner has already been told to restart this process.
+    if (!clientBuildGuard.maySharedSessionWork()) {
+      logger.warn('declined a shared-session continuation: this build is below the daemon floor', {
+        sessionId: input.sessionId,
+        floor: clientBuildGuard.current().floor,
+      });
+      return null;
+    }
     const record = agentManager.spawn({
       mode: 'spawn',
       task,
       // Conversation first: a follow-up message in a session gets an answer,
       // not a write-review-fix-confirm chain with a reviewer, quality gates,
-      // and a second agent. Only an explicit authorization marker — set by the
-      // channel confirmation the owner gave, or by the schedule/trigger that
-      // was confirmed when it was created — opens a chain here.
-      ...continuationChainOptions(input),
+      // and a second agent. A chain opens only for an explicit authorization
+      // marker — set by the channel confirmation the owner gave, or by the
+      // schedule/trigger that was confirmed when it was created — or for a
+      // follow-up typed on a local surface. The live configuration is read
+      // through a scalar-only adapter so `conversationGate.mode` governs both
+      // halves of the gate identically; the pinned SDK's config category union
+      // has no `conversationGate` member yet, so the surface LIST comes from
+      // the SDK's shipped defaults until this product re-pins.
+      ...continuationChainOptions(input, {
+        configReader: { get: (key: string) => configManager.get(key as never) },
+      }),
       // Spawn routing resolves through the SDK's shared model-reference
       // resolver contract (unique-across-registry auto-qualifies; ambiguous
       // and unknown ids throw errors naming real candidates) — the live
@@ -1446,6 +1493,40 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // createArchivableFleetRegistry is the shared terminal-shell wrapper over the
   // SDK's withFleetArchive(createProcessRegistry(...)) — one named seam both
   // daemon front-ends build the registry through so it cannot drift.
+  // Trigger family. Mirrors the SDK factory's own composition: config is a
+  // CLOSURE over configManager (so the flag toggles at runtime rather than only
+  // at restart) and the process host is ProcessManager-backed, so a supervised
+  // on-exit child inherits the same credential-env scrub, live output
+  // collection and SIGTERM/SIGKILL watchdog as any other background command.
+  const triggerManager = new TriggerManager({
+    storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'triggers.json'),
+    config: () => ({
+      enabled: configManager.get('watchers.triggers.enabled'),
+      backoffLadderMs: configManager.get('watchers.triggers.backoffLadderMs'),
+      breakerStrikes: configManager.get('watchers.triggers.breakerStrikes'),
+      defaultCheckIntervalMs: configManager.get('watchers.triggers.defaultCheckIntervalMs'),
+      probeTimeoutMs: configManager.get('watchers.triggers.probeTimeoutMs'),
+      maxConcurrentChecks: configManager.get('watchers.triggers.maxConcurrentChecks'),
+      observationRingSize: configManager.get('watchers.triggers.observationRingSize'),
+      runHistoryLimit: configManager.get('watchers.triggers.runHistoryLimit'),
+      runHistoryTtlHours: configManager.get('watchers.triggers.runHistoryTtlHours'),
+      eventLogLimit: configManager.get('watchers.triggers.eventLogLimit'),
+      eventLogTtlHours: configManager.get('watchers.triggers.eventLogTtlHours'),
+      sweepIntervalMs: configManager.get('watchers.triggers.sweepIntervalMs'),
+      supervisionTickMs: configManager.get('watchers.triggers.supervisionTickMs'),
+      streamQueueLimit: configManager.get('watchers.triggers.streamQueueLimit'),
+      streamBatchLines: configManager.get('watchers.triggers.streamBatchLines'),
+      streamBatchIntervalMs: configManager.get('watchers.triggers.streamBatchIntervalMs'),
+      onExitMaxDurationMs: configManager.get('watchers.triggers.onExitMaxDurationMs'),
+      onExitStdin: configManager.get('watchers.triggers.onExitStdin'),
+      outputTailBytes: configManager.get('watchers.triggers.outputTailBytes'),
+    }),
+    actions: createTriggerActionExecutor({ agents: agentManager, processManager }),
+    processHost: createProcessManagerTriggerHost(processManager),
+    streamHost: createBunStreamHost(),
+    sessionIsLive: (sessionId: string) => sessionBroker.getSession(sessionId) !== null,
+  });
+
   const processRegistry = createArchivableFleetRegistry({
     agentManager,
     wrfcController,
@@ -1453,6 +1534,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     codeIndexService: codeIndexStore,
     processManager,
     watcherRegistry,
+    triggerSupervisor: triggerManager,
     workflow,
     approvalBroker,
     sessionBroker,
@@ -1898,6 +1980,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     channelPlugins,
     channelDeliveryRouter,
     watcherRegistry,
+    triggerManager,
     approvalBroker,
     localhostFetchApproval,
     featureAnnouncementStore: announcementStore,

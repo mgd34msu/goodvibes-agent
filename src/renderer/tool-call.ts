@@ -5,9 +5,20 @@ import type { ToolCall } from '@pellux/goodvibes-sdk/platform/types';
 import { stripDangerousAnsi } from './ansi-sanitize.ts';
 import { friendlyToolLabel } from './tool-labels.ts';
 import { activeUiTones } from './theme.ts';
+import { GLYPHS } from '@pellux/goodvibes-sdk/platform/presentation';
+import { treeContentCol, writeTreeStatusGutter } from './conversation-tree.ts';
 
 const TOOL_NAME_MIN_WIDTH = 8;
 const TOOL_NAME_MAX_WIDTH = 30;
+
+/** Tree placement for a tool-call row rendered as a branch of its turn. */
+export interface ToolCallTreeOptions {
+  /** Effective indent in columns, already clamped by treeIndentCols(). */
+  readonly indentCols?: number;
+  readonly branchFg?: string;
+  /** Suppress the tool label because the turn header already carries it. */
+  readonly omitToolName?: boolean;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -53,8 +64,17 @@ function buildLeftSegments(
   keyArg: string,
   suffixText: string,
   leftBudget: number,
+  omitToolName = false,
 ): Array<{ text: string; fg: string; bold?: boolean; dim?: boolean }> {
   if (leftBudget <= 0) return [];
+
+  // When every call in the turn shares one label, the label rides on the turn
+  // header and each row leads with the argument that actually distinguishes it
+  // (`config.get`, `services.restart`). Falls back to showing the name when
+  // there is no key argument, so a row can never render empty.
+  if (omitToolName && keyArg) {
+    return buildLeftSegments(keyArg, '', suffixText, leftBudget, false);
+  }
 
   // Read live tones so the tool-call row is legible in light mode. Dark values
   // are byte-identical (t.fg.primary == #e2e8f0, t.chrome.bad == #ef4444).
@@ -157,32 +177,50 @@ function extractKeyArg(toolCall: ToolCall): string {
  * Layout: [margin] [icon] [space] [tool name padded] [key arg] [summary] [duration]
  *
  * @param toolCall - The tool call being executed
- * @param status - 'executing' | 'done' | 'error'
+ * @param status - 'executing' | 'done' | 'error' | 'pending' | 'cancelled'
  * @param resultSummary - Optional brief summary (e.g., "3 files", "exit 0")
  * @param width - Terminal width
  * @param durationMs - Optional duration in milliseconds
  * @param errorMsg - Optional error message for failed calls
+ * @param frameIndex - Spinner frame index for the animated icon
+ * @param tree - Branch placement when the row is a child of a turn header
+ *               (see conversation-tree.ts); omitted for a flush row
  */
 export function renderToolCallBlock(
   toolCall: ToolCall,
-  status: 'executing' | 'done' | 'error',
+  status: 'executing' | 'done' | 'error' | 'pending' | 'cancelled',
   resultSummary: string | undefined,
   width: number,
   durationMs?: number,
   errorMsg?: string,
   frameIndex?: number,
+  tree?: ToolCallTreeOptions,
 ): Line[] {
   const line = createEmptyLine(width);
-  const margin = LAYOUT.LEFT_MARGIN;
+  const indent = Math.max(0, tree?.indentCols ?? 0);
+  // In tree mode the status icon moves to the branch's content column, so the
+  // ✓ lines up with the content of every other row at the same depth and the
+  // branch glyph sits where the parent's content began.
+  const margin = indent > 0 ? treeContentCol(indent) : LAYOUT.LEFT_MARGIN;
   const rightMargin = LAYOUT.RIGHT_MARGIN;
   const contentEnd = width - rightMargin;
 
   // Status icon
+  // 'pending' means the call has NOT run yet — it is awaiting a decision (e.g.
+  // an approval prompt) — so it uses the hollow idle glyph rather than the
+  // completed ✓. 'cancelled' means the user stopped THIS call mid-flight: the
+  // blocked glyph in the warn tone, distinct from both success and a real
+  // error. Without these two, a call that had not finished still rendered as
+  // done, so a turn only ever looked settled and never looked like work in
+  // progress.
   const icon = status === 'done' ? TOOL_STATUS.SUCCESS_ICON
     : status === 'error' ? TOOL_STATUS.FAIL_ICON
+    : status === 'cancelled' ? GLYPHS.status.blocked
+    : status === 'pending' ? GLYPHS.status.idle
     : TOOL_STATUS.SPINNER_FRAMES[(frameIndex ?? 0) % TOOL_STATUS.SPINNER_FRAMES.length];
   const iconColor = status === 'done' ? '#22c55e'
     : status === 'error' ? '#ef4444'
+    : status === 'cancelled' ? '#f59e0b'
     : '244';
   const rightText = (() => {
     if (durationMs !== undefined && status === 'done') {
@@ -200,21 +238,31 @@ export function renderToolCallBlock(
     : contentEnd;
   let col: number = leftStart;
 
-  if (col < leftEndExclusive) {
-    line[col] = createStyledCell(icon, { fg: iconColor, bold: status !== 'executing' });
+  // In tree mode the status glyph goes in the fixed left gutter (column 0),
+  // before the indent, so every marker in the transcript aligns in one column
+  // no matter how deep its row sits. The row's own content then starts at the
+  // branch's content column with no inline icon slot.
+  if (indent > 0) {
+    writeTreeStatusGutter(line, icon, iconColor, width);
+  } else {
+    if (col < leftEndExclusive) {
+      line[col] = createStyledCell(icon, { fg: iconColor, bold: status === 'done' || status === 'error' || status === 'cancelled' });
+    }
+    col += 2; // icon + space
   }
-  col += 2; // icon + space
 
   // Human phrase for the tool ("Searching the web") instead of the raw name.
   const rawName = friendlyToolLabel(toolCall.name);
   const keyArg = stripDangerousAnsi(extractKeyArg(toolCall));
-  const suffixText = status === 'error' && errorMsg
+  const suffixText = status === 'cancelled'
+    ? '- cancelled'
+    : status === 'error' && errorMsg
     ? `- ${[...stripDangerousAnsi(errorMsg)].slice(0, 40).join('')}`
     : status === 'done' && resultSummary
       ? `(${stripDangerousAnsi(resultSummary)})`
       : '';
   const leftBudget = Math.max(0, leftEndExclusive - col);
-  const leftSegments = buildLeftSegments(rawName, keyArg, suffixText, leftBudget);
+  const leftSegments = buildLeftSegments(rawName, keyArg, suffixText, leftBudget, tree?.omitToolName ?? false);
   for (const segment of leftSegments) {
     col = writeStyledText(line, col, leftEndExclusive, segment.text, {
       fg: segment.fg,

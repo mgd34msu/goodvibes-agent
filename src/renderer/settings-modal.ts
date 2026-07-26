@@ -7,7 +7,7 @@
 
 import type { Line } from '../types/grid.ts';
 import type { SettingsModal, SettingEntry, FlagEntry, McpEntry, SubscriptionEntry, SettingsCategory } from '../input/settings-modal.ts';
-import { isExternalHostOwnedSettingKey, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../input/settings-modal.ts';
+import { SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../input/settings-modal.ts';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { CATEGORY_LABELS, describeUiRouting, formatValue, getSettingLabel, inferSubscriptionRouteReason, valueColor } from './settings-modal-helpers.ts';
 import { isSecretConfigKey } from '../config/secret-config.ts';
@@ -34,12 +34,13 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   diagnostics: 'Post-edit diagnostics behavior: whether a successful file write/edit gets cheap, in-process syntax diagnostics appended to the tool result so the model sees a broken edit immediately. Syntax-level only — not type-checking.',
   helper: 'Helper model defaults used by helper subsystems when they do not use the main chat route.',
   tts: 'Text-to-speech provider, voice, and optional spoken-turn LLM overrides.',
-  voice: 'Free local voice engines (speech-to-text and text-to-speech) as the peer beside the premium provider route above. Configurable-not-configured by default: every key ships empty, nothing auto-downloads, and an unset engine reports an honest unconfigured status rather than an error. Each engine needs one explicit setup action — install it, download its model, set the binary and model paths here.',
+  voice: 'Two independent voice capabilities. Free local voice engines (voice.local.*) as the peer beside the premium provider route above: configurable-not-configured by default, every key ships empty, nothing auto-downloads, and an unset engine reports an honest unconfigured status rather than an error — each engine needs one explicit setup action. Wake-word detection (voice.wake.*, rendered as its own unit below): listening continuously for a spoken wake phrase and handing the utterance that follows to speech-to-text. Off by default, and delivery to THIS surface is off by default too (voice.wake.surfaces.agent), because two terminal surfaces both acting on one spoken utterance is a confusing default. Its published recall figures are measured on synthesised speech only, so no human recording of the phrase is behind them.',
   automation: 'Scheduled and automated run settings, concurrency, timeout, catch-up, cooldown, and retention behavior.',
   checkin: 'Proactive check-in: off by default. When enabled, on a cadence the Agent assembles a compact briefing of current state, asks the model to judge whether anything warrants contacting you, and delivers a message through the configured channel only when the judgment says yes. Every run — delivered, quiet, skipped for quiet hours, or errored — leaves a receipt (checkin.receipts.list) so this automatic behavior stays accountable even when it decides to say nothing.',
   service: 'GoodVibes daemon service posture and restart/autostart preferences.',
   controlPlane: 'Control-plane endpoint, stream, remote access, and TLS settings used by daemon-backed operator routes.',
   httpListener: 'HTTP listener binding, trust proxy, and TLS settings for inbound companion/channel routes.',
+  danger: 'Toggles that expose this machine to inbound traffic. Shown rather than hidden so you can see what is on; changing one from the Agent needs your explicit confirmation first.',
   web: 'Web companion surface settings including host, port, public URL, and static asset path.',
   watchers: 'Polling watcher and heartbeat behavior for runtime recovery and periodic checks.',
   network: 'Outbound TLS and remote fetch network policy.',
@@ -72,6 +73,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   fetch: 'Fetch-tool response sanitization: the default sanitize mode, and default trusted/blocked host lists layered under any per-call overrides. The built-in SSRF-risk block applies independently.',
   security: 'Credential rotation-audit defaults: how often tokens should rotate, how much lead time a warning gets, and whether overdue or over-scoped tokens are blocked from use rather than only reported.',
   integrations: 'Integration delivery reliability: retry ceiling and exponential-backoff bounds for Slack/Discord/webhook delivery, dead-letter queue size, and whether dead-letter events log at error level.',
+  device: 'How a paired phone\'s camera, screen, location, clipboard, and device commands are reached. Every capture and effect asks the person first; "always allow" writes one durable grant for that capability on that phone, revocable in the grants surface. Also sets how long a picture the phone took is kept before it is deleted (24 hours by default), how often housekeeping sweeps, and how long a grant lasts before it expires.',
   memory: 'This runtime\'s own memory-pressure defense: the RSS budget (0 = auto: min of 25% of system RAM and 4096 MB), the elevated/high/critical tier thresholds that shed caches and pause deferrable background jobs, the leak tripwire (sustained growth rate that triggers a graceful exit with a receipt), and the absolute hard-limit backstop as a percent of the kill ceiling. Live state under /health memory.',
 };
 
@@ -496,10 +498,6 @@ function footerText(modal: SettingsModal): string {
   if (modal.currentCategory === 'subscriptions') return 'Focus settings · Up/Down provider · Left categories · Tab pane · Enter review/sign out · Esc close';
   if (modal.currentCategory === 'mcp') return 'Focus settings · Up/Down server · Left categories · Tab pane · Enter edit trust · Esc close';
   if (modal.currentCategory === 'flags') return 'Focus features · Up/Down feature · Left categories · Tab pane · Enter/Space toggle · Esc close';
-  const selected = modal.getSelected();
-  if (selected && isExternalHostOwnedSettingKey(selected.setting.key)) {
-    return 'Read-only connected-host setting · Change from GoodVibes TUI or the owning host · Esc close';
-  }
   return 'Focus settings · Up/Down setting · Left categories · Tab pane · Enter/Space edit/toggle · R reset · Esc close';
 }
 

@@ -54,7 +54,7 @@ import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type A
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
 import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorContext, describeWorkspaceAction, describeWorkspaceCategory, listWorkspaceActions, resolveWorkspaceActionDetail } from './agent-harness-workspace-actions.ts';
 import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
-import { countHarnessSettings, formatHarnessError, listHarnessSettings, resetHarnessSetting, resolveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
+import { countHarnessSettings, formatHarnessError, listEffectiveHarnessSettings, resetHarnessSetting, resolveEffectiveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
 import { buildAssistantCockpitFromSummaries } from '../agent/assistant-cockpit.ts';
 import { remoteCatalogStatus, remotePairApproveHandoff, remotePairRejectHandoff, remotePairRequestsSummary, remotePeersInvokeHandoff, remotePeersSummary, remoteSnapshotSummary, remoteWorkCancelHandoff, remoteWorkSummary } from './agent-harness-remote.ts';
 import { channelDraftSaveHandoff, channelDraftSendHandoff, channelDraftsSummary, channelRoutingAssignHandoff, channelRoutingRemoveHandoff, channelRoutingSummary, unifiedInboxSummary } from './agent-harness-comms.ts';
@@ -592,16 +592,16 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
             includeHidden: args.includeHidden === true,
             limit: readLimit(args.limit, 500),
           };
-          const settings = listHarnessSettings(deps.commandContext.platform.configManager, {
-            ...filters,
-          }, {
+          // Ownership-aware: daemon-owned keys carry the DAEMON's live value.
+          const cfg = deps.commandContext.platform.configManager;
+          const settings = await listEffectiveHarnessSettings(cfg, { ...filters }, {
             includeParameters: args.includeParameters === true,
           });
           const total = countHarnessSettings(deps.commandContext.platform.configManager, filters);
           return output({ settings, returned: settings.length, total, policy: settingsPolicySummary() });
         }
         if (args.mode === 'get_setting') {
-          const setting = resolveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
+          const setting = await resolveEffectiveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
           if (setting?.status === 'found') return output(setting.setting);
           if (setting?.status === 'ambiguous') {
             return error(`Ambiguous setting ${setting.input}. Candidates: ${JSON.stringify(setting.candidates)}`);
@@ -612,7 +612,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           const confirmationError = requireConfirmedAction(args, 'Setting mutation');
           if (confirmationError) return error(confirmationError);
           if (args.value === undefined) return error('set_setting requires value.');
-          const setting = resolveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
+          const setting = await resolveEffectiveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
           if (setting?.status === 'ambiguous') {
             return error(`Ambiguous setting ${setting.input}. Candidates: ${JSON.stringify(setting.candidates)}`);
           }
@@ -630,7 +630,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         if (args.mode === 'reset_setting') {
           const confirmationError = requireConfirmedAction(args, 'Setting reset');
           if (confirmationError) return error(confirmationError);
-          const setting = resolveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
+          const setting = await resolveEffectiveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));
           if (setting?.status === 'ambiguous') {
             return error(`Ambiguous setting ${setting.input}. Candidates: ${JSON.stringify(setting.candidates)}`);
           }

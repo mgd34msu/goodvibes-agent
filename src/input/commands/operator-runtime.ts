@@ -7,8 +7,8 @@ import {
   formatHarnessMutation,
   formatHarnessSetting,
   formatHarnessSettingList,
-  getHarnessSetting,
-  listHarnessSettings,
+  getEffectiveHarnessSetting,
+  listEffectiveHarnessSettings,
   resetHarnessSetting,
   setHarnessSetting,
 } from '../../agent/harness-control.ts';
@@ -85,7 +85,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (sub === 'list' || sub === 'schema') {
-        ctx.print(formatHarnessSettingList(listHarnessSettings(ctx.platform.configManager, parseSettingListArgs(commandArgs.slice(1)))));
+        ctx.print(formatHarnessSettingList(await listEffectiveHarnessSettings(ctx.platform.configManager, parseSettingListArgs(commandArgs.slice(1)))));
         return;
       }
 
@@ -95,7 +95,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
           ctx.print('Usage: /settings get <key>');
           return;
         }
-        ctx.print(formatHarnessSetting(getHarnessSetting(ctx.platform.configManager, key)));
+        ctx.print(formatHarnessSetting(await getEffectiveHarnessSetting(ctx.platform.configManager, key)));
         return;
       }
 
@@ -141,7 +141,7 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (sub.includes('.')) {
-        ctx.print(formatHarnessSetting(getHarnessSetting(ctx.platform.configManager, sub)));
+        ctx.print(formatHarnessSetting(await getEffectiveHarnessSetting(ctx.platform.configManager, sub)));
         return;
       }
 

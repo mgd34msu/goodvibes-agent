@@ -2688,15 +2688,32 @@ function verifyHarnessSettingsModelAccessPolicy(root: string): readonly string[]
   } else {
     const source = readFileSync(harnessControlPath, 'utf-8');
     const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
+      // These markers pin behavior that must not silently disappear from the
+      // harness settings path.
+      //
+      // Three entries were REMOVED here, all belonging to a blanket
+      // relay.*/danger.httpListener block that has been deleted outright:
+      // `isExternalHostOwnedSettingKey(setting.key)`, its lock-reason constant,
+      // and the `settings get key:` read-only model route that only ever applied
+      // to keys that block covered. Those keys are daemon-owned and their writes
+      // route to the daemon that acts on them, so nothing resolves to a
+      // read-only route any more. Keeping the requirement meant a shipped gate
+      // insisted the removed block's machinery stay, so re-introducing a blanket
+      // host-owned lock would have arrived pre-approved by verification. It must
+      // instead be a visible decision, argued on its own merits.
+      //
+      // What replaces them guards the behavior that actually protects the owner
+      // now: that a write is routed to the runtime which owns the key, and that
+      // where it landed is reported rather than assumed.
       { marker: 'function settingModelRoute', label: 'setting model route builder' },
-      { marker: 'isExternalHostOwnedSettingKey(setting.key)', label: 'connected-host-owned setting read-only check' },
-      { marker: 'settings get key:${setting.key}', label: 'read-only setting model route' },
+      { marker: 'routeConfigWrite(configManager, setting.key', label: 'ownership-routed setting write' },
+      { marker: 'appliedBy: outcome.appliedBy', label: 'reporting which runtime applied the setting' },
+      { marker: 'persistedTo: outcome.persistedTo', label: 'reporting the store a setting landed in' },
       { marker: 'settings set|reset key:${setting.key}', label: 'writable setting model route' },
       { marker: 'redactHarnessSettingValue', label: 'setting value redaction' },
       { marker: 'persistSecretBackedConfigValue', label: 'secret-backed setting persistence' },
       { marker: 'Cannot store raw secret value', label: 'secret manager availability guard' },
       { marker: 'Cannot reset ${setting.key}: secrets manager is unavailable', label: 'secret reset availability guard' },
-      { marker: 'AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON', label: 'host-owned setting lock reason' },
     ];
     for (const { marker, label } of requiredMarkers) {
       if (!source.includes(marker)) {

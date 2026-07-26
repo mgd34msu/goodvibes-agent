@@ -6,7 +6,7 @@
  * before display, so the raw message's `content.split('\n')` length is not
  * what the user sees once expanded — a one-line JSON blob can pretty-print to
  * 50 lines. Both the per-block "N lines" badge (conversation-rendering.ts) and
- * the folded-group total (conversation-tool-groups.ts) must count the SAME
+ * every collapsed row's badge (conversation-rendering.ts) must count the SAME
  * post-render lines, or the two disagree with each other and both can disagree
  * with what Tab actually reveals.
  *

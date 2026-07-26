@@ -35,6 +35,7 @@ import {
 } from '../agent/session-registration.ts';
 import { readConnectedHostOperatorToken } from './connected-host-auth.ts';
 import { extractDaemonReceipts, type DaemonReceipt } from './daemon-receipts.ts';
+import { readClientCompatibilityFloor } from './client-build-compatibility.ts';
 
 const DEFAULT_REGISTER_TIMEOUT_MS = 1_500;
 const DEFAULT_CLOSE_TIMEOUT_MS = 500;
@@ -126,6 +127,7 @@ export function createSpineRestTransport(options: SpineRestTransportOptions): Sp
 async function defaultProbe(
   connection: SessionRegistrationConnection,
   timeoutMs: number,
+  onDaemonFloor?: (floor: string | undefined) => void,
 ): Promise<boolean> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -139,10 +141,16 @@ async function defaultProbe(
     // explicit `?receipts=consume` read done exactly once per attach (see
     // createSpineReceiptConsumer), so this frequent keepalive poll can never
     // silently drain them.
-    await fetch(`${connection.baseUrl}/status`, {
+    const response = await fetch(`${connection.baseUrl}/status`, {
       headers: connection.token ? { authorization: `Bearer ${connection.token}` } : undefined,
       signal: controller.signal,
     });
+    // The daemon announces the minimum client build it accepts as a header on
+    // this same read (see runtime/client-build-compatibility.ts). Reading it
+    // here is free: it is the one call this process already makes to the
+    // daemon on a timer, so a daemon that was updated out from under us is
+    // noticed within one probe interval rather than never.
+    onDaemonFloor?.(readClientCompatibilityFloor(response.headers));
     return true;
   } catch {
     return false;
@@ -158,7 +166,16 @@ export interface SpineRestProbeOptions {
   readonly probeImpl?: (
     connection: SessionRegistrationConnection,
     timeoutMs: number,
+    onDaemonFloor?: (floor: string | undefined) => void,
   ) => Promise<boolean>;
+  /**
+   * Receives the minimum client build the daemon announced on this read
+   * (`X-Goodvibes-Client-Floor`), or undefined when it announced none —
+   * a daemon too old to publish one, or an unreachable read. Wired to the
+   * ClientBuildGuard, which latches and pauses shared-session work when this
+   * process is below the floor. See runtime/client-build-compatibility.ts.
+   */
+  readonly onDaemonFloor?: ((floor: string | undefined) => void) | undefined;
 }
 
 /**
@@ -171,7 +188,7 @@ export interface SpineRestProbeOptions {
 export function createSpineRestProbe(options: SpineRestProbeOptions): () => Promise<boolean> {
   const probeTimeoutMs = options.probeTimeoutMs ?? DEFAULT_PROBE_TIMEOUT_MS;
   const probeImpl = options.probeImpl ?? defaultProbe;
-  return () => probeImpl(options.resolveConnection(), probeTimeoutMs);
+  return () => probeImpl(options.resolveConnection(), probeTimeoutMs, options.onDaemonFloor);
 }
 
 /**

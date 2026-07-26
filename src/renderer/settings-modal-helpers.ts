@@ -91,6 +91,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   service: 'Service',
   controlPlane: 'Control Plane',
   httpListener: 'HTTP Listener',
+  danger: 'Danger Zone',
   web: 'Web',
   watchers: 'Watchers',
   network: 'Network',
@@ -123,6 +124,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   update: 'Daemon Updates',
   pricing: 'Model Pricing',
   power: 'Sleep and Power',
+  device: 'Paired Phone Capabilities',
   memory: 'Memory Governance',
 };
 
@@ -151,6 +153,30 @@ export const SETTING_LABELS: Partial<Record<string, string>> = {
   'surfaces.ntfy.remoteTopic': 'ntfy Runtime-Only Remote Topic',
   'surfaces.ntfy.token': 'ntfy Token',
   'surfaces.ntfy.defaultPriority': 'ntfy Default Priority',
+  // Trigger family (stream watchers, condition checks, on-exit process
+  // triggers). These live under the existing Watchers category because their
+  // keys are `watchers.triggers.*` and the category is the key's first
+  // segment; without labels the rows would render as raw sub-paths like
+  // "triggers.backoffLadderMs", which reads as noise next to the plain
+  // watchers keys they sit beside.
+  'watchers.triggers.enabled': 'Triggers Enabled',
+  'watchers.triggers.backoffLadderMs': 'Trigger Retry Ladder',
+  'watchers.triggers.breakerStrikes': 'Trigger Breaker Strikes',
+  'watchers.triggers.defaultCheckIntervalMs': 'Trigger Check Interval',
+  'watchers.triggers.probeTimeoutMs': 'Trigger Probe Timeout',
+  'watchers.triggers.maxConcurrentChecks': 'Trigger Check Concurrency',
+  'watchers.triggers.observationRingSize': 'Trigger Observation History',
+  'watchers.triggers.runHistoryLimit': 'Trigger Run History Limit',
+  'watchers.triggers.runHistoryTtlHours': 'Trigger Run History TTL',
+  'watchers.triggers.eventLogLimit': 'Trigger Event Log Limit',
+  'watchers.triggers.eventLogTtlHours': 'Trigger Event Log TTL',
+  'watchers.triggers.sweepIntervalMs': 'Trigger Housekeeping Sweep',
+  'watchers.triggers.streamQueueLimit': 'Stream Watcher Queue Limit',
+  'watchers.triggers.streamBatchLines': 'Stream Watcher Batch Size',
+  'watchers.triggers.streamBatchIntervalMs': 'Stream Watcher Batch Interval',
+  'watchers.triggers.onExitMaxDurationMs': 'On-Exit Max Duration',
+  'watchers.triggers.onExitStdin': 'On-Exit Standard Input',
+  'watchers.triggers.outputTailBytes': 'On-Exit Output Tail',
 };
 
 export function getSettingLabel(entry: SettingEntry): string {

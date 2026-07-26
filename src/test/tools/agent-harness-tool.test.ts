@@ -10377,7 +10377,13 @@ describe('agent_harness tool', () => {
       expect(settingsJson.policy?.effect).toBe('mixed');
       expect(settingsJson.policy?.preferredModelTool).toBe('settings action:"list"|action:"get"|action:"set"|action:"reset"|action:"import"');
       expect(settingsJson.policy?.preferredModelTool).not.toContain('settings/get_setting/set_setting/reset_setting');
-      expect(settingsJson.policy?.boundary).toContain('Connected-host lifecycle/listener settings remain read-only');
+      // The boundary told the model that connected-host lifecycle/listener
+      // settings were read-only. That stopped being true when those keys became
+      // daemon-owned and their writes started routing to the daemon, so the text
+      // now describes routing plus the confirmation gate that replaced the lock.
+      expect(settingsJson.policy?.boundary).toContain('routes to the runtime that owns the key');
+      expect(settingsJson.policy?.boundary).toContain('needs the user to ask first');
+      expect(settingsJson.policy?.boundary).not.toContain('remain read-only');
     } finally {
       fixture.cleanup();
     }

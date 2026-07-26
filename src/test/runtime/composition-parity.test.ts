@@ -168,3 +168,63 @@ describe('composition parity: host power seam is opt-in (non-spawning default)',
     }
   });
 });
+
+describe('composition parity: the trigger family is composed, not just importable', () => {
+  let root = '';
+
+  afterEach(() => {
+    if (root) rmSync(root, { recursive: true, force: true });
+    root = '';
+  });
+
+  function build(): RuntimeServices {
+    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-triggers-'));
+    const workingDir = join(root, 'workspace');
+    const homeDir = join(root, 'home');
+    mkdirSync(workingDir, { recursive: true });
+    mkdirSync(join(homeDir, '.goodvibes', 'agent'), { recursive: true });
+    return createRuntimeServices({
+      runtimeBus: new RuntimeEventBus(),
+      runtimeStore: createRuntimeStore(),
+      configManager: new ConfigManager({ workingDir, homeDir, surfaceRoot: 'agent' }),
+      workingDir,
+      homeDirectory: homeDir,
+    });
+  }
+
+  // Regression: this repo hand-composes RuntimeServices, and the SDK facade
+  // start()/shutdown()s services.triggerManager. When this repo did not produce
+  // the field, every daemon shutdown threw
+  //   TypeError: undefined is not an object (evaluating 'this.triggerManager.shutdown')
+  // The SDK side is now optional-chained so absence degrades cleanly — but the
+  // point of this test is stronger: the agent must actually GET the feature,
+  // not merely stop crashing.
+  test('createRuntimeServices returns a real TriggerManager', () => {
+    const services = build();
+    expect(services.triggerManager).toBeDefined();
+    expect(typeof services.triggerManager.start).toBe('function');
+    expect(typeof services.triggerManager.shutdown).toBe('function');
+    expect(typeof services.triggerManager.list).toBe('function');
+  });
+
+  test('it honours the shipped-off default and refuses by name', async () => {
+    const services = build();
+    // watchers.triggers.enabled defaults false: the family exists but declines
+    // to do anything, and says which key turns it on.
+    await expect(services.triggerManager.create({
+      id: 'x', label: 'x',
+      spec: { kind: 'on-exit', command: '/bin/true' },
+      action: { kind: 'agent-turn' },
+      createdAt: Date.now(),
+    })).rejects.toThrow(/watchers\.triggers\.enabled/);
+    expect(services.triggerManager.list()).toEqual([]);
+  });
+
+  test('start() and shutdown() are safe to call on the composed manager', () => {
+    const services = build();
+    expect(() => {
+      services.triggerManager.start();
+      services.triggerManager.shutdown();
+    }).not.toThrow();
+  });
+});

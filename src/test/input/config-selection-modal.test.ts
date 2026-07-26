@@ -127,11 +127,16 @@ describe('/config fullscreen workspace command', () => {
         for (const entry of entries) workspaceKeys.add(entry.setting.key);
       }
 
-      expect(isAgentHiddenSettingKey('danger.httpListener')).toBe(true);
+      // `ui.wrfcMessages` is internal plumbing with nothing for the owner to
+      // decide, so it stays out. `danger.httpListener` is the opposite: it is a
+      // real choice about this machine, so it is SHOWN and its write is gated by
+      // the confirmation list in src/tools/agent-settings-write-policy.ts. A
+      // hidden setting cannot state a hazard or be confirmed; a gated one can.
+      expect(isAgentHiddenSettingKey('danger.httpListener')).toBe(false);
       expect(isAgentHiddenSettingKey('controlPlane.port')).toBe(false);
       expect(isAgentHiddenSettingKey('runtime.eventBus.maxListeners')).toBe(false);
       expect(isAgentHiddenSettingKey('ui.wrfcMessages')).toBe(true);
-      expect(workspaceKeys.has('danger.httpListener')).toBe(false);
+      expect(workspaceKeys.has('danger.httpListener')).toBe(true);
       expect(workspaceKeys.has('controlPlane.port')).toBe(true);
       expect(workspaceKeys.has('runtime.eventBus.maxListeners')).toBe(true);
       expect(workspaceKeys.has('ui.wrfcMessages')).toBe(false);

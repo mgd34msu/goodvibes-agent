@@ -49,7 +49,8 @@ import {
   AGENT_READ_POLICY_DENIAL_MESSAGE,
   AGENT_REMOTE_MUTATION_DENIAL_MESSAGE,
   AGENT_REGISTRY_CONTENT_DENIAL_MESSAGE,
-  AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE,
+  AGENT_SETTINGS_CONFIRMATION_PROPERTY,
+  AGENT_SETTINGS_TOOL_DESCRIPTION_TEXT,
   AGENT_STATE_MUTATION_DENIAL_MESSAGE,
   AGENT_WEB_SEARCH_POLICY_DENIAL_MESSAGE,
   installAgentToolPolicyGuard,
@@ -1217,7 +1218,7 @@ describe('spawn mode', () => {
     }
   });
 
-  test('Agent runtime guard blocks copied settings mutation tool from the model surface', async () => {
+  test('Agent runtime guard keeps the settings tool usable instead of blocking it', async () => {
     const registry = new ToolRegistry();
     const guarded = makeAgentHarness();
     registry.register(guarded.agentTool);
@@ -1226,23 +1227,54 @@ describe('spawn mode', () => {
     installAgentToolPolicyGuard(registry);
 
     const settingsDefinition = registry.getToolDefinitions().find((tool) => tool.name === 'goodvibes_settings');
-    expect(settingsDefinition?.description).toBe('Blocked in GoodVibes Agent: configuration mutation.');
-    expect(settingsDefinition?.sideEffects).toEqual([]);
+    expect(settingsDefinition?.description).toBe(AGENT_SETTINGS_TOOL_DESCRIPTION_TEXT);
+    expect(settingsDefinition?.sideEffects).toEqual(['state']);
+    // The old guard stripped every parameter, which left the model unable to see
+    // that a settings write was something it could attempt at all.
     const properties = settingsDefinition?.parameters.properties as Record<string, unknown>;
-    expect(properties.mode).toBeUndefined();
-    expect(properties.key).toBeUndefined();
-    expect(properties.value).toBeUndefined();
-    expect(properties.confirm).toBeUndefined();
-    expect(settingsDefinition?.parameters.additionalProperties).toBe(false);
+    expect(properties.mode).toBeDefined();
+    expect(properties.key).toBeDefined();
+    expect(properties.value).toBeDefined();
+    expect(properties.confirm).toBeDefined();
+    expect(properties[AGENT_SETTINGS_CONFIRMATION_PROPERTY]).toBeDefined();
 
-    const result = await registry.execute('call-settings-blocked', 'goodvibes_settings', {
+    const result = await registry.execute('call-settings-ordinary', 'goodvibes_settings', {
       mode: 'set',
-      key: 'controlPlane.enabled',
+      key: 'surfaces.telegram.botUsername',
+      value: 'goodvibes_agent_bot',
+      confirm: true,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  test('Agent runtime guard gates a genuinely dangerous key and says which and why', async () => {
+    const registry = new ToolRegistry();
+    const guarded = makeAgentHarness();
+    registry.register(guarded.agentTool);
+    registry.register(makeSettingsTool());
+
+    installAgentToolPolicyGuard(registry);
+
+    const result = await registry.execute('call-settings-gated', 'goodvibes_settings', {
+      mode: 'set',
+      key: 'behavior.autoApprove',
       value: true,
       confirm: true,
     });
     expect(result.success).toBe(false);
-    expect(result.error).toBe(AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE);
+    expect(result.error).toContain('behavior.autoApprove');
+    expect(result.error).toContain('auto-approves every future tool permission request');
+    expect(result.error).toContain('was NOT changed');
+    expect(result.error).toContain(AGENT_SETTINGS_CONFIRMATION_PROPERTY);
+
+    const allowed = await registry.execute('call-settings-gated-confirmed', 'goodvibes_settings', {
+      mode: 'set',
+      key: 'behavior.autoApprove',
+      value: true,
+      confirm: true,
+      [AGENT_SETTINGS_CONFIRMATION_PROPERTY]: 'turn on auto approve for me',
+    });
+    expect(allowed.success).toBe(true);
   });
 
   test('Agent runtime guard routes copied runtime context tool to Agent capabilities', async () => {

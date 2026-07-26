@@ -102,6 +102,14 @@ function savedAgentSetting(shellPaths: ReturnType<typeof createShellPathService>
   ), JSON.parse(raw) as Record<string, unknown>);
 }
 
+/** Read a key out of the DAEMON's own settings store (the single home of every daemon-owned key). */
+function savedDaemonSetting(shellPaths: ReturnType<typeof createShellPathService>, key: string): unknown {
+  const raw = readFileSync(shellPaths.resolveUserPath('daemon', 'settings.json'), 'utf-8');
+  return key.split('.').reduce<unknown>((cursor, part) => (
+    cursor && typeof cursor === 'object' ? (cursor as Record<string, unknown>)[part] : undefined
+  ), JSON.parse(raw) as Record<string, unknown>);
+}
+
 function routineWorkspaceContext(): CommandContext {
   const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-routine-form-'));
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
@@ -657,7 +665,7 @@ describe('AgentWorkspace', () => {
     expect(filler).toEqual([]);
   });
 
-  test('onboarding setting actions persist live config and saved Agent settings', () => {
+  test('onboarding setting actions persist live config and saved Agent settings', async () => {
     const { context, configManager, shellPaths } = persistentConfigContext();
     const workspace = new AgentWorkspace();
     workspace.open(context, () => undefined);
@@ -687,9 +695,17 @@ describe('AgentWorkspace', () => {
 
     workspace.selectedCategoryIndex = workspace.categories.findIndex((category) => category.id === 'onboarding-channels');
     workspace.selectedActionIndex = workspace.actions.findIndex((action) => action.id === 'channel-ntfy-enabled');
+    // `surfaces.*` is DAEMON-owned, so this write is routed to whichever runtime
+    // owns the key rather than applied inline — it needs a tick to settle. The
+    // agent-owned settings above are still observable synchronously.
     workspace.activateSelected();
+    await Promise.resolve();
     expect(configManager.get('surfaces.ntfy.enabled')).toBe(true);
-    expect(savedAgentSetting(shellPaths, 'surfaces.ntfy.enabled')).toBe(true);
+    // And it does NOT land in the agent's own settings file. That store is not
+    // the one the daemon reads, which is why setting a channel here used to
+    // report success and configure nothing.
+    expect(savedAgentSetting(shellPaths, 'surfaces.ntfy.enabled')).toBeUndefined();
+    expect(savedDaemonSetting(shellPaths, 'surfaces.ntfy.enabled')).toBe(true);
     expect(workspace.actions.some((action) => action.id === 'channel-ntfy-base-url')).toBe(true);
   });
 

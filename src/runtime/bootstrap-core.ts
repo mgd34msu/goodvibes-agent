@@ -3,6 +3,7 @@ import { registerSessionConversation } from './conversation-rewind-port.ts';
 import { SelectionManager } from '../input/selection.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { ConfigManager, getConfiguredSystemPrompt } from '../config/index.ts';
+import { buildAgentConfigRouting } from '../config/daemon-config-routing.ts';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
@@ -306,6 +307,16 @@ export async function initializeBootstrapCore(
     // namespace and nothing is keyed to a session that can be reaped.
     resolveSessionId: () => runtimeSessionIdRef.value,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    // Daemon-owned settings (surfaces.*, the control-plane binding, watchers,
+    // pairing, retention) must be read and written through the daemon that owns
+    // them, not through this process's own store. Without this the settings
+    // tools silently fall back to the local file: a value written here would
+    // configure nothing, and reading it back afterwards would report it unset.
+    //
+    // The daemon home is derived from THIS process's home rather than the
+    // machine's, so a run rooted at a scratch home cannot reach a real daemon.
+    // Only an explicit GOODVIBES_DAEMON_HOME overrides that.
+    configRouting: buildAgentConfigRouting({ homeDir: homeDirectory }),
     fileUndoManager: services.fileUndoManager,
     modeManager: services.modeManager,
     processManager: services.processManager,

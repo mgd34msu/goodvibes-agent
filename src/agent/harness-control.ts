@@ -9,10 +9,16 @@ import {
   persistSecretBackedConfigValue,
 } from '../config/secret-config.ts';
 import {
-  AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON,
   isAgentHiddenSettingKey,
-  isExternalHostOwnedSettingKey,
 } from '../config/agent-settings-policy.ts';
+import {
+  configKeyScope,
+  openEffectiveConfigView,
+  routeConfigWrite,
+  type AgentConfigRoutingOptions,
+  type ConfigScope,
+  type EffectiveConfigView,
+} from '../config/daemon-config-routing.ts';
 
 export interface HarnessSettingFilters {
   readonly key?: string;
@@ -73,10 +79,21 @@ export interface HarnessSettingDescriptor {
   readonly writable: boolean;
   readonly visibleInWorkspace: boolean;
   readonly modelRoute: string;
-  readonly lockReason?: string;
   readonly description: string;
   readonly enumValues?: readonly string[];
   readonly lookup?: HarnessSettingLookup;
+  /** Which runtime owns this key: 'daemon' | 'client' | 'user'. */
+  readonly scope?: ConfigScope;
+  /** Which runtime answered the read: 'daemon' | 'local'. */
+  readonly valueSource?: string;
+  /** The file or daemon base URL the value came from. */
+  readonly valueStore?: string;
+  /**
+   * True when the daemon owns this key and could not be reached, so its current
+   * value is genuinely unknown. `value` is undefined and must NOT be presented
+   * as the setting's value — the default would read as the current setting.
+   */
+  readonly valueUnavailable?: boolean;
 }
 
 export interface HarnessSettingSummary {
@@ -90,6 +107,14 @@ export interface HarnessSettingSummary {
   readonly modelRoute: string;
   readonly summary: string;
   readonly enumValues?: readonly string[];
+  /** Which runtime owns this key: 'daemon' | 'client' | 'user'. */
+  readonly scope?: ConfigScope;
+  /** Which runtime answered the read: 'daemon' | 'local'. */
+  readonly valueSource?: string;
+  /** The file or daemon base URL the value came from. */
+  readonly valueStore?: string;
+  /** True when the daemon owns this key and its current value is unknown. */
+  readonly valueUnavailable?: boolean;
 }
 
 export interface HarnessSettingMutationResult {
@@ -97,10 +122,41 @@ export interface HarnessSettingMutationResult {
   readonly action: 'set' | 'reset';
   readonly previous: unknown;
   readonly current: unknown;
+  /** Which runtime owns the key: 'daemon' | 'client' | 'user'. */
+  readonly scope?: ConfigScope | undefined;
+  /** Which runtime actually applied it. */
+  readonly appliedBy?: 'daemon' | 'local' | undefined;
+  /**
+   * The file (or daemon) the value landed in. Reported because "saved" is
+   * ambiguous until the store is named: a daemon-owned value written into the
+   * agent's own settings file configures nothing.
+   */
+  readonly persistedTo?: string | undefined;
 }
 
 const DEFAULT_SETTING_LIMIT = 500;
-const SENSITIVE_KEY_PATTERN = /(?:secret|token|password|api[-_.]?key|signing)/i;
+/**
+ * Credential-looking LEAF names. Matched against the last dot segment only, and
+ * never against the whole key, so an unrelated ancestor cannot drag a plain
+ * value into redaction.
+ */
+const SENSITIVE_LEAF_PATTERN = /(?:secret|token|password|passphrase|api[-_.]?key|signing)/i;
+
+/**
+ * Identifier leaves that merely NAME a credential rather than being one.
+ * `surfaces.telegram.discoveredBotTokenId` is the live example: it is the id of
+ * a discovered bot, not the bot's token, and redacting it hid the result of the
+ * bot-identity discovery from the person who asked for it. An `id` leaf that
+ * also says secret/password is still treated as a secret.
+ */
+const IDENTIFIER_LEAF_PATTERN = /(?:id|ids|name|username|kind|type|mode|source)$/i;
+
+function isSensitiveSettingKey(key: string): boolean {
+  const leaf = key.split('.').pop() ?? key;
+  if (!SENSITIVE_LEAF_PATTERN.test(leaf)) return false;
+  if (/(?:secret|password|passphrase)/i.test(leaf)) return true;
+  return !IDENTIFIER_LEAF_PATTERN.test(leaf);
+}
 
 function valuesEqual(left: unknown, right: unknown): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
@@ -130,12 +186,15 @@ function settingMatchesSearch(setting: ConfigSetting, query: string): boolean {
 }
 
 function settingCandidate(setting: ConfigSetting): HarnessSettingCandidate {
-  const hostOwned = isExternalHostOwnedSettingKey(setting.key);
   return {
     key: setting.key,
     category: setting.key.split('.')[0] ?? '',
     type: setting.type,
-    writable: !hostOwned,
+    // Every setting is writable through this surface now that the blanket
+    // host-owned lock is gone. Hazardous keys are not read-only — they are
+    // gated at write time by agent-settings-write-policy.ts, which can name the
+    // key and state why, and a routed write reports the store it landed in.
+    writable: true,
     visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
     modelRoute: settingModelRoute(setting),
     description: setting.description,
@@ -155,7 +214,7 @@ function settingLookupFromArgs(args: HarnessSettingLookupArgs): { source: Harnes
 export function redactHarnessSettingValue(key: string, value: unknown): unknown {
   if (typeof value !== 'string') return value;
   if (!value) return value;
-  if (isSecretConfigKey(key) || SENSITIVE_KEY_PATTERN.test(key)) {
+  if (isSecretConfigKey(key) || isSensitiveSettingKey(key)) {
     if (isSecretReferenceValue(value)) return '<secret-ref>';
     return '<redacted>';
   }
@@ -163,29 +222,56 @@ export function redactHarnessSettingValue(key: string, value: unknown): unknown 
 }
 
 function settingModelRoute(setting: ConfigSetting): string {
-  if (isExternalHostOwnedSettingKey(setting.key)) return `settings get key:${setting.key}`;
+  // There is no read-only route any more. It existed solely for the retired
+  // blanket host-owned lock, and no key resolved to it once that lock's lists
+  // were emptied.
   return `settings set|reset key:${setting.key}`;
+}
+
+/**
+ * Resolve a setting's EFFECTIVE value and name the store it came from.
+ *
+ * With a view, a daemon-owned key reports the daemon's live value; without one
+ * it falls back to the agent's own resolution (the pre-routing behavior, kept
+ * so every existing call site still works). When the daemon owns the key and
+ * could not be reached, `unavailable` is true and there is deliberately NO
+ * value — reporting a default here is what told the owner his bot username was
+ * not set when it was.
+ */
+function resolveSettingValue(
+  configManager: Pick<ConfigManager, 'get'>,
+  setting: ConfigSetting,
+  view: EffectiveConfigView | undefined,
+): { value: unknown; unavailable: boolean; source?: string; store?: string } {
+  if (!view) return { value: configManager.get(setting.key as ConfigKey), unavailable: false };
+  const entry = view.describe(setting.key);
+  if (entry.status === 'unavailable') {
+    return { value: undefined, unavailable: true, source: entry.source, store: entry.store };
+  }
+  return { value: entry.value, unavailable: false, source: entry.source, store: entry.store };
 }
 
 export function describeHarnessSetting(
   configManager: Pick<ConfigManager, 'get'>,
   setting: ConfigSetting,
-  options: { readonly lookup?: HarnessSettingLookup } = {},
+  options: { readonly lookup?: HarnessSettingLookup; readonly view?: EffectiveConfigView } = {},
 ): HarnessSettingDescriptor {
-  const value = configManager.get(setting.key as ConfigKey);
-  const hostOwned = isExternalHostOwnedSettingKey(setting.key);
+  const resolved = resolveSettingValue(configManager, setting, options.view);
   return {
     key: setting.key,
     category: setting.key.split('.')[0] ?? '',
     type: setting.type,
-    value: redactHarnessSettingValue(setting.key, value),
+    value: redactHarnessSettingValue(setting.key, resolved.value),
     default: redactHarnessSettingValue(setting.key, setting.default),
-    configured: !valuesEqual(value, setting.default),
-    writable: !hostOwned,
+    configured: !resolved.unavailable && !valuesEqual(resolved.value, setting.default),
+    writable: true,
     visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
     modelRoute: settingModelRoute(setting),
-    ...(hostOwned ? { lockReason: AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON } : {}),
     description: setting.description,
+    scope: configKeyScope(setting.key),
+    ...(resolved.source ? { valueSource: resolved.source } : {}),
+    ...(resolved.store ? { valueStore: resolved.store } : {}),
+    ...(resolved.unavailable ? { valueUnavailable: true } : {}),
     ...(setting.enumValues ? { enumValues: setting.enumValues } : {}),
     ...(options.lookup ? { lookup: options.lookup } : {}),
   };
@@ -194,19 +280,23 @@ export function describeHarnessSetting(
 export function describeHarnessSettingSummary(
   configManager: Pick<ConfigManager, 'get'>,
   setting: ConfigSetting,
+  options: { readonly view?: EffectiveConfigView } = {},
 ): HarnessSettingSummary {
-  const value = configManager.get(setting.key as ConfigKey);
-  const hostOwned = isExternalHostOwnedSettingKey(setting.key);
+  const resolved = resolveSettingValue(configManager, setting, options.view);
   return {
     key: setting.key,
     category: setting.key.split('.')[0] ?? '',
     type: setting.type,
-    value: redactHarnessSettingValue(setting.key, value),
-    configured: !valuesEqual(value, setting.default),
-    writable: !hostOwned,
+    value: redactHarnessSettingValue(setting.key, resolved.value),
+    configured: !resolved.unavailable && !valuesEqual(resolved.value, setting.default),
+    writable: true,
     visibleInWorkspace: !isAgentHiddenSettingKey(setting.key),
     modelRoute: settingModelRoute(setting),
     summary: previewText(setting.description),
+    scope: configKeyScope(setting.key),
+    ...(resolved.source ? { valueSource: resolved.source } : {}),
+    ...(resolved.store ? { valueStore: resolved.store } : {}),
+    ...(resolved.unavailable ? { valueUnavailable: true } : {}),
     ...(setting.enumValues ? { enumValues: setting.enumValues } : {}),
   };
 }
@@ -236,15 +326,40 @@ function filterHarnessSettingSchema(
 export function listHarnessSettings(
   configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
   filters: HarnessSettingFilters = {},
-  options: { readonly includeParameters?: boolean } = {},
+  options: { readonly includeParameters?: boolean; readonly view?: EffectiveConfigView } = {},
 ): readonly (HarnessSettingDescriptor | HarnessSettingSummary)[] {
   const limit = clampLimit(filters.limit);
+  const view = options.view;
 
   return filterHarnessSettingSchema(configManager, filters)
     .map((setting) => options.includeParameters
-      ? describeHarnessSetting(configManager, setting)
-      : describeHarnessSettingSummary(configManager, setting))
+      ? describeHarnessSetting(configManager, setting, { ...(view ? { view } : {}) })
+      : describeHarnessSettingSummary(configManager, setting, { ...(view ? { view } : {}) }))
     .slice(0, limit);
+}
+
+/**
+ * The effective merged settings view: daemon-owned keys carry the DAEMON's live
+ * value, everything else the agent's own, each entry naming the store it came
+ * from. One daemon round-trip for the whole listing.
+ *
+ * This is the read counterpart of ownership-routed writes. Listing only the
+ * agent's own store is what made the same key name read blank in one place and
+ * set in another with nothing explaining why.
+ */
+export async function listEffectiveHarnessSettings(
+  configManager: ConfigManager,
+  filters: HarnessSettingFilters = {},
+  options: { readonly includeParameters?: boolean; readonly routing?: AgentConfigRoutingOptions } = {},
+): Promise<readonly (HarnessSettingDescriptor | HarnessSettingSummary)[]> {
+  const view = await openEffectiveConfigView(configManager, {
+    homeDir: configManager.getHomeDirectory() ?? undefined,
+    ...(options.routing ?? {}),
+  });
+  return listHarnessSettings(configManager, filters, {
+    ...(options.includeParameters === undefined ? {} : { includeParameters: options.includeParameters }),
+    view,
+  });
 }
 
 export function countHarnessSettings(
@@ -258,14 +373,35 @@ export function getHarnessSetting(
   configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
   key: string,
   lookup?: HarnessSettingLookup,
+  view?: EffectiveConfigView,
 ): HarnessSettingDescriptor | null {
   const setting = findSetting(configManager, key);
-  return setting ? describeHarnessSetting(configManager, setting, { lookup }) : null;
+  return setting ? describeHarnessSetting(configManager, setting, { lookup, ...(view ? { view } : {}) }) : null;
+}
+
+/**
+ * Read one setting from whichever runtime OWNS it — the daemon for a
+ * daemon-owned key, the agent's own store otherwise. The descriptor carries
+ * `valueStore` (where the answer came from) and `valueUnavailable` (the daemon
+ * owns it and could not be reached, so its value is unknown rather than
+ * defaulted).
+ */
+export async function getEffectiveHarnessSetting(
+  configManager: ConfigManager,
+  key: string,
+  options: { readonly lookup?: HarnessSettingLookup; readonly routing?: AgentConfigRoutingOptions } = {},
+): Promise<HarnessSettingDescriptor | null> {
+  const view = await openEffectiveConfigView(configManager, {
+    homeDir: configManager.getHomeDirectory() ?? undefined,
+    ...(options.routing ?? {}),
+  });
+  return getHarnessSetting(configManager, key, options.lookup, view);
 }
 
 export function resolveHarnessSetting(
   configManager: Pick<ConfigManager, 'get' | 'getSchema'>,
   args: HarnessSettingLookupArgs,
+  view?: EffectiveConfigView,
 ): HarnessSettingResolution | null {
   const lookup = settingLookupFromArgs(args);
   if (!lookup) return null;
@@ -275,7 +411,7 @@ export function resolveHarnessSetting(
     const resolvedLookup = { ...lookup, resolvedBy: 'key' as const };
     return {
       status: 'found',
-      setting: describeHarnessSetting(configManager, exact, { lookup: resolvedLookup }),
+      setting: describeHarnessSetting(configManager, exact, { lookup: resolvedLookup, ...(view ? { view } : {}) }),
       lookup: resolvedLookup,
     };
   }
@@ -362,11 +498,10 @@ export async function setHarnessSetting(
   secretsManager: Pick<SecretsManager, 'set' | 'delete'> | null | undefined,
   key: string,
   value: unknown,
+  routing: AgentConfigRoutingOptions = {},
 ): Promise<HarnessSettingMutationResult> {
   const setting = findSetting(configManager, key);
   if (!setting) throw new Error(`Unknown setting ${key || '<missing>'}.`);
-  if (isExternalHostOwnedSettingKey(setting.key)) throw new Error(AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON);
-
   const previous = configManager.get(setting.key as ConfigKey);
   const coerced = coerceHarnessSettingValue(setting, value);
   if (setting.type === 'string' && isSecretConfigKey(setting.key)) {
@@ -389,12 +524,23 @@ export async function setHarnessSetting(
     };
   }
 
-  configManager.setDynamic(setting.key as ConfigKey, coerced);
+  // Route by OWNERSHIP, not by who asked. A daemon-owned key goes to the
+  // daemon — that is where the runtime which acts on it reads from. An
+  // agent-owned key goes to the agent's own store. The only failure case is the
+  // daemon genuinely being unreachable, and routeConfigWrite throws rather than
+  // writing locally and reporting a success that changed nothing.
+  const outcome = await routeConfigWrite(configManager, setting.key, coerced, {
+    homeDir: configManager.getHomeDirectory() ?? undefined,
+    ...routing,
+  });
   return {
     key: setting.key,
     action: 'set',
     previous: redactHarnessSettingValue(setting.key, previous),
-    current: redactHarnessSettingValue(setting.key, configManager.get(setting.key as ConfigKey)),
+    current: redactHarnessSettingValue(setting.key, outcome.value),
+    scope: outcome.scope,
+    appliedBy: outcome.appliedBy,
+    persistedTo: outcome.persistedTo,
   };
 }
 
@@ -405,8 +551,6 @@ export async function resetHarnessSetting(
 ): Promise<HarnessSettingMutationResult> {
   const setting = findSetting(configManager, key);
   if (!setting) throw new Error(`Unknown setting ${key || '<missing>'}.`);
-  if (isExternalHostOwnedSettingKey(setting.key)) throw new Error(AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON);
-
   const previous = configManager.get(setting.key as ConfigKey);
   if (isSecretConfigKey(setting.key)) {
     if (typeof previous === 'string' && isSecretReferenceValue(previous) && !secretsManager?.delete) {
@@ -441,13 +585,18 @@ export function formatHarnessSetting(setting: HarnessSettingDescriptor | null): 
     `Setting ${setting.key}`,
     `  category ${setting.category}`,
     `  type ${setting.type}`,
-    `  current ${String(setting.value)}`,
+    // An unknown value is printed as unknown. Printing the default here is what
+    // reported a configured Telegram bot username as "not set".
+    setting.valueUnavailable
+      ? `  current UNKNOWN — ${setting.valueStore ?? 'the owning runtime'} could not be reached`
+      : `  current ${String(setting.value)}`,
     `  default ${String(setting.default)}`,
-    `  configured ${setting.configured ? 'yes' : 'no'}`,
+    `  configured ${setting.valueUnavailable ? 'unknown' : (setting.configured ? 'yes' : 'no')}`,
+    ...(setting.scope ? [`  owner ${setting.scope}`] : []),
+    ...(setting.valueStore ? [`  store ${setting.valueStore}`] : []),
     `  writable ${setting.writable ? 'yes' : 'no'}`,
     `  workspace visible ${setting.visibleInWorkspace ? 'yes' : 'no'}`,
     ...(setting.enumValues ? [`  values ${setting.enumValues.join(', ')}`] : []),
-    ...(setting.lockReason ? [`  lock ${setting.lockReason}`] : []),
     `  ${setting.description}`,
   ].join('\n');
 }
@@ -458,9 +607,31 @@ export function formatHarnessMutation(result: HarnessSettingMutationResult): str
     `  key ${result.key}`,
     `  previous ${String(result.previous)}`,
     `  current ${String(result.current)}`,
+    // Name the owner and the store. "Saved" alone cannot distinguish a value
+    // the acting runtime will read from one written into a file it never opens.
+    ...(result.scope ? [`  owner ${result.scope}`] : []),
+    ...(result.appliedBy ? [`  applied by ${result.appliedBy}`] : []),
+    ...(result.persistedTo ? [`  stored in ${result.persistedTo}`] : []),
   ].join('\n');
 }
 
 export function formatHarnessError(error: unknown): string {
   return summarizeError(error);
+}
+
+/**
+ * Ownership-aware `resolveHarnessSetting`: a daemon-owned key resolves to the
+ * DAEMON's live value, with the store named on the descriptor. The
+ * synchronous overload above is kept for callers that have no daemon context.
+ */
+export async function resolveEffectiveHarnessSetting(
+  configManager: ConfigManager,
+  args: HarnessSettingLookupArgs,
+  routing: AgentConfigRoutingOptions = {},
+): Promise<HarnessSettingResolution | null> {
+  const view = await openEffectiveConfigView(configManager, {
+    homeDir: configManager.getHomeDirectory() ?? undefined,
+    ...routing,
+  });
+  return resolveHarnessSetting(configManager, args, view);
 }

@@ -158,7 +158,7 @@ describe('renderSettingsModal', () => {
     expect(texts).toContain('CHANNELS AND TOOLS');
   });
 
-  test('exposes daemon runtime settings while hiding raw danger toggles', () => {
+  test('exposes daemon runtime settings, including the danger toggle', () => {
     const rendered: string[] = [];
     for (let index = 0; index < SETTINGS_CATEGORIES.length; index += 1) {
       rendered.push(linesToText(renderSettingsModal(modal, W, 40)).join('\n'));
@@ -176,8 +176,10 @@ describe('renderSettingsModal', () => {
     expect(text).toContain('service.');
     expect(text).toContain('wrfc.');
     expect(text).toContain('orchestration.');
-    expect(text).not.toContain('Danger');
-    expect(text).not.toContain('danger.');
+    // Rendered, not hidden. The owner can see whether an inbound listener is on;
+    // the confirmation gate is what stands between the Agent and turning it on.
+    expect(text).toContain('Danger Zone');
+    expect(text).toContain('danger.httpListener');
   });
 
   test('settings list shows setting keys', () => {

@@ -67,7 +67,7 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       effect: 'mixed',
       confirmation,
       preferredModelTool: settingsActions('list', 'get', 'set', 'reset', 'import'),
-      boundary: 'Model-writable settings can be changed through the first-class settings adapter. Connected-host lifecycle/listener settings remain read-only.',
+      boundary: 'Settings can be changed through the first-class settings adapter, including daemon-owned ones — a write routes to the runtime that owns the key and reports the store it landed in. A short list of keys that turn off approval gates, weaken the exec sandbox, or expose this host to the network needs the user to ask first; the refusal names the key and says why.',
     };
   }
   if (root === 'model' || root === 'effort') {
@@ -764,7 +764,11 @@ export function settingsPolicySummary(): Record<string, unknown> {
     discovery: 'Use settings action:"list" for the setting catalog and action:"get" with key, target, or query for one setting. Hidden/scriptable settings require includeHidden:true unless the exact key is supplied.',
     mutation: 'Use settings action:"set" or action:"reset" with key, target, or query plus confirm:true and explicitUserRequest; ambiguous setting lookups are refused.',
     secretHandling: 'Raw secret values are persisted through the secret manager; config receives only a secret reference and tool output is redacted.',
-    writablePolicy: 'Each setting descriptor includes writable, visibleInWorkspace, and lockReason when applicable.',
+    writablePolicy: 'Each setting descriptor includes writable and visibleInWorkspace. No setting is read-only to the model any more; danger.httpListener is visible and settable, and is one of the keys that needs the user to ask for it first.',
+    // Still declared, and still true: this key needs the user to ask for it
+    // first. What changed is the mechanism — it is protected by the narrow
+    // confirmation gate in agent-settings-write-policy.ts, which names the key
+    // and states the hazard, rather than by the deleted blanket read-only lock.
     protectedRawDangerKeys: ['danger.httpListener'],
   };
 }

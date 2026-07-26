@@ -9,6 +9,12 @@ import {
 } from './agent-context-policy.ts';
 import { wrapFindToolForAgentPolicy } from './agent-find-policy.ts';
 import { wrapReadToolForAgentPolicy } from './agent-read-policy.ts';
+import {
+  AGENT_SETTINGS_TOOL_DESCRIPTION,
+  validateSettingsToolInvocationForAgentPolicy,
+  wrapSettingsToolForAgentPolicy,
+  type SettingsToolArgs,
+} from './agent-settings-write-policy.ts';
 import { wrapWebSearchToolForAgentPolicy } from './agent-web-search-policy.ts';
 import type {
   AgentToolArgs,
@@ -125,11 +131,9 @@ const STATE_MUTATION_DENIAL = [
   'Use Agent-owned memory, skills, personas, routines, and explicit CLI/slash commands for intentional local state changes.',
 ].join(' ');
 
-const SETTINGS_MUTATION_DENIAL = [
-  'GoodVibes Agent does not mutate configuration through model tools in the main conversation.',
-  'Use explicit Agent CLI/slash settings commands for intentional config changes.',
-  'Secrets, tokens, passwords, connected-host lifecycle settings, and connected-host exposure settings require explicit user action outside the model tool surface.',
-].join(' ');
+// The blanket settings denial that used to live here is gone. Its history, what
+// it was protecting, and the short confirmation-gated list that replaced it are
+// documented in agent-settings-write-policy.ts.
 
 const INSPECT_WRITE_DENIAL = [
   'GoodVibes Agent only uses inspect scaffold mode for dry-run planning from the main conversation.',
@@ -181,7 +185,7 @@ export function installAgentToolPolicyGuard(registry: ToolRegistry, options: Age
     } else if (tool.definition.name === 'goodvibes_context') {
       wrapAgentContextToolForAgentPolicy(tool, registry);
     } else if (tool.definition.name === 'goodvibes_settings') {
-      wrapBlockedSettingsToolForAgentPolicy(tool);
+      wrapSettingsToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'inspect') {
       wrapInspectToolForAgentPolicy(tool);
     } else if (tool.definition.name === 'analyze') {
@@ -298,17 +302,6 @@ export function wrapStateToolForAgentPolicy(tool: Tool): void {
     if (denial) return { success: false, error: denial };
     return originalExecute(args);
   };
-}
-
-export function wrapBlockedSettingsToolForAgentPolicy(tool: Tool): void {
-  tool.definition.description = 'Blocked in GoodVibes Agent: configuration mutation.';
-  tool.definition.sideEffects = [];
-  tool.definition.parameters = {
-    type: 'object',
-    properties: {},
-    additionalProperties: false,
-  };
-  tool.execute = async () => ({ success: false, error: SETTINGS_MUTATION_DENIAL });
 }
 
 export function wrapInspectToolForAgentPolicy(tool: Tool): void {
@@ -515,7 +508,12 @@ export function explainAgentToolPolicyInvocation(
     const denied = validateStateToolInvocationForAgentPolicy(args as StateToolArgs);
     return denied ? deniedByAgentPolicy(denied, READ_ONLY_STATE_TOOL_MODES) : allowedByAgentPolicy('Agent policy allows read-only runtime state inspection.', READ_ONLY_STATE_TOOL_MODES);
   }
-  if (toolName === 'goodvibes_settings') return deniedByAgentPolicy(SETTINGS_MUTATION_DENIAL);
+  if (toolName === 'goodvibes_settings') {
+    const denied = validateSettingsToolInvocationForAgentPolicy(args as SettingsToolArgs);
+    return denied
+      ? deniedByAgentPolicy(denied)
+      : allowedByAgentPolicy('Agent policy allows reading and applying settings; a short confirmation-gated list is named in the refusal when it applies.');
+  }
   if (toolName === 'inspect') {
     const denied = validateInspectToolInvocationForAgentPolicy(args as InspectToolArgs);
     return denied ? deniedByAgentPolicy(denied) : allowedByAgentPolicy('Agent policy allows inspection and dry-run scaffolding only.');
@@ -554,7 +552,15 @@ export const AGENT_CHANNEL_ACTION_DENIAL_MESSAGE = CHANNEL_ACTION_DENIAL;
 export const AGENT_MCP_SECURITY_MUTATION_DENIAL_MESSAGE = MCP_SECURITY_MUTATION_DENIAL;
 export const AGENT_FETCH_NETWORK_MUTATION_DENIAL_MESSAGE = FETCH_NETWORK_MUTATION_DENIAL;
 export const AGENT_STATE_MUTATION_DENIAL_MESSAGE = STATE_MUTATION_DENIAL;
-export const AGENT_SETTINGS_MUTATION_DENIAL_MESSAGE = SETTINGS_MUTATION_DENIAL;
+export const AGENT_SETTINGS_TOOL_DESCRIPTION_TEXT = AGENT_SETTINGS_TOOL_DESCRIPTION;
+export {
+  AGENT_CONFIRMATION_REQUIRED_CONFIG_KEYS,
+  AGENT_SETTINGS_CONFIRMATION_PROPERTY,
+  describeConfirmationRequiredDenial,
+  findConfirmationRequiredConfigKey,
+  validateSettingsToolInvocationForAgentPolicy,
+  wrapSettingsToolForAgentPolicy,
+} from './agent-settings-write-policy.ts';
 export const AGENT_INSPECT_WRITE_DENIAL_MESSAGE = INSPECT_WRITE_DENIAL;
 export const AGENT_DURABLE_WORKFLOW_MUTATION_DENIAL_MESSAGE = DURABLE_WORKFLOW_MUTATION_DENIAL;
 export const AGENT_CONTROL_MUTATION_DENIAL_MESSAGE = CONTROL_MUTATION_DENIAL;

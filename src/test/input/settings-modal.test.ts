@@ -155,7 +155,7 @@ describe('SettingsModal', () => {
     expect(missing).toEqual([]);
   });
 
-  test('open() routes daemon/runtime settings while keeping raw danger settings hidden', () => {
+  test('open() routes daemon/runtime settings and shows the danger toggle, hiding only internal plumbing', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     const visibleKeys = new Set<string>();
     for (const entries of modal.groups.values()) {
@@ -163,6 +163,7 @@ describe('SettingsModal', () => {
     }
 
     for (const key of [
+      'danger.httpListener',
       'controlPlane.hostMode',
       'httpListener.hostMode',
       'web.hostMode',
@@ -175,8 +176,9 @@ describe('SettingsModal', () => {
       expect(isAgentHiddenSettingKey(key)).toBe(false);
       expect(visibleKeys.has(key)).toBe(true);
     }
+    // Only internal plumbing stays hidden. Hazardous-but-real settings are shown
+    // and gated at write time instead, so the owner can see and confirm them.
     for (const key of [
-      'danger.httpListener',
       'ui.wrfcMessages',
     ]) {
       expect(isAgentHiddenSettingKey(key)).toBe(true);
@@ -184,19 +186,59 @@ describe('SettingsModal', () => {
     }
   });
 
-  test('relay.* settings are visible but locked as connected-host-owned (SDK 1.6.1)', () => {
+  test('relay.* settings are visible AND writable, because they route to their owner', () => {
     modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
     const relayEntries = modal.groups.get('relay') ?? [];
     const relayKeys = relayEntries.map((entry) => entry.setting.key);
     expect(relayKeys).toContain('relay.enabled');
     expect(relayKeys).toContain('relay.url');
     expect(relayKeys).toContain('relay.requireStepUpForMutations');
-    // Toggling these from Agent would not actually start/stop the connected
-    // daemon's relay registration (Agent's copy is imported, not live-shared) —
-    // same reasoning as danger.httpListener, so every relay.* entry is locked.
+    // These used to be locked, on the correct-at-the-time grounds that Agent's
+    // copy was an imported snapshot, so toggling relay.enabled here would not
+    // start or stop the connected daemon's relay registration. relay.* is now
+    // daemon-owned and Agent routes the write to the daemon that acts on it, so
+    // the refusal protects against a problem that no longer exists — it only
+    // blocks configuring the platform from the surface in front of you.
     for (const entry of relayEntries) {
-      expect(entry.locked, `${entry.setting.key} should be locked (external-host-owned)`).toBe(true);
-      expect(entry.lockReason).toBeTruthy();
+      expect(entry.locked, `${entry.setting.key} should be writable (it routes to the daemon)`).toBe(false);
+    }
+  });
+
+  test('danger.* is shown rather than hidden, so the owner can see what is on', () => {
+    // It used to be hidden by the `danger.` prefix in AGENT_HIDDEN_SETTING_PREFIXES,
+    // which is worse than locking it: a hidden key has nothing to look at, nothing
+    // to confirm, and no way to state why it refused. Being visible is what makes
+    // the confirmation gate meaningful.
+    expect(isAgentHiddenSettingKey('danger.httpListener')).toBe(false);
+
+    modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
+    const dangerEntries = modal.groups.get('danger') ?? [];
+    const dangerKeys = dangerEntries.map((entry) => entry.setting.key);
+    expect(dangerKeys).toContain('danger.httpListener');
+
+    // Visible AND writable. The hazard is handled by the narrow confirmation
+    // list, not by a second block here — one hazard, one gate.
+    for (const entry of dangerEntries) {
+      expect(entry.locked, `${entry.setting.key} should not be blanket-locked`).toBe(false);
+    }
+  });
+
+  test('every danger.* key in the schema reaches a rendered category', () => {
+    // Guards the drop this change had to fix: the modal buckets entries by the
+    // key's first segment and silently discards any whose category is not
+    // registered, so un-hiding a prefix does nothing on its own.
+    modal.open(cm, ffm, subscriptionManager, serviceRegistry, mcpRegistry);
+    const rendered = new Set<string>();
+    for (const entries of modal.groups.values()) {
+      for (const entry of entries) rendered.add(entry.setting.key);
+    }
+    const schemaDangerKeys = CONFIG_SCHEMA
+      .map((setting) => setting.key)
+      .filter((key) => key.startsWith('danger.'));
+
+    expect(schemaDangerKeys.length).toBeGreaterThan(0);
+    for (const key of schemaDangerKeys) {
+      expect(rendered.has(key), `${key} is in the schema but never rendered`).toBe(true);
     }
   });
 

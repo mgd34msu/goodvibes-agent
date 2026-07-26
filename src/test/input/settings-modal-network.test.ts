@@ -94,19 +94,25 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     expect(SETTINGS_CATEGORIES).toContain('web');
     expect(SETTINGS_CATEGORIES).toContain('service');
     expect(SETTINGS_CATEGORIES).toContain('runtime');
-    expect(SETTINGS_CATEGORIES).not.toContain('danger');
+    // `danger` is a registered category now. It was deliberately absent, which
+    // meant danger.httpListener was dropped on the floor by open() even once the
+    // hidden-prefix was lifted — the modal buckets by the key's first segment.
+    expect(SETTINGS_CATEGORIES).toContain('danger');
     expect(SETTINGS_CATEGORIES).toContain('wrfc');
     expect(SETTINGS_CATEGORIES).toContain('orchestration');
   });
 
-  test('only raw danger toggles and internal WRFC message setting are policy-hidden', () => {
+  test('only the internal WRFC message setting is policy-hidden', () => {
+    // Hiding is reserved for keys with nothing for the owner to decide. Anything
+    // hazardous is shown and gated instead, so the refusal can name the key and
+    // say why — `danger.httpListener` moved from this list to that treatment.
     for (const key of [
-      'danger.httpListener',
       'ui.wrfcMessages',
     ]) {
       expect(isAgentHiddenSettingKey(key)).toBe(true);
     }
     for (const key of [
+      'danger.httpListener',
       'controlPlane.hostMode',
       'controlPlane.port',
       'httpListener.hostMode',
@@ -120,10 +126,11 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
     }
   });
 
-  test('open() populates daemon runtime keys but keeps hidden danger keys out', () => {
+  test('open() populates daemon runtime keys, including the visible danger toggle', () => {
     openSettings();
     const keys = visibleKeys();
     for (const key of [
+      'danger.httpListener',
       'controlPlane.hostMode',
       'httpListener.hostMode',
       'web.hostMode',
@@ -136,29 +143,36 @@ describe('SettingsModal — Agent service-hosting boundaries', () => {
       expect(keys.has(key)).toBe(true);
     }
     for (const key of [
-      'danger.httpListener',
       'ui.wrfcMessages',
     ]) {
       expect(keys.has(key)).toBe(false);
     }
   });
 
-  test('selectTarget navigates to daemon runtime keys but not hidden danger keys', () => {
+  test('selectTarget navigates to daemon runtime keys and to the danger toggle, but not to hidden keys', () => {
     openSettings();
     modal.selectTarget('controlPlane.port');
     expect(modal.getSelected()?.setting.key).toBe('controlPlane.port');
-    const before = modal.getSelected()?.setting.key;
+
+    // Reachable by navigation, because it is a real setting the owner may need
+    // to inspect or change — the confirmation gate is what protects the write.
     modal.selectTarget('danger.httpListener');
-    expect(modal.getSelected()?.setting.key).toBe(before);
+    expect(modal.getSelected()?.setting.key).toBe('danger.httpListener');
+
+    const before = modal.getSelected()?.setting.key;
     modal.selectTarget('ui.wrfcMessages');
     expect(modal.getSelected()?.setting.key).toBe(before);
   });
 
-  test('rendered settings workspace does not mention raw danger settings', () => {
+  test('the danger toggle renders once navigated to, rather than being suppressed', () => {
+    // This used to assert the workspace never mentions danger settings. It only
+    // ever passed because the default view opens on another category, so it
+    // proved nothing about suppression — and it now states the wrong intent.
+    // What matters is that selecting the key actually renders it.
     openSettings();
+    modal.selectTarget('danger.httpListener');
     const text = renderSettingsModal(modal, 120, 30).map(lineText).join('\n');
-    expect(text).not.toContain('Danger');
-    expect(text).not.toContain('danger.httpListener');
+    expect(text).toContain('danger.httpListener');
   });
 
   // The deprecated danger.daemon alias (and the settings-modal override-note

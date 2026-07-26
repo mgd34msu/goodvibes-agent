@@ -7,61 +7,98 @@
  * silently become a write-review-fix-confirm chain with a reviewer, quality
  * gates, and a second agent.
  *
- * The agent's session continuation runner (runtime/services.ts) previously
- * spawned every follow-up with the WRFC controller attached, so a one-word
- * message escalated into a full chain. This module owns the single rule that
- * decides otherwise.
+ * WHERE THIS RULE LIVES
  *
- * WHAT COUNTS AS AUTHORIZED
+ * The rule is owned by the SDK (platform/agents/conversation-continuation.ts),
+ * because the daemon, the terminal UI runtime, and this product each install
+ * their own session continuation runner and a copy living in one of them
+ * protects only that one. This module is this product's copy for as long as
+ * the pinned SDK (1.14.0) predates the shared module: it is written to produce
+ * the SAME decision, reusing the SDK's own `isGatedSurface` predicate so the
+ * two cannot disagree about what a local surface is.
  *
- * Work is authorized when the input carries an explicit marker, which is set
- * by whatever confirmed it:
- * - the conversation gate at channel ingress, once the owner agreed to a
- *   proposal over the channel it was proposed on;
- * - a schedule, trigger, or on-exit chain, which was confirmed when it was
- *   created and must not re-ask at execution time.
+ * When this product re-pins to the SDK release that carries
+ * `conversation-continuation.ts`, delete this file and import
+ * `continuationChainOptions` from '@pellux/goodvibes-sdk/platform/agents'.
  *
- * The marker is a wire-format key on the session input's open metadata record,
- * so it survives the hop between surfaces without a schema change and older
- * readers ignore it. Absent means conversation, which is the safe default:
- * the worst case is an answer instead of a workstream, and the owner can ask
- * for the workstream.
+ * THE RULE, in order:
+ *
+ * 1. An explicit authorization marker on the input opens a chain — written by
+ *    whatever already confirmed the work: an agreed work proposal, a schedule,
+ *    a trigger, an on-exit chain.
+ * 2. A follow-up on a LOCAL surface (the terminal the operator is sitting in
+ *    front of) opens a chain. That is the surface's whole point, and it is the
+ *    same exemption the ingress gate makes.
+ * 3. Everything else is conversation: it gets a real answer with the chain
+ *    suppressed.
+ *
+ * Absent, malformed, or unrecognized authorization is NOT authorization. The
+ * failure mode is an answer where a workstream was wanted, which the owner
+ * fixes with one more message; the opposite failure mode is twenty
+ * notifications and a review chain nobody asked for.
  *
  * Automation's own spawn path (AutomationManager.spawnTask) does NOT come
  * through here — a scheduled run was authorized when it was scheduled and
  * keeps its chain.
  */
+import {
+  CONVERSATION_GATE_DEFAULTS,
+  isGatedSurface,
+  readConversationGateConfig,
+  type ConversationGateConfigReader,
+} from '@pellux/goodvibes-sdk/platform/agents';
 
 /**
  * Metadata key marking a session input as already-authorized work.
  *
- * Shared by value across surfaces (like a header name), not by import: the
- * agent reads what the daemon writes. Changing it is a wire-format change.
+ * Shared BY VALUE across surfaces (like a header name), not by import: the
+ * agent reads what the daemon writes, across process and version boundaries.
+ * Changing it is a wire-format change, and the value MUST stay identical to
+ * the SDK's `WORK_AUTHORIZED_METADATA_KEY`.
  */
 export const WORK_AUTHORIZED_METADATA_KEY = 'goodvibes.workAuthorized';
 
 /** Why a continuation was or was not allowed to open a work chain. */
 export type ContinuationEscalation =
-  | { readonly startsWorkChain: true; readonly reason: 'pre-authorized' }
+  | { readonly startsWorkChain: true; readonly reason: 'pre-authorized' | 'local-surface' }
   | { readonly startsWorkChain: false; readonly reason: 'conversation-first' };
 
 export interface ContinuationInputLike {
   readonly metadata?: Record<string, unknown> | undefined;
+  readonly surfaceKind?: string | undefined;
+  readonly body?: string | undefined;
+}
+
+export interface ContinuationEscalationOptions {
+  /** Reads `conversationGate.*`; absent = the SDK's shipped defaults. */
+  readonly configReader?: ConversationGateConfigReader | undefined;
+}
+
+/** True when the input carries the explicit work-authorized marker. */
+export function readWorkAuthorization(metadata: Record<string, unknown> | undefined): boolean {
+  const marker = metadata?.[WORK_AUTHORIZED_METADATA_KEY];
+  // Accept the boolean and the string: the marker crosses a JSON wire and some
+  // surfaces stringify metadata values. Nothing else counts.
+  return marker === true || marker === 'true';
 }
 
 /**
  * Decide whether a session continuation may open a write-review-fix-confirm
- * chain. Only an explicit authorization marker permits it; everything else is
- * conversation and gets a plain reply.
+ * chain.
  */
-export function decideContinuationEscalation(input: ContinuationInputLike | undefined): ContinuationEscalation {
-  const marker = input?.metadata?.[WORK_AUTHORIZED_METADATA_KEY];
-  // Accept the boolean true and the string 'true' — the marker crosses a JSON
-  // wire and some surfaces stringify metadata values.
-  const authorized = marker === true || marker === 'true';
-  return authorized
-    ? { startsWorkChain: true, reason: 'pre-authorized' }
-    : { startsWorkChain: false, reason: 'conversation-first' };
+export function decideContinuationEscalation(
+  input: ContinuationInputLike | undefined,
+  options: ContinuationEscalationOptions = {},
+): ContinuationEscalation {
+  if (readWorkAuthorization(input?.metadata)) {
+    return { startsWorkChain: true, reason: 'pre-authorized' };
+  }
+  const config = options.configReader
+    ? readConversationGateConfig(options.configReader)
+    : CONVERSATION_GATE_DEFAULTS;
+  return isGatedSurface(config, input?.surfaceKind)
+    ? { startsWorkChain: false, reason: 'conversation-first' }
+    : { startsWorkChain: true, reason: 'local-surface' };
 }
 
 /**
@@ -72,8 +109,9 @@ export function decideContinuationEscalation(input: ContinuationInputLike | unde
  */
 export function continuationChainOptions(
   input: ContinuationInputLike | undefined,
+  options: ContinuationEscalationOptions = {},
 ): { readonly dangerously_disable_wrfc?: true } {
-  return decideContinuationEscalation(input).startsWorkChain
+  return decideContinuationEscalation(input, options).startsWorkChain
     ? {}
     : { dangerously_disable_wrfc: true };
 }

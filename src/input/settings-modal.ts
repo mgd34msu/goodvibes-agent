@@ -42,7 +42,7 @@ import {
   type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
-import { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, isAgentHiddenSettingKey, isExternalHostOwnedSettingKey } from './settings-modal-agent-policy.ts';
+import { isAgentHiddenSettingKey } from './settings-modal-agent-policy.ts';
 
 export {
   SETTINGS_CATEGORIES,
@@ -58,7 +58,6 @@ export {
   type SettingsModalOpenOptions,
   type SubscriptionEntry,
 } from './settings-modal-types.ts';
-export { AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON, isExternalHostOwnedSettingKey } from './settings-modal-agent-policy.ts';
 export { isAgentHiddenSettingKey } from './settings-modal-agent-policy.ts';
 
 // ---------------------------------------------------------------------------
@@ -352,7 +351,6 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
-    if (this._blockLockedInertSetting(entry)) return;
 
     const { setting } = entry;
 
@@ -417,7 +415,6 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return;
-    if (this._blockLockedInertSetting(entry)) return;
     const { setting } = entry;
 
     if (setting.type === 'boolean') {
@@ -534,11 +531,6 @@ export class SettingsModal {
 
     const entry = this.getSelected();
     if (!entry || !this.configManager) return false;
-    if (this._blockLockedInertSetting(entry)) {
-      this.editingMode = false;
-      this.editBuffer = '';
-      return false;
-    }
 
     const { setting } = entry;
     let parsed: unknown = this.editBuffer;
@@ -585,7 +577,6 @@ export class SettingsModal {
     if (this.editingMode || !this.configManager) return null;
     const entry = this.getSelected();
     if (!entry) return null;
-    if (this._blockLockedInertSetting(entry)) return null;
     const key = entry.setting.key as ConfigKey;
     this._setValue(key, entry.setting.default);
     if (isSecretConfigKey(key) && this.secretsManager) {
@@ -622,16 +613,18 @@ export class SettingsModal {
       const cat = rawCat as SettingsCategory;
       const currentValue = configManager.get(setting.key as ConfigKey);
       const resolved = getResolvedSettingLookup(configManager, setting.key as ConfigKey)?.entry;
-      const hostOwned = isExternalHostOwnedSettingKey(setting.key);
       const entry: SettingEntry = {
         setting,
         currentValue,
         isDefault: currentValue === setting.default,
         effectiveSource: resolved?.effectiveSource,
-        locked: hostOwned || resolved?.locked,
+        // `locked`/`lockReason` now come only from a genuine higher-priority
+        // config layer. The blanket host-owned lock that used to force them here
+        // is gone — those keys route to the daemon that owns them.
+        locked: resolved?.locked,
         conflict: resolved?.conflict,
         sourceLabel: resolved?.sourceLabel,
-        lockReason: hostOwned ? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON : resolved?.lockReason,
+        lockReason: resolved?.lockReason,
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
     }
@@ -732,10 +725,6 @@ export class SettingsModal {
 
   private _setValue(key: ConfigKey, value: unknown): void {
     if (!this.configManager) return;
-    if (isExternalHostOwnedSettingKey(key)) {
-      this.lastSettingEffectMessage = AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
-      return;
-    }
     const previousValue = this.configManager.get(key);
     try {
       this.configManager.setDynamic(key, value);
@@ -755,12 +744,6 @@ export class SettingsModal {
       logger.error('SettingsModal: failed to set config value', { key, error: summarizeError(e) });
       this.lastSettingEffectMessage = `Save failed: ${summarizeError(e)}`;
     }
-  }
-
-  private _blockLockedInertSetting(entry: SettingEntry): boolean {
-    if (!isExternalHostOwnedSettingKey(entry.setting.key)) return false;
-    this.lastSettingEffectMessage = entry.lockReason ?? AGENT_EXTERNAL_HOST_SETTING_LOCK_REASON;
-    return true;
   }
 
 }

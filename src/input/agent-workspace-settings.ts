@@ -2,7 +2,6 @@ import { existsSync, readFileSync } from 'node:fs';
 import type { ConfigKey, ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { PendingSubscriptionLogin, ProviderSubscription } from '@pellux/goodvibes-sdk/platform/config';
 import { setHarnessSetting } from '../agent/harness-control.ts';
-import { isExternalHostOwnedSettingKey } from '../config/agent-settings-policy.ts';
 import { applyThemeModeSettingChange, THEME_MODE_CONFIG_KEY, THEME_MODE_SYNTHETIC_SETTING } from '../renderer/theme-mode-config.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import type { CommandContext } from './command-registry.ts';
@@ -172,8 +171,10 @@ function readNestedSettingValue(record: Record<string, unknown>, key: string): u
 }
 
 function canImportTuiSetting(key: string): boolean {
-  return !isExternalHostOwnedSettingKey(key)
-    && TUI_IMPORTABLE_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix));
+  // The allowlist below is the whole filter. This also used to exclude
+  // host-owned keys, which never changed the outcome: no locked domain
+  // (`relay.`, `danger.`) appears in TUI_IMPORTABLE_SETTING_PREFIXES.
+  return TUI_IMPORTABLE_SETTING_PREFIXES.some((prefix) => key.startsWith(prefix));
 }
 
 function valuesMatch(left: unknown, right: unknown): boolean {

@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../config/index.ts';
+import { ensureDaemonConfigMigrated } from '../config/ensure-daemon-config-migrated.ts';
 import { formatProviderModel, getModelIdFromProviderModel, getProviderIdFromModel } from '../config/provider-model.ts';
 import { readOnboardingCheckMarkers } from '../runtime/onboarding/index.ts';
 import { GlobalNetworkTransportInstaller } from '@/runtime/index.ts';
@@ -126,6 +127,12 @@ export async function prepareShellCliRuntime(
     homeDirectory: bootstrapHomeDirectory,
   } = ownership;
   configureActivityLogger(join(bootstrapWorkingDir, '.goodvibes', 'logs'));
+  // Daemon-owned settings (chat surfaces, control-plane binding, watchers,
+  // device grants, retention) have one home: the daemon's own store. Move them
+  // there BEFORE the config manager loads, so this process never resolves a
+  // daemon-owned key from a stale surface copy. Idempotent; announces once.
+  const daemonConfigNotice = ensureDaemonConfigMigrated(bootstrapHomeDirectory);
+  if (daemonConfigNotice) console.log(`[goodvibes] ${daemonConfigNotice}`);
   const configManager = new ConfigManager({
     workingDir: bootstrapWorkingDir,
     homeDir: bootstrapHomeDirectory,

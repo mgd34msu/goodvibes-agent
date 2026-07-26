@@ -4,6 +4,7 @@ import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
+import { SETTINGS_BEHAVIOR_COVERAGE_COUNT } from './settings-behavior-coverage.ts';
 import {
   countChannelReadinessSurface,
   countDelegationPostureSurface,
@@ -119,18 +120,24 @@ function listCliCommands(root: string): string[] {
 }
 
 /**
- * Approximation of the number of CONFIG_SCHEMA entries for which local
- * schema/load/write/persistence tests exercise observable behavior. This is NOT the
- * schema size — it is a manually-maintained estimate that may lag the true per-key
- * coverage count. Deriving the exact count (one assertion per key) is backlogged as I1.
+ * The number of CONFIG_SCHEMA entries with local behaviour verification — tests that
+ * fail if the setting stops being honoured, as opposed to the structural signal every
+ * row trivially satisfies.
+ *
+ * This is no longer a bare hand-typed integer. It is derived in
+ * settings-behavior-coverage.ts as a documented legacy baseline plus one entry per
+ * itemised key, where each entry names the test that covers it. Read that file before
+ * changing this number: the only way to raise it is to add an evidence row, and rows
+ * are validated (real key, real test file, test actually mentions the key) by
+ * settings-behavior-coverage.test.ts.
  *
  * The ledger formula uses Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settings) so that
- * if the schema shrinks below the estimate, localBehaviorVerified never overstates total.
+ * if the schema shrinks below the count, localBehaviorVerified never overstates total.
  * The drift test in verification-ledger.test.ts asserts
  * SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE <= CONFIG_SCHEMA.length — the constant may never
  * claim more verified settings than keys that actually exist.
  */
-export const SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE = 184;
+export const SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE = SETTINGS_BEHAVIOR_COVERAGE_COUNT;
 
 /**
  * Conservative estimate of the number of feature flags that require live external runtime

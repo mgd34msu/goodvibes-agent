@@ -38,6 +38,7 @@ export type SettingsCategory =
   | 'service'
   | 'controlPlane'
   | 'httpListener'
+  | 'danger'
   | 'web'
   | 'watchers'
   | 'relay'
@@ -68,6 +69,7 @@ export type SettingsCategory =
   | 'power'
   | 'fleet'
   | 'voice'
+  | 'device'
   | 'memory';
 
 export type SettingsFocusPane = 'categories' | 'settings';
@@ -79,8 +81,13 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
-  { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'mcp', 'automation', 'checkin', 'integrations'] },
-  { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'web', 'watchers', 'network', 'relay', 'update'] },
+  { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'device', 'mcp', 'automation', 'checkin', 'integrations'] },
+  // `danger` sits with the other listener/binding categories because that is
+  // what it is: danger.httpListener opens an inbound webhook listener. It is
+  // rendered like any other setting rather than hidden — the write is gated by
+  // the narrow confirmation list in src/tools/agent-settings-write-policy.ts,
+  // which can name the key and state the hazard. A hidden key cannot.
+  { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'danger', 'web', 'watchers', 'network', 'relay', 'update'] },
   { label: 'Advanced Runtime', categories: ['orchestration', 'fleet', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc', 'memory'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];

@@ -39,16 +39,17 @@ export type { SdkBlockMeta };
 
 /**
  * The app extends the SDK BlockMeta with rendering position fields, plus a
- * local-only block type: 'tool_group' is the synthetic header block that folds
- * a run of >=2 consecutive tool-result messages under one collapsible header
- * (see conversation-tool-groups.ts). Defined as an intersection rather than
+ * local-only block type: 'assistant_turn' is the merged `● assistant` header
+ * block that owns one whole run of assistant activity, with the run's tool
+ * calls and their results hanging beneath it as a branch tree (see
+ * conversation-turn-structure.ts). Defined as an intersection rather than
  * `interface X extends SdkBlockMeta` because TypeScript requires an extending
  * interface's members to be subtypes of the base interface's — widening the
  * `type` union that way is a compile error. Omit + intersection adds the new
  * variant without touching the SDK's published type.
  */
 export type BlockMeta = Omit<SdkBlockMeta, 'type'> & {
-  type: SdkBlockMeta['type'] | 'tool_group';
+  type: SdkBlockMeta['type'] | 'assistant_turn';
   /** Index of this block (increments per renderable block). */
   blockIndex: number;
   /** First rendered line index in the history buffer. */
@@ -58,13 +59,20 @@ export type BlockMeta = Omit<SdkBlockMeta, 'type'> & {
   /** Stable key for collapse state persistence across rebuilds (e.g. msg_N). */
   collapseKey: string;
   /**
-   * Absolute message indexes of every member of a folded tool-result group
-   * (see conversation-tool-groups.ts). Present only on 'tool_group' blocks —
-   * lets /expand also open each member's own collapse key in the same pass,
-   * since a folded member pushes no BlockMeta of its own to toggle
-   * individually while the group stays collapsed.
+   * Absolute message indexes of every tool result hanging under an
+   * 'assistant_turn' header. A row hidden by a collapsed turn pushes no
+   * BlockMeta of its own, so this list is what lets /expand reopen each
+   * result's own collapse key in the same pass, and what lets search reach
+   * content that is currently hidden.
    */
   groupMemberIndexes?: readonly number[];
+  /**
+   * The tool call's name, when this block renders a 'tool' result (or is an
+   * 'assistant_turn' header whose calls all share one label). Undefined for
+   * non-tool block types and for standalone tool results with no recorded
+   * name.
+   */
+  toolName?: string;
 };
 
 // Import internal types needed for rendering helpers
