@@ -63,10 +63,13 @@ describe('decideContinuationEscalation', () => {
 
 describe('continuationChainOptions', () => {
   test('a conversational follow-up spawns with the work chain disabled', () => {
-    expect(continuationChainOptions({ metadata: {} })).toEqual({ dangerously_disable_wrfc: true });
+    expect(continuationChainOptions({ metadata: {} })).toEqual({
+      dangerously_disable_wrfc: true,
+      replyStyle: 'conversational',
+    });
   });
 
-  test('authorized work spawns with the chain intact', () => {
+  test('authorized work spawns with the chain intact and reports as work', () => {
     expect(continuationChainOptions({
       metadata: { [WORK_AUTHORIZED_METADATA_KEY]: true },
     })).toEqual({});
@@ -74,7 +77,19 @@ describe('continuationChainOptions', () => {
 
   test('the fragment is spreadable into a spawn input', () => {
     const spawnInput = { mode: 'spawn', task: 'Testing', ...continuationChainOptions(undefined) };
-    expect(spawnInput).toEqual({ mode: 'spawn', task: 'Testing', dangerously_disable_wrfc: true });
+    expect(spawnInput).toEqual({
+      mode: 'spawn',
+      task: 'Testing',
+      dangerously_disable_wrfc: true,
+      replyStyle: 'conversational',
+    });
+  });
+
+  test('a conversational follow-up asks for a reply, not a completion report', () => {
+    // Suppressing the chain without changing what the reply LOOKS like is half
+    // a fix: the answer still came back as a Summary/Changes/Decisions form.
+    expect(continuationChainOptions({ surfaceKind: 'ntfy' }).replyStyle).toBe('conversational');
+    expect(continuationChainOptions({ surfaceKind: 'tui' }).replyStyle).toBeUndefined();
   });
 });
 

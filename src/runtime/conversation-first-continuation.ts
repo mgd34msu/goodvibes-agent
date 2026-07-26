@@ -110,10 +110,16 @@ export function decideContinuationEscalation(
 export function continuationChainOptions(
   input: ContinuationInputLike | undefined,
   options: ContinuationEscalationOptions = {},
-): { readonly dangerously_disable_wrfc?: true } {
+): { readonly dangerously_disable_wrfc?: true; readonly replyStyle?: 'conversational' } {
+  // `replyStyle` rides with the chain decision rather than being derived a
+  // second time somewhere else. A continuation that is conversation gets a
+  // conversational REPLY: no completion report, no Summary/Changes/Decisions
+  // template. Answering a message with a filled-in form is what the owner
+  // received on his phone, and suppressing the CHAIN without also changing
+  // what the reply LOOKS like is exactly half a fix.
   return decideContinuationEscalation(input, options).startsWorkChain
     ? {}
-    : { dangerously_disable_wrfc: true };
+    : { dangerously_disable_wrfc: true, replyStyle: 'conversational' };
 }
 
 /** Mark an input's metadata as authorized work. Used by confirmation paths. */
