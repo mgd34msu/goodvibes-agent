@@ -2,6 +2,18 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.16.0 - 2026-07-26
+
+- A paired phone is now something Agent can use. Its cameras, screen, location, clipboard, and small device actions (show a notification, open a link, buzz) are available through a native `phone` tool rather than an add-on, so a picture, a screen, or a location can be part of the work you asked for.
+- Nothing is taken from a phone quietly. Every capture and every action asks the person holding it first. Choosing "always allow" is offered on every capability and records one standing permission for that one capability on that one phone, listed and revocable wherever you manage the phone, and taking effect the moment you revoke it. Captures are kept 24 hours and then deleted.
+- Added triggers: watch something, and act when it changes. Watch a long-running command and run follow-up work when it finishes, with its exit status and output tail carried into that work. Watch a running command's output as it is produced and act on the first line that matches. Or run a cheap check on a schedule with no model involved and start work only when the answer actually changes, rather than on every poll. Triggers ship off, and nothing watches anything until you turn them on.
+- Wake-word detection has platform support, and says plainly that it does not run yet. The detector, its audio front end, and the published "hey goodvibes" model are all in place, but no surface captures microphone audio yet, so turning the setting on does nothing in this build and the setting itself says so. Your choice is remembered for the release that adds capture, and the feature reports itself unavailable rather than appearing to listen.
+- Fixed: a conversation that had already written to you could get no reply at all. Every channel built its list of places to answer only from optional settings — a default chat id, a bot username, and their equivalents — so when those were left blank there was nowhere to send the answer, even for a conversation that had just messaged you. Replies now go back to the conversation the message came from with no configuration at all, on all fourteen channels. The optional settings keep their real job: starting a conversation somewhere nobody has written from.
+- Fixed: asking a background process what it has printed now answers while it is still running, instead of returning nothing until it finishes.
+- Added a build floor between this app and the daemon. A daemon update swaps the daemon and leaves running apps on the build they started with, so a fix could land, be verified installed, and still not change what you see. This build now checks the minimum build the daemon will let take part, and when it is below that floor it says so and stops taking shared work rather than quietly continuing under superseded rules.
+- The push notification settings the platform runtime gained are reachable under Notifications — the contact address a push service uses to reach you about a delivery problem, and the bounds on how registered devices are kept tidy. They sit with the settings that already decide which events get pushed.
+- Updated the bundled GoodVibes platform runtime to 1.15.0, which carries the triggers, paired-phone, wake-word platform, reply-routing and background-output changes behind these notes.
+
 ## 1.15.0 - 2026-07-25
 
 - v1.15.0 changes what a message means. A message arriving from a connected channel now gets a conversational answer instead of quietly turning into a full workstream with a reviewer, quality gates, and a second agent. When Agent judges that what you asked for warrants real work, it proposes that work and waits for you to agree.
