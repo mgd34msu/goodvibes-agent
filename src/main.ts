@@ -54,6 +54,7 @@ import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionW
 import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
 import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
+import { startPeriodicSelfUpdate } from './runtime/periodic-update.ts';
 import { applyInitialTuiCliState, getInteractiveTerminalLaunchError, reportFatalStartupError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
@@ -246,7 +247,9 @@ async function main() {
   };
 
   let exiting = false;
-  const exitApp = (): void => {
+  // `handOver` replaces the process AFTER the orderly teardown below and exits
+  // with its code — how a periodic self-update restarts onto its new binary.
+  const exitApp = (handOver?: () => number): void => {
     // Reentrancy guard: a second /exit or keypress during the bounded
     // spoken-audio drain below must not re-run teardown.
     if (exiting) return;
@@ -280,10 +283,17 @@ async function main() {
     stdin.setRawMode(false);
     // The terminal is already restored above; only the process exit waits for
     // the (internally capped, ~2s max) audio drain.
-    void spokenOutputDrain.catch(() => undefined).then(() => process.exit(0));
+    void spokenOutputDrain.catch(() => undefined).then(() => process.exit(handOver ? handOver() : 0));
   };
 
   commandContext.exit = exitApp;
+
+  // A long-running agent looks for a newer release too, not only at launch: it
+  // installs at an idle moment and restarts in place (runtime/periodic-update.ts).
+  unsubs.push(startPeriodicSelfUpdate({
+    configManager, services: ctx.services, exit: exitApp,
+    notify: (line) => { systemMessageRouter.high(`[Update] ${line}`); render(); },
+  }));
 
   const spokenTurns = wireSpokenTurnRuntime({
     voiceService: ctx.services.voiceService,
