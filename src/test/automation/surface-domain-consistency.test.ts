@@ -80,12 +80,16 @@ describe('surface domain consistency', () => {
     const routeBindings = new RouteBindingManager({
       store: new AutomationRouteStore(join(root, 'delivery-routes.json')),
     });
+    // The delivery router resolves goodvibes://secrets/... credentials, so the
+    // manager requires its own secrets manager and not only the registry's.
+    const secretsManager = new SecretsManager({ projectRoot: root, globalHome: root });
     const manager = new AutomationDeliveryManager({
       configManager: new ConfigManager({ surfaceRoot: 'tui',  configDir: root }),
       serviceRegistry: new ServiceRegistry(join(root, 'services.json'), {
-        secretsManager: new SecretsManager({ projectRoot: root, globalHome: root }),
+        secretsManager,
         subscriptionManager: new SubscriptionManager(join(root, 'subscriptions.json')),
       }),
+      secretsManager,
       artifactStore: new ArtifactStore({ rootDir: join(root, 'artifacts') }),
       routeBindings,
       runtimeBus: bus,
