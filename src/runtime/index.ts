@@ -500,13 +500,55 @@ const AGENT_OBFUSCATION_CHECKS: Array<{ description: string; test: (raw: string)
   },
   {
     description: 'URL-encoded content in argument',
-    test: (raw) => /%[0-9a-fA-F]{2}/.test(raw),
+    test: (raw) => hasPercentEncodedContent(raw),
   },
 ];
+
+/**
+ * A `%` followed by two hex-ish characters is grammatically identical in a
+ * printf/strftime specifier (`%4d`, `%02d`, `%2f`, `date +%ad`) and in a URL
+ * escape (`%2F`, `%20`). Testing the whole raw command against
+ * `/%[0-9a-fA-F]{2}/` therefore denied ordinary formatting commands as
+ * "obfuscation". Two independent narrowings replace that test:
+ *
+ *  1. Shape — percent-encoding only counts when the word carries it the way a
+ *     URI does: an explicit `scheme://`, or an encoded path separator / NUL
+ *     (`%2F`, `%5C`, `%00`), which is the evasion this check exists to catch.
+ *     `%02d:%02d` and `+%ad` carry neither and are left alone.
+ *  2. Consumer — the printf family legitimately emits `%2f` (float, width 2),
+ *     so its own arguments are exempt from the shape rule.
+ *
+ * This only narrows an existing detector. No new denial class is introduced:
+ * the exec-guard catastrophic list stays frozen.
+ */
+const PERCENT_ESCAPE = /%[0-9a-fA-F]{2}/;
+const URI_SCHEME = /[A-Za-z][A-Za-z0-9+.-]*:\/\//;
+/** Encoded `/`, `\` and NUL — separators that change path or argument meaning once decoded. */
+const ENCODED_SEPARATOR = /%(?:2[fF]|5[cC]|00)/;
+const FORMAT_SPECIFIER_COMMANDS = new Set(['printf', 'awk', 'gawk', 'mawk', 'nawk', 'seq']);
+const ENV_ASSIGNMENT_PREFIX = /^[A-Za-z_][A-Za-z0-9_]*=/;
 
 function extractInspectableShellWords(raw: string): string[] {
   return (raw.match(/"[^"]*"|'[^']*'|`[^`]*`|\S+/g) ?? []).map((word) =>
     word.replace(/^["'`]+|["'`;|&]+$/g, ''),
+  );
+}
+
+/** First word that is not a leading `NAME=value` assignment, reduced to its basename. */
+function segmentCommandName(words: readonly string[]): string {
+  for (const word of words) {
+    if (word.length === 0 || ENV_ASSIGNMENT_PREFIX.test(word)) continue;
+    return (word.split('/').pop() ?? word).toLowerCase();
+  }
+  return '';
+}
+
+function hasPercentEncodedContent(raw: string): boolean {
+  const words = extractInspectableShellWords(raw);
+  if (FORMAT_SPECIFIER_COMMANDS.has(segmentCommandName(words))) return false;
+  return words.some(
+    (word) =>
+      PERCENT_ESCAPE.test(word) && (URI_SCHEME.test(word) || ENCODED_SEPARATOR.test(word)),
   );
 }
 

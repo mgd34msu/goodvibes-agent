@@ -25,6 +25,7 @@ import { describeCliCommandPolicy, describeCommandPolicy } from '../../tools/age
 import { createAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
 import { createAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
+import { createAgentWorkspaceTool } from '../../tools/agent-workspace-tool.ts';
 import { registerAgentTerminalProcessTools } from '../../tools/agent-terminal-process-tools.ts';
 import { createAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { createAgentResearchReportTool } from '../../tools/agent-research-report-tool.ts';
@@ -13866,6 +13867,94 @@ describe('agent_harness tool', () => {
       // The openai-compatible-local stack has no stable size estimate; hardwareFit is absent.
       const generic = recipes.find((r) => r.id === 'openai-compatible-local');
       expect(generic?.hardwareFit).toBeUndefined();
+    } finally {
+      fixture.cleanup();
+    }
+  });
+});
+
+// ── Catalog pages never go silent (empty list + large total) ─────────────────
+//
+// `workspace action:"actions"` answered {"actions":[],"returned":0,"total":463}:
+// hundreds of entries reported to exist, none named, and no echo of the filter
+// that excluded them. These pin that every catalog echoes its applied filters
+// and explains an empty page, and that an UNQUALIFIED call still returns the
+// full catalog — the three modes below had no unqualified-call coverage at all.
+
+interface CatalogPage {
+  readonly returned: number;
+  readonly total: number;
+  readonly note?: string;
+  readonly appliedFilters?: Record<string, string>;
+}
+
+describe('agent_harness catalogs — an empty page states its cause', () => {
+  test('an unqualified call returns the whole catalog for every discovery mode', async () => {
+    const fixture = makeFixture({ builtinCommands: true });
+    try {
+      const cases: ReadonlyArray<[mode: string, key: string]> = [
+        ['tools', 'tools'],
+        ['ui_surfaces', 'surfaces'],
+        ['cli_commands', 'commands'],
+        ['commands', 'commands'],
+        ['workspace_actions', 'actions'],
+        ['modes', 'modes'],
+      ];
+
+      for (const [mode, key] of cases) {
+        const page = await executeHarnessJson<CatalogPage & Record<string, unknown[]>>(fixture, { mode, limit: 500 });
+        expect(page.total).toBeGreaterThan(0);
+        expect(page.returned).toBeGreaterThan(0);
+        expect((page[key] ?? []).length).toBe(page.returned);
+        // Nothing was filtered, so nothing is echoed and no note is needed.
+        expect(page.appliedFilters).toBeUndefined();
+        expect(page.note).toBeUndefined();
+      }
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('a filter that matches nothing is named back to the caller', async () => {
+    const fixture = makeFixture({ builtinCommands: true });
+    try {
+      const cases: ReadonlyArray<[mode: string, filter: Record<string, string>, echoed: string]> = [
+        ['workspace_actions', { category: 'actions' }, 'category="actions"'],
+        ['tools', { query: 'zzz-no-such-tool' }, 'query="zzz-no-such-tool"'],
+        ['ui_surfaces', { query: 'zzz-no-such-surface' }, 'query="zzz-no-such-surface"'],
+        ['cli_commands', { query: 'zzz-no-such-cli' }, 'query="zzz-no-such-cli"'],
+        ['commands', { query: 'zzz-no-such-command' }, 'query="zzz-no-such-command"'],
+      ];
+
+      for (const [mode, filter, echoed] of cases) {
+        const page = await executeHarnessJson<CatalogPage>(fixture, { mode, ...filter });
+        expect(page.returned).toBe(0);
+        expect(page.total).toBeGreaterThan(0);
+        expect(page.appliedFilters).toMatchObject(filter);
+        expect(page.note).toBeDefined();
+        expect(page.note).toContain(echoed);
+        expect(page.note).toContain(String(page.total));
+      }
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
+  test('the workspace tool surfaces the same explanation through its actions route', async () => {
+    const fixture = makeFixture({ builtinCommands: true });
+    try {
+      const workspaceTool = createAgentWorkspaceTool({
+        harnessTool: fixture.tool,
+        commandRegistry: fixture.commandRegistry,
+        commandContext: fixture.context,
+        toolRegistry: fixture.toolRegistry,
+      });
+      const result = await workspaceTool.execute({ action: 'actions', category: 'actions' });
+      expect(result.success).toBe(true);
+      const page = JSON.parse(result.output ?? '{}') as CatalogPage;
+      expect(page.returned).toBe(0);
+      expect(page.total).toBeGreaterThan(0);
+      expect(page.note).toContain('category="actions"');
     } finally {
       fixture.cleanup();
     }

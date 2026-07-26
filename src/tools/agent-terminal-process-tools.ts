@@ -10,6 +10,8 @@ interface AgentTerminalToolArgs {
   readonly background?: unknown;
   readonly cwd?: unknown;
   readonly timeoutMs?: unknown;
+  readonly processClass?: unknown;
+  readonly killOnTimeout?: unknown;
   readonly pty?: unknown;
   readonly confirm?: unknown;
   readonly explicitUserRequest?: unknown;
@@ -25,6 +27,8 @@ interface AgentProcessToolArgs {
   readonly command?: unknown;
   readonly cwd?: unknown;
   readonly timeoutMs?: unknown;
+  readonly processClass?: unknown;
+  readonly killOnTimeout?: unknown;
   readonly pty?: unknown;
   readonly data?: unknown;
   readonly query?: unknown;
@@ -68,14 +72,20 @@ export function createAgentTerminalTool(commandContext: CommandContext): Tool {
   return {
     definition: {
       name: 'terminal',
-      description: 'Start visible tracked background shell commands.',
+      description: 'Start visible tracked background shell commands. A timeout terminates ordinary commands; a long_lived process (browser, editor, server) keeps running past it unless killOnTimeout is set true.',
       parameters: {
         type: 'object',
         properties: {
           command: { type: 'string', description: 'Shell command to start via the shared ProcessManager.' },
           background: { type: 'boolean', description: 'Must be true. Foreground shell uses exec.' },
           cwd: { type: 'string', description: 'Workspace-relative or absolute working directory.' },
-          timeoutMs: { type: 'number', description: 'Background process timeout in milliseconds.' },
+          timeoutMs: { type: 'number', description: 'How long to allow before the timeout contract applies. Whether it terminates the process depends on processClass and killOnTimeout.' },
+          processClass: {
+            type: 'string',
+            enum: ['command', 'long_lived'],
+            description: 'command: an ordinary job, terminated when timeoutMs expires. long_lived: a browser, editor, or server whose lifetime is the user\'s — it keeps running past timeoutMs and must be stopped explicitly. Inferred from the program name when omitted.',
+          },
+          killOnTimeout: { type: 'boolean', description: 'Overrides processClass: true terminates this process when timeoutMs expires, false leaves it running. Set true deliberately before a timeout may destroy something the user is using.' },
           pty: { type: 'boolean', description: 'Request PTY mode; returns unsupported until the SDK publishes a typed PTY contract.' },
           confirm: { type: 'boolean', description: 'Required true for starting a process.' },
           explicitUserRequest: { type: 'string', description: 'The user request authorizing the background command.' },

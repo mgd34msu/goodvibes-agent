@@ -10,6 +10,10 @@ export interface AgentHarnessBackgroundProcessArgs {
   readonly query?: unknown;
   readonly cwd?: unknown;
   readonly timeoutMs?: unknown;
+  /** 'command' (killable on timeout) or 'long_lived' (a browser, editor, or server). */
+  readonly processClass?: unknown;
+  /** Explicit opt-in/out of the timeout watchdog terminating this process. */
+  readonly killOnTimeout?: unknown;
   readonly pty?: unknown;
   readonly data?: unknown;
   readonly fields?: unknown;

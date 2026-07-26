@@ -753,6 +753,7 @@ export async function bootstrapRuntime(
       runtimeUnsubs.length = 0;
       forensicsCollector.dispose();
       services.executionLedger.dispose();
+      services.disposeSessionWriteLedger();
       await deferredStartup.drain(100);
       await agentExternalServices.stop();
       // Clear agent status interval via ref (consistent with agentStatusIntervalRef usage)
