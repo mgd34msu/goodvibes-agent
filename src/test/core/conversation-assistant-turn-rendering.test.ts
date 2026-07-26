@@ -22,6 +22,7 @@
 import { describe, test, expect } from 'bun:test';
 import { ConversationManager } from '../../core/conversation';
 import { renderExpandedToolResultLines } from '../../renderer/tool-result-expanded-lines.ts';
+import { treeBranchCol } from '../../renderer/conversation-tree.ts';
 
 const WIDTH = 100;
 
@@ -271,7 +272,12 @@ describe('merged assistant turns', () => {
     // First of two siblings continues the subtree; the last one closes it.
     expect(callRows[0]).toContain('├');
     expect(callRows[1]).toContain('└');
-    // Each settled call carries its status glyph in the fixed left gutter.
-    for (const row of callRows) expect(row.startsWith('✓')).toBe(true);
+    // Each settled call carries its status glyph in the BULLET column — the
+    // same column the `● assistant` header above it draws its bullet in, not a
+    // separate gutter off to the left of the transcript.
+    const bulletCol = treeBranchCol(0);
+    const headerRow = lines.find((l) => l.includes('assistant'))!;
+    expect(headerRow[bulletCol]).toBe('●');
+    for (const row of callRows) expect(row[bulletCol]).toBe('✓');
   });
 });
