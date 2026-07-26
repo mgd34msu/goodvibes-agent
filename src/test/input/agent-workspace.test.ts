@@ -10,7 +10,7 @@ import { AgentWorkspace, buildAgentWorkspaceRuntimeSnapshot, handleAgentWorkspac
 import { readLiveAgentMemoryCounters } from '../../input/agent-workspace-snapshot.ts';
 import { describeMemoryPromptEligibility } from '../../agent/memory-prompt.ts';
 import { AGENT_WORKSPACE_CATEGORIES } from '../../input/agent-workspace-categories.ts';
-import { SETTINGS_CATEGORIES } from '../../input/settings-modal-types.ts';
+import { SETTINGS_CATEGORIES, CROSS_LISTED_SETTING_ROOTS } from '../../input/settings-modal-types.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerAgentWorkspaceRuntimeCommands } from '../../input/commands/agent-workspace-runtime.ts';
 import { registerAgentRuntimeProfileRuntimeCommands } from '../../input/commands/agent-runtime-profile-runtime.ts';
@@ -882,7 +882,12 @@ describe('AgentWorkspace', () => {
       }
     }
 
-    const settingsCategoryRoots = new Set<string>(SETTINGS_CATEGORIES);
+    // A key is reachable when its root names a category, or when the root has
+    // no category of its own and is cross-listed under one that does.
+    const settingsCategoryRoots = new Set<string>([
+      ...SETTINGS_CATEGORIES,
+      ...Object.keys(CROSS_LISTED_SETTING_ROOTS),
+    ]);
     const missing = CONFIG_SCHEMA
       .map((setting) => setting.key)
       .filter((key) => !isAgentHiddenSettingKey(key) && !covered.has(key) && !settingsCategoryRoots.has(key.split('.')[0] ?? ''));

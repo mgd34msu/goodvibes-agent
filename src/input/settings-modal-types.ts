@@ -74,6 +74,25 @@ export type SettingsCategory =
 
 export type SettingsFocusPane = 'categories' | 'settings';
 
+/**
+ * Config-key roots that have no category of their own, and the category each
+ * one is listed under instead.
+ *
+ * A setting's category is normally its key's first segment, so a root with no
+ * matching category matches nothing and its keys are dropped from the
+ * workspace entirely — present in the schema, read by the daemon, and reachable
+ * only by hand-editing the config file. Anything listed here is deliberately
+ * shown somewhere it makes sense to a reader instead.
+ *
+ * `push` — the VAPID contact address and the subscription housekeeping bounds
+ * describe how a notification is DELIVERED, so they sit with the
+ * `notifications.*` keys that decide which events are pushed in the first
+ * place.
+ */
+export const CROSS_LISTED_SETTING_ROOTS: Readonly<Record<string, SettingsCategory>> = {
+  push: 'notifications',
+};
+
 export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   readonly label: string;
   readonly categories: readonly SettingsCategory[];

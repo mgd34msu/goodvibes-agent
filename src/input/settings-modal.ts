@@ -33,6 +33,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import {
   SETTINGS_CATEGORIES,
   SETTINGS_CATEGORY_GROUPS,
+  CROSS_LISTED_SETTING_ROOTS,
   type FlagEntry,
   type McpEntry,
   type SettingEntry,
@@ -627,6 +628,12 @@ export class SettingsModal {
         lockReason: resolved?.lockReason,
       };
       if (this.groups.has(cat)) this.groups.get(cat)!.push(entry);
+      // A root with no category of its own is listed where it belongs instead
+      // of being dropped — see CROSS_LISTED_SETTING_ROOTS.
+      const crossListed = CROSS_LISTED_SETTING_ROOTS[rawCat];
+      if (crossListed !== undefined && this.groups.has(crossListed)) {
+        this.groups.get(crossListed)!.push(entry);
+      }
     }
 
     // Inject the synthetic display.themeMode enum (auto|dark|light) —

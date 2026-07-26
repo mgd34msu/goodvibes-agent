@@ -6,6 +6,7 @@ import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { isAgentHiddenSettingKey, SettingsModal, SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../../input/settings-modal.ts';
+import { CROSS_LISTED_SETTING_ROOTS } from '../../input/settings-modal-types.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -140,6 +141,18 @@ describe('SettingsModal', () => {
       // display additionally carries the synthetic display.themeMode
       // entry (agent-local key, not in the SDK CONFIG_SCHEMA).
       if (cat === 'display') expectedKeys.push('display.themeMode');
+      // A root with no category of its own is listed under the category named
+      // in CROSS_LISTED_SETTING_ROOTS rather than being dropped, so that
+      // category carries those keys too.
+      for (const [root, target] of Object.entries(CROSS_LISTED_SETTING_ROOTS)) {
+        if (target !== cat) continue;
+        expectedKeys.push(
+          ...CONFIG_SCHEMA
+            .filter((entry) => !isAgentHiddenSettingKey(entry.key))
+            .filter((entry) => entry.key.split('.')[0] === root)
+            .map((entry) => entry.key),
+        );
+      }
       expect(specialCategories.has(cat)).toBe(false);
       expect([...(modal.groups.get(cat)?.map((entry) => String(entry.setting.key)) ?? [])].sort()).toEqual([...expectedKeys].sort());
     }
