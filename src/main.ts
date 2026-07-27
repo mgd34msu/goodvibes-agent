@@ -53,6 +53,7 @@ import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import { installFocusModeExitGuard, markFocusModeEnabled, wrapRequestPermissionWithApprovalAlert } from './shell/terminal-focus-mode.ts';
 import { CLEAR_VIEWPORT_HOME, buildEnterSequence, buildExitSequence } from './renderer/terminal-escapes.ts';
 import { prepareShellCliRuntime } from './cli/entrypoint.ts';
+import { reachabilityAtLaunch } from './runtime/path-shadow-startup.ts';
 import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
 import { startPeriodicSelfUpdate } from './runtime/periodic-update.ts';
 import { applyInitialTuiCliState, getInteractiveTerminalLaunchError, reportFatalStartupError } from './cli/tui-startup.ts';
@@ -91,6 +92,7 @@ async function main() {
   // Launch-time self-update, before any bootstrap or terminal mode change; on
   // an installed update this restarts onto the swapped binary and never returns.
   const launchUpdateLines = await selfUpdateAtLaunch({ configManager, stdout });
+  const reachabilityLines = await reachabilityAtLaunch({ stdout });
 
   const ctx: BootstrapContext = await bootstrapRuntime(stdout, {
     configManager,
@@ -137,6 +139,7 @@ async function main() {
   // Re-surface pre-bootstrap launch-update lines in-session (the alternate
   // screen wipes the stdout copies written before the renderer existed).
   for (const line of launchUpdateLines) systemMessageRouter.high(`[Update] ${line}`);
+  for (const line of reachabilityLines) systemMessageRouter.high(`[Install] ${line}`);
   {
     const hitlMode = configManager.get('behavior.hitlMode') as HITLMode | undefined;
     if (hitlMode && (hitlMode === 'quiet' || hitlMode === 'balanced' || hitlMode === 'operator')) {

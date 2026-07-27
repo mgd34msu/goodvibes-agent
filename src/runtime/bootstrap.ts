@@ -50,6 +50,7 @@ import { createRuntimeShutdown } from './bootstrap-shutdown.ts';
 import { installAgentMcpCallRoute } from '../tools/agent-mcp-call-route.ts';
 import { capabilitySnapshot } from '../capabilities/capability-snapshot.ts';
 import { wireCapabilityIndex } from './bootstrap-capability-wiring.ts';
+import { registerAgentCapabilityTool } from '../tools/agent-capability-tool.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
 import { registerAgentChannelsTool } from '../tools/agent-channels-tool.ts';
 import { registerAgentComputerTool } from '../tools/agent-computer-tool.ts';
@@ -446,6 +447,9 @@ export async function bootstrapRuntime(
     homeDirectory: services.shellPaths.homeDirectory,
     workingDirectory: services.shellPaths.workingDirectory,
   });
+  // ...and let the model ask the same question mid-turn, live, instead of
+  // reasoning about what it can do from a search over the source tree.
+  registerAgentCapabilityTool({ toolRegistry, commandContext, configManager });
   registerAgentContextTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDelegationTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDeviceTool(toolRegistry, commandRegistry, commandContext);
