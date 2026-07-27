@@ -60,20 +60,38 @@ export function managedDriverRoot(homeDirectory: string): string {
   return join(homeDirectory, '.goodvibes', 'agent', 'browser', 'driver');
 }
 
+/**
+ * A candidate directory counts as a driver only if it holds everything the
+ * driver is used for: the manifest, the module entry, AND the CLI the browser
+ * install step executes.
+ *
+ * Requiring cli.js here is load-bearing. The search stops at the first match,
+ * so a directory that satisfied a weaker test — a partial extraction, or an
+ * older release's incomplete driver — used to shadow a perfectly good driver
+ * further down the list and could not be recovered from: resolveDriver would
+ * reject it for the missing cli.js, provisioning would install a working copy
+ * into the managed directory, and the search would hand back the broken one
+ * again on the very next call. Skipping an unusable candidate lets the next one
+ * win, and lets self-provisioning actually take effect.
+ */
 function driverDirectoryFrom(candidate: string): string | null {
-  const manifest = join(candidate, 'package.json');
-  return existsSync(manifest) && existsSync(join(candidate, 'index.js')) ? candidate : null;
+  const complete = existsSync(join(candidate, 'package.json'))
+    && existsSync(join(candidate, 'index.js'))
+    && existsSync(join(candidate, 'cli.js'));
+  return complete ? candidate : null;
 }
 
 /** The driver package directory, wherever it turns out to be. */
-export function findDriverDirectory(homeDirectory?: string): string | null {
-  try {
-    const manifestPath = requireFromEngine.resolve(`${DRIVER_PACKAGE}/package.json`);
-    return manifestPath.slice(0, manifestPath.length - '/package.json'.length);
-  } catch {
-    // Not resolvable as a module — expected inside a compiled binary.
+export function findDriverDirectory(homeDirectory?: string, searchDirectories?: readonly string[]): string | null {
+  if (!searchDirectories) {
+    try {
+      const manifestPath = requireFromEngine.resolve(`${DRIVER_PACKAGE}/package.json`);
+      return manifestPath.slice(0, manifestPath.length - '/package.json'.length);
+    } catch {
+      // Not resolvable as a module — expected inside a compiled binary.
+    }
   }
-  for (const candidate of driverSearchDirectories(homeDirectory)) {
+  for (const candidate of searchDirectories ?? driverSearchDirectories(homeDirectory)) {
     const found = driverDirectoryFrom(candidate);
     if (found) return found;
   }

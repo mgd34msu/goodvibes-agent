@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { extractTarGzEntry, extractTarGzTree, readTarGzEntries } from '../../runtime/tar-archive.ts';
 import { driverRemediation } from '../../browser/browser-driver-remediation.ts';
-import { driverSearchDirectories, managedDriverRoot } from '../../browser/browser-provision-io.ts';
+import { driverSearchDirectories, findDriverDirectory, managedDriverRoot } from '../../browser/browser-provision-io.ts';
 import { describeProvisionWork, ensureBrowserBinary } from '../../browser/browser-provisioning.ts';
 import { runCapabilityProbe, emptyProbeContext } from '../../capabilities/capability-probe-runner.ts';
 import {
@@ -161,6 +161,22 @@ describe('the capability probe that made this unrecoverable', () => {
 
     expect(result.satisfied).toBe(false);
     expect(result.detail).toContain(missing);
+  });
+
+  test('a partial driver beside the binary does not shadow a good one elsewhere', () => {
+    // The search stops at the first match, so an incomplete candidate that
+    // still counted as a driver made the good one unreachable — and no amount
+    // of self-provisioning could recover, because the broken one kept winning.
+    const installDir = scratch('gv-shadow');
+    const partial = join(installDir, 'partial', BROWSER_DRIVER_DIR_NAME);
+    const complete = join(installDir, 'complete', BROWSER_DRIVER_DIR_NAME);
+    mkdirSync(partial, { recursive: true });
+    writeFileSync(join(partial, 'package.json'), '{"name":"playwright-core"}');
+    writeFileSync(join(partial, 'index.js'), 'module.exports = {};');
+    extractTarGzTree(driverArchive(), complete, { stripComponents: 1 });
+
+    const resolved = findDriverDirectory(undefined, [partial, complete]);
+    expect(resolved).toBe(complete);
   });
 
   test('a directory holding only a manifest is not a driver', () => {
