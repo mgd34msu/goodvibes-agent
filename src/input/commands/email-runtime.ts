@@ -435,7 +435,6 @@ export function registerEmailRuntimeCommands(registry: CommandRegistry): void {
     name: 'email',
     aliases: [],
     description: 'Direct IMAP/SMTP email: configure, check inbox, or send a confirmed message',
-    hidden: true,
     usage: 'status | config | set <key> <value> [--yes] | check [n] | send <to> <subject...> [-- <body...>] --yes',
     argsHint: 'status|config|set|check|send',
     async handler(args, ctx) {

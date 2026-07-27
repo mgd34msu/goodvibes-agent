@@ -91,7 +91,7 @@ export function styleReplyWorkflow(hasEmailCapability: boolean): PersonalOpsWork
       'personal_ops action:"intake" query:"draft reply in my style" includeParameters:true',
     ],
     prerequisites: status === 'needs-setup'
-      ? ['Configure email (email.enabled=true, IMAP+SMTP or an MCP inbox connector) before using style-matched drafts.']
+      ? ['Connect a Google account with /google setup, or configure IMAP/SMTP directly with /email config, before using style-matched drafts.']
       : [
         'The user must identify the inbound message (from, subject, bodyPreview).',
         'Optionally supply key-points context to weave into the draft.',

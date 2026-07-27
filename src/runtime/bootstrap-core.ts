@@ -42,6 +42,11 @@ import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
 import { browserProfileRoot, browserScreenshotRoot } from '../browser/browser-sessions.ts';
 import { registerAgentBrowserTool } from '../tools/agent-browser-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
+import { registerAgentGoogleTool } from '../tools/agent-google-tool.ts';
+import { registerAgentAccountsTool } from '../tools/agent-accounts-tool.ts';
+import { AgentAccountRegistry } from '../agent/signup/account-registry.ts';
+import { ensureGoogleConfigDefaults } from '../agent/google/google-setup-plan.ts';
+import { ensureCalendarConfigDefaults } from '../agent/calendar/calendar-oauth-service.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLearningConsolidationTool } from '../tools/agent-learning-consolidation-tool.ts';
@@ -353,6 +358,28 @@ export async function initializeBootstrapCore(
     screenshotDirectory: browserScreenshotRoot(services.shellPaths.homeDirectory),
     profileRoot: browserProfileRoot(services.shellPaths.homeDirectory),
     homeDirectory: services.shellPaths.homeDirectory,
+  });
+  // The native Gmail/Calendar route. The operator contract catalogs email.send
+  // and calendar.events.list with invokable:false — no daemon serves them — so
+  // this is the route the capability index points at.
+  // google.* and calendar.* are app-layer sections absent from the SDK schema;
+  // resolvePath throws on a section that is not there.
+  ensureGoogleConfigDefaults(configManager);
+  ensureCalendarConfigDefaults(configManager);
+  registerAgentGoogleTool(toolRegistry, {
+    homeDirectory: services.shellPaths.homeDirectory,
+    configGet: (key: string) => (configManager as { get: (key: string) => unknown }).get(key),
+    secretGet: (key: string) => services.secretsManager.get(key),
+  });
+  // Accounts the agent creates are recorded here at creation time. Autonomous
+  // signup is authorized; doing it invisibly is not, and this is what makes it
+  // enumerable and revocable.
+  registerAgentAccountsTool(toolRegistry, {
+    registry: AgentAccountRegistry.fromShellPaths(services.shellPaths),
+    baseAddress: () => {
+      const value = (configManager as { get: (key: string) => unknown }).get('email.fromAddress');
+      return typeof value === 'string' && value.trim() ? value.trim() : null;
+    },
   });
   registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);

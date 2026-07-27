@@ -232,6 +232,14 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Connected schedules require an explicit user request and do not create hidden Agent jobs or local schedulers.',
     };
   }
+  if (root === 'google' || root === 'gmail') {
+    return {
+      effect: 'external-network',
+      confirmation,
+      preferredModelTool: 'google',
+      boundary: 'Connects the Google account that backs mail and calendar. /google adopt takes up credentials already on this machine; /google setup runs the connection flow. Once connected, the google tool is the model route — no MCP server is involved.',
+    };
+  }
   if (root === 'email') {
     return {
       effect: 'external-network',
@@ -536,14 +544,14 @@ export function connectedHostRouteFamilies(): readonly Record<string, unknown>[]
       routes: ['configured channel, notification, and delivery targets'],
       modelTools: ['agent_channel_send', 'agent_notify'],
       modelRoute: 'agent_channel_send or agent_notify',
-      boundary: 'Explicit user-approved delivery only; no route/account creation.',
+      boundary: 'Explicit user-approved delivery only. Account creation is authorized separately and is recorded in the account register, not blocked here.',
     },
     {
       id: 'connected-schedules',
       routes: ['public schedule creation, patch, run, toggle, and delete routes'],
       modelTools: ['schedule', 'agent_autonomy_schedule', 'agent_reminder_schedule', 'agent_schedule_edit', 'agent_operator_action'],
       modelRoute: 'schedule action:"list|create|remind|edit|run|pause|resume|delete"',
-      boundary: 'Connected schedules only; no hidden local scheduler or separate Agent job.',
+      boundary: 'Connected schedules only, so scheduled work stays listable and cancellable; no unregistered local scheduler.',
     },
   ];
 }

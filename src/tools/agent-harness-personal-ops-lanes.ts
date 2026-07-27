@@ -88,7 +88,7 @@ export function buildLanes(
             ? 'Use saved thread queue records for local draft review or recap, then repair an email connector before reading fresh inbox data or sending.'
             : inboxEffectReceiptRecords.length > 0
               ? 'Review saved inbox provider-effect receipts, then repair an email connector before reading fresh inbox data or sending another provider effect.'
-        : 'Install or build an email connector/MCP/plugin, then expose triage and draft-reply actions here.',
+        : 'Connect a Google account with /google setup, then triage and draft replies through the built-in google tool.',
       userRoute: 'Agent Workspace -> Personal Ops -> Channels or connector setup',
       modelRoute: emailConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"email"' : 'host action:"methods" query:"email"',
       signals: [
@@ -143,7 +143,7 @@ export function buildLanes(
             ? 'Use saved event queue records for recap or reminder creation, then repair a calendar connector before reading fresh agenda data or editing events.'
             : calendarEffectReceiptRecords.length > 0
               ? 'Review saved calendar provider-effect receipts, then repair a calendar connector before reading fresh agenda data or editing events.'
-        : 'Add a CalDAV/calendar connector and route agenda briefing, conflicts, and reminders through this lane.',
+        : 'Connect a Google account with /google setup, then route agenda briefing, conflicts, and reminders through this lane.',
       userRoute: 'Agent Workspace -> Personal Ops -> Create reminder',
       modelRoute: calendarConnectors.length > 0 ? 'agent_harness mode:"mcp_servers" query:"calendar"' : 'host action:"methods" query:"calendar"',
       signals: [

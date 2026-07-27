@@ -99,6 +99,17 @@ export function runCapabilityProbe(probe: CapabilityProbe, context: ProbeContext
         : { satisfied: false, detail: `${probe.label} not found in any of: ${probe.paths.join(', ')}` };
     }
 
+    case 'any-of': {
+      // First satisfied alternative wins, and its detail is what gets reported
+      // so the answer names the source that actually applies.
+      for (const alternative of probe.probes) {
+        const result = runCapabilityProbe(alternative, context);
+        if (result.satisfied) return result;
+      }
+      const reasons = probe.probes.map((alternative) => runCapabilityProbe(alternative, context).detail);
+      return { satisfied: false, detail: `${probe.label} not available: ${reasons.join('; ')}` };
+    }
+
     case 'json-file-readable':
       return inspectJsonFile(probe.path, probe.requiredKeys ?? []);
 

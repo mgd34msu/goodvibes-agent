@@ -294,6 +294,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/email` | Configure direct email, read inbox summaries read-only, and send a confirmed message. |
 | `/expand` | Expand rendered blocks by type. |
 | `/export` | Export the current conversation to Markdown. |
+| `/google` | Connect the Google account behind mail and calendar: adopt credentials already on this machine, or run the setup flow. |
 | `/health` | Review startup posture, connected-host readiness, provider health, and Agent continuity. |
 | `/help` | Show available commands and keyboard shortcuts. |
 | `/image` | Attach an image file to the next message. |

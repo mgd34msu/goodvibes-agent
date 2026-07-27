@@ -298,7 +298,6 @@ export function registerCalendarRuntimeCommands(registry: CommandRegistry): void
     name: 'calendar',
     aliases: ['cal'],
     description: 'Manage local calendar events, external calendar subscriptions, and connected calendar accounts',
-    hidden: true,
     usage: '[list|upcoming [--days N]|connect <google|outlook> [--device]|disconnect <google|outlook>|accounts|import <path> [--yes]|export [--dest <path>] [--yes]|add --title <title> --start <ISO> [--end <ISO>] [--location <loc>] [--notes <notes>] --yes|delete <id> --yes|subscribe <ics-url> [--name N] [--every MIN] [--yes]|unsubscribe <name> --yes|subscriptions|refresh [name]]',
     handler: async (args: readonly string[], ctx: CommandContext) => {
       const sub = (args[0] ?? 'list').toLowerCase();

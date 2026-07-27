@@ -204,7 +204,7 @@ export async function checkGoogleCredentialsAtBoot(
   if (manager === null) {
     return {
       usable: false,
-      detail: 'Google is not connected. Run: goodvibes-agent setup-google',
+      detail: 'Google is not connected. Run: /google setup',
       needsReauthorization: false,
       scopes: [],
     };

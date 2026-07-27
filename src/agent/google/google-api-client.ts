@@ -63,6 +63,14 @@ export interface GmailMessageSummary {
 
 export interface GmailMessageBody extends GmailMessageSummary {
   readonly body: string;
+  /**
+   * Every `Delivered-To` / `X-Original-To` header on the message, in order.
+   *
+   * These are written by the receiving infrastructure, not the sender, which is
+   * what makes them usable as proof of which address a message actually
+   * arrived at. `To:` is sender-controlled and is deliberately kept separate.
+   */
+  readonly deliveredTo: readonly string[];
 }
 
 export interface CalendarEventRecord {
@@ -154,6 +162,25 @@ function headerValue(headers: readonly unknown[], name: string): string {
   return '';
 }
 
+/**
+ * Collect the receiver-written delivery headers.
+ *
+ * Order is preserved because the first `Delivered-To` is the outermost
+ * envelope recipient, which is the one that identifies the alias the message
+ * was addressed to before any forwarding.
+ */
+function deliveryHeaderValues(headers: readonly unknown[]): readonly string[] {
+  const wanted = new Set(['delivered-to', 'x-original-to']);
+  const found: string[] = [];
+  for (const entry of headers) {
+    if (!isRecord(entry)) continue;
+    if (!wanted.has(readString(entry.name).toLowerCase())) continue;
+    const value = readString(entry.value).trim();
+    if (value.length > 0) found.push(value);
+  }
+  return found;
+}
+
 /** Walk a Gmail payload tree for the first text/plain part. */
 function extractPlainTextBody(payload: unknown): string {
   if (!isRecord(payload)) return '';
@@ -241,13 +268,13 @@ export class GoogleApiClient {
     if (status === 403 && /insufficient|scope/i.test(message)) {
       return {
         problem: `Google refused the request because the credential lacks the required permission: ${message}`,
-        fix: 'Re-authorize with the needed scope: goodvibes-agent setup-google --path oauth',
+        fix: 'Re-authorize with the needed scope: /google setup --path oauth',
       };
     }
     if (status === 403 && /disabled|not been used/i.test(message)) {
       return {
         problem: `The required Google API is not enabled for this project: ${message}`,
-        fix: 'Enable it, then retry: goodvibes-agent setup-google --path oauth',
+        fix: 'Enable it, then retry: /google setup --path oauth',
       };
     }
     if (status === 429) {
@@ -258,7 +285,7 @@ export class GoogleApiClient {
     }
     return {
       problem: message.length > 0 ? `Google returned ${status}: ${message}` : `Google returned HTTP ${status}.`,
-      fix: 'If this persists, re-authorize: goodvibes-agent setup-google',
+      fix: 'If this persists, re-authorize: /google setup',
     };
   }
 
@@ -315,6 +342,7 @@ export class GoogleApiClient {
         unread: labelIds.some((label) => label === 'UNREAD'),
         provenance: MAIL_CONTENT_PROVENANCE,
         body: format === 'full' ? extractPlainTextBody(payload) : '',
+        deliveredTo: deliveryHeaderValues(headers),
       },
     };
   }
