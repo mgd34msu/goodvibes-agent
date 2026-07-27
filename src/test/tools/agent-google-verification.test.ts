@@ -32,8 +32,10 @@ function writeCredentials(root: string): void {
   );
 }
 
+const VERIFICATION_BODY = 'Confirm here: https://example.com/verify?t=tok123';
+
 /** A Gmail `messages.get` response with the headers this test is about. */
-function gmailMessage(headers: readonly { name: string; value: string }[]) {
+function gmailMessage(headers: readonly { name: string; value: string }[], body: string) {
   return {
     id: 'msg-1',
     threadId: 't-1',
@@ -42,20 +44,20 @@ function gmailMessage(headers: readonly { name: string; value: string }[]) {
     payload: {
       mimeType: 'text/plain',
       headers,
-      body: { data: Buffer.from('Confirm here: https://example.com/verify?t=tok123').toString('base64url') },
+      body: { data: Buffer.from(body).toString('base64url') },
       parts: [],
     },
   };
 }
 
-function toolWith(headers: readonly { name: string; value: string }[]) {
+function toolWith(headers: readonly { name: string; value: string }[], body: string = VERIFICATION_BODY) {
   return createAgentGoogleTool({
     homeDirectory: home,
     configGet: () => undefined,
     secretGet: async () => null,
     fetchImpl: async (url: string) =>
       new Response(
-        JSON.stringify(url.includes('/messages/') ? gmailMessage(headers) : { access_token: 'a', expires_in: 3600, scope: 'https://mail.google.com/', token_type: 'Bearer' }),
+        JSON.stringify(url.includes('/messages/') ? gmailMessage(headers, body) : { access_token: 'a', expires_in: 3600, scope: 'https://mail.google.com/', token_type: 'Bearer' }),
         { status: 200, headers: { 'content-type': 'application/json' } },
       ),
   });

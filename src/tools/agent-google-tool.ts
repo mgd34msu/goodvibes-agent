@@ -39,7 +39,11 @@ import {
 } from '../trust/untrusted-content.ts';
 import type { GoogleApiFailure, GoogleApiResult } from '../agent/google/google-api-client.ts';
 import { getSessionExpectationBook } from '../agent/signup/session-expectations.ts';
-import { deliveryEvidenceFromMessage, describeDeliveryEvidence } from '../agent/signup/delivery-evidence.ts';
+import {
+  deliveryEvidenceFromMessage,
+  describeDeliveryEvidence,
+  NO_ALIAS_MAILBOXES,
+} from '../agent/signup/delivery-evidence.ts';
 import { extractVerification } from '../agent/signup/verification-expectations.ts';
 
 const GOOGLE_ACTIONS = [
@@ -222,10 +226,13 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         if (isFailure(result)) return describeFailure(result);
 
         const book = getSessionExpectationBook();
-        const aliasMailboxes = new Set(book.list().map((entry) => entry.recipientAddress));
+        // Gmail files mail under labels, not per-alias mailboxes: a plus-addressed
+        // alias still lands in the one INBOX, so no mailbox name here identifies a
+        // signup. Gmail's evidence is the receiver-written Delivered-To header,
+        // which is what the message carries.
         const deliveredTo = deliveryEvidenceFromMessage(
           { deliveredTo: result.value.deliveredTo },
-          aliasMailboxes,
+          NO_ALIAS_MAILBOXES,
         );
         getSessionUntrustedContentLedger().record({
           surface: 'email',
@@ -233,17 +240,21 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           at: new Date().toISOString(),
         });
 
-        const match = book.matchCandidate(
-          {
-            messageId: result.value.id,
-            from: result.value.from,
-            deliveredTo,
-            toHeaderClaim: result.value.to,
-            subject: result.value.subject,
-            body: result.value.body,
-          },
-          new Date(),
-        );
+        const candidate = {
+          messageId: result.value.id,
+          from: result.value.from,
+          deliveredTo,
+          toHeaderClaim: result.value.to,
+          subject: result.value.subject,
+          body: result.value.body,
+        };
+
+        // Inspect without consuming. A signup provokes more than one mail at the
+        // minted alias — a welcome note usually arrives before the verification —
+        // and consuming on the match alone would spend the fifteen-minute window
+        // on whichever landed first, leaving the real verification to be refused
+        // as unexpected. The expectation is closed below, once a token is in hand.
+        const match = book.matchCandidate(candidate, new Date(), { consume: false });
 
         if (match.kind !== 'matched') {
           return failure(
@@ -251,24 +262,21 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           );
         }
 
-        const extraction = extractVerification(
-          {
-            messageId: result.value.id,
-            from: result.value.from,
-            deliveredTo,
-            toHeaderClaim: result.value.to,
-            subject: result.value.subject,
-            body: result.value.body,
-          },
-          match.expectation,
-        );
+        const extraction = extractVerification(candidate, match.expectation);
         const artifact = extraction.artifact;
         if (artifact.kind === 'link') {
+          // Single-use: the alias has now produced its one token.
+          book.closeExpectation(match.expectation.id);
           return ok(`Verification link for ${match.expectation.serviceDomain}: ${artifact.url}`);
         }
         if (artifact.kind === 'code') {
+          book.closeExpectation(match.expectation.id);
           return ok(`Verification code for ${match.expectation.serviceDomain}: ${artifact.code}`);
         }
+        // Neither refusal closes the expectation. A message pointing at the wrong
+        // host is the shape of a forgery, and letting one burn the window would
+        // hand an attacker a denial of the real verification for the price of a
+        // single mail to a guessed alias.
         if (artifact.kind === 'refused') {
           return failure(artifact.message);
         }

@@ -16,6 +16,7 @@ import {
   deliveredRecipientFromDeliveryHeaders,
   deliveryEvidenceFromMessage,
   describeDeliveryEvidence,
+  NO_ALIAS_MAILBOXES,
   normalizeDeliveryAddress,
 } from '../../../agent/signup/delivery-evidence.ts';
 import {
@@ -211,5 +212,17 @@ describe('bridging a fetched message into evidence', () => {
 
   test('a message with neither yields no evidence rather than a guess', () => {
     expect(deliveryEvidenceFromMessage({}, new Set())).toBeNull();
+  });
+
+  test('NO_ALIAS_MAILBOXES states a transport has no per-signup mailboxes', () => {
+    // The Gmail case: mail is filed under labels, so even a mailbox name that
+    // looks like the alias proves nothing about which signup it belongs to.
+    const evidence = deliveryEvidenceFromMessage(
+      { mailbox: ALIAS, deliveredTo: ['header@example.com'] },
+      NO_ALIAS_MAILBOXES,
+    );
+    expect(evidence?.source).toBe('delivered-to-header');
+    expect(evidence?.address).toBe('header@example.com');
+    expect(NO_ALIAS_MAILBOXES.size).toBe(0);
   });
 });

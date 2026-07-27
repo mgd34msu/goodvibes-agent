@@ -122,6 +122,17 @@ export function bestDeliveryEvidence(
 }
 
 /**
+ * "This transport has no per-signup mailboxes."
+ *
+ * Gmail is the shipped case: it files mail under labels, and a plus-addressed
+ * alias still lands in the one INBOX, so there is no mailbox whose identity
+ * proves which signup a message belongs to. Gmail's evidence is the
+ * receiver-written `Delivered-To` header instead. Passing this constant records
+ * that the caller considered the mailbox path and has nothing to offer it.
+ */
+export const NO_ALIAS_MAILBOXES: ReadonlySet<string> = new Set<string>();
+
+/**
  * Build evidence from a fetched message.
  *
  * Takes a structural shape rather than importing the mail client, so the
@@ -132,13 +143,21 @@ export function bestDeliveryEvidence(
  * mailbox only counts as evidence if it is one of them: `INBOX` is where
  * everything lands, so treating it as proof of a specific signup would make
  * every message look like it satisfied every expectation.
+ *
+ * The argument is required rather than defaulted. A default of "no alias
+ * mailboxes" silently downgrades a caller that does supply `message.mailbox`
+ * but forgets the set — the mailbox evidence is discarded and the call still
+ * returns a plausible answer from the headers alone. Forcing every caller to
+ * state its answer makes that omission a compile error instead. A transport
+ * with no per-signup mailboxes passes `NO_ALIAS_MAILBOXES`, which reads as the
+ * deliberate statement it is.
  */
 export function deliveryEvidenceFromMessage(
   message: {
     readonly mailbox?: string | undefined;
     readonly deliveredTo?: readonly string[] | undefined;
   },
-  aliasMailboxes: ReadonlySet<string> = new Set(),
+  aliasMailboxes: ReadonlySet<string>,
 ): DeliveredRecipient | null {
   const mailbox = message.mailbox === undefined ? '' : normalizeDeliveryAddress(message.mailbox);
   const mailboxEvidence =
