@@ -21,35 +21,40 @@ describe('verification ledger', () => {
     expect(ledger.totals.total).toBeGreaterThan(400);
     // Signal percent: localSignalVerified / total must be >= 90%
     expect(ledger.totals.localSignalPercent).toBeGreaterThanOrEqual(90);
-    // localBehaviorPercent is now honest: source-marker substring hits no longer
-    // inflate localBehaviorVerified. Floor reflects dispatch-backed behavior only.
+    // localBehaviorPercent is honest: source-marker substring hits no longer
+    // inflate localBehaviorVerified. The floor reflects dispatch-backed
+    // behaviour only.
     //
-    // 70 -> 69 when the daemon's own mailbox and calendar were declared as
-    // CONFIG_SCHEMA keys. That added 25 rows to the settings DENOMINATOR
-    // (764/1081 = 70.7% became 764/1106 = 69.1%) without removing any
-    // verification: the numerator did not move at all.
+    // The floor is 70 again. It was lowered to 69 in the previous round when
+    // the daemon's own mailbox and calendar were declared as CONFIG_SCHEMA
+    // keys: 25 rows joined the settings DENOMINATOR (764/1081 = 70.7% became
+    // 764/1106 = 69.1%) with the numerator unmoved. That round recorded its own
+    // disagreement with lowering a quality floor at all, and the disagreement
+    // was right — nothing about this product's verification had changed.
     //
-    // The 25 keys earn no behaviour point in THIS repo, and that is the honest
-    // answer rather than a gap to paper over. settings-behavior-coverage.ts
-    // requires a test here that drives a setting to two values and observes a
-    // difference in the real consuming code — and after this round the agent
-    // has no consumer to drive. surfaces.email.* and surfaces.calendar.* are
-    // read by the daemon's mail and calendar handlers; the agent surfaces them
-    // in the settings modal and consumes none of them. Claiming coverage from
-    // the SDK's schema test would be exactly the "asserts the key is present in
-    // CONFIG_SCHEMA" evidence that file rules out by name.
+    // The gap is closed at the denominator rather than at the floor, which is
+    // where settings-behavior-coverage.ts's header already located the defect:
+    // "the denominator is the live CONFIG_SCHEMA length, so every config key
+    // anyone added anywhere lowered the reported percentage without any
+    // coverage having actually changed". The settings area now counts the keys
+    // THIS repository references (settings-consumed-keys.ts); the 25
+    // surfaces.email.* / surfaces.calendar.* keys are read by the daemon's mail
+    // and calendar handlers and appear in no line of this repo, so they are no
+    // longer counted against it — and neither is any other product's key.
     //
-    // Recorded disagreement with lowering a quality floor at all: the real
-    // defect is the denominator, and settings-behavior-coverage.ts already says
-    // so in its own header — "the denominator is the live CONFIG_SCHEMA length,
-    // so every config key anyone added anywhere lowered the reported percentage
-    // without any coverage having actually changed". That file fixed the
-    // numerator half by making every claim itemised and auditable; the
-    // denominator half is untouched, so a percentage over it will keep drifting
-    // down each time the platform declares a key this product does not consume.
-    // Until the settings area counts only keys with a consumer in this repo,
-    // this floor tracks a number that moves for reasons unrelated to quality.
-    expect(ledger.totals.localBehaviorPercent).toBeGreaterThanOrEqual(69);
+    // The other route was closed honestly rather than taken: those 25 keys
+    // cannot earn a behaviour point here, because the evidence bar is a test in
+    // this repo that drives the setting to two values through the real
+    // consuming code, and this repo has no consumer to drive. Claiming coverage
+    // from the SDK's own schema test would be exactly the "asserts the key is
+    // present in CONFIG_SCHEMA" evidence that file rules out by name.
+    //
+    // Never lower this again. If it is ever at risk, the two legitimate moves
+    // are to add itemised evidence rows or to correct what the denominator
+    // measures — and settings-consumed-keys.test.ts holds that correction to
+    // invariants so "correcting the denominator" cannot become a way to widen
+    // the rule until everything counts.
+    expect(ledger.totals.localBehaviorPercent).toBeGreaterThanOrEqual(70);
     // All counts must be non-negative
     expect(ledger.totals.total).toBeGreaterThanOrEqual(0);
     expect(ledger.totals.localSignalVerified).toBeGreaterThanOrEqual(0);

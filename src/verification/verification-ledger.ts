@@ -5,6 +5,7 @@ import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { CommandRegistry } from '../input/command-registry.ts';
 import { registerBuiltinCommands } from '../input/commands.ts';
 import { SETTINGS_BEHAVIOR_COVERAGE_COUNT } from './settings-behavior-coverage.ts';
+import { splitSettingsKeysByLocalConsumer } from './settings-consumed-keys.ts';
 import {
   countChannelReadinessSurface,
   countDelegationPostureSurface,
@@ -152,7 +153,13 @@ export function buildVerificationLedger(root: string): VerificationLedger {
   const slashCommands = slashCommandNames.length;
   const cliCommands = cliCommandNames.length;
   const featureFlags = FEATURE_SETTINGS.length;
-  const settings = CONFIG_SCHEMA.length;
+  // The settings denominator is the keys THIS repository references, not every
+  // key the platform declares anywhere. Counting the latter made the reported
+  // percentage fall whenever another product's settings were declared, with
+  // this product's verification unchanged — see settings-consumed-keys.ts for
+  // the rule and the invariants that hold it in place.
+  const settingsKeys = splitSettingsKeysByLocalConsumer(root, CONFIG_SCHEMA.map((entry) => entry.key));
+  const settings = settingsKeys.consumed.length;
   const externalSlashCommands = slashCommandNames.filter((command) => EXTERNAL_SLASH_COMMANDS.has(command)).length;
   const externalCliCommands = cliCommandNames.filter((command) => EXTERNAL_CLI_COMMANDS.has(command)).length;
   const releaseEvidence = countReleaseEvidenceSurface(root);
@@ -185,7 +192,7 @@ export function buildVerificationLedger(root: string): VerificationLedger {
       // overstatement when the schema grows past the constant.
       localBehaviorVerified: Math.min(SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE, settings),
       externalOutcomeRequired: Math.max(0, settings - SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE),
-      notes: 'Every schema setting can be validated for schema/default/load/write/location; external side effects remain separate. localBehaviorVerified uses a documented estimate (SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE); update the constant when coverage evidence changes.',
+      notes: `Counts the ${String(settings)} CONFIG_SCHEMA keys this repository references, not all ${String(CONFIG_SCHEMA.length)} the platform declares: the ${String(settingsKeys.disclaimed.length)} it never mentions are other products' settings and cannot be verified here. Every counted setting can be validated for schema/default/load/write/location; external side effects remain separate. localBehaviorVerified uses a documented estimate (SETTINGS_BEHAVIOR_COVERAGE_ESTIMATE); update the constant when coverage evidence changes.`,
     },
     {
       area: 'Feature settings',
