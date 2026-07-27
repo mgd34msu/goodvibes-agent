@@ -23,9 +23,10 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { AgentAccountRegistry, type AgentAccountRecord } from '../agent/signup/account-registry.ts';
+import { mintAddressFor } from '../agent/signup/signup-address.ts';
 import { evaluateOutwardEffect, getSessionUntrustedContentLedger } from '../trust/untrusted-content.ts';
 
-const ACCOUNT_ACTIONS = ['list', 'record', 'forget', 'sweep'] as const;
+const ACCOUNT_ACTIONS = ['list', 'alias', 'record', 'forget', 'sweep'] as const;
 
 type ToolOutput = { readonly success: true; readonly output: string } | { readonly success: false; readonly error: string };
 
@@ -52,6 +53,11 @@ function renderAccount(account: AgentAccountRecord): string {
 
 export interface AgentAccountsToolOptions {
   readonly registry: AgentAccountRegistry;
+  /**
+   * The owner's own mailbox, which per-signup aliases are minted from. Read at
+   * call time so connecting an account mid-session takes effect.
+   */
+  readonly baseAddress?: () => string | null;
   /** Secret-store key names, so sweep can drop records whose credential is gone. */
   readonly knownSecretKeys?: () => Promise<readonly string[]>;
 }
@@ -71,7 +77,7 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
             enum: [...ACCOUNT_ACTIONS],
             description: 'What to do. Record an account as you create it.',
           },
-          serviceDomain: { type: 'string', description: 'Domain the account was created at, for record.' },
+          serviceDomain: { type: 'string', description: 'Service domain, for alias and record.' },
           serviceUrl: { type: 'string', description: 'The http(s) signup page, for record.' },
           aliasAddress: { type: 'string', description: 'The per-signup alias address used, for record.' },
           purpose: { type: 'string', description: 'What the account is for, for record.' },
@@ -92,6 +98,24 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
       }
 
       try {
+        if (action === 'alias') {
+          // Each signup gets its own delivery address. That address is the
+          // correlation key a verification mail is later matched on, so it must
+          // be minted per signup rather than reused.
+          const serviceDomain = readString(rawArgs.serviceDomain);
+          if (!serviceDomain) return failure('accounts action:"alias" needs the serviceDomain you are signing up at.');
+          const base = options.baseAddress?.() ?? null;
+          if (!base) {
+            return failure('No mailbox is connected to mint a signup alias from. Connect one with: /google setup');
+          }
+          const alias = mintAddressFor(base, serviceDomain);
+          return ok([
+            `Use ${alias.address} as the email address for this signup.`,
+            `It delivers to ${alias.baseAddress}, and it is what a verification mail for ${alias.serviceDomain} will be matched on.`,
+            'Record the account with accounts action:"record" once it exists.',
+          ].join('\n'));
+        }
+
         if (action === 'list') {
           const snapshot = registry.snapshot();
           if (snapshot.accounts.length === 0) {

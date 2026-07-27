@@ -36,12 +36,36 @@ describe('the account register', () => {
   beforeEach(() => {
     home = mkdtempSync(join(tmpdir(), 'accounts-tool-'));
     resetSessionUntrustedContentLedgerForTests();
-    tool = createAgentAccountsTool({ registry: new AgentAccountRegistry(join(home, 'accounts.json')) });
+    tool = createAgentAccountsTool({
+      registry: new AgentAccountRegistry(join(home, 'accounts.json')),
+      baseAddress: () => 'owner@example.com',
+    });
   });
 
   afterEach(() => {
     rmSync(home, { recursive: true, force: true });
     resetSessionUntrustedContentLedgerForTests();
+  });
+
+  test('each signup gets its own delivery address, minted from the owner mailbox', async () => {
+    const alias = await run({ action: 'alias', serviceDomain: 'github.com' });
+
+    expect(alias.success).toBe(true);
+    // The +tag is the correlation key a verification mail is matched on, so it
+    // has to be per-signup rather than the bare mailbox.
+    expect(alias.output).toMatch(/owner\+gv-github-com-[a-z0-9]{8}@example\.com/);
+    expect(alias.output).toContain('delivers to owner@example.com');
+  });
+
+  test('minting an alias without a connected mailbox says which step is missing', async () => {
+    const without = createAgentAccountsTool({
+      registry: new AgentAccountRegistry(join(home, 'accounts.json')),
+      baseAddress: () => null,
+    });
+    const result = await (without.execute({ action: 'alias', serviceDomain: 'github.com' }) as Promise<{ success: boolean; error?: string }>);
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('/google setup');
   });
 
   test('an account the agent creates is recorded and can be listed', async () => {

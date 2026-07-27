@@ -376,6 +376,10 @@ export async function initializeBootstrapCore(
   // enumerable and revocable.
   registerAgentAccountsTool(toolRegistry, {
     registry: AgentAccountRegistry.fromShellPaths(services.shellPaths),
+    baseAddress: () => {
+      const value = (configManager as { get: (key: string) => unknown }).get('email.fromAddress');
+      return typeof value === 'string' && value.trim() ? value.trim() : null;
+    },
   });
   registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
