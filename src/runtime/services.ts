@@ -67,7 +67,7 @@ import {
 import * as KnowledgePlatform from '@pellux/goodvibes-sdk/platform/knowledge';
 import { MediaProviderRegistry, ensureBuiltinMediaProviders } from '@pellux/goodvibes-sdk/platform/media';
 import { MultimodalService } from '@pellux/goodvibes-sdk/platform/multimodal';
-import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
+import { AgentManager, cancelAllAgentRuns } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
 import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
 import { continuationChainOptions } from './conversation-first-continuation.js';
@@ -1998,14 +1998,25 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // twice is a no-op, not a double-free.
     knowledgeService: agentKnowledgeService, agentKnowledgeService,
     wrfcController, orchestrationEngine, processRegistry, memoryGovernor, triggerManager,
+    // Named here rather than registered separately below: RuntimePollerOwners
+    // is all-required precisely so a poller cannot be forgotten, and this fork
+    // had been registering the home-graph service by hand where the contract
+    // could not see it.
+    homeGraphService, agentOrchestrator,
+    // By dispose() time the registries and bus these runs report through are
+    // already down, so a run still described as "running" is orphaned rather
+    // than preserved — and this is the only shutdown-reachable way to abort its
+    // in-flight provider call instead of letting it sleep out a retry backoff.
+    cancelHostedAgentRuns: () => cancelAllAgentRuns(agentManager),
   });
-  // Owners this fork has that the SDK's composition does not. The home-graph
-  // knowledge service is the second real knowledge store here (it stands where
-  // the SDK's separate regular service does), and the session-spine client's
-  // keepalive is graph-owned even though the interactive shutdown path also
-  // closes it by session id first — both dispose() calls are idempotent, and
+  // Owners this fork has that the SDK's composition does not. The session-spine
+  // client's keepalive is graph-owned even though the interactive shutdown path
+  // also closes it by session id first — dispose() is idempotent, and
   // registering here is what covers the CLI paths that never had one.
-  disposalScope.registry.add('home-graph knowledge service', () => homeGraphService.dispose());
+  //
+  // The home-graph knowledge service used to be registered here too. It is a
+  // named member of RuntimePollerOwners now, so it goes through the contract
+  // with everything else — which is the point of that list being all-required.
   disposalScope.registry.add('session spine client', () => sessionSpineClient.dispose());
   disposalScope.registry.add('session write ledger', disposeSessionWriteLedgerOnce);
 

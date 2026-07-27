@@ -1,6 +1,6 @@
 # GoodVibes Agent Live Verification
 
-Generated: 2026-07-27T07:09:35.780Z
+Generated: 2026-07-27T10:09:34.071Z
 Home: `[goodvibes-home]`
 Binary: `[agent-binary]`
 Connected host: `http://127.0.0.1:3421`
@@ -45,7 +45,7 @@ Connected host: `http://127.0.0.1:3421`
 ### Agent CLI version command
 
 ```text
-goodvibes-agent 1.18.0
+goodvibes-agent 1.18.1
 ```
 
 ### Agent CLI status JSON command
@@ -59,7 +59,7 @@ Status JSON command completed; provider/model identifiers omitted from release a
 ```text
 {
   "ok": true,
-  "packageVersion": "1.18.0",
+  "packageVersion": "1.18.1",
   "connectedHost": {
     "baseUrl": "http://127.0.0.1:3421",
     "status": 200,
@@ -95,7 +95,7 @@ Status JSON command completed; provider/model identifiers omitted from release a
     "extractionCount": 0,
     "jobRunCount": 500,
     "refinementTaskCount": 0,
-    "usageCount": 2,
+    "usageCount": 3,
     "candidateCount": 0,
     "reportCount": 45,
     "scheduleCount": 3,
@@ -137,7 +137,7 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Agent Knowledge isolated /status
 
 ```text
-{"ready":true,"storagePath":"[goodvibes-home]/tui/knowledge-agent.sqlite","sourceCount":0,"nodeCount":4,"edgeCount":3,"issueCount":0,"extractionCount":0,"jobRunCount":500,"refinementTaskCount":0,"usageCount":2,"candidateCount":0,"reportCount":45,"scheduleCount":3,"note":"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."}
+{"ready":true,"storagePath":"[goodvibes-home]/tui/knowledge-agent.sqlite","sourceCount":0,"nodeCount":4,"edgeCount":3,"issueCount":0,"extractionCount":0,"jobRunCount":500,"refinementTaskCount":0,"usageCount":3,"candidateCount":0,"reportCount":45,"scheduleCount":3,"note":"Structured knowledge uses SQL-backed sources, nodes, edges, issues, extractions, and job runs. Markdown is an optional projection, not the source of truth."}
 ```
 
 ### Agent Knowledge isolated ask
@@ -173,7 +173,7 @@ Doctor command completed without findings; provider/model identifiers and creden
 ### Agent Knowledge isolated map
 
 ```text
-{"ok":true,"title":"Knowledge Map","generatedAt":1785136175779,"width":1280,"height":920,"nodeCount":4,"edgeCount":3,"totalNodeCount":4,"totalEdgeCount":3,"facets":{"recordKinds":[{"value":"node","count":4}],"nodeKinds":[{"value":"topic","count":3},{"value":"memory","count":1}],"sourceTypes":[],"sourceStatuses":[],"nodeStatuses":[{"value":"active","count":4}],"issueCodes":[],"issueStatuses":[],"issueSeverities":[],"edgeRelations":[{"value":"memory_tagged_with","count":3}],"tags":[]},"nodes":[{"id":"node-f02b3f1c","recordKind":"node","kind":"topic","title":"autonomy","summary":"Topic tag autonomy.","x":720,"y":277,"radius":23,"metadata":{"tag":"autonomy","knowledgeSpaceId":"default","namespace":"default","reviewProvenance":{"state":"auto-accepted","reason":"auto-accepted: confidence 70 >= auto-accept threshold 40","decidedAt":1785104923908,"threshold":40}}},{"id":"node-a21... [truncated]
+{"ok":true,"title":"Knowledge Map","generatedAt":1785146974069,"width":1280,"height":920,"nodeCount":4,"edgeCount":3,"totalNodeCount":4,"totalEdgeCount":3,"facets":{"recordKinds":[{"value":"node","count":4}],"nodeKinds":[{"value":"topic","count":3},{"value":"memory","count":1}],"sourceTypes":[],"sourceStatuses":[],"nodeStatuses":[{"value":"active","count":4}],"issueCodes":[],"issueStatuses":[],"issueSeverities":[],"edgeRelations":[{"value":"memory_tagged_with","count":3}],"tags":[]},"nodes":[{"id":"node-f02b3f1c","recordKind":"node","kind":"topic","title":"autonomy","summary":"Topic tag autonomy.","x":720,"y":277,"radius":23,"metadata":{"tag":"autonomy","knowledgeSpaceId":"default","namespace":"default","reviewProvenance":{"state":"auto-accepted","reason":"auto-accepted: confidence 70 >= auto-accept threshold 40","decidedAt":1785104923908,"threshold":40}}},{"id":"node-a21... [truncated]
 ```
 
 ### Agent Knowledge isolated connectors list

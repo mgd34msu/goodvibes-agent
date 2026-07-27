@@ -2,6 +2,11 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.18.1 - 2026-07-27
+
+- Fixed: agent runs the Agent was hosting are now cancelled when it shuts down. One left running had nowhere to report to — the registries and event bus it reports through are already gone by then — while keeping an in-flight provider call alive and sleeping out a retry it had no reason to finish.
+- Fixed: the home-graph knowledge service is now stopped through the same list as every other background worker, rather than by a separate registration the contract could not see.
+
 ## 1.18.0 - 2026-07-27
 
 - Added: the Agent can drive a real web browser — open pages, read them, click, type, fill forms, sign in, and take screenshots — with a saved profile that keeps logins between runs. Page text it reads is labelled as untrusted: it can inform an answer, and it is never treated as an instruction.
