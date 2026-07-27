@@ -690,7 +690,21 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   }
 
   while (rows.length < height) rows.push({ text: '', kind: 'empty' });
-  return rows.slice(0, height);
+
+  // A pane that runs out of height used to just stop mid-result. The action
+  // list already declares how many entries are below it; the rows after it — a
+  // multi-line action result, most of all — were cut with nothing said, so a
+  // report that continued looked exactly like a report that had ended. Say how
+  // much is missing instead, in the last line the pane can show.
+  if (rows.length > height) {
+    const visible = rows.slice(0, Math.max(1, height - 1));
+    const hidden = rows.length - visible.length;
+    return [
+      ...visible,
+      { text: `${GLYPHS.navigation.moreBelow} ${hidden} more line(s) not shown — the pane ran out of room`, kind: 'more', fg: PALETTE.dim, dim: true },
+    ];
+  }
+  return rows;
 }
 
 function footerText(workspace: AgentWorkspace): string {

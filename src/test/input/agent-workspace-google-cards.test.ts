@@ -109,6 +109,20 @@ describe('the Google connection cards', () => {
     }
   });
 
+  test('a paused setup leads with what needs the person, not with the step log', () => {
+    // The result pane cuts from the bottom and has no scroll, so ordering is the
+    // only lever: the outstanding step and its fix must come before the verbose
+    // transcript, or the part that survives the cut is the part nobody needs.
+    const card = readFileSync(join(repoRoot, 'src/input/agent-workspace-google-setup-editor.ts'), 'utf8');
+    const detailLine = /detail: \[\.\.\.head, '', \.\.\.transcript, '', renderGoogleSetupReport\(report\)\]/;
+
+    expect(card).toMatch(detailLine);
+    expect(card).toContain('Do this: ');
+    expect(card).toContain('completed steps are detected and skipped');
+    // `head` is built before the detail that consumes it, and names the step.
+    expect(card.indexOf('const head =')).toBeLessThan(card.search(detailLine));
+  });
+
   test('both surfaces call one action module rather than each holding a copy', () => {
     const runtime = readFileSync(join(repoRoot, 'src/input/commands/google-runtime.ts'), 'utf8');
     const card = readFileSync(join(repoRoot, 'src/input/agent-workspace-google-setup-editor.ts'), 'utf8');

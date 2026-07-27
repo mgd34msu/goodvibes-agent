@@ -2252,3 +2252,38 @@ describe('renderAgentWorkspace', () => {
     expect(output2).toContain('!');
   });
 });
+
+describe('a pane that runs out of room says so', () => {
+  test('a long action result ends in a count of the lines it could not show', () => {
+    // Silent truncation is the failure: a report that continued looked exactly
+    // like a report that had ended, so a person acted on a partial answer.
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined);
+    workspace.lastActionResult = {
+      kind: 'refreshed',
+      title: 'Google connection',
+      detail: Array.from({ length: 60 }, (_, index) => `report line ${String(index)}`).join('\n'),
+      safety: 'read-only',
+    };
+
+    const output = text(renderAgentWorkspace(workspace, 120, 24));
+
+    expect(output).toContain('more line(s) not shown');
+    expect(output).toContain('the pane ran out of room');
+  });
+
+  test('a result that fits carries no such marker', () => {
+    const workspace = new AgentWorkspace();
+    workspace.open(commandContext(), () => undefined);
+    workspace.lastActionResult = {
+      kind: 'refreshed',
+      title: 'Google connection',
+      detail: 'Gmail: not connected.',
+      safety: 'read-only',
+    };
+
+    const output = text(renderAgentWorkspace(workspace, 120, 60));
+
+    expect(output).not.toContain('more line(s) not shown');
+  });
+});

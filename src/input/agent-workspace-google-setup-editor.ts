@@ -176,11 +176,29 @@ function failed(host: AgentWorkspaceGoogleSetupEditorHost, editor: AgentWorkspac
 }
 
 /**
- * Progress goes into a transcript rather than to a console.
+ * Ordering, because the result pane cannot show everything.
  *
- * The console surface streams each step as it happens; a card has one result
- * pane, so the steps are collected and rendered with the report. Dropping them
- * would make a run that pauses for sign-in look like a run that did nothing.
+ * The context column compacts a result to its first sentence, and the actions
+ * column renders wrapped lines until the viewport ends — there is no scroll and
+ * no "more below" marker on the result block, so a thirty-line setup report
+ * loses its tail. Printing to the conversation instead is not available here:
+ * the workspace's command context does not surface `print` into the transcript
+ * (verified against a built binary — the same text typed as `/google status`
+ * appears, the same call from a card does not).
+ *
+ * What is in our gift is the order. Every result therefore leads with the
+ * outcome and the one thing outstanding, so that what survives the cut is the
+ * part the person needs, and the verbose step-by-step is the tail that is lost
+ * rather than the headline. The remaining clipping is a workspace renderer
+ * limitation, not something this card can decide away.
+ */
+
+/**
+ * Progress is collected as it happens.
+ *
+ * The console surface streams each step; a card cannot, so the steps are
+ * gathered and printed with the report. Dropping them would make a run that
+ * paused for sign-in look like a run that did nothing.
  */
 function collectingProgress(lines: string[]): GoogleProgressPort {
   return {
@@ -209,13 +227,25 @@ async function runFlowCard(
   try {
     host.status = 'Google setup running — the browser may ask you to sign in.';
     const report = await runGoogleSetup(path, context, collectingProgress(transcript), intake);
-    const detail = [...transcript, '', renderGoogleSetupReport(report)].join('\n');
+
+    const outstanding = report.steps.find((step) => step.outcome !== 'done');
+    // Headline first, then what needs you, then the full record. The pane cuts
+    // from the bottom, so this order decides what survives.
+    const head = report.ok
+      ? ['Every step completed.']
+      : [
+          `Stopped at "${outstanding?.id ?? 'an early step'}": ${outstanding?.detail ?? 'a step did not complete.'}`,
+          ...(outstanding?.problem ? [outstanding.problem] : []),
+          ...(outstanding?.fix ? [`Do this: ${outstanding.fix}`] : []),
+          'Re-run this card afterwards; completed steps are detected and skipped.',
+        ];
+
     host.localEditor = null;
     host.status = report.ok ? 'Google connected.' : 'Google setup paused — one thing needs you.';
     host.lastActionResult = {
       kind: report.ok ? 'refreshed' : 'error',
       title: report.ok ? `${title} complete` : `${title} paused`,
-      detail,
+      detail: [...head, '', ...transcript, '', renderGoogleSetupReport(report)].join('\n'),
       safety: 'safe',
     };
   } catch (error) {
@@ -244,7 +274,14 @@ export async function submitAgentWorkspaceGoogleSetupEditor(
       const text = await describeGoogleConnection(context, 'the "Adopt existing Google credentials" card');
       host.localEditor = null;
       host.status = 'Google connection state read.';
-      host.lastActionResult = { kind: 'refreshed', title: 'Google connection', detail: text, safety: 'read-only' };
+      // Not a 'recap' result: that kind renders every line behind a green check,
+      // which would put a tick against "Gmail: not connected."
+      host.lastActionResult = {
+        kind: 'refreshed',
+        title: 'Google connection',
+        detail: text,
+        safety: 'read-only',
+      };
     } catch (error) {
       failed(host, editor, 'Google status unavailable', error);
     }
