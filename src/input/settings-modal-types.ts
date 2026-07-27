@@ -70,6 +70,7 @@ export type SettingsCategory =
   | 'fleet'
   | 'voice'
   | 'device'
+  | 'cluster'
   | 'memory';
 
 export type SettingsFocusPane = 'categories' | 'settings';
@@ -106,7 +107,15 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   // rendered like any other setting rather than hidden — the write is gated by
   // the narrow confirmation list in src/tools/agent-settings-write-policy.ts,
   // which can name the key and state the hazard. A hidden key cannot.
-  { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'danger', 'web', 'watchers', 'network', 'relay', 'update'] },
+  // `cluster` belongs here rather than being hidden. The Agent composes no
+  // inbound channel consumer of its own — a guard test holds that — so it is
+  // never a candidate in an election. But every cluster.* key is DAEMON-owned
+  // (the SDK's config-ownership.ts), so a write from this surface routes to the
+  // daemon that acts on it, exactly like every other key in this group. Hiding
+  // them would leave the owner unable to configure which of his machines reads
+  // the inbox from the surface he actually uses, which is the same mistake the
+  // retired host-owned lock made.
+  { label: 'Daemon Runtime', categories: ['daemon', 'service', 'controlPlane', 'httpListener', 'danger', 'web', 'watchers', 'network', 'relay', 'cluster', 'update'] },
   { label: 'Advanced Runtime', categories: ['orchestration', 'fleet', 'planner', 'runtime', 'sandbox', 'batch', 'cloudflare', 'wrfc', 'memory'] },
   { label: 'Advanced', categories: ['flags', 'release'] },
 ];
