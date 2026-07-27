@@ -18,9 +18,24 @@ import {
 import { submitAgentWorkspaceEmailConnectWizardEditor, type AgentWorkspaceEmailConnectEditorHost } from './agent-workspace-email-connect-editor.ts';
 import { submitAgentWorkspaceCalendarSubscribeWizardEditor, type AgentWorkspaceCalendarSubscribeEditorHost } from './agent-workspace-calendar-subscribe-editor.ts';
 import { submitAgentWorkspaceCalendarOAuthEditor, type AgentWorkspaceCalendarOAuthEditorHost } from './agent-workspace-calendar-oauth-editor.ts';
+import { submitAgentWorkspaceGoogleSetupEditor, type AgentWorkspaceGoogleSetupEditorHost } from './agent-workspace-google-setup-editor.ts';
 
 type FieldReader = (id: string) => string;
-type DirectEditorHost = AgentWorkspaceSubscriptionEditorHost & AgentWorkspaceEmailConnectEditorHost & AgentWorkspaceCalendarSubscribeEditorHost & AgentWorkspaceCalendarOAuthEditorHost;
+type DirectEditorHost = AgentWorkspaceSubscriptionEditorHost & AgentWorkspaceEmailConnectEditorHost & AgentWorkspaceCalendarSubscribeEditorHost & AgentWorkspaceCalendarOAuthEditorHost & AgentWorkspaceGoogleSetupEditorHost;
+
+/**
+ * Every Google connection card routes to one submit function, which branches on
+ * the editor kind. The alternative — six entries here — would put the routing in
+ * two places and let them disagree about which kinds exist.
+ */
+const GOOGLE_EDITOR_KINDS = new Set([
+  'google-status',
+  'google-setup-walkthrough',
+  'google-setup-app-password',
+  'google-adopt',
+  'google-client-file',
+  'google-client-manual',
+]);
 
 /** Returns true when this editor kind was handled directly (caller should return without further dispatch). */
 export function trySubmitDirectHostActionEditor(
@@ -53,6 +68,10 @@ export function trySubmitDirectHostActionEditor(
   }
   if (editor.kind === 'calendar-oauth-google' || editor.kind === 'calendar-oauth-outlook') {
     void submitAgentWorkspaceCalendarOAuthEditor(host, editor, context, readField).finally(() => requestRender?.());
+    return true;
+  }
+  if (GOOGLE_EDITOR_KINDS.has(editor.kind)) {
+    void submitAgentWorkspaceGoogleSetupEditor(host, editor, context, readField).finally(() => requestRender?.());
     return true;
   }
   return false;

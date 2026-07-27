@@ -15,40 +15,30 @@
  * commands would have meant two half-flows sharing hidden state, and would
  * have left whichever one the user did not run looking broken.
  *
- * Nothing here ever prints a credential. Values go from a flow straight into
- * the encrypted secret store; status output reports presence, provenance,
- * scopes and expiry only.
+ * The same reasoning is why this file holds no logic of its own any more. The
+ * workspace UI offers these routes as cards, and both surfaces call
+ * `google-connection-actions.ts`. This file is the console renderer over those
+ * actions: it parses arguments and prints. Anything it decided for itself would
+ * be a decision the UI could get differently.
+ *
+ * Nothing here ever prints a credential.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
-import { requirePlatform, requireSecretsManager, requireShellPaths } from './runtime-services.ts';
-import { BrowserEngine } from '../../browser/browser-engine.ts';
-import { BrowserSessionManager, browserProfileRoot, browserScreenshotRoot } from '../../browser/browser-sessions.ts';
-import { createGoogleBrowserPort } from '../../agent/google/google-browser-port.ts';
-import { createProcessCommandPort } from '../../agent/google/google-gcloud.ts';
-import { runGoogleSetupFlow, renderGoogleSetupReport } from '../../agent/google/google-setup-flow.ts';
-import {
-  adoptExistingGoogleCredentials,
-  buildGoogleSetupRunners,
-  type GoogleClientIntakeChoice,
-  type GoogleSetupActionDeps,
-} from '../../agent/google/google-setup-actions.ts';
+import { requireSecretsManager } from './runtime-services.ts';
+import { renderGoogleSetupReport } from '../../agent/google/google-setup-flow.ts';
+import type { GoogleClientIntakeChoice } from '../../agent/google/google-setup-actions.ts';
 import { renderGoogleSetupRunbook } from '../../agent/google/google-setup-runbook.ts';
-import { detectGoogleSetupState, describeGoogleSetupState } from '../../agent/google/google-setup-state.ts';
-import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS, ensureGoogleConfigDefaults } from '../../agent/google/google-setup-plan.ts';
-import { ensureCalendarConfigDefaults } from '../../agent/calendar/calendar-oauth-service.ts';
-import { ensureEmailConfigDefaults } from '../../agent/email/email-service.ts';
+import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS } from '../../agent/google/google-setup-plan.ts';
 import {
-  adoptGmailMcpCredentials,
-  summarizeCredentials,
-  type GoogleFilePort,
-} from '../../agent/google/google-credential-adoption.ts';
+  adoptGoogleCredentials,
+  describeGoogleConnection,
+  googleConfigPort,
+  googleSecretPort,
+  runGoogleSetup,
+} from './google-connection-actions.ts';
 import type {
-  GoogleBrowserPort,
-  GoogleConfigPort,
   GoogleProgressPort,
-  GoogleSecretPort,
   GoogleSetupPath,
   GoogleSetupStepSpec,
   GoogleStepResult,
@@ -67,72 +57,9 @@ const USAGE = [
   '  account <address>               Set the Gmail address to connect as.',
   '  calendar-address <url>          Store the private iCal address for read-only calendar access.',
   '  runbook                         Print the written step-by-step instructions.',
+  '',
+  'The same routes are cards in the Agent workspace, under Personal Ops.',
 ].join('\n');
-
-// ---------------------------------------------------------------------------
-// Ports built from the running shell
-// ---------------------------------------------------------------------------
-
-function configPort(ctx: CommandContext): GoogleConfigPort {
-  const raw = requirePlatform(ctx).configManager;
-  // The flow spans three app-layer config sections. Seed all of them before any
-  // access: resolvePath throws on a section that is not there.
-  ensureGoogleConfigDefaults(raw);
-  ensureCalendarConfigDefaults(raw);
-  ensureEmailConfigDefaults(raw);
-  const manager = raw as {
-    get: (key: string) => unknown;
-    setDynamic: (key: string, value: unknown) => void;
-  };
-  return {
-    get: (key) => manager.get(key),
-    set: (key, value) => { manager.setDynamic(key, value); },
-  };
-}
-
-function secretPort(ctx: CommandContext): GoogleSecretPort {
-  const manager = requireSecretsManager(ctx) as {
-    get: (key: string) => Promise<string | null>;
-    set: (key: string, value: string, options?: { scope?: 'user' | 'project' }) => Promise<void>;
-  };
-  return {
-    get: (key) => manager.get(key),
-    set: (key, value) => manager.set(key, value, { scope: 'user' }),
-  };
-}
-
-/** Plain node file reads. Adoption never writes, so there is no write side. */
-const filePort: GoogleFilePort = {
-  exists: (path) => existsSync(path),
-  readText: (path) => {
-    try {
-      return readFileSync(path, 'utf8');
-    } catch {
-      return null;
-    }
-  },
-};
-
-/**
- * A browser, created only when a step actually needs one.
- *
- * The profile is named and persistent on purpose: Google blocks automated
- * browsers at its sign-in wall, so the person signs in by hand exactly once and
- * every later run reuses that session.
- */
-function browserFactory(ctx: CommandContext): () => Promise<GoogleBrowserPort> {
-  const homeDirectory = requireShellPaths(ctx).homeDirectory;
-  let port: GoogleBrowserPort | null = null;
-  return async () => {
-    if (port !== null) return port;
-    const engine = new BrowserEngine(
-      new BrowserSessionManager({ profileRoot: browserProfileRoot(homeDirectory), homeDirectory }),
-      { screenshotDirectory: browserScreenshotRoot(homeDirectory) },
-    );
-    port = createGoogleBrowserPort(engine, { launch: { profileName: 'google', headless: false } });
-    return port;
-  };
-}
 
 /** Live progress. A setup run is never a silent grind. */
 function progressPort(ctx: CommandContext): GoogleProgressPort {
@@ -150,77 +77,6 @@ function progressPort(ctx: CommandContext): GoogleProgressPort {
   };
 }
 
-function actionDeps(ctx: CommandContext, intake?: GoogleClientIntakeChoice): GoogleSetupActionDeps {
-  const homeDirectory = requireShellPaths(ctx).homeDirectory;
-  return {
-    config: configPort(ctx),
-    secrets: secretPort(ctx),
-    browser: browserFactory(ctx),
-    commands: createProcessCommandPort(),
-    fetchPort: { fetch: (url, init) => fetch(url, init) },
-    files: filePort,
-    homeDirectory,
-    ...(intake === undefined ? {} : { clientIntake: intake }),
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Subcommands
-// ---------------------------------------------------------------------------
-
-/**
- * Status.
- *
- * Reports two independent things and never conflates them: what this product
- * has configured for itself, and what Google credentials already exist on this
- * machine regardless of whether anything is using them. The second is what the
- * shipped build never said out loud.
- */
-async function showStatus(ctx: CommandContext): Promise<void> {
-  const config = configPort(ctx);
-  const secrets = secretPort(ctx);
-  const homeDirectory = requireShellPaths(ctx).homeDirectory;
-
-  const state = await detectGoogleSetupState({ config, secrets });
-  const lines = ['Google connection', ...describeGoogleSetupState(state).map((line) => `  ${line}`)];
-
-  const adoptable = adoptGmailMcpCredentials(filePort, homeDirectory);
-  const summary = summarizeCredentials(adoptable, Date.now());
-  lines.push('', 'Credentials already on this machine');
-  if (!summary.found) {
-    lines.push(`  ${summary.detail}`);
-  } else {
-    lines.push(`  ${summary.detail}`);
-    lines.push(`  refresh token: ${summary.hasRefreshToken ? 'present' : 'absent'}`);
-    if (!state.hasRefreshToken) {
-      lines.push('  These are not in use yet. Take them up with: /google adopt');
-    }
-  }
-
-  ctx.print(lines.join('\n'));
-}
-
-async function runAdopt(ctx: CommandContext): Promise<void> {
-  const outcome = await adoptExistingGoogleCredentials({
-    files: filePort,
-    config: configPort(ctx),
-    secrets: secretPort(ctx),
-    homeDirectory: requireShellPaths(ctx).homeDirectory,
-  });
-  if (!outcome.adopted) {
-    ctx.print([
-      outcome.detail,
-      'Connect an account instead with: /google setup',
-    ].join('\n'));
-    return;
-  }
-  ctx.print([
-    outcome.detail,
-    outcome.scopes.length > 0 ? `Granted scopes: ${outcome.scopes.join(', ')}` : 'The credential lists no scopes.',
-    'Check what this enables with: /google status',
-  ].join('\n'));
-}
-
 function parsePath(args: readonly string[]): GoogleSetupPath {
   const index = args.indexOf('--path');
   const value = index >= 0 ? args[index + 1] : undefined;
@@ -228,12 +84,7 @@ function parsePath(args: readonly string[]): GoogleSetupPath {
 }
 
 async function runSetup(args: readonly string[], ctx: CommandContext, intake?: GoogleClientIntakeChoice): Promise<void> {
-  const path = parsePath(args);
-  const deps = actionDeps(ctx, intake);
-  const report = await runGoogleSetupFlow(path, {
-    progress: progressPort(ctx),
-    runners: buildGoogleSetupRunners(path, deps),
-  });
+  const report = await runGoogleSetup(parsePath(args), ctx, progressPort(ctx), intake);
   ctx.print(renderGoogleSetupReport(report));
 }
 
@@ -243,7 +94,7 @@ async function setAccount(args: readonly string[], ctx: CommandContext): Promise
     ctx.print('Give the Gmail address to connect as: /google account <your-address@gmail.com>');
     return;
   }
-  const config = configPort(ctx);
+  const config = googleConfigPort(ctx);
   config.set(GOOGLE_CONFIG_KEYS.emailUsername, address);
   config.set(GOOGLE_CONFIG_KEYS.emailFromAddress, address);
   ctx.print(`Gmail address set to ${address}. Continue with: /google setup`);
@@ -259,22 +110,28 @@ async function setCalendarAddress(args: readonly string[], ctx: CommandContext):
     ctx.print('Give the private iCal address: /google calendar-address <https://calendar.google.com/calendar/ical/.../basic.ics>');
     return;
   }
-  await secretPort(ctx).set(GOOGLE_SECRET_KEYS.calendarIcsUrl, url);
-  configPort(ctx).set(GOOGLE_CONFIG_KEYS.calendarIcsUrl, GOOGLE_CONFIG_KEYS.calendarIcsUrl);
+  // Touch the secrets manager through the same accessor the ports use, so an
+  // unavailable secret store fails here rather than half-way through a write.
+  requireSecretsManager(ctx);
+  await googleSecretPort(ctx).set(GOOGLE_SECRET_KEYS.calendarIcsUrl, url);
+  googleConfigPort(ctx).set(GOOGLE_CONFIG_KEYS.calendarIcsUrl, GOOGLE_CONFIG_KEYS.calendarIcsUrl);
   ctx.print('Stored the private calendar address in the encrypted secret store. Read it with: /calendar refresh');
 }
-
-// ---------------------------------------------------------------------------
-// Registration
-// ---------------------------------------------------------------------------
 
 export async function runGoogleCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
   const sub = (args[0] ?? 'status').trim().toLowerCase();
   const rest = args.slice(1);
 
   try {
-    if (sub === 'status') return await showStatus(ctx);
-    if (sub === 'adopt') return await runAdopt(ctx);
+    if (sub === 'status') {
+      ctx.print(await describeGoogleConnection(ctx, '/google adopt'));
+      return;
+    }
+    if (sub === 'adopt') {
+      const outcome = await adoptGoogleCredentials(ctx, { setup: '/google setup', status: '/google status' });
+      ctx.print(outcome.text);
+      return;
+    }
     if (sub === 'setup') return await runSetup(rest, ctx);
     if (sub === 'account') return await setAccount(rest, ctx);
     if (sub === 'calendar-address') return await setCalendarAddress(rest, ctx);

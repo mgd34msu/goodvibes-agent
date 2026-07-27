@@ -246,7 +246,13 @@ export type AgentWorkspaceEditorKind =
   | 'calendar-connect'
   | 'calendar-subscribe-wizard'
   | 'calendar-oauth-google'
-  | 'calendar-oauth-outlook';
+  | 'calendar-oauth-outlook'
+  | 'google-status'
+  | 'google-setup-walkthrough'
+  | 'google-setup-app-password'
+  | 'google-adopt'
+  | 'google-client-file'
+  | 'google-client-manual';
 
 export type AgentWorkspaceLocalOperation =
   | 'memory-edit'
