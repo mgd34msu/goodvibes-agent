@@ -19,11 +19,12 @@
  *   - the release lane still carries every required job: tag/version check,
  *     by-reference verify, npm pack, the binary matrix, the asset assembly, the
  *     GitHub Release, the npm publish, and the registry install smoke;
- *   - the assembled release assets cover all four platform binaries and all four
+ *   - the assembled release assets cover all four platform binaries, all four
  *     per-platform sqlite-vec native addon archives (sqlite-vec-<os>-<arch>.tar.gz),
- *     each attached to the GitHub Release (whose reusable workflow generates the
- *     SHA256SUMS manifest, missing-asset-fatal), matching the naming the curl
- *     installer parses.
+ *     and the browser driver archive (browser-driver.tar.gz), each attached to
+ *     the GitHub Release (whose reusable workflow generates the SHA256SUMS
+ *     manifest, missing-asset-fatal), matching the naming the curl installer
+ *     parses.
  *
  * Exit code 0 = green (0 problems), non-zero = the count of structural problems.
  */
@@ -58,6 +59,7 @@ const RELEASE_REQUIRED_JOBS: ReadonlyArray<string> = [
   'release-verify',
   'pack',
   'binaries',
+  'browser-driver',
   'assemble-release-assets',
   'github-release',
   'publish-npm',
@@ -92,6 +94,14 @@ const PLATFORM_ADDON_ARCHIVES: ReadonlyArray<string> = [
   'sqlite-vec-darwin-x64.tar.gz',
   'sqlite-vec-darwin-arm64.tar.gz',
 ];
+
+/**
+ * The browser driver archive. Platform-independent (the driver is plain
+ * JavaScript), checksummed in the same SHA256SUMS.txt, and extracted beside the
+ * binary as `playwright-core/`. Without it a downloaded binary has no
+ * automation driver at all, which is what 1.18.1 shipped.
+ */
+const BROWSER_DRIVER_ARCHIVE = 'browser-driver.tar.gz';
 
 function stepsContinueOnError(job: Json): boolean {
   // A step-level continue-on-error is an informational annotation and never
@@ -180,6 +190,18 @@ for (const file of files) {
         fail(
           file,
           `sqlite-vec addon archive "${archive}" must appear in both the assembled assets and the GitHub Release glob (found ${occurrences} reference(s))`,
+        );
+      }
+    }
+    // The browser driver archive rides the same two sinks. A binary with no
+    // driver beside it cannot drive a page at all, so a dropped driver archive
+    // is missing-entry-fatal exactly like a dropped addon.
+    {
+      const occurrences = raw.split(BROWSER_DRIVER_ARCHIVE).length - 1;
+      if (occurrences < 2) {
+        fail(
+          file,
+          `browser driver archive "${BROWSER_DRIVER_ARCHIVE}" must appear in both the assembled assets and the GitHub Release glob (found ${occurrences} reference(s))`,
         );
       }
     }

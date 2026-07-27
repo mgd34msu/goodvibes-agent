@@ -110,6 +110,16 @@ export function describeCliCommandPolicy(commandName: string): CommandExecutionP
       boundary: 'Delegation is explicit user-directed work only; no hidden background review or separate Agent job should be created implicitly.',
     };
   }
+  if (root === 'browser') {
+    return {
+      // Provisioning downloads a driver and a browser, and navigation reaches
+      // the network, so this is never merely read-only.
+      effect: 'external-network',
+      confirmation,
+      preferredModelTool: 'browser',
+      boundary: 'The CLI is a scriptable mirror of the browser tool, for diagnosing an install from a shell — in a conversation the model calls the browser tool directly rather than shelling out. It builds the same tool the model calls, so the two can never disagree. Sessions it opens are closed when the command exits, and only browsers this agent launched are ever closed.',
+    };
+  }
   if (root === 'relay') {
     return {
       effect: 'read-only',

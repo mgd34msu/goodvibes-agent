@@ -158,12 +158,15 @@ function summarizeInstallLog(log: string): string {
   return meaningful.slice(-4).join(' | ').slice(0, 400);
 }
 
-function failureGuidance(failure: BrowserProvisionFailure, detail: string): { problem: string; fix: string } {
+function failureGuidance(failure: BrowserProvisionFailure, detail: string, driverFix: string): { problem: string; fix: string } {
   switch (failure) {
     case 'driver-missing':
       return {
-        problem: `The Playwright driver package is not resolvable from this build (${detail}).`,
-        fix: 'Reinstall the agent so its dependencies are present: bun add -g @pellux/goodvibes-agent',
+        // Reaching this means provisioning was ATTEMPTED and could not finish,
+        // so the problem statement says so: "missing" on its own would read as
+        // though nothing had been tried.
+        problem: `The browser driver is not present and could not be installed automatically (${detail}).`,
+        fix: driverFix,
       };
     case 'download-blocked-offline':
       return {
@@ -203,10 +206,14 @@ function failureGuidance(failure: BrowserProvisionFailure, detail: string): { pr
   }
 }
 
+const DEFAULT_DRIVER_FIX =
+  'Install the browser driver beside the agent, or install bun or npm so the agent can install it for itself.';
+
 function report(
   recorder: StepRecorder,
   browsersPath: string,
   driverVersion: string | null,
+  driverFix: string,
   outcome:
     | { readonly ok: true; readonly source: BrowserProvisionReport['source']; readonly executablePath: string }
     | { readonly ok: false; readonly failure: BrowserProvisionFailure; readonly detail: string },
@@ -224,7 +231,7 @@ function report(
       fix: null,
     };
   }
-  const guidance = failureGuidance(outcome.failure, outcome.detail);
+  const guidance = failureGuidance(outcome.failure, outcome.detail, driverFix);
   return {
     ok: false,
     source: null,
@@ -257,6 +264,25 @@ async function trySystemBrowser(
   return null;
 }
 
+/**
+ * One line naming the setup a provisioning act actually performed, or null when
+ * everything was already in place.
+ *
+ * Provisioning that installs a driver or downloads a browser can take minutes.
+ * A call that quietly did that and then returned as though nothing happened
+ * reads as a slow browser rather than as one-act setup, so every result that
+ * involved real work carries this receipt back to the caller.
+ */
+export function describeProvisionWork(report: BrowserProvisionReport | null): string | null {
+  if (!report) return null;
+  const performed = report.steps.filter((step) =>
+    step.ok && (step.step === 'install-driver' || step.step === 'install-browser'));
+  if (performed.length === 0) return null;
+  const seconds = Math.max(1, Math.round(performed.reduce((total, step) => total + step.elapsedMs, 0) / 1000));
+  const what = performed.map((step) => (step.step === 'install-driver' ? 'installed the browser driver' : 'downloaded the browser'));
+  return `First browser call on this machine: ${what.join(' and ')} (${seconds}s). This happens once; later calls reuse it.`;
+}
+
 const inFlight = new Map<string, Promise<BrowserProvisionReport>>();
 
 /**
@@ -282,28 +308,40 @@ export function ensureBrowserBinary(
 async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions): Promise<BrowserProvisionReport> {
   const recorder = new StepRecorder(io);
   const browsersPath = io.browsersPath();
+  const driverFix = io.driverFix?.() ?? DEFAULT_DRIVER_FIX;
   const driver = io.resolveDriver();
   recorder.note(
     'driver',
-    driver.available ? `playwright-core ${driver.version ?? 'unknown version'}` : driver.error ?? 'not resolvable',
+    driver.available
+      ? `the browser driver is present (${driver.version ?? 'unknown version'}) at ${driver.packageDirectory ?? 'an installed module path'}`
+      : driver.error ?? 'not resolvable',
     driver.available,
   );
   let resolvedDriver = driver;
+  let driverInstallFailure: string | null = null;
   if (!resolvedDriver.available && io.installDriver && io.managedDriverRoot) {
-    // A compiled binary ships no node_modules, so the driver is installed into
-    // the agent's own directory the same way browsers are — once, then cached.
+    // Nothing shipped a driver — a binary that was moved without its companion
+    // files, or a release that predates shipping one. Provisioning it is the
+    // agent's job, not the user's, so it happens here rather than being
+    // reported as a missing prerequisite. Installing is attempted BEFORE any
+    // failure is reported, which is the whole point: a build must never say
+    // the driver is missing without having tried to get one.
     const target = io.managedDriverRoot();
     const installed = await recorder.record('install-driver', async () => {
       const outcome = await io.installDriver!(target);
       return {
         ok: outcome.code === 0,
         detail: outcome.code === 0
-          ? `installed the browser driver into ${target}`
-          : outcome.spawnError ?? `driver install exited with code ${String(outcome.code)}`,
+          ? outcome.stdout.trim() || `installed the browser driver into ${target}`
+          : `could not install the browser driver into ${target} — ${(outcome.spawnError ?? (outcome.stderr.trim() || `install exited with code ${String(outcome.code)}`)).slice(0, 400)}`,
         value: outcome,
       };
     });
-    if (installed.code === 0) resolvedDriver = io.resolveDriver();
+    if (installed.code === 0) {
+      resolvedDriver = io.resolveDriver();
+    } else {
+      driverInstallFailure = (installed.spawnError ?? (installed.stderr.trim() || `install exited with code ${String(installed.code)}`)).slice(0, 400);
+    }
   }
   if (!resolvedDriver.available || !resolvedDriver.cliPath) {
     const systemBrowser = await trySystemBrowser(io, recorder);
@@ -312,10 +350,12 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
       // system browser cannot rescue this case. Report the real blocker.
       recorder.note('driver', 'a system browser exists but the automation driver is still required', false);
     }
-    return report(recorder, browsersPath, resolvedDriver.version, {
+    return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
       ok: false,
       failure: 'driver-missing',
-      detail: resolvedDriver.error ?? 'playwright-core could not be resolved',
+      // The install failure is the actionable detail when one happened; the
+      // resolution error only says "not found", which is not why it is absent.
+      detail: driverInstallFailure ?? resolvedDriver.error ?? 'the browser driver could not be resolved',
     });
   }
   const driverCliPath = resolvedDriver.cliPath;
@@ -327,14 +367,14 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
       return { ok: result.ok, detail: result.detail, value: result };
     });
     if (verification.ok) {
-      return report(recorder, browsersPath, resolvedDriver.version, {
+      return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
         ok: true,
         source: 'managed-cache',
         executablePath: expected,
       });
     }
     if (verification.failure === 'missing-system-libraries') {
-      return report(recorder, browsersPath, resolvedDriver.version, {
+      return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
         ok: false,
         failure: 'missing-system-libraries',
         detail: verification.detail,
@@ -345,13 +385,13 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
   if (options.allowDownload === false) {
     const systemBrowser = await trySystemBrowser(io, recorder);
     if (systemBrowser) {
-      return report(recorder, browsersPath, resolvedDriver.version, {
+      return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
         ok: true,
         source: 'system-browser',
         executablePath: systemBrowser,
       });
     }
-    return report(recorder, browsersPath, resolvedDriver.version, {
+    return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
       ok: false,
       failure: 'binary-missing-after-install',
       detail: 'no managed browser is installed and downloading was not allowed for this call',
@@ -361,13 +401,13 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
   if (!io.directoryWritable(browsersPath)) {
     const systemBrowser = await trySystemBrowser(io, recorder);
     if (systemBrowser) {
-      return report(recorder, browsersPath, resolvedDriver.version, {
+      return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
         ok: true,
         source: 'system-browser',
         executablePath: systemBrowser,
       });
     }
-    return report(recorder, browsersPath, resolvedDriver.version, {
+    return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
       ok: false,
       failure: 'cache-directory-unwritable',
       detail: browsersPath,
@@ -400,14 +440,14 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
         return { ok: result.ok, detail: result.detail, value: result };
       });
       if (verification.ok) {
-        return report(recorder, browsersPath, resolvedDriver.version, {
+        return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
           ok: true,
           source: 'managed-download',
           executablePath: installedPath,
         });
       }
       if (verification.failure === 'missing-system-libraries') {
-        return report(recorder, browsersPath, resolvedDriver.version, {
+        return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
           ok: false,
           failure: 'missing-system-libraries',
           detail: verification.detail,
@@ -418,7 +458,7 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
 
   const systemBrowser = await trySystemBrowser(io, recorder);
   if (systemBrowser) {
-    return report(recorder, browsersPath, resolvedDriver.version, {
+    return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
       ok: true,
       source: 'system-browser',
       executablePath: systemBrowser,
@@ -426,13 +466,13 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
   }
 
   if (!install.ok) {
-    return report(recorder, browsersPath, resolvedDriver.version, {
+    return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
       ok: false,
       failure: install.networkFailure ? 'download-blocked-offline' : 'download-failed',
       detail: install.detail,
     });
   }
-  return report(recorder, browsersPath, resolvedDriver.version, {
+  return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
     ok: false,
     failure: 'binary-missing-after-install',
     detail: 'install completed but the browser executable did not verify',

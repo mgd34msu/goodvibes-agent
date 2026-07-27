@@ -158,6 +158,11 @@ export class BrowserSessionManager {
     this.probeEndpoint = deps.probeEndpoint ?? firstReachableCdpEndpoint;
   }
 
+  /** Install-kind-aware remediation, from the same injected IO the policy uses. */
+  private driverFix(): string {
+    return this.io.driverFix?.() ?? 'Install the browser driver beside the agent, or install bun or npm so the agent can install it for itself.';
+  }
+
   provisionReport(): BrowserProvisionReport | null {
     return this.lastProvision;
   }
@@ -175,8 +180,8 @@ export class BrowserSessionManager {
     const driver = this.loadDriver();
     if (!driver) {
       throw new BrowserSessionError(
-        'The Playwright driver package is not resolvable from this build.',
-        'Reinstall the agent so its dependencies are present: bun add -g @pellux/goodvibes-agent',
+        'The browser driver is not present and could not be installed automatically.',
+        this.driverFix(),
       );
     }
     return driver;

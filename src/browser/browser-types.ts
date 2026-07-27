@@ -79,6 +79,12 @@ export interface BrowserProvisionIo {
   readonly installDriver?: (targetRoot: string) => Promise<CommandOutcome>;
   /** Where a self-installed driver goes. */
   readonly managedDriverRoot?: () => string;
+  /**
+   * What to tell the user when the driver is neither present nor installable,
+   * phrased for how this build was installed. Injected so the provisioning
+   * policy never has to know about release assets or package managers.
+   */
+  readonly driverFix?: () => string;
   readonly expectedExecutablePath: () => string | null;
   readonly browsersPath: () => string;
   readonly pathExists: (path: string) => boolean;

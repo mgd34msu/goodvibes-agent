@@ -215,7 +215,13 @@ describe('Agent workspace command parity', () => {
     // mint a pairing payload (see relay-command.ts) — a diagnostics/refusal
     // surface with no mutating action a TUI workspace editor would expose,
     // same shape as compat/doctor/pair above.
-    const shellOnlyCommands = new Set(['completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'pair', 'relay', 'tui', 'unknown', 'version', 'workspaces']);
+    // browser is a scriptable mirror of the `browser` MODEL TOOL, which is how
+    // the capability is reached in a conversation. The CLI exists so a binary
+    // install can be diagnosed and repaired from a shell without a model turn
+    // (agent 1.18.1 shipped a broken browser and there was no way to ask the
+    // binary anything) — a diagnostics surface with no mutating setting a TUI
+    // workspace editor would expose, same shape as compat/doctor/pair/relay.
+    const shellOnlyCommands = new Set(['browser', 'completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'pair', 'relay', 'tui', 'unknown', 'version', 'workspaces']);
     const requirements: Record<string, CoverageRequirement> = {
       ask: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-ask'] },
       auth: { editorPrefixes: ['auth-'] },

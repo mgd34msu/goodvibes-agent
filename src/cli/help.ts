@@ -60,6 +60,7 @@ export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {
     '  principals                 Manage the connected-host cross-channel principal identity registry',
     '  channel-profiles           Manage per-channel model/provider/permission-mode defaults',
     '  workspaces                 Manage which workspaces get automatic checkpoints',
+    '  browser                    Drive a real browser from the shell (status|provision|open <url>|read <url>)',
     '  relay                      Report the connected host\'s outbound relay configuration (status|pair)',
     '  fleet                      Review and resolve this Agent\'s best-of-N attempt groups',
     '  auth                       Inspect Agent auth posture and connection token state',
@@ -364,6 +365,21 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'workspaces register --yes',
       'workspaces register /home/mike/Projects/goodvibes-agent --label agent --yes',
       'workspaces unregister --yes',
+    ],
+  },
+  browser: {
+    usage: [
+      'browser status',
+      'browser provision [--repair]',
+      'browser open <url> [--visible]',
+      'browser read <url> [--visible]',
+    ],
+    summary: 'Drive a real browser from the shell, through the same tool the model calls. `status` reports whether the driver and browser are present and, when they are not, exactly what is missing and what to do; `provision` performs the one-act setup with every step visible; `open` and `read` prove the whole path on a real page without needing a model, a provider, or an API key.',
+    examples: [
+      'browser status',
+      'browser provision',
+      'browser open https://example.com',
+      'browser read https://example.com',
     ],
   },
   relay: {

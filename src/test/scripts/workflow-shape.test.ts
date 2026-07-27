@@ -222,7 +222,7 @@ describe('release.yml: by-reference release on the shared reusables', () => {
     // if-no-files-found/fail_on_unmatched_files errors block the release.
     const globInputs: readonly [job: string, input: string, minPaths: number][] = [
       ['binaries', 'artifact-glob', 5],
-      ['github-release', 'assets-glob', 9],
+      ['github-release', 'assets-glob', 10],
     ];
     for (const [jobName, inputName, minPaths] of globInputs) {
       const job = rel.jobs![jobName]! as Job & { with?: Record<string, unknown> };
@@ -256,7 +256,7 @@ describe('release.yml: by-reference release on the shared reusables', () => {
     expect(darwinSmoke?.binary).toBe('dist/goodvibes-agent-macos-arm64');
   });
 
-  test('the exact release asset set is preserved (4 binaries + 4 addon archives + npm tgz)', () => {
+  test('the exact release asset set is preserved (4 binaries + 4 addon archives + browser driver + npm tgz)', () => {
     for (const binary of [
       'goodvibes-agent-linux-x64',
       'goodvibes-agent-linux-arm64',
@@ -274,6 +274,9 @@ describe('release.yml: by-reference release on the shared reusables', () => {
     ]) {
       expect(raw.split(archive).length - 1).toBeGreaterThanOrEqual(2);
     }
+    // The browser driver archive rides both sinks too. 1.18.1 shipped without
+    // it and every downloaded binary reported browser control as unavailable.
+    expect(raw.split('browser-driver.tar.gz').length - 1).toBeGreaterThanOrEqual(2);
     // The npm tarball rides the same assembled artifact + release glob.
     expect(raw).toContain('dist/*.tgz');
   });

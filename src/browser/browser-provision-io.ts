@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process';
-import { accessSync, constants, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { platform } from 'node:os';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { extractTarGzTree } from '../runtime/tar-archive.ts';
+import { driverRemediation } from './browser-driver-remediation.ts';
 import type { BrowserDriverResolution, BrowserProvisionIo, CommandOutcome } from './browser-types.ts';
 
 /**
@@ -58,20 +60,38 @@ export function managedDriverRoot(homeDirectory: string): string {
   return join(homeDirectory, '.goodvibes', 'agent', 'browser', 'driver');
 }
 
+/**
+ * A candidate directory counts as a driver only if it holds everything the
+ * driver is used for: the manifest, the module entry, AND the CLI the browser
+ * install step executes.
+ *
+ * Requiring cli.js here is load-bearing. The search stops at the first match,
+ * so a directory that satisfied a weaker test — a partial extraction, or an
+ * older release's incomplete driver — used to shadow a perfectly good driver
+ * further down the list and could not be recovered from: resolveDriver would
+ * reject it for the missing cli.js, provisioning would install a working copy
+ * into the managed directory, and the search would hand back the broken one
+ * again on the very next call. Skipping an unusable candidate lets the next one
+ * win, and lets self-provisioning actually take effect.
+ */
 function driverDirectoryFrom(candidate: string): string | null {
-  const manifest = join(candidate, 'package.json');
-  return existsSync(manifest) && existsSync(join(candidate, 'index.js')) ? candidate : null;
+  const complete = existsSync(join(candidate, 'package.json'))
+    && existsSync(join(candidate, 'index.js'))
+    && existsSync(join(candidate, 'cli.js'));
+  return complete ? candidate : null;
 }
 
 /** The driver package directory, wherever it turns out to be. */
-export function findDriverDirectory(homeDirectory?: string): string | null {
-  try {
-    const manifestPath = requireFromEngine.resolve(`${DRIVER_PACKAGE}/package.json`);
-    return manifestPath.slice(0, manifestPath.length - '/package.json'.length);
-  } catch {
-    // Not resolvable as a module — expected inside a compiled binary.
+export function findDriverDirectory(homeDirectory?: string, searchDirectories?: readonly string[]): string | null {
+  if (!searchDirectories) {
+    try {
+      const manifestPath = requireFromEngine.resolve(`${DRIVER_PACKAGE}/package.json`);
+      return manifestPath.slice(0, manifestPath.length - '/package.json'.length);
+    } catch {
+      // Not resolvable as a module — expected inside a compiled binary.
+    }
   }
-  for (const candidate of driverSearchDirectories(homeDirectory)) {
+  for (const candidate of searchDirectories ?? driverSearchDirectories(homeDirectory)) {
     const found = driverDirectoryFrom(candidate);
     if (found) return found;
   }
@@ -242,37 +262,144 @@ export interface BrowserProvisionIoOptions {
   readonly homeDirectory: string;
 }
 
+/** Where the driver package is published. Pinned to the version this build expects. */
+export function driverTarballUrl(version: string = DRIVER_VERSION): string {
+  return `https://registry.npmjs.org/${DRIVER_PACKAGE}/-/${DRIVER_PACKAGE}-${version}.tgz`;
+}
+
+const DRIVER_DOWNLOAD_TIMEOUT_MS = 180_000;
+
+/**
+ * Downloads the driver package straight from the registry and writes it into
+ * place, with no package manager involved.
+ *
+ * This is the route that makes provisioning work on a machine that has only the
+ * downloaded binary — no bun, no npm, no node_modules anywhere. The tarball is
+ * extracted into a scratch directory beside the target and moved into place
+ * only after the files that matter are confirmed present, so a download that
+ * dies halfway can never leave a directory that resolves as a driver but fails
+ * on first use.
+ */
+async function downloadDriverPackage(targetRoot: string): Promise<CommandOutcome> {
+  const finalDirectory = join(targetRoot, 'node_modules', DRIVER_PACKAGE);
+  const staging = join(targetRoot, `.${DRIVER_PACKAGE}-incoming`);
+  const url = driverTarballUrl();
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(DRIVER_DOWNLOAD_TIMEOUT_MS) });
+    if (!response.ok) {
+      return { code: 1, stdout: '', stderr: `download failed (${response.status}) for ${url}`, timedOut: false, spawnError: null };
+    }
+    const archive = Buffer.from(await response.arrayBuffer());
+    rmSync(staging, { recursive: true, force: true });
+    // npm tarballs put everything under `package/`; dropping that component
+    // lands the driver's own files directly in the directory that gets moved.
+    const extracted = extractTarGzTree(archive, staging, { stripComponents: 1 });
+    for (const required of ['package.json', 'index.js', 'cli.js']) {
+      if (!existsSync(join(staging, required))) {
+        rmSync(staging, { recursive: true, force: true });
+        return {
+          code: 1,
+          stdout: '',
+          stderr: `the downloaded driver package is missing ${required}`,
+          timedOut: false,
+          spawnError: null,
+        };
+      }
+    }
+    mkdirSync(dirname(finalDirectory), { recursive: true });
+    rmSync(finalDirectory, { recursive: true, force: true });
+    renameSync(staging, finalDirectory);
+    return {
+      code: 0,
+      stdout: `downloaded ${DRIVER_PACKAGE}@${DRIVER_VERSION} from the npm registry (${extracted.files} files) into ${finalDirectory}`,
+      stderr: '',
+      timedOut: false,
+      spawnError: null,
+    };
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    const message = error instanceof Error ? error.message : String(error);
+    return { code: 1, stdout: '', stderr: `${url}: ${message}`, timedOut: false, spawnError: null };
+  }
+}
+
 /**
  * Installs the driver into a directory the agent owns.
  *
- * Used when nothing shipped one — a compiled binary running from a machine that
- * has never seen this agent before. It needs a package manager present; when
- * there is none, the caller reports that plainly rather than failing silently.
+ * Used when nothing shipped one. Three routes are tried in order, and the first
+ * that works wins:
+ *
+ *   1. a direct registry download, which needs nothing installed on the machine;
+ *   2. `bun add`, when bun is present;
+ *   3. `npm install`, when npm is present.
+ *
+ * The direct download goes first deliberately: it is the only route that works
+ * on a machine holding nothing but the downloaded binary, and it writes only
+ * inside the agent's own directory rather than through a package manager's
+ * global state. The package managers stay as fallbacks for a machine where the
+ * registry is reachable only through their configuration (a private mirror, an
+ * authenticated proxy).
+ *
+ * The failure returned is the LAST route's, with every route's reason in stderr,
+ * so a caller reports what actually stopped it rather than "no package manager".
  */
 async function installDriverPackage(targetRoot: string): Promise<CommandOutcome> {
   mkdirSync(targetRoot, { recursive: true });
   const specifier = `${DRIVER_PACKAGE}@${DRIVER_VERSION}`;
+  const download = await downloadDriverPackage(targetRoot);
+  if (download.code === 0) return download;
+  const reasons: string[] = [`registry download: ${download.stderr.trim() || 'failed'}`];
   const attempts: readonly (readonly [string, readonly string[]])[] = [
     ['bun', ['add', '--no-save', specifier]],
     ['npm', ['install', '--no-save', '--prefix', targetRoot, specifier]],
   ];
-  let last: CommandOutcome = { code: null, stdout: '', stderr: '', timedOut: false, spawnError: 'no package manager available' };
   for (const [command, args] of attempts) {
     const outcome = await runCommand(command, args, { timeoutMs: 300_000, cwd: targetRoot });
-    if (outcome.code === 0) return outcome;
-    if (outcome.spawnError && /ENOENT/i.test(outcome.spawnError)) continue;
-    last = outcome;
+    if (outcome.code === 0) {
+      return { ...outcome, stdout: outcome.stdout || `installed ${specifier} with ${command}` };
+    }
+    reasons.push(outcome.spawnError && /ENOENT/i.test(outcome.spawnError)
+      ? `${command}: not installed on this machine`
+      : `${command}: ${(outcome.spawnError ?? (outcome.stderr.trim() || `exited with code ${String(outcome.code)}`)).split('\n')[0] ?? 'failed'}`);
   }
-  return last;
+  return { code: 1, stdout: '', stderr: reasons.join('; '), timedOut: false, spawnError: null };
+}
+
+/**
+ * Makes the agent's chosen browser cache the one the driver actually uses.
+ *
+ * `defaultBrowsersPath` is derived from the home directory the composition root
+ * chose, but the driver resolves its own cache independently — and the two do
+ * NOT always agree: with an agent profile home, or any home that is not the
+ * one the driver computes, provisioning downloaded into one directory while
+ * `chromium.executablePath()` pointed at another. That reads as "the install
+ * succeeded but no browser executable is present afterwards", and it can also
+ * silently drive a browser from a cache the agent was not told to use.
+ *
+ * Publishing the path as the standard override, once, and only when nothing has
+ * set it, removes the disagreement: the driver, the install step, and the report
+ * all name the same directory. An explicit PLAYWRIGHT_BROWSERS_PATH from the
+ * user still wins, because defaultBrowsersPath honors it first.
+ */
+function publishBrowsersPath(homeDirectory: string): string {
+  const resolved = defaultBrowsersPath(homeDirectory);
+  const existing = process.env.PLAYWRIGHT_BROWSERS_PATH?.trim();
+  if (!existing || existing === '0') process.env.PLAYWRIGHT_BROWSERS_PATH = resolved;
+  return resolved;
 }
 
 export function createBrowserProvisionIo(options: BrowserProvisionIoOptions): BrowserProvisionIo {
+  const browsersPath = publishBrowsersPath(options.homeDirectory);
   return {
     installDriver: (targetRoot) => installDriverPackage(targetRoot),
     managedDriverRoot: () => managedDriverRoot(options.homeDirectory),
+    // Injected rather than imported by the provisioning policy, so the policy
+    // stays free of this surface's install layout and still reports a fix that
+    // matches how THIS install got here.
+    driverFix: () => driverRemediation(),
     resolveDriver: () => resolveDriver(options.homeDirectory),
     expectedExecutablePath: () => expectedExecutablePath(options.homeDirectory),
-    browsersPath: () => defaultBrowsersPath(options.homeDirectory),
+    browsersPath: () => browsersPath,
     pathExists: (path) => existsSync(path),
     isExecutableFile,
     directoryWritable,
