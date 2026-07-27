@@ -2,6 +2,15 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.19.0 - 2026-07-27
+
+- Google, browser control, and an honest capability index.
+- Google setup is wired and reachable. google-setup-flow referenced a step-runner module that was never written, so the console walkthrough, client intake, app-password flow and client download had no importer outside their own tests — the build was correct to report email and calendar as unwired. The binding layer now exists, /google covers status, adopt, setup, client-file, client, account, calendar-address and runbook, and /email and /calendar are no longer hidden.
+- The mail and calendar capabilities are declared against a route that is actually served. They previously pointed at daemon operator methods the contract ships as invokable: false, so no amount of configuring a mailbox or adopting credentials could change the answer. They now resolve through an in-process Google tool backed by the connector, with prerequisites that read the credential sources the connector really uses.
+- Browser control works in a binary install. The capability probe resolved the driver with createRequire(...).resolve(), which can never succeed inside a compiled executable, so browser control reported needs-setup on every binary install even when the driver was present — and the self-provision path was never reached. The probe now checks the real load paths, the driver ships and refreshes with the binary, provisioning needs no package manager, and a partial driver directory no longer shadows a working one.
+- Accounts the agent creates are recorded and revocable. The prohibition on creating them was never a rule anyone made; visibility replaces it, through an accounts tool that records service, URL, alias, purpose and secret-store key.
+- Remediation text no longer points at MCP servers or a setup-google command that does not exist.
+
 ## 1.18.1 - 2026-07-27
 
 - Fixed: agent runs the Agent was hosting are now cancelled when it shuts down. One left running had nowhere to report to — the registries and event bus it reports through are already gone by then — while keeping an in-flight provider call alive and sleeping out a retry it had no reason to finish.
