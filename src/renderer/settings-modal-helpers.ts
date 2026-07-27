@@ -96,6 +96,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   watchers: 'Watchers',
   network: 'Network',
   relay: 'Relay',
+  cluster: 'Cluster',
   orchestration: 'Orchestration',
   fleet: 'Fleet',
   planner: 'Planner',
