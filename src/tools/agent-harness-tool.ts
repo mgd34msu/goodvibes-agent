@@ -584,19 +584,20 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return error(resolved.usage);
         }
         if (args.mode === 'settings') {
-          const filters = {
+          const unlimitedFilters = {
             category: readString(args.category) || undefined,
             prefix: readString(args.prefix) || undefined,
             query: readString(args.query) || undefined,
             includeHidden: args.includeHidden === true,
-            limit: readLimit(args.limit, 500),
           };
           // Ownership-aware: daemon-owned keys carry the DAEMON's live value.
           const cfg = deps.commandContext.platform.configManager;
+          // No explicit limit = everything matching (schema count as fallback).
+          const total = countHarnessSettings(cfg, unlimitedFilters);
+          const filters = { ...unlimitedFilters, limit: readLimit(args.limit, total) };
           const settings = await listEffectiveHarnessSettings(cfg, { ...filters }, {
             includeParameters: args.includeParameters === true,
           });
-          const total = countHarnessSettings(deps.commandContext.platform.configManager, filters);
           return output({ settings, returned: settings.length, total, policy: settingsPolicySummary() });
         }
         if (args.mode === 'get_setting') {

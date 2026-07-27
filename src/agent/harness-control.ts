@@ -134,7 +134,13 @@ export interface HarnessSettingMutationResult {
   readonly persistedTo?: string | undefined;
 }
 
-const DEFAULT_SETTING_LIMIT = 500;
+// A hard ceiling this far above CONFIG_SCHEMA's current size (509, after
+// payments.* + daemon.timezone) leaves headroom for ordinary schema growth
+// without silently truncating an unfiltered listing again — that is exactly
+// how the previous ceiling of 500 quietly dropped 8 settings from the
+// default catalog response the moment the schema passed it.
+const DEFAULT_SETTING_LIMIT = 2000;
+const MAX_SETTING_LIMIT = 2000;
 /**
  * Credential-looking LEAF names. Matched against the last dot segment only, and
  * never against the whole key, so an unrelated ancestor cannot drag a plain
@@ -169,7 +175,7 @@ function previewText(value: string, maxLength = 56): string {
 
 function clampLimit(value: unknown, fallback = DEFAULT_SETTING_LIMIT): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.max(1, Math.min(500, Math.trunc(value)));
+  return Math.max(1, Math.min(MAX_SETTING_LIMIT, Math.trunc(value)));
 }
 
 function findSetting(configManager: Pick<ConfigManager, 'getSchema'>, rawKey: string): ConfigSetting | null {
