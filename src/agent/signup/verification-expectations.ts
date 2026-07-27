@@ -29,6 +29,7 @@
 
 import { randomUUID } from 'node:crypto';
 import { normalizeDomain, normalizeEmailAddress } from './signup-address.ts';
+import { describeDeliveryEvidence, type DeliveredRecipient } from './delivery-evidence.ts';
 
 // ──────────────────────────────────────────────────────────────────
 // Types
@@ -64,10 +65,25 @@ export interface OpenExpectationInput {
 /** The minimum an inbound message must present to be considered. */
 export interface CandidateEmail {
   readonly messageId: string;
-  /** Sender address as delivered. */
+  /** Sender address as delivered. Corroborating signal only, never a gate. */
   readonly from: string;
-  /** The address the message was delivered to. This is the correlation key. */
-  readonly to: string;
+  /**
+   * Proof of which address this message actually arrived at — the correlation
+   * key, and the only field that gates a match.
+   *
+   * Typed as `DeliveredRecipient` rather than `string` on purpose: the brand
+   * makes it impossible to pass a value taken from a `To:`/`Cc:`/`Bcc:`
+   * header, which the sender controls and can trivially forge to name an open
+   * expectation. `null` means the message carried no delivery evidence, and
+   * that is refused rather than guessed at.
+   */
+  readonly deliveredTo: DeliveredRecipient | null;
+  /**
+   * The `To:` header, verbatim. **Display only — never evidence.** Kept so a
+   * refusal can show the reader what the message claimed alongside where it
+   * actually landed, which is what makes a forgery legible.
+   */
+  readonly toHeaderClaim: string;
   readonly subject: string;
   readonly body: string;
 }
@@ -105,7 +121,17 @@ export type VerificationMatch =
       readonly expectedRecipients: readonly string[];
       readonly actualRecipient: string;
     }
-  | { readonly kind: 'expired'; readonly reason: string; readonly expectation: VerificationExpectation };
+  | { readonly kind: 'expired'; readonly reason: string; readonly expectation: VerificationExpectation }
+  | {
+      /**
+       * The message carried nothing proving which address it arrived at. Its
+       * `To:` header is not a substitute, so there is nothing to correlate on
+       * and nothing is extracted.
+       */
+      readonly kind: 'no-delivery-evidence';
+      readonly reason: string;
+      readonly toHeaderClaim: string;
+    };
 
 export type VerificationArtifact =
   | { readonly kind: 'link'; readonly url: string; readonly linkHost: string }
@@ -370,7 +396,20 @@ export class VerificationExpectationBook {
    * and an empty book is reported as no-expectation. None of the three extract anything.
    */
   public matchCandidate(email: CandidateEmail, now: Date, options?: MatchOptions): VerificationMatch {
-    const recipient = normalizeEmailAddress(email.to);
+    // Correlation runs on delivery evidence and nothing else. A message whose
+    // `To:` header names an open expectation but which carries no proof of
+    // where it landed is refused here, before any expectation is consulted —
+    // otherwise the header would be doing the work the brand exists to prevent.
+    if (email.deliveredTo === null) {
+      return {
+        kind: 'no-delivery-evidence',
+        reason:
+          `This message carries ${describeDeliveryEvidence(null)}. Its "To:" header claims "${email.toHeaderClaim || 'nothing'}", but a sender sets that field themselves, so it cannot establish which address the message arrived at. Nothing is extracted.`,
+        toHeaderClaim: email.toHeaderClaim,
+      };
+    }
+
+    const recipient = email.deliveredTo.address;
     const known = [...this.open.values()];
 
     const forRecipient = known.find((candidate) => candidate.recipientAddress === recipient);
@@ -395,9 +434,13 @@ export class VerificationExpectationBook {
         reason: `No verification was expected. "${recipient || 'this message'}" was not solicited by any signup the agent started, so nothing is extracted from it.`,
       };
     }
+    const claimNote =
+      normalizeEmailAddress(email.toHeaderClaim) !== recipient && email.toHeaderClaim.trim().length > 0
+        ? ` Its "To:" header claims "${email.toHeaderClaim}", which does not match where it actually landed — that discrepancy is what a forged verification email looks like.`
+        : '';
     return {
       kind: 'recipient-mismatch',
-      reason: `This message was delivered to "${recipient || 'an unknown address'}", which is not the address any open signup is waiting on. Matching on the service alone is not sufficient.`,
+      reason: `This message was ${describeDeliveryEvidence(email.deliveredTo)}, which is not the address any open signup is waiting on. Matching on the service alone is not sufficient.${claimNote}`,
       expectedRecipients: live.map((candidate) => candidate.recipientAddress),
       actualRecipient: recipient,
     };

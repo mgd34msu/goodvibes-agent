@@ -5,9 +5,19 @@
  * ────────────────────────────
  * Supported:
  *   - LOGIN with plain credentials (tag AUTH LOGIN user pass)
- *   - EXAMINE INBOX (read-only SELECT; messages are never marked \Seen)
+ *   - EXAMINE <mailbox> (read-only SELECT; messages are never marked \Seen)
  *   - SEARCH UNSEEN and SEARCH SINCE <date>
- *   - FETCH BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)] — envelope
+ *   - FETCH BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID TO
+ *     DELIVERED-TO X-ORIGINAL-TO)] — envelope plus delivery evidence
+ *
+ * Delivered-to vs To:
+ * ────────────────────
+ * The address a message was actually delivered to is NOT the To: header, and
+ * it is NOT IMAP's ENVELOPE To field — RFC 3501 builds ENVELOPE by parsing the
+ * message headers, so both are written by the sender and both are forgeable.
+ * This client reports, in descending order of trust: the mailbox it read from,
+ * then the top-most Delivered-To/X-Original-To stamped by the delivery agent.
+ * The To: header is surfaced only as `unverifiedToHeaderClaim`.
  *   - FETCH BODY.PEEK[TEXT]<0.N> — bounded plain-text body preview
  *   - XOAUTH2 pass-through: if imapPassword starts with 'Bearer ' the client
  *     sends AUTHENTICATE XOAUTH2 with the base64-encoded SASL token; token
@@ -37,12 +47,53 @@ import type { Socket } from 'node:net';
 // Public types
 // ---------------------------------------------------------------------------
 
+/**
+ * Which header field a delivery-evidence value was read from.
+ * Both names are stamped by the final delivery agent, not by the sender —
+ * that is what makes them evidence. `to-header` is deliberately absent from
+ * this union: the To: header is sender-authored and is never evidence.
+ */
+export type DeliveryEvidenceSource = 'delivered-to' | 'x-original-to';
+
+/** One delivery-evidence value with its provenance attached. */
+export interface DeliveryEvidence {
+  /** Normalized bare address, lowercased (angle-addr unwrapped when present). */
+  readonly address: string;
+  /** The header value exactly as received, before normalization. */
+  readonly rawValue: string;
+  /** The header field this came from. */
+  readonly source: DeliveryEvidenceSource;
+}
+
 export interface ImapEnvelope {
   readonly uid: number;
   readonly from: string;
   readonly subject: string;
   readonly date: string;
   readonly messageId: string;
+  /**
+   * The mailbox this message was fetched from (the EXAMINE target).
+   * Strongest delivery evidence: a per-signup alias mailbox exists only for
+   * that signup, so the sender cannot influence which mailbox we read.
+   */
+  readonly mailbox: string;
+  /**
+   * Delivery evidence addresses, top-most first. Safe to correlate against.
+   * Empty when the delivery agent stamped nothing we can trust — callers must
+   * then fall back to the mailbox, never to `unverifiedToHeaderClaim`.
+   */
+  readonly deliveredTo: readonly string[];
+  /** The same values as `deliveredTo`, with provenance attached. */
+  readonly deliveryEvidence: readonly DeliveryEvidence[];
+  /**
+   * The To: header, verbatim, for DISPLAY ONLY.
+   *
+   * This is authored by whoever sent the message. Anyone can put any address
+   * here, including an address we are waiting on. Correlating on this value
+   * lets a stranger claim a pending verification. Never compare it to an
+   * expected recipient; use `deliveredTo` or `mailbox` for that.
+   */
+  readonly unverifiedToHeaderClaim: string;
 }
 
 export interface ImapMessage extends ImapEnvelope {
@@ -60,6 +111,12 @@ export interface ImapClientOptions {
   readonly timeoutMs?: number;
   /** Maximum body preview bytes to fetch. Default: 4096. */
   readonly maxBodyBytes?: number;
+  /**
+   * Mailbox to EXAMINE and fetch from. Default: 'INBOX'.
+   * Reported back on every envelope as `mailbox` so callers can correlate on
+   * "which alias mailbox did this land in" rather than on message content.
+   */
+  readonly mailbox?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -330,26 +387,114 @@ class ImapSession {
 // Header parsing helpers
 // ---------------------------------------------------------------------------
 
-function extractHeader(rawHeaders: string, name: string): string {
-  const lower = rawHeaders.toLowerCase();
-  const needle = `\n${name.toLowerCase()}:`;
-  let start = lower.indexOf(needle);
-  if (start === -1) {
-    // Check beginning of string too
-    if (lower.startsWith(`${name.toLowerCase()}:`)) {
-      start = -1 * name.length; // will handle below
-    } else {
-      return '';
+/** One header field after RFC 5322 unfolding. `name` is lowercased. */
+interface HeaderField {
+  readonly name: string;
+  readonly value: string;
+}
+
+/** Defensive bound on a single unfolded header value. */
+const MAX_HEADER_VALUE_CHARS = 2_000;
+
+/**
+ * Split a raw header block into ordered, unfolded fields.
+ *
+ * Order is load-bearing: delivery agents PREPEND their trace headers, so the
+ * first occurrence of a delivery header is the one our own infrastructure
+ * wrote and every later occurrence arrived with the message.
+ *
+ * Parsing stops at the first blank line once at least one field has been seen,
+ * because everything after it is message body — a sender who pastes
+ * `Delivered-To: victim@example.com` into the body must not be able to have it
+ * read back as a header. Never throws; malformed input yields fewer fields.
+ */
+function parseHeaderFields(rawHeaders: string): HeaderField[] {
+  const fields: HeaderField[] = [];
+  if (typeof rawHeaders !== 'string' || rawHeaders.length === 0) return fields;
+
+  const unfolded: string[] = [];
+  for (const line of rawHeaders.split(/\r\n|\n|\r/)) {
+    if (line.length === 0) {
+      // Leading blank lines are tolerated; a blank line after real headers
+      // ends the header block.
+      if (unfolded.length > 0) break;
+      continue;
     }
+    if (/^[\t ]/.test(line)) {
+      // Continuation of the previous field (RFC 5322 §2.2.3 unfolding).
+      const owner = unfolded.length - 1;
+      if (owner < 0) continue; // continuation with no owner — malformed, drop
+      const merged = `${unfolded[owner] ?? ''} ${line.trim()}`;
+      unfolded[owner] = merged.slice(0, MAX_HEADER_VALUE_CHARS);
+      continue;
+    }
+    unfolded.push(line.slice(0, MAX_HEADER_VALUE_CHARS));
   }
-  const valueStart = start === -1
-    ? name.length + 1
-    : start + needle.length;
-  const rawSlice = rawHeaders.slice(valueStart);
-  // Fold continuation lines (RFC 2822 folding)
-  const end = rawSlice.search(/\n(?![\t ])/);
-  const raw = end === -1 ? rawSlice : rawSlice.slice(0, end);
-  return raw.replace(/\r?\n[\t ]+/g, ' ').trim();
+
+  for (const entry of unfolded) {
+    const colon = entry.indexOf(':');
+    if (colon <= 0) continue; // no field name — malformed, drop
+    const name = entry.slice(0, colon).trim().toLowerCase();
+    // RFC 5322 field names are printable US-ASCII excluding ':'.
+    if (name.length === 0 || /[^\x21-\x39\x3b-\x7e]/.test(name)) continue;
+    fields.push({ name, value: entry.slice(colon + 1).trim() });
+  }
+  return fields;
+}
+
+/** First occurrence of a header, unfolded and trimmed. '' when absent. */
+function extractHeader(rawHeaders: string, name: string): string {
+  const wanted = name.toLowerCase();
+  for (const field of parseHeaderFields(rawHeaders)) {
+    if (field.name === wanted) return field.value;
+  }
+  return '';
+}
+
+const DELIVERY_HEADER_NAMES: readonly DeliveryEvidenceSource[] = [
+  'delivered-to',
+  'x-original-to',
+];
+
+/**
+ * Reduce a header value to a bare, lowercased address.
+ * `Alias <a@b.test>` and `<a@b.test>` and `a@b.test` all yield `a@b.test`.
+ * Returns '' when nothing address-shaped is present.
+ */
+function normalizeDeliveryAddress(rawValue: string): string {
+  const angle = /<([^<>]*)>/.exec(rawValue);
+  const candidate = (angle?.[1] ?? rawValue).trim().toLowerCase();
+  if (candidate.length === 0 || candidate.length > 320) return '';
+  if (!/^[^\s<>@,;:"()[\]\\]+@[^\s<>@,;:"()[\]\\]+$/.test(candidate)) return '';
+  return candidate;
+}
+
+/**
+ * Extract delivery evidence from a raw header block.
+ *
+ * Only the TOP-MOST delivery header in the block is returned. A sender can put
+ * their own `Delivered-To:`/`X-Original-To:` lines in the message they submit,
+ * and those always land BELOW the line the receiving delivery agent prepends —
+ * so every occurrence after the first is attacker-reachable and is discarded.
+ *
+ * Deliberately conservative: we do not additionally trust the second delivery
+ * header even when it carries the other field name. If our delivery agent does
+ * not stamp `X-Original-To`, then the top-most `X-Original-To` in a message
+ * would be the sender's own, so "top-most per field name" would be forgeable.
+ * The mailbox (`ImapEnvelope.mailbox`) remains the primary anchor.
+ */
+function extractDeliveryEvidence(rawHeaders: string): DeliveryEvidence[] {
+  for (const field of parseHeaderFields(rawHeaders)) {
+    const source = DELIVERY_HEADER_NAMES.find((name) => name === field.name);
+    if (source === undefined) continue;
+    const address = normalizeDeliveryAddress(field.value);
+    // The top-most delivery header is the only candidate; if it does not
+    // normalize to an address we report no evidence rather than looking lower.
+    return address.length === 0
+      ? []
+      : [{ address, rawValue: field.value, source }];
+  }
+  return [];
 }
 
 function parseSequenceNumbers(searchResponse: readonly string[]): number[] {
@@ -449,11 +594,34 @@ export function formatImapDate(date: Date): string {
 // Public client
 // ---------------------------------------------------------------------------
 
+const DEFAULT_MAILBOX = 'INBOX';
+
+/**
+ * Mailbox names that are plain atoms go on the wire bare; anything else is
+ * sent as an RFC 3501 quoted string so spaces and delimiters stay intact.
+ */
+function formatMailboxName(mailbox: string): string {
+  return /^[A-Za-z0-9._/-]+$/.test(mailbox)
+    ? mailbox
+    : imapQuoteCredential(mailbox, 'mailbox name');
+}
+
 export class ImapClient {
   private readonly options: ImapClientOptions;
 
   constructor(options: ImapClientOptions) {
     this.options = options;
+  }
+
+  /**
+   * The mailbox this client reads from. Reported on every envelope; callers
+   * correlating a verification message should prefer this over any header.
+   */
+  get mailbox(): string {
+    const configured = this.options.mailbox;
+    return configured !== undefined && configured.trim().length > 0
+      ? configured.trim()
+      : DEFAULT_MAILBOX;
   }
 
   /**
@@ -464,7 +632,7 @@ export class ImapClient {
     const session = this.session();
     await session.readGreeting();
     await this.authenticate(session);
-    await session.command('EXAMINE INBOX');
+    await session.command(`EXAMINE ${formatMailboxName(this.mailbox)}`);
   }
 
   /**
@@ -491,18 +659,26 @@ export class ImapClient {
     const bounded = seqNums.slice(-limit); // take the last N (highest seq = newest)
     const set = bounded.join(',');
     const lines = await session.command(
-      `FETCH ${set} BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID)]`,
+      `FETCH ${set} BODY.PEEK[HEADER.FIELDS ` +
+      `(FROM SUBJECT DATE MESSAGE-ID TO DELIVERED-TO X-ORIGINAL-TO)]`,
     );
     const headersMap = parseFetchHeaders(lines);
+    const mailbox = this.mailbox;
     const envelopes: ImapEnvelope[] = [];
     for (const seqNum of bounded) {
       const raw = headersMap[seqNum] ?? '';
+      const deliveryEvidence = extractDeliveryEvidence(raw);
       envelopes.push({
         uid: seqNum,
         from: extractHeader(raw, 'From'),
         subject: extractHeader(raw, 'Subject'),
         date: extractHeader(raw, 'Date'),
         messageId: extractHeader(raw, 'Message-ID'),
+        mailbox,
+        deliveredTo: deliveryEvidence.map((entry) => entry.address),
+        deliveryEvidence,
+        // Display only — see the field docs on ImapEnvelope.
+        unverifiedToHeaderClaim: extractHeader(raw, 'To'),
       });
     }
     return envelopes;

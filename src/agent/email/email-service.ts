@@ -101,6 +101,23 @@ export interface EmailSummary {
   readonly unread: boolean;
   /** First ~4 KB of the plain-text body, fetched read-only. Empty string when unavailable. */
   readonly bodyPreview: string;
+  /**
+   * The mailbox this message was fetched from. Delivery evidence: a message
+   * cannot be talked into arriving in a mailbox that exists only for one
+   * signup, which is what makes per-signup aliases worth minting.
+   */
+  readonly mailbox: string;
+  /**
+   * Delivery-agent trace, top-most first. Written by the receiving mail
+   * server, so — unlike `To:` — a sender cannot set it. Safe to correlate on.
+   */
+  readonly deliveredTo: readonly string[];
+  /**
+   * The `To:` header verbatim. **Display only, never evidence.** The sender
+   * writes this field, so it proves nothing about where the message landed.
+   * Named so that correlating on it reads as obviously wrong.
+   */
+  readonly unverifiedToHeaderClaim: string;
 }
 
 /**
@@ -283,12 +300,18 @@ export class EmailService {
 
       await client.logout();
 
+      // Delivery evidence is carried through deliberately. Dropping it here
+      // would leave correlation with nothing but the sender-authored `To:`
+      // header, which is the exact hole the evidence exists to close.
       return envelopes.map((env, idx) => ({
         from: env.from,
         subject: env.subject,
         date: env.date,
         unread: true,
         bodyPreview: idx === 0 ? newestBodyPreview : '',
+        mailbox: env.mailbox,
+        deliveredTo: env.deliveredTo,
+        unverifiedToHeaderClaim: env.unverifiedToHeaderClaim,
       }));
     } catch (err) {
       try { await client.logout(); } catch { /* best-effort */ }

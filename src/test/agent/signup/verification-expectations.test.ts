@@ -9,6 +9,10 @@ import {
   type VerificationExpectation,
 } from '../../../agent/signup/verification-expectations.ts';
 import { mintAddressFor, mintCatchAllAddressFor, parseAlias } from '../../../agent/signup/signup-address.ts';
+import {
+  deliveredRecipientFromAliasMailbox,
+  deliveredRecipientFromDeliveryHeaders,
+} from '../../../agent/signup/delivery-evidence.ts';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PERMANENT REGRESSION GUARDS.
@@ -30,7 +34,8 @@ function email(overrides: Partial<CandidateEmail> = {}): CandidateEmail {
   return {
     messageId: 'msg-1',
     from: 'noreply@github.com',
-    to: 'owner+gv-github-com-k3n9x2p4@example.com',
+    deliveredTo: deliveredRecipientFromAliasMailbox('owner+gv-github-com-k3n9x2p4@example.com'),
+    toHeaderClaim: 'owner+gv-github-com-k3n9x2p4@example.com',
     subject: 'Verify your email address',
     body: 'Confirm your address: https://github.com/verify?token=abc123',
     ...overrides,
@@ -45,7 +50,7 @@ function openedBook(overrides: Partial<CandidateEmail> = {}): {
   const expectation = book.openExpectation({
     id: 'exp-1',
     serviceDomain: 'github.com',
-    recipientAddress: email(overrides).to,
+    recipientAddress: email(overrides).deliveredTo?.address ?? '',
     purpose: 'Create a GitHub account for the owner',
     now: T0,
   });
@@ -88,7 +93,7 @@ describe('VerificationExpectationBook correlation', () => {
   test('refuses a verification email delivered to an address no signup is waiting on', () => {
     const { book } = openedBook();
     const result = book.matchCandidate(
-      email({ to: 'owner+gv-github-com-different1@example.com' }),
+      email({ deliveredTo: deliveredRecipientFromAliasMailbox('owner+gv-github-com-different1@example.com'), toHeaderClaim: 'owner+gv-github-com-different1@example.com' }),
       at(60_000),
     );
 
@@ -101,7 +106,7 @@ describe('VerificationExpectationBook correlation', () => {
   test('refuses a right-looking sender at the wrong address, so sender alone can never match', () => {
     const { book } = openedBook();
     const result = book.matchCandidate(
-      email({ from: 'noreply@github.com', to: 'owner@example.com', subject: 'Verify your GitHub email' }),
+      email({ from: 'noreply@github.com', deliveredTo: deliveredRecipientFromAliasMailbox('owner@example.com'), toHeaderClaim: 'owner@example.com', subject: 'Verify your GitHub email' }),
       at(60_000),
     );
     expect(result.kind).toBe('recipient-mismatch');
@@ -110,7 +115,7 @@ describe('VerificationExpectationBook correlation', () => {
   test('matches on the exact recipient address regardless of letter case', () => {
     const { book } = openedBook();
     const result = book.matchCandidate(
-      email({ to: 'Owner+GV-GitHub-COM-K3N9X2P4@example.com' }),
+      email({ deliveredTo: deliveredRecipientFromAliasMailbox('Owner+GV-GitHub-COM-K3N9X2P4@example.com'), toHeaderClaim: 'Owner+GV-GitHub-COM-K3N9X2P4@example.com' }),
       at(60_000),
     );
     expect(result.kind).toBe('matched');
