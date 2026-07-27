@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.20.0 - 2026-07-27
+
+- Google connection setup, browser control that works in a binary install, and an auto-update switch that means what it says.
+- Added: the Google connection routes are now offered as cards in the workspace under Personal Ops — connection status, the app-password path, the guided browser walkthrough, adopting credentials that already exist on this machine, loading a downloaded client JSON file, and pasting a client id and secret. The workspace cards and the `/google` command run the same action layer, so the two cannot drift, and a test reads the command's own list of routes and fails if any route has no card.
+- Added: a workspace action result that is longer than the pane now scrolls with PageUp and PageDown instead of ending where the pane does, and a result that is still cut off says how many lines it could not show.
+- Fixed: a browser could never be installed from a compiled binary. The installer looked for `bun` or `node` on PATH to run the driver, and a compiled binary has neither, so every attempt failed before it started. It now runs the driver's own command line directly. A missing interpreter is also no longer recorded as a failed install: the message for a program that is not on PATH is not the one the code was matching, so an install that never ran was reported as an install that broke.
+- Fixed: `browser status` is documented as read-only and was downloading a browser driver into your home directory the first time you asked it what the status was. It now only reports.
+- Fixed: a partial driver directory was accepted by the capability probe and then rejected by the loader, so browser control reported itself ready and failed on first use.
+- Fixed: turning auto-update off only stopped the update at launch. The while-running updater replaced the binary anyway on its own schedule, so `update.autoUpdateAtLaunch: false` did not stop the program from replacing itself. The switch now covers both paths, an explicitly set `update.auto` still wins over it, and every swap appends a receipt beside the binary so a replacement is never silent.
+
 ## 1.19.0 - 2026-07-27
 
 - Google, browser control, and an honest capability index.

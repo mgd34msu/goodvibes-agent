@@ -1,6 +1,6 @@
 # GoodVibes Agent Docs
 
-These are the package-facing docs for the GoodVibes Agent `1.19.x` release line.
+These are the package-facing docs for the GoodVibes Agent `1.20.x` release line.
 
 ## Current Docs
 
