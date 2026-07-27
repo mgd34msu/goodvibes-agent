@@ -243,10 +243,18 @@ describe('email set command path: user-facing setter via persistSecretBackedConf
 
     // (b) settings.json contains the goodvibes:// ref, NOT the plaintext password
     mkdirSync(configDir, { recursive: true });
+    // The daemon tier is in this list because that is where the value now
+    // legitimately lives: email runs in the daemon, so email.passwordRef is
+    // daemon-owned and the daemon's store is its only home. What this test
+    // guards is unchanged — the raw password reaches no settings file, and a
+    // goodvibes:// reference reaches one — but looking only in the surface
+    // files would have reported the ref missing when it had simply been routed
+    // to its owner.
     const settingsFiles = [
       join(configDir, 'settings.json'),
       join(configDir, 'user-settings.json'),
       join(tmpDir, '.goodvibes', 'global-tui', 'settings.json'),
+      join(tmpDir, '.goodvibes', 'daemon', 'settings.json'),
     ];
     let settingsContent = '';
     for (const f of settingsFiles) {

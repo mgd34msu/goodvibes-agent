@@ -93,10 +93,20 @@ function makeContext(
 // Helper: read persisted settings to verify on-disk state
 // ---------------------------------------------------------------------------
 
+/**
+ * Every file a config write may legitimately land in.
+ *
+ * The daemon tier is one of them: email runs in the daemon, so
+ * email.passwordRef is daemon-owned and the daemon's store is its only home.
+ * Reading only the surface files reported the reference missing when it had
+ * simply been routed to its owner — while the assertion that matters, that no
+ * raw password reaches any of these files, is unchanged.
+ */
 function readPersistedSettings(root: string): string {
   const candidates = [
     join(root, '.goodvibes', 'global-tui', 'settings.json'),
     join(root, '.goodvibes', 'global-tui', 'user-settings.json'),
+    join(root, '.goodvibes', 'daemon', 'settings.json'),
   ];
   return candidates
     .filter((f) => existsSync(f))
