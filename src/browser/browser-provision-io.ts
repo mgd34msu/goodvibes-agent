@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
-import { accessSync, constants, existsSync, mkdirSync, rmSync, statSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { platform } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { BrowserDriverResolution, BrowserProvisionIo, CommandOutcome } from './browser-types.ts';
 
 /**
@@ -16,37 +17,108 @@ import type { BrowserDriverResolution, BrowserProvisionIo, CommandOutcome } from
  */
 const DRIVER_PACKAGE = ['playwright', 'core'].join('-');
 
+/**
+ * The driver version this build expects. Kept in step with the dependency in
+ * package.json by a test, because a compiled binary has no package.json to read
+ * and would otherwise install whatever npm happened to consider latest.
+ */
+export const DRIVER_VERSION = '1.62.0';
+
 const requireFromEngine = createRequire(import.meta.url);
 
 interface DriverModule {
   readonly chromium: { readonly executablePath: () => string };
 }
 
-export function loadDriverModule(): DriverModule | null {
+/**
+ * Where the driver lives when this build is a compiled binary.
+ *
+ * A single-file executable has no node_modules, so `require('playwright-core')`
+ * finds nothing and browser control would silently not exist in the shipped
+ * artifact. These are the places a driver can be instead: shipped beside the
+ * executable, provisioned into the agent's own storage, or pointed at
+ * explicitly. Resolution tries the ordinary module path first, so an npm
+ * install behaves exactly as before.
+ */
+export function driverSearchDirectories(homeDirectory?: string): readonly string[] {
+  const executableDirectory = dirname(process.execPath);
+  const override = process.env.GOODVIBES_PLAYWRIGHT_CORE?.trim();
+  const home = homeDirectory ?? process.env.HOME ?? '';
+  return [
+    ...(override ? [override] : []),
+    join(executableDirectory, DRIVER_PACKAGE),
+    join(executableDirectory, 'vendor', DRIVER_PACKAGE),
+    join(executableDirectory, 'node_modules', DRIVER_PACKAGE),
+    ...(home ? [join(managedDriverRoot(home), 'node_modules', DRIVER_PACKAGE)] : []),
+  ];
+}
+
+/** Where the agent installs a driver for itself when nothing ships one. */
+export function managedDriverRoot(homeDirectory: string): string {
+  return join(homeDirectory, '.goodvibes', 'agent', 'browser', 'driver');
+}
+
+function driverDirectoryFrom(candidate: string): string | null {
+  const manifest = join(candidate, 'package.json');
+  return existsSync(manifest) && existsSync(join(candidate, 'index.js')) ? candidate : null;
+}
+
+/** The driver package directory, wherever it turns out to be. */
+export function findDriverDirectory(homeDirectory?: string): string | null {
+  try {
+    const manifestPath = requireFromEngine.resolve(`${DRIVER_PACKAGE}/package.json`);
+    return manifestPath.slice(0, manifestPath.length - '/package.json'.length);
+  } catch {
+    // Not resolvable as a module — expected inside a compiled binary.
+  }
+  for (const candidate of driverSearchDirectories(homeDirectory)) {
+    const found = driverDirectoryFrom(candidate);
+    if (found) return found;
+  }
+  return null;
+}
+
+export function loadDriverModule(homeDirectory?: string): DriverModule | null {
   try {
     return requireFromEngine(DRIVER_PACKAGE) as DriverModule;
+  } catch {
+    // Fall through to the on-disk locations.
+  }
+  const directory = findDriverDirectory(homeDirectory);
+  if (!directory) return null;
+  try {
+    const requireFromDriver = createRequire(pathToFileURL(join(directory, 'package.json')).href);
+    return requireFromDriver(directory) as DriverModule;
   } catch {
     return null;
   }
 }
 
-export function resolveDriver(): BrowserDriverResolution {
+export function resolveDriver(homeDirectory?: string): BrowserDriverResolution {
+  const packageDirectory = findDriverDirectory(homeDirectory);
+  if (!packageDirectory) {
+    return {
+      available: false,
+      packageDirectory: null,
+      cliPath: null,
+      version: null,
+      error: `${DRIVER_PACKAGE} was not found next to the executable, in the agent's driver directory, or as an installed module`,
+    };
+  }
   try {
-    const manifestPath = requireFromEngine.resolve(`${DRIVER_PACKAGE}/package.json`);
-    const packageDirectory = manifestPath.slice(0, manifestPath.length - '/package.json'.length);
-    const manifest = requireFromEngine(manifestPath) as { readonly version?: unknown };
+    const manifest = JSON.parse(readFileSync(join(packageDirectory, 'package.json'), 'utf8')) as { readonly version?: unknown };
     const cliPath = join(packageDirectory, 'cli.js');
     return {
       available: existsSync(cliPath),
       packageDirectory,
       cliPath: existsSync(cliPath) ? cliPath : null,
       version: typeof manifest.version === 'string' ? manifest.version : null,
-      error: existsSync(cliPath) ? null : `${DRIVER_PACKAGE} is installed but its cli.js is missing`,
+      error: existsSync(cliPath) ? null : `${DRIVER_PACKAGE} is present but its cli.js is missing`,
     };
   } catch (error) {
     return {
       available: false,
-      packageDirectory: null,
+      packageDirectory,
       cliPath: null,
       version: null,
       error: error instanceof Error ? error.message : String(error),
@@ -67,8 +139,8 @@ export function defaultBrowsersPath(homeDirectory: string): string {
   return join(homeDirectory, '.cache', 'ms-playwright');
 }
 
-function expectedExecutablePath(): string | null {
-  const driver = loadDriverModule();
+function expectedExecutablePath(homeDirectory?: string): string | null {
+  const driver = loadDriverModule(homeDirectory);
   if (!driver) return null;
   try {
     return driver.chromium.executablePath();
@@ -128,7 +200,7 @@ function directoryWritable(path: string): boolean {
 export function runCommand(
   command: string,
   args: readonly string[],
-  options: { readonly timeoutMs: number; readonly env?: Readonly<Record<string, string>> },
+  options: { readonly timeoutMs: number; readonly env?: Readonly<Record<string, string>>; readonly cwd?: string },
 ): Promise<CommandOutcome> {
   return new Promise((resolve) => {
     let stdout = '';
@@ -138,6 +210,7 @@ export function runCommand(
     const child = spawn(command, [...args], {
       env: { ...process.env, ...options.env },
       stdio: ['ignore', 'pipe', 'pipe'],
+      ...(options.cwd ? { cwd: options.cwd } : {}),
     });
     const timer = setTimeout(() => {
       timedOut = true;
@@ -169,10 +242,36 @@ export interface BrowserProvisionIoOptions {
   readonly homeDirectory: string;
 }
 
+/**
+ * Installs the driver into a directory the agent owns.
+ *
+ * Used when nothing shipped one — a compiled binary running from a machine that
+ * has never seen this agent before. It needs a package manager present; when
+ * there is none, the caller reports that plainly rather than failing silently.
+ */
+async function installDriverPackage(targetRoot: string): Promise<CommandOutcome> {
+  mkdirSync(targetRoot, { recursive: true });
+  const specifier = `${DRIVER_PACKAGE}@${DRIVER_VERSION}`;
+  const attempts: readonly (readonly [string, readonly string[]])[] = [
+    ['bun', ['add', '--no-save', specifier]],
+    ['npm', ['install', '--no-save', '--prefix', targetRoot, specifier]],
+  ];
+  let last: CommandOutcome = { code: null, stdout: '', stderr: '', timedOut: false, spawnError: 'no package manager available' };
+  for (const [command, args] of attempts) {
+    const outcome = await runCommand(command, args, { timeoutMs: 300_000, cwd: targetRoot });
+    if (outcome.code === 0) return outcome;
+    if (outcome.spawnError && /ENOENT/i.test(outcome.spawnError)) continue;
+    last = outcome;
+  }
+  return last;
+}
+
 export function createBrowserProvisionIo(options: BrowserProvisionIoOptions): BrowserProvisionIo {
   return {
-    resolveDriver,
-    expectedExecutablePath,
+    installDriver: (targetRoot) => installDriverPackage(targetRoot),
+    managedDriverRoot: () => managedDriverRoot(options.homeDirectory),
+    resolveDriver: () => resolveDriver(options.homeDirectory),
+    expectedExecutablePath: () => expectedExecutablePath(options.homeDirectory),
     browsersPath: () => defaultBrowsersPath(options.homeDirectory),
     pathExists: (path) => existsSync(path),
     isExecutableFile,

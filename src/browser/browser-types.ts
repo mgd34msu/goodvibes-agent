@@ -75,6 +75,10 @@ export interface BrowserDriverResolution {
 /** Injected IO for provisioning, so tests never download or spawn anything. */
 export interface BrowserProvisionIo {
   readonly resolveDriver: () => BrowserDriverResolution;
+  /** Installs the driver package into a directory the agent owns. */
+  readonly installDriver?: (targetRoot: string) => Promise<CommandOutcome>;
+  /** Where a self-installed driver goes. */
+  readonly managedDriverRoot?: () => string;
   readonly expectedExecutablePath: () => string | null;
   readonly browsersPath: () => string;
   readonly pathExists: (path: string) => boolean;
@@ -139,6 +143,18 @@ export interface BrowserElementRef {
   readonly disabled?: boolean | undefined;
   readonly checked?: boolean | undefined;
   readonly depth: number;
+  /**
+   * Activating this control submits a form, which sends data to whoever runs
+   * the site. Recorded at snapshot time so the outward-effect boundary is a
+   * fact about the element rather than a guess at click time.
+   */
+  readonly submits: boolean;
+  /**
+   * Selectors of the iframes this element sits inside, outermost first. Empty
+   * for the main document. Embedded forms and consent screens live in frames
+   * routinely, so an element inside one has to be addressable like any other.
+   */
+  readonly frameChain: readonly string[];
 }
 
 export interface BrowserSnapshot {

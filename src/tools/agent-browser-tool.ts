@@ -1,6 +1,6 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-import { BrowserEngine, BrowserSessionError, StaleElementError } from '../browser/browser-engine.ts';
+import { BrowserEngine, BrowserSessionError, StaleElementError, UntrustedEffectError } from '../browser/browser-engine.ts';
 import type { BrowserTarget } from '../browser/browser-engine.ts';
 import { BrowserSessionManager } from '../browser/browser-sessions.ts';
 import { declareToolCapability } from './agent-tool-capability-declarations.ts';
@@ -312,7 +312,7 @@ export function createAgentBrowserTool(options: AgentBrowserToolOptions = {}): T
             return failure(`Unknown browser action: ${action}. Use one of: ${BROWSER_ACTIONS.join(', ')}.`);
         }
       } catch (error) {
-        if (error instanceof BrowserSessionError || error instanceof StaleElementError) {
+        if (error instanceof BrowserSessionError || error instanceof StaleElementError || error instanceof UntrustedEffectError) {
           return failure(error.message, error.fix);
         }
         return failure(error instanceof Error ? error.message : String(error));

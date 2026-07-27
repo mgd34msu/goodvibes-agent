@@ -1,4 +1,5 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { withInventoryDisclosure } from './inventory-disclosure.ts';
 
 export interface AgentHarnessModelToolCatalogArgs {
   readonly query?: unknown;
@@ -154,6 +155,31 @@ export function listHarnessModelTools(toolRegistry: ToolRegistry, args: AgentHar
   return matchingModelTools(toolRegistry.getToolDefinitions(), query)
     .slice(0, limit)
     .map((tool) => describeModelTool(tool, { includeParameters }));
+}
+
+/**
+ * The payload for mode:"tools", including why the list is short when it is.
+ *
+ * A search that matched nothing used to answer `{"tools": [], "returned": 0,
+ * "total": 76}` — a filtered result presented as an inventory, which is how a
+ * model concludes a capability does not exist.
+ */
+export function harnessModelToolsPayload(
+  toolRegistry: ToolRegistry,
+  args: AgentHarnessModelToolCatalogArgs,
+): Record<string, unknown> {
+  const tools = listHarnessModelTools(toolRegistry, args);
+  const total = toolRegistry.getToolDefinitions().length;
+  return withInventoryDisclosure(
+    { tools, returned: tools.length, total },
+    {
+      subject: 'model tools',
+      returned: tools.length,
+      total,
+      filters: { query: readString(args.query) },
+      listAllRoute: 'agent_harness mode:"tools"',
+    },
+  );
 }
 
 export function describeHarnessModelTool(toolRegistry: ToolRegistry, args: AgentHarnessModelToolCatalogArgs): HarnessModelToolResolution | null {

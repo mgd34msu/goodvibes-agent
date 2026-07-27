@@ -11,7 +11,7 @@ function snapshotWith(url: string): BrowserSnapshot {
     title: 'Test',
     snapshotId: 's1',
     elements: [
-      { ref: 'e1', role: 'button', name: 'Send it', tag: 'button', selector: 'html > body button', depth: 3 },
+      { ref: 'e1', role: 'button', name: 'Send it', tag: 'button', selector: 'html > body button', depth: 3, submits: true, frameChain: [] },
     ],
     truncated: false,
   };

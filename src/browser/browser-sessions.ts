@@ -2,6 +2,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Browser, BrowserContext, Page } from 'playwright-core';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { BrowserHostClient, remoteContext } from './browser-host-client.ts';
 import { createBrowserProvisionIo, loadDriverModule } from './browser-provision-io.ts';
 import { ensureBrowserBinary } from './browser-provisioning.ts';
 import type {
@@ -71,6 +72,16 @@ export function browserProfileRoot(homeDirectory: string): string {
   return join(homeDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'browser', 'profiles');
 }
 
+/**
+ * Where screenshots go: the platform's surface-scoped storage root, alongside
+ * profiles. Not a visible folder in someone's project — the agent's own files
+ * belong in the agent's own place, and session write provenance is what lets
+ * it read them back.
+ */
+export function browserScreenshotRoot(homeDirectory: string): string {
+  return join(homeDirectory, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT, 'browser', 'screenshots');
+}
+
 function profileDirectoryFor(profileRoot: string, profileName: string): string {
   const safe = profileName.replace(/[^A-Za-z0-9._-]/g, '-').slice(0, 64) || 'default';
   return join(profileRoot, safe);
@@ -127,17 +138,23 @@ export interface BrowserSessionManagerDeps {
  */
 export class BrowserSessionManager {
   private readonly sessions = new Map<string, TrackedSession>();
+  /** Node-hosted driver processes, one per session that needed one. */
+  private readonly hosts = new Map<string, BrowserHostClient>();
   private sessionCounter = 0;
   private lastProvision: BrowserProvisionReport | null = null;
   private readonly io: BrowserProvisionIo;
   private readonly profileRoot: string;
+  private readonly homeDirectory: string;
   private readonly loadDriver: () => DriverApi | null;
   private readonly probeEndpoint: (candidates: readonly string[]) => Promise<ReachableCdpEndpoint | null>;
 
   constructor(deps: BrowserSessionManagerDeps) {
     this.profileRoot = deps.profileRoot;
+    this.homeDirectory = deps.homeDirectory ?? deps.profileRoot;
     this.io = deps.io ?? createBrowserProvisionIo({ homeDirectory: deps.homeDirectory ?? deps.profileRoot });
-    this.loadDriver = deps.loadDriver ?? (() => loadDriverModule() as DriverApi | null);
+    // The driver may live beside the executable or in the agent's own storage
+    // under this home, which is why the loader is told which home to search.
+    this.loadDriver = deps.loadDriver ?? (() => loadDriverModule(this.homeDirectory) as DriverApi | null);
     this.probeEndpoint = deps.probeEndpoint ?? firstReachableCdpEndpoint;
   }
 
@@ -222,6 +239,16 @@ export class BrowserSessionManager {
       lastMessage = error instanceof Error ? error.message : String(error);
     }
     if (!browser) {
+      // This runtime cannot complete a CDP WebSocket handshake, so the
+      // connection is made by a Node process instead and driven over a pipe.
+      // The result is the same session, with the same operations.
+      const hosted = await this.attachThroughHost(reachable.endpoint).catch((error: unknown) => {
+        lastMessage = `${lastMessage} | host: ${error instanceof Error ? error.message : String(error)}`;
+        return null;
+      });
+      if (hosted) return hosted;
+    }
+    if (!browser) {
       // The browser answered on HTTP, so the endpoint is right and the browser
       // is alive. Distinguish "this runtime cannot complete the debugger
       // handshake" from a genuine connection problem, because the two have
@@ -254,6 +281,37 @@ export class BrowserSessionManager {
       source: null,
       headless: false,
     });
+  }
+
+  /**
+   * Attaches by way of the Node-hosted driver.
+   *
+   * Used when the in-process client cannot complete the handshake. The session
+   * it produces is an ordinary attached session: origin 'attached', so nothing
+   * here can close the user's browser.
+   */
+  private async attachThroughHost(endpoint: string): Promise<BrowserSessionInfo | null> {
+    const client = new BrowserHostClient();
+    await client.start();
+    const attached = await client.call<{ pages: { pages: { pageId: string; url: string }[] } }>('attach', { endpoint });
+    const pages = attached.pages.pages;
+    if (pages.length === 0) {
+      const created = await client.call<{ pageId: string }>('newPage');
+      pages.push({ pageId: created.pageId, url: 'about:blank' });
+    }
+    const context = remoteContext(client, pages);
+    const info = this.register({
+      origin: 'attached',
+      context,
+      browser: null,
+      profileDirectory: null,
+      cdpEndpoint: endpoint,
+      executablePath: null,
+      source: null,
+      headless: false,
+    });
+    this.hosts.set(info.sessionId, client);
+    return info;
   }
 
   private register(input: {
@@ -453,6 +511,12 @@ export class BrowserSessionManager {
     const session = this.require(sessionId);
     const info = this.describe(session);
     this.sessions.delete(sessionId);
+    const host = this.hosts.get(sessionId);
+    if (host) {
+      // Ends the helper process, never the browser it was talking to.
+      host.stop();
+      this.hosts.delete(sessionId);
+    }
     if (session.browser) {
       // Detach the transport without issuing any browser-level close.
       void Promise.resolve()
@@ -467,6 +531,10 @@ export class BrowserSessionManager {
 
   /** Closes only what this agent launched. Attached browsers are left running. */
   async shutdown(): Promise<void> {
+    for (const [sessionId, host] of this.hosts) {
+      host.stop();
+      this.hosts.delete(sessionId);
+    }
     for (const session of [...this.sessions.values()]) {
       this.sessions.delete(session.sessionId);
       if (session.origin !== 'launched') continue;

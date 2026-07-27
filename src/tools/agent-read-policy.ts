@@ -1,4 +1,5 @@
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
+import { wasWrittenThisSession } from '../runtime/session-write-provenance.ts';
 
 type ReadFileArgs = {
   readonly path?: unknown;
@@ -109,6 +110,18 @@ export function validateReadToolInvocationForAgentPolicy(args: ReadToolArgs): st
 
 export function isBlockedReadPath(path: string): boolean {
   const segments = path.replaceAll('\\', '/').split('/').filter((segment) => segment.length > 0);
+  const fileNameEarly = segments.at(-1)?.toLowerCase() ?? '';
+  const secretLooking = SECRET_EXACT_FILE_NAMES.has(fileNameEarly)
+    || PRIVATE_KEY_EXTENSIONS.has(getExtension(fileNameEarly))
+    || segments.some((segment) => SECRET_EXACT_SEGMENTS.has(segment.toLowerCase()));
+
+  // A file this session wrote itself is not what the hidden-path rule protects.
+  // The agent takes a screenshot into the platform's storage root — a dotted
+  // directory — and must be able to open the thing it just made. The exemption
+  // is narrow on purpose: only paths recorded as written by this session, and
+  // never anything secret-looking.
+  if (!secretLooking && wasWrittenThisSession(path)) return false;
+
   for (const segment of segments) {
     if (segment === '.' || segment === '..') continue;
     const lower = segment.toLowerCase();

@@ -24,7 +24,7 @@ import { describeHarnessExecutionRoute, executionPostureCatalogStatus, execution
 import { fileRecoveryCatalogStatus, fileRecoverySummary, runFileRecovery } from './agent-harness-file-recovery.ts';
 import { describeHarnessMcpServer, mcpServerCatalogStatus, mcpServerSummary } from './agent-harness-mcp-metadata.ts';
 import { describeHarnessModelRoute, modelRoutingCatalogStatus, modelRoutingSummary, runLocalModelServerSmoke } from './agent-harness-model-routing.ts';
-import { describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
+import { harnessModelToolsPayload, describeHarnessModelTool, listHarnessModelTools } from './agent-harness-model-tool-catalog.ts';
 import { describeMemoryProvider, memoryPostureCatalogStatus, memoryPostureSummary } from './agent-harness-memory-posture.ts';
 import { memoryRefinementCatalogStatus, memoryRefinementSummary, runMemoryRefinement } from './agent-harness-memory-refinement.ts';
 import { describeHarnessOperatorMethod, operatorMethodCatalogStatus, operatorMethodSummary } from './agent-harness-operator-methods.ts';
@@ -666,10 +666,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return error(`Unknown Agent workspace action ${readString(args.actionId || args.command || args.target || args.query) || '<missing>'}. Use mode:"workspace_actions" to inspect available actions.`);
         }
         if (args.mode === 'run_workspace_action') return runWorkspaceAction(deps, args);
-        if (args.mode === 'tools') {
-          const tools = listHarnessModelTools(deps.toolRegistry, args);
-          return output({ tools, returned: tools.length, total: deps.toolRegistry.getToolDefinitions().length });
-        }
+        if (args.mode === 'tools') return output(harnessModelToolsPayload(deps.toolRegistry, args));
         if (args.mode === 'tool') {
           const query = readString(args.toolName || args.target || args.query);
           const resolved = describeHarnessModelTool(deps.toolRegistry, args);

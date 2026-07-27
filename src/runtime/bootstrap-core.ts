@@ -38,9 +38,8 @@ import { createUiRuntimeServices, type UiRuntimeServices } from './ui-services.t
 import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts';
 import { registerAgentChannelSendTool } from '../tools/agent-channel-send-tool.ts';
 import { registerAgentAutonomyScheduleTool } from '../tools/agent-autonomy-schedule-tool.ts';
-import { join } from 'node:path';
 import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
-import { browserProfileRoot } from '../browser/browser-sessions.ts';
+import { browserProfileRoot, browserScreenshotRoot } from '../browser/browser-sessions.ts';
 import { registerAgentBrowserTool } from '../tools/agent-browser-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
@@ -350,11 +349,8 @@ export async function initializeBootstrapCore(
     contextAccountingHolder: services.contextAccountingHolder,
   });
   registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
-  // Screenshots land in a plainly named project folder on purpose: the Agent's
-  // own read path refuses hidden directories, so a shot written under a dotted
-  // path would be one the agent could take but not open.
   registerAgentBrowserTool(toolRegistry, {
-    screenshotDirectory: join(services.shellPaths.workingDirectory, 'goodvibes-browser'),
+    screenshotDirectory: browserScreenshotRoot(services.shellPaths.homeDirectory),
     profileRoot: browserProfileRoot(services.shellPaths.homeDirectory),
     homeDirectory: services.shellPaths.homeDirectory,
   });

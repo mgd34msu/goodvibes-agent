@@ -1,10 +1,20 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { recordSessionWrite } from '../runtime/session-write-provenance.ts';
 import type { Page } from 'playwright-core';
 import { BrowserSessionError, BrowserSessionManager, hasDisplay } from './browser-sessions.ts';
 import type { BrowserAttachOptions, BrowserLaunchOptions } from './browser-sessions.ts';
 import { resolveRef, SnapshotStore, StaleElementError, takeSnapshot } from './browser-snapshot.ts';
 import type { BrowserProvisionReport, BrowserSnapshot } from './browser-types.ts';
+import {
+  evaluateOutwardEffect,
+  getSessionUntrustedContentLedger,
+  labelUntrustedContent,
+  originOf,
+  UNTRUSTED_CONTENT_RULE,
+  type OwnerApproval,
+  type UntrustedContentLedger,
+} from '../trust/untrusted-content.ts';
 
 const DEFAULT_NAVIGATION_TIMEOUT_MS = 30_000;
 const DEFAULT_ACTION_TIMEOUT_MS = 15_000;
@@ -29,6 +39,32 @@ export interface BrowserTarget {
 export interface BrowserEngineOptions {
   /** Where screenshots are written. Must be a directory the agent's read path can open. */
   readonly screenshotDirectory: string;
+  /**
+   * Records untrusted content as it enters the conversation. Shared with every
+   * other surface that reads text a stranger wrote, so "read a page, then send
+   * a message" is visible as one composition rather than two unrelated acts.
+   */
+  readonly ledger?: UntrustedContentLedger;
+  /** An owner approval covering an outward action in this turn, when one exists. */
+  readonly approval?: OwnerApproval | null;
+}
+
+/**
+ * Script that reaches outside the page it runs in.
+ *
+ * `evaluate` returns whatever a page decides to return and can equally be used
+ * to post data somewhere. Once the turn has read untrusted content, expressions
+ * that can transmit are refused outright — the path is closed rather than
+ * discouraged, because the model writing the expression may be acting on text
+ * the page authored.
+ */
+const OUTWARD_SCRIPT_PATTERN = /\b(?:fetch|XMLHttpRequest|sendBeacon|importScripts|WebSocket|EventSource)\b|\.submit\s*\(|\bwindow\.open\b|\blocation\s*(?:\.href)?\s*=|\bnavigator\.sendBeacon\b/;
+
+export class UntrustedEffectError extends Error {
+  constructor(message: string, readonly fix: string) {
+    super(message);
+    this.name = 'UntrustedEffectError';
+  }
 }
 
 function normalizeUrl(rawUrl: string): string {
@@ -65,10 +101,52 @@ function normalizeUrl(rawUrl: string): string {
 export class BrowserEngine {
   private readonly snapshots = new SnapshotStore();
 
+  private readonly ledger: UntrustedContentLedger;
+  private approval: OwnerApproval | null;
+
   constructor(
     private readonly sessions: BrowserSessionManager,
     private readonly options: BrowserEngineOptions,
-  ) {}
+  ) {
+    this.ledger = options.ledger ?? getSessionUntrustedContentLedger();
+    this.approval = options.approval ?? null;
+  }
+
+  /**
+   * Records that the owner asked for a specific outward action.
+   *
+   * Approval arrives mid-session, in the normal case: the agent reports what it
+   * found on a page and the owner says to go ahead. Only a surface with command
+   * authority can produce one of these (see grantOwnerApproval), so nothing a
+   * page says can reach this.
+   */
+  setOwnerApproval(approval: OwnerApproval | null): void {
+    this.approval = approval;
+  }
+
+  /** Records that page content entered the conversation, with where it came from. */
+  private recordPageIngest(url: string): string {
+    const origin = originOf(url);
+    this.ledger.record({ surface: 'web-page', origin, at: new Date().toISOString() });
+    return origin;
+  }
+
+  /**
+   * Refuses an outward action when this turn has read page content.
+   *
+   * This is the composition that matters: a page the agent just read must not
+   * be able to cause the agent to act outwards. The refusal names what to do
+   * instead, which is to take it to the owner.
+   */
+  private requireOutwardEffectAllowed(action: string, description: string): void {
+    const decision = evaluateOutwardEffect({
+      request: { toolName: 'browser', action, description },
+      ledger: this.ledger,
+      approval: this.approval,
+    });
+    if (decision.allowed) return;
+    throw new UntrustedEffectError(decision.reason ?? 'This action is not available here.', decision.fix ?? 'Ask the owner.');
+  }
 
   sessionManager(): BrowserSessionManager {
     return this.sessions;
@@ -187,11 +265,17 @@ export class BrowserEngine {
     const { sessionId, pageId, page } = await this.target(target);
     const snapshot = await takeSnapshot(page, sessionId, pageId, args);
     this.snapshots.set(snapshot);
+    // Element names and values are written by the page, so a snapshot is
+    // untrusted content just as much as the body text is.
+    const origin = this.recordPageIngest(snapshot.url);
     return {
       sessionId,
       pageId,
       url: snapshot.url,
       title: snapshot.title,
+      contentTrust: 'untrusted',
+      origin,
+      rule: UNTRUSTED_CONTENT_RULE,
       snapshotId: snapshot.snapshotId,
       elementCount: snapshot.elements.length,
       truncated: snapshot.truncated,
@@ -216,6 +300,15 @@ export class BrowserEngine {
   ): Promise<Record<string, unknown>> {
     const { sessionId, pageId, page } = await this.target(target);
     const { locator, element } = await resolveRef(page, this.currentSnapshot(sessionId, pageId), args.ref);
+    if (element.submits) {
+      // Submitting sends data to whoever runs the site. Whether this element
+      // submits was recorded when the page was snapshotted, so this is a fact
+      // about the control rather than a guess about the click.
+      this.requireOutwardEffectAllowed(
+        'browser.submit',
+        `submit the form on ${originOf(page.url())} by activating ${element.role} "${element.name}"`,
+      );
+    }
     const urlBefore = page.url();
     await locator.click({
       button: args.button ?? 'left',
@@ -253,6 +346,12 @@ export class BrowserEngine {
     const { sessionId, pageId, page } = await this.target(target);
     const { locator, element } = await resolveRef(page, this.currentSnapshot(sessionId, pageId), args.ref);
     const timeout = args.timeoutMs ?? DEFAULT_ACTION_TIMEOUT_MS;
+    if (args.submit === true) {
+      this.requireOutwardEffectAllowed(
+        'browser.submit',
+        `submit the form on ${originOf(page.url())} after typing into ${element.role} "${element.name}"`,
+      );
+    }
     if (args.replace === false) {
       await locator.click({ timeout });
       await locator.pressSequentially(args.text, { timeout });
@@ -291,6 +390,12 @@ export class BrowserEngine {
   ): Promise<Record<string, unknown>> {
     const { sessionId, pageId, page } = await this.target(target);
     const { locator, element } = await resolveRef(page, this.currentSnapshot(sessionId, pageId), args.ref);
+    if (args.key === 'Enter' || args.key === 'NumpadEnter') {
+      this.requireOutwardEffectAllowed(
+        'browser.submit',
+        `submit the form on ${originOf(page.url())} by pressing ${args.key} in ${element.role} "${element.name}"`,
+      );
+    }
     await locator.press(args.key, { timeout: args.timeoutMs ?? DEFAULT_ACTION_TIMEOUT_MS });
     this.snapshots.clear(sessionId, pageId);
     return { sessionId, pageId, pressed: args.key, on: { ref: args.ref, role: element.role, name: element.name }, url: page.url() };
@@ -336,15 +441,55 @@ export class BrowserEngine {
   async readText(target: BrowserTarget, args: { readonly maxChars?: number } = {}): Promise<Record<string, unknown>> {
     const { sessionId, pageId, page } = await this.target(target);
     const limit = Math.max(200, Math.min(200_000, args.maxChars ?? DEFAULT_TEXT_LIMIT));
-    const text = await page.evaluate(() => document.body?.innerText ?? '');
-    const normalized = text.replace(/\n{3,}/g, '\n\n').trim();
+    // innerText ignores shadow DOM, so a page that renders its content inside a
+    // component would read as empty. Open shadow roots are walked and appended.
+    const text = await page.evaluate(() => {
+      const collectShadowText = (root: Document | ShadowRoot): string[] => {
+        const parts: string[] = [];
+        for (const element of Array.from(root.querySelectorAll('*'))) {
+          const shadow = element.shadowRoot;
+          if (!shadow) continue;
+          const inner = (shadow as unknown as { readonly textContent?: string }).textContent ?? '';
+          if (inner.trim()) parts.push(inner.replace(/\s+/g, ' ').trim());
+          parts.push(...collectShadowText(shadow));
+        }
+        return parts;
+      };
+      const body = document.body?.innerText ?? '';
+      const shadow = collectShadowText(document);
+      return shadow.length > 0 ? `${body}\n${shadow.join('\n')}` : body;
+    });
+    // Embedded frames carry their own content from their own origin. Leaving
+    // them out means reading a page and missing the part that mattered, and
+    // each frame's origin is recorded separately because a frame is a
+    // different author with the same access to this page.
+    const frameTexts: string[] = [];
+    for (const frame of page.frames()) {
+      // The main frame is already read above. Identity comparison is not enough
+      // for a host-backed page, whose frame objects are created per call, so the
+      // main frame is the one with no parent.
+      if (frame === page.mainFrame() || frame.parentFrame() === null) continue;
+      const frameText = await frame.evaluate(() => document.body?.innerText ?? '').catch(() => '');
+      if (!frameText.trim()) continue;
+      this.recordPageIngest(frame.url());
+      frameTexts.push(`\n\n[embedded frame ${originOf(frame.url())}]\n${frameText.trim()}`);
+    }
+    const normalized = `${text}${frameTexts.join('')}`.replace(/\n{3,}/g, '\n\n').trim();
+    const origin = this.recordPageIngest(page.url());
     return {
       sessionId,
       pageId,
       url: page.url(),
       title: await page.title().catch(() => ''),
+      // The page's words, labelled as the page's words. The envelope carries
+      // the origin and the standing rule with the text wherever it goes next.
+      content: labelUntrustedContent({
+        surface: 'web-page',
+        origin,
+        text: normalized.slice(0, limit),
+        truncated: normalized.length > limit,
+      }),
       truncated: normalized.length > limit,
-      text: normalized.slice(0, limit),
     };
   }
 
@@ -357,6 +502,9 @@ export class BrowserEngine {
     const fileName = `${sessionId}-${pageId}-${String(Date.now())}.png`;
     const path = args.path ?? join(this.options.screenshotDirectory, fileName);
     const buffer = await page.screenshot({ path, fullPage: args.fullPage === true });
+    // Recorded as written by this session, which is what lets the agent open
+    // the file it just made even though it lives under a dotted storage root.
+    recordSessionWrite({ path, tool: 'browser' });
     return {
       sessionId,
       pageId,
@@ -414,11 +562,30 @@ export class BrowserEngine {
 
   async evaluate(target: BrowserTarget, args: { readonly expression: string }): Promise<Record<string, unknown>> {
     const { sessionId, pageId, page } = await this.target(target);
+    if (OUTWARD_SCRIPT_PATTERN.test(args.expression)) {
+      this.requireOutwardEffectAllowed(
+        'browser.evaluate-outward',
+        `run script on ${originOf(page.url())} that can transmit data off the page`,
+      );
+    }
     const value: unknown = await page.evaluate<unknown, string>((source) => {
       const runner = new Function(`return (${source});`) as () => unknown;
       return runner();
     }, args.expression);
-    return { sessionId, pageId, url: page.url(), value: value === undefined ? null : value };
+    const origin = this.recordPageIngest(page.url());
+    return {
+      sessionId,
+      pageId,
+      url: page.url(),
+      // Whatever the page chose to return. It is the most instruction-shaped
+      // output the browser can produce, so it is labelled like any other page
+      // content rather than handed back as a bare value.
+      result: labelUntrustedContent({
+        surface: 'web-page',
+        origin,
+        text: typeof value === 'string' ? value : JSON.stringify(value ?? null),
+      }),
+    };
   }
 
   async shutdown(): Promise<void> {

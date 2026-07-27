@@ -1,4 +1,4 @@
-import type { Locator, Page } from 'playwright-core';
+import type { Frame, FrameLocator, Locator, Page } from 'playwright-core';
 import type { BrowserElementRef, BrowserSnapshot } from './browser-types.ts';
 
 /**
@@ -22,6 +22,8 @@ interface RawElement {
   readonly disabled: boolean;
   readonly checked: boolean | null;
   readonly depth: number;
+  /** True when activating this control submits a form — an outward effect. */
+  readonly submits: boolean;
 }
 
 /**
@@ -69,6 +71,12 @@ function collectElements(limit: number): RawElement[] {
     return value.replace(/[^\w-]/g, (character) => `\\${character}`);
   };
 
+  /**
+   * A CSS path to the element, crossing open shadow boundaries by continuing
+   * from the shadow host. Playwright's CSS engine pierces open shadow roots,
+   * so a single path resolves whether or not the element lives inside one —
+   * verified against a real page rather than assumed.
+   */
   const selectorFor = (element: Element): string => {
     if (element.id && document.querySelectorAll(`#${cssEscape(element.id)}`).length === 1) {
       return `#${cssEscape(element.id)}`;
@@ -76,12 +84,15 @@ function collectElements(limit: number): RawElement[] {
     const parts: string[] = [];
     let current: Element | null = element;
     while (current && current.nodeType === 1 && current !== document.documentElement) {
-      const parent: Element | null = current.parentElement;
+      const root: Node = current.getRootNode();
+      // Step out of a shadow root onto its host and keep going.
+      const host: Element | null = root instanceof ShadowRoot ? root.host : null;
+      const parent: Element | null = current.parentElement ?? host;
       if (!parent) break;
       const tag = current.tagName.toLowerCase();
       const siblings = Array.from(parent.children).filter((child) => child.tagName === current?.tagName);
       const index = siblings.indexOf(current) + 1;
-      parts.unshift(siblings.length > 1 ? `${tag}:nth-of-type(${String(index)})` : tag);
+      parts.unshift(siblings.length > 1 && index > 0 ? `${tag}:nth-of-type(${String(index)})` : tag);
       current = parent;
     }
     return parts.length > 0 ? `html > body ${parts.join(' > ')}`.replace('html > body body', 'html > body') : 'html';
@@ -143,9 +154,44 @@ function collectElements(limit: number): RawElement[] {
     return depth;
   };
 
+  const submitsForm = (element: Element): boolean => {
+    const tag = element.tagName.toLowerCase();
+    const type = (element.getAttribute('type') ?? '').toLowerCase();
+    if (tag === 'input') return type === 'submit' || type === 'image';
+    if (tag === 'button') {
+      if (type === 'submit') return true;
+      // A button inside a form with no explicit type submits it by default.
+      return type === '' && element.closest('form') !== null;
+    }
+    return false;
+  };
+
+  /** Every root to search: the document plus every open shadow root inside it. */
+  const collectRoots = (): (Document | ShadowRoot)[] => {
+    const roots: (Document | ShadowRoot)[] = [document];
+    const queue: (Document | ShadowRoot)[] = [document];
+    while (queue.length > 0) {
+      const root = queue.shift();
+      if (!root) break;
+      for (const element of Array.from(root.querySelectorAll('*'))) {
+        const shadow = element.shadowRoot;
+        if (shadow) {
+          roots.push(shadow);
+          queue.push(shadow);
+        }
+      }
+    }
+    return roots;
+  };
+
+  const candidates: Element[] = [];
+  for (const root of collectRoots()) {
+    candidates.push(...Array.from(root.querySelectorAll(INTERACTIVE_SELECTOR)));
+  }
+
   const results: RawElement[] = [];
   const seen = new Set<Element>();
-  for (const element of Array.from(document.querySelectorAll(INTERACTIVE_SELECTOR))) {
+  for (const element of candidates) {
     if (results.length >= limit) break;
     if (seen.has(element)) continue;
     seen.add(element);
@@ -163,6 +209,7 @@ function collectElements(limit: number): RawElement[] {
       disabled: isFormControl ? Boolean(input.disabled) : false,
       checked: type === 'checkbox' || type === 'radio' ? Boolean(input.checked) : null,
       depth: depthOf(element),
+      submits: submitsForm(element),
     });
   }
   return results;
@@ -216,6 +263,46 @@ export class SnapshotStore {
   }
 }
 
+/** The selector of one element within its own document, used to address iframes. */
+function selectorOfFrameElement(element: Element): string {
+  if (element.id) return `#${element.id.replace(/[^\w-]/g, '\\$&')}`;
+  const parts: string[] = [];
+  let current: Element | null = element;
+  while (current && current.nodeType === 1 && current !== document.documentElement) {
+    const parent: Element | null = current.parentElement;
+    if (!parent) break;
+    const tag = current.tagName.toLowerCase();
+    const siblings = Array.from(parent.children).filter((child) => child.tagName === current?.tagName);
+    const index = siblings.indexOf(current) + 1;
+    parts.unshift(siblings.length > 1 ? `${tag}:nth-of-type(${String(index)})` : tag);
+    current = parent;
+  }
+  return parts.join(' > ');
+}
+
+/**
+ * The chain of iframe selectors leading to a frame, outermost first.
+ * Returns null when any link cannot be addressed, so a frame is either fully
+ * reachable or reported not at all — never half-addressable.
+ */
+async function frameChainFor(frame: Frame): Promise<readonly string[] | null> {
+  // A host-backed frame already knows its chain; the host computed it when it
+  // listed the frames, so there is nothing to ask for again.
+  const precomputed = (frame as unknown as { readonly __frameChain?: readonly string[] }).__frameChain;
+  if (precomputed) return precomputed;
+  const chain: string[] = [];
+  let current: Frame | null = frame;
+  while (current && current.parentFrame()) {
+    const element = await current.frameElement().catch(() => null);
+    if (!element) return null;
+    const selector = await element.evaluate(selectorOfFrameElement).catch(() => '');
+    if (!selector) return null;
+    chain.unshift(selector);
+    current = current.parentFrame();
+  }
+  return chain;
+}
+
 export async function takeSnapshot(
   page: Page,
   sessionId: string,
@@ -223,7 +310,14 @@ export async function takeSnapshot(
   options: { readonly limit?: number } = {},
 ): Promise<BrowserSnapshot> {
   const limit = Math.max(1, Math.min(MAX_ELEMENTS, options.limit ?? MAX_ELEMENTS));
-  const raw = await page.evaluate(collectElements, limit);
+  const raw: (RawElement & { readonly frameChain: readonly string[] })[] = [];
+  for (const frame of page.frames()) {
+    if (raw.length >= limit) break;
+    const chain = frame === page.mainFrame() ? [] : await frameChainFor(frame);
+    if (chain === null) continue;
+    const collected = await frame.evaluate(collectElements, limit - raw.length).catch(() => [] as RawElement[]);
+    raw.push(...collected.map((element) => ({ ...element, frameChain: chain })));
+  }
   snapshotCounter += 1;
   const elements: BrowserElementRef[] = raw.map((element, index) => ({
     ref: `e${String(index + 1)}`,
@@ -235,6 +329,8 @@ export async function takeSnapshot(
     disabled: element.disabled || undefined,
     checked: element.checked ?? undefined,
     depth: element.depth,
+    submits: element.submits,
+    frameChain: element.frameChain,
   }));
   return {
     sessionId,
@@ -245,6 +341,15 @@ export async function takeSnapshot(
     elements,
     truncated: raw.length >= limit,
   };
+}
+
+/** Narrows the page to the frame an element lives in, following the chain. */
+function frameScope(page: Page, frameChain: readonly string[]): Page | FrameLocator {
+  let scope: Page | FrameLocator = page;
+  for (const selector of frameChain) {
+    scope = scope.frameLocator(selector);
+  }
+  return scope;
 }
 
 function namesAgree(expected: string, actual: string): boolean {
@@ -285,8 +390,9 @@ export async function resolveRef(
       'Call action:"snapshot" for the current page, then act on a ref from that snapshot.',
     );
   }
-  const locator = page.locator(element.selector).first();
-  const count = await page.locator(element.selector).count();
+  const scope = frameScope(page, element.frameChain);
+  const locator = scope.locator(element.selector).first();
+  const count = await scope.locator(element.selector).count();
   if (count === 0) {
     throw new StaleElementError(
       `Ref ${ref} (${element.role} "${element.name}") is no longer present on ${page.url()}.`,
