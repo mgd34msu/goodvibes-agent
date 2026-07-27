@@ -249,7 +249,10 @@ describe('running a setup path', () => {
     const failed = report.steps.find((step) => step.id === 'app-password');
     expect(failed?.outcome).toBe('failed');
     expect(failed?.problem).toContain('the page layout changed');
-    expect(failed?.fix).toContain('google-setup-runbook.md');
+    // The fallback route has to be something an installed binary can act on.
+    // A packaged install has no checkout, so a repo path is a dead end.
+    expect(failed?.fix).toContain('/google runbook');
+    expect(failed?.fix).not.toContain('docs/');
   });
 
   test('warnings from a step survive into the report', async () => {
@@ -293,6 +296,7 @@ describe('rendering a report', () => {
     const rendered = renderGoogleSetupReport(report);
     expect(rendered).toContain('IMAP rejected the credential.');
     expect(rendered).toContain('Do this: Create a new app password');
-    expect(rendered).toContain('docs/google-setup-runbook.md');
+    expect(rendered).toContain('Written instructions for every step: /google runbook');
+    expect(rendered).not.toContain('docs/google-setup-runbook.md');
   });
 });
