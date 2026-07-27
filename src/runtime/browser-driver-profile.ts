@@ -48,6 +48,11 @@ export const AGENT_BROWSER_DRIVER_PROFILE: BrowserDriverInstallProfile = {
   installerCommand: 'curl -fsSL https://goodvibes.sh/install.sh | sh',
   globalPackageCommand: 'bun add -g @pellux/goodvibes-agent',
   sourceInstallCommand: 'bun install',
+  // The agent's own voice, restored: the hoist's neutral default said
+  // "the driver is then installed automatically", which tells the reader
+  // less than naming who does it.
+  packageManagerFallbackAdvice:
+    'Installing bun or npm also works: the agent then installs the driver for itself on the next browser call.',
 };
 
 /**
