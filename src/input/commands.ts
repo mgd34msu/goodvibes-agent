@@ -41,6 +41,7 @@ import { registerOperatorActionRuntimeCommands } from './commands/operator-actio
 import { registerConnectedHostAdminCommands } from './commands/connected-host-admin-runtime.ts';
 import { registerEmailRuntimeCommands } from './commands/email-runtime.ts';
 import { registerCalendarRuntimeCommands } from './commands/calendar-runtime.ts';
+import { registerGoogleRuntimeCommands } from './commands/google-runtime.ts';
 import { registerUpdateCommand } from './commands/update-runtime.ts';
 
 function registerAgentMemoryCommand(registry: CommandRegistry): void {
@@ -76,6 +77,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerRoutinesRuntimeCommands(registry);
   registerChannelsRuntimeCommands(registry);
   registerEmailRuntimeCommands(registry);
+  registerGoogleRuntimeCommands(registry);
   registerDelegationRuntimeCommands(registry);
   registerConfigCommand(registry);
   registerOperatorRuntimeCommands(registry);
