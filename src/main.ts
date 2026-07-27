@@ -43,6 +43,7 @@ import {
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState, type PendingWorkspaceRegistrationState } from './shell/blocking-input.ts';
+import { handleBrokerApprovalChange } from './permissions/broker-approval.ts';
 import { createAgentWorkspaceFullscreenComposite, createFullscreenCompositeFromLines } from './shell/agent-workspace-fullscreen.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
 import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
@@ -161,13 +162,12 @@ async function main() {
   };
 
   let pendingPermission: PendingPermissionState | null = null;
-  approvalBroker.subscribe((approval) => {
-    if (!pendingPermission) return;
-    if (pendingPermission.callId !== approval.callId) return;
-    if (approval.status === 'pending' || approval.status === 'claimed') return;
-    pendingPermission = null;
-    render();
-  });
+  // Clears our own resolved card and opens one for a broker-originated ask no local prompt is handling — see permissions/broker-approval.ts.
+  approvalBroker.subscribe((approval) => handleBrokerApprovalChange({
+    approval, broker: approvalBroker, render,
+    getPending: () => pendingPermission,
+    setPending: (next) => { pendingPermission = next; },
+  }));
 
   let streamTokenSpeed = 0;
 
