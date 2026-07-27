@@ -11,6 +11,8 @@ import { SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../input/settings
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { CATEGORY_LABELS, describeUiRouting, formatValue, getSettingLabel, inferSubscriptionRouteReason, valueColor } from './settings-modal-helpers.ts';
 import { isSecretConfigKey } from '../config/secret-config.ts';
+import { formatMoneyForDisplay, isMoneyMinorUnitsConfigKey } from '../config/payments-money-format.ts';
+import { CVV_PROMPT_TRADEOFF_WARNING } from '@pellux/goodvibes-sdk/platform/payments';
 import { formatProviderAuthRouteId } from '../provider-auth-route-display.ts';
 import { GLYPHS } from './ui-primitives.ts';
 import {
@@ -75,6 +77,7 @@ const CATEGORY_INFO: Record<SettingsCategory, string> = {
   integrations: 'Integration delivery reliability: retry ceiling and exponential-backoff bounds for Slack/Discord/webhook delivery, dead-letter queue size, and whether dead-letter events log at error level.',
   device: 'How a paired phone\'s camera, screen, location, clipboard, and device commands are reached. Every capture and effect asks the person first; "always allow" writes one durable grant for that capability on that phone, revocable in the grants surface. Also sets how long a picture the phone took is kept before it is deleted (24 hours by default), how often housekeeping sweeps, and how long a grant lasts before it expires.',
   memory: 'This runtime\'s own memory-pressure defense: the RSS budget (0 = auto: min of 25% of system RAM and 4096 MB), the elevated/high/critical tier thresholds that shed caches and pause deferrable background jobs, the leak tripwire (sustained growth rate that triggers a graceful exit with a receipt), and the absolute hard-limit backstop as a percent of the kill ceiling. Live state under /health memory.',
+  payments: 'The payment capability\'s budgets, shipping preference, CVV handling, and the two decision windows: a veto window for in-budget purchases (silence proceeds) and an approval window for above-budget ones (silence denies). The daemon holds the card and executes every purchase; these settings configure it. Card number, expiry and CVV are never entered here — they live in the daemon secret store, write-only across every wire.',
 };
 
 const ENUM_VALUE_DESCRIPTIONS: Record<string, Record<string, string>> = {
@@ -141,8 +144,25 @@ function formatDefaultValue(value: unknown): string {
   return String(value);
 }
 
+/** The configured payments.currency, or the schema default before a card is set up. */
+function currentPaymentsCurrency(modal: SettingsModal): string {
+  const entry = modal.groups.get('payments')?.find((candidate) => candidate.setting.key === 'payments.currency');
+  return typeof entry?.currentValue === 'string' && entry.currentValue.length > 0 ? entry.currentValue : 'USD';
+}
+
+/** Money-aware Default column: the raw stored default (always 0) shown in the same units as Current. */
+function formatDefaultForEntry(modal: SettingsModal, entry: SettingEntry): string {
+  if (isMoneyMinorUnitsConfigKey(entry.setting.key) && typeof entry.setting.default === 'number') {
+    return formatMoneyForDisplay(entry.setting.default, currentPaymentsCurrency(modal));
+  }
+  return formatDefaultValue(entry.setting.default);
+}
+
 function currentSettingValue(modal: SettingsModal, entry: SettingEntry, selected: boolean): string {
   if (selected && modal.editingMode) return `${modal.editBuffer}${GLYPHS.surface.cursor}`;
+  if (isMoneyMinorUnitsConfigKey(entry.setting.key) && typeof entry.currentValue === 'number') {
+    return formatMoneyForDisplay(entry.currentValue, currentPaymentsCurrency(modal));
+  }
   return formatValue(entry);
 }
 
@@ -151,7 +171,7 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
     getSettingLabel(entry),
     `Key: ${entry.setting.key}`,
     `Current: ${currentSettingValue(modal, entry, true)}`,
-    `Default: ${formatDefaultValue(entry.setting.default)}`,
+    `Default: ${formatDefaultForEntry(modal, entry)}`,
     `Type: ${entry.setting.type}${entry.setting.enumValues ? ` with ${entry.setting.enumValues.length} possible value(s)` : ''}`,
     `Source: ${entry.effectiveSource ?? 'default'}${entry.sourceLabel ? ` from ${entry.sourceLabel}` : ''}`,
   ];
@@ -182,6 +202,11 @@ function buildSettingContext(modal: SettingsModal, entry: SettingEntry): string[
     for (const value of entry.setting.enumValues) {
       lines.push(`${value}: ${descriptions[value] ?? `Use ${value} for this setting.`}`);
     }
+  }
+
+  // The SDK's own wording, not authored here, and never shown against 'stored'.
+  if (entry.setting.key === 'payments.cvvHandling' && entry.currentValue === 'prompt') {
+    lines.push('', CVV_PROMPT_TRADEOFF_WARNING);
   }
 
   if (isSecretConfigKey(entry.setting.key)) {
@@ -397,7 +422,7 @@ function renderSettingRows(modal: SettingsModal, width: number, height: number):
     const value = currentSettingValue(modal, entry, selected);
     const source = `${entry.effectiveSource ?? 'default'}${entry.locked ? ' locked' : ''}${entry.conflict ? ' conflict' : ''}`;
     const label = getSettingLabel(entry);
-    rows.push(`${marker} ${padDisplay(label, keyWidth)}  ${padDisplay(value, valueWidth)}  ${padDisplay(entry.setting.type, typeWidth)}  ${padDisplay(source, sourceWidth)}  ${padDisplay(formatDefaultValue(entry.setting.default), defaultWidth)}`);
+    rows.push(`${marker} ${padDisplay(label, keyWidth)}  ${padDisplay(value, valueWidth)}  ${padDisplay(entry.setting.type, typeWidth)}  ${padDisplay(source, sourceWidth)}  ${padDisplay(formatDefaultForEntry(modal, entry), defaultWidth)}`);
   }
 
   if (window.end < items.length) rows.push(`${GLYPHS.navigation.moreBelow} ${items.length - window.end} more setting(s) below`);

@@ -10,8 +10,11 @@ import { buildGoodVibesSecretKey, isSecretConfigKey } from '../config/secret-con
 import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
+  moneyEditBufferValue,
+  parseMoneyOrNumberEditBuffer,
   roundToPrecision,
 } from './settings-modal-behavior.ts';
+import { CVV_PROMPT_TRADEOFF_WARNING } from '@pellux/goodvibes-sdk/platform/payments';
 import {
   setSecretBackedSettingValue,
   type SettingsSecretsManager,
@@ -93,7 +96,7 @@ export class SettingsModal {
   /** Set when the highlighted setting should open provider selection before model selection. */
   public pendingProviderModelPickerTarget: ModelPickerTarget | null = null;
   /** Set when a highlighted setting needs an external picker owned by the shell route. */
-  public pendingSettingsPickerAction: 'tts-provider' | 'tts-voice' | null = null;
+  public pendingSettingsPickerAction: 'tts-provider' | 'tts-voice' | 'daemon-timezone' | null = null;
   /** Provider awaiting explicit logout confirmation, if any. */
   public subscriptionLogoutConfirmationTarget: string | null = null;
 
@@ -364,6 +367,10 @@ export class SettingsModal {
       this.pendingSettingsPickerAction = 'tts-voice';
       return;
     }
+    if (setting.key === 'daemon.timezone') {
+      this.pendingSettingsPickerAction = 'daemon-timezone';
+      return;
+    }
 
     const pickerLaunch = modelPickerLaunchForKey(setting.key);
     if (pickerLaunch !== null) {
@@ -385,7 +392,9 @@ export class SettingsModal {
     } else if (setting.type === 'string' || setting.type === 'number') {
       // Enter inline edit mode
       this.editingMode = true;
-      this.editBuffer = String(entry.currentValue ?? '');
+      this.editBuffer = setting.type === 'number'
+        ? moneyEditBufferValue(setting, entry.currentValue, this._paymentsCurrency())
+        : String(entry.currentValue ?? '');
     }
   }
 
@@ -537,8 +546,8 @@ export class SettingsModal {
     let parsed: unknown = this.editBuffer;
 
     if (setting.type === 'number') {
-      parsed = Number(this.editBuffer);
-      if (isNaN(parsed as number)) {
+      parsed = parseMoneyOrNumberEditBuffer(setting, this.editBuffer, this._paymentsCurrency());
+      if (parsed === null) {
         this.editingMode = false;
         this.editBuffer = '';
         return false;
@@ -747,10 +756,22 @@ export class SettingsModal {
         this.lastSettingEffectMessage = result?.message ?? null;
         this._refreshAllEntries();
       }
+      // The SDK's own trade-off wording, shown at the moment of selection — not
+      // authored here, and never shown against the 'stored' default.
+      if (key === 'payments.cvvHandling' && value === 'prompt') {
+        this.lastSettingEffectMessage = CVV_PROMPT_TRADEOFF_WARNING;
+      } else if (key === 'payments.cvvHandling' && this.lastSettingEffectMessage === CVV_PROMPT_TRADEOFF_WARNING) {
+        this.lastSettingEffectMessage = null;
+      }
     } catch (e) {
       logger.error('SettingsModal: failed to set config value', { key, error: summarizeError(e) });
       this.lastSettingEffectMessage = `Save failed: ${summarizeError(e)}`;
     }
+  }
+
+  /** Current payments.currency, defaulting to the schema default before any card is configured. */
+  private _paymentsCurrency(): string {
+    return String(this.configManager?.get('payments.currency') ?? 'USD');
   }
 
 }

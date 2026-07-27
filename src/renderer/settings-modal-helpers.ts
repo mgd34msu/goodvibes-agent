@@ -127,6 +127,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   power: 'Sleep and Power',
   device: 'Paired Phone Capabilities',
   memory: 'Memory Governance',
+  payments: 'Payments',
 };
 
 export const SETTING_LABELS: Partial<Record<string, string>> = {
@@ -178,6 +179,20 @@ export const SETTING_LABELS: Partial<Record<string, string>> = {
   'watchers.triggers.onExitMaxDurationMs': 'On-Exit Max Duration',
   'watchers.triggers.onExitStdin': 'On-Exit Standard Input',
   'watchers.triggers.outputTailBytes': 'On-Exit Output Tail',
+  'payments.enabled': 'Payments Enabled',
+  'payments.defaultCardId': 'Default Card ID',
+  'payments.currency': 'Currency',
+  'payments.cvvHandling': 'CVV Handling',
+  'payments.budget.dailyItemCents': 'Daily Item Budget',
+  'payments.budget.dailyOverageCents': 'Daily Overage Allowance',
+  'payments.budget.perPurchaseCeilingEnabled': 'Per-Purchase Ceiling Enabled',
+  'payments.budget.perPurchaseCeilingCents': 'Per-Purchase Ceiling',
+  'payments.budget.overageToleranceEnabled': 'Overage Tolerance Enabled',
+  'payments.budget.overageToleranceDailyAllowanceCents': 'Overage Tolerance Daily Allowance',
+  'payments.shipping.preferredTier': 'Preferred Shipping Tier',
+  'payments.windows.vetoMinutes': 'Veto Window (Minutes)',
+  'payments.windows.approvalMinutes': 'Approval Window (Minutes)',
+  'payments.notifyChannels': 'Notify Channels',
 };
 
 export function getSettingLabel(entry: SettingEntry): string {

@@ -310,6 +310,54 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     asserts: 'crashes older than the configured window stop counting toward the restart budget, so identical timestamps latch under a long window and restart under a short one',
   },
 
+  // --- Payments (payments.*, daemon.timezone) -----------------------------
+  // Covered by src/test/input/settings-modal-payments.test.ts and
+  // src/test/renderer/settings-modal-payments.test.ts, driven through the real
+  // SettingsModal edit/commit/render path (settings-modal.ts,
+  // settings-modal-behavior.ts, payments-money-format.ts), and
+  // src/test/input/daemon-settings-actions.test.ts for the timezone picker's
+  // own selection-handling code.
+  {
+    key: 'payments.budget.dailyItemCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "0.1"/"0.29"/"19.99"/"1234.56" into the edit buffer stores exactly 10/29/1999/123456 cents (not a float-rounding-adjacent value), and re-opening the field shows the same major-units string back; a negative entry is refused rather than coerced',
+  },
+  {
+    key: 'payments.budget.dailyOverageCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "0.29" against this specific key stores exactly 29 cents through the real money edit/commit path',
+  },
+  {
+    key: 'payments.budget.perPurchaseCeilingCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "19.99" against this specific key stores exactly 1999 cents through the real money edit/commit path',
+  },
+  {
+    key: 'payments.budget.overageToleranceDailyAllowanceCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "1234.56" against this specific key stores exactly 123456 cents through the real money edit/commit path',
+  },
+  {
+    key: 'payments.defaultCardId',
+    test: 'src/test/renderer/settings-modal-payments.test.ts',
+    asserts: 'renders as a plain visible id both empty and set — never routed through the secret-masking path a real credential key goes through, which matters because this key names a card without ever holding its number, expiry or CVV',
+  },
+  {
+    key: 'payments.currency',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'changing it to JPY changes the money edit buffer for a Cents field from a two-decimal major-units string to a whole-number one with no decimal point, proving the conversion is genuinely currency-aware rather than hardcoded to USD',
+  },
+  {
+    key: 'payments.cvvHandling',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: "cycling from 'stored' to 'prompt' surfaces the SDK's exact CVV_PROMPT_TRADEOFF_WARNING string as the setting-effect message and in the rendered context panel; cycling back to 'stored' clears it and the description text remains the only place the topic is mentioned",
+  },
+  {
+    key: 'daemon.timezone',
+    test: 'src/test/input/daemon-settings-actions.test.ts',
+    asserts: "selecting a real IANA zone from the picker writes that exact zone name; selecting the explicit UTC (unset) row writes '' rather than leaving free text entry as an option",
+  },
+
   // NOT COVERED, deliberately: device.nodes.maxPaired. The key is declared in
   // schema-domain-device.ts and associated with the paired-device feature in
   // flag-config-map.ts, but nothing reads it — no pairing path bounds the number of

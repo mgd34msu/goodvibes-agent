@@ -1,5 +1,10 @@
 import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { ModelPickerTarget } from './model-picker.ts';
+import {
+  formatMinorUnitsForEdit,
+  isMoneyMinorUnitsConfigKey,
+  parseMajorUnitsToMinorUnits,
+} from '../config/payments-money-format.ts';
 
 export type ModelPickerLaunch =
   | { readonly flow: 'providerModel'; readonly target: ModelPickerTarget }
@@ -31,4 +36,30 @@ export function getNumericAdjustmentMeta(setting: ConfigSetting): {
   precision: number;
 } {
   return { step: 1, precision: 0 };
+}
+
+/**
+ * The inline-edit buffer's starting text for a number setting. A
+ * `payments.*Cents` key shows major units ("19.99") so typing "50" over it
+ * means fifty dollars, not fifty cents; every other number setting keeps its
+ * raw stored value.
+ */
+export function moneyEditBufferValue(setting: ConfigSetting, currentValue: unknown, currency: string): string {
+  if (isMoneyMinorUnitsConfigKey(setting.key) && typeof currentValue === 'number') {
+    return formatMinorUnitsForEdit(currentValue, currency);
+  }
+  return String(currentValue ?? '');
+}
+
+/**
+ * Parse a committed number-setting edit buffer. `payments.*Cents` keys parse
+ * as major units and convert to integer minor units; every other number
+ * setting parses as a plain number. Returns null for anything unparseable.
+ */
+export function parseMoneyOrNumberEditBuffer(setting: ConfigSetting, buffer: string, currency: string): number | null {
+  if (isMoneyMinorUnitsConfigKey(setting.key)) {
+    return parseMajorUnitsToMinorUnits(buffer, currency);
+  }
+  const parsed = Number(buffer);
+  return Number.isNaN(parsed) ? null : parsed;
 }

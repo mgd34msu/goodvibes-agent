@@ -71,7 +71,8 @@ export type SettingsCategory =
   | 'voice'
   | 'device'
   | 'cluster'
-  | 'memory';
+  | 'memory'
+  | 'payments';
 
 export type SettingsFocusPane = 'categories' | 'settings';
 
@@ -104,7 +105,15 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   readonly label: string;
   readonly categories: readonly SettingsCategory[];
 }> = [
-  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power'] },
+  // `payments` sits here rather than under "Daemon Runtime": every other key in
+  // that group is transport, binding, or coordination plumbing with nothing for
+  // the owner to weigh, while a purchase budget, shipping preference and CVV
+  // trade-off are decisions he makes about the Agent's behavior, same as
+  // `policy` and `permissions` beside it. It is daemon-owned (config-ownership.ts)
+  // for the same reason `cluster` is: the daemon holds the card and charges it,
+  // but that is a routing fact about where the write lands, not a reason to file
+  // it away from the settings he actually thinks about.
+  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power', 'payments'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'device', 'mcp', 'automation', 'checkin', 'integrations'] },
