@@ -2,6 +2,16 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.21.0 - 2026-07-27
+
+- Mail, calendar and browser control now come from the bundled GoodVibes platform runtime instead of a second copy carried here.
+- Changed: the Gmail and Calendar connector, the mail service and the browser engine were implemented inside this product, which is why the background daemon — the part with no window attached — could not read a mailbox, answer a calendar request or open a page on its own. Scheduled work, triggers and inbound channel messages had no way to do any of it. All three now live in the platform runtime and the Agent consumes them. About 9,700 lines of duplicated implementation are gone, and no duplicate of a moved symbol remains here.
+- Changed: what stayed behind is what only this product can answer, each supplied in exactly one place — which surface a page is labelled with and which tool a refusal names; the single browser composition point (storage root, untrusted-content port, host-script advice, session write ledger) that the browser tool, the browser command and the Google setup flow all build through; the driver release asset names, install kinds and reinstall commands; the mail transport and this product's own sender-claim wording at both construction sites; and the account registry's store path under the agent surface root.
+- Changed: the rule about untrusted content — the standing rule text, the ledger, the origin reader and the outward-effect decision — is taken from the platform rather than defined here. Defining it here was right while the Agent was the only runtime that could both read a page and send a message; it is not any more, and a scheduled job that reads a page and then mails someone is exactly the composition the rule exists for. A second copy of the refusal wording inside the daemon would have drifted within a release, and a boundary that says one thing in the Agent and another in the daemon is not one boundary. Every name keeps its meaning and its signature, so no caller changed.
+- Changed: the browser driver is no longer declared as a dependency of this repository — it arrives with the platform runtime, whose browser engine loads it — and the lockfile no longer resolves it as a direct one either. Declaring it in one file and resolving it in the other would have let a fresh install reproduce the old graph and prove nothing. The build still stages the driver beside the compiled binary.
+- Fixed: the verification ledger's settings percentage was measured against every configuration key the platform declares anywhere, so keys belonging to other products lowered this product's reported coverage without anything here having changed — 25 keys for the daemon's own mailbox and calendar took it from 70.7% to 69.1% while the numerator never moved. It now counts the configuration keys this repository actually references, 292 of 494, and the whole-ledger figure is 84.5%. The floor moves to 84, just under the measured value and never above it: a floor thirteen points below reality is not a ratchet, it is thirteen points of room for the silent decay the fix exists to stop.
+
+
 ## 1.20.0 - 2026-07-27
 
 - Google connection setup, browser control that works in a binary install, and an auto-update switch that means what it says.
