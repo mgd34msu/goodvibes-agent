@@ -30,6 +30,7 @@
  *     treats reaching "In production" as a first-class, verified step.
  */
 
+import { buildGoodVibesSecretKey } from '../../config/secret-config.ts';
 import type { GoogleSetupStepSpec, GoogleStepId, GoogleSetupPath } from './google-setup-types.ts';
 
 /** Where the human creates an app password. Requires 2-Step Verification. */
@@ -108,14 +109,29 @@ export const GOOGLE_CONFIG_KEYS = {
   oauthClientSecretRef: 'calendar.google.clientSecretRef',
   oauthProjectId: 'google.oauth.projectId',
   oauthPublishingStatus: 'google.oauth.publishingStatus',
+  oauthRefreshToken: 'google.oauth.refreshToken',
+  calendarIcsUrl: 'calendar.google.icsUrl',
 } as const;
 
 /** Secret-store keys. Values live only in the encrypted store. */
+/**
+ * Secret-store names, DERIVED from the config paths above rather than written
+ * out by hand.
+ *
+ * The derivation is the platform-wide one, and matching it is load-bearing
+ * rather than cosmetic: the daemon decides which credentials it owns — and
+ * therefore which replicate to another node — by deriving names from
+ * daemon-owned config paths the same way. A hand-written name like
+ * `goodvibes.email.passwordRef` matches nothing that derivation produces, so
+ * the credential would silently sit outside daemon ownership and fail to
+ * follow a handover. The symptom would be email going quiet on the node that
+ * took over, with nothing in the logs to explain it.
+ */
 export const GOOGLE_SECRET_KEYS = {
-  appPassword: 'goodvibes.email.passwordRef',
-  oauthClientSecret: 'goodvibes.calendar.google.clientSecretRef',
-  oauthRefreshToken: 'goodvibes.google.oauth.refreshToken',
-  calendarIcsUrl: 'goodvibes.calendar.google.icsUrl',
+  appPassword: buildGoodVibesSecretKey(GOOGLE_CONFIG_KEYS.emailPasswordRef),
+  oauthClientSecret: buildGoodVibesSecretKey(GOOGLE_CONFIG_KEYS.oauthClientSecretRef),
+  oauthRefreshToken: buildGoodVibesSecretKey(GOOGLE_CONFIG_KEYS.oauthRefreshToken),
+  calendarIcsUrl: buildGoodVibesSecretKey(GOOGLE_CONFIG_KEYS.calendarIcsUrl),
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -177,7 +193,7 @@ const APP_PASSWORD_STEPS: readonly GoogleSetupStepSpec[] = [
       `In the "App name" box type: ${APP_PASSWORD_LABEL}`,
       'Click "Create".',
       'Google shows a 16-character password in a yellow box. Copy it. You cannot see it again after closing the dialog.',
-      'Store it with: goodvibes-agent secret set goodvibes.email.passwordRef',
+      'Store it with: goodvibes-agent secret set GOODVIBES_EMAIL_PASSWORD_REF',
     ],
     requires: ['two-step-verification'],
   },
@@ -226,7 +242,7 @@ const APP_PASSWORD_STEPS: readonly GoogleSetupStepSpec[] = [
       'In the left panel under "Settings for my calendars", click the calendar you want.',
       'Click "Integrate calendar".',
       'Under "Secret address in iCal format", click the copy button.',
-      'Store it with: goodvibes-agent secret set goodvibes.calendar.google.icsUrl',
+      'Store it with: goodvibes-agent secret set GOODVIBES_CALENDAR_GOOGLE_ICS_URL',
       'Treat this URL as a password — anyone holding it can read your calendar.',
     ],
     requires: ['google-signed-in'],
@@ -358,7 +374,7 @@ const OAUTH_STEPS: readonly GoogleSetupStepSpec[] = [
       'A dialog shows the Client ID and Client secret. Copy both.',
       'Store them with:',
       '  goodvibes-agent config set calendar.google.clientId <CLIENT_ID>',
-      '  goodvibes-agent secret set goodvibes.calendar.google.clientSecretRef',
+      '  goodvibes-agent secret set GOODVIBES_CALENDAR_GOOGLE_CLIENT_SECRET_REF',
     ],
     requires: ['oauth-audience-production'],
   },

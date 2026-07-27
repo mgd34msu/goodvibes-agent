@@ -123,7 +123,7 @@ A note on calendar, because it is the one place this path is narrower than it lo
 2. In the "App name" box type: goodvibes-agent
 3. Click "Create".
 4. Google shows a 16-character password in a yellow box. Copy it. You cannot see it again after closing the dialog.
-5. Store it with: goodvibes-agent secret set goodvibes.email.passwordRef
+5. Store it with: goodvibes-agent secret set GOODVIBES_EMAIL_PASSWORD_REF
 
 ### 5. Pointing the mail surface at Gmail
 
@@ -174,7 +174,7 @@ A note on calendar, because it is the one place this path is narrower than it lo
 2. In the left panel under "Settings for my calendars", click the calendar you want.
 3. Click "Integrate calendar".
 4. Under "Secret address in iCal format", click the copy button.
-5. Store it with: goodvibes-agent secret set goodvibes.calendar.google.icsUrl
+5. Store it with: goodvibes-agent secret set GOODVIBES_CALENDAR_GOOGLE_ICS_URL
 6. Treat this URL as a password — anyone holding it can read your calendar.
 
 ### 8. Reading calendar events
@@ -324,7 +324,7 @@ The practical consequence: if you skip the publishing-status step, this integrat
 6. A dialog shows the Client ID and Client secret. Copy both.
 7. Store them with:
 8.   goodvibes-agent config set calendar.google.clientId <CLIENT_ID>
-9.   goodvibes-agent secret set goodvibes.calendar.google.clientSecretRef
+9.   goodvibes-agent secret set GOODVIBES_CALENDAR_GOOGLE_CLIENT_SECRET_REF
 
 ### 8. Authorizing the agent
 
