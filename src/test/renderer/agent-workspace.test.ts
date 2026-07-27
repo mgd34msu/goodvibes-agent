@@ -2253,26 +2253,78 @@ describe('renderAgentWorkspace', () => {
   });
 });
 
-describe('a pane that runs out of room says so', () => {
-  test('a long action result ends in a count of the lines it could not show', () => {
-    // Silent truncation is the failure: a report that continued looked exactly
-    // like a report that had ended, so a person acted on a partial answer.
+describe('a long action result is reachable, never clipped', () => {
+  function longResultWorkspace(lines: number) {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);
     workspace.lastActionResult = {
       kind: 'refreshed',
       title: 'Google connection',
-      detail: Array.from({ length: 60 }, (_, index) => `report line ${String(index)}`).join('\n'),
+      detail: Array.from({ length: lines }, (_, index) => `report line ${String(index)}`).join('\n'),
       safety: 'read-only',
     };
+    return workspace;
+  }
 
-    const output = text(renderAgentWorkspace(workspace, 120, 24));
+  test('the first lines are shown with a way to reach the rest', () => {
+    // The ruling this guards: no surface ships too small for its complete text.
+    // The pane cannot grow, so it must scroll — and it must say that it can.
+    const workspace = longResultWorkspace(60);
 
-    expect(output).toContain('more line(s) not shown');
-    expect(output).toContain('the pane ran out of room');
+    const output = text(renderAgentWorkspace(workspace, 120, 60));
+
+    expect(output).toContain('report line 0');
+    expect(output).toContain('more line(s) below');
+    expect(output).toContain('PageDown');
   });
 
-  test('a result that fits carries no such marker', () => {
+  test('scrolling reaches lines the first screen could not show', () => {
+    const workspace = longResultWorkspace(60);
+    const before = text(renderAgentWorkspace(workspace, 120, 60));
+    expect(before).not.toContain('report line 59');
+
+    // Page down until the end is reached; the offset clamps, so this terminates.
+    for (let page = 0; page < 40; page += 1) {
+      workspace.scrollActionResult(5);
+      renderAgentWorkspace(workspace, 120, 60);
+    }
+    const after = text(renderAgentWorkspace(workspace, 120, 60));
+
+    expect(after).toContain('report line 59');
+    expect(after).toContain('more line(s) above');
+    expect(after).toContain('PageUp');
+  });
+
+  test('a new result rewinds the scroll to its first line', () => {
+    const workspace = longResultWorkspace(60);
+    for (let page = 0; page < 6; page += 1) {
+      workspace.scrollActionResult(5);
+      renderAgentWorkspace(workspace, 120, 60);
+    }
+    expect(workspace.resultScroll).toBeGreaterThan(0);
+
+    workspace.lastActionResult = {
+      kind: 'refreshed',
+      title: 'Another result',
+      detail: 'A short answer.',
+      safety: 'safe',
+    };
+    const output = text(renderAgentWorkspace(workspace, 120, 60));
+
+    expect(workspace.resultScroll).toBe(0);
+    expect(output).toContain('A short answer.');
+  });
+
+  test('the action list keeps room even when the result is enormous', () => {
+    const workspace = longResultWorkspace(500);
+
+    const output = text(renderAgentWorkspace(workspace, 120, 60));
+
+    // The person must still be able to see and pick the next card.
+    expect(output).toContain('Just start typing');
+  });
+
+  test('a result that fits carries no scroll markers', () => {
     const workspace = new AgentWorkspace();
     workspace.open(commandContext(), () => undefined);
     workspace.lastActionResult = {
@@ -2284,6 +2336,7 @@ describe('a pane that runs out of room says so', () => {
 
     const output = text(renderAgentWorkspace(workspace, 120, 60));
 
-    expect(output).not.toContain('more line(s) not shown');
+    expect(output).not.toContain('more line(s) below');
+    expect(output).not.toContain('more line(s) above');
   });
 });

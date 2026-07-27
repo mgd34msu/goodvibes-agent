@@ -1,6 +1,9 @@
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import type { AgentWorkspace } from './agent-workspace.ts';
 
+/** Lines per PageUp/PageDown in the action-result block. */
+const RESULT_SCROLL_STEP = 5;
+
 export function handleAgentWorkspaceToken(
   workspace: AgentWorkspace,
   token: InputToken,
@@ -41,7 +44,12 @@ export function handleAgentWorkspaceToken(
       handleEscape();
       return true;
     }
-    if (token.ctrl === true && token.logicalName === ']') workspace.cycleCategory('next');
+    // A long action result scrolls rather than being cut off. These keys reach
+    // the workspace already — they were consumed and did nothing — so binding
+    // them here takes nothing away from the transcript scroll behind the modal.
+    if (token.logicalName === 'pageup') workspace.scrollActionResult(-RESULT_SCROLL_STEP);
+    else if (token.logicalName === 'pagedown') workspace.scrollActionResult(RESULT_SCROLL_STEP);
+    else if (token.ctrl === true && token.logicalName === ']') workspace.cycleCategory('next');
     else if (token.ctrl === true && token.logicalName === '[') workspace.cycleCategory('prev');
     else if (token.logicalName === 'enter' || token.logicalName === 'space') workspace.activateSelected(requestRender);
     else if (token.logicalName === 'left') workspace.focusCategories();

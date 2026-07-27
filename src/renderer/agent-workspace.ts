@@ -18,6 +18,29 @@ import {
   WORKSPACE_PALETTE as PALETTE,
   type WorkspaceRow,
 } from './fullscreen-workspace.ts';
+import {
+  buildActionResultRows,
+  reserveForResult,
+  settleResultScroll,
+  windowResultRows,
+} from './agent-workspace-result-rows.ts';
+
+/**
+ * Rows the actions pane spends on things that are not action items or result
+ * lines: its column header, the blank separator, the status line, and the two
+ * possible more-above/more-below markers. Counted so the split does not promise
+ * the result room that the chrome has already taken — getting this wrong is
+ * what let the result be squeezed out of a short pane entirely.
+ */
+const ACTION_CHROME_ROWS = 5;
+
+/** The subset of the workspace palette the result block draws with. */
+const RESULT_PALETTE = {
+  text: PALETTE.text,
+  good: PALETTE.good,
+  muted: PALETTE.muted,
+  dim: PALETTE.dim,
+};
 import { actionResultColor, type AgentWorkspaceContextLine as ContextLine } from './agent-workspace-style.ts';
 import { compactText, reviewerReadinessContextLines, snapshotLines } from './agent-workspace-context-lines.ts';
 import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, ONBOARDING_CRITICAL_STEP_IDS } from '../input/agent-workspace-onboarding-finish.ts';
@@ -604,7 +627,31 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   const allActions = workspace.actions;
   const finishActionIndex = allActions.findIndex((a) => a.id === ONBOARDING_COMPLETE_SYNTHETIC_ACTION.id);
 
-  const visible = Math.max(1, height - (workspace.actionSearchActive ? 3 : 2));
+  // The result block is measured before the action list is windowed, so the
+  // list gives up the room the result needs instead of the result being cut off
+  // the bottom. Anything the result still cannot fit is reachable by scrolling.
+  const chromeRows = workspace.actionSearchActive ? 3 : 2;
+  const resultRows = workspace.lastActionResult
+    ? buildActionResultRows(workspace.lastActionResult, {
+      onboarding,
+      width,
+      titleColor: actionResultColor(workspace.lastActionResult),
+      palette: RESULT_PALETTE,
+      moreAbove: GLYPHS.navigation.moreAbove,
+      moreBelow: GLYPHS.navigation.moreBelow,
+    })
+    : [];
+  // Rows the action list and the result share, once the pane's own headers, the
+  // blank separator, the status line and the two possible action markers are
+  // paid for. Reserving out of this — rather than out of the raw height — is
+  // what stops the reservation promising room the chrome has already spent.
+  const usableRows = Math.max(0, height - ACTION_CHROME_ROWS);
+  const reservedForResult = reserveForResult(resultRows.length, usableRows);
+  const resultScroll = settleResultScroll(workspace, workspace.lastActionResult, resultRows.length, reservedForResult);
+
+  const visible = reservedForResult > 0
+    ? Math.max(1, height - ACTION_CHROME_ROWS - reservedForResult)
+    : Math.max(1, height - chromeRows);
   const window = stableWindow(allActions.length, workspace.selectedActionIndex, visible);
   if (window.start > 0) rows.push({ text: `${GLYPHS.navigation.moreAbove} ${window.start} more action(s) above`, kind: 'more', fg: PALETTE.dim, dim: true });
 
@@ -668,43 +715,21 @@ function buildActionRows(workspace: AgentWorkspace, width: number, height: numbe
   if (window.end < allActions.length) rows.push({ text: `${GLYPHS.navigation.moreBelow} ${allActions.length - window.end} more action(s) below`, kind: 'more', fg: PALETTE.dim, dim: true });
   rows.push({ text: '' });
   rows.push({ text: `Status: ${workspace.status}`, fg: PALETTE.muted });
-  if (workspace.lastActionResult) {
-    rows.push({ text: '' });
-    rows.push({ text: `${onboarding ? 'Result' : 'Action Result'}: ${workspace.lastActionResult.title}`, fg: actionResultColor(workspace.lastActionResult), bold: true });
-    // For recap results, skip the detail body — the checkmarked lines below carry
-    // the full content. Rendering detail AND lines would duplicate every line.
-    if (workspace.lastActionResult.kind !== 'recap') {
-      for (const line of wrapText(workspace.lastActionResult.detail, Math.max(1, width - 2))) {
-        rows.push({ text: `  ${line}`, fg: PALETTE.text });
-      }
-    }
-    if (workspace.lastActionResult.kind === 'recap' && workspace.lastActionResult.lines?.length) {
-      rows.push({ text: '' });
-      for (const line of workspace.lastActionResult.lines) {
-        rows.push({ text: `  ✔ ${line}`, fg: PALETTE.good });
-      }
-    }
-    if (!onboarding && workspace.lastActionResult.command) {
-      rows.push({ text: `  Command: ${workspace.lastActionResult.command}`, fg: PALETTE.muted });
-    }
+  // `reservedForResult` shrank the action window; this is what is actually left
+  // once the headers, markers and status line have taken their rows. Windowing
+  // against the real remainder is what keeps the total within the pane, so the
+  // final slice can never be the thing that cuts the result.
+  const availableForResult = Math.max(0, height - rows.length);
+  for (const row of windowResultRows(resultRows, availableForResult, resultScroll, {
+    palette: RESULT_PALETTE,
+    moreAbove: GLYPHS.navigation.moreAbove,
+    moreBelow: GLYPHS.navigation.moreBelow,
+  })) {
+    rows.push(row as WorkspaceRow);
   }
 
   while (rows.length < height) rows.push({ text: '', kind: 'empty' });
-
-  // A pane that runs out of height used to just stop mid-result. The action
-  // list already declares how many entries are below it; the rows after it — a
-  // multi-line action result, most of all — were cut with nothing said, so a
-  // report that continued looked exactly like a report that had ended. Say how
-  // much is missing instead, in the last line the pane can show.
-  if (rows.length > height) {
-    const visible = rows.slice(0, Math.max(1, height - 1));
-    const hidden = rows.length - visible.length;
-    return [
-      ...visible,
-      { text: `${GLYPHS.navigation.moreBelow} ${hidden} more line(s) not shown — the pane ran out of room`, kind: 'more', fg: PALETTE.dim, dim: true },
-    ];
-  }
-  return rows;
+  return rows.slice(0, height);
 }
 
 function footerText(workspace: AgentWorkspace): string {

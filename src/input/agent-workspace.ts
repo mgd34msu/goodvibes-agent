@@ -23,6 +23,7 @@ import { agentWorkspaceSettingSchema, applyAgentWorkspaceSettingValue, buildAgen
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
 import { syncAgentWorkspaceLiveCounters } from './agent-workspace-live-counters.ts';
 import { trySubmitDirectHostActionEditor } from './agent-workspace-direct-editor-submission.ts';
+import { submitAgentWorkspaceLocalDeleteEditor, submitAgentWorkspaceMemoryDeleteEditor, type AgentWorkspaceDeleteSubmissionHost } from './agent-workspace-delete-submission.ts';
 import type { AgentWorkspaceAction, AgentWorkspaceActionResult, AgentWorkspaceActionSearchResult, AgentWorkspaceCategory, AgentWorkspaceCategoryGroup, AgentWorkspaceCommandDispatcher, AgentWorkspaceEditorField, AgentWorkspaceFocusPane, AgentWorkspaceLocalEditor, AgentWorkspaceLocalEditorKind, AgentWorkspaceLocalLibraryItem, AgentWorkspaceLocalOperation, AgentWorkspacePromptDispatcher, AgentWorkspaceRuntimeSnapshot } from './agent-workspace-types.ts';
 import { ONBOARDING_COMPLETE_SYNTHETIC_ACTION, shouldShowOnboardingFinishFooter } from './agent-workspace-onboarding-finish.ts';
 import { completeOnboardingAction, onSubscriptionLoginSuccessAction } from './agent-workspace-onboarding-actions.ts';
@@ -46,6 +47,9 @@ export class AgentWorkspace {
   public localEditor: AgentWorkspaceLocalEditor | null = null;
   public actionSearchActive = false;
   public actionSearchQuery = '';
+  /** Scroll offset into the action-result block, and the result it belongs to. */
+  public resultScroll = 0;
+  public resultScrollFor: AgentWorkspaceActionResult | null = null;
   public readonly selectedLibraryItemIndexes: AgentWorkspaceLocalSelectionIndexes = { memory: 0, note: 0, persona: 0, skill: 0, routine: 0, profile: 0 };
   private context: CommandContext | null = null;
   private dispatchCommand: AgentWorkspaceCommandDispatcher | null = null;
@@ -197,6 +201,11 @@ export class AgentWorkspace {
 
   toggleFocusPane(): void {
     this.focusPane = this.focusPane === 'categories' ? 'actions' : 'categories';
+  }
+
+  /** Scroll the action-result block; the renderer clamps and resets it. */
+  scrollActionResult(delta: number): void {
+    this.resultScroll = Math.max(0, this.resultScroll + delta);
   }
 
   moveUp(): void { moveAgentWorkspaceSelection(this, -1); }
@@ -647,52 +656,30 @@ export class AgentWorkspace {
   }
 
   private submitLocalDeleteEditor(shellPaths: ShellPathService, editor: AgentWorkspaceLocalEditor): void {
-    const expectedId = editor.recordId ?? '';
-    const confirmedId = this.editorField('confirm');
-    if (!expectedId || confirmedId !== expectedId) {
-      this.localEditor = {
-        ...editor,
-        message: `Deletion not confirmed. Type ${expectedId} exactly, then press Enter.`,
-      };
-      this.status = 'Deletion not confirmed.';
-      return;
-    }
-    if (editor.kind === 'memory') {
-      const removed = this.memoryApi().delete(expectedId);
-      if (!removed) throw new Error(`Unknown Agent memory ${expectedId}`);
-      this.finishLocalDelete(editor.kind, expectedId, expectedId);
-    } else if (editor.kind === 'persona') {
-      const removed = AgentPersonaRegistry.fromShellPaths(shellPaths).deletePersona(expectedId);
-      this.finishLocalDelete(editor.kind, removed.id, removed.name);
-    } else if (editor.kind === 'note') {
-      const removed = AgentNoteRegistry.fromShellPaths(shellPaths).deleteNote(expectedId);
-      this.finishLocalDelete(editor.kind, removed.id, removed.title);
-    } else if (editor.kind === 'skill') {
-      const removed = AgentSkillRegistry.fromShellPaths(shellPaths).deleteSkill(expectedId);
-      this.finishLocalDelete(editor.kind, removed.id, removed.name);
-    } else if (editor.kind === 'routine') {
-      const removed = AgentRoutineRegistry.fromShellPaths(shellPaths).deleteRoutine(expectedId);
-      this.finishLocalDelete(editor.kind, removed.id, removed.name);
-    } else {
-      throw new Error(`Unsupported delete editor kind ${editor.kind}`);
-    }
+    submitAgentWorkspaceLocalDeleteEditor(this.deleteHost(), shellPaths, editor);
   }
 
   private submitMemoryDeleteEditor(editor: AgentWorkspaceLocalEditor): void {
-    const expectedId = editor.recordId ?? '';
-    const confirmedId = this.editorField('confirm');
-    const removed = deleteAgentWorkspaceMemoryEditor(editor, confirmedId, this.memoryApi());
-    if (!removed) {
-      this.localEditor = {
-        ...editor,
-        message: `Deletion not confirmed. Type ${expectedId} exactly, then press Enter.`,
-      };
-      this.status = 'Deletion not confirmed.';
-      return;
-    }
-    this.finishLocalDelete('memory', removed.id, removed.name);
+    submitAgentWorkspaceMemoryDeleteEditor(this.deleteHost(), editor);
   }
 
+  /**
+   * The narrow surface the delete submitters need. The accessors write straight
+   * back to this workspace, so an extracted submitter still refuses and reports
+   * exactly where the inline one did.
+   */
+  private deleteHost(): AgentWorkspaceDeleteSubmissionHost {
+    const workspace = this;
+    return {
+      get localEditor() { return workspace.localEditor; },
+      set localEditor(value: AgentWorkspaceLocalEditor | null) { workspace.localEditor = value; },
+      get status() { return workspace.status; },
+      set status(value: string) { workspace.status = value; },
+      editorField: (id) => workspace.editorField(id),
+      memoryApi: () => workspace.memoryApi(),
+      finishLocalDelete: (kind, id, name) => { workspace.finishLocalDelete(kind, id, name); },
+    };
+  }
   private async submitMemoryEditor(editor: AgentWorkspaceLocalEditor): Promise<void> {
     try {
       this.status = 'Saving Agent memory...';
