@@ -386,7 +386,7 @@ const OAUTH_STEPS: readonly GoogleSetupStepSpec[] = [
       'Exchanges a one-time consent for a long-lived refresh token, which is what the agent actually uses from then on. Before it opens: Google will show a red "Google hasn\'t verified this app" warning. That is expected here and is not a sign anything is wrong — the app is one you just created in your own Google Cloud account, and you are its only user, so there is nobody for Google to have verified it for. You will click "Advanced", then "Go to goodvibes agent (unsafe)". This happens once.',
     actor: 'human-assisted',
     manualSteps: [
-      'goodvibes-agent setup-google --path oauth',
+      '/google setup --path oauth',
       'A browser opens on a Google consent screen.',
       'Expect a red warning screen saying "Google hasn\'t verified this app". This is normal for an app you created yourself and are the only user of — there is no third party for Google to have verified it on behalf of.',
       'Because the app is self-certified rather than Google-verified, you will see "Google hasn\'t verified this app". Click "Advanced", then "Go to goodvibes agent (unsafe)". This is expected for a personal install and only happens once.',
@@ -403,7 +403,7 @@ const OAUTH_STEPS: readonly GoogleSetupStepSpec[] = [
       'Confirms the refresh token works by making a real API call, and re-reads the publishing status so a seven-day-expiry credential is reported loudly instead of discovered a week later.',
     actor: 'automated',
     manualSteps: [
-      'goodvibes-agent setup-google --path oauth --check',
+      '/google status',
       'A successful run reports the account it connected as and the publishing status.',
       'If publishing status reads "Testing", go back to the audience page and publish the app, then authorize again — the existing token still expires.',
     ],

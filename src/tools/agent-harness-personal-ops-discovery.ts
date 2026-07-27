@@ -385,7 +385,7 @@ export function inboxWorkflows(methodIds: readonly string[], connectors: readonl
   const degradedAdNote = unavailableMethodsNote(unavailableMethodIds);
   const setupPrerequisite = status === 'needs-setup'
     ? [
-      'Install or configure an email-capable daemon method, MCP server, or plugin first.',
+      'Connect a Google account first with /google setup, or take up credentials already on this machine with /google adopt.',
       ...(degradedAdNote ? [degradedAdNote] : []),
     ]
     : status === 'attention'
@@ -441,7 +441,7 @@ export function calendarWorkflows(methodIds: readonly string[], connectors: read
   const degradedAdNote = unavailableMethodsNote(unavailableMethodIds);
   const setupPrerequisite = status === 'needs-setup'
     ? [
-      'Install or configure a calendar-capable daemon method, CalDAV MCP server, or plugin first.',
+      'Connect a Google account first with /google setup, or subscribe to a calendar feed with /calendar subscribe.',
       ...(degradedAdNote ? [degradedAdNote] : []),
     ]
     : status === 'attention'

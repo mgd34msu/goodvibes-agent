@@ -5,7 +5,7 @@
 ## Just run this
 
 ```
-goodvibes-agent setup-google
+/google setup
 ```
 
 It reports what it is doing at every step, stops and names exactly what to click when it needs you, and picks up where it left off if you re-run it. Nothing is done twice.
@@ -13,13 +13,13 @@ It reports what it is doing at every step, stops and names exactly what to click
 For the full-API path:
 
 ```
-goodvibes-agent setup-google --path oauth
+/google setup --path oauth
 ```
 
 To see what is already connected without changing anything:
 
 ```
-goodvibes-agent setup-google --check
+/google status
 ```
 
 ## Which path do I want?
@@ -336,7 +336,7 @@ The practical consequence: if you skip the publishing-status step, this integrat
 
 **By hand:**
 
-1. goodvibes-agent setup-google --path oauth
+1. /google setup --path oauth
 2. A browser opens on a Google consent screen.
 3. Expect a red warning screen saying "Google hasn't verified this app". This is normal for an app you created yourself and are the only user of — there is no third party for Google to have verified it on behalf of.
 4. Because the app is self-certified rather than Google-verified, you will see "Google hasn't verified this app". Click "Advanced", then "Go to goodvibes agent (unsafe)". This is expected for a personal install and only happens once.
@@ -353,7 +353,7 @@ The practical consequence: if you skip the publishing-status step, this integrat
 
 **By hand:**
 
-1. goodvibes-agent setup-google --path oauth --check
+1. /google status
 2. A successful run reports the account it connected as and the publishing status.
 3. If publishing status reads "Testing", go back to the audience page and publish the app, then authorize again — the existing token still expires.
 

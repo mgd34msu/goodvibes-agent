@@ -241,13 +241,13 @@ export class GoogleApiClient {
     if (status === 403 && /insufficient|scope/i.test(message)) {
       return {
         problem: `Google refused the request because the credential lacks the required permission: ${message}`,
-        fix: 'Re-authorize with the needed scope: goodvibes-agent setup-google --path oauth',
+        fix: 'Re-authorize with the needed scope: /google setup --path oauth',
       };
     }
     if (status === 403 && /disabled|not been used/i.test(message)) {
       return {
         problem: `The required Google API is not enabled for this project: ${message}`,
-        fix: 'Enable it, then retry: goodvibes-agent setup-google --path oauth',
+        fix: 'Enable it, then retry: /google setup --path oauth',
       };
     }
     if (status === 429) {
@@ -258,7 +258,7 @@ export class GoogleApiClient {
     }
     return {
       problem: message.length > 0 ? `Google returned ${status}: ${message}` : `Google returned HTTP ${status}.`,
-      fix: 'If this persists, re-authorize: goodvibes-agent setup-google',
+      fix: 'If this persists, re-authorize: /google setup',
     };
   }
 

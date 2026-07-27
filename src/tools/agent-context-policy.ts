@@ -202,7 +202,7 @@ function buildAgentCapabilitiesContract(registry?: ToolRegistry): Record<string,
       },
     ],
     needsSetupOrIntegration: [
-      'Email inbox triage and replies are not a built-in advertised Agent tool in this package; they require a configured plugin, MCP server, or channel/service connector that exposes inbox and send/reply actions.',
+      'Email and calendar are built in: the google tool reads and sends Gmail and reads and writes Google Calendar once an account is connected with /google setup, or credentials already on this machine are taken up with /google adopt. No MCP server or plugin is involved.',
       'New third-party service signup/account creation is not a built-in autonomous flow. The Agent can help fill instructions and run explicit tools, but it should not use local personal information to create accounts without a user-owned integration and confirmation path.',
       'Long-running autonomous operation requires an explicit schedule, routine, automation, research run, or connected-host route visible in the autonomy queue. The main conversation does not silently create hidden background jobs.',
       'New capabilities can come from installed plugins, MCP servers, configured services, or code changes; the Agent should inspect what is installed before claiming a capability exists.',

@@ -95,7 +95,7 @@ export function renderGoogleSetupRunbook(): string {
   lines.push('## Just run this');
   lines.push('');
   lines.push('```');
-  lines.push('goodvibes-agent setup-google');
+  lines.push('/google setup');
   lines.push('```');
   lines.push('');
   lines.push(
@@ -105,13 +105,13 @@ export function renderGoogleSetupRunbook(): string {
   lines.push('For the full-API path:');
   lines.push('');
   lines.push('```');
-  lines.push('goodvibes-agent setup-google --path oauth');
+  lines.push('/google setup --path oauth');
   lines.push('```');
   lines.push('');
   lines.push('To see what is already connected without changing anything:');
   lines.push('');
   lines.push('```');
-  lines.push('goodvibes-agent setup-google --check');
+  lines.push('/google status');
   lines.push('```');
   lines.push('');
   lines.push('## Which path do I want?');
