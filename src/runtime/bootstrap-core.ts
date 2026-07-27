@@ -42,6 +42,7 @@ import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
 import { browserProfileRoot, browserScreenshotRoot } from '../browser/browser-sessions.ts';
 import { registerAgentBrowserTool } from '../tools/agent-browser-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
+import { registerAgentGoogleTool } from '../tools/agent-google-tool.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLearningConsolidationTool } from '../tools/agent-learning-consolidation-tool.ts';
@@ -353,6 +354,14 @@ export async function initializeBootstrapCore(
     screenshotDirectory: browserScreenshotRoot(services.shellPaths.homeDirectory),
     profileRoot: browserProfileRoot(services.shellPaths.homeDirectory),
     homeDirectory: services.shellPaths.homeDirectory,
+  });
+  // The native Gmail/Calendar route. The operator contract catalogs email.send
+  // and calendar.events.list with invokable:false — no daemon serves them — so
+  // this is the route the capability index points at.
+  registerAgentGoogleTool(toolRegistry, {
+    homeDirectory: services.shellPaths.homeDirectory,
+    configGet: (key: string) => (configManager as { get: (key: string) => unknown }).get(key),
+    secretGet: (key: string) => services.secretsManager.get(key),
   });
   registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);

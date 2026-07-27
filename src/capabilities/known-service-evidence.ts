@@ -42,7 +42,7 @@ export function mcpConfigLocations(homeDirectory: string, workingDirectory: stri
   ];
 }
 
-export function knownServiceEvidence(homeDirectory: string, workingDirectory = homeDirectory): readonly KnownServiceEvidence[] {
+export function knownServiceEvidence(homeDirectory: string, _workingDirectory = homeDirectory): readonly KnownServiceEvidence[] {
   const gmailMcpDirectory = join(homeDirectory, '.gmail-mcp');
   const googleCredentialPaths = [
     join(gmailMcpDirectory, 'credentials.json'),
@@ -50,13 +50,11 @@ export function knownServiceEvidence(homeDirectory: string, workingDirectory = h
     join(gmailMcpDirectory, 'google-workspace-credentials.json'),
     join(homeDirectory, '.config', 'gcloud', 'application_default_credentials.json'),
   ];
-  const mcpFiles = mcpConfigLocations(homeDirectory, workingDirectory);
   const googleFix = [
-    'These credentials belong to a Gmail MCP server, which this build does not read on its own.',
-    `Add that server to one of the MCP config files this product does read (${mcpFiles.join(', ')});`,
-    'its tools then become callable with mcp mode:"call".',
-    'The built-in mail feature is a separate path: configure email.smtpHost, email.username, email.passwordRef and email.fromAddress to use it.',
-    'Either one turns this from unavailable into usable.',
+    'These are Google credentials this build reads natively — no MCP server and no hand-made credential file is involved.',
+    'Take them up with: /google adopt',
+    'That copies them into the encrypted store and makes mail and calendar usable through the built-in google tool.',
+    'To connect a different account instead, run: /google setup',
   ].join(' ');
 
   const googleEvidence: readonly CapabilityProbe[] = [

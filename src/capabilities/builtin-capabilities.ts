@@ -2,7 +2,7 @@ import { join } from 'node:path';
 import { driverRemediation } from '../browser/browser-driver-remediation.ts';
 import { driverSearchDirectories } from '../browser/browser-provision-io.ts';
 import { registerCapability, registerFallbackCapability } from './capability-index.ts';
-import type { CapabilityDeclaration } from './capability-types.ts';
+import type { CapabilityDeclaration, CapabilityPrerequisite, CapabilityProbe } from './capability-types.ts';
 
 /**
  * The capabilities this build declares for itself.
@@ -69,90 +69,115 @@ function browserControl(options: BuiltinCapabilityOptions): CapabilityDeclaratio
 }
 
 /**
- * Email, described honestly for a build that cannot send it.
+ * The Google account, and what it makes possible.
  *
- * Every route is declared with the probe that would make it real, so the moment
- * one exists the index reports it without any other change. Until then the
- * answer names the specific missing piece rather than denying the capability
- * exists.
+ * These were placeholders describing a build that could not send mail. They
+ * declared their only route as the daemon operator method `email.send` — which
+ * the operator contract carries with `invokable: false`, meaning no daemon
+ * dispatch chain serves it. A capability whose sole route is permanently
+ * un-invokable resolves to `unavailable` before prerequisites are even read, so
+ * configuring a mailbox or adopting credentials moved nothing, and the owner
+ * was told email was "not wired into this build" while working credentials sat
+ * on disk.
+ *
+ * They now declare the route that is actually served: the in-process `google`
+ * tool, backed by the native connector. The prerequisite is a credential from
+ * either source the connector genuinely reads — its own encrypted store, or an
+ * existing install on this machine — so a machine that has one reports ready
+ * and a machine that has neither reports the one step that fixes it.
  */
-function emailSend(options: BuiltinCapabilityOptions): CapabilityDeclaration {
+
+/** The credential sources the connector actually reads, in the order it reads them. */
+function googleAccountProbe(options: BuiltinCapabilityOptions): CapabilityProbe {
   return {
-    id: 'email.send',
-    title: 'Send email',
-    summary: 'Send a message from the owner\'s mailbox.',
-    provider: 'goodvibes-agent built-in placeholder',
-    invocations: [
+    kind: 'any-of',
+    label: 'A connected Google account',
+    probes: [
       {
-        kind: 'operator-method',
-        toolName: 'host',
-        modelRoute: 'host action:"method" methodId:"email.send"',
-        availability: { kind: 'operator-method-served', methodId: 'email.send' },
+        kind: 'config-value-present',
+        key: 'calendar.google.clientId',
+        label: 'A Google account connected through the built-in setup',
       },
-    ],
-    prerequisites: [
-      {
-        id: 'email-account',
-        label: 'A configured mailbox',
-        probe: { kind: 'config-value-present', key: 'email.smtpHost', label: 'A configured mailbox' },
-        fix: 'Configure the built-in mail account (email.smtpHost, email.username, email.passwordRef, email.fromAddress), or connect an MCP server that provides mail tools.',
-      },
-    ],
-    configurationEvidence: [
-      { kind: 'config-value-present', key: 'email.smtpHost', label: 'A configured mailbox' },
       {
         kind: 'any-file-present',
         paths: [
-          join(options.homeDirectory, '.gmail-mcp', 'credentials.json'),
           join(options.homeDirectory, '.gmail-mcp', 'gcp-oauth.keys.json'),
+          join(options.homeDirectory, '.gmail-mcp', 'google-workspace-credentials.json'),
+          join(options.homeDirectory, '.gmail-mcp', 'credentials.json'),
         ],
-        label: 'Google account credentials',
-      },
-      // The Google connector's own evidence. This list exists to catch
-      // "credentials present, capability silent", and it knew only about the
-      // older gmail-mcp credential files — so an install connected through the
-      // built-in Google setup left no evidence here at all, which is the very
-      // state it was written to detect.
-      {
-        kind: 'config-value-present',
-        key: 'google.oauth.refreshToken',
-        label: 'A Google account connected through the built-in setup',
+        label: 'Google credentials already on this machine',
       },
     ],
   };
 }
 
-function calendarRead(): CapabilityDeclaration {
+const GOOGLE_ACCOUNT_FIX = 'Connect a Google account with: /google setup — or, if credentials from another tool are already on this machine, take them up with: /google adopt';
+
+function googlePrerequisite(options: BuiltinCapabilityOptions): CapabilityPrerequisite {
+  return {
+    id: 'google-account',
+    label: 'A connected Google account',
+    probe: googleAccountProbe(options),
+    fix: GOOGLE_ACCOUNT_FIX,
+  };
+}
+
+function emailSend(options: BuiltinCapabilityOptions): CapabilityDeclaration {
+  return {
+    id: 'email.send',
+    title: 'Send email',
+    summary: 'Send a message from the owner\'s mailbox.',
+    provider: 'goodvibes-agent built-in Google connector',
+    invocations: [
+      {
+        kind: 'model-tool',
+        toolName: 'google',
+        modelRoute: 'google action:"mail.send" to:"..." subject:"..." body:"..." confirm:true',
+        availability: { kind: 'model-tool-registered', toolName: 'google' },
+      },
+    ],
+    prerequisites: [googlePrerequisite(options)],
+    configurationEvidence: [googleAccountProbe(options)],
+  };
+}
+
+function emailRead(options: BuiltinCapabilityOptions): CapabilityDeclaration {
+  return {
+    id: 'email.read',
+    title: 'Read email',
+    summary: 'Read messages from the owner\'s mailbox.',
+    provider: 'goodvibes-agent built-in Google connector',
+    invocations: [
+      {
+        kind: 'model-tool',
+        toolName: 'google',
+        modelRoute: 'google action:"mail.list" query:"..."',
+        availability: { kind: 'model-tool-registered', toolName: 'google' },
+      },
+    ],
+    prerequisites: [googlePrerequisite(options)],
+    configurationEvidence: [googleAccountProbe(options)],
+  };
+}
+
+function calendarRead(options: BuiltinCapabilityOptions): CapabilityDeclaration {
   return {
     id: 'calendar.read',
     title: 'Read the calendar',
     summary: 'See what is on the owner\'s calendar.',
-    provider: 'goodvibes-agent built-in placeholder',
+    provider: 'goodvibes-agent built-in Google connector',
     invocations: [
       {
-        kind: 'operator-method',
-        toolName: 'host',
-        modelRoute: 'host action:"method" methodId:"calendar.events.list"',
-        availability: { kind: 'operator-method-served', methodId: 'calendar.events.list' },
+        kind: 'model-tool',
+        toolName: 'google',
+        modelRoute: 'google action:"calendar.list"',
+        availability: { kind: 'model-tool-registered', toolName: 'google' },
       },
     ],
-    prerequisites: [
-      {
-        id: 'calendar-account',
-        label: 'A connected calendar account',
-        probe: { kind: 'config-value-present', key: 'calendar.google.clientId', label: 'A connected calendar account' },
-        fix: 'Connect a calendar account (calendar.google.clientId and its client secret), or connect an MCP server that provides calendar tools.',
-      },
-    ],
+    prerequisites: [googlePrerequisite(options)],
     configurationEvidence: [
-      { kind: 'config-value-present', key: 'calendar.google.clientId', label: 'A connected calendar account' },
-      {
-        kind: 'config-value-present',
-        key: 'google.oauth.refreshToken',
-        label: 'A Google account connected through the built-in setup',
-      },
-      // A private ICS feed reads a calendar without OAuth at all, so an install
-      // set up that way is configured even with no client id.
+      googleAccountProbe(options),
+      // A private ICS feed reads a calendar without OAuth at all.
       {
         kind: 'config-value-present',
         key: 'calendar.google.icsUrl',
@@ -165,5 +190,6 @@ function calendarRead(): CapabilityDeclaration {
 export function registerBuiltinCapabilities(options: BuiltinCapabilityOptions): void {
   registerCapability(browserControl(options));
   registerFallbackCapability(emailSend(options));
-  registerFallbackCapability(calendarRead());
+  registerFallbackCapability(emailRead(options));
+  registerFallbackCapability(calendarRead(options));
 }

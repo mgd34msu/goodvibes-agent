@@ -75,7 +75,15 @@ export type CapabilityProbe =
     readonly searchDirectories?: readonly string[];
   }
   /** A configuration key holds a non-empty value. Values are never read out. */
-  | { readonly kind: 'config-value-present'; readonly key: string; readonly label: string };
+  | { readonly kind: 'config-value-present'; readonly key: string; readonly label: string }
+  /**
+   * Any one of several probes passes. Used where a capability has genuine
+   * alternatives — a credential in the agent's own store OR the same account
+   * already connected through another tool on this machine. Marking each
+   * alternative `optional` instead would mean none of them could block, so a
+   * capability with no credentials at all would report ready.
+   */
+  | { readonly kind: 'any-of'; readonly probes: readonly CapabilityProbe[]; readonly label: string };
 
 export interface CapabilityPrerequisite {
   readonly id: string;
