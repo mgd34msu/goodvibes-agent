@@ -38,6 +38,9 @@ import {
   originOf,
 } from '../trust/untrusted-content.ts';
 import type { GoogleApiFailure, GoogleApiResult } from '../agent/google/google-api-client.ts';
+import { getSessionExpectationBook } from '../agent/signup/session-expectations.ts';
+import { deliveryEvidenceFromMessage, describeDeliveryEvidence } from '../agent/signup/delivery-evidence.ts';
+import { extractVerification } from '../agent/signup/verification-expectations.ts';
 
 const GOOGLE_ACTIONS = [
   'status',
@@ -46,10 +49,11 @@ const GOOGLE_ACTIONS = [
   'mail.send',
   'calendar.list',
   'calendar.create',
+  'mail.verification',
 ] as const;
 
 /** Actions that only read. Everything else is an outward effect. */
-const READ_ONLY_ACTIONS = new Set<string>(['status', 'mail.list', 'mail.read', 'calendar.list']);
+const READ_ONLY_ACTIONS = new Set<string>(['status', 'mail.list', 'mail.read', 'calendar.list', 'mail.verification']);
 
 export interface AgentGoogleToolOptions {
   readonly homeDirectory: string;
@@ -135,7 +139,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
             description: 'What to do. status reports the connected account.',
           },
           query: { type: 'string', description: 'Gmail search query for mail.list.' },
-          id: { type: 'string', description: 'Message id for mail.read.' },
+          id: { type: 'string', description: 'Message id for mail.read or mail.verification.' },
           to: { type: 'string', description: 'Recipient address for mail.send.' },
           subject: { type: 'string', description: 'Subject for mail.send.' },
           body: { type: 'string', description: 'Plain-text body for mail.send.' },
@@ -206,6 +210,69 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           at: new Date().toISOString(),
         });
         return ok([`From: ${result.value.from}`, `Subject: ${result.value.subject}`, '', result.value.body].join('\n'));
+      }
+
+      if (action === 'mail.verification') {
+        // The one case where mail may yield something actionable, and only
+        // because the agent provoked it. Correlation runs on receiver-written
+        // delivery headers; the To: header is never accepted as evidence.
+        const id = readString(rawArgs.id);
+        if (!id) return failure('google action:"mail.verification" needs the message id, from mail.list.');
+        const result = await client.getMessage(id);
+        if (isFailure(result)) return describeFailure(result);
+
+        const book = getSessionExpectationBook();
+        const aliasMailboxes = new Set(book.list().map((entry) => entry.recipientAddress));
+        const deliveredTo = deliveryEvidenceFromMessage(
+          { deliveredTo: result.value.deliveredTo },
+          aliasMailboxes,
+        );
+        getSessionUntrustedContentLedger().record({
+          surface: 'email',
+          origin: originOf(`mailto:${result.value.from}`),
+          at: new Date().toISOString(),
+        });
+
+        const match = book.matchCandidate(
+          {
+            messageId: result.value.id,
+            from: result.value.from,
+            deliveredTo,
+            toHeaderClaim: result.value.to,
+            subject: result.value.subject,
+            body: result.value.body,
+          },
+          new Date(),
+        );
+
+        if (match.kind !== 'matched') {
+          return failure(
+            `Not treated as a verification: ${match.reason} (${describeDeliveryEvidence(deliveredTo)}). Nothing was extracted from the message.`,
+          );
+        }
+
+        const extraction = extractVerification(
+          {
+            messageId: result.value.id,
+            from: result.value.from,
+            deliveredTo,
+            toHeaderClaim: result.value.to,
+            subject: result.value.subject,
+            body: result.value.body,
+          },
+          match.expectation,
+        );
+        const artifact = extraction.artifact;
+        if (artifact.kind === 'link') {
+          return ok(`Verification link for ${match.expectation.serviceDomain}: ${artifact.url}`);
+        }
+        if (artifact.kind === 'code') {
+          return ok(`Verification code for ${match.expectation.serviceDomain}: ${artifact.code}`);
+        }
+        if (artifact.kind === 'refused') {
+          return failure(artifact.message);
+        }
+        return failure(`No verification link or code was found in that message: ${artifact.reason}`);
       }
 
       if (action === 'mail.send') {

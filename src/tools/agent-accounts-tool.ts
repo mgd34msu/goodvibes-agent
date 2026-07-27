@@ -24,6 +24,7 @@ import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { AgentAccountRegistry, type AgentAccountRecord } from '../agent/signup/account-registry.ts';
 import { mintAddressFor } from '../agent/signup/signup-address.ts';
+import { getSessionExpectationBook } from '../agent/signup/session-expectations.ts';
 import { evaluateOutwardEffect, getSessionUntrustedContentLedger } from '../trust/untrusted-content.ts';
 
 const ACCOUNT_ACTIONS = ['list', 'alias', 'record', 'forget', 'sweep'] as const;
@@ -109,9 +110,18 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
             return failure('No mailbox is connected to mint a signup alias from. Connect one with: /google setup');
           }
           const alias = mintAddressFor(base, serviceDomain);
+          // Opening the expectation here is what lets the verification mail
+          // this signup provokes be recognised later. Nothing else opens one,
+          // so unsolicited "verify your account" mail is never acted on.
+          const expectation = getSessionExpectationBook().openExpectation({
+            serviceDomain: alias.serviceDomain,
+            recipientAddress: alias.address,
+            purpose: readString(rawArgs.purpose) || `signing up at ${alias.serviceDomain}`,
+          });
           return ok([
             `Use ${alias.address} as the email address for this signup.`,
             `It delivers to ${alias.baseAddress}, and it is what a verification mail for ${alias.serviceDomain} will be matched on.`,
+            `Watching for its verification mail until ${expectation.expiresAt}; read it with google action:"mail.verification".`,
             'Record the account with accounts action:"record" once it exists.',
           ].join('\n'));
         }
