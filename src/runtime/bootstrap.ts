@@ -46,7 +46,7 @@ import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from 
 import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
-import { shutdownAgentBrowserSessions } from '../tools/agent-browser-tool.ts';
+import { createRuntimeShutdown } from './bootstrap-shutdown.ts';
 import { installAgentMcpCallRoute } from '../tools/agent-mcp-call-route.ts';
 import { capabilitySnapshot } from '../capabilities/capability-snapshot.ts';
 import { wireCapabilityIndex } from './bootstrap-capability-wiring.ts';
@@ -749,49 +749,31 @@ export async function bootstrapRuntime(
     _getConfiguredProviderIds: () => services.providerRegistry.getConfiguredProviderIds(),
     commandRegistry,
     systemMessageRouter,
-    shutdown: async (sessionData) => {
-      // Best-effort spine close (short timeout, fire-and-forget) then stop
-      // the heartbeat timer. Tolerates a racing daemon stop; never blocks teardown.
-      services.sessionSpineClient.close(runtime.sessionId);
-      services.sessionSpineClient.dispose();
-      // Stop the memory-spine reachability recheck timer (see the 'memory-spine'
-      // deferred startup task above). No wire close call needed — unlike sessions,
-      // memory ops are request/response, not a registered/heartbeat-tracked record.
-      if (memorySpineHeartbeatTimer !== null) {
-        clearInterval(memorySpineHeartbeatTimer);
+    shutdown: createRuntimeShutdown({
+      sessionId: runtime.sessionId,
+      model: runtime.model,
+      provider: runtime.provider,
+      conversationTitle: () => conversation.title || '',
+      sessionSpineClient: services.sessionSpineClient,
+      takeMemorySpineTimer: () => {
+        const timer = memorySpineHeartbeatTimer;
         memorySpineHeartbeatTimer = null;
-      }
-      // Clear bootstrap-owned subscriptions
-      bootstrapUnsubs.forEach(fn => fn());
-      bootstrapUnsubs.length = 0;
-      runtimeUnsubs.forEach((fn) => fn());
-      runtimeUnsubs.length = 0;
-      forensicsCollector.dispose();
-      services.executionLedger.dispose();
-      services.disposeSessionWriteLedger();
-      // Browser sessions own real Chromium processes; a session torn down
-      // without this leaves them behind.
-      await shutdownAgentBrowserSessions();
-      await deferredStartup.drain(100);
-      await agentExternalServices.stop();
-      // Clear agent status interval via ref (consistent with agentStatusIntervalRef usage)
-      if (agentStatusIntervalRef.value !== null) {
-        clearInterval(agentStatusIntervalRef.value);
-        agentStatusIntervalRef.value = null;
-      }
-      await shutdownRuntime(
-        runtime.sessionId,
-        sessionData,
-        runtime.model,
-        runtime.provider,
-        conversation.title || '',
-        services.workflow.scheduleManager,
-        services.hookDispatcher,
-        services.providerRegistry,
-        services.sessionOrchestration,
-        { surface: services.surface },
-      );
-    },
+        return timer;
+      },
+      bootstrapUnsubs,
+      runtimeUnsubs,
+      forensicsCollector,
+      executionLedger: services.executionLedger,
+      disposeSessionWriteLedger: () => { services.disposeSessionWriteLedger(); },
+      deferredStartup,
+      agentExternalServices,
+      agentStatusIntervalRef,
+      scheduleManager: services.workflow.scheduleManager,
+      hookDispatcher: services.hookDispatcher,
+      providerRegistry: services.providerRegistry,
+      sessionOrchestration: services.sessionOrchestration,
+      shutdownOptions: { surface: services.surface },
+    }),
   };
 
   // Wire exit from options if provided; otherwise main.ts binds the operator route.
