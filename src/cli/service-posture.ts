@@ -59,6 +59,16 @@ export interface CliServicePosture {
   readonly endpoints: readonly CliServiceEndpointPosture[];
   readonly log: CliServiceLogPosture;
   readonly issues: readonly string[];
+  /**
+   * Observations that describe the INTENDED arrangement rather than a fault.
+   *
+   * Kept apart from `issues` because everything in that array is rendered as a
+   * problem, with a cause and an impact that say something may be unavailable.
+   * That is the wrong sentence for a posture that is working as designed, and
+   * the difference matters at release time: an advisory must not be able to
+   * turn a strict verification red.
+   */
+  readonly advisories: readonly string[];
 }
 
 const ENDPOINTS: readonly { readonly id: RuntimeEndpointId; readonly label: string; readonly enabledKey: ConfigKey }[] = [
@@ -183,9 +193,13 @@ export async function buildCliServicePosture(
   };
   const serverBackedEnabled = config.daemonEnabled || endpoints.some((endpoint) => endpoint.enabled);
   const issues: string[] = [];
+  const advisories: string[] = [];
 
   if (serverBackedEnabled && !config.enabled) {
-    issues.push('Connected-host settings are present, but Agent host ownership is disabled by design.');
+    // Not a fault. The Agent is designed not to own the host — a connected
+    // GoodVibes daemon does — so this is the normal topology, and it became
+    // visible here only once the Agent began reading the shared daemon tier.
+    advisories.push('Connected-host settings are present, but Agent host ownership is disabled by design.');
   }
   for (const endpoint of endpoints) {
     if (endpoint.enabled && options.probe && endpoint.reachable === false) {
@@ -214,6 +228,7 @@ export async function buildCliServicePosture(
     endpoints,
     log,
     issues,
+    advisories,
   };
 }
 

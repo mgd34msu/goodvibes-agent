@@ -2,6 +2,20 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.18.0 - 2026-07-27
+
+- Added: the Agent can drive a real web browser — open pages, read them, click, type, fill forms, sign in, and take screenshots — with a saved profile that keeps logins between runs. Page text it reads is labelled as untrusted: it can inform an answer, and it is never treated as an instruction.
+- Added: a setup walkthrough that connects Gmail and Calendar without a console marathon. It drives Google's own pages for the parts that cannot be automated any other way, and stores the credentials where the daemon can reach them.
+- Added: `mcp mode:"call"` — the Agent can now call tools on a connected MCP server, not just list them.
+- Added: one honest index of what this Agent can do. Where a capability is not available yet it names the specific missing piece rather than denying the capability exists, and it notices when credentials are present but the capability is silent.
+- Added: an email's displayed sender now carries how much that claim can be trusted — whether the sending domain actually authenticated — instead of being shown as though it were established fact.
+- Fixed: a search of the channel catalog that matched nothing read as "this install has no channels", and was reported to a user as "email is not configured". A short or empty list now says what it is and how to see everything.
+- Fixed: a mailbox password set from here was accepted, reported as saved, and written nowhere — it was gone on the next start.
+- Fixed: an Agent told to stop now stops what it started, including the browsers it opened.
+- Fixed: a screenshot the Agent took could not then be opened by the Agent, because the read guard refused the folder it was saved in.
+- Fixed: a long-running Agent no longer goes stale between restarts; it checks for updates on its own schedule.
+- Fixed: the transcript's status markers sit in the assistant's own column and the tree's rails close properly.
+
 ## 1.17.0 - 2026-07-26
 
 - Fixed: a work request sent over a chat channel produced a proposal that could never be shown. Agreement was asked for on a channel there was no way to send on, so nothing arrived and the work waited on an answer to a question that was never posed. Proposals now go out on every channel the gate covers, Telegram included.

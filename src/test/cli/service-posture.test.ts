@@ -114,11 +114,15 @@ describe('CLI service posture', () => {
       managed: { commandPreview: string; path: string };
       endpoints: Array<{ id: string }>;
       issues: string[];
+      advisories: string[];
     };
 
     expect(parsed.managed.path).toBe('connected GoodVibes host');
     expect(parsed.managed.commandPreview).toBe('managed outside goodvibes-agent');
     expect(parsed.endpoints.map((endpoint) => endpoint.id)).toContain('controlPlane');
-    expect(parsed.issues).toContain('Connected-host settings are present, but Agent host ownership is disabled by design.');
+    // Reported as an ADVISORY, not an issue: the Agent is designed not to own
+    // the host, so this describes the intended arrangement rather than a fault.
+    expect(parsed.advisories).toContain('Connected-host settings are present, but Agent host ownership is disabled by design.');
+    expect(parsed.issues).not.toContain('Connected-host settings are present, but Agent host ownership is disabled by design.');
   });
 });

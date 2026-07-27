@@ -249,6 +249,21 @@ export function buildCliDoctorFindings(options: CliStatusOptions): readonly CliD
   }
 
   if (options.service) {
+    // Advisories describe the arrangement the operator chose, so they are
+    // reported at risk severity — printed, never silent, and never a release
+    // defect. See doctorRiskAdvisoryOnlyCount in verification/live-verifier.ts.
+    for (const advisory of options.service.advisories) {
+      if (findings.some((finding) => finding.summary === advisory)) continue;
+      findings.push({
+        id: `runtime-posture-${findings.length}`,
+        area: 'runtime',
+        severity: 'risk',
+        summary: advisory,
+        cause: 'The connected-host inspection found a deliberate arrangement worth stating.',
+        impact: 'None on its own; it describes how this installation is set up.',
+        action: 'No action needed unless this is not the arrangement you intended.',
+      });
+    }
     for (const issue of options.service.issues) {
       if (findings.some((finding) => finding.summary === issue)) continue;
       findings.push({

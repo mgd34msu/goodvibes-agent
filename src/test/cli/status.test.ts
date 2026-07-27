@@ -78,6 +78,7 @@ function makeOptions(overrides: ConfigValues = {}): CliStatusOptions {
 
 function makeServicePosture(overrides: Partial<CliStatusService> = {}): CliStatusService {
   const service: CliStatusService = {
+    advisories: [],
     config: {
       enabled: true,
       autostart: true,
