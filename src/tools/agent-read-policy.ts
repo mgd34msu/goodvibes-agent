@@ -133,11 +133,13 @@ export function isBlockedReadPath(path: string): boolean {
   // else's file and no reason at all to refuse one this session just wrote. A
   // screenshot the agent saved to `~/.goodvibes-screen.png` was rejected as
   // secret-looking purely for its name, and only became readable after being
-  // copied to an undotted path. When the exact path is in the session write
-  // ledger the hidden-name rule is waived — except for the dotfiles below,
-  // which name credential stores outright. Every other rule in this function
-  // (secret-looking segments, private-key extensions, known_hosts) applies
-  // to session-written paths exactly as before.
+  // copied to an undotted path — and the browser round hit the same wall from
+  // the other side, saving screenshots under the platform's dotted storage
+  // root. When the exact path is in the session write ledger the hidden-name
+  // rule is waived — except for the dotfiles below, which name credential
+  // stores outright. Every other rule in this function (secret-looking
+  // segments, private-key extensions, known_hosts) applies to session-written
+  // paths exactly as before.
   const hiddenNameWaived = wasWrittenInAgentSession(path);
 
   for (const segment of segments) {

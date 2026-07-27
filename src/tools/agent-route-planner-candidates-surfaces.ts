@@ -1,5 +1,5 @@
 import type { RouteCandidateDraft } from './agent-route-planner.ts';
-import { browserCockpitLike, browserControlLike, channelDeliveriesLike, channelSendLike, channelSetupLike, channelTargetFromText, channelTriageLike, externalChannelLike, externalMemoryProviderLike, hasAny, mediaGenerationLike, quote, releaseAuditLike, releaseEvidenceLike, securityFindingLike, securityPermissionLike, securityPolicyExplainLike, securityPolicyToolTarget, securityStatusLike, sessionMutationLike, sessionWorkspaceLike, supportBundleEffectLike, supportBundleLike, ttsProviderLike, voiceWorkflowLike } from './agent-route-planner-helpers.ts';
+import { browserCockpitLike, browserControlLike, researchRunnerLike, visualResearchReportLike, channelDeliveriesLike, channelSendLike, channelSetupLike, channelTargetFromText, channelTriageLike, externalChannelLike, externalMemoryProviderLike, hasAny, mediaGenerationLike, quote, releaseAuditLike, releaseEvidenceLike, securityFindingLike, securityPermissionLike, securityPolicyExplainLike, securityPolicyToolTarget, securityStatusLike, sessionMutationLike, sessionWorkspaceLike, supportBundleEffectLike, supportBundleLike, ttsProviderLike, voiceWorkflowLike } from './agent-route-planner-helpers.ts';
 
 export function addSurfaceSecurityRouteCandidates(
   lower: string,
@@ -120,6 +120,47 @@ if (browserControlLike(lower)) {
         'host action:"services" query:"web" includeParameters:true',
       ],
       policy: 'Browser/PWA readiness is read-only. Opening the connected browser cockpit is a visible confirmed handoff; browser-native Agent workspace routes count as ready only from certified SDK/daemon browser/PWA route and first-run receipt read models.',
+    });
+  }
+
+  // Driving a browser is its own route. Before the browser tool existed, these
+  // requests were sent to readiness planners that describe browser control
+  // without performing any, which is how a request to open a page turned into
+  // a hunt for a tool that could open a page.
+  // The GoodVibes browser cockpit, the visual research report, and the
+  // browser-backed research runner are their own surfaces with their own
+  // routes. They mention browsers without being a request to go drive a web
+  // page, so they keep the route they already had.
+  // 'screenshot' is deliberately absent: capturing the SCREEN is desktop
+  // control. Capturing a page is done from inside a browser session that is
+  // already open, so it needs no route of its own.
+  const wantsToDriveAPage = hasAny(lower, ['browse', 'browser', 'website', 'web page', 'webpage', 'url', 'navigate', 'click', 'log in', 'login', 'sign in', 'sign-in', 'fill in', 'fill out', 'form', 'scrape', 'on the site', 'web site'])
+    && !browserCockpitLike(lower)
+    && !visualResearchReportLike(lower)
+    && !researchRunnerLike(lower);
+  if (wantsToDriveAPage) {
+    add({
+      id: 'drive-a-browser',
+      label: 'Open and act on a web page',
+      // Above the browser/desktop workflow planner: when the request is to act
+      // on a web page, the answer is the tool that acts on web pages, not a
+      // planner that describes how one might.
+      score: 98,
+      userSurface: 'Browser',
+      userOutcome: 'Open the page, read what is on it, and act on it.',
+      why: 'The request needs a real web page opened, read, or acted on.',
+      modelRoute: 'browser action:"navigate" url:"..."',
+      inspectRoute: 'browser action:"status"',
+      userRoute: 'The browser window the agent opens',
+      requiresConfirmation: hasAny(lower, ['buy', 'purchase', 'order', 'pay', 'send', 'delete', 'cancel', 'submit']),
+      supportingRoutes: [
+        'browser action:"snapshot"',
+        'browser action:"click" ref:"..."',
+        'browser action:"type" ref:"..." text:"..."',
+        'browser action:"read_text"',
+        'browser action:"launch" headless:false profileName:"..."',
+      ],
+      policy: 'The browser tool drives a real browser directly and provisions one on first use. Every click and keystroke targets an element from a snapshot of a page it controls. Purchases, sends, and destructive actions need explicit user intent.',
     });
   }
 

@@ -39,6 +39,8 @@ import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts
 import { registerAgentChannelSendTool } from '../tools/agent-channel-send-tool.ts';
 import { registerAgentAutonomyScheduleTool } from '../tools/agent-autonomy-schedule-tool.ts';
 import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
+import { browserProfileRoot, browserScreenshotRoot } from '../browser/browser-sessions.ts';
+import { registerAgentBrowserTool } from '../tools/agent-browser-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
@@ -347,6 +349,11 @@ export async function initializeBootstrapCore(
     contextAccountingHolder: services.contextAccountingHolder,
   });
   registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
+  registerAgentBrowserTool(toolRegistry, {
+    screenshotDirectory: browserScreenshotRoot(services.shellPaths.homeDirectory),
+    profileRoot: browserProfileRoot(services.shellPaths.homeDirectory),
+    homeDirectory: services.shellPaths.homeDirectory,
+  });
   registerAgentDocumentsTool(toolRegistry, services.shellPaths, services.artifactStore);
   registerAgentKnowledgeIngestTool(toolRegistry, services.shellPaths, configManager);
   registerAgentChannelSendTool(toolRegistry, services.channelDeliveryRouter, { shellPaths: services.shellPaths });

@@ -4,6 +4,7 @@ import { readAgentChannelDeliveryReceipts } from '../agent/channel-delivery-rece
 import { buildAgentWorkspaceChannelTriage, type AgentWorkspaceChannelTriage } from '../input/agent-workspace-channel-triage.ts';
 import { buildAgentWorkspaceChannelSetupGuide, buildAgentWorkspaceChannels } from '../input/agent-workspace-channels.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import { withInventoryDisclosure } from './inventory-disclosure.ts';
 
 export interface AgentHarnessChannelArgs {
   readonly channelId?: unknown;
@@ -178,12 +179,14 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
   const filtered = channels
     .filter((channel) => !query || channelSearchText(channel).includes(query))
     .slice(0, limit);
-  return {
+  const enabled = channels.filter((channel) => channel.enabled).length;
+  const ready = channels.filter((channel) => channel.ready).length;
+  return withInventoryDisclosure({
     channels: filtered.map((channel) => describeChannel(channel, { includeParameters })),
     returned: filtered.length,
     total: channels.length,
-    enabled: channels.filter((channel) => channel.enabled).length,
-    ready: channels.filter((channel) => channel.ready).length,
+    enabled,
+    ready,
     attention: channels.filter((channel) => channel.enabled && channel.setupState !== 'ready').length,
     setupGuide: {
       status: buildAgentWorkspaceChannelSetupGuide(channels).status,
@@ -192,7 +195,14 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
     triage: channelTriageModelRoute(),
     deliveryReceipts: channelDeliveriesModelRoute(),
     policy: 'Read-only channel readiness catalog. It returns key names, setup state, delivery posture, and model routes without printing secrets or sending messages.',
-  };
+  }, {
+    subject: 'channels',
+    returned: filtered.length,
+    total: channels.length,
+    filters: { query, limit: query || filtered.length < channels.length ? limit : undefined },
+    listAllRoute: 'agent_harness mode:"channels"',
+    context: ready > 0 ? [`${String(ready)} of them are ready to use.`] : [],
+  });
 }
 
 export function describeHarnessChannel(context: CommandContext, args: AgentHarnessChannelArgs): ChannelResolution {

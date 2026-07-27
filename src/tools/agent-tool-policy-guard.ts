@@ -8,6 +8,7 @@ import {
   wrapAgentContextToolForAgentPolicy,
 } from './agent-context-policy.ts';
 import { wrapFindToolForAgentPolicy } from './agent-find-policy.ts';
+import { AGENT_MCP_CALL_MODE, isAgentMcpCallRouteInstalled } from './agent-mcp-call-route.ts';
 import { wrapReadToolForAgentPolicy } from './agent-read-policy.ts';
 import {
   AGENT_SETTINGS_TOOL_DESCRIPTION,
@@ -499,7 +500,16 @@ export function explainAgentToolPolicyInvocation(
       ? deniedByAgentPolicy(channelDenied, READ_ONLY_CHANNEL_TOOL_MODES)
       : allowedByAgentPolicy('Agent policy allows read-only channel inspection.', READ_ONLY_CHANNEL_TOOL_MODES);
   }
-  if (toolName === 'mcp') return explainModeRestrictedAgentPolicy(args as ModeToolArgs, READ_ONLY_MCP_TOOL_MODES, READ_ONLY_MCP_TOOL_MODE_SET, MCP_SECURITY_MUTATION_DENIAL);
+  if (toolName === 'mcp') {
+    // The call route is layered on after this guard, so the modes this tool
+    // really accepts depend on whether it was installed. Reporting the
+    // inspection-only list once calling is wired would be the same kind of
+    // stale claim that made browser control look available when it was not.
+    const mcpModes = isAgentMcpCallRouteInstalled()
+      ? [...READ_ONLY_MCP_TOOL_MODES, AGENT_MCP_CALL_MODE]
+      : READ_ONLY_MCP_TOOL_MODES;
+    return explainModeRestrictedAgentPolicy(args as ModeToolArgs, mcpModes, new Set(mcpModes), MCP_SECURITY_MUTATION_DENIAL);
+  }
   if (toolName === 'fetch') {
     const denied = validateFetchToolInvocationForAgentPolicy(args as FetchToolArgs);
     return denied ? deniedByAgentPolicy(denied, READ_ONLY_FETCH_METHODS) : allowedByAgentPolicy('Agent policy allows serial sanitized read-only HTTP fetches.', READ_ONLY_FETCH_METHODS);

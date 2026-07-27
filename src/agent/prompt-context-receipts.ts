@@ -6,6 +6,15 @@ import type { MemoryRecord, MemoryRegistry } from '@pellux/goodvibes-sdk/platfor
 import type { MemoryRecallSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { getTierForContextWindow, getTierPromptSupplement } from '@pellux/goodvibes-sdk/platform/providers';
 import type { ShellPathService } from '@/runtime/index.ts';
+import type { CapabilityIndexReport } from '../capabilities/capability-types.ts';
+import { buildCapabilitySummaryPrompt } from './capability-summary-prompt.ts';
+import {
+  formatReceiptJournal,
+  isReceipt,
+  readReceiptJournal,
+  selectReceiptJournalSurvivors,
+  type ReceiptJournalSurvivors,
+} from './prompt-context-receipt-journal.ts';
 import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, rankMemoryForTurn, relevanceBand } from './memory-prompt.ts';
 import { AgentPersonaRegistry, buildActivePersonaPrompt } from './persona-registry.ts';
 import { buildProjectContextPrompt, discoverProjectContextFiles } from './project-context-files.ts';
@@ -75,6 +84,12 @@ export interface RuntimePromptCompositionInput {
   readonly operatorPolicy: string;
   readonly shellPaths: ShellPathService;
   readonly memoryRegistry: MemoryRegistry;
+  /**
+   * What the agent can actually do right now, resolved by the capability index.
+   * Null when the index has not been resolved — the prompt then says the list
+   * is unknown rather than implying the agent can do nothing.
+   */
+  readonly capabilityIndex?: CapabilityIndexReport | null;
   /** The active turn's raw text (TURN_SUBMITTED's `prompt`), used only to rank the
    *  already-eligible memory set by relevance to this turn — see rankMemoryForTurn.
    *  Null/undefined when there is no active turn (e.g. a follow-up composition). */
@@ -263,6 +278,7 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
   const personaPrompt = buildActivePersonaPrompt(input.shellPaths) ?? '';
   const tier = getTierForContextWindow(input.contextWindow);
   const tierPrompt = getTierPromptSupplement(tier);
+  const capabilitySummaryText = buildCapabilitySummaryPrompt(input.capabilityIndex ?? null) ?? '';
 
   return [
     receiptSegment({
@@ -417,6 +433,19 @@ function buildRuntimePromptReceiptSegments(input: RuntimePromptCompositionInput)
       suppressed: activePersona && activePersona.reviewState !== 'reviewed' ? [{ id: activePersona.id, name: activePersona.name, reviewState: activePersona.reviewState }] : [],
     }),
     receiptSegment({
+      id: 'capabilities',
+      label: 'Capability index',
+      order: 0,
+      status: capabilitySummaryText ? 'active' : 'empty',
+      activeCount: input.capabilityIndex?.ready.length ?? 0,
+      suppressedCount: (input.capabilityIndex?.needsSetup.length ?? 0) + (input.capabilityIndex?.unavailable.length ?? 0),
+      promptChars: capabilitySummaryText.length,
+      promptText: capabilitySummaryText,
+      note: input.capabilityIndex
+        ? `${input.capabilityIndex.ready.length} ready, ${input.capabilityIndex.needsSetup.length} need setup, ${input.capabilityIndex.unavailable.length} unavailable, ${input.capabilityIndex.disagreements.length} configured-but-unreported.`
+        : 'The capability index has not been resolved for this session.',
+    }),
+    receiptSegment({
       id: 'context_window_supplement',
       label: 'Context-window supplement',
       order: 9,
@@ -434,8 +463,10 @@ export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionI
   const currentModel = modelLabel(input.model);
   const tier = getTierForContextWindow(input.contextWindow);
   const supplement = getTierPromptSupplement(tier);
+  const capabilitySummary = buildCapabilitySummaryPrompt(input.capabilityIndex ?? null);
   const prompt = joinPromptParts(
     input.runtimePrompt,
+    capabilitySummary,
     buildVibeProjectionPrompt(input.memoryRegistry),
     buildProjectContextPrompt(input.shellPaths),
     input.operatorPolicy,
@@ -467,44 +498,8 @@ export function composeRuntimePromptWithReceipt(input: RuntimePromptCompositionI
   };
 }
 
-function isReceipt(value: unknown): value is PromptContextReceipt {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as { readonly receiptId?: unknown; readonly createdAt?: unknown; readonly sequence?: unknown };
-  return typeof candidate.receiptId === 'string' && typeof candidate.createdAt === 'number' && typeof candidate.sequence === 'number';
-}
 
-function isTurnOutcome(value: unknown): value is PromptContextTurnOutcome {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as {
-    readonly turnId?: unknown;
-    readonly status?: unknown;
-    readonly terminalEvent?: unknown;
-    readonly stopReason?: unknown;
-    readonly completedAt?: unknown;
-    readonly receiptIds?: unknown;
-  };
-  return typeof candidate.turnId === 'string'
-    && (candidate.status === 'completed' || candidate.status === 'error' || candidate.status === 'cancelled')
-    && (candidate.terminalEvent === 'TURN_COMPLETED' || candidate.terminalEvent === 'TURN_ERROR' || candidate.terminalEvent === 'TURN_CANCEL')
-    && typeof candidate.stopReason === 'string'
-    && typeof candidate.completedAt === 'number'
-    && Array.isArray(candidate.receiptIds);
-}
 
-function parseReceiptLine(line: string): { readonly receipt?: PromptContextReceipt; readonly outcome?: PromptContextTurnOutcome } | null {
-  try {
-    const parsed = JSON.parse(line) as unknown;
-    if (isReceipt(parsed)) return { receipt: parsed };
-    if (parsed && typeof parsed === 'object') {
-      const candidate = parsed as { readonly kind?: unknown; readonly receipt?: unknown; readonly outcome?: unknown };
-      if (candidate.kind === 'receipt' && isReceipt(candidate.receipt)) return { receipt: candidate.receipt };
-      if (candidate.kind === 'turn_outcome' && isTurnOutcome(candidate.outcome)) return { outcome: candidate.outcome };
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
 
 export interface PromptContextTurnOutcomeInput {
   readonly turnId: string;
@@ -534,76 +529,10 @@ export interface PromptContextReceiptCompaction {
   readonly rewritten: boolean;
 }
 
-interface ReceiptJournalContents {
-  readonly receipts: readonly PromptContextReceipt[];
-  readonly outcomes: readonly PromptContextTurnOutcome[];
-  /** Lines that did not parse into an accepted shape — torn tails, zero-filled blocks. */
-  readonly invalidLines: number;
-  readonly bytes: number;
-}
 
-/**
- * Read the journal, dropping any line that does not parse into a shape the guards
- * accept — a crash's trailing half-line, a zero-filled block, anything. Never
- * throws: an unreadable journal degrades to "no receipts".
- */
-function readReceiptJournal(path: string): ReceiptJournalContents {
-  let raw = '';
-  try {
-    raw = readFileSync(path, 'utf-8');
-  } catch (error) {
-    logger.warn('Prompt context receipt journal could not be read; continuing with no receipts', { path, error: summarizeError(error) });
-    return { receipts: [], outcomes: [], invalidLines: 0, bytes: 0 };
-  }
-  const lines = raw.split('\n').filter(Boolean);
-  const parsed = lines.map(parseReceiptLine)
-    .filter((entry): entry is NonNullable<ReturnType<typeof parseReceiptLine>> => Boolean(entry));
-  return {
-    receipts: parsed.map((entry) => entry.receipt).filter((receipt): receipt is PromptContextReceipt => Boolean(receipt)),
-    outcomes: parsed.map((entry) => entry.outcome).filter((outcome): outcome is PromptContextTurnOutcome => Boolean(outcome)),
-    invalidLines: lines.length - parsed.length,
-    bytes: Buffer.byteLength(raw, 'utf-8'),
-  };
-}
 
-interface ReceiptJournalSurvivors {
-  readonly receipts: readonly PromptContextReceipt[];
-  readonly outcomes: readonly PromptContextTurnOutcome[];
-  readonly expiredReceipts: number;
-  readonly overflowReceipts: number;
-  readonly droppedOutcomes: number;
-}
 
-/**
- * Apply BOTH bounds — age TTL first, then the count cap — and retire every
- * turn-outcome line whose receipt/turn no longer survives. Receipts arrive in
- * append order, so the tail is the newest set.
- */
-function selectReceiptJournalSurvivors(contents: ReceiptJournalContents, limit: number, maxAgeMs: number, now: number): ReceiptJournalSurvivors {
-  // A non-finite or future createdAt is kept: a clock oddity must never read as "old enough to delete".
-  const fresh = contents.receipts.filter((receipt) => !Number.isFinite(receipt.createdAt) || now - receipt.createdAt <= maxAgeMs);
-  const kept = fresh.slice(-Math.max(1, limit));
-  const keptReceiptIds = new Set(kept.map((receipt) => receipt.receiptId));
-  const keptTurnIds = new Set(kept.map((receipt) => receipt.turnId).filter((turnId): turnId is string => Boolean(turnId)));
-  const keptOutcomes = contents.outcomes.filter((outcome) => (
-    keptTurnIds.has(outcome.turnId) || outcome.receiptIds.some((receiptId) => keptReceiptIds.has(receiptId))
-  ));
-  return {
-    receipts: kept,
-    outcomes: keptOutcomes,
-    expiredReceipts: contents.receipts.length - fresh.length,
-    overflowReceipts: fresh.length - kept.length,
-    droppedOutcomes: contents.outcomes.length - keptOutcomes.length,
-  };
-}
 
-function formatReceiptJournal(survivors: ReceiptJournalSurvivors): string {
-  const lines = [
-    ...survivors.receipts.map((receipt) => JSON.stringify(receipt)),
-    ...survivors.outcomes.map((outcome) => JSON.stringify({ kind: 'turn_outcome', outcome })),
-  ];
-  return lines.length === 0 ? '' : `${lines.join('\n')}\n`;
-}
 
 export class AgentPromptContextReceiptStore {
   private readonly receipts: PromptContextReceipt[] = [];

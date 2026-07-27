@@ -81,7 +81,26 @@ export function catalogEnvelope(
     ...(applied.length > 0 ? { appliedFilters: Object.fromEntries(applied) } : {}),
   };
 
-  if (items.length > 0 || total === 0) return envelope;
+  if (total === 0) return envelope;
+
+  // A SHORTENED page discloses that it is short.
+  //
+  // This envelope used to say nothing whenever it returned any rows at all, on
+  // the reasoning that a populated page speaks for itself. It does not: "here
+  // are 20 of 300" read as a complete answer is the same failure as an empty
+  // page read as "no such capability", just in slower motion. `returned` and
+  // `total` were always both present, but a number two fields away is easy to
+  // miss in a way a sentence is not.
+  if (items.length > 0) {
+    if (items.length >= total) return envelope;
+    const shownFilters = applied.map(([name, value]) => `${name}="${value}"`).join(', ');
+    envelope.note = `Showing ${items.length} of ${total} ${key}. `
+      + (shownFilters
+        ? `This is a filtered view (${shownFilters}), not the full catalog`
+        : 'This is a partial view, not the full catalog')
+      + `${discovery ? `; re-send as ${discovery} to see everything` : ''}.`;
+    return envelope;
+  }
 
   const shown = applied.map(([name, value]) => `${name}="${value}"`).join(', ');
   envelope.note = applied.length > 0

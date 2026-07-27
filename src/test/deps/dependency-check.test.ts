@@ -17,8 +17,24 @@ async function expectImportable(specifier: string): Promise<void> {
 }
 
 describe('dependency surface', () => {
-  test('does not declare runtime package dependencies for the packaged Agent bundle', () => {
-    expect(packageJson.dependencies ?? {}).toEqual({});
+  /**
+   * The packaged Agent bundles its libraries into dist/package/main.js, so it
+   * declares no runtime dependencies — with one deliberate exception.
+   *
+   * playwright-core cannot be bundled: it loads browsers.json and its own
+   * driver files by path relative to its package directory, so an inlined copy
+   * would look for files that are not there. Browser control is a shipped
+   * capability rather than an optional add-on, so the driver is a real
+   * dependency that the package manager installs, pinned exactly the way the
+   * SDK is.
+   */
+  test('declares exactly one runtime dependency: the browser driver', () => {
+    expect(packageJson.dependencies ?? {}).toEqual({ 'playwright-core': expect.any(String) });
+  });
+
+  test('the browser driver is pinned to an exact version', () => {
+    const pinned = (packageJson.dependencies ?? {})['playwright-core'];
+    expect(pinned).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   test('runtime import entrypoints used by the product resolve from installed dependencies', async () => {

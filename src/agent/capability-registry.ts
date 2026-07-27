@@ -239,13 +239,22 @@ export const CAPABILITY_REGISTRY: readonly AdvertisedCapability[] = [
       'Calendar import and export through .ics files is implemented. Direct CalDAV server sync is not shipped.',
   },
   {
+    id: 'browser-control',
+    title: 'Browser control',
+    level: 'working',
+    surfaces: ['browser'],
+    advertisedNames: ['browser', 'browser automation', 'web automation'],
+    readinessNote:
+      'The agent drives a real browser itself: opening pages, reading them, clicking, typing, and taking screenshots, with a saved profile that keeps sign-ins between runs. It installs its own browser on first use. Connecting to a browser you already have open is available but does not complete its handshake on this runtime.',
+  },
+  {
     id: 'computer-control',
-    title: 'Computer control',
+    title: 'Desktop control',
     level: 'preview',
     surfaces: ['computer'],
     advertisedNames: ['computer control', 'desktop control'],
     readinessNote:
-      'Browser and desktop control is planning and readiness inspection in the agent today; actual control runs through a connected host once it certifies the route.',
+      'Desktop control outside the browser is planning and readiness inspection in the agent today; actual control runs through a connected host once it certifies the route. Web pages are handled by browser control, which is working.',
   },
 ];
 

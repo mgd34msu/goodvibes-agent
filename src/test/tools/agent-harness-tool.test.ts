@@ -10,6 +10,7 @@ import { ProcessManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/too
 import { FileUndoManager, MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore, type MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import { createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
+import { registerAgentBrowserTool } from '../../tools/agent-browser-tool.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
 import { CONFIG_SCHEMA, ConfigManager } from '../../config/index.ts';
@@ -6611,12 +6612,25 @@ describe('agent_harness tool', () => {
       expect(attentionBrowserSetup.status).toBe('check');
       expect(attentionBrowserSetup.signals?.join('\n')).toContain('attention');
 
+      // A tool merely NAMED like a browser tool must not change the posture:
+      // capability comes from what a tool declares and what can be invoked,
+      // never from what its name or description happens to say.
       registerStubTool(fixture.toolRegistry, 'browser_screenshot');
+      const namedOnlyPosture = await executeHarnessJson<{
+        readonly summary: { readonly browserControl: string };
+      }>(fixture, { mode: 'execution_posture' });
+      expect(namedOnlyPosture.summary.browserControl).not.toBe('ready');
+
+      registerAgentBrowserTool(fixture.toolRegistry, {
+        screenshotDirectory: '/tmp/goodvibes-harness-test-shots',
+        profileRoot: '/tmp/goodvibes-harness-test-profiles',
+        homeDirectory: '/tmp/goodvibes-harness-test-home',
+      });
       const configuredPosture = await executeHarnessJson<{
         readonly summary: {
           readonly browserControl: string;
           readonly browserControlSetup: {
-            readonly toolMatches: readonly string[];
+            readonly declaredControlTools: readonly string[];
             readonly recommendedRoute: string;
             readonly workflows: readonly { readonly status: string; readonly inspectRoute: string }[];
           };
@@ -6627,10 +6641,10 @@ describe('agent_harness tool', () => {
         }[];
       }>(fixture, { mode: 'execution_posture' });
       expect(configuredPosture.summary.browserControl).toBe('ready');
-      expect(configuredPosture.summary.browserControlSetup.toolMatches).toContain('browser_screenshot');
-      expect(configuredPosture.summary.browserControlSetup.recommendedRoute).toContain('execution action:"route"');
+      expect(configuredPosture.summary.browserControlSetup.declaredControlTools).toEqual(['browser']);
+      expect(configuredPosture.summary.browserControlSetup.recommendedRoute).toContain('browser action:');
       expect(configuredPosture.summary.browserControlSetup.workflows[0]?.status).toBe('ready');
-      expect(configuredPosture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('execution action:"route"');
+      expect(configuredPosture.summary.browserControlSetup.workflows[0]?.inspectRoute).toContain('browser action:');
       expect(configuredPosture.routes.find((route) => route.executionRouteId === 'browser-or-desktop-control')?.availability).toBe('ready');
 
       const configuredPlan = await executeHarnessJson<{
@@ -6645,9 +6659,9 @@ describe('agent_harness tool', () => {
       expect(configuredPlan.workflow.status).toBe('ready');
       expect(configuredPlan.decision.id).toBe('inspect-configured-browser-control');
       expect(configuredPlan.decision.status).toBe('ready-to-inspect-tool');
-      expect(configuredPlan.decision.modelRoute).toContain('browser_screenshot');
-      expect(configuredPlan.decision.nextStep).toContain('narrowest live-control tool');
-      expect(configuredPlan.toolCandidates[0]?.toolName).toBe('browser_screenshot');
+      expect(configuredPlan.decision.modelRoute).toContain('browser action:');
+      expect(configuredPlan.decision.nextStep).toContain('Call browser action:');
+      expect(configuredPlan.toolCandidates[0]?.toolName).toBe('browser');
       expect(configuredPlan.toolCandidates[0]?.inspectRoute).toContain('mode:"tool"');
       expect(configuredPlan.policy.confirmation).toContain('tool-specific confirmation');
 
@@ -6659,8 +6673,8 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'setup_item', setupItemId: 'browser-desktop-control' });
       expect(configuredBrowserSetup.setupItemId).toBe('browser-desktop-control');
       expect(configuredBrowserSetup.status).toBe('ready');
-      expect(configuredBrowserSetup.modelRoute).toContain('execution action:"route"');
-      expect(configuredBrowserSetup.signals?.join('\n')).toContain('browser_screenshot');
+      expect(configuredBrowserSetup.modelRoute).toContain('browser action:');
+      expect(configuredBrowserSetup.signals?.join('\n')).toContain('browser');
 
       const delegated = posture.routes.find((route) => route.executionRouteId === 'delegation-isolation-parallel-remote');
       expect(delegated?.availability).toBe('ready');

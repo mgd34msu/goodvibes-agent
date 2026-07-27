@@ -105,6 +105,32 @@ describe('route adapter', () => {
     });
   });
 
+  test('sends a request to act on a web page to the browser tool', async () => {
+    // Discoverability: a model asking how to open and act on a page must be
+    // pointed at the tool that does it, not at a planner that describes it.
+    const body = await route('log in to my account on example.com and download the invoice');
+
+    expect(preferredId(body)).toBe('drive-a-browser');
+    expect(body.preferred).toMatchObject({
+      modelRoute: 'browser action:"navigate" url:"..."',
+      inspectRoute: 'browser action:"status"',
+    });
+  });
+
+  test('sends a request to fill in a form on a site to the browser tool', async () => {
+    const body = await route('fill out the contact form on the website and submit it');
+
+    expect(preferredId(body)).toBe('drive-a-browser');
+    expect(body.preferred).toMatchObject({ requiresConfirmation: true });
+  });
+
+  test('keeps a screen capture request on the desktop-control planner', async () => {
+    // Capturing the screen is desktop control, not browsing.
+    const body = await route('take a screenshot of the screen');
+
+    expect(preferredId(body)).not.toBe('drive-a-browser');
+  });
+
   test('routes browser-backed research runner wording to runner readiness', async () => {
     const body = await route('check browser-backed research runner readiness');
 

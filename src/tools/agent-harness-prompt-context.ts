@@ -7,7 +7,9 @@ import { buildProjectContextPrompt, discoverProjectContextFiles } from '../agent
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from '../agent/routine-registry.ts';
 import { AgentSkillRegistry, buildEnabledSkillsPrompt, evaluateAgentSkillBundleReadiness, evaluateAgentSkillReadiness } from '../agent/skill-registry.ts';
 import { buildVibeProjectionPrompt, discoverVibeFiles } from '../agent/vibe-file.ts';
+import { buildCapabilitySummaryPrompt } from '../agent/capability-summary-prompt.ts';
 import type { PromptContextReceipt } from '../agent/prompt-context-receipts.ts';
+import { capabilitySnapshot } from '../capabilities/capability-snapshot.ts';
 import type { CommandContext } from '../input/command-registry.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 
@@ -434,7 +436,23 @@ function promptContextSegments(context: CommandContext, includeParameters: boole
   const skillPrompt = buildEnabledSkillsPrompt(shellPaths) ?? '';
   const memory = promptMemoryApi(context.clients?.agentKnowledgeApi?.memory);
 
+  const capabilityIndex = capabilitySnapshot();
+  const capabilityText = buildCapabilitySummaryPrompt(capabilityIndex) ?? '';
+
   return [
+    segment({
+      id: 'capabilities',
+      label: 'Capability index',
+      status: capabilityIndex ? 'active' : 'attention',
+      order: 0,
+      activeCount: capabilityIndex?.ready.length ?? 0,
+      suppressedCount: (capabilityIndex?.needsSetup.length ?? 0) + (capabilityIndex?.unavailable.length ?? 0),
+      promptChars: capabilityText.length,
+      promptText: capabilityText,
+      note: capabilityIndex
+        ? `${capabilityIndex.ready.length} ready, ${capabilityIndex.needsSetup.length} need setup, ${capabilityIndex.unavailable.length} unavailable, ${capabilityIndex.disagreements.length} configured but not wired up.`
+        : 'The capability index has not been resolved for this session, so the model is told the list is unknown rather than empty.',
+    }, includeParameters),
     segment({
       id: 'base_system_prompt',
       label: 'Base system prompt',
@@ -564,7 +582,7 @@ export function promptContextSummary(context: CommandContext, args: PromptContex
         : 'empty';
   return {
     status,
-    order: ['base_system_prompt', 'vibe', 'project_context', 'operator_policy', 'memory', 'routines', 'skills', 'persona', 'context_window_supplement'],
+    order: ['capabilities', 'base_system_prompt', 'vibe', 'project_context', 'operator_policy', 'memory', 'routines', 'skills', 'persona', 'context_window_supplement'],
     model: currentModel,
     provider: context.session.runtime.provider,
     contextWindow,

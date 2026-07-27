@@ -69,6 +69,10 @@ const READ_ONLY_PERSONAL_OPS_ACTIONS = new Set(['', 'briefing', 'brief', 'daily'
 const READ_ONLY_RESEARCH_ACTIONS = new Set(['', 'briefing', 'brief', 'status', 'dashboard', 'cockpit', 'next', 'plan', 'workflow', 'research', 'runner', 'browser', 'browser_runner', 'browser_backed', 'deep_research', 'runs', 'list_runs', 'run_list', 'run', 'show_run', 'inspect_run', 'sources', 'queue', 'source_queue', 'source', 'show_source', 'inspect_source', 'bundle', 'bundle_sources', 'source_bundle', 'search', 'public_search', 'collect', 'collect_sources', 'source_candidates', 'reports', 'list_reports', 'report_list', 'visual_reports', 'report_artifact', 'show_report', 'inspect_report', 'show_visual_report', 'visual_report_artifact']);
 const READ_ONLY_CHANNELS_ACTIONS = new Set(['', 'status', 'summary', 'list', 'readiness', 'channels', 'channel', 'show', 'inspect', 'setup', 'guide', 'setup_guide', 'channel_setup_guide', 'triage', 'inbox', 'blockers', 'retries', 'channel_triage', 'deliveries', 'delivery', 'receipts', 'history', 'channel_deliveries']);
 const READ_ONLY_MEMORY_ACTIONS = new Set(['', 'status', 'summary', 'posture', 'memory_posture', 'recall', 'providers', 'provider', 'memory_provider', 'embedding', 'external', 'external_provider', 'refinement', 'refinement_tasks', 'semantic_refinement', 'self_improvement', 'semantic_self_improvement', 'learning_loop', 'curator', 'learning', 'learning_curator', 'queue', 'review_queue', 'plan', 'candidate', 'learning_candidate', 'card', 'inspect_candidate', 'list', 'records', 'memories', 'search', 'find', 'lookup', 'get', 'show', 'inspect', 'read']);
+// Browser actions that only observe. Everything else — navigating, clicking,
+// typing, launching, screenshots — is an external effect and is categorized as
+// a write so it goes through the same approval path as any other real action.
+const READ_ONLY_BROWSER_ACTIONS = new Set(['', 'status', 'tabs', 'snapshot', 'read_text']);
 const READ_ONLY_COMPUTER_ACTIONS = new Set(['', 'status', 'summary', 'overview', 'computer', 'computer_use', 'plan', 'route', 'control_plan', 'browser_plan', 'desktop_plan', 'control', 'browser_control', 'desktop', 'desktop_control', 'screenshot', 'screen', 'screen_recording', 'observe', 'browser', 'pwa', 'cockpit', 'browser_cockpit', 'web', 'setup', 'configure', 'browser_desktop_control', 'mcp', 'tools', 'servers', 'mcp_servers']);
 const READ_ONLY_DEVICE_ACTIONS = new Set(['', 'status', 'map', 'capabilities', 'device', 'devices', 'mobile', 'phone', 'pairing', 'capability', 'route', 'pairing_route', 'show', 'inspect', 'browser', 'pwa', 'cockpit', 'browser_cockpit', 'web', 'control', 'browser_control', 'desktop', 'desktop_control', 'computer_use', 'voice', 'media', 'voice_media', 'workflows', 'provider', 'media_provider', 'voice_provider']);
 const READ_ONLY_MODELS_ACTIONS = new Set(['', 'status', 'routing', 'routes', 'models', 'model', 'readiness', 'route_readiness', 'route', 'model_route', 'inspect', 'show', 'candidate', 'endpoint', 'local', 'cookbook', 'local_cookbook', 'recipes', 'recipe', 'ollama', 'llama_cpp', 'llamacpp', 'vllm', 'local_servers', 'providers', 'provider_accounts', 'accounts', 'subscriptions', 'auth', 'logins', 'provider', 'provider_account', 'account', 'subscription', 'auth_status']);
@@ -231,6 +235,12 @@ export function fallbackPermissionCategoryForArgs(toolName: string, args: Record
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_MEMORY_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'browser') {
+    const action = typeof args.action === 'string'
+      ? args.action.trim().toLowerCase().replace(/-/g, '_')
+      : '';
+    return READ_ONLY_BROWSER_ACTIONS.has(action) ? 'read' : 'write';
   }
   if (toolName === 'computer') {
     const action = typeof args.action === 'string'

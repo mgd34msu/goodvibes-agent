@@ -46,6 +46,10 @@ import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from 
 import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
+import { shutdownAgentBrowserSessions } from '../tools/agent-browser-tool.ts';
+import { installAgentMcpCallRoute } from '../tools/agent-mcp-call-route.ts';
+import { capabilitySnapshot } from '../capabilities/capability-snapshot.ts';
+import { wireCapabilityIndex } from './bootstrap-capability-wiring.ts';
 import { registerAgentAutonomyTool } from '../tools/agent-autonomy-tool.ts';
 import { registerAgentChannelsTool } from '../tools/agent-channels-tool.ts';
 import { registerAgentComputerTool } from '../tools/agent-computer-tool.ts';
@@ -324,6 +328,7 @@ export async function bootstrapRuntime(
         memoryRegistry: services.memoryRegistry,
         turnText: activePromptTurnText,
         memoryRecallSnapshot: services.memorySpineClient.recallSnapshot(),
+        capabilityIndex: capabilitySnapshot(),
       });
       promptContextReceipts.record(composed.receipt);
       memoryUsageTracker.onComposed(activePromptTurnId, composed.receipt);
@@ -431,6 +436,16 @@ export async function bootstrapRuntime(
   registerAgentAutonomyTool(toolRegistry, commandRegistry, commandContext);
   registerAgentChannelsTool(toolRegistry, commandRegistry, commandContext);
   registerAgentComputerTool(toolRegistry, commandRegistry, commandContext);
+  // Lets the agent actually invoke tools on MCP servers it can already see.
+  installAgentMcpCallRoute(toolRegistry, commandContext);
+  // Resolve what this agent can actually do, before the first turn.
+  wireCapabilityIndex({
+    toolRegistry,
+    commandContext,
+    configManager,
+    homeDirectory: services.shellPaths.homeDirectory,
+    workingDirectory: services.shellPaths.workingDirectory,
+  });
   registerAgentContextTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDelegationTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDeviceTool(toolRegistry, commandRegistry, commandContext);
@@ -754,6 +769,9 @@ export async function bootstrapRuntime(
       forensicsCollector.dispose();
       services.executionLedger.dispose();
       services.disposeSessionWriteLedger();
+      // Browser sessions own real Chromium processes; a session torn down
+      // without this leaves them behind.
+      await shutdownAgentBrowserSessions();
       await deferredStartup.drain(100);
       await agentExternalServices.stop();
       // Clear agent status interval via ref (consistent with agentStatusIntervalRef usage)

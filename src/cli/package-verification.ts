@@ -90,17 +90,27 @@ const REQUIRED_PACKAGE_FILE_EXCLUSIONS = [
   '!src/cli/package-verification.ts',
   '!src/verification',
 ] as const;
+/**
+ * Scripts whose exact text is pinned.
+ *
+ * Every compiling build ends by staging the browser driver next to the binary.
+ * That is not decoration: playwright-core is the one runtime dependency this
+ * package has and it CANNOT be bundled — it loads browsers.json and its own
+ * driver files from disk at run time — so a build that compiled without
+ * staging would produce a binary whose browser tool fails on first use, and
+ * pass every check that only looked at the compile flags.
+ */
 const REQUIRED_PACKAGE_SCRIPTS: Readonly<Record<string, string>> = {
   typecheck: 'bunx tsc --noEmit',
   'check:types': 'bun run typecheck',
   prebuild: 'bun run scripts/prebuild.ts',
-  build: 'bun build src/main.ts --compile --outfile dist/goodvibes-agent',
+  build: 'bun build src/main.ts --compile --outfile dist/goodvibes-agent && bun run scripts/stage-browser-driver.ts',
   'build:package-runtime': 'bun run scripts/build-package-runtime.ts',
-  'build:linux-x64': 'bun build src/main.ts --compile --target=bun-linux-x64 --outfile dist/goodvibes-agent-linux-x64',
-  'build:linux-arm64': 'bun build src/main.ts --compile --target=bun-linux-arm64 --outfile dist/goodvibes-agent-linux-arm64',
-  'build:macos-x64': 'bun build src/main.ts --compile --target=bun-darwin-x64 --outfile dist/goodvibes-agent-macos-x64',
-  'build:macos-arm64': 'bun build src/main.ts --compile --target=bun-darwin-arm64 --outfile dist/goodvibes-agent-macos-arm64',
-  'build:windows': 'bun build src/main.ts --compile --target=bun-windows-x64 --outfile dist/goodvibes-agent-windows.exe',
+  'build:linux-x64': 'bun build src/main.ts --compile --target=bun-linux-x64 --outfile dist/goodvibes-agent-linux-x64 && bun run scripts/stage-browser-driver.ts',
+  'build:linux-arm64': 'bun build src/main.ts --compile --target=bun-linux-arm64 --outfile dist/goodvibes-agent-linux-arm64 && bun run scripts/stage-browser-driver.ts',
+  'build:macos-x64': 'bun build src/main.ts --compile --target=bun-darwin-x64 --outfile dist/goodvibes-agent-macos-x64 && bun run scripts/stage-browser-driver.ts',
+  'build:macos-arm64': 'bun build src/main.ts --compile --target=bun-darwin-arm64 --outfile dist/goodvibes-agent-macos-arm64 && bun run scripts/stage-browser-driver.ts',
+  'build:windows': 'bun build src/main.ts --compile --target=bun-windows-x64 --outfile dist/goodvibes-agent-windows.exe && bun run scripts/stage-browser-driver.ts',
   'build:all-shell': 'bun run build:linux-x64 && bun run build:linux-arm64 && bun run build:macos-x64 && bun run build:macos-arm64 && bun run build:windows',
   test: 'bun run scripts/run-tests.ts',
   version: 'bun run scripts/prebuild.ts',
@@ -2520,7 +2530,21 @@ function verifyHarnessModeRouteReferences(root: string): readonly string[] {
       const lineEndIndex = source.indexOf('\n', match.index ?? 0);
       const lineEnd = lineEndIndex === -1 ? source.length : lineEndIndex;
       const line = source.slice(lineStart, lineEnd);
-      if (line.includes('agent_artifacts mode:')) continue;
+      // Only a mode that belongs to agent_harness is checked against
+      // agent_harness's modes.
+      //
+      // These files describe routes for OTHER tools too, and those tools have
+      // their own mode vocabularies: `agent_artifacts mode:"..."` was already
+      // carved out by name, and the browser round added `mcp mode:"call"`,
+      // which hit the same wall. Rather than keep a list of every other tool
+      // that ever appears here — a list whose next omission is another false
+      // failure at release time — the owning tool is read from the token
+      // immediately before `mode:`. A reference with no such token, or one
+      // naming agent_harness itself, is checked; a reference naming a
+      // different tool belongs to that tool.
+      const before = source.slice(lineStart, match.index ?? lineStart);
+      const owner = /([A-Za-z_][A-Za-z0-9_]*)\s+$/.exec(before)?.[1];
+      if (owner && owner !== 'agent_harness') continue;
       if (!AGENT_HARNESS_MODE_SET.has(mode)) {
         issues.push(`harness catalog ${relativePath}:${lineNumberForIndex(source, match.index ?? 0)} references unknown agent_harness mode:"${mode}".`);
       }
