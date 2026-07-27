@@ -206,7 +206,7 @@ The connected host is external. Agent can inspect it through:
 - `setup action:"item" setupItemId:"connected-host-readiness"` for the missing-host bootstrap plan: user-run Bun, GoodVibes host install/trust, binary verification, service start, and Agent reconnect commands before operator methods are reachable.
 - `host action:"methods|method"` for the public method catalog.
 
-None of those modes expose host start, stop, restart, install, expose-listener, account creation, arbitrary route mutation, default knowledge access, hidden background Agent jobs, or implicit delegated review.
+None of those modes expose host start, stop, restart, install, expose-listener, connected-host account or route mutation, default knowledge access, hidden background Agent jobs, or implicit delegated review. Those daemon mutations are reached through `agent_operator_method` with `confirm:true` instead. This says nothing about signing up for a third-party service: that is authorized, and it is recorded with `accounts action:"record"` rather than gated.
 
 ## Visible Autonomy
 

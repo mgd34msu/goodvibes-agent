@@ -63,7 +63,7 @@ function failureFromThrow(spec: GoogleSetupStepSpec, error: unknown): GoogleStep
     outcome: 'failed',
     detail: `${spec.title} did not complete.`,
     problem: `This step stopped unexpectedly: ${message}`,
-    fix: `Follow the written steps for "${spec.title}" in docs/google-setup-runbook.md${runbookAnchor(spec.id)}, then re-run — completed work is detected and skipped.`,
+    fix: `Read the written steps with /google runbook and find its "${spec.title}" section, then re-run — completed work is detected and skipped.`,
   };
 }
 
@@ -228,7 +228,10 @@ export function renderGoogleSetupReport(report: GoogleSetupReport): string {
 
   if (!report.ok) {
     lines.push('');
-    lines.push('Written instructions for every step: docs/google-setup-runbook.md');
+    // Not a repo path. A packaged install has no checkout, so naming the source
+    // file sends the owner looking for something that is not on their disk. The
+    // same text is generated from the step plan and printed by /google runbook.
+    lines.push('Written instructions for every step: /google runbook');
   }
 
   return lines.join('\n');
