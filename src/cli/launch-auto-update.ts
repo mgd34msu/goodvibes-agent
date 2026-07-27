@@ -19,7 +19,11 @@
  *
  * The feature is a real configurable setting (`update.autoUpdateAtLaunch` in
  * settings.json, read via readUpdateSettings): default ON, off with an
- * explicit false. Only binary installs self-update — a package-managed
+ * explicit false. That false is the off switch for this install replacing its
+ * own binary at all — it also stops the while-running updater unless
+ * `update.auto` is set explicitly (see runtime/periodic-update.ts), because a
+ * switch that stopped only this path left the binary being swapped half a
+ * minute later anyway. Only binary installs self-update — a package-managed
  * install or a from-source dev checkout skips with one honest line naming
  * why (a swap there would fight the package manager, or there is no compiled
  * file to swap; see detectInstallKind).
@@ -32,6 +36,7 @@ import { spawnSync } from 'node:child_process';
 import { detectInstallKind, normalizeVersion, type UpdateFetchLike } from '../runtime/update-check.ts';
 import { applyUpdate, checkForUpdate, type ApplyUpdateOptions } from '../input/commands/update-runtime.ts';
 import { readUpdateSettings, type UpdateSettings } from '../config/update-settings.ts';
+import { recordSelfUpdate } from '../runtime/self-update-receipt.ts';
 import type { ConfigManager } from '../config/index.ts';
 import { VERSION } from '../version.ts';
 
@@ -66,6 +71,13 @@ export interface RunLaunchAutoUpdateOptions {
   /** Injectable so tests observe the install step instead of swapping real files. */
   readonly apply?: (options: ApplyUpdateOptions) => Promise<void>;
   readonly timeoutMs?: number;
+  /** Injectable so tests observe the durable receipt without writing beside a real executable. */
+  readonly recordReceipt?: (entry: {
+    readonly execPath: string;
+    readonly fromVersion: string;
+    readonly toVersion: string;
+    readonly trigger: 'launch';
+  }) => void;
 }
 
 /** Resolves to 'timeout' when `promise` does not settle within `ms`; the timer never keeps the process alive. */
@@ -136,6 +148,16 @@ export async function runLaunchAutoUpdate(options: RunLaunchAutoUpdateOptions): 
       arch: options.arch,
       currentVersion: options.currentVersion,
       print: options.print,
+    });
+    // Durable before the restart, not after: this process is about to hand over
+    // and the line printed below is wiped by the alternate screen a moment
+    // later. The receipt is the only trace that survives to tell someone the
+    // binary they are looking at is not the one they installed.
+    (options.recordReceipt ?? recordSelfUpdate)({
+      execPath: options.execPath,
+      fromVersion: options.currentVersion,
+      toVersion: check.latestTag,
+      trigger: 'launch',
     });
     options.print(`auto-update: ${check.latestTag} installed — restarting onto the new version`);
     return { action: 'restart', latestTag: check.latestTag };

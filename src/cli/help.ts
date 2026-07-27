@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { VERSION } from '../version.ts';
+import { describeSelfUpdate, readLastSelfUpdate } from '../runtime/self-update-receipt.ts';
+import { detectInstallKind } from '../runtime/update-check.ts';
 
 function readJsonVersion(path: string): string | null {
   try {
@@ -19,8 +21,28 @@ export function getPackageVersion(): string {
     ?? VERSION;
 }
 
-export function renderGoodVibesVersion(binary = 'goodvibes-agent'): string {
-  return `${binary} ${getPackageVersion()}`;
+/**
+ * The version line, plus a plain statement when this binary replaced itself.
+ *
+ * `version` is where a person goes to find out which build they are holding, so
+ * it is where "the build you installed is not the build running" has to be
+ * said. Without it, a self-replacement was discoverable only as a stray
+ * `.previous` file, which is how a verification round ended up measuring a
+ * downloaded release instead of the binary it had just built.
+ *
+ * Reading is best-effort and takes the executable path as an argument: this
+ * runs before any home directory, profile, or config is resolved, so the
+ * receipt beside the executable is the only state it can consult.
+ */
+export function renderGoodVibesVersion(
+  binary = 'goodvibes-agent',
+  options: { readonly execPath?: string; readonly readReceipt?: typeof readLastSelfUpdate } = {},
+): string {
+  const line = `${binary} ${getPackageVersion()}`;
+  const execPath = options.execPath ?? process.execPath;
+  if (detectInstallKind(execPath) !== 'binary') return line;
+  const receipt = (options.readReceipt ?? readLastSelfUpdate)(execPath);
+  return receipt ? `${line}\n\n${describeSelfUpdate(receipt, execPath)}` : line;
 }
 
 export function renderGoodVibesHelp(binary = 'goodvibes-agent'): string {

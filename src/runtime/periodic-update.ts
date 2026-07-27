@@ -32,8 +32,9 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { channelDeliveriesInFlight } from '../agent/channel-delivery.ts';
 import { applyUpdate, checkForUpdate, type ApplyUpdateOptions, type CheckForUpdateResult } from '../input/commands/update-runtime.ts';
 import { restartOntoUpdatedBinary } from '../cli/launch-auto-update.ts';
-import { readUpdateSettings, type UpdateSettings } from '../config/update-settings.ts';
+import { readExplicitUpdateKeys, readUpdateSettings, type UpdateSettings } from '../config/update-settings.ts';
 import { detectInstallKind, normalizeVersion, type UpdateFetchLike } from './update-check.ts';
+import { recordSelfUpdate } from './self-update-receipt.ts';
 import type { ConfigManager } from '../config/index.ts';
 import { VERSION } from '../version.ts';
 
@@ -64,6 +65,37 @@ export function agentIsIdleForUpdate(probes: AgentUpdateIdleProbes): boolean {
   return !probes.listApprovals().some((approval) => approval.status === 'pending' || approval.status === 'claimed');
 }
 
+/**
+ * Whether the while-running updater may replace this binary.
+ *
+ * `update.autoUpdateAtLaunch: false` is documented as THE explicit, persisted
+ * off switch for self-update, and it used to gate only the launch swap. The
+ * periodic loop kept its own default-on switch, so an install with the
+ * documented switch set to false still replaced its own binary about thirty
+ * seconds after start and left a `.previous` behind. That is a switch that does
+ * not switch, and it is worse than no switch: the person believed they had
+ * turned self-replacement off, and anything they verified against that binary
+ * afterwards was measuring a different build than the one they installed.
+ *
+ * So an explicit `autoUpdateAtLaunch: false` now means "this install does not
+ * replace its own binary on its own", covering both updaters. The two settings
+ * stay independent features rather than collapsing into one: an explicit
+ * `update.auto` always wins, so "no launch updates, but do update at an idle
+ * moment while running" is still expressible — it just has to be SAID
+ * (`autoUpdateAtLaunch: false, auto: true`) rather than being what a bare
+ * off switch silently did.
+ */
+export function periodicUpdateEnabled(
+  settings: UpdateSettings,
+  options: { readonly autoWasStated?: boolean } = {},
+): boolean {
+  // A stated `auto` is a decision and always wins. An unstated one is only a
+  // default, and a default must not override an explicit off switch.
+  if (options.autoWasStated === true) return settings.auto ?? true;
+  if (settings.auto === false) return false;
+  return settings.autoUpdateAtLaunch ?? true;
+}
+
 export interface AgentPeriodicUpdaterOptions {
   readonly currentVersion: string;
   readonly execPath: string;
@@ -84,6 +116,13 @@ export interface AgentPeriodicUpdaterOptions {
   readonly apply?: ((options: ApplyUpdateOptions) => Promise<void>) | undefined;
   readonly setTimer?: ((fn: () => void, ms: number) => ReturnType<typeof setTimeout>) | undefined;
   readonly clearTimer?: ((timer: ReturnType<typeof setTimeout>) => void) | undefined;
+  /** Injectable so tests observe the durable receipt without writing beside a real executable. */
+  readonly recordReceipt?: ((entry: {
+    readonly execPath: string;
+    readonly fromVersion: string;
+    readonly toVersion: string;
+    readonly trigger: 'periodic';
+  }) => void) | undefined;
 }
 
 export class AgentPeriodicUpdater {
@@ -161,6 +200,15 @@ export class AgentPeriodicUpdater {
       // the loop surfaces the two lines that matter through notify.
       print: (line) => logger.info('agent periodic update', { line }),
     });
+    // Durable before the hand-over. A notify line lives in one running
+    // session's scrollback; a swap that happened mid-run has to still be
+    // answerable from the install afterwards.
+    (this.options.recordReceipt ?? recordSelfUpdate)({
+      execPath: this.options.execPath,
+      fromVersion: this.options.currentVersion,
+      toVersion: result.latestTag,
+      trigger: 'periodic',
+    });
     this.options.notify(`updated to ${result.latestTag} — restarting onto the new version`);
     // Stop before handing over: the loop must not fire again from inside the
     // orderly exit that follows.
@@ -171,7 +219,7 @@ export class AgentPeriodicUpdater {
 }
 
 export interface StartPeriodicSelfUpdateParams {
-  readonly configManager: Pick<ConfigManager, 'getRaw'>;
+  readonly configManager: Pick<ConfigManager, 'getRaw'> & Partial<Pick<ConfigManager, 'getConfigPath' | 'getProjectConfigPath'>>;
   readonly services: {
     readonly sessionBroker: { countBusySessions(): number };
     readonly approvalBroker: { listApprovals(): readonly { readonly status: string }[] };
@@ -196,16 +244,21 @@ export interface StartPeriodicSelfUpdateParams {
  * teardown to register alongside the session's other subscriptions.
  *
  * Every reason the loop does not run is logged: a non-updatable install (a dev
- * checkout or a package-managed install cannot be swapped in place) and the
- * explicit `update.auto: false` opt-out both say so, so an agent that never
- * updates is diagnosable from its log rather than a guess.
+ * checkout or a package-managed install cannot be swapped in place) and either
+ * opt-out both say so, so an agent that never updates is diagnosable from its
+ * log rather than a guess.
  */
 export function startPeriodicSelfUpdate(params: StartPeriodicSelfUpdateParams): () => void {
   const settings = readUpdateSettings(params.configManager);
+  const autoWasStated = readExplicitUpdateKeys(params.configManager).has('auto');
   const currentVersion = params.currentVersion ?? VERSION;
   const execPath = params.execPath ?? process.execPath;
-  if (settings.auto === false) {
-    logger.info('agent periodic update: off — update.auto is false; this agent will not update itself while running');
+  if (!periodicUpdateEnabled(settings, { autoWasStated })) {
+    logger.info(
+      settings.auto === false
+        ? 'agent periodic update: off — update.auto is false; this agent will not update itself while running'
+        : 'agent periodic update: off — update.autoUpdateAtLaunch is false, so this install does not replace its own binary unattended; set update.auto to true to keep only the while-running updates',
+    );
     return () => {};
   }
   const installKind = detectInstallKind(execPath);

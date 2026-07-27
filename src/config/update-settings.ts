@@ -1,11 +1,19 @@
 /**
  * `update.*` — launch-time self-update behavior.
  *
- * The SDK owns settings.json's typed schema, but its loader deep-merges user
- * JSON over the defaults and keeps unknown top-level namespaces through
- * `getRaw()` (the same passthrough contract checkpoint-settings.ts documents),
- * so the agent keeps its own `update` namespace in the same file and reads it
- * back here.
+ * The SDK owns settings.json's typed schema and already defines an `update`
+ * namespace (auto, intervalMinutes, firstCheckSeconds, …). Its loader
+ * deep-merges user JSON over the defaults and keeps keys it does not know
+ * through `getRaw()` (the same passthrough contract checkpoint-settings.ts
+ * documents), so the agent's own additions to that namespace —
+ * `autoUpdateAtLaunch` and `launchCheckTimeoutMs` — live in the same file and
+ * are read back here.
+ *
+ * Both config scopes reach this reader identically: the user-level file at
+ * `<home>/.goodvibes/agent/settings.json` loads first and a working-directory
+ * `.goodvibes/agent/settings.json` deep-merges on top. Neither scope is
+ * special-cased for `update.*`, and there is no daemon-tier overlay for it —
+ * `update.` is not a daemon-owned prefix.
  *
  * The reader hand-validates each field and returns a PARTIAL object holding
  * only the keys the user actually set to a well-typed value — a missing or
@@ -15,20 +23,35 @@
  * directive that clients update on start, and `update.autoUpdateAtLaunch:
  * false` is the explicit, persisted off switch.
  */
+import { existsSync, readFileSync } from 'node:fs';
 import type { ConfigManager } from './index.ts';
 
 type RawRecord = Record<string, unknown>;
 
 export interface UpdateSettings {
-  /** Check for a newer release at launch and install it before starting. Default: true. */
+  /**
+   * Check for a newer release at launch and install it before starting.
+   * Default: true.
+   *
+   * Setting this false is the off switch for this install replacing its own
+   * binary: it stops the launch swap, and — unless `auto` is set explicitly —
+   * the while-running swap as well. It used to gate only the launch path, so an
+   * install with this set to false still replaced itself about thirty seconds
+   * in, under `auto`'s separate default.
+   */
   readonly autoUpdateAtLaunch?: boolean;
   /** How long the launch-time version check may take before it is skipped. Defaults to 2500; clamped to [250, 30000]. */
   readonly launchCheckTimeoutMs?: number;
   /**
    * Keep checking for a newer release WHILE the agent runs, and install it at
-   * an idle moment. Mirrors the daemon's `update.auto`. Default: true — a
-   * long-running agent that only updated at launch went stale across every
-   * release the person never restarted for.
+   * an idle moment. Mirrors the daemon's `update.auto`. Default: follows
+   * `autoUpdateAtLaunch`, which defaults to true — a long-running agent that
+   * only updated at launch went stale across every release the person never
+   * restarted for.
+   *
+   * Set explicitly to override: an explicit value always wins, so
+   * `{ autoUpdateAtLaunch: false, auto: true }` still means "do not update at
+   * launch, but do update at an idle moment while running".
    */
   readonly auto?: boolean;
   /** Minutes between periodic checks. Mirrors the daemon's `update.intervalMinutes`. Defaults to 60; clamped to [5, 1440]. */
@@ -73,4 +96,51 @@ export function readUpdateSettings(configManager: Pick<ConfigManager, 'getRaw'>)
   const firstCheck = readClamped(src['firstCheckSeconds'], 0, MAX_FIRST_CHECK_SECONDS);
   if (firstCheck !== undefined) out.firstCheckSeconds = firstCheck;
   return out;
+}
+
+/**
+ * Which `update.*` keys the person actually WROTE, as opposed to inherited.
+ *
+ * `readUpdateSettings` reads the resolved config, and the SDK ships real
+ * defaults for part of the `update` namespace (`auto`, `intervalMinutes`,
+ * `firstCheckSeconds`, …). So a resolved `auto: true` says nothing about
+ * whether anyone chose it — every install reports it. That distinction is
+ * load-bearing for one decision and one only: whether an explicit
+ * `autoUpdateAtLaunch: false` should also stop the while-running updater, or
+ * whether the person has separately asked to keep it (see
+ * runtime/periodic-update.ts). Guessing from the merged value cannot answer it.
+ *
+ * Both scopes count as explicit — a key written in either the user-level file
+ * or the working-directory file was written by a person. The files are read
+ * directly rather than through the manager because the manager's whole job is
+ * to erase this difference by merging defaults in.
+ *
+ * Unreadable or malformed files yield "nothing was stated", which degrades to
+ * the documented switch governing both updaters — the safe direction, since it
+ * means an off switch is honored rather than quietly overridden.
+ */
+export function readExplicitUpdateKeys(
+  configManager: {
+    readonly getConfigPath?: () => string | undefined;
+    readonly getProjectConfigPath?: () => string | undefined;
+  },
+): ReadonlySet<string> {
+  const explicit = new Set<string>();
+  // The path accessors are optional: a caller holding only a value reader
+  // cannot say what was stated, and "nothing stated" is the answer that keeps
+  // the documented off switch in force.
+  const paths = [configManager.getConfigPath?.(), configManager.getProjectConfigPath?.()];
+  for (const path of paths) {
+    if (!path || !existsSync(path)) continue;
+    try {
+      const parsed: unknown = JSON.parse(readFileSync(path, 'utf-8'));
+      if (!parsed || typeof parsed !== 'object') continue;
+      const block = (parsed as RawRecord)['update'];
+      if (!block || typeof block !== 'object' || Array.isArray(block)) continue;
+      for (const key of Object.keys(block as RawRecord)) explicit.add(key);
+    } catch {
+      // A file that cannot be read stated nothing.
+    }
+  }
+  return explicit;
 }
