@@ -49,12 +49,21 @@ describe('verification ledger', () => {
     // from the SDK's own schema test would be exactly the "asserts the key is
     // present in CONFIG_SCHEMA" evidence that file rules out by name.
     //
-    // Never lower this again. If it is ever at risk, the two legitimate moves
-    // are to add itemised evidence rows or to correct what the denominator
-    // measures — and settings-consumed-keys.test.ts holds that correction to
-    // invariants so "correcting the denominator" cannot become a way to widen
-    // the rule until everything counts.
-    expect(ledger.totals.localBehaviorPercent).toBeGreaterThanOrEqual(70);
+    // The floor is 84, not 70. Restoring 70 put it back where it belonged
+    // before the last round moved it, but with the denominator corrected the
+    // honest measurement is 84.5% — and a floor thirteen points below reality
+    // is not a ratchet, it is thirteen points of room for exactly the silent
+    // decay this whole change exists to stop. It sits just under the measured
+    // value and never above it: a floor that claims more than the ledger
+    // reports would fail on arithmetic rather than on quality, which is the
+    // same confusion in the other direction.
+    //
+    // Never lower this. If it is ever at risk, the two legitimate moves are to
+    // add itemised evidence rows or to correct what the denominator measures —
+    // and settings-consumed-keys.test.ts holds that correction to invariants so
+    // "correcting the denominator" cannot become a way to widen the rule until
+    // everything counts.
+    expect(ledger.totals.localBehaviorPercent).toBeGreaterThanOrEqual(84);
     // All counts must be non-negative
     expect(ledger.totals.total).toBeGreaterThanOrEqual(0);
     expect(ledger.totals.localSignalVerified).toBeGreaterThanOrEqual(0);
