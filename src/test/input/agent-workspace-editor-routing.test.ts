@@ -404,7 +404,8 @@ describe('settingKey exhaustiveness against CONFIG_SCHEMA', () => {
    * email.* keys: injected by ensureEmailConfigDefaults() at runtime into a
    * live ConfigManager, not part of the static CONFIG_SCHEMA. They are not
    * used as settingActions in workspace categories today. If that changes,
-   * document each key with its source module (agent/email/email-service.ts).
+   * document each key with its source module
+   * (@pellux/goodvibes-sdk/platform/email).
    *
    * display.themeMode: the TUI-local synthetic appearance setting
    * (renderer/theme-mode-config.ts). It is agent-local — stored under the

@@ -54,21 +54,30 @@ describe('methodIdsMatching excludes advertised-but-undispatchable methods', () 
     }
   });
 
-  test('the invokable:false-marked email.* methods are NOT counted toward readiness', () => {
-    // Grounded against the real contract: these four were proven route-less
-    // and marked invokable:false SDK-side (commit 5634dfad).
-    const markedUnavailable = contractMethods()
-      .filter((m) => m.id.startsWith('email.') && m.invokable === false)
-      .map((m) => m.id);
-    expect(markedUnavailable.length).toBeGreaterThan(0); // the contract really carries the flag
-    const readinessIds = methodIdsMatching([...EMAIL_TOKENS]);
-    for (const id of markedUnavailable) {
-      expect(readinessIds).not.toContain(id);
-    }
-    // ...and they surface on the unavailable side instead (honest degraded ad)
+  test('email tokens: any method marked invokable:false is excluded from readiness automatically', () => {
+    // These four WERE the reason this test exists: email.send and the inbox
+    // reads were cataloged with no daemon route behind them. The IMAP/SMTP
+    // service is platform capability now and the daemon attaches a real
+    // handler to each id, so the contract carries none of them as
+    // invokable:false any more. Asserting the INVARIANT rather than the count
+    // is what keeps this honest in both directions — it fails if a route-less
+    // method ever creeps back into readiness, and it does not fail merely
+    // because the routes got built.
+    const readinessIds = new Set(methodIdsMatching([...EMAIL_TOKENS]));
     const unavailableIds = unavailableMethodIdsMatching([...EMAIL_TOKENS]);
-    for (const id of markedUnavailable) {
-      expect(unavailableIds).toContain(id);
+    const byId = new Map(contractMethods().map((m) => [m.id, m]));
+    for (const id of unavailableIds) {
+      expect(readinessIds.has(id)).toBe(false);
+      expect(byId.get(id)?.invokable).toBe(false);
+    }
+  });
+
+  test('the four email methods the daemon now serves are counted toward readiness', () => {
+    // The positive half: a fixed route has to actually show up as capability,
+    // or the hoist bought nothing a person can see.
+    const readinessIds = new Set(methodIdsMatching([...EMAIL_TOKENS]));
+    for (const id of ['email.inbox.list', 'email.inbox.read', 'email.send', 'email.draft.create']) {
+      expect(readinessIds.has(id), `${id} is served by the daemon now`).toBe(true);
     }
   });
 

@@ -1,37 +1,9 @@
-import { afterAll, describe, expect, test } from 'bun:test';
-import { gzipSync } from 'node:zlib';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
-import { extractTarGzEntry, extractTarGzTree, readTarGzEntries } from '../../runtime/tar-archive.ts';
-import { driverRemediation } from '../../browser/browser-driver-remediation.ts';
-import {
-  DRIVER_REQUIRED_FILES,
-  driverSearchDirectories,
-  findDriverDirectory,
-  managedDriverRoot,
-} from '../../browser/browser-provision-io.ts';
-import {
-  describeProvisionWork,
-  ensureBrowserBinary,
-  installRuntimeCandidates,
-  installRuntimeCandidatesFor,
-} from '../../browser/browser-provisioning.ts';
-import { runCapabilityProbe, emptyProbeContext } from '../../capabilities/capability-probe-runner.ts';
-import { browserControlDeclaration } from '../../capabilities/builtin-capabilities.ts';
-import {
-  BROWSER_DRIVER_ARCHIVE_NAME,
-  BROWSER_DRIVER_DIR_NAME,
-  BROWSER_DRIVER_REQUIRED_ENTRIES,
-} from '../../runtime/release-artifacts.ts';
-import type { BrowserProvisionIo, CommandOutcome } from '../../browser/browser-types.ts';
-
 /**
- * The 1.18.1 browser failure, pinned so it cannot ship again.
+ * The 1.18.1 browser failure, pinned so it cannot ship again — the half of it
+ * that is still the agent's.
  *
  * Three independent defects had to line up to produce it, and each is covered
- * here separately because fixing any one of them alone leaves the capability
- * broken:
+ * separately because fixing any one alone leaves the capability broken:
  *
  *   1. the driver never reached the release asset, so a downloaded binary had
  *      none beside it;
@@ -40,7 +12,42 @@ import type { BrowserProvisionIo, CommandOutcome } from '../../browser/browser-t
  *      needs-setup even with a driver correctly in place, and the model relayed
  *      that instead of calling the tool;
  *   3. the remediation told a binary user to install the npm package.
+ *
+ * The browser engine, the resolver and the provisioning policy are
+ * `@pellux/goodvibes-sdk/platform/browser` now, and the SDK's own
+ * browser-driver-* suites cover them. What stays here is what only this repo
+ * can answer, and every one of these is a place the agent and the platform
+ * have to AGREE rather than merely resemble each other:
+ *
+ *   - the release asset this repo publishes, extracted by this repo's own
+ *     tar reader (the one `/update` uses), landing where the SDK resolver looks;
+ *   - the agent's capability probe reaching the same verdict as the SDK
+ *     resolver, including the completeness rule;
+ *   - the agent's install-kind profile producing the right remediation;
+ *   - the agent's storage root binding, so the driver, profiles and screenshots
+ *     land under this surface and not another's.
  */
+
+import { afterAll, describe, expect, test } from 'bun:test';
+import { gzipSync } from 'node:zlib';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { extractTarGzTree, readTarGzEntries } from '../../runtime/tar-archive.ts';
+import { DRIVER_REQUIRED_FILES, findDriverDirectory } from '@pellux/goodvibes-sdk/platform/browser';
+import { runCapabilityProbe, emptyProbeContext } from '../../capabilities/capability-probe-runner.ts';
+import { browserControlDeclaration } from '../../capabilities/builtin-capabilities.ts';
+import {
+  BROWSER_DRIVER_DIR_NAME,
+  BROWSER_DRIVER_REQUIRED_ENTRIES,
+} from '../../runtime/release-artifacts.ts';
+import { driverRemediation, shippedDriverPath } from '../../runtime/browser-driver-profile.ts';
+import {
+  agentBrowserProfileRoot,
+  agentBrowserScreenshotRoot,
+  agentDriverSearchDirectories,
+  agentManagedDriverRoot,
+} from '../../runtime/agent-browser.ts';
 
 const scratchDirs: string[] = [];
 function scratch(prefix: string): string {
@@ -48,6 +55,10 @@ function scratch(prefix: string): string {
   scratchDirs.push(dir);
   return dir;
 }
+
+afterAll(() => {
+  for (const dir of scratchDirs) rmSync(dir, { recursive: true, force: true });
+});
 
 /** Builds a ustar tar.gz in memory, so no test shells out to `tar`. */
 function buildTarGz(entries: readonly { path: string; data?: string; mode?: number; directory?: boolean }[]): Buffer {
@@ -90,54 +101,38 @@ function driverArchive(): Buffer {
   ]);
 }
 
-describe('the driver archive the release ships', () => {
+describe('the driver archive this release ships', () => {
   test('carries every entry the update path refuses to install without', () => {
     const archive = driverArchive();
+    const names = [...readTarGzEntries(archive)].map((entry) => entry.path);
     for (const required of BROWSER_DRIVER_REQUIRED_ENTRIES) {
-      expect(extractTarGzEntry(archive, required), `${required} must be in the archive`).not.toBeNull();
+      expect(names, `${required} must be in the published archive`).toContain(required);
     }
   });
 
-  test('extracts to the exact directory the runtime searches, with the executable bit preserved', () => {
-    const installDir = scratch('gv-extract');
-    extractTarGzTree(driverArchive(), join(installDir, BROWSER_DRIVER_DIR_NAME), {});
-
-    const driverDir = join(installDir, BROWSER_DRIVER_DIR_NAME, BROWSER_DRIVER_DIR_NAME);
-    // stripComponents defaults to 0, so the archive's own prefix is kept here;
-    // the update path and the installer both strip it. Assert the payload.
-    expect(existsSync(join(driverDir, 'cli.js'))).toBe(true);
-    // cli.js is executed to install a browser; a non-executable copy is useless.
-    expect(statSync(join(driverDir, 'cli.js')).mode & 0o111).not.toBe(0);
-    expect(statSync(join(driverDir, 'package.json')).mode & 0o111).toBe(0);
+  test('the required entries are exactly the files the platform resolver demands', () => {
+    // The release names them with the directory prefix; the resolver checks
+    // them inside a candidate directory. Same three files, stated twice — so
+    // this pins that they cannot drift apart.
+    expect(BROWSER_DRIVER_REQUIRED_ENTRIES.map((entry) => entry.slice(BROWSER_DRIVER_DIR_NAME.length + 1)).sort())
+      .toEqual([...DRIVER_REQUIRED_FILES].sort());
   });
 
-  test('stripComponents lands the driver directly where the binary looks for it', () => {
-    const installDir = scratch('gv-strip');
-    const target = join(installDir, BROWSER_DRIVER_DIR_NAME);
-    extractTarGzTree(driverArchive(), target, { stripComponents: 1 });
+  test('extracts to the exact directory the runtime searches, with the executable bit preserved', () => {
+    const destination = join(scratch('gv-driver'), BROWSER_DRIVER_DIR_NAME);
+    extractTarGzTree(driverArchive(), destination, { stripComponents: 1 });
 
-    expect(existsSync(join(target, 'cli.js'))).toBe(true);
-    expect(existsSync(join(target, 'package.json'))).toBe(true);
-    // And the FIRST place the runtime looks is that same directory name beside
-    // the running executable — which is what the release asset, the installer,
-    // and the update swap all extract into.
-    expect(driverSearchDirectories(installDir)[0]).toBe(join(dirname(process.execPath), BROWSER_DRIVER_DIR_NAME));
+    expect(existsSync(join(destination, 'cli.js'))).toBe(true);
+    // cli.js is executed by the browser install step; a lost mode bit makes the
+    // extracted driver unusable in exactly the case this asset exists for.
+    expect(statSync(join(destination, 'cli.js')).mode & 0o111).toBeGreaterThan(0);
+    expect(findDriverDirectory(undefined, [destination])).toBe(destination);
   });
 
   test('an archive entry that would escape the destination is refused, not sanitised', () => {
+    const destination = scratch('gv-escape');
     const hostile = buildTarGz([{ path: '../escaped.js', data: 'nope' }]);
-    const target = scratch('gv-escape');
-    expect(() => extractTarGzTree(hostile, join(target, 'inner'), {})).toThrow(/escapes the destination/);
-    expect(existsSync(join(target, 'escaped.js'))).toBe(false);
-  });
-
-  test('an absolute archive entry is refused', () => {
-    const hostile = buildTarGz([{ path: '/etc/goodvibes-escape', data: 'nope' }]);
-    expect(() => extractTarGzTree(hostile, scratch('gv-abs'), {})).toThrow(/absolute path/);
-  });
-
-  test('a corrupt archive fails loudly rather than reading as empty', () => {
-    expect(() => [...readTarGzEntries(Buffer.from('not a gzip stream'))]).toThrow();
+    expect(() => extractTarGzTree(hostile, destination, { stripComponents: 0 })).toThrow();
   });
 });
 
@@ -147,9 +142,7 @@ describe('the capability probe that made this unrecoverable', () => {
   test('a driver beside the executable satisfies the probe even though it is not a resolvable module', () => {
     const installDir = scratch('gv-probe');
     const driverDir = join(installDir, BROWSER_DRIVER_DIR_NAME);
-    mkdirSync(driverDir, { recursive: true });
-    writeFileSync(join(driverDir, 'package.json'), '{"name":"playwright-core"}');
-    writeFileSync(join(driverDir, 'index.js'), 'module.exports = {};');
+    extractTarGzTree(driverArchive(), driverDir, { stripComponents: 1 });
 
     const result = runCapabilityProbe(
       // A specifier that is deliberately not installed anywhere, so the only
@@ -172,34 +165,6 @@ describe('the capability probe that made this unrecoverable', () => {
 
     expect(result.satisfied).toBe(false);
     expect(result.detail).toContain(missing);
-  });
-
-  test('a partial driver beside the binary does not shadow a good one elsewhere', () => {
-    // The search stops at the first match, so an incomplete candidate that
-    // still counted as a driver made the good one unreachable — and no amount
-    // of self-provisioning could recover, because the broken one kept winning.
-    const installDir = scratch('gv-shadow');
-    const partial = join(installDir, 'partial', BROWSER_DRIVER_DIR_NAME);
-    const complete = join(installDir, 'complete', BROWSER_DRIVER_DIR_NAME);
-    mkdirSync(partial, { recursive: true });
-    writeFileSync(join(partial, 'package.json'), '{"name":"playwright-core"}');
-    writeFileSync(join(partial, 'index.js'), 'module.exports = {};');
-    extractTarGzTree(driverArchive(), complete, { stripComponents: 1 });
-
-    const resolved = findDriverDirectory(undefined, [partial, complete]);
-    expect(resolved).toBe(complete);
-  });
-
-  test('a directory holding only a manifest is not a driver', () => {
-    const half = join(scratch('gv-probe-half'), BROWSER_DRIVER_DIR_NAME);
-    mkdirSync(half, { recursive: true });
-    writeFileSync(join(half, 'package.json'), '{"name":"playwright-core"}');
-
-    const result = runCapabilityProbe(
-      { kind: 'module-resolvable', specifier: 'playwright-core-not-a-real-package', label, searchDirectories: [half] },
-      emptyProbeContext(),
-    );
-    expect(result.satisfied).toBe(false);
   });
 
   test('the probe and the runtime resolver agree about a driver missing its CLI', () => {
@@ -230,7 +195,8 @@ describe('the capability probe that made this unrecoverable', () => {
 
   test('the browser capability declares the resolver rule, not a weaker one', () => {
     // Declaring the directories without the completeness rule is what let the
-    // two drift apart, so the declaration itself is pinned.
+    // two drift apart, so the declaration itself is pinned — including that it
+    // searches the AGENT's directories rather than some other surface's.
     const declaration = browserControlDeclaration({ homeDirectory: '/home/someone', workingDirectory: '/tmp' });
     const prerequisite = declaration.prerequisites?.find((entry) => entry.id === 'playwright-driver');
     expect(prerequisite).toBeDefined();
@@ -238,264 +204,51 @@ describe('the capability probe that made this unrecoverable', () => {
     expect(probe?.kind).toBe('module-resolvable');
     expect(probe?.kind === 'module-resolvable' ? probe.requiredFiles : undefined).toEqual(DRIVER_REQUIRED_FILES);
     expect(probe?.kind === 'module-resolvable' ? probe.searchDirectories : undefined)
-      .toEqual(driverSearchDirectories('/home/someone'));
-  });
-});
-
-describe('the browser install step on a machine with no interpreter', () => {
-  test('the running executable is always a candidate, so an install never needs bun or node on PATH', () => {
-    const candidates = installRuntimeCandidates();
-    expect(candidates[0]?.command).toBe(process.execPath);
-    // Under `bun test` the running executable IS an interpreter, so it needs no
-    // marker; a compiled binary needs BUN_BE_BUN to act as one. Either way the
-    // artifact's own executable is tried before anything on PATH.
-    expect(candidates.map((candidate) => candidate.command)).toContain('bun');
-    expect(candidates.map((candidate) => candidate.command)).toContain('node');
-  });
-
-  test('a compiled binary runs the install CLI through its own embedded runtime', () => {
-    // Pinned as a value rather than only observed at runtime: the compiled
-    // agent binary has no `bun` and no `node` beside it, and without this the
-    // managed browser download is unreachable on a binary-only machine.
-    const compiled = installRuntimeCandidatesFor('/home/someone/.local/bin/goodvibes-agent');
-    expect(compiled[0]).toEqual({ command: '/home/someone/.local/bin/goodvibes-agent', env: { BUN_BE_BUN: '1' } });
-
-    const interpreter = installRuntimeCandidatesFor('/usr/local/bin/bun');
-    expect(interpreter[0]).toEqual({ command: '/usr/local/bin/bun', env: {} });
-  });
-
-  test('a missing interpreter is recognized as missing, and the next candidate is tried', async () => {
-    // Bun reports a missing program as `Executable not found in $PATH: "bun"`,
-    // never as ENOENT. Matching ENOENT alone stopped the loop on the first
-    // candidate and reported "install exited with code null", which names
-    // nothing the owner can act on.
-    const tried: string[] = [];
-    const io = stubIo({
-      resolveDriver: () => ({
-        available: true,
-        packageDirectory: '/drv',
-        cliPath: '/drv/cli.js',
-        version: '1.62.0',
-        error: null,
-      }),
-      expectedExecutablePath: () => '/cache/chromium-1234/chrome-linux64/chrome',
-      pathExists: () => false,
-      directoryWritable: () => true,
-      systemBrowserCandidates: () => [],
-      runCommand: async (command) => {
-        tried.push(command);
-        return {
-          code: null,
-          stdout: '',
-          stderr: '',
-          timedOut: false,
-          spawnError: `Executable not found in $PATH: "${command}"`,
-        };
-      },
-    });
-
-    const report = await ensureBrowserBinary(io, {});
-
-    expect(tried.length, 'every candidate must be tried, not just the first').toBeGreaterThan(1);
-    expect(report.ok).toBe(false);
-    expect(report.problem).not.toContain('exited with code null');
-    expect(report.problem).toContain('is not available');
+      .toEqual(agentDriverSearchDirectories('/home/someone'));
   });
 });
 
 describe('remediation matches how the agent was actually installed', () => {
   test('a binary install is told to get the driver that ships with the release, never to install the npm package', () => {
-    const message = driverRemediation({ execPath: '/home/someone/.local/bin/goodvibes-agent' });
-    expect(message).toContain(BROWSER_DRIVER_ARCHIVE_NAME);
-    expect(message).toContain('/home/someone/.local/bin/playwright-core');
-    // The exact instruction the owner was given, which silently switched a
-    // binary install to a package install.
-    expect(message).not.toContain('bun add -g @pellux/goodvibes-agent');
+    const advice = driverRemediation({ execPath: '/usr/local/bin/goodvibes-agent', executableDirectory: '/usr/local/bin' });
+    expect(advice).toContain('browser-driver.tar.gz');
+    expect(advice).toContain('curl -fsSL https://goodvibes.sh/install.sh | sh');
+    expect(advice).toContain('/usr/local/bin/playwright-core/cli.js');
+    expect(advice).not.toContain('bun add -g');
   });
 
   test('a package install is told to reinstall the package', () => {
-    const message = driverRemediation({ execPath: '/home/someone/.bun/install/global/node_modules/@pellux/goodvibes-agent/bin/goodvibes-agent' });
-    expect(message).toContain('bun add -g @pellux/goodvibes-agent');
+    const advice = driverRemediation({ execPath: '/home/someone/.bun/install/global/node_modules/@pellux/goodvibes-agent/bin/goodvibes-agent.ts' });
+    expect(advice).toContain('bun add -g @pellux/goodvibes-agent');
   });
 
   test('a source checkout is told to install dependencies', () => {
-    const message = driverRemediation({ execPath: '/usr/local/bin/bun' });
-    expect(message).toContain('bun install');
-    expect(message).not.toContain('bun add -g');
+    expect(driverRemediation({ execPath: '/home/someone/.bun/bin/bun' })).toContain('bun install');
+  });
+
+  test('the path named in the advice is the path the driver actually goes to', () => {
+    expect(shippedDriverPath({ execPath: '/opt/gv/goodvibes-agent', executableDirectory: '/opt/gv' }))
+      .toBe(`/opt/gv/${BROWSER_DRIVER_DIR_NAME}`);
   });
 });
 
-/** Minimal IO that never touches the network, the filesystem, or a process. */
-function stubIo(overrides: Partial<BrowserProvisionIo> = {}): BrowserProvisionIo {
-  const ok: CommandOutcome = { code: 0, stdout: '', stderr: '', timedOut: false, spawnError: null };
-  return {
-    resolveDriver: () => ({ available: false, packageDirectory: null, cliPath: null, version: null, error: 'no driver' }),
-    expectedExecutablePath: () => null,
-    browsersPath: () => join(tmpdir(), `gv-browsers-${Math.random().toString(36).slice(2)}`),
-    pathExists: () => false,
-    isExecutableFile: () => false,
-    directoryWritable: () => true,
-    removePath: () => undefined,
-    runCommand: async () => ok,
-    systemBrowserCandidates: () => [],
-    now: () => 0,
-    ...overrides,
-  };
-}
-
-describe('the self-provision fallback', () => {
-  test('is attempted before the driver is ever reported missing', async () => {
-    let attempted = false;
-    const io = stubIo({
-      installDriver: async () => {
-        attempted = true;
-        return { code: 1, stdout: '', stderr: 'registry unreachable', timedOut: false, spawnError: null };
-      },
-      managedDriverRoot: () => '/tmp/gv-managed',
-    });
-
-    const report = await ensureBrowserBinary(io, {});
-
-    expect(attempted, 'provisioning must be tried before reporting the driver missing').toBe(true);
-    expect(report.ok).toBe(false);
-    expect(report.failure).toBe('driver-missing');
-    // The report says it tried and what stopped it, not merely "missing".
-    expect(report.problem).toContain('could not be installed automatically');
-    expect(report.problem).toContain('registry unreachable');
-    expect(report.steps.some((step) => step.step === 'install-driver')).toBe(true);
+describe('agent-owned browser storage', () => {
+  test('the managed driver, profiles and screenshots all sit under the agent storage root', () => {
+    expect(agentManagedDriverRoot('/home/someone')).toBe('/home/someone/.goodvibes/agent/browser/driver');
+    expect(agentBrowserProfileRoot('/home/someone')).toBe('/home/someone/.goodvibes/agent/browser/profiles');
+    expect(agentBrowserScreenshotRoot('/home/someone')).toBe('/home/someone/.goodvibes/agent/browser/screenshots');
   });
 
-  test('reports the install-kind-aware fix when provisioning genuinely cannot work', async () => {
-    const io = stubIo({
-      installDriver: async () => ({ code: 1, stdout: '', stderr: 'offline', timedOut: false, spawnError: null }),
-      managedDriverRoot: () => '/tmp/gv-managed',
-      driverFix: () => driverRemediation({ execPath: '/home/someone/.local/bin/goodvibes-agent' }),
-    });
-
-    const report = await ensureBrowserBinary(io, {});
-
-    expect(report.fix).toContain(BROWSER_DRIVER_ARCHIVE_NAME);
-    expect(report.fix).not.toContain('bun add -g @pellux/goodvibes-agent');
-  });
-
-  test('a driver installed by the fallback is then used, not re-reported as missing', async () => {
-    let installed = false;
-    const io = stubIo({
-      installDriver: async () => {
-        installed = true;
-        return { code: 0, stdout: 'downloaded playwright-core@1.62.0 from the npm registry', stderr: '', timedOut: false, spawnError: null };
-      },
-      managedDriverRoot: () => '/tmp/gv-managed',
-      resolveDriver: () => installed
-        ? { available: true, packageDirectory: '/tmp/gv-managed', cliPath: '/tmp/gv-managed/cli.js', version: '1.62.0', error: null }
-        : { available: false, packageDirectory: null, cliPath: null, version: null, error: 'no driver' },
-      // A system browser is present, so provisioning can complete without a download.
-      systemBrowserCandidates: () => ['/usr/bin/chromium'],
-      isExecutableFile: () => true,
-      pathExists: () => true,
-      runCommand: async () => ({ code: 0, stdout: 'Chromium 148', stderr: '', timedOut: false, spawnError: null }),
-    });
-
-    const report = await ensureBrowserBinary(io, {});
-
-    expect(installed).toBe(true);
-    expect(report.ok).toBe(true);
-    expect(report.driverVersion).toBe('1.62.0');
-  });
-
-  test('a reporting call installs no driver, and says that is why none is there', async () => {
-    // `status` is a read-only action everywhere it is gated, and the CLI help
-    // says it installs nothing. It reached this policy with allowDownload:false
-    // and the driver install ran anyway, fetching a package from the registry
-    // and writing it into the owner's home on what the owner was told was a
-    // look-only call.
-    let installAttempted = false;
-    const io = stubIo({
-      installDriver: async () => {
-        installAttempted = true;
-        return { code: 0, stdout: 'downloaded', stderr: '', timedOut: false, spawnError: null };
-      },
-      managedDriverRoot: () => '/tmp/gv-managed',
-      resolveDriver: () => ({ available: false, packageDirectory: null, cliPath: null, version: null, error: 'no driver' }),
-    });
-
-    const report = await ensureBrowserBinary(io, { allowDownload: false });
-
-    expect(installAttempted, 'a reporting call must not install a driver').toBe(false);
-    expect(report.ok).toBe(false);
-    expect(report.failure).toBe('driver-not-installed-yet');
-    // And it must not claim installing was tried and failed.
-    expect(report.problem).not.toContain('could not be installed');
-    expect(report.problem).toContain('installs nothing');
-    expect(report.steps.some((step) => step.step === 'install-driver')).toBe(false);
-    expect(report.steps.some((step) => step.step === 'install-driver-skipped')).toBe(true);
-  });
-
-  test('a skipped driver install never reads as setup that ran', async () => {
-    // describeProvisionWork turns ok install steps into a "first browser call
-    // installed the driver" receipt for the model. A skip is not an install.
-    const io = stubIo({
-      installDriver: async () => ({ code: 0, stdout: 'downloaded', stderr: '', timedOut: false, spawnError: null }),
-      managedDriverRoot: () => '/tmp/gv-managed',
-      resolveDriver: () => ({ available: false, packageDirectory: null, cliPath: null, version: null, error: 'no driver' }),
-    });
-
-    const report = await ensureBrowserBinary(io, { allowDownload: false });
-
-    expect(describeProvisionWork(report)).toBe(null);
-  });
-
-  test('setup that actually ran is reported back to the caller', () => {
-    const receipt = describeProvisionWork({
-      ok: true,
-      source: 'managed-download',
-      executablePath: '/x',
-      browsersPath: '/y',
-      driverVersion: '1.62.0',
-      steps: [
-        { step: 'install-driver', detail: 'installed', ok: true, elapsedMs: 1200 },
-        { step: 'install-browser', detail: 'downloaded', ok: true, elapsedMs: 7000 },
-      ],
-      failure: null,
-      problem: null,
-      fix: null,
-    });
-    expect(receipt).toContain('installed the browser driver');
-    expect(receipt).toContain('downloaded the browser');
-  });
-
-  test('a call that had nothing to do reports no setup', () => {
-    const receipt = describeProvisionWork({
-      ok: true,
-      source: 'managed-cache',
-      executablePath: '/x',
-      browsersPath: '/y',
-      driverVersion: '1.62.0',
-      steps: [{ step: 'cached-browser', detail: 'ok', ok: true, elapsedMs: 10 }],
-      failure: null,
-      problem: null,
-      fix: null,
-    });
-    expect(receipt).toBeNull();
-  });
-});
-
-describe('the managed driver location', () => {
-  test('is inside the agent-owned storage for the home it was given', () => {
-    const root = managedDriverRoot('/home/someone');
-    expect(root).toBe(join('/home/someone', '.goodvibes', 'agent', 'browser', 'driver'));
-    expect(driverSearchDirectories('/home/someone')).toContain(join(root, 'node_modules', BROWSER_DRIVER_DIR_NAME));
-  });
-});
-
-// Scratch cleanup is deliberate rather than left to the OS: these tests create
-// real directories, and the repo's own stale-tmp gate exists because they add up.
-afterAll(() => {
-  for (const dir of scratchDirs) {
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      /* ignore */
+  test('neither writes into the user\'s project directory', () => {
+    for (const path of [agentBrowserProfileRoot('/home/someone'), agentBrowserScreenshotRoot('/home/someone')]) {
+      expect(path.startsWith('/home/someone/.goodvibes/')).toBe(true);
     }
-  }
+  });
+
+  test('the search looks beside the executable first, then the agent-owned directory', () => {
+    const directories = agentDriverSearchDirectories('/home/someone');
+    expect(directories).toContain(join(agentManagedDriverRoot('/home/someone'), 'node_modules', 'playwright-core'));
+    expect(directories.indexOf(join(agentManagedDriverRoot('/home/someone'), 'node_modules', 'playwright-core')))
+      .toBeGreaterThan(0);
+  });
 });

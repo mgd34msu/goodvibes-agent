@@ -1,6 +1,7 @@
 import { join } from 'node:path';
-import { driverRemediation } from '../browser/browser-driver-remediation.ts';
-import { DRIVER_REQUIRED_FILES, driverSearchDirectories } from '../browser/browser-provision-io.ts';
+import { DRIVER_REQUIRED_FILES } from '@pellux/goodvibes-sdk/platform/browser';
+import { driverRemediation } from '../runtime/browser-driver-profile.ts';
+import { agentDriverSearchDirectories } from '../runtime/agent-browser.ts';
 import { registerCapability, registerFallbackCapability } from './capability-index.ts';
 import type { CapabilityDeclaration, CapabilityPrerequisite, CapabilityProbe } from './capability-types.ts';
 
@@ -61,7 +62,10 @@ export function browserControlDeclaration(options: BuiltinCapabilityOptions): Ca
           // completeness rule it applies, so the index agrees with what the
           // browser tool will find a moment later rather than merely looking in
           // the same places.
-          searchDirectories: driverSearchDirectories(options.homeDirectory),
+          // Resolved against the AGENT's storage root, so the index reports on
+          // the same directory the browser tool will install into rather than
+          // on some other surface's.
+          searchDirectories: agentDriverSearchDirectories(options.homeDirectory),
           requiredFiles: DRIVER_REQUIRED_FILES,
         },
         optional: true,

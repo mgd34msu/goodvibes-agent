@@ -17,7 +17,7 @@
  * trip to a model.
  */
 import { createAgentBrowserTool, BROWSER_TOOL_ACTIONS } from '../tools/agent-browser-tool.ts';
-import { browserProfileRoot, browserScreenshotRoot } from '../browser/browser-sessions.ts';
+import { agentBrowserProfileRoot, agentBrowserScreenshotRoot } from '../runtime/agent-browser.ts';
 import { shutdownAgentBrowserSessions } from '../tools/agent-browser-tool.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
@@ -93,8 +93,8 @@ export async function handleBrowserCommand(runtime: CliCommandRuntime): Promise<
 
   const home = runtime.homeDirectory;
   const tool = createAgentBrowserTool({
-    screenshotDirectory: browserScreenshotRoot(home),
-    profileRoot: browserProfileRoot(home),
+    screenshotDirectory: agentBrowserScreenshotRoot(home),
+    profileRoot: agentBrowserProfileRoot(home),
     homeDirectory: home,
   });
 

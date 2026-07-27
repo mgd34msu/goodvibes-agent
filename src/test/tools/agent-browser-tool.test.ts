@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createToolRegistryDouble } from '../helpers/tool-registry-double.ts';
-import type { BrowserEngine } from '../../browser/browser-engine.ts';
-import { BrowserSessionError } from '../../browser/browser-engine.ts';
+import type { BrowserEngine } from '@pellux/goodvibes-sdk/platform/browser';
+import { BrowserSessionError } from '@pellux/goodvibes-sdk/platform/browser';
 import {
   BROWSER_TOOL_ACTIONS,
   BROWSER_TOOL_READ_ONLY_ACTIONS,

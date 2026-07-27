@@ -3413,19 +3413,20 @@ describe('agent_harness tool', () => {
         readonly personalOps?: { readonly lanes: number; readonly gap: number; readonly ready: number; readonly workflows: number; readonly setupWorkflows: number };
       }>(fixture, { mode: 'summary' });
       expect(summary.personalOps?.lanes).toBe(7);
-      // Capability-advertisement honesty: with no real connectors configured and every
-      // email.*/calendar.* operator-contract method marked invokable:false
-      // (advertised but not served by any daemon route), the inbox and
-      // calendar lanes honestly read as gaps instead of claiming
-      // method-backed readiness, and their workflows read needs-setup.
-      expect(summary.personalOps?.gap).toBe(2);
+      // Capability-advertisement honesty, after the mail and calendar services
+      // became platform capability and the daemon started serving email.* and
+      // calendar.*: the lanes no longer read as gaps, because the methods are
+      // genuinely dispatchable now. They read PARTIAL rather than ready — the
+      // routes exist, but no account is connected in this fixture — which is
+      // the distinction that keeps this from claiming a working mailbox.
+      expect(summary.personalOps?.gap).toBe(0);
       expect(summary.personalOps?.ready).toBeGreaterThan(0);
       expect(summary.personalOps?.workflows).toBeGreaterThan(0);
       // 4 needs-setup workflows. The writing-style-matched draft-reply workflow was
       // pulled from the advertised inbox lane (capability-honesty, 2026-07): it has no
       // sent-corpus reader and is recorded "not yet shipped", so it is no longer
       // advertised as a needs-setup workflow.
-      expect(summary.personalOps?.setupWorkflows).toBe(4);
+      expect(summary.personalOps?.setupWorkflows).toBe(0);
 
       const ops = await executeHarnessJson<{
         readonly workflowSummary: { readonly workflows: number; readonly needsSetup: number };
@@ -3461,7 +3462,7 @@ describe('agent_harness tool', () => {
       expect(ops.nextActions.join('\n')).toContain('Inbox');
       // 4 needs-setup workflows after the unshipped writing-style draft-reply workflow
       // was pulled from the advertised inbox lane (capability-honesty, 2026-07).
-      expect(ops.workflowSummary.needsSetup).toBe(4);
+      expect(ops.workflowSummary.needsSetup).toBe(0);
 
       const inbox = ops.lanes.find((lane) => lane.id === 'inbox');
       const calendar = ops.lanes.find((lane) => lane.id === 'calendar');
@@ -3469,19 +3470,28 @@ describe('agent_harness tool', () => {
       const tasks = ops.lanes.find((lane) => lane.id === 'tasks');
       const reminders = ops.lanes.find((lane) => lane.id === 'reminders');
       const delivery = ops.lanes.find((lane) => lane.id === 'delivery');
-      // Honest gap: the advertised email.*/calendar.* methods are
-      // invokable:false (no serving route), so neither lane may claim
-      // method-backed readiness; the degraded-ad wording names the reason.
-      expect(inbox?.status).toBe('gap');
-      expect(inbox?.current).toContain('unavailable (route not served by this daemon)');
+      // The methods are served now, so the lane names them instead of
+      // explaining why nothing can be called. It still does not claim a live
+      // mailbox: the card tells the model to inspect the schema before acting,
+      // which is the honest position when a route exists but no account does.
+      expect(inbox?.status).toBe('partial');
+      expect(inbox?.current).toContain('exposes email-like methods');
+      expect(inbox?.methodIds).toEqual(expect.arrayContaining([
+        'email.inbox.list', 'email.inbox.read', 'email.send', 'email.draft.create',
+      ]));
       expect(inbox?.workflows?.[0]?.id).toBe('inbox-triage-briefing');
-      expect(inbox?.workflows?.[0]?.status).toBe('needs-setup');
-      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('personal_ops action:"lane"');
-      expect(inbox?.workflows?.[0]?.prerequisites?.join('\n')).toContain('unavailable (route not served by this daemon)');
+      expect(inbox?.workflows?.[0]?.status).toBe('ready');
+      // The card now leads with a route that inspects a REAL method schema,
+      // because there is one to inspect. Before the daemon served email.* the
+      // best it could offer was a pointer back at the lane.
+      expect(inbox?.workflows?.[0]?.inspectRoutes?.[0]).toContain('host action:"method"');
+      expect(inbox?.workflows?.[0]?.inspectRoutes?.join('\n')).toContain('email.');
+      expect(inbox?.workflows?.[0]?.prerequisites?.join('\n')).toContain('Inspect the exact connector or daemon method schema');
       expect(inbox?.workflows?.[0]?.runBoundary).toContain('confirmation');
-      expect(calendar?.status).toBe('gap');
+      expect(calendar?.status).toBe('partial');
+      expect(calendar?.methodIds).toEqual(expect.arrayContaining(['calendar.events.list', 'calendar.events.create']));
       expect(calendar?.workflows?.[0]?.id).toBe('calendar-agenda-briefing');
-      expect(calendar?.workflows?.[0]?.status).toBe('needs-setup');
+      expect(calendar?.workflows?.[0]?.status).toBe('ready');
       expect(notes?.status).toBe('ready');
       expect(notes?.current).toContain('1 note');
       expect(notes?.liveRecords?.[0]?.id).toBe('follow-up-queue');
@@ -3533,12 +3543,18 @@ describe('agent_harness tool', () => {
       expect(missingIntake.status).toBe('ready');
       expect(missingIntake.preferred.id).toBe('inbox-triage-briefing');
       expect(missingIntake.preferred.laneId).toBe('inbox');
-      // Honest intake: the matched workflow reports needs-setup (no
-      // dispatchable email method or connector exists), not a faked 'ready'.
-      expect(missingIntake.preferred.status).toBe('needs-setup');
+      // Honest intake: the matched workflow now reports ready, because a
+      // dispatchable email method genuinely exists (the daemon serves email.*).
+      // The honesty this asserts moved down a level: 'ready' here means "there
+      // is a route to inspect", and the card's own prerequisites still require
+      // inspecting the schema before any mailbox is claimed.
+      expect(missingIntake.preferred.status).toBe('ready');
       expect(missingIntake.preferred.modelRoute).toContain('host action:"methods"');
-      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('personal_ops action:"lane"');
-      expect(missingIntake.preferred.missingFields).toEqual(['configured email connector or daemon method']);
+      // Every inspect route names a real, dispatchable method now.
+      expect(missingIntake.preferred.inspectRoutes.join('\n')).toContain('host action:"method" methodId:"email.inbox.list"');
+      // Nothing is missing to INSPECT any more: the method exists. The card
+      // reports no missing field rather than naming one it no longer needs.
+      expect(missingIntake.preferred.missingFields ?? []).toEqual([]);
       expect(missingIntake.preferred.safetyBoundary).toContain('confirmation');
       expect(missingIntake.laneRoute).toContain('laneId:"inbox"');
       expect(missingIntake.policy).toContain('read-only');

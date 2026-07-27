@@ -23,7 +23,7 @@ import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerEmailRuntimeCommands } from '../../input/commands/email-runtime.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import { ensureEmailConfigDefaults } from '../../agent/email/email-service.ts';
+import { ensureEmailConfigDefaults } from '@pellux/goodvibes-sdk/platform/email';
 import type { ConfigKey } from '../../config/index.ts';
 
 // ---------------------------------------------------------------------------
@@ -102,16 +102,35 @@ function makeContext(
  * simply been routed to its owner — while the assertion that matters, that no
  * raw password reaches any of these files, is unchanged.
  */
-function readPersistedSettings(root: string): string {
-  const candidates = [
+function persistedSettingsFiles(root: string): readonly string[] {
+  return [
     join(root, '.goodvibes', 'global-tui', 'settings.json'),
     join(root, '.goodvibes', 'global-tui', 'user-settings.json'),
     join(root, '.goodvibes', 'daemon', 'settings.json'),
-  ];
-  return candidates
-    .filter((f) => existsSync(f))
+  ].filter((f) => existsSync(f));
+}
+
+function readPersistedSettings(root: string): string {
+  return persistedSettingsFiles(root)
     .map((f) => readFileSync(f, 'utf-8'))
     .join('');
+}
+
+/**
+ * The same files, PARSED — one object per file that exists.
+ *
+ * `readPersistedSettings` concatenates them, which is right for the assertion
+ * it was written for ("no raw password appears in any of these") and wrong for
+ * anything that then calls JSON.parse: two objects back to back are not JSON.
+ * That only ever worked because exactly one of these files existed. Making
+ * email.* daemon-owned means a value now lands in the daemon store while the
+ * surface file already exists, so the concatenation became unparseable and the
+ * test failed on its own helper rather than on the behaviour it checks.
+ */
+function readPersistedSettingsObjects(root: string): readonly Record<string, unknown>[] {
+  return persistedSettingsFiles(root).map(
+    (f) => JSON.parse(readFileSync(f, 'utf-8')) as Record<string, unknown>,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -248,16 +267,22 @@ describe('/email command handler: end-to-end real handler dispatch', () => {
     const cm = ctx.platform.configManager as unknown as { get: (k: string) => unknown };
     expect(cm.get('email.imapPort')).toBe(993);
 
-    // Persisted settings must store the number (JSON does not quote it)
-    const persisted = readPersistedSettings(tmpDir);
-    if (persisted.length > 0) {
-      const parsed = JSON.parse(persisted) as Record<string, unknown>;
-      // May be nested under "email" key or flat depending on ConfigManager shape
-      const emailSection = (parsed['email'] ?? parsed) as Record<string, unknown>;
-      if ('imapPort' in emailSection) {
-        expect(typeof emailSection['imapPort']).toBe('number');
-        expect(emailSection['imapPort']).toBe(993);
-      }
+    // Persisted settings must store the number (JSON does not quote it).
+    // email.imapPort is daemon-owned, so the file carrying it is the daemon
+    // store rather than the surface one — hence looking across every settings
+    // file rather than assuming which of them holds it.
+    const sections = readPersistedSettingsObjects(tmpDir)
+      // May be nested under "email" or flat, depending on ConfigManager shape.
+      .map((parsed) => (parsed['email'] ?? parsed) as Record<string, unknown>)
+      .filter((section) => 'imapPort' in section);
+
+    expect(
+      sections.length,
+      'no settings file persisted email.imapPort at all, so the coercion this test checks was never written down',
+    ).toBeGreaterThan(0);
+    for (const section of sections) {
+      expect(typeof section['imapPort']).toBe('number');
+      expect(section['imapPort']).toBe(993);
     }
   });
 

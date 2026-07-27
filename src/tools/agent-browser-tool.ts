@@ -1,8 +1,8 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-import { BrowserEngine, BrowserSessionError, StaleElementError, UntrustedEffectError } from '../browser/browser-engine.ts';
-import type { BrowserExtractField, BrowserTarget } from '../browser/browser-engine.ts';
-import { BrowserSessionManager } from '../browser/browser-sessions.ts';
+import { BrowserEngine, BrowserSessionError, StaleElementError, UntrustedEffectError } from '@pellux/goodvibes-sdk/platform/browser';
+import type { BrowserExtractField, BrowserTarget, UntrustedContentPort } from '@pellux/goodvibes-sdk/platform/browser';
+import { createAgentBrowserEngine } from '../runtime/agent-browser.ts';
 import { declareToolCapability } from './agent-tool-capability-declarations.ts';
 
 /**
@@ -128,6 +128,12 @@ export interface AgentBrowserToolOptions {
   readonly profileRoot?: string;
   /** Home directory owning the managed browser cache. */
   readonly homeDirectory?: string;
+  /**
+   * The untrusted-content contract handed to the engine. Defaults to the
+   * agent's process-wide session ledger; tests inject their own so one test's
+   * page read cannot make the next test's outward action refuse.
+   */
+  readonly untrusted?: UntrustedContentPort;
 }
 
 /**
@@ -162,13 +168,16 @@ export function createAgentBrowserTool(options: AgentBrowserToolOptions = {}): T
           'Register it with screenshotDirectory and profileRoot from the runtime paths.',
         );
       }
-      engine = new BrowserEngine(
-        new BrowserSessionManager({
-          profileRoot,
-          ...(options.homeDirectory ? { homeDirectory: options.homeDirectory } : {}),
-        }),
-        { screenshotDirectory },
-      );
+      // Built through the agent's one browser composition point, so the
+      // storage root, the untrusted-content port, the host-script advice and
+      // the session-write ledger are bound in exactly one place rather than
+      // once per construction site.
+      engine = createAgentBrowserEngine({
+        screenshotDirectory,
+        profileRoot,
+        homeDirectory: options.homeDirectory ?? profileRoot,
+        ...(options.untrusted ? { untrusted: options.untrusted } : {}),
+      });
       liveEngines.add(engine);
     }
     return engine;

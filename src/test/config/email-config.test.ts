@@ -18,7 +18,7 @@ import { mkdirSync, rmSync, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import { ensureEmailConfigDefaults } from '../../agent/email/email-service.ts';
+import { ensureEmailConfigDefaults } from '@pellux/goodvibes-sdk/platform/email';
 import type { ConfigKey } from '../../config/index.ts';
 import { persistSecretBackedConfigValue } from '../../config/secret-config.ts';
 

@@ -19,22 +19,26 @@ async function expectImportable(specifier: string): Promise<void> {
 describe('dependency surface', () => {
   /**
    * The packaged Agent bundles its libraries into dist/package/main.js, so it
-   * declares no runtime dependencies — with one deliberate exception.
+   * declares no runtime dependencies at all.
    *
-   * playwright-core cannot be bundled: it loads browsers.json and its own
-   * driver files by path relative to its package directory, so an inlined copy
-   * would look for files that are not there. Browser control is a shipped
-   * capability rather than an optional add-on, so the driver is a real
-   * dependency that the package manager installs, pinned exactly the way the
-   * SDK is.
+   * The browser driver used to be the one exception: playwright-core cannot be
+   * bundled, because it loads browsers.json and its own driver files by path
+   * relative to its package directory, so an inlined copy would look for files
+   * that are not there. It is still installed and still shipped beside the
+   * binary — but the browser engine is
+   * `@pellux/goodvibes-sdk/platform/browser` now, and the SDK carries the
+   * driver in ITS optionalDependencies. Declaring it here as well would pin the
+   * same package in two places, which is exactly how the version the agent
+   * stages and the version the engine expects drift apart.
    */
-  test('declares exactly one runtime dependency: the browser driver', () => {
-    expect(packageJson.dependencies ?? {}).toEqual({ 'playwright-core': expect.any(String) });
+  test('declares no runtime dependencies: everything is bundled or comes with the SDK', () => {
+    expect(packageJson.dependencies ?? {}).toEqual({});
   });
 
-  test('the browser driver is pinned to an exact version', () => {
-    const pinned = (packageJson.dependencies ?? {})['playwright-core'];
-    expect(pinned).toMatch(/^\d+\.\d+\.\d+$/);
+  test('the browser driver is still resolvable, supplied by the SDK', async () => {
+    // Not a declared dependency of this package, but it must be installed:
+    // `bun run build` stages node_modules/playwright-core beside the binary.
+    await expectImportable('playwright-core');
   });
 
   test('runtime import entrypoints used by the product resolve from installed dependencies', async () => {

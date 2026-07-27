@@ -3,7 +3,8 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createAgentAccountsTool } from '../../tools/agent-accounts-tool.ts';
-import { AgentAccountRegistry } from '../../agent/signup/account-registry.ts';
+import { AgentAccountRegistry } from '@pellux/goodvibes-sdk/platform/google';
+import { containsSecretLikeText } from '../../agent/memory-safety.ts';
 import {
   getSessionUntrustedContentLedger,
   resetSessionUntrustedContentLedgerForTests,
@@ -37,7 +38,7 @@ describe('the account register', () => {
     home = mkdtempSync(join(tmpdir(), 'accounts-tool-'));
     resetSessionUntrustedContentLedgerForTests();
     tool = createAgentAccountsTool({
-      registry: new AgentAccountRegistry(join(home, 'accounts.json')),
+      registry: new AgentAccountRegistry({ storePath: join(home, 'accounts.json'), containsSecretLikeText }),
       baseAddress: () => 'owner@example.com',
     });
   });
@@ -59,7 +60,7 @@ describe('the account register', () => {
 
   test('minting an alias without a connected mailbox says which step is missing', async () => {
     const without = createAgentAccountsTool({
-      registry: new AgentAccountRegistry(join(home, 'accounts.json')),
+      registry: new AgentAccountRegistry({ storePath: join(home, 'accounts.json'), containsSecretLikeText }),
       baseAddress: () => null,
     });
     const result = await (without.execute({ action: 'alias', serviceDomain: 'github.com' }) as Promise<{ success: boolean; error?: string }>);

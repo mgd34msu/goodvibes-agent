@@ -26,25 +26,17 @@
 
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-import {
-  openGoogleConnection,
-  nodeGoogleFilePort,
-  type GoogleConnection,
-  type GoogleConnectionSources,
-} from '../agent/google/google-connection.ts';
+import { openGoogleConnection, type GoogleConnection, type GoogleConnectionSources } from '@pellux/goodvibes-sdk/platform/google';
+import { nodeGoogleFilePort } from '@pellux/goodvibes-sdk/platform/google/node';
 import {
   evaluateOutwardEffect,
   getSessionUntrustedContentLedger,
   originOf,
 } from '../trust/untrusted-content.ts';
-import type { GoogleApiFailure, GoogleApiResult } from '../agent/google/google-api-client.ts';
+import type { GoogleApiFailure, GoogleApiResult } from '@pellux/goodvibes-sdk/platform/google';
 import { getSessionExpectationBook } from '../agent/signup/session-expectations.ts';
-import {
-  deliveryEvidenceFromMessage,
-  describeDeliveryEvidence,
-  NO_ALIAS_MAILBOXES,
-} from '../agent/signup/delivery-evidence.ts';
-import { extractVerification } from '../agent/signup/verification-expectations.ts';
+import { deliveryEvidenceFromMessage, describeDeliveryEvidence, NO_ALIAS_MAILBOXES } from '@pellux/goodvibes-sdk/platform/google';
+import { extractVerification } from '@pellux/goodvibes-sdk/platform/google';
 
 const GOOGLE_ACTIONS = [
   'status',

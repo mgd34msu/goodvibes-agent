@@ -9,6 +9,13 @@
  * a new file reading `displayedConfidence` has to be added here by hand, which
  * puts a human in front of the question "is this display, or is this becoming
  * authority?" — the exact question that gets skipped otherwise.
+ *
+ * The IMAP/SMTP service and the `Authentication-Results` parser moved to
+ * `@pellux/goodvibes-sdk/platform/email`, which carries its own copy of this
+ * guard over its own tree. That one cannot see this tree and this one cannot
+ * see that one, so both are needed: the SDK's covers the parser and the
+ * service, and this one covers the agent's describer and every agent surface
+ * that could start branching on what it returns.
  */
 
 import { describe, expect, test } from 'bun:test';
@@ -26,10 +33,6 @@ const SOURCE_ROOT = join(import.meta.dir, '..', '..', '..');
 const CONFIDENCE_READERS = new Set([
   // Defines the type and computes it.
   'agent/untrusted-content.ts',
-  // Parses the receiving server's verdict into it.
-  'agent/email/sender-authentication.ts',
-  // Carries it on a message summary for display.
-  'agent/email/email-service.ts',
   // Renders it in the inbox listing.
   'input/commands/email-runtime.ts',
 ]);

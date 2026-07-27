@@ -14,11 +14,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import {
-  hasAnySenderVerdict,
-  parseAuthenticationResults,
-  readSenderAuthentication,
-} from '../../../agent/email/sender-authentication.ts';
+import { hasAnySenderVerdict, parseAuthenticationResults, readSenderAuthentication } from '@pellux/goodvibes-sdk/platform/google';
 import { describeSenderClaim } from '../../../agent/untrusted-content.ts';
 import {
   assertCanConfirm,

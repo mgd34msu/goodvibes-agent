@@ -74,7 +74,8 @@ export function resolveSqliteVecArchive(platform: string, arch: string): SqliteV
  * plain JavaScript, and the browser binaries it drives are downloaded
  * separately into the managed cache. Extracting it beside the executable
  * produces `<execDir>/playwright-core/…`, the first entry in
- * driverSearchDirectories (see browser/browser-provision-io.ts).
+ * driverSearchDirectories (see @pellux/goodvibes-sdk/platform/browser, and
+ * runtime/agent-browser.ts for this surface's binding of it).
  */
 export const BROWSER_DRIVER_ARCHIVE_NAME = 'browser-driver.tar.gz';
 

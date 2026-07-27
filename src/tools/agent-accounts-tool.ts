@@ -22,8 +22,8 @@
 
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
-import { AgentAccountRegistry, type AgentAccountRecord } from '../agent/signup/account-registry.ts';
-import { mintAddressFor } from '../agent/signup/signup-address.ts';
+import { AgentAccountRegistry, type AgentAccountRecord } from '@pellux/goodvibes-sdk/platform/google';
+import { mintAddressFor } from '@pellux/goodvibes-sdk/platform/google';
 import { getSessionExpectationBook } from '../agent/signup/session-expectations.ts';
 import { evaluateOutwardEffect, getSessionUntrustedContentLedger } from '../trust/untrusted-content.ts';
 

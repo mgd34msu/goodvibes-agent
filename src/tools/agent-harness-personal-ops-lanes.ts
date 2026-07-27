@@ -6,7 +6,8 @@ import { providerBackedReminderRecords, providerBackedTaskRecords } from './agen
 import { channelRecords, connectorRecords, localRecord, refreshableSavedRecordCount, reminderOperationRecords, routineReceiptRecord, savedProviderEffectReceiptRecords, savedReviewArtifactRecords, savedReviewQueueRecords, taskOperationRecords } from './agent-harness-personal-ops-records.ts';
 import type { McpToolRecord, McpToolSchema, PersonalOpsLane, PersonalOpsLiveRecord } from './agent-harness-personal-ops-types.ts';
 // Capability-honesty note: the writing-style-matched draft-reply composer
-// (src/agent/email/style-reply.ts + style-reply-lane.ts) is NOT wired into the
+// (styleReplyWorkflow / buildStyleReplyLaneAdditions, now in the SDK's
+// @pellux/goodvibes-sdk/platform/email entry) is NOT wired into the
 // advertised inbox lane. The Agent has no reader for the user's own sent-message
 // corpus, so it cannot honestly claim a style match, and competitive-feature-
 // inventory.ts records writing-style-matched draft replies as "not yet shipped".

@@ -17,7 +17,7 @@
  * mail, exactly like the untrusted-content ledger.
  */
 
-import { VerificationExpectationBook } from './verification-expectations.ts';
+import { VerificationExpectationBook } from '@pellux/goodvibes-sdk/platform/google';
 import { surfaceHasCommandAuthority } from '../../trust/untrusted-content.ts';
 
 let book: VerificationExpectationBook | null = null;

@@ -23,7 +23,33 @@ describe('verification ledger', () => {
     expect(ledger.totals.localSignalPercent).toBeGreaterThanOrEqual(90);
     // localBehaviorPercent is now honest: source-marker substring hits no longer
     // inflate localBehaviorVerified. Floor reflects dispatch-backed behavior only.
-    expect(ledger.totals.localBehaviorPercent).toBeGreaterThanOrEqual(70);
+    //
+    // 70 -> 69 when the daemon's own mailbox and calendar were declared as
+    // CONFIG_SCHEMA keys. That added 25 rows to the settings DENOMINATOR
+    // (764/1081 = 70.7% became 764/1106 = 69.1%) without removing any
+    // verification: the numerator did not move at all.
+    //
+    // The 25 keys earn no behaviour point in THIS repo, and that is the honest
+    // answer rather than a gap to paper over. settings-behavior-coverage.ts
+    // requires a test here that drives a setting to two values and observes a
+    // difference in the real consuming code — and after this round the agent
+    // has no consumer to drive. surfaces.email.* and surfaces.calendar.* are
+    // read by the daemon's mail and calendar handlers; the agent surfaces them
+    // in the settings modal and consumes none of them. Claiming coverage from
+    // the SDK's schema test would be exactly the "asserts the key is present in
+    // CONFIG_SCHEMA" evidence that file rules out by name.
+    //
+    // Recorded disagreement with lowering a quality floor at all: the real
+    // defect is the denominator, and settings-behavior-coverage.ts already says
+    // so in its own header — "the denominator is the live CONFIG_SCHEMA length,
+    // so every config key anyone added anywhere lowered the reported percentage
+    // without any coverage having actually changed". That file fixed the
+    // numerator half by making every claim itemised and auditable; the
+    // denominator half is untouched, so a percentage over it will keep drifting
+    // down each time the platform declares a key this product does not consume.
+    // Until the settings area counts only keys with a consumer in this repo,
+    // this floor tracks a number that moves for reasons unrelated to quality.
+    expect(ledger.totals.localBehaviorPercent).toBeGreaterThanOrEqual(69);
     // All counts must be non-negative
     expect(ledger.totals.total).toBeGreaterThanOrEqual(0);
     expect(ledger.totals.localSignalVerified).toBeGreaterThanOrEqual(0);

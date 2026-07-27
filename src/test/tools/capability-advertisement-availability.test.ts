@@ -47,22 +47,22 @@ function makeConfigManager(overrides: Record<string, unknown> = {}) {
 }
 
 describe('capability-advertisement honesty (agent side)', () => {
-  test('discovery: email.inbox.list (invokable:false) renders degraded, not as a live capability', () => {
-    const summary = operatorMethodSummary({ query: 'email.inbox.list' });
+  test('discovery: channels.inbox.list (invokable:false) renders degraded, not as a live capability', () => {
+    const summary = operatorMethodSummary({ query: 'channels.inbox.list' });
     const methods = summary.methods as readonly Record<string, unknown>[];
-    const emailInboxList = methods.find((method) => method.id === 'email.inbox.list');
-    expect(emailInboxList).toBeDefined();
-    expect(emailInboxList!.available).toBe(false);
-    expect(emailInboxList!.label).toBe('email.inbox.list — unavailable (route not served by this daemon)');
-    expect(emailInboxList!.modelRoute).not.toContain('agent_operator_method methodId');
+    const channelsInboxList = methods.find((method) => method.id === 'channels.inbox.list');
+    expect(channelsInboxList).toBeDefined();
+    expect(channelsInboxList!.available).toBe(false);
+    expect(channelsInboxList!.label).toBe('channels.inbox.list — unavailable (route not served by this daemon)');
+    expect(channelsInboxList!.modelRoute).not.toContain('agent_operator_method methodId');
   });
 
   test('discovery: operator_method lookup for an unavailable method reports available:false and an honest confirmation', () => {
-    const resolution = describeHarnessOperatorMethod({ methodId: 'email.send' });
+    const resolution = describeHarnessOperatorMethod({ methodId: 'channels.drafts.save' });
     expect(resolution.status).toBe('found');
     if (resolution.status !== 'found') throw new Error('expected found');
     expect(resolution.method.available).toBe(false);
-    expect(resolution.method.label).toBe('email.send — unavailable (route not served by this daemon)');
+    expect(resolution.method.label).toBe('channels.drafts.save — unavailable (route not served by this daemon)');
     expect(String(resolution.method.confirmation)).toContain('Unavailable');
   });
 
@@ -87,9 +87,9 @@ describe('capability-advertisement honesty (agent side)', () => {
     }) as unknown as typeof fetch;
 
     try {
-      const result = await tool.execute({ methodId: 'email.inbox.list' });
+      const result = await tool.execute({ methodId: 'channels.inbox.list' });
       expect(result.success).toBe(false);
-      expect(String(result.error)).toContain('email.inbox.list');
+      expect(String(result.error)).toContain('channels.inbox.list');
       expect(String(result.error)).toContain('unavailable');
       expect(String(result.error)).toContain('not served by this daemon');
       expect(fetchCalled).toBe(false);
@@ -103,9 +103,29 @@ describe('capability-advertisement honesty (agent side)', () => {
     const configManager = makeConfigManager();
     const tool = createAgentOperatorMethodTool(shellPaths as never, configManager);
 
-    const result = await tool.execute({ methodId: 'email.send', dryRun: true });
+    const result = await tool.execute({ methodId: 'channels.drafts.save', dryRun: true });
     expect(result.success).toBe(false);
-    expect(String(result.error)).toContain('email.send');
+    expect(String(result.error)).toContain('channels.drafts.save');
     expect(String(result.error)).toContain('unavailable');
+  });
+
+  /**
+   * The other direction, and the reason the methods above had to change.
+   *
+   * email.* was the original subject of this test precisely BECAUSE nothing
+   * served it. The IMAP/SMTP service is platform capability now
+   * (@pellux/goodvibes-sdk/platform/email) and the daemon attaches a real
+   * handler to each id (platform/control-plane/routes/email.ts), so these are
+   * live routes. Asserting that here is what stops the degradation logic from
+   * quietly going on describing them as broken after they were fixed.
+   */
+  test('discovery: the email methods the daemon now serves render as live, not degraded', () => {
+    for (const methodId of ['email.inbox.list', 'email.inbox.read', 'email.send', 'email.draft.create']) {
+      const resolution = describeHarnessOperatorMethod({ methodId });
+      expect(resolution.status, `${methodId} should be catalogued`).toBe('found');
+      if (resolution.status !== 'found') throw new Error('expected found');
+      expect(resolution.method.available, `${methodId} is served by the daemon now`).toBe(true);
+      expect(String(resolution.method.label)).not.toContain('unavailable');
+    }
   });
 });

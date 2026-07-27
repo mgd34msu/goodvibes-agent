@@ -23,15 +23,11 @@
 
 import type { CommandRegistry } from '../command-registry.ts';
 import { getSessionUntrustedContentLedger } from '../../trust/untrusted-content.ts';
-import type { DisplayedSenderConfidence } from '../../agent/untrusted-content.ts';
+import { describeSenderClaim, type DisplayedSenderConfidence } from '../../agent/untrusted-content.ts';
 import type { CommandContext } from '../command-registry.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
-import {
-  EmailService,
-  readEmailConfig,
-  validateEmailConfig,
-  ensureEmailConfigDefaults,
-} from '../../agent/email/email-service.ts';
+import { EmailService, readEmailConfig, validateEmailConfig, ensureEmailConfigDefaults } from '@pellux/goodvibes-sdk/platform/email';
+import { nodeEmailTransport } from '@pellux/goodvibes-sdk/platform/email/node';
 import { requireSecretsManager } from './runtime-services.ts';
 import type { ConfigKey } from '../../config/index.ts';
 import { persistSecretBackedConfigValue } from '../../config/secret-config.ts';
@@ -157,6 +153,12 @@ function buildEmailService(ctx: CommandContext): EmailService {
   return new EmailService({
     getConfig: (key: string) => cm.get(key),
     secretsManager,
+    // The real sockets. The platform service opens none itself, so the node
+    // transports are named here and nowhere else in this file.
+    transport: nodeEmailTransport,
+    // The wording of the trust boundary stays the agent's: `describeSenderClaim`
+    // is this product's, and its commandAuthority is the literal 'none'.
+    describeSenderClaim,
     // Reading mail arms the outward-effect guard, the same way loading a page
     // does. Without this the guard sees a clean turn after the agent has just
     // read something a stranger wrote.

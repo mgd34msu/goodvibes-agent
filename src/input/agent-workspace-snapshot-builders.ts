@@ -24,7 +24,7 @@ import { GOODVIBES_AGENT_PAIRING_SURFACE } from '../config/surface.ts';
 import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken, type ConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import { summarizePersonaItem, summarizeNoteItem, summarizeResearchRunItem, summarizeRoutineScheduleReceipt, summarizeSkillBundleItem, summarizeSkillItem } from './agent-workspace-local-library-snapshot.ts';
 import { isReviewerHandoffArtifact, summarizeReviewerHandoffArtifact } from './agent-workspace-review-packet-utils.ts';
-import { ensureEmailConfigDefaults, readEmailConfig, validateEmailConfig } from '../agent/email/email-service.ts';
+import { ensureEmailConfigDefaults, readEmailConfig, validateEmailConfig } from '@pellux/goodvibes-sdk/platform/email';
 import { CALENDAR_OAUTH_CLIENT_ID_KEYS, ensureCalendarConfigDefaults } from '../agent/calendar/calendar-oauth-service.ts';
 import { readConfigBoolean, readConfigNumber, readConfigString } from './agent-workspace-snapshot-config.ts';
 import type { AgentWorkspaceCalendarOAuthConfigStatus } from './agent-workspace-calendar-oauth-editor.ts';

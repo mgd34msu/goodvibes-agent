@@ -14,42 +14,51 @@
  * happens and returns text; the caller decides where that text goes — the
  * console for the command, an action result panel for the workspace.
  *
+ * The connector itself is `@pellux/goodvibes-sdk/platform/google` — the flows,
+ * the step plan, the credential handling and the browser-driven pages all live
+ * there now, so the daemon can run them too. What stayed here is the wiring
+ * that only this product can supply: config and secret access through the
+ * running shell, and a browser built from the agent's own untrusted-content
+ * ledger. This file composes those; it implements none of them.
+ *
  * Nothing here ever returns a credential. Values go from a flow straight into
  * the encrypted secret store; the status text reports presence, provenance,
  * scopes and expiry only.
  */
 
-import { existsSync, readFileSync } from 'node:fs';
 import type { CommandContext } from '../command-registry.ts';
 import { requirePlatform, requireSecretsManager, requireShellPaths } from './runtime-services.ts';
-import { BrowserEngine } from '../../browser/browser-engine.ts';
-import { BrowserSessionManager, browserProfileRoot, browserScreenshotRoot } from '../../browser/browser-sessions.ts';
-import { createGoogleBrowserPort } from '../../agent/google/google-browser-port.ts';
-import { createProcessCommandPort } from '../../agent/google/google-gcloud.ts';
-import { runGoogleSetupFlow } from '../../agent/google/google-setup-flow.ts';
 import {
   adoptExistingGoogleCredentials,
-  buildGoogleSetupRunners,
-  type GoogleClientIntakeChoice,
-  type GoogleSetupActionDeps,
-} from '../../agent/google/google-setup-actions.ts';
-import { detectGoogleSetupState, describeGoogleSetupState } from '../../agent/google/google-setup-state.ts';
-import { ensureGoogleConfigDefaults } from '../../agent/google/google-setup-plan.ts';
-import { ensureCalendarConfigDefaults } from '../../agent/calendar/calendar-oauth-service.ts';
-import { ensureEmailConfigDefaults } from '../../agent/email/email-service.ts';
-import {
   adoptGmailMcpCredentials,
+  buildGoogleSetupRunners,
+  createGoogleBrowserPort,
+  describeGoogleSetupState,
+  detectGoogleSetupState,
+  ensureGoogleConfigDefaults,
+  runGoogleSetupFlow,
   summarizeCredentials,
-  type GoogleFilePort,
-} from '../../agent/google/google-credential-adoption.ts';
-import type {
-  GoogleBrowserPort,
-  GoogleConfigPort,
-  GoogleProgressPort,
-  GoogleSecretPort,
-  GoogleSetupPath,
-  GoogleSetupReport,
-} from '../../agent/google/google-setup-types.ts';
+  type GoogleBrowserPort,
+  type GoogleClientIntakeChoice,
+  type GoogleConfigPort,
+  type GoogleProgressPort,
+  type GoogleSecretPort,
+  type GoogleSetupActionDeps,
+  type GoogleSetupPath,
+  type GoogleSetupReport,
+} from '@pellux/goodvibes-sdk/platform/google';
+import {
+  createProcessCommandPort,
+  nodeGoogleFilePort,
+  startLoopbackListener,
+} from '@pellux/goodvibes-sdk/platform/google/node';
+import { ensureCalendarConfigDefaults } from '../../agent/calendar/calendar-oauth-service.ts';
+import { ensureEmailConfigDefaults } from '@pellux/goodvibes-sdk/platform/email';
+import {
+  agentBrowserProfileRoot,
+  agentBrowserScreenshotRoot,
+  createAgentBrowserEngine,
+} from '../../runtime/agent-browser.ts';
 
 // ---------------------------------------------------------------------------
 // Ports built from the running shell
@@ -72,28 +81,29 @@ export function googleConfigPort(ctx: CommandContext): GoogleConfigPort {
   };
 }
 
+/**
+ * Encrypted secret storage for the connector's credentials.
+ *
+ * No scope is passed, and that is the whole point. Every name in
+ * `GOOGLE_SECRET_KEYS` derives from a daemon-owned config path, so the store
+ * files it in the daemon tier by itself. Forcing a surface scope here — which
+ * this did until now — overrode that and hid the credential from the daemon,
+ * and from any node that later took the work over. The daemon is a consumer of
+ * this connector, not a bystander to it.
+ */
 export function googleSecretPort(ctx: CommandContext): GoogleSecretPort {
   const manager = requireSecretsManager(ctx) as {
     get: (key: string) => Promise<string | null>;
-    set: (key: string, value: string, options?: { scope?: 'user' | 'project' }) => Promise<void>;
+    set: (key: string, value: string) => Promise<void>;
   };
   return {
     get: (key) => manager.get(key),
-    set: (key, value) => manager.set(key, value, { scope: 'user' }),
+    set: (key, value) => manager.set(key, value),
   };
 }
 
 /** Plain node file reads. Adoption never writes, so there is no write side. */
-export const googleFilePort: GoogleFilePort = {
-  exists: (path) => existsSync(path),
-  readText: (path) => {
-    try {
-      return readFileSync(path, 'utf8');
-    } catch {
-      return null;
-    }
-  },
-};
+export const googleFilePort = nodeGoogleFilePort;
 
 /**
  * A browser, created only when a step actually needs one.
@@ -108,10 +118,11 @@ export function googleBrowserFactory(ctx: CommandContext): () => Promise<GoogleB
   let port: GoogleBrowserPort | null = null;
   return async () => {
     if (port !== null) return port;
-    const engine = new BrowserEngine(
-      new BrowserSessionManager({ profileRoot: browserProfileRoot(homeDirectory), homeDirectory }),
-      { screenshotDirectory: browserScreenshotRoot(homeDirectory) },
-    );
+    const engine = createAgentBrowserEngine({
+      profileRoot: agentBrowserProfileRoot(homeDirectory),
+      screenshotDirectory: agentBrowserScreenshotRoot(homeDirectory),
+      homeDirectory,
+    });
     port = createGoogleBrowserPort(engine, { launch: { profileName: 'google', headless: false } });
     return port;
   };
@@ -126,6 +137,9 @@ export function googleActionDeps(ctx: CommandContext, intake?: GoogleClientIntak
     commands: createProcessCommandPort(),
     fetchPort: { fetch: (url, init) => fetch(url, init) },
     files: googleFilePort,
+    // Binding the port Google redirects back to is real machine I/O, so the
+    // connector takes it as a port and the concrete listener is named here.
+    loopback: startLoopbackListener,
     homeDirectory,
     ...(intake === undefined ? {} : { clientIntake: intake }),
   };

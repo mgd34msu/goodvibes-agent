@@ -39,13 +39,15 @@ import { installAgentToolPolicyGuard } from '../tools/agent-tool-policy-guard.ts
 import { registerAgentChannelSendTool } from '../tools/agent-channel-send-tool.ts';
 import { registerAgentAutonomyScheduleTool } from '../tools/agent-autonomy-schedule-tool.ts';
 import { registerAgentArtifactsTool } from '../tools/agent-artifacts-tool.ts';
-import { browserProfileRoot, browserScreenshotRoot } from '../browser/browser-sessions.ts';
+import { agentBrowserProfileRoot, agentBrowserScreenshotRoot } from './agent-browser.ts';
 import { registerAgentBrowserTool } from '../tools/agent-browser-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
 import { registerAgentGoogleTool } from '../tools/agent-google-tool.ts';
 import { registerAgentAccountsTool } from '../tools/agent-accounts-tool.ts';
-import { AgentAccountRegistry } from '../agent/signup/account-registry.ts';
-import { ensureGoogleConfigDefaults } from '../agent/google/google-setup-plan.ts';
+import { AgentAccountRegistry } from '@pellux/goodvibes-sdk/platform/google';
+import { ACCOUNT_REGISTRY_PATH_SEGMENTS } from '@pellux/goodvibes-sdk/platform/google';
+import { containsSecretLikeText } from '../agent/memory-safety.ts';
+import { ensureGoogleConfigDefaults } from '@pellux/goodvibes-sdk/platform/google';
 import { ensureCalendarConfigDefaults } from '../agent/calendar/calendar-oauth-service.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
@@ -355,8 +357,8 @@ export async function initializeBootstrapCore(
   });
   registerAgentArtifactsTool(toolRegistry, services.artifactStore, { projectRoot: services.shellPaths.workingDirectory });
   registerAgentBrowserTool(toolRegistry, {
-    screenshotDirectory: browserScreenshotRoot(services.shellPaths.homeDirectory),
-    profileRoot: browserProfileRoot(services.shellPaths.homeDirectory),
+    screenshotDirectory: agentBrowserScreenshotRoot(services.shellPaths.homeDirectory),
+    profileRoot: agentBrowserProfileRoot(services.shellPaths.homeDirectory),
     homeDirectory: services.shellPaths.homeDirectory,
   });
   // The native Gmail/Calendar route. The operator contract catalogs email.send
@@ -375,7 +377,17 @@ export async function initializeBootstrapCore(
   // signup is authorized; doing it invisibly is not, and this is what makes it
   // enumerable and revocable.
   registerAgentAccountsTool(toolRegistry, {
-    registry: AgentAccountRegistry.fromShellPaths(services.shellPaths),
+    // The platform registry takes its store path and its "does this look like a
+    // credential" rule as inputs rather than deriving either: the path so no
+    // product writes into another's storage root, the predicate because the
+    // wording of that judgement belongs to the product that shows it.
+    registry: new AgentAccountRegistry({
+      storePath: services.shellPaths.resolveUserPath(
+        GOODVIBES_AGENT_SURFACE_ROOT,
+        ...ACCOUNT_REGISTRY_PATH_SEGMENTS,
+      ),
+      containsSecretLikeText,
+    }),
     baseAddress: () => {
       const value = (configManager as { get: (key: string) => unknown }).get('email.fromAddress');
       return typeof value === 'string' && value.trim() ? value.trim() : null;

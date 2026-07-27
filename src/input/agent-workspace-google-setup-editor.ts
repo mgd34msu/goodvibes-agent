@@ -22,19 +22,14 @@
  */
 import type { CommandContext } from './command-registry.ts';
 import { isAffirmative } from './agent-workspace-editors.ts';
-import { renderGoogleSetupReport } from '../agent/google/google-setup-flow.ts';
+import { renderGoogleSetupReport } from '@pellux/goodvibes-sdk/platform/google';
 import {
   adoptGoogleCredentials,
   describeGoogleConnection,
   runGoogleSetup,
 } from './commands/google-connection-actions.ts';
-import type { GoogleClientIntakeChoice } from '../agent/google/google-setup-actions.ts';
-import type {
-  GoogleProgressPort,
-  GoogleSetupPath,
-  GoogleSetupStepSpec,
-  GoogleStepResult,
-} from '../agent/google/google-setup-types.ts';
+import type { GoogleClientIntakeChoice } from '@pellux/goodvibes-sdk/platform/google';
+import type { GoogleProgressPort, GoogleSetupPath, GoogleSetupStepSpec, GoogleStepResult } from '@pellux/goodvibes-sdk/platform/google';
 import type { AgentWorkspaceActionResult, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 
 type FieldReader = (id: string) => string;

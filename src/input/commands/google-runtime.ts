@@ -26,10 +26,10 @@
 
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { requireSecretsManager } from './runtime-services.ts';
-import { renderGoogleSetupReport } from '../../agent/google/google-setup-flow.ts';
-import type { GoogleClientIntakeChoice } from '../../agent/google/google-setup-actions.ts';
-import { renderGoogleSetupRunbook } from '../../agent/google/google-setup-runbook.ts';
-import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS } from '../../agent/google/google-setup-plan.ts';
+import { renderGoogleSetupReport } from '@pellux/goodvibes-sdk/platform/google';
+import type { GoogleClientIntakeChoice } from '@pellux/goodvibes-sdk/platform/google';
+import { renderGoogleSetupRunbook } from '@pellux/goodvibes-sdk/platform/google';
+import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS } from '@pellux/goodvibes-sdk/platform/google';
 import {
   adoptGoogleCredentials,
   describeGoogleConnection,
@@ -37,12 +37,7 @@ import {
   googleSecretPort,
   runGoogleSetup,
 } from './google-connection-actions.ts';
-import type {
-  GoogleProgressPort,
-  GoogleSetupPath,
-  GoogleSetupStepSpec,
-  GoogleStepResult,
-} from '../../agent/google/google-setup-types.ts';
+import type { GoogleProgressPort, GoogleSetupPath, GoogleSetupStepSpec, GoogleStepResult } from '@pellux/goodvibes-sdk/platform/google';
 
 const USAGE = [
   'Usage: /google <subcommand>',

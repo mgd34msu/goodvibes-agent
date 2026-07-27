@@ -8,7 +8,7 @@
  */
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { renderGoogleSetupRunbook, RUNBOOK_RELATIVE_PATH } from '../src/agent/google/google-setup-runbook.ts';
+import { renderGoogleSetupRunbook, RUNBOOK_RELATIVE_PATH } from '@pellux/goodvibes-sdk/platform/google';
 
 const repoRoot = join(import.meta.dir, '..');
 const target = join(repoRoot, RUNBOOK_RELATIVE_PATH);

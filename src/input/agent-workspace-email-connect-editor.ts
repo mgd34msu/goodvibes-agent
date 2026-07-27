@@ -18,7 +18,9 @@
  */
 import type { CommandContext } from './command-registry.ts';
 import { isAffirmative } from './agent-workspace-editors.ts';
-import { EmailService, ensureEmailConfigDefaults, type EmailConnectionTestResult } from '../agent/email/email-service.ts';
+import { EmailService, ensureEmailConfigDefaults, type EmailConnectionTestResult } from '@pellux/goodvibes-sdk/platform/email';
+import { nodeEmailTransport } from '@pellux/goodvibes-sdk/platform/email/node';
+import { describeSenderClaim } from '../agent/untrusted-content.ts';
 import { requireSecretsManager } from './commands/runtime-services.ts';
 import { persistEmailConfigField } from './commands/email-runtime.ts';
 import { buildAgentWorkspaceRuntimeSnapshot } from './agent-workspace-snapshot.ts';
@@ -78,7 +80,16 @@ export type EmailConnectionTester = (
   secretsManager: { readonly get: (key: string) => Promise<string | null> },
 ) => { testConnection(): Promise<EmailConnectionTestResult> };
 
-const defaultTester: EmailConnectionTester = (getConfig, secretsManager) => new EmailService({ getConfig, secretsManager });
+const defaultTester: EmailConnectionTester = (getConfig, secretsManager) =>
+  new EmailService({
+    getConfig,
+    secretsManager,
+    // The real sockets, and this product's own sender-claim wording. The
+    // platform service ships neither: it opens no connection itself, and the
+    // phrasing of a trust boundary belongs to the surface that renders it.
+    transport: nodeEmailTransport,
+    describeSenderClaim,
+  });
 
 export async function submitAgentWorkspaceEmailConnectWizardEditor(
   host: AgentWorkspaceEmailConnectEditorHost,
