@@ -142,5 +142,11 @@ describe('ci / principals / channels.profiles gateway verb groups (live, not a 5
       if (/gateway method is not invokable/i.test(message)) wiringGapMessage = message;
     }
     expect(wiringGapMessage).toBeNull();
-  });
+    // This drives the real `gh` CLI against a repository that does not exist,
+    // so it costs a subprocess spawn and a network round trip before it can
+    // fail. Whether that fits in bun's default 5s budget depends on the host
+    // and the network, not on the wiring this asserts — and a timeout here
+    // reported a 501 wiring gap that was not there. The budget is a hang
+    // detector; the test still returns as soon as gh answers.
+  }, 60_000);
 });
