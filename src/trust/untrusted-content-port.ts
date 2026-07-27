@@ -2,36 +2,29 @@
  * untrusted-content-port.ts — the agent's side of the platform browser's
  * untrusted-content contract.
  *
- * `BrowserEngine` moved into the SDK, and it takes its untrusted-content
- * contract as a REQUIRED injected port (`UntrustedContentPort`) rather than
- * reaching for a product's module. That is the right shape: the wording of a
- * trust boundary and the ledger it writes to belong to the surface that has to
- * render and enforce them, and a second copy inside the SDK would drift from
- * this one. It is also why the port is required rather than defaulted — an
- * engine constructed with no port would read pages and label nothing, which is
- * the boundary silently absent instead of a compile error.
+ * `BrowserEngine` takes its untrusted-content contract as a REQUIRED injected
+ * port (`UntrustedContentPort`) rather than reaching for a product's module.
+ * That is still the right shape: an engine constructed with no port would read
+ * pages and label nothing, which is the boundary silently absent instead of a
+ * compile error.
  *
- * This module is that port, backed by the agent's own process-wide ledger
- * (`getSessionUntrustedContentLedger`). Sharing the one ledger is the whole
- * point: the browser reads web pages and the email surface reads message
- * bodies, and both write here, so "read a stranger's page, then send mail" is
- * visible to the outward-effect guard as ONE composition rather than two
- * unrelated acts.
+ * What changed is where the port's BODY comes from. It used to be assembled
+ * here, delegating to the agent's own untrusted-content module. The policy has
+ * since moved into the SDK (`platform/security`), because the daemon now serves
+ * `browser.*` and `email.*` with no surface attached and needed the same
+ * contract — and a second copy of the rule text and refusal wording would have
+ * drifted from this one. So the port itself is the SDK's factory, and this
+ * module is the two facts about THIS surface that the factory needs: the
+ * surface a page is labelled with, and the tool named in a refusal.
  *
- * Nothing here re-implements a decision. `label`, `originOf` and
- * `evaluateOutwardEffect` all delegate to untrusted-content.ts, so the rule
- * text and the refusal wording have exactly one home.
+ * The `surface` on every envelope is `'web-page'`: this port exists to serve
+ * the browser, and mislabelling a page as some other surface would put the
+ * wrong provenance in front of the reader.
  */
 
 import type { UntrustedContentPort } from '@pellux/goodvibes-sdk/platform/browser';
-import {
-  evaluateOutwardEffect,
-  getSessionUntrustedContentLedger,
-  labelUntrustedContent,
-  originOf,
-  UNTRUSTED_CONTENT_RULE,
-  type UntrustedContentLedger,
-} from './untrusted-content.ts';
+import { createUntrustedContentPort } from '@pellux/goodvibes-sdk/platform/security';
+import type { UntrustedContentLedger } from './untrusted-content.ts';
 
 export interface AgentUntrustedContentPortOptions {
   /**
@@ -44,40 +37,14 @@ export interface AgentUntrustedContentPortOptions {
   readonly now?: () => Date;
 }
 
-/**
- * The agent's `UntrustedContentPort`, for handing to `new BrowserEngine(...)`.
- *
- * The `surface` on every envelope is `'web-page'`: this port exists to serve
- * the browser, and mislabelling a page as some other surface would put the
- * wrong provenance in front of the reader.
- */
+/** The agent's `UntrustedContentPort`, for handing to `new BrowserEngine(...)`. */
 export function createAgentUntrustedContentPort(
   options: AgentUntrustedContentPortOptions = {},
 ): UntrustedContentPort {
-  const ledger = options.ledger ?? getSessionUntrustedContentLedger();
-  return {
-    rule: UNTRUSTED_CONTENT_RULE,
-    originOf,
-    label: (input) =>
-      labelUntrustedContent({
-        surface: 'web-page',
-        origin: input.origin,
-        text: input.text,
-        ...(input.truncated === undefined ? {} : { truncated: input.truncated }),
-        ...(options.now ? { now: options.now } : {}),
-      }),
-    recordIngest: (input) => {
-      ledger.record({ surface: 'web-page', origin: input.origin, at: input.at });
-    },
-    evaluateOutwardEffect: (input) =>
-      evaluateOutwardEffect({
-        request: {
-          toolName: 'browser',
-          action: input.action,
-          description: input.description,
-        },
-        ledger,
-        approval: input.approval,
-      }),
-  };
+  return createUntrustedContentPort({
+    surface: 'web-page',
+    toolName: 'browser',
+    ...(options.ledger ? { ledger: options.ledger } : {}),
+    ...(options.now ? { now: options.now } : {}),
+  });
 }
