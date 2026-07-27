@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'bun:test';
+import { describeSenderClaim } from '../../agent/untrusted-content.ts';
 import type { EmailSummary } from '../../agent/email/email-service.ts';
 import {
   classifyTone,
@@ -37,6 +38,7 @@ function makeSummary(overrides: Partial<EmailSummary> = {}): EmailSummary {
     mailbox: 'INBOX',
     deliveredTo: [],
     unverifiedToHeaderClaim: '',
+    senderClaim: describeSenderClaim('sender@example.com'),
     ...overrides,
   };
 }

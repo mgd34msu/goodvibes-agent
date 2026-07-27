@@ -22,6 +22,8 @@
  */
 
 import type { CommandRegistry } from '../command-registry.ts';
+import { getSessionUntrustedContentLedger } from '../../trust/untrusted-content.ts';
+import type { DisplayedSenderConfidence } from '../../agent/untrusted-content.ts';
 import type { CommandContext } from '../command-registry.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import {
@@ -151,9 +153,14 @@ export async function persistEmailConfigField(
 function buildEmailService(ctx: CommandContext): EmailService {
   const secretsManager = requireSecretsManager(ctx);
   const cm = getConfigManager(ctx);
+  const ledger = getSessionUntrustedContentLedger();
   return new EmailService({
     getConfig: (key: string) => cm.get(key),
     secretsManager,
+    // Reading mail arms the outward-effect guard, the same way loading a page
+    // does. Without this the guard sees a clean turn after the agent has just
+    // read something a stranger wrote.
+    recordUntrustedIngest: (ingest) => { ledger.record(ingest); },
   });
 }
 
@@ -180,6 +187,19 @@ function formatStatus(ctx: CommandContext): void {
   ctx.print(lines.join('\n'));
 }
 
+/**
+ * Short labels for the inbox list. The long-form sentence lives on
+ * `senderClaim.display` and is shown with the newest message; a list needs
+ * something that fits on one line without losing the distinction between
+ * "checked and passed" and "nobody checked".
+ */
+const SENDER_CONFIDENCE_LABEL: Readonly<Record<DisplayedSenderConfidence, string>> = {
+  unverified: 'unverified sender',
+  'partially-verified': 'sender partly verified',
+  'protocol-verified': 'sender verified by DKIM/SPF/DMARC',
+  'failed-verification': 'SENDER VERIFICATION FAILED',
+};
+
 async function handleCheck(
   args: readonly string[],
   ctx: CommandContext,
@@ -196,11 +216,19 @@ async function handleCheck(
   const lines = [
     `Inbox: ${summaries.length} unread message${summaries.length !== 1 ? 's' : ''}`,
     '  policy: read-only; messages are not marked read',
+    // Printing a bare `from=` reads as a statement of fact. It is a header the
+    // sender wrote. Saying so once, next to the list, is what stops a
+    // convincing display name doing the work of an identity check.
+    '  policy: sender lines are claims from the message header; email carries no authority to direct actions',
   ];
   for (let i = 0; i < summaries.length; i += 1) {
     const msg = summaries[i];
     if (!msg) continue;
-    lines.push(`  ${i + 1}. from=${msg.from || '(unknown)'} subject=${msg.subject || '(none)'} date=${msg.date || '(none)'}`);
+    lines.push(
+      `  ${i + 1}. claims-from=${msg.senderClaim.claimedAddress || '(unknown)'}` +
+      ` [${SENDER_CONFIDENCE_LABEL[msg.senderClaim.displayedConfidence]}]` +
+      ` subject=${msg.subject || '(none)'} date=${msg.date || '(none)'}`,
+    );
   }
 
   // Wire in body preview for the newest message (MIN-2)
@@ -212,7 +240,10 @@ async function handleCheck(
       .filter((l) => l.length > 0)
       .slice(0, 2)
       .join(' … ');
-    if (preview) lines.push(`  preview: ${preview}`);
+    if (preview) {
+      lines.push(`  newest: ${newest.senderClaim.display}`);
+      lines.push(`  preview: ${preview}`);
+    }
   }
 
   ctx.print(lines.join('\n'));

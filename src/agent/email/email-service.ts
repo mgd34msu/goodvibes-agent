@@ -28,6 +28,8 @@
  * Plaintext passwords in config are rejected at validation time.
  */
 
+import { describeSenderClaim, type SenderClaim } from '../untrusted-content.ts';
+import { readSenderAuthentication } from './sender-authentication.ts';
 import { ImapClient, createImapTlsSocket } from './imap-client.ts';
 import { SmtpClient, createSmtpTlsSocket, createSmtpStartTlsSocket, validateSmtpAddress, validateSmtpSubject } from './smtp-client.ts';
 import type { ImapEnvelope } from './imap-client.ts';
@@ -118,6 +120,16 @@ export interface EmailSummary {
    * Named so that correlating on it reads as obviously wrong.
    */
   readonly unverifiedToHeaderClaim: string;
+  /**
+   * The `From:` line described as a CLAIM, carrying the receiving server's
+   * sender-authentication verdict as DISPLAY confidence.
+   *
+   * `senderClaim.commandAuthority` is the literal `'none'` and cannot hold any
+   * other value. A message that passes DKIM, SPF and DMARC and writes the
+   * owner's own address in its From header gets a more confident sentence for
+   * a human to read, and exactly the same authority as a stranger's: none.
+   */
+  readonly senderClaim: SenderClaim;
 }
 
 /**
@@ -151,6 +163,20 @@ export interface EmailServiceDeps {
   readonly imapSocketFactory?: (host: string, port: number) => Promise<Socket>;
   /** Optional socket factory override for SMTP (injected in tests). */
   readonly smtpSocketFactory?: (host: string, port: number) => Promise<Socket>;
+  /**
+   * Records that untrusted content entered the conversation.
+   *
+   * Reading a mailbox pulls in text written by anyone who knows the address,
+   * which is the same exposure as loading a web page — and the outward-effect
+   * guard only fires on exposure it has been told about. Injected rather than
+   * reached for globally so the service stays testable and so a caller cannot
+   * accidentally record into a different session's ledger.
+   */
+  readonly recordUntrustedIngest?: (ingest: {
+    readonly surface: 'email';
+    readonly origin: string;
+    readonly at: string;
+  }) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +329,28 @@ export class EmailService {
       // Delivery evidence is carried through deliberately. Dropping it here
       // would leave correlation with nothing but the sender-authored `To:`
       // header, which is the exact hole the evidence exists to close.
+      // Reading a mailbox is an untrusted ingest, exactly as loading a web page
+      // is: the text was written by whoever chose to send it. The outward-effect
+      // guard can only weigh exposure it has been told about, so it is told here
+      // rather than after something has already been sent.
+      const recordIngest = this.deps.recordUntrustedIngest;
+      if (recordIngest) {
+        const at = new Date().toISOString();
+        for (const env of envelopes) {
+          // Origin is the CLAIMED sender domain, and is labelled as claimed
+          // wherever it surfaces. It is a useful label for the owner, never an
+          // identity check — the claim is why the content is untrusted, not a
+          // reason to trust it.
+          const claimed = describeSenderClaim(env.from).claimedAddress;
+          const domain = claimed.includes('@') ? claimed.slice(claimed.lastIndexOf('@') + 1) : '';
+          recordIngest({
+            surface: 'email',
+            origin: domain.length > 0 ? `email:${domain} (claimed)` : 'email:unknown sender',
+            at,
+          });
+        }
+      }
+
       return envelopes.map((env, idx) => ({
         from: env.from,
         subject: env.subject,
@@ -312,6 +360,7 @@ export class EmailService {
         mailbox: env.mailbox,
         deliveredTo: env.deliveredTo,
         unverifiedToHeaderClaim: env.unverifiedToHeaderClaim,
+        senderClaim: describeSenderClaim(env.from, readSenderAuthentication(env.authenticationResults)),
       }));
     } catch (err) {
       try { await client.logout(); } catch { /* best-effort */ }

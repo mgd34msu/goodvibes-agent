@@ -4,6 +4,7 @@
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
+import { describeSenderClaim } from '../../agent/untrusted-content.ts';
 import {
   EmailService,
   readEmailConfig,
@@ -165,6 +166,7 @@ describe('EmailService.getStatus', () => {
       mailbox: 'INBOX',
       deliveredTo: [],
       unverifiedToHeaderClaim: '',
+      senderClaim: describeSenderClaim('sender@example.com'),
     };
     expect(summary.bodyPreview).toBe('');
   });
