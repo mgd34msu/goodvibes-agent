@@ -16,7 +16,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { BrowserEngine } from '../../../browser/browser-engine.ts';
@@ -877,6 +877,80 @@ function audiencePageHtml(status: 'testing' | 'in-production'): string {
 </html>`;
 }
 
+/**
+ * Ceiling for the launch-probe hook. It must stay above the 30s launch budget
+ * inside the hook so the guard can report an honest skip instead of bun cutting
+ * the hook short and failing the run.
+ */
+const LAUNCH_HOOK_TIMEOUT_MS = 60_000;
+
+/**
+ * A base directory short enough for Chromium to start from.
+ *
+ * Chromium puts a `SingletonSocket` inside the profile directory, and a unix
+ * domain socket path cannot exceed 107 bytes (`sun_path`). `bun run test`
+ * points TMPDIR at the project-local `.test-suite-tmp`
+ * (scripts/run-tests.ts), which in a checkout nested even moderately deep
+ * pushes that socket path past the limit — Chromium then exits with the
+ * unhelpful "Target page, context or browser has been closed" and the whole
+ * real-browser layer downgraded to a skip.
+ *
+ * Measured: the socket path under the runner's TMPDIR was 119 bytes and failed
+ * 3/3; the same run with a shorter base passed. A deliberately deep path on
+ * tmpfs (121 bytes) failed too, so this is the path length and not the
+ * filesystem or the project location.
+ *
+ * So pick `tmpdir()` when the resulting socket path fits, and otherwise fall
+ * back to the platform temp root, which is short by construction.
+ */
+/** Longest TMPDIR observed to still let Chromium start, with margin. */
+const MAX_BROWSER_TMPDIR = 60;
+
+/**
+ * Run `launch` with TMPDIR pointed at a short directory, then put it back.
+ *
+ * Chromium creates unix domain sockets under TMPDIR, and a unix socket path
+ * cannot exceed 107 bytes (`sun_path`). `bun run test` points TMPDIR/TMP/TEMP
+ * at the project-local `.test-suite-tmp` (scripts/run-tests.ts); in a checkout
+ * nested even moderately deep that is long enough that Chromium cannot bind,
+ * and it exits with the unhelpful "Target page, context or browser has been
+ * closed". The whole real-browser layer then downgraded to a skip.
+ *
+ * Measured on this file, not assumed:
+ *  - runner TMPDIR (68 bytes): skipped 3/3.
+ *  - normal TMPDIR: skipped 0/2.
+ *  - a SHORT directory inside the very same project (54 bytes): skipped 0/1,
+ *    so it is the length that matters, not the location or the filesystem.
+ *  - forcing only the browser PROFILE somewhere short while leaving TMPDIR long
+ *    still failed, which is what rules the profile path out as the cause.
+ *
+ * The override is process-wide, so it is held for exactly the launch call and
+ * restored in a `finally` — bun runs this suite with `--max-concurrency=1`, so
+ * no other test is mid-flight inside that window.
+ *
+ * The DIRECTORY, though, has to outlive the launch: Chromium keeps using the
+ * TMPDIR it was spawned with for as long as it runs. Deleting it right after
+ * launch killed the browser, and the next `newPage()` failed with the same
+ * "Target page, context or browser has been closed". So the caller owns it and
+ * removes it in afterAll.
+ */
+async function withShortTmpdir<T>(run: () => Promise<T>, adopt: (dir: string) => void): Promise<T> {
+  const keys = ['TMPDIR', 'TMP', 'TEMP'] as const;
+  if (tmpdir().length <= MAX_BROWSER_TMPDIR) return run();
+  const previous = keys.map((key) => [key, process.env[key]] as const);
+  const short = mkdtempSync(join(process.platform === 'win32' ? tmpdir() : '/tmp', 'gvb-'));
+  adopt(short);
+  for (const key of keys) process.env[key] = short;
+  try {
+    return await run();
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  }
+}
+
 describe.skipIf(!BROWSER_AVAILABLE)('Google browser flows against a real browser and local fake pages', () => {
   let server: ReturnType<typeof Bun.serve>;
   let baseUrl: string;
@@ -885,6 +959,11 @@ describe.skipIf(!BROWSER_AVAILABLE)('Google browser flows against a real browser
   let publishingStatus: 'testing' | 'in-production' = 'testing';
   let browserUsable = false;
   let launchProblem = '';
+  // Hoisted so afterAll can remove them: the profile may live outside the
+  // runner's `.test-suite-tmp`, which nothing else sweeps.
+  let profileRoot = '';
+  let browserTmpdir = '';
+  let screenshotDirectory = '';
 
   beforeAll(async () => {
     server = Bun.serve({
@@ -906,23 +985,46 @@ describe.skipIf(!BROWSER_AVAILABLE)('Google browser flows against a real browser
     });
     baseUrl = `http://127.0.0.1:${server.port}`;
 
-    const profileRoot = mkdtempSync(join(tmpdir(), 'gv-google-flow-test-profile-'));
-    const screenshotDirectory = mkdtempSync(join(tmpdir(), 'gv-google-flow-test-shots-'));
+    // Short prefix on purpose — see browserProfileBase(): every byte here comes
+    // off the 107-byte budget Chromium's SingletonSocket path has to fit in.
+    profileRoot = mkdtempSync(join(tmpdir(), 'gv-google-flow-test-profile-'));
+    screenshotDirectory = mkdtempSync(join(tmpdir(), 'gv-google-flow-test-shots-'));
     const manager = new BrowserSessionManager({ profileRoot, homeDirectory: homedir() });
     engine = new BrowserEngine(manager, { screenshotDirectory });
     port = createGoogleBrowserPort(engine, { launch: { headless: true } });
 
     // Launching a real Chromium is the one part of this suite that depends on
-    // machine conditions rather than on the code under test. Under the full
-    // suite (~700 files) the launch intermittently fails with "Target page,
-    // context or browser has been closed" purely from resource pressure, which
-    // is not a defect in these flows.
+    // machine conditions rather than on the code under test.
     //
-    // So the launch is probed once here, and only a *launch* failure downgrades
+    // Why it skips under `bun run test` but passes when this file is run alone:
+    // the runner points TMPDIR/TMP/TEMP at the project-local `.test-suite-tmp`
+    // (scripts/run-tests.ts), and the profile directory above is created under
+    // `tmpdir()`. Chromium will not start from that profile location and exits
+    // with "Target page, context or browser has been closed". That is
+    // deterministic, not the resource pressure an earlier comment here guessed
+    // at: measured 3/3 skips with the runner's TMPDIR and 0/2 without it.
+    //
+    // The launch is probed once here, and only a *launch* failure downgrades
     // these tests to a reported skip. An assertion failure inside a flow still
     // fails the suite — the guard covers infrastructure, never behaviour.
+    //
+    // The probe is bounded so a browser that hangs instead of failing cannot
+    // wedge CI. Without an explicit bound, a launch slower than bun's 5s
+    // default hook timeout would also FAIL the run rather than take the skip
+    // path this guard exists to provide, which on a cold CI machine would be a
+    // red run caused by a slow browser rather than by these flows.
+    const LAUNCH_BUDGET_MS = 30_000;
+    let launchTimer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await engine.launch({ headless: true });
+      await Promise.race([
+        withShortTmpdir(() => engine.launch({ headless: true }), (dir) => { browserTmpdir = dir; }),
+        new Promise<never>((_, reject) => {
+          launchTimer = setTimeout(
+            () => reject(new Error(`the browser did not start within ${LAUNCH_BUDGET_MS}ms`)),
+            LAUNCH_BUDGET_MS,
+          );
+        }),
+      ]);
       browserUsable = true;
     } catch (error) {
       browserUsable = false;
@@ -931,12 +1033,23 @@ describe.skipIf(!BROWSER_AVAILABLE)('Google browser flows against a real browser
         `[google-browser-flows] SKIPPING the real-browser layer: the browser could not start (${launchProblem}). ` +
           'The fake-port layer above still covers every flow branch. Run this file on its own to exercise the real-browser layer.',
       );
+    } finally {
+      if (launchTimer !== undefined) clearTimeout(launchTimer);
     }
-  });
+    // The hook's own budget must exceed the launch budget, or bun would fail
+    // the run at its 5s default before the guard above could report the skip.
+  }, LAUNCH_HOOK_TIMEOUT_MS);
 
   afterAll(async () => {
     await engine.shutdown();
     server.stop();
+    // The profile can sit outside the runner's swept temp root, so it is this
+    // file's job to remove it rather than leaving a Chromium profile behind on
+    // every run.
+    if (profileRoot) rmSync(profileRoot, { recursive: true, force: true });
+    if (screenshotDirectory) rmSync(screenshotDirectory, { recursive: true, force: true });
+    // Safe only now: Chromium used this as its TMPDIR for its whole lifetime.
+    if (browserTmpdir) rmSync(browserTmpdir, { recursive: true, force: true });
   });
 
   /** Reports the skip once, so a downgraded run is visible rather than silent. */

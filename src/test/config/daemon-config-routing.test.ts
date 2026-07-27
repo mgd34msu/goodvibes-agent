@@ -13,7 +13,7 @@
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
@@ -144,8 +144,19 @@ describe('startup migration', () => {
     const h = home();
     new ConfigManager({ homeDir: h, surfaceRoot: 'tui' });
     // Seed the pre-migration layout: a daemon-owned value in a surface silo.
-    const tuiPath = join(h, '.goodvibes', 'tui', 'settings.json');
-    Bun.write(tuiPath, JSON.stringify({ surfaces: { telegram: { botUsername: 'legacy_bot' } } }, null, 2));
+    //
+    // This seeding MUST be synchronous. `ensureDaemonConfigMigrated` below
+    // reads the file on the next statement with no await in between, and
+    // `Bun.write` returns a promise. Constructing the ConfigManager above does
+    // not create `.goodvibes/tui`, so `Bun.write` has to make the directory
+    // first and cannot finish inline — in a warm process the migration then
+    // read an absent file, found nothing to move, and returned null. That made
+    // this test pass alone and fail intermittently in the full single-process
+    // suite, where 700 files run before it.
+    const tuiDir = join(h, '.goodvibes', 'tui');
+    mkdirSync(tuiDir, { recursive: true });
+    const tuiPath = join(tuiDir, 'settings.json');
+    writeFileSync(tuiPath, JSON.stringify({ surfaces: { telegram: { botUsername: 'legacy_bot' } } }, null, 2));
 
     const first = ensureDaemonConfigMigrated(h);
     expect(first).toContain('Daemon-owned settings');
