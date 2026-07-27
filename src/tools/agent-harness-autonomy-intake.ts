@@ -588,7 +588,9 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
   const asksForAutomationControl = hasAny(lower, ['cancel', 'retry', 'pause', 'resume', 'run now'])
     && hasAny(lower, ['automation', 'schedule', 'job', 'run']);
   const asksForTrigger = asksForEventTrigger(lower);
-  const asksForUnsupportedConnector = hasAny(lower, ['email', 'calendar', 'gmail', 'imap', 'caldav']);
+  // Email and calendar are built in now — the google tool serves them once an
+  // account is connected. This used to classify them as unsupported outright.
+  const asksForMailOrCalendar = hasAny(lower, ['email', 'calendar', 'gmail', 'imap', 'caldav']);
 
   if (asksForAutomationControl) {
     candidates.push({
@@ -718,17 +720,17 @@ function buildCandidates(request: string): readonly AutonomyRouteCandidate[] {
     });
   }
 
-  if (asksForUnsupportedConnector) {
+  if (asksForMailOrCalendar) {
     candidates.push({
-      id: 'connector-setup-first',
-      label: 'Set up missing email or calendar connector first',
+      id: 'connect-google-account',
+      label: 'Use the built-in Gmail and Calendar connector',
       confidence: 'medium',
-      why: 'The request depends on email/calendar capability, which must be configured before autonomous inbox or agenda work.',
-      modelRoute: 'personal_ops action:"lane" laneId:"inbox"',
-      inspectRoute: 'personal_ops action:"status"',
+      why: 'The request depends on mail or calendar, which this build serves natively through the google tool once an account is connected.',
+      modelRoute: 'google action:"status"',
+      inspectRoute: 'google action:"status"',
       requiresConfirmation: false,
-      missingFields: ['configured connector or MCP/plugin route'],
-      userQuestion: 'Which configured connector should GoodVibes use for this inbox or calendar work?',
+      missingFields: ['a connected Google account'],
+      userQuestion: 'Connect a Google account with /google setup, or take up credentials already on this machine with /google adopt — which would you like?',
     });
   }
 
