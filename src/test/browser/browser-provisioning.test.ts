@@ -180,15 +180,22 @@ describe('browser provisioning', () => {
     expect(report.fix).toContain('PLAYWRIGHT_BROWSERS_PATH');
   });
 
-  test('reports a missing driver package as a reinstall, not as a browser problem', async () => {
+  test('reports a missing driver as a driver problem, with the fix its host supplied', async () => {
+    // The remediation is injected rather than hardcoded, because the right
+    // answer depends on how the agent was installed: telling someone who
+    // downloaded a release binary to install the npm package silently switches
+    // their install method. The policy surfaces whatever its host supplies.
     const { io, state } = createFakeIo();
     state.driverAvailable = false;
+    const hostFix = 'Re-run the installer, or extract browser-driver.tar.gz beside the binary.';
 
-    const report = await ensureBrowserBinary(io);
+    const report = await ensureBrowserBinary({ ...io, driverFix: () => hostFix });
 
     expect(report.ok).toBe(false);
     expect(report.failure).toBe('driver-missing');
-    expect(report.fix).toContain('Reinstall');
+    expect(report.fix).toBe(hostFix);
+    // And it is stated as a driver problem, not as the browser being broken.
+    expect(report.problem).toContain('browser driver');
   });
 
   test('every failure carries both a plain-language problem and a named fix', async () => {
