@@ -7,7 +7,7 @@
  *   - LOGIN with plain credentials (tag AUTH LOGIN user pass)
  *   - EXAMINE <mailbox> (read-only SELECT; messages are never marked \Seen)
  *   - SEARCH UNSEEN and SEARCH SINCE <date>
- *   - FETCH BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID TO
+ *   - FETCH BODY.PEEK[HEADER.FIELDS (FROM SUBJECT DATE MESSAGE-ID TO AUTHENTICATION-RESULTS
  *     DELIVERED-TO X-ORIGINAL-TO)] — envelope plus delivery evidence
  *
  * Delivered-to vs To:
@@ -94,6 +94,14 @@ export interface ImapEnvelope {
    * expected recipient; use `deliveredTo` or `mailbox` for that.
    */
   readonly unverifiedToHeaderClaim: string;
+  /**
+   * `Authentication-Results` values, top-most first.
+   *
+   * Written by the receiving mail server, so — like the delivery headers —
+   * only the top-most is beyond the sender's reach. Feeds DISPLAY confidence
+   * on the sender line and nothing else; no permission anywhere reads it.
+   */
+  readonly authenticationResults: readonly string[];
 }
 
 export interface ImapMessage extends ImapEnvelope {
@@ -497,6 +505,22 @@ function extractDeliveryEvidence(rawHeaders: string): DeliveryEvidence[] {
   return [];
 }
 
+/**
+ * The top-most `Authentication-Results` header, or none.
+ *
+ * Same reasoning as `extractDeliveryEvidence`: a sender can embed their own
+ * copy, and it lands below the receiving server's. Only the first is returned,
+ * and a message with none yields an empty list rather than a default verdict.
+ */
+function extractAuthenticationResults(rawHeaders: string): string[] {
+  for (const field of parseHeaderFields(rawHeaders)) {
+    if (field.name === 'authentication-results') {
+      return field.value.trim().length > 0 ? [field.value] : [];
+    }
+  }
+  return [];
+}
+
 function parseSequenceNumbers(searchResponse: readonly string[]): number[] {
   const nums: number[] = [];
   for (const line of searchResponse) {
@@ -660,7 +684,7 @@ export class ImapClient {
     const set = bounded.join(',');
     const lines = await session.command(
       `FETCH ${set} BODY.PEEK[HEADER.FIELDS ` +
-      `(FROM SUBJECT DATE MESSAGE-ID TO DELIVERED-TO X-ORIGINAL-TO)]`,
+      `(FROM SUBJECT DATE MESSAGE-ID TO DELIVERED-TO X-ORIGINAL-TO AUTHENTICATION-RESULTS)]`,
     );
     const headersMap = parseFetchHeaders(lines);
     const mailbox = this.mailbox;
@@ -679,6 +703,7 @@ export class ImapClient {
         deliveryEvidence,
         // Display only — see the field docs on ImapEnvelope.
         unverifiedToHeaderClaim: extractHeader(raw, 'To'),
+        authenticationResults: extractAuthenticationResults(raw),
       });
     }
     return envelopes;
