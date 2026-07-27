@@ -1,7 +1,7 @@
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 import { BrowserEngine, BrowserSessionError, StaleElementError, UntrustedEffectError } from '../browser/browser-engine.ts';
-import type { BrowserTarget } from '../browser/browser-engine.ts';
+import type { BrowserExtractField, BrowserTarget } from '../browser/browser-engine.ts';
 import { BrowserSessionManager } from '../browser/browser-sessions.ts';
 import { declareToolCapability } from './agent-tool-capability-declarations.ts';
 
@@ -43,11 +43,18 @@ const BROWSER_ACTIONS = [
   'close_tab',
   'back',
   'forward',
-  'evaluate',
+  'extract',
 ] as const;
 
 export const BROWSER_TOOL_READ_ONLY_ACTIONS: ReadonlySet<string> = new Set(READ_ONLY_ACTIONS);
 export const BROWSER_TOOL_ACTIONS: readonly string[] = BROWSER_ACTIONS;
+
+/** Narrows caller input to the fields the extraction contract defines. */
+function readExtractFields(value: unknown): readonly BrowserExtractField[] {
+  const allowed: readonly BrowserExtractField[] = ['text', 'html', 'value', 'attributes'];
+  const requested = readStringArray(value);
+  return allowed.filter((field) => requested.includes(field));
+}
 
 interface BrowserToolArgs {
   readonly action?: unknown;
@@ -55,10 +62,12 @@ interface BrowserToolArgs {
   readonly pageId?: unknown;
   readonly url?: unknown;
   readonly ref?: unknown;
+  readonly selector?: unknown;
   readonly text?: unknown;
   readonly key?: unknown;
   readonly values?: unknown;
-  readonly expression?: unknown;
+  readonly fields?: unknown;
+  readonly all?: unknown;
   readonly cdpEndpoint?: unknown;
   readonly profileName?: unknown;
   readonly headless?: unknown;
@@ -175,14 +184,20 @@ export function createAgentBrowserTool(options: AgentBrowserToolOptions = {}): T
           action: {
             type: 'string',
             enum: [...BROWSER_ACTIONS],
-            description: 'status: what browser is available and which sessions are open. navigate/snapshot/click/type/select/press/scroll/wait_for/read_text/screenshot: drive a page. launch/attach/release/close: session lifecycle. tabs/new_tab/switch_tab/close_tab/back/forward/evaluate: everything else.',
+            description: 'status: what browser is available and which sessions are open. navigate/snapshot/click/type/select/press/scroll/wait_for/read_text/screenshot: drive a page. launch/attach/release/close: session lifecycle. tabs/new_tab/switch_tab/close_tab/back/forward/extract: everything else.',
           },
           url: { type: 'string', description: 'URL for navigate or new_tab. http, https, file, or about only.' },
-          ref: { type: 'string', description: 'Element reference from the most recent snapshot of this page. Required by click, type, select, press.' },
+          ref: { type: 'string', description: 'Element reference from the most recent snapshot of this page. Required by click, type, select, press; optional for extract.' },
+          selector: { type: 'string', description: 'CSS selector for action:"extract". Reaches into open shadow DOM. Use a ref to read inside an iframe.' },
           text: { type: 'string', description: 'Text to type for action:"type", or text to wait for with action:"wait_for".' },
           key: { type: 'string', description: 'Key name for action:"press", such as Enter or Escape.' },
           values: { type: 'array', items: { type: 'string' }, description: 'Option values for action:"select".' },
-          expression: { type: 'string', description: 'JavaScript expression to evaluate in the page for action:"evaluate".' },
+          fields: {
+            type: 'array',
+            items: { type: 'string', enum: ['text', 'html', 'value', 'attributes'] },
+            description: 'What to read for action:"extract". Defaults to text.',
+          },
+          all: { type: 'boolean', description: 'For action:"extract": read every match rather than the first.' },
           sessionId: { type: 'string', description: 'Browser session to act on. Defaults to the open session.' },
           pageId: { type: 'string', description: 'Page/tab to act on. Defaults to the active tab.' },
           cdpEndpoint: { type: 'string', description: 'Remote debugging endpoint of a browser you already have running, for action:"attach".' },
@@ -306,8 +321,14 @@ export function createAgentBrowserTool(options: AgentBrowserToolOptions = {}): T
             return output(await browser.goBack(target));
           case 'forward':
             return output(await browser.goForward(target));
-          case 'evaluate':
-            return output(await browser.evaluate(target, { expression: requireString(args.expression, 'expression', 'evaluate') }));
+          case 'extract':
+            return output(await browser.extract(target, {
+              ...(readString(args.ref) ? { ref: readString(args.ref) } : {}),
+              ...(readString(args.selector) ? { selector: readString(args.selector) } : {}),
+              ...(readStringArray(args.fields).length > 0 ? { fields: readExtractFields(args.fields) } : {}),
+              ...(args.all === true ? { all: true } : {}),
+              ...(readNumber(args.limit) === undefined ? {} : { limit: readNumber(args.limit) }),
+            }));
           default:
             return failure(`Unknown browser action: ${action}. Use one of: ${BROWSER_ACTIONS.join(', ')}.`);
         }

@@ -181,11 +181,13 @@ const handlers = {
     const page = requirePage(pageId);
     const scope = scopeFor(page, frameChain);
     const locator = scope.locator(selector);
-    const first = locator.first();
+    // Index-addressed like every other operation here: the caller says which
+    // match it means, so nothing depends on remote state between calls.
+    const first = typeof args?.index === 'number' ? locator.nth(args.index) : locator.first();
     const timeout = args?.timeout ?? 15_000;
     switch (method) {
       case 'count': return { value: await locator.count() };
-      case 'describe': return { value: await first.evaluate(compileFunction(args.source)) };
+      case 'describe': return { value: await first.evaluate(compileFunction(args.source), args.arg) };
       case 'click':
         await first.click({ button: args.button ?? 'left', clickCount: args.clickCount ?? 1, timeout });
         return { value: null };
@@ -264,5 +266,22 @@ createInterface({ input: process.stdin }).on('line', (line) => {
     .then((result) => send({ id: message.id, ok: true, result }))
     .catch((error) => send({ id: message.id, ok: false, error: error?.message ?? String(error) }));
 });
+
+/**
+ * This host only works under real Node.
+ *
+ * Bun places a `node` shim on PATH that re-executes Bun, so spawning "node"
+ * can quietly land back in the runtime whose WebSocket upgrade handling is the
+ * reason this process exists. Saying so immediately turns a mystifying timeout
+ * into an answerable message.
+ */
+if (process.versions.bun) {
+  send({
+    id: 0,
+    ok: false,
+    error: 'the browser host was started under Bun, which cannot complete the debugger handshake it exists to perform',
+  });
+  process.exit(1);
+}
 
 send({ id: 0, ok: true, result: { ready: true, pid: process.pid } });

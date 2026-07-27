@@ -48,7 +48,7 @@ function fakeEngine(calls: RecordedCall[], overrides: Record<string, unknown> = 
     closeTab: record('closeTab'),
     goBack: record('goBack'),
     goForward: record('goForward'),
-    evaluate: record('evaluate'),
+    extract: record('extract'),
     shutdown: record('shutdown'),
     ...overrides,
   } as unknown as BrowserEngine;

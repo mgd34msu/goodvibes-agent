@@ -49,6 +49,8 @@ export class BrowserHostClient {
   private nextId = 1;
   private buffer = '';
   private ready: (() => void) | null = null;
+  private notReady: (() => void) | null = null;
+  private startupError: string | null = null;
 
   async start(): Promise<void> {
     if (this.child) return;
@@ -74,7 +76,7 @@ export class BrowserHostClient {
           this.child = child;
           return;
         }
-        lastError = `${runtime} did not start the browser host`;
+        lastError = this.startupError ?? `${runtime} did not start the browser host`;
         child.kill('SIGTERM');
       } catch (error) {
         lastError = error instanceof Error ? error.message : String(error);
@@ -82,7 +84,7 @@ export class BrowserHostClient {
     }
     throw new BrowserHostError(
       `Could not start the browser host: ${lastError}`,
-      'Attaching to an already-open browser needs Node installed and on PATH. Install Node, or use action:"launch" to have the agent open its own browser with a saved profile.',
+      'Attaching to an already-open browser needs real Node on PATH — the shim Bun provides is not enough. Install Node, or use action:"launch", which needs no Node and opens a visible window with a saved profile you can sign into once.',
     );
   }
 
@@ -97,6 +99,7 @@ export class BrowserHostClient {
       };
       const timer = setTimeout(() => finish(false), 10_000);
       this.ready = () => finish(true);
+      this.notReady = () => finish(false);
       child.on('error', () => finish(false));
       child.on('exit', () => finish(false));
     });
@@ -121,9 +124,15 @@ export class BrowserHostClient {
     }
     if (typeof message.id !== 'number') return;
     if (message.id === 0) {
-      // The host's own hello line.
-      this.ready?.();
+      // The host's own hello line, or its refusal to run under this runtime.
+      if (message.ok === false) {
+        this.startupError = message.error ?? 'the browser host refused to start';
+        this.notReady?.();
+      } else {
+        this.ready?.();
+      }
       this.ready = null;
+      this.notReady = null;
       return;
     }
     const call = this.pending.get(message.id);
@@ -173,15 +182,28 @@ function sourceOf(fn: unknown): string {
 }
 
 /** A locator addressed by page, frame chain, and selector — no remote handles. */
-function remoteLocator(client: BrowserHostClient, pageId: string, frameChain: readonly string[], selector: string): Record<string, unknown> {
+function remoteLocator(
+  client: BrowserHostClient,
+  pageId: string,
+  frameChain: readonly string[],
+  selector: string,
+  index?: number,
+): Record<string, unknown> {
   const call = async (method: string, args: Record<string, unknown> = {}): Promise<unknown> => {
-    const response = await client.call<{ value: unknown }>('locator', { pageId, frameChain, selector, method, args });
+    const response = await client.call<{ value: unknown }>('locator', {
+      pageId,
+      frameChain,
+      selector,
+      method,
+      args: { ...args, ...(index === undefined ? {} : { index }) },
+    });
     return response.value;
   };
   const locator: Record<string, unknown> = {
     count: async () => await call('count') as number,
-    first: () => locator,
-    evaluate: async (fn: unknown) => call('describe', { source: sourceOf(fn) }),
+    first: () => remoteLocator(client, pageId, frameChain, selector, 0),
+    nth: (position: number) => remoteLocator(client, pageId, frameChain, selector, position),
+    evaluate: async (fn: unknown, arg?: unknown) => call('describe', { source: sourceOf(fn), arg }),
     click: async (options?: Record<string, unknown>) => {
       await call('click', options ?? {});
     },

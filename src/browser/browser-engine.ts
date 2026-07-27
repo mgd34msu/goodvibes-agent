@@ -49,16 +49,35 @@ export interface BrowserEngineOptions {
   readonly approval?: OwnerApproval | null;
 }
 
+/** Fields the extraction contract can ask for. Nothing here can invoke anything. */
+export type BrowserExtractField = 'text' | 'html' | 'value' | 'attributes';
+
 /**
- * Script that reaches outside the page it runs in.
- *
- * `evaluate` returns whatever a page decides to return and can equally be used
- * to post data somewhere. Once the turn has read untrusted content, expressions
- * that can transmit are refused outright — the path is closed rather than
- * discouraged, because the model writing the expression may be acting on text
- * the page authored.
+ * Runs in the page. Fixed, shipped in this file, and never assembled from
+ * caller input: the caller only chooses which of these fields it wants.
  */
-const OUTWARD_SCRIPT_PATTERN = /\b(?:fetch|XMLHttpRequest|sendBeacon|importScripts|WebSocket|EventSource)\b|\.submit\s*\(|\bwindow\.open\b|\blocation\s*(?:\.href)?\s*=|\bnavigator\.sendBeacon\b/;
+function readElementData(element: Element, fields: string[]): Record<string, unknown> {
+  const data: Record<string, unknown> = { tag: element.tagName.toLowerCase() };
+  for (const field of fields) {
+    if (field === 'text') {
+      const text = (element as HTMLElement).innerText ?? element.textContent ?? '';
+      data.text = text.replace(/\s+/g, ' ').trim().slice(0, 20_000);
+    } else if (field === 'html') {
+      data.html = element.outerHTML.slice(0, 20_000);
+    } else if (field === 'value') {
+      const input = element as HTMLInputElement;
+      const type = (element.getAttribute('type') ?? '').toLowerCase();
+      data.value = type === 'password' ? null : (input.value ?? null);
+    } else if (field === 'attributes') {
+      const attributes: Record<string, string> = {};
+      for (const attribute of Array.from(element.attributes)) {
+        attributes[attribute.name] = attribute.value.slice(0, 2_000);
+      }
+      data.attributes = attributes;
+    }
+  }
+  return data;
+}
 
 export class UntrustedEffectError extends Error {
   constructor(message: string, readonly fix: string) {
@@ -560,30 +579,79 @@ export class BrowserEngine {
     return { sessionId, pageId, url: page.url(), moved: response !== null };
   }
 
-  async evaluate(target: BrowserTarget, args: { readonly expression: string }): Promise<Record<string, unknown>> {
+  /**
+   * Reads data out of the page.
+   *
+   * This replaced an `evaluate` action that ran caller-supplied JavaScript in
+   * the page. That action was guarded by searching the source for `fetch`,
+   * `sendBeacon` and friends — a denylist standing between attacker-influenced
+   * text and arbitrary code execution, which is a losing shape. An expression
+   * built as `globalThis[atob('ZmV0Y2g=')]` defeats a string match while doing
+   * exactly what the match existed to stop.
+   *
+   * So there is no longer any way to express code here. The caller supplies a
+   * CSS selector or a ref and names the fields it wants; the function that runs
+   * in the page is fixed, ships in this file, and reads DOM properties. A
+   * network call is not something this contract can describe — not something we
+   * try to notice.
+   *
+   * What that costs: running page functions, computing values in-page, and
+   * poking at application state that never reaches the DOM. Interaction still
+   * happens through click, type, select and press, which are checked; anything
+   * computed can be computed here, from extracted data, where a page cannot
+   * reach it.
+   */
+  async extract(
+    target: BrowserTarget,
+    args: {
+      readonly ref?: string;
+      readonly selector?: string;
+      readonly fields?: readonly BrowserExtractField[];
+      readonly all?: boolean;
+      readonly limit?: number;
+    },
+  ): Promise<Record<string, unknown>> {
     const { sessionId, pageId, page } = await this.target(target);
-    if (OUTWARD_SCRIPT_PATTERN.test(args.expression)) {
-      this.requireOutwardEffectAllowed(
-        'browser.evaluate-outward',
-        `run script on ${originOf(page.url())} that can transmit data off the page`,
-      );
+    const fields = args.fields && args.fields.length > 0 ? args.fields : (['text'] as const);
+    const limit = Math.max(1, Math.min(200, args.limit ?? (args.all === true ? 50 : 1)));
+
+    let matched: number;
+    const extracted: unknown[] = [];
+    if (args.ref) {
+      const { locator } = await resolveRef(page, this.currentSnapshot(sessionId, pageId), args.ref);
+      matched = 1;
+      extracted.push(await locator.evaluate(readElementData, [...fields]));
+    } else {
+      const selector = args.selector?.trim() || 'body';
+      const all = page.locator(selector);
+      matched = await all.count().catch(() => 0);
+      if (matched === 0) {
+        throw new BrowserSessionError(
+          `Nothing on this page matches ${selector}.`,
+          'Call action:"snapshot" to see what is on the page, then extract by ref or by a selector that matches.',
+        );
+      }
+      const take = args.all === true ? Math.min(matched, limit) : 1;
+      for (let index = 0; index < take; index += 1) {
+        extracted.push(await all.nth(index).evaluate(readElementData, [...fields]));
+      }
     }
-    const value: unknown = await page.evaluate<unknown, string>((source) => {
-      const runner = new Function(`return (${source});`) as () => unknown;
-      return runner();
-    }, args.expression);
+
     const origin = this.recordPageIngest(page.url());
     return {
       sessionId,
       pageId,
       url: page.url(),
-      // Whatever the page chose to return. It is the most instruction-shaped
-      // output the browser can produce, so it is labelled like any other page
-      // content rather than handed back as a bare value.
-      result: labelUntrustedContent({
+      matched,
+      returned: extracted.length,
+      ...(matched > extracted.length
+        ? { note: `Showing ${String(extracted.length)} of ${String(matched)} matches. Pass all:true with a limit to read more.` }
+        : {}),
+      // Whatever the page holds is still the page's own words.
+      data: labelUntrustedContent({
         surface: 'web-page',
         origin,
-        text: typeof value === 'string' ? value : JSON.stringify(value ?? null),
+        text: JSON.stringify(extracted),
       }),
     };
   }
