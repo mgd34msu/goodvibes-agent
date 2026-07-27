@@ -34,6 +34,9 @@ function makeSummary(overrides: Partial<EmailSummary> = {}): EmailSummary {
     date: '2024-01-01T10:00:00Z',
     unread: true,
     bodyPreview: '',
+    mailbox: 'INBOX',
+    deliveredTo: [],
+    unverifiedToHeaderClaim: '',
     ...overrides,
   };
 }

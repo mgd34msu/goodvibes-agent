@@ -89,9 +89,15 @@ export type SettingsFocusPane = 'categories' | 'settings';
  * describe how a notification is DELIVERED, so they sit with the
  * `notifications.*` keys that decide which events are pushed in the first
  * place.
+ *
+ * `cluster` — heartbeat timing, the multicast group, the shared secret and the
+ * key-rotation windows all describe how this node finds and trusts its peers.
+ * That is the same subject `fleet.*` already covers, so they are listed
+ * together rather than under a category of their own.
  */
 export const CROSS_LISTED_SETTING_ROOTS: Readonly<Record<string, SettingsCategory>> = {
   push: 'notifications',
+  cluster: 'fleet',
 };
 
 export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{

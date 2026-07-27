@@ -172,15 +172,29 @@ export function channelReadinessCatalogStatus(context: CommandContext): Record<s
 }
 
 export function listHarnessChannels(context: CommandContext, args: AgentHarnessChannelArgs): Record<string, unknown> {
-  const query = readString(args.query).toLowerCase();
+  const rawQuery = readString(args.query);
+  const query = rawQuery.toLowerCase();
   const includeParameters = args.includeParameters === true;
   const limit = readLimit(args.limit, 200);
   const channels = buildAgentWorkspaceChannels(context);
-  const filtered = channels
-    .filter((channel) => !query || channelSearchText(channel).includes(query))
-    .slice(0, limit);
+  const matched = channels.filter((channel) => !query || channelSearchText(channel).includes(query));
+  const filtered = matched.slice(0, limit);
   const enabled = channels.filter((channel) => channel.enabled).length;
   const ready = channels.filter((channel) => channel.ready).length;
+
+  // A query that matches nothing used to return a bare `channels: []` next to
+  // `total: 14`, which reads as "this install has no channels" — and that is
+  // exactly how it was read: a request to send an email searched the catalog,
+  // matched nothing, and was reported to the user as "email is not
+  // configured". An empty list must therefore explain itself and hand back a
+  // route out, never a silent empty array.
+  //
+  // Two rounds arrived at that conclusion independently, so the answer carries
+  // both halves rather than one: the shared inventory disclosure below states
+  // how much was withheld and names the route that lists everything, and the
+  // channel-specific fields say which channels DO exist and how to reach them.
+  const filteredOutByQuery = query !== '' && matched.length === 0 && channels.length > 0;
+
   return withInventoryDisclosure({
     channels: filtered.map((channel) => describeChannel(channel, { includeParameters })),
     returned: filtered.length,
@@ -188,6 +202,21 @@ export function listHarnessChannels(context: CommandContext, args: AgentHarnessC
     enabled,
     ready,
     attention: channels.filter((channel) => channel.enabled && channel.setupState !== 'ready').length,
+    ...(query === '' ? {} : { query: rawQuery }),
+    ...(filteredOutByQuery
+      ? {
+        emptyReason: 'query-matched-nothing',
+        emptyExplanation: `No channel matched "${rawQuery}". This install has ${channels.length} channel(s); the search simply did not match any of them. It does NOT mean no channels are configured — re-run without a query to see them all.`,
+        availableChannelIds: channels.map((channel) => channel.id),
+        retryModelRoute: 'channels action:"status"',
+      }
+      : {}),
+    ...(channels.length === 0
+      ? {
+        emptyReason: 'no-channels-registered',
+        emptyExplanation: 'This install genuinely has no channels registered.',
+      }
+      : {}),
     setupGuide: {
       status: buildAgentWorkspaceChannelSetupGuide(channels).status,
       modelRoute: channelSetupGuideModelRoute(),

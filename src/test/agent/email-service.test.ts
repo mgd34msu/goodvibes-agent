@@ -162,6 +162,9 @@ describe('EmailService.getStatus', () => {
       date: '2026-01-01',
       unread: true,
       bodyPreview: '',
+      mailbox: 'INBOX',
+      deliveredTo: [],
+      unverifiedToHeaderClaim: '',
     };
     expect(summary.bodyPreview).toBe('');
   });

@@ -82,6 +82,16 @@ function emailSend(options: BuiltinCapabilityOptions): CapabilityDeclaration {
         ],
         label: 'Google account credentials',
       },
+      // The Google connector's own evidence. This list exists to catch
+      // "credentials present, capability silent", and it knew only about the
+      // older gmail-mcp credential files — so an install connected through the
+      // built-in Google setup left no evidence here at all, which is the very
+      // state it was written to detect.
+      {
+        kind: 'config-value-present',
+        key: 'google.oauth.refreshToken',
+        label: 'A Google account connected through the built-in setup',
+      },
     ],
   };
 }
@@ -110,6 +120,18 @@ function calendarRead(): CapabilityDeclaration {
     ],
     configurationEvidence: [
       { kind: 'config-value-present', key: 'calendar.google.clientId', label: 'A connected calendar account' },
+      {
+        kind: 'config-value-present',
+        key: 'google.oauth.refreshToken',
+        label: 'A Google account connected through the built-in setup',
+      },
+      // A private ICS feed reads a calendar without OAuth at all, so an install
+      // set up that way is configured even with no client id.
+      {
+        kind: 'config-value-present',
+        key: 'calendar.google.icsUrl',
+        label: 'A private calendar feed address',
+      },
     ],
   };
 }
