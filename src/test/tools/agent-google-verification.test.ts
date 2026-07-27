@@ -128,6 +128,69 @@ describe('reading a verification mail', () => {
     expect(result.error).not.toContain('tok123');
   });
 
+  test('a welcome note arriving first does not spend the window', async () => {
+    // A signup provokes more than one mail at the alias, and the welcome note
+    // usually beats the verification. If the match consumed the expectation,
+    // this first message would close it and the real verification behind it
+    // would then be refused as unsolicited.
+    const headers = [
+      { name: 'From', value: 'noreply@example.com' },
+      { name: 'To', value: ALIAS },
+      { name: 'Delivered-To', value: ALIAS },
+    ];
+
+    const welcome = await run(toolWith(headers, 'Welcome aboard. Nothing to do yet.'), {
+      action: 'mail.verification',
+      id: 'msg-1',
+    });
+    expect(welcome.success).toBe(false);
+    expect(welcome.error).toContain('No verification link or code');
+    expect(getSessionExpectationBook().list()).toHaveLength(1);
+
+    const real = await run(toolWith(headers), { action: 'mail.verification', id: 'msg-1' });
+    expect(real.success).toBe(true);
+    expect(real.output).toContain('https://example.com/verify?t=tok123');
+  });
+
+  test('a link pointing at another host is refused without spending the window', async () => {
+    // The shape of a forgery aimed at a guessed alias. Burning the expectation
+    // on it would buy an attacker a denial of the real verification for the
+    // price of one message.
+    const headers = [
+      { name: 'From', value: 'noreply@example.com' },
+      { name: 'To', value: ALIAS },
+      { name: 'Delivered-To', value: ALIAS },
+    ];
+
+    const forged = await run(toolWith(headers, 'Confirm here: https://evil.test/verify?t=tok123'), {
+      action: 'mail.verification',
+      id: 'msg-1',
+    });
+    expect(forged.success).toBe(false);
+    expect(forged.error).toContain('evil.test');
+    expect(getSessionExpectationBook().list()).toHaveLength(1);
+
+    const real = await run(toolWith(headers), { action: 'mail.verification', id: 'msg-1' });
+    expect(real.success).toBe(true);
+    expect(real.output).toContain('https://example.com/verify?t=tok123');
+  });
+
+  test('once a token is handed over the expectation is closed', async () => {
+    const headers = [
+      { name: 'From', value: 'noreply@example.com' },
+      { name: 'To', value: ALIAS },
+      { name: 'Delivered-To', value: ALIAS },
+    ];
+
+    const first = await run(toolWith(headers), { action: 'mail.verification', id: 'msg-1' });
+    expect(first.success).toBe(true);
+    expect(getSessionExpectationBook().list()).toHaveLength(0);
+
+    const replay = await run(toolWith(headers), { action: 'mail.verification', id: 'msg-1' });
+    expect(replay.success).toBe(false);
+    expect(replay.error).not.toContain('tok123');
+  });
+
   test('with no expectation open, verification mail is not acted on at all', async () => {
     resetSessionExpectationBookForTests();
     const tool = toolWith([
