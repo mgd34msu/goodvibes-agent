@@ -162,8 +162,12 @@ export function runCapabilityProbe(probe: CapabilityProbe, context: ProbeContext
         // normal case rather than an answer, so the declared on-disk locations
         // decide it — the same ones the runtime loads the package from.
       }
+      // The completeness rule is the registrant's, so it can be the SAME rule
+      // the runtime resolver applies. A directory that satisfies a weaker test
+      // would be reported as present and then rejected on first use.
+      const requiredFiles = probe.requiredFiles ?? ['package.json', 'index.js'];
       for (const directory of probe.searchDirectories ?? []) {
-        if (existsSync(join(directory, 'package.json')) && existsSync(join(directory, 'index.js'))) {
+        if (requiredFiles.every((file) => fileReadable(join(directory, file)))) {
           return { satisfied: true, detail: `${probe.label} is present at ${directory}` };
         }
       }

@@ -67,12 +67,22 @@ export type CapabilityProbe =
    * the package — including builds carrying it right beside the executable.
    * Each listed directory is checked for the package's own manifest and entry
    * file, which is exactly how the runtime finds it.
+   *
+   * `requiredFiles` is what keeps that promise literally true. A directory can
+   * hold a manifest and an entry file and still be unusable — a half-finished
+   * extraction, or an older release's incomplete copy — and the runtime resolver
+   * skips exactly those. A probe with a weaker completeness rule than the
+   * resolver reports the package "present at X" for a directory the tool will
+   * refuse a moment later, which is the disagreement this whole probe exists to
+   * remove. Declaring the files lets each registrant state the resolver's rule
+   * rather than the probe guessing at it. Defaults to the manifest and entry.
    */
   | {
     readonly kind: 'module-resolvable';
     readonly specifier: string;
     readonly label: string;
     readonly searchDirectories?: readonly string[];
+    readonly requiredFiles?: readonly string[];
   }
   /** A configuration key holds a non-empty value. Values are never read out. */
   | { readonly kind: 'config-value-present'; readonly key: string; readonly label: string }

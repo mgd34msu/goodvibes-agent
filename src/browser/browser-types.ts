@@ -25,6 +25,15 @@ export type BrowserBinarySource =
  */
 export type BrowserProvisionFailure =
   | 'driver-missing'
+  /**
+   * No driver is present and this call was told to install nothing, so none was
+   * attempted. Distinct from 'driver-missing' on purpose: that value means
+   * installing WAS tried and could not finish, and reporting it for a call that
+   * never tried would tell the owner their machine cannot get a driver when in
+   * fact nothing has asked for one yet. Only a reporting call (status, or any
+   * provision with allowDownload:false) can produce this.
+   */
+  | 'driver-not-installed-yet'
   | 'download-failed'
   | 'download-blocked-offline'
   | 'binary-missing-after-install'

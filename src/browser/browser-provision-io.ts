@@ -74,10 +74,10 @@ export function managedDriverRoot(homeDirectory: string): string {
  * again on the very next call. Skipping an unusable candidate lets the next one
  * win, and lets self-provisioning actually take effect.
  */
+export const DRIVER_REQUIRED_FILES: readonly string[] = ['package.json', 'index.js', 'cli.js'];
+
 function driverDirectoryFrom(candidate: string): string | null {
-  const complete = existsSync(join(candidate, 'package.json'))
-    && existsSync(join(candidate, 'index.js'))
-    && existsSync(join(candidate, 'cli.js'));
+  const complete = DRIVER_REQUIRED_FILES.every((file) => existsSync(join(candidate, file)));
   return complete ? candidate : null;
 }
 
@@ -358,7 +358,12 @@ async function installDriverPackage(targetRoot: string): Promise<CommandOutcome>
     if (outcome.code === 0) {
       return { ...outcome, stdout: outcome.stdout || `installed ${specifier} with ${command}` };
     }
-    reasons.push(outcome.spawnError && /ENOENT/i.test(outcome.spawnError)
+    // Bun reports a missing program as `Executable not found in $PATH: "npm"`,
+    // not as ENOENT, so matching ENOENT alone handed back that raw string
+    // instead of the plain "not installed on this machine" this is meant to say.
+    const missing = outcome.spawnError !== null
+      && (/ENOENT/i.test(outcome.spawnError) || /not found in \$PATH/i.test(outcome.spawnError));
+    reasons.push(missing
       ? `${command}: not installed on this machine`
       : `${command}: ${(outcome.spawnError ?? (outcome.stderr.trim() || `exited with code ${String(outcome.code)}`)).split('\n')[0] ?? 'failed'}`);
   }

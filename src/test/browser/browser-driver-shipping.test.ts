@@ -5,9 +5,20 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { extractTarGzEntry, extractTarGzTree, readTarGzEntries } from '../../runtime/tar-archive.ts';
 import { driverRemediation } from '../../browser/browser-driver-remediation.ts';
-import { driverSearchDirectories, findDriverDirectory, managedDriverRoot } from '../../browser/browser-provision-io.ts';
-import { describeProvisionWork, ensureBrowserBinary } from '../../browser/browser-provisioning.ts';
+import {
+  DRIVER_REQUIRED_FILES,
+  driverSearchDirectories,
+  findDriverDirectory,
+  managedDriverRoot,
+} from '../../browser/browser-provision-io.ts';
+import {
+  describeProvisionWork,
+  ensureBrowserBinary,
+  installRuntimeCandidates,
+  installRuntimeCandidatesFor,
+} from '../../browser/browser-provisioning.ts';
 import { runCapabilityProbe, emptyProbeContext } from '../../capabilities/capability-probe-runner.ts';
+import { browserControlDeclaration } from '../../capabilities/builtin-capabilities.ts';
 import {
   BROWSER_DRIVER_ARCHIVE_NAME,
   BROWSER_DRIVER_DIR_NAME,
@@ -190,6 +201,106 @@ describe('the capability probe that made this unrecoverable', () => {
     );
     expect(result.satisfied).toBe(false);
   });
+
+  test('the probe and the runtime resolver agree about a driver missing its CLI', () => {
+    // The resolver skips a directory without cli.js, because cli.js is what the
+    // browser install step executes. The probe used a weaker rule, so it
+    // reported "the browser driver is present at X" for a directory the tool
+    // then refused — the index disagreeing with the tool a moment later is
+    // precisely what this probe exists to prevent.
+    const noCli = join(scratch('gv-probe-nocli'), BROWSER_DRIVER_DIR_NAME);
+    mkdirSync(noCli, { recursive: true });
+    writeFileSync(join(noCli, 'package.json'), '{"name":"playwright-core","version":"1.62.0"}');
+    writeFileSync(join(noCli, 'index.js'), 'module.exports = {};');
+
+    expect(findDriverDirectory(undefined, [noCli]), 'the resolver rejects it').toBeNull();
+
+    const result = runCapabilityProbe(
+      {
+        kind: 'module-resolvable',
+        specifier: 'playwright-core-not-a-real-package',
+        label,
+        searchDirectories: [noCli],
+        requiredFiles: DRIVER_REQUIRED_FILES,
+      },
+      emptyProbeContext(),
+    );
+    expect(result.satisfied, 'the probe must reject it too').toBe(false);
+  });
+
+  test('the browser capability declares the resolver rule, not a weaker one', () => {
+    // Declaring the directories without the completeness rule is what let the
+    // two drift apart, so the declaration itself is pinned.
+    const declaration = browserControlDeclaration({ homeDirectory: '/home/someone', workingDirectory: '/tmp' });
+    const prerequisite = declaration.prerequisites?.find((entry) => entry.id === 'playwright-driver');
+    expect(prerequisite).toBeDefined();
+    const probe = prerequisite?.probe;
+    expect(probe?.kind).toBe('module-resolvable');
+    expect(probe?.kind === 'module-resolvable' ? probe.requiredFiles : undefined).toEqual(DRIVER_REQUIRED_FILES);
+    expect(probe?.kind === 'module-resolvable' ? probe.searchDirectories : undefined)
+      .toEqual(driverSearchDirectories('/home/someone'));
+  });
+});
+
+describe('the browser install step on a machine with no interpreter', () => {
+  test('the running executable is always a candidate, so an install never needs bun or node on PATH', () => {
+    const candidates = installRuntimeCandidates();
+    expect(candidates[0]?.command).toBe(process.execPath);
+    // Under `bun test` the running executable IS an interpreter, so it needs no
+    // marker; a compiled binary needs BUN_BE_BUN to act as one. Either way the
+    // artifact's own executable is tried before anything on PATH.
+    expect(candidates.map((candidate) => candidate.command)).toContain('bun');
+    expect(candidates.map((candidate) => candidate.command)).toContain('node');
+  });
+
+  test('a compiled binary runs the install CLI through its own embedded runtime', () => {
+    // Pinned as a value rather than only observed at runtime: the compiled
+    // agent binary has no `bun` and no `node` beside it, and without this the
+    // managed browser download is unreachable on a binary-only machine.
+    const compiled = installRuntimeCandidatesFor('/home/someone/.local/bin/goodvibes-agent');
+    expect(compiled[0]).toEqual({ command: '/home/someone/.local/bin/goodvibes-agent', env: { BUN_BE_BUN: '1' } });
+
+    const interpreter = installRuntimeCandidatesFor('/usr/local/bin/bun');
+    expect(interpreter[0]).toEqual({ command: '/usr/local/bin/bun', env: {} });
+  });
+
+  test('a missing interpreter is recognized as missing, and the next candidate is tried', async () => {
+    // Bun reports a missing program as `Executable not found in $PATH: "bun"`,
+    // never as ENOENT. Matching ENOENT alone stopped the loop on the first
+    // candidate and reported "install exited with code null", which names
+    // nothing the owner can act on.
+    const tried: string[] = [];
+    const io = stubIo({
+      resolveDriver: () => ({
+        available: true,
+        packageDirectory: '/drv',
+        cliPath: '/drv/cli.js',
+        version: '1.62.0',
+        error: null,
+      }),
+      expectedExecutablePath: () => '/cache/chromium-1234/chrome-linux64/chrome',
+      pathExists: () => false,
+      directoryWritable: () => true,
+      systemBrowserCandidates: () => [],
+      runCommand: async (command) => {
+        tried.push(command);
+        return {
+          code: null,
+          stdout: '',
+          stderr: '',
+          timedOut: false,
+          spawnError: `Executable not found in $PATH: "${command}"`,
+        };
+      },
+    });
+
+    const report = await ensureBrowserBinary(io, {});
+
+    expect(tried.length, 'every candidate must be tried, not just the first').toBeGreaterThan(1);
+    expect(report.ok).toBe(false);
+    expect(report.problem).not.toContain('exited with code null');
+    expect(report.problem).toContain('is not available');
+  });
 });
 
 describe('remediation matches how the agent was actually installed', () => {
@@ -285,10 +396,53 @@ describe('the self-provision fallback', () => {
       runCommand: async () => ({ code: 0, stdout: 'Chromium 148', stderr: '', timedOut: false, spawnError: null }),
     });
 
-    const report = await ensureBrowserBinary(io, { allowDownload: false });
+    const report = await ensureBrowserBinary(io, {});
 
+    expect(installed).toBe(true);
     expect(report.ok).toBe(true);
     expect(report.driverVersion).toBe('1.62.0');
+  });
+
+  test('a reporting call installs no driver, and says that is why none is there', async () => {
+    // `status` is a read-only action everywhere it is gated, and the CLI help
+    // says it installs nothing. It reached this policy with allowDownload:false
+    // and the driver install ran anyway, fetching a package from the registry
+    // and writing it into the owner's home on what the owner was told was a
+    // look-only call.
+    let installAttempted = false;
+    const io = stubIo({
+      installDriver: async () => {
+        installAttempted = true;
+        return { code: 0, stdout: 'downloaded', stderr: '', timedOut: false, spawnError: null };
+      },
+      managedDriverRoot: () => '/tmp/gv-managed',
+      resolveDriver: () => ({ available: false, packageDirectory: null, cliPath: null, version: null, error: 'no driver' }),
+    });
+
+    const report = await ensureBrowserBinary(io, { allowDownload: false });
+
+    expect(installAttempted, 'a reporting call must not install a driver').toBe(false);
+    expect(report.ok).toBe(false);
+    expect(report.failure).toBe('driver-not-installed-yet');
+    // And it must not claim installing was tried and failed.
+    expect(report.problem).not.toContain('could not be installed');
+    expect(report.problem).toContain('installs nothing');
+    expect(report.steps.some((step) => step.step === 'install-driver')).toBe(false);
+    expect(report.steps.some((step) => step.step === 'install-driver-skipped')).toBe(true);
+  });
+
+  test('a skipped driver install never reads as setup that ran', async () => {
+    // describeProvisionWork turns ok install steps into a "first browser call
+    // installed the driver" receipt for the model. A skip is not an install.
+    const io = stubIo({
+      installDriver: async () => ({ code: 0, stdout: 'downloaded', stderr: '', timedOut: false, spawnError: null }),
+      managedDriverRoot: () => '/tmp/gv-managed',
+      resolveDriver: () => ({ available: false, packageDirectory: null, cliPath: null, version: null, error: 'no driver' }),
+    });
+
+    const report = await ensureBrowserBinary(io, { allowDownload: false });
+
+    expect(describeProvisionWork(report)).toBe(null);
   });
 
   test('setup that actually ran is reported back to the caller', () => {

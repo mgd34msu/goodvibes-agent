@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { driverRemediation } from '../browser/browser-driver-remediation.ts';
-import { driverSearchDirectories } from '../browser/browser-provision-io.ts';
+import { DRIVER_REQUIRED_FILES, driverSearchDirectories } from '../browser/browser-provision-io.ts';
 import { registerCapability, registerFallbackCapability } from './capability-index.ts';
 import type { CapabilityDeclaration, CapabilityPrerequisite, CapabilityProbe } from './capability-types.ts';
 
@@ -35,7 +35,7 @@ export interface BuiltinCapabilityOptions {
  * time by the provisioning policy, which has actually tried and can name what
  * stopped it. That is the honest place for it — a probe cannot know.
  */
-function browserControl(options: BuiltinCapabilityOptions): CapabilityDeclaration {
+export function browserControlDeclaration(options: BuiltinCapabilityOptions): CapabilityDeclaration {
   return {
     id: 'browser.control',
     title: 'Use a web browser',
@@ -57,9 +57,12 @@ function browserControl(options: BuiltinCapabilityOptions): CapabilityDeclaratio
           kind: 'module-resolvable',
           specifier: 'playwright-core',
           label: 'The browser driver',
-          // The exact places the runtime loads it from, so the index agrees
-          // with what the browser tool will find a moment later.
+          // The exact places the runtime loads it from, AND the exact
+          // completeness rule it applies, so the index agrees with what the
+          // browser tool will find a moment later rather than merely looking in
+          // the same places.
           searchDirectories: driverSearchDirectories(options.homeDirectory),
+          requiredFiles: DRIVER_REQUIRED_FILES,
         },
         optional: true,
         fix: driverRemediation(),
@@ -188,7 +191,7 @@ function calendarRead(options: BuiltinCapabilityOptions): CapabilityDeclaration 
 }
 
 export function registerBuiltinCapabilities(options: BuiltinCapabilityOptions): void {
-  registerCapability(browserControl(options));
+  registerCapability(browserControlDeclaration(options));
   registerFallbackCapability(emailSend(options));
   registerFallbackCapability(emailRead(options));
   registerFallbackCapability(calendarRead(options));

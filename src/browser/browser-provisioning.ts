@@ -25,7 +25,18 @@ const DEFAULT_INSTALL_TIMEOUT_MS = 900_000;
 const VERSION_PROBE_TIMEOUT_MS = 30_000;
 
 export interface EnsureBrowserOptions {
-  /** Set false to report what is present without downloading anything. */
+  /**
+   * Set false to report what is present without downloading anything.
+   *
+   * This covers the DRIVER install as well as the browser download. `status` is
+   * a read-only action in every place the tool is gated
+   * (BROWSER_TOOL_READ_ONLY_ACTIONS, and READ_ONLY_BROWSER_ACTIONS in the
+   * permission classifier), and it says so in the CLI help — a status call that
+   * fetched a package from the registry and wrote it into the owner's home was
+   * doing exactly what the read-only classification promises it will not, and
+   * it also destroyed the one thing status is for: observing whether a driver is
+   * actually there.
+   */
   readonly allowDownload?: boolean;
   readonly installTimeoutMs?: number;
   /** Reinstall even when the cached binary verifies. Used by explicit repair. */
@@ -104,15 +115,64 @@ function revisionDirectory(browsersPath: string, executablePath: string): string
   return null;
 }
 
-/** Runtimes able to execute the Playwright install CLI, most specific first. */
-function installRuntimeCandidates(): readonly string[] {
-  const candidates: string[] = [];
-  const execName = basename(process.execPath).toLowerCase();
-  if (execName === 'bun' || execName === 'node' || execName === 'bun.exe' || execName === 'node.exe') {
-    candidates.push(process.execPath);
-  }
-  candidates.push('bun', 'node');
-  return [...new Set(candidates)];
+export interface InstallRuntimeCandidate {
+  readonly command: string;
+  /** Extra environment this candidate needs. Empty for an ordinary interpreter. */
+  readonly env: Readonly<Record<string, string>>;
+}
+
+/**
+ * Runtimes able to execute the Playwright install CLI, most specific first.
+ *
+ * The browser install step is a Node-style script (the driver's cli.js), so
+ * something has to interpret it. Only looking for `bun` or `node` on PATH made
+ * the managed browser download unreachable on exactly the machine this whole
+ * capability is built for: a downloaded binary, no package manager, no
+ * interpreter installed. On such a machine the install step failed instantly
+ * and the agent could only fall back to a system Chrome/Chromium — so a user
+ * with neither got no browser at all, which is the same "browser control does
+ * not exist in the shipped artifact" outcome shipping the driver was meant to
+ * end.
+ *
+ * A `bun build --compile` executable already CONTAINS a Bun runtime, and
+ * BUN_BE_BUN=1 makes it behave as the bun CLI instead of running its embedded
+ * entry point. So the agent binary interprets the install CLI itself, and goes
+ * first: an install that depends on nothing outside the artifact is the one
+ * most likely to work.
+ */
+export function installRuntimeCandidatesFor(execPath: string): readonly InstallRuntimeCandidate[] {
+  const candidates: InstallRuntimeCandidate[] = [];
+  const execName = basename(execPath).toLowerCase();
+  const isInterpreter = execName === 'bun' || execName === 'node' || execName === 'bun.exe' || execName === 'node.exe';
+  candidates.push(isInterpreter
+    ? { command: execPath, env: {} }
+    : { command: execPath, env: { BUN_BE_BUN: '1' } });
+  candidates.push({ command: 'bun', env: {} }, { command: 'node', env: {} });
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const key = `${candidate.command}::${JSON.stringify(candidate.env)}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function installRuntimeCandidates(): readonly InstallRuntimeCandidate[] {
+  return installRuntimeCandidatesFor(process.execPath);
+}
+
+/**
+ * Whether a spawn failure means "that program is not on this machine".
+ *
+ * Bun does not report a missing executable as ENOENT — it says
+ * `Executable not found in $PATH: "node"`. Matching only ENOENT meant a missing
+ * interpreter was treated as a real install failure: the loop returned on the
+ * FIRST candidate instead of trying the next, and the owner was handed
+ * "install exited with code null", which names nothing and suggests nothing.
+ */
+function isMissingExecutable(spawnError: string | null): boolean {
+  if (!spawnError) return false;
+  return /ENOENT/i.test(spawnError) || /not found in \$PATH/i.test(spawnError);
 }
 
 function isNetworkFailure(text: string): boolean {
@@ -128,13 +188,13 @@ async function runInstall(
   const args = [cliPath, 'install', 'chromium', '--no-shell', ...(force ? ['--force'] : [])];
   let lastDetail = 'no runtime available to execute the Playwright install step';
   for (const runtime of installRuntimeCandidates()) {
-    const outcome = await io.runCommand(runtime, args, {
+    const outcome = await io.runCommand(runtime.command, args, {
       timeoutMs,
       // Progress bars assume a TTY; without this the captured log is unreadable noise.
-      env: { PLAYWRIGHT_SKIP_BROWSER_GC: '1' },
+      env: { PLAYWRIGHT_SKIP_BROWSER_GC: '1', ...runtime.env },
     });
-    if (outcome.spawnError && /ENOENT/i.test(outcome.spawnError)) {
-      lastDetail = `${runtime} is not available`;
+    if (isMissingExecutable(outcome.spawnError)) {
+      lastDetail = `${runtime.command} is not available`;
       continue;
     }
     const combined = `${outcome.stdout}\n${outcome.stderr}`;
@@ -167,6 +227,14 @@ function failureGuidance(failure: BrowserProvisionFailure, detail: string, drive
         // though nothing had been tried.
         problem: `The browser driver is not present and could not be installed automatically (${detail}).`,
         fix: driverFix,
+      };
+    case 'driver-not-installed-yet':
+      return {
+        // Nothing is wrong here and the wording must not imply otherwise: this
+        // is a reporting call describing a machine that has simply not made its
+        // first browser call yet.
+        problem: 'The browser driver is not installed yet, and this call installs nothing.',
+        fix: 'Nothing to do — the first browser call installs the driver automatically. To install it now, run the browser tool with action:"provision" (goodvibes-agent browser provision).',
       };
     case 'download-blocked-offline':
       return {
@@ -319,7 +387,21 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
   );
   let resolvedDriver = driver;
   let driverInstallFailure: string | null = null;
-  if (!resolvedDriver.available && io.installDriver && io.managedDriverRoot) {
+  // A reporting call installs nothing. Skipping is recorded rather than silent,
+  // so the caller can tell "no driver, and nothing tried to get one" apart from
+  // "no driver, and getting one failed".
+  const driverInstallSkipped = !resolvedDriver.available && options.allowDownload === false;
+  if (driverInstallSkipped) {
+    // Deliberately NOT named "install-driver": describeProvisionWork treats an
+    // ok step by that name as setup that actually ran, and a skip must never
+    // produce a receipt claiming a driver was installed.
+    recorder.note(
+      'install-driver-skipped',
+      'this call reports what is present and installs nothing — the first browser call installs the driver',
+      true,
+    );
+  }
+  if (!driverInstallSkipped && !resolvedDriver.available && io.installDriver && io.managedDriverRoot) {
     // Nothing shipped a driver — a binary that was moved without its companion
     // files, or a release that predates shipping one. Provisioning it is the
     // agent's job, not the user's, so it happens here rather than being
@@ -352,10 +434,12 @@ async function provision(io: BrowserProvisionIo, options: EnsureBrowserOptions):
     }
     return report(recorder, browsersPath, resolvedDriver.version, driverFix, {
       ok: false,
-      failure: 'driver-missing',
+      failure: driverInstallSkipped ? 'driver-not-installed-yet' : 'driver-missing',
       // The install failure is the actionable detail when one happened; the
       // resolution error only says "not found", which is not why it is absent.
-      detail: driverInstallFailure ?? resolvedDriver.error ?? 'the browser driver could not be resolved',
+      detail: driverInstallSkipped
+        ? 'no driver is installed yet and this call installs nothing'
+        : driverInstallFailure ?? resolvedDriver.error ?? 'the browser driver could not be resolved',
     });
   }
   const driverCliPath = resolvedDriver.cliPath;
