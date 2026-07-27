@@ -765,6 +765,7 @@ export async function bootstrapRuntime(
       forensicsCollector,
       executionLedger: services.executionLedger,
       disposeSessionWriteLedger: () => { services.disposeSessionWriteLedger(); },
+      disposeRuntimeGraph: () => { services.dispose(); },
       deferredStartup,
       agentExternalServices,
       agentStatusIntervalRef,

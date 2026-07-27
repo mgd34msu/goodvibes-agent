@@ -120,6 +120,9 @@ async function buildProviderReadiness(runtime: CliCommandRuntime) {
     }));
   } finally {
     services.providerRegistry.stopWatching();
+    // Same as withRuntimeServices: the readiness probe builds the full graph,
+    // and stopWatching() stops only the provider registry's own watch.
+    services.dispose();
   }
 }
 

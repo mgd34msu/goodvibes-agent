@@ -15,5 +15,14 @@ preload = ["./src/test/helpers/preload.ts"]
 # the gate fails for everyone using a dev link, and reports nothing about this
 # repo's coverage while doing it.
 #
+# The `**/goodvibes-sdk/**` pattern covers a link to an SDK checkout's package
+# directory. It does NOT cover a link into the SDK MONOREPO, where the directory
+# is named `packages/sdk` and resolving it drags in its workspace siblings too —
+# measured: contracts, errors, daemon-sdk, operator-sdk, peer-sdk and sdk dist
+# trees all joined the table, and the gate read 44.88% functions against an 84%
+# floor while reporting nothing about this repo. `**/packages/*/dist/**` covers
+# that layout and cannot match anything here: this repo has no packages/ dir,
+# and dist is build output in any case.
+#
 # A no-op in CI, where the SDK is an ordinary installed package.
-coveragePathIgnorePatterns = ["**/goodvibes-sdk/**", "**/node_modules/**"]
+coveragePathIgnorePatterns = ["**/goodvibes-sdk/**", "**/goodvibes-terminal-shell/**", "**/packages/*/dist/**", "**/node_modules/**"]
