@@ -109,4 +109,23 @@ describe('the capability block in context', () => {
     const prompt = buildCapabilitySummaryPrompt(report({ capabilities: many, ready: many.map((entry) => entry.id) }));
     expect(prompt?.length ?? 0).toBeLessThan(4_000);
   });
+
+  test('a shortened group says it was shortened', () => {
+    // Compactness is bought by cutting the list, and the rule in the same block
+    // tells the agent to trust this summary. A silent cut would therefore turn a
+    // present capability into an apparent absence — the one failure this whole
+    // block exists to prevent.
+    const many = Array.from({ length: 40 }, (_, index) => capability({ id: `cap.${String(index)}`, title: `Capability ${String(index)}` }));
+    const prompt = buildCapabilitySummaryPrompt(report({ capabilities: many, ready: many.map((entry) => entry.id) }));
+
+    expect(prompt).toContain('28 more in this group are not listed here');
+    expect(prompt).toContain('do not read an absence from it');
+  });
+
+  test('a group that fits carries no shortening note', () => {
+    const few = Array.from({ length: 3 }, (_, index) => capability({ id: `cap.${String(index)}`, title: `Capability ${String(index)}` }));
+    const prompt = buildCapabilitySummaryPrompt(report({ capabilities: few, ready: few.map((entry) => entry.id) }));
+
+    expect(prompt).not.toContain('not listed here');
+  });
 });
