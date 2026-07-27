@@ -31,7 +31,17 @@
  * fully verified and extracted BEFORE the binary swap begins, so a corrupted
  * addon download can never leave a new binary beside a stale (or half-written)
  * addon.
+ *
+ * The browser driver rides the same rules, with one difference that matters: it
+ * is a DIRECTORY (`playwright-core/`), not a file, so it cannot go through
+ * swapFileAtomically. It is extracted into `playwright-core.incoming`, and only
+ * a complete extraction is moved into place, with the outgoing directory parked
+ * at `playwright-core.previous`. Refreshing it here is not optional polish — an
+ * in-place binary swap that left the old driver behind would pair a new build
+ * with a driver version it was never tested against, and a swap that left none
+ * behind would silently remove browser control from a working install.
  */
+import { existsSync, renameSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import {
   applyVerifiedUpdate,
@@ -45,12 +55,16 @@ import {
 import type { CommandRegistry } from '../command-registry.ts';
 import { VERSION } from '../../version.ts';
 import {
+  BROWSER_DRIVER_ARCHIVE_NAME,
+  BROWSER_DRIVER_DIR_NAME,
+  BROWSER_DRIVER_REQUIRED_ENTRIES,
   CHECKSUM_MANIFEST_NAME,
   extractTarGzEntry,
   parseChecksumFile,
   resolveAgentBinaryAssetName,
   resolveSqliteVecArchive,
 } from '../../runtime/release-artifacts.ts';
+import { extractTarGzTree } from '../../runtime/tar-archive.ts';
 import {
   compareVersions,
   detectInstallKind,
@@ -83,6 +97,56 @@ async function downloadBytes(fetchImpl: UpdateFetchLike, url: string): Promise<B
   return Buffer.from(await response.arrayBuffer());
 }
 
+/**
+ * Directory-level filesystem seam, for the one installed artifact that is a
+ * directory rather than a file. Injected for the same reason UpdateFileIo is:
+ * a test must be able to observe the swap without extracting 14MB of driver
+ * onto a real disk.
+ */
+export interface UpdateDirectoryIo {
+  exists(path: string): boolean;
+  removeTree(path: string): void;
+  rename(from: string, to: string): void;
+  /** Writes an archive's contents under `destination`, creating it. */
+  extractArchive(archive: Buffer, destination: string): void;
+}
+
+export const realUpdateDirectoryIo: UpdateDirectoryIo = {
+  exists: (path) => existsSync(path),
+  removeTree: (path) => {
+    rmSync(path, { recursive: true, force: true });
+  },
+  rename: (from, to) => {
+    renameSync(from, to);
+  },
+  extractArchive: (archive, destination) => {
+    extractTarGzTree(archive, destination, { stripComponents: 1 });
+  },
+};
+
+/**
+ * Replaces the driver directory beside the binary, keeping the outgoing one.
+ *
+ * Order is the whole safety argument: extract to a scratch directory first, and
+ * only once that has completed do the two renames that make it live. A failure
+ * anywhere before the final rename leaves the existing driver untouched.
+ */
+export function swapDirectory(
+  targetPath: string,
+  archive: Buffer,
+  io: UpdateDirectoryIo,
+): void {
+  const incoming = `${targetPath}.incoming`;
+  const kept = `${targetPath}${PREVIOUS_FILE_SUFFIX}`;
+  io.removeTree(incoming);
+  io.extractArchive(archive, incoming);
+  if (io.exists(targetPath)) {
+    io.removeTree(kept);
+    io.rename(targetPath, kept);
+  }
+  io.rename(incoming, targetPath);
+}
+
 export interface CheckForUpdateResult {
   readonly latestTag: string;
   readonly isCurrent: boolean;
@@ -103,6 +167,8 @@ export interface ApplyUpdateOptions {
   readonly print: (line: string) => void;
   /** Injectable filesystem seam (the SDK's UpdateFileIo) so tests observe swaps in memory. */
   readonly io?: UpdateFileIo;
+  /** Injectable directory seam, for the browser driver (a directory, not a file). */
+  readonly directoryIo?: UpdateDirectoryIo;
 }
 
 /**
@@ -169,6 +235,25 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
     addonTargetPath = join(dirname(appBinaryPath), 'lib', addon.dirName, addon.fileName);
   }
 
+  // The browser driver travels beside the binary as its own archive. Same
+  // contract as the addon: an entry in the manifest makes download, checksum,
+  // and structural verification mandatory before anything is swapped; no entry
+  // means the target release predates shipping a driver, which is skipped
+  // rather than blocking an otherwise-valid binary update.
+  const driverIncluded = checksums.get(BROWSER_DRIVER_ARCHIVE_NAME) !== undefined;
+  let driverArchiveBytes: Buffer | null = null;
+  let driverTargetPath: string | null = null;
+  if (driverIncluded) {
+    driverArchiveBytes = await downloadBytes(options.fetchImpl, `${baseUrl}/${BROWSER_DRIVER_ARCHIVE_NAME}`);
+    verifyChecksum(BROWSER_DRIVER_ARCHIVE_NAME, sha256(driverArchiveBytes), checksums.get(BROWSER_DRIVER_ARCHIVE_NAME));
+    for (const required of BROWSER_DRIVER_REQUIRED_ENTRIES) {
+      if (extractTarGzEntry(driverArchiveBytes, required) === null) {
+        throw new Error(`browser driver archive ${BROWSER_DRIVER_ARCHIVE_NAME} verified but holds no ${required} — refusing a partial update`);
+      }
+    }
+    driverTargetPath = join(dirname(appBinaryPath), BROWSER_DRIVER_DIR_NAME);
+  }
+
   // One mechanism everywhere: downloads + verifies the binary against the
   // same manifest, then swaps it atomically with the outgoing file kept at
   // `<path>.previous`. The addon bytes above are already verified, so the
@@ -183,6 +268,9 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
   if (addonFileBytes !== null && addonTargetPath !== null) {
     swapFileAtomically(addonTargetPath, addonFileBytes, { executable: false, io, platform: options.platform });
   }
+  if (driverArchiveBytes !== null && driverTargetPath !== null) {
+    swapDirectory(driverTargetPath, driverArchiveBytes, options.directoryIo ?? realUpdateDirectoryIo);
+  }
 
   options.print(
     [
@@ -191,6 +279,9 @@ export async function applyUpdate(options: ApplyUpdateOptions): Promise<void> {
       ...(addonTargetPath
         ? [`  vector addon:  ${addonTargetPath}`]
         : [`  vector addon:  the ${latestTag} release ships no ${addon?.assetName ?? 'addon archive'} for this platform — left untouched`]),
+      ...(driverTargetPath
+        ? [`  browser driver: ${driverTargetPath}`]
+        : [`  browser driver: the ${latestTag} release ships no ${BROWSER_DRIVER_ARCHIVE_NAME} — left untouched; the browser tool installs a driver for itself on first use`]),
       '',
       'Restart goodvibes-agent to run the new version.',
     ].join('\n'),
@@ -204,6 +295,23 @@ export interface RollbackUpdateOptions {
   readonly print: (line: string) => void;
   /** Injectable filesystem seam (the SDK's UpdateFileIo) so tests observe renames in memory. */
   readonly io?: UpdateFileIo;
+  /** Injectable directory seam, for the browser driver (a directory, not a file). */
+  readonly directoryIo?: UpdateDirectoryIo;
+}
+
+/**
+ * Exchanges a directory with its kept `.previous` counterpart, via a scratch
+ * name so neither side is ever gone. Returns false when nothing is kept.
+ */
+export function rollbackDirectory(targetPath: string, io: UpdateDirectoryIo): boolean {
+  const kept = `${targetPath}${PREVIOUS_FILE_SUFFIX}`;
+  if (!io.exists(kept)) return false;
+  const scratch = `${targetPath}.rolling`;
+  io.removeTree(scratch);
+  if (io.exists(targetPath)) io.rename(targetPath, scratch);
+  io.rename(kept, targetPath);
+  if (io.exists(scratch)) io.rename(scratch, kept);
+  return true;
 }
 
 /**
@@ -236,7 +344,13 @@ export function rollbackUpdate(options: RollbackUpdateOptions): void {
   ];
 
   const result = rollbackKeptPrevious(targets, io);
-  if (result.restored.length === 0) {
+  // The driver is a directory, so it rolls back through its own exchange
+  // rather than rollbackKeptPrevious. It travels with the binary in both
+  // directions: rolling a binary back onto a newer driver is the same mismatch
+  // the forward path exists to prevent.
+  const driverPath = join(dirname(options.execPath), BROWSER_DRIVER_DIR_NAME);
+  const driverRolledBack = rollbackDirectory(driverPath, options.directoryIo ?? realUpdateDirectoryIo);
+  if (result.restored.length === 0 && !driverRolledBack) {
     options.print(
       `No previous version is kept beside this install (nothing at ${options.execPath}${PREVIOUS_FILE_SUFFIX}). ` +
       'The previous version is kept from the next update onward.',
@@ -248,6 +362,7 @@ export function rollbackUpdate(options: RollbackUpdateOptions): void {
     [
       'Rolled back to the previously installed version.',
       ...result.restored.map((target) => `  ${target.label}: ${target.path} (the replaced version is kept at ${target.path}${PREVIOUS_FILE_SUFFIX})`),
+      ...(driverRolledBack ? [`  browser driver: ${driverPath} (the replaced version is kept at ${driverPath}${PREVIOUS_FILE_SUFFIX})`] : []),
       '',
       'Restart goodvibes-agent to run the restored version.',
     ].join('\n'),

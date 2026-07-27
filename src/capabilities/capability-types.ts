@@ -58,8 +58,22 @@ export type CapabilityProbe =
   | { readonly kind: 'mcp-tool-available'; readonly qualifiedName: string }
   /** A daemon operator method is served, not merely cataloged. */
   | { readonly kind: 'operator-method-served'; readonly methodId: string }
-  /** An installed package can be resolved (a driver or SDK the capability needs). */
-  | { readonly kind: 'module-resolvable'; readonly specifier: string; readonly label: string }
+  /**
+   * An installed package can be resolved (a driver or SDK the capability needs).
+   *
+   * `searchDirectories` exists because a `bun build --compile` executable has no
+   * node_modules: module resolution alone can never succeed inside one, so a
+   * probe that only tried resolution reported every compiled build as missing
+   * the package — including builds carrying it right beside the executable.
+   * Each listed directory is checked for the package's own manifest and entry
+   * file, which is exactly how the runtime finds it.
+   */
+  | {
+    readonly kind: 'module-resolvable';
+    readonly specifier: string;
+    readonly label: string;
+    readonly searchDirectories?: readonly string[];
+  }
   /** A configuration key holds a non-empty value. Values are never read out. */
   | { readonly kind: 'config-value-present'; readonly key: string; readonly label: string };
 

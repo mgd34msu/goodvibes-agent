@@ -14,6 +14,7 @@ const COMMANDS = [
   'channel-profiles',
   'workspaces',
   'fleet',
+  'browser',
   'auth',
   'compat',
   'knowledge',

@@ -1,4 +1,6 @@
 import { join } from 'node:path';
+import { driverRemediation } from '../browser/browser-driver-remediation.ts';
+import { driverSearchDirectories } from '../browser/browser-provision-io.ts';
 import { registerCapability, registerFallbackCapability } from './capability-index.ts';
 import type { CapabilityDeclaration } from './capability-types.ts';
 
@@ -17,11 +19,27 @@ export interface BuiltinCapabilityOptions {
   readonly workingDirectory: string;
 }
 
-function browserControl(): CapabilityDeclaration {
+/**
+ * Browser control, described the way it actually behaves.
+ *
+ * The driver prerequisite is deliberately OPTIONAL, and that is the whole point
+ * of this declaration. In 1.18.1 it was blocking and probed by module
+ * resolution alone, which can never succeed inside a compiled binary — so every
+ * binary install reported "the browser driver is missing, reinstall the agent",
+ * the model relayed that instead of calling the tool, and the tool's own
+ * one-act provisioning (which installs the driver on first use) never got a
+ * chance to run. A prerequisite the tool provisions for itself is not something
+ * the user has to supply, so it does not block; it only annotates.
+ *
+ * When the driver genuinely cannot be obtained, the failure is reported at call
+ * time by the provisioning policy, which has actually tried and can name what
+ * stopped it. That is the honest place for it — a probe cannot know.
+ */
+function browserControl(options: BuiltinCapabilityOptions): CapabilityDeclaration {
   return {
     id: 'browser.control',
     title: 'Use a web browser',
-    summary: 'Open web pages, read them, click, type, fill forms, and take screenshots, with a saved profile that keeps sign-ins between runs.',
+    summary: 'Open web pages, read them, click, type, fill forms, and take screenshots, with a saved profile that keeps sign-ins between runs. The browser driver and browser install themselves on the first call if they are not already there, which takes a minute or two once.',
     provider: 'goodvibes-agent built-in browser tool',
     invocations: [
       {
@@ -35,8 +53,16 @@ function browserControl(): CapabilityDeclaration {
       {
         id: 'playwright-driver',
         label: 'The browser driver',
-        probe: { kind: 'module-resolvable', specifier: 'playwright-core', label: 'The browser driver' },
-        fix: 'Reinstall the agent so its dependencies are present: bun add -g @pellux/goodvibes-agent',
+        probe: {
+          kind: 'module-resolvable',
+          specifier: 'playwright-core',
+          label: 'The browser driver',
+          // The exact places the runtime loads it from, so the index agrees
+          // with what the browser tool will find a moment later.
+          searchDirectories: driverSearchDirectories(options.homeDirectory),
+        },
+        optional: true,
+        fix: driverRemediation(),
       },
     ],
   };
@@ -137,7 +163,7 @@ function calendarRead(): CapabilityDeclaration {
 }
 
 export function registerBuiltinCapabilities(options: BuiltinCapabilityOptions): void {
-  registerCapability(browserControl());
+  registerCapability(browserControl(options));
   registerFallbackCapability(emailSend(options));
   registerFallbackCapability(calendarRead());
 }

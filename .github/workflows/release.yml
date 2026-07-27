@@ -142,6 +142,65 @@ jobs:
           path: dist/${{ steps.pack.outputs.tarball }}
           retention-days: 7
 
+  # Browser driver companion asset.
+  #
+  # The compiled binary carries no node_modules, so `require('playwright-core')`
+  # resolves nothing inside it and the driver cannot be bundled either (it reads
+  # browsers.json and its own driver files by path at runtime). It therefore has
+  # to travel as its OWN release asset, exactly like the sqlite-vec addons —
+  # 1.18.1 shipped without one and every downloaded binary reported the browser
+  # as unavailable, because the binary matrix builds through the toolchain and
+  # never ran scripts/stage-browser-driver.ts at all.
+  #
+  # One archive serves every platform: the driver is plain JavaScript, and the
+  # browser binaries it drives are downloaded separately into the managed cache.
+  # The interior layout is `playwright-core/…`, which extracts beside the binary
+  # into the first path driverSearchDirectories looks at
+  # (src/browser/browser-provision-io.ts).
+  browser-driver:
+    name: Package browser driver
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
+    needs: [release-verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+        with:
+          ref: ${{ github.ref }}
+      - name: Setup
+        uses: ./.github/actions/setup
+      - name: Stage the driver beside the binaries
+        run: bun run scripts/stage-browser-driver.ts
+      - name: Package browser-driver.tar.gz
+        run: |
+          set -euo pipefail
+          cd dist
+          test -f playwright-core/cli.js
+          test -f playwright-core/index.js
+          test -f playwright-core/package.json
+          tar -czf browser-driver.tar.gz playwright-core
+          # A driver archive missing cli.js is not a driver: the browser install
+          # step executes it. Assert the packaged bytes carry it BEFORE the
+          # archive is staged as a release asset.
+          tar -tzf browser-driver.tar.gz > /tmp/driver-listing.txt
+          for required in playwright-core/package.json playwright-core/index.js playwright-core/cli.js; do
+            if ! grep -qx "${required}" /tmp/driver-listing.txt; then
+              echo "browser-driver.tar.gz is MISSING ${required}. Refusing to stage an unusable driver archive." >&2
+              head -50 /tmp/driver-listing.txt >&2
+              exit 1
+            fi
+          done
+          echo "Verified: browser-driver.tar.gz carries the driver package.json, index.js, and cli.js."
+          ls -l browser-driver.tar.gz
+      - name: Upload browser driver archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-driver
+          path: dist/browser-driver.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
   # Necessary binary builds only (the throwaway validate build is gone), via the
   # shared reusable-binary-matrix: it runs `goodvibes-build-binaries --target
   # <key>` per leg (matrix compile + sqlite-vec addon copy/cross-fetch into
@@ -176,13 +235,14 @@ jobs:
 
   # Merge every binary leg + the npm tarball, package the four per-platform
   # sqlite-vec native addon archives (missing-addon-fatal), and publish a single
-  # release-assets artifact for the GitHub Release. Each archive preserves the
-  # runtime resolver layout (lib/sqlite-vec-<os>-<arch>/vec0.<suffix>) so a
-  # directly-downloaded binary co-locates its addon in place.
+  # release-assets artifact for the GitHub Release, alongside the browser driver
+  # archive built above. Each archive preserves the runtime resolver layout
+  # (lib/sqlite-vec-<os>-<arch>/vec0.<suffix> for the addons, playwright-core/…
+  # for the driver) so a directly-downloaded binary co-locates both in place.
   assemble-release-assets:
     name: Assemble release assets
     if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.mode == 'release')
-    needs: [pack, binaries]
+    needs: [pack, binaries, browser-driver]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -218,6 +278,7 @@ jobs:
             dist/sqlite-vec-linux-arm64.tar.gz
             dist/sqlite-vec-darwin-x64.tar.gz
             dist/sqlite-vec-darwin-arm64.tar.gz
+            dist/browser-driver.tar.gz
             dist/*.tgz
           if-no-files-found: error
           retention-days: 7
@@ -225,8 +286,11 @@ jobs:
   # GitHub Release via the shared reusable-gh-release: it downloads the
   # release-assets artifact, extracts the tag's CHANGELOG excerpt, generates
   # SHA256SUMS over the asset glob (missing-asset-fatal, toolchain sha256sums),
-  # and uploads the four binaries + four sqlite-vec addon archives + the npm
-  # tarball + SHA256SUMS with a pinned softprops/action-gh-release.
+  # and uploads the four binaries + four sqlite-vec addon archives + the browser
+  # driver archive + the npm tarball + SHA256SUMS with a pinned
+  # softprops/action-gh-release. The driver archive being IN this glob is what
+  # puts it in SHA256SUMS.txt, which is what lets the installer and /update
+  # verify it before extracting.
   github-release:
     name: Create GitHub Release
     # The tag-ref guard holds for both a hand-pushed v* tag and a release-mode
@@ -252,6 +316,7 @@ jobs:
         dist/sqlite-vec-linux-arm64.tar.gz
         dist/sqlite-vec-darwin-x64.tar.gz
         dist/sqlite-vec-darwin-arm64.tar.gz
+        dist/browser-driver.tar.gz
         dist/*.tgz
 
   # npm publish via the shared reusable-npm-publish (staged, provenance,

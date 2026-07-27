@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { join } from 'node:path';
 import type { CapabilityProbe } from './capability-types.ts';
 
 /**
@@ -146,8 +147,21 @@ export function runCapabilityProbe(probe: CapabilityProbe, context: ProbeContext
         requireFromHere.resolve(probe.specifier);
         return { satisfied: true, detail: `${probe.label} is installed` };
       } catch {
-        return { satisfied: false, detail: `${probe.label} (${probe.specifier}) is not installed` };
+        // Not resolvable as a module. Inside a compiled binary that is the
+        // normal case rather than an answer, so the declared on-disk locations
+        // decide it — the same ones the runtime loads the package from.
       }
+      for (const directory of probe.searchDirectories ?? []) {
+        if (existsSync(join(directory, 'package.json')) && existsSync(join(directory, 'index.js'))) {
+          return { satisfied: true, detail: `${probe.label} is present at ${directory}` };
+        }
+      }
+      return {
+        satisfied: false,
+        detail: (probe.searchDirectories ?? []).length > 0
+          ? `${probe.label} (${probe.specifier}) is not installed and is not present in any of: ${(probe.searchDirectories ?? []).join(', ')}`
+          : `${probe.label} (${probe.specifier}) is not installed`,
+      };
     }
 
     default: {

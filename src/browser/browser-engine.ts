@@ -4,6 +4,7 @@ import { recordAgentSessionWrite } from '../tools/agent-session-write-ledger.ts'
 import type { Page } from 'playwright-core';
 import { BrowserSessionError, BrowserSessionManager, hasDisplay } from './browser-sessions.ts';
 import type { BrowserAttachOptions, BrowserLaunchOptions } from './browser-sessions.ts';
+import { describeProvisionWork } from './browser-provisioning.ts';
 import { resolveRef, SnapshotStore, StaleElementError, takeSnapshot } from './browser-snapshot.ts';
 import type { BrowserProvisionReport, BrowserSnapshot } from './browser-types.ts';
 import {
@@ -195,10 +196,19 @@ export class BrowserEngine {
     const session = await this.sessions.launch(options);
     return {
       session,
+      // Setup that actually ran is reported, never swallowed: a first call that
+      // spent two minutes installing a driver and a browser has to say so.
+      ...this.setupReceipt(),
       note: session.headless
         ? 'Started headless. Pass headless:false to open a visible window for a sign-in.'
         : 'Started a visible window. Sign in once here and the profile keeps the login for later runs.',
     };
+  }
+
+  /** The one-act setup receipt for a call that may have provisioned something. */
+  private setupReceipt(): { readonly setup?: string } {
+    const setup = describeProvisionWork(this.sessions.provisionReport());
+    return setup ? { setup } : {};
   }
 
   async attach(options: BrowserAttachOptions): Promise<Record<string, unknown>> {
@@ -276,6 +286,7 @@ export class BrowserEngine {
       url: page.url(),
       title: await page.title().catch(() => ''),
       httpStatus: response?.status() ?? null,
+      ...this.setupReceipt(),
       next: 'Call action:"snapshot" to get element refs for this page.',
     };
   }

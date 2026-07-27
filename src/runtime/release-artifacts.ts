@@ -8,6 +8,10 @@
  *     `sqlite-vec-<platform>-<arch>.tar.gz` (Node-style platform tag), each
  *     carrying the exact layout the runtime resolves relative to the binary —
  *     `lib/sqlite-vec-<platform>-<arch>/vec0.<suffix>`;
+ *   - one platform-independent `browser-driver.tar.gz` carrying the Playwright
+ *     driver package as `playwright-core/…`, which is the first place
+ *     driverSearchDirectories looks (`<execDir>/playwright-core`). The driver
+ *     is plain JavaScript, so one archive serves every platform;
  *   - one `SHA256SUMS.txt` manifest covering every asset above.
  *
  * The checksum manifest name and parser are the SDK's canonical ones
@@ -17,9 +21,8 @@
  * the TUI's `goodvibes`/`goodvibes-daemon` pair, which this repo does not
  * ship.
  */
-import { gunzipSync } from 'node:zlib';
-
 export { CHECKSUM_MANIFEST_NAME, parseChecksumFile } from '@pellux/goodvibes-sdk/platform/runtime/self-update';
+export { extractTarGzEntry } from './tar-archive.ts';
 
 const SUPPORTED_ARCHES = new Set(['x64', 'arm64']);
 
@@ -66,48 +69,25 @@ export function resolveSqliteVecArchive(platform: string, arch: string): SqliteV
   };
 }
 
-const TAR_BLOCK = 512;
+/**
+ * The Playwright driver ARCHIVE. One asset for every platform: the driver is
+ * plain JavaScript, and the browser binaries it drives are downloaded
+ * separately into the managed cache. Extracting it beside the executable
+ * produces `<execDir>/playwright-core/…`, the first entry in
+ * driverSearchDirectories (see browser/browser-provision-io.ts).
+ */
+export const BROWSER_DRIVER_ARCHIVE_NAME = 'browser-driver.tar.gz';
 
-function readTarString(block: Buffer, offset: number, length: number): string {
-  const slice = block.subarray(offset, offset + length);
-  const nul = slice.indexOf(0);
-  return slice.toString('utf-8', 0, nul === -1 ? length : nul);
-}
+/** Directory name the driver resolves under, beside the executable. */
+export const BROWSER_DRIVER_DIR_NAME = 'playwright-core';
 
 /**
- * Extract one regular-file entry from a gzipped tar archive, by its exact
- * path (a leading `./` on the archived name is tolerated). Returns the file
- * bytes, or null when the archive holds no such entry. Throws on a gzip
- * stream that does not decompress — a corrupted download must fail loudly,
- * never read as "entry absent".
- *
- * Local on purpose: the released addon archives are flat ustar archives with
- * short paths, so this reads the standard header fields (name, size octal,
- * typeflag, ustar prefix) and skips everything that is not the requested
- * regular file — no external `tar` spawn in the update path.
+ * A file the archive must contain for the extraction to be considered whole.
+ * `cli.js` is what the browser install step executes, so an archive without it
+ * is not a usable driver no matter what else extracted.
  */
-export function extractTarGzEntry(archive: Buffer | Uint8Array, entryPath: string): Buffer | null {
-  const tar = gunzipSync(archive);
-  let offset = 0;
-  while (offset + TAR_BLOCK <= tar.length) {
-    const header = tar.subarray(offset, offset + TAR_BLOCK);
-    // Two consecutive zero blocks end the archive; a zero name block is enough here.
-    if (header[0] === 0) break;
-    const name = readTarString(header, 0, 100);
-    const prefix = readTarString(header, 345, 155);
-    const fullName = prefix ? `${prefix}/${name}` : name;
-    const sizeOctal = readTarString(header, 124, 12).trim();
-    const size = Number.parseInt(sizeOctal || '0', 8);
-    if (!Number.isFinite(size) || size < 0) return null;
-    const typeflag = header[156];
-    const isRegular = typeflag === 0 || typeflag === 0x30; // NUL or '0'
-    const normalized = fullName.startsWith('./') ? fullName.slice(2) : fullName;
-    const dataStart = offset + TAR_BLOCK;
-    if (isRegular && normalized === entryPath) {
-      if (dataStart + size > tar.length) return null;
-      return Buffer.from(tar.subarray(dataStart, dataStart + size));
-    }
-    offset = dataStart + Math.ceil(size / TAR_BLOCK) * TAR_BLOCK;
-  }
-  return null;
-}
+export const BROWSER_DRIVER_REQUIRED_ENTRIES: readonly string[] = [
+  `${BROWSER_DRIVER_DIR_NAME}/package.json`,
+  `${BROWSER_DRIVER_DIR_NAME}/index.js`,
+  `${BROWSER_DRIVER_DIR_NAME}/cli.js`,
+];
