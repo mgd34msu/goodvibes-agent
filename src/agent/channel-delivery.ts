@@ -152,12 +152,36 @@ export function buildAgentChannelDeliveryPreview(input: AgentChannelDeliveryInpu
   };
 }
 
+/**
+ * How many channel deliveries are awaiting their strategy right now.
+ *
+ * Every send in the agent funnels through deliverAgentChannelMessage below, so
+ * one counter here is the whole in-flight picture. It exists because a
+ * long-running agent may replace its own binary and restart while it is
+ * running: "is this agent busy?" has to include a message that has left the
+ * conversation but has not reached the person yet, or a self-update could
+ * restart the process between the send and its delivery.
+ */
+let inFlightDeliveries = 0;
+
+export function channelDeliveriesInFlight(): number {
+  return inFlightDeliveries;
+}
+
 export async function deliverAgentChannelMessage(
   router: AgentChannelDeliveryRouter,
   input: AgentChannelDeliveryInput,
 ): Promise<AgentChannelDeliveryResult> {
   const preview = buildAgentChannelDeliveryPreview(input);
-  const responseId = await router.deliver(preview.request as ChannelDeliveryRequest);
+  inFlightDeliveries += 1;
+  let responseId: string | undefined;
+  try {
+    responseId = await router.deliver(preview.request as ChannelDeliveryRequest);
+  } finally {
+    // Decremented on the failure path too: a delivery that threw is finished,
+    // and a leaked counter would pin the agent "busy" forever.
+    inFlightDeliveries = Math.max(0, inFlightDeliveries - 1);
+  }
   return {
     responseId,
     message: preview.message,

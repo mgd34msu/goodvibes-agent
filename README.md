@@ -26,7 +26,7 @@ export PATH="$(bun pm bin -g):$PATH"
 
 On a fresh Agent home, `goodvibes-agent` opens setup first; once setup is applied it opens directly into the Agent workspace.
 
-Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) and a `SHA256SUMS.txt` manifest, for environments that download a binary directly rather than through Bun. A directly-downloaded binary self-updates at launch — a bounded check against the latest GitHub release, then a checksum-verified download-and-swap when one is newer, with the replaced file always kept beside it as `<file>.previous` so `/update rollback` can undo it. Package-managed installs never self-swap; they defer to `bun add -g` instead. `update.autoUpdateAtLaunch: false` in `settings.json` turns the launch check off.
+Each GitHub release also attaches standalone compiled binaries (`goodvibes-agent-linux-x64`, `goodvibes-agent-linux-arm64`, `goodvibes-agent-macos-x64`, `goodvibes-agent-macos-arm64`) and a `SHA256SUMS.txt` manifest, for environments that download a binary directly rather than through Bun. A directly-downloaded binary self-updates at launch — a bounded check against the latest GitHub release, then a checksum-verified download-and-swap when one is newer, with the replaced file always kept beside it as `<file>.previous` so `/update rollback` can undo it. Package-managed installs never self-swap; they defer to `bun add -g` instead. `update.autoUpdateAtLaunch: false` in `settings.json` turns the launch check off. A long-running agent also keeps looking after launch: the same checksum-verified path runs on a periodic check (first one ~30s after start, hourly after that) and installs only at an idle moment — no active turn, no in-flight channel delivery, no confirmation waiting on you — then restarts in place with the same arguments. `update.auto: false` turns that off.
 
 The semantic (embedding-backed) memory index depends on a native `sqlite-vec` addon that Bun cannot embed in a compiled binary, so each release ships it separately as `sqlite-vec-<os>-<arch>.tar.gz`. A binary with no co-located addon still runs; memory search falls back to literal matching until the matching archive is extracted next to it. This addon stays unavailable on macOS regardless of co-location, because the system SQLite that macOS links refuses to load extensions.
 
@@ -86,6 +86,9 @@ A few keys worth knowing up front:
 | --- | --- | --- |
 | `update.autoUpdateAtLaunch` | `true` | Check for and install a newer release at launch (standalone binaries only) |
 | `update.launchCheckTimeoutMs` | `2500` | How long that launch check may take before it is skipped; clamped to 250–30000 |
+| `update.auto` | `true` | Keep checking WHILE the agent runs, and install at an idle moment (standalone binaries only) |
+| `update.intervalMinutes` | `60` | Minutes between those periodic checks; clamped to 5–1440 |
+| `update.firstCheckSeconds` | `30` | Seconds after start before the first periodic check; clamped to 0–3600 |
 | `checkpoints.preferGitRoot` | `true` | Snapshot the enclosing git repository's root rather than the raw working directory |
 | `checkpoints.allowBroadRoot` | `false` | Opt in to snapshotting a broad root such as the filesystem root or home directory |
 | `checkpoints.autoRetention` | `true` | Run a retention sweep automatically after each checkpoint |
