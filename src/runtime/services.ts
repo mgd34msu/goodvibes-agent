@@ -3,6 +3,11 @@ import { StepUpService } from '@pellux/goodvibes-sdk/daemon';
 import { PairingTokenManager } from '@pellux/goodvibes-sdk/platform/pairing';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { shell as runtimeShell, operations as runtimeOperations } from '@pellux/goodvibes-sdk/platform/runtime';
+// The graph's shutdown seam. Shared with the SDK composition root rather than
+// reimplemented here, so "which pollers exist" has exactly one answer across
+// both compositions: RuntimePollerOwners is all-required, and a poller added to
+// this fork's graph later cannot compile without being named for teardown.
+import { createDisposalScope, registerRuntimePollers } from '@pellux/goodvibes-sdk/platform/runtime/disposal';
 import type { shell as RuntimeShell, bootstrap as RuntimeBootstrap } from '@pellux/goodvibes-sdk/platform/runtime';
 import { SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
@@ -753,6 +758,18 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly executionLedger: AgentExecutionLedger;
   /** Detaches the session write ledger from the runtime bus and clears it. */
   readonly disposeSessionWriteLedger: () => void;
+  /**
+   * Stop every poller this graph started (config watch, fleet tick, memory
+   * governor, watcher registry, cross-session sweep, orchestration writer, push
+   * sweep, both knowledge schedulers, the snapshot/retention/consolidation
+   * schedulers, the spine keepalive) and release their handles.
+   *
+   * Restated from the SDK interface because ownership differs here: this fork
+   * composes no DaemonServer of its own, so nothing else will ever call this.
+   * Every path that builds a graph owns taking it back down. Best-effort, total
+   * and idempotent — an owner that throws is logged and the rest still come down.
+   */
+  dispose(): void;
   readonly integrationHelpers: IntegrationHelperService;
   /**
    * Re-root workspace-bound stores to a new working directory.
@@ -780,6 +797,7 @@ export function describeMemoryConsolidationReceipt(receipt: MemoryConsolidationR
 }
 
 export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeServices {
+  const disposalScope = createDisposalScope('RuntimeServices'); // see @pellux/goodvibes-sdk/platform/runtime/disposal
   const workingDirectory = options.workingDir;
   const homeDirectory = options.homeDirectory;
   const shellPaths = createShellPathService({
@@ -1498,7 +1516,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // in-process set() uses — a hand-edited settings.json needs no restart to
   // take effect. The underlying file watchers are unref'd (SDK round), so
   // this can never pin the process open.
-  configManager.watchConfigFiles();
+  const stopConfigWatch = configManager.watchConfigFiles(); // handle kept: dropping it is what left a 250ms poll running forever
   const codeIndexReindexScheduler = new CodeIndexReindexScheduler({
     target: codeIndexStore,
     workingDirectory,
@@ -1938,6 +1956,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     // src/test/daemon/gateway-rewind-conversation-scope.test.ts for the live
     // proof this resolves a real conversation, not a stub.
     conversationRewindPort: createSessionConversationRewindPort(),
+    // The push-subscription sweep is constructed INSIDE this registration, so
+    // it is unreachable from out here; handing the registry in is the only way
+    // its hourly interval ever gets stopped.
+    disposal: disposalScope.registry,
   });
   // Turn the fleet registry's coalesced snapshot tick into poll-free
   // spawn/progress/attention/completion events on the runtime event bus's
@@ -1959,6 +1981,33 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // the daemon facade dereferences at start). Constructed exactly as the SDK
   // composition root does, from the public @pellux/goodvibes-sdk/daemon export.
   const stepUpService = new StepUpService({ secrets: secretsManager });
+
+  // Teardown for every poller started above. This fork composes no DaemonServer
+  // — it hands its graph to one, and the SDK's ownership rule leaves a
+  // caller-supplied graph alone — so dispose() below is the ONLY thing that
+  // stops these, and the shutdown paths (runtime/bootstrap-shutdown.ts,
+  // cli/management.ts, cli/bundle-command.ts) are the ones that must call it.
+  const disposeSessionWriteLedgerOnce = (): void => { detachSessionWriteLedger(); clearAgentSessionWrites(); };
+  registerRuntimePollers(disposalScope.registry, {
+    stopConfigWatch, watcherRegistry, storeSnapshotScheduler, appendOnlyRetentionScheduler,
+    memoryConsolidationScheduler, codeIndexReindexScheduler, sessionOrchestration,
+    // This fork has no separate regular knowledge store: the `knowledgeService`
+    // compatibility alias points at isolated Agent Knowledge (pinned by
+    // scripts/check-architecture.ts), so both slots are the same instance.
+    // KnowledgeService.dispose() clears its schedule-timer map — disposing it
+    // twice is a no-op, not a double-free.
+    knowledgeService: agentKnowledgeService, agentKnowledgeService,
+    wrfcController, orchestrationEngine, processRegistry, memoryGovernor, triggerManager,
+  });
+  // Owners this fork has that the SDK's composition does not. The home-graph
+  // knowledge service is the second real knowledge store here (it stands where
+  // the SDK's separate regular service does), and the session-spine client's
+  // keepalive is graph-owned even though the interactive shutdown path also
+  // closes it by session id first — both dispose() calls are idempotent, and
+  // registering here is what covers the CLI paths that never had one.
+  disposalScope.registry.add('home-graph knowledge service', () => homeGraphService.dispose());
+  disposalScope.registry.add('session spine client', () => sessionSpineClient.dispose());
+  disposalScope.registry.add('session write ledger', disposeSessionWriteLedgerOnce);
 
   return {
     // The REAL SDK memory-governance instances composed above (governor
@@ -2081,7 +2130,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     modeManager,
     fileUndoManager,
     executionLedger,
-    disposeSessionWriteLedger: () => { detachSessionWriteLedger(); clearAgentSessionWrites(); },
+    // Kept as its own member because the interactive shutdown path detaches the
+    // ledger at a specific point in its ordering, well before the graph goes
+    // down. It is the SAME closure the disposal scope holds, so the two are one
+    // mechanism rather than two: whichever runs first does the work, the other
+    // is a no-op.
+    disposeSessionWriteLedger: disposeSessionWriteLedgerOnce,
+    dispose: (): void => disposalScope.dispose(),
     integrationHelpers,
     async rerootStores(newWorkingDir: string): Promise<void> {
       await projectIndex.reroot(newWorkingDir);

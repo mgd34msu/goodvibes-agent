@@ -123,7 +123,12 @@ const REQUIRED_PACKAGE_SCRIPTS: Readonly<Record<string, string>> = {
   'architecture:check': 'bun run scripts/check-architecture.ts',
   'workflows:check': 'bun run scripts/check-workflows.ts',
   'perf:check': 'bun run scripts/perf-check.ts',
-  'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run test && bun run coverage:gate && bun run architecture:check && bun run workflows:check && bun run perf:check && bun run build && bun run publish:check && bun run package:install-check && bun run verification:ledger',
+  // build runs BEFORE test, deliberately. Two release-gate cases in
+  // package-verification.test.ts are skipped unless dist/package/main.js and
+  // bin/goodvibes-agent.ts exist, so with the build last those two silently
+  // did not run in CI at all — a gate that reports green partly by not
+  // looking. Building first costs nothing and makes them real.
+  'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run build && bun run test && bun run coverage:gate && bun run architecture:check && bun run workflows:check && bun run perf:check && bun run publish:check && bun run package:install-check && bun run verification:ledger',
   'build:prod': 'bun run scripts/build.ts',
   'build:all': 'bun run scripts/build.ts --all',
   'verification:ledger': 'bun run scripts/verification-ledger.ts',

@@ -189,6 +189,11 @@ export async function withRuntimeServices<T>(
     return await fn(services);
   } finally {
     services.providerRegistry.stopWatching();
+    // A one-shot CLI command composes the WHOLE runtime graph to answer one
+    // question. stopWatching() only ever covered the provider registry, so
+    // every such command left the config watch, fleet tick, memory governor and
+    // the rest running until the process happened to exit.
+    services.dispose();
   }
 }
 

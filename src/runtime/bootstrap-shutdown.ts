@@ -36,6 +36,12 @@ export interface RuntimeShutdownDependencies {
   readonly forensicsCollector: { dispose(): void };
   readonly executionLedger: { dispose(): void };
   readonly disposeSessionWriteLedger: () => void;
+  /**
+   * `RuntimeServices.dispose()` — stops every poller the composed graph started.
+   * Runs LAST, after shutdownRuntime: the final flushes below still need the
+   * schedulers, the orchestration registry and the provider registry alive.
+   */
+  readonly disposeRuntimeGraph: () => void;
   readonly deferredStartup: { drain(ms: number): Promise<unknown> };
   readonly agentExternalServices: { stop(): Promise<unknown> };
   readonly agentStatusIntervalRef: IntervalRef;
@@ -56,44 +62,60 @@ export function createRuntimeShutdown(
   deps: RuntimeShutdownDependencies,
 ): (sessionData: Parameters<typeof shutdownRuntime>[1]) => Promise<void> {
   return async (sessionData) => {
-    // Best-effort spine close (short timeout, fire-and-forget) then stop the
-    // heartbeat timer. Tolerates a racing daemon stop; never blocks teardown.
-    deps.sessionSpineClient.close(deps.sessionId);
-    deps.sessionSpineClient.dispose();
-    // Stop the memory-spine reachability recheck timer. No wire close call is
-    // needed — unlike sessions, memory ops are request/response rather than a
-    // registered, heartbeat-tracked record.
-    const memoryTimer = deps.takeMemorySpineTimer();
-    if (memoryTimer !== null) clearInterval(memoryTimer);
+    try {
+      // Best-effort spine close (short timeout, fire-and-forget) then stop the
+      // heartbeat timer. Tolerates a racing daemon stop; never blocks teardown.
+      deps.sessionSpineClient.close(deps.sessionId);
+      deps.sessionSpineClient.dispose();
+      // Stop the memory-spine reachability recheck timer. No wire close call is
+      // needed — unlike sessions, memory ops are request/response rather than a
+      // registered, heartbeat-tracked record.
+      const memoryTimer = deps.takeMemorySpineTimer();
+      if (memoryTimer !== null) clearInterval(memoryTimer);
 
-    // Clear bootstrap-owned subscriptions.
-    deps.bootstrapUnsubs.forEach((fn) => fn());
-    deps.bootstrapUnsubs.length = 0;
-    deps.runtimeUnsubs.forEach((fn) => fn());
-    deps.runtimeUnsubs.length = 0;
-    deps.forensicsCollector.dispose();
-    deps.executionLedger.dispose();
-    deps.disposeSessionWriteLedger();
-    // Browser sessions own real Chromium processes; a session torn down
-    // without this leaves them behind.
-    await shutdownAgentBrowserSessions();
-    await deps.deferredStartup.drain(100);
-    await deps.agentExternalServices.stop();
-    if (deps.agentStatusIntervalRef.value !== null) {
-      clearInterval(deps.agentStatusIntervalRef.value);
-      deps.agentStatusIntervalRef.value = null;
+      // Clear bootstrap-owned subscriptions.
+      deps.bootstrapUnsubs.forEach((fn) => fn());
+      deps.bootstrapUnsubs.length = 0;
+      deps.runtimeUnsubs.forEach((fn) => fn());
+      deps.runtimeUnsubs.length = 0;
+      deps.forensicsCollector.dispose();
+      deps.executionLedger.dispose();
+      deps.disposeSessionWriteLedger();
+      // Browser sessions own real Chromium processes; a session torn down
+      // without this leaves them behind.
+      await shutdownAgentBrowserSessions();
+      await deps.deferredStartup.drain(100);
+      await deps.agentExternalServices.stop();
+      if (deps.agentStatusIntervalRef.value !== null) {
+        clearInterval(deps.agentStatusIntervalRef.value);
+        deps.agentStatusIntervalRef.value = null;
+      }
+      await shutdownRuntime(
+        deps.sessionId,
+        sessionData,
+        deps.model,
+        deps.provider,
+        deps.conversationTitle(),
+        deps.scheduleManager,
+        deps.hookDispatcher,
+        deps.providerRegistry,
+        deps.sessionOrchestration,
+        deps.shutdownOptions,
+      );
+    } finally {
+      // Outermost-last: the graph's own pollers. Every step above is finished
+      // with the schedulers it needed, so the config watch, fleet tick, memory
+      // governor, watcher registry and the rest can finally stop. Without this
+      // a session that shut down cleanly left most of its timers ticking.
+      //
+      // In a `finally` covering the WHOLE body, on the principle stated at the
+      // top of this file: a step that fails must not strand the ones after it.
+      // Several steps here can throw — an unreachable daemon, a browser that
+      // will not close, a conversation that could not be persisted — and every
+      // one of those is a process that must still let go of its timers. This is
+      // the last teardown step in the session's life, so nothing legitimately
+      // needs the graph after it.
+      deps.disposeRuntimeGraph();
     }
-    await shutdownRuntime(
-      deps.sessionId,
-      sessionData,
-      deps.model,
-      deps.provider,
-      deps.conversationTitle(),
-      deps.scheduleManager,
-      deps.hookDispatcher,
-      deps.providerRegistry,
-      deps.sessionOrchestration,
-      deps.shutdownOptions,
-    );
   };
 }
