@@ -4,6 +4,7 @@ import type { CommandContext } from '../input/command-registry.ts';
 import { sudoExecutionPosture } from './agent-harness-sudo-posture.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
 import { interactiveRuntimeCapabilitySummary, interactiveRuntimeParityStatus } from './agent-harness-interactive-runtime-records.ts';
+import { DEFAULT_BACKGROUND_TIMEOUT_MS, clampTimeout, processAgeMs, processStatus, resolveBackgroundProcessClass, resolveKillOnTimeout } from './agent-harness-process-timeout-policy.ts';
 import type {
   AgentHarnessBackgroundProcessArgs,
   BackgroundProcessLookupSource,
@@ -17,8 +18,6 @@ export type {
 
 const MAX_LOG_PREVIEW_CHARS = 4_000;
 const MAX_COMPACT_LOG_PREVIEW_CHARS = 600;
-const DEFAULT_BACKGROUND_TIMEOUT_MS = 30 * 60 * 1000;
-const MAX_BACKGROUND_TIMEOUT_MS = 8 * 60 * 60 * 1000;
 const DEFAULT_WAIT_TIMEOUT_MS = 30_000;
 const PROCESS_PARITY_METHODS = ['terminal(background=true)', 'process(list)', 'process(poll)', 'process(wait)', 'process(log)', 'process(kill)', 'process(write)', 'pty', 'sudo'] as const;
 const STDIN_WRITE_METHOD_NAMES = ['write', 'writeInput', 'sendInput', 'writeStdin', 'sendStdin', 'stdinWrite'] as const;
@@ -42,10 +41,6 @@ function readNumber(value: unknown, fallback: number): number {
 
 function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, readNumber(value, fallback)));
-}
-
-function clampTimeout(value: unknown, fallback: number): number {
-  return Math.max(1_000, Math.min(MAX_BACKGROUND_TIMEOUT_MS, readNumber(value, fallback)));
 }
 
 function fieldMap(value: unknown): Readonly<Record<string, string>> {
@@ -236,16 +231,6 @@ function summarizeWriteResult(value: unknown, data: string): Record<string, unkn
   };
 }
 
-function processStatus(entry: BackgroundProcess): 'running' | 'succeeded' | 'failed' | 'cancelled' {
-  if (!entry.done) return 'running';
-  if (entry.exitCode === 0) return 'succeeded';
-  if (entry.exitCode === null) return 'cancelled';
-  return 'failed';
-}
-
-function processAgeMs(entry: BackgroundProcess, now = Date.now()): number {
-  return Math.max(0, (entry.completedAt ?? now) - entry.startTime);
-}
 
 function routeFor(processId: string, mode: 'background_process' | 'run_background_process', action?: string): string {
   if (mode === 'background_process') return `execution action:"process" processId:"${processId}"`;
@@ -285,6 +270,8 @@ function describeProcessEntry(
     status: processStatus(entry),
     done: entry.done,
     exitCode: entry.exitCode,
+    ...(entry.timedOut === true ? { timedOut: true } : {}),
+    ...(entry.signal ? { signal: entry.signal } : {}),
     command: options.includeParameters ? redactText(entry.cmd) : previewHarnessText(redactText(entry.cmd), 120),
     startedAt: new Date(entry.startTime).toISOString(),
     ageMs: processAgeMs(entry),
@@ -725,9 +712,20 @@ export async function runBackgroundProcessAction(context: CommandContext, args: 
     }
     const cwd = readCwd(context, args);
     const timeoutMs = clampTimeout(args.timeoutMs ?? readField(args, 'timeoutMs'), DEFAULT_BACKGROUND_TIMEOUT_MS);
-    const result = await manager.spawn(command, cwd, undefined, { timeout_ms: timeoutMs, sigterm_grace_ms: 5_000 });
+    const processClass = resolveBackgroundProcessClass(args, command);
+    const killOnTimeout = resolveKillOnTimeout(args, processClass);
+    const result = await manager.spawn(command, cwd, undefined, {
+      timeout_ms: timeoutMs,
+      sigterm_grace_ms: 5_000,
+      kill_on_timeout: killOnTimeout,
+    });
     return {
       status: 'started',
+      processClass,
+      killOnTimeout,
+      timeoutBehavior: killOnTimeout
+        ? `SIGTERM then SIGKILL after ${timeoutMs}ms.`
+        : `Left running past ${timeoutMs}ms; stop it explicitly with process action:"kill".`,
       processId: result.process_id,
       processSessionId: result.process_id,
       sessionId: result.process_id,

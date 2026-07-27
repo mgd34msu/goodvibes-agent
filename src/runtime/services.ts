@@ -182,6 +182,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/tools';
 import { WorkPlanStore } from '../work-plans/work-plan-store.ts';
 import { AgentExecutionLedger } from './execution-ledger.ts';
+import { attachAgentSessionWriteLedger, clearAgentSessionWrites } from '../tools/agent-session-write-ledger.ts';
 import { VERSION } from '../version.ts';
 import { ClientBuildGuard } from './client-build-compatibility.ts';
 
@@ -750,6 +751,8 @@ export interface RuntimeServices extends SdkRuntimeServices {
   readonly modeManager: ModeManager;
   readonly fileUndoManager: FileUndoManager;
   readonly executionLedger: AgentExecutionLedger;
+  /** Detaches the session write ledger from the runtime bus and clears it. */
+  readonly disposeSessionWriteLedger: () => void;
   readonly integrationHelpers: IntegrationHelperService;
   /**
    * Re-root workspace-bound stores to a new working directory.
@@ -1310,6 +1313,10 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const modeManager = new ModeManager();
   const fileUndoManager = new FileUndoManager();
   const executionLedger = new AgentExecutionLedger(options.runtimeBus);
+  // Tracks which paths this session's own write/edit tools produced, so the
+  // read guard can tell a file the agent just authored from someone else's
+  // hidden file (see tools/agent-read-policy.ts).
+  const detachSessionWriteLedger = attachAgentSessionWriteLedger(options.runtimeBus);
   // The SDK's foundation/integration contracts still expect a panel manager;
   // the Agent shell has no panel UI (the Activity sidebar replaced it), so we
   // satisfy those contracts with a no-op implementation.
@@ -2074,6 +2081,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     modeManager,
     fileUndoManager,
     executionLedger,
+    disposeSessionWriteLedger: () => { detachSessionWriteLedger(); clearAgentSessionWrites(); },
     integrationHelpers,
     async rerootStores(newWorkingDir: string): Promise<void> {
       await projectIndex.reroot(newWorkingDir);

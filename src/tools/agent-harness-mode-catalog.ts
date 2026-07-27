@@ -1,5 +1,5 @@
 import { AGENT_HARNESS_MODES } from './agent-harness-tool-schema.ts';
-import { readLimit } from './agent-harness-tool-utils.ts';
+import { catalogEnvelope, readLimit } from './agent-harness-tool-utils.ts';
 
 export type AgentHarnessMode = typeof AGENT_HARNESS_MODES[number];
 
@@ -281,9 +281,9 @@ export function listHarnessModes(args: HarnessModeCatalogArgs): Record<string, u
     .map((descriptor) => describeHarnessModeDescriptor(descriptor, { includeParameters: args.includeParameters === true }))
     .slice(0, limit);
   return {
-    modes,
-    returned: modes.length,
-    total: HARNESS_MODE_DESCRIPTORS.length,
+    ...catalogEnvelope('modes', modes, HARNESS_MODE_DESCRIPTORS.length, {
+      ...(lookup ? { [lookup.source]: lookup.input } : {}),
+    }, 'agent_harness mode:"modes" with no query'),
     families: Array.from(new Set(HARNESS_MODE_DESCRIPTORS.map((descriptor) => descriptor.family))).sort(),
     policy: 'Mode discovery is read-only. Effect modes still require confirm:true and explicitUserRequest.',
   };

@@ -49,7 +49,8 @@ import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent
 import { runCommand } from './agent-harness-command-runner.ts';
 import { runWorkspaceAction } from './agent-harness-workspace-action-runner.ts';
 import type { AgentHarnessToolArgs, AgentHarnessToolDeps } from './agent-harness-tool-types.ts';
-import { error, output, readLimit, readString, requireConfirmedAction, settingLookupArgs } from './agent-harness-tool-utils.ts';
+import { catalogEnvelope, catalogFilters, error, output, readLimit, readString, requireConfirmedAction, settingLookupArgs } from './agent-harness-tool-utils.ts';
+import { CATALOG_QUERIES as CQ } from './agent-harness-catalog-filters.ts';
 import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type AgentHarnessMode } from './agent-harness-mode-catalog.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
 import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorContext, describeWorkspaceAction, describeWorkspaceCategory, listWorkspaceActions, resolveWorkspaceActionDetail } from './agent-harness-workspace-actions.ts';
@@ -282,9 +283,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         if (args.mode === 'cli_commands') {
           const commands = listHarnessCliCommands(args);
           return output({
-            commands,
-            returned: commands.length,
-            total: totalHarnessCliCommands(),
+            ...catalogEnvelope('commands', commands, totalHarnessCliCommands(), catalogFilters(args, CQ.cli_commands.filters), CQ.cli_commands.discovery),
             blockedTokens: blockedHarnessCliCommandTokens(),
             policy: 'CLI modes are read-only discovery. Use first-class model tools, workspace actions, settings modes, or confirmed slash-command mirrors for in-process operation.',
           });
@@ -294,7 +293,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'ui_surfaces') {
           const surfaces = listHarnessUiSurfaces(deps.commandContext, args);
-          return output({ surfaces, returned: surfaces.length, total: totalHarnessUiSurfaces() });
+          return output(catalogEnvelope('surfaces', surfaces, totalHarnessUiSurfaces(), catalogFilters(args, CQ.ui_surfaces.filters), CQ.ui_surfaces.discovery));
         }
         if (args.mode === 'ui_surface') {
           const surface = describeHarnessUiSurface(deps.commandContext, args);
@@ -325,7 +324,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'commands') {
           const commands = listHarnessCommands(deps.commandRegistry, args);
-          return output({ commands, returned: commands.length, total: deps.commandRegistry.list().length });
+          return output(catalogEnvelope('commands', commands, deps.commandRegistry.list().length, catalogFilters(args, CQ.commands.filters), CQ.commands.discovery));
         }
         if (args.mode === 'command') {
           const detail = describeHarnessCommand(deps.commandRegistry, args);
@@ -652,7 +651,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'workspace_actions') {
           const actions = listWorkspaceActions(deps.commandContext, args);
-          return output({ actions, returned: actions.length, total: allWorkspaceActions().length });
+          return output(catalogEnvelope('actions', actions, allWorkspaceActions().length, catalogFilters(args, CQ.workspace_actions.filters), CQ.workspace_actions.discovery));
         }
         if (args.mode === 'workspace_action') {
           const resolved = resolveWorkspaceActionDetail(args);
@@ -668,7 +667,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         if (args.mode === 'run_workspace_action') return runWorkspaceAction(deps, args);
         if (args.mode === 'tools') {
           const tools = listHarnessModelTools(deps.toolRegistry, args);
-          return output({ tools, returned: tools.length, total: deps.toolRegistry.getToolDefinitions().length });
+          return output(catalogEnvelope('tools', tools, deps.toolRegistry.getToolDefinitions().length, catalogFilters(args, CQ.tools.filters), CQ.tools.discovery));
         }
         if (args.mode === 'tool') {
           const query = readString(args.toolName || args.target || args.query);

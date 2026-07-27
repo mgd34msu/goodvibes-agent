@@ -81,10 +81,10 @@ describe('surface domain consistency', () => {
       store: new AutomationRouteStore(join(root, 'delivery-routes.json')),
     });
     // One secrets manager for both: the registry resolves service credentials
-    // with it, and the delivery manager needs the same one to build a router
-    // that can resolve a goodvibes://secrets/... reply credential. Without it
-    // a surface accepts replies and silently never sends them, which is why
-    // the SDK refuses to construct the manager at all.
+    // with it, and the delivery manager needs its own — not only the
+    // registry's — to build a router that can resolve a goodvibes://secrets/...
+    // reply credential. Without it a surface accepts replies and silently never
+    // sends them, which is why the SDK refuses to construct the manager at all.
     const secretsManager = new SecretsManager({ projectRoot: root, globalHome: root });
     const manager = new AutomationDeliveryManager({
       configManager: new ConfigManager({ surfaceRoot: 'tui',  configDir: root }),
