@@ -36,7 +36,9 @@ import {
 } from '../../agent/google/google-setup-actions.ts';
 import { renderGoogleSetupRunbook } from '../../agent/google/google-setup-runbook.ts';
 import { detectGoogleSetupState, describeGoogleSetupState } from '../../agent/google/google-setup-state.ts';
-import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS } from '../../agent/google/google-setup-plan.ts';
+import { GOOGLE_CONFIG_KEYS, GOOGLE_SECRET_KEYS, ensureGoogleConfigDefaults } from '../../agent/google/google-setup-plan.ts';
+import { ensureCalendarConfigDefaults } from '../../agent/calendar/calendar-oauth-service.ts';
+import { ensureEmailConfigDefaults } from '../../agent/email/email-service.ts';
 import {
   adoptGmailMcpCredentials,
   summarizeCredentials,
@@ -72,7 +74,13 @@ const USAGE = [
 // ---------------------------------------------------------------------------
 
 function configPort(ctx: CommandContext): GoogleConfigPort {
-  const manager = requirePlatform(ctx).configManager as {
+  const raw = requirePlatform(ctx).configManager;
+  // The flow spans three app-layer config sections. Seed all of them before any
+  // access: resolvePath throws on a section that is not there.
+  ensureGoogleConfigDefaults(raw);
+  ensureCalendarConfigDefaults(raw);
+  ensureEmailConfigDefaults(raw);
+  const manager = raw as {
     get: (key: string) => unknown;
     setDynamic: (key: string, value: unknown) => void;
   };

@@ -94,6 +94,31 @@ export const REQUIRED_SERVICES: readonly string[] = [
   'calendar-json.googleapis.com',
 ];
 
+/**
+ * Default (empty) `google` config section, seeded so get()/setDynamic() resolve
+ * the nested path.
+ *
+ * ConfigManager.resolvePath() walks the live config object and throws
+ * "Invalid config path" for any section that does not exist, and `google` is an
+ * app-layer category absent from the SDK schema. Nothing called the connector,
+ * so nothing ever hit that — `/google status` threw on its first real run.
+ *
+ * Mirrors ensureEmailConfigDefaults and ensureCalendarConfigDefaults, the
+ * sanctioned pattern for this.
+ */
+const GOOGLE_CONFIG_DEFAULTS = {
+  oauth: { projectId: '', publishingStatus: '', refreshToken: '' },
+  credentials: { migratedFrom: '' },
+};
+
+/** Seed the google config section on the real ConfigManager if absent. */
+export function ensureGoogleConfigDefaults(configManager: object): void {
+  const cm = configManager as unknown as { config?: Record<string, unknown> };
+  if (cm.config && !('google' in cm.config)) {
+    cm.config['google'] = structuredClone(GOOGLE_CONFIG_DEFAULTS);
+  }
+}
+
 /** Config keys written by the app-password path. */
 export const GOOGLE_CONFIG_KEYS = {
   emailEnabled: 'email.enabled',

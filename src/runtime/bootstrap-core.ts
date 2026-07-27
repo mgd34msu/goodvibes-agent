@@ -45,6 +45,8 @@ import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
 import { registerAgentGoogleTool } from '../tools/agent-google-tool.ts';
 import { registerAgentAccountsTool } from '../tools/agent-accounts-tool.ts';
 import { AgentAccountRegistry } from '../agent/signup/account-registry.ts';
+import { ensureGoogleConfigDefaults } from '../agent/google/google-setup-plan.ts';
+import { ensureCalendarConfigDefaults } from '../agent/calendar/calendar-oauth-service.ts';
 import { registerAgentKnowledgeIngestTool } from '../tools/agent-knowledge-ingest-tool.ts';
 import { registerAgentKnowledgeTool } from '../tools/agent-knowledge-tool.ts';
 import { registerAgentLearningConsolidationTool } from '../tools/agent-learning-consolidation-tool.ts';
@@ -360,6 +362,10 @@ export async function initializeBootstrapCore(
   // The native Gmail/Calendar route. The operator contract catalogs email.send
   // and calendar.events.list with invokable:false — no daemon serves them — so
   // this is the route the capability index points at.
+  // google.* and calendar.* are app-layer sections absent from the SDK schema;
+  // resolvePath throws on a section that is not there.
+  ensureGoogleConfigDefaults(configManager);
+  ensureCalendarConfigDefaults(configManager);
   registerAgentGoogleTool(toolRegistry, {
     homeDirectory: services.shellPaths.homeDirectory,
     configGet: (key: string) => (configManager as { get: (key: string) => unknown }).get(key),

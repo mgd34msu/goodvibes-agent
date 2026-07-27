@@ -232,6 +232,14 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Connected schedules require an explicit user request and do not create hidden Agent jobs or local schedulers.',
     };
   }
+  if (root === 'google' || root === 'gmail') {
+    return {
+      effect: 'external-network',
+      confirmation,
+      preferredModelTool: 'google',
+      boundary: 'Connects the Google account that backs mail and calendar. /google adopt takes up credentials already on this machine; /google setup runs the connection flow. Once connected, the google tool is the model route — no MCP server is involved.',
+    };
+  }
   if (root === 'email') {
     return {
       effect: 'external-network',

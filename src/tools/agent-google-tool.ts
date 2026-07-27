@@ -125,16 +125,16 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
   return {
     definition: {
       name: 'google',
-      description: 'Read and send Gmail, and read and create Google Calendar events, using the connected Google account.',
+      description: 'Read and send Gmail; read and write Google Calendar.',
       parameters: {
         type: 'object',
         properties: {
           action: {
             type: 'string',
             enum: [...GOOGLE_ACTIONS],
-            description: 'What to do. status reports whether an account is connected and what it permits.',
+            description: 'What to do. status reports the connected account.',
           },
-          query: { type: 'string', description: 'Gmail search query for mail.list, e.g. "is:unread from:someone".' },
+          query: { type: 'string', description: 'Gmail search query for mail.list.' },
           id: { type: 'string', description: 'Message id for mail.read.' },
           to: { type: 'string', description: 'Recipient address for mail.send.' },
           subject: { type: 'string', description: 'Subject for mail.send.' },

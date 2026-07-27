@@ -61,6 +61,19 @@ export interface GoogleConnectionSources {
   readonly secretGet: (key: string) => Promise<string | null>;
 }
 
+/**
+ * Config reads are wrapped because resolvePath throws on an absent section.
+ * Callers seed the sections, but a throw here would turn a missing key into a
+ * broken tool rather than "no account connected".
+ */
+function safeGet(sources: GoogleConnectionSources, key: string): unknown {
+  try {
+    return sources.configGet(key);
+  } catch {
+    return undefined;
+  }
+}
+
 function readString(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
@@ -74,7 +87,7 @@ function readString(value: unknown): string | null {
  * capability that claims to be ready and then fails on first use.
  */
 async function storeCredentials(sources: GoogleConnectionSources): Promise<GoogleOAuthCredentials | null> {
-  const clientId = readString(sources.configGet(GOOGLE_CONFIG_KEYS.oauthClientId));
+  const clientId = readString(safeGet(sources, GOOGLE_CONFIG_KEYS.oauthClientId));
   if (clientId === null) return null;
 
   const [clientSecret, refreshToken] = await Promise.all([

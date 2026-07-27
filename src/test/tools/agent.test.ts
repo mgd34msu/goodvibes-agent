@@ -1307,7 +1307,7 @@ describe('spawn mode', () => {
       readonly commonRoutes?: Record<string, unknown>;
     };
     expect(payload.runtime).toBe('GoodVibes Agent');
-    expect(payload.currentContract?.autonomy).toContain('User-directed operator agent');
+    expect(payload.currentContract?.autonomy).toContain('Operator agent working on the owner');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Harness operation');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Personal operations');
     expect(payload.canDoNow?.map((entry) => entry.area)).toContain('Device, voice, and browser surfaces');

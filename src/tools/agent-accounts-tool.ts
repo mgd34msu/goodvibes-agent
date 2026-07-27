@@ -62,22 +62,22 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
   return {
     definition: {
       name: 'accounts',
-      description: 'The record of accounts created on the owner\'s behalf: list them, record a new one, forget one, or reap stale entries.',
+      description: 'Register of accounts created for the owner.',
       parameters: {
         type: 'object',
         properties: {
           action: {
             type: 'string',
             enum: [...ACCOUNT_ACTIONS],
-            description: 'What to do. Record every account at creation time, before storing its credential.',
+            description: 'What to do. Record an account as you create it.',
           },
           serviceDomain: { type: 'string', description: 'Domain the account was created at, for record.' },
-          serviceUrl: { type: 'string', description: 'The http(s) page the account was created at, for record.' },
+          serviceUrl: { type: 'string', description: 'The http(s) signup page, for record.' },
           aliasAddress: { type: 'string', description: 'The per-signup alias address used, for record.' },
-          purpose: { type: 'string', description: 'What the account is for, in plain language, for record.' },
+          purpose: { type: 'string', description: 'What the account is for, for record.' },
           credentialSecretKey: {
             type: 'string',
-            description: 'The NAME of the secret-store entry holding the credential. Never the credential itself.',
+            description: 'Secret-store key NAME. Never the credential itself.',
           },
           id: { type: 'string', description: 'Account record id, for forget.' },
           maxAgeDays: { type: 'number', description: 'For sweep: drop records older than this.' },
