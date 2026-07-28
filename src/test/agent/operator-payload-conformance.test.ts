@@ -38,15 +38,29 @@ type KeysOfUnion<T> = T extends unknown ? keyof T : never;
 /**
  * Excess-key rejection that works on ANY body, not only a fresh literal.
  *
- * TypeScript's excess-property check fires only for a fresh object literal
- * passed directly. A body built as a variable first, or assembled with a
- * spread, is not checked at all — verified, not assumed: both forms compiled
- * clean against a correctly typed parameter with a stale `lineIndex` in them.
- * That is not a small hole here, because the production forget bodies WERE
- * built with spreads until this round.
+ * DO NOT REPLACE THIS WITH "just type the parameter". Parameter typing does not
+ * catch two of the four ways a retired field reaches a body. Measured on this
+ * repo's own contract, seeding a stale `lineIndex` into a `profile.forget` body:
  *
- * Mapping every excess key to `never` closes it: a real value can never satisfy
- * `never`, whatever shape the body was built in.
+ * | how the field arrives                    | parameter typing | this guard |
+ * |------------------------------------------|------------------|------------|
+ * | fresh literal, written inline            | rejected TS2353  | rejected   |
+ * | spread literal, written inline beside it | rejected TS2353  | rejected   |
+ * | body built as a variable first           | SLIPS THROUGH    | rejected   |
+ * | carried IN by the spread source's type   | SLIPS THROUGH    | rejected   |
+ *
+ * The last row is the one that matters and the one that is easy to get wrong.
+ * A fresh literal containing a spread is NOT uniformly unchecked — what is
+ * written inline in it still is. Only what arrives THROUGH the spread escapes,
+ * because it is part of the spread source's type rather than a property of this
+ * literal. So branching a spread-built body into two plain literals closes the
+ * inline case, which was never open, and does nothing for the carried case.
+ *
+ * That makes this guard LOAD-BEARING for rows three and four, not a backstop.
+ * Removing it does not fall back on the compiler; it removes the only check.
+ *
+ * Mapping every excess key to `never` is what closes them: a real value can
+ * never satisfy `never`, whatever shape the body was built in.
  */
 function assertOperatorBody<
   TMethodId extends OperatorMethodId,
@@ -88,43 +102,43 @@ function contractInput(methodId: string): ContractInput {
 // Each annotation is the guard. Adding a field the contract dropped, or omitting
 // one it made required, fails to compile here.
 
-const SET_BODY: OperatorMethodInput<'profile.set'> = {
+const SET_BODY = assertOperatorBody('profile.set', {
   fieldId: 'commerce.shippingAddress',
   value: '200 Office Way',
   surface: PROFILE_RECORDING_SURFACE,
   said: 'ship it to my office instead',
   authority: 'owner-direct',
-};
+});
 
-const APPEND_BODY: OperatorMethodInput<'profile.append'> = {
+const APPEND_BODY = assertOperatorBody('profile.append', {
   section: 'Notes',
   text: 'Allergic to shellfish',
   surface: PROFILE_RECORDING_SURFACE,
   said: "I'm allergic to shellfish",
   authority: 'owner-direct',
-};
+});
 
 /** A mechanical field goes by id. */
-const FORGET_FIELD_BODY: OperatorMethodInput<'profile.forget'> = {
+const FORGET_FIELD_BODY = assertOperatorBody('profile.forget', {
   fieldId: 'contact.phone',
   authority: 'owner-direct',
-};
+});
 
 /** A prose line goes by its section and its exact text — never a position. */
-const FORGET_PROSE_BODY: OperatorMethodInput<'profile.forget'> = {
+const FORGET_PROSE_BODY = assertOperatorBody('profile.forget', {
   section: 'Notes',
   text: '- Allergic to shellfish',
   authority: 'owner-direct',
-};
+});
 
-const UNDO_BODY: OperatorMethodInput<'profile.undo'> = {
+const UNDO_BODY = assertOperatorBody('profile.undo', {
   fieldId: 'commerce.shippingAddress',
   authority: 'owner-direct',
-};
+});
 
-const GET_BODY: OperatorMethodInput<'profile.get'> = { fieldId: 'location.timezone' };
-const PERSON_BODY: OperatorMethodInput<'profile.person'> = { name: 'Sarah' };
-const PROVENANCE_BODY: OperatorMethodInput<'profile.provenance'> = { fieldId: 'commerce.shippingAddress' };
+const GET_BODY = assertOperatorBody('profile.get', { fieldId: 'location.timezone' });
+const PERSON_BODY = assertOperatorBody('profile.person', { name: 'Sarah' });
+const PROVENANCE_BODY = assertOperatorBody('profile.provenance', { fieldId: 'commerce.shippingAddress' });
 
 describe('operator payload conformance for the profile verbs', () => {
   test('every write body carries an authority, because the contract requires one', () => {
@@ -153,11 +167,15 @@ describe('operator payload conformance for the profile verbs', () => {
   test('a prose forget names a section and the exact text, and a field forget names neither', () => {
     expect(FORGET_PROSE_BODY.section).toBe('Notes');
     expect(FORGET_PROSE_BODY.text).toBe('- Allergic to shellfish');
-    expect(FORGET_PROSE_BODY.fieldId).toBeUndefined();
-
     expect(FORGET_FIELD_BODY.fieldId).toBe('contact.phone');
-    expect(FORGET_FIELD_BODY.section).toBeUndefined();
-    expect(FORGET_FIELD_BODY.text).toBeUndefined();
+
+    // Absence is asserted on the KEYS, not by reading the property. The guard
+    // narrows each body to exactly what it declares, so `FORGET_PROSE_BODY.fieldId`
+    // is now a compile error rather than an `undefined` — which is the guard
+    // working. Reading keys keeps the assertion honest at runtime too.
+    expect(Object.keys(FORGET_PROSE_BODY)).not.toContain('fieldId');
+    expect(Object.keys(FORGET_FIELD_BODY)).not.toContain('section');
+    expect(Object.keys(FORGET_FIELD_BODY)).not.toContain('text');
   });
 
   test('a recording surface accompanies every learned line, distinct from its authority', () => {
@@ -173,6 +191,43 @@ describe('operator payload conformance for the profile verbs', () => {
     expect(Object.keys(GET_BODY)).toEqual(['fieldId']);
     expect(Object.keys(PERSON_BODY)).toEqual(['name']);
     expect(Object.keys(PROVENANCE_BODY)).toEqual(['fieldId']);
+  });
+
+  test('every body this lane sends satisfies the shipped contract schema', () => {
+    // The runtime half. The compile-time guard above catches a body whose TYPE
+    // is wrong; this catches one whose type is right against a STALE pin — it
+    // reads the schema out of the contract that actually shipped, so it
+    // re-derives on every repin instead of agreeing with a copy that has since
+    // gone out of date.
+    const bodies: ReadonlyArray<readonly [string, Record<string, unknown>]> = [
+      [PROFILE_METHOD_IDS.set, SET_BODY],
+      [PROFILE_METHOD_IDS.append, APPEND_BODY],
+      [PROFILE_METHOD_IDS.forget, FORGET_FIELD_BODY],
+      [PROFILE_METHOD_IDS.forget, FORGET_PROSE_BODY],
+      [PROFILE_METHOD_IDS.undo, UNDO_BODY],
+      [PROFILE_METHOD_IDS.get, GET_BODY],
+      [PROFILE_METHOD_IDS.person, PERSON_BODY],
+      [PROFILE_METHOD_IDS.provenance, PROVENANCE_BODY],
+    ];
+
+    for (const [methodId, body] of bodies) {
+      const schema = contractInput(methodId);
+      const keys = Object.keys(body);
+
+      const unknownKeys = keys.filter((key) => !schema.properties.has(key));
+      expect(unknownKeys, `${methodId} sends keys the contract does not declare`).toEqual([]);
+
+      const missing = [...schema.required].filter((key) => !keys.includes(key));
+      expect(missing, `${methodId} omits keys the contract requires`).toEqual([]);
+    }
+  });
+
+  test('the contract still declares forget as content-addressed', () => {
+    // Read from the shipped contract rather than restated here, so this cannot
+    // drift into agreeing with a lineIndex that came back.
+    const schema = contractInput(PROFILE_METHOD_IDS.forget);
+    expect([...schema.properties].sort()).toEqual(['authority', 'fieldId', 'section', 'text']);
+    expect([...schema.required]).toEqual(['authority']);
   });
 
   test('the nine method ids this lane calls are the ids the contract declares', () => {

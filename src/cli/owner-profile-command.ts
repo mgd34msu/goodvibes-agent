@@ -305,9 +305,10 @@ async function handleForget(
   if (!parsed.yes) {
     return { output: `Refusing to forget ${target} without --yes.`, exitCode: 2 };
   }
-  // Two fresh literals, not one spread: TypeScript checks an operator body
-  // against its declared input only for a fresh object literal, so a spread-in
-  // property slips a stale field past a correctly typed parameter.
+  // Two plain literals, not one spread. A field written inline in a spread
+  // literal is still checked; one carried in by the spread source's type is
+  // not, and with no spread there is no source to carry one. The general case
+  // is covered by the `assertOperatorBody` guard, not by this shape.
   const result = fieldId
     ? await invoke(PROFILE_METHOD_IDS.forget, { fieldId, authority: 'owner-direct' })
     : await invoke(PROFILE_METHOD_IDS.forget, { section, text, authority: 'owner-direct' });

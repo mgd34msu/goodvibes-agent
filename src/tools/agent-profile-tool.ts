@@ -371,13 +371,16 @@ async function handleForget(
     ]);
   }
   const target = fieldId || `the line "${text}" under ${section}`;
-  // Two fresh literals rather than one built with spreads. TypeScript checks a
-  // body against the verb's declared input only where the object is a FRESH
-  // LITERAL — a spread-in property is not checked, and neither is a body built
-  // as a variable first. Written the spread way, this call site compiled clean
-  // with a stale `lineIndex` in it even though the parameter type was correct,
-  // which is exactly the failure the payload typing was added to prevent. The
-  // branches cost two lines and put the real call site back under the check.
+  // Two plain literals rather than one assembled from spreads. Not because a
+  // spread literal is unchecked — what is written inline in one still is — but
+  // because a field carried IN by a spread source's type is not, and having no
+  // spread here means there is no source to carry one. Two lines to remove the
+  // vector entirely at the site that had it.
+  //
+  // The general case is not closed by writing it this way: see the measured
+  // table on `assertOperatorBody` in
+  // src/test/agent/operator-payload-conformance.test.ts. That guard is what
+  // catches a spread-carried or variable-built body, and it is load-bearing.
   const result = fieldId
     ? await deps.invoke(PROFILE_METHOD_IDS.forget, { fieldId, authority })
     : await deps.invoke(PROFILE_METHOD_IDS.forget, { section, text, authority });

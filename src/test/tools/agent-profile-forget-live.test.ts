@@ -46,13 +46,6 @@ const SDK_DIST = join(
   'node_modules', '@pellux', 'goodvibes-sdk', 'dist',
 );
 
-/**
- * The build whose `forgetProseByText` compares `line.text.trim() === wanted`
- * with the leading `- ` still on the stored side, so his own wording does not
- * resolve. The list-marker test below tolerates that ONLY on this exact build.
- */
-const MATCHER_WITHOUT_LIST_MARKER_NORMALISATION = 'b64ef36f';
-
 const PROFILE_FIXTURE = `# Mike's profile
 
 ## Identity
@@ -295,16 +288,16 @@ describe('forget, against the real store', () => {
     }
   });
 
-  test('a list marker is not part of the line: both forms name the same one', async () => {
+  test('a list marker is not part of the line: his own wording names it', async () => {
     // He says "forget that I'm allergic to shellfish". The leading "- " is a
     // markdown artefact of how the line is stored, not something he uttered, so
-    // requiring it would push a storage detail into the model's prompt. The
-    // matcher normalises the marker on both sides.
+    // requiring it would push a storage detail into the model's prompt — and a
+    // prompt that carries a format rots silently when the format moves.
     //
-    // This test is written so it cannot rot. Where the installed build does not
-    // normalise yet, it asserts that build is exactly the one known not to —
-    // so the first repack past that stamp fails here and forces the flip,
-    // rather than a skip nobody revisits.
+    // This was a self-converting pin while the matcher still compared raw text:
+    // it asserted the exact build known not to normalise, so the first repack
+    // past it would fail rather than sit green on a tolerance. That build has
+    // landed, the pin took its assertion branch, and the tolerance is gone.
     const profile = await liveProfile();
 
     const result = await profile.tool.execute({
@@ -314,28 +307,55 @@ describe('forget, against the real store', () => {
       authority: 'owner-direct',
     });
 
-    if (result.success) {
-      // The intended contract: his wording resolves to the stored line.
-      expect(profile.read()).not.toContain('Allergic to shellfish');
-      expect(profile.read()).toContain('Prefers aisle seats');
-      return;
-    }
+    expect(result.success).toBe(true);
+    const after = profile.read();
+    expect(after).not.toContain('Allergic to shellfish');
+    expect(after).toContain('Prefers aisle seats');
+  });
 
-    // Not normalised yet. Acceptable only on the build that predates the fix.
-    const stamp = readFileSync(join(SDK_DIST, 'SOURCE_COMMIT'), 'utf-8').trim();
-    expect(
-      stamp,
-      'the installed platform runtime moved past the build known not to normalise a list marker, '
-      + 'but his wording still does not resolve — the matcher fix regressed or never landed',
-    ).toBe(MATCHER_WITHOUT_LIST_MARKER_NORMALISATION);
-    // The stored form still works on that build, so the verb is not broken.
-    const withMarker = await profile.tool.execute({
+  test('the stored form still names the same line', async () => {
+    const profile = await liveProfile();
+
+    const result = await profile.tool.execute({
       action: 'forget',
       section: 'Notes',
       text: '- Allergic to shellfish',
       authority: 'owner-direct',
     });
-    expect(withMarker.success).toBe(true);
+
+    expect(result.success).toBe(true);
+    expect(profile.read()).not.toContain('Allergic to shellfish');
+  });
+
+  test('a leading minus that is not a list marker is kept', async () => {
+    // The boundary the normalisation has to get right. A marker is only a
+    // marker when whitespace follows it, so a line that genuinely begins with
+    // a negative number keeps its minus and is matched on its real text. Get
+    // this wrong and "-5 degrees" and "5 degrees" become the same line.
+    const profile = await liveProfile();
+    profile.rewrite(profile.read().replace(
+      '- Prefers aisle seats',
+      '- Prefers aisle seats\n-5 degrees is when the pipes freeze',
+    ));
+    await profile.awaitReload('pipes freeze');
+
+    const wrong = await profile.tool.execute({
+      action: 'forget',
+      section: 'Notes',
+      text: '5 degrees is when the pipes freeze',
+      authority: 'owner-direct',
+    });
+    expect(wrong.success, 'the minus was stripped as if it were a list marker').toBe(false);
+    expect(profile.read()).toContain('-5 degrees is when the pipes freeze');
+
+    const right = await profile.tool.execute({
+      action: 'forget',
+      section: 'Notes',
+      text: '-5 degrees is when the pipes freeze',
+      authority: 'owner-direct',
+    });
+    expect(right.success).toBe(true);
+    expect(profile.read()).not.toContain('pipes freeze');
   });
 
   test('a mechanical field still goes by its id, and its history goes with it', async () => {
