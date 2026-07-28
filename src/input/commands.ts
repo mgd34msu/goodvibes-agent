@@ -37,6 +37,7 @@ import { registerChannelsRuntimeCommands } from './commands/channels-runtime.ts'
 import { registerBriefRuntimeCommands } from './commands/brief-runtime.ts';
 import { registerSupportBundleRuntimeCommands } from './commands/support-bundle-runtime.ts';
 import { registerCompatRuntimeCommands } from './commands/compat-runtime.ts';
+import { registerOwnerProfileRuntimeCommands } from './commands/owner-profile-runtime.ts';
 import { registerOperatorActionRuntimeCommands } from './commands/operator-actions-runtime.ts';
 import { registerConnectedHostAdminCommands } from './commands/connected-host-admin-runtime.ts';
 import { registerEmailRuntimeCommands } from './commands/email-runtime.ts';
@@ -67,6 +68,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerBriefRuntimeCommands(registry);
   registerSupportBundleRuntimeCommands(registry);
   registerCompatRuntimeCommands(registry);
+  registerOwnerProfileRuntimeCommands(registry);
   registerOperatorActionRuntimeCommands(registry);
   registerConnectedHostAdminCommands(registry);
   registerCalendarRuntimeCommands(registry);

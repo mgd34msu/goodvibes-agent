@@ -311,6 +311,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/notes` | Open Agent-local scratchpad notes in the operator workspace. |
 | `/notify` | Manage and send configured Agent webhook notifications. |
 | `/paste` | Insert clipboard text or image into the prompt. |
+| `/owner-profile` | Your profile: read what GoodVibes knows about you, show one field, look one person up by name, trace where a fact came from, correct one, or forget one. Here the People section is counted rather than listed, because this output lands in the transcript; the same command at a shell prints the full list. |
 | `/personas` | Manage Agent-local personas. |
 | `/pin` | Pin a model to the favorites list. |
 | `/prev-error` | Jump to the previous error message in the conversation. |

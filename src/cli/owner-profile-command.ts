@@ -22,6 +22,8 @@ import {
   type ProfileGatewayInvoke,
 } from '../agent/owner-profile-gateway.ts';
 import {
+  narrowProfileGet,
+  narrowProfilePerson,
   narrowProfileProvenance,
   narrowProfileRead,
   narrowProfileStatus,
@@ -35,13 +37,17 @@ import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';
 
 const READ_USAGE = 'Usage: goodvibes-agent owner-profile read';
+const GET_USAGE = 'Usage: goodvibes-agent owner-profile get <fieldId>';
+const PERSON_USAGE = 'Usage: goodvibes-agent owner-profile person <name> --named-by "<your words this turn>"';
 const PROVENANCE_USAGE = 'Usage: goodvibes-agent owner-profile provenance <fieldId>';
 const SET_USAGE = 'Usage: goodvibes-agent owner-profile set <fieldId> <value> [--said "<your words>"] --yes';
 const FORGET_USAGE = 'Usage: goodvibes-agent owner-profile forget <fieldId> --yes';
 const STATUS_USAGE = 'Usage: goodvibes-agent owner-profile status';
 const OWNER_PROFILE_USAGE = [
-  'Usage: goodvibes-agent owner-profile [read|provenance <fieldId>|set <fieldId> <value> --yes|forget <fieldId> --yes|status]',
+  'Usage: goodvibes-agent owner-profile [read|get <fieldId>|person <name>|provenance <fieldId>|set <fieldId> <value> --yes|forget <fieldId> --yes|status]',
   READ_USAGE,
+  GET_USAGE,
+  PERSON_USAGE,
   PROVENANCE_USAGE,
   SET_USAGE,
   FORGET_USAGE,
@@ -56,6 +62,9 @@ const OWNER_PROFILE_USAGE = [
  * it here, not in conversation.
  */
 const CLI_EDIT_SAID = '(edited from the command line)';
+
+/** The section holding facts about other people. Counted, never listed (§10). */
+const PEOPLE_SECTION = 'people';
 
 function jsonOrText(runtime: CliCommandRuntime, value: unknown, text: string): string {
   return runtime.cli.flags.outputFormat === 'json' ? JSON.stringify(value, null, 2) : text;
@@ -77,7 +86,11 @@ function gatewayFor(runtime: CliCommandRuntime): ProfileGatewayInvoke {
   });
 }
 
-async function handleRead(runtime: CliCommandRuntime, invoke: ProfileGatewayInvoke): Promise<CliCommandOutput> {
+async function handleRead(
+  runtime: CliCommandRuntime,
+  invoke: ProfileGatewayInvoke,
+  outputEntersModelContext: boolean,
+): Promise<CliCommandOutput> {
   const result = await invoke(PROFILE_METHOD_IDS.read, {});
   if (!result.ok) return { output: jsonOrText(runtime, result, result.error ?? 'Profile read failed.'), exitCode: 1 };
   const response = narrowProfileRead(result.data);
@@ -99,6 +112,23 @@ async function handleRead(runtime: CliCommandRuntime, invoke: ProfileGatewayInvo
   if (response.state.exists === false) lines.push('  The file does not exist yet; nothing has been recorded.');
   for (const section of response.sections) {
     lines.push(`  ## ${section.heading}`);
+    // §10, keyed on the one thing that decides whether it applies: does this
+    // output reach a model. Run as `/owner-profile` or through the workspace
+    // card it lands in the transcript, which a later turn can compose from, so
+    // People are counted and `person <name>` is the way through. Run at a shell
+    // it goes to his terminal and nowhere else, so withholding his own list
+    // would be friction with nothing gained — it is his file.
+    //
+    // One implementation, one predicate, and the predicate is a fact the caller
+    // genuinely knows about itself rather than a guess. The default is the safe
+    // answer (see OwnerProfileCommandOptions), so a call site that never thought
+    // about it counts rather than lists.
+    if (outputEntersModelContext && section.heading.trim().toLowerCase() === PEOPLE_SECTION) {
+      const count = section.prose.length + section.fields.length;
+      lines.push(`    ${count} ${count === 1 ? 'person' : 'people'} recorded; not listed here.`);
+      lines.push('    Use `owner-profile person <name>` to see one.');
+      continue;
+    }
     if (section.fields.length === 0 && section.prose.length === 0) {
       lines.push('    (nothing recorded)');
       continue;
@@ -156,6 +186,65 @@ async function handleProvenance(
     ].filter(Boolean);
     lines.push(`  was: ${parts.join(', ')}`);
   }
+  return { output: jsonOrText(runtime, response, lines.join('\n')), exitCode: 0 };
+}
+
+async function handleGet(
+  runtime: CliCommandRuntime,
+  invoke: ProfileGatewayInvoke,
+  args: readonly string[],
+): Promise<CliCommandOutput> {
+  const parsed = parseOperatorCommandArgs(args);
+  const fieldId = parsed.positionals[0];
+  if (!fieldId) return usageFailure(runtime, GET_USAGE);
+  const result = await invoke(PROFILE_METHOD_IDS.get, { fieldId });
+  if (!result.ok) return { output: jsonOrText(runtime, result, result.error ?? 'Profile field read failed.'), exitCode: 1 };
+  const response = narrowProfileGet(result.data);
+  if (!response) return { output: jsonOrText(runtime, result, PROFILE_RESPONSE_UNREADABLE), exitCode: 1 };
+  if (!response.present || !response.field) {
+    return {
+      output: jsonOrText(runtime, response, `${response.fieldId} is not set in your profile.`),
+      exitCode: 1,
+    };
+  }
+  const field = response.field;
+  const lines = [`${field.label}: ${field.value}`];
+  if (!field.valid) lines.push(`  did not parse: ${field.invalidReason ?? 'no reason given'} — kept as written, treated as unset`);
+  lines.push(field.provenance
+    ? `  from ${field.provenance.surface} on ${field.provenance.date}, you said: "${field.provenance.said}"`
+    : '  no provenance recorded; you wrote or edited this line by hand.');
+  // Non-empty only for a closed-tier field: the daemon decides which reads need
+  // a receipt, and this relays rather than judging.
+  if (response.disclosure) lines.push(response.disclosure);
+  return { output: jsonOrText(runtime, response, lines.join('\n')), exitCode: 0 };
+}
+
+async function handlePerson(
+  runtime: CliCommandRuntime,
+  invoke: ProfileGatewayInvoke,
+  args: readonly string[],
+): Promise<CliCommandOutput> {
+  const parsed = parseOperatorCommandArgs(args, ['named-by']);
+  const name = parsed.positionals.join(' ').trim();
+  if (!name) return usageFailure(runtime, PERSON_USAGE);
+  const result = await invoke(PROFILE_METHOD_IDS.person, { name });
+  if (!result.ok) return { output: jsonOrText(runtime, result, result.error ?? 'Person lookup failed.'), exitCode: 1 };
+  const response = narrowProfilePerson(result.data);
+  if (!response) return { output: jsonOrText(runtime, result, PROFILE_RESPONSE_UNREADABLE), exitCode: 1 };
+  if (response.lines.length === 0) {
+    return {
+      output: jsonOrText(runtime, response, `No one called ${response.name} is recorded in your profile.`),
+      exitCode: 1,
+    };
+  }
+  const lines = [`${response.name}`];
+  for (const line of response.lines) {
+    const suffix = line.provenance
+      ? ` — ${line.provenance.surface}, ${line.provenance.date}, "${line.provenance.said}"`
+      : '';
+    lines.push(`  ${line.text}${suffix}`);
+  }
+  if (response.disclosure) lines.push(response.disclosure);
   return { output: jsonOrText(runtime, response, lines.join('\n')), exitCode: 0 };
 }
 
@@ -241,21 +330,44 @@ async function handleStatus(runtime: CliCommandRuntime, invoke: ProfileGatewayIn
   return { output: jsonOrText(runtime, response, lines.join('\n')), exitCode: response.kind === 'loaded' ? 0 : 1 };
 }
 
-/**
- * `invoke` defaults to the connected-host route and is injectable so the
- * command's own honesty rules — a refusal printed with its reason, a delete
- * that was a no-op reported as a no-op — are testable without a live daemon.
- */
+export interface OwnerProfileCommandOptions {
+  /**
+   * Whether this command's output will land somewhere a model can read it.
+   *
+   * True for the `/owner-profile` slash command and the workspace card, whose
+   * output goes into the session transcript. False for the top-level CLI, whose
+   * output goes to his terminal and nowhere else.
+   *
+   * **Defaults to true** — a caller that has not thought about it gets the
+   * containment rather than the exposure. Every caller can answer this
+   * truthfully about itself; it is not a claim anyone has to guess at.
+   */
+  readonly outputEntersModelContext?: boolean;
+  /**
+   * The gateway route. Defaults to the connected host, and is injectable so the
+   * command's honesty rules — a refusal printed with its reason, a delete that
+   * was a no-op reported as a no-op — are testable without a live daemon.
+   */
+  readonly invoke?: ProfileGatewayInvoke;
+}
+
 export async function handleOwnerProfileCommand(
   runtime: CliCommandRuntime,
-  invoke: ProfileGatewayInvoke = gatewayFor(runtime),
+  options: OwnerProfileCommandOptions = {},
 ): Promise<CliCommandOutput> {
+  const invoke = options.invoke ?? gatewayFor(runtime);
+  const outputEntersModelContext = options.outputEntersModelContext ?? true;
   const [sub = 'read', ...rest] = runtime.cli.commandArgs;
   switch (sub.toLowerCase()) {
     case 'read':
     case 'show':
     case 'list':
-      return handleRead(runtime, invoke);
+      return handleRead(runtime, invoke, outputEntersModelContext);
+    case 'get':
+    case 'field':
+      return handleGet(runtime, invoke, rest);
+    case 'person':
+      return handlePerson(runtime, invoke, rest);
     case 'provenance':
     case 'source':
     case 'where':

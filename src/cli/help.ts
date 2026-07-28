@@ -366,15 +366,18 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
   'owner-profile': {
     usage: [
       'owner-profile read',
+      'owner-profile get <fieldId>',
+      'owner-profile person <name> --named-by "<your words>"',
       'owner-profile provenance <fieldId>',
       'owner-profile set <fieldId> <value> [--said "<your words>"] --yes',
       'owner-profile forget <fieldId> --yes',
       'owner-profile status',
     ],
-    summary: 'Read, trace, correct, and delete the owner profile the daemon keeps — one Markdown file holding your name, contact, location, commerce, preferences, people, places, work, and notes. read prints the whole document with the provenance suffix on every learned line; provenance answers "where did you get that" for one field, including the values it superseded; set supersedes a field and keeps the old one; forget deletes a line and its kept history, and reports that a field was not there rather than reporting success; status prints load state, path, counts, and any field whose value did not parse — never values.',
+    summary: 'Read, trace, correct, and delete the owner profile the daemon keeps — one Markdown file holding your name, contact, location, commerce, preferences, people, places, work, and notes. read prints the whole document with the provenance suffix on every learned line; get prints one field; person prints one person by name and takes the words you used that pointed at them; provenance answers "where did you get that" for one field, including the values it superseded; set supersedes a field and keeps the old one; forget deletes a line and its kept history, and reports that a field was not there rather than reporting success; status prints load state, path, counts, and any field whose value did not parse — never values.',
     examples: [
       'owner-profile read',
       'owner-profile provenance commerce.shippingAddress',
+      'owner-profile person Sarah --named-by "email my sister the tickets"',
       'owner-profile set location.timezone America/Detroit --yes',
       'owner-profile forget contact.phone --yes',
       'owner-profile status',

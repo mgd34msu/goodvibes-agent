@@ -645,7 +645,9 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
         return { handled: true, exitCode: result.exitCode };
       }
       case 'owner-profile': {
-        const result = await handleOwnerProfileCommand(runtime);
+        // A shell invocation prints to his terminal and nowhere else — no model
+        // reads it — so his own People list is not withheld from him here.
+        const result = await handleOwnerProfileCommand(runtime, { outputEntersModelContext: false });
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

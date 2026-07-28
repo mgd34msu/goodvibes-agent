@@ -66,6 +66,34 @@ function wrote(disclosure: string): Record<string, unknown> {
   return { ok: true, reason: null, changes: [], disclosure };
 }
 
+/** A loaded profile with two People lines, for the containment-predicate tests. */
+function peopleProfile(): Record<string, unknown> {
+  return {
+    state: {
+      kind: 'loaded',
+      path: '/home/owner/.goodvibes/daemon/owner-profile.md',
+      exists: true,
+      lineCount: 12,
+      fieldCount: 1,
+      proseLineCount: 2,
+      sections: ['Identity', 'People'],
+      invalidFields: [],
+    },
+    sections: [
+      { heading: 'Identity', tier: 'open', fields: [{ fieldId: 'identity.goesBy', label: 'goes by', value: 'Mike', valid: true }], prose: [] },
+      {
+        heading: 'People',
+        tier: 'closed',
+        fields: [],
+        prose: [
+          { lineIndex: 8, section: 'People', text: 'Sarah, sister, sarah@example.com' },
+          { lineIndex: 9, section: 'People', text: 'Dave from work, handles the contracts' },
+        ],
+      },
+    ],
+  };
+}
+
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
 });
@@ -81,7 +109,7 @@ describe('owner-profile CLI command', () => {
     const calls: Call[] = [];
     const result = await handleOwnerProfileCommand(
       runtime(['forget', 'contact.phone', '--yes']),
-      stubInvoke(() => refused('Your profile has no phone recorded, so there was nothing to forget.'), calls),
+      { invoke: stubInvoke(() => refused('Your profile has no phone recorded, so there was nothing to forget.'), calls) },
     );
 
     expect(result.exitCode).toBe(1);
@@ -95,7 +123,7 @@ describe('owner-profile CLI command', () => {
   test('an actual deletion exits zero and names what went', async () => {
     const result = await handleOwnerProfileCommand(
       runtime(['forget', 'contact.phone', '--yes']),
-      stubInvoke(() => wrote('Deleted contact.phone from your profile.')),
+      { invoke: stubInvoke(() => wrote('Deleted contact.phone from your profile.')) },
     );
 
     expect(result.exitCode).toBe(0);
@@ -105,7 +133,7 @@ describe('owner-profile CLI command', () => {
   test('a refused write prints the reason and exits non-zero', async () => {
     const result = await handleOwnerProfileCommand(
       runtime(['set', 'contact.email', 'someone@example.com', '--yes']),
-      stubInvoke(() => refused('That text overlaps content read this turn from web-page example.com.')),
+      { invoke: stubInvoke(() => refused('That text overlaps content read this turn from web-page example.com.')) },
     );
 
     expect(result.exitCode).toBe(1);
@@ -117,7 +145,7 @@ describe('owner-profile CLI command', () => {
     const calls: Call[] = [];
     await handleOwnerProfileCommand(
       runtime(['set', 'location.timezone', 'America/Detroit', '--yes']),
-      stubInvoke(() => wrote('Noted.'), calls),
+      { invoke: stubInvoke(() => wrote('Noted.'), calls) },
     );
 
     expect(calls[0]?.body.authority).toBe('owner-direct');
@@ -130,7 +158,7 @@ describe('owner-profile CLI command', () => {
     const calls: Call[] = [];
     await handleOwnerProfileCommand(
       runtime(['set', 'commerce.shippingAddress', '200 Office Way', '--said', 'ship it to my office instead', '--yes']),
-      stubInvoke(() => wrote('Noted.'), calls),
+      { invoke: stubInvoke(() => wrote('Noted.'), calls) },
     );
 
     expect(calls[0]?.body.said).toBe('ship it to my office instead');
@@ -141,11 +169,11 @@ describe('owner-profile CLI command', () => {
     const calls: Call[] = [];
     const invoke = stubInvoke(() => wrote('Noted.'), calls);
 
-    const set = await handleOwnerProfileCommand(runtime(['set', 'contact.phone', '555']), invoke);
+    const set = await handleOwnerProfileCommand(runtime(['set', 'contact.phone', '555']), { invoke });
     expect(set.exitCode).toBe(2);
     expect(set.output).toContain('without --yes');
 
-    const forget = await handleOwnerProfileCommand(runtime(['forget', 'contact.phone']), invoke);
+    const forget = await handleOwnerProfileCommand(runtime(['forget', 'contact.phone']), { invoke });
     expect(forget.exitCode).toBe(2);
     expect(forget.output).toContain('without --yes');
 
@@ -153,7 +181,7 @@ describe('owner-profile CLI command', () => {
   });
 
   test('provenance without a field prints usage', async () => {
-    const result = await handleOwnerProfileCommand(runtime(['provenance']), stubInvoke(() => ({})));
+    const result = await handleOwnerProfileCommand(runtime(['provenance']), { invoke: stubInvoke(() => ({})) });
     expect(result.exitCode).toBe(2);
     expect(result.output).toContain('owner-profile provenance <fieldId>');
   });
@@ -161,7 +189,7 @@ describe('owner-profile CLI command', () => {
   test('provenance prints the suffix and every superseded predecessor', async () => {
     const result = await handleOwnerProfileCommand(
       runtime(['provenance', 'commerce.shippingAddress']),
-      stubInvoke(() => ({
+      { invoke: stubInvoke(() => ({
         fieldId: 'commerce.shippingAddress',
         present: true,
         handEdited: false,
@@ -176,7 +204,7 @@ describe('owner-profile CLI command', () => {
           previousLine: 'shipping address: 401 Home St — tui, 2026-07-20, "ship to 401 Home St"',
           provenance: { surface: 'tui', date: '2026-07-20', said: 'ship to 401 Home St' },
         }],
-      })),
+      })) },
     );
 
     expect(result.exitCode).toBe(0);
@@ -188,7 +216,7 @@ describe('owner-profile CLI command', () => {
   test('a hand-edited line reports no provenance rather than inventing a source', async () => {
     const result = await handleOwnerProfileCommand(
       runtime(['provenance', 'identity.name']),
-      stubInvoke(() => ({ fieldId: 'identity.name', present: true, handEdited: true, superseded: [] })),
+      { invoke: stubInvoke(() => ({ fieldId: 'identity.name', present: true, handEdited: true, superseded: [] })) },
     );
 
     expect(result.exitCode).toBe(0);
@@ -198,7 +226,7 @@ describe('owner-profile CLI command', () => {
   test('read prints the document by section, with provenance on learned lines', async () => {
     const result = await handleOwnerProfileCommand(
       runtime(['read']),
-      stubInvoke(() => ({
+      { invoke: stubInvoke(() => ({
         state: {
           kind: 'loaded',
           path: '/home/owner/.goodvibes/daemon/owner-profile.md',
@@ -228,7 +256,7 @@ describe('owner-profile CLI command', () => {
             }],
           },
         ],
-      })),
+      })) },
     );
 
     expect(result.exitCode).toBe(0);
@@ -240,10 +268,10 @@ describe('owner-profile CLI command', () => {
   test('an unreadable profile exits non-zero with the reason, never an empty document', async () => {
     const result = await handleOwnerProfileCommand(
       runtime(['read']),
-      stubInvoke(() => ({
+      { invoke: stubInvoke(() => ({
         state: { kind: 'unavailable', path: '/x/owner-profile.md', reason: 'permission denied' },
         sections: [],
-      })),
+      })) },
     );
 
     expect(result.exitCode).toBe(1);
@@ -253,7 +281,7 @@ describe('owner-profile CLI command', () => {
   test('status prints load state, counts and invalid fields, and no values', async () => {
     const result = await handleOwnerProfileCommand(
       runtime(['status']),
-      stubInvoke(() => ({
+      { invoke: stubInvoke(() => ({
         kind: 'loaded',
         path: '/home/owner/.goodvibes/daemon/owner-profile.md',
         exists: true,
@@ -262,7 +290,7 @@ describe('owner-profile CLI command', () => {
         fieldCount: 9,
         proseLineCount: 6,
         invalidFields: [{ fieldId: 'location.timezone', reason: 'not an IANA zone' }],
-      })),
+      })) },
     );
 
     expect(result.exitCode).toBe(0);
@@ -271,8 +299,151 @@ describe('owner-profile CLI command', () => {
     expect(result.output).toContain('invalid location.timezone: not an IANA zone');
   });
 
+  test('read counts the People section when the output reaches a model', async () => {
+    // This output lands in the Agent transcript when the command runs as
+    // `/owner-profile` and in the workspace card, both of which a later turn
+    // can compose from — so the rule the tool applies applies here too (§10).
+    const result = await handleOwnerProfileCommand(
+      runtime(['read']),
+      { invoke: stubInvoke(() => ({
+        state: {
+          kind: 'loaded',
+          path: '/home/owner/.goodvibes/daemon/owner-profile.md',
+          exists: true,
+          lineCount: 12,
+          fieldCount: 1,
+          proseLineCount: 2,
+          sections: ['Identity', 'People'],
+          invalidFields: [],
+        },
+        sections: [
+          { heading: 'Identity', tier: 'open', fields: [{ fieldId: 'identity.goesBy', label: 'goes by', value: 'Mike', valid: true }], prose: [] },
+          {
+            heading: 'People',
+            tier: 'closed',
+            fields: [],
+            prose: [
+              { lineIndex: 8, section: 'People', text: 'Sarah, sister, sarah@example.com' },
+              { lineIndex: 9, section: 'People', text: 'Dave from work, handles the contracts' },
+            ],
+          },
+        ],
+      })) },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('goes by: Mike');
+    expect(result.output).toContain('2 people recorded; not listed here.');
+    expect(result.output).not.toContain('sarah@example.com');
+    expect(result.output).not.toContain('Dave from work');
+  });
+
+  test('read lists the People section at a shell, where no model sees it', async () => {
+    // His own file, printed to his own terminal. Withholding his list here
+    // would be friction with nothing gained — the containment exists to keep
+    // third-party details out of a transcript a later turn composes from, and
+    // there is no transcript.
+    const result = await handleOwnerProfileCommand(
+      runtime(['read']),
+      { outputEntersModelContext: false, invoke: stubInvoke(() => peopleProfile()) },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('sarah@example.com');
+    expect(result.output).toContain('Dave from work');
+    expect(result.output).not.toContain('not listed here');
+  });
+
+  test('a caller that does not say gets the containment, not the exposure', async () => {
+    // The default is the safe answer: a new call site that never thought about
+    // whether its output reaches a model counts rather than lists.
+    const result = await handleOwnerProfileCommand(
+      runtime(['read']),
+      { invoke: stubInvoke(() => peopleProfile()) },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('2 people recorded; not listed here.');
+    expect(result.output).not.toContain('sarah@example.com');
+  });
+
+  test('person prints one person by name, with the disclosure the daemon supplied', async () => {
+    const calls: Call[] = [];
+    const result = await handleOwnerProfileCommand(
+      runtime(['person', 'Sarah', '--named-by', 'email my sister the tickets']),
+      { invoke: stubInvoke(() => ({
+        name: 'Sarah',
+        lines: [{ lineIndex: 8, section: 'People', text: 'Sarah, sister, sarah@example.com' }],
+        disclosure: "Used Sarah's details from your profile.",
+      }), calls) },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('sarah@example.com');
+    expect(result.output).toContain("Used Sarah's details from your profile.");
+    // The verb takes a name and nothing else — --named-by is a gate at this
+    // surface, not a parameter invented for the daemon.
+    expect(calls[0]?.body).toEqual({ name: 'Sarah' });
+  });
+
+  test('a person who is not recorded exits non-zero and claims no receipt', async () => {
+    const result = await handleOwnerProfileCommand(
+      runtime(['person', 'Nobody', '--named-by', 'send it to Nobody']),
+      { invoke: stubInvoke(() => ({ name: 'Nobody', lines: [], disclosure: '' })) },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain('No one called Nobody is recorded in your profile.');
+    expect(result.output).not.toContain('Used Nobody');
+  });
+
+  test('get prints one field with provenance, and an unset one says so', async () => {
+    const present = await handleOwnerProfileCommand(
+      runtime(['get', 'location.timezone']),
+      { invoke: stubInvoke(() => ({
+        fieldId: 'location.timezone',
+        present: true,
+        field: {
+          fieldId: 'location.timezone',
+          label: 'timezone',
+          value: 'America/Detroit',
+          valid: true,
+          provenance: { surface: 'agent', date: '2026-07-27', said: 'I am in Detroit time' },
+        },
+        disclosure: '',
+      })) },
+    );
+    expect(present.exitCode).toBe(0);
+    expect(present.output).toContain('timezone: America/Detroit');
+    expect(present.output).toContain('you said: "I am in Detroit time"');
+
+    const absent = await handleOwnerProfileCommand(
+      runtime(['get', 'contact.phone']),
+      { invoke: stubInvoke(() => ({ fieldId: 'contact.phone', present: false, disclosure: '' })) },
+    );
+    expect(absent.exitCode).toBe(1);
+    expect(absent.output).toContain('is not set in your profile');
+  });
+
+  test('an invalid mechanical value comes back as written, with the reason', async () => {
+    const result = await handleOwnerProfileCommand(
+      runtime(['get', 'location.timezone']),
+      { invoke: stubInvoke(() => ({
+        fieldId: 'location.timezone',
+        present: true,
+        field: { fieldId: 'location.timezone', label: 'timezone', value: 'Mars/Olympus', valid: false, invalidReason: 'not an IANA zone' },
+        disclosure: '',
+      })) },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.output).toContain('Mars/Olympus');
+    expect(result.output).toContain('did not parse: not an IANA zone');
+    expect(result.output).toContain('treated as unset');
+  });
+
   test('an unknown subcommand prints usage', async () => {
-    const result = await handleOwnerProfileCommand(runtime(['wipe']), stubInvoke(() => ({})));
+    const result = await handleOwnerProfileCommand(runtime(['wipe']), { invoke: stubInvoke(() => ({})) });
     expect(result.exitCode).toBe(2);
     expect(result.output).toContain('Usage: goodvibes-agent owner-profile');
   });

@@ -1,4 +1,6 @@
 import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import type { AgentWorkspaceOwnerProfileEditorKind } from './agent-workspace-owner-profile-editors.ts';
+import { createAgentWorkspaceOwnerProfileEditor, isAgentWorkspaceOwnerProfileEditorKind } from './agent-workspace-owner-profile-editors.ts';
 import type { AgentWorkspaceAccessCommandEditorKind } from './agent-workspace-access-command-editors.ts';
 import { createAgentWorkspaceAccessCommandEditor, isAgentWorkspaceAccessCommandEditorKind } from './agent-workspace-access-command-editors.ts';
 import type { AgentWorkspaceChannelCommandEditorKind } from './agent-workspace-channel-command-editors.ts';
@@ -47,7 +49,7 @@ type AgentWorkspaceBasicOwnCommandEditorKind = Extract<
   | 'secret-set' | 'secret-link' | 'secret-test' | 'secret-delete'
 >;
 
-export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEditorKind | AgentWorkspaceChannelCommandEditorKind | AgentWorkspaceKnowledgeCommandEditorKind | AgentWorkspaceLibraryCommandEditorKind | AgentWorkspaceMcpCommandEditorKind | AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceMediaCommandEditorKind | AgentWorkspaceOperationsCommandEditorKind | AgentWorkspaceProviderCommandEditorKind | AgentWorkspaceSessionCommandEditorKind | AgentWorkspaceSkillBundleCommandEditorKind | AgentWorkspaceTaskCommandEditorKind | AgentWorkspaceProfileEditorKind | AgentWorkspaceBasicOwnCommandEditorKind;
+export type AgentWorkspaceBasicCommandEditorKind = AgentWorkspaceAccessCommandEditorKind | AgentWorkspaceChannelCommandEditorKind | AgentWorkspaceKnowledgeCommandEditorKind | AgentWorkspaceLibraryCommandEditorKind | AgentWorkspaceMcpCommandEditorKind | AgentWorkspaceMemoryCommandEditorKind | AgentWorkspaceMediaCommandEditorKind | AgentWorkspaceOperationsCommandEditorKind | AgentWorkspaceOwnerProfileEditorKind | AgentWorkspaceProviderCommandEditorKind | AgentWorkspaceSessionCommandEditorKind | AgentWorkspaceSkillBundleCommandEditorKind | AgentWorkspaceTaskCommandEditorKind | AgentWorkspaceProfileEditorKind | AgentWorkspaceBasicOwnCommandEditorKind;
 
 export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEditorKind): kind is AgentWorkspaceBasicCommandEditorKind {
   return isAgentWorkspaceAccessCommandEditorKind(kind)
@@ -58,6 +60,7 @@ export function isAgentWorkspaceBasicCommandEditorKind(kind: AgentWorkspaceEdito
     || isAgentWorkspaceMemoryCommandEditorKind(kind)
     || isAgentWorkspaceMediaCommandEditorKind(kind)
     || isAgentWorkspaceOperationsCommandEditorKind(kind)
+    || isAgentWorkspaceOwnerProfileEditorKind(kind)
     || isAgentWorkspaceProviderCommandEditorKind(kind)
     || isAgentWorkspaceSessionCommandEditorKind(kind)
     || isAgentWorkspaceSkillBundleCommandEditorKind(kind)
@@ -546,6 +549,9 @@ export function createAgentWorkspaceBasicCommandEditor(kind: AgentWorkspaceBasic
   }
   if (isAgentWorkspaceOperationsCommandEditorKind(kind)) {
     return createAgentWorkspaceOperationsCommandEditor(kind);
+  }
+  if (isAgentWorkspaceOwnerProfileEditorKind(kind)) {
+    return createAgentWorkspaceOwnerProfileEditor(kind);
   }
   if (isAgentWorkspaceProviderCommandEditorKind(kind)) {
     return createAgentWorkspaceProviderCommandEditor(kind);

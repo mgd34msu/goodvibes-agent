@@ -38,6 +38,17 @@ export type AgentWorkspaceEditorKind =
   | 'knowledge-consolidate'
   | 'knowledge-packet'
   | 'knowledge-explain'
+  // The owner profile — what the platform knows about HIM. Distinct from the
+  // 'profile' kind above, which is an isolated Agent profile home; nothing here
+  // is called `profile` unqualified, for the reason docs/owner-profile.md §3
+  // gives.
+  | 'owner-profile-read'
+  | 'owner-profile-get'
+  | 'owner-profile-person'
+  | 'owner-profile-provenance'
+  | 'owner-profile-set'
+  | 'owner-profile-forget'
+  | 'owner-profile-status'
   | 'document-browse'
   | 'document-show'
   | 'document-create'

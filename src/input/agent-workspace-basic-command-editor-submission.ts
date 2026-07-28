@@ -1,4 +1,5 @@
 import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
+import { buildAgentWorkspaceOwnerProfileEditorSubmission, isAgentWorkspaceOwnerProfileSubmissionKind } from './agent-workspace-owner-profile-editor-submission.ts';
 import { buildAgentWorkspaceAccessCommandEditorSubmission, isAgentWorkspaceAccessCommandSubmissionKind } from './agent-workspace-access-command-editor-submission.ts';
 import { buildAgentWorkspaceChannelCommandEditorSubmission, isAgentWorkspaceChannelCommandSubmissionKind } from './agent-workspace-channel-command-editor-submission.ts';
 import { buildAgentWorkspaceDelegationEditorSubmission, isAgentWorkspaceDelegationEditorKind } from './agent-workspace-delegation-editor-submission.ts';
@@ -373,6 +374,9 @@ export function buildAgentWorkspaceBasicCommandEditorSubmission(
   }
   if (isAgentWorkspaceMediaCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceMediaCommandEditorSubmission(editor, readField);
+  }
+  if (isAgentWorkspaceOwnerProfileSubmissionKind(editor.kind)) {
+    return buildAgentWorkspaceOwnerProfileEditorSubmission(editor, readField);
   }
   if (isAgentWorkspaceProviderCommandSubmissionKind(editor.kind)) {
     return buildAgentWorkspaceProviderCommandEditorSubmission(editor, readField);
