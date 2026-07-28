@@ -120,7 +120,7 @@ const OWNER_PROFILE_EDITOR_SPECS: Readonly<
     message: 'Delete one prose line — a note, a person, a place, a work line. Give the line exactly as the profile reads it: lines are named by their content, never by their position, because you edit this file yourself and a position from an earlier read can point somewhere else by now. If the text no longer matches, nothing is deleted and it says so.',
     fields: [
       { id: 'section', label: 'Section', value: '', required: true, multiline: false, hint: 'Notes, People, Places, Work, or Style.' },
-      { id: 'text', label: 'The line', value: '', required: true, multiline: false, hint: 'The line exactly as it reads in your profile, without its provenance suffix.' },
+      { id: 'text', label: 'The line', value: '', required: true, multiline: false, hint: 'The line as it reads in your profile, without the trailing note about where it came from. Matched on the whole line, so a paraphrase finds nothing.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to delete that line.' },
     ],
   },

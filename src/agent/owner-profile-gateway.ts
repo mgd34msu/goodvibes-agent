@@ -19,9 +19,9 @@
  */
 
 import type { GatewayMethodCatalog } from '@pellux/goodvibes-sdk/platform/control-plane';
-import type { OperatorMethodId } from '@pellux/goodvibes-sdk/contracts';
+import type { OperatorMethodId, OperatorMethodInput } from '@pellux/goodvibes-sdk/contracts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import type { ProfileMethodId } from '../tools/agent-profile-types.ts';
+import { PROFILE_METHOD_IDS, type ProfileMethodId } from '../tools/agent-profile-types.ts';
 import {
   formatOperatorGatewayFailure,
   invokeOperatorGatewayMethod,
@@ -41,9 +41,18 @@ export interface ProfileGatewayResult {
   readonly route: 'in-process' | 'connected-host' | 'unavailable';
 }
 
-export type ProfileGatewayInvoke = (
-  methodId: ProfileMethodId,
-  body: Record<string, unknown>,
+/**
+ * Generic over the verb, so each call's body is checked against THAT verb's
+ * declared input rather than against `Record<string, unknown>`.
+ *
+ * This is the guard that was missing when `profile.forget` dropped `lineIndex`:
+ * the old signature accepted any record, so a body built for the previous
+ * contract compiled clean and failed only against a live daemon. Now a stale
+ * field or a missing required one is a compile error at the call site.
+ */
+export type ProfileGatewayInvoke = <TMethodId extends ProfileMethodId>(
+  methodId: TMethodId,
+  body: OperatorMethodInput<TMethodId>,
 ) => Promise<ProfileGatewayResult>;
 
 export interface ProfileGatewayOptions {
@@ -54,16 +63,15 @@ export interface ProfileGatewayOptions {
 }
 
 /**
- * The nine ids are in the generated operator contract, so this is a widening to
- * the contract's own union rather than a claim about it — the compiler rejects
- * the assignment if a verb is ever renamed or dropped. `invokeOperatorGatewayMethod`
- * resolves the real HTTP binding from the contract the CONNECTED HOST serves,
- * so an older host that does not know the verb answers 404 and is classified as
- * a route-unavailable failure, which is the honest outcome rather than a crash.
+ * The nine ids are in the generated operator contract, so `ProfileMethodId`
+ * satisfies `OperatorMethodId` by assignment and the call below needs no widening
+ * at all — if a verb is ever renamed or dropped, that call stops compiling.
+ * `invokeOperatorGatewayMethod` resolves the real HTTP binding from the contract
+ * the CONNECTED HOST serves, so an older host that does not know the verb answers
+ * 404 and is classified as a route-unavailable failure rather than crashing.
  */
-function operatorMethodId(methodId: ProfileMethodId): OperatorMethodId {
-  return methodId;
-}
+const _profileIdsAreOperatorIds: readonly OperatorMethodId[] = Object.values(PROFILE_METHOD_IDS);
+void _profileIdsAreOperatorIds;
 
 /** Informational labels only; the SDK resolves the real binding from the contract. */
 const PROFILE_ROUTES: Readonly<Record<ProfileMethodId, string>> = {
@@ -98,9 +106,9 @@ export function createProfileGatewayInvoke(options: ProfileGatewayOptions): Prof
     }
 
     const connection = resolveAgentConnectedHostConnection(options.configManager, options.homeDirectory);
-    const result = await invokeOperatorGatewayMethod<unknown>(
+    const result = await invokeOperatorGatewayMethod(
       connection,
-      operatorMethodId(methodId),
+      methodId,
       profileRouteLabel(methodId),
       body,
     );

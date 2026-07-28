@@ -366,7 +366,8 @@ async function handleForget(
       'Say what to forget: either `fieldId` for a mechanical field, or `section` plus the exact `text` of the line.',
       '  A note, a person, a place or a work line is addressed by its text, not by its position —',
       '  he edits this file himself, so a line number from an earlier read may point at a different line now.',
-      '  Read the profile first and pass the line back exactly as it reads.',
+      '  Read the profile first and pass the line back in his words. A list marker is not part of the line.',
+      '  The match is on the whole line, so a paraphrase or a partial line finds nothing.',
     ]);
   }
   const target = fieldId || `the line "${text}" under ${section}`;
@@ -421,7 +422,7 @@ export function createAgentProfileTool(deps: AgentProfileToolDeps): Tool {
           fieldId: { type: 'string', description: 'Mechanical field id, e.g. location.timezone, commerce.shippingAddress.' },
           value: { type: 'string', description: 'The value to record for `fieldId`.' },
           section: { type: 'string', description: 'Section to append a note to, or the section of the line to forget: Notes, Places, Work, Style, People.' },
-          text: { type: 'string', description: 'The note to append, or — when forgetting a prose line — its exact text as the profile reads it.' },
+          text: { type: 'string', description: 'The note to append, or — when forgetting a prose line — the line as he would say it. A list marker is not part of it.' },
           // No lineIndex: a prose line is named by its content. See handleForget.
 
           name: { type: 'string', description: 'One person, by a name he used this turn. There is no list-everyone call.' },

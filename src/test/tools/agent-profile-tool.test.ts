@@ -23,6 +23,17 @@ interface RecordedCall {
   readonly body: Record<string, unknown>;
 }
 
+/**
+ * The invoker is generic per verb now, so a recorded body arrives as a union of
+ * the real per-verb inputs rather than a loose record. That is the point — it
+ * is what makes a stale field a compile error at the call site — so the test
+ * harness widens deliberately at the one place it inspects bodies, instead of
+ * the production seam widening for everyone.
+ */
+function recordedBody(body: unknown): Record<string, unknown> {
+  return (body ?? {}) as Record<string, unknown>;
+}
+
 /** The store's shape for a write that did not happen: never a thrown status. */
 function refused(reason: string): Record<string, unknown> {
   return { ok: false, reason, changes: [], disclosure: '' };
@@ -38,8 +49,9 @@ function stubTool(
 ): { readonly tool: Tool; readonly calls: RecordedCall[] } {
   const tool = createAgentProfileTool({
     invoke: async (methodId, body): Promise<ProfileGatewayResult> => {
-      calls.push({ methodId, body });
-      return { ok: true, data: respond(methodId, body), route: 'in-process' };
+      const recorded = recordedBody(body);
+      calls.push({ methodId, body: recorded });
+      return { ok: true, data: respond(methodId, recorded), route: 'in-process' };
     },
   });
   return { tool, calls };
@@ -273,9 +285,10 @@ describe('profile tool — forgetting something that was not there', () => {
     const calls: RecordedCall[] = [];
     const tool = createAgentProfileTool({
       invoke: async (methodId, body): Promise<ProfileGatewayResult> => {
-        calls.push({ methodId, body });
-        const section = String(body.section ?? '');
-        const wanted = String(body.text ?? '');
+        const recorded = recordedBody(body);
+        calls.push({ methodId, body: recorded });
+        const section = String(recorded.section ?? '');
+        const wanted = String(recorded.text ?? '');
         const index = document.findIndex((line) => line.section === section && line.text === wanted);
         if (index < 0) {
           return { ok: true, data: refused(`Your profile has no line reading "${wanted}" under ${section} any more.`), route: 'in-process' };

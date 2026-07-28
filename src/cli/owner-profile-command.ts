@@ -43,7 +43,7 @@ const PROVENANCE_USAGE = 'Usage: goodvibes-agent owner-profile provenance <field
 const SET_USAGE = 'Usage: goodvibes-agent owner-profile set <fieldId> <value> [--said "<your words>"] --yes';
 const FORGET_USAGE = [
   'Usage: goodvibes-agent owner-profile forget <fieldId> --yes',
-  '       goodvibes-agent owner-profile forget --section <section> --text "<the line, exactly>" --yes',
+  '       goodvibes-agent owner-profile forget --section <section> --text "<the line, as it reads>" --yes',
 ].join('\n');
 const STATUS_USAGE = 'Usage: goodvibes-agent owner-profile status';
 const OWNER_PROFILE_USAGE = [
