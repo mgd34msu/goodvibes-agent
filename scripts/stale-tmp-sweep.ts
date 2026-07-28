@@ -403,7 +403,6 @@ export const KNOWN_TMPDIR_PREFIXES: readonly string[] = [
   'gv-agent-settings-boundary-',
   'gv-agent-test-',
   'gv-approval-posture-',
-  'gv-automation-foundation-',
   'gv-cal-boot-',
   'gv-cal-oauth-',
   'gv-cal-runtime-',

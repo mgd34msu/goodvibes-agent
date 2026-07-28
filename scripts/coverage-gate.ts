@@ -24,6 +24,7 @@ import {
   type CoverageConfig,
   type CoverageSummary as ToolchainCoverageSummary,
 } from '@pellux/goodvibes-toolchain';
+import { sweepStaleRealTmpDirs } from './stale-tmp-sweep.ts';
 
 function coverageConfig(cwd: string = process.cwd()): CoverageConfig {
   const coverage = loadToolchainConfig(cwd).coverage;
@@ -92,12 +93,33 @@ export interface RunGateOptions {
 export async function runCoverageGate(options: RunGateOptions = {}): Promise<GateResult> {
   const cwd = options.cwd ?? process.cwd();
   const cmd = options.cmd ?? [...COVERAGE.command];
+  // `bun run test` (scripts/run-tests.ts) sweeps this project's own stale
+  // real-os.tmpdir() entries before and after every run. This gate spawns a
+  // second, separate whole-suite `bun test --coverage` process directly and
+  // is invoked on its own (`bun run coverage:gate`, and from ci:gate), so a
+  // stale-entry sweep here is not optional — it's the only sweep this entry
+  // point gets. See scripts/stale-tmp-sweep.ts for the prefix list and the
+  // one-hour age gate that makes this safe to run unconditionally, even
+  // alongside another repo's own test run sharing the same real /tmp.
+  const swept = sweepStaleRealTmpDirs();
+  if (swept.swept.length > 0) {
+    console.log(`coverage-gate: tmp-sweep removed ${swept.swept.length} stale director${swept.swept.length === 1 ? 'y' : 'ies'} from os.tmpdir() (scanned ${swept.scanned} entries).`);
+  }
   const proc = Bun.spawn(cmd, { cwd, stdout: 'pipe', stderr: 'pipe' });
   const [stdout, stderr] = await Promise.all([
     new Response(proc.stdout).text(),
     new Response(proc.stderr).text(),
   ]);
   const exitCode = await proc.exited;
+  // Sweep again after this run too (mirrors run-tests.ts's before-and-after
+  // pattern) — this coverage pass doesn't redirect TMPDIR the way
+  // run-tests.ts does, so the two tests that legitimately still write under
+  // real os.tmpdir() (see KNOWN_TMPDIR_PREFIXES) create their entries there
+  // during THIS run; no need to wait for the next invocation to reclaim them.
+  const sweptAfter = sweepStaleRealTmpDirs();
+  if (sweptAfter.swept.length > 0) {
+    console.log(`coverage-gate: tmp-sweep removed ${sweptAfter.swept.length} stale director${sweptAfter.swept.length === 1 ? 'y' : 'ies'} from os.tmpdir() (scanned ${sweptAfter.scanned} entries).`);
+  }
   const result = evaluateGate(stdout + '\n' + stderr);
   if (!result.pass && parseCoverageSummary(stdout + '\n' + stderr) === null) {
     result.lines.push('coverage-gate: child exit code ' + exitCode);
