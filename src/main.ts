@@ -390,6 +390,9 @@ async function main() {
   commandContext.submitSpokenInput = (text, content) => submitInput(text, content, { spokenOutput: true });
   commandContext.stopSpokenOutput = () => spokenTurns.stop();
   commandContext.pasteFromClipboard = () => input.handlePaste();
+  // Composer line prompts: masked for card material, echoed for addresses (see input/handler-line-prompts.ts).
+  commandContext.beginConcealedInput = (request) => input.beginConcealedInput(request);
+  commandContext.beginPlainInput = (request) => input.beginPlainInput(request);
   commandContext.executeCommand = (name, args) => commandRegistry.execute(name, args, commandContext);
   commandContext.cancelGeneration = cancelGeneration;
   commandContext.jumpToBookmark = jumpToBookmark;

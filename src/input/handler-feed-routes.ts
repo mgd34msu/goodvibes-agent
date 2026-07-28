@@ -155,6 +155,13 @@ export type KeyRouteState = {
   findMarkerAtPos: (pos: number) => { start: number; end: number } | null;
   cleanupMarkerRegistry: (markerText: string) => void;
   expandPrompt: (text: string) => string | ContentPart[];
+  /**
+   * Deliver a concealed submission. When it returns true, concealed mode was
+   * active and consumed the value — the plaintext went straight to the
+   * requester, bypassing input history and the transcript. Optional so bare
+   * test callers can omit it.
+   */
+  submitConcealedInput?: (value: string) => boolean;
   scroll: (delta: number) => void;
   exitApp: () => void;
   requestRender: () => void;
@@ -211,6 +218,23 @@ export function handlePromptKeyToken(state: KeyRouteState, token: InputToken): {
       prompt = prompt.slice(0, cursorPos) + '\n' + prompt.slice(cursorPos);
       cursorPos++;
       ensureLocalInputCursorVisible();
+      return { handled: true, prompt, cursorPos, inputScrollTop, commandMode, indicatorFocused };
+    }
+
+    // Concealed input: the typed line is a secret. Deliver the plaintext (the
+    // live feed snapshot, not the possibly-stale handler buffer) to the
+    // concealed consumer, never to input history or the transcript, then clear.
+    //
+    // This sits ABOVE everything else in the enter branch on purpose. Below it
+    // the line would be trimmed, tested against :q/:wq, and — the one that
+    // actually matters — handed to inputHistory.add(), which persists to
+    // ~/.goodvibes/agent/input-history.json. A card number recalled with
+    // arrow-up, or sitting in that file on disk, is the same leak as one
+    // printed into the transcript.
+    if (state.submitConcealedInput?.(prompt)) {
+      prompt = '';
+      cursorPos = 0;
+      state.requestRender();
       return { handled: true, prompt, cursorPos, inputScrollTop, commandMode, indicatorFocused };
     }
 

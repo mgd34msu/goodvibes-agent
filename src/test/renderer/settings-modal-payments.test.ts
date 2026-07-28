@@ -79,7 +79,7 @@ describe('renderSettingsModal payments category', () => {
   test('the payments category renders without crashing and shows its keys', () => {
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItemCents');
     const texts = linesToText(renderSettingsModal(modal, W)).join('\n');
-    expect(texts).toContain('Payments (14)');
+    expect(texts).toContain('Payments (32)');
     expect(texts).toContain('payments.budget.dailyItemCents');
     expect(texts).toContain('Daily Item Budget');
   });
@@ -131,19 +131,51 @@ describe('renderSettingsModal payments category', () => {
     expect(texts).not.toContain(CVV_PROMPT_TRADEOFF_WARNING.slice(0, 40));
   });
 
-  test('no rendered category ever populates a setting entry for a cvv/pan/cardNumber-shaped key other than the handling mode', () => {
-    // The schema-level guard (settings-modal-payments.test.ts) proves
-    // CONFIG_SCHEMA carries no such key at all. This proves the renderer's
-    // OWN populated groups — including any synthetic entries it injects,
-    // like display.themeMode — carry none either.
+  test('the four card-material keys exist only in the payments category, and nowhere else', () => {
+    // They used to exist nowhere at all, because this surface had no card entry.
+    // It has one now (/payments card, input/commands/payment-card-intake.ts), so
+    // the claim worth protecting is no longer "no such key" — it is that the
+    // keys are confined to payments and that their VALUES never render, which
+    // the next test asserts.
     for (const category of SETTINGS_CATEGORIES) {
       if (category === 'flags' || category === 'mcp' || category === 'subscriptions') continue;
       const entries = modal.groups.get(category) ?? [];
-      const suspicious = entries
-        .map((entry) => entry.setting.key)
-        .filter((key) => /cvv|\bpan\b|cardnumber/i.test(key))
+      const cardShaped: string[] = entries
+        .map((entry) => String(entry.setting.key))
+        .filter((key) => /cvv|\bpan\b|cardnumber|cardholder|cardexpiry/i.test(key))
         .filter((key) => key !== 'payments.cvvHandling');
-      expect(suspicious).toEqual([]);
+      if (category === 'payments') {
+        expect(cardShaped.sort()).toEqual(['payments.cardCvv', 'payments.cardExpiry', 'payments.cardNumber', 'payments.cardholderName'].sort());
+      } else {
+        expect(cardShaped).toEqual([]);
+      }
     }
+  });
+
+  test('no category ever renders a card value — masked at rest and masked mid-edit', () => {
+    const FAKE_PAN = '4000056655665556';
+    const FAKE_CODE = '731';
+
+    // At rest: a stored value is a goodvibes:// reference, but even a raw
+    // literal (which only a bug could produce) must not reach the frame.
+    cm.setDynamic('payments.cardNumber' as never, FAKE_PAN);
+    cm.setDynamic('payments.cardCvv' as never, FAKE_CODE);
+    reopen();
+
+    const atRest = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    expect(atRest).not.toContain(FAKE_PAN);
+
+    // Mid-edit: the in-progress buffer is the window that matters, and it is
+    // the one masking at rest alone would leave wide open.
+    const idx = modal.currentItems.findIndex((entry) => String(entry.setting.key) === 'payments.cardNumber');
+    expect(idx).toBeGreaterThanOrEqual(0);
+    while (modal.selectedIndex !== idx) modal.moveDown();
+    modal.activateSelected();
+    expect(modal.editingMode).toBe(true);
+    for (const ch of FAKE_PAN) modal.editChar(ch);
+
+    const midEdit = linesToText(renderSettingsModal(modal, W, 40)).join('\n');
+    expect(midEdit).not.toContain(FAKE_PAN);
+    expect(midEdit).toContain('\u2022'.repeat(FAKE_PAN.length));
   });
 });

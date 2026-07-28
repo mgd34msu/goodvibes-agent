@@ -71,6 +71,26 @@ export interface CommandUiActions {
     kind: 'image' | 'text' | 'none';
     marker?: string;
   };
+  /**
+   * Ask the composer for one line of MASKED entry (see input/concealed-input.ts).
+   * The typed characters are never echoed, never added to input history, and
+   * never printed to the transcript; the plaintext reaches `onSubmit` exactly
+   * once. Used by `/payments card` for card number, expiry, CVV and cardholder
+   * name.
+   *
+   * Optional because a command context can be built without a live composer
+   * (CLI paths, tests). A caller that needs concealment MUST refuse to fall
+   * back to plaintext entry when this is absent rather than degrade — see
+   * commands/payment-card-intake.ts.
+   */
+  beginConcealedInput?: (request: import('./concealed-input.ts').ConcealedInputRequest) => void;
+  /**
+   * Ask the composer for one line of ORDINARY, echoed entry — the unmasked
+   * sibling of beginConcealedInput, used by `/payments address` for the seven
+   * billing / shipping fields. Deliberately a separate call rather than a flag
+   * on the concealed request; see input/plain-line-input.ts.
+   */
+  beginPlainInput?: (request: import('./plain-line-input.ts').PlainLineInputRequest) => void;
   executeCommand?: (name: string, args: string[]) => Promise<boolean>;
   cancelGeneration?: () => void;
   completeModelSelection?: (selection: {

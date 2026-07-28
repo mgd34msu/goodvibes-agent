@@ -4,6 +4,11 @@ import type {
   ChannelDeliverySurfaceKind,
   ChannelDeliveryTarget,
 } from '@pellux/goodvibes-sdk/platform/channels';
+import {
+  CardMaterialRefusedError,
+  resolveDeliverySurfaceName,
+  screenOutboundForCardMaterial,
+} from './payments-channel-guard.ts';
 
 type AgentChannelDeliveryRouter = Pick<ChannelDeliveryRouter, 'deliver' | 'listStrategies'>;
 type AgentChannelDeliverySurfaceKind = ChannelDeliverySurfaceKind | 'telephony';
@@ -173,6 +178,23 @@ export async function deliverAgentChannelMessage(
   input: AgentChannelDeliveryInput,
 ): Promise<AgentChannelDeliveryResult> {
   const preview = buildAgentChannelDeliveryPreview(input);
+
+  // Card material never leaves this program toward a remote channel. This is
+  // the single outbound funnel (see channelDeliveriesInFlight above), so one
+  // check here covers every send: a model composing a message, a routine, a
+  // person answering a prompt in the wrong place.
+  //
+  // It refuses BEFORE router.deliver, so nothing reaches a provider, and it
+  // throws rather than returning a result, so no caller can treat a refusal as
+  // a successful send. The thrown message is the SDK's refusal wording and
+  // contains no part of what was refused — see agent/payments-channel-guard.ts.
+  const refusal = screenOutboundForCardMaterial({
+    surface: resolveDeliverySurfaceName(preview.target),
+    message: preview.message,
+    title: preview.title,
+  });
+  if (refusal) throw new CardMaterialRefusedError(refusal);
+
   inFlightDeliveries += 1;
   let responseId: string | undefined;
   try {

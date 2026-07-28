@@ -6,7 +6,7 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { getResolvedSettingLookup } from '@/runtime/index.ts';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
-import { buildGoodVibesSecretKey, isSecretConfigKey } from '../config/secret-config.ts';
+import { buildGoodVibesSecretKey, defaultSecretBackedScope, isSecretConfigKey } from '../config/secret-config.ts';
 import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
@@ -26,6 +26,7 @@ import {
   THEME_MODE_DEFAULT,
   THEME_MODE_SYNTHETIC_SETTING,
 } from '../renderer/theme-mode-config.ts';
+import { buildPaymentsSyntheticEntries } from './payments-config.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { FlagState } from '@/runtime/index.ts';
 import { FEATURE_SETTINGS } from '@/runtime/index.ts';
@@ -590,7 +591,11 @@ export class SettingsModal {
     const key = entry.setting.key as ConfigKey;
     this._setValue(key, entry.setting.default);
     if (isSecretConfigKey(key) && this.secretsManager) {
-      void this.secretsManager.delete(buildGoodVibesSecretKey(key), { scope: 'user' }).catch((error) => {
+      // Same scope the value was WRITTEN at (defaultSecretBackedScope), or the
+      // reset clears nothing: a payments.* / surfaces.* secret lives in the
+      // daemon tier, and deleting the user-tier copy would leave the real one
+      // in place while the UI reported the setting reset.
+      void this.secretsManager.delete(buildGoodVibesSecretKey(key), { scope: defaultSecretBackedScope(key) }).catch((error) => {
         logger.error('SettingsModal: failed to clear secret while resetting setting', { key, error: summarizeError(error) });
       });
     }
@@ -658,6 +663,22 @@ export class SettingsModal {
         currentValue: themeModeValue,
         isDefault: themeModeValue === THEME_MODE_DEFAULT,
       });
+    }
+
+    // Inject the four card-material fields (number, expiry, CVV, cardholder
+    // name). They are synthetic because CONFIG_SCHEMA deliberately carries no
+    // scalar entry for card material — it lives write-only in the daemon
+    // secret store and config holds only a goodvibes:// reference. Listing
+    // them here is what gives the settings modal a visible "set / not set"
+    // row for each and a masked edit path; the primary entry point remains
+    // the guided `/payments card` flow. See input/payments-config.ts.
+    const paymentsEntries = this.groups.get('payments');
+    if (paymentsEntries) {
+      for (const entry of buildPaymentsSyntheticEntries(configManager)) {
+        if (!paymentsEntries.some((existing) => existing.setting.key === entry.setting.key)) {
+          paymentsEntries.push(entry);
+        }
+      }
     }
 
     const uiEntries = this.groups.get('ui');

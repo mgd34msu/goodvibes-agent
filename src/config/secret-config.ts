@@ -1,4 +1,4 @@
-import { isSecretRefInput } from '@pellux/goodvibes-sdk/platform/config';
+import { isSecretRefInput, isDaemonOwnedConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigKey } from './index.ts';
 import type { SecretScope, SecretStorageMedium } from './secrets.ts';
 
@@ -27,6 +27,20 @@ export const SECRET_CONFIG_KEYS = new Set<ConfigKey>([
   'surfaces.bluebubbles.password',
   'surfaces.mattermost.botToken',
   'surfaces.matrix.accessToken',
+  // Card MATERIAL — the four fields entered through the concealed-input flow in
+  // input/commands/payment-card-intake.ts. Synthetic sub-keys one level under
+  // the SDK's real `payments` section (CONFIG_SCHEMA has no scalar entry for
+  // them, hence the cast — the same situation as `email.passwordRef` above).
+  // See input/payments-config.ts for why they are named flat
+  // (`payments.cardNumber`, not `payments.card.number`).
+  //
+  // Membership here is what makes them masked at rest AND mid-edit in the
+  // settings modal, and what routes a settings-modal edit through the
+  // secret-manager path instead of writing plaintext into a config file.
+  'payments.cardNumber' as ConfigKey,
+  'payments.cardExpiry' as ConfigKey,
+  'payments.cardCvv' as ConfigKey,
+  'payments.cardholderName' as ConfigKey,
 ]);
 
 export interface SecretBackedConfigUpdate {
@@ -100,6 +114,27 @@ export function buildSecretBackedConfigUpdate(configKey: ConfigKey, rawValue: st
   };
 }
 
+/**
+ * Where a secret-backed write lands when the caller did not name a scope.
+ *
+ * A daemon-owned config key (`surfaces.*`, `payments.*`, ...) names a
+ * credential the DAEMON executes with, not this interactive client, so its
+ * secret material belongs in the daemon-scoped tier the daemon actually
+ * reads — the same rule the SDK's config-ownership.ts already applies to the
+ * `goodvibes://` reference that points at it.
+ *
+ * Defaulting these to 'user' (the historical behavior here) split the pair: the
+ * reference landed in the daemon's own settings file, because ConfigManager
+ * routes daemon-owned keys there, while the value it pointed at sat in a tier
+ * the daemon never resolves. The surface reported success and the daemon found
+ * nothing. For a payment card that is the whole feature failing silently —
+ * the daemon is the process that completes an unattended purchase, and it does
+ * so with every surface closed.
+ */
+export function defaultSecretBackedScope(configKey: ConfigKey): SecretScope {
+  return isDaemonOwnedConfigKey(configKey) ? 'daemon' : 'user';
+}
+
 export async function persistSecretBackedConfigValue(
   configManager: SecretBackedConfigManager,
   secretsManager: SecretBackedSecretStore | null | undefined,
@@ -108,7 +143,7 @@ export async function persistSecretBackedConfigValue(
   options: { readonly scope?: SecretScope } = {},
 ): Promise<string> {
   const update = buildSecretBackedConfigUpdate(configKey, rawValue);
-  const scope = options.scope ?? 'user';
+  const scope = options.scope ?? defaultSecretBackedScope(configKey);
   const medium = getSecretWriteMedium(configManager.get('storage.secretPolicy'));
 
   // 1. Validate config write first. If setDynamic throws, no secret is written (avoids orphans).

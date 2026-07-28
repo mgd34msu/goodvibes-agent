@@ -358,6 +358,85 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     asserts: "selecting a real IANA zone from the picker writes that exact zone name; selecting the explicit UTC (unset) row writes '' rather than leaving free text entry as an option",
   },
 
+  // --- Payments addresses (payments.{billing,shipping}Address.*) -----------
+  // The fourteen address keys entered this repo's settings denominator when the
+  // SDK grew them AND this repo grew a consumer for them — the guided
+  // `/payments address` flow in commands/payment-card-intake.ts. They are
+  // covered by driving that real flow, not the schema: each key is taken to two
+  // distinct values in turn and the outcome is asserted per key in both the
+  // stored config and the rendered `/payments status` view, so a consumer that
+  // started ignoring one field would fail on that field by name.
+  {
+    key: 'payments.billingAddress.name',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'the guided flow writes this specific field, a second run replaces it with a different name, and the /payments status rendering shows the new value and no longer the old one',
+  },
+  {
+    key: 'payments.billingAddress.line1',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own typed street line and is replaced independently on a second run; the previous value disappears from the status rendering rather than being appended to it',
+  },
+  {
+    key: 'payments.billingAddress.line2',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own second address line, and a whitespace-only answer keeps whatever was there instead of clearing the field',
+  },
+  {
+    key: 'payments.billingAddress.city',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own city value and changes independently of the other six fields when the flow is run a second time',
+  },
+  {
+    key: 'payments.billingAddress.region',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own state/region value and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.billingAddress.postalCode',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own postal code and changes independently on a second run; it is entered in the clear and is not routed through the masked card path',
+  },
+  {
+    key: 'payments.billingAddress.country',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own country value and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.shippingAddress.name',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'the shipping flow writes this field separately from the billing one, and a second run replaces it with a different name',
+  },
+  {
+    key: 'payments.shippingAddress.line1',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own street line, lands in the daemon-owned config tier a purchase reads from, and is replaced independently on a second run',
+  },
+  {
+    key: 'payments.shippingAddress.line2',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own second line, and a whitespace-only answer keeps the existing value rather than clearing it',
+  },
+  {
+    key: 'payments.shippingAddress.city',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own city value and changes independently of the other shipping fields on a second run',
+  },
+  {
+    key: 'payments.shippingAddress.region',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own state/region value and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.shippingAddress.postalCode',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own postal code and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.shippingAddress.country',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own country value and changes independently on a second run through the real guided flow',
+  },
+
   // NOT COVERED, deliberately: device.nodes.maxPaired. The key is declared in
   // schema-domain-device.ts and associated with the paired-device feature in
   // flag-config-map.ts, but nothing reads it — no pairing path bounds the number of

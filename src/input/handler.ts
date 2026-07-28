@@ -60,6 +60,14 @@ import {
   type WrappedPromptInfo,
 } from './handler-prompt-buffer.ts';
 import { clearModalStack, handleEscape, modalOpened } from './handler-modal-stack.ts';
+import { maskConcealedText, type ConcealedInputRequest } from './concealed-input.ts';
+import type { PlainLineInputRequest } from './plain-line-input.ts';
+import {
+  beginConcealedInputForHandler,
+  beginPlainInputForHandler,
+  submitLinePromptForHandler,
+  cancelLinePromptForHandler,
+} from './handler-line-prompts.ts';
 import { handleModalTokenRoutes } from './handler-modal-token-routes.ts';
 import { handleCommandModeToken } from './handler-command-route.ts';
 import { handleGlobalShortcutToken } from './handler-shortcuts.ts';
@@ -80,6 +88,20 @@ export class InputHandler {
   public prompt = '';
   public cursorPos = 0;
   public showExitNotice = false;
+  /**
+   * Active concealed-input request, or null. When set, the composer masks its
+   * echo (see getWrappedPromptInfo) and diverts submission to the request's
+   * onSubmit (see submitConcealedInput) instead of the normal chat/command
+   * path, so the plaintext never reaches input history or the transcript.
+   */
+  public concealedInput: ConcealedInputRequest | null = null;
+  /**
+   * Active plain-line request, or null. Same chaining shape as concealedInput
+   * but echoed normally — see plain-line-input.ts for why the two are separate
+   * slots rather than one type with a masking flag. At most one of the two is
+   * ever set; the begin* methods below enforce that.
+   */
+  public plainLineInput: PlainLineInputRequest | null = null;
   /** Max visible rows for the input area. Content beyond this scrolls internally. */
   public static readonly MAX_INPUT_ROWS = 8;
   /** Internal scroll offset for the input area when content exceeds MAX_INPUT_ROWS. */
@@ -243,7 +265,12 @@ export class InputHandler {
       },
       {
         modalOpened: (name: string) => this.modalOpened(name),
-        handleEscape: () => { this.handleEscape(); this.syncFeedContextMutableFields(); },
+        // Escape cancels a pending concealed prompt FIRST. Falling through to
+        // the normal modal-stack escape would leave the request dangling — its
+        // onCancel never fires, the caller's chained flow never resumes or
+        // stops, and the composer silently stays in masked mode.
+        handleEscape: () => { if (!this.cancelConcealedInput()) this.handleEscape(); this.syncFeedContextMutableFields(); },
+        submitConcealedInput: (value: string) => this.submitConcealedInput(value),
         handleCopy: () => this.handleCopy(),
         handleCtrlC: () => { this.handleCtrlC(); this.syncFeedContextMutableFields(); },
         handleBlockCopy: () => this.handleBlockCopy(),
@@ -339,6 +366,20 @@ export class InputHandler {
   }
   public clearModalStack(): void { clearModalStackForHandler(this); }
   public handleEscape(): void { handleEscapeForHandler(this); }
+
+  // ── Composer line prompts (see handler-line-prompts.ts) ─────────────────
+
+  /** Begin one line of masked composer entry. */
+  public beginConcealedInput(request: ConcealedInputRequest): void { beginConcealedInputForHandler(this, request); }
+
+  /** Begin one line of ordinary, echoed composer entry. */
+  public beginPlainInput(request: PlainLineInputRequest): void { beginPlainInputForHandler(this, request); }
+
+  /** Deliver an Enter to a pending line prompt. True means it was consumed. */
+  public submitConcealedInput(value: string): boolean { return submitLinePromptForHandler(this, value); }
+
+  /** Cancel a pending line prompt of either kind (Escape). */
+  public cancelConcealedInput(): boolean { return cancelLinePromptForHandler(this); }
 
   public openModelPickerWithTarget(target: ModelPickerTarget): boolean {
     const openModelPicker = this.commandContext?.openModelPicker;
@@ -625,8 +666,14 @@ export class InputHandler {
    * and the visible slice respecting inputScrollTop.
    */
   public getWrappedPromptInfo(contentWidth: number): WrappedPromptInfo {
+    // In concealed mode, wrap the MASKED buffer. maskConcealedText preserves
+    // length and newlines, so wrapping and cursor coordinates are identical to
+    // the plaintext while no plaintext character reaches the screen buffer.
+    // This is the ONLY place the composer's text becomes screen lines, so
+    // masking here covers every renderer that draws the composer.
+    const displayPrompt = this.concealedInput ? maskConcealedText(this.prompt) : this.prompt;
     return getWrappedPromptInfo(
-      this.prompt,
+      displayPrompt,
       this.cursorPos,
       this.inputScrollTop,
       contentWidth,

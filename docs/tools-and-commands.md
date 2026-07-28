@@ -311,6 +311,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/notes` | Open Agent-local scratchpad notes in the operator workspace. |
 | `/notify` | Manage and send configured Agent webhook notifications. |
 | `/paste` | Insert clipboard text or image into the prompt. |
+| `/payments` | Enter the payment card (masked input: number, expiry, CVV, cardholder name) and the billing/shipping addresses the daemon uses for purchases. Card material is stored at daemon scope and never rendered back; budgets, windows and CVV handling live in Settings > Payments. |
 | `/personas` | Manage Agent-local personas. |
 | `/pin` | Pin a model to the favorites list. |
 | `/prev-error` | Jump to the previous error message in the conversation. |

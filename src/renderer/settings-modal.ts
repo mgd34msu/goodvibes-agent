@@ -11,6 +11,7 @@ import { SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../input/settings
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { CATEGORY_LABELS, describeUiRouting, formatValue, getSettingLabel, inferSubscriptionRouteReason, valueColor } from './settings-modal-helpers.ts';
 import { isSecretConfigKey } from '../config/secret-config.ts';
+import { maskConcealedText } from '../input/concealed-input.ts';
 import { formatMoneyForDisplay, isMoneyMinorUnitsConfigKey } from '../config/payments-money-format.ts';
 import { CVV_PROMPT_TRADEOFF_WARNING } from '@pellux/goodvibes-sdk/platform/payments';
 import { formatProviderAuthRouteId } from '../provider-auth-route-display.ts';
@@ -159,7 +160,22 @@ function formatDefaultForEntry(modal: SettingsModal, entry: SettingEntry): strin
 }
 
 function currentSettingValue(modal: SettingsModal, entry: SettingEntry, selected: boolean): string {
-  if (selected && modal.editingMode) return `${modal.editBuffer}${GLYPHS.surface.cursor}`;
+  if (selected && modal.editingMode) {
+    // Secret-backed keys (payments.cardNumber/.cardCvv/..., surfaces.*.botToken,
+    // .signingSecret — see config/secret-config.ts) must never echo the
+    // in-progress plaintext buffer: not in the table row, not in the
+    // "Current: ..." context line, not in search results. Masking only at rest
+    // leaves the value fully readable for the entire time it is being typed,
+    // which is the window that matters for someone reading over a shoulder or
+    // a terminal recording.
+    //
+    // Reuses the composer's own concealed-input mask rather than a second
+    // implementation, so both entry paths (this modal and /payments card) mask
+    // identically — same bullet-per-character shape, so keystrokes still
+    // visibly register without revealing content.
+    const buffer = isSecretConfigKey(entry.setting.key) ? maskConcealedText(modal.editBuffer) : modal.editBuffer;
+    return `${buffer}${GLYPHS.surface.cursor}`;
+  }
   if (isMoneyMinorUnitsConfigKey(entry.setting.key) && typeof entry.currentValue === 'number') {
     return formatMoneyForDisplay(entry.currentValue, currentPaymentsCurrency(modal));
   }
