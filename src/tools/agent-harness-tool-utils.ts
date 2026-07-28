@@ -15,10 +15,20 @@ export function settingLookupArgs(args: AgentHarnessToolArgs) {
   };
 }
 
-export function readLimit(value: unknown, fallback: number): number {
+/**
+ * Reads a caller-supplied page size, bounded by a ceiling.
+ *
+ * `max` defaults to 500 because that suits the small catalogs, but a surface
+ * whose catalog can outgrow it must pass its own — a ceiling below the catalog
+ * silently drops the tail. Whatever ceiling applies, the caller of this
+ * function still owes the response a `returned`/`total` pair (see
+ * {@link catalogEnvelope}); clamping quietly is the failure this parameter
+ * exists to make impossible to reach by accident.
+ */
+export function readLimit(value: unknown, fallback: number, max = 500): number {
   const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
-  return Math.max(1, Math.min(500, Math.trunc(parsed)));
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return Math.max(1, Math.min(max, fallback));
+  return Math.max(1, Math.min(max, Math.trunc(parsed)));
 }
 
 export function readFieldMap(value: unknown): Readonly<Record<string, string>> {

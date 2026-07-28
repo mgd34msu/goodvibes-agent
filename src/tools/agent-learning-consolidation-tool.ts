@@ -719,12 +719,20 @@ export function createAgentLearningConsolidationTool(shellPaths: ShellPathServic
         const args = rawArgs as AgentLearningConsolidationToolArgs;
         const mode = readMode(args.mode);
         if (mode === 'receipts') {
+          // `total` and the note exist because the default page is 20 and the
+          // receipt file holds far more: without them, "here are the receipts"
+          // reads as the whole rollback history when it is the newest slice.
+          const stored = readReceiptFile(shellPaths).receipts;
+          const page = stored.slice(0, readLimit(args.limit, 20));
           return output({
             status: 'receipts',
             path: receiptPath(shellPaths),
-            receipts: readReceiptFile(shellPaths).receipts
-              .slice(0, readLimit(args.limit, 20))
-              .map((receipt) => receiptSummary(receipt, { shellPaths, memoryRegistry })),
+            receipts: page.map((receipt) => receiptSummary(receipt, { shellPaths, memoryRegistry })),
+            returned: page.length,
+            total: stored.length,
+            ...(page.length < stored.length
+              ? { note: `Showing the ${page.length} newest of ${stored.length} receipts; raise limit to see older ones.` }
+              : {}),
           });
         }
         if (mode === 'rollback') {

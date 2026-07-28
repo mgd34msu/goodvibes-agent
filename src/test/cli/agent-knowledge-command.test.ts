@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand } from '../../cli/agent-knowledge-command.ts';
+import { formatEntityList } from '../../cli/agent-knowledge-format.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
 
 const roots: string[] = [];
@@ -914,5 +915,39 @@ describe('Agent Knowledge CLI route isolation', () => {
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+});
+
+describe('Agent Knowledge list rendering', () => {
+  const nodes = (count: number): unknown[] => Array.from({ length: count }, (_value, index) => ({
+    id: `node-${index}`,
+    label: `Node ${index}`,
+    kind: 'concept',
+  }));
+
+  test('names the records left out when the service reports more than the page holds', () => {
+    const printed = formatEntityList({ nodes: nodes(3), total: 41 }, 'nodes', 3);
+    expect(printed).toContain('3 of 41');
+    expect(printed).toContain('partial');
+  });
+
+  test('says a full page may be hiding records when no total is reported', () => {
+    const printed = formatEntityList({ nodes: nodes(5) }, 'nodes', 5);
+    expect(printed).toContain('page is full');
+    expect(printed).toContain('more records may exist');
+  });
+
+  test('a short page with no total makes no partial claim', () => {
+    const printed = formatEntityList({ nodes: nodes(2) }, 'nodes', 5);
+    expect(printed).toContain('Agent Knowledge nodes (2, limit 5)');
+    expect(printed).not.toContain('partial');
+    expect(printed).not.toContain('page is full');
+  });
+
+  test('renders every row the service sent when more arrive than the page asked for', () => {
+    const printed = formatEntityList({ nodes: nodes(7) }, 'nodes', 4);
+    expect(printed).toContain('4 of 7 received');
+    expect(printed).toContain('partial');
+    expect(printed).not.toContain('Node 4');
   });
 });

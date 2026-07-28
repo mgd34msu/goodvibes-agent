@@ -523,3 +523,36 @@ describe('route adapter', () => {
     expect(registry.getToolDefinitions().filter((definition) => definition.name === 'route')).toHaveLength(1);
   });
 });
+
+describe('route plan completeness', () => {
+  test('says how many routes it ranked, and flags a plan that shows only the top few', async () => {
+    const tool = createAgentRouteTool(fakeContext());
+    const result = await tool.execute({ action: 'plan', query: 'triage my inbox and draft replies', limit: 1 });
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
+    const body = JSON.parse(result.output!) as {
+      readonly alternatives: readonly unknown[];
+      readonly routesConsidered: number;
+      readonly note?: string;
+    };
+
+    expect(body.alternatives).toHaveLength(0);
+    expect(body.routesConsidered).toBeGreaterThan(1);
+    expect(body.note).toContain(`of ${body.routesConsidered} candidate routes`);
+  });
+
+  test('a plan that shows every ranked route makes no partial claim', async () => {
+    const tool = createAgentRouteTool(fakeContext());
+    const result = await tool.execute({ action: 'plan', query: 'triage my inbox and draft replies', limit: 500 });
+    expect(result.success).toBe(true);
+    if (!result.success) throw new Error(result.error);
+    const body = JSON.parse(result.output!) as {
+      readonly alternatives: readonly unknown[];
+      readonly routesConsidered: number;
+      readonly note?: string;
+    };
+
+    expect(body.alternatives.length + 1).toBe(body.routesConsidered);
+    expect(body.note).toBeUndefined();
+  });
+});

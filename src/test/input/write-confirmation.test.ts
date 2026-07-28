@@ -144,13 +144,17 @@ describe('write/export command confirmation', () => {
         platform: { configManager },
       } as unknown as CommandContext;
 
+      // Both flags parsed: one row printed (--limit), all of them under
+      // `provider.` (--category). The header names the settings the limit left
+      // out, so it reads `Settings (1 of N ...)` rather than a bare count.
       await registry.get('settings')!.handler(['list', '--category=provider', '--limit=1'], ctx);
-      expect(out.join('\n')).toContain('Settings (1)');
+      expect(out.join('\n')).toMatch(/^Settings \(1 of \d+ /m);
+      expect(out.join('\n')).toContain('this page is short');
       expect(out.join('\n')).toContain('provider.');
 
       out.length = 0;
       await registry.get('settings')!.handler(['list', '--category', '--limit', '1'], ctx);
-      expect(out.join('\n')).toContain('Settings (1)');
+      expect(out.join('\n')).toMatch(/^Settings \(1 of \d+ /m);
       expect(out.join('\n')).not.toContain('No settings matched.');
     } finally {
       rmSync(root, { recursive: true, force: true });

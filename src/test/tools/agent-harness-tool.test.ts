@@ -9804,6 +9804,55 @@ describe('agent_harness tool', () => {
     }
   });
 
+  test('reports every model a local endpoint advertises, not just the ones it prints', async () => {
+    const previousEndpointEnv = clearEnvForTest(LOCAL_MODEL_ENDPOINT_ENV_KEYS);
+    const advertised = 20;
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === '/v1/models') {
+          return Response.json({
+            object: 'list',
+            data: Array.from({ length: advertised }, (_value, index) => ({ id: `model-${index}`, object: 'model' })),
+          });
+        }
+        return new Response('not found', { status: 404 });
+      },
+    });
+    process.env.OLLAMA_BASE_URL = `http://127.0.0.1:${server.port}/v1`;
+    const fixture = makeFixture();
+    try {
+      const smoke = await executeHarnessJson<{
+        readonly endpointCount: number;
+        readonly candidateEndpointCount: number;
+        readonly note?: string;
+        readonly endpoints: readonly {
+          readonly modelCount: number;
+          readonly sampleModelIds: readonly string[];
+        }[];
+      }>(fixture, {
+        mode: 'run_local_model_smoke',
+        modelRouteId: `local-127-0-0-1-${server.port}-v1`,
+        timeoutMs: 1000,
+        confirm: true,
+        explicitUserRequest: 'Check local model servers.',
+      });
+
+      // modelCount used to be read off the 12-entry capped list, so a server
+      // advertising 20 models reported 12.
+      expect(smoke.endpoints[0]?.modelCount).toBe(advertised);
+      expect(smoke.endpoints[0]?.sampleModelIds).toHaveLength(5);
+      // Every endpoint that existed was probed, so nothing claims otherwise.
+      expect(smoke.candidateEndpointCount).toBe(smoke.endpointCount);
+      expect(smoke.note).toBeUndefined();
+    } finally {
+      server.stop();
+      restoreEnvForTest(previousEndpointEnv);
+      fixture.cleanup();
+    }
+  });
+
   test('surfaces saved local model benchmark history in cookbook and setup', async () => {
     const artifacts = createHarnessArtifactStore();
     await artifacts.store.create({
@@ -13652,6 +13701,7 @@ describe('agent_harness tool', () => {
         readonly settings: readonly { readonly key: string }[];
         readonly returned: number;
         readonly total: number;
+        readonly note?: string;
       };
       const visibleSettingKeys = CONFIG_SCHEMA
         .filter((setting) => !isAgentHiddenSettingKey(setting.key))
@@ -13660,6 +13710,23 @@ describe('agent_harness tool', () => {
       expect(defaultPayload.returned).toBe(visibleSettingKeys.length);
       expect(defaultPayload.total).toBe(visibleSettingKeys.length);
       expect(defaultPayload.settings.map((setting) => setting.key).sort()).toEqual(visibleSettingKeys);
+      // A complete listing must not describe itself as partial.
+      expect(defaultPayload.note).toBeUndefined();
+
+      // A page cut short by `limit` says so in words, not only in two numbers
+      // the reader has to notice and compare.
+      const cappedSettings = await fixture.tool.execute({ mode: 'settings', limit: 3 });
+      expect(cappedSettings.success).toBe(true);
+      const cappedPayload = JSON.parse(cappedSettings.output!) as {
+        readonly settings: readonly { readonly key: string }[];
+        readonly returned: number;
+        readonly total: number;
+        readonly note?: string;
+      };
+      expect(cappedPayload.returned).toBe(3);
+      expect(cappedPayload.total).toBe(visibleSettingKeys.length);
+      expect(cappedPayload.note).toContain(`Showing 3 of ${visibleSettingKeys.length} settings`);
+      expect(cappedPayload.note).toContain('not the full catalog');
 
       const allSettings = await fixture.tool.execute({ mode: 'settings', includeHidden: true });
       expect(allSettings.success).toBe(true);

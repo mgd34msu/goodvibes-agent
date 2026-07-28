@@ -157,9 +157,24 @@ export function formatEntityList(data: unknown, kind: 'sources' | 'nodes' | 'iss
     : kind === 'nodes'
       ? nodeLine
       : issueLine;
+  const shown = values.slice(0, limit);
+  // `total` when the service reports one; otherwise a full page is the only
+  // evidence available that records were left behind, and it has to be said out
+  // loud. The header used to read `(25, limit 25)` whether 25 was the whole
+  // graph or the first page of hundreds.
+  const reportedTotal = typeof record.total === 'number' && Number.isFinite(record.total)
+    ? record.total
+    : null;
+  const header = reportedTotal !== null && reportedTotal > shown.length
+    ? `Agent Knowledge ${kind} (${shown.length} of ${reportedTotal}, limit ${limit} — partial; raise --limit for the rest)`
+    : shown.length < values.length
+      ? `Agent Knowledge ${kind} (${shown.length} of ${values.length} received, limit ${limit} — partial; raise --limit for the rest)`
+      : shown.length === limit
+        ? `Agent Knowledge ${kind} (${shown.length}, limit ${limit} — page is full, so more records may exist; raise --limit to check)`
+        : `Agent Knowledge ${kind} (${shown.length}, limit ${limit})`;
   return [
-    `Agent Knowledge ${kind} (${values.length}, limit ${limit})`,
-    ...values.slice(0, limit).map((value, index) => (
+    header,
+    ...shown.map((value, index) => (
       kind === 'issues' ? format(value) : `  ${index + 1}. ${format(value)}`
     )),
     `  route /api/goodvibes-agent/knowledge/${kind}`,

@@ -3,6 +3,7 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import {
+  countHarnessSettings,
   formatHarnessError,
   formatHarnessMutation,
   formatHarnessSetting,
@@ -85,7 +86,11 @@ export function registerOperatorRuntimeCommands(registry: CommandRegistry): void
       }
 
       if (sub === 'list' || sub === 'schema') {
-        ctx.print(formatHarnessSettingList(await listEffectiveHarnessSettings(ctx.platform.configManager, parseSettingListArgs(commandArgs.slice(1)))));
+        // `total` is what matched, not what fits on the page — the formatter
+        // needs both so a short page can name itself as short.
+        const listFilters = parseSettingListArgs(commandArgs.slice(1));
+        const listed = await listEffectiveHarnessSettings(ctx.platform.configManager, listFilters);
+        ctx.print(formatHarnessSettingList(listed, countHarnessSettings(ctx.platform.configManager, listFilters)));
         return;
       }
 

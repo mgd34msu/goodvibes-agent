@@ -65,7 +65,22 @@ function localModelSmokeLookup(args: AgentHarnessModelRoutingArgs): string {
     || readString(fields.modelsUrl);
 }
 
-function localModelSmokeTargets(context: CommandContext, args: AgentHarnessModelRoutingArgs): Record<string, unknown> | readonly LocalModelSmokeTarget[] {
+/** The endpoints this run will probe, alongside how many were available. */
+interface LocalModelSmokeSelection {
+  readonly targets: readonly LocalModelSmokeTarget[];
+  /** Candidates before `limit` narrowed the run — reported so a partial sweep is not read as a clean bill of health for every endpoint. */
+  readonly candidateTotal: number;
+}
+
+/** The lookup did not resolve to endpoints; `unresolved` is the report to return instead. */
+interface LocalModelSmokeUnresolved {
+  readonly unresolved: Record<string, unknown>;
+}
+
+function localModelSmokeTargets(
+  context: CommandContext,
+  args: AgentHarnessModelRoutingArgs,
+): LocalModelSmokeSelection | LocalModelSmokeUnresolved {
   const endpoints = collectLocalServerEndpointCandidates(context)
     .map((endpoint) => localModelSmokeTargetFromEndpoint(describeLocalServerEndpoint(endpoint, true)));
   const defaults = localModelServerDefaults().map(localModelSmokeTargetFromDefault);
@@ -73,44 +88,42 @@ function localModelSmokeTargets(context: CommandContext, args: AgentHarnessModel
   const allTargets = [...endpoints, ...defaults];
   if (lookup) {
     const normalized = lookup.toLowerCase();
+    // An ambiguity report names at most 8 candidates. When more matched, the
+    // count says so — a caller shown 8 of 14 would otherwise pick from a list
+    // it believed was the whole set of matches.
+    const ambiguous = (matches: readonly LocalModelSmokeTarget[]): LocalModelSmokeUnresolved => ({
+      unresolved: {
+        status: 'ambiguous',
+        input: lookup,
+        candidateTotal: matches.length,
+        candidates: matches.slice(0, 8).map((target) => ({
+          kind: target.kind,
+          id: target.id,
+          label: target.label,
+          baseUrl: target.baseUrl,
+          modelsUrl: target.modelsUrl,
+        })),
+        ...(matches.length > 8
+          ? { note: `Showing 8 of ${matches.length} matching endpoints; narrow the lookup to see the rest.` }
+          : {}),
+      },
+    });
     const exact = allTargets.filter((target) => target.id === lookup || target.baseUrl === lookup || target.modelsUrl === lookup);
-    if (exact.length === 1) return exact;
-    if (exact.length > 1) {
-      return {
-        status: 'ambiguous',
-        input: lookup,
-        candidates: exact.slice(0, 8).map((target) => ({
-          kind: target.kind,
-          id: target.id,
-          label: target.label,
-          baseUrl: target.baseUrl,
-          modelsUrl: target.modelsUrl,
-        })),
-      };
-    }
+    if (exact.length === 1) return { targets: exact, candidateTotal: 1 };
+    if (exact.length > 1) return ambiguous(exact);
     const searched = allTargets.filter((target) => localSmokeTargetSearchText(target).includes(normalized));
-    if (searched.length === 1) return searched;
-    if (searched.length > 1) {
-      return {
-        status: 'ambiguous',
-        input: lookup,
-        candidates: searched.slice(0, 8).map((target) => ({
-          kind: target.kind,
-          id: target.id,
-          label: target.label,
-          baseUrl: target.baseUrl,
-          modelsUrl: target.modelsUrl,
-        })),
-      };
-    }
+    if (searched.length === 1) return { targets: searched, candidateTotal: 1 };
+    if (searched.length > 1) return ambiguous(searched);
     return {
-      status: 'missing_lookup',
-      input: lookup,
-      usage: 'Unknown local model endpoint. Use models action:"local" includeParameters:true to inspect local endpoint ids, or omit the lookup to check detected/default local servers.',
+      unresolved: {
+        status: 'missing_lookup',
+        input: lookup,
+        usage: 'Unknown local model endpoint. Use models action:"local" includeParameters:true to inspect local endpoint ids, or omit the lookup to check detected/default local servers.',
+      },
     };
   }
   const pool = endpoints.length ? endpoints : defaults;
-  return pool.slice(0, readLimit(args.limit, 4));
+  return { targets: pool.slice(0, readLimit(args.limit, 4)), candidateTotal: pool.length };
 }
 
 function readSmokeTimeoutMs(value: unknown): number {
@@ -134,7 +147,13 @@ function localSmokeNetworkScope(modelsUrl: string): { readonly allowed: boolean;
   return { allowed: true, scope: 'private-lan' };
 }
 
-function extractModelIdsFromPayload(payload: unknown): readonly string[] {
+/**
+ * @returns `total`, every distinct model id the endpoint advertised, and `ids`,
+ *   the first 12 of them. Both, because the capped list used to be the only
+ *   thing returned and `modelCount` was taken from it — a server offering 40
+ *   models reported 40 as 12.
+ */
+function extractModelIdsFromPayload(payload: unknown): { readonly ids: readonly string[]; readonly total: number } {
   const record = readRecord(payload);
   const candidates = Array.isArray(record.data)
     ? record.data
@@ -148,7 +167,8 @@ function extractModelIdsFromPayload(payload: unknown): readonly string[] {
     const item = readRecord(entry);
     return readString(item.id) || readString(item.name) || readString(item.model);
   }).filter(Boolean);
-  return [...new Set(ids)].slice(0, 12);
+  const distinct = [...new Set(ids)];
+  return { ids: distinct.slice(0, 12), total: distinct.length };
 }
 
 function safeSmokeError(error: unknown): string {
@@ -189,12 +209,12 @@ async function smokeOneLocalModelTarget(target: LocalModelSmokeTarget, timeoutMs
     } catch {
       jsonValid = false;
     }
-    const modelIds = jsonValid ? extractModelIdsFromPayload(payload) : [];
+    const models = jsonValid ? extractModelIdsFromPayload(payload) : { ids: [] as readonly string[], total: 0 };
     const status = !response.ok
       ? 'http-error'
       : !jsonValid
         ? 'invalid-json'
-        : modelIds.length === 0
+        : models.total === 0
           ? 'no-models'
           : 'passed';
     return {
@@ -206,8 +226,8 @@ async function smokeOneLocalModelTarget(target: LocalModelSmokeTarget, timeoutMs
       contentType,
       elapsedMs,
       jsonValid,
-      modelCount: modelIds.length,
-      sampleModelIds: modelIds.slice(0, 5),
+      modelCount: models.total,
+      sampleModelIds: models.ids.slice(0, 5),
       success: status === 'passed',
       nextActions: status === 'passed'
         ? ['Refresh the model catalog, then run a local benchmark before changing the default model.']
@@ -233,15 +253,16 @@ async function smokeOneLocalModelTarget(target: LocalModelSmokeTarget, timeoutMs
 }
 
 export async function runLocalModelServerSmoke(context: CommandContext, args: AgentHarnessModelRoutingArgs): Promise<Record<string, unknown>> {
-  const targets = localModelSmokeTargets(context, args);
-  if (!Array.isArray(targets)) {
+  const selection = localModelSmokeTargets(context, args);
+  if ('unresolved' in selection) {
     return {
       kind: 'local-model-smoke',
       liveProbe: 'not-run',
-      ...targets,
+      ...selection.unresolved,
       policy: 'No local model endpoint was probed because the requested endpoint lookup did not resolve exactly.',
     };
   }
+  const { targets, candidateTotal } = selection;
   if (targets.length === 0) {
     return {
       kind: 'local-model-smoke',
@@ -265,8 +286,15 @@ export async function runLocalModelServerSmoke(context: CommandContext, args: Ag
     checkedAt,
     timeoutMs,
     endpointCount: results.length,
+    // How many endpoints existed, not just how many were probed. Without it a
+    // limited run reports "2 passed, 0 failed" over a host with six endpoints
+    // and reads as every endpoint being healthy.
+    candidateEndpointCount: candidateTotal,
     passedCount: passed.length,
     failedCount: results.length - passed.length,
+    ...(results.length < candidateTotal
+      ? { note: `Probed ${results.length} of ${candidateTotal} candidate endpoints; the rest were not checked. Raise limit to probe them.` }
+      : {}),
     endpoints: results,
     nextActions: passed.length > 0
       ? ['Refresh the model catalog and run the local benchmark action before changing the default route.']
