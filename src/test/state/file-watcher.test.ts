@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
 import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { FileWatcher } from '@pellux/goodvibes-sdk/platform/state';
 import { FileStateCache } from '@pellux/goodvibes-sdk/platform/state';
 import { ProjectIndex } from '@pellux/goodvibes-sdk/platform/state';
@@ -266,7 +265,13 @@ describe('FileWatcher', () => {
 
   it('rejects paths outside project root', () => {
     const watcher = new FileWatcher(fileCache, projectIndex, { projectRoot: tmpDir });
-    const outsidePath = join(tmpdir(), 'outside-project.ts');
+    // A sibling makeProjectTempDir() call, not tmpDir itself or any path
+    // under it — FileWatcher.addPath's boundary check is a plain
+    // startsWith(projectRoot) prefix test (confirmed by reading
+    // dist/platform/state/file-watcher.js), so any directory outside
+    // tmpDir satisfies "outside project root" just as well as real
+    // os.tmpdir() did, without leaking into it.
+    const outsidePath = join(makeProjectTempDir('gv-fw-outside'), 'outside-project.ts');
     writeFileSync(outsidePath, 'const x = 1;');
     watcher.addPath(outsidePath);
     expect(watcher.getWatchedPaths().has(outsidePath)).toBe(false);

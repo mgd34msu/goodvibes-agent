@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createHookApi, HookWorkbench, listHookPointContracts } from '@pellux/goodvibes-sdk/platform/hooks';
@@ -8,7 +7,7 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('HookApi', () => {
   const configManager = new ConfigManager({ surfaceRoot: 'tui',
-    configDir: join(tmpdir(), `gv-hook-api-config-${Date.now()}-${Math.random().toString(36).slice(2)}`),
+    configDir: makeProjectTempDir(`gv-hook-api-config-${Date.now()}-${Math.random().toString(36).slice(2)}`),
   });
   let originalHooksFile: string;
   let tempDir: string;

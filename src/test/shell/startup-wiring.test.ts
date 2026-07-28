@@ -1,19 +1,19 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
   writeOnboardingCheckMarker,
   writeOnboardingCompletionMarker,
 } from '../../runtime/onboarding/index.ts';
 import { wireSetupIncompleteHint } from '../../shell/startup-wiring.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function createShellPaths() {
-  const root = join(tmpdir(), `gv-startup-wiring-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const root = makeProjectTempDir(`gv-startup-wiring-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   return createShellPathService({
     workingDirectory: join(root, 'workspace'),
     homeDirectory: join(root, 'home'),

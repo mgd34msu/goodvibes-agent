@@ -7,6 +7,7 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { existsSync, unlinkSync } from 'node:fs';
 import {
   DeterministicReplayEngine,
 } from '@pellux/goodvibes-sdk/platform/core';
@@ -357,14 +358,29 @@ describe('DeterministicReplayEngine', () => {
     });
 
     test('returns without throwing when idle', async () => {
-      // export() returns early (no throw) when idle.
-      await expect(engine.export(join(tmpdir(), 'replay-idle-test.json'))).resolves.toBeUndefined();
+      // export() returns early (no throw) when idle — never writes a file,
+      // so there's nothing to clean up here.
+      await expect(engine.export(join(tmpdir(), 'gv-agent-replay-idle-test.json'))).resolves.toBeUndefined();
     });
 
+    // Deliberately NOT under makeProjectTempDir: DeterministicReplayEngine's
+    // own export() path-traversal guard explicitly allows real os.tmpdir()
+    // as a second root alongside the project root (see
+    // node_modules/@pellux/goodvibes-sdk .../deterministic-replay.js's
+    // `tempRoot = resolve(tmpdir())` check) — this test exists specifically
+    // to exercise that branch, so the path must resolve under the REAL
+    // system temp directory, not this repo's `.test-tmp/`. export() really
+    // does write the file in this case (the engine isn't idle), so it's
+    // cleaned up explicitly below; the `gv-agent-replay-` prefix is also on
+    // scripts/stale-tmp-sweep.ts's KNOWN_TMPDIR_PREFIXES as a backstop.
     test('accepts paths inside the active temp root', async () => {
       loadEngine(engine, [makeEntry(1, 'turn:start')]);
-      const path = join(tmpdir(), `replay-test-${Date.now()}.json`);
-      await expect(engine.export(path)).resolves.toBeUndefined();
+      const path = join(tmpdir(), `gv-agent-replay-test-${Date.now()}.json`);
+      try {
+        await expect(engine.export(path)).resolves.toBeUndefined();
+      } finally {
+        if (existsSync(path)) unlinkSync(path);
+      }
     });
   });
 

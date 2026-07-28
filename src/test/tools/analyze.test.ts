@@ -664,6 +664,9 @@ describe('diff mode', () => {
   });
 
   test('non-existent repo path returns error', async () => {
+    // Not migrated to makeProjectTempDir: nothing ever creates this path —
+    // that's the point of the test (a project root that genuinely does not
+    // exist), so there is nothing here to leak.
     const result = await analyzeMayFail({
       mode: 'diff',
       projectRoot: join(tmpdir(), 'nonexistent-repo-xyz-12345'),

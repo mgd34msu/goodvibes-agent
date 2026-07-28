@@ -6,16 +6,15 @@
  * subcommand gets.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { runCalendarRuntimeCommand } from '../../input/commands/calendar-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const dirs: string[] = [];
 function tmpRoot(): string {
-  const dir = join(tmpdir(), `gv-cal-runtime-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-cal-runtime-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   dirs.push(dir);
   return dir;
 }

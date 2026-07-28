@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry } from '../../input/command-registry.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
@@ -17,6 +16,7 @@ import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 
 function makeCommandContext(overrides: Partial<CommandContext> = {}): CommandContext {
@@ -317,8 +317,7 @@ describe('command modal handoff', () => {
   });
 
   test('input handler clears command mode after a slash command opens a selection modal', async () => {
-    const dir = join(tmpdir(), `gv-command-modal-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-command-modal-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
       const history = new InfiniteBuffer();
       const input = new InputHandler(

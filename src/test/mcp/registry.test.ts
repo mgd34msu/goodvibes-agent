@@ -3,9 +3,9 @@ import { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { McpServerConfig } from '@pellux/goodvibes-sdk/platform/mcp';
 import { join } from 'path';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
-import { tmpdir } from 'os';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createHookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // Minimal stub MCP server script for registry tests
 const STUB_SCRIPT = /* js */ `
@@ -39,13 +39,10 @@ rl.on('line', (line) => {
 });
 `;
 
-const SANDBOX_WORKSPACE_ROOT = join(tmpdir(), `gv-mcp-registry-workspace-${process.pid}-${Date.now()}`);
-mkdirSync(SANDBOX_WORKSPACE_ROOT, { recursive: true });
-process.on('exit', () => {
-  if (existsSync(SANDBOX_WORKSPACE_ROOT)) {
-    rmSync(SANDBOX_WORKSPACE_ROOT, { recursive: true, force: true });
-  }
-});
+// makeProjectTempDir already registers its own process.on('exit') cleanup
+// for this directory (src/test/helpers/project-temp.ts), so no separate
+// exit handler is needed here.
+const SANDBOX_WORKSPACE_ROOT = makeProjectTempDir(`gv-mcp-registry-workspace-${process.pid}-${Date.now()}`);
 
 function stubServerConfig(name: string): McpServerConfig {
   return { name, command: 'bun', args: ['--eval', STUB_SCRIPT] };
@@ -286,7 +283,7 @@ describe('McpRegistry — connectAll from file', () => {
   });
 
   test('connectAll() with empty config connects nothing', async () => {
-    tmpDir = join(tmpdir(), `mcp-reg-${Date.now()}`);
+    tmpDir = makeProjectTempDir(`mcp-reg-${Date.now()}`);
     mkdirSync(join(tmpDir, '.goodvibes'), { recursive: true });
     writeFileSync(join(tmpDir, '.goodvibes', 'mcp.json'), JSON.stringify({ servers: [] }));
     registry = createRegistry();
@@ -295,8 +292,7 @@ describe('McpRegistry — connectAll from file', () => {
   });
 
   test('connectAll() with missing config file connects nothing', async () => {
-    tmpDir = join(tmpdir(), `mcp-reg-${Date.now()}`);
-    mkdirSync(tmpDir, { recursive: true });
+    tmpDir = makeProjectTempDir(`mcp-reg-${Date.now()}`);
     registry = createRegistry();
     await registry.connectAll({ workingDirectory: tmpDir, homeDirectory: tmpDir });
     expect(registry.serverNames).toHaveLength(0);

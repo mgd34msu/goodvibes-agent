@@ -10,6 +10,11 @@ import { renderProfilePickerModal } from '../../renderer/profile-picker-modal.ts
 import { lineToString, linesToText } from '../setup.ts';
 
 const W = 120;
+// Not migrated to makeProjectTempDir: this path is never materialized on
+// disk. ProfileManager's constructor just stores the directory string; this
+// suite only renders modal state (renderProfilePickerModal) and never calls
+// profileManager.save() or any other write method, so no directory is ever
+// created at this fixed, unrandomized path.
 const profileManager = new ProfileManager(join(tmpdir(), 'gv-renderer-profile-picker'));
 
 function makeModal(overrides: Partial<ProfilePickerModal> = {}): ProfilePickerModal {

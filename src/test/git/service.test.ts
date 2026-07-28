@@ -1,8 +1,7 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { join, resolve } from 'path';
-import { tmpdir } from 'os';
 import { GitService } from '@pellux/goodvibes-sdk/platform/git';
 import { HookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { HookEvent } from '@pellux/goodvibes-sdk/platform/hooks';
@@ -22,8 +21,17 @@ function makeTempRepo(): string {
   return tmpDir;
 }
 
+// Unlike makeExternalDir below, these targets (git-bare-init, clone,
+// worktree-add destinations) do NOT need to sit outside any git repo or
+// avoid TMPDIR redirection — git happily creates a bare repo, a clone, or a
+// worktree inside an already-existing EMPTY directory anywhere, including
+// nested inside another repo's own untracked scratch tree. So this routes
+// through makeProjectTempDir like every other ordinary scratch directory in
+// this file, confirmed by running this suite both directly and with
+// scripts/run-tests.ts's TMPDIR redirection active (51 pass / 0 fail both
+// ways) before landing on this as the fix.
 function makeTempPath(prefix: string): string {
-  return join(tmpdir(), `${prefix}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  return makeProjectTempDir(`gv-agent-git-${prefix}`);
 }
 
 // Deliberately NOT under makeProjectTempDir, and deliberately NOT under
@@ -531,7 +539,6 @@ describe('GitService', () => {
       const bareDir = makeTempPath('bare');
       const cloneDir = makeTempPath('clone');
       try {
-        mkdirSync(bareDir, { recursive: true });
         addCommit(tmpDir, 'remote-file.txt', 'content', 'remote commit');
         execSync(`git clone --bare ${tmpDir} ${bareDir}`);
         execSync(`git clone ${bareDir} ${cloneDir}`);

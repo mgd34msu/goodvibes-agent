@@ -6,7 +6,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { MemoryStore, MemoryRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
 import { DEFAULT_MEMORY_EMBEDDING_DIMS, MemoryEmbeddingProviderRegistry } from '@pellux/goodvibes-sdk/platform/state';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { unlinkSync, existsSync, mkdirSync, rmSync } from 'node:fs';
@@ -15,7 +14,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempDbPath(): string {
-  return join(tmpdir(), `memory-test-${randomUUID()}.db`);
+  return join(makeProjectTempDir('memory-test-db'), `memory-test-${randomUUID()}.db`);
 }
 
 function cleanupDbPair(dbPath: string): void {

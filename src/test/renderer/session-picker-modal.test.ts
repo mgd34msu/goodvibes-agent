@@ -10,6 +10,13 @@ import { renderSessionPickerModal } from '../../renderer/session-picker-modal.ts
 import { lineToString, linesToText } from '../setup.ts';
 
 const W = 120;
+// Not migrated to makeProjectTempDir: this path is never materialized on
+// disk. SessionManager's constructor only reads (existsSync check before
+// its orphan-tempfile cleanup; it returns early when the directory is
+// absent, never creates it), and this suite only renders modal state
+// (renderSessionPickerModal), never calling a write method on
+// sessionManager, so nothing is ever created at this fixed, unrandomized
+// path.
 const sessionManager = new SessionManager(join(tmpdir(), 'gv-renderer-session-picker'), { surfaceRoot: 'tui' });
 
 function makeModal(overrides: Partial<SessionPickerModal> = {}): SessionPickerModal {

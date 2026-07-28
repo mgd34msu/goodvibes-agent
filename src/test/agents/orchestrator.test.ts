@@ -1,6 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { existsSync, rmSync, unlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { AgentOrchestrator, summarizeToolArgs } from '@pellux/goodvibes-sdk/platform/agents';
 import type { AgentRecord } from '@pellux/goodvibes-sdk/platform/tools';
@@ -13,6 +12,7 @@ import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvib
 import type { PermissionRequestHandler } from '@pellux/goodvibes-sdk/platform/permissions';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import { getTestRuntimeServices, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -169,8 +169,8 @@ describe('AgentOrchestrator', () => {
     process.chdir(repoRoot);
     resetTestRuntimeServices();
     orchestratorRuntime = getTestRuntimeServices();
-    memoryDbPath = join(tmpdir(), `agent-orchestrator-${randomUUID()}.db`);
-    projectIndexRoot = join(tmpdir(), `agent-orchestrator-project-${randomUUID()}`);
+    memoryDbPath = join(makeProjectTempDir('agent-orchestrator-db'), `agent-orchestrator-${randomUUID()}.db`);
+    projectIndexRoot = makeProjectTempDir(`agent-orchestrator-project-${randomUUID()}`);
     memoryStore = new MemoryStore(memoryDbPath, {
       embeddingRegistry: orchestratorRuntime.memoryEmbeddingRegistry,
     });

@@ -14,8 +14,7 @@
  */
 
 import { describe, it, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   FileBackend,
@@ -26,6 +25,7 @@ import {
   overflowCleanup,
 } from '@pellux/goodvibes-sdk/platform/tools';
 import type { SpillBackend, RetentionPolicyConfig } from '@pellux/goodvibes-sdk/platform/tools';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -33,8 +33,7 @@ import type { SpillBackend, RetentionPolicyConfig } from '@pellux/goodvibes-sdk/
 
 /** Create a fresh temp directory for FileBackend isolation. */
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-overflow-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-overflow-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

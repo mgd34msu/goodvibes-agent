@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
@@ -11,9 +10,10 @@ import {
   writeOnboardingCheckMarker,
   writeOnboardingCompletionMarker,
 } from '../../../runtime/onboarding/index.ts';
+import { makeProjectTempDir } from '../../helpers/project-temp.ts';
 
 function createShellPaths() {
-  const root = join(tmpdir(), `gv-onboarding-marker-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const root = makeProjectTempDir(`gv-onboarding-marker-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   return createShellPathService({
     workingDirectory: join(root, 'workspace'),
     homeDirectory: join(root, 'home'),

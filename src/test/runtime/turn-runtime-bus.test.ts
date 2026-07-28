@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, mock, test } from 'bun:test';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConversationManager } from '../../core/conversation.ts';
 import { Orchestrator } from '../../core/orchestrator.ts';
@@ -14,9 +13,10 @@ import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
 import { createTestManagers } from '../helpers/test-managers.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const configManager = new ConfigManager({ surfaceRoot: 'tui',
-  configDir: join(tmpdir(), `gv-turn-runtime-${Date.now()}-${Math.random().toString(36).slice(2)}`),
+  configDir: makeProjectTempDir(`gv-turn-runtime-${Date.now()}-${Math.random().toString(36).slice(2)}`),
 });
 
 const MOCK_MODEL = {

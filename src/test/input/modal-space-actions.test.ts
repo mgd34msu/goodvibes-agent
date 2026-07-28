@@ -7,9 +7,9 @@ import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { join } from 'path';
-import { tmpdir } from 'os';
-import { mkdirSync, rmSync } from 'fs';
+import { rmSync } from 'fs';
 import type { SelectionAction } from '../../input/selection-modal.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function text(value: string) {
   return { type: 'text' as const, value };
@@ -297,8 +297,7 @@ describe('modal space actions', () => {
   });
 
   test('settings modal toggles the selected value on space', () => {
-    const dir = join(tmpdir(), `gv-settings-space-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-settings-space-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
       const cm = new ConfigManager({ surfaceRoot: 'tui',  workingDir: dir, configDir: join(dir, '.goodvibes', 'tui') });
       const subscriptionManager = new SubscriptionManager(join(dir, '.goodvibes', 'tui', 'subscriptions.json'));
@@ -359,8 +358,7 @@ describe('modal space actions', () => {
   });
 
   test('settings modal arrow navigation keeps class method binding', () => {
-    const dir = join(tmpdir(), `gv-settings-arrow-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-settings-arrow-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
       const cm = new ConfigManager({ surfaceRoot: 'tui', workingDir: dir, configDir: join(dir, '.goodvibes', 'tui') });
       const subscriptionManager = new SubscriptionManager(join(dir, '.goodvibes', 'tui', 'subscriptions.json'));
@@ -429,8 +427,7 @@ describe('modal space actions', () => {
   });
 
   test('settings modal applies left/right adjustments to booleans and numbers', () => {
-    const dir = join(tmpdir(), `gv-settings-adjust-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-settings-adjust-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
       const cm = new ConfigManager({ surfaceRoot: 'tui',  workingDir: dir, configDir: join(dir, '.goodvibes', 'tui') });
       const subscriptionManager = new SubscriptionManager(join(dir, '.goodvibes', 'tui', 'subscriptions.json'));

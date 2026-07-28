@@ -15,17 +15,19 @@
  *    shares, including other repos' own test runs (each with their own,
  *    differently-prefixed scratch directories under
  *    `~/Projects/.gv-worktrees/*`). A handful of this project's own tests
- *    still create scratch directories directly under `os.tmpdir()` — see
- *    `KNOWN_TMPDIR_PREFIXES` below for exactly which, and why they cannot
- *    use `makeProjectTempDir` instead. When a test process is killed by a
- *    signal (rather than exiting normally), its `finally`/`afterEach`
- *    cleanup never runs, so these directories accumulate in real `/tmp`
- *    forever — this is what exhausted a tmpfs `/tmp`'s inode table.
- *    This sweep only ever removes a directory that BOTH (a) matches one of
- *    this project's own known prefixes exactly, by `startsWith`, and (b)
- *    has an mtime older than `REAL_TMPDIR_STALE_AGE_MS`. It never performs
- *    a blanket sweep of `os.tmpdir()`, and it never touches a directory it
- *    cannot attribute to this project by prefix.
+ *    still create scratch entries (mostly directories, one single JSON
+ *    file — src/test/core/replay-engine.test.ts's "active temp root" case)
+ *    directly under `os.tmpdir()` — see `KNOWN_TMPDIR_PREFIXES` below for
+ *    exactly which, and why they cannot use `makeProjectTempDir` instead.
+ *    When a test process is killed by a signal (rather than exiting
+ *    normally), its `finally`/`afterEach` cleanup never runs, so these
+ *    entries accumulate in real `/tmp` forever — this is what exhausted a
+ *    tmpfs `/tmp`'s inode table. This sweep only ever removes an entry
+ *    (directory OR file) that BOTH (a) matches one of this project's own
+ *    known prefixes exactly, by `startsWith`, and (b) has an mtime older
+ *    than `REAL_TMPDIR_STALE_AGE_MS`. It never performs a blanket sweep of
+ *    `os.tmpdir()`, and it never touches an entry it cannot attribute to
+ *    this project by prefix.
  */
 import { readdirSync, rmSync, statSync, type Dirent } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -52,28 +54,38 @@ const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
  *     `makeExternalDir` needs the same "not inside any repo" guarantee, but
  *     for exactly the same TMPDIR-redirection reason it deliberately does
  *     NOT use `os.tmpdir()` either — it targets the parent of this repo's
- *     own directory instead, so it never creates anything here.)
+ *     own directory instead, so it never creates anything here. Its OTHER
+ *     helper, `makeTempPath` for git-created bare/clone/worktree targets,
+ *     doesn't need to sit outside the repo at all — git accepts an
+ *     already-existing empty directory anywhere as those targets, so it
+ *     routes through `makeProjectTempDir` like an ordinary scratch
+ *     directory and never creates anything under real `os.tmpdir()`
+ *     either.)
+ *   - `gv-agent-replay-` (src/test/core/replay-engine.test.ts): the SDK's
+ *     `DeterministicReplayEngine.export()` path-traversal guard explicitly
+ *     recognizes real `os.tmpdir()` as a second allowed root alongside the
+ *     project root, and one test exists specifically to exercise that
+ *     branch by exporting a real JSON file there. It's cleaned up
+ *     immediately in a `finally` block on every normal run; this prefix is
+ *     the backstop for a killed run.
  *
  * Every other entry below is historical: every other call site that used
  * to create scratch directories under real `os.tmpdir()` was migrated onto
- * `makeProjectTempDir` on 2026-07-27, so these prefixes are never created
- * again from this point forward. They stay on this list purely so this
- * sweep also reclaims directories earlier (pre-migration) suite runs
- * already left behind in real `/tmp` — a killed test process never ran its
- * own cleanup. Once a repo-wide check confirms none of these remain on a
- * given machine, this legacy block can be pruned; leaving it is harmless
- * (it only ever matches directories that also pass the age gate).
+ * `makeProjectTempDir` on 2026-07-27 (204 call sites in the first pass, 47
+ * more in a second pass over files a narrower mkdtemp-only search had
+ * missed), so these prefixes are never created again from this point
+ * forward. They stay on this list purely so this sweep also reclaims
+ * directories earlier (pre-migration) suite runs already left behind in
+ * real `/tmp` — a killed test process never ran its own cleanup. Once a
+ * repo-wide check confirms none of these remain on a given machine, this
+ * legacy block can be pruned; leaving it is harmless (it only ever matches
+ * directories that also pass the age gate).
  */
 export const KNOWN_TMPDIR_PREFIXES: readonly string[] = [
   // Ongoing — still created today; see the comment above.
   'gv-agent-identifier-gate-norepo-',
-  // Historical / legacy — see the comment above. `gv-agent-git-` is here
-  // too (rather than "ongoing"): an earlier revision of this migration
-  // briefly routed git/service.test.ts's makeExternalDir through
-  // os.tmpdir() with this prefix before the TMPDIR-redirection problem
-  // above was caught and reverted, so it stays as a one-time cleanup
-  // target for anything that run may have left behind.
-  'gv-agent-git-',
+  'gv-agent-replay-',
+  // Historical / legacy — see the comment above.
   'accounts-tool-',
   'agent-sdk-dev-',
   'agent-shutdown-home-',
@@ -381,6 +393,65 @@ export const KNOWN_TMPDIR_PREFIXES: readonly string[] = [
   'owner-state-',
   'prompt-loader-test-',
   'vibe-migration-config-',
+  // Second-pass legacy additions (2026-07-27 follow-up): call sites a
+  // narrower mkdtemp-only search missed the first time (manual
+  // join(tmpdir(), ...) + mkdirSync construction, no mkdtemp call).
+  'agent-orchestrator-db-',
+  'agent-orchestrator-project-',
+  'fleet-attention-db-',
+  'fleet-attention-project-',
+  'gv-agent-settings-boundary-',
+  'gv-agent-test-',
+  'gv-approval-posture-',
+  'gv-automation-foundation-',
+  'gv-cal-boot-',
+  'gv-cal-oauth-',
+  'gv-cal-runtime-',
+  'gv-cal-sub-',
+  'gv-cal-verb-',
+  'gv-cal-wiz-',
+  'gv-cfg-ext-test-',
+  'gv-command-modal-',
+  'gv-config-coverage-',
+  'gv-config-hidden-',
+  'gv-config-preview-test-',
+  'gv-config-workspace-',
+  'gv-email-cfg-test-',
+  'gv-email-cmd-test-',
+  'gv-email-wizard-test-',
+  'gv-facade-home-',
+  'gv-facade-test-',
+  'gv-feature-receipts-',
+  'gv-file-picker-overlay-',
+  'gv-inject-test-',
+  'gv-kb-conflict-',
+  'gv-kb-test-',
+  'gv-knowledge-isolation-',
+  'gv-mcp-registry-workspace-',
+  'gv-onboarding-marker-',
+  'gv-onboarding-state-',
+  'gv-overflow-test-',
+  'gv-permissions-',
+  'gv-permissions-config-',
+  'gv-prof-picker-test-',
+  'gv-resolve-test-',
+  'gv-secret-refs-test-',
+  'gv-service-registry-test-',
+  'gv-settings-adjust-',
+  'gv-settings-arrow-',
+  'gv-settings-modal-test-',
+  'gv-settings-renderer-test-',
+  'gv-settings-space-',
+  'gv-startup-wiring-',
+  'gv-test-',
+  'gv-test-managers-',
+  'gv-theme-mode-setting-test-',
+  'gv-tool-exec-',
+  'gv-tool-execution-test-',
+  'gv-tui-startup-',
+  'gv-turn-runtime-',
+  'mcp-config-test-',
+  'mcp-reg-',
 ];
 
 /**
@@ -418,19 +489,20 @@ export function sweepProjectTestTmpRoot(): void {
 }
 
 export type StaleTmpSweepResult = {
-  /** Absolute paths of directories removed by this sweep. */
+  /** Absolute paths of directories or files removed by this sweep. */
   readonly swept: readonly string[];
   /** Total entries seen directly under os.tmpdir() during the scan. */
   readonly scanned: number;
 };
 
 /**
- * Removes this project's own stale scratch directories from the real
- * system temp directory. Only ever removes an entry that matches one of
+ * Removes this project's own stale scratch entries — directories AND
+ * individual files (see `gv-agent-replay-` above) — from the real system
+ * temp directory. Only ever removes an entry that matches one of
  * `KNOWN_TMPDIR_PREFIXES` by `startsWith` AND has an mtime older than
  * `ageMs`. Never performs a blanket sweep of `os.tmpdir()` — every other
  * repo's own worktrees (and every other process on the machine) keep their
- * unrelated temp directories untouched.
+ * unrelated temp entries untouched.
  */
 export function sweepStaleRealTmpDirs(
   ageMs: number = REAL_TMPDIR_STALE_AGE_MS,
@@ -446,7 +518,7 @@ export function sweepStaleRealTmpDirs(
 
   const swept: string[] = [];
   for (const entry of entries) {
-    if (!entry.isDirectory()) continue;
+    if (!entry.isDirectory() && !entry.isFile()) continue;
     if (!KNOWN_TMPDIR_PREFIXES.some((prefix) => entry.name.startsWith(prefix))) continue;
 
     const fullPath = join(root, entry.name);

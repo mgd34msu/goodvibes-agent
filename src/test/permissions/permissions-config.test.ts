@@ -1,7 +1,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync } from 'fs';
+import { rmSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import {
@@ -12,6 +11,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/config';
 import type { PermissionPromptRequest, PermissionPromptDecision } from '@pellux/goodvibes-sdk/platform/permissions';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const setPermissionMode = (cm: ConfigManager, mode: PermissionMode): void => {
   cm.set('permissions.mode', mode);
@@ -36,8 +36,7 @@ describe('PermissionManager — config-driven modes', () => {
   const createIsolatedConfigManager = () => new ConfigManager({ surfaceRoot: 'tui',  configDir: tempDir, workingDir: tempDir });
 
   beforeEach(() => {
-    tempDir = join(tmpdir(), `gv-permissions-config-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(tempDir, { recursive: true });
+    tempDir = makeProjectTempDir(`gv-permissions-config-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     configManager = createIsolatedConfigManager();
     requests = [];
     decisions = [];

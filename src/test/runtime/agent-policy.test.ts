@@ -97,6 +97,11 @@ describe('Agent user-first autonomy policy', () => {
   });
 
   test('generic operator method bridge previews and confirmation-gates write routes', async () => {
+    // Not migrated to makeProjectTempDir: `root` is empty for this specific
+    // test (makeRuntimeServices() is never called here), so `tmpdir()` is
+    // genuinely reached — but every call below is dryRun:true or a write
+    // route that stops at "confirmationRequired" before executing, so
+    // nothing is ever written under this homeDirectory.
     const tool = createAgentOperatorMethodTool(
       { homeDirectory: root || tmpdir() } as never,
       {} as never,

@@ -7,7 +7,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { SettingsModal, SETTINGS_CATEGORIES, isAgentHiddenSettingKey } from '../../input/settings-modal.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -17,10 +16,10 @@ import { createFeatureFlagManager } from '@/runtime/index.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import { renderSettingsModal } from '../../renderer/settings-modal.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-agent-settings-boundary-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-agent-settings-boundary-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

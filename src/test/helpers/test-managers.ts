@@ -1,5 +1,4 @@
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { BookmarkManager } from '@pellux/goodvibes-sdk/platform/bookmarks';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
@@ -13,6 +12,7 @@ import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import type { LLMProvider, ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
+import { makeProjectTempDir } from './project-temp.ts';
 
 export interface TestManagers {
   readonly configManager: ConfigManager;
@@ -55,7 +55,7 @@ export function patchTestProviderRegistry(providerRegistry: ProviderRegistry): v
 
 export function createTestManagers(): TestManagers {
   const suffix = `${process.pid}-${Math.random().toString(36).slice(2)}`;
-  const rootDir = join(tmpdir(), `gv-test-managers-${suffix}`);
+  const rootDir = makeProjectTempDir(`gv-test-managers-${suffix}`);
   const workingDir = join(rootDir, 'workspace');
   const homeDir = join(rootDir, 'home');
   const configDir = join(homeDir, '.goodvibes', 'tui');

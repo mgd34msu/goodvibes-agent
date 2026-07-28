@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { createSessionSurface, createShellPathService, writeLastSessionPointer } from '@/runtime/index.ts';
 import type { SessionSurface } from '@/runtime/index.ts';
 import { CommandRegistry } from '../../input/command-registry.ts';
@@ -9,9 +8,10 @@ import { writeOnboardingCheckMarker, writeOnboardingCompletionMarker } from '../
 import type { CommandContext } from '../../input/command-registry.ts';
 import type { InputHandler } from '../../input/handler.ts';
 import type { GoodVibesCliParseResult } from '../../cli/types.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeShellPaths() {
-  const root = join(tmpdir(), `gv-tui-startup-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const root = makeProjectTempDir(`gv-tui-startup-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   return createShellPathService({
     workingDirectory: join(root, 'workspace'),
     homeDirectory: join(root, 'home'),

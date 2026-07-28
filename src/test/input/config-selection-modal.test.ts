@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'path';
-import { tmpdir } from 'os';
-import { mkdirSync, rmSync } from 'fs';
+import { rmSync } from 'fs';
 
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerConfigCommand } from '../../input/commands/config.ts';
@@ -12,6 +11,7 @@ import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeConfigManager(dir: string): ConfigManager {
   return new ConfigManager({
@@ -61,8 +61,7 @@ function makeContext(dir: string): {
 
 describe('/config fullscreen workspace command', () => {
   test('/config opens the fullscreen configuration workspace at an optional target', async () => {
-    const dir = join(tmpdir(), `gv-config-workspace-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-config-workspace-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
       const registry = new CommandRegistry();
       registerConfigCommand(registry);
@@ -84,8 +83,7 @@ describe('/config fullscreen workspace command', () => {
   });
 
   test('the fullscreen workspace includes every shared config key previously reachable through raw config', () => {
-    const dir = join(tmpdir(), `gv-config-coverage-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-config-coverage-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
       const cm = makeConfigManager(dir);
       const modal = new SettingsModal();
@@ -109,8 +107,7 @@ describe('/config fullscreen workspace command', () => {
   });
 
   test('the fullscreen workspace does not expose copied host/runtime lifecycle targets', () => {
-    const dir = join(tmpdir(), `gv-config-hidden-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-config-hidden-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     try {
       const cm = makeConfigManager(dir);
       const modal = new SettingsModal();

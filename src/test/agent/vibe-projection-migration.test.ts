@@ -6,7 +6,6 @@
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { rmSync } from 'node:fs';
@@ -34,7 +33,7 @@ describe('VIBE.md persona migration', () => {
   let memorySpine: MemoryAccess;
 
   beforeEach(async () => {
-    dbPath = join(tmpdir(), `vibe-migration-${randomUUID()}.db`);
+    dbPath = join(makeProjectTempDir('vibe-migration-db'), `vibe-migration-${randomUUID()}.db`);
     configRoot = makeProjectTempDir('vibe-migration-config');
     const configDir = join(configRoot, '.goodvibes', 'agent');
     mkdirSync(configDir, { recursive: true });

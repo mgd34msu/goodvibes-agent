@@ -39,6 +39,11 @@ describe('ops playbook runtime context', () => {
       },
     }));
 
+    // Not migrated to makeProjectTempDir: these two paths are deliberately
+    // never written (unlike recoveryFilePath/lastSessionPointerPath further
+    // down, which DO get writeFileSync'd under tmpDir) — this case tests
+    // behavior when the recovery/session files are absent, so nothing ever
+    // touches disk at these two locations.
     const runtimeContext = {
       runtimeBus: bus,
       store,

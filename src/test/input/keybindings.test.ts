@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import {
   KeybindingsManager,
   DEFAULT_KEYBINDINGS,
   type KeyAction,
   type KeyCombo,
 } from '../../input/keybindings.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type KeybindingsManagerTestAccess = {
   bindings: Record<string, KeyCombo[]>;
@@ -20,8 +20,7 @@ type KeybindingsManagerTestAccess = {
 let tmpDir: string;
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-kb-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-kb-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

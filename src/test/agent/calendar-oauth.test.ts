@@ -13,8 +13,7 @@
  *    injected fake service (no real network, port, or browser anywhere in this file).
  */
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { CalendarConnector } from '@pellux/goodvibes-sdk/platform/calendar';
@@ -37,6 +36,7 @@ import {
   runCalendarDisconnect,
   type CalendarServiceFactory,
 } from '../../input/commands/calendar-connect-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // --- shared doubles ---------------------------------------------------------
 
@@ -83,8 +83,7 @@ describe('normalizeProvider', () => {
 const RAW_SECRET = 'confidential-client-secret-value';
 
 function tmpRoot(): string {
-  const dir = join(tmpdir(), `gv-cal-oauth-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-cal-oauth-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 
