@@ -9,6 +9,7 @@ import type { FeedFetcher } from '@pellux/goodvibes-sdk/platform/calendar';
 import type { CommandContext } from '../command-registry.ts';
 import { parseAgentLocalLibraryArgs } from './agent-local-library-args.ts';
 import { requireShellPaths } from './runtime-services.ts';
+import { getSessionUntrustedContentLedger } from '../../trust/untrusted-content.ts';
 
 /**
  * External-calendar SUBSCRIPTION verbs for /calendar — the no-OAuth read path.
@@ -47,10 +48,33 @@ export function subscriptionRegistryForWrite(ctx: CommandContext, fetcher?: Feed
   return CalendarSubscriptionRegistry.create(requireShellPaths(ctx), secrets, fetcher ?? createHttpFeedFetcher());
 }
 
-/** Build a registry for the READ-ONLY merged view — tolerant of a missing secret manager. */
+/**
+ * Build a registry for the READ-ONLY merged view — tolerant of a missing secret
+ * manager.
+ *
+ * This is where the untrusted-content ledger is bound, and it is bound HERE
+ * rather than inside the registry for the same reason `buildEmailService` binds
+ * it in email-runtime.ts: the registry then holds no ledger of its own, and a
+ * test can observe every recording by handing it a recorder of its own.
+ *
+ * Only the READ builder gets one. `subscriptionRegistryForWrite` above serves
+ * subscribe/unsubscribe/refresh — arrival, not a turn read — and wiring a
+ * recorder there would let a timer-driven fetch arm the outward-effect guard for
+ * whatever turn happened to be open. See the registry's class header.
+ */
 export function subscriptionRegistryForRead(ctx: CommandContext): CalendarSubscriptionRegistry {
   const secrets = secretStoreFrom(ctx) ?? READ_ONLY_SECRET_STUB;
-  return CalendarSubscriptionRegistry.create(requireShellPaths(ctx), secrets, createHttpFeedFetcher());
+  const ledger = getSessionUntrustedContentLedger();
+  return CalendarSubscriptionRegistry.create(
+    requireShellPaths(ctx),
+    secrets,
+    createHttpFeedFetcher(),
+    // Reading a subscribed feed's event text arms the outward-effect guard the
+    // same way reading mail or loading a page does. This assignment is what
+    // type-checks the SDK recorder's `'calendar-event'` literal against
+    // UntrustedSurface.
+    (ingest) => { ledger.record(ingest); },
+  );
 }
 
 function parseArgs(args: readonly string[]) {
