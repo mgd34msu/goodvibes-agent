@@ -86,6 +86,18 @@ const SENSITIVE_CONFIG_PATHS: ReadonlySet<string> = new Set([
   'cloudflare.accessServiceTokenRef',
   // Cluster key material.
   'cluster.groupMaterial',
+  'cluster.secret',
+  // Payment card material. Declared here rather than matched by a second
+  // dedicated regex: a sibling round added
+  // /^payments\.(cardNumber|cardExpiry|cardCvv|cardholderName)$/ because none of
+  // those names ends in a word the suffix list knows. That fix was right about
+  // the defect and narrow about the cure — the next credential whose name does
+  // not fit the habit needs a third pattern. The declared set is the cure; the
+  // suffix list stays as an additive backstop only.
+  'payments.cardNumber',
+  'payments.cardExpiry',
+  'payments.cardCvv',
+  'payments.cardholderName',
 ]);
 
 const SECRET_LIKE_TEXT_PATTERNS: readonly RegExp[] = [
