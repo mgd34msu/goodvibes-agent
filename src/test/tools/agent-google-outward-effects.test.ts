@@ -161,13 +161,26 @@ afterEach(() => {
   rmSync(home, { recursive: true, force: true });
 });
 
-describe('the first-run journey: connect Gmail, prove it works, send a mail', () => {
+describe('the trigger: the agent lists the inbox to prove reading works, then sends', () => {
   /**
-   * The exact sequence that broke. "Show me my inbox and then email me" is not
-   * an exotic path — it is how anyone confirms a mail integration is alive, and
-   * it is what the agent does unprompted when asked to prove the connection.
+   * The sequence that actually broke, established by running it rather than by
+   * reasoning about it.
+   *
+   * The suspicion was that connecting the account did it — that reading
+   * credentials or adopting them recorded exposure. It does not. `/google
+   * setup` never reads mail, and `listMessages` has exactly one caller in this
+   * repo. The refusal named its origin as `gmail`, a literal string that
+   * appears at exactly one line: the ingest inside `mail.list`.
+   *
+   * So the trigger was the model's own verification instinct. Asked to prove
+   * the Google integration worked, it listed the inbox to demonstrate that
+   * reading worked — and that poisoned the send it was demonstrating with.
+   *
+   * That is worse than a first-run bug, because it is not confined to first
+   * run. It fires for every "check my inbox and then email X" session, which is
+   * among the most ordinary things anyone asks an assistant that reads mail.
    */
-  test('listing the inbox and then sending an unrelated mail succeeds in one process', async () => {
+  test('lists the inbox, then sends an unrelated mail in the same process — the reported failure', async () => {
     const { tool, sent } = googleTool({
       messages: [{ id: 'm1', from: 'stranger@evil.example', subject: STRANGER_SUBJECT, body: STRANGER_BODY }],
     });

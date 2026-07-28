@@ -19,9 +19,32 @@
  *
  *   - Reading mail records an untrusted ingest, exactly as loading a web page
  *     does. Mail is written by whoever knows the address.
- *   - Sending mail and writing calendar events are outward effects, refused for
- *     the rest of a turn in which untrusted content was read unless the owner
- *     asked for that specific action. Content cannot cause a send.
+ *   - Sending mail and writing calendar events are outward effects, refused
+ *     when their own content derives from what was read this turn. Content
+ *     cannot cause a send.
+ *
+ * ── What this tool got wrong, and what it cost ────────────────────────────
+ *
+ * The owner asked for one mail to his own address to prove the connection
+ * worked. The agent listed his inbox first — the obvious way to demonstrate
+ * that reading works, and what it does unprompted when asked to prove the
+ * connection — and the send was refused because of the listing. Three faults
+ * here compounded, and each is worth naming because each looks harmless alone:
+ *
+ *   - The ingests recorded the ORIGIN but not the TEXT. Without the text there
+ *     is nothing to compare an outgoing message against, so every send fell to
+ *     the coarse "did this process read anything" rule, which in a tool people
+ *     use to read mail is permanently yes.
+ *   - The outward calls named no fields, so even retained text would not have
+ *     been consulted. Two halves of one check, neither wired.
+ *   - `mail.list` recorded exposure BEFORE testing whether anything matched.
+ *     Listing an empty inbox therefore refused every later send in the turn —
+ *     exposure invented out of a result set with nothing in it. A read that
+ *     read nothing is not exposure, and the ordering is the whole difference.
+ *
+ * The shape to keep in mind: a guard that cannot answer the narrow question
+ * does not become safe by refusing everything. It becomes a guard people route
+ * around, and then there is no guard.
  */
 
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
