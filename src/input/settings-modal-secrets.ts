@@ -5,6 +5,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { SecretsManager } from '../config/secrets.ts';
 import {
   buildSecretBackedConfigUpdate,
+  defaultSecretBackedScope,
   getSecretWriteMedium,
 } from '../config/secret-config.ts';
 
@@ -24,16 +25,22 @@ export function setSecretBackedSettingValue(args: {
   }
 
   const update = buildSecretBackedConfigUpdate(key, value);
+  // Daemon-owned keys (surfaces.*, email.*, calendar.*, ...) name a credential
+  // the daemon itself reads, so the secret material must land in the daemon
+  // scope no matter which client edited it — see secret-config.ts's
+  // defaultSecretBackedScope for why splitting the reference from the value
+  // makes the write look successful while the daemon finds nothing.
+  const scope = defaultSecretBackedScope(key);
   if (update.secretKey && update.secretValue !== undefined) {
     void secretsManager.set(update.secretKey, update.secretValue, {
-      scope: 'user',
+      scope,
       medium: getSecretWriteMedium(configManager.get('storage.secretPolicy')),
     }).catch((error) => {
       logger.error('SettingsModal: failed to store secret config value', { key, error: summarizeError(error) });
     });
   }
   if (update.clearSecretKey) {
-    void secretsManager.delete(update.clearSecretKey, { scope: 'user' }).catch((error) => {
+    void secretsManager.delete(update.clearSecretKey, { scope }).catch((error) => {
       logger.error('SettingsModal: failed to clear secret config value', { key, error: summarizeError(error) });
     });
   }

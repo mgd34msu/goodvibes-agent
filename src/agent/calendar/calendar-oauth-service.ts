@@ -31,6 +31,8 @@ import {
 } from '@pellux/goodvibes-sdk/platform/calendar';
 import { createOAuthLocalListener } from '@pellux/goodvibes-sdk/platform/config';
 import type { ConfigKey } from '../../config/index.ts';
+import type { SecretScope } from '../../config/secrets.ts';
+import { resolveCredentialWriteScope } from '../../config/credential-scope.ts';
 
 /** The config keys the connector reads. clientId is not a secret (RFC 8252); the
  *  secret ref is secret-backed and listed in SECRET_CONFIG_KEYS. */
@@ -48,16 +50,89 @@ export interface CalendarConfigReader {
   get(key: string): unknown;
 }
 
-/** The narrow secret slice used for token storage + reading a stored client secret. */
+/**
+ * The narrow secret slice used for token storage + reading a stored client secret.
+ *
+ * `set` takes the store's write options because the OAuth token set has to be
+ * filed where the DAEMON can read it — see `daemonScopedSecrets` below. Tests
+ * that pass a Map-backed fake can keep ignoring the second argument; the
+ * parameter is optional so the fake's two-argument shape still satisfies this.
+ */
 export interface CalendarSecretSlice {
   get(key: string): Promise<string | null>;
-  set(key: string, value: string): Promise<void>;
-  delete(key: string): Promise<void>;
+  set(key: string, value: string, options?: { readonly scope?: SecretScope }): Promise<void>;
+  delete(key: string, options?: { readonly scope?: SecretScope }): Promise<void>;
 }
 
-/** Default (empty) calendar config section, seeded so get()/setDynamic() resolve the
- *  nested path. Mirrors ensureEmailConfigDefaults — the sanctioned app-layer pattern
- *  for a category absent from the SDK config schema. */
+/**
+ * Wrap a secret slice so every WRITE it receives is filed at the tier the
+ * credential's reader actually reads from.
+ *
+ * The SDK's `CalendarTokenStore` writes `GOODVIBES_CALENDAR_<PROVIDER>_TOKENS`,
+ * `_ACCOUNT` and `_STATUS` through a two-argument `set(key, value)` — it has no
+ * scope parameter to pass, and nothing in the chain from
+ * `/calendar connect google` down to that call ever named one. The store's own
+ * default for a name it does not recognize is the project tier, so an OAuth
+ * REFRESH TOKEN for a calendar the daemon reads on a schedule ended up in a
+ * silo the daemon never opens: the operator connects a calendar here, closes
+ * the terminal, and the daemon reports no calendar account connected.
+ *
+ * Wrapping at this seam rather than changing the call is what makes it work
+ * without an SDK change — the token store keeps its two-argument call and the
+ * scope is decided by the name, one layer down, where the answer is known.
+ * `resolveCredentialWriteScope` is what holds that answer, for these names and
+ * for the SDK-derived ones alike.
+ *
+ * Reads and deletes pass straight through: `SecretsManager.get` already reads
+ * across tiers, and a delete with no scope sweeps all of them, which is what a
+ * disconnect wants when a token stored before this fix is still sitting in the
+ * project tier.
+ */
+export function daemonScopedSecrets(secrets: CalendarSecretSlice): CalendarSecretSlice {
+  return {
+    get: (key) => secrets.get(key),
+    set: (key, value, options) => secrets.set(key, value, {
+      ...options,
+      scope: resolveCredentialWriteScope(key, options?.scope),
+    }),
+    delete: (key, options) => secrets.delete(key, options),
+  };
+}
+
+/**
+ * Default (empty) `calendar` config section, seeded so get()/setDynamic() can
+ * resolve the nested path: ConfigManager.resolvePath walks the live config
+ * object and throws "Invalid config path: section 'calendar' does not exist"
+ * for a section that is not on it, and `calendar` is an app-layer category
+ * absent from the SDK config schema.
+ *
+ * THIS IS A STAND-IN AND MUST BE DELETED. The one true definition belongs in —
+ * and is being written into — the SDK module
+ * `@pellux/goodvibes-sdk/platform/config` → `platform/config/connector-config-sections.ts`,
+ * which exports `ensureCalendarConfigDefaults` alongside
+ * `ensureGoogleOAuthConfigDefaults`, `ensureMailboxConfigDefaults` and the
+ * one-call `ensureConnectorConfigSections`. That version is not in the SDK
+ * release this package depends on yet, which is the only reason a body still
+ * exists here.
+ *
+ * The defect that makes this urgent: this seeder living ONLY in this product,
+ * while the SDK's own connector writes `calendar.google.clientId` and
+ * `calendar.google.clientSecretRef`, means the connector can only run inside
+ * the one product that happens to carry it. In the daemon, the TUI, the web UI
+ * or a node that took over after a handover, the first write throws and a
+ * reader asking whether an account is connected cannot even reach the key to
+ * find out — a capability that exists on one surface and nowhere else, which is
+ * exactly what the daemon is supposed to make impossible.
+ *
+ * SWAP INSTRUCTIONS, when the SDK dependency carries the module: delete the two
+ * definitions below and replace them with
+ *
+ *   export { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
+ *
+ * The body below is deliberately written as a copy of the SDK's `seedSection`
+ * so the swap changes behavior in no way — same section name, same defaults,
+ * same "seed only when absent, safe to call repeatedly" contract.
+ */
 const CALENDAR_CONFIG_DEFAULTS = {
   google: { clientId: '', clientSecretRef: '' },
   microsoft: { clientId: '', clientSecretRef: '' },
@@ -119,14 +194,27 @@ export interface CalendarOAuthServiceOptions {
 
 export class CalendarOAuthService {
   private readonly config: CalendarConfigReader;
-  private readonly secrets: CalendarSecretSlice;
+  /**
+   * The scope-pinned slice, and the exact object handed to the connector below.
+   *
+   * Readable so a test can write through the same object the SDK's token store
+   * writes through and check where the value landed. That is the only way to
+   * gate the wrapping from outside: the token store is built inside the
+   * connector, and a service that stopped wrapping would keep every visible
+   * behavior and quietly file the refresh token where the daemon cannot see it.
+   */
+  readonly secrets: CalendarSecretSlice;
   private readonly connector: CalendarConnector;
 
   constructor(options: CalendarOAuthServiceOptions) {
     this.config = options.config;
-    this.secrets = options.secrets;
+    // Every write this service makes — its own, and the token store's inside the
+    // connector — goes through the scope-pinning wrapper, so the refresh token
+    // lands where the daemon reads it. Wrapping here rather than at each call
+    // means a future write added inside the SDK connector is covered too.
+    this.secrets = daemonScopedSecrets(options.secrets);
     this.connector = options.connector ?? new CalendarConnector({
-      secrets: options.secrets,
+      secrets: this.secrets,
       fetchImpl: options.fetchImpl ? fetchAdapter(options.fetchImpl) : fetchAdapter(),
       listenerFactory: options.listenerFactory ?? realLoopbackFactory,
     });

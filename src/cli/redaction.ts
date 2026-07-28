@@ -1,6 +1,93 @@
+import { isSecretConfigKey } from '../config/secret-config.ts';
+
 export const REDACTED_VALUE = '<redacted>';
 
+/**
+ * The original rule, and the reason it is not enough on its own: it matches a
+ * config path whose LAST SEGMENT is exactly one of these words. `botToken` and
+ * `signingSecret` are on the list, so `surfaces.slack.botToken` matches — but
+ * anything that spells its credential differently does not, and the words below
+ * are a list somebody wrote once rather than a property of the key.
+ *
+ * The mailbox password reference, the calendar client secrets, the Google
+ * refresh token, the Teams app password, the Cloudflare token references and
+ * the cluster's key material all name credential material and match NONE of
+ * these words — see the list below, which names each one in full. A support
+ * bundle is a file the owner emails to someone; a credential in one is out of
+ * his hands the moment he sends it.
+ *
+ * Widening the words is the wrong repair. Matching any segment CONTAINING
+ * "token" or "secret" would also swallow the display toggle for token speed,
+ * the planner's token ceiling, the token-audit switches, the default tool token
+ * budget and the names/ids of the Cloudflare secrets store — numbers, booleans
+ * and identifiers a support bundle exists to show, replaced by `<redacted>`.
+ * So the missing keys are named in full, below.
+ *
+ * (Those counter-examples are described rather than spelled on purpose. The
+ * settings denominator in verification/settings-consumed-keys.ts counts a key
+ * as this product's responsibility when this repo names it, and a comment
+ * saying "we deliberately do nothing with this key" is not a consumer. Spelling
+ * them here would put a dozen settings into the coverage denominator on the
+ * strength of a sentence about leaving them alone.)
+ */
 const SENSITIVE_PATH_PATTERN = /(^|\.)(apiKey|accessToken|botToken|appToken|signingSecret|webhookSecret|verifyToken|verificationToken|secret|password|token|keyFile)$/i;
+
+/**
+ * Credential-bearing config paths named IN FULL, because their last segment is
+ * not one of the words above.
+ *
+ * Two sources feed the sensitive set and this is the second of them; the first
+ * is `SECRET_CONFIG_KEYS` (config/secret-config.ts), consulted directly by
+ * `isSensitiveConfigPath` so that every key this product already routes through
+ * the secret manager is sensitive here without being written down twice. A new
+ * secret-backed setting therefore arrives redacted with nobody remembering.
+ *
+ * What is left for this list is credential material that is NOT secret-backed —
+ * a value that can legitimately sit in settings.json as a literal:
+ *
+ *   - `google.oauth.refreshToken` — a long-lived Google refresh token.
+ *   - `calendar.google.icsUrl` — a private calendar feed address. A URL rather
+ *     than a password, but it grants read access to the whole calendar to
+ *     anyone holding it, which is what makes it a credential.
+ *   - `surfaces.googleChat.webhookUrl` — carries its key and token in the query
+ *     string; posting to it is posting as the app.
+ *   - `cluster.groupMaterial` — the cluster group's key material.
+ *   - the `cloudflare.*Ref` keys, the mail/calendar passwords whose segment is
+ *     `appPassword` / `imapPassword` / `caldavPassword` / `authToken`, and
+ *     `email.smtpPasswordRef`.
+ *
+ * The Cloudflare access-service token ID, the Cloudflare secrets-store name and
+ * id, and Telegram's discovered-bot-token id are deliberately ABSENT: they are
+ * identifiers naming WHERE a credential lives, not the credential, and a
+ * support bundle that hides them hides the thing being diagnosed. They are
+ * described rather than spelled for the denominator reason above.
+ */
+const SENSITIVE_CONFIG_PATHS: ReadonlySet<string> = new Set([
+  // Mail.
+  'email.passwordRef',
+  'email.smtpPasswordRef',
+  'surfaces.email.imapPassword',
+  // Calendar.
+  'calendar.google.clientSecretRef',
+  'calendar.microsoft.clientSecretRef',
+  'calendar.google.icsUrl',
+  'surfaces.calendar.caldavPassword',
+  // Google OAuth.
+  'google.oauth.refreshToken',
+  // Chat and telephony surfaces whose segment escapes the word list.
+  'surfaces.msteams.appPassword',
+  'surfaces.telephony.authToken',
+  'surfaces.googleChat.webhookUrl',
+  // Cloudflare.
+  'cloudflare.apiTokenRef',
+  'cloudflare.tunnelTokenRef',
+  'cloudflare.workerTokenRef',
+  'cloudflare.workerClientTokenRef',
+  'cloudflare.accessServiceTokenRef',
+  // Cluster key material.
+  'cluster.groupMaterial',
+]);
+
 const SECRET_LIKE_TEXT_PATTERNS: readonly RegExp[] = [
   /\bsk-[A-Za-z0-9_-]{16,}\b/g,
   /\bghp_[A-Za-z0-9_]{16,}\b/g,
@@ -13,7 +100,11 @@ const SECRET_LIKE_TEXT_PATTERNS: readonly RegExp[] = [
 ];
 
 export function isSensitiveConfigPath(path: string): boolean {
-  return SENSITIVE_PATH_PATTERN.test(path);
+  if (SENSITIVE_PATH_PATTERN.test(path)) return true;
+  if (SENSITIVE_CONFIG_PATHS.has(path)) return true;
+  // Everything routed through the secret manager is sensitive here too, derived
+  // rather than restated so the two lists cannot drift apart.
+  return isSecretConfigKey(path);
 }
 
 export function isRedactedValue(value: unknown): boolean {

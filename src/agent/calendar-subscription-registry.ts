@@ -11,6 +11,8 @@ import {
   type SubscriptionHealth,
 } from '@pellux/goodvibes-sdk/platform/calendar';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { resolveCredentialWriteScope } from '../config/credential-scope.ts';
+import type { SecretScope } from '../config/secrets.ts';
 
 /**
  * Agent-side registry for READ-ONLY external calendar SUBSCRIPTIONS (iCalendar
@@ -102,11 +104,21 @@ export interface RefreshOutcome {
   readonly eventCount?: number;
 }
 
-/** The SecretsManager surface this registry needs. */
+/**
+ * The SecretsManager surface this registry needs.
+ *
+ * `set`/`delete` carry write options because the feed URL has to land in a tier
+ * the DAEMON reads: the refresh loop runs on a schedule with no terminal open,
+ * and a URL filed in this surface's silo makes every scheduled refresh report
+ * "Stored feed URL is missing from the secret manager" while the subscription
+ * list keeps showing the subscription as configured. The narrower two-argument
+ * shape this used to declare made passing a scope impossible, so every
+ * subscription silently took the store's default (project) tier.
+ */
 export interface SubscriptionSecretStore {
   readonly get: (key: string) => Promise<string | null>;
-  readonly set: (key: string, value: string) => Promise<void>;
-  readonly delete?: (key: string) => Promise<void>;
+  readonly set: (key: string, value: string, options?: { readonly scope?: SecretScope }) => Promise<void>;
+  readonly delete?: (key: string, options?: { readonly scope?: SecretScope }) => Promise<void>;
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -242,7 +254,7 @@ export class CalendarSubscriptionRegistry {
         return { ok: false, stage: 'duplicate', detail: `A subscription named '${sub.name}' already exists — unsubscribe first or pass a different --name.` };
       }
       const secretKey = secretKeyForName(sub.name);
-      await this.secrets.set(secretKey, url);
+      await this.secrets.set(secretKey, url, { scope: resolveCredentialWriteScope(secretKey) });
       const meta: SubscriptionMeta = {
         name: sub.name,
         secretKey,
@@ -274,6 +286,10 @@ export class CalendarSubscriptionRegistry {
       const target = file.subscriptions.find((s) => s.name.toLowerCase() === name.trim().toLowerCase());
       if (!target) return false;
       if (this.secrets.delete) {
+        // No scope on the delete: sweep every tier. A feed URL stored before the
+        // daemon-tier write shipped is sitting in the project tier, and a delete
+        // narrowed to the daemon tier would drop the subscription from the list
+        // while leaving the live URL on disk.
         try { await this.secrets.delete(target.secretKey); } catch { /* best-effort secret cleanup */ }
       }
       this.writeStore({ version: STORE_VERSION, subscriptions: file.subscriptions.filter((s) => s !== target) });

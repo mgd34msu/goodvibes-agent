@@ -105,12 +105,19 @@ export async function persistEmailConfigField(
   const configKey = `email.${fieldName}`;
 
   if (fieldName === 'passwordRef') {
+    // No scope argument, deliberately. The mailbox password is what the DAEMON
+    // authenticates with when it sends or reads mail on a schedule, and
+    // `email.passwordRef` is a daemon-owned config path, so
+    // persistSecretBackedConfigValue's ownership default files the value in the
+    // daemon tier. Pinning it to 'user' here — which this did until now — put
+    // the reference in the daemon's settings file and the password in a tier the
+    // daemon never reads: mail configured from this terminal, and a daemon that
+    // reports no email integration the moment the terminal closes.
     const storedRef = await persistSecretBackedConfigValue(
       cm as unknown as Parameters<typeof persistSecretBackedConfigValue>[0],
       secretsManager as unknown as Parameters<typeof persistSecretBackedConfigValue>[1],
       configKey as unknown as ConfigKey,
       rawValue,
-      { scope: 'user' },
     );
     return { ok: true, configKey, secretRef: storedRef };
   }

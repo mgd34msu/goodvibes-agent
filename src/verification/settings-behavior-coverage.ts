@@ -310,6 +310,34 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     asserts: 'crashes older than the configured window stop counting toward the restart budget, so identical timestamps latch under a long window and restart under a short one',
   },
 
+  // --- Chat-surface credentials (surfaces.*.botToken) ----------------------
+  // Covered by src/test/config/credential-daemon-scope.test.ts. Each key is
+  // driven to two distinct values — a token, then cleared/reset — through the
+  // real writing path (the settings modal's secret write, the harness setting
+  // path, and the shared secret-backed config write) against a real
+  // ConfigManager and a real SecretsManager over a temp home. The observable
+  // difference is read back by a SECOND SecretsManager built with a different
+  // surface root and a different project root, standing in for the daemon with
+  // this program closed: the credential resolves after the write and is gone
+  // after the clear. Nothing about the writing surface's own directories is
+  // visible to that reader, so the assertion fails the moment the setting stops
+  // being honoured in the tier the daemon actually reads.
+  {
+    key: 'surfaces.slack.botToken',
+    test: 'src/test/config/credential-daemon-scope.test.ts',
+    asserts: 'a token typed into the settings modal resolves from a store that shares no surface directory with this program; clearing the setting removes it from that store rather than only from this surface',
+  },
+  {
+    key: 'surfaces.discord.botToken',
+    test: 'src/test/config/credential-daemon-scope.test.ts',
+    asserts: 'the harness set path files the token where a differently-rooted store resolves it, and reset removes it from there rather than reporting a reset while the live credential stays',
+  },
+  {
+    key: 'surfaces.telegram.botToken',
+    test: 'src/test/config/credential-daemon-scope.test.ts',
+    asserts: 'setting it writes a goodvibes:// reference into config and the value into a store a differently-rooted reader resolves; setting it to empty writes an empty config value and that store returns null',
+  },
+
   // NOT COVERED, deliberately: device.nodes.maxPaired. The key is declared in
   // schema-domain-device.ts and associated with the paired-device feature in
   // flag-config-map.ts, but nothing reads it — no pairing path bounds the number of

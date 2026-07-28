@@ -45,19 +45,40 @@ describe('the settings denominator counts this product, not the platform', () =>
     expect(numerator).toBeLessThanOrEqual(consumed.length);
   });
 
+  /**
+   * The two of that family this repo now genuinely acts on.
+   *
+   * The support-bundle redactor names them by full key (see cli/redaction.ts):
+   * `imapPassword` and `caldavPassword` are the last segments of a mail and a
+   * calendar credential, and neither matches any word in the redactor's
+   * trailing-segment list, so a literal stored at either path went into a
+   * support bundle in the clear. Deciding whether a key's VALUE leaves the
+   * machine is a consumer of that key by any reading of the rule above.
+   *
+   * This is the "a consumer arrived" case the test below was written to allow,
+   * and it is spelled as an explicit two-item list rather than as a loosened
+   * predicate: the rest of the family still has to stay outside, and adding a
+   * third entry has to be a deliberate act with a named consumer behind it.
+   */
+  const NOW_CONSUMED_BY_THE_REDACTOR: readonly string[] = [
+    'surfaces.email.imapPassword',
+    'surfaces.calendar.caldavPassword',
+  ];
+
   test('the daemon mailbox and calendar keys are outside it, and stay outside', () => {
     // The 25 keys that triggered the floor being lowered. They are read by the
-    // daemon's mail and calendar handlers; this repo contains no line that
-    // names any of them. If a future change starts counting them again without
-    // a consumer arriving, this fails rather than the floor sagging.
+    // daemon's mail and calendar handlers; apart from the two the redactor now
+    // classifies, this repo contains no line that names any of them. If a
+    // future change starts counting more of them without a consumer arriving,
+    // this fails rather than the floor sagging.
     const { consumed, disclaimed } = splitSettingsKeysByLocalConsumer(projectRoot, schemaKeys);
     const matches = (key: string): boolean =>
       DAEMON_MAILBOX_AND_CALENDAR_PREFIXES.some((prefix) => key.startsWith(prefix));
 
     const inSchema = schemaKeys.filter(matches);
     expect(inSchema.length).toBeGreaterThanOrEqual(25);
-    expect(consumed.filter(matches)).toEqual([]);
-    expect(disclaimed.filter(matches)).toEqual(inSchema);
+    expect(consumed.filter(matches)).toEqual(inSchema.filter((key) => NOW_CONSUMED_BY_THE_REDACTOR.includes(key)));
+    expect(disclaimed.filter(matches)).toEqual(inSchema.filter((key) => !NOW_CONSUMED_BY_THE_REDACTOR.includes(key)));
   });
 
   test('the rule is a real filter, not one that keeps everything or drops everything', () => {

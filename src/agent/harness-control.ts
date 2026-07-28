@@ -4,6 +4,7 @@ import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { SecretsManager } from '../config/secrets.ts';
 import {
   buildGoodVibesSecretKey,
+  defaultSecretBackedScope,
   isSecretConfigKey,
   isSecretReferenceValue,
   persistSecretBackedConfigValue,
@@ -509,12 +510,18 @@ export async function setHarnessSetting(
     if (secretValue.trim() && !isSecretReferenceValue(secretValue) && !secretsManager?.set) {
       throw new Error(`Cannot store raw secret value for ${setting.key}: secrets manager is unavailable.`);
     }
+    // No scope argument, deliberately — the same routing-by-ownership rule the
+    // non-secret branch below applies. Every key that reaches here is in
+    // SECRET_CONFIG_KEYS, and most of them (`surfaces.*` chat tokens,
+    // `email.passwordRef`, the calendar client secrets) name a credential the
+    // daemon executes with unattended. Pinning them to 'user' put the value
+    // where the daemon cannot read it while the reference went to the daemon's
+    // own settings file, so the setting reported success and changed nothing.
     const current = await persistSecretBackedConfigValue(
       configManager,
       secretsManager,
       setting.key as ConfigKey,
       secretValue,
-      { scope: 'user' },
     );
     return {
       key: setting.key,
@@ -556,7 +563,11 @@ export async function resetHarnessSetting(
     if (typeof previous === 'string' && isSecretReferenceValue(previous) && !secretsManager?.delete) {
       throw new Error(`Cannot reset ${setting.key}: secrets manager is unavailable to delete the stored secret.`);
     }
-    await secretsManager?.delete?.(buildGoodVibesSecretKey(setting.key), { scope: 'user' });
+    // The scope the value was WRITTEN at, or the reset clears nothing: a
+    // daemon-owned key's secret lives in the daemon tier, and deleting the
+    // user-tier copy would report the setting reset while the live credential
+    // stayed exactly where it was — a credential the operator believes is gone.
+    await secretsManager?.delete?.(buildGoodVibesSecretKey(setting.key), { scope: defaultSecretBackedScope(setting.key as ConfigKey) });
   }
   configManager.reset(setting.key as ConfigKey);
   return {
