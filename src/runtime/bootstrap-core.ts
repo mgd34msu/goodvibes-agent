@@ -44,6 +44,7 @@ import { registerAgentBrowserTool } from '../tools/agent-browser-tool.ts';
 import { registerAgentDocumentsTool } from '../tools/agent-documents-tool.ts';
 import { registerAgentGoogleTool } from '../tools/agent-google-tool.ts';
 import { registerAgentAccountsTool } from '../tools/agent-accounts-tool.ts';
+import { getOutwardApprovalStore, OUTWARD_APPROVAL_GESTURE } from '../trust/outward-approvals.ts';
 import { AgentAccountRegistry } from '@pellux/goodvibes-sdk/platform/google';
 import { ACCOUNT_REGISTRY_PATH_SEGMENTS } from '@pellux/goodvibes-sdk/platform/google';
 import { containsSecretLikeText } from '../agent/memory-safety.ts';
@@ -372,6 +373,12 @@ export async function initializeBootstrapCore(
     homeDirectory: services.shellPaths.homeDirectory,
     configGet: (key: string) => (configManager as { get: (key: string) => unknown }).get(key),
     secretGet: (key: string) => services.secretsManager.get(key),
+    // The approval path, wired. It used to be absent, and the refusal invented
+    // a remedy to fill the gap — telling the owner to reply "send it now" to a
+    // mechanism no code implemented. A surface that supplies no store now gets
+    // a refusal that says so plainly instead.
+    approvals: getOutwardApprovalStore(),
+    approvalGesture: OUTWARD_APPROVAL_GESTURE,
   });
   // Accounts the agent creates are recorded here at creation time. Autonomous
   // signup is authorized; doing it invisibly is not, and this is what makes it

@@ -113,7 +113,18 @@ describe('the account register', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain('evil.example');
-    expect(result.error).toContain('let them ask for it');
+    // The origin is named as the KIND of thing it is. It used to say "those
+    // pages" about everything, including a mailbox, which read as a boundary
+    // that did not know what it had just looked at.
+    expect(result.error).toContain('web page');
+
+    // What it must NOT say. This request came from the owner, so telling him to
+    // "tell the owner ... and let them ask for it" instructs him to obtain
+    // authority he already holds, from himself. That line is correct when a
+    // schedule or a channel drove the action and wrong here, so it is gone from
+    // the owner-direct path and this pins it.
+    expect(result.error).not.toContain('let them ask for it');
+    expect(result.error).not.toContain('Tell the owner');
   });
 
   test('with nothing read this turn, recording proceeds', async () => {

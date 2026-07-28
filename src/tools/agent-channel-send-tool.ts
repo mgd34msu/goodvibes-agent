@@ -9,6 +9,7 @@ import {
   formatAgentChannelDeliveryResult,
 } from '../agent/channel-delivery.ts';
 import { recordAgentChannelDeliveryReceipt } from '../agent/channel-delivery-receipts.ts';
+import { evaluateOutwardEffect, getSessionUntrustedContentLedger } from '../trust/untrusted-content.ts';
 
 export interface AgentChannelSendToolArgs {
   readonly message?: unknown;
@@ -116,6 +117,45 @@ export function createAgentChannelSendTool(
           '',
           'Model tool confirmation required. Call this tool with confirm:true only when the user explicitly asked GoodVibes Agent to send this channel message.',
         ].join('\n'));
+      }
+      // Delivering a channel message is an outward effect and had no
+      // untrusted-content gate at all — the ledger was never consulted here, so
+      // a page or a mailbox the agent had just read could dictate the text of a
+      // message to a webhook, a channel or a link. `confirm:true` and
+      // `explicitUserRequest` do not close that: both are set by the model, and
+      // a model that has just read an injected instruction is exactly what they
+      // fail against.
+      //
+      // Every field is enumerated, so this asks the narrow question rather than
+      // the blunt one — a message the owner composed goes even when the turn has
+      // read something, and only one that repeats what was read is refused.
+      const outwardDecision = evaluateOutwardEffect({
+        request: {
+          toolName: 'agent_channel_send',
+          action: 'channel.send',
+          // The target as the caller named it, not the resolved target object:
+          // a refusal has to say the thing the reader typed.
+          description: `sending a channel message to ${input.channel ?? input.route ?? input.webhook ?? input.link ?? 'the configured target'}`,
+        },
+        ledger: getSessionUntrustedContentLedger(),
+        content: {
+          message: input.message,
+          title: input.title,
+          channel: input.channel,
+          route: input.route,
+          webhook: input.webhook,
+          link: input.link,
+        },
+        taintOptions: {
+          // Where the message GOES. A webhook URL lifted out of a page is the
+          // redirect attack in its purest form, and it is short enough to pass
+          // both length thresholds, so these are tested by containment.
+          exactMatchFields: ['channel', 'route', 'webhook', 'link'],
+        },
+        requestedBy: 'owner-direct',
+      });
+      if (!outwardDecision.allowed) {
+        return failure(`${outwardDecision.reason ?? 'Refused.'} ${outwardDecision.fix ?? ''}`.trim());
       }
       try {
         const result = await deliverAgentChannelMessage(channelDeliveryRouter, input);

@@ -262,6 +262,20 @@ export interface CommandContext
      */
     readonly memoryConsolidation?: ConsolidationProposalsClient;
   };
+  /**
+   * True when the MODEL invoked this command rather than the owner typing it.
+   *
+   * The `agent_harness mode:"run_command"` tool can run any registered command,
+   * so "it came in as a slash command" is not by itself evidence that a human
+   * performed a gesture — a model reading injected text can produce a tool call
+   * as easily as any other. Most commands do not care. A command that grants
+   * authority does: see input/commands/google-runtime.ts, where the approval
+   * path refuses unless this is absent.
+   *
+   * Set only by the harness command runner, which knows what it is. Absent
+   * means the surface's own input handler received keystrokes.
+   */
+  readonly invokedByModel?: boolean | undefined;
 }
 
 /**
