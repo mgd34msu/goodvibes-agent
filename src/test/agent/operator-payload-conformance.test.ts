@@ -38,29 +38,49 @@ type KeysOfUnion<T> = T extends unknown ? keyof T : never;
 /**
  * Excess-key rejection that works on ANY body, not only a fresh literal.
  *
- * DO NOT REPLACE THIS WITH "just type the parameter". Parameter typing does not
- * catch two of the four ways a retired field reaches a body. Measured on this
- * repo's own contract, seeding a stale `lineIndex` into a `profile.forget` body:
+ * DO NOT REPLACE THIS WITH "just type the parameter", and do not assume the
+ * compiler catches anything at a raw `sdk.operator.invoke` call. Measured on
+ * this repo's contract and TypeScript, seeding a stale `lineIndex` into a
+ * `profile.forget` body four ways, through four contexts:
  *
- * | how the field arrives                    | parameter typing | this guard |
- * |------------------------------------------|------------------|------------|
- * | fresh literal, written inline            | rejected TS2353  | rejected   |
- * | spread literal, written inline beside it | rejected TS2353  | rejected   |
- * | body built as a variable first           | SLIPS THROUGH    | rejected   |
- * | carried IN by the spread source's type   | SLIPS THROUGH    | rejected   |
+ * | how the field arrives         | bare annotation | raw invoke | wrapper | + guard |
+ * |-------------------------------|-----------------|------------|---------|---------|
+ * | fresh literal, inline         | rejected TS2353 | NONE       | TS2353  | TS2322  |
+ * | spread literal, inline beside | rejected TS2353 | NONE       | TS2353  | TS2322  |
+ * | built as a variable first     | slips           | NONE       | slips   | TS2345  |
+ * | carried in by the spread type | slips           | NONE       | slips   | TS2345  |
  *
- * The last row is the one that matters and the one that is easy to get wrong.
- * A fresh literal containing a spread is NOT uniformly unchecked — what is
- * written inline in it still is. Only what arrives THROUGH the spread escapes,
- * because it is part of the spread source's type rather than a property of this
- * literal. So branching a spread-built body into two plain literals closes the
- * inline case, which was never open, and does nothing for the carried case.
+ * Read the `raw invoke` column first, because it is the surprising one and it
+ * is what production would do without the wrapper: NOTHING is rejected, not
+ * even a stale key typed straight into a fresh literal. The operator client
+ * declares a typed overload and, beneath it,
+ * `invoke<T = unknown>(id: string, input?: Record<string, unknown>)`. A body the
+ * typed overload rejects does not error — it selects the loose one, which takes
+ * any object. The only trace is the result degrading to `Promise<unknown>`,
+ * verified by resolving both: a clean body returns the real output type, a
+ * stale one returns `unknown`. That signal disappears the moment a caller
+ * ignores or casts the result, which is exactly what `as never` used to do.
  *
- * That makes this guard LOAD-BEARING for rows three and four, not a backstop.
- * Removing it does not fall back on the compiler; it removes the only check.
+ * So the protection is two mechanisms covering different rows, and NEITHER is
+ * redundant:
  *
- * Mapping every excess key to `never` is what closes them: a real value can
- * never satisfy `never`, whatever shape the body was built in.
+ *   - `invokeOperatorGatewayMethod` binding `payload: OperatorMethodInput<TMethodId>`
+ *     is a single non-overloaded signature, which restores ordinary
+ *     excess-property checking and is the ONLY thing catching rows one and two.
+ *   - this guard is the only thing catching rows three and four, in every
+ *     context including through the wrapper.
+ *
+ * Delete either and that half is caught by nothing at all.
+ *
+ * Both corrections to this table went the same direction: each earlier version
+ * modelled one layer less than what actually runs — first a bare annotation,
+ * then a single overload — and each time the real protection was weaker than
+ * the previous number claimed. If a safety measurement keeps moving one way
+ * under scrutiny, assume it has not finished moving, and re-measure against the
+ * real call shape rather than a model of it.
+ *
+ * Mapping every excess key to `never` is what closes rows three and four: a
+ * real value can never satisfy `never`, whatever shape the body was built in.
  */
 function assertOperatorBody<
   TMethodId extends OperatorMethodId,
