@@ -21,6 +21,21 @@ export function readLimit(value: unknown, fallback: number): number {
   return Math.max(1, Math.min(500, Math.trunc(parsed)));
 }
 
+/**
+ * Page size for a catalog that is a fixed, enumerable set rather than a feed —
+ * the settings schema being the one that matters. `readLimit`'s shared ceiling
+ * of 500 silently truncated the settings listing the moment the schema passed
+ * 500 keys (the `profile.*` domain took it past): `returned` came back short of
+ * `total` with nothing in the payload saying the catalog had been cut. A set
+ * the caller is entitled to see all of is bounded by its own size.
+ */
+export function readCatalogLimit(value: unknown, size: number): number {
+  const ceiling = Math.max(1, Math.trunc(size));
+  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return ceiling;
+  return Math.max(1, Math.min(ceiling, Math.trunc(parsed)));
+}
+
 export function readFieldMap(value: unknown): Readonly<Record<string, string>> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, typeof entry === 'string' ? entry : String(entry)]));

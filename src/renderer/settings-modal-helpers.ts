@@ -80,6 +80,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   provider: 'Provider',
   subscriptions: 'Subscriptions',
   behavior: 'Behavior',
+  profile: 'Your Profile',
   storage: 'Storage',
   permissions: 'Permissions',
   diagnostics: 'Diagnostics',

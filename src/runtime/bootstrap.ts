@@ -63,6 +63,8 @@ import { registerAgentHostTool } from '../tools/agent-host-tool.ts';
 import { registerAgentMemoryTool } from '../tools/agent-memory-tool.ts';
 import { registerAgentModelsTool } from '../tools/agent-models-tool.ts';
 import { registerAgentPersonalOpsTool } from '../tools/agent-personal-ops-tool.ts';
+import { registerAgentProfileTool } from '../tools/agent-profile-tool.ts';
+import { createProfileGatewayInvoke } from '../agent/owner-profile-gateway.ts';
 import { registerAgentResearchTool } from '../tools/agent-research-tool.ts';
 import { registerAgentRouteTool } from '../tools/agent-route-tool.ts';
 import { registerAgentSecurityTool } from '../tools/agent-security-tool.ts';
@@ -465,6 +467,18 @@ export async function bootstrapRuntime(
   registerAgentMemoryTool(toolRegistry, commandRegistry, commandContext);
   registerAgentModelsTool(toolRegistry, commandRegistry, commandContext);
   registerAgentPersonalOpsTool(toolRegistry, commandRegistry, commandContext);
+  // The owner profile lives in one file at daemon scope and the daemon is its
+  // only writer, so this tool holds no state of its own — it calls the nine
+  // `profile.*` verbs. The invoker prefers this process's own gateway catalog
+  // when it carries the handlers and falls back to the connected host
+  // otherwise, so the same tool works whether or not this build embeds them.
+  registerAgentProfileTool(toolRegistry, {
+    invoke: createProfileGatewayInvoke({
+      gatewayMethods: services.gatewayMethods,
+      configManager,
+      homeDirectory: services.shellPaths.homeDirectory,
+    }),
+  });
   registerAgentResearchTool(toolRegistry, commandRegistry, commandContext);
   registerAgentRouteTool(toolRegistry, commandContext);
   registerAgentSecurityTool(toolRegistry, commandRegistry, commandContext);

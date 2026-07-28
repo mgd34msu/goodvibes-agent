@@ -32,6 +32,7 @@ const TOOL_DESCRIPTION_OVERRIDES: Readonly<Record<string, string>> = {
   models: 'Inspect model routes, providers, cookbook, and checks.',
   packet: 'Manage implementation and execution packets.',
   personal_ops: 'Brief, route, inspect, and read Personal Ops.',
+  profile: 'Read/record what GoodVibes knows about the owner.',
   query: 'Track operator queries, answers, and closure.',
   read: 'Read files, outlines, symbols, and ranges.',
   research: 'Plan, track, source, and save research.',

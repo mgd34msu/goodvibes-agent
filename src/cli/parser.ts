@@ -31,6 +31,12 @@ const COMMAND_ALIASES: Readonly<Record<string, GoodVibesCliCommand>> = {
   ci: 'ci',
   principals: 'principals',
   principal: 'principals',
+  // `profile` already means `profiles` (isolated Agent profile homes), so the
+  // owner profile takes its own unambiguous name rather than re-pointing a
+  // command that works today.
+  'owner-profile': 'owner-profile',
+  'owner-profiles': 'owner-profile',
+  'about-me': 'owner-profile',
   'channel-profiles': 'channel-profiles',
   'channel-profile': 'channel-profiles',
   workspaces: 'workspaces',

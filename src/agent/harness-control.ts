@@ -167,9 +167,17 @@ function previewText(value: string, maxLength = 56): string {
   return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
-function clampLimit(value: unknown, fallback = DEFAULT_SETTING_LIMIT): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.max(1, Math.min(500, Math.trunc(value)));
+/**
+ * The settings catalog is a fixed, enumerable set the caller is entitled to see
+ * all of — not a feed — so its ceiling is the schema's own size. A fixed 500
+ * silently truncated the default listing the moment the schema passed 500 keys
+ * (the `profile.*` domain took it past): the payload's `returned` came back
+ * short of its own `total` with nothing saying the list had been cut.
+ */
+function clampSettingLimit(value: unknown, schemaSize: number): number {
+  const ceiling = Math.max(1, Math.trunc(schemaSize) || DEFAULT_SETTING_LIMIT);
+  if (typeof value !== 'number' || !Number.isFinite(value)) return ceiling;
+  return Math.max(1, Math.min(ceiling, Math.trunc(value)));
 }
 
 function findSetting(configManager: Pick<ConfigManager, 'getSchema'>, rawKey: string): ConfigSetting | null {
@@ -328,7 +336,7 @@ export function listHarnessSettings(
   filters: HarnessSettingFilters = {},
   options: { readonly includeParameters?: boolean; readonly view?: EffectiveConfigView } = {},
 ): readonly (HarnessSettingDescriptor | HarnessSettingSummary)[] {
-  const limit = clampLimit(filters.limit);
+  const limit = clampSettingLimit(filters.limit, configManager.getSchema().length);
   const view = options.view;
 
   return filterHarnessSettingSchema(configManager, filters)

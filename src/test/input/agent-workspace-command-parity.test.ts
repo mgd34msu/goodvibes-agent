@@ -221,7 +221,15 @@ describe('Agent workspace command parity', () => {
     // (agent 1.18.1 shipped a broken browser and there was no way to ask the
     // binary anything) — a diagnostics surface with no mutating setting a TUI
     // workspace editor would expose, same shape as compat/doctor/pair/relay.
-    const shellOnlyCommands = new Set(['browser', 'completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'pair', 'relay', 'tui', 'unknown', 'version', 'workspaces']);
+    // owner-profile is the shell-side maintenance path for the owner-profile
+    // Markdown file (read/provenance/set/forget/status). In the Agent itself
+    // the profile is reached two other ways that need no workspace card: the
+    // `profile` tool during a conversation — which is where facts are actually
+    // recorded, because it carries the authority, his verbatim words, and the
+    // one-line disclosure — and the `Your Profile` settings category, which
+    // renders every profile.* key. The file is also his to open and edit by
+    // hand, and his edits win. There is no TUI workspace editor for it yet.
+    const shellOnlyCommands = new Set(['browser', 'completion', 'compat', 'doctor', 'fleet', 'help', 'import', 'owner-profile', 'pair', 'relay', 'tui', 'unknown', 'version', 'workspaces']);
     const requirements: Record<string, CoverageRequirement> = {
       ask: { categoryIds: ['knowledge'], editorPrefixes: ['knowledge-ask'] },
       auth: { editorPrefixes: ['auth-'] },

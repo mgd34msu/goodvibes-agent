@@ -49,7 +49,7 @@ import { AGENT_HARNESS_MODES, AGENT_HARNESS_PARAMETER_PROPERTIES } from './agent
 import { runCommand } from './agent-harness-command-runner.ts';
 import { runWorkspaceAction } from './agent-harness-workspace-action-runner.ts';
 import type { AgentHarnessToolArgs, AgentHarnessToolDeps } from './agent-harness-tool-types.ts';
-import { catalogEnvelope, catalogFilters, error, output, readLimit, readString, requireConfirmedAction, settingLookupArgs } from './agent-harness-tool-utils.ts';
+import { catalogEnvelope, catalogFilters, error, output, readCatalogLimit, readLimit, readString, requireConfirmedAction, settingLookupArgs } from './agent-harness-tool-utils.ts';
 import { CATALOG_QUERIES as CQ } from './agent-harness-catalog-filters.ts';
 import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type AgentHarnessMode } from './agent-harness-mode-catalog.ts';
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
@@ -584,15 +584,15 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return error(resolved.usage);
         }
         if (args.mode === 'settings') {
+          // Ownership-aware: daemon-owned keys carry the DAEMON's live value.
+          const cfg = deps.commandContext.platform.configManager;
           const filters = {
             category: readString(args.category) || undefined,
             prefix: readString(args.prefix) || undefined,
             query: readString(args.query) || undefined,
             includeHidden: args.includeHidden === true,
-            limit: readLimit(args.limit, 500),
+            limit: readCatalogLimit(args.limit, cfg.getSchema().length),
           };
-          // Ownership-aware: daemon-owned keys carry the DAEMON's live value.
-          const cfg = deps.commandContext.platform.configManager;
           const settings = await listEffectiveHarnessSettings(cfg, { ...filters }, {
             includeParameters: args.includeParameters === true,
           });

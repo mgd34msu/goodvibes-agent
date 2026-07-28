@@ -13,6 +13,7 @@ export type GoodVibesCliCommand =
   | 'routines'
   | 'ci'
   | 'principals'
+  | 'owner-profile'
   | 'channel-profiles'
   | 'workspaces'
   | 'browser'

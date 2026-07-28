@@ -7,7 +7,7 @@ import type { SessionReturnContextSummary } from '@/runtime/index.ts';
 import type { ConversationMessageSnapshot } from '../../core/conversation.ts';
 import { formatReturnContextForDisplay, getReturnContextMode, maybeAssistReturnContextSummary } from '@/runtime/index.ts';
 import { requireProviderApi, requireSessionManager } from './runtime-services.ts';
-import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
+import { redactSensitiveData, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import { readConversationMessageSnapshots } from '../../core/conversation-message-snapshot.ts';
 
@@ -146,7 +146,14 @@ function printSessionExport(
       lines.push('');
     }
   }
-  ctx.print(lines.join('\n'));
+  // A transcript is the one place a value the model was handed becomes a
+  // durable document. redactSensitiveData carries the platform's credential
+  // patterns AND, in a process that has loaded the owner profile, that
+  // profile's closed-tier values — his address, his contact details, the People
+  // section — so an exported session cannot become the copy of the dossier that
+  // the file itself is careful not to be (docs/owner-profile.md §10, §11.3).
+  // Where no profile is loaded this behaves exactly as it did before.
+  ctx.print(redactSensitiveData(lines.join('\n')));
 }
 
 function conversationMessageContentText(message: ConversationMessageSnapshot): string {
