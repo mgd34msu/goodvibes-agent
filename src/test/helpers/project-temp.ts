@@ -1,11 +1,8 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
+import { trackTempDir } from './temp-registry.ts';
 
 const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
-
-// Tracks all dirs created by makeProjectTempDir in this process for exit-time cleanup.
-const _createdDirs: string[] = [];
-let _exitHandlerRegistered = false;
 
 function ensureProjectTestTmpRoot(): string {
   if (!existsSync(PROJECT_TEST_TMP_ROOT)) {
@@ -14,23 +11,15 @@ function ensureProjectTestTmpRoot(): string {
   return PROJECT_TEST_TMP_ROOT;
 }
 
-function ensureExitHandler(): void {
-  if (_exitHandlerRegistered) return;
-  _exitHandlerRegistered = true;
-  process.on('exit', () => {
-    for (const dir of _createdDirs) {
-      try {
-        rmSync(dir, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup failures
-      }
-    }
-  });
-}
-
+/**
+ * A temp directory under `<repo>/.test-tmp` rather than the OS temp dir, for
+ * tests whose workspace must sit inside this git checkout.
+ *
+ * Removal is registered with the shared temp registry, which the test preload
+ * sweeps from a top-level `afterAll`. This was previously a
+ * `process.on('exit', …)` handler, which `bun test` never runs — so nothing was
+ * ever removed and a fully green run left every directory behind.
+ */
 export function makeProjectTempDir(prefix: string): string {
-  ensureExitHandler();
-  const dir = mkdtempSync(join(ensureProjectTestTmpRoot(), `${prefix}-`));
-  _createdDirs.push(dir);
-  return dir;
+  return trackTempDir(mkdtempSync(join(ensureProjectTestTmpRoot(), `${prefix}-`)));
 }

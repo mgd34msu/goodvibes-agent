@@ -288,14 +288,14 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
     test('set and get sandbox.qemuImagePath', () => {
       const mgr = createConfigManager(tmpDir);
-      mgr.set('sandbox.qemuImagePath', '/tmp/gv-sandbox.qcow2');
-      expect(mgr.get('sandbox.qemuImagePath')).toBe('/tmp/gv-sandbox.qcow2');
+      mgr.set('sandbox.qemuImagePath', join(tmpdir(), 'gv-sandbox.qcow2'));
+      expect(mgr.get('sandbox.qemuImagePath')).toBe(join(tmpdir(), 'gv-sandbox.qcow2'));
     });
 
     test('set and get sandbox.qemuExecWrapper', () => {
       const mgr = createConfigManager(tmpDir);
-      mgr.set('sandbox.qemuExecWrapper', '/tmp/gv-qemu-wrapper');
-      expect(mgr.get('sandbox.qemuExecWrapper')).toBe('/tmp/gv-qemu-wrapper');
+      mgr.set('sandbox.qemuExecWrapper', join(tmpdir(), 'gv-qemu-wrapper'));
+      expect(mgr.get('sandbox.qemuExecWrapper')).toBe(join(tmpdir(), 'gv-qemu-wrapper'));
     });
 
     test('set and get sandbox.qemuGuestHost', () => {

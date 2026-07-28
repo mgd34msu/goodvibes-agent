@@ -1,0 +1,11 @@
+{
+  // Build/release tooling: scripts/ and bin/. tsconfig.json only includes src,
+  // and tsconfig.test.json only widens that to src/test — so every gate script
+  // CI executes (coverage-gate, check-architecture, check-workflows,
+  // publish-check, verification-ledger, run-tests, …) was previously compiled
+  // by nobody. Checked by `bun run typecheck:tools`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": true },
+  "include": ["scripts", "bin"],
+  "exclude": []
+}

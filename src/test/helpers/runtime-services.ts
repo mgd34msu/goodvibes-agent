@@ -9,7 +9,7 @@
  */
 import { beforeEach } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
@@ -61,7 +61,6 @@ type IntelligenceTestRoots = {
 };
 
 let testRoots: IntelligenceTestRoots | null = null;
-let cleanupRegistered = false;
 
 let runtimeServices: RuntimeServices | null = null;
 let runtimeCounter = 0;
@@ -99,17 +98,10 @@ function getTestRoots(): IntelligenceTestRoots {
     }),
   };
 
-  if (!cleanupRegistered) {
-    process.on('exit', () => {
-      if (!testRoots) return;
-      try {
-        rmSync(testRoots.root, { recursive: true, force: true });
-      } catch {
-        // ignore cleanup failures
-      }
-    });
-    cleanupRegistered = true;
-  }
+  // No cleanup registration here: `root` came from makeProjectTempDir, which
+  // already tracked it in the shared temp registry that the preload's top-level
+  // afterAll sweeps. This used to register a second `process.on('exit', …)`
+  // handler, which `bun test` never runs.
 
   return testRoots;
 }

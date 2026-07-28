@@ -100,7 +100,13 @@ describe('StateTool', () => {
     });
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // KVState auto-persists on a 5-second debounce timer that dispose() clears.
+    // Without this the timer fired long after the directory below was removed
+    // and RE-CREATED it — <tmp>/.goodvibes/state/session_*.json reappearing
+    // after cleanup was exactly how this suite left 9 directories behind on a
+    // fully green run. Dispose first, then remove.
+    await kvState.dispose();
     resetTestProjectIndexes();
     if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true });
   });

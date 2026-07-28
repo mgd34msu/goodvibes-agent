@@ -169,6 +169,67 @@ describe('composition parity: host power seam is opt-in (non-spawning default)',
   });
 });
 
+describe('composition parity: background live model discovery is opt-in', () => {
+  // The provider registry's live discovery sweep is fire-and-forget: nothing
+  // awaits it, and on completion it writes
+  // <persistenceRoot>/provider-models/<provider>.json. Measured here, that
+  // write landed AFTER a test run had finished and RE-CREATED a temp workspace
+  // whose cleanup had already removed it — the last surviving directory leak in
+  // the suite. So the sweep is opt-in, and only the long-lived interactive
+  // composition (still running when it resolves) opts in.
+  const repoRoot = resolve(import.meta.dir, '../../..');
+  const readSource = (rel: string): string => readFileSync(resolve(repoRoot, rel), 'utf8');
+
+  let root = '';
+  afterEach(() => {
+    if (root) rmSync(root, { recursive: true, force: true });
+    root = '';
+  });
+
+  /** Does this runtime's persistence root hold a live-discovery model cache? */
+  function hasProviderModelsCache(configDir: string): boolean {
+    return existsSync(join(configDir, 'provider-models'));
+  }
+
+  test('createRuntimeServices without the opt-in starts no discovery sweep', () => {
+    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-model-discovery-'));
+    const workingDir = join(root, 'workspace');
+    const homeDir = join(root, 'home');
+    const configDir = join(homeDir, '.goodvibes', 'agent');
+    mkdirSync(workingDir, { recursive: true });
+    mkdirSync(configDir, { recursive: true });
+
+    createRuntimeServices({
+      runtimeBus: new RuntimeEventBus(),
+      runtimeStore: createRuntimeStore(),
+      configManager: new ConfigManager({ workingDir, homeDir, surfaceRoot: 'agent' }),
+      workingDir,
+      homeDirectory: homeDir,
+    });
+
+    expect(hasProviderModelsCache(configDir)).toBe(false);
+
+    // NO-proof for the probe itself: the assertion above would read false just
+    // as happily if it were watching a path nothing ever writes. Plant the
+    // cache the sweep produces and confirm the same probe reports it.
+    mkdirSync(join(configDir, 'provider-models'), { recursive: true });
+    writeFileSync(join(configDir, 'provider-models', 'cerebras.json'), '{}', 'utf8');
+    expect(hasProviderModelsCache(configDir)).toBe(true);
+  });
+
+  test('createRuntimeServices gates the sweep on the opt-in, and only the interactive runtime opts in', () => {
+    expect(readSource('src/runtime/services.ts')).toContain(
+      'if (options.backgroundModelDiscovery === true) providerRegistry.initProviderModelDiscovery();',
+    );
+    expect(readSource('src/runtime/bootstrap-core.ts')).toContain('backgroundModelDiscovery: true');
+    // One-shot CLI commands build a runtime to answer a single question and
+    // tear it down; their process is gone before an unawaited sweep resolves.
+    for (const rel of ['src/cli/management.ts', 'src/cli/bundle-command.ts']) {
+      expect(readSource(rel)).not.toContain('backgroundModelDiscovery');
+    }
+  });
+});
+
 describe('composition parity: the trigger family is composed, not just importable', () => {
   let root = '';
 

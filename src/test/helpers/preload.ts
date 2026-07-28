@@ -2,13 +2,15 @@
  * Test environment preload — loaded by bun:test via bunfig.toml [test].preload.
  *
  * Provides globals that are available in the full runtime but absent in the
- * bare bun:test runner. Add only what is genuinely missing; do NOT mock real
- * platform APIs here.
+ * bare bun:test runner, and owns the suite's temp-directory lifetime. Add only
+ * what is genuinely missing; do NOT mock real platform APIs here.
  */
 
-import { mkdtempSync } from 'node:fs';
+import { afterAll, beforeAll, beforeEach } from 'bun:test';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { sweepTrackedTempDirs } from './temp-registry.ts';
 
 // Ensure fetch is available as a global (bun provides it; this is a no-op in
 // most bun versions but guards against environments where it isn't set).
@@ -16,6 +18,94 @@ if (typeof globalThis.fetch === 'undefined') {
   // @ts-ignore — bun built-in, not in all type-def bundles
   globalThis.fetch = Bun.fetch;
 }
+
+/**
+ * ONE temp sandbox for the whole test process, removed when the run ends.
+ *
+ * The problem this solves: `bun test` does not run `process.on('exit', …)`
+ * listeners at all — verified directly, an exit listener registered here never
+ * fires under `bun test` while the same listener does fire under `bun run`,
+ * both on normal termination and after an uncaught throw. Several helpers had
+ * registered their cleanup that way, so it was dead code: a fully GREEN run of
+ * the 321 temp-touching test files left 1,649 directories in the OS temp dir
+ * and 60 under <repo>/.test-tmp.
+ *
+ * Rather than trusting 321 test files to each clean up after themselves, the OS
+ * temp directory is redirected into a single per-process sandbox here — before
+ * any test module is imported — and the whole sandbox is removed in a top-level
+ * `afterAll`. `os.tmpdir()` re-reads process.env.TMPDIR on every call
+ * (verified), so this captures every later `tmpdir()` call, including calls
+ * made inside the SDK and other installed packages.
+ *
+ * `afterAll` registered at preload top level is the hook bun actually runs:
+ * once, after the last test file, whether the run passed or failed (all three
+ * verified). Do NOT move this registration inside a function — a hook attached
+ * lazily during a run does not reliably attach.
+ */
+const OUTER_TMPDIR = tmpdir();
+const TEST_TMP_SANDBOX = mkdtempSync(join(OUTER_TMPDIR, 'gv-agent-test-run-'));
+process.env['TMPDIR'] = TEST_TMP_SANDBOX;
+process.env['TMP'] = TEST_TMP_SANDBOX;
+process.env['TEMP'] = TEST_TMP_SANDBOX;
+
+/** The per-run sandbox every `tmpdir()` call in this process resolves into. */
+export function testTempSandbox(): string {
+  return TEST_TMP_SANDBOX;
+}
+
+/** The temp directory this process inherited, before the redirect. */
+export function outerTempDir(): string {
+  return OUTER_TMPDIR;
+}
+
+function assertRedirect(): void {
+  process.env['TMPDIR'] = TEST_TMP_SANDBOX;
+  process.env['TMP'] = TEST_TMP_SANDBOX;
+  process.env['TEMP'] = TEST_TMP_SANDBOX;
+}
+
+// Re-assert the redirect before every test. A test that snapshots and restores
+// process.env wholesale would otherwise hand the rest of the run the real /tmp
+// back, and everything created from that point on escapes the sandbox silently.
+// Registered at preload top level, statically — a hook attached from inside an
+// already-running hook does not scope to the test that triggered it.
+beforeAll(assertRedirect);
+beforeEach(assertRedirect);
+
+afterAll(() => {
+  // Fail the run loudly if the redirect did not hold to the end. Without this,
+  // a suite that lost TMPDIR partway through would still report a clean temp
+  // directory — because the measurement only ever looks at the redirect target,
+  // and everything that escaped went somewhere else entirely.
+  const finalTmp = tmpdir();
+  if (finalTmp !== TEST_TMP_SANDBOX) {
+    throw new Error(
+      `temp sandbox redirect was lost during the run: tmpdir() is ${finalTmp}, expected ${TEST_TMP_SANDBOX}. ` +
+        'Anything created after the redirect was lost escaped cleanup.',
+    );
+  }
+  // Directories deliberately created OUTSIDE the sandbox (under
+  // <repo>/.test-tmp, so a test workspace sits inside this git checkout).
+  const swept = sweepTrackedTempDirs();
+  // Backstop for the same root: several test files build their scratch trees
+  // directly under <repo>/.test-tmp without going through the registry. The
+  // whole root is test scratch — scripts/run-tests.ts already empties it before
+  // and after every suite run — so owning it here gives a bare `bun test` the
+  // same guarantee the harness gives, instead of leaving the residue for an
+  // age-gated sweep on some later run.
+  rmSync(join(process.cwd(), '.test-tmp'), { recursive: true, force: true });
+  if (process.env['GOODVIBES_TEST_KEEP_TMP_SANDBOX'] === '1') {
+    // Diagnostic mode: leave the sandbox in place so the per-run residual can
+    // be counted (how much the suite creates and never removes itself). The
+    // sandbox is not removed, so this is for measurement runs only.
+    console.log(
+      `[preload] kept temp sandbox: ${TEST_TMP_SANDBOX} (${readdirSync(TEST_TMP_SANDBOX).length} entries; ${swept} tracked dirs swept)`,
+    );
+    return;
+  }
+  // Everything any test put in the OS temp dir, in one removal.
+  rmSync(TEST_TMP_SANDBOX, { recursive: true, force: true });
+});
 
 /**
  * The test suite must never reach a REAL daemon.

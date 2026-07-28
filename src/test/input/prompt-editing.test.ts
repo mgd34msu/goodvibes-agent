@@ -7,6 +7,8 @@ import { InfiniteBuffer } from '../../core/history.ts';
 import { createDefaultUiRuntimeServices } from '../helpers/ui-services.ts';
 import type { UndoState } from '../../input/handler-prompt-buffer.ts';
 import { InputHistory } from '../../input/input-history.ts';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 type InputHandlerTestAccess = {
   undoStack: UndoState[];
@@ -357,7 +359,7 @@ describe('command-mode arrow key navigation', () => {
 describe('multiline prompt history navigation', () => {
   test('up arrow moves within a multiline current prompt before recalling history', () => {
     const ih = makeInput();
-    const history = new InputHistory({ historyPath: '/tmp/gv-unused-history.json', persist: false });
+    const history = new InputHistory({ historyPath: join(tmpdir(), 'gv-unused-history.json'), persist: false });
     history.add('previous command');
     ih.setHistory(history);
     ih.prompt = 'one\ntwo\nthree';
@@ -382,7 +384,7 @@ describe('multiline prompt history navigation', () => {
 
   test('down arrow moves within a multiline recalled history item before navigating forward', () => {
     const ih = makeInput();
-    const history = new InputHistory({ historyPath: '/tmp/gv-unused-history.json', persist: false });
+    const history = new InputHistory({ historyPath: join(tmpdir(), 'gv-unused-history.json'), persist: false });
     history.add('older command');
     history.add('line1\nline2\nline3');
     history.add('newer command');

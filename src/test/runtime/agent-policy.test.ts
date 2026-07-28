@@ -146,7 +146,7 @@ describe('Agent user-first autonomy policy', () => {
       });
       return new Response(JSON.stringify({
         platform: 'linux',
-        path: '/tmp/goodvibes.service',
+        path: join(tmpdir(), 'goodvibes.service'),
         installed: true,
         autostart: true,
         running: true,

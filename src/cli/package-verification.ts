@@ -102,6 +102,11 @@ const REQUIRED_PACKAGE_FILE_EXCLUSIONS = [
  */
 const REQUIRED_PACKAGE_SCRIPTS: Readonly<Record<string, string>> = {
   typecheck: 'bunx tsc --noEmit',
+  // tsconfig.json excludes src/test and src/**/*.test.ts, and never covered
+  // scripts/ or bin/ at all. Those two projects close both holes; both run in
+  // ci.yml and in ci:gate below.
+  'typecheck:test': 'bunx tsc --noEmit -p tsconfig.test.json',
+  'typecheck:tools': 'bunx tsc --noEmit -p tsconfig.tools.json',
   'check:types': 'bun run typecheck',
   prebuild: 'bun run scripts/prebuild.ts',
   build: 'bun build src/main.ts --compile --outfile dist/goodvibes-agent && bun run scripts/stage-browser-driver.ts',
@@ -128,14 +133,20 @@ const REQUIRED_PACKAGE_SCRIPTS: Readonly<Record<string, string>> = {
   // bin/goodvibes-agent.ts exist, so with the build last those two silently
   // did not run in CI at all — a gate that reports green partly by not
   // looking. Building first costs nothing and makes them real.
-  'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run build && bun run test && bun run coverage:gate && bun run architecture:check && bun run workflows:check && bun run perf:check && bun run publish:check && bun run package:install-check && bun run verification:ledger',
+  'ci:gate': 'bun run typecheck && bun run typecheck:test && bun run typecheck:tools && bun run build && bun run test && bun run coverage:gate && bun run architecture:check && bun run workflows:check && bun run perf:check && bun run publish:check && bun run package:install-check && bun run verification:ledger',
   'build:prod': 'bun run scripts/build.ts',
   'build:all': 'bun run scripts/build.ts --all',
   'verification:ledger': 'bun run scripts/verification-ledger.ts',
   'verification:live': 'bun run scripts/verify-live.ts',
 };
 const REQUIRED_CI_GATE_COMMANDS: readonly { readonly command: RegExp; readonly label: string }[] = [
-  { command: /\bbun\s+(?:x\s+tsc\s+--noEmit|run\s+typecheck)\b/, label: 'typecheck' },
+  // The trailing guard on `run typecheck` is load-bearing: `\b` matches before
+  // the colon, so without it `bun run typecheck:test` alone satisfies the
+  // production-typecheck requirement and this entry could never report a
+  // missing one.
+  { command: /\bbun\s+(?:x\s+tsc\s+--noEmit|run\s+typecheck(?![\w:.-]))/, label: 'typecheck' },
+  { command: /\bbun\s+run\s+typecheck:test(?![\w:.-])/, label: 'typecheck:test' },
+  { command: /\bbun\s+run\s+typecheck:tools(?![\w:.-])/, label: 'typecheck:tools' },
   { command: /\bbun\s+run\s+test\b/, label: 'bun run test' },
   { command: /\bbun\s+run\s+coverage:gate\b/, label: 'coverage:gate' },
   { command: /\bbun\s+run\s+architecture:check\b/, label: 'architecture:check' },

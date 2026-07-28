@@ -2,6 +2,8 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
 import { createHookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 describe('PermissionManager hook coverage', () => {
   let dispatcher = createHookDispatcher();
@@ -39,7 +41,7 @@ describe('PermissionManager hook coverage', () => {
       getSnapshot: () => ({
         permissions: { mode: 'prompt', tools: {} },
       }) as never,
-      getWorkingDirectory: () => '/tmp/goodvibes-hooks-test',
+      getWorkingDirectory: () => join(tmpdir(), 'goodvibes-hooks-test'),
     }, policyRuntimeState, dispatcher);
 
     const result = await manager.checkDetailed('edit', { path: 'src/file.ts' });

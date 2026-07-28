@@ -126,8 +126,12 @@ for (const file of files) {
   if (typeof doc.name !== 'string' || doc.name.trim().length === 0) {
     fail(file, 'missing a non-empty `name`');
   }
-  // YAML parses the `on:` key as the boolean true, so accept either spelling.
-  if (!('on' in doc) && !(true in (doc as Record<string | number, unknown>))) {
+  // Bun.YAML.parse follows the YAML 1.2 core schema and keeps a bare `on:` as
+  // the string key "on". A YAML 1.1 parser instead resolves it to the boolean
+  // true, which lands on the parsed object as the string key "true" (JS object
+  // keys are always strings). Accept either so the check does not depend on
+  // which schema the parser implements.
+  if (!('on' in doc) && !('true' in doc)) {
     fail(file, 'missing an `on` trigger block');
   }
   const jobs = doc.jobs;

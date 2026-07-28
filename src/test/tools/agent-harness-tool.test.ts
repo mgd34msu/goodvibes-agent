@@ -6638,9 +6638,9 @@ describe('agent_harness tool', () => {
       expect(namedOnlyPosture.summary.browserControl).not.toBe('ready');
 
       registerAgentBrowserTool(fixture.toolRegistry, {
-        screenshotDirectory: '/tmp/goodvibes-harness-test-shots',
-        profileRoot: '/tmp/goodvibes-harness-test-profiles',
-        homeDirectory: '/tmp/goodvibes-harness-test-home',
+        screenshotDirectory: join(tmpdir(), 'goodvibes-harness-test-shots'),
+        profileRoot: join(tmpdir(), 'goodvibes-harness-test-profiles'),
+        homeDirectory: join(tmpdir(), 'goodvibes-harness-test-home'),
       });
       const configuredPosture = await executeHarnessJson<{
         readonly summary: {

@@ -580,6 +580,19 @@ export interface RuntimeServicesOptions {
    * to opt into live OS keep-awake / idle-inhibit.
    */
   readonly powerSeam?: Parameters<typeof wireRuntimePower>[0]['seam'];
+  /**
+   * Background live model discovery opt-in. Left ABSENT, createRuntimeServices
+   * does not start the provider registry's fire-and-forget discovery sweep, so
+   * a test-constructed or one-shot-CLI runtime never reaches a provider API and
+   * never writes <configDir>/provider-models/<provider>.json.
+   *
+   * That write is unawaited: measured here, it landed AFTER the test run had
+   * already finished and re-created a temp workspace cleanup had removed. Only
+   * the long-lived interactive composition (bootstrap-core.ts) — still alive
+   * when the sweep resolves, and the only one that consumes the refreshed list
+   * — opts in. Pinned by composition-parity.test.ts.
+   */
+  readonly backgroundModelDiscovery?: boolean;
 }
 
 export interface RuntimeServices extends SdkRuntimeServices {
@@ -874,7 +887,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   ensureConfiguredModelIsRoutable(providerRegistry, configManager);
   providerRegistry.initCustomProviders();
-  providerRegistry.initProviderModelDiscovery();
+  if (options.backgroundModelDiscovery === true) providerRegistry.initProviderModelDiscovery();
   // ONE credential chain (env -> secrets -> subscription), mirroring the SDK
   // composition root: boot applies secrets-backed keys; every secrets
   // write/delete re-registers builtin providers LIVE (no restart needed).

@@ -1,4 +1,4 @@
-import { describe, test, expect, afterEach } from 'bun:test';
+import { describe, test, expect, afterAll, afterEach } from 'bun:test';
 import { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { McpServerConfig } from '@pellux/goodvibes-sdk/platform/mcp';
 import { join } from 'path';
@@ -41,7 +41,10 @@ rl.on('line', (line) => {
 
 const SANDBOX_WORKSPACE_ROOT = join(tmpdir(), `gv-mcp-registry-workspace-${process.pid}-${Date.now()}`);
 mkdirSync(SANDBOX_WORKSPACE_ROOT, { recursive: true });
-process.on('exit', () => {
+// Registered at module top level, not from inside a helper function: a hook
+// attached lazily during a run does not reliably scope to the enclosing suite.
+// This replaces a `process.on('exit', …)` handler, which `bun test` never runs.
+afterAll(() => {
   if (existsSync(SANDBOX_WORKSPACE_ROOT)) {
     rmSync(SANDBOX_WORKSPACE_ROOT, { recursive: true, force: true });
   }

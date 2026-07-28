@@ -225,6 +225,8 @@ export async function initializeBootstrapCore(
     // here (createRuntimeServices otherwise defaults to the non-spawning
     // unavailable seam). Pinned by power-keep-awake-composition.test.ts.
     powerSeam: createHostPowerSeam(),
+    // Same reasoning for the unawaited live model discovery sweep — see RuntimeServicesOptions.
+    backgroundModelDiscovery: true,
   });
   const providerRegistry = services.providerRegistry;
   providerRegistry.initModelLimits();
