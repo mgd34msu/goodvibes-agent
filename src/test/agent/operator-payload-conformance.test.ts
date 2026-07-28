@@ -23,8 +23,66 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import type { OperatorMethodInput } from '@pellux/goodvibes-sdk/contracts';
+import { OPERATOR_CONTRACT } from '@pellux/goodvibes-sdk/contracts';
+import type { OperatorMethodId, OperatorMethodInput } from '@pellux/goodvibes-sdk/contracts';
 import { PROFILE_METHOD_IDS, PROFILE_RECORDING_SURFACE } from '../../tools/agent-profile-types.ts';
+
+/**
+ * Keys of `T`, distributed so a UNION input contributes every member's keys
+ * rather than only the keys they share. Without the distribution, `keyof` over
+ * a union collapses to the intersection and a body could carry a key that
+ * belongs to a different member of the same union.
+ */
+type KeysOfUnion<T> = T extends unknown ? keyof T : never;
+
+/**
+ * Excess-key rejection that works on ANY body, not only a fresh literal.
+ *
+ * TypeScript's excess-property check fires only for a fresh object literal
+ * passed directly. A body built as a variable first, or assembled with a
+ * spread, is not checked at all — verified, not assumed: both forms compiled
+ * clean against a correctly typed parameter with a stale `lineIndex` in them.
+ * That is not a small hole here, because the production forget bodies WERE
+ * built with spreads until this round.
+ *
+ * Mapping every excess key to `never` closes it: a real value can never satisfy
+ * `never`, whatever shape the body was built in.
+ */
+function assertOperatorBody<
+  TMethodId extends OperatorMethodId,
+  TBody extends OperatorMethodInput<TMethodId>,
+>(
+  _methodId: TMethodId,
+  body: TBody & Record<Exclude<KeysOfUnion<TBody>, KeysOfUnion<OperatorMethodInput<TMethodId>>>, never>,
+): TBody {
+  return body;
+}
+
+interface ContractInput {
+  readonly properties: ReadonlySet<string>;
+  readonly required: ReadonlySet<string>;
+}
+
+/**
+ * The verb's input schema as the CONTRACT states it, read at runtime.
+ *
+ * Deliberately not a hand-written list: a list is a second copy of the contract
+ * that goes stale silently on a pin bump, which is the same class of defect
+ * this whole file exists to catch. Reading the shipped contract means these
+ * assertions re-derive themselves every time the platform runtime is repinned.
+ */
+function contractInput(methodId: string): ContractInput {
+  const method = OPERATOR_CONTRACT.operator.methods.find((entry) => entry.id === methodId);
+  if (!method) throw new Error(`${methodId} is not in the operator contract`);
+  const schema = (method.inputSchema ?? {}) as {
+    readonly properties?: Record<string, unknown>;
+    readonly required?: readonly string[];
+  };
+  return {
+    properties: new Set(Object.keys(schema.properties ?? {})),
+    required: new Set(schema.required ?? []),
+  };
+}
 
 // ── The bodies this lane sends, declared as the contract's own input types ──
 // Each annotation is the guard. Adding a field the contract dropped, or omitting

@@ -371,11 +371,16 @@ async function handleForget(
     ]);
   }
   const target = fieldId || `the line "${text}" under ${section}`;
-  const result = await deps.invoke(PROFILE_METHOD_IDS.forget, {
-    ...(fieldId ? { fieldId } : {}),
-    ...(fieldId ? {} : { section, text }),
-    authority,
-  });
+  // Two fresh literals rather than one built with spreads. TypeScript checks a
+  // body against the verb's declared input only where the object is a FRESH
+  // LITERAL — a spread-in property is not checked, and neither is a body built
+  // as a variable first. Written the spread way, this call site compiled clean
+  // with a stale `lineIndex` in it even though the parameter type was correct,
+  // which is exactly the failure the payload typing was added to prevent. The
+  // branches cost two lines and put the real call site back under the check.
+  const result = fieldId
+    ? await deps.invoke(PROFILE_METHOD_IDS.forget, { fieldId, authority })
+    : await deps.invoke(PROFILE_METHOD_IDS.forget, { section, text, authority });
   if (!result.ok) return fail([`Could not forget ${target}.`, `  ${result.error ?? 'no reason given'}`]);
   const response = narrowProfileWrite(result.data);
   if (!response) return fail([PROFILE_RESPONSE_UNREADABLE]);

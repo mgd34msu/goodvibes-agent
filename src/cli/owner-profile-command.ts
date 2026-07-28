@@ -305,10 +305,12 @@ async function handleForget(
   if (!parsed.yes) {
     return { output: `Refusing to forget ${target} without --yes.`, exitCode: 2 };
   }
-  const result = await invoke(PROFILE_METHOD_IDS.forget, {
-    ...(fieldId ? { fieldId } : { section, text }),
-    authority: 'owner-direct',
-  });
+  // Two fresh literals, not one spread: TypeScript checks an operator body
+  // against its declared input only for a fresh object literal, so a spread-in
+  // property slips a stale field past a correctly typed parameter.
+  const result = fieldId
+    ? await invoke(PROFILE_METHOD_IDS.forget, { fieldId, authority: 'owner-direct' })
+    : await invoke(PROFILE_METHOD_IDS.forget, { section, text, authority: 'owner-direct' });
   if (!result.ok) return { output: jsonOrText(runtime, result, result.error ?? 'Profile delete failed.'), exitCode: 1 };
   const response = narrowProfileWrite(result.data);
   if (!response) return { output: jsonOrText(runtime, result, PROFILE_RESPONSE_UNREADABLE), exitCode: 1 };
