@@ -108,77 +108,20 @@ export interface BootstrapCoreState {
   readonly runtimeSessionIdRef: { value: string };
 }
 
-export type CompanionMessagePayload = Extract<SessionEvent, { type: 'COMPANION_MESSAGE_RECEIVED' }>;
+import {
+  approvalMetadataForRequest,
+  companionMessageToOrchestratorInputOptions,
+  registerWebhookNotifier,
+} from './bootstrap-core-helpers.ts';
 
-/**
- * Registers the webhook notifier for the runtime session.
- *
- * Configures the provided WebhookNotifier with the given URL list, attaches it
- * to the runtime bus so it receives SESSION_NOTIFICATION events, and pushes a
- * detach() cleanup into runtimeUnsubs for shutdown. When webhookUrls is empty
- * this function is a complete no-op.
- */
-export function registerWebhookNotifier(
-  webhookNotifier: WebhookNotifier,
-  webhookUrls: string[],
-  runtimeBus: RuntimeEventBus,
-  runtimeUnsubs: Array<() => void>,
-): void {
-  if (webhookUrls.length === 0) return;
-  webhookNotifier.setUrls(webhookUrls);
-  webhookNotifier.attachToRuntimeBus(runtimeBus);
-  runtimeUnsubs.push(() => webhookNotifier.detach());
-}
-
-export function companionMessageToOrchestratorInputOptions(
-  payload: CompanionMessagePayload,
-): OrchestratorUserInputOptions {
-  const metadata = payload.metadata;
-  const surface = typeof metadata?.surface === 'string' ? metadata.surface : undefined;
-  const topic = typeof metadata?.topic === 'string' ? metadata.topic : undefined;
-
-  return {
-    origin: {
-      source: payload.source,
-      messageId: payload.messageId,
-      ...(surface ? { surface } : {}),
-      ...(topic ? { topic } : {}),
-      ...(metadata ? { metadata } : {}),
-    },
-  };
-}
-
-/**
- * Fleet-attention wiring: derive the shared-approval metadata for a
- * permission ask. Background/subagent asks carry
- * `request.attribution` (kind: 'background-agent', agentId, template — set by
- * AgentOrchestrator's gateBackgroundToolCall once permissionManager is wired
- * into it, see the `services.agentOrchestrator.setDependencies(...)` call
- * below and orchestrator.test.ts's "background agent permission gating"
- * suite). Forwarding `attribution.agentId` into the shared approval's
- * `metadata.agentId` is what lets the SDK's fleet ProcessRegistry
- * (runtime/fleet/registry.js, collectPendingApprovals) attribute the pending
- * ask to that agent's ProcessNode — deriving
- * `state: 'awaiting-approval'` / `needsAttention: { reason: 'approval' }` on
- * the spawned agent itself, rather than leaving the ask an anonymous approval
- * entry the fleet plane cannot attach to anything. Foreground asks (no
- * attribution) return undefined, preserving today's un-attributed shape.
- *
- * PermissionAttribution is a discriminated union (SDK 1.6.1 added
- * `mcp-server` and `sandbox-escalation` alongside the original
- * `background-agent`); only `background-agent` carries an `agentId` the
- * fleet ProcessRegistry can attach a pending approval to, so only that kind
- * populates `metadata.agentId` here. The other two kinds are surfaced in the
- * permission-prompt UI itself (see src/permissions/prompt.ts), not through
- * fleet attribution metadata — an MCP server or a sandbox escalation is not
- * a spawned agent's ProcessNode.
- */
-export function approvalMetadataForRequest(
-  request: Pick<PermissionPromptRequest, 'attribution'>,
-): Record<string, unknown> | undefined {
-  const attribution = request.attribution;
-  return attribution?.kind === 'background-agent' ? { agentId: attribution.agentId } : undefined;
-}
+// Re-exported so every existing importer of this module is unaffected by the
+// split; the definitions moved, the public surface did not.
+export type { CompanionMessagePayload } from './bootstrap-core-helpers.ts';
+export {
+  approvalMetadataForRequest,
+  companionMessageToOrchestratorInputOptions,
+  registerWebhookNotifier,
+} from './bootstrap-core-helpers.ts';
 
 export async function initializeBootstrapCore(
   stdout: NodeJS.WriteStream,
@@ -225,8 +168,6 @@ export async function initializeBootstrapCore(
     // here (createRuntimeServices otherwise defaults to the non-spawning
     // unavailable seam). Pinned by power-keep-awake-composition.test.ts.
     powerSeam: createHostPowerSeam(),
-    // Same reasoning for the unawaited live model discovery sweep — see RuntimeServicesOptions.
-    backgroundModelDiscovery: true,
   });
   const providerRegistry = services.providerRegistry;
   providerRegistry.initModelLimits();

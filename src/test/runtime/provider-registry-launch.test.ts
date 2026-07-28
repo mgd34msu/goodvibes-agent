@@ -52,6 +52,8 @@ describe('provider registry launch tolerance', () => {
       configDir: join(root, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT),
     });
     const services = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeBus: new RuntimeEventBus(),
       runtimeStore: createRuntimeStore(),
       configManager,

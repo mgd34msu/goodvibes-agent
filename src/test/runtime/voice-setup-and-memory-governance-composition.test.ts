@@ -49,6 +49,8 @@ describe('voice-setup + memory-governance composition', () => {
     mkdirSync(configDir, { recursive: true });
     const configManager = new ConfigManager({ surfaceRoot: 'agent', workingDir, homeDir, configDir });
     return createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeBus: new RuntimeEventBus(),
       runtimeStore: createRuntimeStore(),
       configManager,

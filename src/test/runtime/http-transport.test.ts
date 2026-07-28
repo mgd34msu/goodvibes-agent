@@ -80,6 +80,8 @@ describe('HttpTransport', () => {
     mkdirSync(workingDir, { recursive: true });
     mkdirSync(homeDir, { recursive: true });
     const runtimeServices = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeStore: createRuntimeStore(),
       runtimeBus: new RuntimeEventBus(),
       configManager: new ConfigManager({ surfaceRoot: 'tui',

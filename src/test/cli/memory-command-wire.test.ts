@@ -87,6 +87,8 @@ describe('memory CLI — daemon up routes over the wire', () => {
     mkdirSync(daemonWorkingDir, { recursive: true });
     port = await reservePort();
     daemonServices = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeStore: createRuntimeStore(),
       runtimeBus: new RuntimeEventBus(),
       configManager: new SdkConfigManager({ surfaceRoot: 'tui', configDir: join(daemonHomeDir, '.goodvibes', 'tui'), workingDir: daemonWorkingDir, homeDir: daemonHomeDir }),

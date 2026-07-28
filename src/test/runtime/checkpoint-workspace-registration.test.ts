@@ -65,6 +65,8 @@ async function buildServices(opts: { registered: boolean; workingDir?: string; h
 
   const runtimeBus = new RuntimeEventBus();
   const services = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
     configManager: new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir, homeDir }),
     runtimeBus,
     runtimeStore: createRuntimeStore(),

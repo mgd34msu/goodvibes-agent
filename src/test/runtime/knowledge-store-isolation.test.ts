@@ -30,6 +30,8 @@ function makeRuntime() {
   return {
     configManager,
     services: createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       configManager,
       runtimeBus: new RuntimeEventBus(),
       runtimeStore: createRuntimeStore(),

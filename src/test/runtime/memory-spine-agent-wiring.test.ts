@@ -58,6 +58,8 @@ function createUserAuth(homeDir: string): UserAuthManager {
 
 function buildAgentServices(homeDir: string, workingDir: string): RuntimeServices {
   return createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
     runtimeStore: createRuntimeStore(),
     runtimeBus: new RuntimeEventBus(),
     configManager: new ConfigManager({ surfaceRoot: 'agent', configDir: join(homeDir, '.goodvibes', 'agent'), workingDir, homeDir }),
@@ -133,6 +135,8 @@ describe('agent memory-spine wiring', () => {
       mkdirSync(daemonWorkingDir, { recursive: true });
       port = await reservePort();
       daemonServices = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
         runtimeStore: createRuntimeStore(),
         runtimeBus: new RuntimeEventBus(),
         configManager: new ConfigManager({ surfaceRoot: 'tui', configDir: join(daemonHomeDir, '.goodvibes', 'tui'), workingDir: daemonWorkingDir, homeDir: daemonHomeDir }),

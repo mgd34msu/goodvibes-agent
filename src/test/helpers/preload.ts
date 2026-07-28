@@ -37,6 +37,21 @@ if (typeof globalThis.fetch === 'undefined') {
  * (verified), so this captures every later `tmpdir()` call, including calls
  * made inside the SDK and other installed packages.
  *
+ * ACCEPTED COST, recorded so the next person meets it here rather than
+ * discovering it: the sandbox is emptied at the end of the run, not kept small
+ * during it. A full green suite creates roughly 1,208 directories inside it
+ * that the test which made them never removes. Nothing survives the run — the
+ * whole sandbox goes in the `afterAll` below, and a killed run is reclaimed by
+ * the age-gated sweep — so the number is BOUNDED, not small.
+ *
+ * Reducing it means editing the ~321 test files that build temp paths by hand,
+ * and that was declined deliberately: two earlier attempts at this leak were
+ * declared fixed after reading cleanup code rather than counting directories,
+ * and both were wrong. A file-by-file change of that size is the same shape of
+ * risk against a defect the sandbox already contains. If the count ever starts
+ * to matter — an inode ceiling on a busy host, a run that cannot finish —
+ * measure it first with a before/after count, not by inspecting hooks.
+ *
  * `afterAll` registered at preload top level is the hook bun actually runs:
  * once, after the last test file, whether the run passed or failed (all three
  * verified). Do NOT move this registration inside a function — a hook attached

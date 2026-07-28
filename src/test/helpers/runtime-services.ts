@@ -166,6 +166,8 @@ export function getTestRuntimeServices(): RuntimeServices {
   if (!runtimeServices) {
     const { workingDir, configDir } = nextRuntimeRoots();
     runtimeServices = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       configManager: new ConfigManager({ surfaceRoot: 'agent',
         configDir,
         workingDir,
