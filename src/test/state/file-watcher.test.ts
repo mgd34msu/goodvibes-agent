@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, spyOn } from 'bun:test';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'fs';
+import { writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import { FileWatcher } from '@pellux/goodvibes-sdk/platform/state';
@@ -7,13 +7,14 @@ import { FileStateCache } from '@pellux/goodvibes-sdk/platform/state';
 import { ProjectIndex } from '@pellux/goodvibes-sdk/platform/state';
 import { HookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
 import { getTestProjectIndex, resetTestProjectIndexes } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'gv-fw-test-'));
+  return makeProjectTempDir('gv-fw-test');
 }
 
 function sleep(ms: number): Promise<void> {

@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
@@ -8,6 +7,7 @@ import type { CommandContext, CommandRegistry } from '../../input/command-regist
 import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { AgentResearchSourceRegistry } from '../../agent/research-source-registry.ts';
 import { createAgentResearchTool, registerAgentResearchTool } from '../../tools/agent-research-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function fakeTool(name: string, calls: Record<string, unknown>[], output?: unknown): Tool {
   return {
@@ -147,7 +147,7 @@ describe('research adapter', () => {
   });
 
   test('uses a visible run id as the public search question and returns run follow-up routes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-adapter-'));
+    const root = makeProjectTempDir('goodvibes-agent-research-adapter');
     const shellPaths = {
       resolveProjectPath: (...parts: string[]) => join(root, '.goodvibes', ...parts),
     };
@@ -189,7 +189,7 @@ describe('research adapter', () => {
   });
 
   test('requires explicit confirmation before the research runner mutates visible run state', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-runner-confirm-'));
+    const root = makeProjectTempDir('goodvibes-agent-research-runner-confirm');
     const shellPaths = {
       resolveProjectPath: (...parts: string[]) => join(root, '.goodvibes', ...parts),
     };
@@ -210,7 +210,7 @@ describe('research adapter', () => {
   });
 
   test('confirmed research runner starts a visible run, saves source candidates, and checkpoints next review routes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-runner-'));
+    const root = makeProjectTempDir('goodvibes-agent-research-runner');
     const shellPaths = {
       resolveProjectPath: (...parts: string[]) => join(root, '.goodvibes', ...parts),
     };

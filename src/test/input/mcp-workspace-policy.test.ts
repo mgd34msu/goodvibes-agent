@@ -1,10 +1,9 @@
 import { describe, expect, mock, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { McpWorkspace } from '../../input/mcp-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { createShellPathService } from '../../runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeContext(calls: {
   readonly reload: ReturnType<typeof mock>;
@@ -12,7 +11,7 @@ function makeContext(calls: {
   readonly removeServerConfig: ReturnType<typeof mock>;
   readonly executeCommand: ReturnType<typeof mock>;
 }): CommandContext {
-  const root = mkdtempSync(join(tmpdir(), 'gv-mcp-workspace-policy-'));
+  const root = makeProjectTempDir('gv-mcp-workspace-policy');
   const shellPaths = createShellPathService({
     workingDirectory: root,
     homeDirectory: root,

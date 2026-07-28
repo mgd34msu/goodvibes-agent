@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createAgentAccountsTool } from '../../tools/agent-accounts-tool.ts';
 import { AgentAccountRegistry } from '@pellux/goodvibes-sdk/platform/google';
@@ -9,6 +8,7 @@ import {
   getSessionUntrustedContentLedger,
   resetSessionUntrustedContentLedgerForTests,
 } from '../../trust/untrusted-content.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * Creating accounts autonomously is authorized; doing it invisibly is not.
@@ -35,7 +35,7 @@ const VALID = {
 
 describe('the account register', () => {
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'accounts-tool-'));
+    home = makeProjectTempDir('accounts-tool');
     resetSessionUntrustedContentLedgerForTests();
     tool = createAgentAccountsTool({
       registry: new AgentAccountRegistry({ storePath: join(home, 'accounts.json'), containsSecretLikeText }),

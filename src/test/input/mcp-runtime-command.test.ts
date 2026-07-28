@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerMcpRuntimeCommands } from '../../input/commands/mcp-runtime.ts';
@@ -9,6 +8,7 @@ import {
   removeMcpServerConfig,
   upsertMcpServerConfig,
 } from '@pellux/goodvibes-sdk/platform/mcp';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeShellPaths(root: string) {
   return {
@@ -117,7 +117,7 @@ function makeContext(root: string, out: string[], callLog = makeCallLog()): Comm
 
 describe('/mcp runtime config commands', () => {
   test('opens fullscreen MCP workspace when invoked without a subcommand', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -140,7 +140,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('/mcp servers prints read-only server readiness without opening workspace or mutating config', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -175,7 +175,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('refuses MCP config mutation without explicit --yes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -194,7 +194,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('refuses direct MCP allow-all trust through add command', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -216,7 +216,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('preserves passthrough --yes as an MCP server argument', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -249,7 +249,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('adds project-local MCP server and reloads runtime registry', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -291,7 +291,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('removes project-local MCP server and reloads runtime registry', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -310,7 +310,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('adds global MCP server when scope is selected', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -343,7 +343,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('refuses MCP trust, role, reload, and quarantine mutation without --yes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -369,7 +369,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('MCP trust and role usage include confirmation and invalid values fail closed', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -395,7 +395,7 @@ describe('/mcp runtime config commands', () => {
   });
 
   test('/mcp repair quotes quarantined server names in next-step commands', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-command-'));
+    const root = makeProjectTempDir('gv-mcp-command');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);

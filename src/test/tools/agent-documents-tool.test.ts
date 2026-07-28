@@ -1,15 +1,14 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
 import { createAgentDocumentsTool, registerAgentDocumentsTool } from '../../tools/agent-documents-tool.ts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function fixture() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-documents-tool-'));
+  const root = makeProjectTempDir('goodvibes-agent-documents-tool');
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const artifactStore = new ArtifactStore({ rootDir: join(root, 'artifacts') });
   const tool = createAgentDocumentsTool(shellPaths, artifactStore);

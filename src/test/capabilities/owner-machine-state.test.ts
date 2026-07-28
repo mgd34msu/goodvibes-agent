@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { registerBuiltinCapabilities } from '../../capabilities/builtin-capabilities.ts';
 import {
@@ -9,6 +8,7 @@ import {
 } from '../../capabilities/capability-index.ts';
 import { emptyProbeContext, type ProbeContext } from '../../capabilities/capability-probe-runner.ts';
 import { buildCapabilitySummaryPrompt } from '../../agent/capability-summary-prompt.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * Pinned to the owner's actual machine state on the day this broke.
@@ -91,7 +91,7 @@ function ownerContext(overrides: Partial<ProbeContext> = {}): ProbeContext {
 
 describe('capability index against the owner\'s machine state', () => {
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'owner-state-'));
+    home = makeProjectTempDir('owner-state');
     writeOwnerCredentialLayout(home);
     resetCapabilityIndexForTests();
     registerBuiltinCapabilities({ homeDirectory: home, workingDirectory: home });

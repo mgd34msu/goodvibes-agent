@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { checkNoInternalIdentifiers, listTrackedGoodvibesTextFiles } from '../../../scripts/internal-identifier-rule.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // Fixture ids below are built via concatenation rather than written as literal
 // substrings, so this test file's own source text never contains a real
@@ -222,7 +222,7 @@ describe('checkNoInternalIdentifiers', () => {
 // untracked machine-local runtime state is never scanned at all.
 describe('listTrackedGoodvibesTextFiles + gate pipeline over .goodvibes/', () => {
   function seedRepo(): string {
-    const root = mkdtempSync(join(tmpdir(), 'gv-agent-identifier-gate-'));
+    const root = makeProjectTempDir('gv-agent-identifier-gate');
     const git = (...args: string[]) => execFileSync('git', ['-C', root, ...args], { stdio: 'ignore' });
     git('init', '--quiet');
     git('config', 'user.email', 'test@example.com');
@@ -267,7 +267,10 @@ describe('listTrackedGoodvibesTextFiles + gate pipeline over .goodvibes/', () =>
     // NOT under tmpdir(): the suite runner points TMPDIR inside this repo, so
     // a tmpdir()-based directory would still resolve to a git repo by walking
     // up and the "non-repo" premise would silently not hold. /tmp itself is
-    // never inside a repo on the POSIX platforms this suite runs on.
+    // never inside a repo on the POSIX platforms this suite runs on. A killed
+    // test process still leaks this into real /tmp on rare failure; the
+    // `gv-agent-identifier-gate-norepo-` prefix is on the known-prefix list
+    // scripts/stale-tmp-sweep.ts sweeps as a backstop.
     const root = mkdtempSync('/tmp/gv-agent-identifier-gate-norepo-');
     try {
       expect(() => listTrackedGoodvibesTextFiles(root)).toThrow(/git ls-files failed/);

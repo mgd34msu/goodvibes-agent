@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   registerCapability,
@@ -10,6 +9,7 @@ import {
 } from '../../capabilities/capability-index.ts';
 import { emptyProbeContext, type ProbeContext } from '../../capabilities/capability-probe-runner.ts';
 import type { CapabilityDeclaration } from '../../capabilities/capability-types.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * The incident this file exists for: the agent was asked to send an email and
@@ -56,7 +56,7 @@ function emailCapability(overrides: Partial<CapabilityDeclaration> = {}): Capabi
 
 beforeEach(() => {
   resetCapabilityIndexForTests();
-  home = mkdtempSync(join(tmpdir(), 'goodvibes-capability-'));
+  home = makeProjectTempDir('goodvibes-capability');
 });
 
 afterEach(() => {

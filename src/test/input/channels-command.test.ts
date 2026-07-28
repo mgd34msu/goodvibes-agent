@@ -1,20 +1,20 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/channels';
 import { createShellPathService } from '@/runtime/index.ts';
 import { readAgentChannelDeliveryReceipts } from '../../agent/channel-delivery-receipts.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerChannelsRuntimeCommands } from '../../input/commands/channels-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function channelContext(
   overrides: Record<string, unknown> = {},
   homeDirectory?: string,
   deliveryRequests?: ChannelDeliveryRequest[],
 ): { readonly context: CommandContext; readonly printed: string[] } {
-  const home = homeDirectory ?? mkdtempSync(join(tmpdir(), 'goodvibes-agent-channels-home-'));
+  const home = homeDirectory ?? makeProjectTempDir('goodvibes-agent-channels-home');
   const shellPaths = createShellPathService({ workingDirectory: home, homeDirectory: home });
   const values: Record<string, unknown> = {
     'controlPlane.host': '127.0.0.1',
@@ -52,7 +52,7 @@ function channelContext(
 }
 
 function writeTokenHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-channels-token-'));
+  const home = makeProjectTempDir('goodvibes-agent-channels-token');
   const tokenDir = join(home, '.goodvibes', 'daemon');
   mkdirSync(tokenDir, { recursive: true });
   writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'route-token-redacted' }));

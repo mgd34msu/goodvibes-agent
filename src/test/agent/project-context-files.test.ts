@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildProjectContextPrompt, discoverProjectContextFiles } from '../../agent/project-context-files.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempPaths() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-project-context-'));
+  const root = makeProjectTempDir('goodvibes-agent-project-context');
   const home = join(root, 'home');
   const workspace = join(root, 'workspace');
   mkdirSync(home, { recursive: true });

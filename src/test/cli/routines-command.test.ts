@@ -1,7 +1,6 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
@@ -10,11 +9,12 @@ import { routineScheduleReceiptStorePath } from '../../agent/routine-schedule-re
 import { handleRoutinesCommand } from '../../cli/routines-command.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
 function runtime(argv: readonly string[]) {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-routines-cli-'));
+  const root = makeProjectTempDir('gv-agent-routines-cli');
   roots.push(root);
   const workingDirectory = join(root, 'workspace');
   const homeDirectory = join(root, 'home');

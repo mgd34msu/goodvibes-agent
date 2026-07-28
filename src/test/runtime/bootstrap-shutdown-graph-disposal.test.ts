@@ -12,16 +12,15 @@
  */
 
 import { afterAll, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rmSync } from 'node:fs';
 
 import { createRuntimeShutdown, type RuntimeShutdownDependencies } from '@/runtime/bootstrap-shutdown.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type Deps = RuntimeShutdownDependencies;
 
 /** Session persistence writes for real; give it somewhere disposable to write. */
-const workingDirectory = mkdtempSync(join(tmpdir(), 'agent-shutdown-wiring-'));
+const workingDirectory = makeProjectTempDir('agent-shutdown-wiring');
 afterAll(() => { rmSync(workingDirectory, { recursive: true, force: true }); });
 
 /**

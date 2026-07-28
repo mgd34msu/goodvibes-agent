@@ -1,7 +1,6 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '../../config/index.ts';
@@ -12,6 +11,7 @@ import {
   createAgentAutonomyScheduleTool,
   registerAgentAutonomyScheduleTool,
 } from '../../tools/agent-autonomy-schedule-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type ShellPaths = ShellPathService;
 
@@ -43,7 +43,7 @@ interface SchedulePayload {
 }
 
 function shellPaths(): ShellPaths {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-autonomy-tool-'));
+  const root = makeProjectTempDir('goodvibes-agent-autonomy-tool');
   mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
   writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'autonomy-tool-token' }));
   return createShellPathService({ workingDirectory: root, homeDirectory: root });

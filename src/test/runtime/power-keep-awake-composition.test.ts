@@ -23,14 +23,14 @@
  * a real daemon here).
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
 import { createHostPowerSeam } from '@pellux/goodvibes-sdk/platform/power';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('power.keepAwake local live-apply (config-subscription path)', () => {
   let root = '';
@@ -41,7 +41,7 @@ describe('power.keepAwake local live-apply (config-subscription path)', () => {
   });
 
   function makeServices(): RuntimeServices {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-power-composition-'));
+    root = makeProjectTempDir('goodvibes-agent-power-composition');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     const configDir = join(homeDir, '.goodvibes', 'agent');

@@ -7,9 +7,9 @@ import { createMemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import { ForensicsRegistry } from '@/runtime/index.ts';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
-import { existsSync, mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeRegistry(): MemoryRegistry {
   const links: Array<{ fromId: string; toId: string; relation: string; createdAt: number }> = [];
@@ -336,7 +336,7 @@ describe('recallCommand', () => {
 
     expect(printed.join('\n')).toContain('Promoted mem-1 to team scope');
 
-    const dir = mkdtempSync(join(tmpdir(), 'gv-memory-handoff-'));
+    const dir = makeProjectTempDir('gv-memory-handoff');
     const bundlePath = join(dir, 'team-handoff.json');
     const shellPaths = createShellPathService({
       workingDirectory: dir,

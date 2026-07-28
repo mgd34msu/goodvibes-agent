@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { WorkPlanStore, type WorkPlanItemStatus } from '../../work-plans/work-plan-store.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -16,7 +16,7 @@ interface StoredItem {
 }
 
 function withStore<T>(fn: (make: () => WorkPlanStore) => T): T {
-  const homeDirectory = mkdtempSync(join(tmpdir(), 'gv-work-plan-housekeeping-'));
+  const homeDirectory = makeProjectTempDir('gv-work-plan-housekeeping');
   try {
     return fn(() => new WorkPlanStore({
       homeDirectory,

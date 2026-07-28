@@ -1,13 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { AgentRoutineRegistry, buildEnabledRoutinesPrompt, evaluateAgentRoutineReadiness } from '../../agent/routine-registry.ts';
 import { formatAgentSkillRequirement } from '../../agent/skill-registry.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempRegistry(): { readonly registry: AgentRoutineRegistry; readonly paths: ReturnType<typeof createShellPathService> } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-routines-'));
+  const root = makeProjectTempDir('goodvibes-agent-routines');
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   return { registry: AgentRoutineRegistry.fromShellPaths(paths), paths };
 }

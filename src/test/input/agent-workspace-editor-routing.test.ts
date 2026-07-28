@@ -10,9 +10,7 @@
  *  3. A settingKey used in category actions that is absent from CONFIG_SCHEMA.
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { mkdirSync } from 'node:fs';
 import { CONFIG_SCHEMA } from '@pellux/goodvibes-sdk/platform/config';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
@@ -25,13 +23,14 @@ import { submitAgentWorkspaceLocalRegistryEditor } from '../../input/agent-works
 import type { AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from '../../input/agent-workspace-types.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function makeTmpShellPaths() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-editor-routing-'));
+  const root = makeProjectTempDir('goodvibes-editor-routing');
   mkdirSync(root, { recursive: true });
   return createShellPathService({ workingDirectory: root, homeDirectory: root });
 }

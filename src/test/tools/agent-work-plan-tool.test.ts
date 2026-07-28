@@ -1,6 +1,3 @@
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
@@ -9,10 +6,11 @@ import {
   createAgentWorkPlanTool,
   registerAgentWorkPlanTool,
 } from '../../tools/agent-work-plan-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeStore(): WorkPlanStore {
   return new WorkPlanStore({
-    homeDirectory: mkdtempSync(join(tmpdir(), 'goodvibes-agent-work-plan-tool-')),
+    homeDirectory: makeProjectTempDir('goodvibes-agent-work-plan-tool'),
     projectId: 'project:agent-work-plan-tool',
     projectRoot: '/tmp/agent-work-plan-tool',
   });

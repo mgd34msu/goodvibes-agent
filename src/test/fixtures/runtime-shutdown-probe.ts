@@ -14,8 +14,7 @@
  * one JSON line describing every timer still live. The parent asserts.
  */
 
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { ConfigManager } from '@/config/index.ts';
@@ -23,6 +22,7 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '@/config/surface.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '@/runtime/store/index.ts';
 import { createRuntimeServices } from '@/runtime/services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /** What the parent test asserts on. */
 export interface ShutdownProbeReport {
@@ -107,8 +107,8 @@ function describeLive(): string[] {
 }
 
 async function main(): Promise<void> {
-  const home = mkdtempSync(join(tmpdir(), 'agent-shutdown-home-'));
-  const work = mkdtempSync(join(tmpdir(), 'agent-shutdown-work-'));
+  const home = makeProjectTempDir('agent-shutdown-home');
+  const work = makeProjectTempDir('agent-shutdown-work');
 
   const configManager = new ConfigManager({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,

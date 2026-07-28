@@ -7,9 +7,8 @@
  */
 
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { PermissionPromptUI, type PermissionPromptRequest } from '../../permissions/prompt.ts';
 import { analyzePermissionRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -19,6 +18,7 @@ import { PolicyRuntimeState } from '@/runtime/index.ts';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { resetTestSpawnTokenManagers } from '../helpers/runtime-services.ts';
 import { resetSettingsControlPlaneStore } from '../helpers/settings-control-plane.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,7 +53,7 @@ let homeDir: string;
 let configDir: string;
 
 beforeEach(() => {
-  tempRoot = mkdtempSync(join(tmpdir(), 'gv-permission-audit-'));
+  tempRoot = makeProjectTempDir('gv-permission-audit');
   workingDir = join(tempRoot, 'workspace');
   homeDir = join(tempRoot, 'home');
   configDir = join(homeDir, '.goodvibes', 'tui');

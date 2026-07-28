@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentPromptContextReceiptStore, type PromptContextReceiptDraft } from '../../agent/prompt-context-receipts.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 function withJournal<T>(fn: (journalPath: string) => T): T {
-  const root = mkdtempSync(join(tmpdir(), 'gv-prompt-receipt-journal-'));
+  const root = makeProjectTempDir('gv-prompt-receipt-journal');
   try {
     return fn(join(root, 'prompt-context-receipts.jsonl'));
   } finally {

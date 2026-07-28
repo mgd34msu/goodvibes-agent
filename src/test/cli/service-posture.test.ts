@@ -1,18 +1,18 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import {
   buildCliServicePosture,
   formatCliServicePosture,
 } from '../../cli/service-posture.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('CLI service posture', () => {
   let root = '';
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-service-posture-'));
+    root = makeProjectTempDir('goodvibes-agent-service-posture');
   });
 
   afterEach(() => {

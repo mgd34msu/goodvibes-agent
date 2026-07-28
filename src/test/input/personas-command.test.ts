@@ -1,17 +1,17 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerPersonasRuntimeCommands } from '../../input/commands/personas-runtime.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function commandHarness(): {
   readonly registry: CommandRegistry;
   readonly out: string[];
   readonly ctx: CommandContext;
 } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-persona-command-'));
+  const root = makeProjectTempDir('goodvibes-agent-persona-command');
   const registry = new CommandRegistry();
   registerPersonasRuntimeCommands(registry);
   const out: string[] = [];

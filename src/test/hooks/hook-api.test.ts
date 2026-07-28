@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createHookApi, HookWorkbench, listHookPointContracts } from '@pellux/goodvibes-sdk/platform/hooks';
 import { getTestHookDispatcher } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('HookApi', () => {
   const configManager = new ConfigManager({ surfaceRoot: 'tui',
@@ -16,7 +16,7 @@ describe('HookApi', () => {
 
   beforeEach(() => {
     originalHooksFile = configManager.get('tools.hooksFile') as string;
-    tempDir = mkdtempSync(join(tmpdir(), 'gv-hook-api-'));
+    tempDir = makeProjectTempDir('gv-hook-api');
     configManager.set('tools.hooksFile', join(tempDir, 'hooks.json'));
     getTestHookDispatcher().clear();
     hookWorkbench = new HookWorkbench(

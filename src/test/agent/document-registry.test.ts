@@ -1,12 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { createShellPathService } from '@/runtime/index.ts';
 import { AgentDocumentRegistry, documentStorePath, renderAgentDocumentMarkdown } from '../../agent/document-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function registry(): AgentDocumentRegistry {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-documents-'));
+  const root = makeProjectTempDir('goodvibes-agent-documents');
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   return AgentDocumentRegistry.fromShellPaths(shellPaths);
 }
@@ -116,7 +115,7 @@ describe('AgentDocumentRegistry', () => {
   });
 
   test('corrupt store throws plain-language error', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-documents-corrupt-'));
+    const root = makeProjectTempDir('goodvibes-agent-documents-corrupt');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const storePath = documentStorePath(shellPaths);
     const documents = AgentDocumentRegistry.fromShellPaths(shellPaths);

@@ -1,8 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { InputToken } from '@pellux/goodvibes-sdk/platform/core';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CONFIG_SCHEMA, SubscriptionManager, type ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
@@ -33,6 +32,7 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
 import type { Line } from '../../types/grid.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function linesText(lines: readonly Line[]): string {
   return lines.map((line) => line.map((cell) => cell.char).join('')).join('\n');
@@ -73,7 +73,7 @@ function persistentConfigContext(): {
   readonly configManager: ConfigManager;
   readonly shellPaths: ReturnType<typeof createShellPathService>;
 } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-config-'));
+  const root = makeProjectTempDir('goodvibes-agent-workspace-config');
   const workingDirectory = join(root, 'workspace');
   const homeDirectory = join(root, 'home');
   mkdirSync(workingDirectory, { recursive: true });
@@ -111,7 +111,7 @@ function savedDaemonSetting(shellPaths: ReturnType<typeof createShellPathService
 }
 
 function routineWorkspaceContext(): CommandContext {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-routine-form-'));
+  const root = makeProjectTempDir('goodvibes-agent-workspace-routine-form');
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   AgentRoutineRegistry.fromShellPaths(shellPaths).create({
     name: 'Daily Brief',
@@ -369,7 +369,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('finishes onboarding by writing the user marker and closing the workspace', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-onboarding-finish-'));
+    const root = makeProjectTempDir('goodvibes-agent-onboarding-finish');
     const shellPaths = createShellPathService({
       workingDirectory: join(root, 'workspace'),
       homeDirectory: join(root, 'home'),
@@ -914,7 +914,7 @@ describe('AgentWorkspace', () => {
   // security-attack-paths, security-tokens action IDs were all removed from the workspace.
 
   test('renders local persona skill and routine library workspaces from live Agent state', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-local-libraries-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-local-libraries');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const persona = AgentPersonaRegistry.fromShellPaths(shellPaths).create({
       name: 'Household Operator',
@@ -1147,7 +1147,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('creates local skill routine and persona records from workspace editors', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-editor-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-editor');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const ctx = {
       ...commandContext(),
@@ -1234,7 +1234,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('captures learned behavior as local skill routine or persona without dispatching commands', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-learned-behavior-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-learned-behavior');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const ctx = {
       ...commandContext(),
@@ -1318,7 +1318,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('rejects learned behavior target outside local behavior registries', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-learned-reject-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-learned-reject');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const ctx = {
       ...commandContext(),
@@ -2200,8 +2200,8 @@ describe('AgentWorkspace', () => {
       ...commandContext(),
       workspace: {
         shellPaths: createShellPathService({
-          workingDirectory: mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-workspace-')),
-          homeDirectory: mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-home-')),
+          workingDirectory: makeProjectTempDir('goodvibes-agent-memory-workspace'),
+          homeDirectory: makeProjectTempDir('goodvibes-agent-memory-home'),
         }),
       },
       clients: {
@@ -2408,7 +2408,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('operates on selected local library records without dispatching commands', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-selected-library-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-selected-library');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
     personaRegistry.create({
@@ -2479,7 +2479,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('edits selected local library records from workspace editors without dispatching commands', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-edit-library-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-edit-library');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
     const persona = personaRegistry.create({
@@ -2565,7 +2565,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('deletes selected local library records only after exact typed confirmation', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-delete-library-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-delete-library');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const personaRegistry = AgentPersonaRegistry.fromShellPaths(shellPaths);
     const persona = personaRegistry.create({
@@ -3338,7 +3338,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('summarizes isolated Agent profile posture', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profiles-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-profiles');
     const profile = createAgentRuntimeProfile(root, 'household');
     setAgentRuntimeProfileSelection(root, 'household');
     const snapshot = buildAgentWorkspaceRuntimeSnapshot({
@@ -3386,7 +3386,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('agent profile command guides starter authoring and imports local starters', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-starter-author-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-starter-author');
     const starterPath = join(root, 'starter.json');
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(root, '.goodvibes', 'agent', 'skills', 'briefing'), { recursive: true });
@@ -3688,7 +3688,7 @@ describe('AgentWorkspace', () => {
   // runtime-profile-guide action ID was removed from the workspace.
 
   test('creates an isolated Agent profile from the workspace form', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profile-form-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-profile-form');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const dispatched: string[] = [];
     const workspace = new AgentWorkspace();
@@ -3717,7 +3717,7 @@ describe('AgentWorkspace', () => {
   });
 
   test('refuses to overwrite an existing Agent profile from the workspace form', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-profile-duplicate-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-profile-duplicate');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     createAgentRuntimeProfile(root, 'research-desk', { templateId: 'research' });
     const workspace = new AgentWorkspace();
@@ -4242,7 +4242,7 @@ describe('AgentWorkspace', () => {
   // the status line claimed 'Picking up where you left off: Provider and model'.
   test('open() in ONBOARDING mode with in-progress user (provider-model blocked) navigates to account-model category', () => {
     // Set up a temp directory with shellPaths.
-    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-resume-nav-'));
+    const root = makeProjectTempDir('gv-onboarding-resume-nav');
     const workingDirectory = join(root, 'ws');
     const homeDirectory = join(root, 'home');
     mkdirSync(workingDirectory, { recursive: true });
@@ -4282,7 +4282,7 @@ describe('AgentWorkspace', () => {
   // the workspace navigates to account-model and shows a plain success + next-step status.
   test('subscription-login-finish in ONBOARDING mode navigates to account-model and shows signed-in next-step', async () => {
     // Set up a real temp directory so shellPaths + onboarding markers work.
-    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-login-finish-'));
+    const root = makeProjectTempDir('gv-onboarding-login-finish');
     const workingDirectory = join(root, 'ws');
     const homeDirectory = join(root, 'home');
     mkdirSync(workingDirectory, { recursive: true });
@@ -4390,7 +4390,7 @@ describe('AgentWorkspace', () => {
   // (provider-access satisfied by subscription) — status must reflect ready-to-chat, NOT 'choose your model'.
   test('onSubscriptionLoginSuccess() with readyToChat=true status reflects ready-to-chat, not choose-your-model', () => {
     // Set up temp directory for shellPaths.
-    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-login-ready-'));
+    const root = makeProjectTempDir('gv-onboarding-login-ready');
     const workingDirectory = join(root, 'ws');
     const homeDirectory = join(root, 'home');
     mkdirSync(workingDirectory, { recursive: true });
@@ -4469,7 +4469,7 @@ describe('AgentWorkspace', () => {
   // the reveal set hadn't been refreshed yet.  With the fix the index is resolved
   // after the reveal-set update, guaranteeing the lane is present.
   test('onSubscriptionLoginSuccess() navigates to newly-revealed account-model lane (stale-index fix)', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-stale-index-'));
+    const root = makeProjectTempDir('gv-onboarding-stale-index');
     const workingDirectory = join(root, 'ws');
     const homeDirectory = join(root, 'home');
     mkdirSync(workingDirectory, { recursive: true });
@@ -4578,7 +4578,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
   });
 
   test('routine start count mirrors an external `routines start` bump (reproduces, then fixes, the routine-starts sub-claim)', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-live-routine-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-live-routine');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const created = AgentRoutineRegistry.fromShellPaths(shellPaths).create({
       name: 'Morning Brief',
@@ -4610,7 +4610,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
   });
 
   test('an external routine deletion is also mirrored, and clampSelection keeps the selected index in range', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-live-routine-delete-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-live-routine-delete');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const registry = AgentRoutineRegistry.fromShellPaths(shellPaths);
     const first = registry.create({ name: 'Alpha', description: 'A.', steps: 'Do A.', enabled: true });
@@ -4631,7 +4631,7 @@ describe('AgentWorkspace live disk-mirror counters', () => {
   });
 
   test('a live-read failure keeps the previous counters and labels them honestly as refreshing, instead of asserting a wrong number', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-live-routine-failure-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-live-routine-failure');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     AgentRoutineRegistry.fromShellPaths(shellPaths).create({
       name: 'Morning Brief',

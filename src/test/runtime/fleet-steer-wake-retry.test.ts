@@ -1,11 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { createArchivableFleetRegistry } from '@pellux/goodvibes-terminal-shell';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * Verifies the wake-retry path the brief describes as "AgentManager.wakeWithSteer
@@ -30,7 +28,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
  */
 describe('processRegistry.steer() wake-retry (SDK 1.6.1, wired via this fork\'s createArchivableFleetRegistry call)', () => {
   test('steering a failed (wedged) agent re-triggers it via wakeWithSteer', async () => {
-    const configDir = mkdtempSync(join(tmpdir(), 'gv-fleet-steer-'));
+    const configDir = makeProjectTempDir('gv-fleet-steer');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir });
     const agentMessageBus = new AgentMessageBus();
     const agentManager = new AgentManager({
@@ -66,7 +64,7 @@ describe('processRegistry.steer() wake-retry (SDK 1.6.1, wired via this fork\'s 
   });
 
   test('steering a failed agent with NO messageBus refuses honestly rather than silently no-op', async () => {
-    const configDir = mkdtempSync(join(tmpdir(), 'gv-fleet-steer-'));
+    const configDir = makeProjectTempDir('gv-fleet-steer');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir });
     const agentManager = new AgentManager({
       configManager,

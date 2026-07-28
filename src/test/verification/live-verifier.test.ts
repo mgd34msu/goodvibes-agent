@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { chmodSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { LiveVerificationReport } from '../../verification/live-verifier.ts';
 import {
@@ -9,6 +8,7 @@ import {
   renderLiveVerificationReportMarkdown,
   sanitizeLiveVerificationReport,
 } from '../../verification/live-verifier.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const projectRoot = resolve(join(import.meta.dir, '..', '..', '..'));
 
@@ -269,7 +269,7 @@ describe('live verification report', () => {
   });
 
   it('fails warn-only JSON command checks when the JSON contract is broken', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-live-verifier-'));
+    const root = makeProjectTempDir('goodvibes-live-verifier');
     try {
       const binaryPath = writeFakeAgentBinary(root, {
         compatOutput: 'not json',
@@ -294,7 +294,7 @@ describe('live verification report', () => {
   });
 
   it('keeps nonzero JSON command checks warn-only when output remains parseable', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-live-verifier-'));
+    const root = makeProjectTempDir('goodvibes-live-verifier');
     try {
       const binaryPath = writeFakeAgentBinary(root, {
         compatOutput: '{"compatible":false}',
@@ -321,7 +321,7 @@ describe('live verification report', () => {
   });
 
   it('omits local provider and model details from release artifacts', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-live-verifier-'));
+    const root = makeProjectTempDir('goodvibes-live-verifier');
     try {
       const binaryPath = writeFakeAgentBinary(root, {
         statusOutput: '{"provider":{"provider":"anthropic","model":"anthropic:configured-model"},"ok":true}',

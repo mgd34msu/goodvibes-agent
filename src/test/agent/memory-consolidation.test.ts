@@ -1,7 +1,5 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rmSync } from 'node:fs';
 import {
   MemoryEmbeddingProviderRegistry,
   MemoryRegistry,
@@ -13,6 +11,7 @@ import {
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
@@ -21,7 +20,7 @@ afterEach(() => {
 });
 
 async function makeRegistry(): Promise<{ registry: MemoryRegistry; paths: ReturnType<typeof createShellPathService> }> {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-consolidation-'));
+  const root = makeProjectTempDir('goodvibes-agent-consolidation');
   roots.push(root);
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const configManager = new ConfigManager({

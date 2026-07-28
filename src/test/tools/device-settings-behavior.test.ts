@@ -28,8 +28,7 @@
  * driven with bun's `setSystemTime` rather than by waiting.
  */
 import { afterEach, beforeEach, describe, expect, setSystemTime, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import {
@@ -53,6 +52,7 @@ import {
   type PhoneDeviceService,
 } from '../../runtime/phone-device-service.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
@@ -78,7 +78,7 @@ let clock = BASE_TIME;
 let homeSeq = 0;
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'gv-agent-device-settings-'));
+  root = makeProjectTempDir('gv-agent-device-settings');
   homeSeq = 0;
   clock = BASE_TIME;
   setSystemTime(new Date(clock));

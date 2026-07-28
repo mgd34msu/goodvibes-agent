@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { readFileSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { buildNpmPublishAuthEnv } from '../../../scripts/npm-auth.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function withTempDir<T>(fn: (dir: string) => T): T {
-  const dir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-npm-auth-'));
+  const dir = makeProjectTempDir('goodvibes-agent-npm-auth');
   try {
     return fn(dir);
   } finally {

@@ -1,7 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { RuntimeEventBus, createEventEnvelope } from '@/runtime/index.ts';
 import { AgentManager, ToolRegistry, createAgentTool } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
@@ -9,6 +6,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createDomainDispatch } from '../../runtime/store/index.ts';
 import { registerAgentRuntimeEvents } from '../../runtime/agent-runtime-events.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // Drain queued microtasks — the child-failure-envelope enrichment awaits a
 // real ToolRegistry.execute() call before rendering, so assertions must wait
@@ -19,7 +17,7 @@ const flushMicrotasks = async (rounds = 6) => {
 
 describe('registerAgentRuntimeEvents — AGENT_FAILED child-failure envelope enrichment (SDK 1.6.1)', () => {
   test('AGENT_FAILED renders a compact suffix with the real classified reason from the agent tool\'s own status action', async () => {
-    const configDir = mkdtempSync(join(tmpdir(), 'gv-child-failure-'));
+    const configDir = makeProjectTempDir('gv-child-failure');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir });
     const agentMessageBus = new AgentMessageBus();
     const agentManager = new AgentManager({

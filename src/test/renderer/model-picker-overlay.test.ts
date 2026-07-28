@@ -2,8 +2,7 @@
  * Tests for renderModelPickerOverlay renderer.
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -19,6 +18,7 @@ import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { BenchmarkStore, type BenchmarkEntry } from '@pellux/goodvibes-sdk/platform/providers';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const W = 120;
 
@@ -71,7 +71,7 @@ function writeBenchmarks(entries: BenchmarkEntry[], benchmarkStore: BenchmarkSto
 }
 
 function createPickerHarness(): PickerHarness {
-  const rootDir = mkdtempSync(join(tmpdir(), 'gv-model-picker-overlay-'));
+  const rootDir = makeProjectTempDir('gv-model-picker-overlay');
   const configDir = join(rootDir, 'config');
   const dataDir = join(rootDir, 'provider-data');
   const subscriptionsPath = join(rootDir, 'subscriptions.json');

@@ -1,18 +1,17 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   getTestHookDispatcher,
   getTestHookWorkbench,
   resetTestRuntimeServices,
 } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('HookWorkbench', () => {
   let dir: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), 'gv-hook-workbench-'));
+    dir = makeProjectTempDir('gv-hook-workbench');
     resetTestRuntimeServices();
     getTestHookDispatcher().clear();
   });

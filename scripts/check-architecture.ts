@@ -235,11 +235,28 @@ for (const rule of rules) {
   }
 }
 
+// Test files allowed to combine a real tmpdir()/os.tmpdir() call with a
+// mkdtemp/mkdtempSync call, bypassing makeProjectTempDir
+// (src/test/helpers/project-temp.ts). This check is file-level, not
+// call-site-level, so a file lands here either because one call site
+// deliberately needs real os.tmpdir() (a reviewed exception — see the
+// comment at that call site, and scripts/stale-tmp-sweep.ts's
+// KNOWN_TMPDIR_PREFIXES, which keeps a sweep backstop for it), or because
+// it merely happens to call both APIs for unrelated reasons (e.g.
+// git/service.test.ts's makeTempPath builds a tmpdir()-rooted path string
+// for git-created bare/clone/worktree targets, entirely separate from its
+// makeExternalDir's mkdtempSync call, which itself does not use tmpdir()).
+const DIRECT_TMPDIR_MKDTEMP_ALLOWLIST = new Set([
+  'src/test/git/service.test.ts',
+]);
+
 for (const file of explicitAnyFiles) {
   const text = readFileSync(file, 'utf-8');
   const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
   const rel = relative(ROOT, file);
   const seenPositions = new Set<number>();
+  let callsMkdtemp = false;
+  let callsTmpdir = false;
 
   const visit = (node: ts.Node): void => {
     if (node.kind === ts.SyntaxKind.AnyKeyword) {
@@ -250,10 +267,25 @@ for (const file of explicitAnyFiles) {
         violations.push(`${rel}:${line + 1}:${character + 1}: explicit any is forbidden`);
       }
     }
+    if (ts.isCallExpression(node)) {
+      const expr = node.expression;
+      if (ts.isIdentifier(expr) && (expr.text === 'mkdtempSync' || expr.text === 'mkdtemp')) {
+        callsMkdtemp = true;
+      } else if (ts.isIdentifier(expr) && expr.text === 'tmpdir') {
+        callsTmpdir = true;
+      } else if (ts.isPropertyAccessExpression(expr) && expr.name.text === 'tmpdir') {
+        // e.g. os.tmpdir()
+        callsTmpdir = true;
+      }
+    }
     ts.forEachChild(node, visit);
   };
 
   visit(source);
+
+  if (isTestSource(file) && callsMkdtemp && callsTmpdir && !DIRECT_TMPDIR_MKDTEMP_ALLOWLIST.has(rel)) {
+    violations.push(`${rel}: creates a scratch directory directly under os.tmpdir() (mkdtemp/mkdtempSync combined with tmpdir()/os.tmpdir()); use makeProjectTempDir from src/test/helpers/project-temp.ts instead`);
+  }
 }
 
 for (const file of testFiles) {

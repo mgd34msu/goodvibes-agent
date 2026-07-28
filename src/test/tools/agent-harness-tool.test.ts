@@ -1,7 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type AddressInfo } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { ArtifactCreateInput, ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/channels';
@@ -47,6 +46,7 @@ import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
 import { listGoodVibesCliCommands } from '../../cli/parser.ts';
 import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
 import type { AgentExecutionRecord } from '../../runtime/execution-ledger.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
 type HarnessOpenSelection = NonNullable<CommandContext['openSelection']>;
@@ -70,7 +70,7 @@ interface HarnessFixture {
 }
 
 function makeShellPaths(): { readonly root: string; readonly paths: ShellPaths; readonly cleanup: () => void } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-harness-tool-'));
+  const root = makeProjectTempDir('goodvibes-agent-harness-tool');
   mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
   return {
     root,

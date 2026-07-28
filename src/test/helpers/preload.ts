@@ -6,9 +6,7 @@
  * platform APIs here.
  */
 
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { makeProjectTempDir } from './project-temp.ts';
 
 // Ensure fetch is available as a global (bun provides it; this is a no-op in
 // most bun versions but guards against environments where it isn't set).
@@ -37,5 +35,5 @@ if (typeof globalThis.fetch === 'undefined') {
  * arranged its own isolation is not overridden.
  */
 if (!process.env['GOODVIBES_DAEMON_HOME']?.trim()) {
-  process.env['GOODVIBES_DAEMON_HOME'] = mkdtempSync(join(tmpdir(), 'goodvibes-agent-test-daemon-home-'));
+  process.env['GOODVIBES_DAEMON_HOME'] = makeProjectTempDir('goodvibes-agent-test-daemon-home');
 }

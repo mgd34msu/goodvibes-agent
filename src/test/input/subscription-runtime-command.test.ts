@@ -1,9 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerSubscriptionRuntimeCommands } from '../../input/commands/subscription-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeContext(out: string[], root: string): CommandContext {
   const shellPaths = {
@@ -48,7 +47,7 @@ function makeContext(out: string[], root: string): CommandContext {
 
 describe('subscription runtime command', () => {
   test('bundle inspect with bad path prints contextual error instead of throwing', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-sub-'));
+    const root = makeProjectTempDir('gv-sub');
     const registry = new CommandRegistry();
     registerSubscriptionRuntimeCommands(registry);
     const out: string[] = [];
@@ -61,7 +60,7 @@ describe('subscription runtime command', () => {
   });
 
   test('completeOAuthLogin failure prints contextual error', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-sub-'));
+    const root = makeProjectTempDir('gv-sub');
     const registry = new CommandRegistry();
     registerSubscriptionRuntimeCommands(registry);
     const out: string[] = [];
@@ -93,7 +92,7 @@ describe('subscription runtime command', () => {
   });
 
   test('bundle export success receipt includes token privacy warning', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-sub-'));
+    const root = makeProjectTempDir('gv-sub');
     const registry = new CommandRegistry();
     registerSubscriptionRuntimeCommands(registry);
     const out: string[] = [];
@@ -107,7 +106,7 @@ describe('subscription runtime command', () => {
   });
 
   test('fallback usage string does not advertise [--manual]', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-sub-'));
+    const root = makeProjectTempDir('gv-sub');
     const registry = new CommandRegistry();
     registerSubscriptionRuntimeCommands(registry);
     const out: string[] = [];

@@ -4,8 +4,7 @@
  * runtime-only CLI overrides, and the onboarding legacy set-config path.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
@@ -19,6 +18,7 @@ import {
 } from '../../runtime/feature-enablement.ts';
 import { applyRuntimeFeatureOverrides } from '../../cli/config-overrides.ts';
 import { applyOnboardingRequest, verifyOnboardingRequest } from '../../runtime/onboarding/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('resolveFeatureEnablementWrite', () => {
   test('boolean bindings write the domain key true/false', () => {
@@ -92,7 +92,7 @@ describe('runtime-only CLI feature overrides', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'gv-feature-overrides-'));
+    root = makeProjectTempDir('gv-feature-overrides');
     configManager = new ConfigManager({
       surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
       configDir: join(root, 'config'),
@@ -155,7 +155,7 @@ describe('onboarding legacy featureFlags set-config operations', () => {
   let shellPaths: ReturnType<typeof createShellPathService>;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'gv-onboarding-features-'));
+    root = makeProjectTempDir('gv-onboarding-features');
     shellPaths = createShellPathService({
       workingDirectory: join(root, 'workspace'),
       homeDirectory: join(root, 'home'),

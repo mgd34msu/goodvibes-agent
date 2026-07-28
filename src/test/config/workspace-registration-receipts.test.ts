@@ -17,8 +17,7 @@
  *     deciding it in silence.
  */
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { createShellPathService } from '@/runtime/index.ts';
@@ -28,10 +27,11 @@ import {
   migrateLegacyWorkspaceRegistryIfNeeded,
   normalizeWorkspaceRoot,
 } from '../../config/workspace-registration.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeShellPaths() {
-  const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-receipts-'));
-  const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-receipts-work-'));
+  const home = makeProjectTempDir('goodvibes-agent-receipts');
+  const work = makeProjectTempDir('goodvibes-agent-receipts-work');
   return { shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }), work, home };
 }
 

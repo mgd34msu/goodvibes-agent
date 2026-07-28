@@ -1,6 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
@@ -13,6 +11,7 @@ import { registerBuiltinCommands } from '../../input/commands.ts';
 import { formatAgentOperatorBriefing } from '../../input/commands/brief-runtime.ts';
 import type { WorkPlanItem, WorkPlanStore } from '../../work-plans/work-plan-store.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function memoryRecord(): MemoryRecord {
   const now = Date.now();
@@ -45,7 +44,7 @@ function workPlanStore(items: readonly WorkPlanItem[]): WorkPlanStore {
 }
 
 function makeContext(printed: string[] = []): CommandContext {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-brief-'));
+  const root = makeProjectTempDir('goodvibes-agent-brief');
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const configValues = new Map<string, unknown>([
     ['controlPlane.host', '127.0.0.1'],

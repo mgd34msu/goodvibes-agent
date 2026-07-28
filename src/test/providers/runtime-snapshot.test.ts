@@ -1,6 +1,4 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
@@ -14,6 +12,7 @@ import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/provi
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
 import { getProviderRuntimeSnapshot, getProviderUsageSnapshot } from '@pellux/goodvibes-sdk/platform/providers';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function goodVibesRef(source: string, id: string): string {
   return `goodvibes://secrets/${source}/${encodeURIComponent(id)}`;
@@ -29,7 +28,7 @@ describe('provider runtime snapshots', () => {
   let providerRegistry: ProviderRegistry;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'gv-provider-runtime-'));
+    root = makeProjectTempDir('gv-provider-runtime');
     process.env.HOME = root;
     process.chdir(root);
     secrets = new SecretsManager({ projectRoot: root, globalHome: root });

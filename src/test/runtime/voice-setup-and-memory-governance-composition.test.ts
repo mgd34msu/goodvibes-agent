@@ -22,14 +22,14 @@
  *     genuine live snapshot.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MemoryGovernorSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('voice-setup + memory-governance composition', () => {
   let root = '';
@@ -40,7 +40,7 @@ describe('voice-setup + memory-governance composition', () => {
   });
 
   function makeServices(): RuntimeServices {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-voice-memory-composition-'));
+    root = makeProjectTempDir('goodvibes-agent-voice-memory-composition');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     const configDir = join(homeDir, '.goodvibes', 'agent');

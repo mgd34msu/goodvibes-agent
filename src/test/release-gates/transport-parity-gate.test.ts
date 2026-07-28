@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
@@ -13,6 +12,7 @@ import { createAuthenticatedWebSocket } from '../helpers/authenticated-websocket
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type TransportKind = 'direct' | 'http' | 'realtime';
 
@@ -72,7 +72,7 @@ function createUserAuth(homeDir: string): UserAuthManager {
 }
 
 function createRuntimeFixture(prefix: string) {
-  const tempRoot = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  const tempRoot = makeProjectTempDir(`${prefix}`);
   const workingDir = join(tempRoot, 'workspace');
   const homeDir = join(tempRoot, 'home');
   mkdirSync(workingDir, { recursive: true });

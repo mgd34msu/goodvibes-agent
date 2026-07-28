@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   assertValidAgentRuntimeProfileId,
@@ -23,9 +22,10 @@ import {
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentRoutineRegistry } from '../../agent/routine-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeHome(): string {
-  return mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-home-'));
+  return makeProjectTempDir('goodvibes-agent-profile-home');
 }
 
 describe('Agent profiles', () => {
@@ -147,7 +147,7 @@ describe('Agent profiles', () => {
 
   test('exports imports and applies starter templates with VIBE.md when requested', () => {
     const home = makeHome();
-    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-vibe-workspace-'));
+    const workspace = makeProjectTempDir('goodvibes-agent-profile-vibe-workspace');
     mkdirSync(join(workspace, '.goodvibes', 'agent'), { recursive: true });
     writeFileSync(join(workspace, '.goodvibes', 'agent', 'VIBE.md'), [
       '# Project VIBE',
@@ -186,7 +186,7 @@ describe('Agent profiles', () => {
 
   test('creates a local starter template from discovered Agent behavior files', async () => {
     const home = makeHome();
-    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-discovery-workspace-'));
+    const workspace = makeProjectTempDir('goodvibes-agent-profile-discovery-workspace');
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'skills', 'daily-brief'), { recursive: true });
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'routines'), { recursive: true });
@@ -247,7 +247,7 @@ describe('Agent profiles', () => {
 
   test('creates a profile directly from discovered Agent behavior files', async () => {
     const home = makeHome();
-    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-direct-discovery-'));
+    const workspace = makeProjectTempDir('goodvibes-agent-profile-direct-discovery');
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'skills', 'briefing'), { recursive: true });
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'routines'), { recursive: true });
@@ -292,7 +292,7 @@ describe('Agent profiles', () => {
 
   test('template build refuses discovered content containing secret-looking values', async () => {
     const home = makeHome();
-    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profile-secret-'));
+    const workspace = makeProjectTempDir('goodvibes-agent-profile-secret');
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'skills'), { recursive: true });
     mkdirSync(join(workspace, '.goodvibes', 'agent', 'routines'), { recursive: true });

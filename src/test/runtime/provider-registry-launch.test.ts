@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 const launchToleranceEnvVars = [
@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 function makeRoot(): string {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-provider-launch-'));
+  const root = makeProjectTempDir('gv-agent-provider-launch');
   roots.push(root);
   return root;
 }

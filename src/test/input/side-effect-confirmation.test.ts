@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerLocalRuntimeCommands } from '../../input/commands/local-runtime.ts';
 import { registerNotifyRuntimeCommands } from '../../input/commands/notify-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeShellPaths(root: string) {
   return {
@@ -101,7 +101,7 @@ function makeContext(root: string, out: string[], calls: SideEffectCalls): Comma
 
 describe('side-effecting slash command confirmation', () => {
   test('notify mutation and network test commands require --yes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-side-effects-'));
+    const root = makeProjectTempDir('gv-side-effects');
     try {
       const registry = new CommandRegistry();
       registerNotifyRuntimeCommands(registry);
@@ -132,7 +132,7 @@ describe('side-effecting slash command confirmation', () => {
   });
 
   test('secret set, link, and delete require --yes', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-side-effects-'));
+    const root = makeProjectTempDir('gv-side-effects');
     try {
       const registry = new CommandRegistry();
       registerLocalRuntimeCommands(registry);

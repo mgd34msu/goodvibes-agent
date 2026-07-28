@@ -1,6 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { readExplicitUpdateKeys, readUpdateSettings } from '../../config/update-settings.ts';
@@ -14,6 +13,7 @@ import {
   type SelfUpdateReceiptIo,
 } from '../../runtime/self-update-receipt.ts';
 import { renderGoodVibesVersion } from '../../cli/help.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * The documented off switch, pinned end to end.
@@ -35,7 +35,7 @@ import { renderGoodVibesVersion } from '../../cli/help.ts';
 const scratchDirs: string[] = [];
 
 function scratch(): { home: string; work: string } {
-  const root = mkdtempSync(join(tmpdir(), 'gv-offswitch-'));
+  const root = makeProjectTempDir('gv-offswitch');
   scratchDirs.push(root);
   const home = join(root, 'home');
   const work = join(root, 'work');

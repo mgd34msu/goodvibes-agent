@@ -1,7 +1,6 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
@@ -9,13 +8,14 @@ import { CommandRegistry, type CommandContext } from '../../input/command-regist
 import { registerRoutinesRuntimeCommands } from '../../input/commands/routines-runtime.ts';
 import { registerScheduleRuntimeCommands } from '../../input/commands/schedule-runtime.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function commandHarness(): {
   readonly registry: CommandRegistry;
   readonly out: string[];
   readonly ctx: CommandContext;
 } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-routine-command-'));
+  const root = makeProjectTempDir('goodvibes-agent-routine-command');
   const registry = new CommandRegistry();
   registerRoutinesRuntimeCommands(registry);
   registerScheduleRuntimeCommands(registry);

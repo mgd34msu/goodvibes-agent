@@ -1,18 +1,17 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister } from '../../shell/autonomy-surfacing.ts';
 import { LastSeenStore } from '../../core/last-seen-store.ts';
 import type { AutomationRunOutcome } from '../../agent/automation-runs-source.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function tempShellPaths() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-autonomy-test-'));
+  const root = makeProjectTempDir('goodvibes-autonomy-test');
   return createShellPathService({ workingDirectory: root, homeDirectory: root });
 }
 

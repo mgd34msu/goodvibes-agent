@@ -5,7 +5,6 @@
  * diff (match/mismatch), export path validation, engine state transitions.
  */
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -14,6 +13,7 @@ import {
 import { handleReplayCommand } from '@pellux/goodvibes-sdk/platform/core';
 import type { LedgerEntry } from '@/runtime/index.ts';
 import type { RuntimeStateSnapshot } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,7 @@ describe('DeterministicReplayEngine', () => {
   let projectRoot: string;
 
   beforeEach(() => {
-    projectRoot = mkdtempSync(join(tmpdir(), 'gv-replay-root-'));
+    projectRoot = makeProjectTempDir('gv-replay-root');
     engine = new DeterministicReplayEngine(projectRoot);
   });
 

@@ -9,16 +9,16 @@
  * retention.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, mkdirSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { StoreSnapshotScheduler, RetentionPolicy, SnapshotPruner } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const roots: string[] = [];
 
 function makeStoreDir(): string {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-store-snapshots-'));
+  const root = makeProjectTempDir('gv-agent-store-snapshots');
   roots.push(root);
   return root;
 }

@@ -9,9 +9,10 @@ import { DEFAULT_MEMORY_EMBEDDING_DIMS, MemoryEmbeddingProviderRegistry } from '
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { unlinkSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { unlinkSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { resetTestRuntimeServices } from '../helpers/runtime-services.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempDbPath(): string {
   return join(tmpdir(), `memory-test-${randomUUID()}.db`);
@@ -40,7 +41,7 @@ describe('MemoryStore', () => {
 
   beforeEach(async () => {
     dbPath = tempDbPath();
-    configRoot = mkdtempSync(join(tmpdir(), 'memory-config-'));
+    configRoot = makeProjectTempDir('memory-config');
     configDir = join(configRoot, '.goodvibes', 'tui');
     mkdirSync(configDir, { recursive: true });
     configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir, workingDir: configRoot });
@@ -188,7 +189,7 @@ describe('MemoryStore', () => {
 
     it('rebuilds vectors asynchronously through a provider-backed embedding path', async () => {
       resetTestRuntimeServices();
-      const asyncConfigRoot = mkdtempSync(join(tmpdir(), 'memory-config-'));
+      const asyncConfigRoot = makeProjectTempDir('memory-config');
       const asyncConfigDir = join(asyncConfigRoot, '.goodvibes', 'tui');
       mkdirSync(asyncConfigDir, { recursive: true });
       const configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir: asyncConfigDir, workingDir: asyncConfigRoot });
@@ -329,7 +330,7 @@ describe('MemoryStore', () => {
       const bundle = store.exportBundle({ scope: 'team' });
 
       const otherPath = tempDbPath();
-      const otherConfigRoot = mkdtempSync(join(tmpdir(), 'memory-test-config-'));
+      const otherConfigRoot = makeProjectTempDir('memory-test-config');
       const otherConfigDir = join(otherConfigRoot, '.goodvibes', 'tui');
       mkdirSync(otherConfigDir, { recursive: true });
       const otherConfigManager = new ConfigManager({ surfaceRoot: 'tui',  configDir: otherConfigDir, workingDir: otherConfigRoot });
@@ -420,7 +421,7 @@ describe('MemoryRegistry', () => {
 
   beforeEach(async () => {
     dbPath = tempDbPath();
-    configRoot = mkdtempSync(join(tmpdir(), 'memory-registry-config-'));
+    configRoot = makeProjectTempDir('memory-registry-config');
     configDir = join(configRoot, '.goodvibes', 'tui');
     mkdirSync(configDir, { recursive: true });
     configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir, workingDir: configRoot });

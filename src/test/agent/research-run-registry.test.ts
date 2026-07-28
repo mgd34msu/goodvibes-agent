@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentResearchRunRegistry, researchRunReportLine, researchRunStorePath } from '../../agent/research-run-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeRegistry(): { readonly root: string; readonly registry: AgentResearchRunRegistry; readonly cleanup: () => void } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-runs-'));
+  const root = makeProjectTempDir('goodvibes-agent-research-runs');
   const shellPaths = {
     resolveProjectPath: (...parts: string[]) => join(root, '.goodvibes', ...parts),
   };

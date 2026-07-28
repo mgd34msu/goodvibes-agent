@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerQrcodeRuntimeCommands } from '../../input/commands/qrcode-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeContext(out: string[], root: string): CommandContext {
   const configManager = new ConfigManager({
@@ -36,7 +36,7 @@ describe('qrcode runtime command', () => {
       name: 'qrcode',
       handler: expect.any(Function),
     }));
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-'));
+    const root = makeProjectTempDir('goodvibes-agent-qrcode');
     const tokenDir = join(root, '.goodvibes', 'daemon');
     mkdirSync(tokenDir, { recursive: true });
     writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'existing-connected-host-token' }));
@@ -62,7 +62,7 @@ describe('qrcode runtime command', () => {
       aliases: expect.arrayContaining(['pair']),
       handler: expect.any(Function),
     }));
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-manual-'));
+    const root = makeProjectTempDir('goodvibes-agent-qrcode-manual');
     const tokenDir = join(root, '.goodvibes', 'daemon');
     mkdirSync(tokenDir, { recursive: true });
     writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'manual-connected-host-token' }));
@@ -89,7 +89,7 @@ describe('qrcode runtime command', () => {
       aliases: expect.arrayContaining(['pair']),
       handler: expect.any(Function),
     }));
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-env-'));
+    const root = makeProjectTempDir('goodvibes-agent-qrcode-env');
     const previous = process.env.GOODVIBES_CONNECTED_HOST_TOKEN;
     process.env.GOODVIBES_CONNECTED_HOST_TOKEN = 'env-connected-host-token';
     const out: string[] = [];
@@ -117,7 +117,7 @@ describe('qrcode runtime command', () => {
       name: 'qrcode',
       handler: expect.any(Function),
     }));
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-qrcode-missing-'));
+    const root = makeProjectTempDir('goodvibes-agent-qrcode-missing');
     const out: string[] = [];
 
     await command!.handler([], makeContext(out, root));

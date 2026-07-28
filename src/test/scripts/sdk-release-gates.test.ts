@@ -8,14 +8,14 @@
 // ---------------------------------------------------------------------------
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import {
   readSdkPin,
   sdkPinAgreementIssues,
   sdkReleaseGateIssues,
 } from '../../../scripts/sdk-release-gates.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const SDK = '@pellux/goodvibes-sdk';
 
@@ -30,7 +30,7 @@ interface FixtureSpec {
 const created: string[] = [];
 
 function makeFixture(spec: FixtureSpec): string {
-  const root = mkdtempSync(join(tmpdir(), 'gv-sdk-gate-'));
+  const root = makeProjectTempDir('gv-sdk-gate');
   created.push(root);
   const pin = spec.pin ?? '0.38.0';
 

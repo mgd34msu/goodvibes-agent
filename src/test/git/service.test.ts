@@ -7,6 +7,7 @@ import { GitService } from '@pellux/goodvibes-sdk/platform/git';
 import { HookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
 import type { HookEvent } from '@pellux/goodvibes-sdk/platform/hooks';
 import { getTestGitService, resetTestGitServices } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -14,7 +15,7 @@ import { getTestGitService, resetTestGitServices } from '../helpers/runtime-serv
 
 /** Create an isolated temp git repo and return its path */
 function makeTempRepo(): string {
-  const tmpDir = mkdtempSync(join(tmpdir(), 'git-test-'));
+  const tmpDir = makeProjectTempDir('git-test');
   execSync('git init', { cwd: tmpDir });
   execSync('git config user.email "test@test.com"', { cwd: tmpDir });
   execSync('git config user.name "Test"', { cwd: tmpDir });
@@ -25,6 +26,19 @@ function makeTempPath(prefix: string): string {
   return join(tmpdir(), `${prefix}-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 }
 
+// Deliberately NOT under makeProjectTempDir, and deliberately NOT under
+// os.tmpdir() either: these cases need a directory that is guaranteed not
+// to be inside any git repository (isGitRepo/commit probes). This repo's
+// `.test-tmp/` is itself inside the goodvibes-agent git tree, which rules
+// out makeProjectTempDir — and `scripts/run-tests.ts` points TMPDIR/TMP/TEMP
+// at a directory INSIDE this repo for the suite run, which means
+// `tmpdir()` would silently resolve back inside the git tree too (the same
+// trap documented at the non-repo case in
+// src/test/scripts/internal-identifier-gate.test.ts). The parent of this
+// repo's own directory (one level above `process.cwd()`, e.g. this
+// worktree's `.gv-worktrees/` sibling) is outside both, so it stays the
+// target here, same as before this file's other mkdtemp call sites were
+// migrated onto makeProjectTempDir.
 function makeExternalDir(prefix: string): string {
   return mkdtempSync(join(resolve(process.cwd(), '..'), `${prefix}-`));
 }

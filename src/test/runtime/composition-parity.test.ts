@@ -21,13 +21,13 @@
  *     same subscribe() pipeline an in-process set() uses, with no restart.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('composition parity: append-only sweep + live config watch', () => {
   let root = '';
@@ -38,7 +38,7 @@ describe('composition parity: append-only sweep + live config watch', () => {
   });
 
   function makeRoots(): { workingDir: string; homeDir: string; configDir: string } {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-composition-parity-'));
+    root = makeProjectTempDir('goodvibes-agent-composition-parity');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     const configDir = join(homeDir, '.goodvibes', 'agent');
@@ -178,7 +178,7 @@ describe('composition parity: the trigger family is composed, not just importabl
   });
 
   function build(): RuntimeServices {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-triggers-'));
+    root = makeProjectTempDir('goodvibes-agent-triggers');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     mkdirSync(workingDir, { recursive: true });

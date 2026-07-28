@@ -13,8 +13,7 @@
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import {
@@ -28,10 +27,11 @@ import {
   setHarnessSetting,
 } from '../../agent/harness-control.ts';
 import { ensureDaemonConfigMigrated } from '../../config/ensure-daemon-config-migrated.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 function home(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'gv-agent-routing-'));
+  const dir = makeProjectTempDir('gv-agent-routing');
   roots.push(dir);
   return dir;
 }

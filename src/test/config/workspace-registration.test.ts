@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
@@ -15,10 +14,11 @@ import {
   resolveWorkspaceRegistrationSync,
   sharedWorkspaceRegistrationStorePath,
 } from '../../config/workspace-registration.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeShellPaths() {
-  const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-'));
-  const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-work-'));
+  const home = makeProjectTempDir('goodvibes-agent-workspace-registration');
+  const work = makeProjectTempDir('goodvibes-agent-workspace-registration-work');
   return { shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }), work, home };
 }
 
@@ -63,7 +63,7 @@ describe('workspace-registration: shared store resolution', () => {
     const store = createWorkspaceRegistrationStore(shellPaths);
     await store.add(work);
 
-    const siblingWorktree = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-worktree-'));
+    const siblingWorktree = makeProjectTempDir('goodvibes-agent-workspace-registration-worktree');
     // Outside `work`'s subtree entirely, so a plain path-ancestry check would
     // miss it — only the injected worktree-link git metadata makes it resolve.
     const resolution = resolveWorkspaceRegistrationSync(shellPaths, siblingWorktree, {
@@ -212,7 +212,7 @@ describe('workspace-registration: checkpoint-eligibility boundary', () => {
 
   test('a TUI self-record and an explicit registration coexist; only the explicit one is eligible', async () => {
     const { shellPaths, work } = makeShellPaths();
-    const tuiDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-tui-'));
+    const tuiDir = makeProjectTempDir('goodvibes-agent-workspace-registration-tui');
     await createWorkspaceRegistrationStore(shellPaths).add(tuiDir);
     await registerWorkspaceForCheckpoints(shellPaths, work);
 
@@ -225,7 +225,7 @@ describe('workspace-registration: checkpoint-eligibility boundary', () => {
     await registerWorkspaceForCheckpoints(shellPaths, work);
     // A subsequent plain SDK add (as the TUI does) rewrites the shared file; the
     // SDK preserves existing records' extra fields, so `work` stays eligible.
-    const otherDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-other-'));
+    const otherDir = makeProjectTempDir('goodvibes-agent-workspace-registration-other');
     await createWorkspaceRegistrationStore(shellPaths).add(otherDir);
 
     expect(resolveCheckpointEligibilitySync(shellPaths, work, {}).status).toBe('covered');
@@ -239,7 +239,7 @@ describe('workspace-registration: checkpoint-eligibility boundary', () => {
     const nested = join(work, 'packages', 'app');
     expect(resolveCheckpointEligibilitySync(shellPaths, nested, {}).status).toBe('covered');
 
-    const siblingWorktree = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-registration-eligible-worktree-'));
+    const siblingWorktree = makeProjectTempDir('goodvibes-agent-workspace-registration-eligible-worktree');
     const inherited = resolveCheckpointEligibilitySync(shellPaths, siblingWorktree, { mainWorktreeRoot: work });
     expect(inherited.status).toBe('covered');
     expect(inherited.viaWorktreeLink).toBe(true);

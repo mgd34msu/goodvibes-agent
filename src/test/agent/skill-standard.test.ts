@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseSkillStandardMarkdown, renderSkillStandardMarkdown, writeSkillStandardFile } from '../../agent/skill-standard.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('parseSkillStandardMarkdown', () => {
   test('parses valid SKILL.md with name and description', () => {
@@ -160,7 +160,7 @@ describe('parseSkillStandardMarkdown — input normalization', () => {
 
 describe('writeSkillStandardFile', () => {
   test('writes SKILL.md to <destDir>/<slug>/SKILL.md', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-skill-standard-'));
+    const tmpDir = makeProjectTempDir('goodvibes-skill-standard');
     const skill = { name: 'Morning Brief', description: 'Prepare a daily briefing.', procedure: 'Check calendar.' };
     const written = writeSkillStandardFile(skill, tmpDir);
     expect(written).toBe(join(tmpDir, 'morning-brief', 'SKILL.md'));
@@ -172,14 +172,14 @@ describe('writeSkillStandardFile', () => {
   });
 
   test('rejects overwrite without flag', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-skill-standard-'));
+    const tmpDir = makeProjectTempDir('goodvibes-skill-standard');
     const skill = { name: 'Status Review', description: 'Check status.', procedure: 'Inspect.' };
     writeSkillStandardFile(skill, tmpDir);
     expect(() => writeSkillStandardFile(skill, tmpDir)).toThrow('already exists');
   });
 
   test('overwrites with flag', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-skill-standard-'));
+    const tmpDir = makeProjectTempDir('goodvibes-skill-standard');
     const skill = { name: 'Status Review', description: 'Check status.', procedure: 'Inspect.' };
     writeSkillStandardFile(skill, tmpDir);
     const written = writeSkillStandardFile(skill, tmpDir, true);
@@ -187,7 +187,7 @@ describe('writeSkillStandardFile', () => {
   });
 
   test('throws on name that produces empty slug', () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-skill-standard-'));
+    const tmpDir = makeProjectTempDir('goodvibes-skill-standard');
     const skill = { name: '---', description: 'Punct only name.', procedure: 'Step.' };
     expect(() => writeSkillStandardFile(skill, tmpDir)).toThrow('empty folder name');
   });

@@ -5,7 +5,7 @@
  * Hermetic — temp home/workspace + a throwaway MemoryStore; no daemon, no network.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -15,9 +15,10 @@ import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@p
 import { createLocalMemoryAccess, type MemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { buildVibeProjectionPrompt, importVibeFilesIntoMemoryOnce } from '../../agent/vibe-file.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempShellPaths() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-vibe-migration-'));
+  const root = makeProjectTempDir('goodvibes-agent-vibe-migration');
   const home = join(root, 'home');
   const workspace = join(root, 'workspace');
   mkdirSync(home, { recursive: true });
@@ -34,7 +35,7 @@ describe('VIBE.md persona migration', () => {
 
   beforeEach(async () => {
     dbPath = join(tmpdir(), `vibe-migration-${randomUUID()}.db`);
-    configRoot = mkdtempSync(join(tmpdir(), 'vibe-migration-config-'));
+    configRoot = makeProjectTempDir('vibe-migration-config');
     const configDir = join(configRoot, '.goodvibes', 'agent');
     mkdirSync(configDir, { recursive: true });
     const configManager = new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir: configRoot });

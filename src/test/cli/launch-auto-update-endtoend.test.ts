@@ -1,8 +1,7 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   CHECKSUM_MANIFEST_NAME,
@@ -10,6 +9,7 @@ import {
   resolveSqliteVecArchive,
 } from '@/runtime/release-artifacts.ts';
 import { rollbackUpdate, PREVIOUS_FILE_SUFFIX } from '@/input/commands/update-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // End-to-end proof of the launch auto-update loop with REAL processes, REAL
 // files, and a REAL local HTTP server standing in for GitHub releases:
@@ -62,7 +62,7 @@ afterAll(() => {
 });
 
 function scratch(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  const dir = makeProjectTempDir(`${prefix}`);
   created.push(dir);
   return dir;
 }

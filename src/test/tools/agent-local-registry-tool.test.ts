@@ -1,7 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { createAgentLocalRegistryTool, registerAgentLocalRegistryTool } from '../../tools/agent-local-registry-tool.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
@@ -14,11 +11,12 @@ import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@p
 import { createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { buildReviewedMemoryPrompt } from '../../agent/memory-prompt.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type ShellPaths = ReturnType<typeof shellPaths>;
 
 function shellPaths() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-local-registry-tool-'));
+  const root = makeProjectTempDir('goodvibes-agent-local-registry-tool');
   return createShellPathService({ workingDirectory: root, homeDirectory: root });
 }
 

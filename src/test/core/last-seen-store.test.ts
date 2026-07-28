@@ -1,12 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { writeFileSync } from 'node:fs';
 import { LastSeenStore, lastSeenStorePath } from '../../core/last-seen-store.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempStore(): { store: LastSeenStore; paths: ReturnType<typeof createShellPathService> } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-last-seen-'));
+  const root = makeProjectTempDir('goodvibes-last-seen');
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   return { store: LastSeenStore.fromShellPaths(paths), paths };
 }
