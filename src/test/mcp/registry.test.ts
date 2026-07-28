@@ -5,7 +5,7 @@ import { join } from 'path';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createHookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
-import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { makeLongLivedProjectTempDir, makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // Minimal stub MCP server script for registry tests
 const STUB_SCRIPT = /* js */ `
@@ -39,10 +39,12 @@ rl.on('line', (line) => {
 });
 `;
 
-// makeProjectTempDir already registers its own process.on('exit') cleanup
-// for this directory (src/test/helpers/project-temp.ts), so no separate
-// exit handler is needed here.
-const SANDBOX_WORKSPACE_ROOT = makeProjectTempDir(`gv-mcp-registry-workspace-${process.pid}-${Date.now()}`);
+// Long-lived: created once here at module top level and reused by every
+// test in this file (see line 127/155's separate SandboxSessionRegistry
+// instances, and createRegistry() above), not per-test — must not go
+// through makeProjectTempDir's per-test sweep, which would delete it after
+// the file's first test finishes.
+const SANDBOX_WORKSPACE_ROOT = makeLongLivedProjectTempDir(`gv-mcp-registry-workspace-${process.pid}-${Date.now()}`);
 
 function stubServerConfig(name: string): McpServerConfig {
   return { name, command: 'bun', args: ['--eval', STUB_SCRIPT] };

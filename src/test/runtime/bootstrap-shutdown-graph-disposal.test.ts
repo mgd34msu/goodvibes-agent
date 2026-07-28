@@ -15,12 +15,18 @@ import { afterAll, expect, test } from 'bun:test';
 import { rmSync } from 'node:fs';
 
 import { createRuntimeShutdown, type RuntimeShutdownDependencies } from '@/runtime/bootstrap-shutdown.ts';
-import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { makeLongLivedProjectTempDir } from '../helpers/project-temp.ts';
 
 type Deps = RuntimeShutdownDependencies;
 
-/** Session persistence writes for real; give it somewhere disposable to write. */
-const workingDirectory = makeProjectTempDir('agent-shutdown-wiring');
+/**
+ * Session persistence writes for real; give it somewhere disposable to
+ * write. Long-lived (shared across every test in this file, not per-test):
+ * this file's own explicit afterAll below already cleans it up correctly at
+ * file-end, so it must not also go through makeProjectTempDir's per-test
+ * sweep, which would delete it after the first test instead.
+ */
+const workingDirectory = makeLongLivedProjectTempDir('agent-shutdown-wiring');
 afterAll(() => { rmSync(workingDirectory, { recursive: true, force: true }); });
 
 /**
