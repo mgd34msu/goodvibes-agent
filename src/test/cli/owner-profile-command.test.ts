@@ -442,6 +442,50 @@ describe('owner-profile CLI command', () => {
     expect(result.output).toContain('treated as unset');
   });
 
+  test('forget names a prose line by section and exact text, never by position', async () => {
+    const calls: Call[] = [];
+    const result = await handleOwnerProfileCommand(
+      runtime(['forget', '--section', 'Notes', '--text', 'Allergic to shellfish', '--yes']),
+      { invoke: stubInvoke(() => wrote('Forgotten — removed a line from Notes.'), calls) },
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(calls[0]?.body).toEqual({
+      section: 'Notes',
+      text: 'Allergic to shellfish',
+      authority: 'owner-direct',
+    });
+    expect(calls[0]?.body.lineIndex).toBeUndefined();
+  });
+
+  test('a prose line whose text no longer matches deletes nothing and exits non-zero', async () => {
+    // He edited or removed that line since the read. Content re-resolves against
+    // the document as it is now, so nothing goes and the answer says so — where a
+    // position would have deleted whatever had shifted into its place.
+    const result = await handleOwnerProfileCommand(
+      runtime(['forget', '--section', 'Notes', '--text', 'Allergic to shellfish', '--yes']),
+      { invoke: stubInvoke(() => refused('Your profile has no line reading "Allergic to shellfish" under Notes any more.')) },
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.output).toContain('was not deleted');
+    expect(result.output).toContain('no line reading "Allergic to shellfish" under Notes any more');
+  });
+
+  test('forget with half an address prints usage and reaches nothing', async () => {
+    const calls: Call[] = [];
+    const invoke = stubInvoke(() => wrote('Forgotten.'), calls);
+
+    const noText = await handleOwnerProfileCommand(runtime(['forget', '--section', 'Notes', '--yes']), { invoke });
+    expect(noText.exitCode).toBe(2);
+    expect(noText.output).toContain('--section <section> --text');
+
+    const nothing = await handleOwnerProfileCommand(runtime(['forget', '--yes']), { invoke });
+    expect(nothing.exitCode).toBe(2);
+
+    expect(calls).toHaveLength(0);
+  });
+
   test('an unknown subcommand prints usage', async () => {
     const result = await handleOwnerProfileCommand(runtime(['wipe']), { invoke: stubInvoke(() => ({})) });
     expect(result.exitCode).toBe(2);

@@ -48,6 +48,7 @@ export type AgentWorkspaceEditorKind =
   | 'owner-profile-provenance'
   | 'owner-profile-set'
   | 'owner-profile-forget'
+  | 'owner-profile-forget-note'
   | 'owner-profile-status'
   | 'document-browse'
   | 'document-show'

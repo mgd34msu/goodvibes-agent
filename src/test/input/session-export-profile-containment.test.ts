@@ -23,6 +23,8 @@ import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const HOME_ADDRESS = '401 Home St, Lansing, MI 48933, US';
 const SISTER_LINE = 'Sarah, sister, sarah@example.com';
+/** Short enough to fall under the distinctiveness floor, so only `absolute` catches it. */
+const SHORT_NAME = 'Bob Lee';
 
 const tmpDirs: string[] = [];
 
@@ -72,12 +74,20 @@ describe('session export containment for owner-profile values', () => {
       'containment-session',
       [
         { role: 'user', content: 'order it' },
-        { role: 'assistant', content: `Shipping to ${HOME_ADDRESS} and cc'ing ${SISTER_LINE}.` },
+        { role: 'assistant', content: `Shipping to ${HOME_ADDRESS}, cc'ing ${SISTER_LINE}, and telling ${SHORT_NAME}.` },
       ],
       { title: 'Ordering something', model: 'gpt-5.4', provider: 'openai', timestamp: Date.now() },
     );
 
-    registerProfileRedactionValues(() => [HOME_ADDRESS, SISTER_LINE]);
+    // Two classes, and the split matters here: his address is an ordinary
+    // closed-tier value subject to the distinctiveness floor, while a People
+    // line is redacted regardless of length or shape because §10 is absolute.
+    // A seven-character name like "Bob Lee" falls under the floor and would
+    // otherwise survive into an export.
+    registerProfileRedactionValues(() => ({
+      guarded: [HOME_ADDRESS],
+      absolute: [SISTER_LINE, SHORT_NAME],
+    }));
 
     const handled = await handleSessionWorkflowCommand(['export', 'containment-session', 'markdown'], ctx);
 
@@ -86,6 +96,8 @@ describe('session export containment for owner-profile values', () => {
     expect(output).toContain('# Session:');
     expect(output).not.toContain(HOME_ADDRESS);
     expect(output).not.toContain('sarah@example.com');
+    // The short-name case: absolute, so the floor does not let it through.
+    expect(output).not.toContain(SHORT_NAME);
   });
 
   test('with no profile loaded the export is unchanged', async () => {

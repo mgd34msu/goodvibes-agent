@@ -115,6 +115,16 @@ const OWNER_PROFILE_SUBMISSION_HANDLERS: Readonly<
       'safe',
     );
   },
+  'owner-profile-forget-note': (editor, readField) => {
+    const confirmation = requireConfirmation(editor, readField, 'Note deletion');
+    if (confirmation) return confirmation;
+    return dispatchCommandEditorSubmission(
+      `/owner-profile forget --section ${quoteSlashCommandArg(readField('section'))} --text ${quoteSlashCommandArg(readField('text'))} --yes`,
+      'Forgetting one line',
+      'The workspace handed a confirmed prose-line deletion to the shell-owned command router. The line is named by its content, so a line that has since changed is not deleted by mistake.',
+      'safe',
+    );
+  },
   'owner-profile-status': (editor, readField) => {
     const confirmation = requireConfirmation(editor, readField, 'Profile status');
     if (confirmation) return confirmation;

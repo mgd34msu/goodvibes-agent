@@ -76,11 +76,6 @@ function readString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function readInteger(value: unknown): number | undefined {
-  const parsed = typeof value === 'string' && value.trim() ? Number(value) : value;
-  return typeof parsed === 'number' && Number.isInteger(parsed) && parsed >= 0 ? parsed : undefined;
-}
-
 function fail(lines: readonly string[]): ToolOutcome {
   return { success: false, output: lines.filter(Boolean).join('\n') };
 }
@@ -347,19 +342,37 @@ async function handleAppend(
   return disclosureOutcome(response.disclosure, `Noted — added a line to ${section} in your profile.`);
 }
 
+/**
+ * A prose line is named by its CONTENT, never by its position (§9.2).
+ *
+ * He edits this file himself while a turn is running, so an index taken from a
+ * read is only valid against the exact document that produced it. Insert one
+ * line above and every index below shifts: a positional delete then removes a
+ * different line and reports success, which is the false receipt §9.2 exists to
+ * prevent. That case is not malformed input — the index is perfectly well
+ * formed, just for a file that no longer exists — so no validation could catch
+ * it. Addressing by section and exact text re-resolves against the document as
+ * it is now, and finds nothing when the line is gone.
+ */
 async function handleForget(
   deps: AgentProfileToolDeps,
   fieldId: string,
-  lineIndex: number | undefined,
+  section: string,
+  text: string,
   authority: ProfileAuthority,
 ): Promise<ToolOutcome> {
-  if (!fieldId && lineIndex === undefined) {
-    return fail(['`fieldId` or `lineIndex` is required: what to forget.']);
+  if (!fieldId && !(section && text)) {
+    return fail([
+      'Say what to forget: either `fieldId` for a mechanical field, or `section` plus the exact `text` of the line.',
+      '  A note, a person, a place or a work line is addressed by its text, not by its position —',
+      '  he edits this file himself, so a line number from an earlier read may point at a different line now.',
+      '  Read the profile first and pass the line back exactly as it reads.',
+    ]);
   }
-  const target = fieldId || `line ${String(lineIndex)}`;
+  const target = fieldId || `the line "${text}" under ${section}`;
   const result = await deps.invoke(PROFILE_METHOD_IDS.forget, {
     ...(fieldId ? { fieldId } : {}),
-    ...(lineIndex === undefined ? {} : { lineIndex }),
+    ...(fieldId ? {} : { section, text }),
     authority,
   });
   if (!result.ok) return fail([`Could not forget ${target}.`, `  ${result.error ?? 'no reason given'}`]);
@@ -407,9 +420,10 @@ export function createAgentProfileTool(deps: AgentProfileToolDeps): Tool {
           },
           fieldId: { type: 'string', description: 'Mechanical field id, e.g. location.timezone, commerce.shippingAddress.' },
           value: { type: 'string', description: 'The value to record for `fieldId`.' },
-          section: { type: 'string', description: 'Section to append a note to: Notes, Places, Work, Style, People.' },
-          text: { type: 'string', description: 'The note to append, in plain words.' },
-          lineIndex: { type: 'number', description: 'Forget one prose line by its index instead of a field.' },
+          section: { type: 'string', description: 'Section to append a note to, or the section of the line to forget: Notes, Places, Work, Style, People.' },
+          text: { type: 'string', description: 'The note to append, or — when forgetting a prose line — its exact text as the profile reads it.' },
+          // No lineIndex: a prose line is named by its content. See handleForget.
+
           name: { type: 'string', description: 'One person, by a name he used this turn. There is no list-everyone call.' },
           namedInInstruction: { type: 'string', description: 'His words this turn that pointed at that person. Required for person.' },
           authority: {
@@ -462,7 +476,7 @@ export function createAgentProfileTool(deps: AgentProfileToolDeps): Tool {
         return handleAppend(deps, readString(args.section), readString(args.text), authority.authority, said);
       }
       if (action === 'forget') {
-        return handleForget(deps, fieldId, readInteger(args.lineIndex), authority.authority);
+        return handleForget(deps, fieldId, readString(args.section), readString(args.text), authority.authority);
       }
       return handleUndo(deps, fieldId, authority.authority);
     },

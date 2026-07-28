@@ -41,7 +41,10 @@ const GET_USAGE = 'Usage: goodvibes-agent owner-profile get <fieldId>';
 const PERSON_USAGE = 'Usage: goodvibes-agent owner-profile person <name> --named-by "<your words this turn>"';
 const PROVENANCE_USAGE = 'Usage: goodvibes-agent owner-profile provenance <fieldId>';
 const SET_USAGE = 'Usage: goodvibes-agent owner-profile set <fieldId> <value> [--said "<your words>"] --yes';
-const FORGET_USAGE = 'Usage: goodvibes-agent owner-profile forget <fieldId> --yes';
+const FORGET_USAGE = [
+  'Usage: goodvibes-agent owner-profile forget <fieldId> --yes',
+  '       goodvibes-agent owner-profile forget --section <section> --text "<the line, exactly>" --yes',
+].join('\n');
 const STATUS_USAGE = 'Usage: goodvibes-agent owner-profile status';
 const OWNER_PROFILE_USAGE = [
   'Usage: goodvibes-agent owner-profile [read|get <fieldId>|person <name>|provenance <fieldId>|set <fieldId> <value> --yes|forget <fieldId> --yes|status]',
@@ -281,29 +284,43 @@ async function handleSet(
   };
 }
 
+/**
+ * A mechanical field goes by id; a prose line goes by its section and its exact
+ * text, never by position (§9.2). He edits this file himself, so a line number
+ * from an earlier read can point at a different line by the time the delete
+ * runs — and a stale index is well-formed, so nothing could catch it. Content
+ * re-resolves against the document as it is now.
+ */
 async function handleForget(
   runtime: CliCommandRuntime,
   invoke: ProfileGatewayInvoke,
   args: readonly string[],
 ): Promise<CliCommandOutput> {
-  const parsed = parseOperatorCommandArgs(args);
+  const parsed = parseOperatorCommandArgs(args, ['section', 'text']);
   const fieldId = parsed.positionals[0];
-  if (!fieldId) return usageFailure(runtime, FORGET_USAGE);
+  const section = operatorFlagValue(parsed, 'section');
+  const text = operatorFlagValue(parsed, 'text');
+  if (!fieldId && !(section && text)) return usageFailure(runtime, FORGET_USAGE);
+  const target = fieldId ?? `the line "${String(text)}" under ${String(section)}`;
   if (!parsed.yes) {
-    return { output: `Refusing to forget ${fieldId} without --yes.`, exitCode: 2 };
+    return { output: `Refusing to forget ${target} without --yes.`, exitCode: 2 };
   }
-  const result = await invoke(PROFILE_METHOD_IDS.forget, { fieldId, authority: 'owner-direct' });
+  const result = await invoke(PROFILE_METHOD_IDS.forget, {
+    ...(fieldId ? { fieldId } : { section, text }),
+    authority: 'owner-direct',
+  });
   if (!result.ok) return { output: jsonOrText(runtime, result, result.error ?? 'Profile delete failed.'), exitCode: 1 };
   const response = narrowProfileWrite(result.data);
   if (!response) return { output: jsonOrText(runtime, result, PROFILE_RESPONSE_UNREADABLE), exitCode: 1 };
   if (!response.ok) {
-    // Covers both "refused" and "there was nothing to forget". Neither is ok,
-    // and the daemon's own reason says which — this never claims a deletion.
-    const text = [`Not done: ${fieldId} was not deleted.`, `  reason: ${response.reason ?? 'no reason given'}`].join('\n');
-    return { output: jsonOrText(runtime, response, text), exitCode: 1 };
+    // Covers refusal, "there was nothing to forget", and a prose line whose
+    // text no longer matches because he changed it. None is ok, the daemon's
+    // own reason says which, and this never claims a deletion.
+    const failure = [`Not done: ${target} was not deleted.`, `  reason: ${response.reason ?? 'no reason given'}`].join('\n');
+    return { output: jsonOrText(runtime, response, failure), exitCode: 1 };
   }
   return {
-    output: jsonOrText(runtime, response, response.disclosure || `Deleted ${fieldId} from your profile.`),
+    output: jsonOrText(runtime, response, response.disclosure || `Deleted ${target} from your profile.`),
     exitCode: 0,
   };
 }

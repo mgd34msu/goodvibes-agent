@@ -371,9 +371,10 @@ const COMMAND_HELP: Record<string, CommandHelp> = {
       'owner-profile provenance <fieldId>',
       'owner-profile set <fieldId> <value> [--said "<your words>"] --yes',
       'owner-profile forget <fieldId> --yes',
+      'owner-profile forget --section <section> --text "<the line, exactly>" --yes',
       'owner-profile status',
     ],
-    summary: 'Read, trace, correct, and delete the owner profile the daemon keeps — one Markdown file holding your name, contact, location, commerce, preferences, people, places, work, and notes. read prints the whole document with the provenance suffix on every learned line; get prints one field; person prints one person by name and takes the words you used that pointed at them; provenance answers "where did you get that" for one field, including the values it superseded; set supersedes a field and keeps the old one; forget deletes a line and its kept history, and reports that a field was not there rather than reporting success; status prints load state, path, counts, and any field whose value did not parse — never values.',
+    summary: 'Read, trace, correct, and delete the owner profile the daemon keeps — one Markdown file holding your name, contact, location, commerce, preferences, people, places, work, and notes. read prints the whole document with the provenance suffix on every learned line; get prints one field; person prints one person by name and takes the words you used that pointed at them; provenance answers "where did you get that" for one field, including the values it superseded; set supersedes a field and keeps the old one; forget deletes a line and its kept history, and reports that a field was not there rather than reporting success — a prose line is named by its section and exact text, never by position, because you edit this file yourself and a position from an earlier read can point at a different line by now; status prints load state, path, counts, and any field whose value did not parse — never values.',
     examples: [
       'owner-profile read',
       'owner-profile provenance commerce.shippingAddress',

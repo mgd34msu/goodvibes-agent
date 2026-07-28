@@ -34,6 +34,7 @@ export type AgentWorkspaceOwnerProfileEditorKind = Extract<
   | 'owner-profile-provenance'
   | 'owner-profile-set'
   | 'owner-profile-forget'
+  | 'owner-profile-forget-note'
   | 'owner-profile-status'
 >;
 
@@ -46,6 +47,7 @@ export function isAgentWorkspaceOwnerProfileEditorKind(
     || kind === 'owner-profile-provenance'
     || kind === 'owner-profile-set'
     || kind === 'owner-profile-forget'
+    || kind === 'owner-profile-forget-note'
     || kind === 'owner-profile-status';
 }
 
@@ -109,6 +111,17 @@ const OWNER_PROFILE_EDITOR_SPECS: Readonly<
     fields: [
       { id: 'fieldId', label: 'Field id', value: '', required: true, multiline: false, hint: 'For example contact.phone.' },
       { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to delete the line and its kept history.' },
+    ],
+  },
+  'owner-profile-forget-note': {
+    mode: 'delete',
+    title: 'Forget A Note Or Person',
+    selectedFieldIndex: 0,
+    message: 'Delete one prose line — a note, a person, a place, a work line. Give the line exactly as the profile reads it: lines are named by their content, never by their position, because you edit this file yourself and a position from an earlier read can point somewhere else by now. If the text no longer matches, nothing is deleted and it says so.',
+    fields: [
+      { id: 'section', label: 'Section', value: '', required: true, multiline: false, hint: 'Notes, People, Places, Work, or Style.' },
+      { id: 'text', label: 'The line', value: '', required: true, multiline: false, hint: 'The line exactly as it reads in your profile, without its provenance suffix.' },
+      { id: 'confirm', label: 'Confirm', value: '', required: true, multiline: false, hint: 'Type yes to delete that line.' },
     ],
   },
   'owner-profile-status': {

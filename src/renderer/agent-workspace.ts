@@ -290,6 +290,7 @@ function editorPurposeLabel(editorKind: AgentWorkspaceEditorKind): string {
     case 'owner-profile-provenance': return 'Trace where a fact came from';
     case 'owner-profile-set': return 'Correct a profile fact';
     case 'owner-profile-forget': return 'Forget a profile fact';
+    case 'owner-profile-forget-note': return 'Forget a note or person';
     case 'owner-profile-status': return 'Check profile status';
     case 'task-list-filter': return 'Filter task list';
     case 'task-show': return 'Show task';

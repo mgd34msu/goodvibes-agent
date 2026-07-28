@@ -166,6 +166,22 @@ describe('Your Profile card — correcting and forgetting', () => {
     expect(submission.actionResult.detail).toContain('nothing is tombstoned');
   });
 
+  test('the note card names a line by its content, and says why', () => {
+    const submission = submit('owner-profile-forget-note', {
+      section: 'Notes',
+      text: 'Allergic to shellfish',
+      confirm: 'yes',
+    });
+    expect(submission.kind).toBe('dispatch');
+    if (submission.kind !== 'dispatch') return;
+    expect(submission.command).toBe('/owner-profile forget --section Notes --text "Allergic to shellfish" --yes');
+    expect(submission.command).not.toContain('--line');
+    expect(submission.actionResult.detail).toContain('named by its content');
+
+    const editor = openCard('owner-profile-forget-note');
+    expect(editor.message).toContain('never by their position');
+  });
+
   test('neither mutating card dispatches without confirmation', () => {
     const set = submit('owner-profile-set', { fieldId: 'contact.phone', value: '555' });
     expect(set.kind).toBe('editor');
@@ -174,5 +190,9 @@ describe('Your Profile card — correcting and forgetting', () => {
     const forget = submit('owner-profile-forget', { fieldId: 'contact.phone' });
     expect(forget.kind).toBe('editor');
     if (forget.kind === 'editor') expect(forget.editor.message).toContain('not confirmed');
+
+    const forgetNote = submit('owner-profile-forget-note', { section: 'Notes', text: 'Allergic to shellfish' });
+    expect(forgetNote.kind).toBe('editor');
+    if (forgetNote.kind === 'editor') expect(forgetNote.editor.message).toContain('not confirmed');
   });
 });

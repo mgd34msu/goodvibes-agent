@@ -211,26 +211,108 @@ describe('profile tool — forgetting something that was not there', () => {
     expect(result.output).toContain('Forgotten — removed your phone number from your profile.');
   });
 
-  test('forget can address one prose line by index instead of a field', async () => {
+  test('a prose line is addressed by its section and exact text', async () => {
     const calls: RecordedCall[] = [];
     const { tool } = stubTool(() => wrote('Forgotten — removed a line from your profile.'), calls);
 
-    const result = await tool.execute({ action: 'forget', lineIndex: 12, authority: 'owner-direct' });
+    const result = await tool.execute({
+      action: 'forget',
+      section: 'Notes',
+      text: 'Allergic to shellfish',
+      authority: 'owner-direct',
+    });
 
     expect(result.success).toBe(true);
-    expect(calls[0]?.body.lineIndex).toBe(12);
-    expect(calls[0]?.body.fieldId).toBeUndefined();
+    expect(calls[0]?.body).toEqual({ section: 'Notes', text: 'Allergic to shellfish', authority: 'owner-direct' });
   });
 
-  test('forget with neither a field nor a line index is not sent', async () => {
+  test('a position is never sent, whatever the caller passes', async () => {
+    const calls: RecordedCall[] = [];
+    const { tool } = stubTool(() => wrote('Forgotten.'), calls);
+
+    // A model that learned the old shape, or one that read lineIndex off a
+    // profile.read line, must not get a positional delete by accident.
+    await tool.execute({
+      action: 'forget',
+      section: 'Notes',
+      text: 'Allergic to shellfish',
+      lineIndex: 12,
+      authority: 'owner-direct',
+    });
+
+    expect(calls[0]?.body.lineIndex).toBeUndefined();
+  });
+
+  test('forget with neither a field nor a section-and-text pair is not sent', async () => {
     const calls: RecordedCall[] = [];
     const { tool } = stubTool(() => wrote('Noted.'), calls);
 
-    const result = await tool.execute({ action: 'forget', authority: 'owner-direct' });
+    const nothing = await tool.execute({ action: 'forget', authority: 'owner-direct' });
+    expect(nothing.success).toBe(false);
+    expect(nothing.output).toContain('either `fieldId` for a mechanical field, or `section` plus the exact `text`');
+    expect(nothing.output).toContain('may point at a different line now');
+
+    // A section with no text is half an address, and half an address is not one.
+    const halfway = await tool.execute({ action: 'forget', section: 'Notes', authority: 'owner-direct' });
+    expect(halfway.success).toBe(false);
+
+    expect(calls).toHaveLength(0);
+  });
+
+  test("his concurrent edit does not make the delete hit the wrong line", async () => {
+    // The hazard §9.2 exists for. He is a concurrent writer: between the read
+    // that produced a position and the forget that used it, he adds a line in
+    // his editor and everything below shifts. A positional delete removes a
+    // different line and reports success. Addressing by content cannot: the
+    // fake daemon here resolves against the CURRENT document, exactly as the
+    // real store does, so the assertion is about which line actually goes.
+    const document = [
+      { section: 'Notes', text: 'Allergic to shellfish' },
+      { section: 'Notes', text: 'Prefers aisle seats' },
+    ];
+    const calls: RecordedCall[] = [];
+    const tool = createAgentProfileTool({
+      invoke: async (methodId, body): Promise<ProfileGatewayResult> => {
+        calls.push({ methodId, body });
+        const section = String(body.section ?? '');
+        const wanted = String(body.text ?? '');
+        const index = document.findIndex((line) => line.section === section && line.text === wanted);
+        if (index < 0) {
+          return { ok: true, data: refused(`Your profile has no line reading "${wanted}" under ${section} any more.`), route: 'in-process' };
+        }
+        document.splice(index, 1);
+        return { ok: true, data: wrote(`Forgotten — removed a line from ${section}.`), route: 'in-process' };
+      },
+    });
+
+    // He inserts a line above the one that is about to be forgotten. Under the
+    // old contract the caller's index 0 now names the NEW line.
+    document.unshift({ section: 'Notes', text: 'Renewed passport in March' });
+
+    const result = await tool.execute({
+      action: 'forget',
+      section: 'Notes',
+      text: 'Allergic to shellfish',
+      authority: 'owner-direct',
+    });
+
+    expect(result.success).toBe(true);
+    expect(document.map((line) => line.text)).toEqual(['Renewed passport in March', 'Prefers aisle seats']);
+  });
+
+  test('a line whose text no longer matches deletes nothing, and says so', async () => {
+    const { tool } = stubTool(() => refused('Your profile has no line reading "Allergic to shellfish" under Notes any more.'));
+
+    const result = await tool.execute({
+      action: 'forget',
+      section: 'Notes',
+      text: 'Allergic to shellfish',
+      authority: 'owner-direct',
+    });
 
     expect(result.success).toBe(false);
-    expect(result.output).toContain('`fieldId` or `lineIndex` is required');
-    expect(calls).toHaveLength(0);
+    expect(result.output).toContain('no line reading "Allergic to shellfish" under Notes any more');
+    expect(result.output).toContain('never report this as done');
   });
 
   test('undo with nothing kept is not a success either', async () => {
