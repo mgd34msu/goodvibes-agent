@@ -2,6 +2,19 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.22.0 - 2026-07-29
+
+- Your profile and your payment details are now things you enter and correct at the terminal, and outward actions ask you before they act on anything a stranger wrote.
+- Added `/owner-profile`: read what the Agent knows about you, show one field, look one person up by name, trace where a fact came from, correct one, or forget one. A line is named by its content, never by its position, so editing the file while a correction is in flight cannot delete the wrong line. The same profile is on the workspace screen you actually look at, and the Agent can reach it mid-turn through its own tool rather than guessing from what it has been told this session.
+- Added `/payments`: enter the payment card — number, expiry, CVV, cardholder name, each typed masked — and the billing and shipping addresses the daemon uses for purchases. Card material is never rendered back and never lands in a config file; it is written to the daemon's secret store, which is the process that completes an unattended purchase with every window closed. Budgets, delivery tier, approval and veto windows and the CVV trade-off live in Settings > Payments, where a money field is typed in ordinary units ("19.99") and stored exactly, with no rounding drift.
+- Added: an action that reaches outside this machine — sending mail, posting to a channel, touching a linked account — now asks you first when what it is about to send derives from content someone else wrote. A page you asked it to read, a message that arrived, a document, and now a subscribed calendar feed all carry that mark, and it follows the content through to the moment of sending rather than being checked once at the door. Your own words never trigger it: mail you asked for goes out without a prompt.
+- Added: startup says when something on your PATH shadows a program the Agent expects to run, and when a service it needs is not reachable, instead of failing later with an error about something else.
+- Changed: a credential typed into settings is filed where the daemon can read it. It used to land in this program's own store, so scheduled work and inbound messages — which run with no terminal open — found nothing and reported the integration as unavailable while the settings screen showed it configured.
+- Changed: card material is redacted in a support bundle by declaration rather than by guessing from the end of a key's name. The previous rule matched words like "token" and "password" and would have carried a card number in the clear, because none of the four card fields ends in a word that list knows.
+- Changed: asked what it can do — reach Gmail, a calendar, a browser — the Agent answers from its own live runtime, and says which build is answering. It used to be able to answer from a search over the source tree, which describes a repository rather than the program you are talking to.
+- Fixed: a settings listing that had been cut off said nothing about it. The catalog stopped at a fixed 500 entries while the schema had grown past that, so a real setting past the cut read as a setting that does not exist. The ceiling is now well clear of the catalog, and every listing that returns fewer than matched says so and says how to ask for the rest.
+- Changed: the bundled GoodVibes platform runtime is 1.19.1, which carries the calendar-ingest, payments and owner-approval support behind these notes.
+
 ## 1.21.0 - 2026-07-27
 
 - Mail, calendar and browser control now come from the bundled GoodVibes platform runtime instead of a second copy carried here.
