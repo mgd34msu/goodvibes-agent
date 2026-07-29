@@ -502,6 +502,21 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     asserts: 'toggles false -> true -> false from the settings screen, so the switch can be put back where it was found rather than only ever being turned on',
   },
 
+  // --- Occasions (occasions.*) ---------------------------------------------
+  // Exactly ONE row, and that is the honest count. This repo reads exactly one
+  // `occasions.*` key: the nudge surface's enablement check
+  // (src/runtime/bootstrap.ts). The other eleven are read by the daemon's
+  // occasions sweep — the lead window, the cadence, quiet hours, the calendar
+  // mirror, the interview length — and no line of this repository mentions any of
+  // them, deliberately, so they stay out of this product's denominator entirely
+  // (src/verification/settings-consumed-keys.ts's rule, and the same treatment
+  // profile.*'s parity test documents for its own key names).
+  {
+    key: 'occasions.enabled',
+    test: 'src/test/runtime/occasions-nudge-surface.test.ts',
+    asserts: 'false stops the pull before the verb is called at all and true resumes it with no restart, driven through the real createOccasionsNudgeSurface consumer — so a leftover open item is not raised by a surface that had not noticed the feature was turned off',
+  },
+
   // NOT COVERED, deliberately: device.nodes.maxPaired. The key is declared in
   // schema-domain-device.ts and associated with the paired-device feature in
   // flag-config-map.ts, but nothing reads it — no pairing path bounds the number of

@@ -46,6 +46,8 @@ import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
+import { createOccasionsGatewayInvoke } from '../agent/occasions-gateway.ts';
+import { createOccasionsNudgeSurface } from './occasions-nudge-surface.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { createRuntimeShutdown } from './bootstrap-shutdown.ts';
 import { installAgentMcpCallRoute } from '../tools/agent-mcp-call-route.ts';
@@ -219,6 +221,28 @@ export async function bootstrapRuntime(
   // own composition root does not wire a usageLookup into its scheduler either —
   // matched here for parity); still tracked for its own reporting.
   const memoryUsageTracker = createMemoryUsageTracker(services.shellPaths, services.memoryRegistry);
+  // The Agent as one of the two channels a proactive occasion nudge is delivered
+  // on (docs/occasions.md §4.2 — Telegram AND the agent, never the TUI, which
+  // the SDK refuses structurally rather than by convention). It PULLS
+  // `occasions.pending` at a turn boundary, which is the receive path the SDK's
+  // own docstring on that verb describes; a stored date is the prior scheduling
+  // that makes raising it unprompted consistent with this product being
+  // conversation-first. See runtime/occasions-nudge-surface.ts for why the pull
+  // is tied to a turn rather than a timer, and why the daemon's composed message
+  // goes into the transcript unaltered.
+  const occasionsNudgeSurface = createOccasionsNudgeSurface({
+    invoke: createOccasionsGatewayInvoke({
+      gatewayMethods: services.gatewayMethods,
+      configManager,
+      homeDirectory: services.shellPaths.homeDirectory,
+    }),
+    conversation,
+    requestRender,
+    // The feature's own switch, read live so it is a real toggle. Not a rule:
+    // every decision about whether an occasion may be raised at all stays in the
+    // daemon and arrives only as the contents of `occasions.pending`.
+    isEnabled: () => configManager.get('occasions.enabled'),
+  });
   runtimeUnsubs.push(
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
       activePromptTurnId = event.payload.turnId;
@@ -264,6 +288,13 @@ export async function bootstrapRuntime(
         activePromptTurnText = null;
       }
       memoryUsageTracker.onTurnCompleted(event.payload.turnId, event.payload.response);
+      // Raise anything outstanding, now that the transcript is quiet. Appending
+      // the agent's own line while a response was still streaming would
+      // interleave two voices in one transcript, which is why this rides the
+      // turn's completion rather than its submission. Not awaited and it never
+      // throws — a nudge that could not be pulled must not disturb the turn it
+      // rode in on.
+      void occasionsNudgeSurface.raiseNow();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
       promptContextReceipts.recordTurnOutcome({
