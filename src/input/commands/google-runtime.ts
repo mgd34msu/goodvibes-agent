@@ -38,6 +38,7 @@ import {
   runGoogleSetup,
 } from './google-connection-actions.ts';
 import type { GoogleProgressPort, GoogleSetupPath, GoogleSetupStepSpec, GoogleStepResult } from '@pellux/goodvibes-sdk/platform/google';
+import { getOutwardApprovalStore, takeRefusedOutwardAction } from '../../trust/outward-approvals.ts';
 
 const USAGE = [
   'Usage: /google <subcommand>',
@@ -52,6 +53,8 @@ const USAGE = [
   '  account <address>               Set the Gmail address to connect as.',
   '  calendar-address <url>          Store the private iCal address for read-only calendar access.',
   '  runbook                         Print the written step-by-step instructions.',
+  '  approve                         Approve the outward action that was just refused. Type it yourself;',
+  '                                  it is ignored when the model runs it.',
   '',
   'The same routes are cards in the Agent workspace, under Personal Ops.',
 ].join('\n');
@@ -113,6 +116,46 @@ async function setCalendarAddress(args: readonly string[], ctx: CommandContext):
   ctx.print('Stored the private calendar address in the encrypted secret store. Read it with: /calendar refresh');
 }
 
+/**
+ * `/google approve` — the gesture that clears an outward-effect refusal.
+ *
+ * Refuses when the MODEL got here. `agent_harness mode:"run_command"` can run
+ * any registered command, so without this check the remedy would be reachable
+ * by exactly the route it exists to defend against: content steers the model,
+ * the model runs the command, the approval appears. That the refusal message
+ * tells the owner to type it himself is advice; this is the enforcement.
+ */
+function approveRefusedOutwardAction(ctx: CommandContext): void {
+  if (ctx.invokedByModel === true) {
+    ctx.print(
+      'Refused: /google approve grants authority, so it only counts when you type it yourself. '
+      + 'This came from the model running a command, which is the route content that was just read would use.',
+    );
+    return;
+  }
+  const refused = takeRefusedOutwardAction();
+  if (refused === null) {
+    ctx.print('Nothing is waiting for approval. Approvals name one specific message and last five minutes.');
+    return;
+  }
+  const approval = getOutwardApprovalStore().grant({
+    action: refused.action,
+    // Supplied by this code path, which knows it ran from the owner's own
+    // keystrokes. It is never read from an argument or from any content.
+    surface: 'owner-direct',
+    content: refused.content,
+  });
+  if (approval === null) {
+    ctx.print('Could not record the approval.');
+    return;
+  }
+  ctx.print([
+    `Approved: ${refused.description}.`,
+    'It is tied to that exact message, good once, and expires in five minutes.',
+    'Re-issue the action now.',
+  ].join(' '));
+}
+
 export async function runGoogleCommand(args: readonly string[], ctx: CommandContext): Promise<void> {
   const sub = (args[0] ?? 'status').trim().toLowerCase();
   const rest = args.slice(1);
@@ -134,6 +177,7 @@ export async function runGoogleCommand(args: readonly string[], ctx: CommandCont
       ctx.print(renderGoogleSetupRunbook());
       return;
     }
+    if (sub === 'approve') return approveRefusedOutwardAction(ctx);
     if (sub === 'client-file') {
       const path = (rest[0] ?? '').trim();
       if (path.length === 0) {
@@ -162,8 +206,8 @@ export function registerGoogleRuntimeCommands(registry: CommandRegistry): void {
     name: 'google',
     aliases: ['gmail'],
     description: 'Connect Gmail and Google Calendar: adopt existing credentials, or run the setup flow',
-    usage: 'status | adopt | setup [--path app-password|oauth] | client-file <path> | client <id> <secret> | account <address> | calendar-address <url> | runbook',
-    argsHint: 'status|adopt|setup|client-file|client|account|calendar-address|runbook',
+    usage: 'status | adopt | setup [--path app-password|oauth] | client-file <path> | client <id> <secret> | account <address> | calendar-address <url> | runbook | approve',
+    argsHint: 'status|adopt|setup|client-file|client|account|calendar-address|runbook|approve',
     handler: runGoogleCommand,
   });
 }

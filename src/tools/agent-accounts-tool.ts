@@ -148,6 +148,27 @@ export function createAgentAccountsTool(options: AgentAccountsToolOptions): Tool
               description: `recording an account created at ${readString(rawArgs.serviceDomain) || 'a service'}`,
             },
             ledger: getSessionUntrustedContentLedger(),
+            // Enumerated rather than left to the coarse rule. Every field of a
+            // record is text a page could have supplied — the domain and the URL
+            // most of all, since a record pointing at an attacker's host is how
+            // a forged signup would be made to look like a real one. Without
+            // these, recording an account after reading any page was refused
+            // outright, which is the friction that gets a check switched off.
+            content: {
+              serviceDomain: readString(rawArgs.serviceDomain) || undefined,
+              serviceUrl: readString(rawArgs.serviceUrl) || undefined,
+              aliasAddress: readString(rawArgs.aliasAddress) || undefined,
+              purpose: readString(rawArgs.purpose) || undefined,
+            },
+            taintOptions: {
+              // The domain and the URL are short and high-signal: the value
+              // itself is the payload, so containment is the test rather than
+              // length. The alias is deliberately NOT here — the agent minted it
+              // for this signup, so of course it appears in the mail that signup
+              // provoked, and testing it would refuse every real record.
+              exactMatchFields: ['serviceDomain', 'serviceUrl'],
+            },
+            requestedBy: 'owner-direct',
           });
           if (!decision.allowed) return failure(`${decision.reason} ${decision.fix}`);
 

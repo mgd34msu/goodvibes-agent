@@ -66,12 +66,38 @@ describe('the Google connection cards', () => {
     // `account`, `calendar-address` and `runbook` are inputs to a route rather
     // than routes themselves; the six connection routes are the ones a person
     // picks between, and each has a card.
-    const covered = new Set(['account', 'calendar-address', 'runbook']);
+    //
+    // `approve` is excluded for a different and stronger reason: it must NOT
+    // have a card. It grants authority over one refused outward action, and a
+    // workspace card is dispatchable by the model through `workspace
+    // action:"run"`. Giving it a card would hand the model the button that
+    // clears the boundary, which is the exact route content that was just read
+    // would take — the same hole the `invokedByModel` check closes on the
+    // slash-command path. It is typed by the owner or it does not happen.
+    const covered = new Set(['account', 'calendar-address', 'runbook', 'approve']);
     for (const [, , route] of GOOGLE_CARDS) covered.add(route.split(' ')[0] as string);
 
     for (const sub of subcommands) {
       expect(covered.has(sub), `/google ${sub} has no workspace card`).toBe(true);
     }
+  });
+
+  test('the approval route has no workspace card, and must not gain one', () => {
+    // The inverse of the rule above, asserted rather than left as a comment.
+    // `/google approve` clears an outward-effect refusal, and every workspace
+    // card is dispatchable by the model via `workspace action:"run"`. A card
+    // here would let a message the agent had just read talk the model into
+    // pressing the button that authorizes the send that message wanted — with
+    // no keystroke from the owner anywhere in the chain.
+    //
+    // If a future change adds an approval card, this fails, and that is the
+    // intent: the gesture has to stay something only a human at the keyboard
+    // can perform.
+    const approvalCards = AGENT_WORKSPACE_CATEGORIES
+      .flatMap((category) => category.actions)
+      .filter((action) => /google.*approv|approv.*google/i.test(action.id))
+      .map((action) => action.id);
+    expect(approvalCards).toEqual([]);
   });
 
   test('every card that opens a browser says the flow pauses for a hand sign-in', () => {

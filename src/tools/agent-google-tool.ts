@@ -19,9 +19,32 @@
  *
  *   - Reading mail records an untrusted ingest, exactly as loading a web page
  *     does. Mail is written by whoever knows the address.
- *   - Sending mail and writing calendar events are outward effects, refused for
- *     the rest of a turn in which untrusted content was read unless the owner
- *     asked for that specific action. Content cannot cause a send.
+ *   - Sending mail and writing calendar events are outward effects, refused
+ *     when their own content derives from what was read this turn. Content
+ *     cannot cause a send.
+ *
+ * ── What this tool got wrong, and what it cost ────────────────────────────
+ *
+ * The owner asked for one mail to his own address to prove the connection
+ * worked. The agent listed his inbox first — the obvious way to demonstrate
+ * that reading works, and what it does unprompted when asked to prove the
+ * connection — and the send was refused because of the listing. Three faults
+ * here compounded, and each is worth naming because each looks harmless alone:
+ *
+ *   - The ingests recorded the ORIGIN but not the TEXT. Without the text there
+ *     is nothing to compare an outgoing message against, so every send fell to
+ *     the coarse "did this process read anything" rule, which in a tool people
+ *     use to read mail is permanently yes.
+ *   - The outward calls named no fields, so even retained text would not have
+ *     been consulted. Two halves of one check, neither wired.
+ *   - `mail.list` recorded exposure BEFORE testing whether anything matched.
+ *     Listing an empty inbox therefore refused every later send in the turn —
+ *     exposure invented out of a result set with nothing in it. A read that
+ *     read nothing is not exposure, and the ordering is the whole difference.
+ *
+ * The shape to keep in mind: a guard that cannot answer the narrow question
+ * does not become safe by refusing everything. It becomes a guard people route
+ * around, and then there is no guard.
  */
 
 import type { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
@@ -33,6 +56,13 @@ import {
   getSessionUntrustedContentLedger,
   originOf,
 } from '../trust/untrusted-content.ts';
+import {
+  isSendToOwnerOnly,
+  resolveOwnerAddresses,
+  type OwnerApprovalStore,
+  type TaintOptions,
+} from '@pellux/goodvibes-sdk/platform/security';
+import { rememberRefusedOutwardAction } from '../trust/outward-approvals.ts';
 import type { GoogleApiFailure, GoogleApiResult } from '@pellux/goodvibes-sdk/platform/google';
 import { getSessionExpectationBook } from '../agent/signup/session-expectations.ts';
 import { deliveryEvidenceFromMessage, describeDeliveryEvidence, NO_ALIAS_MAILBOXES } from '@pellux/goodvibes-sdk/platform/google';
@@ -57,6 +87,20 @@ export interface AgentGoogleToolOptions {
   readonly secretGet: (key: string) => Promise<string | null>;
   /** Injected in tests; production uses the process fetch. */
   readonly fetchImpl?: (url: string, init: RequestInit) => Promise<Response>;
+  /**
+   * Where approvals the owner has answered are held, when this surface has an
+   * approval prompt wired.
+   *
+   * Absent means no path is wired here, and the refusal says exactly that
+   * rather than inventing a remedy — which is how the owner came to be told to
+   * reply "send it now" to a mechanism that did not exist.
+   */
+  readonly approvals?: OwnerApprovalStore | undefined;
+  /**
+   * The gesture that answers an approval prompt on this surface, in the
+   * owner's words. Only meaningful alongside `approvals`.
+   */
+  readonly approvalGesture?: string | undefined;
 }
 
 type ToolOutput = { readonly success: true; readonly output: string } | { readonly success: false; readonly error: string };
@@ -110,16 +154,64 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
   }
 
   /**
-   * Outward-effect gate. Refuses a send for the rest of a turn in which
-   * untrusted content was read, so an email body cannot cause a reply.
+   * Outward-effect gate.
+   *
+   * `content` is the fields about to leave the machine. Supplying them is what
+   * turns "has this process read anything" — permanently yes for anyone who
+   * uses the mail tool at all — into "does THIS message repeat what was read",
+   * which is answerable and almost always no. Without it the tool took the
+   * coarse path and refused every send that followed any read, which is the
+   * defect the owner met: he listed his inbox to prove the connection worked,
+   * and the send he was proving it with was refused on the strength of the
+   * listing.
    */
-  function outwardAllowed(action: string, description: string): ToolOutput | null {
+  function outwardAllowed(
+    action: string,
+    description: string,
+    content: Readonly<Record<string, string | undefined>>,
+    taintOptions?: TaintOptions,
+  ): ToolOutput | null {
     const decision = evaluateOutwardEffect({
       request: { toolName: 'google', action, description },
       ledger: getSessionUntrustedContentLedger(),
+      content,
+      ...(taintOptions === undefined ? {} : { taintOptions }),
+      // The `google` tool only ever runs inside a turn the owner started —
+      // it is not reachable from a schedule or a channel — so a refusal here
+      // must not tell him to go and ask the owner. He is the owner and he
+      // already asked.
+      requestedBy: 'owner-direct',
+      ...(options.approvals === undefined
+        ? {}
+        : {
+          ownerRemedy: {
+            gesture: options.approvalGesture
+              ?? 'answer the approval prompt this raises, which asks about this exact message.',
+          },
+        }),
+      // Spend a matching approval if the owner has already answered a prompt
+      // for this exact payload. `take` removes it, so one answered prompt
+      // authorizes one send.
+      approval: options.approvals?.take({ action, content }) ?? null,
     });
     if (decision.allowed) return null;
+    // Record WHAT was refused, so the approval gesture has one specific message
+    // to approve rather than acting as a blank cheque over whatever comes next.
+    if (options.approvals !== undefined) {
+      rememberRefusedOutwardAction({ action, description, content });
+    }
     return failure(`${decision.reason} ${decision.fix}`);
+  }
+
+  /**
+   * The owner's own addresses, from configuration only.
+   *
+   * Read per call because he can connect a mailbox mid-session. Never from a
+   * header, a sender, or anything else a message can influence — see the SDK's
+   * security/owner-identity.ts for what an attacker would have to control.
+   */
+  function ownerAddresses(): ReadonlySet<string> {
+    return resolveOwnerAddresses(options.configGet);
   }
 
   return {
@@ -185,13 +277,22 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           maxResults: readNumber(rawArgs.maxResults, 10),
         });
         if (isFailure(result)) return describeFailure(result);
-        // Subject lines and sender names are attacker-controlled text.
+        // A listing that matched nothing read nothing, so there is nothing it
+        // could have derived an outward action from. Recording an ingest here
+        // recorded that a READ HAPPENED rather than that any text arrived, and
+        // it refused subsequent sends on the strength of an empty result set —
+        // exposure invented out of an empty inbox.
+        if (result.value.length === 0) return ok('No messages matched.');
+        // Subject lines and sender names are attacker-controlled text, so they
+        // are recorded WITH the text. Recording the origin alone left the guard
+        // unable to tell a send that repeats a subject line from one that does
+        // not, which drops every later send to the coarse refusal.
         getSessionUntrustedContentLedger().record({
           surface: 'email',
           origin: 'gmail',
           at: new Date().toISOString(),
+          content: result.value.map((message) => `${message.from} ${message.subject}`).join('\n'),
         });
-        if (result.value.length === 0) return ok('No messages matched.');
         return ok(result.value.map((message) => `${message.id}  ${message.from} — ${message.subject}`).join('\n'));
       }
 
@@ -200,10 +301,14 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         if (!id) return failure('google action:"mail.read" needs the message id, from mail.list.');
         const result = await client.getMessage(id);
         if (isFailure(result)) return describeFailure(result);
+        // The whole body is MORE attacker-controlled text than a subject line,
+        // not less, so it is what gets retained — the guard can only weigh
+        // derivation from text it was given.
         getSessionUntrustedContentLedger().record({
           surface: 'email',
           origin: originOf(`mailto:${result.value.from}`),
           at: new Date().toISOString(),
+          content: `${result.value.subject}\n${result.value.body}`.trim(),
         });
         return ok([`From: ${result.value.from}`, `Subject: ${result.value.subject}`, '', result.value.body].join('\n'));
       }
@@ -230,6 +335,7 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
           surface: 'email',
           origin: originOf(`mailto:${result.value.from}`),
           at: new Date().toISOString(),
+          content: `${result.value.subject}\n${result.value.body}`.trim(),
         });
 
         const candidate = {
@@ -283,8 +389,34 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
         if (!summary.canSendMail) {
           return failure('The connected Google account was not granted a scope that permits sending mail. Re-authorize with: /google setup --path oauth');
         }
-        const refused = outwardAllowed('email.send', `sending mail to ${to}`);
-        if (refused !== null) return refused;
+        // The one exemption: a send whose EVERY recipient is the owner himself.
+        //
+        // He is the trust root, not a third party, and telling him what arrived
+        // is the point of an assistant reading his mail — "what came in
+        // overnight" is a summary that necessarily reuses the words of what came
+        // in, so without this the feature is refused in its most ordinary use.
+        // Deliberately narrow: his configured addresses only, never a domain or
+        // a pattern, and a send to him AND anyone else is not exempt. Identity
+        // comes from configuration and never from anything a message can
+        // influence. This matches the daemon's email.send route, which had the
+        // exemption while this path did not — the same defect class on two
+        // surfaces, behaving differently.
+        if (!isSendToOwnerOnly(to, ownerAddresses())) {
+          const refused = outwardAllowed(
+            'email.send',
+            `sending mail to ${to}`,
+            { to, subject, body },
+            {
+              // Where the mail GOES: length thresholds are the wrong instrument
+              // for a field whose whole value is the payload, so it is tested by
+              // containment instead.
+              exactMatchFields: ['to'],
+              // A reply that quotes what it answers repeats it by design.
+              stripQuotedFields: ['body'],
+            },
+          );
+          if (refused !== null) return refused;
+        }
 
         const result = await client.sendMessage({ to, subject, body });
         if (isFailure(result)) return describeFailure(result);
@@ -311,7 +443,19 @@ export function createAgentGoogleTool(options: AgentGoogleToolOptions): Tool {
       if (!summary.canWriteCalendar) {
         return failure('The connected Google account was not granted a scope that permits writing to the calendar. Re-authorize with: /google setup --path oauth');
       }
-      const refusedEvent = outwardAllowed('calendar.create', `creating the event "${summaryText}"`);
+      // An event's title, location and description are what a stranger's text
+      // would have to reach in order to plant something on the owner's calendar
+      // — an invite, a payment reminder, a link. They are enumerable, so they
+      // are enumerated; the start and end times are not text and carry nothing.
+      const refusedEvent = outwardAllowed(
+        'calendar.create',
+        `creating the event "${summaryText}"`,
+        {
+          summary: summaryText,
+          location: readString(rawArgs.location) || undefined,
+          description: readString(rawArgs.description) || undefined,
+        },
+      );
       if (refusedEvent !== null) return refusedEvent;
 
       const created = await client.createEvent({
