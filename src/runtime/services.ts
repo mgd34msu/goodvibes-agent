@@ -859,10 +859,27 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const keybindingsManager = new KeybindingsManager({
     configPath: shellPaths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'keybindings.json'),
   });
+  // featureFlags is REQUIRED here in practice, even though the SDK types it
+  // optional. `isFeatureGateEnabled(null, ...)` is permissive by design — a
+  // narrow embed with no manager wired gets the capability rather than a silent
+  // off — so omitting it did not disable route binding. It did something worse:
+  // it made `integrations.routeBinding` configure nothing at all. The setting
+  // rendered, accepted a write, reported success, and the manager went on
+  // resolving bindings either way, which is the exact shape of the defect the
+  // Telegram-bot-username round was about: a value that looks applied and is
+  // not. The TUI has always threaded it (runtime/channel-composition.ts); this
+  // fork's composition root did not.
+  //
+  // Threading it preserves current effective behaviour rather than changing it:
+  // the config default is true (the SDK's schema-domain-features.ts), the flag's
+  // own defaultState is 'enabled', and the flag declares no notOperable record —
+  // so with nothing configured the gate reads exactly as it did before, and the
+  // difference is only that turning it OFF now turns it off.
   const routeBindings = new RouteBindingManager({
     store: new AutomationRouteStore({ configManager }),
     runtimeStore: options.runtimeStore,
     runtimeBus: options.runtimeBus,
+    featureFlags,
   });
   const surfaceRegistry = new SurfaceRegistry(configManager, options.runtimeStore);
   const channelPlugins = new ChannelPluginRegistry();
@@ -962,6 +979,12 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     createWorktree: createDisabledAgentWrfcWorktreeOps,
   }]) as WrfcController;
   agentManager.setWrfcController(wrfcController);
+  // agentManager is DELIBERATELY not threaded, unlike the TUI's own dispatcher.
+  // A `type: 'agent'` hook here answers "agent hook runner is not configured in
+  // this runtime" and spawns nothing, which is this product's chosen posture and
+  // is pinned by src/test/runtime/bootstrap-services.test.ts. Do not "fix" this
+  // by passing the manager that sits a few lines above: the omission is the
+  // feature, and the test asserts both the refusal and that no agent was spawned.
   const hookDispatcher = new HookDispatcher({ toolLLM, projectRoot: workingDirectory }, hookActivityTracker);
   configManager.attachHookDispatcher(hookDispatcher);
   const hookWorkbench = createHookWorkbench({
@@ -1385,9 +1408,16 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     };
   })();
   const panelManager = NOOP_PANEL_MANAGER;
+  // Surface-scoped, not the loose workingDirectory/homeDirectory pair. This
+  // product declares its own `.goodvibes/<surface>/` root and writes everything
+  // through it, and the SDK's two construction scopes are a mutually exclusive
+  // union precisely so the choice is deliberate: constructed with the legacy
+  // fields, this service's continuity reads — the recovery-file check among them
+  // — resolve to the UNSCOPED directories, i.e. to paths nothing in this product
+  // has ever written to. It answers, and it answers about the wrong place. The
+  // TUI carries the same note on its own construction.
   const integrationHelpers = new IntegrationHelperService({
-    workingDirectory,
-    homeDirectory,
+    surface,
     panelManager,
     runtimeStore: options.runtimeStore,
     runtimeBus: options.runtimeBus,

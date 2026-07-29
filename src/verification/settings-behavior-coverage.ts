@@ -502,6 +502,19 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     asserts: 'toggles false -> true -> false from the settings screen, so the switch can be put back where it was found rather than only ever being turned on',
   },
 
+  // --- Route binding (integrations.routeBinding) -----------------------------
+  // This key was already in the denominator — five test files name it — and had
+  // no row, because until now there was no behaviour to claim: this fork built
+  // its RouteBindingManager without a flag manager, and isFeatureGateEnabled is
+  // permissive without one, so the setting rendered, accepted a write, reported
+  // success, and governed nothing. services.ts threads featureFlags now, and the
+  // row follows the behaviour rather than the other way round.
+  {
+    key: 'integrations.routeBinding',
+    test: 'src/test/runtime/automation-foundation.test.ts',
+    asserts: 'false makes the manager report route binding off and refuse an upsert with a refusal naming the key; true binds and resolves a route; and with the key never written the effective behaviour matches true, so threading the flag manager changed whether the switch works rather than what an existing install does',
+  },
+
   // --- Occasions (occasions.*) ---------------------------------------------
   // Exactly ONE row, and that is the honest count. This repo reads exactly one
   // `occasions.*` key: the nudge surface's enablement check
