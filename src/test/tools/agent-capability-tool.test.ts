@@ -236,7 +236,7 @@ describe('the tool as it is actually registered', () => {
     expect(registry.getToolDefinitions().filter((tool) => tool.name === 'capability_status')).toHaveLength(1);
   });
 
-  test('its description tells the model not to answer capability questions from a search', async () => {
+  test('the model is told not to answer capability questions from a search', async () => {
     const { createToolRegistryDouble } = await import('../helpers/tool-registry-double.ts');
     const { createAgentCapabilityTool } = await import('../../tools/agent-capability-tool.ts');
     const tool = createAgentCapabilityTool({
@@ -244,8 +244,14 @@ describe('the tool as it is actually registered', () => {
       commandContext: fakeContext() as never,
       configManager: {},
     });
+    // The tool's own description says where its answer comes from. It is held
+    // to a 72-character budget (package-verification.ts), so the rest of the
+    // steering ships in the system prompt instead of being restated here.
     expect(tool.definition.description).toContain('live runtime state');
-    expect(tool.definition.description).toContain('code search');
+
+    // Where it went (also asserted on its own above).
+    expect(CAPABILITY_ROUTE_RULE).toContain('code search');
+    expect(CAPABILITY_ROUTE_RULE).toContain('capability_status');
   });
 
   test('a Google question in a build with no google tool answers absent-from-build, live', async () => {

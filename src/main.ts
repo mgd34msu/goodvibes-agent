@@ -34,7 +34,7 @@ import { logger, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { bootstrapRuntime } from './runtime/bootstrap.ts';
 import type { BootstrapContext } from './runtime/bootstrap.ts';
 import type { HITLMode } from '@pellux/goodvibes-sdk/platform/state';
-import { wireSessionPersistenceAndRecovery, wireSetupIncompleteHint } from './shell/startup-wiring.ts';
+import { startFirstRenderFollowups } from './shell/first-render-followups.ts';
 import { localModelCookbook } from './tools/agent-harness-model-routing.ts';
 import { localModelSetupStatus } from './tools/agent-harness-setup-model-helpers.ts';
 import {
@@ -748,35 +748,11 @@ async function main() {
   conversation.rebuildHistory();
   render();
 
-  // Async GPU probe runs off the render frame — nvidia-smi result will populate
-  // the module cache and appear on the next render cycle after it completes.
-  startHardwareProbe();
-
-  // Away digest runs after the first render so it lands as ambient context,
-  // never a startup blocker.
-  autonomy.announceAwayDigest();
-
-  // If setup is in-progress (user has opened /agent but not finished), show a
-  // gentle plain-language reminder and point them back to /agent.
-  wireSetupIncompleteHint({
+  ({ recoveryInterval, recoveryPending, pendingWorkspaceRegistration } = startFirstRenderFollowups({
     shellPaths: ctx.services.shellPaths,
-    providerReady: (() => {
-      try { return Boolean(providerRegistry.getCurrentModel()?.id); } catch { return false; }
-    })(),
-    // localReady mirrors the 'local-model-readiness' plan item from buildSetupPlan:
-    // cookbook status === 'detected-local-route'. Best-effort — never blocks render.
-    localReady: (() => {
-      try { return localModelSetupStatus(localModelCookbook(commandContext, false) as Record<string, unknown>) === 'ready'; } catch { return false; }
-    })(),
-    // hostReady is intentionally omitted: at startup the external-services stub
-    // always reports mode='external', which would produce a misleading 'active'
-    // line before any real probe has run. Omitting it keeps the hint honest.
-    systemMessageRouter,
-  });
-
-  // Wire streaming-speed metrics, auto-save, and recovery — all run after the
-  // first render so they land as ambient context, never startup blockers.
-  ({ recoveryInterval, recoveryPending, pendingWorkspaceRegistration } = wireSessionPersistenceAndRecovery({
+    providerRegistry,
+    commandContext,
+    autonomy,
     buildCurrentSessionSnapshot,
     runtime,
     conversation,

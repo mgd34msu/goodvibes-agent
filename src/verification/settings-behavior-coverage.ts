@@ -464,6 +464,43 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     test: 'src/test/security/payments-card-containment.test.ts',
     asserts: 'stores its own country value and changes independently on a second run through the real guided flow',
   },
+  // --- Payments keys that are not money, and the two switches ------------
+  // Driven through the same real SettingsModal edit/commit path as the money
+  // keys above, in src/test/input/settings-modal-payments.test.ts. Each is
+  // taken to two distinct values and asserted per key. Verified live by
+  // mutation: making the money classifier claim every payments.* key fails the
+  // four numeric rows and nothing else; breaking the enum wrap fails the tier
+  // row; making the boolean toggle one-way fails the enabled row.
+  {
+    key: 'payments.windows.approvalMinutes',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'edits as a plain integer rather than major units — the field opens at the stored 60, and typing 45 then 90 stores exactly 45 then 90, so a key wrongly classified as money (which would store 4500) fails here',
+  },
+  {
+    key: 'payments.windows.vetoMinutes',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'opens at the stored 10 and stores exactly 5 then 30 through the real edit path, proving the minor-units conversion is decided per key and does not reach this one',
+  },
+  {
+    key: 'payments.ebayMinSellerFeedbackCount',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'opens at the stored 100 and stores exactly 250 then 25 as a plain count, not as minor units',
+  },
+  {
+    key: 'payments.ebayMinSellerPositivePercent',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'opens at the stored 98 and stores exactly 99 then 90 as a plain percentage, not as minor units',
+  },
+  {
+    key: 'payments.shipping.preferredTier',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'activating it walks normal -> fast -> fastest -> normal, every intermediate value is one the schema declares, and the cycle returns to where it started — so this screen cannot store a tier the checkout does not rank',
+  },
+  {
+    key: 'payments.enabled',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'toggles false -> true -> false from the settings screen, so the switch can be put back where it was found rather than only ever being turned on',
+  },
 
   // NOT COVERED, deliberately: device.nodes.maxPaired. The key is declared in
   // schema-domain-device.ts and associated with the paired-device feature in

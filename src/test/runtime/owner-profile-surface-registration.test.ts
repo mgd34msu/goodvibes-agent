@@ -11,9 +11,9 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 import { CONFIG_SCHEMA, ConfigManager, SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
@@ -64,7 +64,7 @@ describe('owner profile settings registration', () => {
     const schemaKeys = profileSchemaKeys();
     expect(schemaKeys.length).toBeGreaterThan(0);
 
-    const root = mkdtempSync(join(tmpdir(), 'gv-agent-owner-profile-settings-'));
+    const root = makeProjectTempDir('gv-agent-owner-profile-settings');
     try {
       const configManager = new ConfigManager({
         surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,

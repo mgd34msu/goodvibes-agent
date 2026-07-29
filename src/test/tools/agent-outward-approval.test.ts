@@ -16,9 +16,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 import { createAgentGoogleTool } from '../../tools/agent-google-tool.ts';
 import {
   getSessionUntrustedContentLedger,
@@ -121,7 +121,7 @@ const TAINTED_SEND = {
 };
 
 beforeEach(() => {
-  home = mkdtempSync(join(tmpdir(), 'gv-approval-'));
+  home = makeProjectTempDir('gv-approval');
   writeCredentials(home);
   resetSessionUntrustedContentLedgerForTests();
   resetOutwardApprovalStoreForTests();

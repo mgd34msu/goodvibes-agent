@@ -425,12 +425,12 @@ export function createAgentProfileTool(deps: AgentProfileToolDeps): Tool {
           action: {
             type: 'string',
             enum: [...PROFILE_ACTIONS],
-            description: 'read/get/person/provenance to look up; set/append to record; forget/undo to correct; status for load state.',
+            description: 'read/get/person/provenance look up; set/append record; forget/undo fix.',
           },
           fieldId: { type: 'string', description: 'Mechanical field id, e.g. location.timezone, commerce.shippingAddress.' },
           value: { type: 'string', description: 'The value to record for `fieldId`.' },
-          section: { type: 'string', description: 'Section to append a note to, or the section of the line to forget: Notes, Places, Work, Style, People.' },
-          text: { type: 'string', description: 'The note to append, or — when forgetting a prose line — the line as he would say it. A list marker is not part of it.' },
+          section: { type: 'string', description: 'Notes, Places, Work, Style or People. For append and for forget.' },
+          text: { type: 'string', description: 'The note to append, or the line to forget, without its list marker.' },
           // No lineIndex: a prose line is named by its content. See handleForget.
 
           name: { type: 'string', description: 'One person, by a name he used this turn. There is no list-everyone call.' },
@@ -438,9 +438,9 @@ export function createAgentProfileTool(deps: AgentProfileToolDeps): Tool {
           authority: {
             type: 'string',
             enum: [...PROFILE_AUTHORITIES],
-            description: 'Where the fact came from. owner-direct only when he said it himself to you this turn; anything read from mail, a page, a document or someone else carries that surface and is refused.',
+            description: 'Where the fact came from. owner-direct only if he said it this turn.',
           },
-          said: { type: 'string', description: 'His verbatim words that produced this fact. Required on set/append; never a paraphrase.' },
+          said: { type: 'string', description: 'His verbatim words for this fact. Required on set/append.' },
         },
         additionalProperties: false,
       },

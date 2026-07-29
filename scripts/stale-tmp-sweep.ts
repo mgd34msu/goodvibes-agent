@@ -68,6 +68,13 @@ const PROJECT_TEST_TMP_ROOT = join(process.cwd(), '.test-tmp');
  *     branch by exporting a real JSON file there. It's cleaned up
  *     immediately in a `finally` block on every normal run; this prefix is
  *     the backstop for a killed run.
+ *   - `gv-agent-test-run-` (src/test/helpers/preload.ts): the per-process
+ *     sandbox the whole suite's `tmpdir()` is redirected into. It is created
+ *     under the INHERITED temp directory by definition — that is what makes it
+ *     a redirect — and removed in the preload's top-level `afterAll`. This
+ *     prefix is the backstop for a killed run, which never reaches that hook.
+ *     It was missing from this list while the preload's own comment claimed
+ *     the age-gated sweep reclaimed it, so nothing did.
  *
  * Every other entry below is historical: every other call site that used
  * to create scratch directories under real `os.tmpdir()` was migrated onto
@@ -85,6 +92,7 @@ export const KNOWN_TMPDIR_PREFIXES: readonly string[] = [
   // Ongoing — still created today; see the comment above.
   'gv-agent-identifier-gate-norepo-',
   'gv-agent-replay-',
+  'gv-agent-test-run-',
   // Historical / legacy — see the comment above.
   'accounts-tool-',
   'agent-sdk-dev-',

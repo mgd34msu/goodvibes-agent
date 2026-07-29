@@ -40,6 +40,7 @@ import { createBootstrapShell } from './bootstrap-shell.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { startMcpConfigAutoReload } from '../mcp/runtime-reload.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { registerAgentTools } from './bootstrap-agent-tools.ts';
 import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
@@ -434,67 +435,14 @@ export async function bootstrapRuntime(
   const commandRegistry = shell.commandRegistry;
   const commandContext = shell.commandContext;
   const inputHistory = shell.inputHistory;
-  registerAgentHarnessTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentAuditTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentAutonomyTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentChannelsTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentComputerTool(toolRegistry, commandRegistry, commandContext);
-  // Lets the agent actually invoke tools on MCP servers it can already see.
-  installAgentMcpCallRoute(toolRegistry, commandContext);
-  // Resolve what this agent can actually do, before the first turn.
-  wireCapabilityIndex({
+  registerAgentTools({
     toolRegistry,
+    commandRegistry,
     commandContext,
     configManager,
-    homeDirectory: services.shellPaths.homeDirectory,
-    workingDirectory: services.shellPaths.workingDirectory,
-  });
-  // ...and let the model ask the same question mid-turn, live, instead of
-  // reasoning about what it can do from a search over the source tree.
-  registerAgentCapabilityTool({ toolRegistry, commandContext, configManager });
-  registerAgentContextTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentDelegationTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentDeviceTool(toolRegistry, commandRegistry, commandContext);
-  // Paired-phone capabilities: registers the `phone` tool and sweeps its
-  // persisted grants and captures at startup and on the configured interval.
-  installPhoneDeviceTool({
-    toolRegistry,
-    gatewayMethods: services.gatewayMethods,
-    distributedRuntime: services.distributedRuntime,
-    approvals: services.approvalBroker,
-    configManager,
-    stateDirectory: services.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'devices'),
+    services,
     getSessionId: () => runtimeSessionIdRef.value,
   });
-  registerAgentExecutionTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentHostTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentMemoryTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentModelsTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentPersonalOpsTool(toolRegistry, commandRegistry, commandContext);
-  // The owner profile lives in one file at daemon scope and the daemon is its
-  // only writer, so this tool holds no state of its own — it calls the nine
-  // `profile.*` verbs. The invoker prefers this process's own gateway catalog
-  // when it carries the handlers and falls back to the connected host
-  // otherwise, so the same tool works whether or not this build embeds them.
-  registerAgentProfileTool(toolRegistry, {
-    invoke: createProfileGatewayInvoke({
-      gatewayMethods: services.gatewayMethods,
-      configManager,
-      homeDirectory: services.shellPaths.homeDirectory,
-    }),
-  });
-  registerAgentResearchTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentRouteTool(toolRegistry, commandContext);
-  registerAgentSecurityTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentSessionsTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentSetupTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentSettingsTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentSupportTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentVibeTool(toolRegistry, commandContext);
-  registerAgentWorkspaceTool(toolRegistry, commandRegistry, commandContext);
-  registerAgentSettingsImportTool(toolRegistry, commandContext);
-  registerAgentTerminalProcessTools(toolRegistry, commandContext);
-  compactRegisteredToolDefinitions(toolRegistry);
   const pluginCommandRegistry = {
     register(command: {
       readonly name: string;

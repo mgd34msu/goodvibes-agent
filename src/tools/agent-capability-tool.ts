@@ -223,11 +223,12 @@ export function createAgentCapabilityTool(options: AgentCapabilityToolOptions): 
   return {
     definition: {
       name: 'capability_status',
-      description: [
-        'What this running build can actually do, read from its live runtime state.',
-        'Use this to answer any question about whether you can use Google, Gmail, email, calendar, or a browser.',
-        'Never answer such a question from a code search, a file listing, or a knowledge lookup: those describe a source tree, not this process.',
-      ].join(' '),
+      // Short by policy (72 characters). The steering that used to sit here —
+      // call this rather than answering from a code search, a file listing or a
+      // knowledge lookup — ships in the system prompt as CAPABILITY_ROUTE_RULE
+      // (src/agent/capability-summary-prompt.ts), in fuller form and where the
+      // model reads it before deciding to call anything.
+      description: 'What this build can do, read from its live runtime state.',
       parameters: {
         type: 'object',
         properties: {

@@ -89,7 +89,11 @@ describe('SettingsModal payments category', () => {
       'payments.currency',
       'payments.cvvHandling',
       'payments.defaultCardId',
+      'payments.ebayMinSellerFeedbackCount',
+      'payments.ebayMinSellerPositivePercent',
       'payments.enabled',
+      'payments.majorRetailersAdditional',
+      'payments.majorRetailersExcluded',
       'payments.notifyChannels',
       'payments.shipping.preferredTier',
       'payments.shippingAddress.city',
@@ -153,6 +157,82 @@ describe('SettingsModal payments category', () => {
       expect(modal.commitEdit()).toBe(true);
       expect(cm.get(key as 'payments.budget.dailyOverageCents')).toBe(expectedCents as number);
     });
+  });
+
+  describe('payments keys that are NOT money keep their plain numeric form', () => {
+    // These four are counts and minutes, not minor units. The whole payments
+    // category shares one edit/commit path, and that path decides per KEY
+    // whether to convert (see config/payments-money-format.ts): a key that
+    // started being treated as money would take "45" to mean 0.45 and store
+    // 4500, quietly turning a 45-minute approval window into a 45-hour one.
+    // Each key is driven to two distinct values so a wrong key name inside the
+    // classifier fails on that key rather than being masked by its neighbours.
+    test.each([
+      ['payments.windows.approvalMinutes', 60, '45', 45, '90', 90],
+      ['payments.windows.vetoMinutes', 10, '5', 5, '30', 30],
+      ['payments.ebayMinSellerFeedbackCount', 100, '250', 250, '25', 25],
+      ['payments.ebayMinSellerPositivePercent', 98, '99', 99, '90', 90],
+    ])('%s edits as a plain number and stores %d -> %s -> %s', (key, initial, firstTyped, firstStored, secondTyped, secondStored) => {
+      while (modal.currentCategory !== 'payments') modal.nextCategory();
+      const configKey = key as 'payments.windows.approvalMinutes';
+      expect(cm.get(configKey)).toBe(initial as number);
+
+      modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === key);
+      modal.activateSelected();
+      expect(modal.editingMode).toBe(true);
+      // The money path opens at '0.00'. This one opens at the stored integer.
+      expect(modal.editBuffer).toBe(String(initial));
+
+      modal.editBuffer = firstTyped as string;
+      expect(modal.commitEdit()).toBe(true);
+      expect(cm.get(configKey)).toBe(firstStored as number);
+
+      // A second, different value through the same path — so this is a test of
+      // the conversion rule and not of one lucky number.
+      modal.activateSelected();
+      expect(modal.editBuffer).toBe(String(firstStored));
+      modal.editBuffer = secondTyped as string;
+      expect(modal.commitEdit()).toBe(true);
+      expect(cm.get(configKey)).toBe(secondStored as number);
+    });
+  });
+
+  test('payments.shipping.preferredTier cycles through the tiers the schema declares', () => {
+    while (modal.currentCategory !== 'payments') modal.nextCategory();
+    const declared = CONFIG_SCHEMA.find((entry) => entry.key === 'payments.shipping.preferredTier')?.enumValues ?? [];
+    expect(declared).toEqual(['normal', 'fast', 'fastest']);
+    expect(cm.get('payments.shipping.preferredTier')).toBe('normal');
+
+    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.shipping.preferredTier');
+    modal.activateSelected();
+    const afterFirst = cm.get('payments.shipping.preferredTier');
+    expect(afterFirst).not.toBe('normal');
+    expect(declared).toContain(afterFirst);
+
+    modal.activateSelected();
+    const afterSecond = cm.get('payments.shipping.preferredTier');
+    expect(afterSecond).not.toBe(afterFirst);
+    expect(declared).toContain(afterSecond);
+
+    // All the way round: the cycle is bounded by the declared set rather than
+    // walking off it, which is what makes an unrecognised tier impossible to
+    // store from this screen.
+    modal.activateSelected();
+    expect(cm.get('payments.shipping.preferredTier')).toBe('normal');
+  });
+
+  test('payments.enabled toggles both ways from this screen', () => {
+    while (modal.currentCategory !== 'payments') modal.nextCategory();
+    expect(cm.get('payments.enabled')).toBe(false);
+
+    modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.enabled');
+    modal.activateSelected();
+    expect(cm.get('payments.enabled')).toBe(true);
+
+    // And back — a toggle that only ever turns something ON is a switch the
+    // owner cannot undo where he found it.
+    modal.activateSelected();
+    expect(cm.get('payments.enabled')).toBe(false);
   });
 
   test('a non-numeric or negative money entry is rejected, not silently coerced', () => {

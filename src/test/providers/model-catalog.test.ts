@@ -167,6 +167,7 @@ describe('getCatalogModelDefinitionsFrom', () => {
       pricing: { input: 5, output: 15 },
       tier: 'paid',
       contextWindow: 400_000,
+      inputModalities: ['text', 'image'],
     },
     {
       id: 'claude-sonnet-4-6',
@@ -179,6 +180,7 @@ describe('getCatalogModelDefinitionsFrom', () => {
       tier: 'paid',
       contextWindow: 200_000,
       reasoning: true,
+      inputModalities: ['text', 'image'],
     },
     {
       id: 'gpt-oss-120b',
@@ -190,6 +192,7 @@ describe('getCatalogModelDefinitionsFrom', () => {
       pricing: { input: 0, output: 0 },
       tier: 'free',
       contextWindow: 128_000,
+      inputModalities: ['text'],
     },
   ];
 
@@ -201,12 +204,33 @@ describe('getCatalogModelDefinitionsFrom', () => {
     expect(defs[0]?.selectable).toBe(true);
   });
 
-  it('marks OpenAI models as multimodal', () => {
+  it('takes multimodal from the model\'s own input modalities, not its vendor', () => {
+    // This used to assert that every OpenAI model was multimodal, which is how
+    // the catalog itself used to decide it (`isGoogle || isOpenAI`). Vendors
+    // ship both kinds: the two OpenAI rows in this fixture differ from each
+    // other, so a rule that read the vendor could not pass this test.
     const defs = getCatalogModelDefinitionsFrom(fixture);
-    const openaiModels = defs.filter((def) => def.provider === 'openai');
-    expect(openaiModels.length).toBeGreaterThan(0);
-    for (const model of openaiModels) {
-      expect(model.capabilities.multimodal).toBe(true);
+    const byId = new Map(defs.map((def) => [def.id, def]));
+
+    expect(byId.get('gpt-5.4')?.provider).toBe('openai');
+    expect(byId.get('gpt-5.4')?.capabilities.multimodal).toBe(true);
+    expect(byId.get('gpt-oss-120b')?.provider).toBe('openai');
+    expect(byId.get('gpt-oss-120b')?.capabilities.multimodal).toBe(false);
+
+    // And an Anthropic model that takes images is multimodal, which the vendor
+    // rule called text-only.
+    expect(byId.get('claude-sonnet-4-6')?.capabilities.multimodal).toBe(true);
+  });
+
+  it('reports a model that declares no modalities as not multimodal', () => {
+    // A malformed feed entry says nothing about images, so the catalog reports
+    // nothing rather than guessing from the vendor beside it.
+    const silent = fixture.map((model) => {
+      const { inputModalities: _dropped, ...rest } = model;
+      return rest;
+    });
+    for (const def of getCatalogModelDefinitionsFrom(silent)) {
+      expect(def.capabilities.multimodal).toBe(false);
     }
   });
 

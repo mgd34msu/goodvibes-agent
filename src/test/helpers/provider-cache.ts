@@ -41,11 +41,16 @@ export function getProviderCachePaths(cacheDir: string): ProviderCachePaths {
 export function writeModelCatalogCache(models: CatalogModel[], cacheDir: string, fetchedAt = Date.now(), ttlMs = 86_400_000): void {
   const { catalogPath } = getProviderCachePaths(cacheDir);
   mkdirSync(cacheDir, { recursive: true });
-  // Catalog cache version 3: `reasoningOptions` carries the feed's per-model
-  // `reasoning_options` array (the SDK's per-model reasoning-effort round);
-  // version-2 and earlier caches are discarded and refetched by the SDK
-  // loader, which silently empties this fixture unless the version matches.
-  const payload = { version: 3 as const, fetchedAt, ttlMs, models };
+  // Catalog cache version 4: `inputModalities` carries the feed's per-model
+  // `modalities.input` list, which is what decides `multimodal` per model
+  // rather than by vendor. Earlier versions are discarded and refetched by the
+  // SDK loader, which silently empties this fixture unless the version matches
+  // the installed SDK's CATALOG_CACHE_VERSION — that constant is not exported,
+  // so this number is kept in step by hand. It is not left to go unnoticed: a
+  // stale number empties every catalog fixture, and the catalog tests in
+  // src/test/providers assert on real fixture rows rather than on "some
+  // models", so they go red on the first run against a bumped SDK.
+  const payload = { version: 4 as const, fetchedAt, ttlMs, models };
   writeFileSync(catalogPath, JSON.stringify(payload, null, 2), 'utf-8');
 }
 

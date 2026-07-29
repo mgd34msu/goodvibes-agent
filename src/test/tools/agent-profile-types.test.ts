@@ -44,6 +44,7 @@ const SWITCH_CASES: readonly ProfileAuthority[] = [
   'email',
   'channel-message',
   'document',
+  'calendar-event',
 ];
 
 describe('agent-profile-types — PROFILE_AUTHORITIES has no SDK runtime value to import', () => {

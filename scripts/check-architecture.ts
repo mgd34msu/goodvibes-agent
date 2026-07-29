@@ -251,9 +251,21 @@ for (const rule of rules) {
 // non-repo case and src/test/git/service.test.ts's makeExternalDir for the
 // two remaining exceptions to what "needs real os.tmpdir()" looks like,
 // neither of which combines mkdtemp with tmpdir() at the same call site.
-// This list is intentionally empty right now; add to it only for a new,
-// reviewed, equally-necessary case.
-const DIRECT_TMPDIR_MKDTEMP_ALLOWLIST = new Set<string>([]);
+// Add to it only for a new, reviewed, equally-necessary case. The two entries
+// below are not consumers of the sandbox — they ARE it, so neither can be
+// expressed in terms of makeProjectTempDir without pointing the mechanism at
+// itself. Its prefix is registered in scripts/stale-tmp-sweep.ts's
+// KNOWN_TMPDIR_PREFIXES so a killed run is still reclaimed.
+const DIRECT_TMPDIR_MKDTEMP_ALLOWLIST = new Set<string>([
+  // Creates the per-process sandbox that every later tmpdir() call resolves
+  // into, before any test module is imported. makeProjectTempDir builds inside
+  // the repo, which is the one place this directory must not be.
+  'src/test/helpers/preload.ts',
+  // Proves the redirect above actually holds: it calls tmpdir() directly and
+  // asserts the result is inside the sandbox. Routing it through the helper
+  // would test the helper instead of the redirect.
+  'src/test/helpers/temp-registry.test.ts',
+]);
 
 for (const file of explicitAnyFiles) {
   const text = readFileSync(file, 'utf-8');

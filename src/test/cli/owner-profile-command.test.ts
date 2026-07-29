@@ -8,9 +8,9 @@
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { handleOwnerProfileCommand } from '../../cli/owner-profile-command.ts';
@@ -21,7 +21,7 @@ import type { ProfileMethodId } from '../../tools/agent-profile-types.ts';
 const roots: string[] = [];
 
 function runtime(argv: readonly string[], withToken = true) {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-owner-profile-cli-'));
+  const root = makeProjectTempDir('gv-agent-owner-profile-cli');
   roots.push(root);
   const workingDirectory = join(root, 'workspace');
   const homeDirectory = join(root, 'home');

@@ -73,14 +73,24 @@ describe('ProviderCapabilityRegistry.getCapability — merge order', () => {
   });
 
   test('MODEL_OVERRIDES take precedence over self-declared capabilities', () => {
-    // claude-opus-4-5 has MODEL_OVERRIDES: { reasoningControls: true, maxOutputTokens: 32_000 }
-    // Even if self-declared says false, override wins
+    // claude-opus-4-5 carries a per-model override for both of these. Even if
+    // the provider declares them itself, the override wins.
     const selfDeclared = {
-      capabilities: { reasoningControls: false } as Partial<ProviderCapability>,
+      capabilities: { reasoningControls: false, maxOutputTokens: 1 } as Partial<ProviderCapability>,
     };
     const cap = registry.getCapability('anthropic', 'claude-opus-4-5', selfDeclared);
     expect(cap.reasoningControls).toBe(true);
-    expect(cap.maxOutputTokens).toBe(32_000);
+    // The ceiling itself is the SDK's number and moves when the model's real
+    // ceiling moves — it went from 32,000 to 64,000 in one platform release,
+    // and pinning it here only produced a red gate that said nothing about
+    // this repo. What this test owns is the precedence.
+    expect(cap.maxOutputTokens).not.toBe(1);
+
+    // NO-proof: a model with no override DOES take the self-declared value, so
+    // the assertion above is about the override table winning and not about a
+    // self-declared maxOutputTokens being discarded everywhere.
+    const noOverride = registry.getCapability('anthropic', 'model-with-no-override', selfDeclared);
+    expect(noOverride.maxOutputTokens).toBe(1);
   });
 
   test('result is frozen (immutable)', () => {

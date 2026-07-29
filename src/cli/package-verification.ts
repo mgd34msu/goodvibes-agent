@@ -3030,14 +3030,24 @@ function verifyHarnessOperatorAuditModelAccessPolicy(root: string): readonly str
 
 function verifyHarnessConnectedHostModelAccessPolicy(root: string): readonly string[] {
   const issues: string[] = [];
-  const metadataPath = join(root, 'src', 'tools', 'agent-harness-metadata.ts');
+  // The connected-host half of what used to be one agent-harness-metadata.ts
+  // now lives beside it (that module passed the 800-line ceiling). Both are
+  // read as one body of text so this check follows the code across that seam
+  // instead of going red on a move that changed nothing it asserts.
+  const metadataPaths = [
+    join(root, 'src', 'tools', 'agent-harness-metadata.ts'),
+    join(root, 'src', 'tools', 'agent-harness-connected-host-capabilities.ts'),
+  ];
+  const metadataPath = metadataPaths.find((candidate) => existsSync(candidate)) ?? metadataPaths[0]!;
   const statusPath = join(root, 'src', 'tools', 'agent-harness-connected-host-status.ts');
   const modeCatalogPath = join(root, 'src', 'tools', 'agent-harness-mode-catalog.ts');
 
   if (!existsSync(metadataPath)) {
     issues.push('harness connected-host metadata source is missing: src/tools/agent-harness-metadata.ts.');
   } else {
-    const source = readFileSync(metadataPath, 'utf-8');
+    const source = metadataPaths.filter((candidate) => existsSync(candidate))
+      .map((candidate) => readFileSync(candidate, 'utf-8'))
+      .join('\n');
     const requiredMarkers: readonly { readonly marker: string; readonly label: string }[] = [
       { marker: 'function connectedHostCapabilityModelRoute', label: 'connected-host capability model route builder' },
       { marker: 'function blockedConnectedHostModelRoute', label: 'blocked connected-host model route builder' },
@@ -3122,7 +3132,11 @@ function verifyModelToolRuntimeCompactionPolicy(root: string): readonly string[]
     }
   }
 
-  for (const relativePath of ['src/runtime/bootstrap-core.ts', 'src/runtime/bootstrap.ts']) {
+  // bootstrap.ts delegates the tool registrations to bootstrap-agent-tools.ts,
+  // so that is where the compaction call has to be — naming bootstrap.ts here
+  // would assert the presence of a line in the file that no longer registers
+  // anything.
+  for (const relativePath of ['src/runtime/bootstrap-core.ts', 'src/runtime/bootstrap-agent-tools.ts']) {
     const absolutePath = join(root, relativePath);
     if (!existsSync(absolutePath)) {
       issues.push(`model tool runtime compaction bootstrap file is missing: ${relativePath}.`);

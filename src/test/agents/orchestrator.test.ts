@@ -1000,14 +1000,24 @@ describe('AgentOrchestrator', () => {
       expect(result).toContain('\u2026');
     });
 
-    test('falls back to first string value when no priority key matches', () => {
-      const result = summarizeToolArgs({ unknownKey: 'some-value' });
-      expect(result).toBe(' — some-value');
+    test('says nothing when no argument names what the call is about', () => {
+      // There used to be a "first string value found" fallback here. It is gone
+      // deliberately: on an exec call it grabbed `verbosity`, whose default is
+      // the literal string `standard`, and the label read `exec — standard` —
+      // a tool name followed by a value with nothing to do with what it ran. A
+      // bare tool name is the honest answer.
+      expect(summarizeToolArgs({ unknownKey: 'some-value' })).toBe('');
+      expect(summarizeToolArgs({ count: 5, flag: true, name: 'ok' })).toBe('');
     });
 
-    test('ignores non-string values', () => {
-      const result = summarizeToolArgs({ count: 5, flag: true, name: 'ok' });
-      expect(result).toBe(' — ok');
+    test('reads an informative argument one level down', () => {
+      // The shape `exec`, `fetch`, `read`, `write` and `find` all use: the
+      // thing worth showing is inside an array of objects, not at the top.
+      expect(summarizeToolArgs({ commands: [{ cmd: 'npm run build', verbosity: 'standard' }] })).toBe(' — npm run build');
+      expect(summarizeToolArgs({ urls: [{ url: 'https://example.com' }] })).toBe(' — https://example.com');
+      // NO-proof: nesting is searched for the SAME informative keys, not for
+      // any string it happens to find one level down.
+      expect(summarizeToolArgs({ commands: [{ verbosity: 'standard' }] })).toBe('');
     });
 
     test('skips empty string values', () => {

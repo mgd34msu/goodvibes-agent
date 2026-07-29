@@ -79,7 +79,7 @@ describe('renderSettingsModal payments category', () => {
   test('the payments category renders without crashing and shows its keys', () => {
     modal.selectedIndex = modal.currentItems.findIndex((entry) => entry.setting.key === 'payments.budget.dailyItemCents');
     const texts = linesToText(renderSettingsModal(modal, W)).join('\n');
-    expect(texts).toContain('Payments (32)');
+    expect(texts).toContain('Payments (36)');
     expect(texts).toContain('payments.budget.dailyItemCents');
     expect(texts).toContain('Daily Item Budget');
   });

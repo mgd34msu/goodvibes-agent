@@ -1,7 +1,7 @@
 import { describe, test, expect, afterAll, beforeEach } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeLongLivedProjectTempDir } from '../helpers/project-temp.ts';
 import { TaskScheduler } from '@pellux/goodvibes-sdk/platform/scheduler';
 import { getTestTaskScheduler, resetTestTaskScheduler } from '../helpers/runtime-services.ts';
 
@@ -9,10 +9,12 @@ import { getTestTaskScheduler, resetTestTaskScheduler } from '../helpers/runtime
 // not an in-memory stub. These paths used to be hardcoded under `/tmp`, which
 // escapes the suite's temp sandbox entirely: a green run left 12
 // gv-scheduler-test-*.json files in the developer's actual /tmp (measured by
-// diffing /tmp across a full run). Build them under tmpdir() — the sandbox —
-// inside one directory this file removes. Registered at module top level: a
+// diffing /tmp across a full run). They are built inside one directory under
+// the repo's own .test-tmp root, created LONG-LIVED because it is a module-level
+// singleton every test in this file shares — the per-test sweep would take it
+// away after the first one. Its removal is registered at module top level: a
 // hook attached from inside a helper function does not reliably attach.
-const SCHEDULER_STORE_DIR = mkdtempSync(join(tmpdir(), 'gv-scheduler-store-'));
+const SCHEDULER_STORE_DIR = makeLongLivedProjectTempDir('gv-scheduler-store');
 afterAll(() => {
   rmSync(SCHEDULER_STORE_DIR, { recursive: true, force: true });
 });

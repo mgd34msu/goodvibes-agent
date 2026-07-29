@@ -20,18 +20,26 @@
  * `~/.goodvibes/daemon/`. Every test points it at a temp file it created and
  * deletes afterwards. The daemon-scope file is never opened.
  *
- * ## The SOURCE_COMMIT assertion
+ * ## Asserting the installed runtime, not a build of it
  *
  * A tarball that predates the contract change looks identical to a correct one
- * from in here, and this lane already lost time to exactly that. The stamp the
- * platform pack writes is asserted first, so a stale install fails loudly with
- * the reason rather than failing obscurely three tests later.
+ * from in here, and this lane already lost time to exactly that. So the
+ * contract is read out of the installed handler itself, by the wording the
+ * change introduced and the wording it removed. That works against whatever is
+ * installed — a published package or a local pack.
+ *
+ * This used to assert a SOURCE_COMMIT stamp first. That stamp is written by the
+ * platform's local pack step and is absent from the published tarball, so once
+ * this repo consumed the published package the assertion only ever reported
+ * which build process produced the runtime, never whether the contract was in
+ * it. The two capability assertions below already answer the question it was
+ * asked to answer.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeServices } from '../../runtime/services.ts';
@@ -80,7 +88,7 @@ async function waitFor(what: string, predicate: () => Promise<boolean>): Promise
 }
 
 async function liveProfile(): Promise<LiveProfile> {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-profile-live-'));
+  const root = makeProjectTempDir('gv-agent-profile-live');
   roots.push(root);
   const workingDir = join(root, 'workspace');
   const profilePath = join(root, 'daemon', 'owner-profile.md');
@@ -164,10 +172,10 @@ describe('the installed platform runtime carries the contract this lane was buil
   // The stamp is still load-bearing in exactly one place: the list-marker
   // tolerance below, which is a statement about one specific build.
   test('the forget verb is content-addressed, not positional', () => {
-    const stamp = join(SDK_DIST, 'SOURCE_COMMIT');
-    expect(existsSync(stamp), 'the installed platform runtime carries no SOURCE_COMMIT stamp').toBe(true);
-
     const handler = readFileSync(join(SDK_DIST, 'platform', 'control-plane', 'routes', 'owner-profile.js'), 'utf-8');
+    // Both halves matter: the new wording is present AND the wording the old
+    // positional contract used is gone. Checking only the first would pass on a
+    // runtime that still accepted a lineIndex alongside the new path.
     expect(handler).toContain('does not take a lineIndex');
     expect(handler).not.toContain('forget needs a fieldId or a lineIndex');
   });
