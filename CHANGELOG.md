@@ -2,6 +2,13 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.22.1 - 2026-07-29
+
+- Fixed: a correctly configured inbound surface returned 401 on every message sent to it.
+- Fixed: a webhook POST carrying the right secret was rejected as unauthorized, on a surface whose settings showed it connected and whose secret was exactly what the sender was using. The platform runtime bundled with 1.22.0 had started moving surface credentials into the secret store and leaving a `goodvibes://secrets/...` reference in settings, and twelve channel adapters compared that reference character for character against what the caller presented. The two are never equal, so the check could only fail. Telegram in webhook mode was the worst case — the daemon registers the webhook with the resolved secret, so Telegram sends the real value and the adapter rejected it against the reference — while Telegram in polling mode was unaffected, which is how a surface could look healthy while nothing arrived. Every such check now resolves the credential first and answers 503 rather than 401 when it is configured but unreadable: nothing is wrong with the caller, and a 401 invites someone to change a secret that was correct. Nothing you turned off or rotated while chasing this needed changing.
+- Changed: the bundled GoodVibes platform runtime is 1.19.2, which carries that fix.
+- Changed: the release-notes gate now fails when the shipped notes describe a different release than the one being cut. `release/release-notes.md` travels inside the published package, and it had gone seven releases without being rewritten — the notes for 1.15.0, describing the phone tool and triggers, were still what a reader opened as late as 1.21.0. The gate only counted bullet points and banned marketing words, and stale notes pass both.
+
 ## 1.22.0 - 2026-07-29
 
 - Your profile and your payment details are now things you enter and correct at the terminal, and outward actions ask you before they act on anything a stranger wrote.

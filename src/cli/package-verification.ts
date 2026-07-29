@@ -3354,7 +3354,53 @@ function buildPackageFacingSlashCommandCatalog(root: string): PackageFacingSlash
   };
 }
 
-function verifyReleaseReleaseNotesPolicy(root: string): readonly string[] {
+/**
+ * The trailing line that says which release these notes describe, e.g.
+ * `GoodVibes Agent 1.22.1 - 2026-07-29`. Both dash forms are accepted because
+ * this file is written in prose and an em dash is the house style.
+ */
+const RELEASE_NOTES_STAMP_PATTERN = /^GoodVibes Agent ([0-9]+\.[0-9]+\.[0-9]+)\s+(?:-|\u2014)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})$/;
+
+/**
+ * Release-notes problems that are a property of the TEXT, so they can be tested
+ * against a string instead of against a whole repository on disk.
+ *
+ * The version check exists because this file went seven releases without being
+ * rewritten — 1.15.0's notes, describing the phone tool and triggers, shipped
+ * inside the published package as late as 1.21.0. Nothing caught it: the only
+ * rules here counted bullets and banned marketing words, and stale notes pass
+ * both. `release/release-notes.md` is in package.json's `files` list, so what
+ * this misses is what a reader opens.
+ *
+ * A stamp naming the release is used rather than "the notes mention the
+ * version somewhere": the stale file DID contain a version string — the
+ * platform runtime's, in its last bullet — and for several releases the two
+ * numbers happened to coincide, so a substring rule would have been green
+ * against exactly the file this is meant to reject.
+ */
+export function releaseNotesTextIssues(content: string, packageVersion: string): readonly string[] {
+  const issues: string[] = [];
+  const stampLine = content
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .at(-1) ?? '';
+  const stamp = RELEASE_NOTES_STAMP_PATTERN.exec(stampLine);
+  if (stamp === null) {
+    issues.push(`release notes must end with a line naming the release, like "GoodVibes Agent ${packageVersion} - YYYY-MM-DD".`);
+  } else {
+    if (packageVersion.length > 0 && stamp[1] !== packageVersion) {
+      issues.push(`release notes describe ${stamp[1]} but this release is ${packageVersion} — rewrite them for what is shipping.`);
+    }
+    const date = new Date(`${stamp[2]!}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== stamp[2]) {
+      issues.push(`release notes date must be a real YYYY-MM-DD date: ${stamp[2]}.`);
+    }
+  }
+  return issues;
+}
+
+function verifyReleaseReleaseNotesPolicy(root: string, packageVersion: string): readonly string[] {
   const notesPath = join(root, RELEASE_NOTES_RELATIVE_PATH);
   if (!existsSync(notesPath)) {
     return [`release notes are missing: ${RELEASE_NOTES_RELATIVE_PATH}.`];
@@ -3362,6 +3408,7 @@ function verifyReleaseReleaseNotesPolicy(root: string): readonly string[] {
 
   const issues: string[] = [];
   const content = readFileSync(notesPath, 'utf-8');
+  issues.push(...releaseNotesTextIssues(content, packageVersion));
   const lines = content
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -3485,7 +3532,7 @@ export function verifyReleaseMetadata(root: string): readonly string[] {
   } else if (!isExactSemver(packageVersion)) {
     issues.push(`package.json version must be an exact semver like 1.2.3: ${packageVersion}.`);
   }
-  issues.push(...verifyReleaseReleaseNotesPolicy(root));
+  issues.push(...verifyReleaseReleaseNotesPolicy(root, packageVersion));
   issues.push(...verifyReleasePerformanceSnapshotPolicy(root));
   issues.push(...verifyReleaseReadinessPolicy(root, packageVersion));
   const changelogRelease = readTopChangelogRelease(root);

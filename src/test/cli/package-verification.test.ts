@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
-import { packageFacingBoundaryLanguageIssues, parseNpmPackJson, verifyPackageCliInstall, verifyReleaseMetadata } from '../../cli/package-verification.ts';
+import { packageFacingBoundaryLanguageIssues, parseNpmPackJson, releaseNotesTextIssues, verifyPackageCliInstall, verifyReleaseMetadata } from '../../cli/package-verification.ts';
 import {
   releaseBlockingGitStatusLines,
   releaseEvidenceHygieneIssues,
@@ -626,6 +626,75 @@ describe('package CLI install verification', () => {
       .filter((entry) => entry.startsWith('!src/panels/') && entry.endsWith('.ts'));
 
     expect(hiddenPanelSources).toEqual([]);
+  });
+});
+
+describe('shipped release notes describe the release being shipped', () => {
+  // release/release-notes.md is in package.json's `files` list, so it travels
+  // inside the published package. It went seven releases without being
+  // rewritten — 1.15.0's notes were still what a reader opened at 1.21.0 —
+  // because the only rules were "at least five bullets" and "no marketing
+  // words", and stale notes pass both.
+  const REAL_NOTES = readFileSync(resolve(import.meta.dir, '../../../release/release-notes.md'), 'utf8');
+  const REAL_VERSION = String((JSON.parse(
+    readFileSync(resolve(import.meta.dir, '../../../package.json'), 'utf8'),
+  ) as { version?: unknown }).version);
+
+  test('the notes shipping in this repo name this repo version', () => {
+    expect(releaseNotesTextIssues(REAL_NOTES, REAL_VERSION)).toEqual([]);
+  });
+
+  test('notes left over from an earlier release are rejected by version', () => {
+    // The exact failure that shipped: the file is well-formed, has plenty of
+    // bullets, contains no hype — and describes a release that is not this one.
+    const issues = releaseNotesTextIssues(REAL_NOTES, '9.9.9');
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain(`describe ${REAL_VERSION}`);
+    expect(issues[0]).toContain('this release is 9.9.9');
+  });
+
+  test('the real stale file this rule was written for is rejected', () => {
+    // The genuine 1.15.0-era notes, abbreviated. Note the last bullet DOES
+    // carry a version string — the platform runtime's — which is why the rule
+    // is a stamp naming the release and not "the text mentions the version".
+    const stale = [
+      '- A paired phone is now something Agent can use.',
+      '- Nothing is taken from a phone quietly.',
+      '- Added triggers: watch something, and act when it changes.',
+      '- Wake-word detection has platform support.',
+      '- Fixed: a conversation that had already written to you could get no reply.',
+      '- Updated the bundled GoodVibes platform runtime to 1.15.0.',
+      '',
+    ].join('\n');
+    const issues = releaseNotesTextIssues(stale, '1.22.1');
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain('must end with a line naming the release');
+  });
+
+  test('a stamp naming another version is rejected even when the text mentions this one', () => {
+    // NO-proof that the rule reads the stamp rather than scanning for the
+    // version anywhere: this body names 1.22.1 twice and still fails.
+    const misstamped = [
+      '- Updated the bundled GoodVibes platform runtime for 1.22.1.',
+      '- A second bullet mentioning 1.22.1 again.',
+      '',
+      'GoodVibes Agent 1.21.0 - 2026-07-27',
+      '',
+    ].join('\n');
+    const issues = releaseNotesTextIssues(misstamped, '1.22.1');
+    expect(issues).toEqual(['release notes describe 1.21.0 but this release is 1.22.1 — rewrite them for what is shipping.']);
+  });
+
+  test('an unreal date in the stamp is rejected', () => {
+    const badDate = ['- One bullet.', '', 'GoodVibes Agent 1.22.1 - 2026-02-31', ''].join('\n');
+    expect(releaseNotesTextIssues(badDate, '1.22.1')).toEqual([
+      'release notes date must be a real YYYY-MM-DD date: 2026-02-31.',
+    ]);
+  });
+
+  test('an em dash in the stamp is accepted, because it is the house style', () => {
+    const emDash = ['- One bullet.', '', 'GoodVibes Agent 1.22.1 \u2014 2026-07-29', ''].join('\n');
+    expect(releaseNotesTextIssues(emDash, '1.22.1')).toEqual([]);
   });
 });
 
