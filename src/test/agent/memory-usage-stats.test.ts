@@ -1,14 +1,14 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { MemoryUsageStatsStore } from '@pellux/goodvibes-sdk/platform/state';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 afterEach(() => { while (roots.length > 0) rmSync(roots.pop()!, { recursive: true, force: true }); });
 
 function tempPath(): string {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-usage-'));
+  const root = makeProjectTempDir('goodvibes-agent-usage');
   roots.push(root);
   return join(root, 'memory-usage.json');
 }

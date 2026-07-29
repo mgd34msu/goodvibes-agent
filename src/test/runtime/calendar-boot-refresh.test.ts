@@ -10,8 +10,7 @@
  * on the network.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FeedFetcher, FeedFetchResult } from '@pellux/goodvibes-sdk/platform/calendar';
 import { CalendarSubscriptionRegistry, type SubscriptionSecretStore } from '../../agent/calendar-subscription-registry.ts';
@@ -19,6 +18,7 @@ import {
   formatCalendarBootRefreshLine,
   scheduleCalendarSubscriptionBootRefresh,
 } from '../../runtime/calendar-boot-refresh.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const ICS = 'BEGIN:VCALENDAR\r\nX-WR-CALNAME:Boot Feed\r\nBEGIN:VEVENT\r\nUID:e1\r\nSUMMARY:Ev\r\nDTSTART:20260706T090000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
 const URL = 'https://cal.example/feed.ics';
@@ -26,8 +26,7 @@ const HOUR = 60 * 60_000;
 
 const dirs: string[] = [];
 function tmpStorePath(): string {
-  const dir = join(tmpdir(), `gv-cal-boot-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-cal-boot-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   dirs.push(dir);
   return join(dir, 'subscriptions.json');
 }

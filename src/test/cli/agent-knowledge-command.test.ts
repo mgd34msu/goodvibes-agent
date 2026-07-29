@@ -1,12 +1,12 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { handleAgentKnowledgeCommand, handleAgentKnowledgeShortcutCommand } from '../../cli/agent-knowledge-command.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
@@ -17,7 +17,7 @@ interface CapturedRequest {
 }
 
 function createRuntimeForArgv(argv: readonly string[]) {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-knowledge-cli-'));
+  const root = makeProjectTempDir('gv-agent-knowledge-cli');
   roots.push(root);
   const workingDirectory = join(root, 'workspace');
   const homeDirectory = join(root, 'home');

@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { DiscoveredServer } from '@pellux/goodvibes-sdk/platform/discovery';
 import { HelperModel } from '@pellux/goodvibes-sdk/platform/config';
@@ -19,6 +18,7 @@ import type {
   ProviderApiRuntimeQueryResult,
 } from '@pellux/goodvibes-sdk/platform/providers';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function failOnAccess(label: string): never {
   throw new Error(`unexpected raw access: ${label}`);
@@ -140,7 +140,7 @@ function createCommandContext(options: {
 } {
   const printed: string[] = [];
   const configWrites: Array<{ key: string; value: unknown }> = [];
-  const root = options.workingDirectory ?? mkdtempSync(join(tmpdir(), 'gv-provider-api-command-'));
+  const root = options.workingDirectory ?? makeProjectTempDir('gv-provider-api-command');
   const context: CommandContext = {
     session: {
       conversationManager: {} as never,
@@ -358,7 +358,7 @@ describe('provider command provider-api migration', () => {
   test('/image checks multimodal support through providerApi before submitting content', async () => {
     const registry = new CommandRegistry();
     registerLocalRuntimeCommands(registry);
-    const root = mkdtempSync(join(tmpdir(), 'gv-provider-api-image-'));
+    const root = makeProjectTempDir('gv-provider-api-image');
     const imagePath = join(root, 'fixture.png');
     writeFileSync(imagePath, 'not-a-real-png');
     const submitted: Array<{ text: string; content?: unknown[] }> = [];

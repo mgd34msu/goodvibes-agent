@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { scanOpenClawWorkspace } from '../../cli/openclaw-import.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const FIXTURE = join(import.meta.dir, '..', 'fixtures', 'openclaw-workspace');
 const roots: string[] = [];
@@ -29,7 +29,7 @@ async function runCli(args: readonly string[], home: string): Promise<{ readonly
 }
 
 function freshHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-import-cli-'));
+  const home = makeProjectTempDir('goodvibes-agent-import-cli');
   roots.push(home);
   return home;
 }

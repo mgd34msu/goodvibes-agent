@@ -1,7 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { CommandContext } from '../../input/command-registry.ts';
@@ -14,6 +12,7 @@ import {
   createAgentSettingsImportTool,
   registerAgentSettingsImportTool,
 } from '../../tools/agent-settings-import-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
 
@@ -27,7 +26,7 @@ interface Fixture {
 }
 
 function makeFixture(): Fixture {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-settings-import-tool-'));
+  const root = makeProjectTempDir('goodvibes-agent-settings-import-tool');
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const configManager = new ConfigManager({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,

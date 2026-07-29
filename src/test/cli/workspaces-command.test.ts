@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 async function runWorkspacesCli(args: readonly string[], workingDirectory: string, homeDirectory: string) {
   const output: string[] = [];
@@ -31,8 +30,8 @@ describe('workspaces CLI command', () => {
   });
 
   test('list reports no registered workspaces by default', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspaces-cli-'));
-    const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspaces-cli-work-'));
+    const home = makeProjectTempDir('goodvibes-agent-workspaces-cli');
+    const work = makeProjectTempDir('goodvibes-agent-workspaces-cli-work');
 
     const { result, output } = await runWorkspacesCli(['workspaces', 'list'], work, home);
     expect(result.exitCode).toBe(0);
@@ -41,8 +40,8 @@ describe('workspaces CLI command', () => {
   });
 
   test('register refuses without --yes, then registers and shows up in list', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspaces-cli-'));
-    const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspaces-cli-work-'));
+    const home = makeProjectTempDir('goodvibes-agent-workspaces-cli');
+    const work = makeProjectTempDir('goodvibes-agent-workspaces-cli-work');
 
     const refused = await runWorkspacesCli(['workspaces', 'register'], work, home);
     expect(refused.result.exitCode).toBe(2);
@@ -62,8 +61,8 @@ describe('workspaces CLI command', () => {
   });
 
   test('unregister refuses without --yes, then removes the workspace', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspaces-cli-'));
-    const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspaces-cli-work-'));
+    const home = makeProjectTempDir('goodvibes-agent-workspaces-cli');
+    const work = makeProjectTempDir('goodvibes-agent-workspaces-cli-work');
 
     await runWorkspacesCli(['workspaces', 'register', '--yes'], work, home);
 

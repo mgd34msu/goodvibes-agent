@@ -1,10 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createAgentGoogleTool } from '../../tools/agent-google-tool.ts';
 import { getSessionExpectationBook, resetSessionExpectationBookForTests } from '../../agent/signup/session-expectations.ts';
 import { resetSessionUntrustedContentLedgerForTests } from '../../trust/untrusted-content.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * The correlation rule, exercised through the real tool.
@@ -69,7 +69,7 @@ function run(tool: ReturnType<typeof createAgentGoogleTool>, args: Record<string
 
 describe('reading a verification mail', () => {
   beforeEach(() => {
-    home = mkdtempSync(join(tmpdir(), 'google-verify-'));
+    home = makeProjectTempDir('google-verify');
     writeCredentials(home);
     resetSessionExpectationBookForTests();
     resetSessionUntrustedContentLedgerForTests();

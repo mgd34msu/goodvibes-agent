@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
@@ -9,6 +8,7 @@ import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from 
 import { importVibeFilesIntoMemoryOnce } from '../../agent/vibe-file.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 async function withReceiptFixture<T>(
   fn: (fixture: {
@@ -17,7 +17,7 @@ async function withReceiptFixture<T>(
     readonly memoryRegistry: MemoryRegistry;
   }) => Promise<T>,
 ): Promise<T> {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-prompt-receipts-'));
+  const root = makeProjectTempDir('goodvibes-agent-prompt-receipts');
   const home = join(root, 'home');
   const workspace = join(root, 'workspace');
   mkdirSync(home, { recursive: true });

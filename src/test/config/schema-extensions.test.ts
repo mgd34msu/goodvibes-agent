@@ -1,17 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DEFAULT_CONFIG } from '@pellux/goodvibes-sdk/platform/config';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-cfg-ext-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-cfg-ext-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 
@@ -288,14 +287,14 @@ describe('Config schema extensions: orchestration, storage, sandbox, danger, and
 
     test('set and get sandbox.qemuImagePath', () => {
       const mgr = createConfigManager(tmpDir);
-      mgr.set('sandbox.qemuImagePath', join(tmpdir(), 'gv-sandbox.qcow2'));
-      expect(mgr.get('sandbox.qemuImagePath')).toBe(join(tmpdir(), 'gv-sandbox.qcow2'));
+      mgr.set('sandbox.qemuImagePath', join(tmpDir, 'gv-sandbox.qcow2'));
+      expect(mgr.get('sandbox.qemuImagePath')).toBe(join(tmpDir, 'gv-sandbox.qcow2'));
     });
 
     test('set and get sandbox.qemuExecWrapper', () => {
       const mgr = createConfigManager(tmpDir);
-      mgr.set('sandbox.qemuExecWrapper', join(tmpdir(), 'gv-qemu-wrapper'));
-      expect(mgr.get('sandbox.qemuExecWrapper')).toBe(join(tmpdir(), 'gv-qemu-wrapper'));
+      mgr.set('sandbox.qemuExecWrapper', join(tmpDir, 'gv-qemu-wrapper'));
+      expect(mgr.get('sandbox.qemuExecWrapper')).toBe(join(tmpDir, 'gv-qemu-wrapper'));
     });
 
     test('set and get sandbox.qemuGuestHost', () => {

@@ -1,5 +1,4 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -11,6 +10,7 @@ import type { PolicyRule } from '@/runtime/index.ts';
 import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
 import { resetSettingsControlPlaneStore } from '../helpers/settings-control-plane.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // behavior.autoApprove reflects the --no-worries-just-vibes flag.
 // In the test environment (no CLI flag), it is false.
@@ -27,7 +27,7 @@ describe('PermissionManager', () => {
   let policyRuntimeState: PolicyRuntimeState;
 
   beforeEach(() => {
-    configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir: join(tmpdir(), `gv-permissions-${Date.now()}-${Math.random().toString(36).slice(2)}`) });
+    configManager = new ConfigManager({ surfaceRoot: 'tui',  configDir: makeProjectTempDir(`gv-permissions-${Date.now()}-${Math.random().toString(36).slice(2)}`) });
     resetSettingsControlPlaneStore(configManager);
     policyRuntimeState = new PolicyRuntimeState();
     // Snapshot current config state

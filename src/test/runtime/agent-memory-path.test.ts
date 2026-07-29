@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('Agent memory storage path', () => {
   let root = '';
@@ -20,7 +20,7 @@ describe('Agent memory storage path', () => {
     readonly workingDir: string;
     readonly homeDir: string;
   } {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-path-'));
+    root = makeProjectTempDir('goodvibes-agent-memory-path');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     mkdirSync(workingDir, { recursive: true });

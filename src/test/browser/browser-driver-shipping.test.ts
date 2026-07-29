@@ -30,8 +30,7 @@
 
 import { afterAll, describe, expect, test } from 'bun:test';
 import { gzipSync } from 'node:zlib';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { extractTarGzTree, readTarGzEntries } from '../../runtime/tar-archive.ts';
 import { DRIVER_REQUIRED_FILES, findDriverDirectory } from '@pellux/goodvibes-sdk/platform/browser';
@@ -48,10 +47,11 @@ import {
   agentDriverSearchDirectories,
   agentManagedDriverRoot,
 } from '../../runtime/agent-browser.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const scratchDirs: string[] = [];
 function scratch(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  const dir = makeProjectTempDir(`${prefix}`);
   scratchDirs.push(dir);
   return dir;
 }

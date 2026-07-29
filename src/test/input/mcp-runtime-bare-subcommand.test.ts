@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerMcpRuntimeCommands } from '../../input/commands/mcp-runtime.ts';
 import { loadMcpEffectiveConfig } from '@pellux/goodvibes-sdk/platform/mcp';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeShellPaths(root: string) {
   return {
@@ -51,7 +51,7 @@ function makeContext(root: string, out: string[]): CommandContext {
 
 describe('/mcp bare subcommand usage', () => {
   test('/mcp trust with no args prints usage instead of falling through to server list', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-bare-'));
+    const root = makeProjectTempDir('gv-mcp-bare');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);
@@ -69,7 +69,7 @@ describe('/mcp bare subcommand usage', () => {
   });
 
   test('/mcp role with no args prints usage instead of falling through to server list', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mcp-bare-'));
+    const root = makeProjectTempDir('gv-mcp-bare');
     try {
       const registry = new CommandRegistry();
       registerMcpRuntimeCommands(registry);

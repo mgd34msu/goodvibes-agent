@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../config/index.ts';
 import {
@@ -15,6 +14,7 @@ import {
   renderGoodVibesCommandHelp,
   renderGoodVibesHelp,
 } from '../cli-flags.ts';
+import { makeProjectTempDir } from './helpers/project-temp.ts';
 
 async function captureGoodVibesCliCommand(args: readonly string[], configManager: ConfigManager, root: string) {
   const logs: string[] = [];
@@ -177,7 +177,7 @@ describe('parseCliFlags', () => {
   });
 
   test('blocks copied auth user administration instead of creating a local connected-host user store', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-auth-block-'));
+    const root = makeProjectTempDir('goodvibes-agent-auth-block');
     try {
       const configManager = new ConfigManager({
         surfaceRoot: 'agent',
@@ -264,7 +264,7 @@ describe('parseCliFlags', () => {
   });
 
   test('applies config overrides for the current process without persisting settings', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-config-'));
+    const root = makeProjectTempDir('goodvibes-cli-config');
     const configDir = join(root, '.goodvibes', 'tui');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir, workingDir: root });
 
@@ -300,7 +300,7 @@ describe('parseCliFlags', () => {
   });
 
   test('applies runtime URL overrides to connected-host connection without persisting settings', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-runtime-url-'));
+    const root = makeProjectTempDir('goodvibes-cli-runtime-url');
     const configDir = join(root, '.goodvibes', 'agent');
     const configManager = new ConfigManager({ surfaceRoot: 'agent', configDir, workingDir: root });
 
@@ -318,7 +318,7 @@ describe('parseCliFlags', () => {
   });
 
   test('rejects invalid runtime URL overrides before changing config', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-runtime-url-invalid-'));
+    const root = makeProjectTempDir('goodvibes-cli-runtime-url-invalid');
     const configManager = new ConfigManager({
       surfaceRoot: 'agent',
       configDir: join(root, '.goodvibes', 'agent'),
@@ -337,7 +337,7 @@ describe('parseCliFlags', () => {
   });
 
   test('does not apply endpoint flags for removed lifecycle CLI words', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-endpoint-'));
+    const root = makeProjectTempDir('goodvibes-cli-endpoint');
     const configDir = join(root, '.goodvibes', 'tui');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir, workingDir: root });
     const cli = parseGoodVibesCli(['web', '--hostname', '0.0.0.0', '--port', '4568']);
@@ -356,7 +356,7 @@ describe('parseCliFlags', () => {
   });
 
   test('bundle inspect resolves relative paths from the GoodVibes working directory', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-bundle-'));
+    const root = makeProjectTempDir('goodvibes-cli-bundle');
     const configManager = new ConfigManager({
       surfaceRoot: 'tui',
       configDir: join(root, '.goodvibes', 'tui'),
@@ -389,7 +389,7 @@ describe('parseCliFlags', () => {
   });
 
   test('bundle export redacts secret config values and import skips redacted sentinels', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-bundle-redaction-'));
+    const root = makeProjectTempDir('goodvibes-cli-bundle-redaction');
     const configManager = new ConfigManager({
       surfaceRoot: 'tui',
       configDir: join(root, '.goodvibes', 'tui'),
@@ -420,7 +420,7 @@ describe('parseCliFlags', () => {
     expect(bundle.redaction.redactedConfigPaths).toContain('surfaces.slack.signingSecret');
     expect(bundle.diagnostics.service.issues).toBeArray();
 
-    const importRoot = mkdtempSync(join(tmpdir(), 'goodvibes-cli-bundle-import-'));
+    const importRoot = makeProjectTempDir('goodvibes-cli-bundle-import');
     const importedConfig = new ConfigManager({
       surfaceRoot: 'tui',
       configDir: join(importRoot, '.goodvibes', 'tui'),
@@ -436,7 +436,7 @@ describe('parseCliFlags', () => {
 
 
   test('providers and models commands surface setup posture through CLI output', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-provider-posture-'));
+    const root = makeProjectTempDir('goodvibes-cli-provider-posture');
     const configManager = new ConfigManager({
       surfaceRoot: 'tui',
       configDir: join(root, '.goodvibes', 'tui'),
@@ -462,7 +462,7 @@ describe('parseCliFlags', () => {
   });
 
   test('secrets test redacts resolved secret values in text and json output', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-secret-redaction-'));
+    const root = makeProjectTempDir('goodvibes-cli-secret-redaction');
     const configManager = new ConfigManager({
       surfaceRoot: 'tui',
       configDir: join(root, '.goodvibes', 'tui'),
@@ -492,7 +492,7 @@ describe('parseCliFlags', () => {
   });
 
   test('rejects invalid runtime config overrides', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-cli-config-invalid-'));
+    const root = makeProjectTempDir('goodvibes-cli-config-invalid');
     const configManager = new ConfigManager({
       surfaceRoot: 'tui',
       configDir: join(root, '.goodvibes', 'tui'),

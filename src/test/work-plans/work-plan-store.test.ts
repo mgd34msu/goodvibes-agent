@@ -1,11 +1,9 @@
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeStore(): WorkPlanStore {
-  const homeDirectory = mkdtempSync(join(tmpdir(), 'gv-work-plan-'));
+  const homeDirectory = makeProjectTempDir('gv-work-plan');
   return new WorkPlanStore({
     homeDirectory,
     projectId: 'project:test-workspace',

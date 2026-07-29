@@ -1,10 +1,10 @@
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import type { AgentArchetype } from '@pellux/goodvibes-sdk/platform/agents';
 import { getTestArchetypeLoader, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const EXPECTED_BUILTIN_ARCHETYPES = [
   'orchestrator',
@@ -22,7 +22,7 @@ const EXPECTED_BUILTIN_ARCHETYPES = [
 // ---------------------------------------------------------------------------
 
 function makeTempDir(): string {
-  return mkdtempSync(join(tmpdir(), 'gv-archetypes-test-'));
+  return makeProjectTempDir('gv-archetypes-test');
 }
 
 function writeAgentMd(dir: string, filename: string, content: string): void {

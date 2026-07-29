@@ -6,7 +6,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { join } from 'path';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
-import { tmpdir } from 'os';
 import { createShellPathService } from '@/runtime/index.ts';
 
 import { CodeIntelligence, pathToUri, uriToPath } from '@pellux/goodvibes-sdk/platform/intelligence';
@@ -24,6 +23,7 @@ import {
   getLanguageConfig,
   getDefaultConfigs,
 } from '@pellux/goodvibes-sdk/platform/intelligence';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -392,8 +392,8 @@ describe('loadLanguageConfigs with project override', () => {
   let roots: ReturnType<typeof createShellPathService>;
 
   beforeEach(() => {
-    tempDir = join(tmpdir(), `gv-facade-test-${Date.now()}`);
-    homeDir = join(tmpdir(), `gv-facade-home-${Date.now()}`);
+    tempDir = makeProjectTempDir(`gv-facade-test-${Date.now()}`);
+    homeDir = makeProjectTempDir(`gv-facade-home-${Date.now()}`);
     langDir = join(tempDir, '.goodvibes', 'languages');
     mkdirSync(join(homeDir, '.goodvibes', 'languages'), { recursive: true });
     mkdirSync(langDir, { recursive: true });

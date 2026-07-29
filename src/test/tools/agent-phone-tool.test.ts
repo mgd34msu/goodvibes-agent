@@ -7,8 +7,7 @@
  * exercised as behaviour rather than mocked away.
  */
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   DeviceCapabilityService,
@@ -26,11 +25,12 @@ import type {
 } from '@pellux/goodvibes-sdk/platform/devices';
 import { createAgentPhoneTool } from '../../tools/agent-phone-tool.ts';
 import type { PhoneDeviceService } from '../../runtime/phone-device-service.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 let root = '';
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'gv-agent-phone-'));
+  root = makeProjectTempDir('gv-agent-phone');
 });
 
 afterEach(() => {

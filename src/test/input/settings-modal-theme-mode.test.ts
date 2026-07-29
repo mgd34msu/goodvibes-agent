@@ -12,7 +12,6 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { SettingsModal } from '../../input/settings-modal.ts';
 import { ConfigManager, type ConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
@@ -27,10 +26,10 @@ import {
   THEME_MODE_VALUES,
 } from '../../renderer/theme-mode-config.ts';
 import { getActiveThemeMode, setActiveThemeMode } from '../../renderer/theme.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-theme-mode-setting-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-theme-mode-setting-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

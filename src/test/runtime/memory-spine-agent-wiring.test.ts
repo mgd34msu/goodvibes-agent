@@ -17,9 +17,8 @@
  *    in the agent's own local store again.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
@@ -30,6 +29,7 @@ import { createRuntimeServices, type RuntimeServices } from '../../runtime/servi
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { reconcileMemorySpineAdoption } from '../../runtime/memory-spine-adoption.ts';
 import { createSpineConnectionResolver, createSpineRestProbe } from '../../runtime/session-spine-rest-transport.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const TEST_TOKEN = 'memory-spine-agent-wiring-token-456';
 
@@ -83,7 +83,7 @@ describe('agent memory-spine wiring', () => {
   let agentServices: RuntimeServices;
 
   beforeEach(async () => {
-    agentRoot = mkdtempSync(join(tmpdir(), 'gv-memory-spine-agent-'));
+    agentRoot = makeProjectTempDir('gv-memory-spine-agent');
     agentHomeDir = join(agentRoot, 'agent-home');
     const agentWorkingDir = join(agentRoot, 'agent-workspace');
     mkdirSync(agentHomeDir, { recursive: true });
@@ -128,7 +128,7 @@ describe('agent memory-spine wiring', () => {
     let port: number;
 
     beforeEach(async () => {
-      daemonRoot = mkdtempSync(join(tmpdir(), 'gv-memory-spine-daemon-'));
+      daemonRoot = makeProjectTempDir('gv-memory-spine-daemon');
       const daemonHomeDir = join(daemonRoot, 'daemon-home');
       const daemonWorkingDir = join(daemonRoot, 'daemon-workspace');
       mkdirSync(daemonHomeDir, { recursive: true });

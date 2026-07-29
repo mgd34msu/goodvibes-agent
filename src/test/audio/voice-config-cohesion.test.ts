@@ -29,11 +29,11 @@
  * web UI owns mic input per the VOICE-WEBUI brief).
  */
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'fs';
+import { existsSync, readFileSync, rmSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { ConfigManager, CONFIG_SCHEMA, DEFAULT_CONFIG, isValidConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /** The exact tts.* keys the Agent's spoken-output pipeline reads today. */
 const AGENT_VOICE_CONFIG_KEYS = [
@@ -82,7 +82,7 @@ describe('Voice config cohesion — Agent reads the shared tts.* contract, not a
   });
 
   test('a fresh ConfigManager built the way the Agent entrypoint builds it resolves tts.* to the shared defaults', () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-voice-cohesion-'));
+    const homeDir = makeProjectTempDir('goodvibes-agent-voice-cohesion');
     try {
       // Same constructor shape as src/cli/entrypoint.ts: surfaceRoot is the
       // Agent's own ('agent'), homeDir is fresh with nothing pre-configured.
@@ -105,7 +105,7 @@ describe('Voice config cohesion — Agent reads the shared tts.* contract, not a
   });
 
   test('tts.* keys round-trip through the standard ConfigManager set/get API — no special-cased voice-config path', () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-voice-cohesion-'));
+    const homeDir = makeProjectTempDir('goodvibes-agent-voice-cohesion');
     try {
       const configManager = new ConfigManager({
         homeDir,
@@ -163,7 +163,7 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
   // home directory.
 
   test('a tts.voice value set under surfaceRoot "tui" resolves in a fresh ConfigManager built under surfaceRoot "agent"', () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-voice-cross-surface-'));
+    const homeDir = makeProjectTempDir('goodvibes-agent-voice-cross-surface');
     try {
       // The TUI/daemon surface — same construction shape as the TUI's own
       // entrypoint (surfaceRoot: 'tui'), sharing this test's temp homeDir.
@@ -186,7 +186,7 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
   });
 
   test('a tts.* write from the Agent surface routes to the shared tier file, not the Agent-local settings silo', () => {
-    const homeDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-voice-cross-surface-'));
+    const homeDir = makeProjectTempDir('goodvibes-agent-voice-cross-surface');
     try {
       const agentConfigManager = new ConfigManager({ homeDir, surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT });
       agentConfigManager.set('tts.voice', 'onyx');

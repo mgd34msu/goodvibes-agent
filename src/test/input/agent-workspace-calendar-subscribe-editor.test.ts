@@ -8,8 +8,7 @@
  * keeps the fields, and success closes the editor with a read-only note.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FeedFetcher, FeedFetchResult } from '@pellux/goodvibes-sdk/platform/calendar';
 import { CalendarSubscriptionRegistry, type SubscriptionSecretStore } from '../../agent/calendar-subscription-registry.ts';
@@ -19,14 +18,14 @@ import {
   type AgentWorkspaceCalendarSubscribeEditorHost,
 } from '../../input/agent-workspace-calendar-subscribe-editor.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const ICS = 'BEGIN:VCALENDAR\r\nX-WR-CALNAME:My Feed\r\nBEGIN:VEVENT\r\nUID:e1\r\nSUMMARY:Ev\r\nDTSTART:20260706T090000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
 const SECRET_URL = 'https://calendar.google.com/calendar/ical/topsecret123/basic.ics';
 
 const dirs: string[] = [];
 function tmpStore(): string {
-  const dir = join(tmpdir(), `gv-cal-wiz-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-cal-wiz-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   dirs.push(dir);
   return join(dir, 'subscriptions.json');
 }

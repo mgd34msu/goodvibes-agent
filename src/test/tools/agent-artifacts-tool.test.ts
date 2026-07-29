@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { inflateRawSync } from 'node:zlib';
 import type { ArtifactDescriptor, ArtifactRecord, ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { createAgentArtifactsTool, registerAgentArtifactsTool } from '../../tools/agent-artifacts-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 class ArtifactBrowserTestStore implements Partial<Pick<ArtifactStore, 'get' | 'list' | 'readContent'>> {
   readonly records: ArtifactRecord[] = [];
@@ -174,7 +174,7 @@ describe('agent_artifacts tool', () => {
   });
 
   test('exports exact artifact bytes to a validated workspace path', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-export-'));
+    const root = makeProjectTempDir('goodvibes-agent-artifact-export');
     try {
       const store = new ArtifactBrowserTestStore();
       const bytes = Buffer.from([0, 1, 2, 3, 255]);
@@ -228,7 +228,7 @@ describe('agent_artifacts tool', () => {
   });
 
   test('requires confirmation and rejects artifact export outside the workspace', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-export-'));
+    const root = makeProjectTempDir('goodvibes-agent-artifact-export');
     try {
       const store = new ArtifactBrowserTestStore();
       store.add({ id: 'artifact-text', text: 'body' });
@@ -258,7 +258,7 @@ describe('agent_artifacts tool', () => {
   });
 
   test('exports multiple artifacts as a validated package directory with redacted manifest', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-package-'));
+    const root = makeProjectTempDir('goodvibes-agent-artifact-package');
     try {
       const store = new ArtifactBrowserTestStore();
       const imageBytes = Buffer.from([137, 80, 78, 71]);
@@ -335,7 +335,7 @@ describe('agent_artifacts tool', () => {
   });
 
   test('exports multiple artifacts as a validated ZIP archive with exact bytes and redacted manifest', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-archive-'));
+    const root = makeProjectTempDir('goodvibes-agent-artifact-archive');
     try {
       const store = new ArtifactBrowserTestStore();
       const imageBytes = Buffer.from([137, 80, 78, 71]);
@@ -400,7 +400,7 @@ describe('agent_artifacts tool', () => {
   });
 
   test('requires confirmation and rejects package export outside the workspace', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-artifact-package-'));
+    const root = makeProjectTempDir('goodvibes-agent-artifact-package');
     try {
       const store = new ArtifactBrowserTestStore();
       store.add({ id: 'artifact-text', text: 'body' });

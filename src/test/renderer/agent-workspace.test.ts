@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { AgentNoteRegistry } from '../../agent/note-registry.ts';
 import { AgentDocumentRegistry } from '../../agent/document-registry.ts';
@@ -20,6 +19,7 @@ import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifact
 import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';
 import type { MemoryApi } from '@pellux/goodvibes-sdk/platform/knowledge';
 import type { MemoryRecord } from '@pellux/goodvibes-sdk/platform/state';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function text(lines: readonly Line[]): string {
   return lines.map((line) => line.map((cell) => cell.char ?? ' ').join('').trimEnd()).join('\n');
@@ -270,7 +270,7 @@ function liveCommandContext(options: {
   readonly setupCheckpointStepId?: string;
   readonly includePromptReceipts?: boolean;
 } = {}): CommandContext {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-render-'));
+  const root = makeProjectTempDir('goodvibes-agent-workspace-render');
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   if (options.setupCheckpointStepId) {
     saveSetupWizardCheckpoint(shellPaths, {
@@ -1275,7 +1275,7 @@ describe('renderAgentWorkspace', () => {
   });
 
   test('renders discovered behavior files as context onboarding actions', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-discovery-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-discovery');
     mkdirSync(join(root, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(root, '.goodvibes', 'agent', 'skills', 'daily-brief'), { recursive: true });
     mkdirSync(join(root, '.goodvibes', 'agent', 'routines'), { recursive: true });
@@ -1733,7 +1733,7 @@ describe('renderAgentWorkspace', () => {
   });
 
   test('renders automation next action and local schedule receipt state', () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-workspace-schedule-receipts-'));
+    const root = makeProjectTempDir('goodvibes-agent-workspace-schedule-receipts');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const routines = AgentRoutineRegistry.fromShellPaths(shellPaths);
     routines.create({

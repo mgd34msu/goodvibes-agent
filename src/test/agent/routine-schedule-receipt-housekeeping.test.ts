@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   reapMissingRoutineScheduleReceipts,
@@ -15,12 +14,13 @@ import {
   type RoutineScheduleCorrelationResult,
   type RoutineScheduleReceipt,
 } from '../../agent/routine-schedule-promotion.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const BASE_URL = 'http://127.0.0.1:7317';
 
 function withStorePath<T>(fn: (storePath: string) => T): T {
-  const root = mkdtempSync(join(tmpdir(), 'gv-routine-schedule-receipts-'));
+  const root = makeProjectTempDir('gv-routine-schedule-receipts');
   try {
     return fn(join(root, 'schedule-receipts.json'));
   } finally {
@@ -29,7 +29,7 @@ function withStorePath<T>(fn: (storePath: string) => T): T {
 }
 
 async function withStorePathAsync<T>(fn: (storePath: string) => Promise<T>): Promise<T> {
-  const root = mkdtempSync(join(tmpdir(), 'gv-routine-schedule-receipts-'));
+  const root = makeProjectTempDir('gv-routine-schedule-receipts');
   try {
     return await fn(join(root, 'schedule-receipts.json'));
   } finally {

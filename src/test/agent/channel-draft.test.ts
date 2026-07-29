@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   deleteDraft,
@@ -14,6 +13,7 @@ import {
   readChannelDrafts,
   saveDraft,
 } from '../../agent/channel-draft.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Test shell-path stub
@@ -31,7 +31,7 @@ function makeShellPaths(root: string) {
 
 describe('channel-draft', () => {
   test('readChannelDrafts returns empty when file does not exist', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const snapshot = readChannelDrafts(makeShellPaths(root));
       expect(snapshot.exists).toBe(false);
@@ -42,7 +42,7 @@ describe('channel-draft', () => {
   });
 
   test('saveDraft creates a new draft and persists it', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const result = saveDraft(shellPaths, {
@@ -67,7 +67,7 @@ describe('channel-draft', () => {
   });
 
   test('saveDraft with existing id updates in-place', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const first = saveDraft(shellPaths, { message: 'Original text', channel: 'slack:ops' });
@@ -86,7 +86,7 @@ describe('channel-draft', () => {
   });
 
   test('saveDraft rejects empty message', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       expect(() => saveDraft(makeShellPaths(root), { message: '  ' })).toThrow('Draft message is required.');
     } finally {
@@ -95,7 +95,7 @@ describe('channel-draft', () => {
   });
 
   test('getDraft returns draft by id, null when not found', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const result = saveDraft(shellPaths, { message: 'Check this', route: 'my-route' });
@@ -111,7 +111,7 @@ describe('channel-draft', () => {
   });
 
   test('deleteDraft removes the draft', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const result = saveDraft(shellPaths, { message: 'To be deleted', channel: 'discord:general' });
@@ -126,7 +126,7 @@ describe('channel-draft', () => {
   });
 
   test('listDrafts filters by status', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       saveDraft(shellPaths, { message: 'Draft one', channel: 'slack:a', status: 'draft' });
@@ -145,7 +145,7 @@ describe('channel-draft', () => {
   });
 
   test('listDrafts respects limit', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       for (let i = 0; i < 5; i++) {
@@ -159,7 +159,7 @@ describe('channel-draft', () => {
   });
 
   test('queueDraftToSend promotes draft to queued and returns delivery input', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, {
@@ -183,7 +183,7 @@ describe('channel-draft', () => {
   });
 
   test('queueDraftToSend throws when draft not found', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       expect(() => queueDraftToSend(makeShellPaths(root), 'bad-id')).toThrow('Draft not found: bad-id');
     } finally {
@@ -192,7 +192,7 @@ describe('channel-draft', () => {
   });
 
   test('queueDraftToSend throws when draft already sent', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, { message: 'Sent draft', channel: 'slack:ops', status: 'sent' });
@@ -203,7 +203,7 @@ describe('channel-draft', () => {
   });
 
   test('markDraftSent updates status and records response id', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, { message: 'Send me', channel: 'slack:ops' });
@@ -216,7 +216,7 @@ describe('channel-draft', () => {
   });
 
   test('markDraftFailed updates status and records error', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, { message: 'Will fail', channel: 'slack:ops' });
@@ -229,7 +229,7 @@ describe('channel-draft', () => {
   });
 
   test('formatChannelDraft produces human-readable output', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, { message: 'Hello world', channel: 'telegram:-100', title: 'Greeting', tags: ['ops', 'alert'] });
@@ -244,7 +244,7 @@ describe('channel-draft', () => {
   });
 
   test('formatChannelDraftList shows summary', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       saveDraft(shellPaths, { message: 'First draft', channel: 'slack:ops' });
@@ -260,7 +260,7 @@ describe('channel-draft', () => {
   });
 
   test('draft tags are optional', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, { message: 'No tags', channel: 'slack:ops' });
@@ -271,7 +271,7 @@ describe('channel-draft', () => {
   });
 
   test('webhook target is preserved in draft and delivery input', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-drafts-'));
+    const root = makeProjectTempDir('gv-drafts');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, { message: 'Webhook msg', webhook: 'https://example.test/hook' });

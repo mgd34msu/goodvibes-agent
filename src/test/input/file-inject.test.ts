@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { FilePickerModal } from '../../input/file-picker.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -11,8 +11,7 @@ import { FilePickerModal } from '../../input/file-picker.ts';
 let tmpDir: string;
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-inject-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-inject-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

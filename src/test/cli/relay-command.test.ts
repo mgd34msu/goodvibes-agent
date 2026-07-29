@@ -1,10 +1,9 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { FEATURE_SETTINGS } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 async function runRelayCli(args: readonly string[], workingDirectory: string, homeDirectory: string) {
   const output: string[] = [];
@@ -29,8 +28,8 @@ describe('relay CLI command', () => {
   });
 
   test('status reports the stock default-on config and is explicit that it is not a live check', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-'));
-    const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-work-'));
+    const home = makeProjectTempDir('goodvibes-agent-relay-cli');
+    const work = makeProjectTempDir('goodvibes-agent-relay-cli-work');
 
     const { result, output } = await runRelayCli(['relay', 'status'], work, home);
     expect(result.exitCode).toBe(0);
@@ -40,8 +39,8 @@ describe('relay CLI command', () => {
   });
 
   test('status --output-format=json reports the honest liveVerified:false shape', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-'));
-    const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-work-'));
+    const home = makeProjectTempDir('goodvibes-agent-relay-cli');
+    const work = makeProjectTempDir('goodvibes-agent-relay-cli-work');
 
     const { result, output } = await runRelayCli(['relay', 'status', '--output-format=json'], work, home);
     expect(result.exitCode).toBe(0);
@@ -54,8 +53,8 @@ describe('relay CLI command', () => {
   });
 
   test('pair honestly refuses rather than fabricating a pairing payload', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-'));
-    const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-work-'));
+    const home = makeProjectTempDir('goodvibes-agent-relay-cli');
+    const work = makeProjectTempDir('goodvibes-agent-relay-cli-work');
 
     const { result, output } = await runRelayCli(['relay', 'pair'], work, home);
     expect(result.exitCode).toBe(1);
@@ -63,8 +62,8 @@ describe('relay CLI command', () => {
   });
 
   test('unknown relay subcommand is a usage error, not a silent success', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-'));
-    const work = mkdtempSync(join(tmpdir(), 'goodvibes-agent-relay-cli-work-'));
+    const home = makeProjectTempDir('goodvibes-agent-relay-cli');
+    const work = makeProjectTempDir('goodvibes-agent-relay-cli-work');
 
     const { result, output } = await runRelayCli(['relay', 'bogus'], work, home);
     expect(result.exitCode).toBe(2);

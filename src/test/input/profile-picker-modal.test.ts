@@ -2,20 +2,19 @@
  * Tests for ProfilePickerModal state class.
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, existsSync } from 'fs';
+import { rmSync, existsSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { ProfilePickerModal } from '../../input/profile-picker-modal.ts';
 import { ProfileManager } from '@pellux/goodvibes-sdk/platform/profiles';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-prof-picker-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-prof-picker-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

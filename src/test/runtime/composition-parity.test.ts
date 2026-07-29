@@ -21,8 +21,7 @@
  *     same subscribe() pipeline an in-process set() uses, with no restart.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
@@ -34,6 +33,7 @@ import {
   type RuntimeServices,
 } from '../../runtime/services.ts';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('composition parity: append-only sweep + live config watch', () => {
   let root = '';
@@ -44,7 +44,7 @@ describe('composition parity: append-only sweep + live config watch', () => {
   });
 
   function makeRoots(): { workingDir: string; homeDir: string; configDir: string } {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-composition-parity-'));
+    root = makeProjectTempDir('goodvibes-agent-composition-parity');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     const configDir = join(homeDir, '.goodvibes', 'agent');
@@ -200,7 +200,7 @@ describe('composition parity: live model discovery refreshes by default, and cal
   }
 
   test('createRuntimeServices without the opt-in starts no discovery sweep', () => {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-model-discovery-'));
+    root = makeProjectTempDir('goodvibes-agent-model-discovery');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     const configDir = join(homeDir, '.goodvibes', 'agent');
@@ -247,7 +247,7 @@ describe('composition parity: live model discovery refreshes by default, and cal
     } as typeof real;
     try {
       const build = (mode: ModelDiscoveryMode | undefined): void => {
-        const homeDir = mkdtempSync(join(tmpdir(), 'gv-discovery-'));
+        const homeDir = makeProjectTempDir('gv-discovery');
         const workingDir = join(homeDir, 'workspace');
         mkdirSync(workingDir, { recursive: true });
         createRuntimeServices({
@@ -283,7 +283,7 @@ describe('composition parity: the trigger family is composed, not just importabl
   });
 
   function build(): RuntimeServices {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-triggers-'));
+    root = makeProjectTempDir('goodvibes-agent-triggers');
     const workingDir = join(root, 'workspace');
     const homeDir = join(root, 'home');
     mkdirSync(workingDir, { recursive: true });

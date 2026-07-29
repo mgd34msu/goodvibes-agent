@@ -1,7 +1,6 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
@@ -9,9 +8,10 @@ import {
   buildAgentWorkspaceChannelTriage,
   formatAgentWorkspaceChannelTriage,
 } from '../../input/agent-workspace-channel-triage.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function writeTokenHome(): string {
-  const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-triage-token-'));
+  const home = makeProjectTempDir('goodvibes-agent-triage-token');
   const tokenDir = join(home, '.goodvibes', 'daemon');
   mkdirSync(tokenDir, { recursive: true });
   writeFileSync(join(tokenDir, 'operator-tokens.json'), JSON.stringify({ token: 'route-token-redacted' }));
@@ -200,7 +200,7 @@ describe('agent workspace channel triage — honest inbound attribution', () => 
   });
 
   test('connected host without an operator token shows "unknown principal" without a guess', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-triage-no-token-'));
+    const home = makeProjectTempDir('goodvibes-agent-triage-no-token');
     const context = triageContext(home);
 
     const triage = await withMockFetch(async (input) => {

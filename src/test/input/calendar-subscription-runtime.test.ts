@@ -8,21 +8,20 @@
  * delete guard on subscribed ids, and the honest import report.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FeedFetcher, FeedFetchResult } from '@pellux/goodvibes-sdk/platform/calendar';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { runCalendarSubscriptionCommand } from '../../input/commands/calendar-subscription-runtime.ts';
 import { runCalendarRuntimeCommand } from '../../input/commands/calendar-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const ICS = 'BEGIN:VCALENDAR\r\nX-WR-CALNAME:Feed A\r\nBEGIN:VEVENT\r\nUID:e1\r\nSUMMARY:Standup\r\nDTSTART:20260706T090000Z\r\nEND:VEVENT\r\nEND:VCALENDAR';
 const SECRET_URL = 'https://cal.example/ical/supersecrettoken/basic.ics';
 
 const dirs: string[] = [];
 function tmpRoot(): string {
-  const dir = join(tmpdir(), `gv-cal-verb-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-cal-verb-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   dirs.push(dir);
   return dir;
 }

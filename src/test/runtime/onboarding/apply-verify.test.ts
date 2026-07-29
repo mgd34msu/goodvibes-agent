@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
@@ -17,6 +16,7 @@ import {
   readOnboardingCheckMarker,
   verifyOnboardingRequest,
 } from '../../../runtime/onboarding/index.ts';
+import { makeProjectTempDir } from '../../helpers/project-temp.ts';
 
 describe('onboarding apply and verify helpers', () => {
   let root: string;
@@ -24,7 +24,7 @@ describe('onboarding apply and verify helpers', () => {
   let shellPaths: ReturnType<typeof createShellPathService>;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'gv-onboarding-apply-'));
+    root = makeProjectTempDir('gv-onboarding-apply');
     shellPaths = createShellPathService({
       workingDirectory: join(root, 'workspace'),
       homeDirectory: join(root, 'home'),

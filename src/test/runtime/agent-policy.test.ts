@@ -1,6 +1,6 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -14,6 +14,7 @@ import {
 } from '../../tools/agent-tool-policy-guard.ts';
 import { operatorMethodCatalogStatus } from '../../tools/agent-harness-operator-methods.ts';
 import { createAgentOperatorMethodTool } from '../../tools/agent-operator-method-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('Agent user-first autonomy policy', () => {
   let root = '';
@@ -24,7 +25,7 @@ describe('Agent user-first autonomy policy', () => {
   });
 
   function makeRuntimeServices() {
-    root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
+    root = makeProjectTempDir('gv-agent-policy');
     return createRuntimeServices({
       // Opt out: this process does not outlive the unawaited sweep.
       modelDiscovery: 'skip',
@@ -98,6 +99,11 @@ describe('Agent user-first autonomy policy', () => {
   });
 
   test('generic operator method bridge previews and confirmation-gates write routes', async () => {
+    // Not migrated to makeProjectTempDir: `root` is empty for this specific
+    // test (makeRuntimeServices() is never called here), so `tmpdir()` is
+    // genuinely reached — but every call below is dryRun:true or a write
+    // route that stops at "confirmationRequired" before executing, so
+    // nothing is ever written under this homeDirectory.
     const tool = createAgentOperatorMethodTool(
       { homeDirectory: root || tmpdir() } as never,
       {} as never,
@@ -132,7 +138,7 @@ describe('Agent user-first autonomy policy', () => {
   });
 
   test('generic operator method bridge certifies service repair receipts', async () => {
-    root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
+    root = makeProjectTempDir('gv-agent-policy');
     mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
     writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'service-repair-token' }));
 
@@ -207,7 +213,7 @@ describe('Agent user-first autonomy policy', () => {
   });
 
   test('generic operator method bridge recommends service lifecycle actions from status receipts', async () => {
-    root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
+    root = makeProjectTempDir('gv-agent-policy');
     mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
     writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'service-status-token' }));
 
@@ -277,7 +283,7 @@ describe('Agent user-first autonomy policy', () => {
   });
 
   test('generic operator method bridge certifies watcher receipts', async () => {
-    root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
+    root = makeProjectTempDir('gv-agent-policy');
     mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
     writeFileSync(join(root, '.goodvibes', 'daemon', 'operator-tokens.json'), JSON.stringify({ token: 'watcher-receipt-token' }));
 

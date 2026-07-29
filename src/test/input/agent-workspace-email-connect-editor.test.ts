@@ -9,8 +9,7 @@
  * email-service.test.ts's fake-TCP-server tests).
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { CommandContext } from '../../input/command-registry.ts';
@@ -20,12 +19,12 @@ import {
   type AgentWorkspaceEmailConnectEditorHost,
 } from '../../input/agent-workspace-email-connect-editor.ts';
 import type { AgentWorkspaceLocalEditor } from '../../input/agent-workspace-types.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const RAW_PASSWORD = 'super-secret-mailbox-password';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-email-wizard-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-email-wizard-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

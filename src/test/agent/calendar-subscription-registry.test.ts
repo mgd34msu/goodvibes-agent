@@ -9,11 +9,12 @@
  * merged views are read-only + source-labeled, and unsubscribe clears the secret.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FeedFetcher, FeedFetchResult } from '@pellux/goodvibes-sdk/platform/calendar';
 import { CalendarSubscriptionRegistry, type SubscriptionSecretStore } from '../../agent/calendar-subscription-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const ICS = [
   'BEGIN:VCALENDAR',
@@ -35,8 +36,7 @@ const ICS = [
 
 const dirs: string[] = [];
 function tmpStore(): string {
-  const dir = join(tmpdir(), `gv-cal-sub-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-cal-sub-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   dirs.push(dir);
   return join(dir, 'subscriptions.json');
 }

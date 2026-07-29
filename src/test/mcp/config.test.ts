@@ -1,14 +1,14 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { join } from 'path';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
-import { tmpdir } from 'os';
 import { loadMcpConfig } from '@pellux/goodvibes-sdk/platform/mcp';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('loadMcpConfig', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = join(tmpdir(), `mcp-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tmpDir = makeProjectTempDir(`mcp-config-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     mkdirSync(join(tmpDir, '.goodvibes'), { recursive: true });
   });
 

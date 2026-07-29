@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentSkillRegistry, buildEnabledSkillsPrompt, evaluateAgentSkillReadiness, formatAgentSkillRequirement } from '../../agent/skill-registry.ts';
 import { renderSkillStandardMarkdown } from '../../agent/skill-standard.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempRegistry(): { readonly registry: AgentSkillRegistry; readonly paths: ReturnType<typeof createShellPathService> } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skills-'));
+  const root = makeProjectTempDir('goodvibes-agent-skills');
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   return { registry: AgentSkillRegistry.fromShellPaths(paths), paths };
 }
@@ -239,7 +239,7 @@ describe('AgentSkillRegistry', () => {
       description: 'Review visible status.',
       procedure: 'Inspect health endpoint and report warnings.',
     });
-    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-export-'));
+    const tmpDir = makeProjectTempDir('goodvibes-agent-export');
     const written = registry.exportToStandard('status-review', tmpDir);
     expect(written).toBe(join(tmpDir, 'status-review', 'SKILL.md'));
     const content = readFileSync(written, 'utf-8');
@@ -252,7 +252,7 @@ describe('AgentSkillRegistry', () => {
 
   test('exportToStandard throws for unknown skill id', () => {
     const { registry } = tempRegistry();
-    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-export-'));
+    const tmpDir = makeProjectTempDir('goodvibes-agent-export');
     expect(() => registry.exportToStandard('nonexistent', tmpDir)).toThrow('Unknown skill');
   });
 
@@ -263,7 +263,7 @@ describe('AgentSkillRegistry', () => {
       description: 'Review visible status.',
       procedure: 'Inspect health endpoint.',
     });
-    const tmpDir = mkdtempSync(join(tmpdir(), 'goodvibes-agent-export-'));
+    const tmpDir = makeProjectTempDir('goodvibes-agent-export');
     registry.exportToStandard('status-review', tmpDir);
     expect(() => registry.exportToStandard('status-review', tmpDir)).toThrow('already exists');
   });

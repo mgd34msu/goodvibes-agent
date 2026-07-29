@@ -3,9 +3,9 @@ import { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { McpServerConfig } from '@pellux/goodvibes-sdk/platform/mcp';
 import { join } from 'path';
 import { mkdirSync, writeFileSync, rmSync, existsSync } from 'fs';
-import { tmpdir } from 'os';
 import { SandboxSessionRegistry } from '@/runtime/index.ts';
 import { createHookDispatcher } from '@pellux/goodvibes-sdk/platform/hooks';
+import { makeLongLivedProjectTempDir, makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // Minimal stub MCP server script for registry tests
 const STUB_SCRIPT = /* js */ `
@@ -39,16 +39,15 @@ rl.on('line', (line) => {
 });
 `;
 
-const SANDBOX_WORKSPACE_ROOT = join(tmpdir(), `gv-mcp-registry-workspace-${process.pid}-${Date.now()}`);
-mkdirSync(SANDBOX_WORKSPACE_ROOT, { recursive: true });
-// Registered at module top level, not from inside a helper function: a hook
-// attached lazily during a run does not reliably scope to the enclosing suite.
-// This replaces a `process.on('exit', …)` handler, which `bun test` never runs.
-afterAll(() => {
-  if (existsSync(SANDBOX_WORKSPACE_ROOT)) {
-    rmSync(SANDBOX_WORKSPACE_ROOT, { recursive: true, force: true });
-  }
-});
+// Long-lived: created once here at module top level and reused by every test in
+// this file (the separate SandboxSessionRegistry instances below, and
+// createRegistry()), not per-test — so it must not go through
+// makeProjectTempDir's per-test sweep, which would delete it after the file's
+// first test finishes. Its removal is registered with the shared temp registry,
+// which the preload sweeps from a top-level afterAll; that replaces both a
+// `process.on('exit', …)` handler (never run by `bun test`) and a hand-written
+// afterAll in this file.
+const SANDBOX_WORKSPACE_ROOT = makeLongLivedProjectTempDir(`gv-mcp-registry-workspace-${process.pid}-${Date.now()}`);
 
 function stubServerConfig(name: string): McpServerConfig {
   return { name, command: 'bun', args: ['--eval', STUB_SCRIPT] };
@@ -289,7 +288,7 @@ describe('McpRegistry — connectAll from file', () => {
   });
 
   test('connectAll() with empty config connects nothing', async () => {
-    tmpDir = join(tmpdir(), `mcp-reg-${Date.now()}`);
+    tmpDir = makeProjectTempDir(`mcp-reg-${Date.now()}`);
     mkdirSync(join(tmpDir, '.goodvibes'), { recursive: true });
     writeFileSync(join(tmpDir, '.goodvibes', 'mcp.json'), JSON.stringify({ servers: [] }));
     registry = createRegistry();
@@ -298,8 +297,7 @@ describe('McpRegistry — connectAll from file', () => {
   });
 
   test('connectAll() with missing config file connects nothing', async () => {
-    tmpDir = join(tmpdir(), `mcp-reg-${Date.now()}`);
-    mkdirSync(tmpDir, { recursive: true });
+    tmpDir = makeProjectTempDir(`mcp-reg-${Date.now()}`);
     registry = createRegistry();
     await registry.connectAll({ workingDirectory: tmpDir, homeDirectory: tmpDir });
     expect(registry.serverNames).toHaveLength(0);

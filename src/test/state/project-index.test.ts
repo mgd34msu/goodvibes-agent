@@ -1,17 +1,16 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { mkdtempSync } from 'fs';
-import { tmpdir } from 'os';
 import { ProjectIndex } from '@pellux/goodvibes-sdk/platform/state';
 import { getTestProjectIndex, resetTestProjectIndexes } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'gv-pi-test-'));
+  return makeProjectTempDir('gv-pi-test');
 }
 
 // ---------------------------------------------------------------------------
@@ -268,7 +267,7 @@ describe('ProjectIndex.dispose', () => {
   let index: ProjectIndex;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'gv-pi-dispose-'));
+    tmpDir = makeProjectTempDir('gv-pi-dispose');
     resetTestProjectIndexes();
     index = getTestProjectIndex(tmpDir);
   });
@@ -308,7 +307,7 @@ describe('ProjectIndex normalizePath (absolute paths)', () => {
   let index: ProjectIndex;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'gv-pi-norm-'));
+    tmpDir = makeProjectTempDir('gv-pi-norm');
     resetTestProjectIndexes();
     index = getTestProjectIndex(tmpDir);
   });
@@ -357,8 +356,8 @@ describe('ProjectIndex baseDir ownership', () => {
   });
 
   test('returns separate instances for different baseDir values', () => {
-    const dir1 = mkdtempSync(join(tmpdir(), 'gv-pi-dir1-'));
-    const dir2 = mkdtempSync(join(tmpdir(), 'gv-pi-dir2-'));
+    const dir1 = makeProjectTempDir('gv-pi-dir1');
+    const dir2 = makeProjectTempDir('gv-pi-dir2');
     try {
       const a = getTestProjectIndex(dir1);
       const b = getTestProjectIndex(dir2);

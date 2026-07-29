@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { buildSetupReviewSnapshot } from '../../input/commands/local-setup-review.ts';
 import { createShellPathService } from '../../runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeSetupReviewContext(root: string): CommandContext {
   const shellPaths = createShellPathService({
@@ -54,7 +54,7 @@ function makeSetupReviewContext(root: string): CommandContext {
 
 describe('local setup review', () => {
   test('does not treat absent host hooks or remote runners as Agent setup gaps', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-setup-review-'));
+    const root = makeProjectTempDir('goodvibes-agent-setup-review');
     try {
       const snapshot = await buildSetupReviewSnapshot(makeSetupReviewContext(root));
       const areas = snapshot.issues.map((issue) => issue.area);

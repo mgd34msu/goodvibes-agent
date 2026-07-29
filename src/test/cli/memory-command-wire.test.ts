@@ -9,9 +9,8 @@
  *    run against the two different fixtures, lands in two different stores.
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager as SdkConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
@@ -23,6 +22,7 @@ import { createRuntimeServices, type RuntimeServices } from '../../runtime/servi
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const TEST_TOKEN = 'memory-cli-wire-token-321';
 
@@ -75,7 +75,7 @@ describe('memory CLI — daemon up routes over the wire', () => {
   let port: number;
 
   beforeEach(async () => {
-    root = mkdtempSync(join(tmpdir(), 'gv-memory-cli-wire-'));
+    root = makeProjectTempDir('gv-memory-cli-wire');
     workingDir = join(root, 'workspace');
     homeDir = join(root, 'home');
     mkdirSync(workingDir, { recursive: true });

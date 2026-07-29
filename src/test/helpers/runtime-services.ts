@@ -50,7 +50,7 @@ import { ScheduleManager, TriggerManager, WorkflowManager } from '@pellux/goodvi
 import { VoiceProviderRegistry } from '@pellux/goodvibes-sdk/platform/voice';
 import { WebSearchProviderRegistry } from '@pellux/goodvibes-sdk/platform/web-search';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
-import { makeProjectTempDir } from './project-temp.ts';
+import { makeLongLivedProjectTempDir } from './project-temp.ts';
 import { buildTestModelDefinition, patchTestProviderRegistry } from './test-managers.ts';
 
 type IntelligenceTestRoots = {
@@ -81,7 +81,14 @@ let agentExecutorForTests: AgentExecutor | null = null;
 function getTestRoots(): IntelligenceTestRoots {
   if (testRoots) return testRoots;
 
-  const root = makeProjectTempDir('gv-test-runtime');
+  // Long-lived: this root is memoized once (the `if (testRoots) return
+  // testRoots` guard above) and reused by every one of the ~17 test files
+  // that call getTestRuntimeServices()/getTestArchetypeLoader()/etc. across
+  // the whole suite run, not just whichever file happens to create it
+  // first. It must not go through makeProjectTempDir's per-test sweep,
+  // which would delete it after the very first test that touches it and
+  // break every later file still relying on it existing.
+  const root = makeLongLivedProjectTempDir('gv-test-runtime');
   const workingDir = join(root, 'intelligence-workspace');
   const homeDir = join(root, 'intelligence-home');
   mkdirSync(workingDir, { recursive: true });
@@ -98,10 +105,10 @@ function getTestRoots(): IntelligenceTestRoots {
     }),
   };
 
-  // No cleanup registration here: `root` came from makeProjectTempDir, which
-  // already tracked it in the shared temp registry that the preload's top-level
-  // afterAll sweeps. This used to register a second `process.on('exit', …)`
-  // handler, which `bun test` never runs.
+  // No cleanup registration here: `root` came from makeLongLivedProjectTempDir,
+  // which already tracked it in the shared temp registry that the preload's
+  // top-level afterAll sweeps. This used to register a second
+  // `process.on('exit', …)` handler, which `bun test` never runs.
 
   return testRoots;
 }

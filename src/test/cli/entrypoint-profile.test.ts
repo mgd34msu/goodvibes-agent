@@ -1,12 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { createAgentRuntimeProfile, setAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
 import { resolveShellEntrypointOwnership } from '../../cli/entrypoint.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeRoots() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-entrypoint-profile-'));
+  const root = makeProjectTempDir('goodvibes-agent-entrypoint-profile');
   return {
     defaultWorkingDirectory: root,
     homeDirectory: root,

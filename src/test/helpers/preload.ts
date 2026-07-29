@@ -6,10 +6,11 @@
  * what is genuinely missing; do NOT mock real platform APIs here.
  */
 
-import { afterAll, beforeAll, beforeEach } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach } from 'bun:test';
 import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { sweepCreatedProjectTempDirs } from './project-temp.ts';
 import { sweepTrackedTempDirs } from './temp-registry.ts';
 
 // Ensure fetch is available as a global (bun provides it; this is a no-op in
@@ -18,6 +19,18 @@ if (typeof globalThis.fetch === 'undefined') {
   // @ts-ignore — bun built-in, not in all type-def bundles
   globalThis.fetch = Bun.fetch;
 }
+
+// The real per-test cleanup mechanism for makeProjectTempDir (see that
+// function's doc comment in project-temp.ts for why this must be registered
+// exactly once, here, rather than lazily inside the helper itself). Preload
+// runs before any test file is registered, so this attaches as a true
+// global hook — confirmed empirically to fire after every test in every
+// file, and to fire AFTER a test file's own local afterEach hooks
+// (inner-to-outer, then this one last), which is what makes it safe to run
+// the actual directory removal here.
+afterEach(() => {
+  sweepCreatedProjectTempDirs();
+});
 
 /**
  * ONE temp sandbox for the whole test process, removed when the run ends.
@@ -38,19 +51,23 @@ if (typeof globalThis.fetch === 'undefined') {
  * made inside the SDK and other installed packages.
  *
  * ACCEPTED COST, recorded so the next person meets it here rather than
- * discovering it: the sandbox is emptied at the end of the run, not kept small
- * during it. A full green suite creates roughly 1,208 directories inside it
- * that the test which made them never removes. Nothing survives the run — the
- * whole sandbox goes in the `afterAll` below, and a killed run is reclaimed by
- * the age-gated sweep — so the number is BOUNDED, not small.
+ * discovering it: the sandbox is emptied at the end of the run, not kept empty
+ * during it. Whatever a test creates by calling `tmpdir()` directly and never
+ * removes stays inside the sandbox until the `afterAll` below. Nothing survives
+ * the run — the whole sandbox goes there, and a killed run is reclaimed by the
+ * age-gated sweep — so the residual is BOUNDED, not necessarily small.
  *
- * Reducing it means editing the ~321 test files that build temp paths by hand,
- * and that was declined deliberately: two earlier attempts at this leak were
- * declared fixed after reading cleanup code rather than counting directories,
- * and both were wrong. A file-by-file change of that size is the same shape of
- * risk against a defect the sandbox already contains. If the count ever starts
- * to matter — an inode ceiling on a busy host, a run that cannot finish —
- * measure it first with a before/after count, not by inspecting hooks.
+ * The second, narrower mechanism cuts into that residual rather than replacing
+ * this one: test files that were migrated onto `makeProjectTempDir` get their
+ * directory removed after each individual test by the `afterEach` above. The
+ * two are complementary and the sandbox stays the base, because it is the only
+ * one that also captures `tmpdir()` calls made inside the SDK and other
+ * installed packages, which no in-repo helper can see. If the residual ever
+ * starts to matter — an inode ceiling on a busy host, a run that cannot
+ * finish — measure it with a before/after count (see
+ * GOODVIBES_TEST_KEEP_TMP_SANDBOX below), not by inspecting hooks: two earlier
+ * attempts at this leak were declared fixed after reading cleanup code rather
+ * than counting directories, and both were wrong.
  *
  * `afterAll` registered at preload top level is the hook bun actually runs:
  * once, after the last test file, whether the run passed or failed (all three
@@ -142,5 +159,9 @@ afterAll(() => {
  * arranged its own isolation is not overridden.
  */
 if (!process.env['GOODVIBES_DAEMON_HOME']?.trim()) {
+  // Built from tmpdir() AFTER the redirect above, so it lands inside the
+  // per-run sandbox and goes away with it. Deliberately NOT one of the
+  // per-test directories: it must survive every test in every file for the
+  // whole run, not just the first test to touch it.
   process.env['GOODVIBES_DAEMON_HOME'] = mkdtempSync(join(tmpdir(), 'goodvibes-agent-test-daemon-home-'));
 }

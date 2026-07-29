@@ -17,7 +17,6 @@
 import { describe, test, expect, afterEach, spyOn } from 'bun:test';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { deriveFeatureStates } from '@pellux/goodvibes-sdk/platform/runtime/state';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
@@ -31,6 +30,7 @@ import {
   featureAnnouncementsPath,
   type FeatureAnnouncement,
 } from '@pellux/goodvibes-sdk/platform/runtime/feature-announcements';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const MIGRATION_RECEIPT_PREFIX =
   'Settings migrated: legacy featureFlags entries now live on their domain settings keys';
@@ -38,7 +38,7 @@ const MIGRATION_RECEIPT_PREFIX =
 const roots: string[] = [];
 
 function makeConfigDir(): string {
-  const root = join(tmpdir(), `gv-feature-receipts-${process.pid}-${Math.random().toString(36).slice(2)}`);
+  const root = makeProjectTempDir(`gv-feature-receipts-${process.pid}-${Math.random().toString(36).slice(2)}`);
   const configDir = join(root, 'home', '.goodvibes', 'agent');
   mkdirSync(configDir, { recursive: true });
   roots.push(root);

@@ -1,12 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import { AgentCalendarRegistry } from '../../agent/calendar-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempRegistry(): AgentCalendarRegistry {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-calendar-'));
+  const root = makeProjectTempDir('goodvibes-agent-calendar');
   const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   return AgentCalendarRegistry.fromShellPaths(shellPaths);
 }
@@ -200,7 +199,7 @@ describe('AgentCalendarRegistry', () => {
   test('exportIcs with destPath writes file and refuses to overwrite', () => {
     const reg = tempRegistry();
     reg.create({ title: 'Export Guard', start: '2025-07-01' });
-    const dir = mkdtempSync(join(tmpdir(), 'cal-export-test-'));
+    const dir = makeProjectTempDir('cal-export-test');
     const destPath = join(dir, 'out.ics');
     // First write: should succeed
     reg.exportIcs(undefined, destPath);

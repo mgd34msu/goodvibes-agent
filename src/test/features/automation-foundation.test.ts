@@ -1,14 +1,13 @@
 import { describe, test, expect } from 'bun:test';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { CONFIG_SCHEMA, DEFAULT_CONFIG, isValidConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { FEATURE_SETTINGS } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-automation-foundation-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-automation-foundation-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

@@ -1,7 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { RuntimeEventBus, createEventEnvelope } from '@/runtime/index.ts';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
@@ -9,6 +6,7 @@ import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createDomainDispatch } from '../../runtime/store/index.ts';
 import { registerAgentRuntimeEvents } from '../../runtime/agent-runtime-events.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const flushMicrotasks = async (rounds = 6) => {
   for (let i = 0; i < rounds; i += 1) await Promise.resolve();
@@ -29,7 +27,7 @@ const flushMicrotasks = async (rounds = 6) => {
  */
 describe('registerAgentRuntimeEvents — AGENT_FAILED typed turn-budget outcome (SDK 1.8.0)', () => {
   function makeHarness() {
-    const configDir = mkdtempSync(join(tmpdir(), 'gv-turn-budget-'));
+    const configDir = makeProjectTempDir('gv-turn-budget');
     const configManager = new ConfigManager({ surfaceRoot: 'tui', configDir });
     const agentMessageBus = new AgentMessageBus();
     const agentManager = new AgentManager({

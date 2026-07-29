@@ -1,8 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { InputHistory } from '../../input/input-history.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -23,8 +23,7 @@ function makeHistory(path?: string): InputHistory {
 // ---------------------------------------------------------------------------
 
 beforeEach(() => {
-  tmpDir = join(tmpdir(), `gv-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(tmpDir, { recursive: true });
+  tmpDir = makeProjectTempDir(`gv-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 });
 
 afterEach(() => {

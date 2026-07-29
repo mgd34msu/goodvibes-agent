@@ -1,18 +1,18 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerVibeRuntimeCommands } from '../../input/commands/vibe-runtime.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function commandHarness(): {
   readonly registry: CommandRegistry;
   readonly out: string[];
   readonly ctx: CommandContext;
 } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-vibe-command-'));
+  const root = makeProjectTempDir('goodvibes-agent-vibe-command');
   const registry = new CommandRegistry();
   registerVibeRuntimeCommands(registry);
   const out: string[] = [];

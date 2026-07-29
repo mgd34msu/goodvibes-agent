@@ -9,10 +9,9 @@
  * local fallback from inside the transport itself).
  */
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { createServer as createHttpServer } from 'node:http';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
@@ -24,6 +23,7 @@ import { createRuntimeServices, type RuntimeServices } from '../../runtime/servi
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createMemorySpineRestTransport, type MemorySpineRestTransportOptions } from '../../runtime/memory-spine-rest-transport.ts';
 import type { SessionRegistrationConnection } from '../../agent/session-registration.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * `createMemorySpineRestTransport` returns `MemoryTransport`, whose EXTENDED verbs
@@ -75,7 +75,7 @@ describe('memory-spine REST transport against a real daemon', () => {
   let connection: SessionRegistrationConnection;
 
   beforeEach(async () => {
-    tempRoot = mkdtempSync(join(tmpdir(), 'gv-memory-spine-transport-'));
+    tempRoot = makeProjectTempDir('gv-memory-spine-transport');
     const workingDir = join(tempRoot, 'workspace');
     const homeDir = join(tempRoot, 'home');
     mkdirSync(workingDir, { recursive: true });

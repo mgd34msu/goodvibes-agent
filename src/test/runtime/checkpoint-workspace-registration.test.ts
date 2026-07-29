@@ -11,8 +11,7 @@
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createEventEnvelope } from '@pellux/goodvibes-transport-core';
@@ -22,11 +21,14 @@ import { createRuntimeServices, type RuntimeServices } from '../../runtime/servi
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createWorkspaceRegistrationStore, registerWorkspaceForCheckpoints } from '../../config/workspace-registration.ts';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const tempDirs: string[] = [];
 
 function makeTempDir(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), prefix));
+  // Callers pass a trailing '-' (historical mkdtemp-prefix convention);
+  // makeProjectTempDir appends its own separator, so strip it here once.
+  const dir = makeProjectTempDir(prefix.replace(/-+$/, ''));
   tempDirs.push(dir);
   return dir;
 }
@@ -47,13 +49,13 @@ async function buildServices(opts: { registered: boolean; workingDir?: string; h
   const homeDir = opts.homeDir ?? makeTempDir('gv-checkpoint-reg-home-');
   const configDir = makeTempDir('gv-checkpoint-reg-config-');
   mkdirSync(configDir, { recursive: true });
-  // `run-tests.ts` sets TMPDIR to a directory INSIDE this repo, so `workingDir`
-  // (built from `os.tmpdir()`) resolves inside the real goodvibes-agent git
-  // tree. With the SDK's `preferGitRoot` default (true), the checkpoint
-  // manager would walk up and resolve the REAL repo root as the snapshot
-  // root — cross-test pollution at best, real commits into this repo's own
-  // `.goodvibes/checkpoints` at worst. `preferGitRoot: false` here keeps every
-  // case strictly scoped to its own isolated `workingDir`.
+  // `makeTempDir` (backed by `makeProjectTempDir`) places `workingDir` under
+  // this repo's own `.test-tmp/`, which is itself INSIDE the real
+  // goodvibes-agent git tree. With the SDK's `preferGitRoot` default (true),
+  // the checkpoint manager would walk up and resolve the REAL repo root as
+  // the snapshot root — cross-test pollution at best, real commits into this
+  // repo's own `.goodvibes/checkpoints` at worst. `preferGitRoot: false` here
+  // keeps every case strictly scoped to its own isolated `workingDir`.
   writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ checkpoints: { preferGitRoot: false } }));
 
   if (opts.registered) {

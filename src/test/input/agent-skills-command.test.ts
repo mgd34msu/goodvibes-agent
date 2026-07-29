@@ -1,18 +1,18 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerAgentSkillsRuntimeCommands } from '../../input/commands/agent-skills-runtime.ts';
 import { registerBuiltinCommands } from '../../input/commands.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function commandHarness(): {
   readonly registry: CommandRegistry;
   readonly out: string[];
   readonly ctx: CommandContext;
 } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skill-command-'));
+  const root = makeProjectTempDir('goodvibes-agent-skill-command');
   const registry = new CommandRegistry();
   registerAgentSkillsRuntimeCommands(registry);
   const out: string[] = [];
@@ -179,7 +179,7 @@ describe('/agent-skills command', () => {
   });
 
   test('/skills local routes to Agent-local skills through the Agent command registry', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skill-local-alias-'));
+    const root = makeProjectTempDir('goodvibes-agent-skill-local-alias');
     const registry = new CommandRegistry();
     registerBuiltinCommands(registry);
     const out: string[] = [];

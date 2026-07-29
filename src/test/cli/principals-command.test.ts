@@ -1,17 +1,17 @@
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { handlePrincipalsCommand } from '../../cli/principals-command.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
 function runtime(argv: readonly string[], withToken = true) {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-principals-cli-'));
+  const root = makeProjectTempDir('gv-agent-principals-cli');
   roots.push(root);
   const workingDirectory = join(root, 'workspace');
   const homeDirectory = join(root, 'home');

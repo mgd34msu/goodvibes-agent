@@ -1,14 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, rmSync, existsSync } from 'fs';
+import { rmSync, existsSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { UIFactory } from '../../renderer/ui-factory.ts';
 import { getDisplayWidth } from '../../utils/terminal-width.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-config-preview-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-config-preview-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

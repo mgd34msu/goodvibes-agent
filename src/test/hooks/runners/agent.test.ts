@@ -43,6 +43,13 @@ function makeHook(overrides: Partial<HookDefinition> = {}): HookDefinition {
 }
 
 beforeEach(() => {
+  // Not migrated to makeProjectTempDir: this path is never materialized on
+  // disk. ConfigManager({ configDir }) only writes lazily, on the first
+  // .set() call or when constructed WITH a homeDir (which eagerly ensures
+  // the shared-tier settings file) — this construction passes neither, and
+  // no test in this file ever calls configManager.set(). Confirmed by
+  // reading ConfigManager's constructor/load() (both read-only absent a
+  // homeDir) and grepping this file for `.set(` (zero matches).
   const configDir = join(tmpdir(), `gv-agent-runner-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   agentManager = new AgentManager({
     executor: testAgentExecutor,

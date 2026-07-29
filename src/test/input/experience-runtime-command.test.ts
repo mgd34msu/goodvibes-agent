@@ -1,6 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFileSync } from 'node:fs';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
@@ -8,6 +6,7 @@ import { registerExperienceRuntimeCommands } from '../../input/commands/experien
 import { registerHealthRuntimeCommands } from '../../input/commands/health-runtime.ts';
 import { registerLocalRuntimeCommands } from '../../input/commands/local-runtime.ts';
 import { registerProviderAccountsRuntimeCommands } from '../../input/commands/provider-accounts-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeContext(out: string[], opened: string[]): CommandContext {
   return {
@@ -150,7 +149,8 @@ describe('experience runtime commands', () => {
     } as unknown as CommandContext;
 
     // Use a path that definitely does not exist
-    await command!.handler(['bundle', 'inspect', join(tmpdir(), 'gv-nonexistent-bundle-xyz.json')], contextWithShell);
+    const missingBundlePath = join(makeProjectTempDir('gv-bundle-inspect'), 'gv-nonexistent-bundle-xyz.json');
+    await command!.handler(['bundle', 'inspect', missingBundlePath], contextWithShell);
 
     expect(out.join('\n')).toContain('File not found');
   });
@@ -160,7 +160,7 @@ describe('experience runtime commands', () => {
     registerExperienceRuntimeCommands(registry);
     const command = registry.get('voice');
     const out: string[] = [];
-    const tmpDir = mkdtempSync(join(tmpdir(), 'gv-voice-test-'));
+    const tmpDir = makeProjectTempDir('gv-voice-test');
     const bundlePath = join(tmpDir, 'bad-bundle.json');
     writeFileSync(bundlePath, 'not valid json {{{');
 

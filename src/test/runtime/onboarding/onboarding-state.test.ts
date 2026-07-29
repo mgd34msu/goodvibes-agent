@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
   readOnboardingCheckMarker,
@@ -14,13 +13,14 @@ import {
   type OnboardingPhase,
 } from '../../../runtime/onboarding/onboarding-state.ts';
 import type { SetupPlanItem, SetupPlanStatus } from '../../../tools/agent-harness-setup-posture-types.ts';
+import { makeProjectTempDir } from '../../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function createShellPaths() {
-  const root = join(tmpdir(), `gv-onboarding-state-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const root = makeProjectTempDir(`gv-onboarding-state-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   return createShellPathService({
     workingDirectory: join(root, 'workspace'),
     homeDirectory: join(root, 'home'),

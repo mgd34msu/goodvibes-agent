@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { saveDraft } from '../../agent/channel-draft.ts';
 import { channelDraftsSummary, channelDraftSaveHandoff } from '../../tools/agent-harness-comms.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // A webhook URL can embed an authentication token in its path, so it must never
 // be returned raw in any structured tool payload — only the formatted string is
@@ -21,7 +21,7 @@ function makeContext(shellPaths: ReturnType<typeof makeShellPaths>): CommandCont
 
 describe('agent-harness-comms webhook redaction', () => {
   test('channel_drafts list never returns a raw webhook', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-comms-'));
+    const root = makeProjectTempDir('gv-comms');
     try {
       const shellPaths = makeShellPaths(root);
       saveDraft(shellPaths, { message: 'hello', webhook: WEBHOOK });
@@ -38,7 +38,7 @@ describe('agent-harness-comms webhook redaction', () => {
   });
 
   test('channel_drafts single read redacts the webhook', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-comms-'));
+    const root = makeProjectTempDir('gv-comms');
     try {
       const shellPaths = makeShellPaths(root);
       const saved = saveDraft(shellPaths, { message: 'hello', webhook: WEBHOOK });
@@ -52,7 +52,7 @@ describe('agent-harness-comms webhook redaction', () => {
   });
 
   test('channel_draft_save echoes a redacted webhook', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-comms-'));
+    const root = makeProjectTempDir('gv-comms');
     try {
       const shellPaths = makeShellPaths(root);
       const result = channelDraftSaveHandoff(makeContext(shellPaths), {

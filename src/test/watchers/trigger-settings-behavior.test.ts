@@ -20,8 +20,7 @@
  * then invoked to prove it performs the real housekeeping/supervision work.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   loadTriggerSnapshot,
@@ -39,13 +38,14 @@ import {
   type TriggerStreamHost,
   type TriggerValue,
 } from '@pellux/goodvibes-sdk/platform/triggers';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ─── Temp stores ──────────────────────────────────────────────────────────────
 
 const tempRoots: string[] = [];
 
 function tempStorePath(): string {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-trigger-settings-'));
+  const root = makeProjectTempDir('gv-agent-trigger-settings');
   tempRoots.push(root);
   return join(root, 'triggers.json');
 }

@@ -6,15 +6,15 @@
  */
 import { afterEach, describe, expect, test } from 'bun:test';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   extractTarGzEntry,
   resolveAgentBinaryAssetName,
   resolveSqliteVecArchive,
 } from '../../runtime/release-artifacts.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 function scratch(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'gv-agent-release-artifacts-'));
+  const dir = makeProjectTempDir('gv-agent-release-artifacts');
   roots.push(dir);
   return dir;
 }

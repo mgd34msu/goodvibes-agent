@@ -1,12 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { AgentPersonaRegistry, buildActivePersonaPrompt } from '../../agent/persona-registry.ts';
 import { createShellPathService } from '@/runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempRegistry(): { readonly registry: AgentPersonaRegistry; readonly paths: ReturnType<typeof createShellPathService> } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-personas-'));
+  const root = makeProjectTempDir('goodvibes-agent-personas');
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   return { registry: AgentPersonaRegistry.fromShellPaths(paths), paths };
 }

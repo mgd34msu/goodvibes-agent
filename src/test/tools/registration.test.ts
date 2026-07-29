@@ -1,6 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
@@ -18,10 +17,11 @@ import { createWorkflowServices } from '@pellux/goodvibes-sdk/platform/tools';
 import { compactRegisteredToolDefinitions } from '../../tools/tool-definition-compaction.ts';
 import { installAgentToolPolicyGuard } from '../../tools/agent-tool-policy-guard.ts';
 import { installToolExecutionSafetyGuard } from '../../tools/tool-execution-safety.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function registerTools(registry: ToolRegistry): string {
   const services = createTestManagers();
-  const workingDirectory = mkdtempSync(join(tmpdir(), 'gv-tool-registry-'));
+  const workingDirectory = makeProjectTempDir('gv-tool-registry');
   const agentManager = new AgentManager({
     messageBus: new AgentMessageBus(),
     configManager: services.configManager,

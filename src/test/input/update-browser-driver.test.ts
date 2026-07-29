@@ -1,7 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import {
@@ -12,6 +11,7 @@ import {
 } from '../../input/commands/update-runtime.ts';
 import { BROWSER_DRIVER_ARCHIVE_NAME, BROWSER_DRIVER_DIR_NAME } from '../../runtime/release-artifacts.ts';
 import type { UpdateFetchLike } from '../../runtime/update-check.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /**
  * The update path's obligation to the browser driver.
@@ -27,7 +27,7 @@ import type { UpdateFetchLike } from '../../runtime/update-check.ts';
 
 const scratchDirs: string[] = [];
 function scratch(prefix: string): string {
-  const dir = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  const dir = makeProjectTempDir(`${prefix}`);
   scratchDirs.push(dir);
   return dir;
 }

@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { handleFleetCommand } from '../../cli/fleet-command.ts';
 import type { CliCommandRuntime } from '../../cli/management.ts';
 import { parseGoodVibesCli } from '../../cli/parser.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
 function runtime(args: readonly string[]): CliCommandRuntime {
-  const root = mkdtempSync(join(tmpdir(), 'gv-agent-fleet-cli-'));
+  const root = makeProjectTempDir('gv-agent-fleet-cli');
   roots.push(root);
   const workingDirectory = join(root, 'workspace');
   const homeDirectory = join(root, 'home');

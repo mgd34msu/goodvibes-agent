@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import { readAgentRuntimeProfileSelection } from '../../agent/runtime-profile.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 async function runProfilesCli(args: readonly string[], homeDirectory: string) {
   const output: string[] = [];
@@ -43,7 +43,7 @@ describe('profiles CLI command', () => {
   });
 
   test('creates, lists, shows, and deletes Agent profiles with confirmation', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-cli-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-cli');
 
     const refused = await runProfilesCli(['profiles', 'create', 'Household'], home);
     expect(refused.result.exitCode).toBe(2);
@@ -74,7 +74,7 @@ describe('profiles CLI command', () => {
   });
 
   test('returns structured json envelopes', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-json-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-json');
     const result = await runProfilesCli(['profiles', 'list', '--json'], home);
     const parsed = JSON.parse(result.output) as { ok?: unknown; kind?: unknown };
     expect(parsed.ok).toBe(true);
@@ -82,7 +82,7 @@ describe('profiles CLI command', () => {
   });
 
   test('sets shows and clears the default Agent profile with confirmation', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-default-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-default');
     await runProfilesCli(['profiles', 'create', 'Household', '--template', 'household', '--yes'], home);
 
     const refused = await runProfilesCli(['profiles', 'use', 'household'], home);
@@ -117,7 +117,7 @@ describe('profiles CLI command', () => {
   });
 
   test('lists starter templates and creates a seeded profile', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-starter-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-starter');
     const templates = await runProfilesCli(['profiles', 'templates'], home);
     expect(templates.result.exitCode).toBe(0);
     expect(templates.output).toContain('household');
@@ -139,14 +139,14 @@ describe('profiles CLI command', () => {
   });
 
   test('rejects unknown starter templates before writing profile records', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-starter-error-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-starter-error');
     const result = await runProfilesCli(['profiles', 'create', 'bad', '--template', 'unknown', '--yes'], home);
     expect(result.result.exitCode).toBe(2);
     expect(result.output).toContain('Unknown Agent starter profile template');
   });
 
   test('exports imports and applies a custom starter template through the CLI', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-custom-starter-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-custom-starter');
     const path = join(home, 'custom-starter.json');
     mkdirSync(join(home, '.goodvibes', 'agent'), { recursive: true });
     writeFileSync(join(home, '.goodvibes', 'agent', 'VIBE.md'), [
@@ -204,7 +204,7 @@ describe('profiles CLI command', () => {
   });
 
   test('creates a starter template from discovered behavior through the CLI', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-discovered-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-discovered');
     mkdirSync(join(home, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(home, '.goodvibes', 'agent', 'skills', 'briefing'), { recursive: true });
     mkdirSync(join(home, '.goodvibes', 'agent', 'routines'), { recursive: true });
@@ -244,7 +244,7 @@ describe('profiles CLI command', () => {
   });
 
   test('creates a profile directly from discovered behavior through the CLI', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-profiles-direct-discovered-'));
+    const home = makeProjectTempDir('goodvibes-agent-profiles-direct-discovered');
     mkdirSync(join(home, '.goodvibes', 'agent', 'personas'), { recursive: true });
     mkdirSync(join(home, '.goodvibes', 'agent', 'skills', 'briefing'), { recursive: true });
     mkdirSync(join(home, '.goodvibes', 'agent', 'routines'), { recursive: true });

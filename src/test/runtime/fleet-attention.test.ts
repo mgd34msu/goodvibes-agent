@@ -20,7 +20,6 @@
  */
 import { describe, test, expect, mock } from 'bun:test';
 import { existsSync, rmSync, unlinkSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
@@ -34,6 +33,7 @@ import { createArchivableFleetRegistry } from '@pellux/goodvibes-terminal-shell'
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import { approvalMetadataForRequest } from '../../runtime/bootstrap-core.ts';
 import { getTestRuntimeServices, resetTestRuntimeServices } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 /** Build a minimal AgentRecord for testing (mirrors orchestrator.test.ts's helper). */
 function makeRecord(overrides: Partial<AgentRecord> = {}): AgentRecord {
@@ -118,8 +118,8 @@ describe('fleet plane adoption', () => {
     resetTestRuntimeServices();
     const runtime = getTestRuntimeServices();
 
-    const memoryDbPath = join(tmpdir(), `fleet-attention-${randomUUID()}.db`);
-    const projectIndexRoot = join(tmpdir(), `fleet-attention-project-${randomUUID()}`);
+    const memoryDbPath = join(makeProjectTempDir('fleet-attention-db'), `fleet-attention-${randomUUID()}.db`);
+    const projectIndexRoot = makeProjectTempDir(`fleet-attention-project-${randomUUID()}`);
     const memoryStore = new MemoryStore(memoryDbPath, { embeddingRegistry: runtime.memoryEmbeddingRegistry });
     const memoryRegistry = new MemoryRegistry(memoryStore);
     const fileCache = new FileStateCache();

@@ -1,7 +1,4 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import type { ChannelDeliveryRequest } from '@pellux/goodvibes-sdk/platform/channels';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { createShellPathService } from '@/runtime/index.ts';
@@ -10,6 +7,7 @@ import {
   createAgentChannelSendTool,
   registerAgentChannelSendTool,
 } from '../../tools/agent-channel-send-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function fakeRouter(requests: ChannelDeliveryRequest[]) {
   return {
@@ -76,7 +74,7 @@ describe('agent_channel_send tool', () => {
 
   test('records a redacted receipt when shell paths are available', async () => {
     const requests: ChannelDeliveryRequest[] = [];
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-channel-tool-receipts-'));
+    const root = makeProjectTempDir('goodvibes-agent-channel-tool-receipts');
     const shellPaths = createShellPathService({ workingDirectory: root, homeDirectory: root });
     const tool = createAgentChannelSendTool(fakeRouter(requests), { shellPaths });
 

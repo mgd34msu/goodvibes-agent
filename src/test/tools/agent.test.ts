@@ -6,7 +6,6 @@ import { RuntimeEventBus } from '@/runtime/index.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { OrchestrationEvent } from '@/runtime/index.ts';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import {
   AGENT_ANALYZE_NETWORK_DENIAL_MESSAGE,
@@ -57,6 +56,7 @@ import {
   normalizeAgentToolInvocationForAgentPolicy,
   wrapAgentToolForAgentPolicy,
 } from '../../tools/agent-tool-policy-guard.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const EXPECTED_AGENT_TEMPLATES = [
   'orchestrator',
@@ -77,7 +77,7 @@ const flushMicrotasks = async () => { await Promise.resolve(); await Promise.res
 // ---------------------------------------------------------------------------
 
 function makeAgentHarness(options: { readonly guarded?: boolean } = {}) {
-  const configDir = join(tmpdir(), `gv-agent-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  const configDir = makeProjectTempDir(`gv-agent-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   const configManager = new ConfigManager({ surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT, configDir });
   const runtimeBus = new RuntimeEventBus();
   const messageBus = new AgentMessageBus();

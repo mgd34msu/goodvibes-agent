@@ -1,6 +1,5 @@
 import { describe, expect, mock, test } from 'bun:test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -8,6 +7,7 @@ import { registerOperatorRuntimeCommands } from '../../input/commands/operator-r
 import { registerSessionContentCommands } from '../../input/commands/session-content.ts';
 import { sessionCommand } from '../../input/commands/session.ts';
 import type { ShellModeManagerService } from '../../runtime/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeShellPaths(root: string) {
   return {
@@ -36,7 +36,7 @@ function baseContext(root: string, out: string[]): CommandContext {
 
 describe('write/export command confirmation', () => {
   test('conversation export requires --yes before writing a transcript file', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-export-confirm-'));
+    const root = makeProjectTempDir('gv-export-confirm');
     try {
       const registry = new CommandRegistry();
       registerSessionContentCommands(registry);
@@ -71,7 +71,7 @@ describe('write/export command confirmation', () => {
   });
 
   test('session delete requires --yes and copied conversation-pinned memory command is not registered', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-delete-confirm-'));
+    const root = makeProjectTempDir('gv-delete-confirm');
     try {
       const registry = new CommandRegistry();
       registry.register(sessionCommand);
@@ -128,7 +128,7 @@ describe('write/export command confirmation', () => {
   });
 
   test('/settings list parses valued flags without swallowing later flags', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-settings-list-flags-'));
+    const root = makeProjectTempDir('gv-settings-list-flags');
     try {
       const registry = new CommandRegistry();
       registerOperatorRuntimeCommands(registry);
@@ -158,7 +158,7 @@ describe('write/export command confirmation', () => {
   });
 
   test('mode preset and domain overrides require --yes before writing interaction state', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-mode-confirm-'));
+    const root = makeProjectTempDir('gv-mode-confirm');
     try {
       const registry = new CommandRegistry();
       registerOperatorRuntimeCommands(registry);

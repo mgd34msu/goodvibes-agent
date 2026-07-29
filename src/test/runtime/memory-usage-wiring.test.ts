@@ -1,19 +1,18 @@
 import { describe, it, expect, afterEach } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rmSync } from 'node:fs';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createShellPathService } from '@/runtime/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { createMemoryUsageTracker, extractInjectedMemoryIds } from '../../runtime/memory-usage-wiring.ts';
 import type { PromptContextReceiptDraft } from '../../agent/prompt-context-receipts.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 afterEach(() => { while (roots.length > 0) rmSync(roots.pop()!, { recursive: true, force: true }); });
 
 async function makeRegistry(): Promise<{ registry: MemoryRegistry; paths: ReturnType<typeof createShellPathService> }> {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-usage-wiring-'));
+  const root = makeProjectTempDir('goodvibes-agent-usage-wiring');
   roots.push(root);
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const configManager = new ConfigManager({

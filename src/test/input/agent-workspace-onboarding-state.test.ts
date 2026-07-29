@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
@@ -17,6 +16,7 @@ import {
   updateRevealedOnboardingCategories,
   deriveOnboardingEntry,
 } from '../../input/agent-workspace-onboarding-state.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,7 +40,7 @@ function snapshotWithSteps(
 }
 
 function tempShellPaths() {
-  const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-test-'));
+  const root = makeProjectTempDir('gv-onboarding-test');
   const workingDirectory = join(root, 'ws');
   const homeDirectory = join(root, 'home');
   mkdirSync(workingDirectory, { recursive: true });
@@ -225,7 +225,7 @@ describe('AgentWorkspace ONBOARDING sequencing', () => {
 
 describe('AgentWorkspace completion recap', () => {
   test('completeOnboarding writes markers before showing recap; final confirm closes', () => {
-    const root = mkdtempSync(join(tmpdir(), 'gv-onboarding-recap-'));
+    const root = makeProjectTempDir('gv-onboarding-recap');
     const workingDirectory = join(root, 'ws');
     const homeDirectory = join(root, 'home');
     mkdirSync(workingDirectory, { recursive: true });

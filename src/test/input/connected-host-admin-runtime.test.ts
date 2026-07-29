@@ -7,14 +7,13 @@
  * pretending anything succeeded.
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { CommandRegistry, type CommandContext } from '../../input/command-registry.ts';
 import { registerConnectedHostAdminCommands } from '../../input/commands/connected-host-admin-runtime.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeContext(printed: string[]): CommandContext {
-  const home = mkdtempSync(join(tmpdir(), 'gv-agent-admin-cmd-'));
+  const home = makeProjectTempDir('gv-agent-admin-cmd');
   return {
     print: (text: string) => printed.push(text),
     platform: {

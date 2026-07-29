@@ -4,9 +4,8 @@ import type {
   SecretBackedConfigManager,
   SecretBackedSecretStore,
 } from '../../config/secret-config.ts';
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 import {
   describeSecretRef,
   normalizeSecretRef,
@@ -16,10 +15,10 @@ import {
 import { SecretsManager } from '../../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeTmpDir(): string {
-  const dir = join(tmpdir(), `gv-secret-refs-test-${process.pid}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-secret-refs-test-${process.pid}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

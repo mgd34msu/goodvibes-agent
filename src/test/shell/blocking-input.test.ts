@@ -1,7 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, utimesSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { existsSync, utimesSync } from 'node:fs';
 import {
   checkRecoveryFile,
   consumeRecovery,
@@ -13,16 +11,17 @@ import {
 import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 
 import { handleBlockingShellInput, type PendingPermissionState } from '../../shell/blocking-input.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeWorkspaceRegistrationShellPaths() {
-  const home = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-'));
-  const work = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-work-'));
+  const home = makeProjectTempDir('gv-agent-blocking-input');
+  const work = makeProjectTempDir('gv-agent-blocking-input-work');
   return { shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }), work };
 }
 
 function makeRecoverySurface() {
-  const home = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-recovery-home-'));
-  const work = mkdtempSync(join(tmpdir(), 'gv-agent-blocking-input-recovery-work-'));
+  const home = makeProjectTempDir('gv-agent-blocking-input-recovery-home');
+  const work = makeProjectTempDir('gv-agent-blocking-input-recovery-work');
   return createSessionSurface({ surfaceRoot: 'agent', workingDirectory: work, homeDirectory: home });
 }
 

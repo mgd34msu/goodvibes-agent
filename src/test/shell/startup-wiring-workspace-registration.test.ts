@@ -5,18 +5,17 @@
  * for the keypress-answering half (register on 'y', decline on everything else).
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, utimesSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { utimesSync } from 'node:fs';
 import { createSessionSurface, createShellPathService, writeRecoveryFile } from '@/runtime/index.ts';
 import type { SessionSurface } from '@/runtime/index.ts';
 import { writeOnboardingCompletionMarker } from '../../runtime/onboarding/index.ts';
 import { createWorkspaceRegistrationStore } from '../../config/workspace-registration.ts';
 import { wireSessionPersistenceAndRecovery, type SessionPersistenceAndRecoveryDeps } from '../../shell/startup-wiring.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeRoots() {
-  const home = mkdtempSync(join(tmpdir(), 'gv-agent-startup-wiring-reg-home-'));
-  const work = mkdtempSync(join(tmpdir(), 'gv-agent-startup-wiring-reg-work-'));
+  const home = makeProjectTempDir('gv-agent-startup-wiring-reg-home');
+  const work = makeProjectTempDir('gv-agent-startup-wiring-reg-work');
   return { home, work, shellPaths: createShellPathService({ workingDirectory: work, homeDirectory: home }) };
 }
 
@@ -74,7 +73,7 @@ describe('wireSessionPersistenceAndRecovery — first-start registration prompt'
   });
 
   test('a broad root (home directory) is never offered for registration', () => {
-    const home = mkdtempSync(join(tmpdir(), 'gv-agent-startup-wiring-reg-broad-'));
+    const home = makeProjectTempDir('gv-agent-startup-wiring-reg-broad');
     const shellPaths = createShellPathService({ workingDirectory: home, homeDirectory: home });
     markOnboardingDone(shellPaths);
     const { deps, messages } = makeDeps({ workingDir: home, homeDirectory: home });

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { renderGoodVibesCommandHelp, renderGoodVibesHelp } from '../../cli/help.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
@@ -12,7 +12,7 @@ async function runCli(args: readonly string[], homeDirectory?: string): Promise<
   readonly exitCode: number;
   readonly output: string;
 }> {
-  const root = homeDirectory ?? mkdtempSync(join(tmpdir(), 'goodvibes-agent-local-library-cli-'));
+  const root = homeDirectory ?? makeProjectTempDir('goodvibes-agent-local-library-cli');
   if (!homeDirectory) roots.push(root);
   const output: string[] = [];
   const originalLog = console.log;
@@ -46,7 +46,7 @@ describe('local Agent library CLI commands', () => {
   });
 
   test('creates lists activates reviews and deletes local personas', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-personas-cli-'));
+    const home = makeProjectTempDir('goodvibes-agent-personas-cli');
     roots.push(home);
 
     const created = await runCli([
@@ -103,7 +103,7 @@ describe('local Agent library CLI commands', () => {
   });
 
   test('preserves option-looking persona and skill values from the CLI', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-local-library-flag-values-'));
+    const home = makeProjectTempDir('goodvibes-agent-local-library-flag-values');
     roots.push(home);
 
     const persona = await runCli([
@@ -141,7 +141,7 @@ describe('local Agent library CLI commands', () => {
   });
 
   test('discovers previews and imports persona files from the CLI', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-personas-discovery-cli-'));
+    const home = makeProjectTempDir('goodvibes-agent-personas-discovery-cli');
     roots.push(home);
     const personaDir = join(home, '.goodvibes', 'agent', 'personas', 'travel-planner');
     mkdirSync(personaDir, { recursive: true });
@@ -225,7 +225,7 @@ describe('local Agent library CLI commands', () => {
   });
 
   test('empty persona discovery advertises only Agent persona roots', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-empty-personas-cli-'));
+    const home = makeProjectTempDir('goodvibes-agent-empty-personas-cli');
     roots.push(home);
 
     const discovered = await runCli(['personas', 'discover'], home);
@@ -237,7 +237,7 @@ describe('local Agent library CLI commands', () => {
   });
 
   test('creates enables bundles reviews and deletes local skills', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skills-cli-'));
+    const home = makeProjectTempDir('goodvibes-agent-skills-cli');
     roots.push(home);
 
     const created = await runCli([
@@ -325,7 +325,7 @@ describe('local Agent library CLI commands', () => {
   });
 
   test('discovers previews and imports skill files from the CLI', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-skills-discovery-cli-'));
+    const home = makeProjectTempDir('goodvibes-agent-skills-discovery-cli');
     roots.push(home);
     const skillDir = join(home, '.goodvibes', 'agent', 'skills', 'travel-planner');
     mkdirSync(skillDir, { recursive: true });

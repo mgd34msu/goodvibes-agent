@@ -2,13 +2,14 @@ import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { rmSync, writeFileSync } from 'fs';
 import { execSync } from 'child_process';
 import { makeTempDir, writeTempFile } from '../setup.ts';
 import { createAnalyzeTool } from '@pellux/goodvibes-sdk/platform/tools';
 import { GitService } from '@pellux/goodvibes-sdk/platform/git';
 import { createTestManagers } from '../helpers/test-managers.ts';
 import { getTestGitService } from '../helpers/runtime-services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 let analyzeTool: ReturnType<typeof createAnalyzeTool>;
 
@@ -551,7 +552,7 @@ describe('bundle mode', () => {
 
 /** Create an isolated temp git repo with a configured identity. */
 function makeTempGitRepo(prefix = 'analyze-git-test'): string {
-  const tmpDir = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  const tmpDir = makeProjectTempDir(`${prefix}`);
   execSync('git init', { cwd: tmpDir });
   execSync('git config user.email "test@test.com"', { cwd: tmpDir });
   execSync('git config user.name "Test"', { cwd: tmpDir });
@@ -663,6 +664,9 @@ describe('diff mode', () => {
   });
 
   test('non-existent repo path returns error', async () => {
+    // Not migrated to makeProjectTempDir: nothing ever creates this path —
+    // that's the point of the test (a project root that genuinely does not
+    // exist), so there is nothing here to leak.
     const result = await analyzeMayFail({
       mode: 'diff',
       projectRoot: join(tmpdir(), 'nonexistent-repo-xyz-12345'),

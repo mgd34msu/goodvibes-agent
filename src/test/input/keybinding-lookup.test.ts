@@ -5,14 +5,14 @@
  * and returns null for tokens that match no binding.
  */
 import { describe, it, expect } from 'bun:test';
-import { mkdirSync, writeFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   KeybindingsManager,
   DEFAULT_KEYBINDINGS,
   type KeyAction,
 } from '../../input/keybindings.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeKm(): KeybindingsManager {
   return new KeybindingsManager({ configPath: '/nonexistent/keybindings.json' });
@@ -59,8 +59,7 @@ describe('KeybindingsManager.lookup()', () => {
 
   it('rebuilds map correctly after loadFromDisk() real override', () => {
     // Create a temp config that remaps 'search' from Ctrl+F to Ctrl+G
-    const dir = join(tmpdir(), `gv-kb-test-${Date.now()}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-kb-test-${Date.now()}`);
     const configPath = join(dir, 'keybindings.json');
     writeFileSync(configPath, JSON.stringify({ search: { key: 'g', ctrl: true } }), 'utf-8');
     try {
@@ -81,8 +80,7 @@ describe('KeybindingsManager.lookup()', () => {
     // position 2 in DEFAULT_KEYBINDINGS; 'search' appears at position 10.
     // Therefore 'search' is the last writer for Ctrl+X and wins.
     // Contract: last-writer-wins is the documented conflict resolution policy.
-    const dir = join(tmpdir(), `gv-kb-conflict-${Date.now()}`);
-    mkdirSync(dir, { recursive: true });
+    const dir = makeProjectTempDir(`gv-kb-conflict-${Date.now()}`);
     const configPath = join(dir, 'keybindings.json');
     // Both search and clear-cancel mapped to Ctrl+X; search is last (DEFAULT_KEYBINDINGS order)
     writeFileSync(configPath, JSON.stringify({

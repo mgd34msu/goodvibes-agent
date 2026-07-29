@@ -1,10 +1,10 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { KeybindingsManager } from '../../input/keybindings.ts';
 import { resetHarnessKeybinding, setHarnessKeybinding } from '../../tools/agent-harness-keybinding-metadata.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 interface KeybindingFixture {
   readonly configPath: string;
@@ -13,7 +13,7 @@ interface KeybindingFixture {
 }
 
 function withKeybindings<T>(fn: (fixture: KeybindingFixture) => T): T {
-  const root = mkdtempSync(join(tmpdir(), 'gv-keybinding-overrides-'));
+  const root = makeProjectTempDir('gv-keybinding-overrides');
   const configPath = join(root, 'agent', 'keybindings.json');
   mkdirSync(dirname(configPath), { recursive: true });
   const manager = new KeybindingsManager({ configPath });

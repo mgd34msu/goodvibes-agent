@@ -1,7 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { existsSync, rmSync } from 'node:fs';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
@@ -12,6 +10,7 @@ import {
   createAgentLearningConsolidationTool,
   registerAgentLearningConsolidationTool,
 } from '../../tools/agent-learning-consolidation-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type ShellPaths = ReturnType<typeof createShellPathService>;
 
@@ -37,7 +36,7 @@ async function createMemoryRegistry(paths: ShellPaths): Promise<MemoryRegistry> 
 }
 
 async function makeFixture(): Promise<Fixture> {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-learning-consolidation-'));
+  const root = makeProjectTempDir('goodvibes-agent-learning-consolidation');
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const memoryRegistry = await createMemoryRegistry(paths);
   return {

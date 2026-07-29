@@ -1,8 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { randomUUID } from 'crypto';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { makeProjectTempDir } from '../../helpers/project-temp.ts';
 
 
 // Drain queued microtasks so bus.emit() listeners (OBS-14 async dispatch) run before assertions.
@@ -38,6 +39,11 @@ describe('ops playbook runtime context', () => {
       },
     }));
 
+    // Not migrated to makeProjectTempDir: these two paths are deliberately
+    // never written (unlike recoveryFilePath/lastSessionPointerPath further
+    // down, which DO get writeFileSync'd under tmpDir) — this case tests
+    // behavior when the recovery/session files are absent, so nothing ever
+    // touches disk at these two locations.
     const runtimeContext = {
       runtimeBus: bus,
       store,
@@ -65,7 +71,7 @@ describe('ops playbook runtime context', () => {
   });
 
   test('session-unrecoverable checks inspect live recovery state and recovery artifact', async () => {
-    const tmpDir = mkdtempSync(join(tmpdir(), `gv-playbook-${randomUUID()}-`));
+    const tmpDir = makeProjectTempDir(`gv-playbook-${randomUUID()}`);
     const recoveryFilePath = join(tmpDir, 'recovery.jsonl');
     const lastSessionPointerPath = join(tmpDir, 'last-session.json');
 

@@ -1,12 +1,11 @@
 import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { sweepProjectTestTmpRoot, sweepStaleRealTmpDirs } from './stale-tmp-sweep.ts';
 
 const ROOT = process.cwd();
 const SEARCH_ROOT = join(ROOT, 'src');
 const TEST_FILE_RE = /\.(test|spec)\.(ts|tsx)$/;
 const TEST_TMP_ROOT = join(ROOT, '.test-suite-tmp');
-// Mirrors the project-level temp dir used by makeProjectTempDir in test helpers.
-const PROJECT_TEST_TMP_ROOT = join(ROOT, '.test-tmp');
 
 function collectTests(dir: string, acc: string[]): void {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -28,20 +27,20 @@ testFiles.sort((a, b) => a.localeCompare(b));
 rmSync(TEST_TMP_ROOT, { recursive: true, force: true });
 mkdirSync(TEST_TMP_ROOT, { recursive: true });
 
-// Sweep stale entries in .test-tmp (created by makeProjectTempDir in test helpers).
-// The helpers register an exit handler per-process, but isolated bun test worker
-// processes may not fire it. We sweep before and after runs to prevent accumulation.
-function sweepProjectTestTmpRoot(): void {
-  try {
-    for (const entry of readdirSync(PROJECT_TEST_TMP_ROOT, { withFileTypes: true })) {
-      rmSync(join(PROJECT_TEST_TMP_ROOT, entry.name), { recursive: true, force: true });
-    }
-  } catch {
-    // .test-tmp may not exist yet; that is fine
+// Sweep stale entries in .test-tmp (created by makeProjectTempDir in test
+// helpers) and this project's own known-prefixed scratch directories in the
+// real os.tmpdir() (a handful of tests still need a location that is
+// guaranteed outside any git repo — see scripts/stale-tmp-sweep.ts). Both run
+// before and after the suite to prevent accumulation from a killed process.
+function sweepAll(): void {
+  sweepProjectTestTmpRoot();
+  const { swept, scanned } = sweepStaleRealTmpDirs();
+  if (swept.length > 0) {
+    console.log(`tmp-sweep: removed ${swept.length} stale director${swept.length === 1 ? 'y' : 'ies'} from os.tmpdir() (scanned ${scanned} entries).`);
   }
 }
 
-sweepProjectTestTmpRoot();
+sweepAll();
 
 if (testFiles.length === 0) {
   console.error('No test files found under src/');
@@ -61,5 +60,5 @@ const result = Bun.spawnSync(['bun', 'test', '--max-concurrency=1', ...testFiles
 });
 
 rmSync(TEST_TMP_ROOT, { recursive: true, force: true });
-sweepProjectTestTmpRoot();
+sweepAll();
 process.exit(result.exitCode ?? 1);

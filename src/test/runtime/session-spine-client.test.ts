@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { existsSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readdirSync, statSync } from 'node:fs';
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
@@ -13,6 +12,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { createSpineRestProbe, createSpineRestTransport } from '../../runtime/session-spine-rest-transport.ts';
 import type { SessionRegistrationConnection } from '../../agent/session-registration.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 interface CapturedRequest {
   readonly url: string;
@@ -228,7 +228,7 @@ describe('foldLegacySpineStore', () => {
   let root: string;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-spine-fold-'));
+    root = makeProjectTempDir('goodvibes-spine-fold');
   });
 
   test('reads the per-cwd store, folds records, and writes a migration marker', () => {

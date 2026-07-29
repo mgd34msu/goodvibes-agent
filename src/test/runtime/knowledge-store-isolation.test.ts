@@ -1,17 +1,17 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
 function makeRuntime() {
-  const root = join(tmpdir(), `gv-knowledge-isolation-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+  const root = makeProjectTempDir(`gv-knowledge-isolation-${Date.now()}-${Math.random().toString(16).slice(2)}`);
   const workingDir = join(root, 'workspace');
   const homeDir = join(root, 'home');
   const configDir = join(root, 'config');

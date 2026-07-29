@@ -16,8 +16,7 @@
  *      HARNESS_MODE_DESCRIPTORS with the correct kinds and safety annotations.
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProcessManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
@@ -29,13 +28,14 @@ import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { AGENT_HARNESS_MODES } from '../../tools/agent-harness-tool-schema.ts';
 import { HARNESS_MODE_DESCRIPTORS } from '../../tools/agent-harness-mode-catalog.ts';
 import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const REMOTE_READ_MODES = ['remote_snapshot', 'remote_peers', 'remote_work', 'remote_pair_requests'] as const;
 const REMOTE_MUTATION_MODES = ['remote_pair_approve', 'remote_pair_reject', 'remote_peers_invoke', 'remote_work_cancel'] as const;
 const ALL_REMOTE_MODES = [...REMOTE_READ_MODES, ...REMOTE_MUTATION_MODES] as const;
 
 function makeRemoteFixture() {
-  const root = mkdtempSync(join(tmpdir(), 'gv-remote-'));
+  const root = makeProjectTempDir('gv-remote');
   mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const commandRegistry = new CommandRegistry();

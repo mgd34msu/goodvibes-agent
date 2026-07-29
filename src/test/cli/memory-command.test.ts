@@ -1,12 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { handleGoodVibesCliCommand, parseGoodVibesCli } from '../../cli/index.ts';
 import { renderGoodVibesCommandHelp, renderGoodVibesHelp } from '../../cli/help.ts';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { mockFetch } from '../helpers/typed-fetch-mock.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const roots: string[] = [];
 
@@ -31,7 +31,7 @@ async function runCli(args: readonly string[], root?: string, homeRoot?: string)
   readonly exitCode: number;
   readonly output: string;
 }> {
-  const workingRoot = root ?? mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-cli-'));
+  const workingRoot = root ?? makeProjectTempDir('goodvibes-agent-memory-cli');
   const homeDirectory = homeRoot ?? workingRoot;
   if (!root) roots.push(workingRoot);
   const output: string[] = [];
@@ -69,7 +69,7 @@ describe('Agent memory CLI command', () => {
   });
 
   test('adds lists searches reviews and deletes Agent-owned memory', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-flow-'));
+    const root = makeProjectTempDir('goodvibes-agent-memory-flow');
     roots.push(root);
 
     const created = await runCli([
@@ -127,7 +127,7 @@ describe('Agent memory CLI command', () => {
   });
 
   test('exports inspects and imports Agent memory bundles', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-bundle-'));
+    const root = makeProjectTempDir('goodvibes-agent-memory-bundle');
     roots.push(root);
     const bundlePath = join(root, 'handoff', 'agent-memory.json');
 
@@ -161,8 +161,8 @@ describe('Agent memory CLI command', () => {
   });
 
   test('stores memory under the Agent home instead of the workspace', async () => {
-    const workspace = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-workspace-'));
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-home-'));
+    const workspace = makeProjectTempDir('goodvibes-agent-memory-workspace');
+    const home = makeProjectTempDir('goodvibes-agent-memory-home');
     roots.push(workspace, home);
 
     const listed = await runCli(['memory', 'list'], workspace, home);
@@ -173,7 +173,7 @@ describe('Agent memory CLI command', () => {
   });
 
   test('CLI-added memory lands in the canonical cross-surface store, not a private agent-only store', async () => {
-    const home = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-canonical-'));
+    const home = makeProjectTempDir('goodvibes-agent-memory-canonical');
     roots.push(home);
 
     const created = await runCli(['memory', 'add', 'fact', 'Canonical store cross-surface fact', '--json'], home, home);

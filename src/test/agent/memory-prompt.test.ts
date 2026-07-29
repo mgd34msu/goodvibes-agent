@@ -1,14 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
 import { buildReviewedMemoryPrompt, describeMemoryPromptEligibility, isPromptActiveMemory, MIN_PROMPT_MEMORY_CONFIDENCE, rankMemoryForTurn, relevanceBand } from '../../agent/memory-prompt.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 async function withMemoryRegistry<T>(fn: (registry: MemoryRegistry) => Promise<T>): Promise<T> {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-prompt-'));
+  const root = makeProjectTempDir('goodvibes-agent-memory-prompt');
   const configManager = new ConfigManager({
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
     configDir: join(root, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT),
@@ -205,7 +204,7 @@ describe('rankMemoryForTurn (per-turn semantic scoring)', () => {
   });
 
   test('degrades honestly when the semantic index is disabled, stating why', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-memory-prompt-disabled-index-'));
+    const root = makeProjectTempDir('goodvibes-agent-memory-prompt-disabled-index');
     const configManager = new ConfigManager({
       surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
       configDir: join(root, '.goodvibes', GOODVIBES_AGENT_SURFACE_ROOT),

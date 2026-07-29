@@ -5,10 +5,9 @@
  * Config keys follow the format 'section.field' or 'section.subsection.field'.
  */
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { mkdtempSync } from 'fs';
 import { join } from 'path';
-import { tmpdir } from 'os';
 import { ConfigManager } from '../../config/index.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // ConfigManager set/get roundtrip
@@ -18,7 +17,7 @@ describe('Config persistence — set/get roundtrip', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    const tempRoot = mkdtempSync(join(tmpdir(), 'goodvibes-config-persistence-'));
+    const tempRoot = makeProjectTempDir('goodvibes-config-persistence');
     configManager = new ConfigManager({ surfaceRoot: 'tui',
       workingDir: tempRoot,
       configDir: join(tempRoot, '.config-override'),
@@ -72,7 +71,7 @@ describe('Config persistence — typed path access', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    const tempRoot = mkdtempSync(join(tmpdir(), 'goodvibes-config-persistence-'));
+    const tempRoot = makeProjectTempDir('goodvibes-config-persistence');
     configManager = new ConfigManager({ surfaceRoot: 'tui',
       workingDir: tempRoot,
       configDir: join(tempRoot, '.config-override'),
@@ -116,7 +115,7 @@ describe('Config persistence — provider fields', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    const tempRoot = mkdtempSync(join(tmpdir(), 'goodvibes-config-persistence-'));
+    const tempRoot = makeProjectTempDir('goodvibes-config-persistence');
     configManager = new ConfigManager({ surfaceRoot: 'tui',
       workingDir: tempRoot,
       configDir: join(tempRoot, '.config-override'),
@@ -147,7 +146,7 @@ describe('Config persistence — display fields', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    const tempRoot = mkdtempSync(join(tmpdir(), 'goodvibes-config-persistence-'));
+    const tempRoot = makeProjectTempDir('goodvibes-config-persistence');
     configManager = new ConfigManager({ surfaceRoot: 'tui',
       workingDir: tempRoot,
       configDir: join(tempRoot, '.config-override'),
@@ -179,7 +178,7 @@ describe('Config persistence — isolation between tests', () => {
   let configManager: ConfigManager;
 
   beforeEach(() => {
-    const tempRoot = mkdtempSync(join(tmpdir(), 'goodvibes-config-persistence-'));
+    const tempRoot = makeProjectTempDir('goodvibes-config-persistence');
     configManager = new ConfigManager({ surfaceRoot: 'tui',
       workingDir: tempRoot,
       configDir: join(tempRoot, '.config-override'),

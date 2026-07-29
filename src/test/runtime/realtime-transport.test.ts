@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync } from 'node:fs';
 import { createServer } from 'node:net';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { DaemonServer } from '@pellux/goodvibes-sdk/platform/daemon';
@@ -13,6 +12,7 @@ import { createAuthenticatedWebSocket } from '../helpers/authenticated-websocket
 import { createRuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { UserAuthManager } from '@pellux/goodvibes-sdk/platform/security';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const TEST_TOKEN = 'realtime-transport-token-abc123';
 
@@ -74,7 +74,7 @@ describe('RealtimeTransport', () => {
   let port: number;
 
   beforeEach(async () => {
-    tempRoot = mkdtempSync(join(tmpdir(), 'gv-realtime-transport-'));
+    tempRoot = makeProjectTempDir('gv-realtime-transport');
     workingDir = join(tempRoot, 'workspace');
     homeDir = join(tempRoot, 'home');
     port = await reservePort();

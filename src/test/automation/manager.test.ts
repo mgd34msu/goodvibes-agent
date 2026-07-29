@@ -1,6 +1,4 @@
 import { beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { PersistentStore } from '@pellux/goodvibes-sdk/platform/state';
@@ -18,6 +16,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/automation';
 import type { SpawnAutomationTaskInput } from '@pellux/goodvibes-sdk/platform/automation';
 import { AgentManager } from '@pellux/goodvibes-sdk/platform/tools';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const testAgentExecutor = {
   async runAgent() {
@@ -73,7 +72,7 @@ describe('AutomationManager', () => {
   }
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'gv-automation-manager-'));
+    root = makeProjectTempDir('gv-automation-manager');
   });
 
   test('creates jobs, toggles enablement, and records manual runs', async () => {

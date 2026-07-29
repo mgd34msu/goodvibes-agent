@@ -1,6 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
@@ -8,9 +7,10 @@ import { createShellPathService } from '@/runtime/index.ts';
 import { AgentPersonaRegistry } from '../../agent/persona-registry.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { createAgentVibeTool, registerAgentVibeTool } from '../../tools/agent-vibe-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function tempContext(): CommandContext {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-vibe-tool-'));
+  const root = makeProjectTempDir('goodvibes-agent-vibe-tool');
   const home = join(root, 'home');
   const workspace = join(root, 'workspace');
   mkdirSync(home, { recursive: true });

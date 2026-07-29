@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { createShellPathService } from '@/runtime/index.ts';
 import {
@@ -11,6 +10,7 @@ import {
 } from '@pellux/goodvibes-sdk/platform/state';
 import { ConfigManager } from '../../config/index.ts';
 import { foldAgentLegacyMemory } from '../../runtime/services.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('Agent legacy memory fold covers the CLI-written store', () => {
   let root = '';
@@ -21,7 +21,7 @@ describe('Agent legacy memory fold covers the CLI-written store', () => {
   });
 
   test('a record written to the old agent/memory.sqlite (as the memory CLI used to write) is folded into the canonical store', async () => {
-    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-legacy-fold-'));
+    root = makeProjectTempDir('goodvibes-agent-legacy-fold');
     const homeDir = join(root, 'home');
     mkdirSync(homeDir, { recursive: true });
 

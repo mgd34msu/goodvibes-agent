@@ -1,13 +1,13 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentResearchRunRegistry } from '../../agent/research-run-registry.ts';
 import { createAgentResearchRunsTool, registerAgentResearchRunsTool } from '../../tools/agent-research-runs-tool.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makePaths() {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-research-runs-tool-'));
+  const root = makeProjectTempDir('goodvibes-agent-research-runs-tool');
   return {
     root,
     paths: {

@@ -1,16 +1,15 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { mkdirSync, rmSync, existsSync, writeFileSync, readFileSync } from 'fs';
 import { join } from 'path';
-import { mkdtempSync } from 'fs';
-import { tmpdir } from 'os';
 import { KVState } from '@pellux/goodvibes-sdk/platform/state';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function makeTmpDir(): string {
-  return mkdtempSync(join(tmpdir(), 'gv-kv-test-'));
+  return makeProjectTempDir('gv-kv-test');
 }
 
 function stateDirFor(root: string): string {
@@ -306,7 +305,7 @@ describe('KVState.dispose', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'gv-kv-dispose-'));
+    tmpDir = makeProjectTempDir('gv-kv-dispose');
   });
 
   afterEach(() => {
@@ -339,7 +338,7 @@ describe('KVState ensureLoaded race condition', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'gv-kv-race-'));
+    tmpDir = makeProjectTempDir('gv-kv-race');
   });
 
   afterEach(() => {

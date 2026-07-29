@@ -1,19 +1,19 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { AgentSkillRegistry } from '../../agent/skill-registry.ts';
 import { runSkillDraftProposer, readSkillDraftLedger } from '../../agent/skill-draft-runner.ts';
 import type { SkillDraftRunResult } from '../../agent/skill-draft-runner.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function tempRegistry(): { readonly registry: AgentSkillRegistry; readonly paths: ReturnType<typeof createShellPathService> } {
-  const root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-draft-runner-'));
+  const root = makeProjectTempDir('goodvibes-agent-draft-runner');
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   return { registry: AgentSkillRegistry.fromShellPaths(paths), paths };
 }

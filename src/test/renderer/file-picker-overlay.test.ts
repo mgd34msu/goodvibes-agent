@@ -1,14 +1,13 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { mkdirSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderFilePickerOverlay } from '../../renderer/file-picker-overlay.ts';
 import { FilePickerModal } from '../../input/file-picker.ts';
 import { lineToString } from '../setup.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeWorkingDirectory(): string {
-  const dir = join(tmpdir(), `gv-file-picker-overlay-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-  mkdirSync(dir, { recursive: true });
+  const dir = makeProjectTempDir(`gv-file-picker-overlay-${Date.now()}-${Math.random().toString(36).slice(2)}`);
   return dir;
 }
 

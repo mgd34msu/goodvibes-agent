@@ -13,8 +13,7 @@
  *   3. Command-runner output is capped at 6000 chars with '... output truncated'.
  */
 import { describe, expect, test } from 'bun:test';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { ProcessManager, ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { FileUndoManager } from '@pellux/goodvibes-sdk/platform/state';
@@ -26,9 +25,10 @@ import { createAgentHarnessTool } from '../../tools/agent-harness-tool.ts';
 import { AGENT_HARNESS_MODES } from '../../tools/agent-harness-tool-schema.ts';
 import { HARNESS_MODE_DESCRIPTORS } from '../../tools/agent-harness-mode-catalog.ts';
 import { WorkPlanStore } from '../../work-plans/work-plan-store.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 function makeParityFixture() {
-  const root = mkdtempSync(join(tmpdir(), 'gv-parity-'));
+  const root = makeProjectTempDir('gv-parity');
   mkdirSync(join(root, '.goodvibes', 'daemon'), { recursive: true });
   const paths = createShellPathService({ workingDirectory: root, homeDirectory: root });
   const commandRegistry = new CommandRegistry();

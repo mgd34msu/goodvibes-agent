@@ -10,7 +10,6 @@
  * with what the gate actually does for a representative write-category tool.
  */
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
@@ -18,6 +17,7 @@ import type { PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/per
 import { PolicyRuntimeState } from '@/runtime/index.ts';
 import { resetSettingsControlPlaneStore } from '../helpers/settings-control-plane.ts';
 import { computeApprovalPosture, readApprovalPostureFromConfig } from '../../permissions/approval-posture.ts';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 type ToolAction = 'allow' | 'prompt' | 'deny';
 const PERMISSION_TOOL_KEYS = [
@@ -56,7 +56,7 @@ describe('approval posture: shared helper agrees with the real permission gate',
   beforeEach(() => {
     configManager = new ConfigManager({
       surfaceRoot: 'tui',
-      configDir: join(tmpdir(), `gv-approval-posture-${Date.now()}-${Math.random().toString(36).slice(2)}`),
+      configDir: makeProjectTempDir(`gv-approval-posture-${Date.now()}-${Math.random().toString(36).slice(2)}`),
     });
     resetSettingsControlPlaneStore(configManager);
     policyRuntimeState = new PolicyRuntimeState();
