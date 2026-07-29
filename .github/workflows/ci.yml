@@ -32,8 +32,17 @@ jobs:
         run: |
           git config --global user.name "CI"
           git config --global user.email "ci@test.com"
-      - name: Type check
-        run: bun x tsc --noEmit --pretty false
+      # Each type-check step runs the same package.json script the local
+      # `ci:gate` aggregate runs, so CI and the local gate cannot drift apart.
+      # The ci-test-policy test enforces that pairing mechanically. Before this,
+      # CI ran `tsc` against tsconfig.json only — which excludes src/test and
+      # src/**/*.test.ts, and never saw scripts/ or bin/ at all.
+      - name: Type check (src)
+        run: bun run typecheck
+      - name: Type check (tests)
+        run: bun run typecheck:test
+      - name: Type check (scripts + bin)
+        run: bun run typecheck:tools
       - name: Run tests
         run: bun run test
       - name: Coverage gate (ratchet)

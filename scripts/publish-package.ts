@@ -20,8 +20,10 @@ mkdirSync(tempBase, { recursive: true });
 const tempRoot = mkdtempSync(join(tempBase, 'publish-'));
 const stageDir = join(tempRoot, 'package');
 
-const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-const packageFileEntries = Array.isArray(pkg.files) ? pkg.files.filter((entry): entry is string => typeof entry === 'string') : [];
+const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { files?: unknown };
+const packageFileEntries: readonly string[] = Array.isArray(pkg.files)
+  ? pkg.files.filter((entry: unknown): entry is string => typeof entry === 'string')
+  : [];
 const requiredDocs = packageDocPaths(root);
 function expandPackageFileEntry(entry: string): readonly string[] {
   if (entry === 'docs/*.md') return requiredDocs;

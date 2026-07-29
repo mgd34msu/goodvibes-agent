@@ -41,7 +41,12 @@ const packRaw = execSync('npm pack --json --dry-run', {
  * either, so the check depends on the tarball rather than on which npm the
  * machine happens to ship.
  */
-type PackResult = { files?: Array<{ path: string }>; size?: number };
+type PackResult = {
+  files?: Array<{ path: string }>;
+  size?: number;
+  entryCount?: number;
+  unpackedSize?: number;
+};
 const packParsed: unknown = JSON.parse(packRaw);
 const packResult = (Array.isArray(packParsed)
   ? packParsed[0]
@@ -66,4 +71,9 @@ if (typeof packResult.size === 'number' && packResult.size > 50 * 1024 * 1024) {
   throw new Error(`published tarball is too large: ${packResult.size} bytes`);
 }
 
-console.log(`publish check passed (${packResult.entryCount} files, ${packResult.unpackedSize} bytes unpacked)`);
+// entryCount/unpackedSize are npm-version-dependent extras; fall back to the
+// values this check derived itself so the summary never prints "undefined".
+const entryCount = typeof packResult.entryCount === 'number' ? packResult.entryCount : filePaths.length;
+const unpackedSize =
+  typeof packResult.unpackedSize === 'number' ? `${packResult.unpackedSize} bytes unpacked` : 'unpacked size not reported';
+console.log(`publish check passed (${entryCount} files, ${unpackedSize})`);

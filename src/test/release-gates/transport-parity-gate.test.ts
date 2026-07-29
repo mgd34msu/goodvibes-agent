@@ -84,6 +84,8 @@ function createRuntimeFixture(prefix: string) {
     homeDir,
   });
   const runtimeServices = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
     runtimeStore: createRuntimeStore(),
     runtimeBus,
     configManager,

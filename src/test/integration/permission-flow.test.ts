@@ -9,6 +9,8 @@ import { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 import type { GoodVibesConfig, PermissionAction } from '@pellux/goodvibes-sdk/platform/config';
 import { PolicyRuntimeState } from '@/runtime/index.ts';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -44,7 +46,7 @@ function createConfigState(overrides: Partial<GoodVibesConfig['permissions']> = 
   return {
     getSnapshot: () => config,
     isAutoApproveEnabled: () => config.behavior.autoApprove,
-    getWorkingDirectory: () => '/tmp/goodvibes-permission-flow',
+    getWorkingDirectory: () => join(tmpdir(), 'goodvibes-permission-flow'),
     setAutoApprove(value: boolean) {
       config.behavior.autoApprove = value;
     },

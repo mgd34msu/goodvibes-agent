@@ -9,10 +9,12 @@ import { createTaskManager } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { createTasksReadModel } from '../helpers/ui-read-models.ts';
 import type { OperatorClient } from '@/runtime/index.ts';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const shellPaths = createShellPathService({
-  workingDirectory: '/tmp/goodvibes-test',
-  homeDirectory: '/tmp/goodvibes-home',
+  workingDirectory: join(tmpdir(), 'goodvibes-test'),
+  homeDirectory: join(tmpdir(), 'goodvibes-home'),
 });
 
 function makeTaskCommandContext(

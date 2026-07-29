@@ -552,6 +552,21 @@ export interface AgentVoiceSetupService {
  */
 export type AgentMemoryDiagnostics = Pick<MemoryGovernor, 'snapshot'>;
 
+/**
+ * How a runtime treats the live model-discovery sweep. See
+ * {@link RuntimeServicesOptions.modelDiscovery}.
+ */
+export type ModelDiscoveryMode = 'refresh' | 'skip';
+
+/**
+ * The default is `'refresh'` — absent means refresh, which is what every
+ * composition did before the option existed. Exported so the decision can be
+ * driven directly rather than inferred from the source text of its call site.
+ */
+export function shouldRefreshModels(mode: ModelDiscoveryMode | undefined): boolean {
+  return (mode ?? 'refresh') === 'refresh';
+}
+
 export interface RuntimeServicesOptions {
   readonly runtimeBus: RuntimeEventBus;
   readonly runtimeStore: RuntimeStore;
@@ -580,6 +595,27 @@ export interface RuntimeServicesOptions {
    * to opt into live OS keep-awake / idle-inhibit.
    */
   readonly powerSeam?: Parameters<typeof wireRuntimePower>[0]['seam'];
+  /**
+   * What the runtime does about the provider registry's live model-discovery
+   * sweep.
+   *
+   * DEFAULT `'refresh'`, which is what every composition did before this option
+   * existed. The sweep reaches each configured provider's models endpoint and
+   * writes `<configDir>/provider-models/<provider>.json`, so the runtime routes
+   * against the models a provider actually serves rather than a stale list.
+   *
+   * `'skip'` starts nothing and leaves whatever list is already on disk in
+   * place. It exists for callers whose process will not outlive the sweep: the
+   * write is unawaited, and under test it landed AFTER the run had finished and
+   * re-created a temp workspace that cleanup had already removed. That is a
+   * property of the caller's lifetime, not a property of the product, so the
+   * test setup opts out explicitly and the shipped default is unchanged.
+   *
+   * A named mode rather than a boolean because a third answer is foreseeable
+   * (refresh-and-await, for a one-shot CLI that wants a fresh list before it
+   * answers) and a boolean cannot grow one without changing every call site.
+   */
+  readonly modelDiscovery?: ModelDiscoveryMode;
 }
 
 export interface RuntimeServices extends SdkRuntimeServices {
@@ -874,7 +910,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   ensureConfiguredModelIsRoutable(providerRegistry, configManager);
   providerRegistry.initCustomProviders();
-  providerRegistry.initProviderModelDiscovery();
+  if (shouldRefreshModels(options.modelDiscovery)) providerRegistry.initProviderModelDiscovery();
   // ONE credential chain (env -> secrets -> subscription), mirroring the SDK
   // composition root: boot applies secrets-backed keys; every secrets
   // write/delete re-registers builtin providers LIVE (no restart needed).

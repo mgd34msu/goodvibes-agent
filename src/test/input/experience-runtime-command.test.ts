@@ -150,7 +150,7 @@ describe('experience runtime commands', () => {
     } as unknown as CommandContext;
 
     // Use a path that definitely does not exist
-    await command!.handler(['bundle', 'inspect', '/tmp/gv-nonexistent-bundle-xyz.json'], contextWithShell);
+    await command!.handler(['bundle', 'inspect', join(tmpdir(), 'gv-nonexistent-bundle-xyz.json')], contextWithShell);
 
     expect(out.join('\n')).toContain('File not found');
   });

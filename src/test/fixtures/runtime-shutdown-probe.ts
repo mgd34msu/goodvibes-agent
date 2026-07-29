@@ -121,6 +121,8 @@ async function main(): Promise<void> {
 
   installTimerTracking();
   const services = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
     configManager,
     runtimeBus,
     runtimeStore,

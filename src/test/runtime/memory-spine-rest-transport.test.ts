@@ -82,6 +82,8 @@ describe('memory-spine REST transport against a real daemon', () => {
     mkdirSync(homeDir, { recursive: true });
     port = await reservePort();
     daemonServices = createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeStore: createRuntimeStore(),
       runtimeBus: new RuntimeEventBus(),
       configManager: new ConfigManager({ surfaceRoot: 'tui', configDir: join(homeDir, '.goodvibes', 'tui'), workingDir, homeDir }),

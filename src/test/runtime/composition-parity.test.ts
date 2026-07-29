@@ -27,7 +27,13 @@ import { join, resolve } from 'node:path';
 import { ConfigManager } from '../../config/index.ts';
 import { RuntimeEventBus } from '@/runtime/index.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
-import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
+import {
+  createRuntimeServices,
+  shouldRefreshModels,
+  type ModelDiscoveryMode,
+  type RuntimeServices,
+} from '../../runtime/services.ts';
+import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 
 describe('composition parity: append-only sweep + live config watch', () => {
   let root = '';
@@ -50,6 +56,8 @@ describe('composition parity: append-only sweep + live config watch', () => {
 
   function makeServices(configManager: ConfigManager, workingDir: string, homeDir: string): RuntimeServices {
     return createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeBus: new RuntimeEventBus(),
       runtimeStore: createRuntimeStore(),
       configManager,
@@ -169,6 +177,103 @@ describe('composition parity: host power seam is opt-in (non-spawning default)',
   });
 });
 
+describe('composition parity: live model discovery refreshes by default, and callers may skip', () => {
+  // The provider registry's live discovery sweep is fire-and-forget: nothing
+  // awaits it, and on completion it writes
+  // <persistenceRoot>/provider-models/<provider>.json. Measured here, that
+  // write landed AFTER a test run had finished and RE-CREATED a temp workspace
+  // whose cleanup had already removed it — the last surviving directory leak in
+  // the suite. So the sweep is opt-in, and only the long-lived interactive
+  // composition (still running when it resolves) opts in.
+  const repoRoot = resolve(import.meta.dir, '../../..');
+  const readSource = (rel: string): string => readFileSync(resolve(repoRoot, rel), 'utf8');
+
+  let root = '';
+  afterEach(() => {
+    if (root) rmSync(root, { recursive: true, force: true });
+    root = '';
+  });
+
+  /** Does this runtime's persistence root hold a live-discovery model cache? */
+  function hasProviderModelsCache(configDir: string): boolean {
+    return existsSync(join(configDir, 'provider-models'));
+  }
+
+  test('createRuntimeServices without the opt-in starts no discovery sweep', () => {
+    root = mkdtempSync(join(tmpdir(), 'goodvibes-agent-model-discovery-'));
+    const workingDir = join(root, 'workspace');
+    const homeDir = join(root, 'home');
+    const configDir = join(homeDir, '.goodvibes', 'agent');
+    mkdirSync(workingDir, { recursive: true });
+    mkdirSync(configDir, { recursive: true });
+
+    createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
+      runtimeBus: new RuntimeEventBus(),
+      runtimeStore: createRuntimeStore(),
+      configManager: new ConfigManager({ workingDir, homeDir, surfaceRoot: 'agent' }),
+      workingDir,
+      homeDirectory: homeDir,
+    });
+
+    expect(hasProviderModelsCache(configDir)).toBe(false);
+
+    // NO-proof for the probe itself: the assertion above would read false just
+    // as happily if it were watching a path nothing ever writes. Plant the
+    // cache the sweep produces and confirm the same probe reports it.
+    mkdirSync(join(configDir, 'provider-models'), { recursive: true });
+    writeFileSync(join(configDir, 'provider-models', 'cerebras.json'), '{}', 'utf8');
+    expect(hasProviderModelsCache(configDir)).toBe(true);
+  });
+
+  test('the shipped default refreshes; only an explicit skip does not', () => {
+    // Driven, not read out of the source text. The previous version of this
+    // test asserted that services.ts CONTAINED a particular line, which says
+    // nothing about what the runtime does and passed just as happily when the
+    // shipped default had been flipped.
+    expect(shouldRefreshModels(undefined)).toBe(true);
+    expect(shouldRefreshModels('refresh')).toBe(true);
+    expect(shouldRefreshModels('skip')).toBe(false);
+  });
+
+  test('createRuntimeServices starts the sweep by default and not when told to skip', () => {
+    const calls: string[] = [];
+    const real = ProviderRegistry.prototype.initProviderModelDiscovery;
+    ProviderRegistry.prototype.initProviderModelDiscovery = function patched(this: ProviderRegistry) {
+      calls.push('called');
+      // Deliberately does NOT call through: the real sweep reaches provider
+      // endpoints and writes provider-models/*.json from an unawaited promise.
+    } as typeof real;
+    try {
+      const build = (mode: ModelDiscoveryMode | undefined): void => {
+        const homeDir = mkdtempSync(join(tmpdir(), 'gv-discovery-'));
+        const workingDir = join(homeDir, 'workspace');
+        mkdirSync(workingDir, { recursive: true });
+        createRuntimeServices({
+          ...(mode === undefined ? {} : { modelDiscovery: mode }),
+          runtimeBus: new RuntimeEventBus(),
+          runtimeStore: createRuntimeStore(),
+          configManager: new ConfigManager({ workingDir, homeDir, surfaceRoot: 'agent' }),
+          workingDir,
+          homeDirectory: homeDir,
+        });
+      };
+
+      build('skip');
+      expect(calls).toHaveLength(0);
+
+      // The same construction with the shipped default DOES start it. Without
+      // this half, the assertion above would pass on a runtime that had stopped
+      // discovering models entirely.
+      build(undefined);
+      expect(calls).toHaveLength(1);
+    } finally {
+      ProviderRegistry.prototype.initProviderModelDiscovery = real;
+    }
+  });
+});
+
 describe('composition parity: the trigger family is composed, not just importable', () => {
   let root = '';
 
@@ -184,6 +289,8 @@ describe('composition parity: the trigger family is composed, not just importabl
     mkdirSync(workingDir, { recursive: true });
     mkdirSync(join(homeDir, '.goodvibes', 'agent'), { recursive: true });
     return createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeBus: new RuntimeEventBus(),
       runtimeStore: createRuntimeStore(),
       configManager: new ConfigManager({ workingDir, homeDir, surfaceRoot: 'agent' }),

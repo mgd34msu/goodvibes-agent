@@ -26,6 +26,8 @@ describe('Agent user-first autonomy policy', () => {
   function makeRuntimeServices() {
     root = mkdtempSync(join(tmpdir(), 'gv-agent-policy-'));
     return createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
       runtimeBus: new RuntimeEventBus(),
       runtimeStore: createRuntimeStore(),
       configManager: new ConfigManager({
@@ -146,7 +148,7 @@ describe('Agent user-first autonomy policy', () => {
       });
       return new Response(JSON.stringify({
         platform: 'linux',
-        path: '/tmp/goodvibes.service',
+        path: join(tmpdir(), 'goodvibes.service'),
         installed: true,
         autostart: true,
         running: true,

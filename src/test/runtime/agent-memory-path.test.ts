@@ -33,6 +33,8 @@ describe('Agent memory storage path', () => {
     });
     return {
       services: createRuntimeServices({
+      // Opt out: this process does not outlive the unawaited sweep.
+      modelDiscovery: 'skip',
         runtimeBus: new RuntimeEventBus(),
         runtimeStore: createRuntimeStore(),
         configManager,

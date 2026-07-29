@@ -9,6 +9,8 @@
  * that are never waived — still applies.
  */
 import { describe, test, expect, beforeEach } from 'bun:test';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { isBlockedReadPath } from '@/tools/agent-read-policy.ts';
 import {
   recordAgentSessionWrite,
@@ -83,8 +85,15 @@ describe('read guard — undotted paths are unaffected', () => {
 
 describe('session write ledger', () => {
   test('lookups are independent of how the path was spelled', () => {
-    recordAgentSessionWrite('/tmp/goodvibes/./out.txt'.replace('/./', '/'));
-    expect(wasWrittenInAgentSession('/tmp/goodvibes/out.txt')).toBe(true);
+    // A purely lexical check — no file is ever created — but the path is still
+    // built from tmpdir() so no test source names a location under the real
+    // /tmp (see release-gates/test-temp-path-gate.test.ts).
+    const dir = join(tmpdir(), 'goodvibes');
+    // Record the DOTTED spelling and look up the plain one. The previous form
+    // pre-normalized the path before recording it, so both sides were already
+    // the same string and the claim in the test name was never exercised.
+    recordAgentSessionWrite(`${dir}/./out.txt`);
+    expect(wasWrittenInAgentSession(`${dir}/out.txt`)).toBe(true);
   });
 
   test('a relative path matches its own spelling and nothing else', () => {
@@ -104,10 +113,11 @@ describe('session write ledger', () => {
   });
 
   test('the ledger is bounded and evicts the oldest entries', () => {
-    for (let i = 0; i < 600; i += 1) recordAgentSessionWrite(`/tmp/gv/.f${i}`);
+    const ledgerDir = join(tmpdir(), 'gv');
+    for (let i = 0; i < 600; i += 1) recordAgentSessionWrite(join(ledgerDir, `.f${i}`));
     expect(agentSessionWriteCount()).toBeLessThanOrEqual(512);
     // The oldest entry was evicted; the newest survives.
-    expect(wasWrittenInAgentSession('/tmp/gv/.f0')).toBe(false);
-    expect(wasWrittenInAgentSession('/tmp/gv/.f599')).toBe(true);
+    expect(wasWrittenInAgentSession(join(ledgerDir, '.f0'))).toBe(false);
+    expect(wasWrittenInAgentSession(join(ledgerDir, '.f599'))).toBe(true);
   });
 });
