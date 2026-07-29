@@ -162,8 +162,8 @@ export function planAgentTaskRoute(context: CommandContext, args: AgentRoutePlan
 
   const includeParameters = args.includeParameters === true;
   const limit = readLimit(args.limit, includeParameters ? 8 : 5);
-  const candidates = [...buildCandidates(request)]
-    .sort((left, right) => right.score - left.score)
+  const ranked = [...buildCandidates(request)].sort((left, right) => right.score - left.score);
+  const candidates = ranked
     .slice(0, limit)
     .map((candidate) => describeCandidate(candidate, includeParameters));
   const preferred = candidates[0]!;
@@ -175,6 +175,13 @@ export function planAgentTaskRoute(context: CommandContext, args: AgentRoutePlan
     request: previewHarnessText(request, includeParameters ? 220 : 120),
     preferred,
     alternatives: candidates.slice(1),
+    // The plan ranks and then cuts. Naming how many routes were considered
+    // keeps `alternatives` from reading as "these are the only other routes"
+    // when it is the top few of a longer ranked list.
+    routesConsidered: ranked.length,
+    ...(candidates.length < ranked.length
+      ? { note: `Showing the ${candidates.length} highest-scoring of ${ranked.length} candidate routes; raise limit to see the rest.` }
+      : {}),
     nextAction: preferred.requiresConfirmation
       ? 'Inspect the preferred route, collect missing fields, then run the returned confirmed route only after the user explicitly asks for that effect.'
       : 'Use the preferred read-only route first; only move to a confirmed route if the returned plan asks for one and the user requested the effect.',

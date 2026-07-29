@@ -10,7 +10,7 @@
  * send instead.
  */
 import { describe, test, expect } from 'bun:test';
-import { catalogEnvelope } from '@/tools/agent-harness-tool-utils.ts';
+import { catalogEnvelope, readLimit } from '@/tools/agent-harness-tool-utils.ts';
 
 interface Envelope {
   readonly returned: number;
@@ -96,5 +96,26 @@ describe('catalog envelope — a non-empty page is left alone', () => {
     const result = catalogEnvelope('tools', [{ name: 'read' }], 76, {});
     expect(result.tools).toEqual([{ name: 'read' }]);
     expect(result.returned).toBe(1);
+  });
+});
+
+describe('page-size ceilings', () => {
+  test('a surface with a bigger catalog can declare its own ceiling', () => {
+    // The shared ceiling suits the small catalogs. A catalog that has outgrown
+    // it must be able to raise its own, or its listing silently loses the tail.
+    expect(readLimit(1500, 10)).toBe(500);
+    expect(readLimit(1500, 10, 2000)).toBe(1500);
+    expect(readLimit(9000, 10, 2000)).toBe(2000);
+  });
+
+  test('the fallback page size is bounded by the same ceiling', () => {
+    expect(readLimit(undefined, 3000, 2000)).toBe(2000);
+    expect(readLimit('not a number', 120, 2000)).toBe(120);
+  });
+
+  test('still floors at one row and reads numeric strings', () => {
+    expect(readLimit(0, 10, 2000)).toBe(1);
+    expect(readLimit(-40, 10, 2000)).toBe(1);
+    expect(readLimit('750', 10, 2000)).toBe(750);
   });
 });

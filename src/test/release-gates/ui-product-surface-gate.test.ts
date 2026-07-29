@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { listHarnessSettings } from '../../agent/harness-control.ts';
+import {
+  MAX_SETTING_LIMIT,
+  countHarnessSettings,
+  formatHarnessSettingList,
+  listHarnessSettings,
+} from '../../agent/harness-control.ts';
+import type { ConfigSetting } from '../../config/index.ts';
+import { harnessSettingsCatalog } from '../../tools/agent-harness-settings-catalog.ts';
 import { DEFAULT_CONFIG } from '../../config/index.ts';
 import { ConversationManager } from '../../core/conversation';
 import type { CommandContext } from '../../input/command-registry.ts';
@@ -54,6 +61,28 @@ function modelCatalogContext(): CommandContext {
     ops: {},
     extensions: {},
   } as unknown as CommandContext;
+}
+
+/**
+ * A ConfigManager stand-in whose schema is `count` synthetic settings. `key` is
+ * cast because ConfigKey is a union of the real key literals, and the path
+ * accessors are stubbed because the effective-config view reads them; the cast
+ * is confined to the stub, not to anything under test.
+ */
+function syntheticConfigManager(count: number) {
+  const schema: ConfigSetting[] = Array.from({ length: count }, (_value, index) => ({
+    key: `synthetic.entry${String(index).padStart(5, '0')}` as ConfigSetting['key'],
+    type: 'string',
+    default: '',
+    description: `Synthetic setting ${index}`,
+  }));
+  return {
+    get: () => undefined,
+    getSchema: () => schema,
+    getHomeDirectory: () => null,
+    getConfigPath: () => '/nonexistent/synthetic-config.json',
+    getDaemonTierPath: () => '/nonexistent/synthetic-daemon.json',
+  } as unknown as Parameters<typeof harnessSettingsCatalog>[0];
 }
 
 function expectNonempty(value: unknown): asserts value is string {
@@ -204,7 +233,12 @@ describe('UI product surface gate', () => {
       }
     }
 
-    const settings = listHarnessSettings(managers.configManager, { limit: 500 }) as readonly {
+    // A default listing returns the WHOLE visible catalog, matching how the two
+    // catalogs above are checked. The old assertion here was
+    // `settings.length <= 500`, which is satisfied by a truncated page: it
+    // could only ever pass, including on the day the catalog grew past the
+    // page ceiling and the listing started dropping its tail rows.
+    const settings = listHarnessSettings(managers.configManager, {}) as readonly {
       readonly key?: string;
       readonly category?: string;
       readonly summary?: string;
@@ -213,7 +247,7 @@ describe('UI product surface gate', () => {
       readonly writable?: boolean;
     }[];
     expect(settings.length).toBeGreaterThan(0);
-    expect(settings.length).toBeLessThanOrEqual(500);
+    expect(settings.length).toBe(countHarnessSettings(managers.configManager, {}));
     for (const setting of settings) {
       expectNonempty(setting.key);
       expectNonempty(setting.category);
@@ -224,5 +258,58 @@ describe('UI product surface gate', () => {
       expect(typeof setting.visibleInWorkspace).toBe('boolean');
       expect(typeof setting.writable).toBe('boolean');
     }
+  });
+
+  test('keeps the settings page ceiling well clear of the settings that exist', () => {
+    // Not a fixed expected size — the catalog grows every round. The bar is
+    // headroom: the ceiling must be at least double the live catalog, so the
+    // gate goes red with a wide margin left rather than on the round the
+    // catalog finally crosses it.
+    const visible = countHarnessSettings(createTestManagers().configManager, {});
+    expect(visible).toBeGreaterThan(0);
+    expect(MAX_SETTING_LIMIT).toBeGreaterThanOrEqual(visible * 2);
+  });
+
+  test('a settings catalog past the page ceiling still reports how many it left out', () => {
+    // A catalog deliberately larger than the ceiling, so this holds whatever
+    // the real schema currently counts.
+    const oversized = MAX_SETTING_LIMIT + 10;
+    const configManager = syntheticConfigManager(oversized);
+
+    const page = listHarnessSettings(configManager, {});
+    const total = countHarnessSettings(configManager, {});
+
+    expect(total).toBe(oversized);
+    expect(page.length).toBe(MAX_SETTING_LIMIT);
+    // The page is short; the count that says so must not be the page's own length.
+    expect(total).toBeGreaterThan(page.length);
+    expect(formatHarnessSettingList(page, total)).toContain(`${page.length} of ${total}`);
+  });
+
+  test('the settings tool mode serves a catalog larger than the old 500 ceiling whole', async () => {
+    // 640 is above the ceiling this mode used to carry and below the one it
+    // carries now, so the page must be complete and must say nothing about
+    // being partial. Wired at 500 this returns 500 rows and no explanation.
+    const body = await harnessSettingsCatalog(syntheticConfigManager(640), {} as never);
+    expect(body.returned).toBe(640);
+    expect(body.total).toBe(640);
+    expect(body.note).toBeUndefined();
+  });
+
+  test('the settings tool mode names what it left out when the catalog outgrows the ceiling', async () => {
+    const oversized = MAX_SETTING_LIMIT + 10;
+    const body = await harnessSettingsCatalog(syntheticConfigManager(oversized), {} as never);
+    expect(body.returned).toBe(MAX_SETTING_LIMIT);
+    expect(body.total).toBe(oversized);
+    expect(String(body.note)).toContain(`Showing ${MAX_SETTING_LIMIT} of ${oversized} settings`);
+    expect(String(body.note)).toContain('not the full catalog');
+  });
+
+  test('a complete settings page does not claim to be short', () => {
+    const managers = createTestManagers();
+    const page = listHarnessSettings(managers.configManager, {});
+    const printed = formatHarnessSettingList(page, countHarnessSettings(managers.configManager, {}));
+    expect(printed).toContain(`Settings (${page.length})`);
+    expect(printed).not.toContain('this page is short');
   });
 });

@@ -171,4 +171,38 @@ describe('agent_research_sources tool', () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain('shell paths');
   });
+  test('says when a citation bundle stopped at the limit rather than running out of sources', async () => {
+    const fixture = makePaths();
+    try {
+      const tool = createAgentResearchSourcesTool(fixture.paths);
+      for (let index = 0; index < 4; index += 1) {
+        const added = await tool.execute({
+          mode: 'add',
+          question: 'Which sources back this claim?',
+          title: `Bundle source ${index}`,
+          url: `https://example.test/bundle-${index}`,
+          publisher: 'Example',
+          summary: `Bundle source ${index} summary.`,
+          credibility: 'high',
+          score: 90 - index,
+          confirm: true,
+          explicitUserRequest: 'Add this source to the queue.',
+        });
+        expect(added.success).toBe(true);
+      }
+
+      const short = await tool.execute({ mode: 'bundle', limit: 2 });
+      expect(short.success).toBe(true);
+      expect(short.output).toContain('sources 2 of 4 matched');
+      expect(short.output).toContain('this bundle is short');
+
+      const whole = await tool.execute({ mode: 'bundle', limit: 20 });
+      expect(whole.success).toBe(true);
+      expect(whole.output).toContain('sources 4');
+      expect(whole.output).not.toContain('this bundle is short');
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
 });

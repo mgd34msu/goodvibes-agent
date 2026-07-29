@@ -135,7 +135,23 @@ export interface HarnessSettingMutationResult {
   readonly persistedTo?: string | undefined;
 }
 
-const DEFAULT_SETTING_LIMIT = 500;
+/**
+ * The most settings one listing will ever return, and the page size when the
+ * caller names none.
+ *
+ * This was 500 while the visible catalog stood at 493. Seven entries is not
+ * headroom: the next round of lane settings pushes the catalog past the
+ * ceiling, and a listing that stops at the ceiling drops its tail rows, which
+ * reads to whoever asked as "that setting does not exist".
+ *
+ * 2000 is about four times the present catalog. Recent rounds have added
+ * settings in the low tens, so this absorbs many years of growth while still
+ * bounding a single response to something a caller can hold. It is a ceiling,
+ * not a promise of completeness: {@link countHarnessSettings} reports how many
+ * settings actually match, and every caller must say when it returned fewer.
+ */
+export const MAX_SETTING_LIMIT = 2000;
+const DEFAULT_SETTING_LIMIT = MAX_SETTING_LIMIT;
 /**
  * Credential-looking LEAF names. Matched against the last dot segment only, and
  * never against the whole key, so an unrelated ancestor cannot drag a plain
@@ -170,7 +186,7 @@ function previewText(value: string, maxLength = 56): string {
 
 function clampLimit(value: unknown, fallback = DEFAULT_SETTING_LIMIT): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.max(1, Math.min(500, Math.trunc(value)));
+  return Math.max(1, Math.min(MAX_SETTING_LIMIT, Math.trunc(value)));
 }
 
 function findSetting(configManager: Pick<ConfigManager, 'getSchema'>, rawKey: string): ConfigSetting | null {
@@ -578,10 +594,26 @@ export async function resetHarnessSetting(
   };
 }
 
-export function formatHarnessSettingList(settings: readonly (HarnessSettingDescriptor | HarnessSettingSummary)[]): string {
+/**
+ * Prints a settings listing, and says so when the listing is short of the
+ * settings that actually matched.
+ *
+ * The header used to read `Settings (500)` whether 500 was the whole answer or
+ * the point at which the page stopped. A person reading that has no way to tell
+ * a complete list from a cut-off one, so a missing key reads as a key that does
+ * not exist. Pass `total` — what {@link countHarnessSettings} says matched — and
+ * a short page names both numbers and how to widen it.
+ */
+export function formatHarnessSettingList(
+  settings: readonly (HarnessSettingDescriptor | HarnessSettingSummary)[],
+  total?: number,
+): string {
   if (settings.length === 0) return 'No settings matched.';
+  const shortOf = typeof total === 'number' && total > settings.length ? total : null;
   return [
-    `Settings (${settings.length})`,
+    shortOf === null
+      ? `Settings (${settings.length})`
+      : `Settings (${settings.length} of ${shortOf} — this page is short; re-run with --limit ${Math.min(shortOf, MAX_SETTING_LIMIT)} or narrow it with --category/--prefix)`,
     ...settings.map((setting) => {
       const status = setting.writable ? 'writable' : 'read-only';
       const visible = setting.visibleInWorkspace ? 'workspace' : 'scriptable';

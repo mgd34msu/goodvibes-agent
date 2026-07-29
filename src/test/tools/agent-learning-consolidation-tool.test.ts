@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { MemoryEmbeddingProviderRegistry, MemoryRegistry, MemoryStore } from '@pellux/goodvibes-sdk/platform/state';
@@ -291,4 +292,53 @@ describe('agent_learning_consolidation tool', () => {
       fixture.cleanup();
     }
   });
+  test('a receipts page cut short by limit reports how many receipts are stored', async () => {
+    const fixture = await makeFixture();
+    try {
+      const receiptFile = fixture.paths.resolveUserPath(GOODVIBES_AGENT_SURFACE_ROOT, 'learning', 'consolidation-receipts.json');
+      mkdirSync(dirname(receiptFile), { recursive: true });
+      const stored = 7;
+      writeFileSync(receiptFile, JSON.stringify({
+        version: 1,
+        receipts: Array.from({ length: stored }, (_value, index) => ({
+          id: `lcon-stored-${index}`,
+          createdAt: new Date(1_700_000_000_000 + index).toISOString(),
+          domain: 'memory',
+          candidateId: `candidate-${index}`,
+          phase: 'merge',
+          explicitUserRequest: 'Consolidate these.',
+          survivorId: `survivor-${index}`,
+          duplicateIds: [`duplicate-${index}`],
+          beforeDuplicates: [],
+        })),
+      }));
+
+      const short = await fixture.tool.execute({ mode: 'receipts', limit: 2 });
+      expect(short.success).toBe(true);
+      const shortBody = JSON.parse(short.output!) as {
+        readonly receipts: readonly unknown[];
+        readonly returned: number;
+        readonly total: number;
+        readonly note?: string;
+      };
+      expect(shortBody.receipts).toHaveLength(2);
+      expect(shortBody.returned).toBe(2);
+      expect(shortBody.total).toBe(stored);
+      expect(shortBody.note).toContain(`2 newest of ${stored} receipts`);
+
+      const whole = await fixture.tool.execute({ mode: 'receipts', limit: 50 });
+      expect(whole.success).toBe(true);
+      const wholeBody = JSON.parse(whole.output!) as {
+        readonly returned: number;
+        readonly total: number;
+        readonly note?: string;
+      };
+      expect(wholeBody.returned).toBe(stored);
+      expect(wholeBody.total).toBe(stored);
+      expect(wholeBody.note).toBeUndefined();
+    } finally {
+      fixture.cleanup();
+    }
+  });
+
 });

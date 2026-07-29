@@ -55,7 +55,8 @@ import { describeHarnessMode, HARNESS_MODE_DESCRIPTORS, listHarnessModes, type A
 import { describeHarnessUiSurface, listHarnessUiSurfaces, openHarnessUiSurface, totalHarnessUiSurfaces } from './agent-harness-ui-surface-metadata.ts';
 import { AGENT_WORKSPACE_CATEGORIES, allWorkspaceActions, buildWorkspaceEditorContext, describeWorkspaceAction, describeWorkspaceCategory, listWorkspaceActions, resolveWorkspaceActionDetail } from './agent-harness-workspace-actions.ts';
 import { connectedHostSummary, describeConnectedHostCapability, settingsPolicySummary } from './agent-harness-metadata.ts';
-import { countHarnessSettings, formatHarnessError, listEffectiveHarnessSettings, resetHarnessSetting, resolveEffectiveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
+import { formatHarnessError, resetHarnessSetting, resolveEffectiveHarnessSetting, setHarnessSetting } from '../agent/harness-control.ts';
+import { harnessSettingsCatalog } from './agent-harness-settings-catalog.ts';
 import { buildAssistantCockpitFromSummaries } from '../agent/assistant-cockpit.ts';
 import { remoteCatalogStatus, remotePairApproveHandoff, remotePairRejectHandoff, remotePairRequestsSummary, remotePeersInvokeHandoff, remotePeersSummary, remoteSnapshotSummary, remoteWorkCancelHandoff, remoteWorkSummary } from './agent-harness-remote.ts';
 import { channelDraftSaveHandoff, channelDraftSendHandoff, channelDraftsSummary, channelRoutingAssignHandoff, channelRoutingRemoveHandoff, channelRoutingSummary, unifiedInboxSummary } from './agent-harness-comms.ts';
@@ -584,20 +585,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return error(resolved.usage);
         }
         if (args.mode === 'settings') {
-          const filters = {
-            category: readString(args.category) || undefined,
-            prefix: readString(args.prefix) || undefined,
-            query: readString(args.query) || undefined,
-            includeHidden: args.includeHidden === true,
-            limit: readLimit(args.limit, 500),
-          };
-          // Ownership-aware: daemon-owned keys carry the DAEMON's live value.
-          const cfg = deps.commandContext.platform.configManager;
-          const settings = await listEffectiveHarnessSettings(cfg, { ...filters }, {
-            includeParameters: args.includeParameters === true,
-          });
-          const total = countHarnessSettings(deps.commandContext.platform.configManager, filters);
-          return output({ settings, returned: settings.length, total, policy: settingsPolicySummary() });
+          return output(await harnessSettingsCatalog(deps.commandContext.platform.configManager, args));
         }
         if (args.mode === 'get_setting') {
           const setting = await resolveEffectiveHarnessSetting(deps.commandContext.platform.configManager, settingLookupArgs(args));

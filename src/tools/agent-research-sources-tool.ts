@@ -245,7 +245,18 @@ function sourceMatchesQuery(source: AgentResearchSourceRecord, query: string): b
   ].some((field) => field.toLowerCase().includes(query));
 }
 
-function formatSourceBundle(sources: readonly AgentResearchSourceRecord[], query: string, limit: number): string {
+/**
+ * @param matched - How many sources passed the filters before `limit` cut the
+ *   bundle down. Printed because a citation bundle that stopped at the limit
+ *   looks identical to one that ran out of matching sources, and the difference
+ *   decides whether the report is missing evidence.
+ */
+function formatSourceBundle(
+  sources: readonly AgentResearchSourceRecord[],
+  query: string,
+  limit: number,
+  matched: number,
+): string {
   if (sources.length === 0) {
     return [
       'Agent research source bundle',
@@ -258,7 +269,9 @@ function formatSourceBundle(sources: readonly AgentResearchSourceRecord[], query
   const reportSources = sources.map(reportSourceObject);
   return [
     'Agent research source bundle',
-    `  sources ${sources.length}`,
+    sources.length < matched
+      ? `  sources ${sources.length} of ${matched} matched — this bundle is short; raise limit to cite the rest`
+      : `  sources ${sources.length}`,
     `  query ${query || '(all reviewed/used)'}`,
     `  limit ${limit}`,
     `  question ${questions.size === 1 ? primaryQuestion : '(mixed questions)'}`,
@@ -382,12 +395,11 @@ function createAgentResearchSourcesTool(shellPaths?: Pick<ShellPathService, 'res
         if (mode === 'bundle') {
           const query = readString(args.query).toLowerCase();
           const limit = readLimit(args.limit, 20);
-          const sources = registry.list()
+          const matched = registry.list()
             .filter((source) => source.status === 'reviewed' || source.status === 'used')
             .filter((source) => sourceMatchesQuery(source, query))
-            .sort((left, right) => right.score - left.score || right.updatedAt.localeCompare(left.updatedAt))
-            .slice(0, limit);
-          return output(formatSourceBundle(sources, query, limit));
+            .sort((left, right) => right.score - left.score || right.updatedAt.localeCompare(left.updatedAt));
+          return output(formatSourceBundle(matched.slice(0, limit), query, limit, matched.length));
         }
         if (mode === 'add') {
           requireConfirmedWrite(args, 'Research source add');
