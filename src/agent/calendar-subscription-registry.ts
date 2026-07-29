@@ -5,8 +5,10 @@ import {
   SubscriptionStore,
   expandEvent,
   maskFeedUrl,
+  recordCalendarEventIngest,
   DEFAULT_REFRESH_INTERVAL_MS,
   type CalendarEvent,
+  type CalendarUntrustedIngestRecorder,
   type FeedFetcher,
   type SubscriptionHealth,
 } from '@pellux/goodvibes-sdk/platform/calendar';
@@ -34,6 +36,30 @@ import type { SecretScope } from '../config/secrets.ts';
  *
  * Subscribed events are READ-ONLY: they carry a `sub:<name>:` id namespace so the
  * local-store edit/delete paths can refuse them with a plain reason.
+ *
+ * ## Feed content is untrusted content
+ *
+ * A subscribed event's summary, location and description are written by whoever
+ * controls the feed — the same class of input as a message body or a web page,
+ * arriving in a runtime that can also send and buy. So a turn that READS them
+ * records an untrusted ingest, which is what arms `evaluateOutwardEffect` for
+ * the rest of that turn. The recorder is INJECTED (`recordUntrustedIngest`),
+ * exactly as `EmailService` takes it, so this class reaches for no ledger of its
+ * own and a test can observe every recording.
+ *
+ * The recording happens in `seeds()` and `occurrencesInWindow()` and NOWHERE
+ * ELSE. Those two are the turn reads: they run because the owner typed
+ * `/calendar list` or `/calendar upcoming`, and they hand event text straight to
+ * a caller that is about to display it.
+ *
+ * `subscribe()` and `refresh()` are ARRIVAL, and must never record. A refresh
+ * runs on a timer or at boot, with nobody watching, and the ledger is scoped by
+ * a turn watermark — so a recording made when a feed body lands would attach to
+ * whatever turn happened to be open and refuse that turn's outward action over
+ * an event no turn read and nobody asked for. That hands anyone who can get an
+ * event onto a subscribed feed a remote off switch for the agent's outward
+ * actions. Both paths therefore keep the SDK's plain `events()` accessor rather
+ * than a recording one.
  */
 
 // ──────────────────────────────────────────────────────────────────
@@ -47,6 +73,22 @@ interface SubscriptionMeta {
   readonly name: string;
   /** SecretsManager key holding the feed URL. */
   readonly secretKey: string;
+  /**
+   * The feed URL as `maskFeedUrl` renders it — `https://host/…tail`, never the
+   * raw value, which is a read capability for the whole calendar.
+   *
+   * Persisted because the read paths need it and cannot get it. `seeds()` and
+   * `occurrencesInWindow()` are synchronous, read only this JSON file, and are
+   * built by `subscriptionRegistryForRead` with a secret store that may be a
+   * stub returning null — so the raw URL is genuinely unavailable there, and
+   * plumbing the secret manager into a display read to fetch a value that would
+   * only be masked again is the wrong trade. Written by `subscribe()` and
+   * refreshed by `refresh()`, both of which already hold the URL.
+   *
+   * Optional because stores written before this field existed do not carry it;
+   * those records fall back to a plain "unavailable" note in the origin.
+   */
+  readonly maskedUrl?: string;
   readonly refreshIntervalMs: number;
   readonly lastFetchedAt?: number;
   readonly lastSucceededAt?: number;
@@ -176,6 +218,12 @@ export interface CalendarSubscriptionRegistryOptions {
   readonly fetcher: FeedFetcher;
   readonly clock?: () => number;
   readonly defaultRefreshIntervalMs?: number;
+  /**
+   * Called once per externally-sourced event whose text a TURN read — see the
+   * class header. Injected rather than imported so this class holds no ledger;
+   * the composition root binds the session ledger.
+   */
+  readonly recordUntrustedIngest?: CalendarUntrustedIngestRecorder;
 }
 
 export class CalendarSubscriptionRegistry {
@@ -184,6 +232,7 @@ export class CalendarSubscriptionRegistry {
   private readonly fetcher: FeedFetcher;
   private readonly clock: () => number;
   private readonly defaultInterval: number;
+  private readonly recordUntrustedIngest?: CalendarUntrustedIngestRecorder;
   /**
    * F2 fix: every store WRITE (the read-merge-write critical section of
    * subscribe/unsubscribe/refresh) is serialized through this single
@@ -202,6 +251,7 @@ export class CalendarSubscriptionRegistry {
     this.fetcher = options.fetcher;
     this.clock = options.clock ?? (() => Date.now());
     this.defaultInterval = options.defaultRefreshIntervalMs ?? DEFAULT_REFRESH_INTERVAL_MS;
+    if (options.recordUntrustedIngest) this.recordUntrustedIngest = options.recordUntrustedIngest;
   }
 
   /**
@@ -219,8 +269,18 @@ export class CalendarSubscriptionRegistry {
     return run;
   }
 
-  public static create(shellPaths: AgentLocalStorePaths, secrets: SubscriptionSecretStore, fetcher?: FeedFetcher): CalendarSubscriptionRegistry {
-    return new CalendarSubscriptionRegistry({ storePath: subscriptionStorePath(shellPaths), secrets, fetcher: fetcher ?? createHttpFeedFetcher() });
+  public static create(
+    shellPaths: AgentLocalStorePaths,
+    secrets: SubscriptionSecretStore,
+    fetcher?: FeedFetcher,
+    recordUntrustedIngest?: CalendarUntrustedIngestRecorder,
+  ): CalendarSubscriptionRegistry {
+    return new CalendarSubscriptionRegistry({
+      storePath: subscriptionStorePath(shellPaths),
+      secrets,
+      fetcher: fetcher ?? createHttpFeedFetcher(),
+      ...(recordUntrustedIngest !== undefined ? { recordUntrustedIngest } : {}),
+    });
   }
 
   /** Fetch a feed WITHOUT saving it — the subscribe preview / wizard validate step. */
@@ -258,6 +318,7 @@ export class CalendarSubscriptionRegistry {
       const meta: SubscriptionMeta = {
         name: sub.name,
         secretKey,
+        maskedUrl: maskFeedUrl(url),
         refreshIntervalMs: sub.refreshIntervalMs,
         ...(sub.lastFetchedAt !== undefined ? { lastFetchedAt: sub.lastFetchedAt } : {}),
         ...(sub.lastSucceededAt !== undefined ? { lastSucceededAt: sub.lastSucceededAt } : {}),
@@ -338,6 +399,9 @@ export class CalendarSubscriptionRegistry {
       refreshedByName.set(target.name, {
         name: target.name,
         secretKey: target.secretKey,
+        // Backfills the field for a record written before it existed; the URL
+        // is already in hand here and masking it costs nothing.
+        maskedUrl: maskFeedUrl(url),
         refreshIntervalMs: sub.refreshIntervalMs,
         ...(sub.lastFetchedAt !== undefined ? { lastFetchedAt: sub.lastFetchedAt } : {}),
         ...(sub.lastSucceededAt !== undefined ? { lastSucceededAt: sub.lastSucceededAt } : {}),
@@ -397,6 +461,7 @@ export class CalendarSubscriptionRegistry {
     const file = this.readStore();
     const out: SubscribedOccurrence[] = [];
     for (const s of file.subscriptions) {
+      this.recordReadOfFeedContent(s);
       for (const event of s.events) {
         const recurring = event.recurrence !== undefined;
         out.push({
@@ -423,6 +488,7 @@ export class CalendarSubscriptionRegistry {
     const file = this.readStore();
     const out: SubscribedOccurrence[] = [];
     for (const s of file.subscriptions) {
+      this.recordReadOfFeedContent(s);
       for (const event of s.events) {
         const occ = expandEvent(event, { from: fromDate, to: toDate });
         const notExpanded = event.recurrence?.expansion === 'unsupported';
@@ -444,6 +510,34 @@ export class CalendarSubscriptionRegistry {
   }
 
   // ── internals ────────────────────────────────────────────────────
+
+  /**
+   * Record that a turn read this subscription's cached event text.
+   *
+   * Called ONLY from `seeds()` and `occurrencesInWindow()`. One entry per event
+   * rather than one per feed, because an origin names the party whose words an
+   * outward action might turn out to repeat; the SDK drops events whose readable
+   * fields are all empty, so an event with nothing an outsider wrote records
+   * nothing.
+   *
+   * `expandEvent` is irrelevant here on purpose: a recurring event's text is the
+   * same text on every occurrence, so `occurrencesInWindow` records per EVENT,
+   * not per occurrence, and a weekly meeting does not produce fifty-two
+   * identical entries.
+   */
+  private recordReadOfFeedContent(s: SubscriptionMeta): void {
+    if (this.recordUntrustedIngest === undefined) return;
+    recordCalendarEventIngest({
+      record: this.recordUntrustedIngest,
+      provenance: {
+        kind: 'subscription',
+        name: s.name,
+        maskedUrl: s.maskedUrl ?? '(feed url unavailable)',
+      },
+      events: s.events,
+      at: new Date(this.clock()).toISOString(),
+    });
+  }
 
   private resultOf(outcome: RefreshOutcome['outcome']): SubscriptionMeta['lastResult'] {
     if (outcome === 'updated') return 'ok';
@@ -500,6 +594,7 @@ function coerceMeta(value: Record<string, unknown>): SubscriptionMeta | null {
   return {
     name,
     secretKey,
+    ...(typeof value.maskedUrl === 'string' && value.maskedUrl.length > 0 ? { maskedUrl: value.maskedUrl } : {}),
     refreshIntervalMs,
     ...(typeof value.lastFetchedAt === 'number' ? { lastFetchedAt: value.lastFetchedAt } : {}),
     ...(typeof value.lastSucceededAt === 'number' ? { lastSucceededAt: value.lastSucceededAt } : {}),
