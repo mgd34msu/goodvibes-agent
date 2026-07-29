@@ -143,6 +143,13 @@ export interface InputFeedContext {
   requestRender: () => void;
   readonly modalOpened: (name: string) => void;
   readonly handleEscape: () => void;
+  /**
+   * Deliver an Enter submission to a pending composer line prompt (masked card
+   * field, or plain address field). True means it was consumed and the normal
+   * submit path — including input history — must not run. See
+   * input/concealed-input.ts and input/plain-line-input.ts.
+   */
+  readonly submitConcealedInput: (value: string) => boolean;
   readonly handleCopy: () => void;
   readonly handleCtrlC: () => void;
   readonly handleBlockCopy: () => void;
@@ -442,6 +449,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
         findMarkerAtPos: context.findMarkerAtPos,
         cleanupMarkerRegistry: context.cleanupMarkerRegistry,
         expandPrompt: context.expandPrompt,
+        submitConcealedInput: context.submitConcealedInput,
         scroll: context.scroll,
         exitApp: context.exitApp,
         requestRender: context.requestRender,

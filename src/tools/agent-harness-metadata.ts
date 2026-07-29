@@ -62,6 +62,14 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Keybinding inspection is read-only. Keybinding execution or edits require explicit confirmation through agent_harness keybinding modes.',
     };
   }
+  if (root === 'payments') {
+    return {
+      effect: 'connected-host-state',
+      confirmation,
+      preferredModelTool: settingsActions('list', 'get', 'set'),
+      boundary: 'Budgets, windows, CVV handling and the two addresses are ordinary daemon-owned settings and can be read or written through the settings adapter. The card itself cannot: number, expiry, verification code and cardholder name are typed only by the person at a local terminal, through a masked prompt that echoes nothing, and are stored write-only in the daemon secret store. Nothing here returns them and nothing here sets them, and no card prompt is ever offered over Telegram, ntfy, Discord, Slack, WhatsApp, Signal or a webhook — approving or cancelling a purchase over those channels still works.',
+    };
+  }
   if (root === 'settings' || root === 'config') {
     return {
       effect: 'mixed',

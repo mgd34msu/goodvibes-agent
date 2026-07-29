@@ -338,6 +338,133 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     asserts: 'setting it writes a goodvibes:// reference into config and the value into a store a differently-rooted reader resolves; setting it to empty writes an empty config value and that store returns null',
   },
 
+  // --- Payments (payments.*, daemon.timezone) -----------------------------
+  // Covered by src/test/input/settings-modal-payments.test.ts and
+  // src/test/renderer/settings-modal-payments.test.ts, driven through the real
+  // SettingsModal edit/commit/render path (settings-modal.ts,
+  // settings-modal-behavior.ts, payments-money-format.ts), and
+  // src/test/input/daemon-settings-actions.test.ts for the timezone picker's
+  // own selection-handling code.
+  {
+    key: 'payments.budget.dailyItemCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "0.1"/"0.29"/"19.99"/"1234.56" into the edit buffer stores exactly 10/29/1999/123456 cents (not a float-rounding-adjacent value), and re-opening the field shows the same major-units string back; a negative entry is refused rather than coerced',
+  },
+  {
+    key: 'payments.budget.dailyOverageCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "0.29" against this specific key stores exactly 29 cents through the real money edit/commit path',
+  },
+  {
+    key: 'payments.budget.perPurchaseCeilingCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "19.99" against this specific key stores exactly 1999 cents through the real money edit/commit path',
+  },
+  {
+    key: 'payments.budget.overageToleranceDailyAllowanceCents',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'typing "1234.56" against this specific key stores exactly 123456 cents through the real money edit/commit path',
+  },
+  {
+    key: 'payments.defaultCardId',
+    test: 'src/test/renderer/settings-modal-payments.test.ts',
+    asserts: 'renders as a plain visible id both empty and set — never routed through the secret-masking path a real credential key goes through, which matters because this key names a card without ever holding its number, expiry or CVV',
+  },
+  {
+    key: 'payments.currency',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: 'changing it to JPY changes the money edit buffer for a Cents field from a two-decimal major-units string to a whole-number one with no decimal point, proving the conversion is genuinely currency-aware rather than hardcoded to USD',
+  },
+  {
+    key: 'payments.cvvHandling',
+    test: 'src/test/input/settings-modal-payments.test.ts',
+    asserts: "cycling from 'stored' to 'prompt' surfaces the SDK's exact CVV_PROMPT_TRADEOFF_WARNING string as the setting-effect message and in the rendered context panel; cycling back to 'stored' clears it and the description text remains the only place the topic is mentioned",
+  },
+  {
+    key: 'daemon.timezone',
+    test: 'src/test/input/daemon-settings-actions.test.ts',
+    asserts: "selecting a real IANA zone from the picker writes that exact zone name; selecting the explicit UTC (unset) row writes '' rather than leaving free text entry as an option",
+  },
+
+  // --- Payments addresses (payments.{billing,shipping}Address.*) -----------
+  // The fourteen address keys entered this repo's settings denominator when the
+  // SDK grew them AND this repo grew a consumer for them — the guided
+  // `/payments address` flow in commands/payment-card-intake.ts. They are
+  // covered by driving that real flow, not the schema: each key is taken to two
+  // distinct values in turn and the outcome is asserted per key in both the
+  // stored config and the rendered `/payments status` view, so a consumer that
+  // started ignoring one field would fail on that field by name.
+  {
+    key: 'payments.billingAddress.name',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'the guided flow writes this specific field, a second run replaces it with a different name, and the /payments status rendering shows the new value and no longer the old one',
+  },
+  {
+    key: 'payments.billingAddress.line1',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own typed street line and is replaced independently on a second run; the previous value disappears from the status rendering rather than being appended to it',
+  },
+  {
+    key: 'payments.billingAddress.line2',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own second address line, and a whitespace-only answer keeps whatever was there instead of clearing the field',
+  },
+  {
+    key: 'payments.billingAddress.city',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own city value and changes independently of the other six fields when the flow is run a second time',
+  },
+  {
+    key: 'payments.billingAddress.region',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own state/region value and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.billingAddress.postalCode',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own postal code and changes independently on a second run; it is entered in the clear and is not routed through the masked card path',
+  },
+  {
+    key: 'payments.billingAddress.country',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own country value and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.shippingAddress.name',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'the shipping flow writes this field separately from the billing one, and a second run replaces it with a different name',
+  },
+  {
+    key: 'payments.shippingAddress.line1',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own street line, lands in the daemon-owned config tier a purchase reads from, and is replaced independently on a second run',
+  },
+  {
+    key: 'payments.shippingAddress.line2',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own second line, and a whitespace-only answer keeps the existing value rather than clearing it',
+  },
+  {
+    key: 'payments.shippingAddress.city',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own city value and changes independently of the other shipping fields on a second run',
+  },
+  {
+    key: 'payments.shippingAddress.region',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own state/region value and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.shippingAddress.postalCode',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own postal code and changes independently on a second run through the real guided flow',
+  },
+  {
+    key: 'payments.shippingAddress.country',
+    test: 'src/test/security/payments-card-containment.test.ts',
+    asserts: 'stores its own country value and changes independently on a second run through the real guided flow',
+  },
+
   // NOT COVERED, deliberately: device.nodes.maxPaired. The key is declared in
   // schema-domain-device.ts and associated with the paired-device feature in
   // flag-config-map.ts, but nothing reads it — no pairing path bounds the number of

@@ -27,6 +27,20 @@ export const SECRET_CONFIG_KEYS = new Set<ConfigKey>([
   'surfaces.bluebubbles.password',
   'surfaces.mattermost.botToken',
   'surfaces.matrix.accessToken',
+  // Card MATERIAL — the four fields entered through the concealed-input flow in
+  // input/commands/payment-card-intake.ts. Synthetic sub-keys one level under
+  // the SDK's real `payments` section (CONFIG_SCHEMA has no scalar entry for
+  // them, hence the cast — the same situation as `email.passwordRef` above).
+  // See input/payments-config.ts for why they are named flat
+  // (`payments.cardNumber`, not `payments.card.number`).
+  //
+  // Membership here is what makes them masked at rest AND mid-edit in the
+  // settings modal, and what routes a settings-modal edit through the
+  // secret-manager path instead of writing plaintext into a config file.
+  'payments.cardNumber' as ConfigKey,
+  'payments.cardExpiry' as ConfigKey,
+  'payments.cardCvv' as ConfigKey,
+  'payments.cardholderName' as ConfigKey,
 ]);
 
 export interface SecretBackedConfigUpdate {
@@ -103,7 +117,8 @@ export function buildSecretBackedConfigUpdate(configKey: ConfigKey, rawValue: st
 /**
  * Where a secret-backed write lands when the caller did not name a scope.
  *
- * A daemon-owned config key (`surfaces.*`, `email.*`, `calendar.*`, ...) names a
+ * A daemon-owned config key (`surfaces.*`, `email.*`, `calendar.*`,
+ * `payments.*`, ...) names a
  * credential the DAEMON executes with, not this interactive client, so its
  * secret material belongs in the daemon-scoped tier the daemon actually
  * reads — the same rule the SDK's config-ownership.ts already applies to the
@@ -115,7 +130,9 @@ export function buildSecretBackedConfigUpdate(configKey: ConfigKey, rawValue: st
  * the daemon never resolves. The surface reported success and the daemon found
  * nothing. That is the shape of the mail failure the owner hit — `/google adopt`
  * succeeded in the agent, and the daemon serving Telegram said no email
- * integration was available with the agent closed.
+ * integration was available with the agent closed. For a payment card it is
+ * the whole feature failing silently: the daemon is the process that completes
+ * an unattended purchase, and it does so with every surface closed.
  */
 export function defaultSecretBackedScope(configKey: ConfigKey): SecretScope {
   return isDaemonOwnedConfigKey(configKey) ? 'daemon' : 'user';

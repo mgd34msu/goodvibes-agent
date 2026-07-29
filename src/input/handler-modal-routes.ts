@@ -3,6 +3,7 @@ import { servingEffortForLevel, toEffortModel } from '../providers/reasoning-eff
 import type { SelectionResult, SelectionAction } from './selection-modal.ts';
 import type { CommandContext } from './command-registry.ts';
 import { openTtsProviderPicker, openTtsVoicePicker } from './tts-settings-actions.ts';
+import { openDaemonTimezonePicker } from './daemon-settings-actions.ts';
 import { isTextBackspace } from './delete-key-policy.ts';
 
 type SelectionRouteState = {
@@ -235,7 +236,7 @@ type SettingsRouteState = {
     editChar: (char: string) => void;
     pendingModelPickerTarget: import('./model-picker.ts').ModelPickerTarget | null;
     pendingProviderModelPickerTarget?: import('./model-picker.ts').ModelPickerTarget | null;
-    pendingSettingsPickerAction?: 'tts-provider' | 'tts-voice' | null;
+    pendingSettingsPickerAction?: 'tts-provider' | 'tts-voice' | 'daemon-timezone' | null;
     resetSelected?: () => { key: string; value: unknown } | null;
   };
   commandContext?: CommandContext;
@@ -270,6 +271,10 @@ function consumeSettingsPickerRequest(state: SettingsRouteState): void {
     if (!state.commandContext) return;
     if (settingsAction === 'tts-provider') {
       openTtsProviderPicker(state.commandContext);
+      return;
+    }
+    if (settingsAction === 'daemon-timezone') {
+      openDaemonTimezonePicker(state.commandContext);
       return;
     }
     void openTtsVoicePicker(state.commandContext).catch((error: unknown) => {

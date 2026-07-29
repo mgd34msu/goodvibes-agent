@@ -140,6 +140,14 @@ describe('SettingsModal', () => {
       // display additionally carries the synthetic display.themeMode
       // entry (agent-local key, not in the SDK CONFIG_SCHEMA).
       if (cat === 'display') expectedKeys.push('display.themeMode');
+      // payments additionally carries the four synthetic card-material entries.
+      // CONFIG_SCHEMA declares none of them on purpose — card material lives
+      // write-only in the daemon secret store and config holds only a
+      // goodvibes:// reference — so they are injected by the modal from
+      // input/payments-config.ts, the same way display.themeMode is.
+      if (cat === 'payments') {
+        expectedKeys.push('payments.cardNumber', 'payments.cardExpiry', 'payments.cardCvv', 'payments.cardholderName');
+      }
       // A root with no category of its own is listed under the category named
       // in CROSS_LISTED_SETTING_ROOTS rather than being dropped, so that
       // category carries those keys too.

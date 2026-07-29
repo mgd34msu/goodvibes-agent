@@ -10,8 +10,11 @@ import { buildGoodVibesSecretKey, defaultSecretBackedScope, isSecretConfigKey } 
 import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
+  moneyEditBufferValue,
+  parseMoneyOrNumberEditBuffer,
   roundToPrecision,
 } from './settings-modal-behavior.ts';
+import { CVV_PROMPT_TRADEOFF_WARNING } from '@pellux/goodvibes-sdk/platform/payments';
 import {
   setSecretBackedSettingValue,
   type SettingsSecretsManager,
@@ -23,6 +26,7 @@ import {
   THEME_MODE_DEFAULT,
   THEME_MODE_SYNTHETIC_SETTING,
 } from '../renderer/theme-mode-config.ts';
+import { buildPaymentsSyntheticEntries } from './payments-config.ts';
 import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { FlagState } from '@/runtime/index.ts';
 import { FEATURE_SETTINGS } from '@/runtime/index.ts';
@@ -93,7 +97,7 @@ export class SettingsModal {
   /** Set when the highlighted setting should open provider selection before model selection. */
   public pendingProviderModelPickerTarget: ModelPickerTarget | null = null;
   /** Set when a highlighted setting needs an external picker owned by the shell route. */
-  public pendingSettingsPickerAction: 'tts-provider' | 'tts-voice' | null = null;
+  public pendingSettingsPickerAction: 'tts-provider' | 'tts-voice' | 'daemon-timezone' | null = null;
   /** Provider awaiting explicit logout confirmation, if any. */
   public subscriptionLogoutConfirmationTarget: string | null = null;
 
@@ -364,6 +368,10 @@ export class SettingsModal {
       this.pendingSettingsPickerAction = 'tts-voice';
       return;
     }
+    if (setting.key === 'daemon.timezone') {
+      this.pendingSettingsPickerAction = 'daemon-timezone';
+      return;
+    }
 
     const pickerLaunch = modelPickerLaunchForKey(setting.key);
     if (pickerLaunch !== null) {
@@ -385,7 +393,9 @@ export class SettingsModal {
     } else if (setting.type === 'string' || setting.type === 'number') {
       // Enter inline edit mode
       this.editingMode = true;
-      this.editBuffer = String(entry.currentValue ?? '');
+      this.editBuffer = setting.type === 'number'
+        ? moneyEditBufferValue(setting, entry.currentValue, this._paymentsCurrency())
+        : String(entry.currentValue ?? '');
     }
   }
 
@@ -537,8 +547,8 @@ export class SettingsModal {
     let parsed: unknown = this.editBuffer;
 
     if (setting.type === 'number') {
-      parsed = Number(this.editBuffer);
-      if (isNaN(parsed as number)) {
+      parsed = parseMoneyOrNumberEditBuffer(setting, this.editBuffer, this._paymentsCurrency());
+      if (parsed === null) {
         this.editingMode = false;
         this.editBuffer = '';
         return false;
@@ -582,9 +592,9 @@ export class SettingsModal {
     this._setValue(key, entry.setting.default);
     if (isSecretConfigKey(key) && this.secretsManager) {
       // Same scope the value was WRITTEN at (defaultSecretBackedScope), or the
-      // reset clears nothing: an email.* / calendar.* / surfaces.* secret lives
-      // in the daemon tier, and deleting the user-tier copy would leave the real
-      // one in place while the UI reported the setting reset.
+      // reset clears nothing: an email.* / calendar.* / surfaces.* / payments.*
+      // secret lives in the daemon tier, and deleting the user-tier copy would
+      // leave the real one in place while the UI reported the setting reset.
       void this.secretsManager.delete(buildGoodVibesSecretKey(key), { scope: defaultSecretBackedScope(key) }).catch((error) => {
         logger.error('SettingsModal: failed to clear secret while resetting setting', { key, error: summarizeError(error) });
       });
@@ -653,6 +663,22 @@ export class SettingsModal {
         currentValue: themeModeValue,
         isDefault: themeModeValue === THEME_MODE_DEFAULT,
       });
+    }
+
+    // Inject the four card-material fields (number, expiry, CVV, cardholder
+    // name). They are synthetic because CONFIG_SCHEMA deliberately carries no
+    // scalar entry for card material — it lives write-only in the daemon
+    // secret store and config holds only a goodvibes:// reference. Listing
+    // them here is what gives the settings modal a visible "set / not set"
+    // row for each and a masked edit path; the primary entry point remains
+    // the guided `/payments card` flow. See input/payments-config.ts.
+    const paymentsEntries = this.groups.get('payments');
+    if (paymentsEntries) {
+      for (const entry of buildPaymentsSyntheticEntries(configManager)) {
+        if (!paymentsEntries.some((existing) => existing.setting.key === entry.setting.key)) {
+          paymentsEntries.push(entry);
+        }
+      }
     }
 
     const uiEntries = this.groups.get('ui');
@@ -751,10 +777,22 @@ export class SettingsModal {
         this.lastSettingEffectMessage = result?.message ?? null;
         this._refreshAllEntries();
       }
+      // The SDK's own trade-off wording, shown at the moment of selection — not
+      // authored here, and never shown against the 'stored' default.
+      if (key === 'payments.cvvHandling' && value === 'prompt') {
+        this.lastSettingEffectMessage = CVV_PROMPT_TRADEOFF_WARNING;
+      } else if (key === 'payments.cvvHandling' && this.lastSettingEffectMessage === CVV_PROMPT_TRADEOFF_WARNING) {
+        this.lastSettingEffectMessage = null;
+      }
     } catch (e) {
       logger.error('SettingsModal: failed to set config value', { key, error: summarizeError(e) });
       this.lastSettingEffectMessage = `Save failed: ${summarizeError(e)}`;
     }
+  }
+
+  /** Current payments.currency, defaulting to the schema default before any card is configured. */
+  private _paymentsCurrency(): string {
+    return String(this.configManager?.get('payments.currency') ?? 'USD');
   }
 
 }

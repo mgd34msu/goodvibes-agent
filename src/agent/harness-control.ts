@@ -139,10 +139,10 @@ export interface HarnessSettingMutationResult {
  * The most settings one listing will ever return, and the page size when the
  * caller names none.
  *
- * This was 500 while the visible catalog stood at 493. Seven entries is not
- * headroom: the next round of lane settings pushes the catalog past the
- * ceiling, and a listing that stops at the ceiling drops its tail rows, which
- * reads to whoever asked as "that setting does not exist".
+ * This was 500 while the visible catalog stood at 493, and 509 once payments.*
+ * and daemon.timezone landed. Seven entries was not headroom: a listing that
+ * stops at the ceiling drops its tail rows, which reads to whoever asked as
+ * "that setting does not exist".
  *
  * 2000 is about four times the present catalog. Recent rounds have added
  * settings in the low tens, so this absorbs many years of growth while still

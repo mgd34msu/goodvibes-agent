@@ -25,9 +25,9 @@ export function setSecretBackedSettingValue(args: {
   }
 
   const update = buildSecretBackedConfigUpdate(key, value);
-  // Daemon-owned keys (surfaces.*, email.*, calendar.*, ...) name a credential
-  // the daemon itself reads, so the secret material must land in the daemon
-  // scope no matter which client edited it — see secret-config.ts's
+  // Daemon-owned keys (surfaces.*, email.*, calendar.*, payments.*, ...) name a
+  // credential the daemon itself reads, so the secret material must land in the
+  // daemon scope no matter which client edited it — see secret-config.ts's
   // defaultSecretBackedScope for why splitting the reference from the value
   // makes the write look successful while the daemon finds nothing.
   const scope = defaultSecretBackedScope(key);

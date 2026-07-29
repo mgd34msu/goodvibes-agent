@@ -44,6 +44,7 @@ import { registerEmailRuntimeCommands } from './commands/email-runtime.ts';
 import { registerCalendarRuntimeCommands } from './commands/calendar-runtime.ts';
 import { registerGoogleRuntimeCommands } from './commands/google-runtime.ts';
 import { registerUpdateCommand } from './commands/update-runtime.ts';
+import { registerPaymentCardCommands } from './commands/payment-card-intake.ts';
 
 function registerAgentMemoryCommand(registry: CommandRegistry): void {
   registry.register({
@@ -104,6 +105,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registerLocalRuntimeCommands(registry);
   registerScheduleRuntimeCommands(registry);
   registerSessionContentCommands(registry);
+  registerPaymentCardCommands(registry);
   registerAgentMemoryCommand(registry);
 
   // ── /session ─────────────────────────────────────────────────────────────
