@@ -6,7 +6,7 @@ import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { getResolvedSettingLookup } from '@/runtime/index.ts';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
-import { buildGoodVibesSecretKey, isSecretConfigKey } from '../config/secret-config.ts';
+import { buildGoodVibesSecretKey, defaultSecretBackedScope, isSecretConfigKey } from '../config/secret-config.ts';
 import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
@@ -581,7 +581,11 @@ export class SettingsModal {
     const key = entry.setting.key as ConfigKey;
     this._setValue(key, entry.setting.default);
     if (isSecretConfigKey(key) && this.secretsManager) {
-      void this.secretsManager.delete(buildGoodVibesSecretKey(key), { scope: 'user' }).catch((error) => {
+      // Same scope the value was WRITTEN at (defaultSecretBackedScope), or the
+      // reset clears nothing: an email.* / calendar.* / surfaces.* secret lives
+      // in the daemon tier, and deleting the user-tier copy would leave the real
+      // one in place while the UI reported the setting reset.
+      void this.secretsManager.delete(buildGoodVibesSecretKey(key), { scope: defaultSecretBackedScope(key) }).catch((error) => {
         logger.error('SettingsModal: failed to clear secret while resetting setting', { key, error: summarizeError(error) });
       });
     }

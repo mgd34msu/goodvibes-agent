@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { SecretsManager } from '../config/secrets.ts';
+import { credentialWriteScopeWasRelocated, resolveCredentialDeleteScope, resolveCredentialWriteScope } from '../config/credential-scope.ts';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
 import { getSubscriptionProviderConfig, listAvailableSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
 import type { OAuthProviderConfig } from '@pellux/goodvibes-sdk/platform/config';
@@ -225,21 +226,37 @@ export async function handleSecrets(runtime: CliCommandRuntime): Promise<string>
     if (sub === 'link' && (!value.startsWith('goodvibes://secrets/') || !isSecretRefInput(value))) {
       return 'Invalid secret reference. Use goodvibes://secrets/<source>/...';
     }
+    // The requested scope is what the operator typed (or the historical
+    // 'project' default when they typed neither flag), and it is honoured for
+    // every credential except one the daemon reads. For those the write is
+    // RELOCATED to the daemon tier and said so out loud: `--project` on a
+    // mailbox password or a calendar feed URL is a flag nobody thought about,
+    // and honouring it means the credential works until this command exits.
+    const requestedScope = flags.has('--user') ? 'user' : 'project';
+    const scope = resolveCredentialWriteScope(key, requestedScope);
     await secrets.set(key, value, {
-      scope: flags.has('--user') ? 'user' : 'project',
+      scope,
       medium: flags.has('--plaintext') ? 'plaintext' : 'secure',
     });
     return [
       `Secret ${sub === 'link' ? 'linked' : 'stored'}`,
       `  key ${key}`,
+      `  scope ${scope}`,
+      ...(credentialWriteScopeWasRelocated(key, requestedScope)
+        ? [`  note filed in the daemon tier instead of ${requestedScope} — the daemon is what reads this credential, and it reads only its own tier`]
+        : []),
     ].join('\n');
   }
   if (sub === 'delete') {
     const key = rest.find((arg) => !arg.startsWith('--'));
     if (!key) return `Usage: ${runtime.cli.binary} secrets delete <KEY> [--user|--project] [--secure|--plaintext]`;
     const flags = new Set(rest.filter((arg) => arg.startsWith('--')));
+    // A daemon-read credential lives in the daemon tier whatever the caller
+    // asked for, so the delete sweeps every tier rather than the requested one:
+    // a narrowed delete would report success and leave the live copy in place —
+    // a credential the operator believes is revoked and is not.
     await secrets.delete(key, {
-      scope: flags.has('--user') ? 'user' : flags.has('--project') ? 'project' : undefined,
+      scope: resolveCredentialDeleteScope(key, flags.has('--user') ? 'user' : flags.has('--project') ? 'project' : undefined),
       medium: flags.has('--secure') ? 'secure' : flags.has('--plaintext') ? 'plaintext' : undefined,
     });
     return [

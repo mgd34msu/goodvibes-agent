@@ -74,6 +74,21 @@ const SELF_REFERENTIAL_FILES: readonly string[] = [
   // Names disclaimed keys in order to assert they are disclaimed. Scanning it
   // would make the assertion undo itself the moment it was written.
   join('src', 'test', 'verification', 'settings-consumed-keys.test.ts'),
+  // Names config keys to assert how the support-bundle redactor CLASSIFIES
+  // them, including a list of keys it must specifically leave alone
+  // (`display.showTokenSpeed`, `planner.tokenCeiling`, `security.tokenAudit.*`)
+  // that exists only so a widened word list cannot start hiding them. Nothing
+  // there sets a setting, runs its consuming code path, or asserts an outcome
+  // that differs between two of its values — it is the same "talks about keys"
+  // shape as the two entries above, and counting it would put a dozen keys in
+  // the denominator on the strength of an assertion that the product does
+  // NOTHING with them.
+  //
+  // Its sibling, src/test/config/credential-daemon-scope.test.ts, is
+  // deliberately NOT here: that one drives real writes through the settings
+  // modal, the harness setting path and the mail wizard and reads the result
+  // back from a second store, which is a consumer by any reading.
+  join('src', 'test', 'cli', 'redaction-credential-names.test.ts'),
 ];
 
 const SKIPPED_DIRECTORY_NAMES = new Set(['node_modules', 'dist', '.git']);

@@ -7,6 +7,7 @@ import type { ContentPart } from '@pellux/goodvibes-sdk/platform/providers';
 import { resolveAndValidatePath } from '@pellux/goodvibes-sdk/platform/utils';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
 import { requireBookmarkManager, requireProviderApi, requireSecretsManager } from './runtime-services.ts';
+import { credentialWriteScopeWasRelocated, resolveCredentialDeleteScope, resolveCredentialWriteScope } from '../../config/credential-scope.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import {
@@ -242,12 +243,22 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
           ctx.print('[secrets] Invalid secret reference. Use /secrets providers for examples.');
           return;
         }
-        const scope = flags.has('--user') ? 'user' : 'project';
+        // Same relocation rule as the `secrets set` CLI subcommand: the flag the
+        // operator typed is honoured for everything except a credential the
+        // daemon reads, which goes to the daemon tier and is reported as having
+        // gone there. The printed scope is the tier the value ACTUALLY landed
+        // in — printing the requested one would be a line that says the write
+        // went somewhere it did not.
+        const requestedScope = flags.has('--user') ? 'user' : 'project';
+        const scope = resolveCredentialWriteScope(key, requestedScope);
         const medium = flags.has('--plaintext') ? 'plaintext' : 'secure';
         await mgr.set(key, value, { scope, medium });
+        const relocationNote = credentialWriteScopeWasRelocated(key, requestedScope)
+          ? `\n  filed in the daemon tier instead of ${requestedScope} — the daemon is what reads this credential, and it reads only its own tier`
+          : '';
         ctx.print(sub === 'link'
-          ? `[secrets] Linked: ${key} -> ${describeSecretRef(value)} (${scope}, ${medium})`
-          : `[secrets] Stored: ${key} (${scope}, ${medium})`);
+          ? `[secrets] Linked: ${key} -> ${describeSecretRef(value)} (${scope}, ${medium})${relocationNote}`
+          : `[secrets] Stored: ${key} (${scope}, ${medium})${relocationNote}`);
         return;
       }
       if (sub === 'get') {
@@ -271,8 +282,12 @@ export function registerLocalRuntimeCommands(registry: CommandRegistry): void {
           requireYesFlag(ctx, `delete secret ${key}`, '/secrets delete <KEY> [--user|--project] [--secure|--plaintext] --yes');
           return;
         }
+        // Sweep every tier for a daemon-read credential: it lives in the daemon
+        // tier whatever the caller asked for, and a delete narrowed to the
+        // requested scope would report success while leaving the live copy in
+        // place.
         await mgr.delete(key, {
-          scope: flags.has('--user') ? 'user' : flags.has('--project') ? 'project' : undefined,
+          scope: resolveCredentialDeleteScope(key, flags.has('--user') ? 'user' : flags.has('--project') ? 'project' : undefined),
           medium: flags.has('--plaintext') ? 'plaintext' : flags.has('--secure') ? 'secure' : undefined,
         });
         ctx.print([
