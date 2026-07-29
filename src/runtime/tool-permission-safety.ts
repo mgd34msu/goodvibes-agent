@@ -1,6 +1,7 @@
 import type { PermissionCategory, PermissionCheckResult } from '@pellux/goodvibes-sdk/platform/permissions';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { HARNESS_MODE_DESCRIPTORS } from '../tools/agent-harness-mode-catalog.ts';
+import { normalizeProfileAction, PROFILE_WRITE_ACTIONS } from '../tools/agent-profile-types.ts';
 
 type PermissionManagerLike = {
   check(toolName: string, args: Record<string, unknown>): Promise<boolean>;
@@ -297,6 +298,17 @@ export function fallbackPermissionCategoryForArgs(toolName: string, args: Record
         ? args.mode.trim().toLowerCase().replace(/-/g, '_')
         : '';
     return READ_ONLY_EXECUTION_ACTIONS.has(action) ? 'read' : 'write';
+  }
+  if (toolName === 'profile') {
+    // The owner-profile actions split cleanly: four look things up, four change
+    // the file. Classified honestly rather than conveniently — an autonomous
+    // write is still a write, and the owner declined a confirmation prompt on
+    // the profile FEATURE, not on the permission layer's posture for the tool.
+    // Both sides read the SAME action vocabulary, so an alias can never
+    // classify as a read here and act as a write there. An action the tool does
+    // not recognise is a write, never auto-approved as a read.
+    const action = normalizeProfileAction(args.action) ?? normalizeProfileAction(args.mode);
+    return action === null || PROFILE_WRITE_ACTIONS.has(action) ? 'write' : 'read';
   }
   if (toolName === 'agent_harness') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';

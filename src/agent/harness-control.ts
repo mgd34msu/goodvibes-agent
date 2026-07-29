@@ -184,6 +184,14 @@ function previewText(value: string, maxLength = 56): string {
   return normalized.length <= maxLength ? normalized : `${normalized.slice(0, maxLength - 3).trimEnd()}...`;
 }
 
+/**
+ * The settings catalog is a fixed, enumerable set the caller is entitled to see
+ * all of — not a feed. A fixed 500 silently truncated the default listing the
+ * moment the schema passed 500 keys (the `profile.*` domain took it past): the
+ * payload's `returned` came back short of its own `total` with nothing saying
+ * the list had been cut. The ceiling is now MAX_SETTING_LIMIT, and every
+ * caller states in words when it returned fewer than matched.
+ */
 function clampLimit(value: unknown, fallback = DEFAULT_SETTING_LIMIT): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.max(1, Math.min(MAX_SETTING_LIMIT, Math.trunc(value)));

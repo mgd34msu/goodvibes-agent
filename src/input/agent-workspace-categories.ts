@@ -348,6 +348,33 @@ export const AGENT_WORKSPACE_CATEGORIES: readonly AgentWorkspaceCategory[] = [
     ],
   },
   {
+    // What the platform knows about HIM — distinct from `profiles` above, which
+    // is isolated Agent HOMES. One Markdown file at daemon scope that he owns
+    // and can edit by hand; his edits win and are never rewritten.
+    //
+    // The People section is counted in the overview, never listed: this card
+    // renders inside a session, so what it prints is in the transcript a later
+    // turn can compose from — the same reason the platform bars a bulk profile
+    // read from a composition path (docs/owner-profile.md §10). Looking one
+    // person up asks for the words he used that pointed at them.
+    id: 'owner-profile',
+    group: 'LOCAL BEHAVIOR',
+    label: 'Your Profile',
+    summary: 'What GoodVibes knows about you, and how to correct or forget a fact.',
+    detail: 'Your name, how to reach you, where you live, where to ship things, how you like answers written, and the people, places and notes you have mentioned. It is one Markdown file the daemon keeps — open it and edit it by hand whenever you like; your edits win and are never rewritten. Facts the assistant learns from things you say directly to it are recorded as you say them, each carrying the surface, the date and your own words, and it tells you in one line what it recorded. Anything sourced from mail, a web page, a document, or a message from someone else is refused outright.',
+    actions: [
+      { id: 'owner-profile-read', label: 'What do you know about me', detail: 'Print the whole profile by section, with the surface, date and your own words on every learned line. People are counted rather than listed.', editorKind: 'owner-profile-read', kind: 'editor', safety: 'read-only' },
+      { id: 'owner-profile-field', label: 'Show one field', detail: 'Print one field with its provenance. An unset field says so; a value that did not parse comes back as written, with the reason.', editorKind: 'owner-profile-get', kind: 'editor', safety: 'read-only' },
+      { id: 'owner-profile-where', label: 'Where did you get that', detail: 'Trace one field: which surface recorded it, when, your exact words, and every earlier value still kept.', editorKind: 'owner-profile-provenance', kind: 'editor', safety: 'read-only' },
+      { id: 'owner-profile-person', label: 'Look up one person', detail: 'Show what the profile records about one person, by name. There is no call that lists everyone, and this asks for the words you used that pointed at them.', editorKind: 'owner-profile-person', kind: 'editor', safety: 'read-only' },
+      { id: 'owner-profile-correct', label: 'Correct a fact', detail: 'Write or correct one field. The previous value is kept as history, so a wrong correction can be put back.', editorKind: 'owner-profile-set', kind: 'editor', safety: 'safe' },
+      { id: 'owner-profile-forget', label: 'Forget a fact', detail: 'Delete one field and every kept history comment for it. No tombstone and no retention window. Forgetting something that was not there says so.', editorKind: 'owner-profile-forget', kind: 'editor', safety: 'safe' },
+      { id: 'owner-profile-forget-note', label: 'Forget a note or person', detail: 'Delete one prose line — a note, a person, a place, a work line — by giving it exactly as the profile reads it. Lines are named by content, never position, so a line you have since changed is not deleted by mistake.', editorKind: 'owner-profile-forget-note', kind: 'editor', safety: 'safe' },
+      { id: 'owner-profile-status', label: 'Profile status', detail: 'Whether it loaded, where the file is, section names and counts, and any value that did not parse. Never prints a value.', editorKind: 'owner-profile-status', kind: 'editor', safety: 'read-only' },
+      { id: 'owner-profile-settings', label: 'Profile settings', detail: 'Open the Your Profile settings category: whether the profile is kept at all, whether facts are recorded as you say them, whether it tells you what it recorded, and where the file lives.', command: '/settings', kind: 'command', safety: 'safe' },
+    ],
+  },
+  {
     id: 'memory',
     group: 'LOCAL BEHAVIOR',
     label: 'Memory',

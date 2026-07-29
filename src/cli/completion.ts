@@ -11,6 +11,7 @@ const COMMANDS = [
   'routines',
   'ci',
   'principals',
+  'owner-profile',
   'channel-profiles',
   'workspaces',
   'fleet',

@@ -33,6 +33,7 @@ export const AGENT_WORKSPACE_CATEGORY_IDS = [
   'knowledge',
   'voice-media',
   'profiles',
+  'owner-profile',
   'memory',
   'notes',
   'personas',

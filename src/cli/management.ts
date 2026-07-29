@@ -37,6 +37,7 @@ import { handleProfilesCommand } from './profiles-command.ts';
 import { handleRoutinesCommand } from './routines-command.ts';
 import { handleCiCommand } from './ci-command.ts';
 import { handlePrincipalsCommand } from './principals-command.ts';
+import { handleOwnerProfileCommand } from './owner-profile-command.ts';
 import { handleChannelProfilesCommand } from './channel-profiles-command.ts';
 import { handleWorkspacesCommand } from './workspaces-command.ts';
 import { handleBrowserCommand } from './browser-command.ts';
@@ -640,6 +641,13 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
       }
       case 'principals': {
         const result = await handlePrincipalsCommand(runtime);
+        console.log(result.output);
+        return { handled: true, exitCode: result.exitCode };
+      }
+      case 'owner-profile': {
+        // A shell invocation prints to his terminal and nowhere else — no model
+        // reads it — so his own People list is not withheld from him here.
+        const result = await handleOwnerProfileCommand(runtime, { outputEntersModelContext: false });
         console.log(result.output);
         return { handled: true, exitCode: result.exitCode };
       }

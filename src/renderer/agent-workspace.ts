@@ -284,6 +284,14 @@ function editorPurposeLabel(editorKind: AgentWorkspaceEditorKind): string {
     case 'session-delete': return 'Delete session';
     case 'session-fork': return 'Fork session';
     case 'session-graph': return 'Inspect session graph';
+    case 'owner-profile-read': return 'Read your profile';
+    case 'owner-profile-get': return 'Show a profile field';
+    case 'owner-profile-person': return 'Look up one person';
+    case 'owner-profile-provenance': return 'Trace where a fact came from';
+    case 'owner-profile-set': return 'Correct a profile fact';
+    case 'owner-profile-forget': return 'Forget a profile fact';
+    case 'owner-profile-forget-note': return 'Forget a note or person';
+    case 'owner-profile-status': return 'Check profile status';
     case 'task-list-filter': return 'Filter task list';
     case 'task-show': return 'Show task';
     case 'task-output': return 'View task output';

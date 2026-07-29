@@ -25,6 +25,7 @@ export type SettingsCategory =
   | 'provider'
   | 'subscriptions'
   | 'behavior'
+  | 'profile'
   | 'storage'
   | 'permissions'
   | 'diagnostics'
@@ -104,7 +105,14 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   readonly label: string;
   readonly categories: readonly SettingsCategory[];
 }> = [
-  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power'] },
+  // `profile` sits with the other categories that decide how the Agent treats
+  // HIM: whether it learns what he tells it about himself, whether it says what
+  // it recorded, and whether the few harmless facts (his city, his timezone,
+  // how he likes replies written) ride along on a turn. That is the same
+  // subject `behavior`, `policy` and `permissions` already cover, and the keys
+  // are daemon-owned like several others already listed here, so the group's
+  // membership does not turn on which process stores the value.
+  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'profile', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'device', 'mcp', 'automation', 'checkin', 'integrations'] },

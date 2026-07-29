@@ -21,9 +21,12 @@
  *      framed summary ("Discovered N local model servers ..."), with full
  *      detail available on demand via /provider.
  *
- * The SDK scanner itself is not modified — see
- * node_modules/@pellux/goodvibes-sdk/dist/platform/discovery/scanner.js and
- * node_modules/@pellux/goodvibes-sdk/dist/platform/runtime/bootstrap-background.js.
+ * The platform scanner itself is not modified — it lives behind the
+ * `platform/discovery` and `platform/runtime` subpaths, which is also how this
+ * file reaches it. Named by subpath rather than by build-output path on
+ * purpose: `dist/` is not a public entry point, an exports map is entitled to
+ * stop resolving it, and a comment that names one reads to an audit like an
+ * import that would fail against a published package.
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';

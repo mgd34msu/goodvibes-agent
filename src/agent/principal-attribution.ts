@@ -19,7 +19,7 @@
  */
 
 import { createBrowserGoodVibesSdk } from '@pellux/goodvibes-sdk/browser';
-import type { OperatorMethodInput, OperatorMethodOutput } from '@pellux/goodvibes-sdk/contracts';
+import type { OperatorMethodInput } from '@pellux/goodvibes-sdk/contracts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 
 export const UNKNOWN_PRINCIPAL_LABEL = 'unknown principal';
@@ -44,7 +44,7 @@ export interface ResolvedPrincipalAttribution {
 }
 
 type PrincipalsResolveInput = OperatorMethodInput<'principals.resolve'>;
-type PrincipalsResolveOutput = OperatorMethodOutput<'principals.resolve'>;
+
 
 const UNKNOWN_ATTRIBUTION: ResolvedPrincipalAttribution = {
   known: false,
@@ -83,7 +83,12 @@ export async function resolveChannelPrincipalAttribution(
       retry: { maxAttempts: 1, baseDelayMs: 0, maxDelayMs: 0 },
     });
     const payload: PrincipalsResolveInput = { channel, value };
-    const result = await sdk.operator.invoke('principals.resolve', payload) as PrincipalsResolveOutput;
+    // No `as OperatorMethodOutput<'principals.resolve'>` here: the SDK's typed
+    // overload already returns it, so the assertion would be redundant — and a
+    // redundant assertion is not free, because it keeps compiling if the
+    // contract's output changes underneath it. That is how `as never` hid two
+    // breaking input changes for two rounds.
+    const result = await sdk.operator.invoke('principals.resolve', payload);
     if (!result.known || !result.principal) return UNKNOWN_ATTRIBUTION;
     const principal: ResolvedPrincipalSummary = {
       id: result.principal.id,

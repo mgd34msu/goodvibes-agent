@@ -188,6 +188,19 @@ export function describeCommandPolicy(commandName: string): CommandExecutionPoli
       boundary: 'Agent-local library records only unless the invoked command explicitly promotes to a connected schedule or Agent Knowledge source.',
     };
   }
+  if (root === 'owner-profile' || root === 'about-me') {
+    return {
+      // Reads print his own profile; set and forget change the file and already
+      // require --yes at the command itself. The model's route is the `profile`
+      // tool, not this command: the tool carries the authority naming where a
+      // fact came from, his verbatim words, and the one-line disclosure that
+      // goes back in the reply, none of which a shell string can express.
+      effect: 'mixed',
+      confirmation,
+      preferredModelTool: 'profile',
+      boundary: 'The owner profile is one Markdown file at daemon scope that only the daemon writes. Reads are safe; every write carries an authority and is refused unless the fact came from him directly. Record facts through the `profile` tool during a conversation rather than invoking this command.',
+    };
+  }
   if (root === 'notes') {
     return {
       effect: 'ui-navigation',

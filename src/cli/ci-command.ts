@@ -96,7 +96,7 @@ async function handleCiStatus(runtime: CliCommandRuntime, args: readonly string[
     prNumber,
   };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'ci.status'>>(connection, 'ci.status', CI_STATUS_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'ci.status', CI_STATUS_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -105,7 +105,7 @@ async function handleCiStatus(runtime: CliCommandRuntime, args: readonly string[
 
 async function handleCiWatchesList(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'ci.watches.list'>>(connection, 'ci.watches.list', CI_WATCHES_ROUTE, {});
+  const result = await invokeOperatorGatewayMethod(connection, 'ci.watches.list', CI_WATCHES_ROUTE, {});
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -135,7 +135,7 @@ async function handleCiWatchesCreate(runtime: CliCommandRuntime, args: readonly 
     triggerFixSession: operatorHasFlag(parsed, 'trigger-fix-session') || undefined,
   };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'ci.watches.create'>>(connection, 'ci.watches.create', CI_WATCHES_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'ci.watches.create', CI_WATCHES_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -154,7 +154,7 @@ async function handleCiWatchesDelete(runtime: CliCommandRuntime, args: readonly 
   }
   const payload: OperatorMethodInput<'ci.watches.delete'> = { watchId };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'ci.watches.delete'>>(connection, 'ci.watches.delete', CI_WATCH_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'ci.watches.delete', CI_WATCH_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -170,7 +170,7 @@ async function handleCiWatchesRun(runtime: CliCommandRuntime, args: readonly str
   if (!watchId) return usageFailure(runtime, CI_WATCHES_RUN_USAGE);
   const payload: OperatorMethodInput<'ci.watches.run'> = { watchId };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'ci.watches.run'>>(connection, 'ci.watches.run', CI_WATCH_RUN_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'ci.watches.run', CI_WATCH_RUN_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }

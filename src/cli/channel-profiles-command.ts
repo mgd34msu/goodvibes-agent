@@ -72,7 +72,7 @@ function renderChannelProfileList(bindings: readonly ChannelProfile[]): string {
 
 async function handleChannelProfilesList(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'channels.profiles.list'>>(connection, 'channels.profiles.list', CHANNEL_PROFILES_ROUTE, {});
+  const result = await invokeOperatorGatewayMethod(connection, 'channels.profiles.list', CHANNEL_PROFILES_ROUTE, {});
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -88,7 +88,7 @@ async function handleChannelProfilesGet(runtime: CliCommandRuntime, args: readon
     channelId: operatorFlagValue(parsed, 'channel-id'),
   };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'channels.profiles.get'>>(connection, 'channels.profiles.get', CHANNEL_PROFILE_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'channels.profiles.get', CHANNEL_PROFILE_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -116,7 +116,7 @@ async function handleChannelProfilesSet(runtime: CliCommandRuntime, args: readon
     permissionMode,
   };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'channels.profiles.set'>>(connection, 'channels.profiles.set', CHANNEL_PROFILES_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'channels.profiles.set', CHANNEL_PROFILES_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -138,7 +138,7 @@ async function handleChannelProfilesDelete(runtime: CliCommandRuntime, args: rea
     channelId: operatorFlagValue(parsed, 'channel-id'),
   };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'channels.profiles.delete'>>(connection, 'channels.profiles.delete', CHANNEL_PROFILE_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'channels.profiles.delete', CHANNEL_PROFILE_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }

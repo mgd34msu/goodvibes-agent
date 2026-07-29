@@ -31,6 +31,7 @@ export function readLimit(value: unknown, fallback: number, max = 500): number {
   return Math.max(1, Math.min(max, Math.trunc(parsed)));
 }
 
+
 export function readFieldMap(value: unknown): Readonly<Record<string, string>> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
   return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, typeof entry === 'string' ? entry : String(entry)]));

@@ -585,6 +585,9 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
           return error(resolved.usage);
         }
         if (args.mode === 'settings') {
+          // Ownership-aware (daemon-owned keys carry the DAEMON's live value)
+          // and short-page-aware: harnessSettingsCatalog states in words when
+          // the page it returns is short of what matched.
           return output(await harnessSettingsCatalog(deps.commandContext.platform.configManager, args));
         }
         if (args.mode === 'get_setting') {

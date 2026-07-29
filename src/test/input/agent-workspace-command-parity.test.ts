@@ -227,6 +227,7 @@ describe('Agent workspace command parity', () => {
       auth: { editorPrefixes: ['auth-'] },
       bundle: { editorPrefixes: ['support-bundle-', 'trust-bundle-', 'auth-bundle-', 'subscription-bundle-'] },
       'channel-profiles': { commandRoots: ['channel-profiles'] },
+      'owner-profile': { categoryIds: ['owner-profile'], editorPrefixes: ['owner-profile-'] },
       ci: { commandRoots: ['ci'] },
       delegate: { actionIds: ['delegate-task'], editorPrefixes: ['delegate-'] },
       knowledge: { categoryIds: ['knowledge'] },

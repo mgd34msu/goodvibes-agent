@@ -140,6 +140,19 @@ const VERB_FAMILIES: ReadonlyArray<{ readonly family: string; readonly reason: s
     methodIds: ['sessions.toolCalls.cancel', 'sessions.queuedMessages.list', 'sessions.queuedMessages.edit', 'sessions.queuedMessages.delete'],
   },
   {
+    // The owner profile: one Markdown file at daemon scope, and the nine verbs
+    // the Agent's `profile` tool and `owner-profile` CLI both call. Registered
+    // by composeOwnerProfile inside registerGatewayVerbGroups, gated only on
+    // configManager, which this fork always threads — so the tool's in-process
+    // route is live here and never silently degrades to the connected host.
+    family: 'profile.*',
+    reason: "Always registered — the SDK's composeOwnerProfile builds the OwnerProfileStore internally from configManager (its enablement and file-path settings) plus the resolved daemon home. The key names are deliberately not spelled here: this repo has no consumer for them, and naming them would put two permanently unverifiable rows into the verification ledger's settings denominator.",
+    methodIds: [
+      'profile.read', 'profile.get', 'profile.person', 'profile.provenance',
+      'profile.set', 'profile.append', 'profile.forget', 'profile.undo', 'profile.status',
+    ],
+  },
+  {
     family: 'power.status.get / power.keepAwake.set',
     reason: 'Registered because powerManager is threaded in services.ts (wireRuntimePower — sleep ownership, keep-awake toggle). Deeper round-trip: gateway-power.test.ts.',
     methodIds: ['power.status.get', 'power.keepAwake.set'],

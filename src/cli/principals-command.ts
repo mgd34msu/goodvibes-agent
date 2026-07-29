@@ -81,7 +81,7 @@ function renderPrincipalList(principals: readonly Principal[]): string {
 
 async function handlePrincipalsList(runtime: CliCommandRuntime): Promise<CliCommandOutput> {
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'principals.list'>>(connection, 'principals.list', PRINCIPALS_ROUTE, {});
+  const result = await invokeOperatorGatewayMethod(connection, 'principals.list', PRINCIPALS_ROUTE, {});
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -94,7 +94,7 @@ async function handlePrincipalsGet(runtime: CliCommandRuntime, args: readonly st
   if (!principalId) return usageFailure(runtime, PRINCIPALS_GET_USAGE);
   const payload: OperatorMethodInput<'principals.get'> = { principalId };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'principals.get'>>(connection, 'principals.get', PRINCIPAL_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'principals.get', PRINCIPAL_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -122,7 +122,7 @@ async function handlePrincipalsCreate(runtime: CliCommandRuntime, args: readonly
     identities: identities.length > 0 ? identities : undefined,
   };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'principals.create'>>(connection, 'principals.create', PRINCIPALS_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'principals.create', PRINCIPALS_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -155,7 +155,7 @@ async function handlePrincipalsUpdate(runtime: CliCommandRuntime, args: readonly
     identities: identities.length > 0 ? identities : undefined,
   };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'principals.update'>>(connection, 'principals.update', PRINCIPAL_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'principals.update', PRINCIPAL_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -174,7 +174,7 @@ async function handlePrincipalsDelete(runtime: CliCommandRuntime, args: readonly
   }
   const payload: OperatorMethodInput<'principals.delete'> = { principalId };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'principals.delete'>>(connection, 'principals.delete', PRINCIPAL_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'principals.delete', PRINCIPAL_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
@@ -196,7 +196,7 @@ async function handlePrincipalsResolve(runtime: CliCommandRuntime, args: readonl
   }
   const payload: OperatorMethodInput<'principals.resolve'> = { channel, value };
   const connection = resolveAgentConnectedHostConnection(runtime.configManager, runtime.homeDirectory);
-  const result = await invokeOperatorGatewayMethod<OperatorMethodOutput<'principals.resolve'>>(connection, 'principals.resolve', PRINCIPALS_RESOLVE_ROUTE, payload);
+  const result = await invokeOperatorGatewayMethod(connection, 'principals.resolve', PRINCIPALS_RESOLVE_ROUTE, payload);
   if (!result.ok) {
     return { output: jsonOrText(runtime, result, formatOperatorGatewayFailure(result)), exitCode: 1 };
   }
