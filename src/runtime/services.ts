@@ -121,15 +121,8 @@ import {
   VoiceProviderRegistry,
   VoiceService,
   ensureBuiltinVoiceProviders,
-  provisionLocalVoiceRuntime,
-  localVoiceRuntimeStatus,
-  preconfigureLocalVoiceKeys,
-  readVoiceInstallStamp,
-  writeVoiceInstallStamp,
-  createVoiceInstallProgressTracker,
-  type VoiceRuntimeStatus,
-  type VoiceProvisionResult,
 } from '@pellux/goodvibes-sdk/platform/voice';
+import { createVoiceSetupService, type VoiceSetupService } from '@pellux/goodvibes-sdk/platform/runtime/voice-setup';
 import { WebSearchProviderRegistry, WebSearchService } from '@pellux/goodvibes-sdk/platform/web-search';
 import { MemoryEmbeddingProviderRegistry } from '@pellux/goodvibes-sdk/platform/state';
 import { HookActivityTracker } from '@pellux/goodvibes-sdk/platform/hooks';
@@ -527,23 +520,18 @@ export function createLaunchTolerantProviderRegistry(options: ProviderRegistryCo
 }
 
 /**
- * Managed local-voice provisioning: the narrow status/install surface this
- * Agent exposes both to its own slash commands (/voice setup, /voice status)
- * and to the voice.local.status/voice.local.install gateway verbs (structurally
- * matches VoiceSetupGatewayService from the SDK's control-plane routes, which
- * is not itself exported by name — only the descriptor-driven registration
- * that accepts an object of this shape is public).
+ * Managed voice provisioning: the surface this Agent exposes both to its own
+ * slash commands (/voice status, /voice setup, /voice wake status, /voice wake
+ * setup) and to the voice.local.* and voice.wake.* gateway verbs.
+ *
+ * An alias for the SDK's own service type rather than a locally-declared shape.
+ * It was declared locally while the SDK's composition was internal; now that
+ * createVoiceSetupService is exported, a separate declaration could only drift
+ * from what is actually constructed — and the wake trio it grew (wakeStatus,
+ * wakeProvision, wakeModelChunk) is exactly the kind of addition a hand-written
+ * mirror silently misses until the gateway registration stops typechecking.
  */
-export interface AgentVoiceSetupService {
-  status(): VoiceRuntimeStatus;
-  install(): Promise<VoiceProvisionResult & {
-    readonly provisioned: boolean;
-    readonly configured: {
-      readonly set: ReadonlyArray<{ readonly key: string; readonly value: string }>;
-      readonly skipped: ReadonlyArray<{ readonly key: string; readonly reason: string }>;
-    };
-  }>;
-}
+export type AgentVoiceSetupService = VoiceSetupService;
 
 /**
  * The narrow live-snapshot slice /health memory reads. A Pick over the SDK's
@@ -1267,84 +1255,26 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   ensureBuiltinVoiceProviders(voiceProviders);
   const voiceService = new VoiceService(voiceProviders);
 
-  // Managed local-voice provisioning (SDK round: voice.local.install/status).
-  // Constructed the way the SDK's own daemon composition constructs it
-  // (platform/runtime/voice-setup.ts — internal there, so mirrored here from
-  // the same public provisioning pieces): single-flight install (the SDK's
-  // own singleFlight helper), config preconfigure that never overwrites a
-  // genuinely user-set value, a reset of the local engine's tripped failure
-  // state on a successful (re-)install, a critical-tier admission gate
-  // against the MemoryGovernor (the late-bound admitExpensiveWork closure
-  // above), and — sdk 5357f09e — a live install-progress tracker folded into
-  // status() as `installInProgress` while (and only while) an install runs,
-  // so surfaces poll status during the multi-hundred-MB provision instead of
-  // rendering busy→receipt.
+  // Managed local-voice provisioning (voice.local.status/install) AND the
+  // wake-word artifact service behind voice.wake.status/provision/model.get.
+  //
+  // This used to be a hand-mirrored copy of the SDK's own daemon composition,
+  // because platform/runtime/voice-setup.ts was internal there. It is exported
+  // now, so the copy is gone and the platform owns what it always owned: the
+  // single-flight install, the ownership-aware preconfigure that never
+  // overwrites a genuinely user-set value, the reset of the local engine's
+  // tripped failure state after a successful (re-)install, the critical-tier
+  // MemoryGovernor admission gate, the live install-progress tracker folded
+  // into status() while (and only while) an install runs, and the checksum-
+  // pinned wake provisioning the same managed root holds under `wake`.
   const managedVoiceRoot = shellPaths.resolveUserPath('voice');
-  const voiceInstallProgress = createVoiceInstallProgressTracker();
-  const runVoiceInstall = singleFlight(async () => {
-    voiceInstallProgress.begin();
-    try {
-      const provision = await provisionLocalVoiceRuntime({
-        managedRoot: managedVoiceRoot,
-        onProgress: (event) => voiceInstallProgress.onProgress(event),
-      });
-      let configured: { set: { key: string; value: string }[]; skipped: { key: string; reason: string }[] } = { set: [], skipped: [] };
-      if (provision.tts.state === 'provisioned' && provision.tts.binaryPath && provision.tts.modelPath) {
-        // Ownership-aware preconfigure: values THIS installer previously wrote
-        // (recorded in the install stamp) update to the new managed paths; a
-        // genuinely user-set value still wins; a user-cleared installer value
-        // is a deliberate disable and stays cleared.
-        const stamp = readVoiceInstallStamp(managedVoiceRoot);
-        const receipt = preconfigureLocalVoiceKeys({
-          getConfig: (k) => String(configManager.get(k as never) ?? ''),
-          setConfig: (k, v) => configManager.setDynamic(k as never, v),
-          ttsEngine: provision.tts.engine,
-          ttsBinary: provision.tts.binaryPath,
-          ttsModelPath: provision.tts.modelPath,
-          ...(provision.stt.state === 'provisioned' && provision.stt.binaryPath && provision.stt.modelPath
-            ? { sttEngine: provision.stt.engine, sttBinary: provision.stt.binaryPath, sttModelPath: provision.stt.modelPath }
-            : {}),
-          priorInstallWrites: stamp?.configWrites,
-        });
-        configured = { set: [...receipt.set], skipped: [...receipt.skipped] };
-        if (stamp) {
-          writeVoiceInstallStamp(managedVoiceRoot, { ...stamp, configWrites: { ...stamp.configWrites, ...receipt.installWrites } });
-        }
-        // A successful (re-)install is the recovery act: clear any tripped
-        // local-engine circuit breaker so the next call retries the fresh engine.
-        voiceProviders.get('local')?.resetEngineFailureState?.();
-      }
-      return {
-        provisioned: provision.tts.state === 'provisioned',
-        platform: provision.platform,
-        tts: provision.tts,
-        stt: provision.stt,
-        components: provision.components,
-        configured,
-      };
-    } finally {
-      voiceInstallProgress.end();
-    }
+  const voiceSetup: AgentVoiceSetupService = createVoiceSetupService({
+    managedVoiceRoot,
+    getConfig: (key) => String(configManager.get(key as never) ?? ''),
+    setConfig: (key, value) => configManager.setDynamic(key as never, value),
+    resetLocalEngineFailureState: () => { voiceProviders.get('local')?.resetEngineFailureState?.(); },
+    admitExpensiveWork,
   });
-  const voiceSetup: AgentVoiceSetupService = {
-    status: () => {
-      const status = localVoiceRuntimeStatus({ managedRoot: managedVoiceRoot });
-      // Present ONLY while an install runs: fold the tracker's live snapshot
-      // in, exactly as the SDK's own composition does.
-      const installInProgress = voiceInstallProgress.snapshot();
-      return installInProgress ? { ...status, installInProgress } : status;
-    },
-    install: async () => {
-      // Critical-tier admission: a provision run allocates archive + model
-      // buffers — refuse honestly instead of piling onto memory pressure.
-      // Mirrors the SDK's own daemon composition of this exact gate.
-      const admission = admitExpensiveWork('voice runtime install');
-      if (!admission.allowed) {
-        throw new Error(admission.reason ?? 'voice runtime install refused: the process is under critical memory pressure.');
-      }
-      return runVoiceInstall();
-    },
-  };
 
   const webSearchProviders = new WebSearchProviderRegistry({
     env: process.env,

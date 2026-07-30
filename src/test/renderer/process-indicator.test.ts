@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { renderProcessIndicator } from '../../renderer/process-indicator.ts';
+import { renderProcessIndicator, renderVoiceCaptureIndicator } from '../../renderer/process-indicator.ts';
 import { lineToString } from '../setup.ts';
 
 const W = 100;
@@ -174,5 +174,79 @@ describe('renderProcessIndicator', () => {
     // Should contain delegation count but no progress suffix beyond it
     expect(text).toContain('1 delegation');
     expect(text).not.toContain(' | Turn');
+  });
+});
+
+/**
+ * The live-microphone row (`voice.wake.indicator`).
+ *
+ * A held-open capture device with nothing on screen saying so is the one state a
+ * voice feature must never be in, so these assert the words and the prominence,
+ * not just that a line came back.
+ */
+describe('renderVoiceCaptureIndicator', () => {
+  test('nothing renders when no microphone is open', () => {
+    expect(renderVoiceCaptureIndicator(W, null)).toEqual([]);
+  });
+
+  test('statusline renders one row naming what the microphone is doing and what opened it', () => {
+    const lines = renderVoiceCaptureIndicator(W, {
+      kind: 'wake-listening',
+      deviceLabel: 'parecord',
+      indicator: 'statusline',
+    });
+    expect(lines.length).toBe(1);
+    const text = lineToString(lines[0]);
+    expect(text).toContain('listening for the wake phrase');
+    expect(text).toContain('parecord');
+  });
+
+  test('each phase says a DIFFERENT thing, so "listening" is never shown for "recording"', () => {
+    const say = (kind: 'wake-listening' | 'wake-capturing' | 'wake-restarting' | 'wake-latched'): string =>
+      lineToString(renderVoiceCaptureIndicator(W, { kind, deviceLabel: null, indicator: 'statusline' })[0]);
+    const sentences = [say('wake-listening'), say('wake-capturing'), say('wake-restarting'), say('wake-latched')];
+    expect(new Set(sentences).size).toBe(4);
+    expect(sentences[1]).toContain('recording what follows');
+    expect(sentences[3]).toContain('stopped');
+  });
+
+  test('voice.wake.indicator "off" removes the row entirely, while "banner" fills the width', () => {
+    expect(renderVoiceCaptureIndicator(W, { kind: 'wake-listening', deviceLabel: 'parecord', indicator: 'off' })).toEqual([]);
+
+    const banner = renderVoiceCaptureIndicator(W, { kind: 'wake-listening', deviceLabel: 'parecord', indicator: 'banner' });
+    expect(banner.length).toBe(1);
+    expect(banner[0].length).toBe(W);
+    expect(lineToString(banner[0])).toContain('listening for the wake phrase');
+    // The prominent variant paints a background across the row; the quiet one does not.
+    const statusline = renderVoiceCaptureIndicator(W, { kind: 'wake-listening', deviceLabel: 'parecord', indicator: 'statusline' });
+    const bannerBg = new Set(banner[0].map((cell) => cell.bg));
+    const statuslineBg = new Set(statusline[0].map((cell) => cell.bg));
+    expect(bannerBg.size).toBeGreaterThan(statuslineBg.size);
+  });
+
+  test('a restart delay or latch reason is carried into the row rather than left in a log', () => {
+    // A wide row, so the assertion is about the detail being CARRIED rather than
+    // about where 100 columns happen to cut it (truncation has its own test).
+    const text = lineToString(renderVoiceCaptureIndicator(160, {
+      kind: 'wake-restarting',
+      deviceLabel: 'parecord',
+      indicator: 'statusline',
+      detail: 'restarting the wake-word detector in 2000 ms (attempt 1)',
+    })[0]);
+    expect(text).toContain('attempt 1');
+    expect(lineToString(renderVoiceCaptureIndicator(160, {
+      kind: 'wake-restarting', deviceLabel: 'parecord', indicator: 'statusline',
+    })[0])).not.toContain('attempt 1');
+  });
+
+  test('a long detail is truncated to the row rather than overflowing it', () => {
+    const lines = renderVoiceCaptureIndicator(60, {
+      kind: 'wake-latched',
+      deviceLabel: 'parecord',
+      indicator: 'statusline',
+      detail: 'B'.repeat(200),
+    });
+    expect(lines[0].length).toBe(60);
+    expect(lineToString(lines[0])).not.toContain('B'.repeat(200));
   });
 });

@@ -202,7 +202,14 @@ function awaitReady(proc: SpawnProcess, signal?: AbortSignal): Promise<void> {
   });
 }
 
-function findExecutable(name: string, env: NodeJS.ProcessEnv): string | null {
+/**
+ * Whether `name` is runnable from PATH, and where.
+ *
+ * Exported for capture.ts, which needs the SAME scan: a host where playback finds
+ * its tool and capture does not must be a real difference in what is installed,
+ * never a difference in how the two looked for it.
+ */
+export function findExecutable(name: string, env: NodeJS.ProcessEnv): string | null {
   const pathValue = env.PATH ?? '';
   const extensions = process.platform === 'win32'
     ? ['', '.exe', '.cmd', '.bat']

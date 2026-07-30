@@ -344,7 +344,7 @@ Routine promotion is an explicit scheduling route. Local routines stay local unt
 | `/unpin` | Unpin a model from the favorites list. |
 | `/update` | Check for a newer release; for binary installs, verify and apply it or roll back to the kept previous version. |
 | `/vibe` | Inspect, create, show, or import VIBE.md personality files. |
-| `/voice` | Review voice posture and portable voice metadata. |
+| `/voice` | Review voice posture, provision the managed local-voice runtime and the wake-word models (`/voice wake status`, `/voice wake setup --yes`), and export portable voice metadata. |
 | `/welcome` | Open or print the Agent setup guide. |
 
 ## Related Docs

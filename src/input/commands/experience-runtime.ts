@@ -4,6 +4,8 @@ import type { CommandRegistry } from '../command-registry.ts';
 import { requireShellPaths, requireVoiceSetup } from './runtime-services.ts';
 import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import { handleApprovalOperatorAction } from './operator-actions-runtime.ts';
+import { resolveWakeRuntimeSettings } from '@pellux/goodvibes-sdk/platform/voice/wake/runtime';
+import { agentWakeCapabilities, wakeProvisionReceiptLines, wakeStatusLines, WAKE_SETUP_ANNOUNCEMENT } from '../../core/wake-provision-status.ts';
 
 function formatVoiceComponentState(state: string): string {
   return state.replace(/[_-]+/g, ' ');
@@ -100,14 +102,50 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
 
   registry.register({
     name: 'voice',
-    description: 'Review voice posture, manage the managed local-voice runtime, and package portable voice interaction metadata',
-    usage: '[review|status|setup --yes|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]',
+    description: 'Review voice posture, manage the managed local-voice runtime and the wake-word models, and package portable voice interaction metadata',
+    usage: '[review|status|setup --yes|enable --yes|disable --yes|wake status|wake setup --yes|bundle export <path> --yes|bundle inspect <path>]',
     handler(args, ctx) {
       try {
       const parsed = stripYesFlag(args);
       const commandArgs = [...parsed.rest];
       const shellPaths = requireShellPaths(ctx);
       const sub = (commandArgs[0] ?? 'review').toLowerCase();
+      if (sub === 'wake') {
+        // Wake artifacts live under the same managed voice root as the local
+        // runtime, in its `wake` subdirectory, and are served by the same
+        // voiceSetup service — so this reads and provisions through the platform's
+        // own wake service rather than a second provisioning path. Nothing
+        // downloads unless the user typed `setup --yes`.
+        const voiceSetup = requireVoiceSetup(ctx);
+        const wakeSub = (commandArgs[1] ?? 'status').toLowerCase();
+        // Read the artifact state BEFORE resolving: whether the speech gate is on
+        // disk decides whether voice.wake.vadThreshold above 0 is honoured or
+        // refused, so resolving first would report a blocker that does not match
+        // what /voice wake setup has already downloaded.
+        const status = voiceSetup.wakeStatus();
+        const settings = resolveWakeRuntimeSettings(
+          (key: string) => ctx.platform.configManager.get(key as Parameters<typeof ctx.platform.configManager.get>[0]),
+          'agent',
+          agentWakeCapabilities({ vadReady: status.vadReady }),
+        );
+        if (wakeSub === 'status') {
+          ctx.print(['Wake-Word Detection', ...wakeStatusLines(status, settings)].join('\n'));
+          return;
+        }
+        if (wakeSub === 'setup') {
+          if (!parsed.yes) {
+            requireYesFlag(ctx, 'download the pinned wake-word classifier and speech-embedding front end (~3.7 MB)', '/voice wake setup --yes');
+            return;
+          }
+          ctx.print(WAKE_SETUP_ANNOUNCEMENT);
+          void voiceSetup.wakeProvision()
+            .then((result) => { ctx.print(['Wake-Word Setup — receipt', ...wakeProvisionReceiptLines(result)].join('\n')); })
+            .catch((error: unknown) => { ctx.print(`Wake-Word Setup\n  provisioning failed: ${error instanceof Error ? error.message : String(error)}`); });
+          return;
+        }
+        ctx.print('Usage: /voice wake [status|setup --yes]');
+        return;
+      }
       if (sub === 'status') {
         const status = requireVoiceSetup(ctx).status();
         // Live install progress: voice.local.status carries an
@@ -250,7 +288,7 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
           return;
         }
       }
-      ctx.print('Usage: /voice [review|status|setup --yes|enable --yes|disable --yes|bundle export <path> --yes|bundle inspect <path>]');
+      ctx.print('Usage: /voice [review|status|setup --yes|enable --yes|disable --yes|wake status|wake setup --yes|bundle export <path> --yes|bundle inspect <path>]');
       } catch (error) {
         ctx.print(`voice command failed: ${error instanceof Error ? error.message : String(error)}`);
       }

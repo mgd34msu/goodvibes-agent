@@ -262,16 +262,49 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   },
 
   // --- Wake word (voice.wake.*) -------------------------------------------
-  // Covered by src/test/voice/wake-settings-behavior.test.ts. Only 8 of the 25
-  // voice.wake.* rows are here, and that is the honest number: the other 17 have no
-  // consuming code in either repo. The SDK says so itself — the wake-word-detection
-  // registry entry carries notOperable, which makes the feature gate refuse the
-  // feature and gives settings surfaces a written reason to render "instead of a
-  // switch that lies". The detector and the supervisor ARE built and tested, which is
-  // exactly the 8 below; audio capture, surface routing, activation sound, indicator,
-  // post-wake capture and retention are not built yet. See the tail of the uncovered
-  // list in the round report. Mutation-tested against a scratch copy of the SDK: nine
-  // mutations to the consuming code, each killed its own key's tests.
+  // Covered by src/test/voice/wake-settings-behavior.test.ts, with the audible half
+  // of the two activation-sound rows in src/test/audio/player-playback.test.ts.
+  //
+  // 22 of the 25 voice.wake.* rows are here now. It used to be 8, and the reason for
+  // the other 17 was written down at the time: nothing captured microphone audio on
+  // any surface, so the SDK declared the whole capability notOperable and those rows
+  // configured nothing. That is no longer true. This surface has a capture host — it
+  // opens a recorder subprocess (src/audio/capture.ts), runs the SDK listener and
+  // engine over it through onnxruntime-web (src/audio/wake-inference.ts,
+  // src/audio/wake-runtime.ts), plays the activation sound, draws the listening row
+  // in the footer, and hands the utterance after a wake to this process's own
+  // speech-to-text service — so 14 further rows reach real code and are driven to two
+  // values against it.
+  //
+  // Two of those 14 were counted as REFUSALS when this list was first written —
+  // `noiseSuppression: speex` and `vadThreshold` above 0 both stopped the detector
+  // because neither stage existed anywhere. Both stages ship now (the platform's
+  // embedded SpeexDSP preprocessor, and a pinned speech gate provisioned beside the
+  // wake models), so their tests assert the filter running and the gate screening.
+  // The count did not change; what the two rows DO changed, and their evidence lines
+  // below say so rather than still describing a refusal.
+  //
+  // The three that are still NOT here, and why:
+  //   - voice.wake.surfaces.tui and voice.wake.surfaces.webui: other surfaces'
+  //     delivery rows. This repo resolves settings for `agent` and reads neither.
+  //   - voice.wake.browserBackend: chooses a WASM or WebGPU execution provider inside
+  //     a browser tab. There is no tab here, and this surface pins wasm because it is
+  //     a host process, so no value of the row changes anything this repo does.
+  //
+  // Mutation-checked on the gate itself, which is the row most worth breaking, and
+  // the third result is recorded because it is not what was expected:
+  //   - resolving for surface 'tui' instead of 'agent' failed 2 tests, including the
+  //     one that asserts surfaces.agent:false opens no device — which is the evidence
+  //     that "no device" assertion is not vacuous.
+  //   - subscribing to voice.wake.surfaces.tui instead of this surface's row failed
+  //     the live-flip test.
+  //   - removing wireWakeRuntime's own `settings.active` check failed ONLY the
+  //     live-flip test, not the two "opens no device" tests: the SDK listener
+  //     re-checks the same rows and refuses before touching the capture opener, so
+  //     nothing is spawned either way. The local check's unique job is therefore
+  //     RELEASING a live device when a row goes off, and that is the assertion that
+  //     holds it. Stated rather than left implied, because a reader would otherwise
+  //     expect the "no device" tests to be its guard.
   {
     key: 'voice.wake.threshold',
     test: 'src/test/voice/wake-settings-behavior.test.ts',
@@ -311,6 +344,76 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
     key: 'voice.wake.crashWindowSeconds',
     test: 'src/test/voice/wake-settings-behavior.test.ts',
     asserts: 'crashes older than the configured window stop counting toward the restart budget, so identical timestamps latch under a long window and restart under a short one',
+  },
+  {
+    key: 'voice.wake.enabled',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'false spawns no capture process at all and shows no listening row; true spawns a recorder and shows one — and flipping it at runtime through the shipped subscription releases and re-takes the device',
+  },
+  {
+    key: 'voice.wake.surfaces.agent',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'false opens no device even with voice.wake.enabled on (the gate is both rows), true opens one, and flipping it live kills the recorder with SIGTERM and then spawns a second',
+  },
+  {
+    key: 'voice.wake.inputDevice',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'the configured device identifier is what appears in the recorder argv, and a second value replaces it rather than being appended or ignored',
+  },
+  {
+    key: 'voice.wake.captureCommand',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'the named recorder is the command actually spawned (parecord vs arecord), and a named recorder that is not installed is reported instead of quietly replaced by one that is',
+  },
+  {
+    key: 'voice.wake.noiseSuppression',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: '"speex" builds the suppression stage for the engine\'s frame size and every captured frame passes through it before anything scores it, and the stage is closed when the detector stops; "none" builds no stage at all',
+  },
+  {
+    key: 'voice.wake.vadThreshold',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'above 0 the pinned speech gate is loaded and consulted per frame, and a frame it scores below the threshold reaches no classifier while the same audio fires a wake when the gate opens; 0 never loads or consults it; above 0 without the gate provisioned still refuses, naming the head',
+  },
+  {
+    key: 'voice.wake.activationSound',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'the configured kind reaches the player at the moment of a confirmed wake, and (in src/test/audio/player-playback.test.ts) "none" plays nothing where "chime" plays a real RIFF/WAVE buffer',
+  },
+  {
+    key: 'voice.wake.activationSoundPath',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'the configured path is the one handed to the player on a wake, and (in src/test/audio/player-playback.test.ts) the bytes of that exact path are what get played, with an unreadable or empty path reported rather than silently substituted',
+  },
+  {
+    key: 'voice.wake.indicator',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'the row travels to the footer state, "off" suppresses the row while the device stays open, and (in src/test/renderer/process-indicator.test.ts and shell-surface.test.ts) "banner" paints a full-width row while "off" costs no footer line at all',
+  },
+  {
+    key: 'voice.wake.captureMaxSeconds',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'the same run of post-wake audio is closed and transcribed under a 1-second ceiling and still recording under a 60-second one',
+  },
+  {
+    key: 'voice.wake.silenceStopMs',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'the same run of silence after a wake ends capture under a short window and does not end it under a long one',
+  },
+  {
+    key: 'voice.wake.autoSubmit',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'off places the transcript in the conversation input and submits no turn; on submits the same transcript as a turn and writes no draft',
+  },
+  {
+    key: 'voice.wake.retainAudio',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: '"session-temp" writes exactly one clip under the managed retained directory, named by the SDK so its owning session is parseable by the sweeper; "none" creates no directory and no file',
+  },
+  {
+    key: 'voice.wake.customModelDir',
+    test: 'src/test/voice/wake-settings-behavior.test.ts',
+    asserts: 'a non-pinned model id is loaded from the configured directory and reported as not checksum-pinned, and a second directory moves where it is loaded from',
   },
 
   // --- Chat-surface credentials (surfaces.*.botToken) ----------------------

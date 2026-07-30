@@ -25,15 +25,24 @@
  *
  * See docs/voice-and-live-tts.md ("Platform Voice-Config Cohesion") for the
  * accompanying rulings: local (non-daemon) synthesis stays local so the
- * Agent keeps working offline, and mic/STT input is an honest no-op (the
- * web UI owns mic input per the VOICE-WEBUI brief).
+ * Agent keeps working offline, and microphone input arrives through the wake
+ * word and only through it — the platform owns the capture primitive, so this
+ * surface composes it rather than building a partial mic flow of its own, and
+ * push-to-talk is still deliberately absent here.
+ *
+ * The last block also guards the two onnxruntime assets the wake engine needs
+ * on disk, for the same reason: it is audio-layer wiring to a platform
+ * contract, and getting it wrong is silent until a wake never fires.
  */
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, rmSync } from 'fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { ConfigManager, CONFIG_SCHEMA, DEFAULT_CONFIG, isValidConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { extractOnnxRuntimeAssets } from '../../audio/wake-inference.ts';
+import { createVoiceSttGateway, describeTranscriptionFailure } from '../../core/voice-stt-gateway.ts';
+import { GoodVibesSdkError } from '@pellux/goodvibes-sdk';
 
 /** The exact tts.* keys the Agent's spoken-output pipeline reads today. */
 const AGENT_VOICE_CONFIG_KEYS = [
@@ -214,5 +223,105 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
     } finally {
       rmSync(homeDir, { recursive: true, force: true });
     }
+  });
+});
+
+
+/**
+ * The wake engine's inference runtime needs its two onnxruntime-web assets as real
+ * files at a path it is pointed at. A compiled binary cannot satisfy the runtime's
+ * dynamic import of them, which is why they are embedded and extracted — and a
+ * failure here is silent in the worst way: session creation throws "Cannot find
+ * module" at the moment a user turns the wake word on.
+ */
+describe('the onnxruntime assets the wake engine loads from disk', () => {
+  test('both are written, the returned prefix ends in a slash, and identical bytes are left alone', () => {
+    const directory = join(makeProjectTempDir('wake-ort-assets'), 'onnxruntime');
+    const prefix = extractOnnxRuntimeAssets(directory);
+    // The runtime concatenates a file name onto this; without the trailing slash it
+    // looks for a sibling of the directory and reports a missing module.
+    expect(prefix).toBe(`${directory}/`);
+
+    const glue = join(directory, 'ort-wasm-simd-threaded.mjs');
+    const wasm = join(directory, 'ort-wasm-simd-threaded.wasm');
+    expect(existsSync(glue)).toBe(true);
+    expect(existsSync(wasm)).toBe(true);
+    expect(statSync(wasm).size).toBeGreaterThan(0);
+
+    // Content-checked, not timestamp-checked: a second call rewrites nothing.
+    const firstWrite = statSync(wasm).mtimeMs;
+    extractOnnxRuntimeAssets(directory);
+    expect(statSync(wasm).mtimeMs).toBe(firstWrite);
+
+    // A stale extraction from another build is replaced rather than trusted.
+    writeFileSync(glue, 'stale bytes from a previous version');
+    extractOnnxRuntimeAssets(directory);
+    expect(readFileSync(glue, 'utf8')).not.toBe('stale bytes from a previous version');
+  });
+});
+
+
+/**
+ * Speech-to-text for a captured utterance goes through the SAME call the
+ * `voice.stt` verb is served from — this process owns that VoiceService instance,
+ * so a loopback HTTP request to ask itself a question it already holds the answer
+ * to would be the private-silo shape this file exists to prevent.
+ */
+describe('the wake path transcribes through the platform voice service', () => {
+  const artifact = {
+    mimeType: 'audio/wav',
+    format: 'wav',
+    dataBase64: 'UklGRg==',
+    sampleRateHz: 16000,
+    durationMs: 900,
+  } as const;
+
+  test('the utterance reaches VoiceService.transcribe with a default provider and the artifact the verb takes', async () => {
+    const calls: Array<{ providerId: string | undefined; audio: Record<string, unknown> }> = [];
+    const resolution = createVoiceSttGateway({
+      voiceService: {
+        transcribe: async (providerId: string | undefined, request: { audio: Record<string, unknown> }) => {
+          calls.push({ providerId, audio: request.audio });
+          return { providerId: 'local', text: '  open the deploy log  ', metadata: {} };
+        },
+      } as never,
+      voiceProviders: { findProvider: () => ({ transcribe: async () => ({ providerId: 'local', text: '', metadata: {} }) }) } as never,
+    });
+    if (!resolution.available) throw new Error(`expected a gateway, got: ${resolution.reason}`);
+
+    expect(await resolution.gateway.transcribe(artifact)).toBe('  open the deploy log  ');
+    expect(calls.length).toBe(1);
+    // Undefined provider: the registry picks the configured one, exactly as the verb
+    // does for a caller that sends no providerId.
+    expect(calls[0]?.providerId).toBeUndefined();
+    expect(calls[0]?.audio.format).toBe('wav');
+    expect(calls[0]?.audio.dataBase64).toBe('UklGRg==');
+    // Required by the service's artifact and absent from the capture layer's.
+    expect(calls[0]?.audio.metadata).toEqual({});
+  });
+
+  test('no registered speech-to-text provider is a reason reported BEFORE audio is captured, not a throw after', () => {
+    const resolution = createVoiceSttGateway({
+      voiceService: {} as never,
+      voiceProviders: { findProvider: () => null } as never,
+    });
+    expect(resolution.available).toBe(false);
+    if (resolution.available) throw new Error('expected no gateway');
+    expect(resolution.reason).toContain('no speech-to-text provider is registered');
+    expect(resolution.reason).toContain('/voice setup');
+  });
+
+  test('a provider registered without a transcribe implementation is refused rather than called', () => {
+    const resolution = createVoiceSttGateway({
+      voiceService: {} as never,
+      voiceProviders: { findProvider: () => ({ id: 'tts-only' }) } as never,
+    });
+    expect(resolution.available).toBe(false);
+  });
+
+  test('a provider that is registered but not configured is described as that, not as a generic failure', () => {
+    const notConfigured = new GoodVibesSdkError('Voice STT provider is not registered', { code: 'PROVIDER_NOT_CONFIGURED' });
+    expect(describeTranscriptionFailure(notConfigured)).toContain('/voice setup');
+    expect(describeTranscriptionFailure(new Error('whisper exited 1'))).toBe('whisper exited 1');
   });
 });

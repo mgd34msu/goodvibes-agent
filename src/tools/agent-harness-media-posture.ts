@@ -3,6 +3,8 @@ import type { AgentWorkspaceVoiceMediaProviderStatus } from '../input/agent-work
 import type { CommandContext } from '../input/command-registry.ts';
 import { certifiedDeviceLiveRecords, deviceLiveReadModelSnapshot } from './agent-harness-device-live-read-models.ts';
 import { previewHarnessText } from './agent-harness-text.ts';
+import { resolveWakeRuntimeSettings } from '@pellux/goodvibes-sdk/platform/voice/wake/runtime';
+import { agentWakeCapabilities } from '../core/wake-provision-status.ts';
 
 export interface AgentHarnessMediaArgs {
   readonly mediaProviderId?: unknown;
@@ -142,6 +144,24 @@ function buildVoiceInteractionWorkflows(
   const transcriptionRecords = certifiedDeviceLiveRecords(liveDevice, 'voice-memo-transcription', ['voice memo', 'speech-to-text', 'audio transcription']);
   const spokenResponseRecords = certifiedDeviceLiveRecords(liveDevice, 'spoken-responses', ['tts', 'spoken response', 'speaker']);
   const wakeRecords = certifiedDeviceLiveRecords(liveDevice, 'wake-and-speak', ['wake word', 'always listening']);
+  // The one reader for every `voice.wake.*` row (SDK settings.ts), so this posture
+  // reports the same resolution the capture host itself consults — including which
+  // rows refuse to start it — instead of re-deriving it from raw config reads.
+  //
+  // The speech gate's disk state comes from the same voiceSetup service /voice wake
+  // status reads. A context without that service (a fixture) resolves as gate-absent,
+  // which is the truthful answer for it rather than an assumed capability.
+  let vadReady = false;
+  try {
+    vadReady = context.platform.voiceSetup?.wakeStatus().vadReady ?? false;
+  } catch {
+    // A status read that fails is not evidence the gate is loaded.
+  }
+  const wake = resolveWakeRuntimeSettings(
+    (key: string) => (context.platform.configManager as { get(settingKey: string): unknown }).get(key),
+    'agent',
+    agentWakeCapabilities({ vadReady }),
+  );
   const voiceEnabled = readConfigBoolean(context, 'ui.voiceEnabled', false);
   const spokenTurnRuntime = typeof context.submitSpokenInput === 'function';
   const stopSpokenOutputRuntime = typeof context.stopSpokenOutput === 'function';
@@ -245,26 +265,55 @@ function buildVoiceInteractionWorkflows(
     {
       id: 'wake-and-speak',
       label: 'Wake and speak',
-      status: wakeRecords.length > 0 ? 'ready' : 'not-published',
-      userOutcome: 'Use wake-word or always-listening input only after a permission-scoped runtime contract exists.',
-      summary: wakeRecords.length > 0
-        ? 'The SDK/daemon published certified wake-word evidence with permission scope, receipt metadata, and exact control routes.'
-        : 'Wake-word or always-listening voice capture is not published by the current Agent runtime contract.',
-      nextStep: wakeRecords.length > 0
-        ? 'Inspect the certified wake-word route and keep microphone capture on visible permission controls.'
-        : 'Use explicit voice input or /tts until a wake-word route is published with visible permission controls.',
+      // Two different things wear this label, and only one of them is shipped.
+      // HERE, on this host surface, wake capture is real: the two enablement rows
+      // open a recorder subprocess and the utterance after a wake reaches the
+      // conversation input. On a PAIRED PHONE it is still unpublished, and that
+      // stays gated on certified permission-scoped records. So the status reports
+      // the local capability the user can actually use, and the phone half keeps
+      // its own evidence field rather than being folded into one number.
+      status: wake.blockers.length > 0
+        ? 'attention'
+        : wake.active || wakeRecords.length > 0 ? 'ready' : 'setup-needed',
+      userOutcome: 'Speak a wake phrase on this host and have what follows reach the conversation input; on a paired phone, only after a permission-scoped runtime contract exists.',
+      summary: wake.blockers.length > 0
+        ? `Wake-word capture is wired on this surface but one row refuses to start it: ${wake.blockers.map((blocker) => blocker.key).join(', ')}.`
+        : wake.active
+          ? 'Wake-word capture is live on this surface: a recorder subprocess feeds the pinned classifier, a confirmed wake plays the activation sound and shows a listening row, and the utterance that follows goes to speech-to-text. Published recall figures for the model are measured on synthesised speech only.'
+          : `Wake-word capture is wired on this surface and switched off: voice.wake.enabled is ${wake.enabled ? 'on' : 'off'} and voice.wake.surfaces.agent is ${wake.surfaceEnabled ? 'on' : 'off'}. Wake capture on a paired phone remains unpublished by the current Agent runtime contract.`,
+      nextStep: wake.blockers.length > 0
+        ? `Clear the refusing row: ${wake.blockers[0]?.key ?? 'see /voice wake status'} — run /voice wake status for the written reason.`
+        : wake.active
+          ? 'Run /voice wake status to confirm the pinned models are provisioned; nothing downloads on its own.'
+          : 'Turn on voice.wake.enabled and voice.wake.surfaces.agent, then run /voice wake setup --yes to download the pinned models.',
       capabilities: ['wake word', 'always listening', 'permission repair'],
       modelRoute: wakeRecords[0]?.modelRoute ?? 'agent_harness mode:"media_posture" query:"wake word" includeParameters:true',
       setupRoutes: [
         ...wakeRecords.slice(0, 3).map((record) => record.modelRoute),
+        'settings action:"set" key:"voice.wake.surfaces.agent" value:"true"',
         'agent_harness mode:"media_posture" query:"push to talk" includeParameters:true',
         'agent_harness mode:"pairing_posture" query:"device" includeParameters:true',
       ],
       evidence: {
-        publishedByCurrentAgentContract: wakeRecords.length > 0,
+        localCaptureHost: true,
+        wakeEnabled: wake.enabled,
+        surfaceEnabled: wake.surfaceEnabled,
+        listening: wake.active,
+        indicator: wake.indicator,
+        autoSubmit: wake.autoSubmit,
+        recorder: wake.capture.backend,
+        blockedRows: wake.blockers.map((blocker) => blocker.key),
+        rowsNotInForce: wake.limitations.map((limitation) => limitation.key),
+        // Both filtering rows, reported as what they are rather than as refusals.
+        noiseSuppression: wake.capture.noiseSuppression,
+        speechGateThreshold: wake.vadThreshold,
+        speechGateLoaded: vadReady,
+        recallIsSyntheticOnly: true,
+        // The PHONE half only. False here has never meant "nothing listens".
+        companionWakePublishedByCurrentAgentContract: wakeRecords.length > 0,
         ...(wakeRecords.length > 0 ? { certifiedLiveRecords: wakeRecords.slice(0, 5) } : {}),
       },
-      policy: 'Agent does not claim always-listening behavior without an explicit permission-scoped runtime contract and certified SDK/daemon receipt evidence.',
+      policy: 'On this host, always-listening capture runs only while both voice.wake.enabled and voice.wake.surfaces.agent are on, and holds a visible listening row for as long as it does. Agent does not claim always-listening behavior on a paired device without an explicit permission-scoped runtime contract and certified SDK/daemon receipt evidence.',
     },
   ];
 }

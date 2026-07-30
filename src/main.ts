@@ -59,6 +59,7 @@ import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
 import { startPeriodicSelfUpdate } from './runtime/periodic-update.ts';
 import { applyInitialTuiCliState, getInteractiveTerminalLaunchError, reportFatalStartupError } from './cli/tui-startup.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
+import { installVoiceCapture } from './shell/voice-capture-shell.ts';
 import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
 import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
@@ -210,12 +211,15 @@ async function main() {
     return boxWidth - 4 - 3; // minus padding (4) minus prefix width (3: ' > ')
   };
 
+  // Live-microphone footer row (the wake detector); assigned once voice capture is wired below, null until then so pre-wiring frames size correctly.
+  let voiceCaptureStatus: () => import('./core/voice-capture-status.ts').VoiceCaptureIndicatorState | null = () => null;
+
   const getViewportHeight = (): number => {
     const { height } = getTerminalSize(stdout);
     if (input.agentWorkspace.active) return height;
     const promptLines: number = input.getVisiblePromptLineCount(getPromptContentWidth());
     const currentModel = providerRegistry.getCurrentModel();
-    return height - 2 - estimateShellFooterHeight(promptLines, currentModel.contextWindow);
+    return height - 2 - estimateShellFooterHeight(promptLines, currentModel.contextWindow, voiceCaptureStatus());
   };
 
   const scroll = (delta: number) => {
@@ -476,6 +480,8 @@ async function main() {
 
   // Model picker callback is handled in bootstrap.ts — do not duplicate here.
   input.setHistory(inputHistory);
+  // The wake-word capture host: one microphone path, opened only when voice.wake.enabled AND voice.wake.surfaces.agent are both on (shell/voice-capture-shell.ts).
+  voiceCaptureStatus = installVoiceCapture({ configManager, voiceService: ctx.services.voiceService, voiceProviders: ctx.services.voiceProviders, shellPaths: ctx.services.shellPaths, sessionId: runtime.sessionId, unsubs, buffer: input, submitInput, notify: (m) => { systemMessageRouter.high(m); render(); }, render: () => render() });
 
   const toolCount = toolRegistry.list().length;
   conversation.splashOptions = {
@@ -565,6 +571,7 @@ async function main() {
       composerStatus: composerState.statusLabel,
       composerFlags: composerState.flags,
       composerPendingRisk: composerState.pendingRisk,
+      voiceCapture: voiceCaptureStatus(),
     }).lines;
 
     const shellHeaderLines = headerLines;

@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import type { VoiceAudioChunk } from '@pellux/goodvibes-sdk/platform/voice';
 import { LocalStreamingAudioPlayer } from '../../audio/player.ts';
-import type { LocalStreamingAudioPlayerOptions } from '../../audio/player.ts';
+import type { LocalStreamingAudioPlayerOptions, StreamingAudioPlayer } from '../../audio/player.ts';
+import { buildActivationChimeWav, playActivationSound } from '../../audio/activation-sound.ts';
 
 /**
  * Deterministic fake-sink coverage for the two TTS playback regressions:
@@ -307,5 +308,117 @@ describe('LocalStreamingAudioPlayer playback', () => {
     expect(await settled).toBe('err:device busy');
     // Nothing was written into a sink that never opened.
     expect(proc.stdin.chunks.length).toBe(0);
+  });
+});
+
+/**
+ * The activation sound a confirmed wake makes (src/audio/activation-sound.ts).
+ *
+ * These are the audible half of `voice.wake.activationSound` and
+ * `voice.wake.activationSoundPath`: the wake runtime's half — that the configured
+ * kind and path reach the player at the moment of a wake — is asserted in
+ * src/test/voice/wake-settings-behavior.test.ts. Together they mean a row that
+ * stopped being honoured breaks a test whichever end it was dropped at.
+ *
+ * Nothing spawns a real player: the same FakeProcess sink above stands in.
+ */
+describe('the wake activation sound', () => {
+  /** A player that records what it was asked to play, without a subprocess. */
+  function recordingPlayer(available = true): {
+    readonly player: StreamingAudioPlayer;
+    readonly played: Array<{ readonly bytes: Uint8Array; readonly format: string | undefined }>;
+  } {
+    const played: Array<{ bytes: Uint8Array; format: string | undefined }> = [];
+    const player: StreamingAudioPlayer = {
+      label: available ? 'fake-player' : 'none installed',
+      available,
+      play: async (chunks, options) => {
+        for await (const chunk of chunks) played.push({ bytes: chunk.data, format: options.format });
+      },
+      stop: () => { /* nothing to cut */ },
+      waitForDrain: async () => { /* nothing to drain */ },
+    };
+    return { player, played };
+  }
+
+  test('"none" plays nothing at all, where "chime" plays a real WAV — the row decides whether audio happens', async () => {
+    const silent = recordingPlayer();
+    const silentNotices: string[] = [];
+    playActivationSound({ kind: 'none', path: '' }, { player: silent.player, notify: (m) => silentNotices.push(m) });
+    await flush();
+    expect(silent.played).toEqual([]);
+    expect(silentNotices).toEqual([]);
+
+    const chimed = recordingPlayer();
+    playActivationSound({ kind: 'chime', path: '' }, { player: chimed.player, notify: () => { /* nothing to report */ } });
+    await flush();
+    expect(chimed.played.length).toBe(1);
+    expect(chimed.played[0]?.format).toBe('wav');
+    // A real RIFF/WAVE header, not an empty buffer a player would silently skip.
+    const header = new TextDecoder().decode(chimed.played[0]?.bytes.slice(0, 12) ?? new Uint8Array());
+    expect(header.startsWith('RIFF')).toBe(true);
+    expect(header.includes('WAVE')).toBe(true);
+  });
+
+  test('the built-in chime is two audible tones, so a wake is heard rather than merely emitted', () => {
+    const wav = buildActivationChimeWav();
+    // 2 x 70 ms at 16 kHz = 2240 samples of PCM16 plus the 44-byte header.
+    expect(wav.length).toBe(44 + 2240 * 2);
+    const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+    let peak = 0;
+    for (let offset = 44; offset + 1 < wav.length; offset += 2) {
+      peak = Math.max(peak, Math.abs(view.getInt16(offset, true)));
+    }
+    expect(peak).toBeGreaterThan(1000);
+  });
+
+  test('"custom" plays the file at voice.wake.activationSoundPath, and a different path plays a different file', async () => {
+    const first = recordingPlayer();
+    playActivationSound(
+      { kind: 'custom', path: '/tmp/ping.wav' },
+      { player: first.player, notify: () => { /* nothing to report */ }, readFile: (path) => bytes(`bytes-of:${path}`) },
+    );
+    await flush();
+    expect(new TextDecoder().decode(first.played[0]?.bytes ?? new Uint8Array())).toBe('bytes-of:/tmp/ping.wav');
+
+    const second = recordingPlayer();
+    playActivationSound(
+      { kind: 'custom', path: '/tmp/other.ogg' },
+      { player: second.player, notify: () => { /* nothing to report */ }, readFile: (path) => bytes(`bytes-of:${path}`) },
+    );
+    await flush();
+    expect(new TextDecoder().decode(second.played[0]?.bytes ?? new Uint8Array())).toBe('bytes-of:/tmp/other.ogg');
+    // The extension chooses the format handed to the player, not a hardcoded wav.
+    expect(second.played[0]?.format).toBe('ogg');
+  });
+
+  test('a custom path that cannot be read is reported and plays nothing, rather than throwing mid-capture', async () => {
+    const { player, played } = recordingPlayer();
+    const notices: string[] = [];
+    playActivationSound(
+      { kind: 'custom', path: '/tmp/missing.wav' },
+      { player, notify: (m) => notices.push(m), readFile: () => { throw new Error('ENOENT'); } },
+    );
+    await flush();
+    expect(played).toEqual([]);
+    expect(notices.join('\n')).toContain('/tmp/missing.wav');
+  });
+
+  test('"custom" with an empty path says so instead of playing the chime as though the path had worked', async () => {
+    const { player, played } = recordingPlayer();
+    const notices: string[] = [];
+    playActivationSound({ kind: 'custom', path: '   ' }, { player, notify: (m) => notices.push(m) });
+    await flush();
+    expect(played).toEqual([]);
+    expect(notices.join('\n')).toContain('voice.wake.activationSoundPath is empty');
+  });
+
+  test('no audio player installed: the wake is reported as unheard rather than silently swallowed', async () => {
+    const { player, played } = recordingPlayer(false);
+    const notices: string[] = [];
+    playActivationSound({ kind: 'chime', path: '' }, { player, notify: (m) => notices.push(m) });
+    await flush();
+    expect(played).toEqual([]);
+    expect(notices.join('\n')).toContain('no audio player is installed');
   });
 });
