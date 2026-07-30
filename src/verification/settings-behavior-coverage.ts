@@ -280,11 +280,20 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   //     a browser tab. There is no tab here, and this surface pins wasm because it is
   //     a host process, so no value of the row changes anything this repo does.
   //
-  // Mutation-checked on the gate itself, which is the row most worth breaking:
-  // making wireWakeRuntime resolve for surface 'tui' instead of 'agent', and making
-  // startWakeRuntime subscribe to voice.wake.surfaces.tui, each failed the
-  // double-gate tests; dropping the `settings.active` check before opening capture
-  // failed the two "opens no device" tests.
+  // Mutation-checked on the gate itself, which is the row most worth breaking, and
+  // the third result is recorded because it is not what was expected:
+  //   - resolving for surface 'tui' instead of 'agent' failed 2 tests, including the
+  //     one that asserts surfaces.agent:false opens no device — which is the evidence
+  //     that "no device" assertion is not vacuous.
+  //   - subscribing to voice.wake.surfaces.tui instead of this surface's row failed
+  //     the live-flip test.
+  //   - removing wireWakeRuntime's own `settings.active` check failed ONLY the
+  //     live-flip test, not the two "opens no device" tests: the SDK listener
+  //     re-checks the same rows and refuses before touching the capture opener, so
+  //     nothing is spawned either way. The local check's unique job is therefore
+  //     RELEASING a live device when a row goes off, and that is the assertion that
+  //     holds it. Stated rather than left implied, because a reader would otherwise
+  //     expect the "no device" tests to be its guard.
   {
     key: 'voice.wake.threshold',
     test: 'src/test/voice/wake-settings-behavior.test.ts',
