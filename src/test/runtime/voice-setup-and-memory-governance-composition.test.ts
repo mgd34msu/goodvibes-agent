@@ -6,11 +6,12 @@
  * power-keep-awake-composition.test.ts:
  *
  *  1. `services.voiceSetup` is real, live wiring over the SDK's own managed
- *     local-voice provisioning (@pellux/goodvibes-sdk/platform/voice). Both
- *     the direct service (what /voice status and /voice setup read) and the
- *     voice.local.status/voice.local.install gateway verbs (what a remote
- *     surface would invoke) are pinned to the SAME instance and produce a
- *     real, non-fabricated answer.
+ *     voice provisioning — created by the platform's createVoiceSetupService
+ *     rather than mirrored here, which is also what gives this surface the
+ *     wake-word artifact service. Both the direct service (what /voice status,
+ *     /voice setup and /voice wake read) and the voice.local.* and voice.wake.*
+ *     gateway verbs (what a remote surface would invoke) are pinned to the SAME
+ *     instance and produce a real, non-fabricated answer.
  *
  *  2. The SDK memory-governance layer is composed FOR REAL: the MemoryGovernor
  *     is constructed AND STARTED by default (a safety feature) via the SDK's
@@ -88,6 +89,44 @@ describe('voice-setup + memory-governance composition', () => {
         context: {},
       });
       expect(viaGateway).toEqual(direct);
+    } finally {
+      cleanup(services);
+    }
+  });
+
+  test('services.voiceSetup carries the wake-word artifact service, and reports honestly on a host that has never provisioned', () => {
+    const services = makeServices();
+    try {
+      // The same service, one instance: the wake artifacts live under the managed
+      // voice root's `wake` subdirectory, so /voice wake status and the
+      // voice.wake.status verb read the platform's own content-verifying check
+      // rather than a second provisioning path invented here.
+      const status = services.voiceSetup.wakeStatus();
+      expect(status.ready).toBe(false);
+      // A fresh temp home: absent, NOT corrupt. The distinction is the point of
+      // verifying by content — a wrong or truncated file must not read as present.
+      expect(status.classifier.verified).toBe(false);
+      expect(status.classifier.corrupt).toBe(false);
+      expect(status.embedding.verified).toBe(false);
+      expect(status.downloadBytes).toBeGreaterThan(0);
+      // Carried at every surfacing, because it is what the published numbers mean.
+      expect(status.recallIsSyntheticOnly).toBe(true);
+    } finally {
+      cleanup(services);
+    }
+  });
+
+  test('the three wake verbs are registered on the gateway, and voice.wake.status answers with the SAME live state', async () => {
+    const services = makeServices();
+    try {
+      const direct = services.voiceSetup.wakeStatus();
+      const viaGateway = await services.gatewayMethods.invoke('voice.wake.status', { context: {} });
+      expect(viaGateway).toEqual(direct);
+      // provision downloads ~3.7 MB, and model.get reads bytes that a fresh host
+      // does not have — so these assert the handler is REGISTERED, which is the
+      // failure mode a cataloged-but-unhandled verb has.
+      expect(services.gatewayMethods.get('voice.wake.provision')?.invokable).toBe(true);
+      expect(services.gatewayMethods.get('voice.wake.model.get')?.invokable).toBe(true);
     } finally {
       cleanup(services);
     }

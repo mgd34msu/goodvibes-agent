@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { buildShellFooter, estimateShellFooterHeight } from '../../renderer/shell-surface.ts';
 import { lineToString } from '../setup.ts';
+import type { VoiceCaptureIndicatorState } from '../../core/voice-capture-status.ts';
 
 describe('shell surface', () => {
   test('estimated footer height matches rendered footer height without context bar', () => {
@@ -333,5 +334,63 @@ describe('shell surface', () => {
     expect(bottomBorderCells.length).toBeGreaterThan(0);
     expect(topBorderCells.map((cell) => cell.fg)).toEqual(Array(topBorderCells.length).fill('#1f2430'));
     expect(bottomBorderCells.map((cell) => cell.fg)).toEqual(Array(bottomBorderCells.length).fill('#1f2430'));
+  });
+});
+
+/**
+ * The live-microphone row's place in the footer.
+ *
+ * The height assertions matter more than they look: the viewport is sized from
+ * estimateShellFooterHeight, so a footer that renders one row more than the
+ * estimate draws the transcript's last line underneath the prompt box.
+ */
+describe('shell surface — the live-microphone row', () => {
+  const listening = {
+    kind: 'wake-listening',
+    deviceLabel: 'parecord',
+    indicator: 'statusline',
+  } as const;
+
+  function footer(voiceCapture: VoiceCaptureIndicatorState | null) {
+    return buildShellFooter({
+      width: 100,
+      promptText: 'hello',
+      promptLineCount: 1,
+      usage: { up: 0, down: 0 },
+      showExitNotice: false,
+      lastCopyTime: 0,
+      model: 'gpt-test',
+      toolCount: 3,
+      workingDir: '/tmp/demo',
+      provider: 'openai',
+      contextWindow: 0,
+      runningAgentCount: 0,
+      runningProcessCount: 0,
+      indicatorFocused: false,
+      voiceCapture,
+    });
+  }
+
+  test('a listening detector adds exactly one row, and the estimate agrees with what rendered', () => {
+    const quiet = footer(null);
+    const live = footer(listening);
+    expect(live.height).toBe(quiet.height + 1);
+    expect(live.height).toBe(estimateShellFooterHeight(1, 0, listening));
+    expect(quiet.height).toBe(estimateShellFooterHeight(1, 0, null));
+  });
+
+  test('the row sits directly under the prompt box, above the process indicator', () => {
+    const lines = footer(listening).lines;
+    const voiceRow = lines.findIndex((line) => lineToString(line).includes('listening for the wake phrase'));
+    const processRow = lines.findIndex((line) => lineToString(line).includes('runtime activity'));
+    expect(voiceRow).toBeGreaterThan(-1);
+    expect(processRow).toBeGreaterThan(voiceRow);
+  });
+
+  test('voice.wake.indicator "off" costs no row in the footer or in the estimate', () => {
+    const hidden = { ...listening, indicator: 'off' } as const;
+    expect(footer(hidden).height).toBe(footer(null).height);
+    expect(estimateShellFooterHeight(1, 0, hidden)).toBe(estimateShellFooterHeight(1, 0, null));
+    expect(footer(hidden).lines.some((line) => lineToString(line).includes('Voice:'))).toBe(false);
   });
 });

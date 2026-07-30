@@ -9277,7 +9277,7 @@ describe('agent_harness tool', () => {
     }
   });
 
-  test('exposes voice interaction workflow posture without claiming wake-word support', async () => {
+  test('exposes voice interaction workflow posture, with the wake row reporting what this surface actually does', async () => {
     const fixture = makeFixture();
     const previousOpenAiKey = process.env.OPENAI_API_KEY;
     try {
@@ -9313,6 +9313,8 @@ describe('agent_harness tool', () => {
         readonly voiceWorkflows: readonly {
           readonly id: string;
           readonly status: string;
+          readonly summary: string;
+          readonly nextStep: string;
           readonly setupRoutes: readonly string[];
           readonly evidence: Record<string, unknown>;
           readonly policy: string;
@@ -9320,13 +9322,41 @@ describe('agent_harness tool', () => {
       }>(fixture, { mode: 'media_posture', query: 'voice', includeParameters: true });
 
       expect(posture.summary.voiceWorkflows.ready).toBeGreaterThanOrEqual(3);
-      expect(posture.summary.voiceWorkflows.notPublished).toBe(1);
       expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'push-to-talk')?.status).toBe('ready');
       expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'voice-memo-transcription')?.status).toBe('ready');
       expect(posture.voiceWorkflows.find((workflow) => workflow.id === 'spoken-responses')?.status).toBe('ready');
+      // Wake capture IS shipped on this surface, and its delivery row ships off, so
+      // the honest posture at defaults is setup-needed with the exact rows to flip —
+      // not the "not-published" it read while nothing captured audio anywhere. The
+      // phone half is still unpublished and says so in its own evidence field.
       const wake = posture.voiceWorkflows.find((workflow) => workflow.id === 'wake-and-speak');
-      expect(wake?.status).toBe('not-published');
+      expect(wake?.status).toBe('setup-needed');
+      expect(wake?.summary).toContain('voice.wake.surfaces.agent is off');
+      expect(wake?.nextStep).toContain('/voice wake setup');
+      expect(wake?.evidence.localCaptureHost).toBe(true);
+      expect(wake?.evidence.listening).toBe(false);
+      expect(wake?.evidence.companionWakePublishedByCurrentAgentContract).toBe(false);
       expect(wake?.policy).toContain('does not claim always-listening');
+
+      // Both rows on and nothing refusing: the same posture reads ready.
+      fixture.configManager.setDynamic('voice.wake.enabled', true);
+      fixture.configManager.setDynamic('voice.wake.surfaces.agent', true);
+      const listening = await executeHarnessJson<{
+        readonly voiceWorkflows: readonly { readonly id: string; readonly status: string; readonly evidence: Record<string, unknown> }[];
+      }>(fixture, { mode: 'media_posture', query: 'wake word', includeParameters: true });
+      expect(listening.voiceWorkflows[0]?.status).toBe('ready');
+      expect(listening.voiceWorkflows[0]?.evidence.listening).toBe(true);
+
+      // A row that refuses to start the detector is an attention state, named.
+      fixture.configManager.setDynamic('voice.wake.vadThreshold', 0.5);
+      const blocked = await executeHarnessJson<{
+        readonly voiceWorkflows: readonly { readonly id: string; readonly status: string; readonly evidence: Record<string, unknown> }[];
+      }>(fixture, { mode: 'media_posture', query: 'wake word', includeParameters: true });
+      expect(blocked.voiceWorkflows[0]?.status).toBe('attention');
+      expect(blocked.voiceWorkflows[0]?.evidence.blockedRows).toEqual(['voice.wake.vadThreshold']);
+      fixture.configManager.setDynamic('voice.wake.vadThreshold', 0);
+      fixture.configManager.setDynamic('voice.wake.enabled', false);
+      fixture.configManager.setDynamic('voice.wake.surfaces.agent', false);
       expect(JSON.stringify(posture)).not.toContain('voice-workflow-secret-key');
 
       const pushToTalk = await executeHarnessJson<{
@@ -9450,7 +9480,6 @@ describe('agent_harness tool', () => {
           readonly evidence: { readonly certifiedLiveRecords?: readonly { readonly summary?: string; readonly certification: { readonly publicationGuarantee?: string; readonly missingSignals: readonly string[] } }[] };
         }[];
       }>(fixture, { mode: 'media_posture', query: 'wake word', includeParameters: true });
-      expect(wake.summary.voiceWorkflows.notPublished).toBe(0);
       expect(wake.voiceWorkflows.map((workflow) => workflow.id)).toEqual(['wake-and-speak']);
       expect(wake.voiceWorkflows[0]?.status).toBe('ready');
       expect(wake.voiceWorkflows[0]?.modelRoute).toContain('wake word');

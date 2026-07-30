@@ -25,15 +25,22 @@
  *
  * See docs/voice-and-live-tts.md ("Platform Voice-Config Cohesion") for the
  * accompanying rulings: local (non-daemon) synthesis stays local so the
- * Agent keeps working offline, and mic/STT input is an honest no-op (the
- * web UI owns mic input per the VOICE-WEBUI brief).
+ * Agent keeps working offline, and microphone input arrives through the wake
+ * word and only through it — the platform owns the capture primitive, so this
+ * surface composes it rather than building a partial mic flow of its own, and
+ * push-to-talk is still deliberately absent here.
+ *
+ * The last block also guards the two onnxruntime assets the wake engine needs
+ * on disk, for the same reason: it is audio-layer wiring to a platform
+ * contract, and getting it wrong is silent until a wake never fires.
  */
 import { describe, expect, test } from 'bun:test';
-import { existsSync, readFileSync, rmSync } from 'fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { ConfigManager, CONFIG_SCHEMA, DEFAULT_CONFIG, isValidConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { extractOnnxRuntimeAssets } from '../../audio/wake-inference.ts';
 
 /** The exact tts.* keys the Agent's spoken-output pipeline reads today. */
 const AGENT_VOICE_CONFIG_KEYS = [
@@ -214,5 +221,39 @@ describe('Voice config cohesion — cross-surface proof (2026-07-06 shared confi
     } finally {
       rmSync(homeDir, { recursive: true, force: true });
     }
+  });
+});
+
+
+/**
+ * The wake engine's inference runtime needs its two onnxruntime-web assets as real
+ * files at a path it is pointed at. A compiled binary cannot satisfy the runtime's
+ * dynamic import of them, which is why they are embedded and extracted — and a
+ * failure here is silent in the worst way: session creation throws "Cannot find
+ * module" at the moment a user turns the wake word on.
+ */
+describe('the onnxruntime assets the wake engine loads from disk', () => {
+  test('both are written, the returned prefix ends in a slash, and identical bytes are left alone', () => {
+    const directory = join(makeProjectTempDir('wake-ort-assets'), 'onnxruntime');
+    const prefix = extractOnnxRuntimeAssets(directory);
+    // The runtime concatenates a file name onto this; without the trailing slash it
+    // looks for a sibling of the directory and reports a missing module.
+    expect(prefix).toBe(`${directory}/`);
+
+    const glue = join(directory, 'ort-wasm-simd-threaded.mjs');
+    const wasm = join(directory, 'ort-wasm-simd-threaded.wasm');
+    expect(existsSync(glue)).toBe(true);
+    expect(existsSync(wasm)).toBe(true);
+    expect(statSync(wasm).size).toBeGreaterThan(0);
+
+    // Content-checked, not timestamp-checked: a second call rewrites nothing.
+    const firstWrite = statSync(wasm).mtimeMs;
+    extractOnnxRuntimeAssets(directory);
+    expect(statSync(wasm).mtimeMs).toBe(firstWrite);
+
+    // A stale extraction from another build is replaced rather than trusted.
+    writeFileSync(glue, 'stale bytes from a previous version');
+    extractOnnxRuntimeAssets(directory);
+    expect(readFileSync(glue, 'utf8')).not.toBe('stale bytes from a previous version');
   });
 });
