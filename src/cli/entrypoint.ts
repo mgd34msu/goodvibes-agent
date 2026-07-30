@@ -27,6 +27,7 @@ import { buildCliServicePosture } from './service-posture.ts';
 import { inspectCliExternalRuntime } from './external-runtime.ts';
 import { inspectConnectedHostMetrics } from './connected-host-metrics.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
+import { writeExitingStdoutLine, writeFatalLine } from '../utils/fatal-boot-report.ts';
 import { readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
 import { backfillCheckpointEligibilityIfNeeded, migrateLegacyWorkspaceRegistryIfNeeded, resolveCheckpointEligibilitySync } from '../config/workspace-registration.ts';
 import { resolveAgentRuntimeProfileHome, resolveSelectedAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';
@@ -84,9 +85,9 @@ export async function prepareShellCliRuntime(
   const cli = parseGoodVibesCli(argv, binary);
 
   if (cli.errors.length > 0) {
-    console.error(cli.errors.join('\n'));
-    console.error('');
-    console.error(renderGoodVibesHelp(binary));
+    writeFatalLine(cli.errors.join('\n'));
+    writeFatalLine('');
+    writeFatalLine(renderGoodVibesHelp(binary));
     process.exit(2);
   }
 
@@ -94,17 +95,17 @@ export async function prepareShellCliRuntime(
     const helpTopic = cli.command === 'help'
       ? cli.commandArgs[0]
       : cli.rawCommand ?? undefined;
-    console.log(helpTopic ? renderGoodVibesCommandHelp(helpTopic, binary) : renderGoodVibesHelp(binary));
+    writeExitingStdoutLine(helpTopic ? renderGoodVibesCommandHelp(helpTopic, binary) : renderGoodVibesHelp(binary));
     process.exit(0);
   }
 
   if (cli.flags.version || cli.command === 'version') {
-    console.log(renderGoodVibesVersion(binary));
+    writeExitingStdoutLine(renderGoodVibesVersion(binary));
     process.exit(0);
   }
 
   if (cli.command === 'completion') {
-    console.log(renderCompletion(cli.commandArgs[0], binary));
+    writeExitingStdoutLine(renderCompletion(cli.commandArgs[0], binary));
     process.exit(0);
   }
 
@@ -119,7 +120,7 @@ export async function prepareShellCliRuntime(
       },
     );
   } catch (error) {
-    console.error(error instanceof Error ? error.message : String(error));
+    writeFatalLine(error instanceof Error ? error.message : String(error));
     process.exit(2);
   }
   const {
@@ -145,13 +146,13 @@ export async function prepareShellCliRuntime(
     ? applyRuntimeUrlOverride(configManager, envRuntimeUrl.value, envRuntimeUrl.source)
     : [];
   if (envRuntimeUrlErrors.length > 0) {
-    console.error(envRuntimeUrlErrors.join('\n'));
+    writeFatalLine(envRuntimeUrlErrors.join('\n'));
     process.exit(2);
   }
 
   const overrideErrors = applyRuntimeConfigOverrides(configManager, cli.flags.configOverrides);
   if (overrideErrors.length > 0) {
-    console.error(overrideErrors.join('\n'));
+    writeFatalLine(overrideErrors.join('\n'));
     process.exit(2);
   }
   const featureOverrideErrors = applyRuntimeFeatureOverrides(configManager, {
@@ -159,7 +160,7 @@ export async function prepareShellCliRuntime(
     disableFeatures: cli.flags.disableFeatures,
   });
   if (featureOverrideErrors.length > 0) {
-    console.error(featureOverrideErrors.join('\n'));
+    writeFatalLine(featureOverrideErrors.join('\n'));
     process.exit(2);
   }
 
@@ -172,13 +173,13 @@ export async function prepareShellCliRuntime(
   if (cli.flags.runtimeUrl !== undefined) {
     const runtimeUrlErrors = applyRuntimeUrlOverride(configManager, cli.flags.runtimeUrl);
     if (runtimeUrlErrors.length > 0) {
-      console.error(runtimeUrlErrors.join('\n'));
+      writeFatalLine(runtimeUrlErrors.join('\n'));
       process.exit(2);
     }
   }
   const endpointOverrideErrors = applyRuntimeCommandEndpointFlagOverrides(configManager, cli.command, cli.flags);
   if (endpointOverrideErrors.length > 0) {
-    console.error(endpointOverrideErrors.join('\n'));
+    writeFatalLine(endpointOverrideErrors.join('\n'));
     process.exit(2);
   }
 
@@ -247,7 +248,7 @@ export async function prepareShellCliRuntime(
       outputFormat: cli.flags.outputFormat,
     };
     const snapshot = buildCliStatusSnapshot(statusOptions);
-    console.log(cli.command === 'onboarding'
+    writeExitingStdoutLine(cli.command === 'onboarding'
       ? renderOnboardingCliStatus(statusOptions)
       : renderCliStatus(statusOptions));
     process.exit(cli.command === 'doctor' && snapshot.findings.length > 0 ? 1 : 0);

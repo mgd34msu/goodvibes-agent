@@ -58,6 +58,7 @@ import { reachabilityAtLaunch } from './runtime/path-shadow-startup.ts';
 import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
 import { startPeriodicSelfUpdate } from './runtime/periodic-update.ts';
 import { applyInitialTuiCliState, getInteractiveTerminalLaunchError, reportFatalStartupError } from './cli/tui-startup.ts';
+import { writeFatalLine } from './utils/fatal-boot-report.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { installVoiceCapture } from './shell/voice-capture-shell.ts';
 import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
@@ -87,7 +88,10 @@ async function main() {
     stdoutIsTTY: stdout.isTTY,
   });
   if (terminalLaunchError !== null) {
-    process.stderr.write(`${terminalLaunchError}\n`);
+    // Descriptor write, not process.stderr: this is a refusal that exits
+    // immediately, and a stream write can still be in flight when the process
+    // stops existing. See utils/fatal-boot-report.ts.
+    writeFatalLine(terminalLaunchError);
     process.exit(2);
   }
 
@@ -780,7 +784,11 @@ main().catch((err: unknown) => {
     debug: process.env['GOODVIBES_AGENT_DEBUG'] === '1',
   }, {
     logError: (message, context) => logger.error(message, context),
-    writeStderr: (chunk) => process.stderr.write(chunk),
+    // NOT process.stderr.write: installTuiTerminalOutputGuard (line ~681)
+    // replaces it, so a failure raised after that install had its explanation
+    // intercepted and swallowed — measured on a compiled binary as exit 1 with
+    // zero bytes on both streams. A descriptor write cannot be intercepted.
+    writeStderr: writeFatalLine,
     exit: (code) => process.exit(code),
   });
 });

@@ -5,6 +5,7 @@ import type { GoodVibesCliParseResult } from './types.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
 import type { SessionSurface } from '@/runtime/index.ts';
 import { resolveResumableSession, surfaceResumeRelaunchNotice } from './resume-relaunch-notice.ts';
+import { writeFatalLine } from '../utils/fatal-boot-write.ts';
 
 export type InteractiveTerminalCheckInput = {
   readonly binary: string;
@@ -47,32 +48,52 @@ export function formatFatalStartupErrorForLog(error: unknown): string {
 }
 
 /**
- * The one fatal-startup exit path for main(): log the full detail, print the
- * user-facing explanation to stderr, and exit 1. Lives beside the two
- * formatters it composes so main.ts carries no error-formatting plumbing of
- * its own. Both writes are individually best-effort — a failing logger or a
- * torn-down stderr must never hide the original launch failure.
+ * The one fatal-startup exit path for main(): say why on stderr, log the full
+ * detail, and exit 1. Lives beside the two formatters it composes so main.ts
+ * carries no error-formatting plumbing of its own. Each write is individually
+ * best-effort — a failing logger or a torn-down stderr must never hide the
+ * original launch failure.
+ *
+ * The stderr write goes FIRST, and its default sink is a synchronous write to
+ * file descriptor 2 (`writeFatalLine`), not `process.stderr.write`. Both
+ * details are the fix for a fatal path that could die mute:
+ *
+ *  - Ordering: the logger is the part that can fail. It needs a configured
+ *    destination and a writable directory, and at this point in boot it may
+ *    have neither, so reporting to it first risks throwing before the reason
+ *    ever reaches a stream.
+ *  - Sink: `main.ts` installs a terminal output guard that REPLACES
+ *    `process.stderr.write` to keep stray output off a rendered screen. Any
+ *    startup failure raised after that install had its explanation
+ *    intercepted and swallowed — measured on a compiled binary as exit 1 with
+ *    zero bytes on both streams. A descriptor write cannot be intercepted, and
+ *    has completed by the time it returns rather than racing `process.exit`.
+ *
+ * `writeStderr` stays injectable so tests can observe it, but it is optional
+ * and defaults to the descriptor write: a caller that forgets it gets the safe
+ * behaviour rather than silence.
  */
 export function reportFatalStartupError(
   err: unknown,
   options: FatalStartupFormatOptions,
   sinks: {
     readonly logError: (message: string, context: Record<string, unknown>) => void;
-    readonly writeStderr: (chunk: string) => void;
+    readonly writeStderr?: (chunk: string) => void;
     readonly exit: (code: number) => void;
   },
 ): void {
+  const userDetail = formatFatalStartupErrorForUser(err, options);
+  const writeStderr = sinks.writeStderr ?? writeFatalLine;
+  try {
+    writeStderr(`${options.binary} failed to launch:\n${userDetail}`);
+  } catch {
+    // Ignore secondary stderr failures during process teardown.
+  }
   const detail = formatFatalStartupErrorForLog(err);
   try {
     sinks.logError('Fatal error', { error: detail });
   } catch {
     // Startup diagnostics must never hide the original launch failure.
-  }
-  const userDetail = formatFatalStartupErrorForUser(err, options);
-  try {
-    sinks.writeStderr(`${options.binary} failed to launch:\n${userDetail}\n`);
-  } catch {
-    // Ignore secondary stderr failures during process teardown.
   }
   sinks.exit(1);
 }
