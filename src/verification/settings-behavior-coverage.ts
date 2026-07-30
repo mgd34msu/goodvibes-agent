@@ -508,6 +508,21 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // device nodes. Verified by searching both this repo and the SDK source. It is a
   // setting the product offers and does not yet enforce; a test would be asserting a
   // behaviour that does not exist, so it earns no point here.
+
+  // --- Unified runtime tasks (runtime.unifiedTasks) ------------------------
+  // This key was previously disclaimed (never referenced anywhere in this
+  // repository's source), because bootstrap.ts built its opsTaskManager with
+  // createTaskManager's 3-arg form and never named the key. That omission was
+  // the same bug as the route-binding one: isFeatureGateEnabled is permissive
+  // with no flag manager wired, so the key configured nothing. bootstrap.ts
+  // now threads featureFlags, which is what first makes this key locally
+  // consumed, and the SDK corrected its recorded default (false/disabled) to
+  // match the behaviour every install actually shipped (true/enabled).
+  {
+    key: 'runtime.unifiedTasks',
+    test: 'src/test/input/tasks-command.test.ts',
+    asserts: 'false makes the task manager refuse task creation with a refusal naming the key; true allows it; and with the key never written the effective behaviour matches true, so threading the flag manager changed whether the switch works rather than what an existing install does',
+  },
 ];
 
 /**

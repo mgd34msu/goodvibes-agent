@@ -388,7 +388,15 @@ export async function bootstrapRuntime(
     getContextWindow: () => providerRegistry.getContextWindowForModel(providerRegistry.getCurrentModel()),
   }));
 
-  const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId);
+  // featureFlags is REQUIRED here in practice, even though the SDK types it
+  // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
+  // omitting it did not disable task tracking when runtime.unifiedTasks was
+  // turned off — it made the setting configure nothing: createTask/etc. kept
+  // working either way. The SDK has corrected this key's recorded default to
+  // match the behaviour every install has always shipped (true/enabled), so
+  // threading the flag manager here changes nothing for an existing install
+  // and only makes turning the setting off now actually turn it off.
+  const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId, services.featureFlags);
 
   // Surface-bound closure, not the raw multi-arg SDK function — see
   // session-pointer-surface.ts for why that distinction is load-bearing.

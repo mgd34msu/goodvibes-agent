@@ -257,12 +257,15 @@ describe('WatcherRegistry', () => {
       registry.stopWatcher('watcher-gate', 'test-complete');
 
       // The default half: with the key never written, effective behaviour
-      // matches true.
-      const unsetConfig = new ConfigManager({ surfaceRoot: 'agent', workingDir: root, homeDir: root, configDir: join(root, '.goodvibes', 'unset') });
+      // matches true. A genuinely fresh root — ConfigManager's project tier
+      // is keyed by workingDir/surfaceRoot regardless of configDir, so reusing
+      // `root` here would read back the write above instead of the real default.
+      const { root: unsetRoot } = createTempWatcherStore();
+      const unsetConfig = new ConfigManager({ surfaceRoot: 'agent', workingDir: unsetRoot, homeDir: unsetRoot, configDir: join(unsetRoot, '.goodvibes', 'unset') });
       expect(unsetConfig.get('watchers.enabled')).toBe(true);
       const flags = createFeatureFlagManager();
       flags.loadFromConfig({ flags: deriveFeatureStates(unsetConfig) });
-      const unsetStorePath = join(root, 'watchers-unset.json');
+      const unsetStorePath = join(unsetRoot, 'watchers-unset.json');
       const unsetRegistry = new WatcherRegistry({ storePath: unsetStorePath, featureFlags: flags });
       unsetRegistry.attachRuntime({ runtimeBus: new RuntimeEventBus(), runtimeStore: createRuntimeStore() });
       unsetRegistry.registerPollingWatcher({
@@ -276,6 +279,7 @@ describe('WatcherRegistry', () => {
       });
       expect(unsetRegistry.list()).toHaveLength(1);
       unsetRegistry.stopWatcher('watcher-gate-unset', 'test-complete');
+      rmSync(unsetRoot, { recursive: true, force: true });
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
