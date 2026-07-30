@@ -2,6 +2,15 @@
 
 Product-facing release notes for GoodVibes Agent.
 
+## 1.23.0 - 2026-07-30
+
+- Added: the Agent now raises the dates that matter — birthdays, anniversaries, and the rest of what you have told it to remember — in conversation, before they arrive, on the lead window and quiet hours you set. A reminder names the occasion and the person and never the date itself; "in ten days" is the platform's own day count turned into a word, not something computed here. A gift-giving date opens a short interview — one question at a time, resuming where you left off if you step away — while a remember-only date does not ask anything, because only you know whether an offer to help buy something is welcome. You can say yes, no, or later to any of it, and a date you happen to mention in passing gets confirmed once, right when you can still correct a mishearing. This is conversation-only, the same as before: never the terminal UI.
+- Added: wake-word listening on this surface. Say the wake word, get an activation sound and a persistent listening indicator, and what you say next is transcribed straight into the conversation input — or submitted outright if you have that turned on. Either enablement setting being off means no microphone is opened at all. The capture pipeline, the framing math, and the supervisor that restarts a dropped listener all come from the platform runtime; what stays local is starting the recorder process, the on-device speech model, the chime, and the footer row.
+- Fixed: three settings that looked switchable but were not — route binding, delivery tracking, and a handful of others behind watchers, automation, token auditing, and hands-in-the-loop mode. Each one rendered in the settings screen, took a write, and reported success, while the underlying manager kept running exactly as before regardless of the value. All of them now genuinely turn off when you turn them off.
+- Fixed: continuity data (recovery-file checks among it) was being read from the wrong directory pair, one this product has never written to, so a check could answer confidently about a location that was never in play. It now reads from this product's own declared storage root.
+- Changed: device posture — the settings-to-policy mapping and the confirmation flow behind the `phone` tool — now comes from the platform runtime instead of a private copy kept here, so a change made while the Agent is running takes effect on the next request instead of waiting for a restart.
+- Changed: the bundled GoodVibes platform runtime is 1.20.0.
+
 ## 1.22.1 - 2026-07-29
 
 - Fixed: a correctly configured inbound surface returned 401 on every message sent to it.

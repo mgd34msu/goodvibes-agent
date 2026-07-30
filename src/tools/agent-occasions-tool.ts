@@ -500,21 +500,14 @@ export function createAgentOccasionsTool(deps: AgentOccasionsToolDeps): Tool {
   return {
     definition: {
       name: 'occasions',
-      description:
-        'Dates in the owner\'s life that need an action (birthdays, anniversaries) and dated ranges '
-        + 'that do not (a trip). Raise what is outstanding, record his yes/no/later, run the short gift '
-        + 'interview, and capture a new date he mentions.',
+      description: 'Occasions/trips: raise, answer yes/no/later, gift interview, capture.',
       parameters: {
         type: 'object',
         properties: {
           action: {
             type: 'string',
             enum: [...OCCASIONS_ACTIONS],
-            description:
-              'pending shows what is outstanding; list/plans/gifts/state look up; answer records yes/no/later; '
-              + 'interview/interview_answer/interview_record run the gift interview; propose then confirm captures '
-              + 'a date; plan_propose then plan_confirm captures a trip; remove deletes; resolve_conflict settles '
-              + 'two disagreeing dates; sweep runs one pass now.',
+            description: 'Which action to run. propose/plan_propose each need a paired confirm.',
           },
           occasionId: { type: 'string', description: 'Which occasion. action:"pending" and action:"list" both name it.' },
           answer: {
@@ -522,7 +515,7 @@ export function createAgentOccasionsTool(deps: AgentOccasionsToolDeps): Tool {
             enum: [...OCCASIONS_ANSWER_WORDS],
             description: 'His answer. "later" is its own answer, not a no — never send it as one.',
           },
-          occurrence: { type: 'string', description: 'YYYY-MM-DD, only when answering about an occurrence other than the next one.' },
+          occurrence: { type: 'string', description: 'YYYY-MM-DD; only for an occurrence other than the next one.' },
           interviewId: { type: 'string', description: 'The interview in flight. action:"pending" lists them.' },
           stepId: { type: 'string', description: 'Which question he just answered.' },
           text: { type: 'string', description: 'His answer to one interview question, in his words.' },
@@ -532,8 +525,7 @@ export function createAgentOccasionsTool(deps: AgentOccasionsToolDeps): Tool {
           kind: {
             type: 'string',
             enum: [...OCCASIONS_KIND_WORDS],
-            description: 'HE picks this, never you. gift-giving raises and offers to sort something; '
-              + 'remember-only raises and never mentions a gift; neither is recorded and never raised.',
+            description: 'HE picks this: gift-giving offers a gift, remember-only does not.',
           },
           person: { type: 'string', description: 'Who it is about, as a plain label. Omit when the title already says.' },
           recurrence: {
@@ -550,9 +542,9 @@ export function createAgentOccasionsTool(deps: AgentOccasionsToolDeps): Tool {
           authority: {
             type: 'string',
             enum: [...PROFILE_AUTHORITIES],
-            description: 'Required by confirm, plan_confirm and remove. owner-direct only if he said it this turn.',
+            description: 'Required by confirm/plan_confirm/remove; owner-direct only if said now.',
           },
-          said: { type: 'string', description: 'His verbatim words for this date or plan. Required by confirm and plan_confirm.' },
+          said: { type: 'string', description: 'His verbatim words. Required by confirm and plan_confirm.' },
         },
         additionalProperties: false,
       },
