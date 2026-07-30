@@ -19,7 +19,7 @@ import type { ControlPlaneRecentEvent } from '@pellux/goodvibes-sdk/platform/con
 import type { MutableRuntimeState } from '@/runtime/index.ts';
 import type { BootstrapOptions } from './context.ts';
 import { createFeatureFlagManager, deriveFeatureStates, bindFeatureSettingsBridge } from '@/runtime/index.ts';
-import { RuntimeEventBus } from '@/runtime/index.ts';
+import { RuntimeEventBus, configureRuntimeEventBusDefaults, runtimeEventBusOptionsFrom } from '@/runtime/index.ts';
 import type { SessionEvent } from '@/runtime/index.ts';
 import { emitPermissionModeChanged } from '@pellux/goodvibes-sdk/platform/runtime/emitters';
 import { createRuntimeStore, createDomainDispatch, type RuntimeStore } from './store/index.ts';
@@ -150,6 +150,9 @@ export async function initializeBootstrapCore(
   // checkpoints stamped with whatever session id is current when the turn ends,
   // which is exactly the id the restore/rewind lookup filters on.
   const runtimeSessionIdRef = { value: userSessionId };
+  // Point the bus listener cap at runtime.eventBus.maxListeners before the
+  // first bus exists, so every bus this process builds later uses it.
+  configureRuntimeEventBusDefaults(runtimeEventBusOptionsFrom((key) => configManager.get(key)));
   const runtimeBus = new RuntimeEventBus();
   const store = createRuntimeStore();
   const domainDispatch = createDomainDispatch(store);

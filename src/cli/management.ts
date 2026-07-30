@@ -12,7 +12,7 @@ import { createRuntimeStore } from '../runtime/store/index.ts';
 import { readConnectedHostOperatorToken } from '../runtime/connected-host-auth.ts';
 import type { RuntimeServices } from '../runtime/services.ts';
 import { SecretsManager } from '../config/secrets.ts';
-import { RuntimeEventBus, type TurnEvent } from '@/runtime/index.ts';
+import { RuntimeEventBus, type TurnEvent, configureRuntimeEventBusDefaults, runtimeEventBusOptionsFrom } from '@/runtime/index.ts';
 import { createShellPathService } from '@/runtime/index.ts';
 import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
@@ -174,6 +174,9 @@ export async function withRuntimeServices<T>(
   runtime: CliCommandRuntime,
   fn: (services: RuntimeServices) => Promise<T> | T,
 ): Promise<T> {
+  // Point the bus listener cap at runtime.eventBus.maxListeners before the
+  // first bus exists, so every bus this process builds later uses it.
+  configureRuntimeEventBusDefaults(runtimeEventBusOptionsFrom((key) => runtime.configManager.get(key)));
   const runtimeBus = new RuntimeEventBus();
   const runtimeStore = createRuntimeStore();
   const services = createRuntimeServices({
