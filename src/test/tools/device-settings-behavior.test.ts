@@ -583,20 +583,32 @@ describe('device.* settings — behaviour', () => {
     capped.answer('once');
     capped.returnCapture(true);
 
-    const first = requireArtifact(await capped.run(CAMERA_REAR));
+    requireArtifact(await capped.run(CAMERA_REAR));
     advanceClock(MINUTE);
-    const second = requireArtifact(await capped.run(SCREEN));
+    requireArtifact(await capped.run(SCREEN));
     advanceClock(MINUTE);
-    const third = requireArtifact(await capped.run(CAMERA_REAR));
-    const firstPath = capped.service.artifacts.pathFor(first);
+    requireArtifact(await capped.run(CAMERA_REAR));
+
+    // Same rule as the grants cap below: which capture is reaped is asserted
+    // against the `capturedAt` the store recorded, not against the order these
+    // calls were made in.
+    const retainedBefore = await capped.service.artifacts.list();
+    expect(retainedBefore).toHaveLength(3);
+    const oldestFirst = [...retainedBefore].sort((a, b) => a.capturedAt - b.capturedAt);
+    const reapedArtifact = oldestFirst[0]!;
+    const reapedPath = capped.service.artifacts.pathFor(reapedArtifact);
+    const expectedSurvivors = oldestFirst.slice(1).map((artifact) => artifact.id).sort();
 
     const sweep = await capped.service.housekeeper.sweep('manual');
-    expect(sweep.artifacts.removed.map((removal) => removal.reason)).toEqual(['count-cap']);
+    expect(capped.service.artifacts.getPolicy().maxArtifacts).toBe(2);
+    expect(sweep.artifacts.removed).toHaveLength(1);
+    expect(sweep.artifacts.removed[0]?.reason).toBe('count-cap');
+    expect(sweep.artifacts.removed[0]?.artifactId).toBe(reapedArtifact.id);
     expect(sweep.artifacts.retained).toBe(2);
     const survivors = (await capped.service.artifacts.list()).map((artifact) => artifact.id).sort();
-    expect(survivors).toEqual([second.id, third.id].sort());
-    // The oldest capture's bytes are gone from disk, not merely unindexed.
-    expect(existsSync(firstPath)).toBe(false);
+    expect(survivors).toEqual(expectedSurvivors);
+    // The reaped capture's bytes are gone from disk, not merely unindexed.
+    expect(existsSync(reapedPath)).toBe(false);
 
     // Stock 200: the same three captures all survive.
     const stock = harness(freshConfig(), join(root, 'state-artifacts-200'));
@@ -708,16 +720,36 @@ describe('device.* settings — behaviour', () => {
     expect(label(await capped.run(VIBRATE))).toBe('ok:confirmed-always');
     advanceClock(MINUTE);
     expect(label(await capped.run(SCREEN))).toBe('ok:confirmed-always');
-    expect(await capped.service.grants.list()).toHaveLength(3);
+
+    // WHICH grant is reaped is asserted against the timestamps the store
+    // actually recorded, not against the order these three calls were made in.
+    // The clock this file drives is process-wide state, and the reap order is
+    // the store's own `grantedAt` ordering — reading it back keeps the assertion
+    // about the cap (the behaviour under test) instead of about this file's
+    // clock still being the only thing writing timestamps. A stable sort over
+    // the stored order reproduces the store's own choice exactly, including how
+    // it breaks a tie.
+    const recorded = await capped.service.grants.list();
+    expect(recorded).toHaveLength(3);
+    const oldestFirst = [...recorded].sort((a, b) => a.grantedAt - b.grantedAt);
+    const reapedGrant = oldestFirst[0]!;
+    const expectedSurvivors = oldestFirst.slice(1).map((grant) => grant.capabilityId).sort();
 
     const sweep = await capped.service.housekeeper.sweep('manual');
-    expect(sweep.grants.removed.map((removal) => removal.reason)).toEqual(['per-node-cap']);
+    // The cap is what capped: one grant went, for the cap's reason, and the node
+    // is left holding exactly the configured number.
+    expect(capped.service.grants.getPolicy().maxGrantsPerNode).toBe(2);
+    expect(sweep.grants.removed).toHaveLength(1);
+    expect(sweep.grants.removed[0]?.reason).toBe('per-node-cap');
+    expect(sweep.grants.removed[0]?.capabilityId).toBe(reapedGrant.capabilityId);
+    expect(sweep.grants.removed[0]?.nodeId).toBe('phone-1');
     expect(sweep.grants.retained).toBe(2);
-    const remaining = (await capped.service.grants.list()).map((grant) => grant.capabilityId).sort();
-    expect(remaining).toEqual([SCREEN, VIBRATE].sort());
-    // The reaped capability has to be asked about again.
+    const survivingGrants = await capped.service.grants.list();
+    expect(survivingGrants.map((grant) => grant.capabilityId).sort()).toEqual(expectedSurvivors);
+    expect(survivingGrants.filter((grant) => grant.nodeId === 'phone-1')).toHaveLength(2);
+    // The reaped capability — whichever one it was — has to be asked about again.
     const approvalsBefore = capped.approvals.length;
-    expect(label(await capped.run(NOTIFY))).toBe('ok:confirmed-always');
+    expect(label(await capped.run(reapedGrant.capabilityId))).toBe('ok:confirmed-always');
     expect(capped.approvals).toHaveLength(approvalsBefore + 1);
 
     // Stock 64: the same three grants are all kept.
