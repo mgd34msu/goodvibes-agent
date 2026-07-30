@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
-import { createFeatureFlagManager } from '@/runtime/index.ts';
+import { createFeatureFlagManager, deriveFeatureStates } from '@/runtime/index.ts';
+import { AutomationRouteStore } from '@pellux/goodvibes-sdk/platform/automation';
+import { RouteBindingManager } from '@pellux/goodvibes-sdk/platform/channels';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 describe('automation/control-plane foundation', () => {
@@ -78,5 +80,71 @@ describe('automation/control-plane foundation', () => {
     expect(flags.isEnabled('automation-domain')).toBe(true);
     expect(flags.isEnabled('control-plane-gateway')).toBe(true);
     expect(flags.isEnabled('route-binding')).toBe(true);
+  });
+
+  /**
+   * integrations.routeBinding, driven to BOTH values through the real consumer.
+   *
+   * This setting used to configure nothing in this product. The gate reads
+   * through isFeatureGateEnabled, which is permissive when no manager is wired —
+   * a narrow embed with no flag manager gets the capability rather than a silent
+   * off — so a composition root that omitted featureFlags did not DISABLE route
+   * binding. It made the switch inert: the key rendered in settings, accepted a
+   * write, reported success, and the manager went on binding either way. That is
+   * the same shape as a bot username that lands in the wrong config file, and it
+   * is why services.ts now threads featureFlags into RouteBindingManager.
+   *
+   * The mutation check for this row: remove that argument and the "off" half of
+   * the first test below fails, because the manager falls back to permissive.
+   */
+  function routeBindingManager(enabled: boolean): RouteBindingManager {
+    const configManager = new ConfigManager({ surfaceRoot: 'agent', workingDir: root, homeDir: root, configDir });
+    configManager.set('integrations.routeBinding', enabled);
+    const featureFlags = createFeatureFlagManager();
+    featureFlags.loadFromConfig({ flags: deriveFeatureStates(configManager) });
+    // Constructed exactly as runtime/services.ts constructs it.
+    return new RouteBindingManager({
+      store: new AutomationRouteStore({ configManager }),
+      runtimeStore: createRuntimeStore(),
+      featureFlags,
+    });
+  }
+
+  test('integrations.routeBinding false turns route binding off, and the manager says so', async () => {
+    const manager = routeBindingManager(false);
+    // Askable, so a caller can tell "you have no bindings" from "bindings are off".
+    expect(manager.isRouteBindingEnabled()).toBe(false);
+    expect(manager.listBindings()).toEqual([]);
+    // A write REFUSES rather than silently doing nothing, and the refusal names
+    // the setting so the reason is diagnosable from the message alone.
+    let refusal = '';
+    try {
+      await manager.upsertBinding({ kind: 'session', surfaceKind: 'telegram', surfaceId: 'surface:telegram', externalId: 'chat-1' });
+    } catch (error) {
+      refusal = error instanceof Error ? error.message : String(error);
+    }
+    expect(refusal).toContain('integrations.routeBinding');
+  });
+
+  test('integrations.routeBinding true binds and resolves a route, and is the shipped default', async () => {
+    const manager = routeBindingManager(true);
+    expect(manager.isRouteBindingEnabled()).toBe(true);
+    const binding = await manager.upsertBinding({ kind: 'session', surfaceKind: 'telegram', surfaceId: 'surface:telegram', externalId: 'chat-1' });
+    expect(binding.externalId).toBe('chat-1');
+    expect(manager.resolve('telegram', 'chat-1')?.id).toBe(binding.id);
+
+    // The default half: with the key never written, the effective behaviour is
+    // the same as true. This is what makes threading featureFlags a fix that
+    // changes only whether the switch WORKS, not what an existing install does.
+    const configManager = new ConfigManager({ surfaceRoot: 'agent', workingDir: root, homeDir: root, configDir: join(root, '.goodvibes', 'unset') });
+    expect(configManager.get('integrations.routeBinding')).toBe(true);
+    const flags = createFeatureFlagManager();
+    flags.loadFromConfig({ flags: deriveFeatureStates(configManager) });
+    const unset = new RouteBindingManager({
+      store: new AutomationRouteStore({ configManager }),
+      runtimeStore: createRuntimeStore(),
+      featureFlags: flags,
+    });
+    expect(unset.isRouteBindingEnabled()).toBe(true);
   });
 });

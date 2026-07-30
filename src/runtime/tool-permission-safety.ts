@@ -1,6 +1,7 @@
 import type { PermissionCategory, PermissionCheckResult } from '@pellux/goodvibes-sdk/platform/permissions';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import { HARNESS_MODE_DESCRIPTORS } from '../tools/agent-harness-mode-catalog.ts';
+import { normalizeOccasionsAction, OCCASIONS_WRITE_ACTIONS } from '../tools/agent-occasions-types.ts';
 import { normalizeProfileAction, PROFILE_WRITE_ACTIONS } from '../tools/agent-profile-types.ts';
 
 type PermissionManagerLike = {
@@ -309,6 +310,17 @@ export function fallbackPermissionCategoryForArgs(toolName: string, args: Record
     // not recognise is a write, never auto-approved as a read.
     const action = normalizeProfileAction(args.action) ?? normalizeProfileAction(args.mode);
     return action === null || PROFILE_WRITE_ACTIONS.has(action) ? 'write' : 'read';
+  }
+  if (toolName === 'occasions') {
+    // Same treatment, and for the same reason, as `profile` above: the actions
+    // split cleanly between the five that only look and the eight that change
+    // durable state — the acknowledgement store for an answer or an interview, and
+    // the owner's own profile file for a capture or a removal. Both sides read the
+    // SAME action vocabulary (tools/agent-occasions-types.ts), so an alias can
+    // never classify as a read here and act as a write there. An action the tool
+    // does not recognise is a write, never auto-approved as a read.
+    const action = normalizeOccasionsAction(args.action) ?? normalizeOccasionsAction(args.mode);
+    return action === null || OCCASIONS_WRITE_ACTIONS.has(action) ? 'write' : 'read';
   }
   if (toolName === 'agent_harness') {
     const mode = typeof args.mode === 'string' ? args.mode.trim() : '';

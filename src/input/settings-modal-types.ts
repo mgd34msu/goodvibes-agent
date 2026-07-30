@@ -36,6 +36,7 @@ export type SettingsCategory =
   | 'conversationGate'
   | 'automation'
   | 'checkin'
+  | 'occasions'
   | 'service'
   | 'controlPlane'
   | 'httpListener'
@@ -121,7 +122,16 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   // the Agent's behavior. It is daemon-owned (config-ownership.ts) like
   // `cluster` is, but that is a routing fact about where the write lands, not a
   // reason to file it away from the settings he actually thinks about.
-  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'profile', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power', 'payments'] },
+  //
+  // `occasions` sits beside `profile` for the same reason and a stronger one:
+  // the occasions and plans it governs ARE prose lines in the profile file
+  // (docs/occasions.md §3), so filing them apart would put one document's
+  // settings in two places. What they decide is also the same kind of thing —
+  // how far ahead the Agent raises a birthday, whether it writes his dates out
+  // to a calendar, how many questions the gift interview asks. Daemon-owned like
+  // `profile` and `payments`, which is a routing fact about where the write
+  // lands rather than a reason to file it away from the settings he weighs.
+  { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'profile', 'occasions', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power', 'payments'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
   { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'device', 'mcp', 'automation', 'checkin', 'integrations'] },

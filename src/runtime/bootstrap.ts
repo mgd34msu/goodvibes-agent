@@ -46,6 +46,7 @@ import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
+import { installOccasionsNudging } from './occasions-boot.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
 import { createRuntimeShutdown } from './bootstrap-shutdown.ts';
 import { installAgentMcpCallRoute } from '../tools/agent-mcp-call-route.ts';
@@ -219,6 +220,20 @@ export async function bootstrapRuntime(
   // own composition root does not wire a usageLookup into its scheduler either —
   // matched here for parity); still tracked for its own reporting.
   const memoryUsageTracker = createMemoryUsageTracker(services.shellPaths, services.memoryRegistry);
+  // Both halves of the owner ruling that occasion nudges go to Telegram AND the
+  // agent (docs/occasions.md §4.2): this product is a PUSH destination the daemon
+  // addresses, and the surface that PULLS what is outstanding. Neither replaces
+  // the other and they cannot double-speak — see runtime/occasions-boot.ts for
+  // why, and for the guard that makes it true.
+  const occasionsNudgeSurface = installOccasionsNudging({
+    router: services.channelDeliveryRouter,
+    gatewayMethods: services.gatewayMethods,
+    configManager,
+    homeDirectory: services.shellPaths.homeDirectory,
+    conversation,
+    requestRender,
+    disposals: bootstrapUnsubs,
+  });
   runtimeUnsubs.push(
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_SUBMITTED' }>>('TURN_SUBMITTED', (event) => {
       activePromptTurnId = event.payload.turnId;
@@ -264,6 +279,13 @@ export async function bootstrapRuntime(
         activePromptTurnText = null;
       }
       memoryUsageTracker.onTurnCompleted(event.payload.turnId, event.payload.response);
+      // Raise anything outstanding, now that the transcript is quiet. Appending
+      // the agent's own line while a response was still streaming would
+      // interleave two voices in one transcript, which is why this rides the
+      // turn's completion rather than its submission. Not awaited and it never
+      // throws — a nudge that could not be pulled must not disturb the turn it
+      // rode in on.
+      void occasionsNudgeSurface.raiseNow();
     }),
     runtimeBus.on<Extract<TurnEvent, { type: 'TURN_ERROR' }>>('TURN_ERROR', (event) => {
       promptContextReceipts.recordTurnOutcome({

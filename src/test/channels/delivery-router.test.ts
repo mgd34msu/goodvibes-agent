@@ -68,6 +68,13 @@ describe('ChannelDeliveryRouter', () => {
       'channel-delivery:bluebubbles',
       'channel-delivery:mattermost',
       'channel-delivery:matrix',
+      // The agent's own conversation as a push destination (SDK round: the owner's
+      // ruling is Telegram AND the agent). Last, and always present: the SDK
+      // appends it after any configured list because the destination has to exist
+      // from the moment the router does — this product registers the callable that
+      // lands the message separately, at bootstrap, and a push arriving before it
+      // has must fail by NAME rather than look like an unknown surface.
+      'channel-delivery:agent',
     ]);
   });
 
@@ -75,7 +82,10 @@ describe('ChannelDeliveryRouter', () => {
     const router = new ChannelDeliveryRouter({ strategies: [] });
     const delivered: ChannelDeliveryRequest[] = [];
 
-    expect(router.listStrategies()).toHaveLength(0);
+    // Not zero: the agent destination is router-owned and appended even to an
+    // explicit empty list, so the count here is the agent strategy alone. A
+    // `service` target still finds nothing, which is what this test is about.
+    expect(router.listStrategies().map((strategy) => strategy.id)).toEqual(['channel-delivery:agent']);
     await expect(router.deliver(serviceRequest())).rejects.toThrow('Unsupported channel delivery target: surface:service');
 
     router.registerStrategy({
@@ -108,7 +118,9 @@ describe('ChannelDeliveryRouter', () => {
 
     expect(() => router.registerStrategy(strategy)).toThrow('Channel delivery strategy already registered');
     expect(() => router.registerStrategy({ ...strategy, canHandle: () => true }, { replace: true })).not.toThrow();
-    expect(router.listStrategies()).toHaveLength(1);
+    // The replaced strategy plus the router-owned agent destination.
+    expect(router.listStrategies().map((entry) => entry.id))
+      .toEqual(['channel-delivery:agent', 'channel-delivery:test']);
   });
 
   test('rejects unsafe webhook delivery targets before dispatch', async () => {

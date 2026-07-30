@@ -81,6 +81,7 @@ export const CATEGORY_LABELS: Record<(typeof SETTINGS_CATEGORIES)[number], strin
   subscriptions: 'Subscriptions',
   behavior: 'Behavior',
   profile: 'Your Profile',
+  occasions: 'Dates and Plans',
   storage: 'Storage',
   permissions: 'Permissions',
   diagnostics: 'Diagnostics',

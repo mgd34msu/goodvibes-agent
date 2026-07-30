@@ -153,6 +153,28 @@ const VERB_FAMILIES: ReadonlyArray<{ readonly family: string; readonly reason: s
     ],
   },
   {
+    // Occasions: dates in the owner's life that need an action, and the sixteen
+    // verbs the Agent's `occasions` tool and its nudge surface both call.
+    // Registered by installOccasions INSIDE composeOwnerProfile (see the SDK's
+    // routes/owner-profile-composition.ts, which passes the whole verb-group dep
+    // bag straight through as OccasionsInstallDeps) — so it is gated on the same
+    // configManager the profile family is, plus shellPaths for the state file's
+    // path. Both are always threaded here, which is why this needed no new dep
+    // in services.ts: channelDeliveryRouter and disposal are the only other
+    // pieces the composition reads and both were already passed for other
+    // families. The key names are deliberately not spelled here for the same
+    // reason profile.* does not spell its own — see that entry's note.
+    family: 'occasions.*',
+    reason: "Always registered — the SDK's installOccasions is composed over the same OwnerProfileStore composeOwnerProfile builds from configManager, with the machine-owned state file resolved from shellPaths. No dep threading was needed for this family.",
+    methodIds: [
+      'occasions.list', 'occasions.pending', 'occasions.state', 'occasions.sweep',
+      'occasions.propose', 'occasions.confirm', 'occasions.remove', 'occasions.answer',
+      'occasions.interview.get', 'occasions.interview.answer', 'occasions.interview.record',
+      'occasions.gifts', 'occasions.conflict.resolve',
+      'occasions.plans.list', 'occasions.plans.propose', 'occasions.plans.confirm',
+    ],
+  },
+  {
     family: 'power.status.get / power.keepAwake.set',
     reason: 'Registered because powerManager is threaded in services.ts (wireRuntimePower — sleep ownership, keep-awake toggle). Deeper round-trip: gateway-power.test.ts.',
     methodIds: ['power.status.get', 'power.keepAwake.set'],
@@ -269,6 +291,42 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
       if (/gateway method is not invokable/i.test(message)) wiringGapMessage = message;
     }
     expect(wiringGapMessage).toBeNull();
+  });
+
+  test('occasions.pending invokes end-to-end and answers with nothing outstanding on a fresh runtime', async () => {
+    const result = await services.gatewayMethods.invoke('occasions.pending', {
+      methodId: 'occasions.pending',
+      body: {},
+    } as never) as { today: string; nudge: unknown; conflicts: unknown[]; interviews: unknown[] };
+    // A real store answered, not a 501: an empty profile has nothing open.
+    expect(typeof result.today).toBe('string');
+    expect(result.nudge).toBeNull();
+    expect(result.conflicts).toEqual([]);
+    expect(result.interviews).toEqual([]);
+  });
+
+  test('occasions.state discloses a real machine-owned store, not a fabricated snapshot', async () => {
+    const result = await services.gatewayMethods.invoke('occasions.state', {
+      methodId: 'occasions.state',
+      body: {},
+    } as never) as { path: string; acknowledgements: number; openItems: number; corruption: string | null };
+    // The path proves the store was resolved from this runtime's own shellPaths
+    // rather than defaulted, which is the half of installOccasions' wiring the
+    // descriptor check above cannot see.
+    expect(result.path.endsWith('occasions-state.json')).toBe(true);
+    expect(result.acknowledgements).toBe(0);
+    expect(result.openItems).toBe(0);
+    expect(result.corruption).toBeNull();
+  });
+
+  test('occasions.answer refuses an unknown occasion honestly rather than recording a phantom answer', async () => {
+    const result = await services.gatewayMethods.invoke('occasions.answer', {
+      methodId: 'occasions.answer',
+      body: { occasionId: 'no-such-occasion', answer: 'yes' },
+    } as never) as { ok: boolean; reason: string | null; interview: unknown };
+    expect(result.ok).toBe(false);
+    expect(result.reason).toBeTruthy();
+    expect(result.interview).toBeNull();
   });
 
   test('sessions.contextUsage.get invokes end-to-end against the local runtime alias', async () => {

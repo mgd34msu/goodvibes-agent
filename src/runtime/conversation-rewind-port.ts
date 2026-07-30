@@ -123,6 +123,21 @@ export function unregisterSessionConversation(sessionId: string): void {
 }
 
 /**
+ * The conversation registered for a session id, or null.
+ *
+ * A reader over the SAME map the rewind port resolves through, exported here
+ * rather than rebuilt beside it: a second registry would let a daemon push land
+ * in one conversation while a rewind truncated another. The push destination
+ * (runtime/agent-conversation-sender.ts) is the second consumer — it addresses a
+ * message by the conversation or session the daemon named, and falls back to the
+ * primary conversation when it named neither.
+ */
+export function findSessionConversation(sessionId: string): ConversationManager | null {
+  if (!sessionId) return null;
+  return liveConversations.get(sessionId) ?? null;
+}
+
+/**
  * The conversation rewind port the composed daemon threads into
  * registerGatewayVerbGroups — it resolves each anchor's live conversation from
  * the registry above, so the daemon's own rewind verbs serve conversation scope
