@@ -242,6 +242,12 @@ export function narrowOccasionsSweep(value: unknown): OccasionsSweepResponse | n
   if (!isRecord(value)) return null;
   if (typeof value.today !== 'string' || typeof value.delivered !== 'boolean') return null;
   if (!Array.isArray(value.conflictMessages)) return null;
+  // `deliveries` is the per-destination outcome list. Checked here rather than
+  // defaulted at the render site: `occasions.nudgeChannel` is a list and each
+  // destination is pushed independently, so an aggregate `delivered` can read
+  // true while one channel was refused. A build that could not see this array
+  // would report a partial failure as a clean delivery.
+  if (!Array.isArray(value.deliveries)) return null;
   return value as unknown as OccasionsSweepResponse;
 }
 

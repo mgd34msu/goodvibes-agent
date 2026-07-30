@@ -5,17 +5,38 @@
  * The owner's ruling (docs/occasions.md §4.2) names Telegram AND the agent, and
  * excludes the TUI in his own words: *"that's more of a 'get work done' kind of
  * interface."* The SDK enforces the exclusion structurally rather than by
- * convention — `resolveNudgeDestination` refuses a `tui` target outright — so
- * this file is not free to reach the owner by pushing at the terminal surface,
- * and it does not try to.
+ * convention — `resolveNudgeDestinations` drops a `tui` entry outright, keeping
+ * the rest of the list — so this file is not free to reach the owner by pushing
+ * at the terminal surface, and it does not try to.
  *
- * ## How the agent receives a nudge: it pulls
+ * ## This is the PULL half. The push half is a peer, not a replacement
+ *
+ * The agent is both a push destination (runtime/agent-conversation-sender.ts,
+ * registered on the router at bootstrap) and the surface that pulls. Both exist,
+ * and the pull is not made redundant by the push: an item no push has ever landed
+ * here is exactly what this path is for.
+ *
+ * The two cannot say the same thing twice, and the guard is not in this file. It
+ * is in the daemon, over the ONE open item both paths read: a push that LANDS on
+ * the agent stamps the item with the day it landed, and while the agent is a
+ * configured push destination `occasions.pending` leaves stamped items out. The
+ * condition is the push that landed, not the one that was configured — so `agent`
+ * configured with no sender registered, and a send that failed, both leave the
+ * item unstamped and still raised here. Neither may cost him the nudge.
+ *
+ * Nothing here coordinates with the sender, and there is deliberately no local
+ * record of what was pushed: a second ledger would be a second answer to "has he
+ * already been told", and the two would disagree the first time one missed a
+ * write.
+ *
+ * ## How the pull works
  *
  * `occasions.pending` exists for this, and the SDK's own docstring on it says
- * what this module is: *"This is how the agent surface receives a nudge: it
- * pulls what is open at the top of a turn rather than being pushed at. A stored
- * date is the prior scheduling that permits raising something unprompted, which
- * is what keeps this consistent with the agent being conversation-first."*
+ * what this module is: *"This is how a surface that is not a push destination
+ * receives a nudge: it pulls what is open at the top of a turn rather than being
+ * pushed at. A stored date is the prior scheduling that permits raising something
+ * unprompted, which is what keeps this consistent with the agent being
+ * conversation-first."*
  *
  * So there is no timer here, and that is deliberate. A wall-clock poll would
  * need a cadence, and a cadence here would be a second one competing with the
@@ -32,9 +53,9 @@
  *
  * It also settles quiet hours (§4.7) without a local copy of them: the pull only
  * happens on a turn the owner himself just took, so there is no path by which
- * this speaks into a silent room at 3am. The always-on push channel for the
- * hours he is not here is Telegram, which is the daemon's own delivery and
- * nothing to do with this file.
+ * this speaks into a silent room at 3am. The push half is what reaches him during
+ * the hours he is not here, and the daemon applies §4.7 to it before it ever
+ * calls a sender.
  *
  * ## Why the end of the turn and not the start
  *

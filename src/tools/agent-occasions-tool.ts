@@ -478,7 +478,18 @@ async function handleSweep(deps: AgentOccasionsToolDeps): Promise<ToolOutcome> {
       ? '  Nothing is due.'
       : `  Raised, say it as written: ${response.nudge.message}`);
     for (const message of response.conflictMessages) lines.push(`  Conflict: ${message}`);
-    if (response.delivered) lines.push(`  Delivered on ${response.deliveryChannel}.`);
+    // Per destination, not just an aggregate. `occasions.nudgeChannel` is a list
+    // and each destination is pushed independently, so "delivered: true" can be
+    // true while Telegram was refused — reporting only the aggregate would hide
+    // exactly the failure he needs to hear about.
+    for (const delivery of response.deliveries) {
+      lines.push(delivery.delivered
+        ? `  Delivered on ${delivery.channel}.`
+        : `  NOT delivered on ${delivery.channel}: ${delivery.failure ?? 'no reason given'}`);
+    }
+    if (response.deliveries.some((delivery) => !delivery.delivered)) {
+      lines.push('  Say which channel failed and why. A push that did not land is not a delivery.');
+    }
   }
   return ok(lines);
 }

@@ -507,7 +507,7 @@ describe('occasions tool — sweep', () => {
     const { run } = toolWith(() => answers({
       ranAt: 1, today: '2026-03-01', hold: 'quiet-hours', nudge: null,
       conflictMessages: [], resumedInterviews: [], delivered: false,
-      deliveryChannel: '', deliveryId: null, mirrored: 0, housekeeping: null,
+      deliveryChannel: '', deliveryId: null, deliveries: [], mirrored: 0, housekeeping: null,
     }));
     const result = await run({ action: 'sweep' });
     expect(result.output).toContain('outside his active hours');
@@ -518,10 +518,73 @@ describe('occasions tool — sweep', () => {
     const { run } = toolWith(() => answers({
       ranAt: 1, today: '2026-03-01', hold: 'disabled', nudge: null,
       conflictMessages: [], resumedInterviews: [], delivered: false,
-      deliveryChannel: '', deliveryId: null, mirrored: 0, housekeeping: null,
+      deliveryChannel: '', deliveryId: null, deliveries: [], mirrored: 0, housekeeping: null,
     }));
     const result = await run({ action: 'sweep' });
     expect(result.output).toContain('turned off');
     expect(result.output).toContain('Housekeeping still ran');
+  });
+});
+
+describe('occasions tool — sweep reports every destination, not an aggregate', () => {
+  const base = {
+    ranAt: 1, today: '2026-03-01', hold: null,
+    nudge: {
+      id: 'occasions-1', raisedAt: 1,
+      subjects: [{ occasionId: 'sarahs-birthday', title: "Sarah's birthday", person: 'Sarah', kind: 'gift-giving', proximity: 'approaching' }],
+      message: "Sarah's birthday is coming up. Do you want to sort something for it?",
+      answerable: true,
+    },
+    conflictMessages: [], resumedInterviews: [], mirrored: 0, housekeeping: null,
+  };
+
+  test('a partial failure is reported per channel, never hidden behind delivered:true', async () => {
+    // `occasions.nudgeChannel` is a list and each destination is pushed on its
+    // own, so the aggregate reads true while Telegram was refused. Reporting only
+    // the aggregate is how the one thing he needs to hear disappears.
+    const { run } = toolWith(() => answers({
+      ...base,
+      delivered: true,
+      deliveryChannel: 'telegram,agent',
+      deliveryId: 'agent-1',
+      deliveries: [
+        { channel: 'telegram', delivered: false, deliveryId: null, failure: 'bot token rejected' },
+        { channel: 'agent', delivered: true, deliveryId: 'agent-1', failure: null },
+      ],
+    }));
+    const result = await run({ action: 'sweep' });
+    expect(result.success).toBe(true);
+    expect(result.output).toContain('NOT delivered on telegram: bot token rejected');
+    expect(result.output).toContain('Delivered on agent.');
+    expect(result.output).toContain('A push that did not land is not a delivery');
+  });
+
+  test('every destination landing says so, with no failure line', async () => {
+    const { run } = toolWith(() => answers({
+      ...base,
+      delivered: true,
+      deliveryChannel: 'telegram,agent',
+      deliveryId: 'tg-1',
+      deliveries: [
+        { channel: 'telegram', delivered: true, deliveryId: 'tg-1', failure: null },
+        { channel: 'agent', delivered: true, deliveryId: 'agent-1', failure: null },
+      ],
+    }));
+    const result = await run({ action: 'sweep' });
+    expect(result.output).toContain('Delivered on telegram.');
+    expect(result.output).toContain('Delivered on agent.');
+    expect(result.output).not.toContain('NOT delivered');
+    expect(result.output).not.toContain('is not a delivery');
+  });
+
+  test('a sweep payload with no deliveries array is refused, not read as zero destinations', async () => {
+    // An older daemon that predates the multi-destination outcome would otherwise
+    // have every partial failure render as a clean pass.
+    const { run } = toolWith(() => answers({
+      ...base, delivered: true, deliveryChannel: 'telegram', deliveryId: 'tg-1',
+    }));
+    const result = await run({ action: 'sweep' });
+    expect(result.success).toBe(false);
+    expect(result.output).toContain('shape this build does not recognise');
   });
 });
