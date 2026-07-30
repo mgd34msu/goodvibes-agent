@@ -24,7 +24,7 @@ import type {
   DeviceNodeProfile,
 } from '@pellux/goodvibes-sdk/platform/devices';
 import { createAgentPhoneTool } from '../../tools/agent-phone-tool.ts';
-import type { PhoneDeviceService } from '../../runtime/phone-device-service.ts';
+import { AGENT_DEVICE_ACTOR, type PhoneDeviceService } from '../../runtime/phone-device-service.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 let root = '';
@@ -90,6 +90,10 @@ function fixture(nodes: readonly DeviceNodeProfile[] = [nodeProfile()]): Fixture
     grants,
     artifacts,
     housekeeper,
+    // The actor the ledger records for a revocation made through the tool, and
+    // the posture read the tool renders for action:"capabilities".
+    actor: AGENT_DEVICE_ACTOR,
+    readPolicy: () => capabilities.getPolicy(),
     listNodes: () => nodes,
     startHousekeeping: async () => { await housekeeper.runRecoverySweep(); },
     stopHousekeeping: () => housekeeper.stop(),

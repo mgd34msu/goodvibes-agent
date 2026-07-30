@@ -10,13 +10,17 @@
  * the value away, which is exactly the failure this suite exists to prevent.
  *
  * The code under test is the agent's own `createPhoneDeviceService`
- * (src/runtime/phone-device-service.ts), which is the only place `device.*` is
- * read: it builds the capability policy, the grant-store policy, the capture
- * policy, and the housekeeping interval, then hands them to the SDK's real
- * DeviceCapabilityService / DeviceGrantStore / DeviceCaptureArtifactStore /
- * DeviceHousekeeper. The config side is a real ConfigManager over a temp home
- * directory, so every value used here is one the shared schema actually accepts
- * (enums from the enum list, numbers inside their declared range).
+ * (src/runtime/phone-device-service.ts) and, through it, the platform's
+ * `createDevicePostureRuntime`: the agent supplies its transport, its approval
+ * bridge and its config manager, and the platform maps `device.*` onto the
+ * capability policy, the grant-store policy, the capture policy, and the
+ * housekeeping cadence for the real SDK DeviceCapabilityService /
+ * DeviceGrantStore / DeviceCaptureArtifactStore / DeviceHousekeeper. That
+ * mapping used to live in this repo alone, which is why the same keys did
+ * nothing in every other daemon host; these tests hold the agent's end of it.
+ * The config side is a real ConfigManager over a temp home directory, so every
+ * value used here is one the shared schema actually accepts (enums from the enum
+ * list, numbers inside their declared range).
  *
  * Two seams are stubbed, both of them the ones the service is designed to take
  * from outside:
@@ -765,5 +769,26 @@ describe('device.* settings — behaviour', () => {
     const stockSweep = await stock.service.housekeeper.sweep('manual');
     expect(stockSweep.grants.auditTrimmed).toBe(0);
     expect(await stock.service.grants.listAudit()).toHaveLength(stockBefore.length);
+  });
+
+  // -------------------------------------------------------------------------
+  // Liveness: the agent hands over a live configuration reader, not a snapshot
+  // -------------------------------------------------------------------------
+
+  test('a device.* change made while the agent is running governs the next request', async () => {
+    const configManager = freshConfig();
+    const live = harness(configManager, join(root, 'state-live'));
+    live.answer('once');
+    expect(label(await live.run(CAMERA_REAR))).toBe('ok:confirmed-once');
+
+    // Same service object, same stores, no rebuild and no restart.
+    configManager.set('device.capabilities.mode', 'off');
+    expect(label(await live.run(CAMERA_REAR))).toBe('refused:disabled-by-config');
+    expect(live.dispatches).toHaveLength(1);
+
+    configManager.set('device.capabilities.mode', 'honor-grants');
+    configManager.set('device.capabilities.requestTimeoutSeconds', 15);
+    expect(label(await live.run(CAMERA_REAR))).toBe('ok:confirmed-once');
+    expect(live.dispatches[live.dispatches.length - 1]?.timeoutMs).toBe(15_000);
   });
 });

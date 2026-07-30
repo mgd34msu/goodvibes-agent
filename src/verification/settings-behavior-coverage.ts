@@ -90,9 +90,12 @@ export const SETTINGS_BEHAVIOR_COVERAGE_BASELINE = 184;
 export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCoverageEntry[] = [
   // --- Paired-device capabilities (device.*) -------------------------------
   // Covered by src/test/tools/device-settings-behavior.test.ts, which drives the
-  // agent's real consumer (createPhoneDeviceService) with a real ConfigManager over
-  // a temp home and the real SDK DeviceCapabilityService / DeviceGrantStore /
-  // DeviceCaptureArtifactStore / DeviceHousekeeper. Only the peer transport and the
+  // agent's real consumer (createPhoneDeviceService — now a binding over the
+  // platform's createDevicePostureRuntime, so the mapping these tests observe is
+  // the one EVERY daemon host runs, not one this repo owns privately) with a real
+  // ConfigManager over a temp home and the real SDK DeviceCapabilityService /
+  // DeviceGrantStore / DeviceCaptureArtifactStore /
+  // DeviceHousekeeper. Only the peer transport and the
   // approval bridge are stubbed, so what the assertions observe is refusal codes,
   // how authority was established, what reached the transport, and what survives on
   // disk after a sweep. Each key was mutation-checked by removing its config.set()
