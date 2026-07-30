@@ -191,7 +191,7 @@ export const CAPABILITY_REGISTRY: readonly AdvertisedCapability[] = [
     surfaces: ['onboarding-voice-media', 'device'],
     advertisedNames: ['voice'],
     readinessNote:
-      'Wake-word capture is implemented here: turn on voice.wake.enabled and voice.wake.surfaces.agent, run /voice wake setup to download the pinned models, and what you say after the wake phrase reaches the conversation input. It needs a capture device, a recorder on PATH, and a speech-to-text provider. Push-to-talk and continuous talk mode are not shipped.',
+      'Wake-word capture is implemented here: turn on voice.wake.enabled and voice.wake.surfaces.agent, run /voice wake setup to download the pinned models, and what you say after the wake phrase reaches the conversation input. It needs a capture device, a recorder on PATH, and a speech-to-text provider. Noise suppression and speech-gating are available on the same rows (voice.wake.noiseSuppression, voice.wake.vadThreshold). Push-to-talk and continuous talk mode are not shipped.',
   },
   {
     id: 'text-to-speech',

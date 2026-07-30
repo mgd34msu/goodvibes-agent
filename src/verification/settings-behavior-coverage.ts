@@ -273,6 +273,14 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   // speech-to-text service — so 14 further rows reach real code and are driven to two
   // values against it.
   //
+  // Two of those 14 were counted as REFUSALS when this list was first written —
+  // `noiseSuppression: speex` and `vadThreshold` above 0 both stopped the detector
+  // because neither stage existed anywhere. Both stages ship now (the platform's
+  // embedded SpeexDSP preprocessor, and a pinned speech gate provisioned beside the
+  // wake models), so their tests assert the filter running and the gate screening.
+  // The count did not change; what the two rows DO changed, and their evidence lines
+  // below say so rather than still describing a refusal.
+  //
   // The three that are still NOT here, and why:
   //   - voice.wake.surfaces.tui and voice.wake.surfaces.webui: other surfaces'
   //     delivery rows. This repo resolves settings for `agent` and reads neither.
@@ -357,12 +365,12 @@ export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCover
   {
     key: 'voice.wake.noiseSuppression',
     test: 'src/test/voice/wake-settings-behavior.test.ts',
-    asserts: '"speex" refuses to start the detector with the row named and the platform reason quoted, spawning nothing; "none" starts it with no blockers',
+    asserts: '"speex" builds the suppression stage for the engine\'s frame size and every captured frame passes through it before anything scores it, and the stage is closed when the detector stops; "none" builds no stage at all',
   },
   {
     key: 'voice.wake.vadThreshold',
     test: 'src/test/voice/wake-settings-behavior.test.ts',
-    asserts: 'any value above 0 blocks startup with the configured value and the missing VAD model both stated, and spawns nothing; 0 starts the detector',
+    asserts: 'above 0 the pinned speech gate is loaded and consulted per frame, and a frame it scores below the threshold reaches no classifier while the same audio fires a wake when the gate opens; 0 never loads or consults it; above 0 without the gate provisioned still refuses, naming the head',
   },
   {
     key: 'voice.wake.activationSound',

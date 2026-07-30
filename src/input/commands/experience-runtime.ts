@@ -6,7 +6,6 @@ import { requireYesFlag, stripYesFlag } from './confirmation.ts';
 import { handleApprovalOperatorAction } from './operator-actions-runtime.ts';
 import { resolveWakeRuntimeSettings } from '@pellux/goodvibes-sdk/platform/voice/wake/runtime';
 import { agentWakeCapabilities, wakeProvisionReceiptLines, wakeStatusLines, WAKE_SETUP_ANNOUNCEMENT } from '../../core/wake-provision-status.ts';
-import { SURFACE_APPLIES_SPEEX_SUPPRESSION } from '../../audio/capture.ts';
 
 function formatVoiceComponentState(state: string): string {
   return state.replace(/[_-]+/g, ' ');
@@ -118,14 +117,19 @@ export function registerExperienceRuntimeCommands(registry: CommandRegistry): vo
         // own wake service rather than a second provisioning path. Nothing
         // downloads unless the user typed `setup --yes`.
         const voiceSetup = requireVoiceSetup(ctx);
+        const wakeSub = (commandArgs[1] ?? 'status').toLowerCase();
+        // Read the artifact state BEFORE resolving: whether the speech gate is on
+        // disk decides whether voice.wake.vadThreshold above 0 is honoured or
+        // refused, so resolving first would report a blocker that does not match
+        // what /voice wake setup has already downloaded.
+        const status = voiceSetup.wakeStatus();
         const settings = resolveWakeRuntimeSettings(
           (key: string) => ctx.platform.configManager.get(key as Parameters<typeof ctx.platform.configManager.get>[0]),
           'agent',
-          agentWakeCapabilities(SURFACE_APPLIES_SPEEX_SUPPRESSION),
+          agentWakeCapabilities({ vadReady: status.vadReady }),
         );
-        const wakeSub = (commandArgs[1] ?? 'status').toLowerCase();
         if (wakeSub === 'status') {
-          ctx.print(['Wake-Word Detection', ...wakeStatusLines(voiceSetup.wakeStatus(), settings)].join('\n'));
+          ctx.print(['Wake-Word Detection', ...wakeStatusLines(status, settings)].join('\n'));
           return;
         }
         if (wakeSub === 'setup') {

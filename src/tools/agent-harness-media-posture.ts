@@ -5,7 +5,6 @@ import { certifiedDeviceLiveRecords, deviceLiveReadModelSnapshot } from './agent
 import { previewHarnessText } from './agent-harness-text.ts';
 import { resolveWakeRuntimeSettings } from '@pellux/goodvibes-sdk/platform/voice/wake/runtime';
 import { agentWakeCapabilities } from '../core/wake-provision-status.ts';
-import { SURFACE_APPLIES_SPEEX_SUPPRESSION } from '../audio/capture.ts';
 
 export interface AgentHarnessMediaArgs {
   readonly mediaProviderId?: unknown;
@@ -148,10 +147,20 @@ function buildVoiceInteractionWorkflows(
   // The one reader for every `voice.wake.*` row (SDK settings.ts), so this posture
   // reports the same resolution the capture host itself consults — including which
   // rows refuse to start it — instead of re-deriving it from raw config reads.
+  //
+  // The speech gate's disk state comes from the same voiceSetup service /voice wake
+  // status reads. A context without that service (a fixture) resolves as gate-absent,
+  // which is the truthful answer for it rather than an assumed capability.
+  let vadReady = false;
+  try {
+    vadReady = context.platform.voiceSetup?.wakeStatus().vadReady ?? false;
+  } catch {
+    // A status read that fails is not evidence the gate is loaded.
+  }
   const wake = resolveWakeRuntimeSettings(
     (key: string) => (context.platform.configManager as { get(settingKey: string): unknown }).get(key),
     'agent',
-    agentWakeCapabilities(SURFACE_APPLIES_SPEEX_SUPPRESSION),
+    agentWakeCapabilities({ vadReady }),
   );
   const voiceEnabled = readConfigBoolean(context, 'ui.voiceEnabled', false);
   const spokenTurnRuntime = typeof context.submitSpokenInput === 'function';
@@ -295,6 +304,10 @@ function buildVoiceInteractionWorkflows(
         recorder: wake.capture.backend,
         blockedRows: wake.blockers.map((blocker) => blocker.key),
         rowsNotInForce: wake.limitations.map((limitation) => limitation.key),
+        // Both filtering rows, reported as what they are rather than as refusals.
+        noiseSuppression: wake.capture.noiseSuppression,
+        speechGateThreshold: wake.vadThreshold,
+        speechGateLoaded: vadReady,
         recallIsSyntheticOnly: true,
         // The PHONE half only. False here has never meant "nothing listens".
         companionWakePublishedByCurrentAgentContract: wakeRecords.length > 0,

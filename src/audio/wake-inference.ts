@@ -34,6 +34,7 @@ import type {
   WakeModelHandle,
   WakeRuntimeSettings,
   WakeTensor,
+  WakeVadGate,
 } from '@pellux/goodvibes-sdk/platform/voice';
 import { WakeWordEngine } from '@pellux/goodvibes-sdk/platform/voice';
 
@@ -134,7 +135,17 @@ export interface WakeEngineFactoryOptions {
   readonly embeddingPath: string;
   /** The provisioned classifiers, in configuration order. */
   readonly models: readonly { readonly id: string; readonly path: string }[];
-  readonly settings: Pick<WakeRuntimeSettings, 'tuning' | 'preRollMs'>;
+  /**
+   * The provisioned speech gate, and whether it is on disk and verified.
+   *
+   * Loaded ONLY when `voice.wake.vadThreshold` is above 0, because the row's
+   * shipped default is 0 and an unused session is a model file read for nothing.
+   * A configured gate that will not load is fatal to the start rather than
+   * skipped: the caller asked for frames to be screened, and running them through
+   * unscreened while the row says otherwise is the failure the row guards.
+   */
+  readonly vad?: { readonly path: string; readonly ready: boolean } | undefined;
+  readonly settings: Pick<WakeRuntimeSettings, 'tuning' | 'preRollMs' | 'vadThreshold'>;
   /** Where a classifier that fails to run is reported (the engine skips it rather than dying). */
   readonly warn: (message: string, meta?: Readonly<Record<string, unknown>>) => void;
   /** Injected in tests: a stub session per path, so no real model file is read. */
@@ -157,9 +168,22 @@ export function createWakeEngineFactory(options: WakeEngineFactoryOptions): () =
     for (const model of options.models) {
       models.push({ id: model.id, session: await load(model.path) });
     }
+    // The gate runs over the SAME embedding the classifiers consume, so turning it
+    // on costs one small inference per frame and no second front-end pass.
+    let vad: WakeVadGate | undefined;
+    if (options.settings.vadThreshold > 0 && options.vad !== undefined) {
+      if (!options.vad.ready) {
+        throw new Error(
+          `voice.wake.vadThreshold is ${options.settings.vadThreshold}, but the speech gate is not provisioned `
+          + '(run /voice wake setup). Refusing to start rather than scoring frames the row says are being screened.',
+        );
+      }
+      vad = { session: await load(options.vad.path), threshold: options.settings.vadThreshold };
+    }
     return new WakeWordEngine({
       embedding,
       models,
+      ...(vad !== undefined ? { vad } : {}),
       tuning: options.settings.tuning,
       preRollMs: options.settings.preRollMs,
       warn: options.warn,

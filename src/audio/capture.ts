@@ -29,21 +29,28 @@ import {
 import { findExecutable } from './player.ts';
 
 /**
- * Whether this surface APPLIES speex noise suppression. It does not, so this is
- * false, and it is a constant rather than a probe on purpose.
+ * WHERE NOISE SUPPRESSION HAPPENS, AND WHY NOT HERE
  *
- * The obvious implementation — scan the library directories for libspeexdsp and
- * report what is found — is wrong, and wrong in the direction that hurts. The
- * capability the SDK asks about is "does this surface run the suppression stage",
- * not "does the box have the library": nothing in the platform applies speex to
- * captured frames today. A host that reported true because libspeexdsp happened
- * to be installed would capture UNFILTERED audio through a filter the user
- * believes is running, and say nothing. False means `speex` is refused with the
- * row named and the reason written out (resolveWakeRuntimeSettings turns it into
- * a blocker), and `none` — the default, and the only value that runs today — is
- * unaffected. Same constant, same reason, same refusal text as the terminal.
+ * This module used to export a `SURFACE_APPLIES_SPEEX_SUPPRESSION = false`
+ * constant, because no surface applied the stage and `speex` therefore had to be
+ * refused rather than silently skipped. The platform carries the filter now —
+ * SpeexDSP's preprocessor as a WebAssembly module — and `WakeListener` wraps
+ * whatever opener it is handed with `createNoiseSuppressingOpener`, so the stage
+ * runs between the device and every consumer.
+ *
+ * That means this host deliberately does NOT wrap anything and deliberately does
+ * NOT claim the capability: it hands over the same raw opener it always did, and
+ * `resolveWakeRuntimeSettings` answers the capability question itself by asking
+ * whether this runtime has WebAssembly. A second wrapper here would be a layer
+ * that exists for no reason (wrapping is idempotent, so it would filter once and
+ * pass through once), and a hardcoded `true` would be the exact lie the row
+ * guards against — a surface asserting a filter it does not run.
+ *
+ * The recorder-level `speexAvailable` flag below stays unset for the same reason,
+ * and its meaning is narrower than it looks: it is "the caller filters THIS
+ * recorder's frames itself". Anything driving this opener directly with `speex`
+ * and no filter of its own is refused rather than served unfiltered audio.
  */
-export const SURFACE_APPLIES_SPEEX_SUPPRESSION = false;
 
 /**
  * Spawn a recorder with its stdout piped and stdin closed.
@@ -78,7 +85,12 @@ export interface AgentCaptureOpenerOptions {
   /** Injected in tests; defaults to the PATH + X_OK scan player.ts uses. */
   readonly isInstalled?: (command: string) => boolean;
   readonly platform?: string;
-  /** Whether this surface applies speex suppression. Defaults to false; see the constant. */
+  /**
+   * Whether the CALLER filters this recorder's frames itself. Left unset: the
+   * platform's suppression stage runs one layer up (see the note above), and a
+   * caller driving this opener directly with `speex` should be refused rather
+   * than handed unfiltered audio.
+   */
   readonly speexAvailable?: boolean;
   readonly warn?: AudioCaptureWarn;
 }
@@ -92,7 +104,7 @@ export function createAgentCaptureOpener(options: AgentCaptureOpenerOptions = {}
     spawn: options.spawn ?? spawnRecorderProcess,
     isInstalled: options.isInstalled ?? ((command: string) => findExecutable(command, process.env) !== null),
     platform: options.platform ?? process.platform,
-    speexAvailable: options.speexAvailable ?? SURFACE_APPLIES_SPEEX_SUPPRESSION,
+    ...(options.speexAvailable !== undefined ? { speexAvailable: options.speexAvailable } : {}),
     ...(options.warn !== undefined ? { warn: options.warn } : {}),
   });
 }

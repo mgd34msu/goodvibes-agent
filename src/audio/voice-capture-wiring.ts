@@ -17,7 +17,7 @@ import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ConfigKey, ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { VoiceProviderRegistry, VoiceService } from '@pellux/goodvibes-sdk/platform/voice';
 import type { VoiceCaptureIndicatorState } from '../core/voice-capture-status.ts';
-import { createAgentCaptureOpener, SURFACE_APPLIES_SPEEX_SUPPRESSION } from './capture.ts';
+import { createAgentCaptureOpener } from './capture.ts';
 import { playActivationSound } from './activation-sound.ts';
 import { LocalStreamingAudioPlayer } from './player.ts';
 import type { StreamingAudioPlayer } from './player.ts';
@@ -59,10 +59,11 @@ export function wireVoiceCapture(deps: VoiceCaptureWiringDeps): VoiceCaptureWiri
   const warn = (message: string, meta?: Readonly<Record<string, unknown>>): void => {
     logger.debug(`voice capture: ${message}`, meta ?? {});
   };
-  // Not a probe: this surface does not apply speex suppression, so `speex` is
-  // refused with its reason rather than being silently skipped (see capture.ts).
-  const speexAvailable = SURFACE_APPLIES_SPEEX_SUPPRESSION;
-  const openCapture = createAgentCaptureOpener({ speexAvailable, warn });
+  // The RAW opener, deliberately unwrapped: the SDK listener wraps it with the
+  // platform's speexdsp stage, so `voice.wake.noiseSuppression: "speex"` is applied
+  // between the device and every consumer without this surface claiming the
+  // capability or filtering twice (see capture.ts).
+  const openCapture = createAgentCaptureOpener({ warn });
   const resolveTranscriber = () => {
     const resolution = createVoiceSttGateway({ voiceService: deps.voiceService, voiceProviders: deps.voiceProviders });
     return resolution.available
@@ -78,7 +79,6 @@ export function wireVoiceCapture(deps: VoiceCaptureWiringDeps): VoiceCaptureWiri
     openCapture,
     managedRoot: deps.managedVoiceRoot,
     assetDirectory: deps.assetDirectory,
-    speexAvailable,
     resolveTranscriber,
     playActivationSound: (sound) => playActivationSound(sound, { player, notify: deps.notify }),
     submitTurn: deps.submitTurn,

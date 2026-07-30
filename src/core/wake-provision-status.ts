@@ -20,6 +20,22 @@ import type {
   WakeRuntimeSettings,
   WakeSurfaceCapabilities,
 } from '@pellux/goodvibes-sdk/platform/voice';
+import { resolveWakeVadThreshold, WAKE_VAD_MODEL } from '@pellux/goodvibes-sdk/platform/voice';
+import { SPEEXDSP_PREPROCESS } from '@pellux/goodvibes-sdk/platform/voice/capture';
+
+/**
+ * What the configured gate threshold does, in the head's own measured numbers.
+ *
+ * Read from the pinned manifest rather than described in prose here: a threshold
+ * whose trade-off a surface states from memory is a number that goes stale the
+ * first time the head is retrained.
+ */
+function vadThresholdNote(threshold: number): string {
+  const row = resolveWakeVadThreshold(threshold);
+  if (row === null) return '';
+  return ` (at ${row.threshold} it passes ${(row.speechPassRate * 100).toFixed(1)}% of speech frames`
+    + ` and stops ${(row.noiseGateRate * 100).toFixed(1)}% of non-speech ones)`;
+}
 
 /**
  * Bytes as a short human string.
@@ -43,15 +59,23 @@ export function formatWakeBytes(bytes: number): string {
  * so `/voice wake status` can resolve settings without pulling onnxruntime into a
  * status call.
  */
-export function agentWakeCapabilities(speexAvailable: boolean): WakeSurfaceCapabilities {
+export function agentWakeCapabilities(options: { readonly vadReady: boolean }): WakeSurfaceCapabilities {
   return {
-    speexAvailable,
-    // No VAD model is pinned by the platform manifest, on ANY surface. A
-    // `voice.wake.vadThreshold` above 0 therefore BLOCKS startup rather than
-    // being silently skipped, and the reason is shown wherever status is shown.
-    // Identical posture and identical refusal text on the terminal and in the
-    // web UI: the missing model is the platform's, not this surface's.
-    vadAvailable: false,
+    // speexAvailable is DELIBERATELY OMITTED, not passed as a boolean. The
+    // platform carries SpeexDSP's preprocessor as a WebAssembly module and
+    // WakeListener wraps this surface's opener with it, so the honest answer is
+    // "does this runtime have WebAssembly" — which the SDK asks itself. Asserting
+    // `true` here would claim a filter this file cannot see running, and `false`
+    // would refuse a filter that does run.
+    //
+    // The speech gate is the opposite shape and stays host-declared: the artifact
+    // is provisioned, but LOADING an inference session is this surface's job, so
+    // `true` means this host has the gate on disk AND wires its session into the
+    // engine. wireWakeRuntime derives this from the same provision read that
+    // decides whether to load it, so the claim and the wiring cannot disagree —
+    // and below 1.0 on either count, `voice.wake.vadThreshold` above 0 is refused
+    // rather than letting frames reach the classifier unscreened.
+    vadAvailable: options.vadReady,
     // This process has a filesystem (voice.wake.retainAudio) and an audio player
     // (a custom activation-sound file). A host with neither mpv nor ffplay still
     // reports that at the moment of a wake rather than here — the capability is
@@ -97,6 +121,8 @@ export function wakeStatusLines(
     wakeArtifactLine('classifier', status.classifier),
     wakeArtifactLine('speech-embedding front end', status.embedding),
     wakeArtifactLine('attribution NOTICE', status.notice),
+    wakeArtifactLine('speech gate (voice.wake.vadThreshold)', status.vad),
+    wakeArtifactLine('speech-gate NOTICE', status.vadNotice),
   ];
   if (!status.ready) {
     lines.push(`  a fresh provision would download ${formatWakeBytes(status.downloadBytes)} — run /voice wake setup (nothing downloads on its own)`);
@@ -104,6 +130,19 @@ export function wakeStatusLines(
   lines.push(
     `  wake models configured: ${settings.modelIds.length > 0 ? settings.modelIds.join(', ') : 'none (voice.wake.models is empty, so nothing is scored)'}`,
     `  recorder: voice.wake.captureCommand=${settings.capture.backend}, device=${settings.capture.device.trim().length > 0 ? settings.capture.device : 'system default'}`,
+    // Both rows that used to refuse outright, reported as what they now do.
+    `  noise suppression: voice.wake.noiseSuppression=${settings.capture.noiseSuppression}`
+      + `${settings.capture.noiseSuppression === 'speex' ? ` (${SPEEXDSP_PREPROCESS.component} ${SPEEXDSP_PREPROCESS.version}, ${SPEEXDSP_PREPROCESS.license}, carried in the package — nothing to install)` : ''}`,
+    // Present tense ONLY when it is actually screening. A row set above 0 with no
+    // gate on disk is refusing, not filtering, and saying "screening frames" there
+    // would be the precise claim the refusal exists to stop.
+    `  speech gate: voice.wake.vadThreshold=${settings.vadThreshold}`
+      + `${settings.vadThreshold === 0
+        ? ' (0 = every frame reaches the classifier, which is the shipped default)'
+        : status.vadReady
+          ? `, screening frames with goodvibes-vad ${WAKE_VAD_MODEL.version}${vadThresholdNote(settings.vadThreshold)}`
+          : `, but the gate is not on disk, so the detector refuses to start rather than leaving frames unscreened — run /voice wake setup --yes (goodvibes-vad ${WAKE_VAD_MODEL.version}${vadThresholdNote(settings.vadThreshold)})`}`
+      + `, gate on disk: ${status.vadReady ? 'yes' : 'no'}`,
     `  after a wake: ${settings.autoSubmit ? 'the transcript is submitted as a turn' : 'the transcript is placed in the composer'}`,
     `  indicator: voice.wake.indicator=${settings.indicator}, activation sound=${settings.activationSound.kind}`,
     `  retained audio: voice.wake.retainAudio=${settings.retainAudio}`,

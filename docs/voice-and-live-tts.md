@@ -41,7 +41,9 @@ What happens when both are on:
    onnxruntime-web on its WASM backend. The models are NOT downloaded automatically:
    run `/voice wake status` to see what is on disk (verified by content, so a
    truncated file reads as corrupt rather than present) and `/voice wake setup --yes`
-   to download the ~3.7 MB. An enabled detector with no models says so instead of
+   to download them. The same provision also fetches the speech gate
+   `voice.wake.vadThreshold` uses, reported separately because the detector runs
+   without it. An enabled detector with no models says so instead of
    pretending to listen.
 3. A confirmed wake plays `voice.wake.activationSound` and shows a persistent
    listening row in the footer per `voice.wake.indicator` — an always-on microphone
@@ -56,13 +58,33 @@ What happens when both are on:
    `voice.wake.restartBackoffMs`, and latches off with a stated reason when the budget
    is spent. The footer row says which of those is happening.
 
-Two rows REFUSE TO START the detector rather than being quietly skipped, because the
-alternative is audio flowing unfiltered through a stage the user believes is
-screening it: `voice.wake.vadThreshold` above 0 (the platform pins no
-voice-activity-detection model) and `voice.wake.noiseSuppression: speex` (no surface
-applies that stage; it needs libspeexdsp bindings the platform does not ship or
-manage). Both refusals use the platform's own wording, so they read identically here,
-on the terminal and in the web UI.
+### Noise suppression and the speech gate
+
+Both of these rows shipped refusing, because neither stage existed. Both run now.
+
+`voice.wake.noiseSuppression: speex` applies SpeexDSP's denoiser. The filter is a
+WebAssembly module carried inside the platform package — 53 kB, embedded rather than
+downloaded, so there is no state in which the row is configured, unprovisioned, and
+therefore not filtering. It sits between the device and every consumer, so the engine
+scores filtered frames, the utterance recorded after a wake is filtered, and the
+pre-roll carried from before the wake is filtered. `none` is not a stage that does
+nothing — it is no stage, and the byte path is exactly the one that shipped.
+
+`voice.wake.vadThreshold` above 0 screens frames through a speech gate before the
+wake classifier sees them, so non-speech costs no classifier inference. The gate is a
+pinned head that runs over the SAME embedding the classifier consumes, and it
+provisions with the wake models — `/voice wake status` reports it separately from the
+classifier, because the detector is fully operational without it (the shipped default
+is 0). Its threshold table is measured, not guessed: `/voice wake status` prints what
+the configured value passes and stops.
+
+One refusal remains, moved rather than removed: `voice.wake.vadThreshold` above 0 on a
+host that does not have the gate on disk refuses to start the detector, because frames
+reaching the classifier unscreened while the row says they were screened is exactly
+what the refusal exists to prevent. Run `/voice wake setup --yes` and it runs.
+
+A runtime with no WebAssembly at all would refuse `speex` for the same class of
+reason, in the platform's own wording, so it reads identically on every surface.
 
 `voice.wake.surfaces.tui`, `voice.wake.surfaces.webui` and `voice.wake.browserBackend`
 are other surfaces' rows and change nothing here. The model's published recall figures

@@ -35,6 +35,19 @@
  * listener, the REAL capture opener and the REAL engine, over an injected recorder
  * subprocess and stub inference sessions.
  *
+ * TWO OF THOSE ROWS USED TO REFUSE, AND NOW RUN
+ *
+ * `noiseSuppression: speex` and `vadThreshold` above 0 both stopped the detector
+ * rather than pretending, because neither stage existed. Both exist now — the
+ * platform carries SpeexDSP's preprocessor as a WebAssembly module, and the speech
+ * gate is a pinned head provisioned beside the wake models — so the tests for them
+ * assert the stage RUNNING and the gate SCREENING, not the refusal text.
+ *
+ * `vadThreshold` keeps one refusal, moved rather than removed: it is honoured when
+ * this surface has the gate on disk and refused when it does not, because frames
+ * reaching the classifier unscreened while the row says they were screened is the
+ * thing the refusal exists to prevent.
+ *
  * STILL NOT COVERED, DELIBERATELY:
  *
  *   - `surfaces.tui` and `surfaces.webui` — other surfaces' delivery rows. This
@@ -759,6 +772,10 @@ interface CaptureHarness {
   readonly transcribed: UtteranceAudioArtifact[];
   readonly timers: Array<{ handler: () => void; ms: number }>;
   readonly loadedModelPaths: string[];
+  /** One entry per noise-suppression stage the listener asked for. */
+  readonly suppressionStages: Array<{ frameSamples: number; frames: number; closed: boolean }>;
+  /** How many times the stub speech gate was consulted. */
+  readonly vadRuns: () => number;
   now: number;
 }
 
@@ -775,6 +792,10 @@ interface CaptureHarnessOptions {
   /** Which recorders the PATH scan should claim are installed. */
   readonly installed?: readonly string[];
   readonly managedRoot?: string;
+  /** Whether the speech gate is on disk and verified, as wakeProvisionStatus reports it. */
+  readonly vadReady?: boolean;
+  /** Speech probability the stub gate returns for every frame. */
+  readonly vadProbability?: number;
 }
 
 function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness {
@@ -787,8 +808,24 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
   const transcribed: UtteranceAudioArtifact[] = [];
   const timers: Array<{ handler: () => void; ms: number }> = [];
   const loadedModelPaths: string[] = [];
+  const suppressionStages: Array<{ frameSamples: number; frames: number; closed: boolean }> = [];
+  let vadRuns = 0;
   const classifier = holdingClassifier(options.scores ?? [0]);
   const embedding = stubEmbedding();
+  /**
+   * The speech gate, stubbed: shape-correct over the same embedding the classifiers
+   * read, returning one scripted probability and counting every consultation. The
+   * count is the assertion that matters — a gate that is wired but never asked is
+   * indistinguishable from no gate at all.
+   */
+  const vadSession: WakeInferenceSession = {
+    inputNames: ['embedding'],
+    outputNames: ['speech_probability'],
+    run: async (): Promise<Readonly<Record<string, WakeTensor>>> => {
+      vadRuns += 1;
+      return { speech_probability: { data: Float32Array.from([options.vadProbability ?? 1]), dims: [1, 1] } };
+    },
+  };
   const harness: Partial<CaptureHarness> & { now: number } = { now: 1_000_000 };
 
   const deps: WakeRuntimeDeps = {
@@ -796,15 +833,15 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
     subscribeConfig: config.subscribe,
     // The REAL capture opener over an injected spawn: the probe order, the argv
     // and the exit handling under test are the shipped ones.
+    // The RAW opener, exactly as the shell hands it over: unwrapped, and claiming
+    // nothing about suppression. The listener is what wraps it.
     openCapture: createAgentCaptureOpener({
       spawn: spawns.spawn,
       isInstalled: (command) => options.installed === undefined || options.installed.includes(command),
       platform: 'linux',
-      speexAvailable: false,
     }),
     managedRoot: options.managedRoot ?? '/nonexistent-managed-root',
     assetDirectory: '/nonexistent-asset-dir',
-    speexAvailable: false,
     resolveTranscriber: () => (options.noTranscriber !== undefined
       ? { available: false as const, reason: options.noTranscriber }
       : {
@@ -826,11 +863,31 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
     warn: () => { /* warnings are not the subject here */ },
     loadSession: async (modelPath: string) => {
       loadedModelPaths.push(modelPath);
+      if (modelPath.includes('goodvibes-vad')) return vadSession;
       return modelPath.includes('speech-embedding') ? embedding : classifier;
     },
     provisionStatus: () => (options.notProvisioned === true
-      ? { ready: false, reason: 'not-provisioned' }
-      : { ready: true, reason: null }),
+      ? { ready: false, reason: 'not-provisioned', vadReady: false }
+      : { ready: true, reason: null, vadReady: options.vadReady ?? false }),
+    // The stage the SDK listener wraps this surface's opener with. Injected so the
+    // wiring is asserted without instantiating WebAssembly — what is under test here
+    // is that the stage is built and every frame goes through it, which is this
+    // surface's half; the filter's own arithmetic is the platform's.
+    createNoiseSuppression: async (request) => {
+      const record = { frameSamples: request.frameSamples, frames: 0, closed: false };
+      suppressionStages.push(record);
+      return {
+        label: 'stub-suppressor',
+        blockSamples: 320,
+        suppressionDb: -15,
+        process: (frame: Float32Array) => {
+          record.frames += 1;
+          // A NEW frame, as the contract requires (a caller may retain the input).
+          return Float32Array.from(frame, (sample) => sample / 2);
+        },
+        close: () => { record.closed = true; },
+      };
+    },
     now: () => harness.now,
     setTimeout: (handler, ms) => { timers.push({ handler, ms }); return timers.length; },
     clearTimeout: () => { /* fired manually */ },
@@ -847,6 +904,8 @@ function makeCaptureHarness(options: CaptureHarnessOptions = {}): CaptureHarness
     transcribed,
     timers,
     loadedModelPaths,
+    suppressionStages,
+    vadRuns: () => vadRuns,
   }) as CaptureHarness;
 }
 
@@ -1069,35 +1128,95 @@ describe('the capture rows choose the device, the recorder, and what is refused'
     expect(harness.notices.join('\n')).toContain('sox');
   });
 
-  test('voice.wake.noiseSuppression: "speex" refuses to start with the row named; "none" runs', async () => {
+  test('voice.wake.noiseSuppression: "speex" RUNS the stage over every frame; "none" builds no stage at all', async () => {
+    // This row used to refuse on this surface. The platform carries SpeexDSP's
+    // preprocessor now and the SDK listener wraps this surface's opener with it, so
+    // the row's outcome is a filter that runs — and what this asserts is the wiring
+    // this surface owns: the stage is built for the frame size the engine wants, and
+    // every captured frame goes through it before anything scores it.
     const speex = makeCaptureHarness({ config: { 'voice.wake.noiseSuppression': 'speex' } });
-    await speex.runtime.refresh();
-    expect(speex.spawns.calls).toEqual([]);
-    const blocker = speex.runtime.settings().blockers.find((entry) => entry.key === 'voice.wake.noiseSuppression');
-    expect(blocker).toBeDefined();
-    // The SDK owns this wording, so it is IDENTICAL on every surface — the reason
-    // the row is refused is the platform's missing stage, not this surface's.
-    expect(blocker?.detail).toContain('no surface applies speex suppression yet');
-    expect(blocker?.detail).toContain('libspeexdsp');
-    expect(speex.notices.join('\n')).toContain('voice.wake.noiseSuppression');
+    const recorder = await startListening(speex);
+    expect(speex.runtime.settings().blockers).toEqual([]);
+    expect(speex.suppressionStages.length).toBe(1);
+    expect(speex.suppressionStages[0]?.frameSamples).toBe(WAKE_CHUNK_SAMPLES);
+
+    recorder.emitBytes(pcmBytes(loudSamples(WAKE_CHUNK_SAMPLES)));
+    await flush(3);
+    expect(speex.suppressionStages[0]?.frames).toBeGreaterThan(0);
 
     const none = makeCaptureHarness({ config: { 'voice.wake.noiseSuppression': 'none' } });
-    await none.runtime.refresh();
-    expect(none.spawns.calls.length).toBe(1);
+    const plain = await startListening(none);
+    none.runtime.settings();
+    plain.emitBytes(pcmBytes(loudSamples(WAKE_CHUNK_SAMPLES)));
+    await flush(3);
+    // "none" is NO stage, not a stage that does nothing — nothing was built to skip.
+    expect(none.suppressionStages).toEqual([]);
     expect(none.runtime.settings().blockers).toEqual([]);
   });
 
-  test('voice.wake.vadThreshold: any value above 0 refuses to start with the missing VAD model named; 0 runs', async () => {
-    const screened = makeCaptureHarness({ config: { 'voice.wake.vadThreshold': 0.5 } });
-    await screened.runtime.refresh();
-    expect(screened.spawns.calls).toEqual([]);
-    const blocker = screened.runtime.settings().blockers.find((entry) => entry.key === 'voice.wake.vadThreshold');
-    expect(blocker?.detail).toContain('no voice-activity-detection model is available');
-    expect(blocker?.detail).toContain('0.5');
+  test('voice.wake.noiseSuppression: the stage is released when the detector stops, so a restart does not leak one', async () => {
+    const harness = makeCaptureHarness({ config: { 'voice.wake.noiseSuppression': 'speex' } });
+    await startListening(harness);
+    expect(harness.suppressionStages[0]?.closed).toBe(false);
+    await harness.runtime.stop();
+    await flush();
+    expect(harness.suppressionStages[0]?.closed).toBe(true);
+  });
 
-    const off = makeCaptureHarness({ config: { 'voice.wake.vadThreshold': 0 } });
-    await off.runtime.refresh();
-    expect(off.spawns.calls.length).toBe(1);
+  test('voice.wake.vadThreshold: above 0 the gate screens frames; 0 never consults it at all', async () => {
+    // Above 0 with the gate provisioned: the head is loaded and asked per frame, and
+    // a frame it scores below the threshold reaches NO classifier.
+    const screened = makeCaptureHarness({
+      config: { 'voice.wake.vadThreshold': 0.3 },
+      vadReady: true,
+      vadProbability: 0.01,
+      scores: [0.99],
+    });
+    const recorder = await startListening(screened);
+    expect(screened.runtime.settings().blockers).toEqual([]);
+    expect(screened.loadedModelPaths.some((path) => path.includes('goodvibes-vad'))).toBe(true);
+    await primeFrontEnd(recorder);
+    expect(screened.vadRuns()).toBeGreaterThan(0);
+    // The classifier would have fired at 0.99 on every frame; the gate withheld them.
+    expect(screened.sounds).toEqual([]);
+    expect(screened.runtime.status()?.kind).toBe('wake-listening');
+
+    // The same audio and the same scores, with the gate opening instead.
+    const passed = makeCaptureHarness({
+      config: { 'voice.wake.vadThreshold': 0.3 },
+      vadReady: true,
+      vadProbability: 0.99,
+      scores: [0.99],
+    });
+    await primeFrontEnd(await startListening(passed));
+    expect(passed.vadRuns()).toBeGreaterThan(0);
+    expect(passed.sounds.map((sound) => sound.kind)).toEqual(['chime']);
+
+    // 0 is no gate: the head is never even loaded, let alone consulted.
+    const off = makeCaptureHarness({
+      config: { 'voice.wake.vadThreshold': 0 },
+      vadReady: true,
+      vadProbability: 0.01,
+      scores: [0.99],
+    });
+    await primeFrontEnd(await startListening(off));
+    expect(off.loadedModelPaths.some((path) => path.includes('goodvibes-vad'))).toBe(false);
+    expect(off.vadRuns()).toBe(0);
+    expect(off.sounds.map((sound) => sound.kind)).toEqual(['chime']);
+  });
+
+  test('voice.wake.vadThreshold: above 0 with the gate NOT provisioned still refuses, naming the pinned head', async () => {
+    // The refusal did not disappear, it moved: the row is honoured when this surface
+    // has the gate and refused when it does not, rather than screening nothing while
+    // claiming to screen.
+    const missing = makeCaptureHarness({ config: { 'voice.wake.vadThreshold': 0.5 }, vadReady: false });
+    await missing.runtime.refresh();
+    expect(missing.spawns.calls).toEqual([]);
+    const blocker = missing.runtime.settings().blockers.find((entry) => entry.key === 'voice.wake.vadThreshold');
+    expect(blocker?.detail).toContain('has not loaded the speech gate');
+    expect(blocker?.detail).toContain('goodvibes-vad');
+    expect(blocker?.detail).toContain('0.5');
+    expect(missing.notices.join('\n')).toContain('voice.wake.vadThreshold');
   });
 
   test('voice.wake.indicator: the row travels to the footer state, and "off" is what suppresses the row', async () => {

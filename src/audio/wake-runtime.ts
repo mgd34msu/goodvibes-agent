@@ -40,6 +40,7 @@ import {
   wakeProvisionStatus,
   type AudioCaptureOpener,
   type CapturedUtterance,
+  type WakeListenerOptions,
   type WakeListenerState,
   type WakeRuntimeSettings,
 } from '@pellux/goodvibes-sdk/platform/voice';
@@ -71,8 +72,12 @@ export interface WakeRuntimeDeps {
   readonly managedRoot: string;
   /** Directory this surface owns for the extracted onnxruntime assets. */
   readonly assetDirectory: string;
-  /** True when this surface APPLIES speex suppression, so `speex` is honoured or refused, never skipped. */
-  readonly speexAvailable: boolean;
+  /**
+   * Builds the noise-suppression stage. Passed straight to the SDK listener, which
+   * is what wraps this surface's opener with it; injected only so a test can drive
+   * the stage deterministically instead of instantiating WebAssembly.
+   */
+  readonly createNoiseSuppression?: WakeListenerOptions['createNoiseSuppression'];
   readonly resolveTranscriber: () => { readonly available: true; readonly gateway: VoiceSttGateway } | { readonly available: false; readonly reason: string };
   /** Plays the resolved activation sound at the moment of a wake. */
   readonly playActivationSound: (sound: WakeRuntimeSettings['activationSound']) => void;
@@ -97,7 +102,16 @@ export interface WakeRuntimeDeps {
 /** The two seams a test replaces so no model file and no runtime are needed. */
 export interface WakeRuntimeTestSeams {
   readonly loadSession: Parameters<typeof createWakeEngineFactory>[0]['loadSession'];
-  readonly provisionStatus: (managedRoot: string) => { readonly ready: boolean; readonly reason: string | null };
+  /**
+   * `vadReady` is read from here too, and NOT separately: the same answer decides
+   * whether this surface claims `vadAvailable` to the settings resolver and whether
+   * the engine factory loads the gate, so the claim and the wiring move together.
+   */
+  readonly provisionStatus: (managedRoot: string) => {
+    readonly ready: boolean;
+    readonly reason: string | null;
+    readonly vadReady: boolean;
+  };
 }
 
 export interface WakeRuntime {
@@ -121,11 +135,23 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
   let phase: WakeListenerState['phase'] = 'idle';
   let deviceLabel: string | null = null;
   let detail: string | undefined;
+  /**
+   * Whether the speech gate is on disk and verified, as of the last refresh.
+   *
+   * Cached rather than read inside `resolve()` on purpose: `status()` resolves
+   * settings and is called from the render path, so a disk read there would put
+   * five `stat`s behind every frame. False until the first refresh, which is the
+   * safe direction — it means `voice.wake.vadThreshold` above 0 is refused until
+   * this surface has actually confirmed it has the gate.
+   */
+  let vadReady = false;
+
+  const readProvision = deps.provisionStatus ?? ((root: string) => wakeProvisionStatus({ managedRoot: root }));
 
   const resolve = (): WakeRuntimeSettings => resolveWakeRuntimeSettings(
     deps.readConfig,
     AGENT_WAKE_SURFACE,
-    agentWakeCapabilities(deps.speexAvailable),
+    agentWakeCapabilities({ vadReady }),
   );
 
   const status = (): VoiceCaptureIndicatorState | null => {
@@ -181,8 +207,7 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
     }
   };
 
-  const start = async (settings: WakeRuntimeSettings): Promise<void> => {
-    const provision = (deps.provisionStatus ?? ((root: string) => wakeProvisionStatus({ managedRoot: root })))(deps.managedRoot);
+  const start = async (settings: WakeRuntimeSettings, provision: { readonly ready: boolean; readonly reason: string | null }): Promise<void> => {
     if (!provision.ready) {
       deps.notify(
         `[Wake] voice.wake.enabled is on, but the wake models are not provisioned (${provision.reason ?? 'not-provisioned'}), `
@@ -213,10 +238,13 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
         assetDirectory: deps.assetDirectory,
         embeddingPath: paths.embeddingPath,
         models: modelFiles.map((model) => ({ id: model.id, path: model.path })),
+        // Same `vadReady` the capability claim above was built from.
+        vad: { path: paths.vadPath, ready: vadReady },
         settings,
         warn: deps.warn,
         ...(deps.loadSession !== undefined ? { loadSession: deps.loadSession } : {}),
       }),
+      ...(deps.createNoiseSuppression !== undefined ? { createNoiseSuppression: deps.createNoiseSuppression } : {}),
       handlers: {
         onStateChange: (state) => {
           phase = state.phase;
@@ -270,6 +298,11 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
 
   return {
     refresh: async () => {
+      // Read BEFORE resolving: whether the gate is on disk is an input to whether
+      // `voice.wake.vadThreshold` is honoured or refused, so a stale read here
+      // would produce a blocker (or the absence of one) that does not match disk.
+      const provision = readProvision(deps.managedRoot);
+      vadReady = provision.vadReady;
       const settings = resolve();
       if (!settings.active) {
         await stop();
@@ -281,7 +314,7 @@ export function wireWakeRuntime(deps: WakeRuntimeDeps): WakeRuntime {
         return;
       }
       if (listener !== null) return;
-      await start(settings);
+      await start(settings, provision);
     },
     status,
     settings: resolve,
