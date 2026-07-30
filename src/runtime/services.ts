@@ -932,8 +932,20 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'sessions', 'task-graph.json'),
   );
   const hookActivityTracker = new HookActivityTracker();
+  // featureFlags is REQUIRED here in practice, even though the SDK types it
+  // optional. isFeatureGateEnabled(null, ...) is permissive by design — a
+  // narrow embed with no manager wired gets the capability rather than a
+  // silent off — so omitting it did not disable the watcher framework when
+  // watchers.enabled is turned off; it made the setting configure nothing.
+  // Threading it preserves current effective behaviour rather than changing
+  // it: watchers.enabled defaults true, the watcher-framework flag's own
+  // defaultState is 'enabled', and the flag declares no notOperable record —
+  // so with nothing configured the gate reads exactly as before, and the
+  // difference is only that turning it OFF now turns it off. The TUI has
+  // always threaded it the same way.
   const watcherRegistry = new WatcherRegistry({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'watchers.json'),
+    featureFlags,
   });
   watcherRegistry.attachRuntime({
     runtimeStore: options.runtimeStore,
@@ -1099,6 +1111,15 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     log: logger,
   });
   const memorySpineTransport = createMemorySpineRestTransport({ resolveConnection: spineResolveConnection });
+  // featureFlags is REQUIRED here in practice, even though the SDK types it
+  // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
+  // omitting it did not disable delivery tracking when
+  // integrations.deliveryTracking is turned off — deliverText/deliverJobRun
+  // kept running either way. Threading it preserves current effective
+  // behaviour rather than changing it: the config default is true, the
+  // delivery-engine flag's own defaultState is 'enabled', and the flag
+  // declares no notOperable record — so with nothing configured the gate
+  // reads exactly as before. Same fix as goodvibes-tui's services.ts.
   const deliveryManager = new AutomationDeliveryManager({
     configManager,
     // Required: the router this builds resolves goodvibes://secrets/...
@@ -1111,7 +1132,20 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     runtimeStore: options.runtimeStore,
     routeBindings,
     artifactStore,
+    featureFlags,
   });
+  // Same shape as deliveryManager above: automation.enabled defaults true, the
+  // automation-domain flag's own defaultState is 'enabled', so threading
+  // featureFlags here does not change what a default install does — it only
+  // makes turning automation.enabled off actually turn AutomationManager's own
+  // create/update/run/list surface off. This composes with bootstrap.ts's own
+  // `if (configManager.get('automation.enabled'))` gate around scheduling
+  // automationManager.start(): that check reads the same key, and
+  // AutomationManager.start() re-checks the same gate internally (it no-ops
+  // and stops rather than starting when disabled), so the two can never
+  // disagree — this fix only reaches the manager's OTHER entry points
+  // (createJob/updateJob/runNow/etc.) that the bootstrap.ts gate does not
+  // cover.
   const automationManager = new AutomationManager({
     configManager,
     defaultSurfaceKind: 'service',
@@ -1121,6 +1155,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     runtimeBus: options.runtimeBus,
     deliveryManager,
     providerRegistry,
+    featureFlags,
     spawnTask: (input) => {
       const record = agentManager.spawn({
         mode: 'spawn',
@@ -1336,7 +1371,18 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   mcpRegistry.setRuntimeBus(options.runtimeBus);
   mcpRegistry.setSandboxRuntime(configManager, sandboxSessionRegistry);
-  const tokenAuditor = new ApiTokenAuditor({ managed: false });
+  // featureFlags is REQUIRED here in practice, even though the SDK types it
+  // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
+  // omitting it did not disable managed blocking when
+  // security.tokenAudit.enabled is turned off. Threading it preserves current
+  // effective behaviour rather than changing it: managed is hardcoded false
+  // here (advisory reporting only; excess-scope/overdue tokens are reported,
+  // never blocked, regardless of this flag — see isBlocked()'s
+  // `this._config.managed && this._managedBlockingEnabled()` guard), the
+  // config default for security.tokenAudit.enabled is true, and the
+  // token-scope-rotation-audit flag's own defaultState is 'enabled' — so with
+  // nothing configured the gate reads exactly as before either way.
+  const tokenAuditor = new ApiTokenAuditor({ managed: false, featureFlags });
   const componentHealthMonitor = new ComponentHealthMonitor();
   const worktreeRegistry = createDisabledAgentWorktreeRegistry(workingDirectory);
   // Configured and attached to the runtime bus during bootstrap when webhook URLs are present.
@@ -1364,7 +1410,15 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     artifactStore,
   });
   const processManager = new ProcessManager();
-  const modeManager = new ModeManager();
+  // featureFlags is REQUIRED here in practice, even though the SDK types it
+  // optional. isFeatureGateEnabled(null, ...) is permissive by design, so
+  // omitting it did not disable the HITL UX mode system when
+  // behavior.hitlMode is set to 'off' — setHITLMode/setDomainVerbosity kept
+  // accepting writes either way. Threading it preserves current effective
+  // behaviour rather than changing it: behavior.hitlMode defaults to
+  // 'balanced' (not 'off'), and the hitl-ux-modes flag's own defaultState is
+  // 'enabled' — so with nothing configured the gate reads exactly as before.
+  const modeManager = new ModeManager({ featureFlags });
   const fileUndoManager = new FileUndoManager();
   const executionLedger = new AgentExecutionLedger(options.runtimeBus);
   // Tracks which paths this session's own write/edit tools produced, so the
