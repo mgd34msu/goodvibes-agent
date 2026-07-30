@@ -4,11 +4,16 @@
  * ── Provenance ────────────────────────────────────────────────────────────
  *
  * This mirrors the platform SDK's `platform/daemon/fatal-boot-report.ts`, with
- * the same three exported names. It exists locally only because the published
- * `@pellux/goodvibes-sdk` this repository compiles against (1.20.0) predates
- * that export — `reportFatalBootFailure` does not exist in the installed
- * package. Replace this file with the SDK import at the next re-pin, and keep
- * the write loop documented in `fatal-boot-write.ts` (or move it upstream).
+ * the same three exported names. It exists locally because that module is not
+ * part of the SDK's public surface: as of the published `@pellux/goodvibes-sdk`
+ * this repository compiles against (1.21.0), `reportFatalBootFailure` is used
+ * internally by the SDK's own daemon CLI but has no entry in the package's
+ * `exports` map — no subpath re-exports it, so `import ... from
+ * '@pellux/goodvibes-sdk/platform/daemon/fatal-boot-report'` is rejected by
+ * Node's export resolution even though the compiled file is present on disk.
+ * Checked again at the 1.21.0 re-pin: still true. Replace this file with the
+ * SDK import once a release adds a public export for it, and keep the write
+ * loop documented in `fatal-boot-write.ts` (or move it upstream).
  *
  * The primitives live in `fatal-boot-write.ts` and are re-exported here, so
  * that `bin/goodvibes-agent.ts` can share them without pulling the SDK into a

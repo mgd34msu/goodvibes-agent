@@ -70,7 +70,7 @@ import { MultimodalService } from '@pellux/goodvibes-sdk/platform/multimodal';
 import { AgentManager, cancelAllAgentRuns } from '@pellux/goodvibes-sdk/platform/tools';
 import { AgentMessageBus } from '@pellux/goodvibes-sdk/platform/agents';
 import { WrfcController } from '@pellux/goodvibes-sdk/platform/agents';
-import { continuationChainOptions } from './conversation-first-continuation.js';
+import { continuationChainOptions } from '@pellux/goodvibes-sdk/platform/agents';
 import { AgentOrchestrator } from '@pellux/goodvibes-sdk/platform/agents';
 import { ArchetypeLoader } from '@pellux/goodvibes-sdk/platform/agents';
 import { CodeIndexStore, resolveMemoryVectorDbPath } from '@pellux/goodvibes-sdk/platform/state';
@@ -1080,13 +1080,16 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       // and a second agent. A chain opens only for an explicit authorization
       // marker — set by the channel confirmation the owner gave, or by the
       // schedule/trigger that was confirmed when it was created — or for a
-      // follow-up typed on a local surface. The live configuration is read
-      // through a scalar-only adapter so `conversationGate.mode` governs both
-      // halves of the gate identically; the pinned SDK's config category union
-      // has no `conversationGate` member yet, so the surface LIST comes from
-      // the SDK's shipped defaults until this product re-pins.
+      // follow-up typed on a local surface. Both `conversationGate.mode` and
+      // the `gatedSurfaces` list now read the live config: the 1.21.0 re-pin
+      // carries the `conversationGate` schema domain, so `getCategory` reads
+      // the configured surface list instead of falling back to the SDK's
+      // shipped defaults.
       ...continuationChainOptions(input, {
-        configReader: { get: (key: string) => configManager.get(key as never) },
+        configReader: {
+          get: (key: string) => configManager.get(key as never),
+          getCategory: (name: string) => configManager.getCategory(name as never),
+        },
       }),
       // Spawn routing resolves through the SDK's shared model-reference
       // resolver contract (unique-across-registry auto-qualifies; ambiguous

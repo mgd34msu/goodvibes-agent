@@ -1,15 +1,18 @@
 /**
- * Conversation-first continuation.
+ * Conversation-first continuation contract.
  *
- * The agent's session continuation runner used to spawn every follow-up with
- * the WRFC controller attached, so an ordinary message in a session escalated
- * into a write-review-fix-confirm chain — engineer, reviewer, quality gates,
- * and a second agent — when an answer was what was wanted.
+ * The shared-session continuation runner (src/runtime/services.ts) used to
+ * spawn every follow-up with the write-review-fix-confirm controller
+ * attached, so an ordinary message in a session escalated into a review chain
+ * — engineer, reviewer, quality gates, and a second agent — when an answer was
+ * what was wanted. That decision now comes straight from the SDK's public
+ * `continuationChainOptions` (platform/agents/conversation-continuation.ts,
+ * public since the 1.21.0 re-pin) rather than a local mirror.
  *
- * The rule: conversation is the default; a chain opens only when the input
- * carries an explicit authorization marker, set either by the confirmation the
- * owner gave over the channel or by the schedule/trigger that was confirmed
- * when it was created.
+ * This test proves the contract services.ts actually spreads into
+ * `agentManager.spawn(...)`: conversation is the default, and a chain opens
+ * only for an explicit authorization marker or a follow-up on a local
+ * surface.
  */
 import { describe, expect, test } from 'bun:test';
 import {
@@ -17,7 +20,7 @@ import {
   continuationChainOptions,
   decideContinuationEscalation,
   markWorkAuthorized,
-} from '../../runtime/conversation-first-continuation.js';
+} from '@pellux/goodvibes-sdk/platform/agents';
 
 describe('decideContinuationEscalation', () => {
   test('an ordinary follow-up starts no work chain', () => {
@@ -90,6 +93,22 @@ describe('continuationChainOptions', () => {
     // a fix: the answer still came back as a Summary/Changes/Decisions form.
     expect(continuationChainOptions({ surfaceKind: 'ntfy' }).replyStyle).toBe('conversational');
     expect(continuationChainOptions({ surfaceKind: 'tui' }).replyStyle).toBeUndefined();
+  });
+
+  test('a live configReader\'s getCategory can widen the gated-surface list', () => {
+    // This is the exact adapter shape services.ts builds from configManager:
+    // a scalar-only `get` plus a `getCategory` that returns the full
+    // conversationGate settings object, so the surface LIST tracks live
+    // config instead of the SDK's shipped defaults.
+    const configReader = {
+      get: (key: string) => (key === 'conversationGate.mode' ? 'propose' : undefined),
+      getCategory: (name: string) =>
+        name === 'conversationGate'
+          ? { mode: 'propose', proposalTtlMs: 0, maxPendingProposals: 0, gatedSurfaces: ['custom-surface'] }
+          : undefined,
+    };
+    expect(continuationChainOptions({ surfaceKind: 'custom-surface' }, { configReader }).replyStyle).toBe('conversational');
+    expect(continuationChainOptions({ surfaceKind: 'unlisted-surface' }, { configReader }).replyStyle).toBeUndefined();
   });
 });
 
