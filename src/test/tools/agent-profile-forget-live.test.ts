@@ -139,21 +139,27 @@ async function liveProfile(): Promise<LiveProfile> {
     }),
   });
 
-  // The composition starts the file read and does not await it, so for the first
-  // few milliseconds every verb answers "has not been loaded yet". Four of these
-  // tests passed against THAT before this wait existed — they expected a refusal
+  // This wait is belt-and-braces now, and it returns on the first poll.
+  //
+  // It was load-bearing once. The composition used to start the file read and
+  // return without awaiting it, so for the first few milliseconds every verb
+  // answered "has not been loaded yet" — a fourth state, where §4.4 allows
+  // exactly three (loaded, disabled, unavailable-with-a-reason). Four of these
+  // tests passed against THAT before this wait existed: they expected a refusal
   // and got a not-loaded, which is not the gate they were written to prove.
+  // Below the verbs it was worse, because nothing logged it — the consumer
+  // fallback was attached but resolved nothing, so a consumer key read as unset
+  // rather than as its profile value.
   //
-  // That window is a platform defect, not a fact of life: §4.4 allows exactly
-  // three states (loaded, disabled, unavailable-with-a-reason) and this is a
-  // fourth. Worse below the verbs than at them — the consumer fallback is
-  // attached but resolves nothing in that window, so a consumer key reads as
-  // unset rather than as its profile value, silently. The platform lane is
-  // giving the store a `ready` promise that verbs and consumer reads await.
+  // The platform closed it, and not with the readiness promise once expected
+  // here: `registerGatewayVerbGroups` is synchronous, so an awaited load would
+  // have rippled through the whole composition root. The store grew `loadSync()`
+  // instead, and routes/owner-profile-composition.ts calls it before returning —
+  // by then the state is one of the three, always. That is in the SDK this
+  // package pins, and it is the composition this suite drives.
   //
-  // Once `ready` lands this wait is BELT-AND-BRACES, not load-bearing: it will
-  // return on the first poll. It stays because a test that depends on timing
-  // should say so rather than rely on the fix holding.
+  // The wait stays because a test that depends on timing should say so rather
+  // than rely on the fix holding.
   await waitFor('the profile to load', async () => {
     const status = await tool.execute({ action: 'status' });
     return (status.output ?? '').includes('Profile: loaded');
