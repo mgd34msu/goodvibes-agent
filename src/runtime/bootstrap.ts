@@ -27,7 +27,6 @@ import { loadLastConversation } from '@/runtime/index.ts';
 import { bindWriteLastSessionPointerToSurface } from '@/runtime/index.ts';
 import { scheduleBackgroundMcpDiscovery } from '@/runtime/index.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
-import { startDurabilityHousekeeping } from '@/runtime/index.ts';
 import { runGatedLanScan } from './lan-scan-consent.ts';
 import { scheduleCalendarSubscriptionBootRefresh } from './calendar-boot-refresh.ts';
 import type { TurnEvent } from '@/runtime/index.ts';
@@ -46,7 +45,11 @@ import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/ses
 import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
 import { createAgentSessionInputsClient } from './client/session-inputs.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
-import { persistTurnAnchors, recordTurnAnchor, restoreTurnAnchors, summarizeTurnLabel } from '@pellux/goodvibes-sdk/platform/rewind';
+import {
+  bindRestoreTurnAnchorsToSurface,
+  recordCompletedTurnAnchor,
+  startAnchorDurabilityHousekeeping,
+} from './rewind-anchor-wiring.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
 import { installOccasionsNudging } from './occasions-boot.ts';
 import { registerAgentAuditTool } from '../tools/agent-audit-tool.ts';
@@ -257,27 +260,13 @@ export async function bootstrapRuntime(
         terminalEvent: 'TURN_COMPLETED',
         stopReason: event.payload.stopReason,
       });
-      // Record this turn's rewind anchor: pair the turnId (shared with the
-      // workspace checkpoint the turn engine snapshots for this same turn)
-      // with the live conversation message count, so a later message-anchored
-      // rewind.plan/apply (scope 'conversation' or 'both') can truncate the
-      // conversation to exactly this boundary — the join key between
-      // conversation and files rewind (the SDK's platform/rewind anchor
-      // registry, read back by services.ts's conversationRewindPort wiring).
-      // Mirrored to the session's anchor sidecar in the same breath so a
-      // resumed session can still be rewound to a turn from before the resume.
-      try {
-        recordTurnAnchor(runtimeSessionIdRef.value, {
-          turnId: event.payload.turnId,
-          label: summarizeTurnLabel(conversation.getLastUserMessage()),
-          messageCount: conversation.getMessageCount(),
-          at: Date.now(),
-        });
-        persistTurnAnchors(runtimeSessionIdRef.value, services.surface);
-      } catch (error) {
-        // Best-effort; a rewind-anchor miss must never break the turn.
-        logger.debug('rewind turn-anchor recording failed', { error: summarizeError(error) });
-      }
+      // The join key between conversation and files rewind (rewind-anchor-wiring.ts).
+      recordCompletedTurnAnchor({
+        sessionId: runtimeSessionIdRef.value,
+        turnId: event.payload.turnId,
+        conversation,
+        surface: services.surface,
+      });
       if (activePromptTurnId === event.payload.turnId) {
         activePromptTurnId = null;
         activePromptTurnText = null;
@@ -427,11 +416,7 @@ export async function bootstrapRuntime(
   // Surface-bound closure, not the raw multi-arg SDK function — see
   // the SDK's bindWriteLastSessionPointerToSurface for why that matters.
   const writeLastSessionPointerForSurface = bindWriteLastSessionPointerToSurface(services.surface);
-  // Same idiom, same surface: /session resume reloads the resumed session's
-  // anchor sidecar so a rewind can still reach turns recorded before the
-  // resume, instead of only what this run has recorded since.
-  const restoreTurnAnchorsForSurface = (sessionId: string): number =>
-    restoreTurnAnchors(sessionId, services.surface);
+  const restoreTurnAnchorsForSurface = bindRestoreTurnAnchorsToSurface(services.surface);
 
   const shell = createBootstrapShell({
     configManager,
@@ -706,13 +691,9 @@ export async function bootstrapRuntime(
     },
   });
   bootstrapUnsubs.push(() => mcpAutoReload.stop());
-  // The reclaim half of the crash-durability artefacts under this surface's
-  // sessions directory — anchor sidecars whose session is gone or whose
-  // content restores nothing, plus the staging files an interrupted write
-  // leaves behind. One sweep at startup, then on a cadence, both bounded and
-  // both disclosing what they removed. The live session id is read at sweep
-  // time rather than captured, so a resume repointing it is respected.
-  bootstrapUnsubs.push(startDurabilityHousekeeping({
+  // The reclaim half of what the anchors above write. The live session id is
+  // read at sweep time, so a resume repointing it is respected.
+  bootstrapUnsubs.push(startAnchorDurabilityHousekeeping({
     surface: services.surface,
     currentSessionId: () => runtimeSessionIdRef.value,
   }));
