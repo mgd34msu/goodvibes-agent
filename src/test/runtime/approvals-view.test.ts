@@ -356,18 +356,20 @@ describe('approvals view: transitions arrive on the push channel, with the poll 
 
 describe('approvals view: a stream opened after stop() is not left holding the daemon', () => {
   test('stop() during the open closes the subscription when it lands', async () => {
-    let release: ((subscription: { close: () => void }) => void) | null = null;
+    type Release = (subscription: { close: () => void }) => void;
+    const pending: Release[] = [];
     let closes = 0;
     const view = createApprovalsView({
       verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [] }) }),
       localBroker: { listApprovals: () => [] },
-      subscribe: async () => await new Promise<{ close: () => void }>((resolve) => { release = resolve; }),
+      subscribe: async () => await new Promise<{ close: () => void }>((resolve) => { pending.push(resolve); }),
     });
 
     view.start();
     await new Promise((resolve) => setTimeout(resolve, 0));
     view.stop();
-    release?.({ close: () => { closes += 1; } });
+    expect(pending).toHaveLength(1);
+    pending[0]?.({ close: () => { closes += 1; } });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(closes).toBe(1);
