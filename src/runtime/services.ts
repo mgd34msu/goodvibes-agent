@@ -55,6 +55,7 @@ import type {
 } from '@pellux/goodvibes-sdk/platform/runtime/client-services';
 import { createAgentDaemonVerbCaller, resolveConnectedHostConnection } from './client/daemon-verbs.ts';
 import { createApprovalsView, type ApprovalsView } from './client/approvals-view.ts';
+import { createAgentFleetUnion, type AgentFleetUnion } from './client/fleet-union.ts';
 import { createAgentSessionInputsClient } from './client/session-inputs.ts';
 import { createHostedSessionRegistry, type HostedSessionRegistry } from './client/hosted-sessions.ts';
 import { createHostedConversationHandoff, type HostedConversationHandoff } from './client/hosted-handoff.ts';
@@ -610,6 +611,12 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   readonly memoryConsolidationReceiptFeed: AgentDaemonReceiptFeed;
   readonly deliveryManager: AutomationDeliveryManager;
   readonly automationManager: AutomationManager;
+  /**
+   * Fleet rows from this process's registry unioned with the adopted daemon's,
+   * local winning on a shared id. Read by the activity sidebar so work the
+   * daemon is running is visible here too.
+   */
+  readonly fleetUnion: AgentFleetUnion;
   readonly gatewayMethods: GatewayMethodCatalog;
   readonly artifactStore: ArtifactStore;
   /** Compatibility alias that intentionally points at the isolated Agent Knowledge service, not default knowledge. */
@@ -1762,6 +1769,16 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     runtimeBus: options.runtimeBus,
     priceUsage,
   });
+  // The fleet a surface can SEE is wider than the fleet it started. The
+  // registry above answers for work this process spawned; the daemon runs its
+  // own — scheduled jobs, channel-driven runs, work other surfaces submitted —
+  // and the union is what the activity sidebar reads (client/fleet-union.ts,
+  // over the SDK's poll + local-wins merge policy).
+  const fleetUnion = createAgentFleetUnion({
+    local: { nodes: () => processRegistry.query().nodes },
+    verbs: daemonVerbs,
+  });
+  disposalScope.registry.add('fleet union poller', () => fleetUnion.stop());
   // Root/retention guard options come from the user's `checkpoints.*` settings
   // (see config/checkpoint-settings.ts); any key the user did not set is omitted
   // so the SDK manager applies its own default. These guards are defense in
@@ -2190,6 +2207,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     appendOnlyRetentionScheduler,
     userPermissionRuleStore,
     processRegistry,
+    fleetUnion,
     workspaceCheckpointManager,
     guardedCheckpoints: checkpointsGatewayManager,
     runtimeBus: options.runtimeBus,

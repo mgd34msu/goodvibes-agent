@@ -655,7 +655,7 @@ async function main() {
             now: {
               busy: orchestrator.isThinking,
               label: sessionSnapshot.streamToolPreview?.trim() || undefined,
-              agents: buildSidebarAgentRows(activeAgents, ctx.services.processRegistry.query().nodes),
+              agents: buildSidebarAgentRows(activeAgents, ctx.services.fleetUnion.nodes()),
               processes: runningProcessCount,
             },
             needsYou: pendingPermission

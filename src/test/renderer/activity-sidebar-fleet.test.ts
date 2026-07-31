@@ -71,4 +71,43 @@ describe('activity sidebar fleet rows', () => {
       { label: 'builder', progress: undefined, headline: undefined, quietForMs: undefined },
     ]);
   });
+
+  test('a live agent node no local agent carries is shown as running elsewhere', () => {
+    const rows = buildSidebarAgentRows(
+      [{ id: 'a-1', label: 'researcher' }],
+      [
+        { id: 'a-1', kind: 'agent', state: 'running' },
+        { id: 'd-9', kind: 'agent', state: 'running', label: 'nightly digest', headline: { text: 'Summarizing inbox' } },
+      ],
+    );
+    expect(rows).toEqual([
+      { label: 'researcher', progress: undefined, headline: undefined, quietForMs: undefined },
+      { label: 'nightly digest (elsewhere)', headline: 'Summarizing inbox', quietForMs: undefined },
+    ]);
+  });
+
+  test('rows this process runs keep the room: three local agents leave none for elsewhere', () => {
+    const rows = buildSidebarAgentRows(
+      [
+        { id: 'a-1', label: 'one' },
+        { id: 'a-2', label: 'two' },
+        { id: 'a-3', label: 'three' },
+        { id: 'a-4', label: 'four' },
+      ],
+      [{ id: 'd-9', kind: 'agent', state: 'running', label: 'nightly digest' }],
+    );
+    expect(rows.map((row) => row.label)).toEqual(['one', 'two', 'three']);
+  });
+
+  test('finished work and non-agent nodes from elsewhere are not rows', () => {
+    const rows = buildSidebarAgentRows(
+      [],
+      [
+        { id: 'd-1', kind: 'agent', state: 'completed', label: 'finished digest' },
+        { id: 'd-2', kind: 'process', state: 'running', label: 'a background command' },
+        { id: 'd-3', kind: 'agent', state: 'blocked', label: 'waiting on approval' },
+      ],
+    );
+    expect(rows.map((row) => row.label)).toEqual(['waiting on approval (elsewhere)']);
+  });
 });

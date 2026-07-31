@@ -45,22 +45,38 @@ export interface ActivitySidebarNow {
   readonly processes: number;
 }
 
+/** How many agent rows the Now section has room for. */
+const SIDEBAR_AGENT_ROWS = 3;
+
+/** States a fleet node is in while it is still doing something. */
+const LIVE_FLEET_STATES: ReadonlySet<string> = new Set(['running', 'starting', 'waiting', 'blocked', 'paused']);
+
 /**
- * Join active agents with the fleet read-model's nodes (matched by id) into
- * sidebar rows: the per-node headline (task/phase identity only — replaced
- * in place, never a feed) wins over the raw progress line, and the stall
- * tell renders as a quiet-duration marker.
+ * Build the Now section's agent rows from the active agents and the fleet
+ * nodes.
+ *
+ * Rows this process is running come first and carry their live progress: the
+ * per-node headline (task/phase identity only — replaced in place, never a
+ * feed) wins over the raw progress line, and the stall tell renders as a
+ * quiet-duration marker. Agent-kind nodes the fleet carries that no active
+ * agent here matches are work running elsewhere — the daemon's scheduled and
+ * channel-driven runs — and fill whatever room is left, labeled so the two are
+ * never confused.
  */
 export function buildSidebarAgentRows(
   activeAgents: ReadonlyArray<{ readonly id: string; readonly label: string; readonly latestProgress?: string | undefined }>,
   fleetNodes: ReadonlyArray<{
     readonly id: string;
+    readonly kind?: string | undefined;
+    readonly label?: string | undefined;
+    readonly state?: string | undefined;
     readonly headline?: { readonly text: string } | undefined;
     readonly stall?: { readonly quietForMs: number } | undefined;
   }>,
 ): ActivitySidebarNow['agents'] {
   const nodesById = new Map(fleetNodes.map((node) => [node.id, node]));
-  return activeAgents.slice(0, 3).map((agent) => {
+  const localIds = new Set(activeAgents.map((agent) => agent.id));
+  const rows: Array<ActivitySidebarNow['agents'][number]> = activeAgents.slice(0, SIDEBAR_AGENT_ROWS).map((agent) => {
     const node = nodesById.get(agent.id);
     return {
       label: agent.label,
@@ -69,6 +85,19 @@ export function buildSidebarAgentRows(
       quietForMs: node?.stall?.quietForMs,
     };
   });
+
+  for (const node of fleetNodes) {
+    if (rows.length >= SIDEBAR_AGENT_ROWS) break;
+    if (localIds.has(node.id)) continue;
+    if (node.kind !== 'agent') continue;
+    if (node.state !== undefined && !LIVE_FLEET_STATES.has(node.state)) continue;
+    rows.push({
+      label: `${node.label ?? node.id} (elsewhere)`,
+      headline: node.headline?.text,
+      quietForMs: node.stall?.quietForMs,
+    });
+  }
+  return rows;
 }
 
 /** Compact quiet-duration text for the stall tell, e.g. "quiet 4m". */
