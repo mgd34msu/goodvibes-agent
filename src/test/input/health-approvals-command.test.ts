@@ -25,10 +25,11 @@ function approval(id: string, tool: string, sessionId?: string): SharedApprovalR
   } as unknown as SharedApprovalRecord;
 }
 
-function stubView(snapshot: ApprovalsPanelSnapshot): ApprovalsView {
+function stubView(snapshot: Omit<ApprovalsPanelSnapshot, 'liveUpdates'> & { liveUpdates?: boolean }): ApprovalsView {
+  const full: ApprovalsPanelSnapshot = { liveUpdates: false, ...snapshot };
   return {
-    snapshot: () => snapshot,
-    refresh: async () => snapshot,
+    snapshot: () => full,
+    refresh: async () => full,
     start: () => {},
     stop: () => {},
   };
@@ -82,6 +83,25 @@ describe('/health approvals', () => {
     // The list line must not read as a clean "nothing pending".
     expect(text).toContain('the host was not read, so it may still hold asks');
     expect(text).not.toContain('nothing is waiting on the connected host or in this process');
+  });
+
+  test('the panel says whether the list is live or a periodic re-read', async () => {
+    const live = await runHealthApprovals(stubView({
+      approvals: [],
+      hostRecordRead: true,
+      unavailableReason: null,
+      localOnlyCount: 0,
+      liveUpdates: true,
+    }));
+    expect(live).toContain('updates live from the connected host');
+
+    const polled = await runHealthApprovals(stubView({
+      approvals: [],
+      hostRecordRead: true,
+      unavailableReason: null,
+      localOnlyCount: 0,
+    }));
+    expect(polled).toContain('updates periodic re-read (no live stream)');
   });
 
   test('an unreachable host still shows the asks this process holds, and labels them', async () => {

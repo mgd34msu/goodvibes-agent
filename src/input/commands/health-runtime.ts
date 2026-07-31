@@ -81,6 +81,10 @@ async function renderApprovalsHealth(ctx: CommandContext): Promise<string> {
     'Health Review Approvals',
     ...(unavailable === null ? [] : [`  ${unavailable}`]),
     `  source ${snapshot.hostRecordRead ? 'connected host record + this process' : 'this process only'}`,
+    // How current the list is, which is a different claim from where it came
+    // from: on the push channel a transition is here the moment the daemon
+    // records it; without it the list is as fresh as the last re-read.
+    `  updates ${snapshot.liveUpdates ? 'live from the connected host' : 'periodic re-read (no live stream)'}`,
     `  waiting ${pending.length}`,
     `  raised in this process and not on the host ${snapshot.localOnlyCount}`,
     ...(rows.length > 0

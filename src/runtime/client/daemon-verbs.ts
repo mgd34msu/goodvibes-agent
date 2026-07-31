@@ -91,6 +91,25 @@ function resolveConnection(options: AgentDaemonVerbCallerOptions): ResolvedConne
   return { baseUrl: resolveConnectedHostBaseUrl(configManager), token: token.token };
 }
 
+/**
+ * The same host resolution the verb caller uses, for the ONE consumer that
+ * needs the address rather than a call: the `control.approval_update` stream.
+ *
+ * A stream is not a verb — it is a long-lived GET on the control plane's event
+ * endpoint — so it cannot go through `invoke`. It must still reach exactly the
+ * host `invoke` reaches, with exactly the token `invoke` sends, or the panel
+ * would end up polling one daemon and streaming from another. Exporting the
+ * resolution (rather than duplicating it) is what guarantees that.
+ *
+ * Returns the honest reason instead of throwing, same as `probe()`: a caller
+ * that cannot open a stream keeps whatever fallback it had.
+ */
+export function resolveConnectedHostConnection(
+  options: AgentDaemonVerbCallerOptions,
+): { readonly baseUrl: string; readonly token: string } | { readonly reason: string } {
+  return resolveConnection(options);
+}
+
 /** A non-2xx from the host, carrying the status so callers can classify it. */
 export class ConnectedHostVerbError extends Error {
   readonly status: number;
