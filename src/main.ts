@@ -461,7 +461,7 @@ async function main() {
       },
       sessions: {
         sessionManager: ctx.services.sessionManager,
-        sessionBroker: ctx.services.sessionBroker,
+        sessionBroker: ctx.services.automationSessionRegister,
         sessionOrchestration: ctx.services.sessionOrchestration,
         sessionMemoryStore: ctx.services.sessionMemoryStore,
       },

@@ -221,7 +221,14 @@ export class AgentPeriodicUpdater {
 export interface StartPeriodicSelfUpdateParams {
   readonly configManager: Pick<ConfigManager, 'getRaw'> & Partial<Pick<ConfigManager, 'getConfigPath' | 'getProjectConfigPath'>>;
   readonly services: {
-    readonly sessionBroker: { countBusySessions(): number };
+    /**
+     * The sessions THIS process is running, and how many are mid-turn. Read
+     * from the agent's own hosted-session registry rather than a cross-surface
+     * register: "is it safe to swap this binary out from under the user" is a
+     * question about this process, and a session busy on another surface is not
+     * a reason to keep this one from updating.
+     */
+    readonly hostedSessions: { countBusySessions(): number };
     readonly approvalBroker: { listApprovals(): readonly { readonly status: string }[] };
   };
   readonly notify: (line: string) => void;
@@ -273,7 +280,7 @@ export function startPeriodicSelfUpdate(params: StartPeriodicSelfUpdateParams): 
     arch: process.arch,
     settings,
     isIdle: () => agentIsIdleForUpdate({
-      countBusySessions: () => params.services.sessionBroker.countBusySessions(),
+      countBusySessions: () => params.services.hostedSessions.countBusySessions(),
       listApprovals: () => params.services.approvalBroker.listApprovals(),
     }),
     notify: params.notify,

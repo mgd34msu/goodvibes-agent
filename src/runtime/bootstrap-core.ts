@@ -7,7 +7,7 @@ import { buildAgentConfigRouting } from '../config/daemon-config-routing.ts';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
-import { PermissionManager, createPermissionConfigReader } from '@pellux/goodvibes-sdk/platform/permissions';
+import type { PermissionManager } from '@pellux/goodvibes-sdk/platform/permissions';
 import { Notifier, WebhookNotifier } from '@pellux/goodvibes-sdk/platform/integrations';
 
 import { Compositor } from '../renderer/compositor.ts';
@@ -210,7 +210,11 @@ export async function initializeBootstrapCore(
     hookWorkbench,
     memoryStore,
     routeBindings,
-    sessionBroker: sharedSessionBroker,
+    // The register automation runs on. It is NOT the dispatch path any more —
+    // inbound continuations reach the loop over services.sessionBroker, the wire
+    // dispatch — but this process still creates its own session record in it so
+    // an automation job targeting "the live session" finds one.
+    automationSessionRegister: sharedSessionBroker,
     surfaceRegistry,
     watcherRegistry,
   } = services;
@@ -263,6 +267,13 @@ export async function initializeBootstrapCore(
     // namespace and nothing is keyed to a session that can be reaped.
     resolveSessionId: () => runtimeSessionIdRef.value,
     surfaceRoot: GOODVIBES_AGENT_SURFACE_ROOT,
+    // ONE file cache and ONE project index for the process. registerAllTools
+    // built its own pair when none was passed, so the tools read one index while
+    // `services.rerootStores` re-rooted a different one on a workspace swap —
+    // the swap took effect nowhere the file tools could see. Passing the graph's
+    // pair makes the instance the tools read the instance the graph owns.
+    fileCache: services.fileCache,
+    projectIndex: services.projectIndex,
     // Daemon-owned settings (surfaces.*, the control-plane binding, watchers,
     // pairing, retention) must be read and written through the daemon that owns
     // them, not through this process's own store. Without this the settings
@@ -503,9 +514,11 @@ export async function initializeBootstrapCore(
       }
     });
   };
-  const permissionPromptRef = {
-    requestPermission: (async () => ({ approved: false, remember: false })) as PermissionRequestHandler,
-  };
+  // The graph owns the prompt holder now: the ask seam reads through it, and
+  // the seam is part of the composition. The renderer still patches
+  // `requestPermission` onto this same object, so nothing about how a prompt is
+  // installed changed — only where the object is declared.
+  const permissionPromptRef = services.permissionPromptRef as { requestPermission: PermissionRequestHandler };
   void approvalBroker.start();
   void sharedSessionBroker.start();
   const systemMessageRouterRef: { value: SystemMessageRouter | null } = { value: null };
@@ -601,25 +614,17 @@ export async function initializeBootstrapCore(
 
   await syncConfiguredServices(domainDispatch.syncIntegration, services.serviceRegistry);
 
-  const permissionManager = new PermissionManager(
-    (request) => {
-      const metadata = approvalMetadataForRequest(request);
-      return approvalBroker.requestApproval({
-        request,
-        sessionId: runtimeSessionIdRef.value,
-        localPrompt: permissionPromptRef.requestPermission,
-        ...(metadata ? { metadata } : {}),
-      });
-    },
-    createPermissionConfigReader(configManager),
-    policyRuntimeState,
-    services.hookDispatcher,
-    featureFlags,
-    // Durable user-origin permission rules (remembered approvals), mirroring
-    // the SDK composition root: "always allow" style decisions persist across
-    // restarts and are listable/deletable via permissions.rules.*.
-    services.userPermissionRuleStore,
-  );
+  // The permission gate is the graph's. It used to be hand-built here over this
+  // process's own ApprovalBroker, which meant an ask was raised in-process,
+  // decided in-process, and invisible to the daemon, to every other surface, and
+  // to the phone that was supposed to be able to answer it.
+  //
+  // services.permissionManager rides the client raiser instead: the ask is
+  // posted to the daemon AND prompted here, and the first real answer wins. The
+  // background-agent attribution that feeds the fleet plane's
+  // `state: 'awaiting-approval'` is carried by the shared free function the
+  // manager is built through, not by a local copy of that mapping.
+  const permissionManager = services.permissionManager;
   installPermissionManagerSafetyGuard(permissionManager);
   // Wire permissionManager into the SAME AgentOrchestrator instance that runs
   // spawned/background agent tool calls (services.agentOrchestrator, set up
@@ -646,6 +651,17 @@ export async function initializeBootstrapCore(
   // (see conversation-rewind-port.ts and services.ts's conversationRewindPort
   // wiring). Ported from goodvibes-tui's identical bootstrap-time call.
   registerSessionConversation(runtime.sessionId, conversation);
+  // This process is now HOSTING that session. Four seams read this and nothing
+  // else: inbound continuation dispatch polls it, the conversation-rewind host
+  // answers "am I holding this?" from it, the trigger family's liveness check
+  // reads it, and both "is anything busy" consumers count turns against it.
+  services.hostedSessions.adopt(runtime.sessionId);
+  // Offer this session's conversation to the daemon, and answer the questions it
+  // asks about it. Without this a rewind touching a session hosted here got the
+  // daemon's own empty registry answering "0 messages to drop" — a confident
+  // answer to a question it could not reach. Released at shutdown; a lapsed
+  // lease reaches the same end state if this process dies first.
+  services.conversationRewindHost.start(runtime.sessionId);
   void sharedSessionBroker.createSession({
     id: runtime.sessionId,
     title: 'GoodVibes Agent session',

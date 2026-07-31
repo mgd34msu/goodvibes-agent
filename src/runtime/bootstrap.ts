@@ -43,6 +43,7 @@ import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
 import { registerAgentTools } from './bootstrap-agent-tools.ts';
 import { foldLegacySpineStore } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { reconcileMemorySpineAdoption } from './memory-spine-adoption.ts';
+import { createAgentSessionInputsClient } from './client/session-inputs.ts';
 import { AgentPromptContextReceiptStore, composeRuntimePromptWithReceipt } from '../agent/prompt-context-receipts.ts';
 import { recordTurnAnchor, summarizeTurnLabel } from '../core/rewind-turn-anchors.ts';
 import { createMemoryUsageTracker } from './memory-usage-wiring.ts';
@@ -59,7 +60,6 @@ import { registerAgentComputerTool } from '../tools/agent-computer-tool.ts';
 import { registerAgentContextTool } from '../tools/agent-context-tool.ts';
 import { registerAgentDelegationTool } from '../tools/agent-delegation-tool.ts';
 import { registerAgentDeviceTool } from '../tools/agent-device-tool.ts';
-import { installPhoneDeviceTool } from './phone-device-install.ts';
 import { registerAgentExecutionTool } from '../tools/agent-execution-tool.ts';
 import { registerAgentHarnessTool } from '../tools/agent-harness-tool.ts';
 import { registerAgentHostTool } from '../tools/agent-host-tool.ts';
@@ -576,6 +576,15 @@ export async function bootstrapRuntime(
   // if one shows up, and hand back to local (deactivate) the moment a PREVIOUSLY
   // adopted daemon stops answering — never guess and keep routing to a dead wire.
   let memorySpineHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  //
+  // Inbound continuation dispatch rides the SAME adoption edge. It has to: the
+  // wire dispatch polls `sessions.inputs.list` on the adopted daemon, and there
+  // is nothing to poll until one is adopted. `onAttach` fires exactly on the
+  // transition INTO adoption, so activating there is idempotent per attach and
+  // re-activates for free when a daemon comes back after a loss; the detach side
+  // deactivates so the poller stops dialing a dead wire while keeping the bound
+  // runner for the next attach.
+  const sessionInputsClient = createAgentSessionInputsClient(services.daemonVerbs);
   const reconcileMemorySpine = (): Promise<void> => reconcileMemorySpineAdoption({
     memorySpineClient: services.memorySpineClient,
     transport: services.memorySpineTransport,
@@ -585,7 +594,11 @@ export async function bootstrapRuntime(
     // from X to Y") only to a ?receipts=consume read, and this adoption edge is
     // exactly where the agent (re)attaches to a daemon. The plain liveness probe
     // stays receipt-neutral.
-    onAttach: () => services.consumeDaemonReceipts(),
+    onAttach: () => {
+      services.sessionBroker.activate(sessionInputsClient);
+      return services.consumeDaemonReceipts();
+    },
+    onDetach: () => services.sessionBroker.deactivate('the connected host stopped answering'),
   });
   deferredStartup.schedule({
     label: 'memory-spine',

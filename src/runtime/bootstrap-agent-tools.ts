@@ -44,7 +44,7 @@ import { registerAgentVibeTool } from '../tools/agent-vibe-tool.ts';
 import { registerAgentWorkspaceTool } from '../tools/agent-workspace-tool.ts';
 import { compactRegisteredToolDefinitions } from '../tools/tool-definition-compaction.ts';
 import { wireCapabilityIndex } from './bootstrap-capability-wiring.ts';
-import { installPhoneDeviceTool } from './phone-device-install.ts';
+import { registerClientPhoneTool } from '@pellux/goodvibes-sdk/platform/runtime/client';
 
 export interface AgentToolRegistrationDeps {
   readonly toolRegistry: ToolRegistry;
@@ -85,17 +85,20 @@ export function registerAgentTools(deps: AgentToolRegistrationDeps): void {
   registerAgentContextTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDelegationTool(toolRegistry, commandRegistry, commandContext);
   registerAgentDeviceTool(toolRegistry, commandRegistry, commandContext);
-  // Paired-phone capabilities: registers the `phone` tool and sweeps its
-  // persisted grants and captures at startup and on the configured interval.
-  installPhoneDeviceTool({
-    toolRegistry,
-    gatewayMethods: services.gatewayMethods,
-    distributedRuntime: services.distributedRuntime,
-    approvals: services.approvalBroker,
-    configManager,
-    stateDirectory: services.shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'devices'),
-    getSessionId: deps.getSessionId,
-  });
+  // Paired-phone capabilities. The TOOL is registered here because the loop that
+  // calls it runs here; the RUNTIME behind it — the grants ledger, the capture
+  // store, the housekeeping sweeps, the confirmation prompt, every `device.*`
+  // gate — is the daemon's, reached over the `devices.*` verbs.
+  //
+  // It has to be the daemon's: a phone pairs with the daemon, a grant must
+  // outlive the terminal window that approved it, and the sweep that reaps a
+  // grant whose phone is gone has to run with nobody watching. This process used
+  // to compose a second device-posture runtime writing the same grants ledger,
+  // which is the second-writer hazard the split exists to end — and it also
+  // registered `devices.*` handlers on a catalog nothing outside this process
+  // can call, so the web app's grants surface was never being served from here
+  // in the first place.
+  registerClientPhoneTool(toolRegistry, services.devicesClient);
   registerAgentExecutionTool(toolRegistry, commandRegistry, commandContext);
   registerAgentHostTool(toolRegistry, commandRegistry, commandContext);
   registerAgentMemoryTool(toolRegistry, commandRegistry, commandContext);

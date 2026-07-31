@@ -1,4 +1,5 @@
 import { isSecretRefInput, isDaemonOwnedConfigKey } from '@pellux/goodvibes-sdk/platform/config';
+import { routeDaemonOwnedCredentialWrite } from './daemon-credential-routing.ts';
 import type { ConfigKey } from './index.ts';
 import type { SecretScope, SecretStorageMedium } from './secrets.ts';
 
@@ -146,6 +147,19 @@ export async function persistSecretBackedConfigValue(
   options: { readonly scope?: SecretScope } = {},
 ): Promise<string> {
   const update = buildSecretBackedConfigUpdate(configKey, rawValue);
+  // A credential the DAEMON executes with is written by the daemon, as one
+  // verified pair: value first, read back, then the config reference. Doing
+  // the two halves from here is what split the pair once the daemon became a
+  // separate process. An unreachable daemon REJECTS — see
+  // daemon-credential-routing.ts for why there is no local fallback.
+  //
+  // An explicit `scope` overrides this: a caller that names a tier is naming a
+  // local tier deliberately (the payments containment tests do), and honouring
+  // it keeps that an available, visible choice rather than a silent one.
+  if (options.scope === undefined) {
+    const routed = await routeDaemonOwnedCredentialWrite(configKey, rawValue);
+    if (routed?.appliedBy === 'daemon') return update.configValue;
+  }
   const scope = options.scope ?? defaultSecretBackedScope(configKey);
   const medium = getSecretWriteMedium(configManager.get('storage.secretPolicy'));
 

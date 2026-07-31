@@ -8,6 +8,11 @@ import { getResolvedSettingLookup } from '@/runtime/index.ts';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
 import { buildGoodVibesSecretKey, defaultSecretBackedScope, isSecretConfigKey } from '../config/secret-config.ts';
 import {
+  agentDaemonConfigClientInstalled,
+  isDaemonOwnedConfigKey,
+  routeDaemonOwnedConfigWrite,
+} from '../config/daemon-config-routing.ts';
+import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
   moneyEditBufferValue,
@@ -568,6 +573,9 @@ export class SettingsModal {
         configManager: this.configManager,
         secretsManager: this.secretsManager,
         setConfigValue: (key, value) => this._setValue(key, value),
+        onWriteReported: (report) => {
+          this.lastSettingEffectMessage = report.message;
+        },
       });
     } else {
       this._setValue(setting.key, parsed);
@@ -763,6 +771,28 @@ export class SettingsModal {
   private _setValue(key: ConfigKey, value: unknown): void {
     if (!this.configManager) return;
     const previousValue = this.configManager.get(key);
+    // A setting the DAEMON acts on is written where it is acted on. Writing it
+    // into this process's own store is the defect this routing exists to end:
+    // the modal accepted the value, reported success, and configured nothing,
+    // because the runtime that reads the key reads a different file.
+    //
+    // This runs before the local write and returns instead of it, so a
+    // daemon-owned key never has two writers. The modal cannot await from a
+    // keystroke handler, so the outcome lands on `lastSettingEffectMessage` a
+    // moment later — including the refusal, which is the message that matters.
+    if (agentDaemonConfigClientInstalled() && isDaemonOwnedConfigKey(key)) {
+      this.lastSettingEffectMessage = 'Saving on the connected host…';
+      void routeDaemonOwnedConfigWrite(key, value)
+        .then(() => {
+          this.lastSettingEffectMessage = 'Applied by the connected host; it takes effect for every client.';
+          this._refreshAllEntries();
+        })
+        .catch((error) => {
+          logger.error('SettingsModal: the connected host refused a setting write', { key, error: summarizeError(error) });
+          this.lastSettingEffectMessage = `Save failed: ${summarizeError(error)}`;
+        });
+      return;
+    }
     try {
       this.configManager.setDynamic(key, value);
       for (const entries of this.groups.values()) {
