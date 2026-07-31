@@ -13,7 +13,7 @@ import { routineScheduleReceiptStorePath } from '../../agent/routine-schedule-re
 import { AgentWorkspace } from '../../input/agent-workspace.ts';
 import type { CommandContext } from '../../input/command-registry.ts';
 import { renderAgentWorkspace } from '../../renderer/agent-workspace.ts';
-import type { Line } from '../../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { createShellPathService } from '@/runtime/index.ts';
 import type { ArtifactDescriptor } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ConfigSetting } from '@pellux/goodvibes-sdk/platform/config';

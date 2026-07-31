@@ -5,7 +5,7 @@
  * roomy workspace with contextual documentation, not a cramped modal list.
  */
 
-import type { Line } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import type { SettingsModal, SettingEntry, FlagEntry, McpEntry, SubscriptionEntry, SettingsCategory } from '../input/settings-modal.ts';
 import { SETTINGS_CATEGORIES, SETTINGS_CATEGORY_GROUPS } from '../input/settings-modal.ts';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';

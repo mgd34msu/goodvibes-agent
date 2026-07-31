@@ -5,7 +5,7 @@
  */
 import { describe, expect, test } from 'bun:test';
 import { buildActivitySidebarLines, buildSidebarAgentRows } from '../../renderer/activity-sidebar.ts';
-import type { Line } from '../../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 
 function textOf(line: Line): string {
   return line.map((cell) => cell.char).join('');

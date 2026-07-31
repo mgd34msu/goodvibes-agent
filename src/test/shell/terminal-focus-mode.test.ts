@@ -20,7 +20,7 @@ import {
   installFocusModeExitGuard,
   wrapRequestPermissionWithApprovalAlert,
 } from '../../shell/terminal-focus-mode.ts';
-import { FocusTracker } from '../../core/focus-tracker.ts';
+import { FocusTracker } from '@/runtime/index.ts';
 import type { PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
 
 describe('FOCUS_ENABLE / FOCUS_DISABLE constants', () => {

@@ -45,7 +45,7 @@
  */
 import { logger, notifyCompletion, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { PermissionRequestHandler, PermissionPromptRequest } from '@pellux/goodvibes-sdk/platform/permissions';
-import type { FocusTracker } from '../core/focus-tracker.ts';
+import type { FocusTracker } from '@/runtime/index.ts';
 
 import { FOCUS_DISABLE } from '../renderer/terminal-escapes.ts';
 export { FOCUS_ENABLE, FOCUS_DISABLE } from '../renderer/terminal-escapes.ts';

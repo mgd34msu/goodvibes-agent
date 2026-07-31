@@ -7,7 +7,7 @@ import type {
 } from '../input/agent-workspace.ts';
 import type { AgentWorkspaceEditorKind } from '../input/agent-workspace-types.ts';
 import type { AgentWorkspaceSetupChecklistItem } from '../input/agent-workspace-setup.ts';
-import type { Line } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { wrapText } from '../utils/terminal-width.ts';
 import { GLYPHS } from './ui-primitives.ts';
 import {

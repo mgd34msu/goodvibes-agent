@@ -12,8 +12,8 @@
  * stay in the conversation and the Agent workspace.
  */
 
-import type { Line } from '../types/grid.ts';
-import { createEmptyLine } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
+import { createEmptyLine } from '@pellux/goodvibes-sdk/platform/types';
 import type { ActivityEntry, ActivityKind } from '../core/activity-feed.ts';
 import {
   DEFAULT_PANEL_PALETTE,

@@ -24,7 +24,7 @@ import { createTaskManager } from '@/runtime/index.ts';
 import type { SystemMessageRouter } from '../core/system-message-router.ts';
 import { emitSessionReady, emitSessionStarted } from '@/runtime/index.ts';
 import { loadLastConversation } from '@/runtime/index.ts';
-import { bindWriteLastSessionPointerToSurface } from './session-pointer-surface.ts';
+import { bindWriteLastSessionPointerToSurface } from '@/runtime/index.ts';
 import { scheduleBackgroundMcpDiscovery } from '@/runtime/index.ts';
 import { restoreSavedModel } from '@/runtime/index.ts';
 import { startDurabilityHousekeeping } from '@/runtime/index.ts';
@@ -425,7 +425,7 @@ export async function bootstrapRuntime(
   const opsTaskManager = createTaskManager(store, runtimeBus, userSessionId, services.featureFlags);
 
   // Surface-bound closure, not the raw multi-arg SDK function — see
-  // session-pointer-surface.ts for why that distinction is load-bearing.
+  // the SDK's bindWriteLastSessionPointerToSurface for why that matters.
   const writeLastSessionPointerForSurface = bindWriteLastSessionPointerToSurface(services.surface);
   // Same idiom, same surface: /session resume reloads the resumed session's
   // anchor sidecar so a rewind can still reach turns recorded before the

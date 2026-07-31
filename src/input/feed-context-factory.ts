@@ -36,7 +36,7 @@ import type { WrappedPromptInfo } from './handler-prompt-buffer.ts';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
 import type { PanelBurstGuardState } from './panel-paste-flood-guard.ts';
-import type { FocusTracker } from '../core/focus-tracker.ts';
+import type { FocusTracker } from '@/runtime/index.ts';
 
 /**
  * Initial mutable scalar values for InputFeedContext.
@@ -97,7 +97,7 @@ export interface FeedContextStableRefs {
   imageRegistry: Map<string, { data: string; mediaType: string }>;
   /** Ported from goodvibes-tui's unbracketed-paste-flood guard; mutated in place, never reallocated. */
   burstGuard: PanelBurstGuardState;
-  /** OS-level terminal focus tracker, ported from goodvibes-tui's core/focus-tracker.ts. */
+  /** OS-level terminal focus tracker (SDK platform/runtime). */
   focusTracker: FocusTracker;
   projectRoot: string;
   selectionModal: SelectionModal;

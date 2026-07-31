@@ -175,7 +175,7 @@ export interface CommandSessionServices {
   /**
    * Writes the surface-scoped last-session pointer file. Bound once at
    * bootstrap to the runtime's SessionSurface (see
-   * runtime/session-pointer-surface.ts's bindWriteLastSessionPointerToSurface)
+   * the SDK's bindWriteLastSessionPointerToSurface)
    * so this command layer never has to re-derive the surface itself. Called
    * at the moment runtime.sessionId changes to a session the user explicitly
    * homed the live session on (/session resume, /session fork) so the next

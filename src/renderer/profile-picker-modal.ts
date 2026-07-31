@@ -7,7 +7,7 @@
  * Footer hints: [Up/Down] Navigate  [Enter] Load  [Esc] Close
  */
 
-import type { Line } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import type { ProfilePickerModal } from '../input/profile-picker-modal.ts';
 import { renderProfilePickerStatePackageText } from '../input/profile-picker-modal.ts';

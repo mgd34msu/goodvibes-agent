@@ -18,7 +18,7 @@
  * byte-honest about what this app's expand toggle really reveals.
  */
 
-import type { Line } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { renderMarkdownTracked } from './markdown.ts';
 
 /** True when `content` looks like a unified diff (matches the detection used

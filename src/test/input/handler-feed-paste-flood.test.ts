@@ -156,7 +156,7 @@ describe('feedInputTokens — command-mode key-dispatch flood guard', () => {
   });
 });
 
-describe("feedInputTokens — OS focus tokens (ported from goodvibes-tui's focus tracker)", () => {
+describe('feedInputTokens — OS focus tokens', () => {
   test('a focus-in/focus-out escape sequence updates the shared FocusTracker and never reaches the composer', () => {
     const printed: string[] = [];
     const ih = makeInput(printed);

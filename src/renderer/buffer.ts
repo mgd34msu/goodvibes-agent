@@ -1,4 +1,4 @@
-import { type Line, type Cell, createEmptyLine, createEmptyCell } from '../types/grid.ts';
+import { type Line, type Cell, createEmptyLine, createEmptyCell } from '@pellux/goodvibes-sdk/platform/types';
 
 const CELL_KEYS: readonly (keyof Cell)[] = ['char', 'fg', 'bg', 'bold', 'dim', 'underline', 'italic', 'strikethrough', 'link'];
 

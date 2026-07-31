@@ -8,7 +8,7 @@
  * type-only, which is what makes this a leaf of the import graph.
  */
 
-import type { Line } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import type { SplashOptions } from '../utils/splash-lines.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { AssistantTurnMembership } from './conversation-turn-structure.ts';

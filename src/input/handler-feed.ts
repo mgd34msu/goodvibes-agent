@@ -38,7 +38,7 @@ import { SelectionManager } from './selection.ts';
 import type { KeybindingsManager } from './keybindings.ts';
 import type { ModelPickerTarget } from './model-picker.ts';
 import { trackPanelPasteFloodGuard, type PanelBurstGuardState } from './panel-paste-flood-guard.ts';
-import type { FocusTracker } from '../core/focus-tracker.ts';
+import type { FocusTracker } from '@/runtime/index.ts';
 
 /**
  * InputFeedContext — The single long-lived context object passed to feedInputTokens
@@ -70,7 +70,7 @@ import type { FocusTracker } from '../core/focus-tracker.ts';
  *     Never reallocated. `burstSuppressedCount` is this wiring layer's own
  *     bookkeeping (not part of the ported module) for the honest resolution
  *     notice — see feedInputTokens below.
- *   - `focusTracker` (ported from goodvibes-tui's core/focus-tracker.ts) — tracks OS-level
+ *   - `focusTracker` (the SDK's FocusTracker) — tracks OS-level
  *     terminal focus from `\x1b[I`/`\x1b[O` tokens (DECSET ?1004h, enabled in
  *     main.ts). Shared instance from RuntimeServices, threaded via
  *     uiServices.platform.focusTracker (mirrors the TUI's own wiring).
@@ -109,7 +109,7 @@ export interface InputFeedContext {
   readonly burstGuard: PanelBurstGuardState;
   /** Wiring-layer bookkeeping (not part of the ported module) for the honest suppressed-count notice. */
   burstSuppressedCount: number;
-  /** Ported from goodvibes-tui's focus tracker — OS-level terminal focus, fed from 'focus' tokens below. */
+  /** OS-level terminal focus, fed from the 'focus' tokens below. */
   readonly focusTracker: FocusTracker;
   readonly projectRoot: string;
   readonly selection: SelectionManager;
@@ -189,7 +189,7 @@ export function feedInputTokens(context: InputFeedContext, tokens: readonly Inpu
   const now = Date.now();
 
   for (const token of tokens) {
-    // Ported from goodvibes-tui's focus tracking: focus-reporting tokens (CSI ?1004h)
+    // Focus-reporting tokens (CSI ?1004h)
     // never reach the composer or any modal route — consumed here, first,
     // unconditionally. No render needed.
     if (token.type === 'focus') {

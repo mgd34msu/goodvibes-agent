@@ -11,7 +11,7 @@
  */
 
 import { UIFactory, type ThinkingStallInfo } from '../renderer/ui-factory.ts';
-import type { Line } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import type { Orchestrator } from './orchestrator.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 

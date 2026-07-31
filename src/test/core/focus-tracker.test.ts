@@ -1,5 +1,5 @@
 /**
- * Tests for src/core/focus-tracker.ts
+ * Tests for the SDK's FocusTracker, as this product feeds it.
  *
  * Covers:
  * - isFocused() starts null (unknown)
@@ -8,7 +8,7 @@
  * - shouldAlertWhenUnfocused(): true for null and false, false only for true
  */
 import { describe, test, expect } from 'bun:test';
-import { FocusTracker } from '../../core/focus-tracker.ts';
+import { FocusTracker } from '@/runtime/index.ts';
 
 describe('FocusTracker', () => {
   test('isFocused() starts null (unknown)', () => {

@@ -12,7 +12,7 @@ import type { shell as RuntimeShell, bootstrap as RuntimeBootstrap } from '@pell
 import { applyRawSecretLiteralHandling, type SecretsManager } from '../config/secrets.ts';
 import { readCheckpointGuardSettings, readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
 import { backfillCheckpointEligibilityIfNeeded, createWorkspaceRegistrationLiveChecker, migrateLegacyWorkspaceRegistryIfNeeded } from '../config/workspace-registration.ts';
-import { FocusTracker } from '../core/focus-tracker.ts';
+import { FocusTracker } from '@/runtime/index.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';
 import { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { AutomationDeliveryManager, AutomationManager, AutomationRouteStore } from '@pellux/goodvibes-sdk/platform/automation';
@@ -686,7 +686,7 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   readonly worktreeRegistry: WorktreeRegistry;
   readonly sandboxSessionRegistry: SandboxSessionRegistry;
   readonly webhookNotifier: WebhookNotifier;
-  /** OS-level terminal focus tracker, ported from goodvibes-tui's core/focus-tracker.ts. */
+  /** OS-level terminal focus tracker (SDK platform/runtime). */
   readonly focusTracker: FocusTracker;
   readonly replayEngine: DeterministicReplayEngine;
   readonly providerOptimizer: ProviderOptimizer;

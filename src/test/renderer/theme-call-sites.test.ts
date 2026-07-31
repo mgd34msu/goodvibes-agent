@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { renderMarkdown } from '../../renderer/markdown.ts';
 import { resolveTheme, setActiveThemeMode } from '../../renderer/theme.ts';
-import type { Line } from '../../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 
 afterEach(() => setActiveThemeMode('dark'));
 

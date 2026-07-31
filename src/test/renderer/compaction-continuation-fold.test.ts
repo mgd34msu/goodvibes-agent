@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { appendConversationMessages } from '../../core/conversation-rendering.ts';
 import { COMPACTION_HANDOFF_HEADER } from '@pellux/goodvibes-sdk/platform/core';
-import type { Line } from '../../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { lineToString } from '../setup.ts';
 
 // ---------------------------------------------------------------------------

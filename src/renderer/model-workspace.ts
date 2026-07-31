@@ -10,8 +10,8 @@ import type { ModelPickerModal } from '../input/model-picker.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { isLocalFitRecommendation, isProviderSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { estimateModelBytes, fitAssessment, fitVerdictLabel, paramCountFromModel, readHardwareProfileSync, REPRESENTATIVE_7B_PARAMS } from '../core/hardware-profile.ts';
-import type { Line } from '../types/grid.ts';
-import { createStyledCell } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
+import { createStyledCell } from '@pellux/goodvibes-sdk/platform/types';
 import { getDisplayWidth, wrapText } from '../utils/terminal-width.ts';
 import { GLYPHS, UI_TONES } from './ui-primitives.ts';
 import {

@@ -7,7 +7,7 @@
  * Footer hints: [Enter] Load  [Esc] Close
  */
 
-import type { Line } from '../types/grid.ts';
+import type { Line } from '@pellux/goodvibes-sdk/platform/types';
 import { ModalFactory } from './modal-factory.ts';
 import type { SessionPickerModal } from '../input/session-picker-modal.ts';
 import { renderSessionPickerStatePackageText } from '../input/session-picker-modal.ts';

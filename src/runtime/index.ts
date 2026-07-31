@@ -297,6 +297,11 @@ export const startDurabilityHousekeeping = operations.startDurabilityHousekeepin
 // the PATH shadow scan, the install-kind answer it depends on, and the wording
 // it produces. A product supplies its own command/package name and release
 // lookup (runtime/path-shadow-startup.ts) and nothing else.
+// OS-level terminal focus, from the focus-reporting tokens a host feeds it.
+export const FocusTracker = operations.FocusTracker;
+// The last-session pointer writer, bound to one SessionSurface so a caller in a
+// (sessionId) => void slot cannot silently drop the surface argument.
+export const bindWriteLastSessionPointerToSurface = operations.bindWriteLastSessionPointerToSurface;
 export const detectInstallKind = operations.detectInstallKind;
 export const announceReachability = operations.announceReachability;
 export const boundedLatestRelease = operations.boundedLatestRelease;
@@ -367,6 +372,7 @@ export type StrategyInput = Operations.StrategyInput;
 export type StrategyOutput = Operations.StrategyOutput;
 export type DistributedRuntimeSnapshotStore = Operations.DistributedRuntimeSnapshotStore;
 export type RemoteRunnerRegistry = Operations.RemoteRunnerRegistry;
+export type FocusTracker = Operations.FocusTracker;
 export type RemoteSupervisor = Operations.RemoteSupervisor;
 export type DistributedRuntimeManager = Operations.DistributedRuntimeManager;
 export type RuntimeTransitionResult = Operations.RuntimeTransitionResult;

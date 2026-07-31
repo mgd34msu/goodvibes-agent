@@ -1,7 +1,7 @@
 import type { AgentWorkspace } from '../input/agent-workspace.ts';
 import type { CompositeRequest } from '../renderer/compositor.ts';
 import { renderAgentWorkspace } from '../renderer/agent-workspace.ts';
-import { type Line, createEmptyLine } from '../types/grid.ts';
+import { type Line, createEmptyLine } from '@pellux/goodvibes-sdk/platform/types';
 
 function normalizeFullscreenViewport(lines: readonly Line[], width: number, height: number): Line[] {
   const viewport = lines.slice(0, height).map((line) => {
