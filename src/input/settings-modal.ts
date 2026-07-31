@@ -7,11 +7,7 @@ import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config'
 import { getResolvedSettingLookup } from '@/runtime/index.ts';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
 import { buildGoodVibesSecretKey, defaultSecretBackedScope, isSecretConfigKey } from '../config/secret-config.ts';
-import {
-  agentDaemonConfigClientInstalled,
-  isDaemonOwnedConfigKey,
-  routeDaemonOwnedConfigWrite,
-} from '../config/daemon-config-routing.ts';
+import { routeSettingWriteToConnectedHost } from './settings-modal-daemon-writes.ts';
 import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
@@ -25,6 +21,8 @@ import {
   type SettingsSecretsManager,
 } from './settings-modal-secrets.ts';
 import { buildSubscriptionEntries } from './settings-modal-subscriptions.ts';
+import { buildMcpEntries } from './settings-modal-mcp-entries.ts';
+import { buildFlagEntries } from './settings-modal-flag-entries.ts';
 import {
   coerceThemeModeSetting,
   THEME_MODE_CONFIG_KEY,
@@ -707,45 +705,11 @@ export class SettingsModal {
    * bound domain settings key.
    */
   private _loadFlagEntries(): void {
-    if (!this.configManager) {
-      this.flagEntries = [];
-      return;
-    }
-    const configManager = this.configManager;
-    const managerStates = this.featureFlagManager?.getAll() ?? null;
-    this.flagEntries = FEATURE_SETTINGS
-      .map((feature, declarationIndex) => {
-        const managed = managerStates?.get(feature.id);
-        const derivedState: FlagState = isFeatureEnabledInConfig(configManager, feature.id) ? 'enabled' : 'disabled';
-        return {
-          entry: {
-            feature,
-            state: managed?.state ?? derivedState,
-            enablementValue: String(configManager.get(feature.enablement.key)),
-          },
-          declarationIndex,
-        };
-      })
-      .sort((left, right) => (
-        left.entry.feature.domain.localeCompare(right.entry.feature.domain)
-        || left.declarationIndex - right.declarationIndex
-      ))
-      .map(({ entry }) => entry);
+    this.flagEntries = buildFlagEntries(this.configManager, this.featureFlagManager);
   }
 
   private _loadMcpEntries(): void {
-    if (!this.mcpRegistry) {
-      this.mcpEntries = [];
-      return;
-    }
-    this.mcpEntries = this.mcpRegistry.listServerSecurity().map((entry) => ({
-      name: entry.name,
-      connected: entry.connected,
-      role: entry.role,
-      trustMode: entry.trustMode,
-      allowedPaths: [...entry.allowedPaths],
-      allowedHosts: [...entry.allowedHosts],
-    }));
+    this.mcpEntries = buildMcpEntries(this.mcpRegistry);
   }
 
   private _loadSubscriptionEntries(): void {
@@ -780,19 +744,11 @@ export class SettingsModal {
     // daemon-owned key never has two writers. The modal cannot await from a
     // keystroke handler, so the outcome lands on `lastSettingEffectMessage` a
     // moment later — including the refusal, which is the message that matters.
-    if (agentDaemonConfigClientInstalled() && isDaemonOwnedConfigKey(key)) {
-      this.lastSettingEffectMessage = 'Saving on the connected host…';
-      void routeDaemonOwnedConfigWrite(key, value)
-        .then(() => {
-          this.lastSettingEffectMessage = 'Applied by the connected host; it takes effect for every client.';
-          this._refreshAllEntries();
-        })
-        .catch((error) => {
-          logger.error('SettingsModal: the connected host refused a setting write', { key, error: summarizeError(error) });
-          this.lastSettingEffectMessage = `Save failed: ${summarizeError(error)}`;
-        });
-      return;
-    }
+    const routed = routeSettingWriteToConnectedHost(key, value, (update) => {
+      this.lastSettingEffectMessage = update.message;
+      if (update.ok) this._refreshAllEntries();
+    });
+    if (routed) return;
     try {
       this.configManager.setDynamic(key, value);
       for (const entries of this.groups.values()) {
