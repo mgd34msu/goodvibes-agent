@@ -49,8 +49,28 @@ export interface DaemonInvokeFailure {
 
 export type DaemonInvokeResult = DaemonInvokeSuccess | DaemonInvokeFailure;
 
+export interface DaemonInvokeOptions {
+  /**
+   * Whether a person asked for this, right now.
+   *
+   * The daemon's confirmation gate wants two things: `confirm: true` in the
+   * body, saying the CALL was reviewed, and this, saying a person asked. It
+   * travels as the `x-goodvibes-explicit-user-request` header. Set it only
+   * where that is true — a store syncing itself in the background is honestly
+   * not a user request and should not claim to be one.
+   */
+  readonly explicitUserRequest?: boolean;
+}
+
 /** The one call shape every daemon-backed store in this product depends on. */
-export type DaemonOperatorInvoke = (methodId: string, input?: JsonRecord) => Promise<DaemonInvokeResult>;
+export type DaemonOperatorInvoke = (
+  methodId: string,
+  input?: JsonRecord,
+  options?: DaemonInvokeOptions,
+) => Promise<DaemonInvokeResult>;
+
+/** The header the daemon reads the explicit-user-request claim from. */
+export const EXPLICIT_USER_REQUEST_HEADER = 'x-goodvibes-explicit-user-request';
 
 export interface DaemonOperatorConnection {
   readonly baseUrl: string;
@@ -125,7 +145,7 @@ export function createDaemonOperatorInvoke(
   resolveConnection: () => DaemonOperatorConnection,
   fetchImpl: FetchLike = fetch,
 ): DaemonOperatorInvoke {
-  return async (methodId, input = {}) => {
+  return async (methodId, input = {}, options = {}) => {
     let request: ReturnType<typeof prepareOperatorRequest>;
     try {
       request = prepareOperatorRequest(methodId, input);
@@ -159,6 +179,9 @@ export function createDaemonOperatorInvoke(
         headers: {
           authorization: `Bearer ${connection.token}`,
           ...(isRead ? {} : { 'content-type': 'application/json' }),
+          ...(options.explicitUserRequest === undefined
+            ? {}
+            : { [EXPLICIT_USER_REQUEST_HEADER]: String(options.explicitUserRequest) }),
         },
         ...(isRead ? {} : { body: JSON.stringify(request.payload) }),
       });

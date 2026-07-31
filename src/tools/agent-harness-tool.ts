@@ -766,7 +766,7 @@ export function createAgentHarnessTool(deps: AgentHarnessToolDeps): Tool {
         }
         if (args.mode === 'channel_routing') return output(channelRoutingSummary(deps.commandContext, args));
         if (args.mode === 'channel_routing_assign') {
-          const result = channelRoutingAssignHandoff(deps.commandContext, args);
+          const result = await channelRoutingAssignHandoff(deps.commandContext, args);
           return typeof result === 'string' ? error(result) : output(result);
         }
         if (args.mode === 'channel_routing_remove') {

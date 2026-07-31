@@ -19,10 +19,32 @@ import {
   assignChannelToProfile,
   removeChannelProfileRoute,
   formatChannelProfileRoutes,
+  CHANNEL_ROUTING_ASSIGN_METHOD,
 } from '../agent/channel-profile-routing.ts';
 import { buildAgentWorkspaceChannelTriage } from '../input/agent-workspace-channel-triage.ts';
 import { deliverAgentChannelMessage } from '../agent/channel-delivery.ts';
 import { requireConfirmedAction } from './agent-harness-tool-utils.ts';
+import {
+  createDaemonOperatorInvoke,
+  resolveDaemonOperatorConnection,
+  type DaemonOperatorInvoke,
+} from '../agent/daemon-operator-client.ts';
+
+/**
+ * The connected-host caller for the comms modes, or null when this shell has
+ * no platform to resolve one from.
+ *
+ * Null is not a failure state — it is a shell (a test harness, an early boot)
+ * with no daemon address to call. The stores treat it as "not offered" rather
+ * than as a daemon that refused, because those are different facts.
+ */
+function commsDaemonInvoke(context: CommandContext): DaemonOperatorInvoke | null {
+  const configManager = context.platform?.configManager;
+  const homeDirectory = context.workspace?.shellPaths?.homeDirectory;
+  if (!configManager || !homeDirectory) return null;
+  return createDaemonOperatorInvoke(() =>
+    resolveDaemonOperatorConnection(configManager, homeDirectory));
+}
 
 /** Redact a draft's webhook (which can embed a token) in any structured display payload. */
 function redactDraftWebhook<T extends { readonly webhook?: string }>(draft: T): T {
@@ -310,10 +332,10 @@ export function channelRoutingSummary(
 // ROUTING — channel_routing_assign (effect)
 // ---------------------------------------------------------------------------
 
-export function channelRoutingAssignHandoff(
+export async function channelRoutingAssignHandoff(
   context: CommandContext,
   args: AgentHarnessCommsArgs,
-): Record<string, unknown> | string {
+): Promise<Record<string, unknown> | string> {
   const confirmationError = requireConfirmedAction(args, 'Channel routing assignment');
   if (confirmationError) return confirmationError;
 
@@ -325,24 +347,31 @@ export function channelRoutingAssignHandoff(
   const profileId = readString(args.profileId);
   if (!profileId) return 'channel_routing_assign requires profileId.';
 
-  const result = assignChannelToProfile(shellPaths, {
-    surfaceKind,
-    routeId: readOptString(args.draftRoute),
-    profileId,
-    label: readOptString(args.routeLabel),
-  });
+  const invoke = commsDaemonInvoke(context);
+  const result = await assignChannelToProfile(
+    shellPaths,
+    {
+      surfaceKind,
+      routeId: readOptString(args.draftRoute),
+      profileId,
+      label: readOptString(args.routeLabel),
+    },
+    invoke ? { invoke } : {},
+  );
 
   return {
     mode: 'channel_routing_assign',
     created: result.created,
     route: result.route,
     path: result.path,
-    daemonMethodNeeded: result.route.daemonMethodNeeded,
+    daemon: result.daemon,
     routes: {
       list: 'agent_harness mode:"channel_routing"',
       remove: 'agent_harness mode:"channel_routing_remove" draftRoute:"' + (result.route.routeId ?? '') + '" surfaceKind:"' + surfaceKind + '"',
     },
-    policy: 'Assignment saved locally (daemonSyncState: local_only). Daemon sync pending channels.routing.assign method publication.',
+    policy: result.daemon.synced
+      ? 'Assignment held by the daemon and mirrored locally, so every surface routes the same way.'
+      : `Assignment saved locally and awaiting the daemon (${CHANNEL_ROUTING_ASSIGN_METHOD}): ${result.daemon.error}`,
   };
 }
 
