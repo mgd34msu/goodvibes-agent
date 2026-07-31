@@ -218,6 +218,11 @@ import { AgentExecutionLedger } from './execution-ledger.ts';
 import { attachAgentSessionWriteLedger, clearAgentSessionWrites } from '../tools/agent-session-write-ledger.ts';
 import { VERSION } from '../version.ts';
 import { ClientBuildGuard } from './client-build-compatibility.ts';
+import {
+  AGENT_DAEMON_BUILD_FLOOR,
+  DaemonBuildGuard,
+  readDaemonStatusPayload,
+} from './daemon-build-compatibility.ts';
 
 type WorktreeRegistry = RuntimeShell.WorktreeRegistry;
 // The SDK's FULL runtime-services shape. This graph is no longer that shape and
@@ -1105,7 +1110,31 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // liveness probe below stays plain and a SEPARATE consuming read runs once
   // per attach (bootstrap wires this to the memory-spine reconciler's onAttach).
   const spineReceiptConsumer = createSessionSpineReceiptConsumer({ resolveConnection: spineResolveConnection });
+  // The reverse of the client floor below: this process judging the daemon it
+  // attached to. A daemon too old to serve a verb this build depends on shows
+  // up as one call returning 400 or 404, which reads as a broken feature rather
+  // than as an old daemon — so the build is checked once per attach and the
+  // owner is told in the same feed the forward guard uses. The floor this
+  // product declares is currently unset; see runtime/daemon-build-compatibility.ts
+  // for why that is a decision with a release note attached.
+  const daemonBuildGuard = new DaemonBuildGuard({
+    floor: AGENT_DAEMON_BUILD_FLOOR,
+    onDaemonUpdateRequired: (verdict) => {
+      logger.warn('the attached daemon is older than this Agent build requires', {
+        daemonVersion: verdict.daemonVersion,
+        floor: verdict.floor,
+      });
+      daemonReceiptFeed.push([{ id: `daemon-build-floor:${verdict.floor ?? 'unknown'}`, text: verdict.message, at: Date.now() }]);
+    },
+  });
   const consumeDaemonReceipts = async (): Promise<void> => {
+    // Same attach, two reads of the same route: the consuming one that collects
+    // the daemon's one-shot receipts, and a plain one for the build it is
+    // running. Kept separate because `?receipts=consume` has a side effect and
+    // the build check must not be the thing that drains them.
+    const connection = spineResolveConnection();
+    const status = await readDaemonStatusPayload(connection);
+    if (status !== null) daemonBuildGuard.observeStatus(status, connection.baseUrl);
     const receipts = await spineReceiptConsumer();
     if (receipts.length > 0) daemonReceiptFeed.push(receipts);
   };
