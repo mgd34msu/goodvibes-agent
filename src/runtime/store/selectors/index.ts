@@ -13,7 +13,7 @@ import type { SessionDomainState } from '@/runtime/index.ts';
 import type { ModelDomainState } from '@/runtime/index.ts';
 import type { ConversationDomainState, TurnState } from '@/runtime/index.ts';
 import type { OverlayDomainState, OverlayId } from '@/runtime/index.ts';
-import type { PanelDomainState, PanelState } from '../domains/panels.ts';
+import type { PanelDomainState, PanelState } from '@/runtime/index.ts';
 import type { PermissionDomainState, PermissionMode } from '@/runtime/index.ts';
 import type { TaskDomainState, RuntimeTask, TaskKind } from '@/runtime/index.ts';
 import type { AgentDomainState, RuntimeAgent } from '@/runtime/index.ts';
@@ -27,7 +27,7 @@ import type { TelemetryDomainState } from '@/runtime/index.ts';
 import type { GitDomainState } from '@/runtime/index.ts';
 import type { DiscoveryDomainState } from '@/runtime/index.ts';
 import type { IntelligenceDomainState } from '@/runtime/index.ts';
-import type { UiPerfDomainState } from '../domains/ui-perf.ts';
+import type { UiPerfDomainState } from '@/runtime/index.ts';
 
 // ---------------------------------------------------------------------------
 // Primary domain selectors (one per domain)

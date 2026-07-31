@@ -10,7 +10,7 @@ import type { SessionDomainState } from '@/runtime/index.ts';
 import type { ModelDomainState } from '@/runtime/index.ts';
 import type { ConversationDomainState } from '@/runtime/index.ts';
 import type { OverlayDomainState } from '@/runtime/index.ts';
-import type { PanelDomainState } from './domains/panels.ts';
+import type { PanelDomainState } from '@/runtime/index.ts';
 import type { PermissionDomainState } from '@/runtime/index.ts';
 import type { TaskDomainState } from '@/runtime/index.ts';
 import type { AgentDomainState } from '@/runtime/index.ts';
@@ -32,7 +32,7 @@ import type { TelemetryDomainState } from '@/runtime/index.ts';
 import type { GitDomainState } from '@/runtime/index.ts';
 import type { DiscoveryDomainState } from '@/runtime/index.ts';
 import type { IntelligenceDomainState } from '@/runtime/index.ts';
-import type { UiPerfDomainState } from './domains/ui-perf.ts';
+import type { UiPerfDomainState } from '@/runtime/index.ts';
 // UiPerfDomainState is structurally identical to SDK's SurfacePerfDomainState.
 // Export as SurfacePerfDomainState alias for shared runtime callers.
 export type { UiPerfDomainState };
@@ -41,7 +41,7 @@ import { createInitialSessionState } from '@/runtime/index.ts';
 import { createInitialModelState } from '@/runtime/index.ts';
 import { createInitialConversationState } from '@/runtime/index.ts';
 import { createInitialOverlaysState } from '@/runtime/index.ts';
-import { createInitialPanelsState } from './domains/panels.ts';
+import { createInitialPanelsState } from '@/runtime/index.ts';
 import { createInitialPermissionsState } from '@/runtime/index.ts';
 import { createInitialTasksState } from '@/runtime/index.ts';
 import { createInitialAgentsState } from '@/runtime/index.ts';
@@ -63,7 +63,7 @@ import { createInitialTelemetryState } from '@/runtime/index.ts';
 import { createInitialGitState } from '@/runtime/index.ts';
 import { createInitialDiscoveryState } from '@/runtime/index.ts';
 import { createInitialIntelligenceState } from '@/runtime/index.ts';
-import { createInitialUiPerfState } from './domains/ui-perf.ts';
+import { createInitialUiPerfState } from '@/runtime/index.ts';
 
 /**
  * RuntimeState — the complete state shape managed by the runtime store.
