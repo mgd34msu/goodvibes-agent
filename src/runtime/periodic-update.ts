@@ -229,7 +229,14 @@ export interface StartPeriodicSelfUpdateParams {
      * a reason to keep this one from updating.
      */
     readonly hostedSessions: { countBusySessions(): number };
-    readonly approvalBroker: { listApprovals(): readonly { readonly status: string }[] };
+    /**
+     * Every ask waiting for this owner, from the daemon's record unioned with
+     * this process's own — NOT the local broker alone. An ask raised on this
+     * surface is recorded on the daemon, so the broker by itself reports zero
+     * while the owner has a prompt on screen, and the updater would swap the
+     * binary out from under it.
+     */
+    readonly approvalsView: { snapshot(): { readonly approvals: readonly { readonly status: string }[] } };
   };
   readonly notify: (line: string) => void;
   /**
@@ -281,7 +288,7 @@ export function startPeriodicSelfUpdate(params: StartPeriodicSelfUpdateParams): 
     settings,
     isIdle: () => agentIsIdleForUpdate({
       countBusySessions: () => params.services.hostedSessions.countBusySessions(),
-      listApprovals: () => params.services.approvalBroker.listApprovals(),
+      listApprovals: () => params.services.approvalsView.snapshot().approvals,
     }),
     notify: params.notify,
     // The restart is the caller's orderly exit with a hand-over step: teardown

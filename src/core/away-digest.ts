@@ -36,8 +36,20 @@ export interface AwayDigestInput {
   readonly schedules: readonly AwayDigestScheduleItem[];
   /** Tasks whose status changed since lastSeenAt. */
   readonly tasks: readonly AwayDigestTaskItem[];
-  /** Number of approvals currently waiting. */
+  /**
+   * Number of approvals currently waiting — the daemon's record unioned with
+   * whatever this process still holds, never one half of that.
+   */
   readonly pendingApprovals: number;
+  /**
+   * Why the daemon's approval record could not be read, when it could not.
+   *
+   * A count of zero from an unreadable list means "nobody could be asked", not
+   * "nothing is waiting", and those two must not print the same. When this is
+   * set the digest says so instead of silently omitting the approvals line.
+   * Null (or absent) means the record was read and the count is complete.
+   */
+  readonly approvalsUnavailableReason?: string | null | undefined;
   /** Optional channel deliveries since lastSeenAt. */
   readonly deliveries?: readonly AwayDigestDeliveryItem[];
   /**
@@ -189,10 +201,23 @@ export function buildAwayDigest(input: AwayDigestInput): AwayDigest | null {
     lines.push(`${deliveries.length} messages delivered`);
   }
 
+  // Nothing to report at all: stay silent. An unreadable approval record is not
+  // by itself news — the panel and /health approvals are where that is asked
+  // and answered, and announcing it at every launch of an agent with no host
+  // configured would be noise, not honesty.
   if (lines.length === 0) return null;
+
+  // But once the digest IS rendering, the approvals count in it must not be
+  // read as complete when it is not. The line goes LAST so it qualifies the
+  // count above rather than displacing anything, and it is emitted whether the
+  // count is zero or not — a short count and an absent one are equally
+  // misleading if the owner cannot tell which they are looking at.
+  const qualified = input.approvalsUnavailableReason
+    ? [...lines.slice(0, MAX_LINES - 1), `Approvals on the connected host could not be read, so any approval count above may be short: ${input.approvalsUnavailableReason}`]
+    : lines.slice(0, MAX_LINES);
 
   return {
     headline: 'While you were away',
-    lines: lines.slice(0, MAX_LINES),
+    lines: qualified,
   };
 }

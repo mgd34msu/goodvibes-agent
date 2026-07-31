@@ -172,7 +172,7 @@ describe('periodic self-update wiring', () => {
     // This process's OWN hosted sessions. A busy session on another surface
     // is not a reason to keep this binary from swapping itself out.
     hostedSessions: { countBusySessions: () => 0 },
-    approvalBroker: { listApprovals: () => [] },
+    approvalsView: { snapshot: () => ({ approvals: [] }) },
   };
 
   function configWith(update: Record<string, unknown>): { getRaw(): Record<string, unknown> } {

@@ -88,6 +88,43 @@ describe('buildAwayDigest', () => {
     expect(result!.lines[0]).toContain('3 approvals are waiting');
   });
 
+  // ── The approval count is qualified when it cannot be complete ────────────
+  // A count read off an unreachable daemon is short, and a short count and a
+  // complete one must not print identically.
+  test('an unreadable host record qualifies the approval count', () => {
+    const result = buildAwayDigest({
+      ...baseInput,
+      pendingApprovals: 1,
+      approvalsUnavailableReason: 'the connected host is disabled (daemon.enabled=false) — nothing to reach.',
+    });
+    expect(result).not.toBeNull();
+    expect(result!.lines[0]).toContain('1 approval is waiting');
+    expect(result!.lines.at(-1)).toContain('could not be read');
+    expect(result!.lines.at(-1)).toContain('daemon.enabled=false');
+  });
+
+  test('the qualifier is said even when the short count is zero, given the digest is rendering', () => {
+    const result = buildAwayDigest({
+      ...baseInput,
+      pendingApprovals: 0,
+      schedules: [{ name: 'Daily brief', runCount: 1, lastRunAt: Date.now() - 1_000 }],
+      approvalsUnavailableReason: 'the request failed (503): host unavailable',
+    });
+    expect(result).not.toBeNull();
+    expect(result!.lines.join('\n')).toContain('any approval count above may be short');
+    expect(result!.lines.join('\n')).toContain('503');
+  });
+
+  test('an unreadable host record alone is not news: a digest with nothing else stays silent', () => {
+    // Otherwise an agent with no host configured would announce this at every
+    // single launch. `/health approvals` is where that question gets asked.
+    const result = buildAwayDigest({
+      ...baseInput,
+      approvalsUnavailableReason: 'the connected host is disabled (daemon.enabled=false) — nothing to reach.',
+    });
+    expect(result).toBeNull();
+  });
+
   test('single completed task', () => {
     const result = buildAwayDigest({
       ...baseInput,

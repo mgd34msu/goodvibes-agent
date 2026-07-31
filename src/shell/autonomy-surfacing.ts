@@ -52,7 +52,18 @@ export interface AutonomySurfacingOptions {
    * automation manager.
    */
   readonly listAutomationRunsSince: (since: number) => Promise<AutomationRunsSinceResult>;
+  /**
+   * Every ask waiting for this owner — the daemon's record unioned with the
+   * asks still held in this process, NOT the local broker alone. A surface
+   * counting only its own broker reports zero while the daemon holds three.
+   */
   readonly listApprovals: () => readonly ApprovalLike[];
+  /**
+   * Why the daemon's approval record could not be read, when it could not, so
+   * the digest can say that instead of counting an unreadable list as zero.
+   * Returns null when the record WAS read. See runtime/client/approvals-view.ts.
+   */
+  readonly describeApprovalsUnavailable?: (() => string | null) | undefined;
   readonly getTasksSnapshot: () => readonly unknown[];
   readonly router: AutonomyMessageRouter;
   readonly render: () => void;
@@ -213,12 +224,14 @@ export function createAutonomySurfacing(options: AutonomySurfacingOptions) {
 
         const pendingApprovals = options.listApprovals()
           .filter((approval) => approval.status === 'pending').length;
+        const approvalsUnavailableReason = options.describeApprovalsUnavailable?.() ?? null;
 
         const digest = buildAwayDigest({
           lastSeenAt,
           schedules: firedSchedules,
           tasks: changedTasks,
           pendingApprovals,
+          approvalsUnavailableReason,
           deliveries: runsSince.deliveries,
           failedRuns,
           missedRuns,

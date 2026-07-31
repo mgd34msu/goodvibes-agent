@@ -51,6 +51,7 @@ import type {
   UserPermissionRuleAccess,
 } from '@pellux/goodvibes-sdk/platform/runtime/client-services';
 import { createAgentDaemonVerbCaller } from './client/daemon-verbs.ts';
+import { createApprovalsView, type ApprovalsView } from './client/approvals-view.ts';
 import { createAgentSessionInputsClient } from './client/session-inputs.ts';
 import { createHostedSessionRegistry, type HostedSessionRegistry } from './client/hosted-sessions.ts';
 import { installAgentDaemonCredentialsClient } from '../config/daemon-credential-routing.ts';
@@ -460,6 +461,17 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
    */
   readonly triggerManager: TriggerManager;
   readonly approvalBroker: ApprovalBroker;
+  /**
+   * What a surface SHOWS when it shows approvals: the daemon's record over
+   * `approvals.list`, unioned with the asks the local broker still legitimately
+   * holds, and the honest reason when the daemon's record could not be read.
+   *
+   * The broker above is no longer the whole list and must not be rendered as
+   * though it were — an ask raised here is recorded on the daemon, so a panel
+   * fed from the broker alone shows "nothing pending" while three asks wait.
+   * See client/approvals-view.ts.
+   */
+  readonly approvalsView: ApprovalsView;
   /**
    * Localhost dev-server fetch approval (ask once, persist
    * fetch.allowLocalhost for the project) — same instance wired into the
@@ -991,6 +1003,15 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   const approvalBroker = new ApprovalBroker({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'approvals.json'),
   });
+  // The panel's source. The broker above holds only what the distributed-runtime
+  // bridge still hands this process in-process; the asks THIS surface raises are
+  // recorded on the daemon, and so are every other surface's. One list, read
+  // over `approvals.list`, unioned with the broker's, with the honest reason
+  // when the daemon cannot be read. Started by the interactive bootstrap (a
+  // one-shot subcommand has nobody to show a panel to); `refresh()` works
+  // without `start()` for a single read.
+  const approvalsView = createApprovalsView({ verbs: daemonVerbs, localBroker: approvalBroker });
+  disposalScope.registry.add('approvals view', () => approvalsView.stop());
   // Per-device revocable pairing tokens (SDK 1.8.0, pairing.tokens.*
   // gateway verbs). Constructed exactly as the SDK composition root does,
   // same control-plane config dir as userPermissionRuleStore above, from the
@@ -2067,6 +2088,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     watcherRegistry,
     triggerManager,
     approvalBroker,
+    approvalsView,
     localhostFetchApproval,
     featureAnnouncementStore: announcementStore,
     onSandboxedRun,

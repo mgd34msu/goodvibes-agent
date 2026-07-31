@@ -25,6 +25,7 @@ import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import type { AgentExecutionLedger } from '../runtime/execution-ledger.ts';
+import type { ApprovalsView } from '../runtime/client/approvals-view.ts';
 import type {
   CommandWorkspaceShellServices,
 } from '@/runtime/index.ts';
@@ -230,6 +231,14 @@ export interface CommandPlatformServices
 export interface CommandOpsServices
   extends CommandOpsShellServices {
   readonly executionLedger?: AgentExecutionLedger;
+  /**
+   * The approvals panel's source: the daemon's record over `approvals.list`
+   * unioned with the asks this process still holds, plus the honest reason
+   * when the daemon's record could not be read. Optional because a narrow
+   * command context (a one-shot subcommand, a test double) may carry no
+   * runtime graph — `/health approvals` says so rather than rendering zero.
+   */
+  readonly approvalsView?: ApprovalsView;
 }
 
 export interface CommandExtensionRegistryServices {

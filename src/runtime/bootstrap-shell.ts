@@ -192,6 +192,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     fileUndoManager: services.fileUndoManager,
     processManager: services.processManager,
     executionLedger: services.executionLedger,
+    approvalsView: services.approvalsView,
     memoryRegistry: services.memoryRegistry,
     integrationHelpers: services.integrationHelpers,
     automationManager: services.automationManager,
