@@ -35,8 +35,10 @@ import {
   createDaemonCredentialsClient,
   createDevicesClient,
   createWireSessionDispatch,
+  readSurfaceAgentOutcome,
   watchApprovalUpdates,
 } from '@pellux/goodvibes-sdk/platform/runtime/client';
+import type { AgentCompletionRecordView } from '@pellux/goodvibes-sdk/platform/agents';
 import type {
   ConversationRewindHostClient,
   DaemonConfigClient,
@@ -826,8 +828,18 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // Inbound continuation dispatch, over the wire instead of over a register this
   // process holds. Inert until `activate` — an agent with no adopted daemon holds
   // its bound runner and dispatches nothing, which is the honest offline posture.
+  // The agent register this dispatch reads finished runs from. It is built by
+  // the client floor below, after this line, so the seam is late-bound rather
+  // than reordered — the floor takes `sessionDispatch` as an option, so the two
+  // cannot both be constructed first.
+  let dispatchAgentStatus: ((agentId: string) => AgentCompletionRecordView | null) | null = null;
   const sessionDispatch: WireSessionDispatch = createWireSessionDispatch({
     hostedSessionIds: () => hostedSessions.ids(),
+    // The reply half. A continuation dispatched here runs in THIS process, so
+    // the daemon's own completion poll can never see it finish; this is how the
+    // answer gets reported back, and how a message that arrived over a channel
+    // is answered into that channel instead of into nothing.
+    readAgentOutcome: (agentId) => readSurfaceAgentOutcome(dispatchAgentStatus?.(agentId) ?? null),
   });
   // Hand-to-hosting. The continuation runner below asks this FIRST on every
   // inbound message; with the setting off it answers "not promoted" without a
@@ -1026,6 +1038,9 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     createWorktree: createDisabledAgentWrfcWorktreeOps,
   }]) as WrfcController;
   agentManager.setWrfcController(wrfcController);
+  // Close the late-bound seam declared above `createWireSessionDispatch`: the
+  // dispatch can now read the outcome of a run it started.
+  dispatchAgentStatus = (agentId) => agentManager.getStatus(agentId);
   const approvalBroker = new ApprovalBroker({
     storePath: shellPaths.resolveProjectPath(GOODVIBES_AGENT_SURFACE_ROOT, 'control-plane', 'approvals.json'),
   });

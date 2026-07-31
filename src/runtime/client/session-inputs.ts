@@ -45,6 +45,13 @@ export function createAgentSessionInputsClient(verbs: DaemonVerbCaller): Session
         sessionId,
         inputId,
         ...(options?.consumed === undefined ? {} : { consumed: options.consumed }),
+        // The agent answering this input, and (once its turn ends) what it
+        // said. Both travel because the run happens HERE: without them the
+        // daemon has no reply binding for a channel message it dispatched to
+        // this process, and no answer to deliver back to that conversation.
+        ...(options?.agentId === undefined ? {} : { agentId: options.agentId }),
+        ...(options?.answer === undefined ? {} : { answer: options.answer }),
+        ...(options?.status === undefined ? {} : { status: options.status }),
       });
     },
   };
