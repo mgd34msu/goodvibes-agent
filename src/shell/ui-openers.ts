@@ -10,7 +10,7 @@ import type { FeatureFlagManager } from '@/runtime/index.ts';
 import type { McpRegistry } from '@pellux/goodvibes-sdk/platform/mcp';
 import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { SecretsManager } from '@pellux/goodvibes-sdk/platform/config';
-import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
+import type { ServiceInspectionQuery } from '@/runtime/index.ts';
 import type { ModelPickerTargetInfo } from '../input/model-picker.ts';
 import { buildLocalFitRecommendations, buildSignInRow, LOCAL_REC_PROVIDER } from '../input/model-picker-local-fit.ts';
 import { syncServiceSettingToPlatform } from './service-settings-sync.ts';

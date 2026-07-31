@@ -5,7 +5,7 @@ import type { ModelPickerTarget } from './model-picker.ts';
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config';
 import { getResolvedSettingLookup } from '@/runtime/index.ts';
-import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
+import type { ServiceInspectionQuery } from '@/runtime/index.ts';
 import { buildGoodVibesSecretKey, defaultSecretBackedScope, isSecretConfigKey } from '../config/secret-config.ts';
 import { routeSettingWriteToConnectedHost } from './settings-modal-daemon-writes.ts';
 import {

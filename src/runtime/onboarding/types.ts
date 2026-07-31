@@ -7,7 +7,7 @@ import type {
   LocalAuthInspectionQuery,
   ServiceInspectionQuery,
   SubscriptionAccessQuery,
-} from '../ui-service-queries.ts';
+} from '@/runtime/index.ts';
 import type { AgentBehaviorDiscoverySnapshot } from '../../agent/behavior-discovery-summary.ts';
 
 export type OnboardingMode = 'new' | 'edit' | 'reopen';
