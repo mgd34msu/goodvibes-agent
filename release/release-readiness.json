@@ -282,7 +282,7 @@
       "capability": "Planning, workplan status, and task visibility support personal operator work without auto-spawning parallel implementation jobs.",
       "owner": "agent",
       "status": "covered",
-      "evidence": "src/tools/agent-work-plan-tool.ts; src/work-plans/work-plan-store.ts; src/input/agent-workspace-workplan-editor-submission.ts; docs/tools-and-commands.md",
+      "evidence": "src/tools/agent-work-plan-tool.ts; src/runtime/services.ts; src/input/agent-workspace-workplan-editor-submission.ts; docs/tools-and-commands.md",
       "action": "Keep planning serial and explicit until the user asks for execution.",
       "quality": {
         "capabilityCoverage": "Covers planning interviews, visible work-plan state, confirmed dispatch of approved plan items into visible Agent spawn/batch-spawn jobs with saved linked-agent receipts, closeout surfacing in managed orchestration cards, certified live remote capture/export/closeout outcome records, certified workspace/worktree isolation evidence with schema/version/publication/publisher/provenance/freshness-cursor/receipt metadata, task status, and project planning without implicit parallel execution jobs.",

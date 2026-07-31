@@ -58,11 +58,11 @@ describe('capability-advertisement honesty (agent side)', () => {
   });
 
   test('discovery: operator_method lookup for an unavailable method reports available:false and an honest confirmation', () => {
-    const resolution = describeHarnessOperatorMethod({ methodId: 'channels.drafts.save' });
+    const resolution = describeHarnessOperatorMethod({ methodId: 'channels.inbox.list' });
     expect(resolution.status).toBe('found');
     if (resolution.status !== 'found') throw new Error('expected found');
     expect(resolution.method.available).toBe(false);
-    expect(resolution.method.label).toBe('channels.drafts.save — unavailable (route not served by this daemon)');
+    expect(resolution.method.label).toBe('channels.inbox.list — unavailable (route not served by this daemon)');
     expect(String(resolution.method.confirmation)).toContain('Unavailable');
   });
 
@@ -103,9 +103,9 @@ describe('capability-advertisement honesty (agent side)', () => {
     const configManager = makeConfigManager();
     const tool = createAgentOperatorMethodTool(shellPaths as never, configManager);
 
-    const result = await tool.execute({ methodId: 'channels.drafts.save', dryRun: true });
+    const result = await tool.execute({ methodId: 'channels.inbox.list', dryRun: true });
     expect(result.success).toBe(false);
-    expect(String(result.error)).toContain('channels.drafts.save');
+    expect(String(result.error)).toContain('channels.inbox.list');
     expect(String(result.error)).toContain('unavailable');
   });
 
