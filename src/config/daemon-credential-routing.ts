@@ -38,6 +38,15 @@
  * one-shot CLI or a unit test with no composed runtime, never the shipped
  * interactive agent. {@link agentDaemonCredentialsInstalled} makes the
  * difference checkable rather than assumed.
+ *
+ * ── It is uninstalled with the graph that installed it ────────────────────
+ *
+ * Process-wide state that outlives its owner is how one composed runtime
+ * changes the behaviour of code that has nothing to do with it. `dispose()`
+ * clears this, and the shared test reset clears it before every test, so a file
+ * that composed a runtime cannot silently route another file's writes at a
+ * daemon that was never there. A test that wants the routing installs its own
+ * client and says so.
  */
 import { isDaemonOwnedConfigKey } from '@pellux/goodvibes-sdk/platform/config';
 import type { DaemonCredentialsClient } from '@pellux/goodvibes-sdk/platform/runtime/client';

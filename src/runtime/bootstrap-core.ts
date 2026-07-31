@@ -3,7 +3,8 @@ import { registerSessionConversation } from './conversation-rewind-port.ts';
 import { SelectionManager } from '../input/selection.ts';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { ConfigManager, getConfiguredSystemPrompt } from '../config/index.ts';
-import { buildAgentConfigRouting } from '../config/daemon-config-routing.ts';
+import { buildAgentConfigRouting, installAgentDaemonConfigClient } from '../config/daemon-config-routing.ts';
+import { installAgentDaemonCredentialsClient } from '../config/daemon-credential-routing.ts';
 import { getProviderIdFromModel } from '../config/provider-model.ts';
 import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
 import { registerAllTools } from '@pellux/goodvibes-sdk/platform/tools';
@@ -173,6 +174,13 @@ export async function initializeBootstrapCore(
     // unavailable seam). Pinned by power-keep-awake-composition.test.ts.
     powerSeam: createHostPowerSeam(),
   });
+  // Daemon-owned settings and credentials leave this process from here on. The
+  // routing is installed at the INTERACTIVE boot rather than inside
+  // createRuntimeServices, because that factory also runs for CLI subcommands,
+  // readiness probes and unit tests — none of which should change how an
+  // unrelated later write behaves. Cleared by services.dispose().
+  installAgentDaemonCredentialsClient(services.daemonCredentialsClient);
+  installAgentDaemonConfigClient(services.daemonConfigClient);
   const providerRegistry = services.providerRegistry;
   providerRegistry.initModelLimits();
   services.benchmarkStore.initBenchmarks();

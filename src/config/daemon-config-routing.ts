@@ -69,9 +69,11 @@ export type { ConfigScope, ConfigWriteOutcome, EffectiveConfigView };
 // connection, with the same refusal text, instead of three discovery paths that
 // can disagree about whether a daemon is reachable.
 //
-// Installed once by the composition root; a process that composed no runtime
-// keeps the file-discovery path, which is the honest fallback for a one-shot
-// CLI rather than a silent local write.
+// Installed once by the composition root and cleared by its `dispose()`; a
+// process that composed no runtime keeps the file-discovery path, which is the
+// honest fallback for a one-shot CLI rather than a silent local write. Clearing
+// on dispose is what stops one composed runtime from changing the behaviour of
+// code that has nothing to do with it.
 // ---------------------------------------------------------------------------
 
 let installedConfigClient: DaemonConfigClient | null = null;

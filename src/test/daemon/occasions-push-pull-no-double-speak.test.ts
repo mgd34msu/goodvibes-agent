@@ -27,9 +27,23 @@
  *     the pull STILL raises it. This is the case the stamp must not cover: a send
  *     that could not land may not cost him the nudge, and a guard that got this
  *     wrong would fail silently.
+ *
+ * ── Whose composition this drives, as of the client split ────────────────
+ *
+ * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
+ * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * for any of these any more, and that absence is itself pinned in
+ * daemon/gateway-ws-only-invokable.test.ts.
+ *
+ * The behaviour below did not move or change; its OWNER did. These verbs are
+ * served to every surface by one process now, and this suite is where the
+ * contract that surface depends on stays honest. Driving it through the
+ * daemon's composition is the difference between verifying a contract and
+ * asserting that a client answers its own question.
  */
 
 import { afterAll, describe, expect, test } from 'bun:test';
+import { buildDaemonGatewayCatalog } from '../helpers/daemon-gateway.ts';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
@@ -113,7 +127,7 @@ function harness(): Harness {
     profilePath,
     services,
     said,
-    invoke: (id, body = {}) => services.gatewayMethods.invoke(id, { methodId: id, body } as never),
+    invoke: (id, body = {}) => buildDaemonGatewayCatalog(services).invoke(id, { methodId: id, body } as never),
   };
 }
 

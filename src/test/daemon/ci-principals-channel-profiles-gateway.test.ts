@@ -13,9 +13,23 @@
  * network-reachable. Those two are asserted at the "handler exists and does
  * not throw a wiring error" level only — the descriptor is registered and
  * carries a real handler, not the full gh-backed success path.
+ *
+ * ── Whose composition this drives, as of the client split ────────────────
+ *
+ * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
+ * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * for any of these any more, and that absence is itself pinned in
+ * daemon/gateway-ws-only-invokable.test.ts.
+ *
+ * The behaviour below did not move or change; its OWNER did. These verbs are
+ * served to every surface by one process now, and this suite is where the
+ * contract that surface depends on stays honest. Driving it through the
+ * daemon's composition is the difference between verifying a contract and
+ * asserting that a client answers its own question.
  */
 import { describe, expect, test } from 'bun:test';
 import { getTestRuntimeServices } from '../helpers/runtime-services.ts';
+import { buildDaemonGatewayCatalog } from '../helpers/daemon-gateway.ts';
 
 interface Principal {
   readonly id: string;
@@ -39,7 +53,7 @@ interface CiWatch {
 
 async function invoke<T>(methodId: string, body: Record<string, unknown> = {}): Promise<T> {
   const services = getTestRuntimeServices();
-  return services.gatewayMethods.invoke(methodId, { methodId, body } as never) as Promise<T>;
+  return buildDaemonGatewayCatalog(services).invoke(methodId, { methodId, body } as never) as Promise<T>;
 }
 
 describe('ci / principals / channels.profiles gateway verb groups (live, not a 501 facade)', () => {
@@ -62,7 +76,7 @@ describe('ci / principals / channels.profiles gateway verb groups (live, not a 5
       'channels.profiles.set',
       'channels.profiles.delete',
     ]) {
-      expect(services.gatewayMethods.get(methodId), `${methodId} descriptor missing from the catalog`).toBeTruthy();
+      expect(buildDaemonGatewayCatalog(services).get(methodId), `${methodId} descriptor missing from the catalog`).toBeTruthy();
     }
   });
 

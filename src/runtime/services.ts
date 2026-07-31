@@ -713,15 +713,34 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     bindFeatureSettingsBridge(configManager, featureFlags);
   }
   const runtimeDispatch = createDomainDispatch(options.runtimeStore);
-  // The catalog SURVIVES the client split, for one reason and only that reason:
-  // this agent's own occasions and owner-profile tools dispatch through it
-  // IN-PROCESS (src/agent/occasions-gateway.ts, src/agent/owner-profile-gateway.ts
-  // — both prefer the local catalog and fall back to the connected host). It is
-  // local dispatch for this process's tools, not a served verb surface: this
-  // process composes no DaemonServer and starts no listener, so nothing outside
-  // it can ever call a handler registered here. Every family that WAS registered
-  // for outside callers is gone with the ws-only registration (see the note where
-  // that call used to sit).
+  // The catalog SURVIVES the client split. What it no longer carries is any
+  // handler, and that includes two families this fork did dispatch in-process:
+  // `occasions.*` and `profile.*`.
+  //
+  // Losing those is deliberate, and it is not a loss. Both are served by the
+  // registrar that also registered the fifteen daemon families
+  // (`registerGatewayVerbGroups`, reached through terminal-shell's
+  // `attachWsOnlyGatewayVerbHandlers`) — there is no public entry point for the
+  // occasions/profile groups on their own, so keeping them meant keeping all
+  // fifteen on a catalog nothing outside this process can call. And what that
+  // registration composed was an `OwnerProfileStore` over the owner profile
+  // Markdown file at DAEMON scope: a second reader and writer of a file the
+  // daemon owns, which is the same second-writer hazard the device grants
+  // ledger was. A second projection of that document disagrees with the first
+  // for as long as either has not noticed a hand edit.
+  //
+  // Both tools were built for exactly this. `createOccasionsGatewayInvoke` and
+  // `createProfileGatewayInvoke` probe `catalog.hasHandler(methodId)` and fall
+  // back to the connected host — "so the same tool works whether or not this
+  // build embeds them", in their own words. They now always take the fallback,
+  // against the one process that owns the file.
+  //
+  // The catalog stays because bootstrap.ts hands it to
+  // `pluginManager.init({ gatewayMethods })`. A loaded plugin can register verbs
+  // into it, and those two probes are what pick them up. It is local dispatch
+  // for this process, never a served surface: this process composes no
+  // DaemonServer and starts no listener, so nothing outside it can reach a
+  // handler registered here.
   const gatewayMethods = new GatewayMethodCatalog();
 
   // ── The client seams ─────────────────────────────────────────────────────
@@ -763,11 +782,13 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const daemonConfigClient: DaemonConfigClient = createDaemonConfigClient(daemonVerbs);
   const daemonCredentialsClient: DaemonCredentialsClient = createDaemonCredentialsClient(daemonVerbs);
-  // Every secret-backed settings write in this process routes daemon-owned keys
-  // through this client from here on — see config/daemon-credential-routing.ts
-  // for why the pair (config reference + secret value) must not split.
-  installAgentDaemonCredentialsClient(daemonCredentialsClient);
-  installAgentDaemonConfigClient(daemonConfigClient);
+  // NOT installed here. The two settings-routing clients are process-wide (five
+  // settings writers reach them with no graph in scope), and this factory is
+  // called by unit tests, one-shot CLI subcommands and readiness probes as well
+  // as by the real boot — so installing here would let any of them change how a
+  // later, unrelated write behaves, silently, for the rest of the process.
+  // The interactive bootstrap installs them (see bootstrap-core.ts) and
+  // `dispose()` below clears them.
   // The grants ledger, the capture store and the housekeeping sweeps are the
   // daemon's; two runtimes writing one ledger is the second-writer hazard the
   // split exists to end. The `phone` TOOL still lives here, because the loop
@@ -2007,6 +2028,14 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   disposalScope.registry.add('inbound session dispatch', () => sessionDispatch.stop());
   disposalScope.registry.add('conversation rewind host', () => { void conversationRewindHost.stop(); });
   disposalScope.registry.add('hosted session registry', () => hostedSessions.dispose());
+  // The two installed routing clients go down with the graph that installed
+  // them. They are process-wide by design (five settings writers reach them
+  // without a graph in scope), and process-wide state that outlives its owner is
+  // how a torn-down runtime keeps answering for a live one.
+  disposalScope.registry.add('daemon settings routing', () => {
+    installAgentDaemonCredentialsClient(null);
+    installAgentDaemonConfigClient(null);
+  });
 
   const graph: RuntimeServices = {
     asDaemonGradeView: (): SdkRuntimeServices => ({

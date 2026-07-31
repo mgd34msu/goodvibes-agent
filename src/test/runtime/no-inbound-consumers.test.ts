@@ -68,7 +68,11 @@ describe('external-services bootstrap stays adopt-only (no daemon construction)'
       configManager,
       runtimeBus: {} as never,
       hookDispatcher: {} as never,
-      services: { daemonReceiptFeed, memoryConsolidationReceiptFeed } as never,
+      // `asDaemonGradeView` is what the wiring hands the adopt-or-spawn policy:
+      // the graph with its two client narrowings substituted back. Under
+      // adoptOnly the policy reads only localUserAuthManager and configManager
+      // off it and never constructs a DaemonServer, which is this test's point.
+      services: { daemonReceiptFeed, memoryConsolidationReceiptFeed, asDaemonGradeView: () => ({}) } as never,
       uiServices: { platform: {} } as never,
       deferredStartup,
       systemMessageRouter: { high: () => {}, low: () => {} } as never,

@@ -1,38 +1,61 @@
 /**
- * Gate: every ws-only gateway verb the daemon advertises must actually be
- * invokable on the runtime this package vendors.
+ * Gate: this process serves no gateway verb, and the catalog it still carries
+ * is local dispatch for its own tools.
  *
- * Regression context (found by the companion app against the 1.13.0 daemon):
- * the TUI's createRuntimeServices built a GatewayMethodCatalog whose builtin
- * DESCRIPTORS were present but never called registerGatewayVerbGroups, so
- * fleet.* (including plain fleet.snapshot), checkpoints.*, and
- * sessions.search all answered 501 "Gateway method is not invokable" over
- * both websocket and HTTP invoke — on every daemon build ever shipped. The
- * contract gates never caught it because they validate descriptors, not
- * handler attachment.
+ * ── What this file used to assert, and why it inverted ────────────────────
+ *
+ * It asserted that every ws-only verb the daemon advertises — fleet.*,
+ * checkpoints.*, sessions.search, push.*, workspaces.*, permissions.rules.* —
+ * was INVOKABLE on the runtime this package composes. That was the right gate
+ * when this package vendored a daemon: a catalog with descriptors and no
+ * handlers answered 501 over websocket and HTTP, and the companion app found it
+ * against a shipped build.
+ *
+ * This package vendors no daemon. It composes no DaemonServer, starts no
+ * listener, and its own CLI parser refuses host commands in those words. So the
+ * handlers it registered were reachable only by a caller that cannot exist here,
+ * while the daemon served the same families for real to every surface including
+ * this one. Registering them was fifteen verb families of dead weight and a
+ * standing second implementation of each.
+ *
+ * ── What it asserts now ───────────────────────────────────────────────────
+ *
+ * The inverse, which is the property that actually has to hold: no daemon-served
+ * verb carries a handler in this process. If one comes back, this package has
+ * started answering a question it cannot see the whole of — a fleet snapshot
+ * missing every other surface's agents, a checkpoint list missing the daemon's.
+ *
+ * Two families went with them that this fork DID dispatch in-process:
+ * `occasions.*` and `profile.*`. The same registrar served all of them and the
+ * SDK publishes no entry point for those two alone, so keeping them meant
+ * keeping the other fifteen — and what that registration composed was an owner
+ * profile store over a Markdown file at DAEMON scope, a second writer of a file
+ * the daemon owns. Both tools were built for this: they probe the catalog and
+ * fall back to the connected host, which they now always take.
+ *
+ * The catalog itself is deliberately NOT gone: bootstrap.ts hands it to
+ * `pluginManager.init({ gatewayMethods })`, so a loaded plugin can register
+ * verbs into it, and those same two probes are what pick them up.
  */
 import { describe, expect, test } from 'bun:test';
-import { assertEveryDescriptorHasHandler } from '@pellux/goodvibes-terminal-shell/conformance';
 import { getTestRuntimeServices } from '../helpers/runtime-services.ts';
 
-const WS_ONLY_METHOD_IDS = [
+/**
+ * The families the daemon serves. Every one of these was registered here and is
+ * not any more; each is reachable from this process over the one gateway-method
+ * route in runtime/client/daemon-verbs.ts, against the daemon that holds the
+ * whole picture.
+ */
+const DAEMON_SERVED_METHOD_IDS = [
   'fleet.snapshot',
   'fleet.list',
   'fleet.archive',
   'fleet.unarchive',
   'fleet.archiveFinished',
   'fleet.archived.list',
-  // Best-of-N surface (SDK 1.6.1): the orchestration engine's held-merge
-  // methods, wired as the attemptsController dep in services.ts — without
-  // that dep these three stay cataloged-but-unhandled like every other
-  // graceful-degrade gateway verb group.
   'fleet.attempts.list',
   'fleet.attempts.pick',
   'fleet.attempts.judge',
-  // fleet.graph.get (SDK round): the fix workstream's task graph. Gated on
-  // the SAME attemptsController dep as fleet.attempts.* above — the
-  // orchestration engine already implements getGraphSnapshot(workstreamId)
-  // structurally, so no extra dep threading was needed in services.ts.
   'fleet.graph.get',
   'checkpoints.list',
   'checkpoints.create',
@@ -41,115 +64,62 @@ const WS_ONLY_METHOD_IDS = [
   'sessions.search',
   'push.vapid.get',
   'push.subscriptions.list',
-  // Shared workspace registration store (SDK 1.6.1): the SDK's own
-  // registerGatewayVerbGroups constructs and wires this store internally
-  // (over shellPaths), so these are always registered once
-  // attachWsOnlyGatewayVerbHandlers runs — no extra dep threading needed.
   'workspaces.registrations.list',
   'workspaces.registrations.add',
   'workspaces.registrations.remove',
   'workspaces.resolve',
-  // Durable remembered-approval rules: registered only when the
-  // userPermissionRuleStore dep is threaded in services.ts — the SDK
-  // registrar registers this group's descriptors and handlers together, so
-  // without the dep these two are entirely absent from the catalog.
   'permissions.rules.list',
   'permissions.rules.delete',
 ] as const;
 
-describe('ws-only gateway verbs are invokable on the vendored runtime', () => {
+describe('this process serves no gateway verb', () => {
   const services = getTestRuntimeServices();
 
-  // The descriptor must exist on the catalog. The shipped conformance gate
-  // below only sweeps descriptors the catalog actually lists, so a descriptor
-  // that went entirely missing would slip past its onlyIds filter — this
-  // per-id presence check is what catches that case.
-  for (const methodId of WS_ONLY_METHOD_IDS) {
-    test(`${methodId} descriptor is registered on the catalog`, () => {
-      expect(services.gatewayMethods.get(methodId), `${methodId} descriptor missing from the catalog`).toBeTruthy();
+  for (const methodId of DAEMON_SERVED_METHOD_IDS) {
+    test(`${methodId} has no handler here — the daemon serves it`, () => {
+      expect(
+        services.gatewayMethods.hasHandler(methodId),
+        `${methodId} has a handler in the agent process. Nothing outside this process can call it, `
+        + 'and the daemon already serves it with the whole picture; a handler here is a second, '
+        + 'partial implementation answering from one surface\'s state.',
+      ).toBe(false);
     });
   }
 
-  // Handler-attachment enforcement is the conformance gate shipped by
-  // @pellux/goodvibes-terminal-shell, not a hand-rolled hasHandler loop, so the
-  // exact drift check the package ships is what guards this vendored runtime.
-  // Scoped to the ws-only family via onlyIds: builtin descriptors whose handlers
-  // are attached by other layers are legitimately out of scope for this test.
-  test('every ws-only descriptor has an attached handler (shipped conformance gate)', () => {
-    expect(() =>
-      assertEveryDescriptorHasHandler(services.gatewayMethods, { onlyIds: WS_ONLY_METHOD_IDS }),
-    ).not.toThrow();
-  });
-
-  test('fleet.snapshot invokes end-to-end and answers with real nodes shape', async () => {
-    const result = await services.gatewayMethods.invoke('fleet.snapshot', {
-      methodId: 'fleet.snapshot',
-      body: {},
-    } as never) as { capturedAt: number; nodes: unknown[]; truncated: boolean; totalCount: number };
-    expect(typeof result.capturedAt).toBe('number');
-    expect(Array.isArray(result.nodes)).toBe(true);
-    expect(typeof result.truncated).toBe('boolean');
-  });
-
-  test('fleet.archived.list invokes end-to-end (empty archive on a fresh runtime)', async () => {
-    const result = await services.gatewayMethods.invoke('fleet.archived.list', {
-      methodId: 'fleet.archived.list',
-      body: {},
-    } as never) as { capturedAt: number; nodes: unknown[] };
-    expect(Array.isArray(result.nodes)).toBe(true);
-    expect(result.nodes).toHaveLength(0);
-  });
-
-  test('fleet.attempts.list invokes end-to-end (no held-merge groups on a fresh runtime)', async () => {
-    const result = await services.gatewayMethods.invoke('fleet.attempts.list', {
-      methodId: 'fleet.attempts.list',
-      body: {},
-    } as never) as { groups: unknown[] };
-    expect(Array.isArray(result.groups)).toBe(true);
-    expect(result.groups).toHaveLength(0);
-  });
-
-  test('fleet.attempts.pick refuses an unknown group honestly rather than a phantom success', async () => {
+  test('invoking one refuses rather than answering from this process\'s partial state', async () => {
+    // The refusal is the honest outcome. A fleet snapshot built here would list
+    // this agent's own sub-agents and no other surface's, and look complete.
     await expect(
-      services.gatewayMethods.invoke('fleet.attempts.pick', {
-        methodId: 'fleet.attempts.pick',
-        body: { groupId: 'no-such-group', winnerItemId: 'no-such-item' },
-      } as never),
+      services.gatewayMethods.invoke('fleet.snapshot', { methodId: 'fleet.snapshot', body: {} } as never),
     ).rejects.toThrow();
   });
 
-  test('fleet.graph.get refuses an unknown workstream honestly rather than a phantom empty graph', async () => {
-    await expect(
-      services.gatewayMethods.invoke('fleet.graph.get', {
-        methodId: 'fleet.graph.get',
-        body: { workstreamId: 'no-such-workstream' },
-      } as never),
-    ).rejects.toThrow();
+  test('the descriptors remain — they are the shared contract, not a claim to serve them', () => {
+    // Descriptors are how a client knows a verb's shape. Keeping them while
+    // dropping the handlers is the whole distinction: this process describes
+    // the platform's verbs and answers none of them.
+    for (const methodId of DAEMON_SERVED_METHOD_IDS) {
+      expect(services.gatewayMethods.get(methodId), `${methodId} descriptor missing`).toBeTruthy();
+    }
+  });
+});
+
+describe('the catalog is kept for the consumers that are actually live', () => {
+  const services = getTestRuntimeServices();
+
+  test('the graph still carries it, because the plugin manager is handed it at boot', () => {
+    expect(services.gatewayMethods).toBeTruthy();
+    expect(typeof services.gatewayMethods.hasHandler).toBe('function');
   });
 
-  test('permissions.rules.list invokes end-to-end (no remembered rules on a fresh runtime)', async () => {
-    const result = await services.gatewayMethods.invoke('permissions.rules.list', {
-      methodId: 'permissions.rules.list',
-      body: {},
-    } as never) as { rules: unknown[] };
-    expect(Array.isArray(result.rules)).toBe(true);
-    expect(result.rules).toHaveLength(0);
-  });
-
-  test('permissions.rules.delete answers an unknown rule honestly (deleted: false), never a phantom success', async () => {
-    const result = await services.gatewayMethods.invoke('permissions.rules.delete', {
-      methodId: 'permissions.rules.delete',
-      body: { ruleId: 'no-such-rule' },
-    } as never) as { deleted: boolean };
-    expect(result.deleted).toBe(false);
-  });
-
-  test('workspaces.registrations.list invokes end-to-end (no registrations on a fresh runtime)', async () => {
-    const result = await services.gatewayMethods.invoke('workspaces.registrations.list', {
-      methodId: 'workspaces.registrations.list',
-      body: {},
-    } as never) as { workspaces: unknown[]; declines: unknown[] };
-    expect(Array.isArray(result.workspaces)).toBe(true);
-    expect(Array.isArray(result.declines)).toBe(true);
+  test('occasions and profile verbs are unhandled here, so those tools use the connected host', () => {
+    // This fork DID serve these in-process, over an owner-profile store it
+    // composed against the daemon's own Markdown file. One file, one writer:
+    // the daemon's. Both invokers probe `hasHandler` first and fall back, so
+    // the fallback is now the live route — pinned here so it is not read as a
+    // defect and "fixed" by re-registering a second writer.
+    for (const methodId of ['occasions.pending', 'occasions.list', 'profile.get', 'profile.status']) {
+      expect(services.gatewayMethods.hasHandler(methodId)).toBe(false);
+    }
   });
 });
