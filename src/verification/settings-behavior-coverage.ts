@@ -90,17 +90,24 @@ export const SETTINGS_BEHAVIOR_COVERAGE_BASELINE = 184;
 export const SETTINGS_BEHAVIOR_COVERAGE_EVIDENCE: readonly SettingsBehaviorCoverageEntry[] = [
   // --- Paired-device capabilities (device.*) -------------------------------
   // Covered by src/test/tools/device-settings-behavior.test.ts, which drives the
-  // agent's real consumer (createPhoneDeviceService — now a binding over the
-  // platform's createDevicePostureRuntime, so the mapping these tests observe is
-  // the one EVERY daemon host runs, not one this repo owns privately) with a real
-  // ConfigManager over a temp home and the real SDK DeviceCapabilityService /
-  // DeviceGrantStore / DeviceCaptureArtifactStore /
-  // DeviceHousekeeper. Only the peer transport and the
-  // approval bridge are stubbed, so what the assertions observe is refusal codes,
-  // how authority was established, what reached the transport, and what survives on
-  // disk after a sweep. Each key was mutation-checked by removing its config.set()
-  // so the consumer falls back to the schema default: every covered key's tests
-  // failed, which is what "would fail if the setting stopped being honoured" means.
+  // platform's createDevicePostureRuntime with a real ConfigManager over a temp
+  // home and the real SDK DeviceCapabilityService / DeviceGrantStore /
+  // DeviceCaptureArtifactStore / DeviceHousekeeper. Only the peer transport and
+  // the approval bridge are stubbed, so what the assertions observe is refusal
+  // codes, how authority was established, what reached the transport, and what
+  // survives on disk after a sweep. Each key was mutation-checked by removing
+  // its config.set() so the consumer falls back to the schema default: every
+  // covered key's tests failed, which is what "would fail if the setting stopped
+  // being honoured" means.
+  //
+  // WHOSE consumer that is, stated plainly, because it changed with the client
+  // split: the device-posture runtime is the DAEMON's. This agent used to
+  // compose a second copy of it writing the same grants ledger and no longer
+  // does — it holds the `phone` tool and reaches the runtime over the `devices.*`
+  // verbs. So these rows attest the contract this agent depends on across a
+  // process boundary, not a mapping this repo implements. The agent's own end —
+  // that it forwards every one of these decisions and re-decides none of them —
+  // is pinned in src/test/tools/agent-phone-tool.test.ts.
   {
     key: 'device.capabilities.mode',
     test: 'src/test/tools/device-settings-behavior.test.ts',
