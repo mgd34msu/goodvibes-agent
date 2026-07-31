@@ -64,7 +64,7 @@ describe('startExternalServices (Agent: adopt-only)', () => {
       createConfig({ daemon: true }),
       runtimeBus,
       hookDispatcher,
-      runtimeServices,
+      runtimeServices.asDaemonGradeView(),
       {
         adoptOnly: true,
         createDaemonServer: daemonFactory,
@@ -100,7 +100,7 @@ describe('startExternalServices (Agent: adopt-only)', () => {
       }),
       runtimeBus,
       hookDispatcher,
-      runtimeServices,
+      runtimeServices.asDaemonGradeView(),
       {
         adoptOnly: true,
         probeDaemonPortInUse: async () => true,
@@ -136,7 +136,7 @@ describe('startExternalServices (Agent: adopt-only)', () => {
       createConfig({ daemon: true }),
       runtimeBus,
       hookDispatcher,
-      runtimeServices,
+      runtimeServices.asDaemonGradeView(),
       {
         adoptOnly: true,
         probeDaemonPortInUse: async () => true,
@@ -156,7 +156,7 @@ describe('startExternalServices (Agent: adopt-only)', () => {
       createConfig({ daemon: true }),
       runtimeBus,
       hookDispatcher,
-      runtimeServices,
+      runtimeServices.asDaemonGradeView(),
       {
         adoptOnly: true,
         probeDaemonPortInUse: async () => true,

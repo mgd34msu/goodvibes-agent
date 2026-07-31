@@ -169,7 +169,9 @@ describe('agent periodic self-update loop', () => {
 
 describe('periodic self-update wiring', () => {
   const services = {
-    sessionBroker: { countBusySessions: () => 0 },
+    // This process's OWN hosted sessions. A busy session on another surface
+    // is not a reason to keep this binary from swapping itself out.
+    hostedSessions: { countBusySessions: () => 0 },
     approvalBroker: { listApprovals: () => [] },
   };
 

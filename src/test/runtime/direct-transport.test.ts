@@ -41,7 +41,7 @@ describe('DirectTransport', () => {
     runtimeServices.distributedRuntime.loaded = true;
     runtimeServices.remoteRunnerRegistry.clear();
 
-    const transport = createRuntimeDirectTransport(runtimeServices);
+    const transport = createRuntimeDirectTransport(runtimeServices.asDaemonGradeView());
 
     const session = await transport.operator.sessions.ensureSession({
       sessionId: 'direct-transport-session',
@@ -105,11 +105,11 @@ describe('DirectTransport', () => {
 
   test('can be created from the narrowed foundation boundary', async () => {
     const runtimeServices = getTestRuntimeServices();
-    const services = createDirectTransportServices(runtimeServices);
+    const services = createDirectTransportServices(runtimeServices.asDaemonGradeView());
 
     const transport = createDirectTransportFromServices(services);
-    const legacy = createDirectTransport(runtimeServices);
-    const runtimeExplicit = createRuntimeDirectTransport(runtimeServices);
+    const legacy = createDirectTransport(runtimeServices.asDaemonGradeView());
+    const runtimeExplicit = createRuntimeDirectTransport(runtimeServices.asDaemonGradeView());
 
     expect(transport.kind).toBe('direct');
     expect(Object.keys(transport.operator).sort()).toEqual(Object.keys(legacy.operator).sort());
@@ -127,7 +127,7 @@ describe('DirectTransport', () => {
 
   test('exposes a generic direct client adapter for shared runtime client surfaces', () => {
     const runtimeServices = getTestRuntimeServices();
-    const services = createDirectTransportServices(runtimeServices);
+    const services = createDirectTransportServices(runtimeServices.asDaemonGradeView());
     const operator = createOperatorClient(services.operator);
     const peer = createPeerClient(services.peer);
 

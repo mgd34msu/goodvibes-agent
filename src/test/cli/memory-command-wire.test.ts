@@ -97,7 +97,7 @@ describe('memory CLI — daemon up routes over the wire', () => {
       featureFlags: createFeatureFlagManager(),
       getConversationTitle: () => 'memory-cli-wire-daemon',
     });
-    daemon = new DaemonServer({ port, host: '127.0.0.1', runtimeServices: daemonServices, userAuth: createUserAuth(daemonHomeDir) });
+    daemon = new DaemonServer({ port, host: '127.0.0.1', runtimeServices: daemonServices.asDaemonGradeView(), userAuth: createUserAuth(daemonHomeDir) });
     daemon.enable({ daemon: true }, TEST_TOKEN);
     await daemon.start();
 

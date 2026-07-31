@@ -244,8 +244,24 @@ export function getTestSubscriptionManager(): RuntimeServices['subscriptionManag
   return getTestRuntimeServices().subscriptionManager;
 }
 
+/**
+ * The persisting session REGISTER — the one automation runs on. Named as the
+ * graph names it now: `services.sessionBroker` is the client dispatch seam and
+ * has none of these methods, so a test that wants ensureSession/submitMessage/
+ * listSessions wants this.
+ */
 export function getTestSessionBroker(): SharedSessionBroker {
+  return getTestRuntimeServices().automationSessionRegister;
+}
+
+/** The inbound continuation-dispatch seam this surface binds its runner onto. */
+export function getTestSessionDispatch(): RuntimeServices['sessionBroker'] {
   return getTestRuntimeServices().sessionBroker;
+}
+
+/** The sessions the composed graph believes this process is hosting. */
+export function getTestHostedSessions(): RuntimeServices['hostedSessions'] {
+  return getTestRuntimeServices().hostedSessions;
 }
 
 export function getTestApprovalBroker(): ApprovalBroker {

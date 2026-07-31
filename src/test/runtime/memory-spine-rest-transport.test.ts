@@ -92,7 +92,7 @@ describe('memory-spine REST transport against a real daemon', () => {
       featureFlags: createFeatureFlagManager(),
       getConversationTitle: () => 'memory-spine-transport-test',
     });
-    daemon = new DaemonServer({ port, host: '127.0.0.1', runtimeServices: daemonServices, userAuth: createUserAuth(homeDir) });
+    daemon = new DaemonServer({ port, host: '127.0.0.1', runtimeServices: daemonServices.asDaemonGradeView(), userAuth: createUserAuth(homeDir) });
     daemon.enable({ daemon: true }, TEST_TOKEN);
     await daemon.start();
     connection = { baseUrl: `http://127.0.0.1:${port}`, token: TEST_TOKEN };
