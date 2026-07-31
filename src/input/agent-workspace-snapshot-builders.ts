@@ -25,7 +25,8 @@ import { connectedHostOperatorTokenFingerprint, readConnectedHostOperatorToken, 
 import { summarizePersonaItem, summarizeNoteItem, summarizeResearchRunItem, summarizeRoutineScheduleReceipt, summarizeSkillBundleItem, summarizeSkillItem } from './agent-workspace-local-library-snapshot.ts';
 import { isReviewerHandoffArtifact, summarizeReviewerHandoffArtifact } from './agent-workspace-review-packet-utils.ts';
 import { ensureEmailConfigDefaults, readEmailConfig, validateEmailConfig } from '@pellux/goodvibes-sdk/platform/email';
-import { CALENDAR_OAUTH_CLIENT_ID_KEYS, ensureCalendarConfigDefaults } from '../agent/calendar/calendar-oauth-service.ts';
+import { CALENDAR_OAUTH_CLIENT_ID_KEYS } from '../agent/calendar/calendar-oauth-service.ts';
+import { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
 import { readConfigBoolean, readConfigNumber, readConfigString } from './agent-workspace-snapshot-config.ts';
 import type { AgentWorkspaceCalendarOAuthConfigStatus } from './agent-workspace-calendar-oauth-editor.ts';
 import type { AgentWorkspaceEmailConnectStatus } from './agent-workspace-types.ts';

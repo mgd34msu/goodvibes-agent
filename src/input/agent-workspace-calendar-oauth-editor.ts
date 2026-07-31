@@ -23,8 +23,8 @@ import type { ConfigKey } from '../config/index.ts';
 import {
   CALENDAR_OAUTH_CLIENT_ID_KEYS,
   CALENDAR_OAUTH_CLIENT_SECRET_KEYS,
-  ensureCalendarConfigDefaults,
 } from '../agent/calendar/calendar-oauth-service.ts';
+import { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
 import type { AgentWorkspaceActionResult, AgentWorkspaceEditorKind, AgentWorkspaceLocalEditor } from './agent-workspace-types.ts';
 
 type FieldReader = (id: string) => string;

@@ -1,31 +1,25 @@
 /**
  * calendar-config-seeding.test.ts — the `calendar` config section is seeded
- * before anything writes into it, and this product's stand-in seeder is
- * interchangeable with the SDK's.
+ * before anything writes into it.
  *
  * `calendar` is an app-layer section, not a CONFIG_SCHEMA category, and
  * ConfigManager.resolvePath throws "Invalid config path: section 'calendar'
- * does not exist" for a section that is not on the live config object. The
- * seeder existing ONLY here, while the SDK's own connector writes
+ * does not exist" for a section that is not on the live config object. A seeder
+ * living in one product, while the SDK's own connector writes
  * `calendar.google.clientId` and `calendar.google.clientSecretRef`, is what
- * confines the connector to this one product: everywhere else — the daemon, the
- * TUI, the web UI — the first write throws.
+ * would confine the connector to that product: everywhere else — the daemon,
+ * the TUI, the web UI — the first write throws. So the definition is the SDK's
+ * (platform/config/connector-config-sections.ts) and every product calls it.
  *
- * The one true definition belongs in the SDK
- * (platform/config/connector-config-sections.ts). It is not in the SDK release
- * this package depends on yet, so a body still lives in
- * agent/calendar/calendar-oauth-service.ts. These tests pin its CONTRACT — the
- * section name, the exact default shape, and idempotence — so that when the
- * local body is replaced by
- *
- *   export { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
- *
- * a difference between the two shows up as a failure here rather than as a
- * calendar that stops resolving.
+ * These tests pin the CONTRACT this product depends on — the section name, the
+ * exact default shape, idempotence, and that a host with no live config is left
+ * alone — against the SDK's implementation. A change on the SDK side that this
+ * product's calendar flow could not survive fails here rather than showing up
+ * as a calendar that stops resolving.
  */
 
 import { describe, expect, test } from 'bun:test';
-import { ensureCalendarConfigDefaults } from '../../agent/calendar/calendar-oauth-service.ts';
+import { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
 
 /** The live-config shape a ConfigManager exposes to a seeder. */
 function liveConfigHost(initial: Record<string, unknown> = {}): { config: Record<string, unknown> } {

@@ -99,53 +99,6 @@ export function daemonScopedSecrets(secrets: CalendarSecretSlice): CalendarSecre
   };
 }
 
-/**
- * Default (empty) `calendar` config section, seeded so get()/setDynamic() can
- * resolve the nested path: ConfigManager.resolvePath walks the live config
- * object and throws "Invalid config path: section 'calendar' does not exist"
- * for a section that is not on it, and `calendar` is an app-layer category
- * absent from the SDK config schema.
- *
- * THIS IS A STAND-IN AND MUST BE DELETED. The one true definition belongs in —
- * and is being written into — the SDK module
- * `@pellux/goodvibes-sdk/platform/config` → `platform/config/connector-config-sections.ts`,
- * which exports `ensureCalendarConfigDefaults` alongside
- * `ensureGoogleOAuthConfigDefaults`, `ensureMailboxConfigDefaults` and the
- * one-call `ensureConnectorConfigSections`. That version is not in the SDK
- * release this package depends on yet, which is the only reason a body still
- * exists here.
- *
- * The defect that makes this urgent: this seeder living ONLY in this product,
- * while the SDK's own connector writes `calendar.google.clientId` and
- * `calendar.google.clientSecretRef`, means the connector can only run inside
- * the one product that happens to carry it. In the daemon, the TUI, the web UI
- * or a node that took over after a handover, the first write throws and a
- * reader asking whether an account is connected cannot even reach the key to
- * find out — a capability that exists on one surface and nowhere else, which is
- * exactly what the daemon is supposed to make impossible.
- *
- * SWAP INSTRUCTIONS, when the SDK dependency carries the module: delete the two
- * definitions below and replace them with
- *
- *   export { ensureCalendarConfigDefaults } from '@pellux/goodvibes-sdk/platform/config';
- *
- * The body below is deliberately written as a copy of the SDK's `seedSection`
- * so the swap changes behavior in no way — same section name, same defaults,
- * same "seed only when absent, safe to call repeatedly" contract.
- */
-const CALENDAR_CONFIG_DEFAULTS = {
-  google: { clientId: '', clientSecretRef: '' },
-  microsoft: { clientId: '', clientSecretRef: '' },
-};
-
-/** Seed the calendar config section on the real ConfigManager if absent. */
-export function ensureCalendarConfigDefaults(configManager: object): void {
-  const cm = configManager as unknown as { config?: Record<string, unknown> };
-  if (cm.config && !('calendar' in cm.config)) {
-    cm.config['calendar'] = structuredClone(CALENDAR_CONFIG_DEFAULTS);
-  }
-}
-
 export type ConnectStage = 'config' | 'authorize' | 'token';
 
 export interface ConnectResult {
