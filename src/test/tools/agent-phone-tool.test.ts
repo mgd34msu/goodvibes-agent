@@ -233,14 +233,24 @@ describe('a refusal is an answer; an unreachable host is a failure', () => {
 
   test('with no reachable host a capability request FAILS rather than answering empty', async () => {
     const calls: RecordedCall[] = [];
-    const tool = registerPhone(stubVerbs({ calls, reachable: false }));
+    const verbs = stubVerbs({ calls, reachable: false });
+    const tool = registerPhone(verbs);
 
     const result = await tool.execute({ action: 'photo', nodeId: 'node-a', reason: 'check the oven' });
 
     // Reporting a capture that did not happen is worse than reporting the
-    // failure, so nothing here invents an empty success.
+    // failure, so nothing here invents an empty success. The tool refuses at
+    // the first honest wall it meets — with no host it cannot even confirm the
+    // phone exists — so the message names THAT rather than a capture outcome.
     expect(succeeded(result)).toBe(false);
-    expect(String((result as { error?: unknown }).error)).toContain('no connected host');
+    expect(String((result as { error?: unknown }).error)).not.toContain('artifact');
+
+    // And the seam underneath refuses for the reason a person needs to read.
+    await expect(createDevicesClient(verbs).requestCapability({
+      nodeId: 'node-a',
+      capabilityId: 'device.camera.rear.capture',
+      reason: 'check the oven',
+    })).rejects.toThrow(/no connected host/);
   });
 
   test('with no reachable host a revoke FAILS rather than reporting a revocation', async () => {

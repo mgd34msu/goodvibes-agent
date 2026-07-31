@@ -239,7 +239,13 @@ export async function routeConfigWrite(
   // connection, one refusal message, one code path shared with every other
   // client seam. It throws rather than falling back when the daemon owns the
   // key and is unreachable, which is the whole point.
-  const routed = await routeDaemonOwnedConfigWrite(key, value);
+  //
+  // Checked SYNCHRONOUSLY, and skipped entirely when nothing is installed. An
+  // unconditional `await` here would add a microtask tick to every local write
+  // — including the ones a keystroke handler fires and reads back in the same
+  // turn, which then read the old value. That is a real ordering change for a
+  // path that has no daemon in it at all.
+  const routed = agentDaemonConfigClientInstalled() ? await routeDaemonOwnedConfigWrite(key, value) : null;
   if (routed === 'daemon') {
     logger.debug('[config] routed write over config.set', { key });
     return {
