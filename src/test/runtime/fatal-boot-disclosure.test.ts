@@ -10,7 +10,7 @@
  *
  * The Agent has its own route to the same silence, by a different mechanism.
  * `src/main.ts` installs a terminal output guard
- * (`runtime/terminal-output-guard.ts`) that REPLACES `process.stdout.write`,
+ * (@pellux/goodvibes-terminal-shell's terminal output guard) that REPLACES `process.stdout.write`,
  * `process.stderr.write` and every `console` method so stray output cannot
  * corrupt a rendered screen — an intercepted write is recorded to the activity
  * log and swallowed. `reportFatalStartupError` was handed

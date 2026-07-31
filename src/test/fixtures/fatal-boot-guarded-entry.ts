@@ -9,7 +9,7 @@
  *
  * It mirrors `src/main.ts` exactly at the two points that matter:
  *
- *   1. `installTuiTerminalOutputGuard` with `process.stderr` as the guarded
+ *   1. `installFullScreenTerminalOutputGuard` with `process.stderr` as the guarded
  *      stream — the call main.ts makes once the renderer exists (line ~681),
  *      which REPLACES `process.stderr.write` so stray output cannot corrupt a
  *      rendered screen.
@@ -28,14 +28,14 @@
 import { join } from 'node:path';
 import { configureActivityLogger, logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { reportFatalStartupError } from '@/cli/tui-startup.ts';
-import { installTuiTerminalOutputGuard } from '@/runtime/terminal-output-guard.ts';
+import { installFullScreenTerminalOutputGuard } from '@pellux/goodvibes-terminal-shell';
 import { writeFatalLine } from '@/utils/fatal-boot-write.ts';
 
 const WORKING_DIR = process.env['GOODVIBES_WORKING_DIR'] ?? process.cwd();
 
 async function main(): Promise<void> {
   configureActivityLogger(join(WORKING_DIR, '.goodvibes', 'logs'));
-  installTuiTerminalOutputGuard({
+  installFullScreenTerminalOutputGuard({
     stdout: process.stdout,
     stderr: process.stderr,
     notify: () => undefined,

@@ -62,7 +62,7 @@ import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { installVoiceCapture } from './shell/voice-capture-shell.ts';
 import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
 import { attachSpokenTurnModelRouting, createSpokenTurnInputOptions } from './audio/spoken-turn-model-routing.ts';
-import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/terminal-output-guard.ts';
+import { allowTerminalWrite, installFullScreenTerminalOutputGuard } from '@pellux/goodvibes-terminal-shell';
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProposer } from './shell/autonomy-surfacing.ts';
@@ -686,7 +686,7 @@ async function main() {
       sidebarWidth,
     });
   };
-  const terminalOutputGuard = installTuiTerminalOutputGuard({ stdout, stderr: process.stderr, notify: (message) => { systemMessageRouter.low(message); render(); } });
+  const terminalOutputGuard = installFullScreenTerminalOutputGuard({ stdout, stderr: process.stderr, notify: (message) => { systemMessageRouter.low(message); render(); } });
 
   setRenderRequest(render);
   orchestratorRefs.requestRender = render;
@@ -788,7 +788,7 @@ main().catch((err: unknown) => {
     debug: process.env['GOODVIBES_AGENT_DEBUG'] === '1',
   }, {
     logError: (message, context) => logger.error(message, context),
-    // NOT process.stderr.write: installTuiTerminalOutputGuard (line ~681)
+    // NOT process.stderr.write: installFullScreenTerminalOutputGuard above
     // replaces it, so a failure raised after that install had its explanation
     // intercepted and swallowed — measured on a compiled binary as exit 1 with
     // zero bytes on both streams. A descriptor write cannot be intercepted.

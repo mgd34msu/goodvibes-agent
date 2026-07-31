@@ -8,7 +8,7 @@ import { describe, expect, test } from 'bun:test';
 import {
   installTerminalOutputGuard,
   type TerminalOutputIntercept,
-} from '../../runtime/terminal-output-guard.ts';
+} from '@pellux/goodvibes-terminal-shell';
 
 function makeStream() {
   const writes: string[] = [];

@@ -23,13 +23,13 @@
 import { join } from 'node:path';
 import { configureActivityLogger, logger } from '@pellux/goodvibes-sdk/platform/utils';
 import { reportFatalStartupError } from '@/cli/tui-startup.ts';
-import { installTuiTerminalOutputGuard } from '@/runtime/terminal-output-guard.ts';
+import { installFullScreenTerminalOutputGuard } from '@pellux/goodvibes-terminal-shell';
 
 const WORKING_DIR = process.env['GOODVIBES_WORKING_DIR'] ?? process.cwd();
 
 async function main(): Promise<void> {
   configureActivityLogger(join(WORKING_DIR, '.goodvibes', 'logs'));
-  installTuiTerminalOutputGuard({
+  installFullScreenTerminalOutputGuard({
     stdout: process.stdout,
     stderr: process.stderr,
     notify: () => undefined,
