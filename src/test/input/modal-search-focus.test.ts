@@ -14,7 +14,7 @@ import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/provi
 import { FavoritesStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { BenchmarkStore } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
-import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
+import { createLaunchTolerantProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 interface PickerHarness {

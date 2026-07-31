@@ -8,37 +8,24 @@
  * destructive at the daemon (served exactly once to the consuming reader), so
  * whichever read consumes them must render them or they are lost. The agent's
  * consuming reader is a single `?receipts=consume` read issued once per attach
- * (createSpineReceiptConsumer in session-spine-rest-transport.ts, wired through
- * services.consumeDaemonReceipts); the frequent liveness keepalive probe stays
- * plain and never touches receipts. Every consumed payload is pushed here.
+ * (createSessionSpineReceiptConsumer, SDK platform/runtime/session-spine,
+ * wired through services.consumeDaemonReceipts); the frequent liveness
+ * keepalive probe stays plain and never touches receipts. Every consumed
+ * payload is pushed here.
  *
- * This feed buffers receipts captured before the renderer exists (the first
- * consuming read can fire during boot, before the render sink attaches) and
- * delivers each receipt exactly once (dedupe by id) as soon as — and whenever —
- * a delivery sink is attached.
+ * The parsing helper (extractSessionSpineReceipts) and the DaemonReceipt type
+ * now live in the SDK (2026-07-30 daemon/TUI split hoist — this file's own
+ * copy was a byte-identical mirror). What stays agent-local is this buffering
+ * feed: it delivers receipts captured before the renderer exists (the first
+ * consuming read can fire during boot, before the render sink attaches),
+ * exactly once each (dedupe by id), as soon as — and whenever — a delivery
+ * sink is attached. That buffering/render-sink behavior is agent-specific
+ * presentation, not transport.
  */
 
-/** One daemon honesty receipt, as served on the /status body. */
-export interface DaemonReceipt {
-  readonly id: string;
-  readonly text: string;
-  readonly at: number;
-}
+import type { DaemonReceipt } from '@pellux/goodvibes-sdk/platform/daemon/receipts';
 
-/** Parse the receipts array off a /status response body; [] when absent/malformed. */
-export function extractDaemonReceipts(body: unknown): DaemonReceipt[] {
-  if (typeof body !== 'object' || body === null) return [];
-  const receipts = (body as { receipts?: unknown }).receipts;
-  if (!Array.isArray(receipts)) return [];
-  const parsed: DaemonReceipt[] = [];
-  for (const entry of receipts) {
-    if (typeof entry !== 'object' || entry === null) continue;
-    const { id, text, at } = entry as { id?: unknown; text?: unknown; at?: unknown };
-    if (typeof id !== 'string' || id.length === 0 || typeof text !== 'string' || text.length === 0) continue;
-    parsed.push({ id, text, at: typeof at === 'number' ? at : Date.now() });
-  }
-  return parsed;
-}
+export type { DaemonReceipt };
 
 export class AgentDaemonReceiptFeed {
   private readonly buffered: DaemonReceipt[] = [];

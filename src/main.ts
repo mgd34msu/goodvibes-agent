@@ -58,7 +58,7 @@ import { reachabilityAtLaunch } from './runtime/path-shadow-startup.ts';
 import { selfUpdateAtLaunch } from './cli/launch-auto-update.ts';
 import { startPeriodicSelfUpdate } from './runtime/periodic-update.ts';
 import { applyInitialTuiCliState, getInteractiveTerminalLaunchError, reportFatalStartupError } from './cli/tui-startup.ts';
-import { writeFatalLine } from './utils/fatal-boot-report.ts';
+import { writeFatalLine } from './utils/fatal-boot-write.ts';
 import { wireSpokenTurnRuntime } from './audio/spoken-turn-wiring.ts';
 import { installVoiceCapture } from './shell/voice-capture-shell.ts';
 import { createUnhandledRejectionHandler } from './runtime/unhandled-rejection-guard.ts';
@@ -90,7 +90,7 @@ async function main() {
   if (terminalLaunchError !== null) {
     // Descriptor write, not process.stderr: this is a refusal that exits
     // immediately, and a stream write can still be in flight when the process
-    // stops existing. See utils/fatal-boot-report.ts.
+    // stops existing. See utils/fatal-boot-write.ts.
     writeFatalLine(terminalLaunchError);
     process.exit(2);
   }

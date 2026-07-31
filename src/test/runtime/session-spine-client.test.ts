@@ -8,10 +8,11 @@ import {
   AGENT_SPINE_PARTICIPANT,
   foldLegacySpineStore,
   SessionSpineClient,
+  createSessionSpineRestProbe as createSpineRestProbe,
+  createSessionSpineRestTransport as createSpineRestTransport,
   type SessionSpineClientOptions,
 } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
-import { createSpineRestProbe, createSpineRestTransport } from '../../runtime/session-spine-rest-transport.ts';
-import type { SessionRegistrationConnection } from '../../agent/session-registration.ts';
+import type { SessionRegistrationConnection } from '../../runtime/session-spine-rest-transport.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 interface CapturedRequest {
@@ -33,6 +34,10 @@ const settle = async (): Promise<void> => {
 function makeClient(overrides: Partial<SessionSpineClientOptions> = {}): SessionSpineClient {
   return new SessionSpineClient({
     participant: AGENT_SPINE_PARTICIPANT,
+    // Matches production (services.ts): the agent stamps kind:'agent' itself
+    // rather than relying on server-side inference, since the live daemon-sdk
+    // route defaults an absent kind to 'tui' (verified in runtime-session-register.js).
+    recordKind: 'agent',
     transport: createSpineRestTransport({ resolveConnection: () => CONNECTION }),
     log: { debug: () => {}, info: () => {} },
     ...overrides,

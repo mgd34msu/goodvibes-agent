@@ -26,9 +26,12 @@ import { createSessionConversationRewindPort } from './conversation-rewind-port.
 // adoption convention of going straight to the platform package for whatever
 // terminal-shell does not already wrap, rather than hand-rolling the bridge.
 import { attachFleetEmitBridge } from '@pellux/goodvibes-sdk/platform/runtime/fleet';
-import type { SharedSessionRoutingIntent } from '@pellux/goodvibes-sdk/platform/control-plane';
-import { computeUsageCostUsd, resolveModelReference, type ModelIdCandidate } from '@pellux/goodvibes-sdk/platform/providers';
-import { reasoningEffortSpecFromLevels } from '@pellux/goodvibes-sdk/platform/providers';
+import {
+  computeUsageCostUsd,
+  createLaunchTolerantProviderRegistry,
+  ensureConfiguredModelIsRoutable,
+} from '@pellux/goodvibes-sdk/platform/providers';
+import { buildSharedSessionAgentSpawnRoutingInput } from '@pellux/goodvibes-sdk/platform/control-plane';
 import { logger, singleFlight, summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 // SDK-owned memory governance (public since sdk 4d5e247b published the
 // composition surface): the same CacheRegistry/PauseController/MemoryGovernor
@@ -40,13 +43,14 @@ import {
   type MemoryGovernor,
 } from '@pellux/goodvibes-sdk/platform/runtime/memory';
 import { UserPermissionRuleStore } from '@pellux/goodvibes-sdk/platform/permissions';
-import { AGENT_SPINE_PARTICIPANT, SessionSpineClient } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import {
-  createSpineConnectionResolver,
-  createSpineReceiptConsumer,
-  createSpineRestProbe,
-  createSpineRestTransport,
-} from './session-spine-rest-transport.ts';
+  AGENT_SPINE_PARTICIPANT,
+  SessionSpineClient,
+  createSessionSpineRestProbe,
+  createSessionSpineRestTransport,
+  createSessionSpineReceiptConsumer,
+} from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
+import { createSpineConnectionResolver } from './session-spine-rest-transport.ts';
 import { MemorySpineClient, createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import type { MemoryTransport } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { createMemorySpineRestTransport } from './memory-spine-rest-transport.ts';
@@ -56,6 +60,7 @@ import {
   GOODVIBES_AGENT_KNOWLEDGE_DB_FILE,
   HOME_GRAPH_KNOWLEDGE_DB_FILE,
   HOME_GRAPH_KNOWLEDGE_EXTENSION,
+  HomeGraphService,
   KnowledgeService,
   KnowledgeSemanticService,
   KnowledgeStore,
@@ -64,7 +69,6 @@ import {
   createWebKnowledgeGapRepairer,
   projectPlanningProjectIdFromPath,
 } from '@pellux/goodvibes-sdk/platform/knowledge';
-import * as KnowledgePlatform from '@pellux/goodvibes-sdk/platform/knowledge';
 import { MediaProviderRegistry, ensureBuiltinMediaProviders } from '@pellux/goodvibes-sdk/platform/media';
 import { MultimodalService } from '@pellux/goodvibes-sdk/platform/multimodal';
 import { AgentManager, cancelAllAgentRuns } from '@pellux/goodvibes-sdk/platform/tools';
@@ -85,22 +89,12 @@ import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/co
 // Sleep ownership (SDK round: power/*): work inhibition, sleep-edge honesty,
 // the keep-awake toggle. Constructed exactly as the SDK composition root does
 // (wireRuntimePower binds runtimeBus work signals and starts the manager).
-import { createUnavailablePowerSeam, wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
-import { forwardKeepAwakeToAdoptedDaemon } from '../agent/power-keep-awake-remote.ts';
+import { createUnavailablePowerSeam, wireRuntimePower, forwardKeepAwakeToAdoptedDaemon } from '@pellux/goodvibes-sdk/platform/power';
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
 import { buildExecPromptAnswerHandler } from '@pellux/goodvibes-sdk/platform/runtime/permissions/exec-prompt-wiring';
 import { AgentDaemonReceiptFeed } from './daemon-receipts.ts';
-import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
-
-/**
- * Structural mirror of the SDK's CheckpointSessionResolver (checkpoint/manager):
- * maps a triggering turn/agent lifecycle event to its owning session id. Declared
- * locally because the type is re-exported only from the deep checkpoint subpath,
- * not the `platform/workspace` barrel this module already imports; the shape is
- * exact, so a resolver typed against it is assignable to the constructor option.
- */
-type CheckpointSessionResolver = (ctx: { readonly turnId?: string | undefined; readonly agentId?: string | undefined }) => string | undefined;
+import { WorkspaceCheckpointManager, type CheckpointSessionResolver } from '@pellux/goodvibes-sdk/platform/workspace';
 import { ProcessManager } from '@pellux/goodvibes-sdk/platform/tools';
 import { TriggerManager } from '@pellux/goodvibes-sdk/platform/triggers';
 import { createBunStreamHost, createProcessManagerTriggerHost, createTriggerActionExecutor } from '@pellux/goodvibes-sdk/platform/triggers';
@@ -203,139 +197,10 @@ type _SdkRuntimeServicesPin = AssertTrue<
     : false
 >;
 type SdkCompanionGraphService = NonNullable<SdkRuntimeServices>['homeGraphService'];
-type KnowledgeServiceConstructor = new (
-  store: KnowledgeStore,
-  artifactStore: ArtifactStore,
-  options?: unknown,
-) => SdkCompanionGraphService;
+// Compile-pin: the real HomeGraphService constructed below must remain
+// assignable to the SDK's own RuntimeServices#homeGraphService slot.
+type _HomeGraphServicePin = AssertTrue<HomeGraphService extends SdkCompanionGraphService ? true : false>;
 
-const companionGraphServiceConstructor = KnowledgePlatform[
-  ['Home', 'GraphService'].join('') as keyof typeof KnowledgePlatform
-] as unknown as KnowledgeServiceConstructor;
-
-function buildFallbackModelDefinition(provider: string, modelId: string): ModelDefinition {
-  const providerLower = provider.toLowerCase();
-  const isReasoningProvider = providerLower.includes('openai')
-    || providerLower.includes('anthropic')
-    || providerLower.includes('gemini')
-    || providerLower.includes('google');
-
-  return {
-    id: modelId,
-    provider,
-    registryKey: `${provider}:${modelId}`,
-    displayName: modelId,
-    description: 'Configured model available before the model catalog cache has loaded.',
-    capabilities: {
-      toolCalling: true,
-      codeEditing: false,
-      reasoning: isReasoningProvider,
-      multimodal: isReasoningProvider,
-    },
-    contextWindow: isReasoningProvider ? 128_000 : 32_000,
-    contextWindowProvenance: 'fallback',
-    selectable: true,
-    tier: 'standard',
-    ...(isReasoningProvider ? { reasoningEffort: reasoningEffortSpecFromLevels(['instant', 'low', 'medium', 'high']) } : {}),
-  };
-}
-
-/**
- * Fork-mirror of the SDK's buildSharedSessionAgentSpawnRoutingInput
- * (platform/control-plane/session-intents.ts — the builder itself has no
- * public export path; only its intent types do). Bare model ids resolve
- * through the SDK's PUBLIC shared resolver (resolveModelReference from
- * platform/providers): unique across the registry auto-qualifies, an
- * ambiguous id throws the real candidate registryKeys, an unknown id throws
- * closest-match suggestions plus a concrete valid example. Keep the body
- * faithful to the SDK's; any deliberate divergence gets its own comment.
- */
-function normalizeSharedSessionModelId(
-  modelId: string | undefined,
-  providerId: string | undefined,
-  modelCandidates?: readonly ModelIdCandidate[],
-): string | undefined {
-  const trimmedModelId = modelId?.trim();
-  if (!trimmedModelId) return undefined;
-  const trimmedProviderId = providerId?.trim();
-  const separatorIndex = trimmedModelId.indexOf(':');
-  if (separatorIndex > 0) {
-    const modelProviderId = trimmedModelId.slice(0, separatorIndex);
-    if (trimmedProviderId && trimmedProviderId !== modelProviderId) {
-      throw new Error(`Shared-session routing model '${trimmedModelId}' conflicts with provider '${trimmedProviderId}'.`);
-    }
-    return trimmedModelId;
-  }
-  if (trimmedProviderId) return `${trimmedProviderId}:${trimmedModelId}`;
-  if (modelCandidates) {
-    try {
-      return resolveModelReference(trimmedModelId, modelCandidates);
-    } catch (err) {
-      throw new Error(`Shared-session routing model: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-  throw new Error(`Shared-session routing model '${trimmedModelId}' must be provider-qualified.`);
-}
-
-function normalizeSharedSessionFallbackModels(
-  models: readonly string[] | undefined,
-  modelCandidates?: readonly ModelIdCandidate[],
-): string[] {
-  return (models ?? [])
-    .filter((model): model is string => typeof model === 'string' && model.trim().length > 0)
-    .map((model) => {
-      const trimmed = model.trim();
-      if (trimmed.includes(':')) return trimmed;
-      if (modelCandidates) {
-        try {
-          return resolveModelReference(trimmed, modelCandidates);
-        } catch (err) {
-          throw new Error(`Shared-session fallback model: ${err instanceof Error ? err.message : String(err)}`);
-        }
-      }
-      throw new Error(`Shared-session fallback model '${model}' must be provider-qualified.`);
-    });
-}
-
-/** Exported for the spawn-routing contract tests; the composition root below is the only live caller. */
-export function buildAgentSpawnRoutingFromSharedSession(
-  routing: SharedSessionRoutingIntent | undefined,
-  options: {
-    readonly restrictTools?: boolean | undefined;
-    /** The live registry's model candidates — enables bare model id resolution when supplied. */
-    readonly modelCandidates?: readonly ModelIdCandidate[] | undefined;
-  } = {},
-): Partial<Parameters<AgentManager['spawn']>[0]> {
-  if (!routing) return options.restrictTools ? { restrictTools: true } : {};
-  const provider = routing.providerId?.trim();
-  const model = normalizeSharedSessionModelId(routing.modelId, provider, options.modelCandidates);
-  if (provider && !model) {
-    throw new Error('Shared-session provider routing requires a provider-qualified model when provider is supplied.');
-  }
-  const fallbackModels = normalizeSharedSessionFallbackModels(routing.fallbackModels, options.modelCandidates);
-  const providerFailurePolicy = routing.providerFailurePolicy ?? (
-    fallbackModels.length ? 'ordered-fallbacks' : 'fail'
-  );
-  if (providerFailurePolicy === 'ordered-fallbacks' && fallbackModels.length === 0) {
-    throw new Error('Shared-session ordered fallback routing requires at least one provider-qualified fallback model.');
-  }
-  if (providerFailurePolicy === 'fail' && fallbackModels.length > 0) {
-    throw new Error('Shared-session fail routing cannot include fallback models; use ordered-fallbacks to enable model failover.');
-  }
-  return {
-    ...(model ? { model } : {}),
-    ...(provider ? { provider } : {}),
-    ...(routing.tools?.length ? { tools: [...routing.tools] } : {}),
-    ...(options.restrictTools ? { restrictTools: true } : {}),
-    routing: {
-      providerSelection: routing.providerSelection ?? (provider ? 'concrete' : 'inherit-current'),
-      providerFailurePolicy,
-      ...(fallbackModels.length ? { fallbackModels } : {}),
-    },
-    ...(routing.executionIntent ? { executionIntent: routing.executionIntent } : {}),
-    ...(routing.reasoningEffort ? { reasoningEffort: routing.reasoningEffort } : {}),
-  };
-}
 
 class DisabledAgentWorktreeRegistry extends runtimeShell.WorktreeRegistry {
   public override async list(): Promise<Awaited<ReturnType<WorktreeRegistry['list']>>> {
@@ -387,136 +252,6 @@ function createDisabledAgentWrfcWorktreeOps(): AgentWrfcWorktreeOps {
       return null;
     },
   };
-}
-
-export function ensureConfiguredModelIsRoutable(providerRegistry: ProviderRegistry, configManager: ConfigManager): void {
-  const configuredModel = String(configManager.get('provider.model') ?? '').trim();
-  if (!configuredModel.includes(':')) return;
-  if (providerRegistry.listModels().some((model) => model.registryKey === configuredModel)) return;
-
-  const [providerId, ...modelParts] = configuredModel.split(':');
-  const modelId = modelParts.join(':').trim();
-  if (!providerId || !modelId) return;
-
-  const provider = providerRegistry.tryGet(providerId);
-  if (!provider) return;
-
-  providerRegistry.registerRuntimeProvider({
-    provider,
-    replace: true,
-    models: [buildFallbackModelDefinition(providerId, modelId)],
-  });
-}
-
-const PROVIDER_STARTUP_PLACEHOLDER_API_KEY = 'goodvibes-agent-startup-placeholder';
-
-type ProviderRegistryConstructionOptions = ConstructorParameters<typeof ProviderRegistry>[0];
-
-type ProviderStartupEnv = {
-  readonly providerId: string;
-  readonly envVars: readonly string[];
-};
-
-type MutableApiKeyProvider = {
-  apiKey: string;
-};
-
-type MutableConfiguredProvider = {
-  configured: boolean;
-};
-
-const PROVIDER_STARTUP_PLACEHOLDER_ENVS: readonly ProviderStartupEnv[] = [
-  { providerId: 'openai', envVars: ['OPENAI_API_KEY', 'OPENAI_KEY'] },
-  { providerId: 'inceptionlabs', envVars: ['INCEPTION_API_KEY'] },
-  { providerId: 'openrouter', envVars: ['OPENROUTER_API_KEY'] },
-  { providerId: 'aihubmix', envVars: ['AIHUBMIX_API_KEY'] },
-  { providerId: 'groq', envVars: ['GROQ_API_KEY'] },
-  { providerId: 'cerebras', envVars: ['CEREBRAS_API_KEY'] },
-  { providerId: 'mistral', envVars: ['MISTRAL_API_KEY'] },
-  { providerId: 'ollama-cloud', envVars: ['OLLAMA_CLOUD_API_KEY', 'OLLAMA_API_KEY'] },
-  { providerId: 'huggingface', envVars: ['HF_API_KEY', 'HUGGINGFACE_API_KEY', 'HF_TOKEN'] },
-  { providerId: 'nvidia', envVars: ['NVIDIA_API_KEY'] },
-  { providerId: 'llm7', envVars: ['LLM7_API_KEY'] },
-  { providerId: 'deepseek', envVars: ['DEEPSEEK_API_KEY'] },
-  { providerId: 'fireworks', envVars: ['FIREWORKS_API_KEY'] },
-  { providerId: 'microsoft-foundry', envVars: ['AZURE_OPENAI_API_KEY'] },
-  { providerId: 'moonshot', envVars: ['MOONSHOT_API_KEY'] },
-  { providerId: 'qianfan', envVars: ['QIANFAN_API_KEY'] },
-  { providerId: 'qwen', envVars: ['QWEN_API_KEY', 'DASHSCOPE_API_KEY', 'MODELSTUDIO_API_KEY'] },
-  { providerId: 'sglang', envVars: ['SGLANG_API_KEY'] },
-  { providerId: 'stepfun', envVars: ['STEPFUN_API_KEY'] },
-  { providerId: 'together', envVars: ['TOGETHER_API_KEY'] },
-  { providerId: 'venice', envVars: ['VENICE_API_KEY'] },
-  { providerId: 'volcengine', envVars: ['VOLCANO_ENGINE_API_KEY'] },
-  { providerId: 'xai', envVars: ['XAI_API_KEY'] },
-  { providerId: 'xiaomi', envVars: ['XIAOMI_API_KEY'] },
-  { providerId: 'zai', envVars: ['ZAI_API_KEY', 'Z_AI_API_KEY'] },
-  {
-    providerId: ['cloud', 'flare-ai-gateway'].join(''),
-    envVars: [['CLOUD', 'FLARE_AI_GATEWAY_API_KEY'].join('')],
-  },
-  { providerId: 'vercel-ai-gateway', envVars: ['AI_GATEWAY_API_KEY'] },
-  { providerId: 'litellm', envVars: ['LITELLM_API_KEY'] },
-  { providerId: 'copilot-proxy', envVars: ['COPILOT_PROXY_API_KEY'] },
-];
-
-function hasMutableApiKeyProvider(value: unknown): value is MutableApiKeyProvider {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as { readonly apiKey?: unknown };
-  return typeof candidate.apiKey === 'string';
-}
-
-function hasMutableConfiguredProvider(value: unknown): value is MutableConfiguredProvider {
-  if (typeof value !== 'object' || value === null) return false;
-  const candidate = value as { readonly configured?: unknown };
-  return typeof candidate.configured === 'boolean';
-}
-
-function hasAnyConfiguredEnv(envVars: readonly string[]): boolean {
-  return envVars.some((envVar) => {
-    const value = process.env[envVar];
-    return typeof value === 'string' && value.trim().length > 0;
-  });
-}
-
-export function createLaunchTolerantProviderRegistry(options: ProviderRegistryConstructionOptions): ProviderRegistry {
-  const placeholders = PROVIDER_STARTUP_PLACEHOLDER_ENVS
-    .filter((entry) => !hasAnyConfiguredEnv(entry.envVars))
-    .map((entry) => ({ providerId: entry.providerId, envVar: entry.envVars[0] }))
-    .filter((entry): entry is { readonly providerId: string; readonly envVar: string } => typeof entry.envVar === 'string');
-
-  if (placeholders.length === 0) {
-    return new ProviderRegistry(options);
-  }
-
-  const previousValues = new Map<string, string | undefined>();
-  for (const placeholder of placeholders) {
-    previousValues.set(placeholder.envVar, process.env[placeholder.envVar]);
-    process.env[placeholder.envVar] = PROVIDER_STARTUP_PLACEHOLDER_API_KEY;
-  }
-  let providerRegistry: ProviderRegistry;
-  try {
-    providerRegistry = new ProviderRegistry(options);
-  } finally {
-    for (const [envVar, previousValue] of previousValues) {
-      if (previousValue === undefined) {
-        delete process.env[envVar];
-      } else {
-        process.env[envVar] = previousValue;
-      }
-    }
-  }
-
-  for (const placeholder of placeholders) {
-    const provider = providerRegistry.get(placeholder.providerId);
-    if (hasMutableApiKeyProvider(provider) && provider.apiKey === PROVIDER_STARTUP_PLACEHOLDER_API_KEY) {
-      provider.apiKey = '';
-    }
-    if (hasMutableConfiguredProvider(provider)) {
-      provider.configured = false;
-    }
-  }
-  return providerRegistry;
 }
 
 /**
@@ -1029,7 +764,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // `?receipts=consume` read (a plain /status read is receipt-neutral), so the
   // liveness probe below stays plain and a SEPARATE consuming read runs once
   // per attach (bootstrap wires this to the memory-spine reconciler's onAttach).
-  const spineReceiptConsumer = createSpineReceiptConsumer({ resolveConnection: spineResolveConnection });
+  const spineReceiptConsumer = createSessionSpineReceiptConsumer({ resolveConnection: spineResolveConnection });
   const consumeDaemonReceipts = async (): Promise<void> => {
     const receipts = await spineReceiptConsumer();
     if (receipts.length > 0) daemonReceiptFeed.push(receipts);
@@ -1053,10 +788,20 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   });
   const sessionSpineClient = new SessionSpineClient({
     participant: AGENT_SPINE_PARTICIPANT,
-    transport: createSpineRestTransport({ resolveConnection: spineResolveConnection }),
+    // Explicit, despite AGENT_SPINE_PARTICIPANT's own doc comment suggesting
+    // recordKind can be left unset: verified against the live daemon-sdk route
+    // (runtime-session-register.js) that no server-side stamping of kind:'agent'
+    // for a surfaceKind:'service' participant actually exists — an absent kind
+    // falls through SharedSessionBroker's own default (`input.kind ?? 'tui'`),
+    // which would silently record every agent session as a TUI session. Setting
+    // recordKind here is supplying the class's own public option, not
+    // reintroducing the retired client-side stamping this repo used to carry
+    // in its own REST mirror.
+    recordKind: 'agent',
+    transport: createSessionSpineRestTransport({ resolveConnection: spineResolveConnection }),
     // Liveness only: a plain /status read that never consumes receipts. The
     // once-per-attach consuming read above is the agent's receipt reader.
-    probe: createSpineRestProbe({
+    probe: createSessionSpineRestProbe({
       resolveConnection: spineResolveConnection,
       onDaemonFloor: (floor) => clientBuildGuard.observeFloor(floor),
     }),
@@ -1095,7 +840,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
       // resolver contract (unique-across-registry auto-qualifies; ambiguous
       // and unknown ids throw errors naming real candidates) — the live
       // registry's models are the candidate list.
-      ...buildAgentSpawnRoutingFromSharedSession(input.routing, { restrictTools: true, modelCandidates: providerRegistry.listModels() }),
+      ...buildSharedSessionAgentSpawnRoutingInput(input.routing, { restrictTools: true, modelCandidates: providerRegistry.listModels() }),
       context: `shared-session:${input.sessionId}`,
     });
     return { agentId: record.id };
@@ -1241,7 +986,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     admitExpensiveWork,
   });
   agentKnowledgeService.attachRuntimeBus(options.runtimeBus);
-  const homeGraphService = new companionGraphServiceConstructor(homeGraphKnowledgeStore, artifactStore, {
+  const homeGraphService = new HomeGraphService(homeGraphKnowledgeStore, artifactStore, {
     semanticService: homeGraphSemanticService,
     admitExpensiveWork,
   });

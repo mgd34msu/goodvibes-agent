@@ -11,7 +11,8 @@ import type { LocalMemoryStore, MemoryAccess } from '@pellux/goodvibes-sdk/platf
 import { MemorySpineClient, createLocalMemoryAccess } from '@pellux/goodvibes-sdk/platform/runtime/memory-spine';
 import { assertNoSecretLikeMemoryText } from '../agent/memory-safety.ts';
 import { formatAgentRecordReviewState } from '../agent/record-labels.ts';
-import { createSpineConnectionResolver, createSpineRestProbe } from '../runtime/session-spine-rest-transport.ts';
+import { createSpineConnectionResolver } from '../runtime/session-spine-rest-transport.ts';
+import { createSessionSpineRestProbe as createSpineRestProbe } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { createMemorySpineRestTransport } from '../runtime/memory-spine-rest-transport.ts';
 import type { CliCommandOutput } from './types.ts';
 import type { CliCommandRuntime } from './management.ts';

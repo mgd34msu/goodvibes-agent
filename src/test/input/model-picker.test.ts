@@ -8,7 +8,7 @@ import { ModelPickerModal, detectFamily, tierToCategoryFilter, POPULAR_PROVIDERS
 import type { CategoryFilter, PickerMode } from '../../input/model-picker.ts';
 import type { ModelDefinition } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
-import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
+import { createLaunchTolerantProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import { SecretsManager } from '../../config/secrets.ts';
 import { ServiceRegistry } from '@pellux/goodvibes-sdk/platform/config';

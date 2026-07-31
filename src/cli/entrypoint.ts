@@ -27,7 +27,7 @@ import { buildCliServicePosture } from './service-posture.ts';
 import { inspectCliExternalRuntime } from './external-runtime.ts';
 import { inspectConnectedHostMetrics } from './connected-host-metrics.ts';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../config/surface.ts';
-import { writeExitingStdoutLine, writeFatalLine } from '../utils/fatal-boot-report.ts';
+import { writeExitingStdoutLine, writeFatalLine } from '../utils/fatal-boot-write.ts';
 import { readCheckpointRegistrationSetting } from '../config/checkpoint-settings.ts';
 import { backfillCheckpointEligibilityIfNeeded, migrateLegacyWorkspaceRegistryIfNeeded, resolveCheckpointEligibilitySync } from '../config/workspace-registration.ts';
 import { resolveAgentRuntimeProfileHome, resolveSelectedAgentRuntimeProfileHome } from '../agent/runtime-profile.ts';

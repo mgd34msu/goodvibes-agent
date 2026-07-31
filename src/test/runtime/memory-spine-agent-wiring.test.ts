@@ -28,7 +28,8 @@ import { createFeatureFlagManager } from '@/runtime/index.ts';
 import { createRuntimeServices, type RuntimeServices } from '../../runtime/services.ts';
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { reconcileMemorySpineAdoption } from '../../runtime/memory-spine-adoption.ts';
-import { createSpineConnectionResolver, createSpineRestProbe } from '../../runtime/session-spine-rest-transport.ts';
+import { createSpineConnectionResolver } from '../../runtime/session-spine-rest-transport.ts';
+import { createSessionSpineRestProbe as createSpineRestProbe } from '@pellux/goodvibes-sdk/platform/runtime/session-spine';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const TEST_TOKEN = 'memory-spine-agent-wiring-token-456';

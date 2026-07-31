@@ -9,8 +9,8 @@
  */
 import type { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
 import type { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
+import { ensureConfiguredModelIsRoutable } from '@pellux/goodvibes-sdk/platform/providers';
 import { logger } from '@pellux/goodvibes-sdk/platform/utils';
-import { ensureConfiguredModelIsRoutable } from './services.ts';
 
 /**
  * Await the initial custom-provider load, re-run the routability guard (its

@@ -10,7 +10,7 @@ import { CacheHitTracker } from '@pellux/goodvibes-sdk/platform/providers';
 import { OpenAIProvider } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderCapabilityRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { ProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
-import { createLaunchTolerantProviderRegistry } from '../../runtime/services.ts';
+import { createLaunchTolerantProviderRegistry } from '@pellux/goodvibes-sdk/platform/providers';
 import { getProviderRuntimeSnapshot, getProviderUsageSnapshot } from '@pellux/goodvibes-sdk/platform/providers';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 

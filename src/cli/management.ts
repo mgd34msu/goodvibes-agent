@@ -18,7 +18,7 @@ import { buildPersistedSessionContext } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { conversationMessagesAsSessionRecords } from '../core/conversation-message-snapshot.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
-import { writeFatalLine } from '../utils/fatal-boot-report.ts';
+import { writeFatalLine } from '../utils/fatal-boot-write.ts';
 import { listProviderRuntimeSnapshots } from '@pellux/goodvibes-sdk/platform/providers';
 import { BUILTIN_SECRET_PROVIDER_SOURCES, describeSecretRef, isSecretRefInput, resolveSecretRef } from '@pellux/goodvibes-sdk/platform/config';
 import { getSubscriptionProviderConfig, listAvailableSubscriptionProviders } from '@pellux/goodvibes-sdk/platform/config';
@@ -738,7 +738,7 @@ export async function handleGoodVibesCliCommand(runtime: CliCommandRuntime): Pro
   } catch (error) {
     // The catch-all for every CLI subcommand failure, and the last write before
     // entrypoint.ts exits on the returned code. Straight to the descriptor, for
-    // the same reason the fatal startup report is: see utils/fatal-boot-report.ts.
+    // the same reason the fatal startup report is: see utils/fatal-boot-write.ts.
     writeFatalLine(summarizeError(error));
     return { handled: true, exitCode: 1 };
   }
