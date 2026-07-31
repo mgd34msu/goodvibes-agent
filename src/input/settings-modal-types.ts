@@ -34,6 +34,7 @@ export type SettingsCategory =
   | 'tts'
   | 'surfaces'
   | 'conversationGate'
+  | 'hostedSessions'
   | 'automation'
   | 'checkin'
   | 'occasions'
@@ -134,7 +135,7 @@ export const SETTINGS_CATEGORY_GROUPS: ReadonlyArray<{
   { label: 'Agent Experience', categories: ['display', 'ui', 'behavior', 'profile', 'occasions', 'agents', 'notifications', 'permissions', 'policy', 'fetch', 'diagnostics', 'power', 'payments'] },
   { label: 'Models and Providers', categories: ['provider', 'subscriptions', 'helper', 'tools', 'tts', 'voice', 'pricing'] },
   { label: 'Agent-local state', categories: ['storage', 'cache', 'telemetry', 'atRest', 'security', 'learning'] },
-  { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'device', 'mcp', 'automation', 'checkin', 'integrations'] },
+  { label: 'Channels and Tools', categories: ['surfaces', 'conversationGate', 'hostedSessions', 'device', 'mcp', 'automation', 'checkin', 'integrations'] },
   // `danger` sits with the other listener/binding categories because that is
   // what it is: danger.httpListener opens an inbound webhook listener. It is
   // rendered like any other setting rather than hidden — the write is gated by

@@ -4,11 +4,16 @@
  * The panel's contract after the split: the daemon's record is the list every
  * surface reads, the asks this process still holds are unioned in rather than
  * dropped, and an unreachable host never renders as an empty list.
+ *
+ * Plus how transitions arrive: the `control.approval_update` stream carries
+ * them the moment the daemon records them, and the periodic re-read is retained
+ * underneath for every case where a stream cannot be had.
  */
 import { describe, expect, test } from 'bun:test';
 import type { SharedApprovalRecord } from '@pellux/goodvibes-sdk/platform/control-plane';
 import type { DaemonReachability, DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
 import {
+  applyApprovalUpdate,
   createApprovalsView,
   describeApprovalsUnavailable,
   unionApprovalRecords,
@@ -185,5 +190,189 @@ describe('approvals view: the union rule, driven directly', () => {
       [approval({ id: 'l1', callId: '' })],
     );
     expect(result.approvals.map((row) => row.id)).toEqual(['h1', 'l1']);
+  });
+});
+
+describe('approvals view: transitions arrive on the push channel, with the poll underneath', () => {
+  /** A subscribe seam a test drives by hand, standing in for the real stream. */
+  function stream(): {
+    readonly subscribe: NonNullable<Parameters<typeof createApprovalsView>[0]['subscribe']>;
+    push(record: SharedApprovalRecord): void;
+    drop(): void;
+    opened(): number;
+    closed(): number;
+  } {
+    let onUpdate: ((notice: { approval: unknown; createdAt: number }) => void) | null = null;
+    let onTerminate: ((error: unknown) => void) | null = null;
+    let opens = 0;
+    let closes = 0;
+    return {
+      subscribe: async (handlers) => {
+        opens += 1;
+        onUpdate = handlers.onUpdate as typeof onUpdate;
+        onTerminate = handlers.onTerminate;
+        return { close: () => { closes += 1; } };
+      },
+      push: (record) => onUpdate?.({ approval: record, createdAt: Date.now() }),
+      drop: () => onTerminate?.(new Error('the stream ended')),
+      opened: () => opens,
+      closed: () => closes,
+    };
+  }
+
+  /** Let start()'s unawaited subscribe/refresh settle before asserting. */
+  const settle = async (): Promise<void> => { await new Promise((resolve) => setTimeout(resolve, 0)); };
+
+  test('an ask raised elsewhere lands on the panel without waiting for a re-read', async () => {
+    const channel = stream();
+    let listReads = 0;
+    const view = createApprovalsView({
+      verbs: verbs({
+        probe: { available: true },
+        invoke: async () => { listReads += 1; return { approvals: [] }; },
+      }),
+      localBroker: { listApprovals: () => [] },
+      subscribe: channel.subscribe,
+    });
+
+    view.start();
+    await settle();
+    expect(view.snapshot().liveUpdates).toBe(true);
+
+    channel.push(approval({ id: 'phone-ask', sessionId: 'session-a' }));
+    expect(view.snapshot().approvals.map((row) => row.id)).toEqual(['phone-ask']);
+    // The record came whole on the frame; nothing had to be read back for it.
+    expect(listReads).toBe(1);
+
+    view.stop();
+    expect(channel.closed()).toBe(1);
+  });
+
+  test('a decision made on another surface clears the row', async () => {
+    const channel = stream();
+    const view = createApprovalsView({
+      verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [] }) }),
+      localBroker: { listApprovals: () => [] },
+      subscribe: channel.subscribe,
+    });
+
+    view.start();
+    await settle();
+    channel.push(approval({ id: 'ask-1' }));
+    expect(view.snapshot().approvals).toHaveLength(1);
+
+    channel.push(approval({ id: 'ask-1', status: 'approved' }));
+    expect(view.snapshot().approvals).toHaveLength(0);
+
+    view.stop();
+  });
+
+  test('a claimed ask stays on the panel — someone answering is not someone answered', async () => {
+    const channel = stream();
+    const view = createApprovalsView({
+      verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [] }) }),
+      localBroker: { listApprovals: () => [] },
+      subscribe: channel.subscribe,
+    });
+
+    view.start();
+    await settle();
+    channel.push(approval({ id: 'ask-1' }));
+    channel.push(approval({ id: 'ask-1', status: 'claimed', claimedBy: 'phone' }));
+
+    const snapshot = view.snapshot();
+    expect(snapshot.approvals.map((row) => row.id)).toEqual(['ask-1']);
+    expect(snapshot.approvals[0]?.status).toBe('claimed');
+
+    view.stop();
+  });
+
+  test('a stream that cannot be opened leaves the panel polling, and says so', async () => {
+    const view = createApprovalsView({
+      verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [approval({ id: 'host-1' })] }) }),
+      localBroker: { listApprovals: () => [] },
+      subscribe: async () => null,
+    });
+
+    view.start();
+    await settle();
+    const snapshot = view.snapshot();
+    expect(snapshot.liveUpdates).toBe(false);
+    // The fallback is the whole point: the record was still read.
+    expect(snapshot.approvals.map((row) => row.id)).toEqual(['host-1']);
+
+    view.stop();
+  });
+
+  test('a dropped stream falls back to the re-read and is reopened on the next tick', async () => {
+    const channel = stream();
+    const view = createApprovalsView({
+      verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [] }) }),
+      localBroker: { listApprovals: () => [] },
+      subscribe: channel.subscribe,
+      // Short enough that a dropped stream is retried inside this test.
+      refreshIntervalMs: 5,
+      liveRefreshIntervalMs: 10_000,
+    });
+
+    view.start();
+    await settle();
+    expect(view.snapshot().liveUpdates).toBe(true);
+
+    channel.drop();
+    expect(view.snapshot().liveUpdates).toBe(false);
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(channel.opened()).toBeGreaterThan(1);
+    expect(view.snapshot().liveUpdates).toBe(true);
+
+    view.stop();
+  });
+
+  test('with no subscribe wired the view behaves exactly as it did before push', async () => {
+    const view = createApprovalsView({
+      verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [approval({ id: 'host-1' })] }) }),
+      localBroker: { listApprovals: () => [] },
+    });
+
+    view.start();
+    await settle();
+    expect(view.snapshot().liveUpdates).toBe(false);
+    expect(view.snapshot().approvals.map((row) => row.id)).toEqual(['host-1']);
+
+    view.stop();
+  });
+
+  test('the apply rule, driven directly', () => {
+    const rows = [approval({ id: 'a' }), approval({ id: 'b' })];
+    expect(applyApprovalUpdate(rows, approval({ id: 'c' })).map((row) => row.id)).toEqual(['a', 'b', 'c']);
+    expect(applyApprovalUpdate(rows, approval({ id: 'b', status: 'denied' })).map((row) => row.id)).toEqual(['a']);
+    // Replaced in place, so the panel's order does not jump when a row updates.
+    const updated = applyApprovalUpdate(rows, approval({ id: 'a', status: 'claimed' }));
+    expect(updated.map((row) => row.id)).toEqual(['a', 'b']);
+    expect(updated[0]?.status).toBe('claimed');
+  });
+});
+
+describe('approvals view: a stream opened after stop() is not left holding the daemon', () => {
+  test('stop() during the open closes the subscription when it lands', async () => {
+    type Release = (subscription: { close: () => void }) => void;
+    const pending: Release[] = [];
+    let closes = 0;
+    const view = createApprovalsView({
+      verbs: verbs({ probe: { available: true }, invoke: async () => ({ approvals: [] }) }),
+      localBroker: { listApprovals: () => [] },
+      subscribe: async () => await new Promise<{ close: () => void }>((resolve) => { pending.push(resolve); }),
+    });
+
+    view.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    view.stop();
+    expect(pending).toHaveLength(1);
+    pending[0]?.({ close: () => { closes += 1; } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(closes).toBe(1);
+    expect(view.snapshot().liveUpdates).toBe(false);
   });
 });

@@ -35,6 +35,7 @@ import {
   createDaemonCredentialsClient,
   createDevicesClient,
   createWireSessionDispatch,
+  watchApprovalUpdates,
 } from '@pellux/goodvibes-sdk/platform/runtime/client';
 import type {
   ConversationRewindHostClient,
@@ -50,10 +51,11 @@ import type {
   ProviderRegistryConstructionOptions,
   UserPermissionRuleAccess,
 } from '@pellux/goodvibes-sdk/platform/runtime/client-services';
-import { createAgentDaemonVerbCaller } from './client/daemon-verbs.ts';
+import { createAgentDaemonVerbCaller, resolveConnectedHostConnection } from './client/daemon-verbs.ts';
 import { createApprovalsView, type ApprovalsView } from './client/approvals-view.ts';
 import { createAgentSessionInputsClient } from './client/session-inputs.ts';
 import { createHostedSessionRegistry, type HostedSessionRegistry } from './client/hosted-sessions.ts';
+import { createHostedConversationHandoff, type HostedConversationHandoff } from './client/hosted-handoff.ts';
 import { installAgentDaemonCredentialsClient } from '../config/daemon-credential-routing.ts';
 import { installAgentDaemonConfigClient } from '../config/daemon-config-routing.ts';
 import type { LocalPermissionPrompt } from '@pellux/goodvibes-sdk/platform/runtime/client';
@@ -543,6 +545,13 @@ export interface RuntimeServices extends Omit<SdkRuntimeServices, 'sessionBroker
   /** The sessions this process is running, and whether one is mid-turn. */
   readonly hostedSessions: HostedSessionRegistry;
   /**
+   * The other answer the continuation runner can give: hand an inbound channel
+   * conversation to the daemon to host instead of answering it here. Off unless
+   * `hostedSessions.promoteInboundConversations` says otherwise; exposed on the
+   * graph so a surface can say which conversations were handed over.
+   */
+  readonly hostedHandoff: HostedConversationHandoff;
+  /**
    * Checkpoint operations with the registered-workspace gate applied to
    * `create`. The raw {@link workspaceCheckpointManager} sits beside it for the
    * read/restore paths that were never gated.
@@ -786,10 +795,11 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // One verb caller, handed to every seam. Connection resolution stays here (see
   // client/daemon-verbs.ts) because deciding which daemon this agent trusts is a
   // trust-boundary concern, not a policy the platform reaches into.
-  const daemonVerbs: DaemonVerbCaller = createAgentDaemonVerbCaller({
-    configManager,
-    homeDirectory,
-  });
+  // One set of options, used twice on purpose: the verb caller dials the host
+  // with them, and the approval-update stream resolves the SAME host and token
+  // from them. Two resolutions would be two hosts the day they disagree.
+  const connectedHostAccess = { configManager, homeDirectory };
+  const daemonVerbs: DaemonVerbCaller = createAgentDaemonVerbCaller(connectedHostAccess);
   // What this process is actually running, answered from itself rather than from
   // a cross-surface register it no longer owns. Feeds inbound dispatch, the
   // conversation-rewind host, the trigger family's liveness check, and both
@@ -818,6 +828,22 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // its bound runner and dispatches nothing, which is the honest offline posture.
   const sessionDispatch: WireSessionDispatch = createWireSessionDispatch({
     hostedSessionIds: () => hostedSessions.ids(),
+  });
+  // Hand-to-hosting. The continuation runner below asks this FIRST on every
+  // inbound message; with the setting off it answers "not promoted" without a
+  // round trip and the runner spawns locally exactly as it always has. The
+  // setting is read per call, so turning it on takes effect on the next message
+  // rather than the next restart.
+  const hostedHandoff = createHostedConversationHandoff({
+    verbs: daemonVerbs,
+    isEnabled: () => configManager.get('hostedSessions.promoteInboundConversations') === true,
+    // The workspace a promoted conversation's tools operate in is the one this
+    // process is working in — the same root its local spawn would have used.
+    workspaceRoot: () => workingDirectory,
+    // Stable for the life of the process and legible in `attachedClients`, so
+    // an owner listing hosted sessions can see which surface handed each one over.
+    clientId: `${GOODVIBES_AGENT_SURFACE_ROOT}:${process.pid}`,
+    log: logger,
   });
 
   // ── The client floor ─────────────────────────────────────────────────────
@@ -1010,7 +1036,29 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
   // when the daemon cannot be read. Started by the interactive bootstrap (a
   // one-shot subcommand has nobody to show a panel to); `refresh()` works
   // without `start()` for a single read.
-  const approvalsView = createApprovalsView({ verbs: daemonVerbs, localBroker: approvalBroker });
+  const approvalsView = createApprovalsView({
+    verbs: daemonVerbs,
+    localBroker: approvalBroker,
+    // Push replaces the 15s wait, not the read. An ask raised on a phone shows
+    // on this panel the moment the daemon records it, and a decision made
+    // elsewhere clears it just as fast; when the stream cannot be opened or
+    // drops, the periodic re-read is still there and the snapshot says so.
+    subscribe: async ({ onUpdate, onTerminate }) => {
+      const resolved = resolveConnectedHostConnection(connectedHostAccess);
+      if ('reason' in resolved) {
+        logger.debug('[approvals] no connected host for the approval-update stream; the panel keeps re-reading', {
+          reason: resolved.reason,
+        });
+        return null;
+      }
+      return await watchApprovalUpdates({
+        baseUrl: resolved.baseUrl,
+        getAuthToken: () => resolved.token,
+        onUpdate,
+        onTerminate,
+      });
+    },
+  });
   disposalScope.registry.add('approvals view', () => approvalsView.stop());
   // Per-device revocable pairing tokens (SDK 1.8.0, pairing.tokens.*
   // gateway verbs). Constructed exactly as the SDK composition root does,
@@ -1113,6 +1161,30 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
         floor: clientBuildGuard.current().floor,
       });
       return null;
+    }
+    // Hand-to-hosting, tried before anything is spawned here. Promoted, the
+    // conversation's loop runs in the daemon and this process is done with the
+    // message; not promoted, the reason is stated and the local answer below is
+    // exactly the answer this runner has always given. The one silent case is
+    // the setting being off, which is the shipped default and not news.
+    const handoff = await hostedHandoff.promote({
+      sessionId: input.sessionId,
+      task,
+      body: input.body,
+      ...(input.surfaceKind ? { surfaceKind: input.surfaceKind } : {}),
+      ...(input.surfaceId ? { surfaceId: input.surfaceId } : {}),
+      ...(input.displayName ? { displayName: input.displayName } : {}),
+    });
+    if (handoff.promoted) {
+      // No local agent ran, and saying otherwise would bind a reply to an agent
+      // id that does not exist. The input is still consumed: the daemon has it.
+      return null;
+    }
+    if (!handoff.disabled) {
+      logger.warn('this conversation could not be handed to the daemon to host; answering it in this process', {
+        sessionId: input.sessionId,
+        reason: handoff.reason,
+      });
     }
     const record = agentManager.spawn({
       mode: 'spawn',
@@ -2101,6 +2173,7 @@ export function createRuntimeServices(options: RuntimeServicesOptions): RuntimeS
     permissionPromptRef,
     permissionManager,
     hostedSessions,
+    hostedHandoff,
     daemonVerbs,
     daemonConfigClient,
     daemonCredentialsClient,
