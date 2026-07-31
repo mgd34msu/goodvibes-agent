@@ -141,7 +141,10 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
   // routed to /workplan or /delegate), so the opsApi intervention verbs
   // honestly report the control plane as unavailable.
   const foundationClients = createRuntimeFoundationClients({
-    runtimeServices: services,
+    // The foundation clients read the session REGISTER (listSessions and the
+    // rest), not the dispatch seam, so they get the daemon-grade view — the one
+    // that names the register automation runs on.
+    runtimeServices: services.asDaemonGradeView(),
     tasksReadModel: uiServices.readModels.tasks,
     taskManager,
   });
@@ -189,6 +192,7 @@ export function createBootstrapShell(options: BootstrapShellOptions): BootstrapS
     fileUndoManager: services.fileUndoManager,
     processManager: services.processManager,
     executionLedger: services.executionLedger,
+    approvalsView: services.approvalsView,
     memoryRegistry: services.memoryRegistry,
     integrationHelpers: services.integrationHelpers,
     automationManager: services.automationManager,

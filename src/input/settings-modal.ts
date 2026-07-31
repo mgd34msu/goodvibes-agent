@@ -7,6 +7,7 @@ import type { SubscriptionManager } from '@pellux/goodvibes-sdk/platform/config'
 import { getResolvedSettingLookup } from '@/runtime/index.ts';
 import type { ServiceInspectionQuery } from '../runtime/ui-service-queries.ts';
 import { buildGoodVibesSecretKey, defaultSecretBackedScope, isSecretConfigKey } from '../config/secret-config.ts';
+import { routeSettingWriteToConnectedHost } from './settings-modal-daemon-writes.ts';
 import {
   getNumericAdjustmentMeta,
   modelPickerLaunchForKey,
@@ -20,6 +21,8 @@ import {
   type SettingsSecretsManager,
 } from './settings-modal-secrets.ts';
 import { buildSubscriptionEntries } from './settings-modal-subscriptions.ts';
+import { buildMcpEntries } from './settings-modal-mcp-entries.ts';
+import { buildFlagEntries } from './settings-modal-flag-entries.ts';
 import {
   coerceThemeModeSetting,
   THEME_MODE_CONFIG_KEY,
@@ -568,6 +571,9 @@ export class SettingsModal {
         configManager: this.configManager,
         secretsManager: this.secretsManager,
         setConfigValue: (key, value) => this._setValue(key, value),
+        onWriteReported: (report) => {
+          this.lastSettingEffectMessage = report.message;
+        },
       });
     } else {
       this._setValue(setting.key, parsed);
@@ -699,45 +705,11 @@ export class SettingsModal {
    * bound domain settings key.
    */
   private _loadFlagEntries(): void {
-    if (!this.configManager) {
-      this.flagEntries = [];
-      return;
-    }
-    const configManager = this.configManager;
-    const managerStates = this.featureFlagManager?.getAll() ?? null;
-    this.flagEntries = FEATURE_SETTINGS
-      .map((feature, declarationIndex) => {
-        const managed = managerStates?.get(feature.id);
-        const derivedState: FlagState = isFeatureEnabledInConfig(configManager, feature.id) ? 'enabled' : 'disabled';
-        return {
-          entry: {
-            feature,
-            state: managed?.state ?? derivedState,
-            enablementValue: String(configManager.get(feature.enablement.key)),
-          },
-          declarationIndex,
-        };
-      })
-      .sort((left, right) => (
-        left.entry.feature.domain.localeCompare(right.entry.feature.domain)
-        || left.declarationIndex - right.declarationIndex
-      ))
-      .map(({ entry }) => entry);
+    this.flagEntries = buildFlagEntries(this.configManager, this.featureFlagManager);
   }
 
   private _loadMcpEntries(): void {
-    if (!this.mcpRegistry) {
-      this.mcpEntries = [];
-      return;
-    }
-    this.mcpEntries = this.mcpRegistry.listServerSecurity().map((entry) => ({
-      name: entry.name,
-      connected: entry.connected,
-      role: entry.role,
-      trustMode: entry.trustMode,
-      allowedPaths: [...entry.allowedPaths],
-      allowedHosts: [...entry.allowedHosts],
-    }));
+    this.mcpEntries = buildMcpEntries(this.mcpRegistry);
   }
 
   private _loadSubscriptionEntries(): void {
@@ -763,6 +735,20 @@ export class SettingsModal {
   private _setValue(key: ConfigKey, value: unknown): void {
     if (!this.configManager) return;
     const previousValue = this.configManager.get(key);
+    // A setting the DAEMON acts on is written where it is acted on. Writing it
+    // into this process's own store is the defect this routing exists to end:
+    // the modal accepted the value, reported success, and configured nothing,
+    // because the runtime that reads the key reads a different file.
+    //
+    // This runs before the local write and returns instead of it, so a
+    // daemon-owned key never has two writers. The modal cannot await from a
+    // keystroke handler, so the outcome lands on `lastSettingEffectMessage` a
+    // moment later — including the refusal, which is the message that matters.
+    const routed = routeSettingWriteToConnectedHost(key, value, (update) => {
+      this.lastSettingEffectMessage = update.message;
+      if (update.ok) this._refreshAllEntries();
+    });
+    if (routed) return;
     try {
       this.configManager.setDynamic(key, value);
       for (const entries of this.groups.values()) {

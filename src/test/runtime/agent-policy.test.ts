@@ -61,23 +61,54 @@ describe('Agent user-first autonomy policy', () => {
     expect(mainSource).not.toContain('runningAgentCount = 0');
   });
 
-  test('shared-session continuation spawns a visible tracked agent', async () => {
+  test('a continuation arriving from the connected host spawns a visible tracked agent', async () => {
+    // The same guarantee as before the client split, one layer out: a
+    // continuation for a session THIS process hosts must reach the loop and
+    // become a tracked agent run. What changed is where it arrives from —
+    // `sessions.inputs.list` on the adopted daemon, not a register this process
+    // wrote into itself — so the wire is what this drives.
     const services = makeRuntimeServices();
-    await services.sessionBroker.start();
+    const sessionId = 'session-agent-policy';
+    services.hostedSessions.adopt(sessionId);
 
-    const submission = await services.sessionBroker.followUpMessage({
-      surfaceKind: 'service',
-      surfaceId: 'agent-policy-test',
-      body: 'Build the thing',
+    const delivered: Array<{ sessionId: string; inputId: string; consumed: boolean | undefined }> = [];
+    let served = false;
+    services.sessionBroker.activate({
+      async listInputs(id) {
+        // One queued `submit`, then nothing: `deliver` is the real
+        // de-duplication in production, and this mirrors it so a second poll
+        // cannot double-spawn.
+        if (id !== sessionId || served) return { inputs: [] };
+        served = true;
+        return {
+          inputs: [{
+            id: 'input-1',
+            sessionId,
+            intent: 'submit',
+            body: 'Build the thing',
+            state: 'queued',
+            createdAt: Date.now(),
+          }] as never,
+        };
+      },
+      async deliverInput(id, inputId, options) {
+        delivered.push({ sessionId: id, inputId, consumed: options?.consumed });
+        return {};
+      },
     });
-    const broker = services.sessionBroker as unknown as {
-      runQueuedFollowUp(sessionId: string): Promise<{ readonly agentId: string } | null>;
-    };
 
-    const result = await broker.runQueuedFollowUp(submission.session.id);
-    expect(result?.agentId).toMatch(/^agent-/);
-    expect(services.agentManager.getStatus(result!.agentId)?.task).toContain('Build the thing');
-  });
+    // The composed dispatch polls on its own interval, so this waits for the
+    // OUTCOME rather than sleeping a fixed span past it — a bounded wait that
+    // fails with a real assertion instead of timing out.
+    const deadline = Date.now() + 8_000;
+    while (delivered.length === 0 && Date.now() < deadline) await Bun.sleep(50);
+
+    expect(delivered).toEqual([{ sessionId, inputId: 'input-1', consumed: true }]);
+    const spawned = services.agentManager.list().find((record) => record.task.includes('Build the thing'));
+    expect(spawned).toBeTruthy();
+    expect(spawned!.id).toMatch(/^agent-/);
+    services.dispose();
+  }, 10_000);
 
   test('operator method catalog exposes the GoodVibes daemon contract dynamically', () => {
     const status = operatorMethodCatalogStatus() as {

@@ -113,7 +113,7 @@ function createRuntimeFixture(prefix: string) {
 
 async function createDirectHarness(): Promise<TransportHarness> {
   const fixture = createRuntimeFixture('gv-transport-parity-direct');
-  const transport = createDirectTransport(fixture.runtimeServices);
+  const transport = createDirectTransport(fixture.runtimeServices.asDaemonGradeView());
   return {
     kind: 'direct',
     ensureSession: async (sessionId, title) => await transport.operator.sessions.ensureSession({
@@ -178,7 +178,7 @@ async function createRemoteHarness(kind: 'http' | 'realtime'): Promise<Transport
   const daemon = new DaemonServer({
     port: 0,
     host: '127.0.0.1',
-    runtimeServices: fixture.runtimeServices,
+    runtimeServices: fixture.runtimeServices.asDaemonGradeView(),
     userAuth: createUserAuth(join(fixture.tempRoot, 'home')),
     serveFactory,
   });

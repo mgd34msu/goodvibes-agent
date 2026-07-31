@@ -34,9 +34,23 @@
  * which build process produced the runtime, never whether the contract was in
  * it. The two capability assertions below already answer the question it was
  * asked to answer.
+ *
+ * ── Whose composition this drives, as of the client split ────────────────
+ *
+ * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
+ * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * for any of these any more, and that absence is itself pinned in
+ * daemon/gateway-ws-only-invokable.test.ts.
+ *
+ * The behaviour below did not move or change; its OWNER did. These verbs are
+ * served to every surface by one process now, and this suite is where the
+ * contract that surface depends on stays honest. Driving it through the
+ * daemon's composition is the difference between verifying a contract and
+ * asserting that a client answers its own question.
  */
 
 import { afterEach, describe, expect, test } from 'bun:test';
+import { buildDaemonGatewayCatalog } from '../helpers/daemon-gateway.ts';
 import { readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
@@ -119,7 +133,7 @@ async function liveProfile(): Promise<LiveProfile> {
 
   const tool = createAgentProfileTool({
     invoke: createProfileGatewayInvoke({
-      gatewayMethods: services.gatewayMethods,
+      gatewayMethods: buildDaemonGatewayCatalog(services),
       configManager,
       homeDirectory: root,
     }),

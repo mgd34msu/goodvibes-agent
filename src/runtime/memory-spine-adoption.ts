@@ -34,6 +34,15 @@ export interface MemorySpineAdoptionOptions {
    * undo the adoption that just happened.
    */
   readonly onAttach?: () => void | Promise<void>;
+  /**
+   * Called exactly on the transition OUT of adoption — a daemon that was being
+   * used stopped answering. The agent wires this to the inbound session
+   * dispatch's `deactivate`, because a poller that keeps dialing a dead wire is
+   * the same "guessing" this reconciler exists to avoid on the memory side. The
+   * bound continuation runner is kept, so a daemon that comes back resumes
+   * dispatch without re-binding anything.
+   */
+  readonly onDetach?: (reason: string) => void;
 }
 
 /**
@@ -63,6 +72,15 @@ export async function reconcileMemorySpineAdoption(options: MemorySpineAdoptionO
     return;
   }
   if (!reachable && options.memorySpineClient.active) {
-    options.memorySpineClient.deactivate(options.deactivateReason ?? 'daemon unreachable on periodic reachability check');
+    const reason = options.deactivateReason ?? 'daemon unreachable on periodic reachability check';
+    options.memorySpineClient.deactivate(reason);
+    // Same edge, same signal. A detach handler that throws must not make the
+    // caller log a false "reachability recheck failed" for a release that has
+    // already happened.
+    try {
+      options.onDetach?.(reason);
+    } catch {
+      // Nothing to undo: the memory spine is already back on local access.
+    }
   }
 }

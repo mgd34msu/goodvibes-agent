@@ -29,7 +29,7 @@ describe('operator client', () => {
   beforeEach(async () => {
     resetTestRuntimeServices();
     runtimeServices = getTestRuntimeServices();
-    operatorServices = createOperatorClientServices(runtimeServices, {
+    operatorServices = createOperatorClientServices(runtimeServices.asDaemonGradeView(), {
       getControlPlaneRecentEvents: () => [{
         id: 'evt-1',
         event: 'session-created',
@@ -132,7 +132,7 @@ describe('operator client', () => {
   test('events are direct in-process feeds over the runtime bus', async () => {
     const runtimeBus = new RuntimeEventBus();
     const eventServices = createOperatorClientServices({
-      ...runtimeServices,
+      ...runtimeServices.asDaemonGradeView(),
       runtimeBus,
     });
     const eventClient = createOperatorClient(eventServices);

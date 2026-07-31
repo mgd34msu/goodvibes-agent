@@ -97,7 +97,9 @@ describe('HttpTransport', () => {
     daemon = new DaemonServer({
       port,
       host: '127.0.0.1',
-      runtimeServices,
+      // The daemon-grade view: this test stands up a REAL DaemonServer to be
+      // the host the client half talks to, and a server wants the register.
+      runtimeServices: runtimeServices.asDaemonGradeView(),
       userAuth: createUserAuth(homeDir),
     });
   });

@@ -152,7 +152,7 @@ export function createUiRuntimeServices(
     },
     sessions: {
       sessionManager: runtimeServices.sessionManager,
-      sessionBroker: runtimeServices.sessionBroker,
+      sessionBroker: runtimeServices.automationSessionRegister,
       sessionOrchestration: runtimeServices.sessionOrchestration,
       sessionMemoryStore: runtimeServices.sessionMemoryStore,
     },

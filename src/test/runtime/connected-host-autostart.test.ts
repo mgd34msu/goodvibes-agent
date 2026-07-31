@@ -461,12 +461,14 @@ function wireFixture(options: {
     hookDispatcher: {} as HookDispatcher,
     // The injected control + probe below keep the wiring off every real
     // services field except the two receipt feeds (both attached
-    // unconditionally at wire time), so a pair of feeds plus a bare object is
-    // an honest stand-in here.
+    // unconditionally at wire time) and the daemon-grade view handed to the
+    // adopt-or-spawn policy — which, with adoptOnly, reads only
+    // localUserAuthManager and configManager and never constructs a server.
     services: {
       daemonReceiptFeed: new AgentDaemonReceiptFeed(),
       memoryConsolidationReceiptFeed: new AgentDaemonReceiptFeed(),
-    } as RuntimeServices,
+      asDaemonGradeView: () => ({}) as never,
+    } as unknown as RuntimeServices,
     uiServices,
     deferredStartup: immediateCoordinator(),
     systemMessageRouter: router,

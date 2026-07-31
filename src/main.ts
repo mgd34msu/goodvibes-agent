@@ -43,7 +43,6 @@ import {
 } from '@/runtime/index.ts';
 import type { SessionSnapshot } from '@/runtime/index.ts';
 import { handleBlockingShellInput, type PendingPermissionState, type PendingWorkspaceRegistrationState } from './shell/blocking-input.ts';
-import { handleBrokerApprovalChange } from './permissions/broker-approval.ts';
 import { createAgentWorkspaceFullscreenComposite, createFullscreenCompositeFromLines } from './shell/agent-workspace-fullscreen.ts';
 import { getTerminalSize } from './shell/terminal-size.ts';
 import { buildShellSessionContinuityHints } from './shell/session-continuity-hints.ts';
@@ -67,6 +66,7 @@ import { allowTerminalWrite, installTuiTerminalOutputGuard } from './runtime/ter
 import { buildCommandArgsHint } from './input/command-args-hint.ts';
 import { GOODVIBES_AGENT_PAIRING_SURFACE } from './config/surface.ts';
 import { createAutonomySurfacing, buildCalendarEventsLister, buildSkillDraftProposer } from './shell/autonomy-surfacing.ts';
+import { bindApprovalsPanel } from './shell/approvals-panel.ts';
 import { buildListAutomationRunsSince } from './agent/automation-runs-source.ts';
 import { startHardwareProbe } from './core/hardware-profile.ts';
 import { readApprovalPostureFromConfig } from './permissions/approval-posture.ts';
@@ -170,12 +170,15 @@ async function main() {
   };
 
   let pendingPermission: PendingPermissionState | null = null;
-  // Clears our own resolved card and opens one for a broker-originated ask no local prompt is handling — see permissions/broker-approval.ts.
-  approvalBroker.subscribe((approval) => handleBrokerApprovalChange({
-    approval, broker: approvalBroker, render,
+  const approvalsPanel = bindApprovalsPanel({
+    broker: approvalBroker,
+    approvalsView: ctx.services.approvalsView,
+    // Deferred: `render` is declared further down, and the binding only ever
+    // calls it from inside the broker subscription.
+    render: () => { render(); },
     getPending: () => pendingPermission,
     setPending: (next) => { pendingPermission = next; },
-  }));
+  });
 
   let streamTokenSpeed = 0;
 
@@ -191,7 +194,8 @@ async function main() {
     shellPaths: ctx.services.shellPaths,
     listAutomationJobs: () => ctx.services.automationManager.listJobs(),
     listAutomationRunsSince: buildListAutomationRunsSince(configManager, homeDirectory),
-    listApprovals: () => ctx.services.approvalBroker.listApprovals(),
+    listApprovals: approvalsPanel.listApprovals,
+    describeApprovalsUnavailable: approvalsPanel.describeApprovalsUnavailable,
     getTasksSnapshot: () => uiServices.readModels.tasks.getSnapshot().tasks,
     router: {
       high: (message) => systemMessageRouter.high(message),
@@ -461,7 +465,7 @@ async function main() {
       },
       sessions: {
         sessionManager: ctx.services.sessionManager,
-        sessionBroker: ctx.services.sessionBroker,
+        sessionBroker: ctx.services.automationSessionRegister,
         sessionOrchestration: ctx.services.sessionOrchestration,
         sessionMemoryStore: ctx.services.sessionMemoryStore,
       },

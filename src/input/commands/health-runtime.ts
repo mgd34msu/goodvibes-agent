@@ -3,6 +3,7 @@ import { evaluateSessionMaintenance, formatSessionMaintenanceLines } from '@/run
 import { estimateConversationTokens } from '@pellux/goodvibes-sdk/platform/core';
 import type { CommandContext, CommandRegistry } from '../command-registry.ts';
 import { buildSetupReviewSnapshot } from './local-setup-review.ts';
+import { describeApprovalsUnavailable } from '../../runtime/client/approvals-view.ts';
 import { buildProviderAccountSnapshot } from '../../runtime/provider-account-snapshot.ts';
 import { getSettingsControlPlaneSnapshot } from '@/runtime/index.ts';
 import { checkRecoveryFile, readLastSessionPointer } from '@/runtime/index.ts';
@@ -44,13 +45,59 @@ function formatHealthStatusValue(value: HealthStatusValue): string {
   return value.replace(/[_-]+/g, ' ');
 }
 
+/**
+ * `/health approvals` — the asks waiting for this owner, from the daemon's
+ * record unioned with whatever this process still holds.
+ *
+ * Written so an unreachable host and an empty list can never print the same
+ * thing. When the daemon's record was not read, the reason is the FIRST line,
+ * before any rows, and the rows that follow are labelled as this process's
+ * own — a person scanning the output sees the caveat before the list, not
+ * after it.
+ */
+async function renderApprovalsHealth(ctx: CommandContext): Promise<string> {
+  const view = ctx.ops.approvalsView;
+  if (!view) {
+    return [
+      'Health Review Approvals',
+      '  the approvals view is not wired in this runtime, so no list can be shown.',
+      '  This is not "no approvals waiting" — nothing was read.',
+    ].join('\n');
+  }
+
+  const snapshot = await view.refresh();
+  const unavailable = describeApprovalsUnavailable(snapshot);
+  const pending = snapshot.approvals.filter((approval) => approval.status === 'pending' || approval.status === 'claimed');
+
+  const rows = pending.map((approval) => {
+    const tool = typeof approval.request?.tool === 'string' && approval.request.tool.length > 0
+      ? approval.request.tool
+      : 'unnamed tool';
+    const session = approval.sessionId ? ` session ${approval.sessionId}` : '';
+    return `  ${approval.status} ${tool}${session} (${approval.id})`;
+  });
+
+  return [
+    'Health Review Approvals',
+    ...(unavailable === null ? [] : [`  ${unavailable}`]),
+    `  source ${snapshot.hostRecordRead ? 'connected host record + this process' : 'this process only'}`,
+    `  waiting ${pending.length}`,
+    `  raised in this process and not on the host ${snapshot.localOnlyCount}`,
+    ...(rows.length > 0
+      ? rows
+      : [snapshot.hostRecordRead
+        ? '  nothing is waiting on the connected host or in this process'
+        : '  nothing is waiting in this process; the host was not read, so it may still hold asks']),
+  ].join('\n');
+}
+
 export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
   registry.register({
     name: 'health',
     aliases: ['doctor'],
     description: 'Health workspace for startup posture, connected host readiness, provider health, and Agent continuity',
     hidden: true,
-    usage: '[review|setup|host|provider|accounts|auth|settings|remote|mcp|memory|continuity|maintenance|repair [domain]]',
+    usage: '[review|setup|approvals|host|provider|accounts|auth|settings|remote|mcp|memory|continuity|maintenance|repair [domain]]',
     async handler(args, ctx) {
       const sub = (args[0] ?? 'review').toLowerCase();
       try {
@@ -77,6 +124,11 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
           '  next /provider',
           '  next /accounts review',
         ].join('\n'));
+        return;
+      }
+
+      if (sub === 'approvals') {
+        ctx.print(await renderApprovalsHealth(ctx));
         return;
       }
 
@@ -407,6 +459,7 @@ export function registerHealthRuntimeCommands(registry: CommandRegistry): void {
         '',
         'Next steps',
         '  /health review',
+        '  /health approvals',
         '  /health host',
         '  /health accounts',
         '  /health auth',

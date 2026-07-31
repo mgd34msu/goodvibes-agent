@@ -53,9 +53,14 @@ export function createUiReadModels(
   runtimeServices: RuntimeServices,
   options: UiReadModelOptions = {},
 ): UiReadModels {
+  // Read models READ. Every one of them wants the session register (session
+  // rows, approval counts, observability snapshots), never the dispatch seam,
+  // so they are handed the daemon-grade view rather than each being taught the
+  // substitution.
+  const daemonGradeView = runtimeServices.asDaemonGradeView();
   return {
-    ...createCoreReadModels(runtimeServices),
-    ...createOperationsReadModels(runtimeServices, options),
-    ...createObservabilityReadModels(runtimeServices, options),
+    ...createCoreReadModels(daemonGradeView),
+    ...createOperationsReadModels(daemonGradeView, options),
+    ...createObservabilityReadModels(daemonGradeView, options),
   };
 }

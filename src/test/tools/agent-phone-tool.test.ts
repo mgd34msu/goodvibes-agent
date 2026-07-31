@@ -1,309 +1,278 @@
 /**
- * agent-phone-tool.test.ts — the native `phone` tool.
+ * agent-phone-tool.test.ts — the agent's end of the paired-phone split.
  *
- * Drives the tool against a real device capability service (real grant store,
- * real capture store, stub node and stub transport) so the confirmation gate,
- * the durable-grant path, revocation, and the housekeeping disclosure are
- * exercised as behaviour rather than mocked away.
+ * ── What this file used to pin, and why that could not stay ───────────────
+ *
+ * It drove this repo's own `phone` tool over this repo's own device-posture
+ * runtime: a second grants ledger, a second capture store, a second set of
+ * housekeeping sweeps, living in the agent process and writing the same files
+ * the daemon writes. Both are gone. A phone pairs with the daemon, a grant has
+ * to outlive the terminal window that approved it, and the sweep that reaps a
+ * grant whose phone is gone has to run with nobody watching.
+ *
+ * ── What it pins now ──────────────────────────────────────────────────────
+ *
+ * The TOOL still lives here, because the loop that calls it does. So the
+ * agent's end of the contract is exactly this: every capability, every grant
+ * read, every revoke and every sweep leaves this process as a `devices.*` verb,
+ * and nothing is re-decided on the way out.
+ *
+ * That is the assertion with teeth. A regression here would not look like a
+ * crash — it would look like the agent quietly answering from a local store
+ * again, which is the state the split ended.
+ *
+ * The refusal-vs-error line is the other half, and it is behavioural: someone
+ * declining their camera is the system WORKING, so it comes back as a
+ * SUCCESSFUL tool result carrying `allowed: false`. Returned as a tool error, a
+ * model reads it as something to retry and the person is prompted again for the
+ * thing they just declined.
+ *
+ * The `device.*` settings themselves — which capabilities are offered, how
+ * authority is established, how long a capture is retained — belong to the
+ * daemon's runtime, and are verified against that runtime in
+ * device-settings-behavior.test.ts beside this file.
  */
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import { rmSync } from 'node:fs';
-import { join } from 'node:path';
-import {
-  DeviceCapabilityService,
-  DeviceCaptureArtifactStore,
-  DeviceGrantStore,
-  DeviceHousekeeper,
-  DEVICE_CAPABILITY_CONTRACT_VERSION,
-  DEVICE_CAPABILITY_IDS,
-  resolveDeviceNodeProfile,
-} from '@pellux/goodvibes-sdk/platform/devices';
-import type {
-  DeviceConfirmationDecision,
-  DeviceConfirmationRequest,
-  DeviceNodeProfile,
-} from '@pellux/goodvibes-sdk/platform/devices';
-import { createAgentPhoneTool } from '../../tools/agent-phone-tool.ts';
-import { AGENT_DEVICE_ACTOR, type PhoneDeviceService } from '../../runtime/phone-device-service.ts';
-import { makeProjectTempDir } from '../helpers/project-temp.ts';
+import { describe, expect, test } from 'bun:test';
+import { createDevicesClient, registerClientPhoneTool } from '@pellux/goodvibes-sdk/platform/runtime/client';
+import type { DaemonReachability, DaemonVerbCaller } from '@pellux/goodvibes-sdk/platform/runtime/client';
+import { ToolRegistry } from '@pellux/goodvibes-sdk/platform/tools';
+import type { Tool } from '@pellux/goodvibes-sdk/platform/types';
 
-let root = '';
-
-beforeEach(() => {
-  root = makeProjectTempDir('gv-agent-phone');
-});
-
-afterEach(() => {
-  rmSync(root, { recursive: true, force: true });
-});
-
-function nodeProfile(nodeId = 'node-a', nodeKind = 'web-pwa'): DeviceNodeProfile {
-  const resolved = resolveDeviceNodeProfile({
-    nodeId,
-    nodeKind,
-    label: `Phone ${nodeId}`,
-    contractVersion: DEVICE_CAPABILITY_CONTRACT_VERSION,
-    capabilities: [...DEVICE_CAPABILITY_IDS],
-  });
-  if (!resolved.ok) throw new Error('fixture node failed to resolve');
-  return resolved.profile;
+interface RecordedCall {
+  readonly methodId: string;
+  readonly input: unknown;
 }
 
-interface Fixture {
-  readonly service: PhoneDeviceService;
-  readonly prompts: DeviceConfirmationRequest[];
-  setDecision(decision: DeviceConfirmationDecision): void;
-  setBytes(bytes: Uint8Array | null): void;
-}
-
-function fixture(nodes: readonly DeviceNodeProfile[] = [nodeProfile()]): Fixture {
-  const prompts: DeviceConfirmationRequest[] = [];
-  let decision: DeviceConfirmationDecision = 'once';
-  let bytes: Uint8Array | null = null;
-
-  const grants = new DeviceGrantStore(join(root, 'device-grants.json'));
-  const artifacts = new DeviceCaptureArtifactStore(join(root, 'captures'));
-  const housekeeper = new DeviceHousekeeper({
-    grants,
-    artifacts,
-    disclosurePath: join(root, 'device-housekeeping.json'),
-  });
-  const capabilities = new DeviceCapabilityService({
-    grants,
-    artifacts,
-    dispatcher: {
-      dispatch: async (input) => ({
-        ok: true,
-        data: { served: input.capabilityId },
-        ...(bytes ? { bytes, mediaType: 'image/png' } : {}),
-      }),
-    },
-    confirm: async (request) => {
-      prompts.push(request);
-      return { decision, actor: 'operator' };
-    },
-    listNodes: () => nodes,
-  });
-
-  const service: PhoneDeviceService = {
-    capabilities,
-    grants,
-    artifacts,
-    housekeeper,
-    // The actor the ledger records for a revocation made through the tool, and
-    // the posture read the tool renders for action:"capabilities".
-    actor: AGENT_DEVICE_ACTOR,
-    readPolicy: () => capabilities.getPolicy(),
-    listNodes: () => nodes,
-    startHousekeeping: async () => { await housekeeper.runRecoverySweep(); },
-    stopHousekeeping: () => housekeeper.stop(),
-  };
-
+/** A verb caller that records every call and answers from a scripted table. */
+function stubVerbs(options: {
+  readonly reachable?: boolean;
+  readonly answers?: Record<string, unknown>;
+  readonly calls: RecordedCall[];
+}): DaemonVerbCaller {
+  const reachable = options.reachable !== false;
   return {
-    service,
-    prompts,
-    setDecision(next) { decision = next; },
-    setBytes(next) { bytes = next; },
+    probe(): DaemonReachability {
+      return reachable
+        ? { available: true }
+        : { available: false, reason: 'no connected host is configured on this machine.' };
+    },
+    invoke: async <T,>(methodId: string, input?: unknown): Promise<T> => {
+      options.calls.push({ methodId, input });
+      if (!reachable) throw new Error(`cannot invoke '${methodId}': no connected host is configured on this machine.`);
+      const answers = options.answers ?? {};
+      if (!(methodId in answers)) throw new Error(`the stub was not scripted for '${methodId}'`);
+      return answers[methodId] as T;
+    },
   };
 }
 
-/**
- * The tool returns the runtime's ToolResult: `success` plus the full payload
- * serialised into `output`. Tests read the payload back so they assert on what
- * the model actually sees.
- */
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+function registerPhone(verbs: DaemonVerbCaller): Tool {
+  const registry = new ToolRegistry();
+  registerClientPhoneTool(registry, createDevicesClient(verbs));
+  const tool = registry.list().find((candidate) => candidate.definition.name === 'phone');
+  if (!tool) throw new Error('the client phone tool was not registered');
+  return tool;
 }
 
-function toolParams(value: unknown): Record<string, unknown> {
-  return asRecord(value);
-}
-
+/** The tool returns `{ success, output }`; tests read what the model sees. */
 function payloadOf(result: unknown): Record<string, unknown> {
   const record = result && typeof result === 'object' ? result as Record<string, unknown> : {};
-  const output = typeof record.output === 'string' ? record.output : '';
+  const output = typeof record['output'] === 'string' ? record['output'] : '';
   if (!output) return record;
   return JSON.parse(output) as Record<string, unknown>;
 }
 
-describe('phone tool shape', () => {
-  test('registers as a native tool named phone with the capability actions', () => {
-    const tool = createAgentPhoneTool(fixture().service);
+function succeeded(result: unknown): boolean {
+  return (result as { success?: unknown } | null)?.success === true;
+}
+
+describe('the phone tool is registered in this process', () => {
+  test('it registers as a native tool named phone with the capability actions', () => {
+    const tool = registerPhone(stubVerbs({ calls: [] }));
     expect(tool.definition.name).toBe('phone');
-    const properties = asRecord(toolParams(tool.definition.parameters).properties);
-    const actions = asRecord(properties.action).enum as string[];
+    const properties = (tool.definition.parameters as { properties?: Record<string, unknown> }).properties ?? {};
+    const actions = (properties['action'] as { enum?: string[] }).enum ?? [];
     for (const action of ['photo', 'screenshot', 'location', 'clipboard_read', 'clipboard_write', 'notify', 'grants', 'revoke', 'housekeeping']) {
       expect(actions).toContain(action);
     }
   });
+});
 
-  test('the default action lists paired phones and what each offers', async () => {
-    const tool = createAgentPhoneTool(fixture().service);
-    const result = payloadOf(await tool.execute({}));
-    expect(result.success).toBe(true);
-    expect(result.paired).toBe(1);
-    const nodes = result.nodes as Array<Record<string, unknown>>;
-    expect(nodes[0]?.nodeId).toBe('node-a');
-    expect((nodes[0]?.supported as string[]).length).toBeGreaterThan(0);
+describe('every device action leaves this process as a devices.* verb', () => {
+  test('listing paired phones is devices.nodes.list, not a local store read', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = registerPhone(stubVerbs({
+      calls,
+      answers: {
+        'devices.nodes.list': {
+          nodes: [{ nodeId: 'node-a', label: 'Pixel', platform: 'android', supported: ['device.camera.rear.capture'] }],
+        },
+      },
+    }));
+
+    const result = await tool.execute({ action: 'nodes' });
+    const payload = payloadOf(result);
+
+    expect(succeeded(result)).toBe(true);
+    expect(calls.map((call) => call.methodId)).toEqual(['devices.nodes.list']);
+    expect(payload['paired']).toBe(1);
+    expect((payload['nodes'] as Array<Record<string, unknown>>)[0]?.['nodeId']).toBe('node-a');
   });
 
-  test('with no phone paired it says so instead of failing', async () => {
-    const tool = createAgentPhoneTool(fixture([]).service);
-    const result = payloadOf(await tool.execute({ action: 'nodes' }));
-    expect(result.paired).toBe(0);
-    expect(String(result.note)).toContain('No phone is paired');
+  test('a capability request is devices.capability.request, carrying the reason verbatim', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = registerPhone(stubVerbs({
+      calls,
+      answers: {
+        'devices.nodes.list': { nodes: [{ nodeId: 'node-a', supported: ['device.camera.rear.capture'] }] },
+        'devices.capability.request': {
+          ok: true,
+          nodeId: 'node-a',
+          capabilityId: 'device.camera.rear.capture',
+          capabilityTitle: 'Rear camera photo',
+          authority: 'confirmed',
+          artifact: { artifactId: 'artifact-1', mediaType: 'image/png', byteLength: 12 },
+        },
+      },
+    }));
+
+    const result = await tool.execute({ action: 'photo', nodeId: 'node-a', reason: 'check whether the oven is off' });
+
+    expect(succeeded(result)).toBe(true);
+    const request = calls.find((call) => call.methodId === 'devices.capability.request');
+    expect(request).toBeTruthy();
+    // The reason the person reads is the reason the caller gave. A tool that
+    // rewrote it would be putting words in front of a confirmation prompt.
+    expect((request!.input as { reason: string }).reason).toBe('check whether the oven is off');
+    expect((request!.input as { nodeId: string }).nodeId).toBe('node-a');
   });
 
-  test('the catalog states that every capability asks and offers "always allow"', async () => {
-    const tool = createAgentPhoneTool(fixture().service);
-    const result = payloadOf(await tool.execute({ action: 'capabilities' }));
-    const capabilities = result.capabilities as Array<Record<string, unknown>>;
-    expect(capabilities.length).toBeGreaterThan(0);
-    for (const capability of capabilities) {
-      expect(capability.allowAlwaysOffered).toBe(true);
-      expect(String(capability.confirmation)).toContain('asks every time');
-      expect(String(capability.purpose).length).toBeGreaterThan(20);
-    }
+  test('grants are read over devices.grants.list and revoked over devices.grants.revoke', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = registerPhone(stubVerbs({
+      calls,
+      answers: {
+        'devices.grants.list': {
+          grants: [{ grantId: 'grant-1', nodeId: 'node-a', capability: 'device.camera.rear.capture' }],
+        },
+        'devices.grants.revoke': { ok: true },
+      },
+    }));
+
+    expect(succeeded(await tool.execute({ action: 'grants' }))).toBe(true);
+    expect(succeeded(await tool.execute({ action: 'revoke', grantId: 'grant-1' }))).toBe(true);
+
+    expect(calls.map((call) => call.methodId)).toEqual(['devices.grants.list', 'devices.grants.revoke']);
+    const revoke = calls.find((call) => call.methodId === 'devices.grants.revoke');
+    expect((revoke!.input as { grantId: string }).grantId).toBe('grant-1');
+  });
+
+  test('housekeeping is devices.housekeeping.run — no sweep runs in this process', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = registerPhone(stubVerbs({
+      calls,
+      answers: { 'devices.housekeeping.run': { grantsRemoved: 2, artifactsRemoved: 1 } },
+    }));
+
+    const result = await tool.execute({ action: 'housekeeping' });
+
+    expect(succeeded(result)).toBe(true);
+    expect(calls.map((call) => call.methodId)).toEqual(['devices.housekeeping.run']);
+    expect(payloadOf(result)['grantsRemoved']).toBe(2);
+  });
+
+  test('retained captures are listed over devices.artifacts.list, never off local disk', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = registerPhone(stubVerbs({
+      calls,
+      answers: {
+        'devices.artifacts.list': {
+          artifacts: [{ artifactId: 'artifact-1', nodeId: 'node-a', mediaType: 'image/png', byteLength: 12 }],
+          retained: 1,
+          retentionHours: 24,
+        },
+      },
+    }));
+
+    const result = await tool.execute({ action: 'artifacts' });
+
+    expect(succeeded(result)).toBe(true);
+    expect(calls.map((call) => call.methodId)).toEqual(['devices.artifacts.list']);
+    expect(payloadOf(result)['retentionHours']).toBe(24);
   });
 });
 
-describe('capability requests', () => {
-  test('a capture asks first and reports the retained artifact with its expiry', async () => {
-    const f = fixture();
-    f.setBytes(new Uint8Array([1, 2, 3]));
-    const tool = createAgentPhoneTool(f.service);
-    const result = payloadOf(await tool.execute({ action: 'photo', reason: 'read the label on this box' }));
-    expect(result.success).toBe(true);
-    expect(f.prompts.length).toBe(1);
-    expect(f.prompts[0]?.allowAlwaysOffered).toBe(true);
-    expect(result.authority).toBe('confirmed-once');
-    const artifact = asRecord(result.artifact);
-    expect(typeof artifact.expiresAt).toBe('string');
-    expect(String(artifact.retentionNote)).toContain('Deleted automatically');
+describe('a refusal is an answer; an unreachable host is a failure', () => {
+  test('a declined capability is a SUCCESSFUL result carrying allowed: false', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = registerPhone(stubVerbs({
+      calls,
+      answers: {
+        'devices.nodes.list': { nodes: [{ nodeId: 'node-a', supported: ['device.camera.rear.capture'] }] },
+        'devices.capability.request': {
+          ok: false,
+          nodeId: 'node-a',
+          capabilityId: 'device.camera.rear.capture',
+          refusal: 'declined-by-person',
+          detail: 'not right now',
+        },
+      },
+    }));
+
+    const result = await tool.execute({ action: 'photo', nodeId: 'node-a', reason: 'check the oven' });
+    const payload = payloadOf(result);
+
+    // The important line in this file. A model reads a failed tool call as
+    // something to retry, so returning a decline as an error prompts the person
+    // again for the thing they just declined.
+    expect(succeeded(result)).toBe(true);
+    expect(payload['allowed']).toBe(false);
+    expect(payload['refusal']).toBe('declined-by-person');
+    expect(payload['detail']).toBe('not right now');
   });
 
-  test('a request without a reason is refused before anyone is prompted', async () => {
-    const f = fixture();
-    const tool = createAgentPhoneTool(f.service);
-    const result = payloadOf(await tool.execute({ action: 'screenshot' }));
-    expect(result.success).toBe(false);
-    expect(String(result.error)).toContain('reason is required');
-    expect(f.prompts.length).toBe(0);
+  test('with no reachable host a capability request FAILS rather than answering empty', async () => {
+    const calls: RecordedCall[] = [];
+    const verbs = stubVerbs({ calls, reachable: false });
+    const tool = registerPhone(verbs);
+
+    const result = await tool.execute({ action: 'photo', nodeId: 'node-a', reason: 'check the oven' });
+
+    // Reporting a capture that did not happen is worse than reporting the
+    // failure, so nothing here invents an empty success. The tool refuses at
+    // the first honest wall it meets — with no host it cannot even confirm the
+    // phone exists — so the message names THAT rather than a capture outcome.
+    expect(succeeded(result)).toBe(false);
+    expect(String((result as { error?: unknown }).error)).not.toContain('artifact');
+
+    // And the seam underneath refuses for the reason a person needs to read.
+    await expect(createDevicesClient(verbs).requestCapability({
+      nodeId: 'node-a',
+      capabilityId: 'device.camera.rear.capture',
+      reason: 'check the oven',
+    })).rejects.toThrow(/no connected host/);
   });
 
-  test('front camera and precise location are ordinary confirmed capabilities', async () => {
-    const f = fixture();
-    const tool = createAgentPhoneTool(f.service);
-    await tool.execute({ action: 'photo', camera: 'front', reason: 'who is at the door' });
-    await tool.execute({ action: 'location', precision: 'precise', reason: 'navigate home' });
-    expect(f.prompts.map((prompt) => prompt.capabilityId)).toEqual([
-      'device.camera.front.capture',
-      'device.location.precise',
-    ]);
-    expect(f.prompts.every((prompt) => prompt.allowAlwaysOffered)).toBe(true);
+  test('with no reachable host a revoke FAILS rather than reporting a revocation', async () => {
+    const calls: RecordedCall[] = [];
+    const tool = registerPhone(stubVerbs({ calls, reachable: false }));
+
+    const result = await tool.execute({ action: 'revoke', grantId: 'grant-1' });
+
+    expect(succeeded(result)).toBe(false);
   });
 
-  test('clipboard read is in v1 and behaves like every other capability', async () => {
-    const f = fixture();
-    const tool = createAgentPhoneTool(f.service);
-    const result = payloadOf(await tool.execute({ action: 'clipboard_read', reason: 'use what I just copied' }));
-    expect(result.success).toBe(true);
-    expect(f.prompts[0]?.capabilityId).toBe('device.clipboard.read');
-    expect(f.prompts[0]?.allowAlwaysOffered).toBe(true);
-  });
+  test('with no reachable host a LIST says so instead of implying no phone is paired', async () => {
+    const calls: RecordedCall[] = [];
+    const verbs = stubVerbs({ calls, reachable: false });
+    const tool = registerPhone(verbs);
 
-  test('a denial is reported honestly, not as a generic failure', async () => {
-    const f = fixture();
-    f.setDecision('deny');
-    const tool = createAgentPhoneTool(f.service);
-    const result = payloadOf(await tool.execute({ action: 'vibrate', reason: 'nudge me' }));
-    expect(result.success).toBe(false);
-    expect(result.refusal).toBe('denied-by-person');
-  });
+    const result = await tool.execute({ action: 'nodes' });
 
-  test('a link that is not http(s) is refused before the device is involved', async () => {
-    const f = fixture();
-    const tool = createAgentPhoneTool(f.service);
-    const result = payloadOf(await tool.execute({ action: 'open_url', url: 'file:///etc/hosts', reason: 'x' }));
-    expect(result.success).toBe(false);
-    expect(f.prompts.length).toBe(0);
-  });
-
-  test('with two phones offering the same capability the tool asks which one', async () => {
-    const f = fixture([nodeProfile('node-a'), nodeProfile('node-b', 'android-native')]);
-    const tool = createAgentPhoneTool(f.service);
-    const result = payloadOf(await tool.execute({ action: 'screenshot', reason: 'x' }));
-    expect(result.success).toBe(false);
-    expect(String(result.error)).toContain('name one with nodeId');
-    expect(String(result.hint)).toContain('node-b');
-  });
-});
-
-describe('grants surface through the tool', () => {
-  test('"always allow" produces a durable grant that the next request reuses', async () => {
-    const f = fixture();
-    f.setDecision('always');
-    const tool = createAgentPhoneTool(f.service);
-    await tool.execute({ action: 'screenshot', reason: 'read my screen' });
-
-    const listed = payloadOf(await tool.execute({ action: 'grants' }));
-    const grants = listed.grants as Array<Record<string, unknown>>;
-    expect(grants.length).toBe(1);
-    expect(grants[0]?.capabilityId).toBe('device.screen.capture');
-    expect(grants[0]?.nodeId).toBe('node-a');
-
-    f.setDecision('once');
-    const second = payloadOf(await tool.execute({ action: 'screenshot', reason: 'again' }));
-    expect(second.authority).toBe('existing-grant');
-    expect(f.prompts.length).toBe(1);
-  });
-
-  test('revoking a grant makes the next request ask again', async () => {
-    const f = fixture();
-    f.setDecision('always');
-    const tool = createAgentPhoneTool(f.service);
-    await tool.execute({ action: 'clipboard_read', reason: 'x' });
-
-    const revoked = payloadOf(await tool.execute({ action: 'revoke', capabilityId: 'device.clipboard.read' }));
-    expect(revoked.revoked).toBe(1);
-    expect(String(revoked.note)).toContain('deleted, not flagged');
-
-    f.setDecision('once');
-    const after = payloadOf(await tool.execute({ action: 'clipboard_read', reason: 'again' }));
-    expect(after.authority).toBe('confirmed-once');
-    expect(f.prompts.length).toBe(2);
-  });
-
-  test('revoke with no selector refuses rather than clearing everything', async () => {
-    const f = fixture();
-    f.setDecision('always');
-    const tool = createAgentPhoneTool(f.service);
-    await tool.execute({ action: 'vibrate', reason: 'x' });
-    const result = payloadOf(await tool.execute({ action: 'revoke' }));
-    expect(result.success).toBe(false);
-    expect(((payloadOf(await tool.execute({ action: 'grants' })).grants) as unknown[]).length).toBe(1);
-  });
-});
-
-describe('retention and housekeeping through the tool', () => {
-  test('retained captures are listed with their expiry and the retention window', async () => {
-    const f = fixture();
-    f.setBytes(new Uint8Array([4, 5, 6, 7]));
-    const tool = createAgentPhoneTool(f.service);
-    await tool.execute({ action: 'photo', reason: 'x' });
-    const result = payloadOf(await tool.execute({ action: 'artifacts' }));
-    expect(result.retained).toBe(1);
-    expect(result.retentionHours).toBe(24);
-  });
-
-  test('housekeeping reports its summary and what it removed', async () => {
-    const f = fixture();
-    const tool = createAgentPhoneTool(f.service);
-    const result = payloadOf(await tool.execute({ action: 'housekeeping' }));
-    expect(result.success).toBe(true);
-    expect(String(result.summary)).toContain('Device housekeeping');
-    expect(Array.isArray(result.grantsRemoved)).toBe(true);
-    expect(Array.isArray(result.capturesRemoved)).toBe(true);
+    // An empty list and an unreachable host look identical as a number. The
+    // honest reason has to reach the model, or "no phone is paired" is a lie.
+    expect(succeeded(result)).toBe(false);
+    expect(String(payloadOf(result)['error'])).toContain('no connected host');
+    expect(createDevicesClient(verbs).describeAvailability()).toContain('no connected host');
   });
 });

@@ -221,8 +221,22 @@ export class AgentPeriodicUpdater {
 export interface StartPeriodicSelfUpdateParams {
   readonly configManager: Pick<ConfigManager, 'getRaw'> & Partial<Pick<ConfigManager, 'getConfigPath' | 'getProjectConfigPath'>>;
   readonly services: {
-    readonly sessionBroker: { countBusySessions(): number };
-    readonly approvalBroker: { listApprovals(): readonly { readonly status: string }[] };
+    /**
+     * The sessions THIS process is running, and how many are mid-turn. Read
+     * from the agent's own hosted-session registry rather than a cross-surface
+     * register: "is it safe to swap this binary out from under the user" is a
+     * question about this process, and a session busy on another surface is not
+     * a reason to keep this one from updating.
+     */
+    readonly hostedSessions: { countBusySessions(): number };
+    /**
+     * Every ask waiting for this owner, from the daemon's record unioned with
+     * this process's own — NOT the local broker alone. An ask raised on this
+     * surface is recorded on the daemon, so the broker by itself reports zero
+     * while the owner has a prompt on screen, and the updater would swap the
+     * binary out from under it.
+     */
+    readonly approvalsView: { snapshot(): { readonly approvals: readonly { readonly status: string }[] } };
   };
   readonly notify: (line: string) => void;
   /**
@@ -273,8 +287,8 @@ export function startPeriodicSelfUpdate(params: StartPeriodicSelfUpdateParams): 
     arch: process.arch,
     settings,
     isIdle: () => agentIsIdleForUpdate({
-      countBusySessions: () => params.services.sessionBroker.countBusySessions(),
-      listApprovals: () => params.services.approvalBroker.listApprovals(),
+      countBusySessions: () => params.services.hostedSessions.countBusySessions(),
+      listApprovals: () => params.services.approvalsView.snapshot().approvals,
     }),
     notify: params.notify,
     // The restart is the caller's orderly exit with a hand-over step: teardown

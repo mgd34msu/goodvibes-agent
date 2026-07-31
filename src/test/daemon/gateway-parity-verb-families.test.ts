@@ -31,10 +31,24 @@
  * already in scope in services.ts but not threaded into
  * attachWsOnlyGatewayVerbHandlers) was fixed rather than pinned as an
  * absence — see services.ts's `workingDirectory` param on that call.
+ *
+ * ── Whose composition this drives, as of the client split ────────────────
+ *
+ * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
+ * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * for any of these any more, and that absence is itself pinned in
+ * daemon/gateway-ws-only-invokable.test.ts.
+ *
+ * The behaviour below did not move or change; its OWNER did. These verbs are
+ * served to every surface by one process now, and this suite is where the
+ * contract that surface depends on stays honest. Driving it through the
+ * daemon's composition is the difference between verifying a contract and
+ * asserting that a client answers its own question.
  */
 import { describe, expect, test } from 'bun:test';
 import { assertEveryDescriptorHasHandler } from '@pellux/goodvibes-terminal-shell/conformance';
 import { getTestRuntimeServices } from '../helpers/runtime-services.ts';
+import { buildDaemonGatewayCatalog } from '../helpers/daemon-gateway.ts';
 
 /**
  * Every family this sweep covers, with why it's live here. Grouped by verb
@@ -189,19 +203,19 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   for (const { family, reason, methodIds } of VERB_FAMILIES) {
     test(`${family}: every descriptor is registered on the catalog (${reason})`, () => {
       for (const methodId of methodIds) {
-        expect(services.gatewayMethods.get(methodId), `${methodId} descriptor missing from the catalog`).toBeTruthy();
+        expect(buildDaemonGatewayCatalog(services).get(methodId), `${methodId} descriptor missing from the catalog`).toBeTruthy();
       }
     });
   }
 
   test('every pinned descriptor across all families has an attached handler (shipped conformance gate)', () => {
     expect(() =>
-      assertEveryDescriptorHasHandler(services.gatewayMethods, { onlyIds: ALL_METHOD_IDS }),
+      assertEveryDescriptorHasHandler(buildDaemonGatewayCatalog(services), { onlyIds: ALL_METHOD_IDS }),
     ).not.toThrow();
   });
 
   test('no family in this pinned list is silently missing from the catalog entirely', () => {
-    const missing = ALL_METHOD_IDS.filter((id) => !services.gatewayMethods.get(id));
+    const missing = ALL_METHOD_IDS.filter((id) => !buildDaemonGatewayCatalog(services).get(id));
     expect(missing).toEqual([]);
   });
 
@@ -211,7 +225,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   // real wiring break (not just a missing descriptor) still fails loudly here.
 
   test('flags.graduation.report invokes end-to-end', async () => {
-    const result = await services.gatewayMethods.invoke('flags.graduation.report', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('flags.graduation.report', {
       methodId: 'flags.graduation.report',
       body: {},
     } as never) as { entries: unknown[]; summary: { total: number } };
@@ -220,13 +234,13 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('cost.attribution.get and quota.fanout.get invoke end-to-end with no usage yet', async () => {
-    const cost = await services.gatewayMethods.invoke('cost.attribution.get', {
+    const cost = await buildDaemonGatewayCatalog(services).invoke('cost.attribution.get', {
       methodId: 'cost.attribution.get',
       body: { window: '24h', dimension: 'provider' },
     } as never) as Record<string, unknown>;
     expect(cost).toBeTruthy();
 
-    const quota = await services.gatewayMethods.invoke('quota.fanout.get', {
+    const quota = await buildDaemonGatewayCatalog(services).invoke('quota.fanout.get', {
       methodId: 'quota.fanout.get',
       body: { provider: 'anthropic', agentCount: 1 },
     } as never) as Record<string, unknown>;
@@ -234,7 +248,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('sessions.changes.get invokes end-to-end (no checkpoints on a fresh runtime)', async () => {
-    const result = await services.gatewayMethods.invoke('sessions.changes.get', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('sessions.changes.get', {
       methodId: 'sessions.changes.get',
       body: { sessionId: 'no-such-session' },
     } as never) as { checkpointCount: number };
@@ -242,7 +256,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('skills.list invokes end-to-end (empty on a fresh runtime)', async () => {
-    const result = await services.gatewayMethods.invoke('skills.list', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('skills.list', {
       methodId: 'skills.list',
       body: {},
     } as never) as { skills: unknown[] };
@@ -250,7 +264,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('rewind.plan invokes end-to-end; conversation scope is wired but honestly reports nothing to drop for an unregistered session', async () => {
-    const result = await services.gatewayMethods.invoke('rewind.plan', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('rewind.plan', {
       methodId: 'rewind.plan',
       body: { sessionId: 'no-such-session', scope: 'both' },
     } as never) as { conversation: { available: boolean; messagesToDrop: number; messagesRemaining: number } | null; warnings: readonly string[] };
@@ -268,7 +282,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   test('worktrees.setup.run has a real handler attached (not a 501 wiring gap)', async () => {
     let wiringGapMessage: string | null = null;
     try {
-      await services.gatewayMethods.invoke('worktrees.setup.run', {
+      await buildDaemonGatewayCatalog(services).invoke('worktrees.setup.run', {
         methodId: 'worktrees.setup.run',
         body: { path: '/no/such/worktree-goodvibes-agent-test' },
       } as never);
@@ -282,7 +296,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   test('checkpoints.revertHunkPreview has a real handler attached (not a 501 wiring gap)', async () => {
     let wiringGapMessage: string | null = null;
     try {
-      await services.gatewayMethods.invoke('checkpoints.revertHunkPreview', {
+      await buildDaemonGatewayCatalog(services).invoke('checkpoints.revertHunkPreview', {
         methodId: 'checkpoints.revertHunkPreview',
         body: { path: 'no-such-file.txt', hunk: '@@ -1 +1 @@\n-a\n+b\n' },
       } as never);
@@ -294,7 +308,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('occasions.pending invokes end-to-end and answers with nothing outstanding on a fresh runtime', async () => {
-    const result = await services.gatewayMethods.invoke('occasions.pending', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('occasions.pending', {
       methodId: 'occasions.pending',
       body: {},
     } as never) as { today: string; nudge: unknown; conflicts: unknown[]; interviews: unknown[] };
@@ -306,7 +320,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('occasions.state discloses a real machine-owned store, not a fabricated snapshot', async () => {
-    const result = await services.gatewayMethods.invoke('occasions.state', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('occasions.state', {
       methodId: 'occasions.state',
       body: {},
     } as never) as { path: string; acknowledgements: number; openItems: number; corruption: string | null };
@@ -320,7 +334,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('occasions.answer refuses an unknown occasion honestly rather than recording a phantom answer', async () => {
-    const result = await services.gatewayMethods.invoke('occasions.answer', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('occasions.answer', {
       methodId: 'occasions.answer',
       body: { occasionId: 'no-such-occasion', answer: 'yes' },
     } as never) as { ok: boolean; reason: string | null; interview: unknown };
@@ -330,7 +344,7 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('sessions.contextUsage.get invokes end-to-end against the local runtime alias', async () => {
-    const result = await services.gatewayMethods.invoke('sessions.contextUsage.get', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('sessions.contextUsage.get', {
       methodId: 'sessions.contextUsage.get',
       // 'runtime' is the stable local-session alias createSessionRuntimeControls
       // accepts for the daemon's own runtime, addressable before a surface knows
@@ -343,14 +357,14 @@ describe('gateway verb family parity (fork-drift firewall, SDK 1.6.1)', () => {
   });
 
   test('sessions.permissionMode.get/set round-trip against the local runtime alias', async () => {
-    const before = await services.gatewayMethods.invoke('sessions.permissionMode.get', {
+    const before = await buildDaemonGatewayCatalog(services).invoke('sessions.permissionMode.get', {
       methodId: 'sessions.permissionMode.get',
       body: { sessionId: 'runtime' },
     } as never) as { sessionId: string; mode: string };
     expect(before.sessionId).toBe('runtime');
     expect(['normal', 'auto', 'plan', 'accept-edits', 'custom']).toContain(before.mode);
 
-    const set = await services.gatewayMethods.invoke('sessions.permissionMode.set', {
+    const set = await buildDaemonGatewayCatalog(services).invoke('sessions.permissionMode.set', {
       methodId: 'sessions.permissionMode.set',
       body: { sessionId: 'runtime', mode: 'plan' },
     } as never) as { sessionId: string; mode: string; previousMode: string };

@@ -47,7 +47,7 @@ describe('foundation surface stability gate', () => {
     const runtimeServices = getTestRuntimeServices();
     resetPeerFoundationState();
     const foundationServices = {
-      operator: createOperatorClientServices(runtimeServices),
+      operator: createOperatorClientServices(runtimeServices.asDaemonGradeView()),
       peer: createPeerClientDependencies(runtimeServices),
     };
 
@@ -219,7 +219,7 @@ describe('foundation surface stability gate', () => {
     const runtimeServices = getTestRuntimeServices();
     resetPeerFoundationState();
     const foundationServices = {
-      operator: createOperatorClientServices(runtimeServices),
+      operator: createOperatorClientServices(runtimeServices.asDaemonGradeView()),
       peer: createPeerClientDependencies(runtimeServices),
     };
 
@@ -260,7 +260,7 @@ describe('foundation surface stability gate', () => {
       throw new Error(`Expected all runtime metadata scope, received ${runtimeMetadata.scope}`);
     }
     expect(runtimeMetadata.snapshots.length).toBeGreaterThanOrEqual(providerIds.length);
-    const legacyTransport = createDirectTransport(runtimeServices);
+    const legacyTransport = createDirectTransport(runtimeServices.asDaemonGradeView());
     expect(sortedKeys(legacyTransport.operator)).toEqual(sortedKeys(transport.operator));
     expect(sortedKeys(legacyTransport.peer)).toEqual(sortedKeys(transport.peer));
 

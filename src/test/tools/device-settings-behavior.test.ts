@@ -9,15 +9,25 @@
  * ConfigManager — a test like that would still pass if the consuming code threw
  * the value away, which is exactly the failure this suite exists to prevent.
  *
- * The code under test is the agent's own `createPhoneDeviceService`
- * (src/runtime/phone-device-service.ts) and, through it, the platform's
- * `createDevicePostureRuntime`: the agent supplies its transport, its approval
- * bridge and its config manager, and the platform maps `device.*` onto the
- * capability policy, the grant-store policy, the capture policy, and the
- * housekeeping cadence for the real SDK DeviceCapabilityService /
- * DeviceGrantStore / DeviceCaptureArtifactStore / DeviceHousekeeper. That
- * mapping used to live in this repo alone, which is why the same keys did
- * nothing in every other daemon host; these tests hold the agent's end of it.
+ * WHOSE code this is, precisely, because it changed. The runtime under test is
+ * the platform's `createDevicePostureRuntime` — the grants ledger, the capture
+ * store, the capability service, the housekeeping cadence, and the mapping from
+ * every `device.*` key onto them. That runtime is the DAEMON's now. This agent
+ * used to compose a second copy of it (`createDevicePostureRuntime`, deleted with
+ * the client split) writing the same grants ledger, which is the second-writer
+ * hazard the split exists to end.
+ *
+ * So this file no longer holds "the agent's end" of the mapping — the agent has
+ * no end of it, and asserting otherwise would be a claim this repo cannot back.
+ * What it holds is the CONTRACT the agent's phone tool now depends on across a
+ * process boundary: every refusal code, every authority path, every retention
+ * window a `devices.capability.request` will come back with. If one of these
+ * keys stops being honoured, the agent's phone tool silently starts doing
+ * something else, and this is the suite that catches it.
+ *
+ * The agent's own end — that it forwards and re-decides nothing — is pinned in
+ * agent-phone-tool.test.ts beside it.
+ *
  * The config side is a real ConfigManager over a temp home directory, so every
  * value used here is one the shared schema actually accepts (enums from the enum
  * list, numbers inside their declared range).
@@ -52,10 +62,10 @@ import type {
   DistributedRuntimeManager,
 } from '@/runtime/index.ts';
 import {
-  createPhoneDeviceService,
+  createDevicePostureRuntime,
   DEVICE_NODE_ANNOUNCEMENT_KEY,
-  type PhoneDeviceService,
-} from '../../runtime/phone-device-service.ts';
+  type DevicePostureRuntime,
+} from '@pellux/goodvibes-sdk/platform/devices';
 import { GOODVIBES_AGENT_SURFACE_ROOT } from '../../config/surface.ts';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
@@ -153,7 +163,7 @@ interface DispatchCall {
 type Answer = 'once' | 'always' | 'deny';
 
 interface Harness {
-  readonly service: PhoneDeviceService;
+  readonly service: DevicePostureRuntime;
   readonly approvals: ApprovalCall[];
   readonly dispatches: DispatchCall[];
   /** What the person answers the next time they are asked. */
@@ -219,12 +229,13 @@ function harness(configManager: ConfigManager, stateDirectory: string): Harness 
     },
   };
 
-  const service = createPhoneDeviceService({
-    // createPhoneDeviceService reaches exactly two members of the runtime
-    // manager — listPeers and invokePeer — so the stub implements those two and
-    // is cast once here. A real DistributedRuntimeManager would need a live
-    // peer process to claim and complete the work item.
-    distributedRuntime: transport as unknown as DistributedRuntimeManager,
+  const service = createDevicePostureRuntime({
+    // The runtime reaches exactly two members of a peer transport — listPeers
+    // and invokePeer — so the stub implements those two and is cast once here.
+    // A real DistributedRuntimeManager would need a live peer process to claim
+    // and complete the work item.
+    transport: transport as unknown as DistributedRuntimeManager,
+    actor: 'daemon:phone-runtime',
     approvals: {
       async requestApproval(input): Promise<PermissionPromptDecision> {
         approvals.push({
@@ -237,7 +248,7 @@ function harness(configManager: ConfigManager, stateDirectory: string): Harness 
         return { approved: true };
       },
     },
-    configManager,
+    config: configManager,
     stateDirectory,
   });
 

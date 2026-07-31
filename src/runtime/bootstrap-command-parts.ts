@@ -47,6 +47,7 @@ import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import type { AgentExecutionLedger } from './execution-ledger.ts';
+import type { ApprovalsView } from './client/approvals-view.ts';
 import { summarizeError } from '@pellux/goodvibes-sdk/platform/utils';
 import type { ConsolidationReceiptSource } from '../agent/memory-consolidation-proposals.ts';
 import { listPendingConsolidationProposals } from '../agent/memory-consolidation-proposals.ts';
@@ -95,6 +96,7 @@ export interface BootstrapCommandSectionOptions {
   readonly shellPaths: ShellPathService;
   readonly fileUndoManager: FileUndoManager;
   readonly executionLedger?: AgentExecutionLedger;
+  readonly approvalsView?: ApprovalsView;
   readonly memoryRegistry?: MemoryRegistry;
   readonly integrationHelpers?: IntegrationHelperService;
   readonly knowledgeService?: KnowledgeService;
@@ -367,11 +369,12 @@ export function createBootstrapCommandPlatformSection(
 
 export function createBootstrapCommandOpsSection(
   shellServices: BootstrapCommandShellServices,
-  options: Pick<BootstrapCommandSectionOptions, 'executionLedger'> = {},
+  options: Pick<BootstrapCommandSectionOptions, 'executionLedger' | 'approvalsView'> = {},
 ): BootstrapCommandOpsSection {
   return {
     ...shellServices.ops,
     executionLedger: options.executionLedger,
+    approvalsView: options.approvalsView,
   };
 }
 

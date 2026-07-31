@@ -50,6 +50,8 @@ import { ScheduleManager, TriggerManager, WorkflowManager } from '@pellux/goodvi
 import { VoiceProviderRegistry } from '@pellux/goodvibes-sdk/platform/voice';
 import { WebSearchProviderRegistry } from '@pellux/goodvibes-sdk/platform/web-search';
 import { ConfigManager } from '@pellux/goodvibes-sdk/platform/config';
+import { installAgentDaemonCredentialsClient } from '../../config/daemon-credential-routing.ts';
+import { installAgentDaemonConfigClient } from '../../config/daemon-config-routing.ts';
 import { makeLongLivedProjectTempDir } from './project-temp.ts';
 import { buildTestModelDefinition, patchTestProviderRegistry } from './test-managers.ts';
 
@@ -244,8 +246,24 @@ export function getTestSubscriptionManager(): RuntimeServices['subscriptionManag
   return getTestRuntimeServices().subscriptionManager;
 }
 
+/**
+ * The persisting session REGISTER — the one automation runs on. Named as the
+ * graph names it now: `services.sessionBroker` is the client dispatch seam and
+ * has none of these methods, so a test that wants ensureSession/submitMessage/
+ * listSessions wants this.
+ */
 export function getTestSessionBroker(): SharedSessionBroker {
+  return getTestRuntimeServices().automationSessionRegister;
+}
+
+/** The inbound continuation-dispatch seam this surface binds its runner onto. */
+export function getTestSessionDispatch(): RuntimeServices['sessionBroker'] {
   return getTestRuntimeServices().sessionBroker;
+}
+
+/** The sessions the composed graph believes this process is hosting. */
+export function getTestHostedSessions(): RuntimeServices['hostedSessions'] {
+  return getTestRuntimeServices().hostedSessions;
 }
 
 export function getTestApprovalBroker(): ApprovalBroker {
@@ -480,6 +498,15 @@ export function resetTestGitServices(cwd?: string): void {
 }
 
 export function resetAllTestServiceState(): void {
+  // The two settings-routing clients are process-wide by design (five settings
+  // writers reach them with no graph in scope), so a file that composed a
+  // runtime would otherwise route every LATER file's secret and config writes
+  // at a daemon that was never there — silently, since the refusal is a
+  // rejected promise a keystroke handler swallows. Cleared first: routing is a
+  // property of a live composed product, and a test that wants it installs its
+  // own client and says so (see runtime/client-seams.test.ts).
+  installAgentDaemonCredentialsClient(null);
+  installAgentDaemonConfigClient(null);
   resetTestRuntimeServices();
   resetTestWrfcController();
   resetTestToolLLM();

@@ -20,12 +20,26 @@
  * completing a "turn" (recordTurnAnchor, the same call bootstrap.ts's
  * TURN_COMPLETED handler makes), then rewinding to that anchor and observing
  * the conversation actually truncate.
+ *
+ * ── Whose composition this drives, as of the client split ────────────────
+ *
+ * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
+ * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * for any of these any more, and that absence is itself pinned in
+ * daemon/gateway-ws-only-invokable.test.ts.
+ *
+ * The behaviour below did not move or change; its OWNER did. These verbs are
+ * served to every surface by one process now, and this suite is where the
+ * contract that surface depends on stays honest. Driving it through the
+ * daemon's composition is the difference between verifying a contract and
+ * asserting that a client answers its own question.
  */
 import { describe, expect, test } from 'bun:test';
 import { ConversationManager } from '../../core/conversation.ts';
 import { recordTurnAnchor } from '../../core/rewind-turn-anchors.ts';
 import { registerSessionConversation, unregisterSessionConversation } from '../../runtime/conversation-rewind-port.ts';
 import { getTestRuntimeServices } from '../helpers/runtime-services.ts';
+import { buildDaemonGatewayCatalog } from '../helpers/daemon-gateway.ts';
 
 interface RewindPlanResult {
   readonly sessionId: string;
@@ -46,7 +60,7 @@ interface RewindApplyResult {
 describe('rewind.plan/apply conversation scope (live conversationRewindPort, SDK 1.6.1)', () => {
   test('rewind.plan reports the conversation store as available (a real port is wired) but nothing to drop for an unregistered session', async () => {
     const services = getTestRuntimeServices();
-    const result = await services.gatewayMethods.invoke('rewind.plan', {
+    const result = await buildDaemonGatewayCatalog(services).invoke('rewind.plan', {
       methodId: 'rewind.plan',
       body: { sessionId: 'no-such-session-ever-registered', scope: 'conversation' },
     } as never) as RewindPlanResult;
@@ -82,7 +96,7 @@ describe('rewind.plan/apply conversation scope (live conversationRewindPort, SDK
 
       registerSessionConversation(sessionId, conversation);
 
-      const plan = await services.gatewayMethods.invoke('rewind.plan', {
+      const plan = await buildDaemonGatewayCatalog(services).invoke('rewind.plan', {
         methodId: 'rewind.plan',
         body: { sessionId, turnId: 'turn-1', scope: 'conversation' },
       } as never) as RewindPlanResult;
@@ -93,7 +107,7 @@ describe('rewind.plan/apply conversation scope (live conversationRewindPort, SDK
       expect(plan.conversation?.messagesToDrop).toBeGreaterThan(0);
       expect(plan.token).toBeTruthy();
 
-      const applied = await services.gatewayMethods.invoke('rewind.apply', {
+      const applied = await buildDaemonGatewayCatalog(services).invoke('rewind.apply', {
         methodId: 'rewind.apply',
         body: { sessionId, turnId: 'turn-1', scope: 'conversation', confirm: true, token: plan.token },
       } as never) as RewindApplyResult;
@@ -122,7 +136,7 @@ describe('rewind.plan/apply conversation scope (live conversationRewindPort, SDK
       recordTurnAnchor(sessionId, { turnId: 'turn-1', label: 'only turn', messageCount: conversation.getMessageCount(), at: Date.now() });
       registerSessionConversation(sessionId, conversation);
 
-      const applied = await services.gatewayMethods.invoke('rewind.apply', {
+      const applied = await buildDaemonGatewayCatalog(services).invoke('rewind.apply', {
         methodId: 'rewind.apply',
         body: { sessionId, turnId: 'turn-1', scope: 'conversation' },
       } as never) as RewindApplyResult;

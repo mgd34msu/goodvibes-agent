@@ -21,8 +21,22 @@
  *     stores + shared session broker) and pausable background jobs are
  *     registered onto the governor's seams, and ops.memory.get serves the
  *     genuine live snapshot.
+ *
+ * ── Whose composition this drives, as of the client split ────────────────
+ *
+ * `buildDaemonGatewayCatalog(services)` builds the catalog THE DAEMON composes
+ * over this graph — the agent's own `services.gatewayMethods` carries no handler
+ * for any of these any more, and that absence is itself pinned in
+ * daemon/gateway-ws-only-invokable.test.ts.
+ *
+ * The behaviour below did not move or change; its OWNER did. These verbs are
+ * served to every surface by one process now, and this suite is where the
+ * contract that surface depends on stays honest. Driving it through the
+ * daemon's composition is the difference between verifying a contract and
+ * asserting that a client answers its own question.
  */
 import { afterEach, describe, expect, test } from 'bun:test';
+import { buildDaemonGatewayCatalog } from '../helpers/daemon-gateway.ts';
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import type { MemoryGovernorSnapshot } from '@pellux/goodvibes-sdk/platform/runtime/memory';
@@ -85,7 +99,7 @@ describe('voice-setup + memory-governance composition', () => {
     const services = makeServices();
     try {
       const direct = services.voiceSetup.status();
-      const viaGateway = await services.gatewayMethods.invoke('voice.local.status', {
+      const viaGateway = await buildDaemonGatewayCatalog(services).invoke('voice.local.status', {
         context: {},
       });
       expect(viaGateway).toEqual(direct);
@@ -120,13 +134,13 @@ describe('voice-setup + memory-governance composition', () => {
     const services = makeServices();
     try {
       const direct = services.voiceSetup.wakeStatus();
-      const viaGateway = await services.gatewayMethods.invoke('voice.wake.status', { context: {} });
+      const viaGateway = await buildDaemonGatewayCatalog(services).invoke('voice.wake.status', { context: {} });
       expect(viaGateway).toEqual(direct);
       // provision downloads ~3.7 MB, and model.get reads bytes that a fresh host
       // does not have — so these assert the handler is REGISTERED, which is the
       // failure mode a cataloged-but-unhandled verb has.
-      expect(services.gatewayMethods.get('voice.wake.provision')?.invokable).toBe(true);
-      expect(services.gatewayMethods.get('voice.wake.model.get')?.invokable).toBe(true);
+      expect(buildDaemonGatewayCatalog(services).get('voice.wake.provision')?.invokable).toBe(true);
+      expect(buildDaemonGatewayCatalog(services).get('voice.wake.model.get')?.invokable).toBe(true);
     } finally {
       cleanup(services);
     }
@@ -140,7 +154,7 @@ describe('voice-setup + memory-governance composition', () => {
       // handler rather than refusing with "no internal handler", proving
       // voiceSetup was genuinely wired into the catalog, not merely
       // constructed and left unregistered.
-      const descriptor = services.gatewayMethods.get('voice.local.install');
+      const descriptor = buildDaemonGatewayCatalog(services).get('voice.local.install');
       expect(descriptor?.invokable).toBe(true);
     } finally {
       cleanup(services);
@@ -190,7 +204,7 @@ describe('voice-setup + memory-governance composition', () => {
   test('ops.memory.get serves the genuine live governor snapshot over the gateway', async () => {
     const services = makeServices();
     try {
-      const viaGateway = await services.gatewayMethods.invoke('ops.memory.get', { context: {} }) as MemoryGovernorSnapshot;
+      const viaGateway = await buildDaemonGatewayCatalog(services).invoke('ops.memory.get', { context: {} }) as MemoryGovernorSnapshot;
       // Real values from the real sampler — a live process has a nonzero RSS.
       expect(viaGateway.rssMb).toBeGreaterThan(0);
       expect(viaGateway.heapUsedMb).toBeGreaterThan(0);

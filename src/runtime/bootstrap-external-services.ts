@@ -160,7 +160,12 @@ export function wireAgentExternalServices(options: {
   // whichever host it adopts. The agent's OWN binary updates at launch through
   // its launch auto-update path instead (src/cli/launch-auto-update.ts).
   const startAgentExternalServices = (): Promise<ExternalServicesHandle> =>
-    startServices(configManager, runtimeBus, hookDispatcher, services, { adoptOnly: true });
+    // The daemon-grade view, because this SDK entry point still takes that
+    // whole shape. Under `adoptOnly: true` it reads `localUserAuthManager` and
+    // `configManager` and never constructs a DaemonServer — see the view's own
+    // doc comment in runtime/services.ts for exactly which two members it
+    // substitutes and why neither is dereferenced here.
+    startServices(configManager, runtimeBus, hookDispatcher, services.asDaemonGradeView(), { adoptOnly: true });
 
   // Boot-time start of an installed-but-stopped host: when discovery found
   // nothing on the configured port, check the platform service manager for an

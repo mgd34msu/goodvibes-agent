@@ -21,6 +21,8 @@ import { createRuntimeServices, type RuntimeServices } from '../../runtime/servi
 import { createRuntimeStore } from '../../runtime/store/index.ts';
 import { createWorkspaceRegistrationStore, registerWorkspaceForCheckpoints } from '../../config/workspace-registration.ts';
 import { WorkspaceCheckpointManager } from '@pellux/goodvibes-sdk/platform/workspace';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { makeProjectTempDir } from '../helpers/project-temp.ts';
 
 const tempDirs: string[] = [];
@@ -32,17 +34,6 @@ function makeTempDir(prefix: string): string {
   tempDirs.push(dir);
   return dir;
 }
-
-afterEach(() => {
-  while (tempDirs.length > 0) {
-    const dir = tempDirs.pop()!;
-    try {
-      rmSync(dir, { recursive: true, force: true });
-    } catch {
-      // best-effort cleanup
-    }
-  }
-});
 
 async function buildServices(opts: { registered: boolean; workingDir?: string; homeDir?: string }): Promise<{ services: RuntimeServices; runtimeBus: RuntimeEventBus; workingDir: string }> {
   const workingDir = opts.workingDir ?? makeTempDir('gv-checkpoint-reg-work-');
@@ -131,23 +122,24 @@ describe('registered-workspaces-only automatic checkpoints', () => {
   test('explicit checkpoints.create is refused with a registration hint for an unregistered workspace', async () => {
     const { services } = await buildServices({ registered: false });
 
-    await expect(
-      services.gatewayMethods.invoke('checkpoints.create', {
-        methodId: 'checkpoints.create',
-        body: { kind: 'manual' },
-      } as never),
-    ).rejects.toThrow(/not registered/);
+    // The gate moved with the verb. `checkpoints.create` is the daemon's now —
+    // this process registers no handler for it — but the registered-workspace
+    // rule still applies to every explicit create made IN this process, and
+    // `guardedCheckpoints` is the manager those callers go through.
+    // Thrown SYNCHRONOUSLY: the gate runs before the manager is reached, so
+    // there is no promise to reject. The gateway handler that used to wrap this
+    // turned it into a rejection; calling the guarded manager directly does not.
+    expect(
+      () => services.guardedCheckpoints.create({ kind: 'manual' }),
+    ).toThrow(/not registered/);
   });
 
   test('explicit checkpoints.create succeeds for a registered workspace', async () => {
     const { services, workingDir } = await buildServices({ registered: true });
     writeFileSync(join(workingDir, 'note.txt'), 'hello');
 
-    const result = await services.gatewayMethods.invoke('checkpoints.create', {
-      methodId: 'checkpoints.create',
-      body: { kind: 'manual' },
-    } as never) as { checkpoint: { id: string } | null; noop: boolean };
-    expect(result.checkpoint).not.toBeNull();
+    const created = await services.guardedCheckpoints.create({ kind: 'manual' });
+    expect(created).not.toBeNull();
   });
 
   test('registering the workspace mid-launch starts automatic checkpoints without a restart', async () => {
@@ -181,21 +173,22 @@ describe('registered-workspaces-only automatic checkpoints', () => {
     const homeDir = services.shellPaths.homeDirectory;
     writeFileSync(join(workingDir, 'note.txt'), 'hello');
 
-    await expect(
-      services.gatewayMethods.invoke('checkpoints.create', {
-        methodId: 'checkpoints.create',
-        body: { kind: 'manual' },
-      } as never),
-    ).rejects.toThrow(/not registered/);
+    // The gate moved with the verb. `checkpoints.create` is the daemon's now —
+    // this process registers no handler for it — but the registered-workspace
+    // rule still applies to every explicit create made IN this process, and
+    // `guardedCheckpoints` is the manager those callers go through.
+    // Thrown SYNCHRONOUSLY: the gate runs before the manager is reached, so
+    // there is no promise to reject. The gateway handler that used to wrap this
+    // turned it into a rejection; calling the guarded manager directly does not.
+    expect(
+      () => services.guardedCheckpoints.create({ kind: 'manual' }),
+    ).toThrow(/not registered/);
 
     const shellPaths = createShellPathService({ workingDirectory: workingDir, homeDirectory: homeDir });
     await registerWorkspaceForCheckpoints(shellPaths, workingDir);
 
-    const result = await services.gatewayMethods.invoke('checkpoints.create', {
-      methodId: 'checkpoints.create',
-      body: { kind: 'manual' },
-    } as never) as { checkpoint: { id: string } | null; noop: boolean };
-    expect(result.checkpoint).not.toBeNull();
+    const created = await services.guardedCheckpoints.create({ kind: 'manual' });
+    expect(created).not.toBeNull();
   });
 
   test('defense in depth: the SDK root guard still refuses a broad root even when registered', async () => {

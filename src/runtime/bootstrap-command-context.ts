@@ -44,6 +44,7 @@ import type { MediaProviderRegistry } from '@pellux/goodvibes-sdk/platform/media
 import type { ArtifactStore } from '@pellux/goodvibes-sdk/platform/artifacts';
 import type { ChannelDeliveryRouter } from '@pellux/goodvibes-sdk/platform/channels';
 import type { AgentExecutionLedger } from './execution-ledger.ts';
+import type { ApprovalsView } from './client/approvals-view.ts';
 import {
   createBootstrapCommandActions,
   createBootstrapCommandClientsSection,
@@ -81,6 +82,7 @@ export type CreateBootstrapCommandContextOptions = {
   fileUndoManager: FileUndoManager;
   processManager?: import('@pellux/goodvibes-sdk/platform/tools').ProcessManager;
   executionLedger?: AgentExecutionLedger;
+  approvalsView?: ApprovalsView;
   memoryRegistry?: MemoryRegistry;
   integrationHelpers?: IntegrationHelperService;
   automationManager?: ShellAutomationManagerRuntimeService;
@@ -159,6 +161,7 @@ export function createBootstrapCommandContext(
     fileUndoManager,
     processManager,
     executionLedger,
+    approvalsView,
     memoryRegistry,
     integrationHelpers,
     automationManager,
@@ -296,7 +299,7 @@ export function createBootstrapCommandContext(
     provider,
     workspace,
     platform,
-    ops: createBootstrapCommandOpsSection(shellServices, { executionLedger }),
+    ops: createBootstrapCommandOpsSection(shellServices, { executionLedger, approvalsView }),
     extensions,
     clients,
     ...actions,
