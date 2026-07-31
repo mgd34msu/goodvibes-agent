@@ -15,9 +15,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 import {
   saveDraft,
   listDrafts,
@@ -36,7 +36,7 @@ import type { DaemonOperatorInvoke } from '../../agent/daemon-operator-client.ts
 let root: string;
 const shellPaths = { resolveUserPath: (...segments: string[]) => join(root, ...segments) };
 
-beforeEach(() => { root = mkdtempSync(join(tmpdir(), 'gv-drafts-')); });
+beforeEach(() => { root = makeProjectTempDir('gv-drafts'); });
 afterEach(() => { rmSync(root, { recursive: true, force: true }); });
 
 interface Call {

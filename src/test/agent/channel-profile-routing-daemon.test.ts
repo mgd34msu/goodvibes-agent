@@ -24,9 +24,9 @@
  */
 
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { makeProjectTempDir } from '../helpers/project-temp.ts';
 import {
   assignChannelToProfile,
   listChannelProfileRoutes,
@@ -45,7 +45,7 @@ const shellPaths = {
 };
 
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'gv-routing-'));
+  root = makeProjectTempDir('gv-routing');
 });
 
 afterEach(() => {
