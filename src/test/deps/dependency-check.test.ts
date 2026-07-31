@@ -19,7 +19,7 @@ async function expectImportable(specifier: string): Promise<void> {
 describe('dependency surface', () => {
   /**
    * The packaged Agent bundles its libraries into dist/package/main.js, so it
-   * declares no runtime dependencies at all.
+   * declares no runtime LIBRARY dependencies at all.
    *
    * The browser driver used to be the one exception: playwright-core cannot be
    * bundled, because it loads browsers.json and its own driver files by path
@@ -30,9 +30,29 @@ describe('dependency surface', () => {
    * driver in ITS optionalDependencies. Declaring it here as well would pin the
    * same package in two places, which is exactly how the version the agent
    * stages and the version the engine expects drift apart.
+   *
+   * `goodvibes-daemon` is the one declared dependency, and it is not a library
+   * this bundle could ever inline: it is a second PROGRAM. The Agent needs a
+   * daemon to talk to — docs/getting-started.md lists one as a prerequisite —
+   * and since the daemon left the TUI's repository it has its own package whose
+   * own postinstall places its own binary. Declaring it here is what keeps
+   * `bun add -g @pellux/goodvibes-agent` a single act that leaves both commands
+   * on PATH, exactly as `@pellux/goodvibes-tui` declares it for the same
+   * reason. It is deliberately NOT bundled and NOT copied: two packages each
+   * placing a copy of `goodvibes-daemon` is how a machine ends up with two of
+   * them on different version lines.
    */
-  test('declares no runtime dependencies: everything is bundled or comes with the SDK', () => {
-    expect(packageJson.dependencies ?? {}).toEqual({});
+  test('declares one runtime dependency — the daemon program; every library is bundled or comes with the SDK', () => {
+    expect(Object.keys(packageJson.dependencies ?? {})).toEqual(['goodvibes-daemon']);
+  });
+
+  /**
+   * Exact, not a range: the daemon and the Agent are separate products on
+   * separate version lines, and a range would let `bun add -g` pick up a daemon
+   * this Agent has never been run against.
+   */
+  test('the daemon dependency is pinned exactly', () => {
+    expect(packageJson.dependencies?.['goodvibes-daemon']).toMatch(/^\d+\.\d+\.\d+$/);
   });
 
   test('the browser driver is still resolvable, supplied by the SDK', async () => {

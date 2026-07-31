@@ -14,9 +14,12 @@ GoodVibes Agent is an installable autonomous operator assistant. You run `goodvi
 
 ```sh
 bun add -g @pellux/goodvibes-agent
+bun pm trust -g goodvibes-daemon
 goodvibes-agent --help
 goodvibes-agent
 ```
+
+The Agent talks to a GoodVibes daemon, so this package depends on `goodvibes-daemon` and one install brings both commands. Bun blocks lifecycle scripts for untrusted global packages, and the daemon's own postinstall is what places the daemon binary — hence the trust line. Nothing else here needs trusting; this package has no postinstall of its own. Check both landed with `goodvibes-agent --version` and `goodvibes-daemon --version`; they report different numbers because they are separate products on separate version lines.
 
 If `goodvibes-agent` is not on `PATH` after a global install:
 

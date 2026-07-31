@@ -5,16 +5,27 @@ GoodVibes Agent is the installable autonomous operator assistant for GoodVibes.
 ## Requirements
 
 - Bun `1.3.10` or newer.
-- A connected GoodVibes daemon or compatible host with operator routes.
+- A connected GoodVibes daemon or compatible host with operator routes. Installing this package installs one: it depends on `goodvibes-daemon`.
 - Token/config state accepted by that daemon.
 
 ## Install From Package
 
 ```sh
 bun add -g @pellux/goodvibes-agent
+bun pm trust -g goodvibes-daemon
 goodvibes-agent --help
 goodvibes-agent
 ```
+
+Bun blocks lifecycle scripts for untrusted global packages. `goodvibes-daemon` — which this package depends on, so one install brings both commands — needs trusting so its own postinstall can place the daemon binary. Nothing else needs trusting: this package has no postinstall of its own, and its libraries are bundled into the published runtime. Verify the install with:
+
+```sh
+bun pm -g untrusted
+goodvibes-agent --version
+goodvibes-daemon --version
+```
+
+The two versions differ on purpose — the Agent and the daemon are separate products on separate version lines.
 
 If `goodvibes-agent` is not on `PATH`:
 
