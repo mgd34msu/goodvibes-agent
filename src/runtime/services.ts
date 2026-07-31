@@ -89,7 +89,8 @@ import { SessionLiveTurnControlsHolder } from '@pellux/goodvibes-sdk/platform/co
 // Sleep ownership (SDK round: power/*): work inhibition, sleep-edge honesty,
 // the keep-awake toggle. Constructed exactly as the SDK composition root does
 // (wireRuntimePower binds runtimeBus work signals and starts the manager).
-import { createUnavailablePowerSeam, wireRuntimePower, forwardKeepAwakeToAdoptedDaemon } from '@pellux/goodvibes-sdk/platform/power';
+import { createUnavailablePowerSeam, wireRuntimePower } from '@pellux/goodvibes-sdk/platform/power';
+import { forwardKeepAwakeToAdoptedDaemon } from '@pellux/goodvibes-sdk/platform/power';
 import { createOrchestrationEngine, createProviderBackedAttemptJudge } from '@pellux/goodvibes-sdk/platform/orchestration';
 import { StoreSnapshotScheduler } from '@pellux/goodvibes-sdk/platform/state/store-snapshots';
 import { buildExecPromptAnswerHandler } from '@pellux/goodvibes-sdk/platform/runtime/permissions/exec-prompt-wiring';
